@@ -19,8 +19,8 @@ from pathlib import Path
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
-from . import (db, exams, explain, game, geocode, logs, propagation, ranks,
-               rfexposure, rfpdf, srs, terrain)
+from . import (bandpdf, bandplan, db, exams, explain, game, geocode, logs,
+               propagation, ranks, regional, rfexposure, rfpdf, srs, terrain)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -330,6 +330,66 @@ def propagation_page():
     return render_template("propagation.html", location=loc,
                            indicators=propagation.INDICATORS,
                            **profile_block(connection))
+
+
+@app.route("/bandplan")
+def bandplan_page():
+    connection = conn()
+    profile = db.get_profile(connection)
+    return render_template(
+        "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
+        classes=bandplan.CLASSES,
+        licence_class=profile["settings"].get("licence_class", "Technician"),
+        coordinators=regional.available(),
+        state=profile["settings"].get("state", ""),
+        **profile_block(connection))
+
+
+@app.route("/api/bandplan")
+def api_bandplan():
+    """Privileges and activity for every band, for one licence class."""
+    licence = request.args.get("class", "Technician")
+    if licence not in bandplan.CLASSES:
+        abort(400, "unknown licence class")
+    return jsonify({
+        "class": licence, "kinds": bandplan.KINDS,
+        "bands": [{
+            **band,
+            "privileges": bandplan.privileges_for(band["name"], licence),
+            "gaps": bandplan.gaps_for(band["name"], licence),
+            "activity": [{"low": a, "high": b, "kind": k, "label": l}
+                         for a, b, k, l in bandplan.activity_for(band["name"])],
+        } for band in bandplan.BANDS],
+        "channels_60m": bandplan.CHANNELS_60M,
+    })
+
+
+@app.route("/api/bandplan/regional/<state>")
+def api_bandplan_regional(state):
+    """The local coordinator's plan. 503 when it cannot be reached."""
+    data = regional.plan(state, refresh=request.args.get("refresh") == "1")
+    if not data:
+        return jsonify({"ok": False,
+                        "error": f"no coordinator plan available for {state}"}), 503
+    return jsonify({"ok": True, **data})
+
+
+@app.route("/api/bandplan/pdf", methods=["POST"])
+def api_bandplan_pdf():
+    from flask import Response
+    body = request.get_json(force=True) or {}
+    licence = body.get("class", "Technician")
+    if licence not in bandplan.CLASSES:
+        abort(400, "unknown licence class")
+    bands = body.get("bands") or [b["name"] for b in bandplan.BANDS]
+    state = (body.get("state") or "").upper()
+    plan = regional.plan(state) if state else None
+    pdf = bandpdf.build(bands, licence, plan)
+    name = f"band-plan-{licence.lower()}{'-' + state.lower() if state else ''}.pdf"
+    log.info("band chart PDF: %s, %d bands, regional=%s", licence, len(bands), state or "none")
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{name}"',
+        "Content-Length": str(len(pdf))})
 
 
 @app.route("/lab")
@@ -772,6 +832,9 @@ def api_settings():
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         db.set_callsign(connection, body["callsign"] or "")
+    for key in ("licence_class", "state"):
+        if key in body:
+            settings[key] = body[key]
     if "location" in body:
         place = body["location"] or {}
         if place.get("lat") is not None and place.get("lon") is not None:

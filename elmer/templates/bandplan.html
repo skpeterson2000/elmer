@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Band plan &middot; ELMER{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">Band plan</h1>
+    <div class="quiz-context">
+      Privileges from 47 CFR 97.301 and 97.305 &mdash; law.
+      Activity segments are convention.
+    </div>
+  </div>
+  <div class="row">
+    <div class="field" style="margin-bottom:0">
+      <label>Your licence class</label>
+      <select id="bp-class">
+        {% for c in classes %}
+          <option value="{{ c }}" {% if c == licence_class %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>Regional coordinator</label>
+      <select id="bp-state">
+        <option value="">none</option>
+        {% for c in coordinators %}
+          <option value="{{ c.state }}" {% if c.state == state %}selected{% endif %}>
+            {{ c.state_name }} &mdash; {{ c.short }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn sm" id="bp-pdf">Download chart (PDF)</button>
+  </div>
+</div>
+
+<div class="panel tight mt">
+  <div class="row" id="bp-legend"></div>
+</div>
+
+<div class="row mt" id="bp-bands"></div>
+<div id="bp-out" class="mt"><div class="muted">Loading&hellip;</div></div>
+<div id="bp-regional"></div>
+
+<p class="tiny muted mt">
+  Privileges are law; operating outside them is a violation. Activity segments
+  are voluntary band plan convention with no legal force &mdash; but a signal in
+  the wrong place is still the thing people complain about. Regional segments
+  come from the local frequency coordinator, are fetched from their site rather
+  than bundled with ELMER, and are cached for 30 days.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='bandplan.js') }}"></script>
+{% endblock %}

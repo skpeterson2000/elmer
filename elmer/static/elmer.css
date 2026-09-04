@@ -401,3 +401,22 @@ input[type=range]::-moz-range-thumb {
 .rf-del { align-self: end; padding: .3rem .5rem; color: var(--dim); }
 .rf-del:hover { color: var(--red); border-color: var(--red); }
 @media (max-width: 1100px) { .rf-row { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- band plan ---------- */
+.legend { display: inline-flex; align-items: center; gap: .3rem; font-size: .74rem; color: var(--dim); margin-right: .9rem; }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.legend i.legend-gap { background: repeating-linear-gradient(45deg,#2a3441,#2a3441 3px,#0d1117 3px,#0d1117 6px); }
+.bandbar {
+  position: relative; height: 34px; margin: .8rem 0 .2rem;
+  background: #0b1017; border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+}
+.bandbar .seg { position: absolute; top: 0; bottom: 0; opacity: .85; }
+.bandbar .seg.gap {
+  background: repeating-linear-gradient(45deg, rgba(13,17,23,.85), rgba(13,17,23,.85) 4px, rgba(90,100,115,.5) 4px, rgba(90,100,115,.5) 8px);
+  opacity: 1;
+}
+.bandscale { display: flex; justify-content: space-between; font: .68rem var(--mono); color: var(--dimmer); }
+.privlist { margin: 0; padding-left: 1rem; font-size: .85rem; line-height: 1.7; }
+.privlist .mono { color: var(--amber); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .35rem; }
+table.data tr.denied td { opacity: .45; }
