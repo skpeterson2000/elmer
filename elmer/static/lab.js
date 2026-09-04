@@ -529,15 +529,20 @@ function calcAnt() {
     '<div class="small muted" style="margin-top:.6rem">' +
       notes.map(n => '<p>' + n + '</p>').join('') + '</div>');
 
-  const heightFt = type === 'whip' ? num('an-wh') : num('an-h');
+  const heightFt = type === 'whip' ? null : num('an-h');
+  const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
+                rows['Radiator'] || 0;
   window.LAB_ANTENNA = {
     type: type,
     label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
+    legFt: legFt, droop: type === 'invertedv' ? num('an-droop') : 0,
+    whipFt: type === 'whip' ? num('an-wh') : null,
     description: ((ANTENNAS[type] || {}).label ||
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
                                    : 'loaded mobile whip')) +
-                 (heightFt > 0 ? ' at ' + heightFt.toFixed(0) + ' ft' : ''),
+                 (type === 'whip' ? ' on a vehicle'
+                  : heightFt > 0 ? ' at ' + heightFt.toFixed(0) + ' ft' : ''),
   };
   drawAntenna(shape, rows, type);
 }
@@ -619,22 +624,70 @@ function drawAntenna(shape, rows, type) {
     });
   });
 
+/* How close a person can actually get differs completely by antenna type, and
+   it is not the antenna's height. A horizontal wire is nearest directly
+   beneath it; an inverted-V is nearest at its drooping ends, which are also
+   its high-voltage points; a ground-mounted vertical can be walked up to and
+   touched; and a mobile whip sits a couple of feet from the people in the car.
+   Guessing one number for all of them understates the case that matters. */
+function exposurePrefill(a) {
+  const horizontalWire = ['dipole', 'loop', 'efhw'];
+  const vertical = ['quarter', 'fiveeighth', 'jpole', 'groundplane'];
+
+  if (a.type === 'whip') {
+    return {controlled: 3, uncontrolled: 6,
+            why: 'a vehicle whip sits within a few feet of the people in the car, ' +
+                 'so the distances start at 3 ft for occupants and 6 ft for someone ' +
+                 'outside it — measure yours',
+            warn: 'A mobile whip is the case where exposure limits most often bite: ' +
+                  'high power, a short antenna and people very close to it.'};
+  }
+  if (a.type === 'invertedv') {
+    const ends = Math.max(0, (a.heightFt || 0) -
+                          a.legFt * Math.sin((a.droop || 0) * Math.PI / 180));
+    const d = Math.max(2, Math.round(ends));
+    return {controlled: d, uncontrolled: d,
+            why: 'the drooping ends are the closest point, at ' + ends.toFixed(1) +
+                 ' ft, not the ' + (a.heightFt || 0).toFixed(0) + ' ft apex',
+            warn: 'The ends of a dipole are its high-voltage points. Keep them out ' +
+                  'of reach: an RF burn there does not need the field to exceed any limit.'};
+  }
+  if (vertical.indexOf(a.type) >= 0) {
+    const base = a.heightFt || 0;
+    const d = base > 8 ? Math.round(base) : 6;
+    return {controlled: d, uncontrolled: d,
+            why: base > 8
+              ? 'elevated at ' + base.toFixed(0) + ' ft, so directly beneath is the closest point'
+              : 'a ground-mounted vertical can be walked up to, so this starts at 6 ft — ' +
+                'set the real distance to a path, fence or seating area',
+            warn: base > 8 ? null
+              : 'The base of a ground-mounted vertical is a high-current point at ' +
+                'touchable height. A fence around it is the usual answer.'};
+  }
+  if (horizontalWire.indexOf(a.type) >= 0 || a.type === 'yagi') {
+    const d = Math.max(2, Math.round(a.heightFt || 0));
+    const endNote = a.type === 'efhw'
+      ? ' The far end of an end-fed half wave is a very high-voltage point — keep it high and out of reach.'
+      : '';
+    return {controlled: d, uncontrolled: d,
+            why: 'directly beneath is the closest anyone on the ground can get',
+            warn: endNote || null};
+  }
+  return {controlled: null, uncontrolled: null,
+          why: 'set the distances to where people actually are', warn: null};
+}
+
 const toRf = document.getElementById('an-torf');
 if (toRf) toRf.addEventListener('click', () => {
   const a = window.LAB_ANTENNA;
   if (!a) return;
-  /* Height is a defensible starting distance: directly beneath the antenna is
-     the closest anyone standing on the ground can get. It is a starting point,
-     not an answer - the operator still has to say where people actually are. */
-  const height = a.heightFt || 0;
+  const near = exposurePrefill(a);
   const row = rfDefaultRow();
   row.frequency_mhz = a.f;
   row.gain_dbd = Math.round(a.gain * 10) / 10;
   row.antenna = a.description;
-  if (height > 0) {
-    row.distance_controlled_ft = Math.round(height);
-    row.distance_uncontrolled_ft = Math.round(height);
-  }
+  if (near.controlled) row.distance_controlled_ft = near.controlled;
+  if (near.uncontrolled) row.distance_uncontrolled_ft = near.uncontrolled;
   /* Replace an untouched default row rather than stacking one on it. */
   const blank = rfDefaultRow();
   if (rfRows.length === 1 &&
@@ -644,10 +697,9 @@ if (toRf) toRf.addEventListener('click', () => {
   selectTab('rf');
   history.replaceState(null, '', '#rf');
   rfEvaluate();
-  toast('Sent to RF exposure', a.description + ' at ' + a.f + ' MHz' +
-    (height > 0 ? ' — distances started at ' + Math.round(height) +
-                  ' ft, the height itself. Set where people really are.'
-                : ' — now set the distances.'));
+  toast('Sent to RF exposure',
+        a.description + ' at ' + a.f + ' MHz — ' + near.why + '.');
+  if (near.warn) setTimeout(() => toast('Worth knowing', near.warn, 9000), 600);
 });
 
 const toPath = document.getElementById('an-topath');
