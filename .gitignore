@@ -4,6 +4,7 @@ data/elmer.db-journal
 data/elmer.db-wal
 data/elmer.db-shm
 data/elmer.log
+data/server-console.log
 data/explanations/
 
 # Throwaway browser profile made by --kiosk
