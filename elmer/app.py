@@ -53,12 +53,19 @@ ICON_NAMES = ("icon.png", "icon.svg", "icon.jpg", "icon.webp")
 
 @app.context_processor
 def _icon():
-    """Use static/icon.* as the favicon if one has been dropped in."""
+    """Use static/icon.* as the favicon if one has been dropped in.
+
+    The URL carries the file's modification time, because browsers cache a
+    favicon harder than they cache anything else on the page - Firefox keeps
+    one until its profile is cleared.  Without this, replacing the icon leaves
+    the old one in the tab and looks like the change simply did not work.
+    """
     static = Path(app.static_folder)
     for name in ICON_NAMES:
-        if (static / name).exists():
-            return {"icon_file": name}
-    return {"icon_file": None}
+        icon = static / name
+        if icon.exists():
+            return {"icon_file": name, "icon_v": int(icon.stat().st_mtime)}
+    return {"icon_file": None, "icon_v": 0}
 
 
 # Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.
