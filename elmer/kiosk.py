@@ -13,6 +13,7 @@ never go full screen at all.
 """
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -33,6 +34,101 @@ BROWSERS = (
     ("firefox", "firefox"),
     ("firefox-esr", "firefox"),
 )
+
+
+def serving_elsewhere(port):
+    """The PID of another ELMER already serving on this port, or None.
+
+    Only our own processes count: the point is to offer to stand aside for
+    something we started, not to interfere with whatever else may be listening.
+    """
+    import getpass
+    try:
+        out = subprocess.run(["ss", "-ltnp"], capture_output=True, text=True,
+                             timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    pids = set()
+    for line in out.splitlines():
+        if f":{port} " not in line:
+            continue
+        for match in re.findall(r"pid=(\d+)", line):
+            pids.add(int(match))
+    me = os.getpid()
+    for pid in pids:
+        if pid == me:
+            continue
+        try:
+            cmdline = open(f"/proc/{pid}/cmdline", "rb").read().decode(
+                "utf-8", "replace").replace("\0", " ")
+            owner = os.stat(f"/proc/{pid}").st_uid
+        except OSError:
+            continue
+        if owner == os.getuid() and "elmer.py" in cmdline:
+            return pid
+    return None
+
+
+def stop_other(pid, port, timeout=10.0):
+    """Ask another ELMER to stop, and wait for the port to come free.
+
+    Used only when the operator has said to, and only for one of our own
+    processes - :func:`serving_elsewhere` will not return anybody else's.
+    """
+    import socket
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        return False
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(0.25)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.5)
+            if probe.connect_ex(("127.0.0.1", port)) != 0:
+                log.info("stopped the ELMER already on port %s (pid %s)", port, pid)
+                return True
+    try:                                       # it did not go quietly
+        os.kill(pid, signal.SIGKILL)
+        time.sleep(0.5)
+    except (OSError, ProcessLookupError):
+        pass
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.5)
+        return probe.connect_ex(("127.0.0.1", port)) != 0
+
+
+def ask(question, options, timeout=60):
+    """Put a question to a desktop user who has no terminal.
+
+    Returns the chosen option, or None when there is no way to ask. A launcher
+    entry runs with Terminal=false, so anything printed to stdout is printed
+    into the void - which is how a deliberate fallback came to look like a bug.
+    """
+    zenity = shutil.which("zenity")
+    if not zenity or not have_display():
+        return None
+    args = [zenity, "--question", "--title=ELMER", "--no-wrap",
+            f"--text={question}",
+            f"--ok-label={options[0]}", f"--cancel-label={options[1]}"]
+    try:
+        done = subprocess.run(args, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return options[0] if done.returncode == 0 else options[1]
+
+
+def tell(message):
+    """Say something to a desktop user with no terminal. Best effort."""
+    zenity = shutil.which("zenity")
+    if not zenity or not have_display():
+        return False
+    try:
+        subprocess.Popen([zenity, "--info", "--title=ELMER", "--no-wrap",
+                          f"--text={message}"])
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def have_display():

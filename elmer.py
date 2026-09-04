@@ -93,29 +93,55 @@ def main():
         return
 
     from elmer.diagnostics import local_addresses, port_in_use
+    took_over = False
     if port_in_use(args.port):
         # Started from the menu entry there is no terminal to print to, so a
         # second click would look like nothing happening at all.  If ELMER is
         # already serving, put a window on that instead of refusing.
         #
-        # Deliberately an ordinary window rather than a kiosk one: that server
-        # is not ours to stop, so its pages carry no Exit button, and a full
-        # screen window with no way out and no button would strand the user.
+        # An ordinary window rather than a kiosk one: that server is not ours to
+        # stop, so its pages carry no Exit button, and a full screen window with
+        # no way out and no button would strand the user.  But if the thing on
+        # the port is another ELMER of ours, the operator can simply be asked
+        # whether to take it over - which is what they usually want, and what a
+        # message printed to a Terminal=false launcher could never tell them.
         if args.kiosk:
             from elmer import kiosk
-            if kiosk.have_display():
+            url = f"http://localhost:{args.port}"
+            other = kiosk.serving_elsewhere(args.port)
+
+            if other and kiosk.have_display():
+                choice = kiosk.ask(
+                    f"ELMER is already serving on port {args.port}.\n\n"
+                    "Full screen has to be the instance that owns the server, so "
+                    "that its Exit button can stop it.",
+                    ["Stop it and go full screen", "Just open a window"])
+                if choice == "Stop it and go full screen":
+                    if kiosk.stop_other(other, args.port):
+                        print(f"  stopped the ELMER already on port {args.port}")
+                        took_over = True
+                    else:
+                        kiosk.tell("Could not stop the other instance.\n"
+                                   "Opening a window on it instead.")
+
+            if not took_over and kiosk.have_display():
                 import webbrowser
-                url = f"http://localhost:{args.port}"
                 if webbrowser.open(url):
+                    kiosk.tell(
+                        f"ELMER is already serving on port {args.port}, so this is "
+                        "an ordinary window.\n\nIt has no Exit button, because that "
+                        "server is not this one's to stop.")
                     print(f"\n  ELMER is already serving on port {args.port} - "
                           f"opened {url} in a window.\n"
                           "  Stop that one first if you want the full-screen "
                           "kiosk with its Exit button.\n")
                     return
-        print(f"\n  Port {args.port} is already in use - ELMER may already be "
-              f"running.\n  Try http://localhost:{args.port} first, or start this "
-              f"one on another port with --port 5001\n")
-        sys.exit(1)
+
+        if not took_over:
+            print(f"\n  Port {args.port} is already in use - ELMER may already be "
+                  f"running.\n  Try http://localhost:{args.port} first, or start "
+                  f"this one on another port with --port 5001\n")
+            sys.exit(1)
 
     print("\n  ELMER is starting. Open it at:\n")
     print(f"      http://localhost:{args.port}          (on this machine)")
