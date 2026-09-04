@@ -19,9 +19,9 @@ from pathlib import Path
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
-from . import (bandpdf, bandplan, callsign, db, exams, explain, game, geocode,
-               logs, propagation, ranks, regional, rfexposure, rfpdf, srs,
-               terrain)
+from . import (bandpdf, bandplan, callsign, cw, db, exams, explain, game,
+               geocode, logs, propagation, ranks, regional, rfexposure, rfpdf,
+               srs, terrain)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -394,6 +394,71 @@ def api_bandplan_pdf():
     return Response(pdf, mimetype="application/pdf", headers={
         "Content-Disposition": f'attachment; filename="{name}"',
         "Content-Length": str(len(pdf))})
+
+
+@app.route("/cw")
+def cw_page():
+    connection = conn()
+    profile = db.get_profile(connection)
+    settings = profile["settings"].get("cw") or {}
+    return render_template(
+        "cw.html", kinds=cw.KINDS, koch_order=cw.KOCH_ORDER,
+        cw_settings=settings, progress=db.cw_progress(connection),
+        meanings=cw.MEANINGS, **profile_block(connection))
+
+
+@app.route("/api/cw/practice")
+def api_cw_practice():
+    """A block of practice text, plus the timing to send it with."""
+    kind = request.args.get("kind", "koch")
+    try:
+        count = max(1, min(60, int(request.args.get("count", 5))))
+        lesson = max(2, min(len(cw.KOCH_ORDER), int(request.args.get("lesson", 10))))
+        wpm = max(3.0, min(60.0, float(request.args.get("wpm", 20))))
+        effective = max(3.0, min(wpm, float(request.args.get("effective", wpm))))
+    except ValueError:
+        abort(400, "check the numbers")
+    call = db.get_profile(conn())["callsign"] or None
+    text = cw.practice(kind, count, lesson, seed=None, callsign=call)[0]
+    return jsonify({
+        "kind": kind, "text": text, "groups": cw.encode(text),
+        "timing": cw.timing(wpm, effective),
+        "lesson_chars": cw.koch_set(lesson) if kind == "koch" else None,
+        "meanings": {w: cw.MEANINGS[w] for w in set(text.split())
+                     if w in cw.MEANINGS},
+    })
+
+
+@app.route("/api/cw/encode")
+def api_cw_encode():
+    text = request.args.get("text", "")
+    try:
+        wpm = max(3.0, min(60.0, float(request.args.get("wpm", 20))))
+        effective = max(3.0, min(wpm, float(request.args.get("effective", wpm))))
+    except ValueError:
+        abort(400, "check the numbers")
+    return jsonify({"text": text.upper(), "groups": cw.encode(text),
+                    "timing": cw.timing(wpm, effective)})
+
+
+@app.route("/api/cw/result", methods=["POST"])
+def api_cw_result():
+    """Record a copy session, per character."""
+    body = request.get_json(force=True) or {}
+    per_char = body.get("per_char") or {}
+    if not isinstance(per_char, dict):
+        abort(400, "per_char must be an object")
+    connection = conn()
+    db.cw_record(connection, per_char)
+    settings = db.get_profile(connection)["settings"]
+    if body.get("settings"):
+        settings["cw"] = body["settings"]
+        db.save_settings(connection, settings)
+    total = sum(v.get("sent", 0) for v in per_char.values())
+    hit = sum(v.get("copied", 0) for v in per_char.values())
+    log.info("CW copy session: %d characters, %d%% copied", total,
+             round(100 * hit / total) if total else 0)
+    return jsonify({"ok": True, "progress": db.cw_progress(connection)})
 
 
 @app.route("/lab")

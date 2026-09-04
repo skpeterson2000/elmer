@@ -136,6 +136,35 @@ because they carry very different authority:
 **Download chart (PDF)** produces a landscape band chart for your licence class,
 with the regional segments folded in, to print and pin up.
 
+### CW
+
+A page at `/cw` for learning, practising and using Morse, with the tone
+adjustable from 300 to 1200 Hz and its own volume — pick whatever you hear
+most comfortably, and it is remembered.
+
+- **Learn** uses the Koch method: two characters sent at full target speed, and
+  one more added each time you copy at 90%. Speed is slowed by stretching the
+  gaps between characters rather than the characters themselves (Farnsworth),
+  because a slowed-down character is a different sound that has to be unlearned
+  later. ELMER tracks each character's copy rate and, more usefully, *what you
+  heard it as* — the confusions are what still need separating.
+- **Copy practice** sends and you type: Koch groups, plain letters, numbers,
+  mixed, callsigns, Q signals, abbreviations, prosigns, and whole QSO fragments
+  built around your own callsign. Scored per character.
+- **Your sending** turns the space bar or an on-screen paddle into a straight
+  key, decodes what you actually sent, and measures your timing against the
+  target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your
+  own swing; a chart shows it.
+- **Decode off air** listens through the microphone, locks onto the strongest
+  tone between 250 and 1400 Hz, and decodes the timing. It learns the sending
+  speed as it goes, so expect the first character or two to garble before it
+  locks on. Clean signals decode well; QRM, QSB and a swinging fist degrade it
+  as they do for every decoder.
+
+Tone is generated with a shaped 5 ms rise and fall rather than by switching an
+oscillator, because hard keying is what produces key clicks — the same wide
+sidebands E8D asks about.
+
 ### Your QTH, set once
 
 Your location is a single setting shared by everything that needs it. Set it on
@@ -351,6 +380,7 @@ elmer/
   game.py             XP, streaks, achievements
   ranks.py            the nested class ladder, its decay and practice upkeep
   bandplan.py         privileges (law) and activity segments (convention)
+  cw.py               Morse alphabet, Koch order, timing and practice text
   bandpdf.py          the printable band chart
   regional.py         frequency coordinator plans, fetched per state
   rfexposure.py       MPE limits and power density, per OET-65 Supplement B

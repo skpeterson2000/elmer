@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}CW &middot; ELMER{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">CW</h1>
+    <div class="quiz-context">
+      Learn it, copy it, send it &mdash; and decode what is coming out of the receiver.
+    </div>
+  </div>
+  <div class="row" id="cw-modes">
+    <button class="btn sm primary" data-mode="learn">Learn</button>
+    <button class="btn sm ghost" data-mode="copy">Copy practice</button>
+    <button class="btn sm ghost" data-mode="key">Your sending</button>
+    <button class="btn sm ghost" data-mode="decode">Decode off air</button>
+  </div>
+</div>
+
+<div class="panel tight mt">
+  <div class="cw-settings">
+    <div class="field">
+      <label>Tone (Hz) <span class="tiny muted" id="cw-tone-v"></span></label>
+      <input type="range" id="cw-tone" min="300" max="1200" step="10" value="600">
+    </div>
+    <div class="field">
+      <label>Volume <span class="tiny muted" id="cw-vol-v"></span></label>
+      <input type="range" id="cw-vol" min="0" max="100" step="1" value="35">
+    </div>
+    <div class="field">
+      <label>Character speed (wpm) <span class="tiny muted" id="cw-wpm-v"></span></label>
+      <input type="range" id="cw-wpm" min="5" max="40" step="1" value="20">
+    </div>
+    <div class="field">
+      <label>Effective speed (wpm) <span class="tiny muted" id="cw-eff-v"></span></label>
+      <input type="range" id="cw-eff" min="3" max="40" step="1" value="10">
+    </div>
+    <div class="field" style="align-self:end">
+      <button class="btn sm" id="cw-test">Test tone</button>
+    </div>
+  </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    Characters are always sent at the character speed; lowering the effective
+    speed stretches the gaps between them, not the characters themselves
+    (Farnsworth). Learning a slowed-down character teaches a sound you have to
+    unlearn later. Pick whatever tone you hear most comfortably &mdash; anywhere
+    from 300 to 1200 Hz &mdash; and it is remembered.
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------- learn -->
+<div class="panel mt cw-pane" id="cw-learn">
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Koch method</div>
+    <span class="tiny muted">two characters at full speed, then one more at a time</span>
+  </div>
+  <p class="small muted">
+    Start with two characters sent at the speed you eventually want to copy.
+    When you are copying them at 90% or better, add the next. It feels brutal
+    for a day and then it works, because you are learning the sound of each
+    character rather than counting dots.
+  </p>
+  <div class="field" style="max-width:22rem">
+    <label>Lesson <span class="tiny muted" id="cw-lesson-v"></span></label>
+    <input type="range" id="cw-lesson" min="2" max="40" step="1" value="2">
+  </div>
+  <div id="cw-lesson-chars" class="cw-chars"></div>
+  <div class="row mt">
+    <button class="btn sm primary" id="cw-hear">Hear this lesson's characters</button>
+    <button class="btn sm" id="cw-start-copy">Start copying it</button>
+  </div>
+  <div class="panel-title" style="margin-top:1.3rem">Where you stand</div>
+  <div id="cw-progress" class="cw-chars"></div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    Green is copied reliably, amber is shaky, red needs work, grey is not met yet.
+    Hover for the confusions &mdash; which character you actually heard it as.
+  </div>
+</div>
+
+<!-- -------------------------------------------------------------- copy -->
+<div class="panel mt cw-pane" id="cw-copy" hidden>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Copy practice</div>
+    <div class="row">
+      <select id="cw-kind" class="mono">
+        {% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+      <button class="btn sm primary" id="cw-send">Send</button>
+      <button class="btn sm" id="cw-stop" hidden>Stop</button>
+      <button class="btn sm ghost" id="cw-repeat" hidden>Repeat</button>
+    </div>
+  </div>
+  <p class="small muted">Type what you hear. Nothing is revealed until you check.</p>
+  <textarea id="cw-typed" class="cw-input" rows="3" spellcheck="false"
+            placeholder="type here as it comes"></textarea>
+  <div class="row">
+    <button class="btn sm primary" id="cw-check">Check</button>
+    <span class="tiny muted" id="cw-copy-status"></span>
+  </div>
+  <div id="cw-result" class="mt"></div>
+</div>
+
+<!-- --------------------------------------------------------------- key -->
+<div class="panel mt cw-pane" id="cw-key" hidden>
+  <div class="panel-title">Your sending</div>
+  <p class="small muted">
+    Hold the space bar, or press and hold the paddle below, as a straight key.
+    ELMER decodes what you actually sent and measures your timing &mdash; you
+    cannot hear your own swing, but a chart shows it.
+  </p>
+  <button class="cw-paddle" id="cw-paddle">hold to key</button>
+  <div class="row mt">
+    <button class="btn sm" id="cw-key-clear">Clear</button>
+    <span class="tiny muted">target speed follows the character speed above</span>
+  </div>
+  <div class="cw-readout mt"><span id="cw-key-raw" class="mono"></span></div>
+  <div id="cw-key-decoded" class="cw-decoded"></div>
+  <div id="cw-key-timing" class="mt"></div>
+</div>
+
+<!-- ------------------------------------------------------------ decode -->
+<div class="panel mt cw-pane" id="cw-decode" hidden>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Decode off air</div>
+    <div class="row">
+      <button class="btn sm primary" id="cw-mic">Start listening</button>
+      <button class="btn sm" id="cw-mic-stop" hidden>Stop</button>
+    </div>
+  </div>
+  <p class="small muted">
+    Point a microphone at the receiver's speaker. ELMER locks onto the loudest
+    tone in the CW range and decodes the timing. It works on a clean, steady
+    signal; QRM, QSB and a swinging fist all degrade it, exactly as they do for
+    every other decoder. It works out the sending speed from what it hears, so
+    expect the first character or two to garble while it finds the speed &mdash;
+    then it locks on.
+  </p>
+  <div class="row">
+    <span class="tiny muted">detected tone <b id="cw-mic-freq" class="mono">—</b></span>
+    <span class="tiny muted">estimated <b id="cw-mic-wpm" class="mono">—</b></span>
+    <span class="tiny muted" id="cw-mic-status"></span>
+  </div>
+  <canvas id="cw-scope" height="90" class="cw-scope"></canvas>
+  <div id="cw-mic-decoded" class="cw-decoded"></div>
+</div>
+
+<p class="tiny muted mt">
+  Q signals, prosigns and procedural signals are the CW content the exams test.
+  <a href="/study/gen2023?section=G2C">Drill G2C</a> once they are in your ear.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script>
+window.CW = {
+  settings: {{ cw_settings|tojson }},
+  koch: {{ koch_order|tojson }},
+  progress: {{ progress|tojson }},
+  meanings: {{ meanings|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='cw.js') }}"></script>
+{% endblock %}
