@@ -50,8 +50,14 @@ p { margin: 0 0 .8rem; }
   position: sticky; top: 0; z-index: 40;
   flex-wrap: wrap;
 }
-.brand { display: flex; flex-direction: column; text-decoration: none; }
+.brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
 .brand:hover { text-decoration: none; }
+.brand-text { display: flex; flex-direction: column; }
+/* The app icon, where it is actually visible - a kiosk has no tab bar to
+   show a favicon in. */
+.brand-icon {
+  width: 34px; height: 34px; flex: none; display: block; border-radius: 8px;
+}
 .brand-mark {
   font: 700 1.15rem/1 var(--mono);
   letter-spacing: .22em; color: var(--amber);

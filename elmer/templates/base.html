@@ -13,8 +13,12 @@
 <body>
 <header class="topbar">
   <a class="brand" href="/">
-    <span class="brand-mark">ELMER</span>
-    <span class="brand-sub">radio study &amp; propagation</span>
+{% if icon_file %}    <img class="brand-icon" alt=""
+         src="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
+{% endif %}    <span class="brand-text">
+      <span class="brand-mark">ELMER</span>
+      <span class="brand-sub">radio study &amp; propagation</span>
+    </span>
   </a>
   <nav class="nav">
     <a href="/" {% if request.path == '/' %}class="on"{% endif %}>Dashboard</a>
