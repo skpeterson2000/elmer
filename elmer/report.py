@@ -1,7 +1,6 @@
 """Terminal progress report for `./elmer.py --stats`."""
-from . import db, exams, srs
+from . import db, exams, ranks, srs
 from .content import load_pools
-from .game import rank_for
 
 
 def bar(value, width=22):
@@ -12,16 +11,19 @@ def bar(value, width=22):
 def print_stats():
     conn = db.connect()
     prof = db.get_profile(conn)
-    rank = rank_for(prof["xp"])
     answered = conn.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+    standings = db.kv_get(conn, "standings", {}) or {}
+    tracks = ranks.overall(list(standings.values())) if standings else {}
 
     print(f"\n  ELMER  {prof['callsign'] or 'unlicensed'}")
-    print(f"  {rank['name']} - {prof['xp']} XP"
-          + (f", {rank['to_next']} to {rank['next_name']}" if rank["next_name"] else "")
-          + f" | streak {prof['streak_days']}d (best {prof['best_streak']})"
-          + f" | {answered} answers logged\n")
+    for name, track in tracks.items():
+        lapse = "  (lapsed)" if track["lapsed"] else ""
+        print(f"  {track['label']:11s} {track['title']}{lapse}")
+    print(f"  {prof['xp']} XP | streak {prof['streak_days']}d "
+          f"(best {prof['best_streak']}) | {answered} answers logged\n")
 
-    header = f"  {'pool':11s} {'mastery':24s} {'seen':>10s} {'due':>5s} {'pass odds':>10s}"
+    header = (f"  {'pool':11s} {'mastery':24s} {'seen':>10s} {'due':>5s}"
+              f" {'odds':>6s}  {'standing':<22s}")
     print(header)
     print("  " + "-" * (len(header) - 2))
     for pool_id, pool in load_pools().items():
@@ -32,9 +34,13 @@ def print_stats():
         due = sum(1 for q in pool.questions
                   if (c := cards.get(q["id"])) and c["seen"] and c["due"]
                   and c["due"] <= db.utcnow().isoformat())
+        standing = standings.get(pool_id, {})
+        title = standing.get("step_name", "-")
+        if standing.get("lapsed"):
+            title += " (lapsed)"
         print(f"  {pool.name[:10]:11s} {bar(mastery)} {mastery*100:3.0f}%"
               f" {seen:5d}/{len(pool.questions):<4d} {due:5d}"
-              f" {ready['pass_probability']*100:9.0f}%")
+              f" {ready['pass_probability']*100:5.0f}%  {title:<22s}")
 
     recent = exams.history(conn, limit=5)
     if recent:

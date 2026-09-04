@@ -1,6 +1,7 @@
 {
  "pool_id": "element1",
  "name": "Element 1 (MROP)",
+ "rank_name": "MROP",
  "long_name": "Marine Radio Operator Permit - FCC Element 1",
  "track": "commercial",
  "element": 1,

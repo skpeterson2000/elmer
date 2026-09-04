@@ -7,12 +7,18 @@
     <h1 style="margin-bottom:.2rem">Band conditions</h1>
     <div class="quiz-context" id="p-updated">live space weather &mdash; loading&hellip;</div>
   </div>
-  <div class="row">
-    <input class="mono" id="p-grid" placeholder="grid e.g. EM79" maxlength="6"
-           value="{{ location.grid or '' }}"
-           style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.4rem .6rem;width:11rem">
-    <button class="btn sm" id="p-save">Set QTH</button>
-    <button class="btn sm ghost" id="p-refresh">Refresh</button>
+  <div>
+    <div class="row">
+      <input class="mono" id="q-place"
+             placeholder="grid, coordinates, or a place name"
+             value="{{ location.short or location.grid or '' }}"
+             style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.4rem .6rem;width:17rem">
+      <button class="btn sm" id="q-save">Set QTH</button>
+      <button class="btn sm ghost" id="q-locate" hidden>Locate me</button>
+      <button class="btn sm ghost" id="p-refresh">Refresh</button>
+    </div>
+    <div class="place-hint" id="q-place-hint" style="text-align:right"></div>
+    <div class="place-results" id="q-place-results" hidden></div>
   </div>
 </div>
 

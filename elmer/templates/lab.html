@@ -13,9 +13,10 @@
   <button class="btn sm ghost" data-tab="ohm">Ohm &amp; power</button>
   <button class="btn sm ghost" data-tab="react">Reactance &amp; resonance</button>
   <button class="btn sm ghost" data-tab="swr">SWR &amp; feed line</button>
-  <button class="btn sm ghost" data-tab="ant">Antenna dimensions</button>
+  <button class="btn sm ghost" data-tab="ant">Antennas</button>
   <button class="btn sm ghost" data-tab="db">Decibels</button>
-  <button class="btn sm ghost" data-tab="path">Great circle path</button>
+  <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
+  <button class="btn sm ghost" data-tab="rf">RF exposure</button>
 </div>
 
 <!-- ---------------------------------------------------------------- skip -->
@@ -90,26 +91,74 @@
 
 <!-- ----------------------------------------------------------------- ant -->
 <div class="panel mt lab-pane" id="pane-ant" hidden>
-  <div class="panel-title">Antenna and feed line dimensions</div>
-  <div class="grid cols-3">
-    <div class="field"><label>Frequency (MHz)</label><input id="a-f" value="14.2"></div>
-    <div class="field"><label>Coax velocity factor</label>
-      <select id="a-vf">
-        <option value="0.66">0.66 &mdash; RG-58/213 solid PE</option>
-        <option value="0.78">0.78 &mdash; foam PE</option>
-        <option value="0.84">0.84 &mdash; LMR / low loss foam</option>
-        <option value="0.95">0.95 &mdash; open wire ladder line</option>
-      </select></div>
-    <div class="field"><label>Electrical length wanted</label>
-      <select id="a-frac">
-        <option value="0.25">quarter wave</option>
-        <option value="0.5" selected>half wave</option>
-        <option value="1">full wave</option>
-      </select></div>
+  <div class="panel-title">Antenna calculator &mdash; dimensions, impedance and gain</div>
+  <div class="grid" style="grid-template-columns: 330px 1fr; gap:1.2rem; align-items:start">
+    <div>
+      <div class="field"><label>Antenna</label>
+        <select id="an-type">
+          <optgroup label="Wire">
+            <option value="dipole" selected>Half-wave dipole</option>
+            <option value="invertedv">Inverted-V dipole</option>
+            <option value="efhw">End-fed half wave</option>
+            <option value="loop">Full-wave loop</option>
+          </optgroup>
+          <optgroup label="Vertical">
+            <option value="quarter">Quarter-wave vertical</option>
+            <option value="fiveeighth">5/8-wave vertical</option>
+            <option value="jpole">J-pole</option>
+            <option value="groundplane">Ground plane, drooping radials</option>
+          </optgroup>
+          <optgroup label="Directional">
+            <option value="yagi">Yagi-Uda beam</option>
+          </optgroup>
+          <optgroup label="Short / mobile">
+            <option value="whip">Loaded mobile whip</option>
+          </optgroup>
+        </select></div>
+
+      <div class="field"><label>Frequency (MHz)</label><input id="an-f" value="14.200"></div>
+
+      <div class="field an-when-height"><label>Height above ground (ft)</label>
+        <input id="an-h" value="35"></div>
+
+      <div class="field an-when-yagi"><label>Elements</label>
+        <input type="range" id="an-el" min="2" max="20" step="1" value="5">
+        <span class="sim-out" id="an-el-v"></span></div>
+      <div class="field an-when-yagi"><label>Element spacing (wavelengths)</label>
+        <input type="range" id="an-sp" min="0.10" max="0.35" step="0.01" value="0.20">
+        <span class="sim-out" id="an-sp-v"></span></div>
+
+      <div class="field an-when-whip"><label>Physical whip height (ft)</label>
+        <input id="an-wh" value="8"></div>
+      <div class="field an-when-whip"><label>Ground + coil loss resistance (&Omega;)</label>
+        <input id="an-loss" value="12"></div>
+      <div class="field an-when-whip"><label>Capacity hat</label>
+        <select id="an-hat">
+          <option value="1.0">none</option>
+          <option value="1.5">small hat</option>
+          <option value="2.0">large hat</option>
+        </select></div>
+
+      <div class="field"><label>Wire / element velocity factor</label>
+        <select id="an-k">
+          <option value="0.95" selected>0.95 &mdash; bare wire (standard)</option>
+          <option value="0.98">0.98 &mdash; thin wire, high above ground</option>
+          <option value="0.93">0.93 &mdash; insulated wire</option>
+        </select></div>
+
+      <button class="btn sm" id="an-topath" style="margin-top:.4rem">Use this antenna in the path tool &rarr;</button>
+    </div>
+
+    <div>
+      <svg id="an-svg" viewBox="0 0 620 250" style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
+      <div id="an-out" class="mt small"></div>
+    </div>
   </div>
-  <div id="a-out" class="sim-out"></div>
-  <div class="row mt"><a class="btn sm ghost" href="/study/tech2026?section=T9A">Drill T9A</a>
-    <a class="btn sm ghost" href="/study/extra2024?section=E9A">Drill E9A</a></div>
+  <div class="row mt">
+    <a class="btn sm ghost" href="/study/tech2026?section=T9A">Drill T9A &mdash; antennas</a>
+    <a class="btn sm ghost" href="/study/gen2023?section=G9B">Drill G9B &mdash; dipoles</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E9D">Drill E9D &mdash; Yagis</a>
+  </div>
 </div>
 
 <!-- ------------------------------------------------------------------ db -->
@@ -126,17 +175,120 @@
 
 <!-- ---------------------------------------------------------------- path -->
 <div class="panel mt lab-pane" id="pane-path" hidden>
-  <div class="panel-title">Great circle path between two grid squares</div>
-  <div class="grid cols-3">
-    <div class="field"><label>Your grid</label><input id="g-a" value="EM79" maxlength="6"></div>
-    <div class="field"><label>Their grid</label><input id="g-b" value="IO91" maxlength="6"></div>
-    <div class="field"><label>&nbsp;</label><button class="btn sm" id="g-go">Compute</button></div>
+  <div class="panel-title">Path and line of sight &mdash; will this link actually work?</div>
+
+  <div class="grid cols-2" style="gap:1.2rem">
+    <div>
+      <div class="row" style="margin-bottom:.3rem; gap:.5rem">
+        <span class="tiny mono muted">YOUR END</span>
+        {% if qth.grid %}<span class="qth-badge" title="your saved QTH">QTH {{ qth.grid }}</span>{% endif %}
+        <button class="btn sm ghost" id="p-use-qth" style="padding:.1rem .45rem;font-size:.7rem">use my QTH</button>
+        <button class="btn sm ghost" id="p-locate" hidden style="padding:.1rem .45rem;font-size:.7rem">locate me</button>
+        <button class="btn sm ghost" id="p-save-qth" style="padding:.1rem .45rem;font-size:.7rem">save as my QTH</button>
+      </div>
+      <div class="field">
+        <label>Grid, lat,lon, or a place name</label>
+        <input id="p-a" value="{{ qth.short or qth.grid or '' }}"
+               placeholder="FN31pr &middot; 41.71,-72.73 &middot; Newington, CT">
+        <div class="place-hint" id="p-a-hint"></div>
+        <div class="place-results" id="p-a-results" hidden></div>
+      </div>
+      <div class="grid cols-3" style="gap:.5rem">
+        <div class="field"><label>Height AGL (ft)</label><input id="p-ah" value="40"></div>
+        <div class="field"><label>Gain (dBd)</label><input id="p-ag" value="2.1"></div>
+        <div class="field"><label>Line loss (dB)</label><input id="p-al" value="1.5"></div>
+      </div>
+    </div>
+    <div>
+      <div class="tiny mono muted" style="margin-bottom:.3rem">THE OTHER END</div>
+      <div class="field">
+        <label>Grid, lat,lon, or a place name</label>
+        <input id="p-b" placeholder="Walker, MN &middot; Swamp Lake, Cass County, MN &middot; EN27rc">
+        <div class="place-hint" id="p-b-hint"></div>
+        <div class="place-results" id="p-b-results" hidden></div>
+      </div>
+      <div class="grid cols-3" style="gap:.5rem">
+        <div class="field"><label>Height AGL (ft)</label><input id="p-bh" value="25"></div>
+        <div class="field"><label>Gain (dBd)</label><input id="p-bg" value="0"></div>
+        <div class="field"><label>Line loss (dB)</label><input id="p-bl" value="1.0"></div>
+      </div>
+    </div>
   </div>
-  <div id="g-out" class="sim-out"></div>
-  <div class="row mt"><a class="btn sm ghost" href="/study/gen2023?section=G2D">Drill G2D</a></div>
+
+  <div class="grid cols-4" style="gap:.5rem">
+    <div class="field"><label>Frequency (MHz)</label><input id="p-f" value="146.520"></div>
+    <div class="field"><label>Transmit power (W)</label><input id="p-pw" value="50"></div>
+    <div class="field"><label>Receiver sensitivity (dBm)</label><input id="p-sens" value="-119"></div>
+    <div class="field"><label>&nbsp;</label>
+      <button class="btn sm primary" id="p-go">Analyse path</button></div>
+  </div>
+
+  <div id="p-summary" class="mt"></div>
+  <svg id="p-svg" viewBox="0 0 900 300" class="mt"
+       style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
+  <div id="p-notes" class="mt small"></div>
+
+  <div class="notice tiny mt">
+    Radio horizon uses the 4/3 earth radius that accounts for normal atmospheric
+    refraction, which is why it reaches about 15% further than the visual horizon.
+    Terrain comes from OpenTopoData SRTM 30 m and is cached; without it the tool
+    still does the smooth-earth maths and says so.
+  </div>
+
+  <div class="row mt">
+    <a class="btn sm ghost" href="/study/tech2026?section=T3C">Drill T3C &mdash; propagation modes</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E3C">Drill E3C &mdash; radio horizon</a>
+    <a class="btn sm ghost" href="/study/gen2023?section=G2D">Drill G2D</a>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------------ rf -->
+<div class="panel mt lab-pane" id="pane-rf" hidden>
+  <div class="panel-title">RF exposure evaluation &mdash; required of every station</div>
+  <p class="small muted">
+    Since 2021 every amateur station must evaluate its RF exposure and be able to
+    show the result &mdash; 47 CFR 97.13(c), against the limits in 47 CFR 1.1310.
+    Enter each band you actually run, and ELMER produces a station record you can
+    print and post in the shack.
+  </p>
+
+  <div class="grid cols-3" style="gap:.6rem">
+    <div class="field"><label>Callsign</label>
+      <input id="rf-call" placeholder="your callsign"></div>
+    <div class="field"><label>Location</label>
+      <input id="rf-loc" placeholder="from your QTH"></div>
+    <div class="field"><label>Grid square</label>
+      <input id="rf-grid" placeholder="from your QTH"></div>
+  </div>
+
+  <div class="panel-title" style="margin-top:1rem">Bands and antennas</div>
+  <div id="rf-rows"></div>
+  <div class="row mt">
+    <button class="btn sm" id="rf-add">+ Add a band</button>
+    <button class="btn sm primary" id="rf-eval">Evaluate</button>
+    <button class="btn sm" id="rf-pdf" style="margin-left:auto">Download station record (PDF)</button>
+  </div>
+
+  <div id="rf-out" class="mt"></div>
+
+  <div class="notice tiny mt">
+    Power density is estimated in the far field with a ground reflection factor of
+    1.6 on field strength, the conservative form OET Bulletin 65 recommends for
+    amateur work. Distances inside the near field are flagged rather than hidden.
+    This is your own evaluation &mdash; it is not filed with the FCC and carries no
+    approval, but it is what you are required to have done.
+  </div>
+
+  <div class="row mt">
+    <a class="btn sm ghost" href="/study/tech2026?section=T0C">Drill T0C &mdash; RF hazards</a>
+    <a class="btn sm ghost" href="/study/gen2023?section=G0A">Drill G0A &mdash; RF safety rules</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E0A">Drill E0A &mdash; safety</a>
+  </div>
 </div>
 
 {% endblock %}
 {% block scripts %}
+<script>window.QTH = {{ (qth or {})|tojson }};
+window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
 <script src="{{ url_for('static', filename='lab.js') }}"></script>
 {% endblock %}

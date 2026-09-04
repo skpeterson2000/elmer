@@ -26,13 +26,16 @@
     <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
   </nav>
   <div class="status">
-    <div class="status-rank">
-      <span class="rank-name">{{ rank.name }}</span>
-      <span class="rank-xp">{{ profile.xp }} XP</span>
+    <div class="titles">
+      {% for key, track in tracks.items() %}
+        <a class="title-line" href="/#ranks" title="{{ track.label }} standing">
+          <span class="title-track">{{ track.label }}</span>
+          <span class="title-name {% if track.lapsed %}lapsed{% endif %}">{{ track.title }}</span>
+          {% if track.lapsed %}<span class="lapse-dot" title="lapsed - one passing exam renews it">&#9888;</span>{% endif %}
+        </a>
+      {% endfor %}
     </div>
-    <div class="rank-bar" title="{{ rank.to_next }} XP to {{ rank.next_name or 'max rank' }}">
-      <i style="width: {{ (rank.progress * 100)|round(1) }}%"></i>
-    </div>
+    <div class="status-xp" title="experience points - effort, not rank">{{ '{:,}'.format(profile.xp) }} XP</div>
     <div class="status-streak {% if profile.streak_days %}lit{% endif %}"
          title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}">
       &#9679; {{ profile.streak_days }}d

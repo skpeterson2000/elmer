@@ -1,25 +1,17 @@
-"""XP, ranks, daily streaks and achievements.
+"""XP, daily streaks and achievements.
 
 The game layer only ever *rewards* study that the spaced-repetition scheduler
 already considers useful, so chasing points and learning the material pull in
 the same direction: answering a hard, overdue card is worth far more than
 re-answering something already mastered.
+
+XP measures effort and nothing more. Titles live in :mod:`elmer.ranks`, where
+they are earned inside the licence class they name - a global XP ladder handed
+out a "General" title to someone who had never opened a General question.
 """
 from datetime import date, timedelta
 
 from .db import today
-
-RANKS = [
-    (0, "SWL", "Listening and learning"),
-    (250, "Newly Licensed", "First contacts made"),
-    (900, "Technician", "VHF/UHF and the basics down"),
-    (2200, "General", "HF privileges earned"),
-    (4200, "Advanced", "Deep into theory"),
-    (7000, "Amateur Extra", "Top of the amateur ladder"),
-    (11000, "Radiotelephone Op", "Commercial-grade knowledge"),
-    (16000, "Radar Endorsed", "Ship radar systems mastered"),
-    (24000, "Elmer", "Ready to teach the next operator"),
-]
 
 ACHIEVEMENTS = [
     ("first_light", "First Light", "Answer your first question"),
@@ -46,27 +38,6 @@ ACHIEVEMENTS = [
     ("night_owl", "Grey Line", "Study between 0300 and 0500 local"),
 ]
 ACHIEVEMENT_INDEX = {code: (name, desc) for code, name, desc in ACHIEVEMENTS}
-
-
-def rank_for(xp):
-    current = RANKS[0]
-    nxt = None
-    for i, entry in enumerate(RANKS):
-        if xp >= entry[0]:
-            current = entry
-            nxt = RANKS[i + 1] if i + 1 < len(RANKS) else None
-    if nxt:
-        span = nxt[0] - current[0]
-        progress = (xp - current[0]) / span if span else 1.0
-    else:
-        progress = 1.0
-    return {
-        "name": current[1], "blurb": current[2], "floor": current[0],
-        "next_name": nxt[1] if nxt else None,
-        "next_at": nxt[0] if nxt else None,
-        "progress": round(progress, 4),
-        "to_next": (nxt[0] - xp) if nxt else 0,
-    }
 
 
 def xp_for_answer(correct, ms, card, was_due):

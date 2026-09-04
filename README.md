@@ -106,6 +106,21 @@ where the marks went.
 blueprint against your per-question estimates, reported as a pass probability
 and a likely score range.
 
+### Your QTH, set once
+
+Your location is a single setting shared by everything that needs it. Set it on
+the propagation page or in the path tool and both pick it up: the path tool
+opens with your end already filled in, and the propagation page uses it for
+local solar elevation and day/night band ratings. It accepts a grid square,
+coordinates or a place name, and a QTH entered as a bare grid is given a
+readable name the first time it is used, so `FN31pr` shows as *Newington*.
+
+Where the browser allows it there is a **locate me** button. Browsers only
+permit geolocation in a secure context, which over plain HTTP means the machine
+itself — so it appears when you open ELMER on the Pi (including in `--kiosk`
+mode, which opens `localhost`) and stays hidden on the LAN address rather than
+offering something that would fail.
+
 ### Live propagation
 
 Real solar and geomagnetic data from N0NBH (hamqsl.com) and NOAA SWPC: flux, K
@@ -133,15 +148,72 @@ Interactive versions of the maths the pools test:
 - **Antenna dimensions** — dipole and vertical lengths, coax electrical length
   by velocity factor
 - **Decibels** — power ratios both ways, plus dBm
-- **Great circle path** — distance, bearing, long path and hop count between two
-  grid squares
+- **Antennas** — ten configurations across wire (dipole, inverted-V, end-fed
+  half wave, full-wave loop), vertical (quarter wave, 5/8 wave, J-pole, ground
+  plane), the Yagi, and loaded mobile whips. Dimensions in feet, metres and
+  inches, feed impedance, gain, and for horizontal wire the takeoff angle your
+  height above ground actually buys. A short whip reports its radiation
+  resistance, efficiency and the loading it needs, which is the honest answer to
+  why mobile HF is hard.
+- **RF exposure evaluation** — the station evaluation every amateur has been
+  required to perform since 2021, under 47 CFR 97.13(c). Enter each band you
+  actually run: frequency, PEP, mode, how much of the averaging period you
+  transmit for, antenna gain, and how far away people get. ELMER computes the
+  MPE limits from 47 CFR 1.1310, the estimated power density, the percentage of
+  the limit, and the distance beyond which you comply — separately for the
+  controlled/occupational (6-minute) and uncontrolled/general-population
+  (30-minute) environments. Distances inside the near field are flagged rather
+  than quietly reported. **Download station record (PDF)** produces a signed
+  one-page document with the inputs, the equation used, every intermediate
+  value and the conclusion — meant to be printed and posted in the shack.
+- **Path and line of sight** — the tool that answers "will this link work".
+  Both ends take whatever you happen to know: a grid square, a lat,lon pair, or
+  a place name such as "Walker, MN" or "Swamp Lake, Cass County, MN", resolved
+  through OpenStreetMap's Nominatim (cached, rate limited, no key).
+  Great circle distance and bearing, radio horizon on the 4/3 earth radius,
+  free-space loss, a full link budget with fade margin, and first Fresnel zone
+  clearance checked against a real terrain profile from OpenTopoData SRTM 30 m.
+  Where a ridge intrudes it costs the obstruction as knife-edge diffraction
+  loss (ITU-R P.526) and reports the margin that survives it — so a blocked path
+  is never quietly reported as comfortable. Terrain is cached, and without a
+  network the smooth-earth maths still runs and says the terrain is unknown.
+  The antenna tab hands its gain figure straight to it.
 
 ### Game layer
 
-XP weighted so that the answers worth the most are the ones that teach you the
+Titles are earned inside the licence class they name. Each class carries a
+five-step ladder:
+
+    <Class> Listener -> Learner -> Operator -> <Class> -> <Class> Elmer
+
+The first two steps come from coverage and estimated mastery. The upper three
+require mock exam evidence: one pass for Operator, two of your last three for
+the class itself, and for the Elmer tier all of your last five passed averaging
+90% or better. There is no route to a General title that does not run through
+General questions, which is precisely what a single global XP ladder got wrong.
+
+Exam evidence goes stale the way a licence does. A tier is **current** for 90
+days after a passing exam, then sits in a 90-day **grace period** where it is
+shown as lapsed and a single passing exam renews it, exactly as a licence in
+grace is renewed without re-testing. Past that it **expires**, and the
+exam-proven tiers must be earned again in full. Thresholds live as named
+constants at the top of `elmer/ranks.py`.
+
+Sustained practice keeps a tier current without re-sitting anything, because a
+few questions a week is what actually protects proficiency. The bar rises with
+the title: over a rolling 30 days, Operator needs 30 distinct questions at 75%,
+the class tier 40 at 85%, and the Elmer tier 50 at 90%. Distinct questions, so
+forty repeats of one easy card maintain nothing — and practice can only hold a
+tier that was earned by exam in the first place.
+
+Amateur and commercial are tracked separately, since progress in one says
+nothing about the other.
+
+XP is kept as a pure effort meter and no longer confers any title. It is
+weighted so the answers worth the most are the ones that teach you the
 most — a hard, overdue, previously-failed question pays several times what a
-question you already own does. Daily streaks, 22 achievements, a nine-step rank
-ladder from SWL to Elmer, and a timed contest mode.
+question you already own does. Alongside it sit daily streaks, 22 achievements
+and a timed contest mode.
 
 ---
 
@@ -213,7 +285,11 @@ elmer/
   content.py          pool loading, choice shuffling
   srs.py              scheduling, mastery, readiness simulation
   exams.py            blueprint-correct exam generation and scoring
-  game.py             XP, ranks, streaks, achievements
+  game.py             XP, streaks, achievements
+  ranks.py            the nested class ladder, its decay and practice upkeep
+  rfexposure.py       MPE limits and power density, per OET-65 Supplement B
+  rfpdf.py            the printable station record
+  terrain.py          ground elevation profiles for the path tool
   explain.py          assembles rule text, concept notes and your own notes
   propagation.py      space weather fetch and band interpretation
   db.py               SQLite storage
@@ -232,6 +308,7 @@ data/
   notes/              concept notes, one per syllabus section
   explanations/       per-question rationales
   rules/              47 CFR Part 97 text
+  terrain/            cached elevation profiles
   elmer.db            your progress
   elmer.log           request and error log
 ```

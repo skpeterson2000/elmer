@@ -23,6 +23,7 @@ MAX_INTERVAL = 180.0
 MIN_EASE, MAX_EASE = 1.3, 2.8
 FAST_MS, SLOW_MS = 6000, 25000
 RECOGNITION_FLOOR = 0.60   # multiple choice survives forgetting better than recall
+EVIDENCE_HALF = 30         # answers before inference about unseen questions is half-trusted
 
 
 def grade(correct, ms):
@@ -147,7 +148,12 @@ def pool_skills(pool, cards, now=None):
 
     # An unseen question is estimated from its section, discounted because
     # unseen is not proven. The more of a section you have actually answered,
-    # the more the rest of it can be inferred from that evidence.
+    # the more the rest of it can be inferred from that evidence - and if the
+    # whole pool rests on a handful of answers, almost nothing can be inferred
+    # at all. Without this, one lucky answer implied competence across 400
+    # unseen questions.
+    evidence = len(seen_skill)
+    confidence = evidence / (evidence + EVIDENCE_HALF)
     per_question = {}
     for q in pool.questions:
         if q["id"] in seen_skill:
@@ -157,7 +163,7 @@ def pool_skills(pool, cards, now=None):
         base = _mean(est) if est else fallback(q["section"])
         total = len(pool.by_section.get(q["section"], [])) or 1
         coverage = len(est or []) / total
-        per_question[q["id"]] = (0.75 + 0.20 * coverage) * base
+        per_question[q["id"]] = (0.75 + 0.20 * coverage) * base * confidence
 
     per_section = {}
     for code in pool.section_order:

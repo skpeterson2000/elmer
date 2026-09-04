@@ -1,6 +1,7 @@
 {
  "pool_id": "element3",
  "name": "Element 3 (GROL)",
+ "rank_name": "GROL",
  "long_name": "General Radiotelephone Operator License - FCC Element 3",
  "track": "commercial",
  "element": 3,

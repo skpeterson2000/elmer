@@ -274,3 +274,133 @@ document.addEventListener('click', e => {
   if (!button) return;
   if (confirm('Stop ELMER and close this window?')) quitElmer(button);
 });
+
+/* ------------------------------------------------------------ places ----- */
+/* One place input that takes whatever the operator happens to know: a grid
+   square, a lat,lon pair, or the name of a town or lake. Grids and coordinates
+   resolve instantly in the browser; only a name needs the server. */
+
+function latLonToGrid(lat, lon) {
+  lat = Math.max(-90, Math.min(90, lat)) + 90;
+  lon = Math.max(-180, Math.min(180, lon)) + 180;
+  const A = 65, a = 97;
+  return String.fromCharCode(A + Math.floor(lon / 20)) +
+         String.fromCharCode(A + Math.floor(lat / 10)) +
+         Math.floor((lon % 20) / 2) + Math.floor(lat % 10) +
+         String.fromCharCode(a + Math.floor((lon % 2) / (2 / 24))) +
+         String.fromCharCode(a + Math.floor((lat % 1) / (1 / 24)));
+}
+
+function placeLocal(text) {
+  const t = (text || '').trim();
+  const grid = gridToLatLon(t);
+  if (grid) return {name: t.toUpperCase(), short: t.toUpperCase(), kind: 'grid',
+                    lat: grid.lat, lon: grid.lon, grid: latLonToGrid(grid.lat, grid.lon)};
+  const m = t.match(/^\s*(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if (m) {
+    const lat = +m[1], lon = +m[2];
+    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      const label = lat.toFixed(4) + ', ' + lon.toFixed(4);
+      return {name: label, short: label, kind: 'coordinates',
+              lat: lat, lon: lon, grid: latLonToGrid(lat, lon)};
+    }
+  }
+  return null;
+}
+
+/* Attach search behaviour to one input. `onPick` fires with the chosen place. */
+function initPlace(inputId, opts) {
+  const input = document.getElementById(inputId);
+  if (!input) return null;
+  opts = opts || {};
+  const hint = document.getElementById(inputId + '-hint');
+  const list = document.getElementById(inputId + '-results');
+
+  function setPlace(place, quiet) {
+    input._place = place;
+    if (place) {
+      input.dataset.lat = place.lat;
+      input.dataset.lon = place.lon;
+      input.dataset.grid = place.grid;
+      if (hint) hint.innerHTML = '<b>' + escapeHTML(place.short) + '</b> &middot; ' +
+        escapeHTML(place.grid) + ' &middot; ' + place.lat.toFixed(4) + ', ' + place.lon.toFixed(4);
+    } else if (hint) {
+      hint.textContent = '';
+    }
+    if (list) { list.hidden = true; list.innerHTML = ''; }
+    if (!quiet && opts.onPick) opts.onPick(place);
+  }
+
+  async function lookup() {
+    const text = input.value;
+    const local = placeLocal(text);
+    if (local) { setPlace(local); return; }
+    if (!text.trim()) { setPlace(null); return; }
+    if (hint) hint.textContent = 'searching…';
+    let results = [];
+    try {
+      results = (await api('/api/geocode?' + new URLSearchParams({q: text}))).results;
+    } catch (e) { results = []; }
+    if (!results.length) {
+      if (hint) hint.innerHTML = '<span style="color:var(--red)">no place found &mdash; ' +
+        'try adding a state or county, or use a grid square</span>';
+      return;
+    }
+    if (results.length === 1) { setPlace(results[0]); input.value = results[0].short; return; }
+    if (hint) hint.textContent = results.length + ' matches — pick one';
+    if (list) {
+      list.hidden = false;
+      list.innerHTML = results.map((r, i) =>
+        '<button class="place-row" data-i="' + i + '">' +
+          '<span class="place-row-name">' + escapeHTML(r.short) + '</span>' +
+          '<span class="place-row-kind">' + escapeHTML(r.kind || '') + '</span>' +
+          '<span class="place-row-grid">' + escapeHTML(r.grid) + '</span>' +
+          '<span class="place-row-full">' + escapeHTML(r.name) + '</span>' +
+        '</button>').join('');
+      list.querySelectorAll('.place-row').forEach(b => b.addEventListener('click', () => {
+        const chosen = results[+b.dataset.i];
+        input.value = chosen.short;
+        setPlace(chosen);
+      }));
+    }
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); lookup(); }
+  });
+  input.addEventListener('blur', () => { if (!input._place) lookup(); });
+  input.addEventListener('input', () => { input._place = null; });
+  return {input: input, lookup: lookup, set: setPlace,
+          get: () => input._place || placeLocal(input.value)};
+}
+
+/* Browser geolocation. Only offered where it can actually work: browsers
+   refuse it outside a secure context, which over plain HTTP means localhost
+   only - so on the LAN address the button stays hidden rather than failing. */
+function geolocationAvailable() {
+  return !!(navigator.geolocation && window.isSecureContext);
+}
+
+function locateMe() {
+  return new Promise((resolve, reject) => {
+    if (!geolocationAvailable()) return reject(new Error('not a secure context'));
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const {latitude: lat, longitude: lon} = pos.coords;
+        try {
+          resolve(await api('/api/reverse-geocode?' +
+            new URLSearchParams({lat: lat, lon: lon})));
+        } catch (e) {
+          resolve({name: lat.toFixed(4) + ', ' + lon.toFixed(4),
+                   short: lat.toFixed(4) + ', ' + lon.toFixed(4),
+                   kind: 'coordinates', lat: lat, lon: lon,
+                   grid: latLonToGrid(lat, lon)});
+        }
+      },
+      err => reject(err), {timeout: 15000, maximumAge: 600000});
+  });
+}
+
+function saveQTH(place) {
+  return postJSON('/api/settings', {location: place});
+}

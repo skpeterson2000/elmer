@@ -1,6 +1,7 @@
 {
  "pool_id": "element8",
  "name": "Element 8 (Radar)",
+ "rank_name": "Ship Radar",
  "long_name": "Ship Radar Endorsement - FCC Element 8",
  "track": "commercial",
  "element": 8,

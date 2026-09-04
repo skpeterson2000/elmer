@@ -58,7 +58,7 @@
     <p class="muted small">
       {{ answered }} questions answered all-time &middot; {{ today }} today &middot;
       {{ profile.streak_days }}-day streak (best {{ profile.best_streak }}) &middot;
-      rank <b>{{ rank.name }}</b>{% if rank.next_name %}, {{ rank.to_next }} XP to {{ rank.next_name }}{% endif %}
+      {% for key, track in tracks.items() %}{{ track.label|lower }} standing <b>{{ track.title }}</b>{% if not loop.last %} &middot; {% endif %}{% endfor %}
     </p>
   </div>
   <div class="row">
@@ -70,6 +70,80 @@
 <div class="panel tight mt" id="propstrip">
   <div class="panel-title">Live space weather</div>
   <div class="muted small">loading&hellip;</div>
+</div>
+
+
+<h2 class="mt" id="ranks">Standing</h2>
+<p class="muted small" style="margin-top:-.3rem">
+  Every title is earned inside the class it names &mdash; there is no route to a
+  General title that does not run through General questions. The upper three
+  steps rest on mock exam results, and that evidence goes stale the way a licence
+  does: current for {{ rank_rules.current_days }} days, then a
+  {{ rank_rules.grace_days - rank_rules.current_days }}-day grace period where one
+  passing exam renews it, then it must be earned again. Sustained practice at the
+  tier's own standard keeps it current without re-sitting anything &mdash; a few
+  questions a week genuinely protects proficiency, and the bar rises with the
+  title you are holding.
+</p>
+
+<div class="grid cols-2">
+  {% for key, track in tracks.items() %}
+    <div class="panel">
+      <div class="spread" style="align-items:center">
+        <div>
+          <div class="panel-title" style="margin-bottom:.2rem">{{ track.label }} track</div>
+          <div class="track-title {% if track.lapsed %}lapsed{% endif %}">{{ track.title }}</div>
+        </div>
+        {% if track.lapsed %}<span class="pill warn">lapsed &mdash; one pass renews</span>{% endif %}
+      </div>
+
+      {% for st in track.members %}
+        <div class="ladder">
+          <div class="spread" style="align-items:baseline">
+            <a class="ladder-name" href="/progress/{{ st.pool_id }}">{{ st.rank_name }}</a>
+            <span class="tiny mono muted">
+              {% if st.step %}{{ st.step_name }}{% else %}not started{% endif %}
+              {%- if st.lapsed %} &middot; lapsed{% endif %}
+            </span>
+          </div>
+          <div class="steps">
+            {% for n in range(1, 6) %}
+              <i class="step {% if n <= st.step %}on{% elif n <= st.earned_step %}stale{% endif %}"
+                 title="{{ ['Listener','Learner','Operator', st.rank_name, st.rank_name ~ ' Elmer'][n-1] }}"></i>
+            {% endfor %}
+          </div>
+          {% if st.upkeep and st.step >= 3 %}
+            <div class="upkeep {% if st.upkeep.met %}held{% endif %}">
+              {% if st.upkeep.met %}
+                held by practice &mdash; {{ st.upkeep.distinct }} questions at
+                {{ (st.upkeep.accuracy * 100)|round|int }}% in the last {{ st.upkeep.window_days }} days
+              {% elif st.upkeep.questions_short %}
+                to hold <b>{{ st.step_name }}</b> by practice:
+                {{ st.upkeep.questions_short }} more question{{ '' if st.upkeep.questions_short == 1 else 's' }}
+                this month at {{ (st.upkeep.need_accuracy * 100)|round|int }}%
+                (now {{ st.upkeep.distinct }} at {{ (st.upkeep.accuracy * 100)|round|int }}%)
+              {% else %}
+                to hold <b>{{ st.step_name }}</b> by practice: lift accuracy to
+                {{ (st.upkeep.need_accuracy * 100)|round|int }}%
+                (now {{ (st.upkeep.accuracy * 100)|round|int }}% over {{ st.upkeep.distinct }} questions)
+              {% endif %}
+            </div>
+          {% endif %}
+          {% if st.next_requirements %}
+            <div class="needs">
+              next: <b>{{ st.next_name }}</b> &mdash;
+              {% for r in st.next_requirements %}
+                <span class="need {% if r.met %}met{% endif %}">{{ r.label }} {{ r.shown }}/{{ r.needed }}</span>
+              {% endfor %}
+            </div>
+          {% elif st.step == 5 %}
+            <div class="needs"><b>Top of the ladder.</b>
+              {% if st.days_since_pass is not none %}Last passing exam {{ st.days_since_pass }} days ago.{% endif %}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
 </div>
 
 <h2 class="mt">Amateur radio</h2>

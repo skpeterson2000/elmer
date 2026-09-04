@@ -19,7 +19,8 @@ from pathlib import Path
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
-from . import db, exams, explain, game, logs, propagation, srs
+from . import (db, exams, explain, game, geocode, logs, propagation, ranks,
+               rfexposure, rfpdf, srs, terrain)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -121,17 +122,92 @@ def pool_stats(pool, cards, trials=1500):
     }
 
 
+STANDING_REFRESH_EVERY = 20     # answers, between background recomputes
+
+
+def standing_for(connection, pool, stats=None):
+    """Recompute one pool's rank standing and cache it."""
+    if stats is None:
+        stats = pool_stats(pool, db.cards_for_pool(connection, pool.pool_id),
+                           trials=800)
+    answered = connection.execute(
+        "SELECT COUNT(*) c FROM answer_log WHERE pool_id = ?", (pool.pool_id,)
+    ).fetchone()["c"]
+    figures = {
+        "answered": answered,
+        "coverage": stats["seen"] / max(1, len(pool.questions)),
+        "mastery": stats["mastery"],
+        "pass_probability": stats["readiness"]["pass_probability"],
+    }
+    standing = ranks.standing(
+        pool, figures,
+        exams.history(connection, pool.pool_id, limit=ranks.ELMER_RECENT),
+        window=db.maintenance_window(connection, pool.pool_id,
+                                     ranks.MAINTENANCE_WINDOW))
+    cache = db.kv_get(connection, "standings", {}) or {}
+    previous = cache.get(pool.pool_id, {}).get("step_name")
+    cache[pool.pool_id] = standing
+    db.kv_set(connection, "standings", cache)
+    if previous and previous != standing["step_name"]:
+        log.info("rank change: %s %s -> %s", pool.pool_id, previous,
+                 standing["step_name"])
+    return standing
+
+
+def all_standings(connection, refresh=False):
+    """Cached standings for every pool, in track order."""
+    cache = db.kv_get(connection, "standings", {}) or {}
+    out = []
+    for pool_id, pool in load_pools().items():
+        if refresh or pool_id not in cache:
+            out.append(standing_for(connection, pool))
+        else:
+            out.append(cache[pool_id])
+    return out
+
+
+def qth_for(connection, profile):
+    """The saved QTH, with a friendly name filled in once and remembered.
+
+    A QTH entered as a bare grid square has no name to show, so the first time
+    it is needed the coordinates are reverse-geocoded and the result stored.
+    Failure is fine - the grid square still works on its own.
+    """
+    place = dict(profile["settings"].get("location") or {})
+    if not place.get("lat") or place.get("short"):
+        return place
+    try:
+        named = geocode.reverse(place["lat"], place["lon"])
+    except Exception:
+        named = None
+    if not named:
+        return place
+    place["short"] = named["short"]
+    place["name"] = named["name"]
+    place.setdefault("kind", named.get("kind"))
+    place.setdefault("grid", named["grid"])
+    settings = profile["settings"]
+    settings["location"] = place
+    db.save_settings(connection, settings)
+    log.info("named the saved QTH %s as %s", place.get("grid"), place["short"])
+    return place
+
+
 def profile_block(connection):
     prof = db.get_profile(connection)
-    rank = game.rank_for(prof["xp"])
+    standings = all_standings(connection)
+    tracks = ranks.overall(standings)
     answered = connection.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
     today_count = connection.execute(
         "SELECT COUNT(*) c FROM answer_log WHERE day = ?", (db.today(),)
     ).fetchone()["c"]
-    return {"profile": prof, "rank": rank, "answered": answered,
-            "today": today_count,
+    return {"profile": prof, "standings": standings, "tracks": tracks,
+            "answered": answered, "today": today_count,
             "achievements": game.earned(connection),
-            "all_achievements": game.ACHIEVEMENTS}
+            "all_achievements": game.ACHIEVEMENTS,
+            "rank_rules": {"current_days": ranks.CURRENT_DAYS,
+                           "grace_days": ranks.GRACE_DAYS},
+            "qth": qth_for(connection, prof)}
 
 
 # --------------------------------------------------------------------------
@@ -151,11 +227,13 @@ def home():
     summary = []
     for pid, pool in pools.items():
         stats = pool_stats(pool, cards[pid], trials=600)
+        standing_for(connection, pool, stats)
         summary.append({
             "pool": pool, "mastery": stats["mastery"],
             "readiness": stats["readiness"], "seen": stats["seen"],
             "due_now": stats["due_now"], "total": len(pool.questions),
         })
+    connection.commit()
     return render_template("home.html", summary=summary, greeting=greeting(),
                            **profile_block(connection))
 
@@ -186,6 +264,8 @@ def progress(pool_id):
     connection = conn()
     cards = db.cards_for_pool(connection, pool_id)
     stats = pool_stats(pool, cards, trials=4000)
+    standing = standing_for(connection, pool, stats)
+    connection.commit()
 
     subs = []
     for sub in pool.subelements:
@@ -216,7 +296,7 @@ def progress(pool_id):
     ).fetchall()
     return render_template(
         "progress.html", pool=pool, stats=stats, subs=subs, weakest=weakest,
-        exams=exams.history(connection, pool_id),
+        exams=exams.history(connection, pool_id), standing=standing,
         daily=[dict(r) for r in reversed(daily)], **profile_block(connection))
 
 
@@ -367,6 +447,20 @@ def api_answer():
     total = connection.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
     fresh = game.check_answer_achievements(
         connection, best_run, total, streak_days, datetime.now().hour)
+
+    # The lower rungs move with coverage and mastery, so refresh occasionally
+    # rather than on every answer - the Monte Carlo is too costly per keystroke.
+    cache = db.kv_get(connection, "standings", {}) or {}
+    before = (cache.get(pool.pool_id) or {}).get("step_name")
+    counter = db.kv_get(connection, "answers_since_standing", 0) + 1
+    promoted = None
+    if counter >= STANDING_REFRESH_EVERY or pool.pool_id not in cache:
+        db.kv_set(connection, "answers_since_standing", 0)
+        now_standing = standing_for(connection, pool)
+        if before and now_standing["step_name"] != before:
+            promoted = now_standing
+    else:
+        db.kv_set(connection, "answers_since_standing", counter)
     connection.commit()
 
     prof = db.get_profile(connection)
@@ -376,7 +470,7 @@ def api_answer():
         "explain": _explain(pool, question),
         "explanation": explain.for_question(
             pool, question, db.get_note(connection, pool.pool_id, question["id"])),
-        "xp": points, "total_xp": prof["xp"], "rank": game.rank_for(prof["xp"]),
+        "xp": points, "total_xp": prof["xp"], "promoted": promoted,
         "streak_days": streak_days, "run": run,
         "interval_days": fields["interval"],
         "achievements": fresh,
@@ -459,10 +553,16 @@ def api_exam_submit(exam_id):
     log.info("exam %s finished: %s %d/%d %s in %ss", exam_id, exam["pool_id"],
              result["score"], result["total"],
              "PASS" if result["passed"] else "fail", body.get("seconds", 0))
+    cache = db.kv_get(connection, "standings", {}) or {}
+    before = (cache.get(pool.pool_id) or {}).get("step_name")
+    standing = standing_for(connection, pool)
+    connection.commit()
+
     prof = db.get_profile(connection)
     result["xp"] = points
     result["total_xp"] = prof["xp"]
-    result["rank"] = game.rank_for(prof["xp"])
+    result["standing"] = standing
+    result["promoted"] = standing if before and standing["step_name"] != before else None
     result["achievements"] = fresh
     return jsonify(result)
 
@@ -489,6 +589,7 @@ def api_stats(pool_id):
     connection = conn()
     cards = db.cards_for_pool(connection, pool_id)
     stats = pool_stats(pool, cards, trials=2500)
+    standing = standing_for(connection, pool, stats)
     fresh = game.check_mastery_achievements(
         connection, stats["per_section"], stats["mastery"])
     connection.commit()
@@ -496,6 +597,7 @@ def api_stats(pool_id):
         "mastery": stats["mastery"], "readiness": stats["readiness"],
         "seen": stats["seen"], "unseen": stats["unseen"],
         "due_now": stats["due_now"], "achievements": fresh,
+        "standing": standing,
         "sections": [
             {"code": s["code"], "title": s["title"],
              "mastery": stats["per_section"].get(s["code"], 0.0)}
@@ -539,6 +641,113 @@ def api_note():
     return jsonify({"saved": True, "body": saved})
 
 
+def _rf_payload(body):
+    """Normalise a posted evaluation request into station + cases."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    qth = qth_for(connection, profile)
+    station = body.get("station") or {}
+    station.setdefault("callsign", profile["callsign"] or "")
+    station.setdefault("location", qth.get("short") or qth.get("name") or "")
+    station.setdefault("grid", qth.get("grid") or "")
+    station.setdefault("date", db.today())
+    cases = [c for c in (body.get("cases") or []) if c.get("frequency_mhz")]
+    return station, cases
+
+
+@app.route("/api/rf-exposure", methods=["POST"])
+def api_rf_exposure():
+    """Evaluate a station against the MPE limits."""
+    station, cases = _rf_payload(request.get_json(force=True) or {})
+    if not cases:
+        return jsonify({"error": "no bands to evaluate", "cases": []}), 400
+    try:
+        return jsonify(rfexposure.evaluate(station, cases))
+    except (TypeError, ValueError) as exc:
+        log.warning("RF exposure evaluation rejected: %s", exc)
+        abort(400, "check the numbers entered")
+
+
+@app.route("/api/rf-exposure/pdf", methods=["POST"])
+def api_rf_exposure_pdf():
+    """The same evaluation as a station record to print and post."""
+    from flask import Response
+    station, cases = _rf_payload(request.get_json(force=True) or {})
+    if not cases:
+        abort(400, "no bands to evaluate")
+    evaluation = rfexposure.evaluate(station, cases)
+    pdf = rfpdf.build(evaluation, station)
+    call = (station.get("callsign") or "station").replace("/", "-")
+    name = f"RF-exposure-{call}-{station['date']}.pdf"
+    log.info("RF exposure PDF generated for %s: %d bands, compliant=%s",
+             call, len(cases), evaluation["compliant"])
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{name}"',
+        "Content-Length": str(len(pdf)),
+    })
+
+
+@app.route("/api/geocode")
+def api_geocode():
+    """Places matching a name, for the location boxes.
+
+    Accepts a grid square or a lat,lon pair too, so one input can take whatever
+    the operator happens to know.
+    """
+    query = request.args.get("q", "")
+    if not query.strip():
+        return jsonify({"results": []})
+    direct = geocode.resolve(query, allow_lookup=False)
+    if direct:
+        return jsonify({"results": [direct]})
+    try:
+        results = geocode.search(query, limit=int(request.args.get("limit", 6)))
+    except ValueError:
+        results = geocode.search(query)
+    if not results:
+        log.info("geocode found nothing for %r", query[:80])
+    return jsonify({"results": results})
+
+
+@app.route("/api/reverse-geocode")
+def api_reverse_geocode():
+    """Name the place at these coordinates - used after browser geolocation."""
+    try:
+        lat = float(request.args["lat"]); lon = float(request.args["lon"])
+    except (KeyError, ValueError):
+        abort(400, "need lat and lon")
+    place = geocode.reverse(lat, lon)
+    if not place:
+        place = {"name": f"{lat:.4f}, {lon:.4f}", "short": f"{lat:.4f}, {lon:.4f}",
+                 "kind": "coordinates", "lat": lat, "lon": lon,
+                 "grid": geocode.to_grid(lat, lon)}
+    return jsonify(place)
+
+
+@app.route("/api/terrain")
+def api_terrain():
+    """Ground profile between two points, for the path tool.
+
+    Returns 503 rather than an error when terrain cannot be reached, so the
+    page can fall back to the smooth-earth calculation and say so.
+    """
+    try:
+        lat1 = float(request.args["lat1"]); lon1 = float(request.args["lon1"])
+        lat2 = float(request.args["lat2"]); lon2 = float(request.args["lon2"])
+        samples = int(request.args.get("samples", 80))
+    except (KeyError, ValueError):
+        abort(400, "need lat1, lon1, lat2, lon2")
+
+    data = terrain.profile(lat1, lon1, lat2, lon2, samples)
+    if data is None:
+        log.warning("terrain lookup failed for %.4f,%.4f -> %.4f,%.4f",
+                    lat1, lon1, lat2, lon2)
+        return jsonify({"ok": False,
+                        "error": "terrain data unavailable - showing smooth-earth "
+                                 "results only"}), 503
+    return jsonify({"ok": True, **data})
+
+
 @app.route("/api/client-error", methods=["POST"])
 def api_client_error():
     """Browser-side failures, reported so they land in the same log as the rest.
@@ -564,7 +773,11 @@ def api_settings():
     if "callsign" in body:
         db.set_callsign(connection, body["callsign"] or "")
     if "location" in body:
-        settings["location"] = body["location"]
+        place = body["location"] or {}
+        if place.get("lat") is not None and place.get("lon") is not None:
+            place.setdefault("grid", geocode.to_grid(place["lat"], place["lon"]))
+        settings["location"] = place
+        log.info("QTH set to %s (%s)", place.get("grid"), place.get("short") or "unnamed")
     db.save_settings(connection, settings)
     return jsonify({"ok": True, **db.get_profile(connection)})
 
