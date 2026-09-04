@@ -84,7 +84,10 @@ def score(conn, exam_id, exam, responses, seconds):
          "percent": round(100 * v["right"] / v["total"]) if v["total"] else 0}
         for code, v in sorted(by_sub.items())
     ]
-    detail = {"results": results, "breakdown": breakdown}
+    # Keep the exam alongside its results. Overwriting it meant that if
+    # anything after scoring failed, a retry could not find the questions and
+    # died with a KeyError instead of returning the score already recorded.
+    detail = {"exam": exam, "results": results, "breakdown": breakdown}
     conn.execute(
         "UPDATE exam SET finished = ?, score = ?, total = ?, passed = ?, "
         "seconds = ?, detail = ? WHERE id = ?",

@@ -22,7 +22,7 @@ own pathway for an expired licence:
 Thresholds are deliberately gathered here as named constants so they can be
 tuned without hunting through the logic.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # --- step requirements ------------------------------------------------------
 LISTENER_ANSWERS = 25          # questions answered from this pool
@@ -84,15 +84,29 @@ def _req(label, value, target, fmt="{:.0%}"):
             "shown": fmt.format(value), "needed": fmt.format(target)}
 
 
+def _aware(when):
+    """Coerce a datetime to UTC-aware.
+
+    Timestamps are stored aware, but callers pass whatever they have. Mixing
+    the two raises only once there is a passed exam on record, which is exactly
+    when the dashboard is most wanted - so both sides are normalised here.
+    """
+    if when is None:
+        return None
+    return when.replace(tzinfo=timezone.utc) if when.tzinfo is None else when
+
+
 def _exam_summary(exams, now):
     """Condense a pool's exam history into the figures the ladder needs."""
+    now = _aware(now)
     finished = [e for e in exams if e.get("finished")]
     finished.sort(key=lambda e: e["finished"], reverse=True)
     passed = [e for e in finished if e["passed"]]
     last_pass = None
     if passed:
         try:
-            last_pass = datetime.fromisoformat(passed[0]["finished"].replace("Z", ""))
+            last_pass = _aware(datetime.fromisoformat(
+                passed[0]["finished"].replace("Z", "+00:00")))
         except ValueError:
             last_pass = None
     recent = finished[:ELMER_RECENT]
@@ -143,7 +157,7 @@ def standing(pool, stats, exams, now=None, window=None):
     ``stats`` needs ``coverage``, ``mastery`` and ``pass_probability``.
     ``window`` is recent practice, from :func:`elmer.db.maintenance_window`.
     """
-    now = now or datetime.utcnow()
+    now = _aware(now) or datetime.now(timezone.utc)
     ex = _exam_summary(exams, now)
     state = currency(ex["days_since_pass"])
     coverage = stats["coverage"]
