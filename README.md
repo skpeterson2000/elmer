@@ -212,7 +212,21 @@ Interactive versions of the maths the pools test:
   the limit, and the distance beyond which you comply — separately for the
   controlled/occupational (6-minute) and uncontrolled/general-population
   (30-minute) environments. Distances inside the near field are flagged rather
-  than quietly reported. **Download station record (PDF)** produces a signed
+  than quietly reported.
+
+  Inputs are checked, because a compliance record that accepts anything
+  produces nonsense that looks authoritative. Impossible values are refused
+  with the reason and the band at fault — 500 dBd is not an antenna gain, a
+  megawatt is not a radio station, a distance cannot be negative. Implausible
+  ones are computed but flagged in the record: power above the 1500 W legal
+  limit, a gain large enough to suspect dBi was entered instead of dBd, a
+  frequency outside the amateur bands, a distance close enough to touch the
+  antenna. And because antenna gain is the largest single lever on every
+  figure, the record distinguishes a gain **modelled** by ELMER from the
+  antenna's geometry from one **entered by the operator**, which nothing has
+  checked against any antenna. Neither is a measurement, and the record says so.
+
+  **Download station record (PDF)** produces a signed
   one-page document with the inputs, the equation used, every intermediate
   value and the conclusion — meant to be printed and posted in the shack.
 - **Path and line of sight** — the tool that answers "will this link work".
