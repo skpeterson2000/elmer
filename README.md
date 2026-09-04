@@ -9,10 +9,11 @@ Runs as a small local web app. Open it on the Pi itself, or from a phone or
 laptop on the same network.
 
 ```
-git clone https://github.com/skpeterson2000/ELMER.git
-cd ELMER
+git clone https://github.com/skpeterson2000/elmer.git
+cd elmer
 pip install -r requirements.txt
-./elmer.py
+./elmer.py             # serve; open it from anywhere on the network
+./elmer.py --kiosk     # serve, and open full screen on this machine
 #   ELMER is on http://192.168.1.119:5000
 ```
 
@@ -234,6 +235,36 @@ data/
   elmer.db            your progress
   elmer.log           request and error log
 ```
+
+## Kiosk mode
+
+On a Pi with a monitor, ELMER is more appliance than website:
+
+```
+./elmer.py --kiosk
+```
+
+That serves as usual and brings up a full-screen browser on the machine itself,
+with an **Exit** button in the top bar that stops the server and closes the
+window. No terminal, no address bar, no way to wander off to another site.
+
+Chromium is used ahead of Firefox even if Firefox is your default browser — its
+kiosk mode behaves better under Wayland, which is what Raspberry Pi OS runs now.
+Either one gets a throwaway profile under `data/kiosk-profile/`, because pointed
+at your normal profile a browser that is already open would just add a tab to
+the existing window instead of going full screen.
+
+The Exit button is deliberately narrow. ELMER binds every interface so a phone
+can reach it, and nobody on the network should be able to switch the study
+session off, so the button appears only on the machine the server is running on:
+a shutdown needs a token minted at startup, which is rendered into the page only
+for a request that came from this machine. A browser on the network sees a page
+with no button and no token in it, and `/api/quit` does not exist at all unless
+`--kiosk` is on.
+
+ELMER also stops if you close the kiosk window — otherwise the server would be
+left running on a machine with no terminal open to stop it from. `--doctor`
+reports whether kiosk mode can start before you rely on it.
 
 ## Giving it an icon
 

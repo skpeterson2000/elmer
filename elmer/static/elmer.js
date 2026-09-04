@@ -244,3 +244,33 @@ function isTyping(event) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
          el.isContentEditable === true;
 }
+
+/* ---------- kiosk exit ----------
+   The button only exists when the server runs with --kiosk and the page was
+   served to the machine itself, so the token never travels the network. */
+async function quitElmer(button) {
+  button.disabled = true;
+  try {
+    const res = await fetch('/api/quit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: button.dataset.token })
+    });
+    if (!res.ok) throw new Error('server replied ' + res.status);
+  } catch (err) {
+    /* A dropped connection here means the server stopped before it could
+       answer, which is the thing we asked for - not a failure to report. */
+  }
+  const veil = document.createElement('div');
+  veil.className = 'exit-veil';
+  veil.innerHTML = '<div class="mark">ELMER</div>' +
+                   '<p>Stopped. You can close this window.</p>' +
+                   '<p>Start it again with <code>./elmer.py --kiosk</code></p>';
+  document.body.appendChild(veil);
+}
+
+document.addEventListener('click', e => {
+  const button = e.target.closest('#exit-btn');
+  if (!button) return;
+  if (confirm('Stop ELMER and close this window?')) quitElmer(button);
+});

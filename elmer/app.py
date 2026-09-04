@@ -5,9 +5,14 @@ answering never reloads the page.  The correct answer is never sent to the
 browser before the user commits to a choice: the server hands out a shuffled
 presentation plus its permutation, and resolves the real answer on submit.
 """
+import hmac
+import ipaddress
 import json
 import logging
+import os
 import random
+import signal
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +59,32 @@ def _icon():
         if (static / name).exists():
             return {"icon_file": name}
     return {"icon_file": None}
+
+
+# Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.
+app.config["KIOSK"] = False
+app.config["KIOSK_TOKEN"] = None
+
+
+def _is_local(address):
+    """True for a request that came from this machine itself."""
+    try:
+        return ipaddress.ip_address(address or "").is_loopback
+    except ValueError:
+        return False
+
+
+@app.context_processor
+def _kiosk():
+    """The Exit button, and only on the screen the server is running on.
+
+    The token is what authorises the shutdown, so it is rendered only for a
+    loopback request.  A phone or laptop browsing in over the network gets a
+    page with no button and no token in it, and cannot stop the server.
+    """
+    if not app.config["KIOSK"] or not _is_local(request.remote_addr):
+        return {"kiosk_token": None}
+    return {"kiosk_token": app.config["KIOSK_TOKEN"]}
 
 
 # --------------------------------------------------------------------------
@@ -529,6 +560,34 @@ def api_settings():
         settings["location"] = body["location"]
     db.save_settings(connection, settings)
     return jsonify({"ok": True, **db.get_profile(connection)})
+
+
+@app.route("/api/quit", methods=["POST"])
+def api_quit():
+    """Stop the server, for the Exit button in kiosk mode.
+
+    Three things have to hold: the server was started with --kiosk, the request
+    came from this machine, and it carries the token minted at startup.  The
+    server binds every interface by default, so without those checks anyone on
+    the network could turn the study session off.
+    """
+    if not app.config["KIOSK"]:
+        abort(404)
+    if not _is_local(request.remote_addr):
+        log.warning("quit refused: request from %s", request.remote_addr)
+        abort(403)
+    expected = app.config["KIOSK_TOKEN"] or ""
+    supplied = (request.get_json(silent=True) or {}).get("token", "")
+    if not expected or not hmac.compare_digest(str(supplied), expected):
+        log.warning("quit refused: bad token")
+        abort(403)
+
+    log.info("quit requested from the kiosk browser")
+    # Answer first, then interrupt the main thread: ./elmer.py closes the
+    # browser and exits from there, so the shutdown path is the same one
+    # Ctrl+C already takes.
+    threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
+    return jsonify({"ok": True})
 
 
 @app.template_filter("pct")

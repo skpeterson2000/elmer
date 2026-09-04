@@ -6,6 +6,9 @@ data/elmer.db-shm
 data/elmer.log
 data/explanations/
 
+# Throwaway browser profile made by --kiosk
+data/kiosk-profile/
+
 # Python
 __pycache__/
 *.py[cod]

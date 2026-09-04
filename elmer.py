@@ -2,6 +2,7 @@
 """ELMER - a study assistant and game for radio theory and propagation.
 
     ./elmer.py                 serve on http://0.0.0.0:5000
+    ./elmer.py --kiosk         serve, and open full screen on this machine
     ./elmer.py --doctor        self-check and print every URL to try
     ./elmer.py --build         rebuild the question pools from data/raw
     ./elmer.py --fetch         re-download the source pools, then rebuild
@@ -9,6 +10,8 @@
     ./elmer.py --log-level DEBUG   verbose console output
 """
 import argparse
+import secrets
+import signal
 import sys
 from pathlib import Path
 
@@ -28,6 +31,9 @@ def main():
                     help="console verbosity; the log file always keeps DEBUG")
     ap.add_argument("--no-log-file", action="store_true",
                     help="console only, do not write data/elmer.log")
+    ap.add_argument("--kiosk", action="store_true",
+                    help="open a full-screen browser on this machine and show "
+                         "an Exit button that stops the server")
     ap.add_argument("--doctor", action="store_true",
                     help="check the install and report where to reach it")
     ap.add_argument("--build", action="store_true", help="rebuild pools from data/raw")
@@ -72,15 +78,59 @@ def main():
     if log_path:
         print(f"\n  Logging to {log_path}")
         print(f"  Watch it live with:  tail -f {log_path}")
-    print("  Press Ctrl+C to stop.\n")
 
     from elmer.app import app
+
+    browsers, quitting = [], None
+    if args.kiosk:
+        import threading
+
+        from elmer import kiosk
+        if not kiosk.have_display():
+            print("\n  --kiosk needs a screen, and this session has none.")
+            print("  Serving normally instead; open one of the URLs above.\n")
+        elif not kiosk.find_browser()[0]:
+            print("\n  --kiosk needs chromium or firefox, and neither is installed.")
+            print("  Serving normally instead; open one of the URLs above.\n")
+        else:
+            # Minted per run and handed only to loopback requests, so the Exit
+            # button works on this screen and nowhere else on the network.
+            app.config["KIOSK"] = True
+            app.config["KIOSK_TOKEN"] = secrets.token_urlsafe(32)
+            quitting = threading.Event()
+            browsers = kiosk.launch_when_ready(
+                f"http://localhost:{args.port}", args.port, quitting)
+
+            # systemd stops a service with SIGTERM, which would otherwise kill
+            # this process outright and leave the browser full screen with
+            # nothing behind it.  Route it into the same exit as Ctrl+C.
+            def _terminate(_signum, _frame):
+                raise KeyboardInterrupt
+
+            signal.signal(signal.SIGTERM, _terminate)
+            print("\n  Opening full screen. Stop it with the Exit button in "
+                  "the top bar,")
+            print("  or with Ctrl+C here.")
+    print("\n  Press Ctrl+C to stop.\n" if not app.config["KIOSK"] else "")
+
     try:
-        app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
+        app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
+                # The reloader runs a second copy of this process, which in
+                # kiosk mode would mean a second browser on top of the first.
+                use_reloader=args.debug and not args.kiosk)
+    except KeyboardInterrupt:
+        pass
     except OSError as exc:
         print(f"\n  Could not bind {args.host}:{args.port} - {exc}\n"
               f"  Run ./elmer.py --doctor for a full check.\n")
         sys.exit(1)
+    finally:
+        if quitting is not None:
+            quitting.set()
+            from elmer import kiosk
+            for process in browsers:
+                kiosk.close(process)
+    print("\n  ELMER stopped.\n")
 
 
 if __name__ == "__main__":

@@ -171,6 +171,23 @@ def check_internet():
     return True
 
 
+def check_kiosk():
+    """What ./elmer.py --kiosk would do if it were run right now."""
+    from . import kiosk
+    path, family = kiosk.find_browser()
+    if not path:
+        _line(WARN, "kiosk mode", "no chromium or firefox - --kiosk will serve "
+                                  "normally instead")
+        return True
+    name = Path(path).name
+    if not kiosk.have_display():
+        _line(WARN, "kiosk mode", f"{name} found, but this session has no "
+                                  "screen - --kiosk will serve normally instead")
+        return True
+    _line(OK, "kiosk mode", f"{name} ({family}) ready")
+    return True
+
+
 def check_server(port):
     if port_in_use(port):
         try:
@@ -200,7 +217,8 @@ def doctor(port=5000):
 
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
-        check_templates(), check_tools(), check_internet(), check_server(port),
+        check_templates(), check_tools(), check_kiosk(), check_internet(),
+        check_server(port),
     ]
 
     print("\n  Open ELMER at any of these:\n")

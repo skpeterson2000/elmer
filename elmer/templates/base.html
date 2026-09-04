@@ -33,6 +33,11 @@
          title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}">
       &#9679; {{ profile.streak_days }}d
     </div>
+{% if kiosk_token %}
+    <button type="button" class="exit-btn" id="exit-btn"
+            data-token="{{ kiosk_token }}"
+            title="Stop ELMER and close this window">Exit</button>
+{% endif %}
   </div>
 </header>
 
