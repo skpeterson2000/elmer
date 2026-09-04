@@ -194,7 +194,12 @@ Interactive versions of the maths the pools test:
   height above ground actually buys. A short whip reports its radiation
   resistance, efficiency and the loading it needs, which is the honest answer to
   why mobile HF is hard.
-- **RF exposure evaluation** — the station evaluation every amateur has been
+- **RF exposure evaluation** — an antenna designed in the Antennas tab can be
+  sent straight here, carrying its frequency, gain and description, with the
+  distances started at the antenna height: directly beneath is the closest
+  anyone standing on the ground can get, so it is a defensible starting point
+  rather than a blank. Send several and they stack up as separate bands in one
+  evaluation. The evaluation every amateur has been
   required to perform since 2021, under 47 CFR 97.13(c). Enter each band you
   actually run: frequency, PEP, mode, how much of the averaging period you
   transmit for, antenna gain, and how far away people get. ELMER computes the

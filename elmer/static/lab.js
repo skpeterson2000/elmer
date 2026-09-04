@@ -529,8 +529,16 @@ function calcAnt() {
     '<div class="small muted" style="margin-top:.6rem">' +
       notes.map(n => '<p>' + n + '</p>').join('') + '</div>');
 
-  window.LAB_ANTENNA = {type: type, label: (ANTENNAS[type] || {}).label ||
-    (type === 'yagi' ? 'Yagi' : 'Loaded whip'), gain: gain, f: f};
+  const heightFt = type === 'whip' ? num('an-wh') : num('an-h');
+  window.LAB_ANTENNA = {
+    type: type,
+    label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
+    gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
+    description: ((ANTENNAS[type] || {}).label ||
+                  (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
+                                   : 'loaded mobile whip')) +
+                 (heightFt > 0 ? ' at ' + heightFt.toFixed(0) + ' ft' : ''),
+  };
   drawAntenna(shape, rows, type);
 }
 
@@ -610,6 +618,37 @@ function drawAntenna(shape, rows, type) {
       calcAnt();
     });
   });
+
+const toRf = document.getElementById('an-torf');
+if (toRf) toRf.addEventListener('click', () => {
+  const a = window.LAB_ANTENNA;
+  if (!a) return;
+  /* Height is a defensible starting distance: directly beneath the antenna is
+     the closest anyone standing on the ground can get. It is a starting point,
+     not an answer - the operator still has to say where people actually are. */
+  const height = a.heightFt || 0;
+  const row = rfDefaultRow();
+  row.frequency_mhz = a.f;
+  row.gain_dbd = Math.round(a.gain * 10) / 10;
+  row.antenna = a.description;
+  if (height > 0) {
+    row.distance_controlled_ft = Math.round(height);
+    row.distance_uncontrolled_ft = Math.round(height);
+  }
+  /* Replace an untouched default row rather than stacking one on it. */
+  const blank = rfDefaultRow();
+  if (rfRows.length === 1 &&
+      JSON.stringify(rfRows[0]) === JSON.stringify(blank)) rfRows = [];
+  rfRows.push(row);
+  renderRfRows();
+  selectTab('rf');
+  history.replaceState(null, '', '#rf');
+  rfEvaluate();
+  toast('Sent to RF exposure', a.description + ' at ' + a.f + ' MHz' +
+    (height > 0 ? ' — distances started at ' + Math.round(height) +
+                  ' ft, the height itself. Set where people really are.'
+                : ' — now set the distances.'));
+});
 
 const toPath = document.getElementById('an-topath');
 if (toPath) toPath.addEventListener('click', () => {
