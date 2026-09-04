@@ -3,6 +3,7 @@
 
     ./elmer.py                 serve on http://0.0.0.0:5000
     ./elmer.py --kiosk         serve, and open full screen on this machine
+    ./elmer.py --install-launcher   add ELMER to the applications menu
     ./elmer.py --doctor        self-check and print every URL to try
     ./elmer.py --build         rebuild the question pools from data/raw
     ./elmer.py --fetch         re-download the source pools, then rebuild
@@ -34,6 +35,11 @@ def main():
     ap.add_argument("--kiosk", action="store_true",
                     help="open a full-screen browser on this machine and show "
                          "an Exit button that stops the server")
+    ap.add_argument("--install-launcher", action="store_true",
+                    help="add ELMER to the applications menu and the desktop, "
+                         "with its icon")
+    ap.add_argument("--remove-launcher", action="store_true",
+                    help="take the menu entry, icon and desktop shortcut away again")
     ap.add_argument("--doctor", action="store_true",
                     help="check the install and report where to reach it")
     ap.add_argument("--build", action="store_true", help="rebuild pools from data/raw")
@@ -43,6 +49,28 @@ def main():
 
     from elmer import logs
     log_path = logs.setup(args.log_level, to_file=not args.no_log_file)
+
+    if args.install_launcher or args.remove_launcher:
+        from elmer import launcher
+        if args.remove_launcher:
+            removed = launcher.remove()
+            print("\n  Removed:" if removed else "\n  Nothing to remove.")
+            for path in removed:
+                print(f"      {path}")
+            print()
+            return
+        try:
+            written = launcher.install()
+        except (OSError, FileNotFoundError) as exc:
+            print(f"\n  Could not install the launcher: {exc}\n")
+            sys.exit(1)
+        print("\n  ELMER is now in the applications menu. Installed:\n")
+        for path in written:
+            print(f"      {path}")
+        print("\n  Clicking it starts ELMER full screen. Right-click the entry")
+        print("  and choose \"Open in a window\" for an ordinary window instead.")
+        print("  Remove it again with ./elmer.py --remove-launcher\n")
+        return
 
     if args.doctor:
         from elmer.diagnostics import doctor
@@ -66,6 +94,18 @@ def main():
 
     from elmer.diagnostics import local_addresses, port_in_use
     if port_in_use(args.port):
+        # Started from the menu entry there is no terminal to print to, so a
+        # second click would look like nothing happening at all.  If ELMER is
+        # already serving, put a window on that instead of refusing.
+        if args.kiosk:
+            from elmer import kiosk
+            if kiosk.have_display() and kiosk.find_browser()[0]:
+                process = kiosk.launch(f"http://localhost:{args.port}")
+                if process is not None:
+                    print(f"\n  ELMER was already serving on port {args.port} - "
+                          "opened a window on it.\n")
+                    process.wait()
+                    return
         print(f"\n  Port {args.port} is already in use - ELMER may already be "
               f"running.\n  Try http://localhost:{args.port} first, or start this "
               f"one on another port with --port 5001\n")
