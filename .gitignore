@@ -24,6 +24,10 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Generated documents: the RF exposure record and band chart are produced on
+# demand, so a copy landing in the working directory is an artefact, not source.
+/*.pdf
+
 # Editors / OS
 .DS_Store
 *.swp
