@@ -178,6 +178,15 @@ Interactive versions of the maths the pools test:
 - **Antenna dimensions** — dipole and vertical lengths, coax electrical length
   by velocity factor
 - **Decibels** — power ratios both ways, plus dBm
+- **NVIS setup** — tick the box on any horizontal wire and the antenna tab
+  works out the height that actually puts the lobe overhead: the 0.15&ndash;0.25 λ
+  window in feet for your frequency, the resulting lobe elevation, and whether
+  you are in it. For an inverted-V it gives apex height, end height for each
+  leg, the span between the ends, and the *effective* height — because the
+  pattern follows the current-weighted mean height, which sits (π−2)/π = 0.363
+  of the way out along each leg, so an inverted-V behaves lower than its apex
+  suggests. Above about 10 MHz it says plainly that NVIS will not work, since a
+  near-vertical signal only returns below foF2.
 - **Antennas** — ten configurations across wire (dipole, inverted-V, end-fed
   half wave, full-wave loop), vertical (quarter wave, 5/8 wave, J-pole, ground
   plane), the Yagi, and loaded mobile whips. Dimensions in feet, metres and

@@ -305,12 +305,92 @@ const ANTENNAS = {
     build: f => ({'Radiator': 234 / f, 'Each of 4 radials': 246 / f})},
 };
 
+const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw'];
+
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
   show('.an-when-yagi', type === 'yagi');
   show('.an-when-whip', type === 'whip');
   show('.an-when-height', type !== 'whip');
+  show('.an-when-v', type === 'invertedv');
+  show('.an-when-nvis', NVIS_TYPES.indexOf(type) >= 0);
+}
+
+/* NVIS wants the first lobe pushed straight up, which happens when a
+   horizontal wire sits low over ground. Below about 0.15 lambda ground loss
+   starts eating the gain; above 0.25 lambda the lobe splits and comes down.
+   For an inverted-V the pattern follows the current-weighted mean height, not
+   the apex: current is greatest at the centre, and the weighted mean sits
+   (pi-2)/pi = 0.3634 of the way out along each leg. */
+const NVIS_LOW = 0.15, NVIS_HIGH = 0.25, V_CENTROID = (Math.PI - 2) / Math.PI;
+
+function nvisBlock(type, f, lamFt, heightFt, legFt) {
+  const droop = type === 'invertedv' ? num('an-droop') : 0;
+  const sinD = Math.sin(droop * Math.PI / 180);
+  const effective = type === 'invertedv'
+    ? heightFt - V_CENTROID * legFt * sinD
+    : heightFt;
+  const endFt = heightFt - legFt * sinD;
+  const spanFt = 2 * legFt * Math.cos(droop * Math.PI / 180);
+  const lam = effective / lamFt;
+  const takeoff = Math.min(90, Math.asin(Math.min(1, 1 / (4 * lam))) * 180 / Math.PI);
+
+  const lo = NVIS_LOW * lamFt, mid = 0.20 * lamFt, hi = NVIS_HIGH * lamFt;
+  const inBand = lam >= NVIS_LOW && lam <= NVIS_HIGH;
+  const verdict = inBand
+    ? '<span class="pill good">in the NVIS window</span>'
+    : lam < NVIS_LOW
+      ? '<span class="pill warn">lower than ideal &mdash; ground loss</span>'
+      : '<span class="pill warn">too high &mdash; the lobe is coming down</span>';
+
+  /* NVIS only works below the critical frequency; above roughly 10 MHz the
+     ionosphere usually will not return a vertical signal. */
+  const freqNote = f > 10.5
+    ? '<p class="watchout">At ' + f.toFixed(3) + ' MHz NVIS will usually fail: a ' +
+      'near-vertical signal only comes back below foF2, which is rarely above ' +
+      '8&nbsp;MHz. NVIS is an 80, 60 and 40 metre technique. ' +
+      '<a href="/lab#skip">Check it against foF2 in the hop simulator &rarr;</a></p>'
+    : '';
+
+  const apexRow = type === 'invertedv'
+    ? '<tr><td>Apex height</td><td class="mono">' + heightFt.toFixed(1) + ' ft</td>' +
+      '<td class="mono">' + (heightFt * FT_M).toFixed(2) + ' m</td></tr>' +
+      '<tr><td>End height, each leg</td><td class="mono">' +
+        (endFt > 0 ? endFt.toFixed(1) + ' ft' : 'on the ground') + '</td>' +
+      '<td class="mono">' + (endFt > 0 ? (endFt * FT_M).toFixed(2) + ' m' : '—') + '</td></tr>' +
+      '<tr><td>Span between ends</td><td class="mono">' + spanFt.toFixed(1) + ' ft</td>' +
+      '<td class="mono">' + (spanFt * FT_M).toFixed(2) + ' m</td></tr>' +
+      '<tr><td>Effective height (current-weighted)</td><td class="mono">' +
+        effective.toFixed(1) + ' ft</td><td class="mono">' +
+        (effective * FT_M).toFixed(2) + ' m</td></tr>'
+    : '<tr><td>Height above ground</td><td class="mono">' + heightFt.toFixed(1) +
+      ' ft</td><td class="mono">' + (heightFt * FT_M).toFixed(2) + ' m</td></tr>';
+
+  return '<div class="nvis">' +
+    '<div class="spread"><div class="explain-head" style="margin:0">NVIS setup</div>' +
+      verdict + '</div>' +
+    '<table class="data" style="max-width:520px"><tbody>' + apexRow +
+      '<tr><td>Effective height in wavelengths</td><td class="mono" colspan="2">' +
+        lam.toFixed(3) + ' &lambda;</td></tr>' +
+      '<tr><td>Main lobe elevation</td><td class="mono" colspan="2">' +
+        (takeoff >= 89.5 ? 'straight up' : takeoff.toFixed(0) + '&deg;') + '</td></tr>' +
+    '</tbody></table>' +
+    '<p class="small muted" style="margin-top:.5rem">Aim for <b>' + lo.toFixed(1) +
+      '&ndash;' + hi.toFixed(1) + ' ft</b> of effective height at ' + f.toFixed(3) +
+      '&nbsp;MHz (' + NVIS_LOW + '&ndash;' + NVIS_HIGH + '&nbsp;&lambda;), with <b>' +
+      mid.toFixed(1) + ' ft</b> a good middle. ' +
+      (type === 'invertedv'
+        ? 'The droop matters: the pattern follows the current-weighted mean height, ' +
+          'which sits about a third of the way out along each leg, so an inverted-V ' +
+          'behaves lower than its apex suggests.'
+        : 'A flat dipole radiates from its whole length at the same height, so the ' +
+          'number above is the one that counts.') +
+    '</p>' +
+    '<p class="small muted">A reflector wire on the ground beneath the antenna, about ' +
+      '5% longer than the radiator, is worth a couple of dB and steadies the pattern ' +
+      'over poor soil &mdash; the cheapest improvement an NVIS wire can have.</p>' +
+    freqNote + '</div>';
 }
 
 function calcAnt() {
@@ -396,14 +476,27 @@ function calcAnt() {
       'better than a flat dipole at the same height.');
   }
 
+  const droopEl = document.getElementById('an-droop-v');
+  if (droopEl) droopEl.textContent = num('an-droop').toFixed(0) + '\u00b0 from horizontal';
+
   /* Height above ground sets the takeoff angle for anything horizontal. */
   let takeoff = null;
   if (type !== 'whip') {
     const hFt = num('an-h');
     if (hFt > 0 && shape === 'wire') {
-      const hLam = hFt / lamFt;
+      // An inverted-V radiates from a current-weighted mean height below its
+      // apex, so quoting the apex here would contradict the NVIS panel.
+      const legFt = rows['Each leg'] || (rows['Overall length'] || lamFt / 2) / 2;
+      const effFt = type === 'invertedv'
+        ? hFt - V_CENTROID * legFt * Math.sin(num('an-droop') * Math.PI / 180)
+        : hFt;
+      const hLam = effFt / lamFt;
       takeoff = Math.min(90, Math.asin(Math.min(1, 1 / (4 * hLam))) * 180 / Math.PI);
-      notes.push('At <b>' + hFt.toFixed(0) + '&nbsp;ft</b> that is <b>' + hLam.toFixed(2) +
+      notes.push('At <b>' + hFt.toFixed(0) + '&nbsp;ft</b>' +
+        (type === 'invertedv'
+          ? ' at the apex &mdash; an effective <b>' + effFt.toFixed(1) + '&nbsp;ft</b> &mdash;'
+          : '') +
+        ' that is <b>' + hLam.toFixed(2) +
         ' wavelengths</b> up, putting the main lobe near <b>' + takeoff.toFixed(0) +
         '&deg;</b> elevation. ' + (takeoff > 45
           ? 'That is high-angle NVIS coverage — good for regional work, poor for DX.'
@@ -417,7 +510,14 @@ function calcAnt() {
     '<td class="mono">' + (ft * FT_M).toFixed(3) + ' m</td>' +
     '<td class="mono muted">' + (ft * 12).toFixed(1) + ' in</td></tr>').join('');
 
-  out('an-out',
+  const wantNvis = document.getElementById('an-nvis');
+  const nvis = (wantNvis && wantNvis.checked && NVIS_TYPES.indexOf(type) >= 0)
+    ? nvisBlock(type, f, lamFt, num('an-h'),
+                (rows['Each leg'] || rows['Overall length'] / 2 ||
+                 rows['Wire length'] / 2 || lamFt / 4))
+    : '';
+
+  out('an-out', nvis +
     '<table class="data" style="max-width:520px"><thead><tr><th>Dimension</th>' +
       '<th>feet</th><th>metres</th><th>inches</th></tr></thead><tbody>' + dims +
     '</tbody></table>' +
@@ -501,10 +601,11 @@ function drawAntenna(shape, rows, type) {
   svg.innerHTML = ground + body;
 }
 
-['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat', 'an-k']
+['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
+ 'an-k', 'an-droop', 'an-nvis']
   .forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => {
+    if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
       antennaFields(document.getElementById('an-type').value);
       calcAnt();
     });
@@ -874,7 +975,7 @@ if (pathGo) {
   });
   ['p-pw', 'p-sens', 'p-ag', 'p-bg', 'p-al', 'p-bl'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => {
+    if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
       if (window.PATH_READY) calcPath();
     });
   });
