@@ -23,6 +23,7 @@
   <nav class="nav">
     <a href="/" {% if request.path == '/' %}class="on"{% endif %}>Dashboard</a>
     <a href="/propagation" {% if request.path.startswith('/propagation') %}class="on"{% endif %}>Propagation</a>
+    <a href="/bandplan" {% if request.path.startswith('/bandplan') %}class="on"{% endif %}>Band Plan</a>
     <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
   </nav>
   <div class="status">

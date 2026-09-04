@@ -106,6 +106,28 @@ where the marks went.
 blueprint against your per-question estimates, reported as a pass probability
 and a likely score range.
 
+### Band plan
+
+A station reference at `/bandplan`, in three layers kept deliberately apart
+because they carry very different authority:
+
+- **Privileges are law.** 47 CFR 97.301 and 97.305, stated per licence class.
+  Anything outside your class is hatched out on the bar and marked "no" in the
+  table, so the legal picture is never in doubt.
+- **Activity is convention.** 160 segments across sixteen bands, coloured by
+  what happens there — CW, digital, phone, image, beacons, satellite,
+  repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
+  signal in the wrong place is what people complain about.
+- **Regional plans come from your frequency coordinator.** Minnesota is wired
+  up: 80 coordinated segments across 6 m, 2 m, 1.25 m, 70 cm and 23 cm, fetched
+  from the Minnesota Repeater Council and cached for 30 days. Coordinator plans
+  are somebody else's work, so they are fetched rather than bundled; adding
+  another state means adding one entry with a parser to
+  `elmer/regional.py`.
+
+**Download chart (PDF)** produces a landscape band chart for your licence class,
+with the regional segments folded in, to print and pin up.
+
 ### Your QTH, set once
 
 Your location is a single setting shared by everything that needs it. Set it on
@@ -287,6 +309,9 @@ elmer/
   exams.py            blueprint-correct exam generation and scoring
   game.py             XP, streaks, achievements
   ranks.py            the nested class ladder, its decay and practice upkeep
+  bandplan.py         privileges (law) and activity segments (convention)
+  bandpdf.py          the printable band chart
+  regional.py         frequency coordinator plans, fetched per state
   rfexposure.py       MPE limits and power density, per OET-65 Supplement B
   rfpdf.py            the printable station record
   terrain.py          ground elevation profiles for the path tool
