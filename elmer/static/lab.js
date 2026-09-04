@@ -686,6 +686,7 @@ if (toRf) toRf.addEventListener('click', () => {
   row.frequency_mhz = a.f;
   row.gain_dbd = Math.round(a.gain * 10) / 10;
   row.antenna = a.description;
+  row.gain_source = 'modelled';        // computed here, not typed by hand
   if (near.controlled) row.distance_controlled_ft = near.controlled;
   if (near.uncontrolled) row.distance_uncontrolled_ft = near.uncontrolled;
   /* Replace an untouched default row rather than stacking one on it. */
@@ -1099,6 +1100,7 @@ let rfRows = [];
 function rfDefaultRow() {
   return {frequency_mhz: 14.200, pep_watts: 100, mode: 'ssb',
           transmit_fraction: 0.5, gain_dbd: 2.1, antenna: 'dipole at 35 ft',
+          gain_source: 'entered',
           distance_uncontrolled_ft: 25, distance_controlled_ft: 10};
 }
 
@@ -1129,6 +1131,7 @@ function renderRfRows() {
     const i = +row.dataset.i;
     row.querySelectorAll('[data-k]').forEach(el => el.addEventListener('input', () => {
       const k = el.dataset.k;
+      if (k === 'gain_dbd') rfRows[i].gain_source = 'entered';
       if (k === 'antenna' || k === 'mode') rfRows[i][k] = el.value;
       else if (k === 'transmit_fraction_pct') rfRows[i].transmit_fraction = (+el.value || 0) / 100;
       else rfRows[i][k] = +el.value;
@@ -1150,16 +1153,40 @@ async function rfEvaluate() {
   if (!out) return;
   let data;
   try {
-    data = await postJSON('/api/rf-exposure', {station: rfStation(), cases: rfRows});
-  } catch (e) { out.innerHTML = '<span class="muted">Check the numbers entered.</span>'; return; }
+    const res = await fetch('/api/rf-exposure', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({station: rfStation(), cases: rfRows})});
+    data = await res.json();
+    if (!res.ok) {
+      out.innerHTML = '<div class="notice" style="border-left-color:var(--red)">' +
+        '<b>That is not a station ELMER will sign off.</b> ' +
+        escapeHTML(data.error || 'Check the numbers entered.') + '</div>';
+      return;
+    }
+  } catch (e) {
+    out.innerHTML = '<span class="muted">Check the numbers entered.</span>'; return;
+  }
 
   const overall = data.compliant
     ? '<span class="pill good">compliant at the distances entered</span>'
     : '<span class="pill bad">one or more positions exceed the limit</span>';
 
+  const seen = [];
+  (data.warnings || []).forEach(w => { if (seen.indexOf(w) < 0) seen.push(w); });
+  const warnBlock = seen.length
+    ? '<div class="notice mt" style="border-left-color:var(--amber)">' +
+      '<b>Check these before relying on it</b><ul style="margin:.35rem 0 0 1rem">' +
+      seen.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul></div>'
+    : '';
+  const gainNote = data.asserted_gain
+    ? '<div class="tiny muted mt">Gain figures marked <b>as entered</b> have not ' +
+      'been checked against any antenna. Design one in the Antennas tab and send ' +
+      'it here to have the gain modelled instead.</div>'
+    : '';
+
   out.innerHTML = '<div class="row" style="gap:1rem">' + overall +
     '<span class="small muted">' + escapeHTML(data.method.equation) +
-    ' &middot; limits per 47 CFR 1.1310</span></div>' +
+    ' &middot; limits per 47 CFR 1.1310</span></div>' + warnBlock + gainNote +
     data.cases.map(c =>
       '<div class="panel tight mt">' +
         '<div class="spread"><b>' + escapeHTML(c.band) + ' &mdash; ' +
@@ -1168,7 +1195,9 @@ async function rfEvaluate() {
         '<div class="tiny muted" style="margin:.25rem 0 .4rem">' +
           escapeHTML(c.mode_label) + ' &middot; duty ' + (c.duty_cycle * 100).toFixed(1) +
           '% &middot; average <b>' + c.average_watts + ' W</b> &middot; ' +
-          c.gain_dbi.toFixed(2) + ' dBi</div>' +
+          c.gain_dbi.toFixed(2) + ' dBi <span class="pill ' +
+          (c.gain_source === 'modelled' ? 'good' : '') + '">gain ' +
+          (c.gain_source === 'modelled' ? 'modelled' : 'as entered') + '</span></div>' +
         '<table class="data"><thead><tr><th>Environment</th><th>Avg</th>' +
           '<th>Limit</th><th>At</th><th>Estimated</th><th>% of limit</th>' +
           '<th>Safe beyond</th><th></th></tr></thead><tbody>' +

@@ -105,6 +105,99 @@ def near_field_boundary(f_mhz, aperture_m=None):
     return lam / (2 * math.pi)
 
 
+# --- what the arithmetic will and will not accept ---------------------------
+# A compliance record that accepts anything produces nonsense that looks
+# authoritative, so impossible inputs are refused outright and merely
+# implausible ones are computed but flagged in the record itself.
+MIN_FREQ, MAX_FREQ = 0.1, 300000.0
+MAX_POWER = 100000.0                  # beyond this is not a radio station
+LEGAL_POWER = 1500.0                  # 47 CFR 97.313(a), US amateur PEP limit
+MIN_GAIN, MAX_GAIN = -40.0, 40.0      # dBd; outside this is not an antenna
+BIG_GAIN = 20.0                       # plausible only for a large stacked array
+MIN_DISTANCE_FT = 0.1
+CLOSE_FT = 1.0
+
+AMATEUR_RANGES = [
+    (0.1357, 0.1378), (0.472, 0.479), (1.8, 2.0), (3.5, 4.0), (5.33, 5.41),
+    (7.0, 7.3), (10.1, 10.15), (14.0, 14.35), (18.068, 18.168), (21.0, 21.45),
+    (24.89, 24.99), (28.0, 29.7), (50.0, 54.0), (144.0, 148.0), (219.0, 225.0),
+    (420.0, 450.0), (902.0, 928.0), (1240.0, 1300.0), (2300.0, 2450.0),
+    (3300.0, 3500.0), (5650.0, 5925.0), (10000.0, 10500.0), (24000.0, 24250.0),
+]
+
+
+class InvalidCase(ValueError):
+    """An input the evaluation refuses to work with."""
+
+
+def _number(case, key, default=None):
+    value = case.get(key, default)
+    if value in (None, ""):
+        if default is None:
+            raise InvalidCase(f"{key} is required")
+        return default
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise InvalidCase(f"{key} must be a number, not {value!r}")
+    if value != value or value in (float("inf"), float("-inf")):
+        raise InvalidCase(f"{key} must be a real number")
+    return value
+
+
+def validate(case):
+    """Check one case. Raises InvalidCase, or returns a list of warnings."""
+    warnings = []
+    f = _number(case, "frequency_mhz")
+    if not MIN_FREQ <= f <= MAX_FREQ:
+        raise InvalidCase(f"frequency {f:g} MHz is outside {MIN_FREQ}-{MAX_FREQ:g} MHz")
+    if not any(lo <= f <= hi for lo, hi in AMATEUR_RANGES):
+        warnings.append(f"{f:g} MHz is not in a US amateur band; the limits still "
+                        f"apply but check the frequency")
+
+    pep = _number(case, "pep_watts")
+    if pep <= 0:
+        raise InvalidCase("transmitter power must be greater than zero")
+    if pep > MAX_POWER:
+        raise InvalidCase(f"{pep:g} W is not a radio station")
+    if pep > LEGAL_POWER:
+        warnings.append(f"{pep:g} W PEP exceeds the {LEGAL_POWER:g} W US amateur "
+                        f"limit of 47 CFR 97.313")
+
+    gain = _number(case, "gain_dbd", 0.0)
+    if not MIN_GAIN <= gain <= MAX_GAIN:
+        raise InvalidCase(f"{gain:g} dBd is not an antenna gain; real amateur "
+                          f"antennas run about -10 to +20 dBd")
+    if gain > BIG_GAIN:
+        warnings.append(f"{gain:g} dBd is a very large antenna - plausible only for "
+                        f"a big stacked array. Check it is dBd and not dBi")
+
+    fraction = _number(case, "transmit_fraction", 0.5)
+    if not 0 <= fraction <= 1:
+        raise InvalidCase("transmitting fraction must be between 0 and 1")
+    if fraction == 0:
+        warnings.append("a transmitting fraction of zero means no exposure at all")
+
+    if case.get("mode") and case["mode"] not in MODE_DUTY:
+        raise InvalidCase(f"unknown mode {case['mode']!r}")
+
+    for key, who in (("distance_uncontrolled_ft", "the public"),
+                     ("distance_controlled_ft", "you")):
+        distance = _number(case, key, 0.0)
+        if distance <= 0:
+            raise InvalidCase(f"the distance to {who} must be greater than zero")
+        if distance < MIN_DISTANCE_FT:
+            raise InvalidCase(f"a distance of {distance:g} ft to {who} is inside "
+                              f"the antenna")
+        if distance < CLOSE_FT:
+            warnings.append(f"{distance:g} ft to {who} is close enough to touch the "
+                            f"antenna; the far-field estimate does not apply there")
+
+    if mpe_limit(f, False) is None or mpe_limit(f, True) is None:
+        raise InvalidCase(f"no MPE limit is defined at {f:g} MHz")
+    return warnings
+
+
 def evaluate_case(case):
     """Evaluate one band/antenna combination.
 
@@ -112,6 +205,7 @@ def evaluate_case(case):
     gain_dbd, and the distances to the controlled and uncontrolled positions in
     feet.
     """
+    warnings = validate(case)
     f = float(case["frequency_mhz"])
     pep = float(case["pep_watts"])
     mode = case.get("mode", "ssb")
@@ -151,6 +245,9 @@ def evaluate_case(case):
         })
 
     return {
+        "warnings": warnings,
+        "gain_source": ("modelled" if case.get("gain_source") == "modelled"
+                        else "entered"),
         "frequency_mhz": f, "band": band_for(f),
         "pep_watts": pep, "mode": mode, "mode_label": mode_label,
         "mode_duty": mode_duty, "transmit_fraction": tx_fraction,
@@ -180,11 +277,25 @@ def band_for(f_mhz):
 
 
 def evaluate(station, cases):
-    """Evaluate a whole station: several bands and antennas at once."""
-    evaluated = [evaluate_case(c) for c in cases if c.get("frequency_mhz")]
+    """Evaluate a whole station: several bands and antennas at once.
+
+    One unusable row stops the whole evaluation, because a station record with
+    a hole in it is worse than none - but the error names the row, so it can be
+    found without hunting.
+    """
+    evaluated = []
+    for n, case in enumerate([c for c in cases if c.get("frequency_mhz")], start=1):
+        try:
+            evaluated.append(evaluate_case(case))
+        except InvalidCase as exc:
+            where = case.get("antenna") or f"{case.get('frequency_mhz')} MHz"
+            raise InvalidCase(f"band {n} ({where}): {exc}") from None
+    warnings = [w for c in evaluated for w in c["warnings"]]
     return {
         "station": station,
         "cases": evaluated,
+        "warnings": warnings,
+        "asserted_gain": any(c["gain_source"] != "modelled" for c in evaluated),
         "compliant": all(c["compliant"] for c in evaluated) if evaluated else None,
         "method": {
             "reference": "FCC OET Bulletin 65, Supplement B; limits per 47 CFR 1.1310",
@@ -192,8 +303,12 @@ def evaluate(station, cases):
             "reflection_field": REFLECTION_FIELD,
             "reflection_power": REFLECTION_POWER,
             "equation": "S = 0.1 x 2.56 x Pavg x G / (4 pi R^2)",
-            "note": "Far-field estimate with ground reflection. Conservative for "
-                    "amateur installations; distances inside the near field are "
-                    "flagged.",
+            "note": "Far-field estimate with ground reflection, treating the "
+                    "antenna as a point source radiating its stated gain toward "
+                    "the person. It does not model the antenna's pattern, so it "
+                    "is conservative wherever the person is off the main lobe. "
+                    "Distances inside the near field are flagged. The gain figure "
+                    "is the largest single lever on the result, and where it was "
+                    "entered by hand rather than modelled, the record says so.",
         },
     }
