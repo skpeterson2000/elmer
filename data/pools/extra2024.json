@@ -1,6 +1,7 @@
 {
  "pool_id": "extra2024",
  "name": "Amateur Extra",
+ "rank_name": "Amateur Extra",
  "long_name": "Amateur Extra Class - FCC Element 4",
  "track": "amateur",
  "element": 4,

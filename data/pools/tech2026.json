@@ -1,6 +1,7 @@
 {
  "pool_id": "tech2026",
  "name": "Technician",
+ "rank_name": "Technician",
  "long_name": "Technician Class - FCC Element 2",
  "track": "amateur",
  "element": 2,

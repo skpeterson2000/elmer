@@ -10,6 +10,11 @@ data/explanations/
 # Throwaway browser profile made by --kiosk
 data/kiosk-profile/
 
+# Lookup caches. Keyed by where you are and where you have looked,
+# so they are yours rather than the app's.
+data/geocode/
+data/terrain/
+
 # Python
 __pycache__/
 *.py[cod]

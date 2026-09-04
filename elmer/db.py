@@ -195,6 +195,28 @@ def save_note(conn, pool_id, question_id, body):
     return body or None
 
 
+def maintenance_window(conn, pool_id, days=30):
+    """Distinct questions answered and accuracy over a recent window.
+
+    Distinct rather than total, so repeating one easy card forty times does not
+    count as keeping a whole pool current.
+    """
+    from datetime import date as _date, timedelta as _td
+    since = (_date.today() - _td(days=days)).isoformat()
+    row = conn.execute(
+        "SELECT COUNT(DISTINCT question_id) AS distinct_q, COUNT(*) AS attempts, "
+        "COALESCE(SUM(correct), 0) AS n_right FROM answer_log "
+        "WHERE pool_id = ? AND day >= ?", (pool_id, since),
+    ).fetchone()
+    attempts = row["attempts"] or 0
+    return {
+        "distinct": row["distinct_q"] or 0,
+        "attempts": attempts,
+        "accuracy": (row["n_right"] / attempts) if attempts else 0.0,
+        "window_days": days,
+    }
+
+
 def kv_get(conn, key, default=None):
     row = conn.execute("SELECT v FROM kv WHERE k = ?", (key,)).fetchone()
     return json.loads(row["v"]) if row else default

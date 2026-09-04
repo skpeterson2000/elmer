@@ -1,6 +1,14 @@
 /* Live band-conditions dashboard. */
 
-const grid = document.getElementById('p-grid');
+const qthPicker = initPlace('q-place', {onPick: place => { if (place) saveAndReload(place); }});
+
+async function saveAndReload(place) {
+  await saveQTH(place);
+  window.QTH = place;
+  toast('QTH set', place.short + ' · ' + place.grid +
+        ' — the path tool in the Lab uses this too');
+  load(true);
+}
 
 function ratingPill(rating, score) {
   const cls = score >= 3 ? 'good' : score === 2 ? 'warn' : 'bad';
@@ -77,14 +85,31 @@ async function load(force) {
 }
 
 document.getElementById('p-refresh').addEventListener('click', () => load(true));
-document.getElementById('p-save').addEventListener('click', async () => {
-  const loc = gridToLatLon(grid.value);
-  if (!loc) { toast('Not a grid square', 'Use a Maidenhead locator such as EM79 or EM79wp'); return; }
-  await postJSON('/api/settings', { location: loc });
-  toast('QTH set', loc.grid + ' → ' + loc.lat + ', ' + loc.lon);
-  load(true);
+
+document.getElementById('q-save').addEventListener('click', async () => {
+  if (!qthPicker) return;
+  if (!qthPicker.get()) await qthPicker.lookup();
+  const place = qthPicker.get();
+  if (!place) { toast('Not found', 'Try a grid square, coordinates, or add a state'); return; }
+  saveAndReload(place);
 });
-grid.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('p-save').click(); });
+
+const locateBtn = document.getElementById('q-locate');
+if (locateBtn && geolocationAvailable()) {
+  locateBtn.hidden = false;
+  locateBtn.addEventListener('click', async () => {
+    locateBtn.textContent = 'Locating…';
+    try {
+      const place = await locateMe();
+      document.getElementById('q-place').value = place.short;
+      qthPicker.set(place, true);
+      saveAndReload(place);
+    } catch (e) {
+      toast('Could not locate you', 'Type a place name or grid square instead');
+    }
+    locateBtn.textContent = 'Locate me';
+  });
+}
 
 load(false);
 setInterval(() => load(false), 5 * 60 * 1000);

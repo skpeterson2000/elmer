@@ -73,39 +73,27 @@ p { margin: 0 0 .8rem; }
 .nav a:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
 .nav a.on { color: var(--amber); border-color: var(--line-2); background: var(--panel); }
 
-.status { display: flex; align-items: center; gap: .8rem; }
-.status-rank { text-align: right; line-height: 1.15; }
-.rank-name { display: block; font-size: .82rem; font-weight: 600; }
-.rank-xp { display: block; font: .7rem var(--mono); color: var(--dim); }
-.rank-bar { width: 90px; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
-.rank-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--amber), #ff8f3f); }
+.status { display: flex; align-items: center; gap: .85rem; }
+.titles { display: flex; flex-direction: column; gap: 1px; }
+.title-line {
+  display: flex; align-items: baseline; gap: .45rem;
+  text-decoration: none; line-height: 1.25;
+}
+.title-line:hover { text-decoration: none; }
+.title-line:hover .title-name { color: var(--amber); }
+.title-track {
+  font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dimmer); width: 5.2rem; text-align: right;
+}
+.title-name { font-size: .82rem; font-weight: 600; color: var(--text); }
+.title-name.lapsed { color: var(--dim); text-decoration: line-through .5px; }
+.lapse-dot { color: var(--amber); font-size: .72rem; }
+.status-xp { font: .72rem var(--mono); color: var(--dim); }
 .status-streak {
   font: .78rem var(--mono); color: var(--dimmer);
   border: 1px solid var(--line); border-radius: 20px; padding: .18rem .55rem;
 }
 .status-streak.lit { color: var(--amber); border-color: rgba(255,180,84,.35); }
-
-/* Kiosk only: present just on the screen the server itself is running on. */
-.exit-btn {
-  font: .78rem var(--mono); color: var(--dim); cursor: pointer;
-  background: transparent; border: 1px solid var(--line);
-  border-radius: 20px; padding: .18rem .7rem; letter-spacing: .04em;
-}
-.exit-btn:hover, .exit-btn:focus-visible {
-  color: var(--red); border-color: rgba(248,81,73,.45); background: var(--panel-2);
-}
-.exit-btn[disabled] { opacity: .5; cursor: default; }
-
-/* The full-screen goodbye, once the server has confirmed it is going down. */
-.exit-veil {
-  position: fixed; inset: 0; z-index: 200;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: .6rem; background: var(--bg); text-align: center; padding: 2rem;
-}
-.exit-veil .mark {
-  font: 700 1.4rem/1 var(--mono); letter-spacing: .22em; color: var(--amber);
-}
-.exit-veil p { color: var(--dim); margin: 0; }
 
 /* ---------- layout ---------- */
 .wrap { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1.2rem 4rem; }
@@ -279,7 +267,8 @@ table.data tr:hover td { background: #171f28; }
 .notice { border-left: 3px solid var(--amber); background: rgba(255,180,84,.06); padding: .6rem .8rem; border-radius: 0 8px 8px 0; font-size: .85rem; }
 
 @media (max-width: 640px) {
-  .status-rank, .rank-bar { display: none; }
+  .status-xp { display: none; }
+  .title-track { display: none; }
   .wrap { padding: 1rem .8rem 3rem; }
   .stat-value { font-size: 1.35rem; }
 }
@@ -344,3 +333,71 @@ input[type=range]::-moz-range-thumb {
 }
 .notebox:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
 .explain-toggle { margin-top: .8rem; }
+
+/* ---------- rank ladders ---------- */
+.track-title { font-size: 1.15rem; font-weight: 650; }
+.track-title.lapsed { color: var(--dim); }
+.ladder { padding: .55rem 0; border-bottom: 1px solid #1a222c; }
+.ladder:last-child { border-bottom: 0; }
+.ladder-name { font-size: .9rem; font-weight: 600; color: var(--text); }
+.ladder-name:hover { color: var(--amber); text-decoration: none; }
+.steps { display: flex; gap: 3px; margin: .35rem 0 .3rem; }
+.step {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: #0f151d; border: 1px solid var(--line);
+}
+.step.on { background: linear-gradient(90deg, #7a5a1c, var(--amber)); border-color: var(--amber); }
+.step.stale { background: #3a3320; border-color: #5a4a24; }
+.needs { font-size: .74rem; color: var(--dimmer); line-height: 1.7; }
+.need {
+  display: inline-block; font-family: var(--mono); font-size: .68rem;
+  padding: .05rem .35rem; margin-right: .25rem; border-radius: 4px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.need.met { color: var(--green); border-color: rgba(63,185,80,.35); }
+
+/* Practice upkeep: the reason to come back this week. */
+.upkeep {
+  font-size: .74rem; color: var(--dim); margin: .25rem 0 .1rem;
+  padding: .25rem .5rem; border-left: 2px solid var(--line-2);
+  border-radius: 0 5px 5px 0; background: rgba(255,255,255,.015);
+}
+.upkeep.held { color: var(--green); border-left-color: var(--green); }
+
+/* ---------- place picker ---------- */
+.place-hint { font: .72rem var(--mono); color: var(--dim); min-height: 1rem; margin-top: .2rem; }
+.place-results {
+  border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden;
+  margin-top: .35rem; background: #0f151d;
+}
+.place-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: .5rem;
+  width: 100%; text-align: left; background: transparent; border: 0;
+  border-bottom: 1px solid var(--line); padding: .45rem .6rem;
+  color: var(--text); cursor: pointer; font: .84rem var(--sans);
+}
+.place-row:last-child { border-bottom: 0; }
+.place-row:hover { background: var(--panel-2); }
+.place-row-name { font-weight: 600; }
+.place-row-kind { font: .68rem var(--mono); color: var(--dimmer); align-self: center; }
+.place-row-grid { font: .72rem var(--mono); color: var(--amber); align-self: center; }
+.place-row-full { grid-column: 1 / -1; font-size: .7rem; color: var(--dimmer); }
+.qth-badge {
+  font: .68rem var(--mono); color: var(--cyan); border: 1px solid rgba(57,211,216,.3);
+  background: rgba(57,211,216,.07); border-radius: 20px; padding: .1rem .45rem;
+}
+
+/* ---------- RF exposure rows ---------- */
+.rf-row {
+  display: grid;
+  grid-template-columns: 5.5rem 5rem 11rem 5.5rem 5.5rem 1fr 6rem 5rem 2rem;
+  gap: .45rem; align-items: end;
+  padding: .5rem; margin-bottom: .4rem;
+  border: 1px solid var(--line); border-radius: 8px; background: #10161e;
+}
+.rf-row .field { margin-bottom: 0; }
+.rf-row .field label { font-size: .62rem; }
+.rf-row .field input, .rf-row .field select { padding: .32rem .45rem; font-size: .82rem; }
+.rf-del { align-self: end; padding: .3rem .5rem; color: var(--dim); }
+.rf-del:hover { color: var(--red); border-color: var(--red); }
+@media (max-width: 1100px) { .rf-row { grid-template-columns: repeat(4, 1fr); } }

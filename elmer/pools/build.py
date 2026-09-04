@@ -26,7 +26,7 @@ FCC = ("https://www.fcc.gov/wireless/bureau-divisions/mobility-division/"
 
 AMATEUR = [
     {
-        "pool_id": "tech2026", "name": "Technician",
+        "pool_id": "tech2026", "rank_name": "Technician", "name": "Technician",
         "long_name": "Technician Class - FCC Element 2",
         "track": "amateur", "element": 2, "order": 1,
         "file": "tech2026.docx", "exam_questions": 35, "pass_mark": 26,
@@ -37,7 +37,7 @@ AMATEUR = [
                     "pages": {1: "T-1", 2: "T-2", 3: "T-3"}},
     },
     {
-        "pool_id": "gen2023", "name": "General",
+        "pool_id": "gen2023", "rank_name": "General", "name": "General",
         "long_name": "General Class - FCC Element 3",
         "track": "amateur", "element": 3, "order": 2,
         "file": "gen2023.docx", "exam_questions": 35, "pass_mark": 26,
@@ -48,7 +48,7 @@ AMATEUR = [
                     "pages": {1: "G7-1"}},
     },
     {
-        "pool_id": "extra2024", "name": "Amateur Extra",
+        "pool_id": "extra2024", "rank_name": "Amateur Extra", "name": "Amateur Extra",
         "long_name": "Amateur Extra Class - FCC Element 4",
         "track": "amateur", "element": 4, "order": 3,
         "file": "extra2024.docx", "exam_questions": 50, "pass_mark": 37,
@@ -61,7 +61,7 @@ AMATEUR = [
 
 COMMERCIAL = [
     {
-        "pool_id": "element1", "name": "Element 1 (MROP)",
+        "pool_id": "element1", "rank_name": "MROP", "name": "Element 1 (MROP)",
         "long_name": "Marine Radio Operator Permit - FCC Element 1",
         "track": "commercial", "element": 1, "order": 4,
         "file": "element1.pdf", "exam_questions": 24, "pass_mark": 18,
@@ -69,7 +69,7 @@ COMMERCIAL = [
         "figures": {"kind": "embedded"},
     },
     {
-        "pool_id": "element3", "name": "Element 3 (GROL)",
+        "pool_id": "element3", "rank_name": "GROL", "name": "Element 3 (GROL)",
         "long_name": "General Radiotelephone Operator License - FCC Element 3",
         "track": "commercial", "element": 3, "order": 5,
         "file": "element3.pdf", "exam_questions": 100, "pass_mark": 75,
@@ -77,7 +77,7 @@ COMMERCIAL = [
         "figures": {"kind": "embedded"},
     },
     {
-        "pool_id": "element8", "name": "Element 8 (Radar)",
+        "pool_id": "element8", "rank_name": "Ship Radar", "name": "Element 8 (Radar)",
         "long_name": "Ship Radar Endorsement - FCC Element 8",
         "track": "commercial", "element": 8, "order": 6,
         "file": "element8.pdf", "exam_questions": 50, "pass_mark": 38,
@@ -173,6 +173,7 @@ def build_pool(meta):
 
     pool = {
         "pool_id": meta["pool_id"], "name": meta["name"],
+        "rank_name": meta["rank_name"],
         "long_name": meta["long_name"], "track": meta["track"],
         "element": meta["element"], "order": meta["order"],
         "exam_questions": meta["exam_questions"], "pass_mark": meta["pass_mark"],

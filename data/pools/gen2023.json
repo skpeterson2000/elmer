@@ -1,6 +1,7 @@
 {
  "pool_id": "gen2023",
  "name": "General",
+ "rank_name": "General",
  "long_name": "General Class - FCC Element 3",
  "track": "amateur",
  "element": 3,
