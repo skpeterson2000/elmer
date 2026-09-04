@@ -188,6 +188,17 @@ def check_kiosk():
     return True
 
 
+def check_launcher():
+    """Whether ELMER is in the applications menu."""
+    from . import launcher
+    if launcher.installed():
+        _line(OK, "menu entry", "installed - ELMER is in the applications menu")
+    else:
+        _line(WARN, "menu entry", "not installed - add it with "
+                                  "./elmer.py --install-launcher")
+    return True
+
+
 def check_server(port):
     if port_in_use(port):
         try:
@@ -217,8 +228,8 @@ def doctor(port=5000):
 
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
-        check_templates(), check_tools(), check_kiosk(), check_internet(),
-        check_server(port),
+        check_templates(), check_tools(), check_kiosk(), check_launcher(),
+        check_internet(), check_server(port),
     ]
 
     print("\n  Open ELMER at any of these:\n")

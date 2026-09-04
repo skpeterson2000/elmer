@@ -236,6 +236,21 @@ data/
   elmer.log           request and error log
 ```
 
+## Putting it in the menu
+
+```
+./elmer.py --install-launcher
+```
+
+Adds ELMER to the applications menu and the desktop with its own icon, so it
+starts with a click rather than from a terminal. The entry launches it full
+screen; right-click it and choose **Open in a window** for an ordinary window
+instead. `./elmer.py --remove-launcher` takes it all back out.
+
+The icon is installed into the hicolor theme at 48, 64, 128, 256 and 512 px
+from `elmer/static/icon.png`, so replacing the icon and re-running the install
+updates the menu too.
+
 ## Kiosk mode
 
 On a Pi with a monitor, ELMER is more appliance than website:
