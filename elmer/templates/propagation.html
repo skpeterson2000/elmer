@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Propagation &middot; ELMER{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">Band conditions</h1>
+    <div class="quiz-context" id="p-updated">live space weather &mdash; loading&hellip;</div>
+  </div>
+  <div class="row">
+    <input class="mono" id="p-grid" placeholder="grid e.g. EM79" maxlength="6"
+           value="{{ location.grid or '' }}"
+           style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.4rem .6rem;width:11rem">
+    <button class="btn sm" id="p-save">Set QTH</button>
+    <button class="btn sm ghost" id="p-refresh">Refresh</button>
+  </div>
+</div>
+
+<div class="panel mt" id="p-verdict"><span class="muted">Reading the ionosphere&hellip;</span></div>
+
+<div class="grid cols-4 mt" id="p-stats"></div>
+
+<div class="grid cols-2 mt">
+  <div class="panel">
+    <div class="panel-title">HF bands right now</div>
+    <div id="p-bands" class="muted small">loading&hellip;</div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">VHF and above</div>
+    <div id="p-vhf" class="muted small">loading&hellip;</div>
+    <div class="panel-title" style="margin-top:1.2rem">Where you are</div>
+    <div id="p-qth" class="small muted">Set a grid square to get local day/night and a MUF estimate for your latitude.</div>
+  </div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">What these numbers mean</div>
+  <div class="grid cols-2">
+    {% for key, name, meaning, scale in indicators %}
+      <div style="border-left:2px solid var(--line-2); padding-left:.8rem">
+        <div class="spread">
+          <b>{{ name }}</b>
+          <span class="mono" style="color:var(--amber)" data-live="{{ key }}">&mdash;</span>
+        </div>
+        <div class="small muted">{{ meaning }}</div>
+        <div class="tiny" style="color:var(--dimmer); margin-top:.25rem">{{ scale }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">Take it to the pool</div>
+  <p class="small muted">
+    Every number above is something the exams ask about. Drill the propagation
+    sections while the conditions are in front of you &mdash; it sticks far better
+    than reading the answer key.
+  </p>
+  <div class="row">
+    <a class="btn sm" href="/study/tech2026?section=T3A">T3A &mdash; radio wave characteristics</a>
+    <a class="btn sm" href="/study/tech2026?section=T3C">T3C &mdash; propagation modes</a>
+    <a class="btn sm" href="/study/gen2023?section=G3A">G3A &mdash; solar indices</a>
+    <a class="btn sm" href="/study/gen2023?section=G3B">G3B &mdash; MUF, LUF, paths</a>
+    <a class="btn sm" href="/study/gen2023?section=G3C">G3C &mdash; ionospheric layers</a>
+    <a class="btn sm" href="/study/extra2024?section=E3A">E3A &mdash; EME, meteor scatter</a>
+    <a class="btn sm" href="/study/extra2024?section=E3B">E3B &mdash; trans-equatorial, long path</a>
+    <a class="btn sm" href="/study/extra2024?section=E3C">E3C &mdash; aurora, ducting, MUF</a>
+  </div>
+</div>
+
+<p class="tiny muted mt">
+  Solar and geomagnetic data from N0NBH (hamqsl.com) and NOAA SWPC, cached for
+  15 minutes. The MUF figure is a teaching estimate from flux and solar elevation,
+  not an ionosonde reading &mdash; use it to see how the physics moves, not to plan a schedule.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='propagation.js') }}"></script>
+{% endblock %}

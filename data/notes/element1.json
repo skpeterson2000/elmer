@@ -1,0 +1,218 @@
+{
+ "1-1": {
+  "note": "All transmitting equipment aboard a US vessel must be FCC certified for Part 80 operation unless specifically excepted. What must be carried depends on the vessel's size, service and how far from land it goes, which is why the compulsory-fitting rules read as a table of distances.",
+  "key_facts": [
+   "Only FCC-certified transmitters may be used in the maritime services",
+   "A DSC controller initiates distress alerts and calls to individual stations",
+   "Vessels 20-150 nautical miles offshore need additional equipment",
+   "MF transmitters must reach the nearest public coast station on 2182 kHz"
+  ]
+ },
+ "1-2": {
+  "note": "An operator licence is required for most compulsory stations. A Marine Radio Operator Permit covers routine operation of a VHF or MF-HF station; a GROL is required to maintain, repair or adjust the equipment, and a Ship Radar Endorsement is needed for radar work.",
+  "key_facts": [
+   "An MROP covers operating compulsory ship radiotelephone stations",
+   "A GROL is required to maintain, repair or adjust the equipment",
+   "Radar maintenance requires a Ship Radar Endorsement",
+   "Fixed-tuned radar with external controls needs no separate authorisation to operate"
+  ]
+ },
+ "1-3": {
+  "note": "Watchkeeping means a continuous listening watch on the distress frequency whenever the station is not being used for traffic. Compulsory vessels keep watch on VHF channel 16, and on 2182 kHz where MF is fitted, unless operating under GMDSS with DSC watch instead.",
+  "key_facts": [
+   "Continuous watch on VHF channel 16 while under way",
+   "MF-equipped vessels also watch 2182 kHz where required",
+   "GMDSS vessels maintain a DSC watch on channel 70",
+   "Watch may be suspended only while communicating on another channel"
+  ]
+ },
+ "1-4": {
+  "note": "The radio log records what the station did and when, and it is a legal document. Entries are made in ink, and an error is corrected by striking through so the original remains readable \u2014 never erased or overwritten. The log is signed by the operator on watch.",
+  "key_facts": [
+   "Log entries are made in ink and must remain legible",
+   "Correct an error by striking through, never by erasing",
+   "The operator on duty dates and signs the entries",
+   "Logs must be retained and made available to the FCC on request"
+  ]
+ },
+ "1-5": {
+  "note": "What must be logged: distress, urgency and safety communications in full, the results of required equipment tests, times of watch beginning and ending, and any equipment failure. Routine traffic generally need not be logged in full.",
+  "key_facts": [
+   "All distress, urgency and safety traffic must be logged in detail",
+   "Required equipment tests and their results are logged",
+   "Log the time watch begins and ends",
+   "Equipment failures affecting safety must be recorded"
+  ]
+ },
+ "1-6": {
+  "note": "Assorted regulation. The station licence and operator authorisation must be posted or available. False distress calls are a serious offence. The FCC may inspect the station at any reasonable time, and the master is ultimately responsible for compliance.",
+  "key_facts": [
+   "Station licence and operator permit must be available for inspection",
+   "Transmitting a false distress signal is a serious offence",
+   "The vessel's master is responsible for the station's compliance",
+   "Only the minimum power necessary should be used"
+  ]
+ },
+ "1-7": {
+  "note": "Bridge-to-bridge working is navigational safety traffic between vessels, conducted on VHF channel 13 in the US at one watt unless a higher power is needed. It is for manoeuvring and passing agreements \u2014 not for social conversation.",
+  "key_facts": [
+   "Channel 13 is the US bridge-to-bridge navigational safety channel",
+   "Use 1 watt on bridge-to-bridge unless higher power is necessary",
+   "Channel 13 is for navigational safety, not routine traffic",
+   "Channel 67 serves the same purpose in some inland areas"
+  ]
+ },
+ "1-8": {
+  "note": "Routine calling procedure: call on channel 16 or a working channel, identify both stations, then shift to a working channel for the conversation. Keep calls short \u2014 under 30 seconds \u2014 and wait at least two minutes before repeating a call.",
+  "key_facts": [
+   "Calls on channel 16 must be brief and shift to a working channel",
+   "Wait at least 2 minutes before repeating an unanswered call",
+   "Identify with the vessel name and call sign",
+   "Channel 16 is for calling, distress and safety only"
+  ]
+ },
+ "1-9": {
+  "note": "Operating discipline. Priority runs distress, then urgency, then safety, then routine. Superfluous transmissions are prohibited, as is transmitting without identification. Test transmissions on channel 16 are not permitted.",
+  "key_facts": [
+   "Priority: distress, urgency, safety, then routine traffic",
+   "Superfluous or unidentified transmissions are prohibited",
+   "Do not conduct tests on channel 16",
+   "Use the minimum power that achieves communication"
+  ]
+ },
+ "1-10": {
+  "note": "A distress call means grave and imminent danger requiring immediate assistance. The spoken signal is MAYDAY, said three times, followed by the vessel's identification, position, nature of distress, assistance required and number of persons aboard.",
+  "key_facts": [
+   "MAYDAY indicates grave and imminent danger requiring immediate assistance",
+   "Give identification, position, nature of distress and assistance needed",
+   "Distress traffic has absolute priority over everything else",
+   "Only the master or person in charge may authorise a distress call"
+  ]
+ },
+ "1-11": {
+  "note": "Below distress there are two levels. PAN PAN is urgency \u2014 a very urgent message concerning the safety of a vessel or person, such as a medical emergency, but not immediate grave danger. SECURITE is safety \u2014 navigational or meteorological warnings.",
+  "key_facts": [
+   "PAN PAN indicates urgency: safety of a vessel or person",
+   "SECURITE indicates a navigational or weather safety message",
+   "Both are spoken three times before the message",
+   "Urgency ranks above safety and below distress"
+  ]
+ },
+ "1-12": {
+  "note": "The Global Maritime Distress and Safety System automates alerting so a distress can be raised without an operator sending a manual call. It combines DSC, satellite EPIRBs, SARTs and NAVTEX, and divides the world into four sea areas by the coverage available.",
+  "key_facts": [
+   "GMDSS sea areas A1 to A4 are defined by available coverage",
+   "A1: VHF DSC coverage. A2: MF DSC. A3: INMARSAT. A4: polar, HF only",
+   "DSC channel 70 carries VHF digital selective calling",
+   "A DSC distress alert includes identity and position automatically"
+  ]
+ },
+ "1-13": {
+  "note": "VHF set controls are few and each has a job. Squelch mutes background noise until a signal arrives \u2014 set it just past where the hiss stops. The high/low power switch drops output to one watt for close-range and required channels. Dual watch monitors channel 16 alongside a working channel.",
+  "key_facts": [
+   "Set squelch just beyond the point where background noise disappears",
+   "High power is 25 W; low power is 1 W",
+   "Dual watch monitors channel 16 and a working channel",
+   "Channel 70 is DSC only and carries no voice"
+  ]
+ },
+ "1-14": {
+  "note": "Marine VHF channels are designated by number, and some are simplex while others are duplex for public correspondence. Channel 16 is distress and calling, 13 bridge-to-bridge, 6 intership safety, 70 DSC, and 22A is the US Coast Guard liaison channel.",
+  "key_facts": [
+   "Channel 16: distress, safety and calling",
+   "Channel 6: intership safety. Channel 13: bridge-to-bridge",
+   "Channel 22A: US Coast Guard liaison and broadcasts",
+   "Channel 70: digital selective calling only"
+  ]
+ },
+ "1-15": {
+  "note": "An MF-HF SSB set adds mode and frequency choice to the VHF controls. Clarifier or RIT tunes a slightly off-frequency station without moving the transmit frequency. The antenna tuner must retune whenever the frequency changes significantly.",
+  "key_facts": [
+   "The clarifier adjusts receive frequency without moving transmit",
+   "An automatic antenna tuner retunes when the frequency changes",
+   "J3E is single sideband telephony; H3E includes the full carrier",
+   "Tune-up should be brief and at reduced power where possible"
+  ]
+ },
+ "1-16": {
+  "note": "MF-HF frequency selection depends on distance and time of day: lower frequencies for short range and at night, higher for long range in daylight. 2182 kHz is the MF distress and calling frequency, with corresponding DSC on 2187.5 kHz.",
+  "key_facts": [
+   "2182 kHz is the MF radiotelephone distress and calling frequency",
+   "2187.5 kHz is the MF DSC distress frequency",
+   "Use lower frequencies at night and higher in daylight for range",
+   "Upper sideband is used throughout the maritime service"
+  ]
+ },
+ "1-17": {
+  "note": "Required tests confirm the station will work when it matters. DSC test calls verify the digital chain, battery checks confirm the reserve source, and EPIRBs and SARTs have self-test functions to be used according to the manufacturer's instructions and logged.",
+  "key_facts": [
+   "Test transmissions must not be made on channel 16",
+   "EPIRB and SART self-tests are performed per manufacturer instructions",
+   "Reserve power source condition must be checked regularly",
+   "Test results are entered in the radio log"
+  ]
+ },
+ "1-18": {
+  "note": "Common faults and their signatures. No transmit output with normal receive often means the antenna or its feed line. Distorted or weak audio points to the microphone or audio stages. A dead set usually means power: check fuses, breakers and battery connections first.",
+  "key_facts": [
+   "Check power, fuses and connections before anything else",
+   "Loss of transmit with normal receive often means an antenna fault",
+   "Corroded connections are a very common marine fault",
+   "A high SWR reading suggests an antenna or feed line problem"
+  ]
+ },
+ "1-19": {
+  "note": "Marine VHF antennas are vertically polarised whips, and range is essentially line of sight \u2014 so height matters far more than power. Doubling the antenna height buys more range than any legal power increase. MF-HF ships use long wires or whips with a tuner and a good ground.",
+  "key_facts": [
+   "Marine VHF range is line of sight; antenna height governs range",
+   "Marine antennas are vertically polarised",
+   "A 3 dB gain antenna is typical for a small vessel that rolls",
+   "MF-HF installations need an antenna tuner and a good RF ground"
+  ]
+ },
+ "1-20": {
+  "note": "A reserve source of energy supplies the radio installation for distress and safety communication when the vessel's main and emergency generators cannot. It must be independent of the propulsion system, kept charged, and capable of powering the station for a specified period.",
+  "key_facts": [
+   "The reserve source of energy powers radio gear when main and emergency power fail",
+   "It must be independent of the propulsion system",
+   "Batteries must be kept charged and their condition logged",
+   "Capacity is specified in hours of distress communication"
+  ]
+ },
+ "1-21": {
+  "note": "An EPIRB alerts rescue authorities via satellite when a vessel is in distress. The 406 MHz signal carries a coded identity and, in modern units, GPS position; a 121.5 MHz signal provides homing for the rescue craft. Registration must be kept current or the alert cannot be attributed.",
+  "key_facts": [
+   "EPIRBs transmit on 406 MHz with 121.5 MHz homing",
+   "406 MHz alerts carry a unique coded identity",
+   "EPIRB registration must be kept up to date with NOAA",
+   "A hydrostatic release frees the EPIRB if the vessel sinks"
+  ]
+ },
+ "1-22": {
+  "note": "A search and rescue transponder responds to a 9 GHz X-band radar interrogation with a series of twelve blips on the rescuer's display, forming a line outward from the SART position. As the rescuer closes, the blips become arcs and then circles.",
+  "key_facts": [
+   "A SART responds to 9 GHz X-band radar only, not S band",
+   "It paints twelve blips in a line outward from the SART",
+   "Blips become arcs and circles as the rescuer closes",
+   "SARTs should be mounted as high as practicable in the survival craft"
+  ]
+ },
+ "1-23": {
+  "note": "Survival craft VHF transceivers are portable, waterproof and battery powered, and must include channel 16. They use a non-rechargeable battery of a specified life so they are ready after long storage, and the battery is replaced by date rather than by testing.",
+  "key_facts": [
+   "Survival craft VHF must include channel 16",
+   "They are powered by a sealed primary battery with a specified life",
+   "Batteries are replaced by expiry date, not by testing",
+   "They must be capable of operation by unskilled personnel"
+  ]
+ },
+ "1-24": {
+  "note": "NAVTEX receives navigational warnings, weather and search-and-rescue information automatically on 518 kHz in English, printing or displaying without operator action. Being an MF broadcast, it travels furthest at night, when ground wave is supplemented by sky wave.",
+  "key_facts": [
+   "NAVTEX broadcasts on 518 kHz internationally, in English",
+   "Reception is automatic; no operator action is needed",
+   "Typical range is 200-400 nautical miles",
+   "Range is greatest in the middle of the night"
+  ]
+ }
+}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Mock exam &middot; {{ pool.name }}{% endblock %}
+{% block body %}
+
+<div class="quiz" id="exam-root">
+  <div class="spread">
+    <div>
+      <h1 style="margin-bottom:.2rem">Mock exam &mdash; {{ pool.name }}</h1>
+      <div class="quiz-context">{{ pool.long_name }}</div>
+    </div>
+    <a class="btn ghost sm" href="/study/{{ pool.pool_id }}">Back to study</a>
+  </div>
+
+  <div class="panel mt" id="intro">
+    <div class="panel-title">Before you start</div>
+    <p>
+      This exam is built the way the real one is: <b>{{ pool.exam_questions }} questions</b>,
+      exactly one drawn at random from each of the {{ pool.sections|length }} syllabus sections,
+      with the answer choices shuffled. You need <b>{{ pool.pass_mark }} correct</b> to pass
+      ({{ (100 * pool.pass_mark / pool.exam_questions)|round(0)|int }}%).
+    </p>
+    <div class="grid cols-4 mt">
+      <div class="stat"><span class="stat-label">Questions</span><span class="stat-value">{{ pool.exam_questions }}</span></div>
+      <div class="stat"><span class="stat-label">To pass</span><span class="stat-value">{{ pool.pass_mark }}</span></div>
+      <div class="stat"><span class="stat-label">Pace target</span><span class="stat-value">{{ pace }}m</span></div>
+      <div class="stat"><span class="stat-label">Pool</span><span class="stat-value">{{ pool.questions|length }}</span><span class="stat-note">questions in pool</span></div>
+    </div>
+    <p class="tiny muted mt">
+      The timer is a pace target you set for yourself, not an official limit &mdash;
+      VE teams and COLEM test centers set their own. Every answer here also feeds
+      your spaced-repetition schedule.
+    </p>
+    <button class="btn primary mt" id="start">Start the exam</button>
+  </div>
+
+  <div id="running" hidden>
+    <div class="panel tight">
+      <div class="hud">
+        <span>question <b id="e-pos">1</b> / <b id="e-total">0</b></span>
+        <span>answered <b id="e-done">0</b></span>
+        <span>flagged <b id="e-flag">0</b></span>
+        <span class="mono" id="e-timer">0:00</span>
+        <span style="margin-left:auto"><span class="kbd">1</span>-<span class="kbd">4</span> answer &middot; <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> move &middot; <span class="kbd">f</span> flag</span>
+      </div>
+    </div>
+
+    <div class="panel mt" id="e-card"></div>
+
+    <div class="panel tight mt">
+      <div class="panel-title">Question map</div>
+      <div id="e-map" class="row" style="gap:.28rem"></div>
+    </div>
+
+    <div class="row mt">
+      <button class="btn" id="e-prev">&larr; Previous</button>
+      <button class="btn" id="e-next">Next &rarr;</button>
+      <button class="btn primary" id="e-submit" style="margin-left:auto">Submit exam</button>
+    </div>
+  </div>
+
+  <div id="results" hidden></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<style>
+  .qmap { width: 27px; height: 27px; border-radius: 5px; border: 1px solid var(--line-2);
+          background: #0f151d; color: var(--dim); font: .68rem var(--mono); cursor: pointer; }
+  .qmap.done { background: var(--panel-2); color: var(--text); border-color: #46586e; }
+  .qmap.flag { border-color: var(--amber); color: var(--amber); }
+  .qmap.here { outline: 2px solid var(--amber); }
+</style>
+<script>window.EXAM = { pool: {{ pool.pool_id|tojson }} };</script>
+<script src="{{ url_for('static', filename='exam.js') }}"></script>
+{% endblock %}

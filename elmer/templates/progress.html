@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Progress &middot; {{ pool.name }}{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">{{ pool.name }} &mdash; progress</h1>
+    <div class="quiz-context">{{ pool.long_name }} &middot; {{ pool.edition }}</div>
+  </div>
+  <div class="row">
+    <a class="btn primary sm" href="/study/{{ pool.pool_id }}?mode=weak">Drill weak spots</a>
+    <a class="btn sm" href="/exam/{{ pool.pool_id }}">Mock exam</a>
+  </div>
+</div>
+
+<div class="grid cols-4 mt">
+  <div class="panel stat">
+    <span class="stat-label">Mastery</span>
+    <span class="stat-value">{{ stats.mastery|pct }}</span>
+    <div class="meter thin"><i class="{{ stats.mastery|fill }}" style="width:{{ stats.mastery|width }}"></i></div>
+    <span class="stat-note">estimated chance of knowing an average question right now</span>
+  </div>
+  <div class="panel stat">
+    <span class="stat-label">Pass probability</span>
+    <span class="stat-value">{{ stats.readiness.pass_probability|pct }}</span>
+    <span class="stat-note">over 4000 simulated exams</span>
+  </div>
+  <div class="panel stat">
+    <span class="stat-label">Likely score</span>
+    <span class="stat-value">{{ stats.readiness.mean_score|round(1) }}</span>
+    <span class="stat-note">of {{ stats.readiness.total }}, need {{ stats.readiness.pass_mark }} &middot; typical range {{ stats.readiness.p10 }}&ndash;{{ stats.readiness.p90 }}</span>
+  </div>
+  <div class="panel stat">
+    <span class="stat-label">Coverage</span>
+    <span class="stat-value">{{ stats.seen }}/{{ pool.questions|length }}</span>
+    <span class="stat-note">{{ stats.unseen }} never seen{% if stats.due_now %}, {{ stats.due_now }} due for review{% endif %}</span>
+  </div>
+</div>
+
+{% if stats.unseen > pool.questions|length * 0.3 %}
+<div class="notice mt">
+  Pass probability stays deliberately pessimistic while {{ stats.unseen }} questions
+  are still unseen &mdash; ELMER will not credit you for material you have not met.
+  Work through the <a href="/study/{{ pool.pool_id }}?mode=new">new questions</a> to make it meaningful.
+</div>
+{% endif %}
+
+<div class="grid cols-2 mt">
+  <div class="panel">
+    <div class="panel-title">Weakest sections &mdash; drill these first</div>
+    <table class="data">
+      <tbody>
+      {% for w in weakest %}
+        <tr>
+          <td class="mono" style="width:3.5rem"><a href="/study/{{ pool.pool_id }}?mode=drill&section={{ w.code }}">{{ w.code }}</a></td>
+          <td class="small">{{ w.title[:78] }}{% if w.title|length > 78 %}&hellip;{% endif %}</td>
+          <td class="mono tiny" style="width:3rem">{{ w.mastery|pct }}</td>
+          <td style="width:30%">
+            <div class="meter thin"><i class="{{ w.mastery|fill }}" style="width:{{ w.mastery|width }}"></i></div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Recent mock exams</div>
+    {% if exams %}
+    <table class="data">
+      <thead><tr><th>When</th><th>Score</th><th>Result</th><th>Time</th></tr></thead>
+      <tbody>
+      {% for e in exams %}
+        <tr>
+          <td class="tiny mono">{{ e.finished[:16]|replace('T', ' ') }}</td>
+          <td class="mono">{{ e.score }}/{{ e.total }}</td>
+          <td>{% if e.passed %}<span class="pill good">pass</span>{% else %}<span class="pill bad">fail</span>{% endif %}</td>
+          <td class="tiny mono">{{ (e.seconds // 60) }}m{{ '%02d'|format(e.seconds % 60) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="muted small">No mock exams yet. <a href="/exam/{{ pool.pool_id }}">Take one</a> to calibrate against the real blueprint.</p>
+    {% endif %}
+
+    <div class="panel-title" style="margin-top:1.2rem">Last 30 study days</div>
+    {% if daily %}
+      <div class="sparkline">
+        {% set peak = daily|map(attribute='n')|max %}
+        {% for d in daily %}
+          <i class="{{ 'good' if d.n_right / d.n >= 0.8 else '' }}"
+             style="height: {{ (100 * d.n / peak)|round(0) }}%"
+             title="{{ d.day }}: {{ d.n_right }}/{{ d.n }} correct"></i>
+        {% endfor %}
+      </div>
+      <div class="tiny muted" style="margin-top:.3rem">bar height = questions answered, green = 80%+ accuracy</div>
+    {% else %}
+      <p class="muted small">Nothing logged yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">Full syllabus breakdown</div>
+  {% for sub in subs %}
+    <div style="margin-bottom:1.1rem">
+      <div class="spread" style="margin-bottom:.35rem">
+        <div><b class="mono">{{ sub.code }}</b> &nbsp;{{ sub.title }}</div>
+        <div class="tiny muted mono">{{ sub.exam_questions }} on the exam &middot; {{ sub.mastery|pct }} mastery</div>
+      </div>
+      <div class="meter" style="margin-bottom:.5rem"><i class="{{ sub.mastery|fill }}" style="width:{{ sub.mastery|width }}"></i></div>
+      <table class="data">
+        <tbody>
+        {% for s in sub.sections %}
+          <tr>
+            <td class="mono tiny" style="width:4rem"><a href="/study/{{ pool.pool_id }}?section={{ s.code }}">{{ s.code }}</a></td>
+            <td class="small">{{ s.title[:92] }}{% if s.title|length > 92 %}&hellip;{% endif %}</td>
+            <td class="tiny mono muted" style="width:5rem">{{ s.seen }}/{{ s.count }} seen</td>
+            <td class="tiny mono" style="width:3rem">{{ s.mastery|pct }}</td>
+            <td style="width:22%"><div class="meter thin"><i class="{{ s.mastery|fill }}" style="width:{{ s.mastery|width }}"></i></div></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

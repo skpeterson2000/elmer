@@ -1,0 +1,326 @@
+{
+ "G1A": {
+  "note": "General class opens most of HF, but four bands are shared with Extra-only segments at the bottom: 80, 40, 20 and 15 metres. Learn where your segment starts on each. 60 metres is different again \u2014 five fixed channels, upper sideband, with a power limit referenced to an effective radiated power rather than output.",
+  "key_facts": [
+   "Generals are excluded from parts of 80, 40, 20 and 15 m",
+   "A primary allocation takes precedence over a secondary user",
+   "60 m is channelised: five channels, USB, 100 W ERP",
+   "The whole emission must fall inside your privileges"
+  ]
+ },
+ "G1B": {
+  "note": "PRB-1 requires local authorities to reasonably accommodate amateur antennas, but does not override every restriction. Beacons are limited to 100 W and must be under automatic, local or remote control. Broadcasting, business traffic and encoded messages remain prohibited, and one-way transmissions are only allowed in the listed exceptions.",
+  "key_facts": [
+   "Beacon power limit is 100 W",
+   "Antenna structures over 200 ft or near airports need FAA/FCC notification",
+   "Only one beacon may be automatically controlled per band from a station",
+   "Good amateur practice is judged by the FCC"
+  ]
+ },
+ "G1C": {
+  "note": "The power rule is simple to state and easy to get wrong: 1500 W PEP output, and always the minimum necessary. Some segments are lower \u2014 200 W PEP on 30 m and in the Novice/Technician HF CW segments. Data emissions have a symbol-rate and bandwidth framework, and 60 m has its own effective-radiated-power ceiling.",
+  "key_facts": [
+   "Maximum 1500 W PEP output, and only the minimum necessary",
+   "30 m is limited to 200 W PEP and no phone",
+   "60 m is limited to 100 W ERP relative to a half-wave dipole",
+   "Power is measured as peak envelope power at the transmitter output"
+  ]
+ },
+ "G1D": {
+  "note": "The volunteer examiner system runs the exams. To be a VE you must hold General or higher \u2014 and to administer a particular element you must hold a class above it, so Extras are needed for the Extra exam. When you pass an upgrade you get a CSCE, and you may operate with your new privileges immediately by appending the correct identifier.",
+  "key_facts": [
+   "Three accredited VEs are required to administer an exam",
+   "A VE must be accredited by a VEC and hold General or higher",
+   "After upgrading, identify with your call sign plus /AG or /AE until the licence appears",
+   "A CSCE is valid for 365 days for element credit"
+  ]
+ },
+ "G1E": {
+  "note": "Control category determines who is responsible and where. Automatic control is restricted to specific station types; anything else needs a control operator at a control point. Third-party traffic across borders requires an agreement between the two countries. Automatically controlled digital stations may only operate in designated segments.",
+  "key_facts": [
+   "Automatic control is limited to repeater, auxiliary, beacon and space stations",
+   "Third-party traffic abroad requires a third-party agreement",
+   "The US is in ITU Region 2",
+   "A station under automatic control still has a responsible licensee"
+  ]
+ },
+ "G2A": {
+  "note": "Convention on HF is lower sideband below 10 MHz and upper sideband above it, with the exceptions of 60 m and all the VHF/UHF SSB bands, which use USB. To break into a contact on phone say your call sign between transmissions \u2014 not 'break', which signals an emergency in many nets.",
+  "key_facts": [
+   "LSB on 160, 80 and 40 m; USB on 20 m and above",
+   "60 m uses USB regardless of the below-10-MHz rule",
+   "Say your call sign to join a contact, not 'break'",
+   "Excessive mic gain or speech processing causes splatter"
+  ]
+ },
+ "G2B": {
+  "note": "Operating well is mostly courtesy plus awareness of what else is on the band. Listen before transmitting, use the minimum power, and respect band plans and the calling frequencies. During an emergency net, stay off the frequency unless you can help. A station in distress has absolute priority.",
+  "key_facts": [
+   "Always listen before transmitting on a frequency",
+   "Use the minimum power necessary",
+   "Band plans are voluntary agreements, not FCC rules",
+   "Emergency traffic takes precedence over everything else"
+  ]
+ },
+ "G2C": {
+  "note": "CW procedure is compact by design. Q signals compress common phrases: QRM is interference from other stations, QRN is atmospheric noise, QSY means change frequency, QRZ asks who is calling. Full break-in, or QSK, lets you hear between your own dits \u2014 useful for catching a station breaking in mid-transmission.",
+  "key_facts": [
+   "QRM = interference from stations, QRN = atmospheric noise",
+   "QSY = change frequency, QRZ = who is calling me, QRS = send slower",
+   "Full break-in (QSK) receives between the elements of your own sending",
+   "Answer a CQ at or slightly below the sender's speed"
+  ]
+ },
+ "G2D": {
+  "note": "The Volunteer Monitor Program is the ARRL-administered successor to the Official Observer scheme; volunteers monitor the bands and report both good practice and rule violations to the FCC. Beyond that, this group covers routine HF habits \u2014 logging, QSLing, and working DX politely.",
+  "key_facts": [
+   "The Volunteer Monitor Program is administered by the ARRL under FCC agreement",
+   "Volunteer Monitors report violations and also good operating",
+   "Logging is no longer required by the FCC but remains good practice",
+   "When working a DX pileup, listen first to learn the DX station's pattern"
+  ]
+ },
+ "G3A": {
+  "note": "The sun drives HF. Solar flux and sunspot number track how much ionising radiation is reaching the ionosphere: more flux means a denser F layer and higher usable frequencies. The A and K indices measure geomagnetic disturbance instead \u2014 and disturbance is bad news, causing absorption and wrecking polar paths.",
+  "key_facts": [
+   "Higher solar flux raises the MUF and opens the higher bands",
+   "K index: 0-9, updated every 3 hours. A index: daily, linear",
+   "Low A and K means a quiet, stable geomagnetic field",
+   "A coronal mass ejection can cause a geomagnetic storm 20-40 hours later"
+  ],
+  "lab": "skip"
+ },
+ "G3B": {
+  "note": "The MUF is the highest frequency that will still refract back to earth on a given path; the LUF is the lowest that will get through D-layer absorption. Work between them, and near the MUF for best results. Long path goes the other way round the earth \u2014 180 degrees from short path and much further.",
+  "key_facts": [
+   "Work below the MUF and above the LUF",
+   "The best band is usually just below the MUF",
+   "Long path is 180 degrees from short path and about 40,000 km minus the short path",
+   "Raising the frequency above the MUF means the signal passes into space"
+  ],
+  "lab": "skip"
+ },
+ "G3C": {
+  "note": "The ionosphere is layered. The D region absorbs low frequencies by day and vanishes at night, which is why 160 and 80 m come alive after dark. E is intermittent. F splits into F1 and F2 by day and merges at night; F2 does the long-haul work. Send a signal above the critical frequency straight up and it escapes.",
+  "key_facts": [
+   "D layer absorbs, mostly below 10 MHz, and disappears at night",
+   "F2 is the highest layer and supports the longest hops",
+   "Critical frequency is the highest that returns at vertical incidence",
+   "NVIS uses high-angle radiation below foF2 for regional coverage with no skip zone"
+  ],
+  "lab": "skip"
+ },
+ "G4A": {
+  "note": "Station configuration, and the controls that shape a signal. A notch filter removes a single interfering carrier. Attenuators protect the front end from very strong signals. The transmit bandwidth control on a modern rig sets how wide your SSB signal is, and an ALC meter shows whether you are driving an amplifier correctly.",
+  "key_facts": [
+   "A notch filter removes a single unwanted carrier",
+   "ALC prevents overdriving; watch it when driving an amplifier",
+   "An attenuator reduces very strong signals to prevent overload",
+   "IF shift moves the passband without moving the received frequency"
+  ]
+ },
+ "G4B": {
+  "note": "Choose the instrument for the measurement. An oscilloscope shows a waveform against time, which is how you spot flat-topping. A spectrum analyser shows amplitude against frequency, which is how you spot harmonics and splatter. A dummy load lets you test at full power without radiating.",
+  "key_facts": [
+   "Oscilloscope: amplitude versus time. Spectrum analyser: amplitude versus frequency",
+   "A dummy load is a non-radiating 50-ohm resistive load",
+   "A voltmeter's high input impedance avoids loading the circuit under test",
+   "Directional wattmeters read forward and reflected power separately"
+  ]
+ },
+ "G4C": {
+  "note": "Interference cures come in two halves: stop your station radiating what it should not, and stop the affected device receiving what it should not. Harmonics from the transmitter are your problem and need filtering at the transmitter. Fundamental overload of a neighbour's device is their equipment failing to reject a legal signal.",
+  "key_facts": [
+   "A low-pass filter at the transmitter cuts harmonic radiation",
+   "A high-pass filter at the affected receiver cuts fundamental overload",
+   "Ferrite chokes on cables break up common-mode currents",
+   "Bond all station equipment to a single ground point to avoid ground loops"
+  ]
+ },
+ "G4D": {
+  "note": "A speech processor raises average power by compressing the audio, which improves readability on a weak SSB signal \u2014 but overdone it distorts and splatters. S meters are only roughly standardised: S9 is defined as 50 microvolts at the antenna on HF, and each S unit is nominally 6 dB.",
+  "key_facts": [
+   "S9 = 50 microvolts at the receiver input on HF",
+   "One S unit is approximately 6 dB",
+   "A speech processor raises average talk power, not peak power",
+   "Leave about 3 kHz clearance from a band edge when operating SSB"
+  ]
+ },
+ "G4E": {
+  "note": "Mobile and portable stations live with limited power and compromise antennas. A short mobile whip needs a loading coil to be resonant, and most of its loss is in ground and coil resistance \u2014 a larger coil and a capacity hat help. Alternative power sources have their own problems: solar charge controllers and switching supplies both make RF noise.",
+  "key_facts": [
+   "A loading coil resonates a physically short mobile antenna",
+   "Connect a mobile transceiver directly to the battery with fused leads",
+   "Alternator whine enters through the DC power leads",
+   "A properly sized solar panel needs a charge controller to protect the battery"
+  ]
+ },
+ "G5A": {
+  "note": "Reactance is frequency-dependent opposition: inductive reactance rises with frequency, capacitive reactance falls. At resonance they are equal and cancel, leaving pure resistance \u2014 this is what makes tuned circuits and resonant antennas work. Impedance transformation lets you match one impedance to another, which is what a transformer or a matching network does.",
+  "key_facts": [
+   "X_L = 2 x pi x f x L, rising with frequency",
+   "X_C = 1 / (2 x pi x f x C), falling with frequency",
+   "At resonance X_L = X_C and the impedance is purely resistive",
+   "A quarter-wave matching section uses Z = square root of (Zin x Zout)"
+  ],
+  "lab": "react"
+ },
+ "G5B": {
+  "note": "The decibel and the basic power arithmetic. Remember 3 dB as double and 10 dB as ten times and most exam questions fall out. RMS is the DC-equivalent value of a sine wave \u2014 the value that produces the same heating \u2014 and it is peak divided by the square root of two. PEP is what the FCC limit is measured in.",
+  "key_facts": [
+   "dB = 10 x log10(power ratio); 3 dB doubles, 10 dB is ten times",
+   "RMS = peak x 0.707;  peak = RMS x 1.414",
+   "Peak-to-peak is twice the peak value",
+   "PEP = RMS voltage squared, divided by load resistance, for a single tone"
+  ],
+  "lab": "db"
+ },
+ "G5C": {
+  "note": "Series and parallel behave oppositely for resistors and capacitors. Resistors and inductors add in series; capacitors add in parallel. A transformer's voltage ratio follows its turns ratio, and its impedance ratio follows the square of the turns ratio \u2014 that squared relationship is the one most often missed.",
+  "key_facts": [
+   "Resistors and inductors: add in series, reciprocal sum in parallel",
+   "Capacitors: add in parallel, reciprocal sum in series",
+   "Transformer voltage ratio = turns ratio",
+   "Transformer impedance ratio = turns ratio squared"
+  ],
+  "lab": "ohm"
+ },
+ "G6A": {
+  "note": "Component behaviour beyond the ideal. Every real component has parasitics: a capacitor has lead inductance, a resistor has capacitance, and both matter at RF. Electrolytic capacitors are polarised and fail if reversed. Diodes have a forward voltage drop \u2014 about 0.7 V for silicon, 0.3 V for germanium.",
+  "key_facts": [
+   "Silicon diode drops about 0.7 V forward; germanium about 0.3 V",
+   "Electrolytic capacitors are polarised and must be fitted the right way round",
+   "Wire-wound resistors are inductive and unsuitable at RF",
+   "A Zener diode regulates by conducting in reverse at a set voltage"
+  ]
+ },
+ "G6B": {
+  "note": "Integrated circuits and the small parts around them. An MMIC is a monolithic microwave amplifier in a tiny package needing few external parts. Ferrite beads and toroids suppress or transform RF depending on the material's permeability. Choose connectors by frequency: type N above 400 MHz, BNC for low-power VHF.",
+  "key_facts": [
+   "An MMIC is a monolithic microwave integrated circuit amplifier",
+   "Ferrite mix determines whether a core suppresses or transforms",
+   "Type N connectors are preferred above 400 MHz",
+   "An LED is a diode that emits light when forward biased"
+  ]
+ },
+ "G7A": {
+  "note": "A linear power supply rectifies, filters and regulates. A full-wave bridge uses four diodes and produces a ripple at twice the mains frequency, which is easier to filter than a half-wave rectifier's. The filter capacitor smooths the pulsating DC; a bleeder resistor discharges it safely when the supply is switched off.",
+  "key_facts": [
+   "Full-wave bridge: four diodes, ripple at twice mains frequency",
+   "Half-wave: one diode, ripple at mains frequency, harder to filter",
+   "A larger filter capacitor reduces ripple",
+   "A bleeder resistor discharges filter capacitors for safety"
+  ]
+ },
+ "G7B": {
+  "note": "Amplifier class describes how much of the input cycle the device conducts for. Class A conducts the whole cycle \u2014 most linear, least efficient. Class C conducts less than half and is efficient but badly distorting, so it suits FM and CW but never SSB. An oscillator is an amplifier with positive feedback and a frequency-determining network.",
+  "key_facts": [
+   "Class A: conducts 360 degrees, most linear, least efficient",
+   "Class C: conducts under 180 degrees, efficient, non-linear",
+   "SSB needs a linear amplifier: class A or AB",
+   "An oscillator needs gain, positive feedback and a tuned circuit"
+  ]
+ },
+ "G7C": {
+  "note": "A superheterodyne mixes the incoming signal with a local oscillator to a fixed intermediate frequency, where good filters are practical. Filter bandwidth is chosen to match the mode: narrow for CW, about 2.4 kHz for SSB. DSP does the same filtering in software, and can also implement noise reduction and automatic notching.",
+  "key_facts": [
+   "A mixer produces the sum and difference of its two inputs",
+   "Roofing filters protect the IF stages from strong nearby signals",
+   "Choose about 500 Hz for CW, 2.4 kHz for SSB, 6 kHz for AM",
+   "DSP filtering is done numerically after the signal is digitised"
+  ]
+ },
+ "G8A": {
+  "note": "Modulation methods and their consequences. AM has a carrier and two sidebands; SSB throws away the carrier and one sideband, saving both power and spectrum. FM varies frequency rather than amplitude, so it is immune to amplitude noise but needs more bandwidth. Overmodulation on any mode produces splatter that lands on your neighbours.",
+  "key_facts": [
+   "AM bandwidth is twice the highest audio frequency",
+   "SSB puts all transmitter power into one sideband",
+   "Overmodulation causes splatter and distortion",
+   "The modulation envelope is the shape of the RF amplitude over time"
+  ]
+ },
+ "G8B": {
+  "note": "Frequency changing and the bandwidth consequences. Mixing two signals produces the sum and the difference, which is how a transmitter reaches its output frequency. Deviation sets FM bandwidth: Carson's rule says bandwidth is roughly twice the sum of deviation and highest audio frequency. Intermodulation arises when two signals mix in a non-linear stage.",
+  "key_facts": [
+   "A mixer output contains the sum and difference frequencies",
+   "Carson's rule: bandwidth ~ 2 x (deviation + highest modulating frequency)",
+   "Intermodulation products come from non-linearity, often in an overloaded stage",
+   "Third-order products fall closest to the wanted signals and are hardest to filter"
+  ]
+ },
+ "G8C": {
+  "note": "Digital emissions differ in bandwidth, speed and robustness. FT8 is extremely narrow and works far below the noise, at the cost of tiny fixed messages. PSK31 is a conversational keyboard mode. FSK and its relatives shift between tones. Packet and its descendants add addressing and error checking, and can be relayed.",
+  "key_facts": [
+   "FT8 uses 15-second transmit slots and works below the noise floor",
+   "PSK31 is about 31 Hz wide",
+   "Baud is symbols per second, not bits per second",
+   "An ARQ protocol requests retransmission of frames received in error"
+  ]
+ },
+ "G9A": {
+  "note": "Characteristic impedance is set by the geometry of the line, not its length. SWR is the ratio of the impedances when they mismatch \u2014 a 100-ohm load on 50-ohm line gives 2:1, and so does a 25-ohm load. Loss in the line converts reflected power to heat, which is why a high SWR on a long lossy run costs so much.",
+  "key_facts": [
+   "SWR = higher impedance divided by lower, for a resistive load",
+   "Characteristic impedance depends on conductor size and spacing, not length",
+   "Feed line loss rises with frequency and with SWR",
+   "A matched line has SWR 1:1 and no reflected power"
+  ],
+  "lab": "swr"
+ },
+ "G9B": {
+  "note": "The half-wave dipole is the reference antenna. Fed at the centre it presents roughly 70 ohms, radiates broadside to the wire, and its length is about 468 divided by frequency in MHz, in feet. Height above ground dominates its radiation angle: low means high-angle and short-range, high means low-angle and DX.",
+  "key_facts": [
+   "Half-wave dipole in feet = 468 / f(MHz)",
+   "Centre-fed dipole feed point impedance is about 70 ohms",
+   "A quarter-wave vertical needs a ground plane or radials",
+   "A dipole low over ground radiates at a high angle \u2014 good for NVIS"
+  ],
+  "lab": "ant"
+ },
+ "G9C": {
+  "note": "A Yagi concentrates radiation by adding parasitic elements: a reflector behind, slightly longer, and one or more directors in front, slightly shorter. Gain rises with boom length, and beamwidth narrows as gain rises. Front-to-back ratio measures how well it rejects signals from behind \u2014 useful for nulling interference.",
+  "key_facts": [
+   "Reflector is longer than the driven element; directors are shorter",
+   "More elements and longer boom means more gain, narrower beamwidth",
+   "Front-to-back ratio measures rejection off the rear",
+   "Stacking two antennas vertically lowers the radiation angle"
+  ]
+ },
+ "G9D": {
+  "note": "Special-purpose antennas. A random wire against a good ground needs a tuner and works many bands at the cost of RF in the shack. A NVIS antenna is a low horizontal wire for regional work. A Beverage is a very long, low receiving wire that is quiet and directional but very inefficient \u2014 receive only.",
+  "key_facts": [
+   "A Beverage is a long, low receiving antenna, poor for transmitting",
+   "NVIS uses a low horizontal antenna for high-angle regional coverage",
+   "A trap antenna uses resonant traps to work several bands",
+   "Loop antennas can null an interfering signal by rotation"
+  ]
+ },
+ "G0A": {
+  "note": "RF exposure evaluation is required of every station. The limits depend on frequency, on whether the exposure is controlled or uncontrolled, and on duty cycle and averaging time. Uncontrolled limits are stricter and apply to neighbours and passers-by. Raising the antenna and increasing separation are the most effective fixes.",
+  "key_facts": [
+   "Every amateur station must perform a routine RF exposure evaluation",
+   "Uncontrolled exposure limits are lower than controlled limits",
+   "Averaging time is 6 minutes controlled, 30 minutes uncontrolled",
+   "Duty cycle and antenna gain both enter the calculation"
+  ]
+ },
+ "G0B": {
+  "note": "Station wiring and mechanical safety. Size conductors and fuses for the current, fuse the ungrounded conductor, and bond equipment to a single point ground so no fault current flows through a signal cable. Interlocks keep amplifier cabinets safe. On the tower, never climb alone, and keep clear of power lines.",
+  "key_facts": [
+   "Fuse the hot conductor; ground the chassis of every unit",
+   "Bond all station equipment to a single point ground",
+   "Use conductors sized for the current, not for convenience",
+   "An interlock removes high voltage when a cabinet is opened"
+  ]
+ },
+ "G2E": {
+  "note": "Digital operating on HF has its own etiquette and settings. Most modes are worked in upper sideband regardless of band, because the software cares about audio tone frequencies rather than the sideband convention. Keep drive low enough that ALC barely moves \u2014 overdriving a digital signal spreads it across the band and is the commonest fault.",
+  "key_facts": [
+   "Most HF digital modes use USB on every band",
+   "Set audio drive so ALC action is minimal; overdrive causes splatter",
+   "FT8 transmits in 15-second slots synchronised to the clock",
+   "Your PC clock must be accurate within about a second for FT8/JS8",
+   "A waterfall display shows signals across the passband over time"
+  ]
+ }
+}

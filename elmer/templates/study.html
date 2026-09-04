@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Study &middot; {{ pool.name }}{% endblock %}
+{% block body %}
+
+<div class="quiz">
+  <div class="quiz-bar">
+    <div>
+      <h1 style="margin-bottom:.2rem">{{ pool.name }}</h1>
+      <div class="quiz-context">
+        {{ pool.long_name }}
+        {% if section %} &middot; <span class="qid">{{ section }}</span> {{ section_title }}{% endif %}
+      </div>
+    </div>
+    <div class="row">
+      {% for m, label, hint in [
+          ('drill','Drill','Due reviews first, then new material'),
+          ('weak','Weak spots','Lowest estimated mastery first'),
+          ('new','New','Questions you have never seen'),
+          ('review','Lapses','Questions you have got wrong before'),
+          ('rapid','Contest','Fast random-fire round')] %}
+        <a class="btn sm {% if mode == m %}primary{% else %}ghost{% endif %}"
+           title="{{ hint }}"
+           href="/study/{{ pool.pool_id }}?mode={{ m }}{% if section %}&section={{ section }}{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel" id="card">
+    <div class="muted">Loading question&hellip;</div>
+  </div>
+
+  <div class="panel tight mt">
+    <div class="hud" id="hud">
+      <span>session <b id="h-count">0</b></span>
+      <span>correct <b id="h-acc">-</b></span>
+      <span>run <b id="h-run">0</b></span>
+      <span>XP <b id="h-xp">{{ profile.xp }}</b></span>
+      <span id="h-timer" class="mono"></span>
+      <span style="margin-left:auto">
+        <span class="kbd">1</span>-<span class="kbd">4</span> answer &middot;
+        <span class="kbd">space</span> next &middot;
+        <span class="kbd">?</span> reveal
+      </span>
+    </div>
+  </div>
+
+  <div class="row mt">
+    <a class="btn sm ghost" href="/progress/{{ pool.pool_id }}">Progress &amp; weak areas</a>
+    <a class="btn sm ghost" href="/browse/{{ pool.pool_id }}">Browse the pool</a>
+    <a class="btn sm ghost" href="/exam/{{ pool.pool_id }}">Take a mock exam</a>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+window.STUDY = {
+  pool: {{ pool.pool_id|tojson }},
+  mode: {{ mode|tojson }},
+  section: {{ section|tojson }},
+  rapid: {{ (mode == 'rapid')|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='study.js') }}"></script>
+{% endblock %}

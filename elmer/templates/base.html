@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ELMER{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+{% if icon_file %}<link rel="icon" href="{{ url_for('static', filename=icon_file) }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename=icon_file) }}">
+{% else %}<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📻</text></svg>">
+{% endif %}
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark">ELMER</span>
+    <span class="brand-sub">radio study &amp; propagation</span>
+  </a>
+  <nav class="nav">
+    <a href="/" {% if request.path == '/' %}class="on"{% endif %}>Dashboard</a>
+    <a href="/propagation" {% if request.path.startswith('/propagation') %}class="on"{% endif %}>Propagation</a>
+    <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
+  </nav>
+  <div class="status">
+    <div class="status-rank">
+      <span class="rank-name">{{ rank.name }}</span>
+      <span class="rank-xp">{{ profile.xp }} XP</span>
+    </div>
+    <div class="rank-bar" title="{{ rank.to_next }} XP to {{ rank.next_name or 'max rank' }}">
+      <i style="width: {{ (rank.progress * 100)|round(1) }}%"></i>
+    </div>
+    <div class="status-streak {% if profile.streak_days %}lit{% endif %}"
+         title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}">
+      &#9679; {{ profile.streak_days }}d
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+{% block body %}{% endblock %}
+</main>
+
+<div id="toaster" class="toaster"></div>
+<script src="{{ url_for('static', filename='elmer.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

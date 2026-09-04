@@ -1,0 +1,453 @@
+{
+ "8-1": {
+  "note": "Marine radar detects targets by transmitting a short, high-power pulse and timing the echo. Echo strength depends on transmitted power, antenna gain and effective area, the target's radar cross section, range, and losses on transmit and receive. Everything else in the set exists to support that measurement.",
+  "key_facts": [
+   "Echo size depends on power, antenna area, losses, target cross section and range",
+   "Range comes from echo timing; bearing from antenna direction",
+   "Marine radar uses X band (about 9 GHz) and S band (about 3 GHz)",
+   "X band gives better resolution; S band penetrates rain better"
+  ]
+ },
+ "8-2": {
+  "note": "Distance is derived from time. A radio wave covers about 328 yards per microsecond one way, so a round trip to a target one nautical mile away takes about 12.36 microseconds. Halve the measured echo time to get range, because the pulse travels out and back.",
+  "key_facts": [
+   "Round-trip time is about 12.36 microseconds per nautical mile",
+   "Radio waves travel about 328 yards per microsecond",
+   "Range = (echo time / 2) x speed of light",
+   "One nautical mile is 6076 feet, or 2025 yards"
+  ]
+ },
+ "8-3": {
+  "note": "Frequency and wavelength are tied by the speed of light. At X band, around 9375 MHz, the wavelength is about 3.2 cm; at S band, around 3050 MHz, it is roughly 10 cm. The shorter wavelength gives a narrower beam from the same antenna size, hence better bearing discrimination.",
+  "key_facts": [
+   "Wavelength (cm) = 30,000 / frequency (MHz)",
+   "X band ~9375 MHz, about 3.2 cm wavelength",
+   "S band ~3050 MHz, about 10 cm wavelength",
+   "A shorter wavelength gives a narrower beam for the same antenna size"
+  ]
+ },
+ "8-4": {
+  "note": "Peak power is the power during the pulse; average power is peak power times duty cycle, and duty cycle is pulse width times pulse repetition rate. Because the duty cycle is tiny, a radar with kilowatts of peak power may average only a few watts.",
+  "key_facts": [
+   "Duty cycle = pulse width x pulse repetition rate",
+   "Average power = peak power x duty cycle",
+   "Peak power = average power / duty cycle",
+   "Typical marine radar duty cycles are well under 0.1 percent"
+  ]
+ },
+ "8-5": {
+  "note": "Pulse width and PRF trade against each other. A short pulse gives fine range resolution and a short minimum range but puts less energy on target. A low PRF allows a longer unambiguous range because the echo has time to return before the next pulse leaves.",
+  "key_facts": [
+   "Shorter pulse width improves range resolution and minimum range",
+   "Lower PRF gives greater maximum unambiguous range",
+   "Long range scales use a long pulse and a low PRF",
+   "Minimum range is limited largely by pulse width and receiver recovery time"
+  ]
+ },
+ "8-6": {
+  "note": "Selecting a range scale changes pulse width and PRF together. Short scales use narrow pulses at a high repetition rate for detail close in; long scales use wide pulses at a low rate to put enough energy on distant targets and to let their echoes return in time.",
+  "key_facts": [
+   "Short range scale: narrow pulse, high PRF",
+   "Long range scale: wide pulse, low PRF",
+   "Maximum unambiguous range = speed of light / (2 x PRF)",
+   "Second-trace echoes appear when a distant echo arrives after the next pulse"
+  ]
+ },
+ "8-7": {
+  "note": "The main blocks. The synchroniser or timer starts every cycle and keeps the display sweep in step with the transmitter. The modulator generates the high-voltage pulse that fires the magnetron. The duplexer shares one antenna between transmitter and receiver.",
+  "key_facts": [
+   "The synchroniser controls timing throughout the system",
+   "The modulator drives the magnetron with a high-voltage pulse",
+   "The duplexer allows one antenna to transmit and receive",
+   "The indicator displays range and bearing of the echoes"
+  ]
+ },
+ "8-8": {
+  "note": "More building blocks. The magnetron is a crossed-field oscillator producing the microwave pulse. The mixer and local oscillator, usually a reflex klystron or solid-state source, convert echoes to an intermediate frequency, typically 30 or 60 MHz, where they can be amplified selectively.",
+  "key_facts": [
+   "A magnetron generates the transmitted microwave pulse",
+   "Typical radar IF is 30 or 60 MHz",
+   "A reflex klystron or Gunn device serves as local oscillator",
+   "The TR cell protects the receiver during the transmit pulse"
+  ]
+ },
+ "8-9": {
+  "note": "Circuit functions between the antenna and the screen. The video amplifier raises detected echoes to a level that can brighten the display. Sweep circuits move the trace outward from the centre in step with the timing so that distance on screen equals range.",
+  "key_facts": [
+   "The video amplifier drives the display with detected echo signals",
+   "Sweep circuits move the trace outward in step with the timing",
+   "The sweep frequency is determined by the pulse repetition rate",
+   "A line driver sends video over coax to a remote display"
+  ]
+ },
+ "8-10": {
+  "note": "Support circuits including microprocessor control. Modern sets use a processor to handle range rings, bearing markers, target tracking and control settings. ESD precautions apply to the boards, which are static sensitive and easily ruined by careless handling.",
+  "key_facts": [
+   "A microprocessor manages ranging, markers and control settings",
+   "Digital boards are static sensitive: use ESD straps and mats",
+   "Line drivers and receivers move video between units over coax",
+   "Memory holds the display image between antenna rotations"
+  ]
+ },
+ "8-11": {
+  "note": "The transmitting chain in overview: the trigger from the synchroniser fires the modulator, which applies a high-voltage pulse to the magnetron, which oscillates for the duration of the pulse and delivers RF to the waveguide and antenna.",
+  "key_facts": [
+   "Trigger, modulator, magnetron, duplexer, waveguide, antenna",
+   "Magnetron output frequency depends on its physical cavity dimensions",
+   "Transmitted pulse duration equals the modulator pulse duration",
+   "Peak power is typically several kilowatts in a marine set"
+  ]
+ },
+ "8-12": {
+  "note": "A magnetron is a diode with a strong permanent magnetic field at right angles to the electric field, forcing electrons into curved paths that excite resonant cavities. Its frequency is set by the cavities, and it drifts with temperature and age \u2014 which is why AFC exists.",
+  "key_facts": [
+   "Frequency is fixed by the physical cavity dimensions",
+   "A strong permanent magnetic field is essential to operation",
+   "Magnetron frequency drifts with temperature and ageing",
+   "Magnetrons contain beryllium oxide in some ceramics: never machine or sand"
+  ]
+ },
+ "8-13": {
+  "note": "Radar modulation is pulse modulation: the transmitter is switched fully on for a very short time and off for the rest. The modulator stores energy between pulses and dumps it into the magnetron on command, which is how modest average power produces high peak power.",
+  "key_facts": [
+   "The modulator stores energy between pulses and releases it on trigger",
+   "Pulse shape affects spectrum and range resolution",
+   "A hard-tube modulator uses a switching tube; a line-type uses a PFN",
+   "Charging diodes and inductors refill the storage element between pulses"
+  ]
+ },
+ "8-14": {
+  "note": "A pulse-forming network is a ladder of series inductors and shunt capacitors that behaves like an artificial transmission line. Charged slowly and discharged through a switch into a matched load, it produces a flat-topped pulse of precisely defined width.",
+  "key_facts": [
+   "A PFN is series inductors with shunt capacitors",
+   "It behaves as an artificial transmission line",
+   "PFN characteristics set the transmitted pulse width",
+   "A thyratron or SCR switches the PFN into the pulse transformer"
+  ]
+ },
+ "8-15": {
+  "note": "Sharing one antenna requires protecting the receiver. The TR cell is a gas-filled device that ionises and shorts the receiver path during the transmit pulse, then deionises to let echoes through. The ATR complements it on the transmitter side.",
+  "key_facts": [
+   "The TR cell protects the receiver during transmission",
+   "TR recovery time contributes to the radar's minimum range",
+   "A circulator routes energy one way around its ports",
+   "A directional coupler samples forward or reverse power"
+  ]
+ },
+ "8-16": {
+  "note": "A ferrite circulator does the duplexer job without gas devices, passing energy from port to port in one rotational direction only. Directional couplers tap a known fraction of the power travelling one way, which is how output power is monitored without interrupting it.",
+  "key_facts": [
+   "A circulator passes energy in one rotational direction between ports",
+   "A weak or failed TR cell lets transmit power reach and damage the receiver",
+   "Coupling factor states how much power a directional coupler samples",
+   "Poor TR recovery shows as a large blind area around own ship"
+  ]
+ },
+ "8-17": {
+  "note": "Timing is everything in radar. The synchroniser generates the master trigger that simultaneously starts the transmitter pulse and the display sweep, so that a target's position on the screen corresponds to its range. If timing drifts, ranges read wrong.",
+  "key_facts": [
+   "The trigger starts the transmitter and the sweep at the same instant",
+   "Timing errors show up directly as range errors",
+   "Range rings are generated from the same timing reference",
+   "The pulse repetition rate is set by the trigger generator"
+  ]
+ },
+ "8-18": {
+  "note": "Radar power supplies include low-voltage rails for logic and video and a high-voltage supply for the magnetron. High voltage in a radar is lethal and remains stored in capacitors after switch-off \u2014 discharge before working, and never defeat the interlocks.",
+  "key_facts": [
+   "Magnetron supplies operate at lethal voltages",
+   "Discharge high-voltage capacitors before servicing",
+   "Interlocks remove high voltage when a cabinet is opened",
+   "Regulated low-voltage rails supply logic and video circuits"
+  ]
+ },
+ "8-19": {
+  "note": "The radar receiver is a superheterodyne optimised for very weak, very short pulses. Bandwidth must be wide enough to preserve the pulse shape, which conflicts with the usual wish for narrow bandwidth, so sensitivity is traded against range resolution.",
+  "key_facts": [
+   "Receiver bandwidth must be wide enough to pass the pulse without distortion",
+   "Bandwidth is roughly the reciprocal of the pulse width",
+   "A wider bandwidth admits more noise and reduces sensitivity",
+   "Overall noise figure is set mainly by the first stage"
+  ]
+ },
+ "8-20": {
+  "note": "The mixer combines the received echo with the local oscillator to produce the intermediate frequency. Balanced mixers using crystal or Schottky diodes are usual, because they suppress local oscillator noise. A burnt-out mixer crystal is a classic cause of lost sensitivity.",
+  "key_facts": [
+   "The mixer produces the IF from the echo and local oscillator",
+   "Balanced mixers suppress local oscillator noise",
+   "A damaged mixer crystal causes a large loss of sensitivity",
+   "Mixer crystals are easily destroyed by excessive transmit leakage"
+  ]
+ },
+ "8-21": {
+  "note": "The local oscillator must sit exactly one IF away from the magnetron's frequency. A reflex klystron is tuned by its repeller voltage; solid-state Gunn oscillators are now common. Because the magnetron drifts, the local oscillator must be steered to follow it.",
+  "key_facts": [
+   "The local oscillator differs from the transmitted frequency by the IF",
+   "A reflex klystron is tuned by varying the repeller voltage",
+   "Gunn diode oscillators have replaced klystrons in many sets",
+   "Local oscillator drift causes loss of sensitivity and detuning"
+  ]
+ },
+ "8-22": {
+  "note": "IF amplifiers provide most of the receiver gain. They often use logarithmic response so that both weak distant echoes and strong close ones display usefully without saturating, compressing an enormous dynamic range into a usable video signal.",
+  "key_facts": [
+   "Most receiver gain is developed in the IF amplifier",
+   "A logarithmic IF amplifier compresses a wide dynamic range",
+   "Insufficient IF bandwidth blurs the pulse and degrades resolution",
+   "Gain control adjusts IF amplification to set the noise level on screen"
+  ]
+ },
+ "8-23": {
+  "note": "The detector recovers the pulse envelope from the IF, and the video amplifier raises it to drive the display. Video bandwidth must preserve the pulse edges \u2014 a slow video stage smears targets radially and destroys range resolution.",
+  "key_facts": [
+   "The second detector recovers the pulse envelope from the IF",
+   "Video amplifier bandwidth must preserve the pulse edges",
+   "Insufficient video bandwidth smears targets in range",
+   "Video is often differentiated to sharpen leading edges"
+  ]
+ },
+ "8-24": {
+  "note": "Automatic frequency control keeps the local oscillator one IF away from the drifting magnetron. A discriminator senses whether the IF is high or low and applies a correcting voltage, typically to a klystron's repeller. Without AFC, sensitivity falls away as the magnetron ages and warms.",
+  "key_facts": [
+   "AFC holds the local oscillator one IF away from the magnetron",
+   "A discriminator senses IF error and generates a correction voltage",
+   "If the magnetron drifts higher, the klystron repeller is made less negative",
+   "Loss of AFC shows as a gradual loss of sensitivity"
+  ]
+ },
+ "8-25": {
+  "note": "Sea clutter is the return from nearby waves, filling the centre of the screen. Sensitivity time control reduces receiver gain immediately after each pulse and restores it with time, so close returns are suppressed while distant ones are not.",
+  "key_facts": [
+   "STC reduces gain just after each transmit pulse, then restores it",
+   "STC suppresses sea clutter without hiding distant targets",
+   "FTC (fast time constant) reduces rain clutter",
+   "Excessive STC hides genuine close targets and is dangerous"
+  ]
+ },
+ "8-26": {
+  "note": "Receiver supplies must be quiet as well as regulated, because ripple modulates the video and appears as rings or shading on the display. Regulation also holds the local oscillator steady, since supply variation shifts its frequency.",
+  "key_facts": [
+   "Supply ripple appears as unwanted patterns on the display",
+   "Regulation keeps the local oscillator frequency stable",
+   "Separate regulated rails feed video, IF and logic",
+   "A failed regulator can appear as a sensitivity or display fault"
+  ]
+ },
+ "8-27": {
+  "note": "Interference from another radar appears as spirals or curved dotted lines that do not repeat in the same place on successive sweeps, which is how the set's interference rejection circuit identifies and removes them. Genuine targets paint in the same place each rotation.",
+  "key_facts": [
+   "Radar interference shows as curved dotted or spiral patterns",
+   "Genuine targets repeat in the same position each antenna rotation",
+   "Interference rejection compares successive sweeps",
+   "Own-ship electrical noise can also appear as radial streaks"
+  ]
+ },
+ "8-28": {
+  "note": "Miscellaneous receiving-system topics: tuning indicators, performance monitors and the receiver's contribution to overall performance. A performance monitor injects a known signal and shows a plume on the display, giving an overall check of transmitter and receiver health.",
+  "key_facts": [
+   "A performance monitor checks overall transmit and receive health",
+   "Tuning indicators show correct local oscillator alignment",
+   "Loss of sensitivity may come from magnetron, mixer or local oscillator",
+   "Minimum discernible signal characterises receiver sensitivity"
+  ]
+ },
+ "8-29": {
+  "note": "The plan position indicator paints range radially from the centre and bearing by the sweep angle, so the display is a map. Relative motion keeps own ship at the centre; true motion moves it across the screen. Head-up, north-up and course-up set the orientation.",
+  "key_facts": [
+   "A PPI shows range radially and bearing as sweep angle",
+   "Relative motion keeps own ship fixed at the display centre",
+   "True motion moves own ship across the display",
+   "North-up requires a compass input to stabilise the picture"
+  ]
+ },
+ "8-30": {
+  "note": "Sweep circuits generate the radial deflection, starting at the instant of transmission and running outward at a rate set by the range scale. A linear sweep is essential \u2014 non-linearity puts targets at the wrong range.",
+  "key_facts": [
+   "The sweep starts at the moment of transmission",
+   "Sweep speed is set by the selected range scale",
+   "Sweep non-linearity produces range errors",
+   "Video is applied to brighten the trace where echoes occur"
+  ]
+ },
+ "8-31": {
+  "note": "Timing circuits derive the range rings, the variable marker and the sweep from one reference, usually a crystal oscillator, so that all range measurements agree. Errors here affect everything the operator reads off the screen.",
+  "key_facts": [
+   "A single crystal reference keeps all range measurements consistent",
+   "Range rings and markers derive from the same timing chain",
+   "Timing error affects rings, markers and target ranges alike",
+   "Calibration is checked against known fixed range markers"
+  ]
+ },
+ "8-32": {
+  "note": "Fixed range rings are drawn at accurate, known intervals and are the most reliable way to judge distance because they come straight from the timing reference. Their spacing changes with the range scale selected.",
+  "key_facts": [
+   "Fixed range rings appear at accurate calibrated intervals",
+   "Ring spacing changes with the selected range scale",
+   "Rings are generated from the master timing reference",
+   "Rings give a quick, reliable range check without adjustment"
+  ]
+ },
+ "8-33": {
+  "note": "The variable range marker is a movable ring the operator places on a target, reading its range from a counter. It offers finer resolution than counting fixed rings and is the normal way to take an accurate range for collision avoidance.",
+  "key_facts": [
+   "The VRM is a movable ring set on the target's leading edge",
+   "VRM range is read from a digital or dial readout",
+   "VRM gives finer resolution than the fixed rings",
+   "Set the VRM on the near edge of the target for correct range"
+  ]
+ },
+ "8-34": {
+  "note": "The electronic bearing line is a radial line swung onto a target to read its bearing. With a compass input the display shows true bearing; without one it shows relative bearing, measured from the ship's head.",
+  "key_facts": [
+   "The EBL is a movable radial line for reading bearing",
+   "Relative bearing is measured from the ship's head",
+   "True bearing requires a gyro or compass input",
+   "Bearing accuracy is limited by the antenna's horizontal beamwidth"
+  ]
+ },
+ "8-35": {
+  "note": "Digital scan conversion stores the radar picture in memory and reads it out at television rates, giving a bright, flicker-free daylight display. Memory also enables target trails and afterglow effects that would otherwise depend on phosphor persistence.",
+  "key_facts": [
+   "Scan conversion stores the picture and reads it out at TV rates",
+   "Digital storage gives a bright daylight-viewable display",
+   "Memory enables target trails and adjustable afterglow",
+   "Older sets relied on long-persistence phosphor instead"
+  ]
+ },
+ "8-36": {
+  "note": "Automatic radar plotting aids track targets and compute closest point of approach and time to CPA, warning of collision risk. A collision avoidance system needs accurate speed and heading inputs; feed it bad data and its vectors are confidently wrong.",
+  "key_facts": [
+   "ARPA computes CPA and TCPA for tracked targets",
+   "Accurate heading and speed inputs are essential to ARPA vectors",
+   "Target swap can occur when two tracked targets pass close",
+   "ARPA can display true or relative target vectors"
+  ]
+ },
+ "8-37": {
+  "note": "Display supplies feed the CRT or flat panel and its deflection circuits. CRT displays use very high accelerating voltages that persist after switch-off, and the tube itself can implode if struck \u2014 both are serious hazards during service.",
+  "key_facts": [
+   "CRT accelerating voltages are lethal and stored after switch-off",
+   "A struck CRT can implode, throwing glass",
+   "Discharge the CRT anode before handling",
+   "Regulated supplies keep display brightness and geometry stable"
+  ]
+ },
+ "8-38": {
+  "note": "Assorted display topics: brilliance and contrast setting, dimming for night use, and the interaction between gain, sea clutter and brilliance. Set gain first for a light speckle of noise, then adjust clutter controls, then brilliance.",
+  "key_facts": [
+   "Set gain for a light background speckle, then adjust clutter controls",
+   "Excessive brilliance defocuses the display and hides weak targets",
+   "Dimming is essential for night bridge watch",
+   "Overuse of anti-clutter controls suppresses real targets"
+  ]
+ },
+ "8-39": {
+  "note": "Marine radar antennas are slotted waveguide arrays giving a narrow horizontal beam, typically one to two degrees, and a broad vertical fan of twenty degrees or more so targets stay illuminated as the ship rolls. Bearing accuracy follows the horizontal beamwidth.",
+  "key_facts": [
+   "Horizontal beamwidth is typically 1-2 degrees for bearing discrimination",
+   "Vertical beamwidth is broad, 20-30 degrees, to allow for roll and pitch",
+   "A longer array gives a narrower horizontal beam",
+   "Antenna rotation is typically 20-30 revolutions per minute"
+  ]
+ },
+ "8-40": {
+  "note": "Waveguide carries the microwave energy between transmitter and antenna with far less loss than coax could manage. It must stay clean, dry and undented; moisture inside causes arcing and severe loss, which is why pressurisation or desiccant is used.",
+  "key_facts": [
+   "Waveguide has much lower loss than coax at microwave frequencies",
+   "Moisture in the waveguide causes arcing and heavy loss",
+   "A rotary joint carries energy to the rotating antenna",
+   "Dents in waveguide cause reflections and increased SWR"
+  ]
+ },
+ "8-41": {
+  "note": "The antenna assembly returns more than echoes: a bearing signal, usually from a synchro or encoder, tells the display where the antenna is pointing, and a heading marker pulse fires once per revolution as the antenna passes the ship's head.",
+  "key_facts": [
+   "A bearing signal reports antenna position to the display",
+   "The heading marker pulse occurs once per revolution at ship's head",
+   "A synchro or shaft encoder generates antenna position data",
+   "Loss of the heading marker leaves bearings unreferenced"
+  ]
+ },
+ "8-42": {
+  "note": "Waveguide propagates only above a cutoff frequency set by its internal dimensions \u2014 below that, energy will not travel at all. The dominant mode in rectangular guide is TE10, and the broad dimension determines the cutoff.",
+  "key_facts": [
+   "Waveguide will not propagate below its cutoff frequency",
+   "Cutoff is determined by the broad internal dimension",
+   "The dominant rectangular waveguide mode is TE10",
+   "Waveguide behaves as a high-pass filter"
+  ]
+ },
+ "8-43": {
+  "note": "Practical waveguide work. Flanges must be clean and correctly aligned or reflections and arcing follow. Bends must be gradual. A slotted line or directional coupler measures standing wave ratio to confirm the run and antenna are healthy.",
+  "key_facts": [
+   "Dirty or misaligned flanges cause arcing and high SWR",
+   "Bends must be gradual to avoid reflections",
+   "High SWR in the waveguide reduces radiated power",
+   "Pressurisation or desiccant keeps moisture out"
+  ]
+ },
+ "8-44": {
+  "note": "Fault finding starts with symptoms. No picture at all with a healthy transmitter points at the display or video path; a picture with no targets points at the receiver; no transmission points at the modulator or magnetron. Split the system and confirm which half misbehaves.",
+  "key_facts": [
+   "No trace at all suggests display, sweep or supply failure",
+   "Trace but no targets suggests receiver or video failure",
+   "No transmission suggests modulator or magnetron failure",
+   "A performance monitor quickly separates transmit from receive faults"
+  ]
+ },
+ "8-45": {
+  "note": "Progressive loss of sensitivity is the commonest radar complaint. Suspect a worn magnetron, a damaged mixer crystal, a failing TR cell, or a drifting local oscillator with faulty AFC. Water in the waveguide will do it too.",
+  "key_facts": [
+   "Gradual sensitivity loss often means an ageing magnetron",
+   "A damaged mixer crystal causes sudden sensitivity loss",
+   "A worn TR cell leaks transmit power into the receiver",
+   "Moisture in the waveguide reduces radiated and received power"
+  ]
+ },
+ "8-46": {
+  "note": "Display faults. Missing sectors point to the antenna bearing signal or switching; a spiral pattern suggests the sweep and rotation are out of step; range rings present but targets absent isolates the fault to the video path rather than the timing chain.",
+  "key_facts": [
+   "Missing display sectors suggest bearing signal or switching faults",
+   "Rings present but no targets isolates the fault to the video path",
+   "A distorted sweep suggests deflection or timing problems",
+   "Loss of the heading marker leaves the picture unreferenced in bearing"
+  ]
+ },
+ "8-47": {
+  "note": "Intermittent faults are usually mechanical or thermal: connectors, rotary joints, slip rings and dry solder joints. Cooling or heating a suspect area, or gently flexing a board, will often reproduce the fault while you watch.",
+  "key_facts": [
+   "Intermittents are usually connectors, joints or thermal effects",
+   "Freeze spray and gentle heat help localise thermal faults",
+   "Rotary joints and slip rings wear and cause intermittent signals",
+   "Corroded connectors cause both loss and intermittent operation"
+  ]
+ },
+ "8-48": {
+  "note": "Routine maintenance keeps a radar honest: check and record performance monitor readings, inspect the waveguide and antenna for corrosion and water ingress, verify range and bearing calibration, and log magnetron hours so it can be replaced before it fails.",
+  "key_facts": [
+   "Log performance monitor readings to track gradual degradation",
+   "Check the waveguide for moisture and the antenna for corrosion",
+   "Verify range ring and bearing calibration periodically",
+   "Track magnetron running hours; output falls as it ages"
+  ]
+ },
+ "8-49": {
+  "note": "Installation decides how well a radar performs. Mount the antenna clear of obstructions and away from other antennas to avoid blind sectors and interference, keep waveguide runs short with gradual bends, and bond everything properly for lightning and RF.",
+  "key_facts": [
+   "Site the antenna clear of masts and funnels to avoid blind sectors",
+   "Keep waveguide runs short with gradual bends",
+   "Bond and ground all units to the ship's structure",
+   "Separate radar cabling from other signal and power runs"
+  ]
+ },
+ "8-50": {
+  "note": "Radar safety is serious. Never stand in front of a radiating antenna: microwave power density close in is a genuine burn and eye hazard. Isolate and tag out before climbing to the antenna. High-voltage supplies and CRTs remain dangerous after switch-off.",
+  "key_facts": [
+   "Never look into an open waveguide or stand before a radiating antenna",
+   "Isolate and tag out the radar before working aloft",
+   "High-voltage capacitors hold lethal charge after switch-off",
+   "A CRT may implode if struck; discharge and handle with care",
+   "ESD precautions are required for solid-state boards"
+  ]
+ }
+}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Lab &middot; ELMER{% endblock %}
+{% block body %}
+
+<h1>Lab</h1>
+<p class="muted small">
+  The maths the pools test, made movable. Change an input and watch what the
+  formula actually does &mdash; then go drill the section that asks about it.
+</p>
+
+<div class="row mt" id="lab-tabs">
+  <button class="btn sm primary" data-tab="skip">Ionospheric hop</button>
+  <button class="btn sm ghost" data-tab="ohm">Ohm &amp; power</button>
+  <button class="btn sm ghost" data-tab="react">Reactance &amp; resonance</button>
+  <button class="btn sm ghost" data-tab="swr">SWR &amp; feed line</button>
+  <button class="btn sm ghost" data-tab="ant">Antenna dimensions</button>
+  <button class="btn sm ghost" data-tab="db">Decibels</button>
+  <button class="btn sm ghost" data-tab="path">Great circle path</button>
+</div>
+
+<!-- ---------------------------------------------------------------- skip -->
+<div class="panel mt lab-pane" id="pane-skip">
+  <div class="panel-title">Ionospheric hop &mdash; why a band "opens" and where the skip zone falls</div>
+  <div class="grid" style="grid-template-columns: 300px 1fr; gap:1.2rem; align-items:start">
+    <div>
+      <div class="field"><label>Operating frequency (MHz)</label>
+        <input type="range" id="s-f" min="1.8" max="30" step="0.1" value="14.2"><span class="sim-out" id="s-f-v"></span></div>
+      <div class="field"><label>foF2 &mdash; critical frequency (MHz)</label>
+        <input type="range" id="s-fof2" min="2" max="16" step="0.1" value="8"><span class="sim-out" id="s-fof2-v"></span></div>
+      <div class="field"><label>Layer height (km)</label>
+        <input type="range" id="s-h" min="90" max="400" step="5" value="300"><span class="sim-out" id="s-h-v"></span></div>
+      <div class="notice tiny" style="margin-top:.8rem">
+        MUF = foF2 &times; sec(angle of incidence at the layer), which allows for the
+        curve of the earth &mdash; that is why the M-factor tops out near 3.4 rather than
+        running away at low takeoff angles. Push the frequency past the MUF for a given
+        angle and the ray stops bending back: it leaves through the layer.
+      </div>
+    </div>
+    <div>
+      <svg id="s-svg" viewBox="0 0 640 300" style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
+      <div id="s-out" class="mt small"></div>
+    </div>
+  </div>
+  <div class="row mt">
+    <a class="btn sm ghost" href="/study/gen2023?section=G3B">Drill G3B &mdash; MUF, LUF and paths</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E3C">Drill E3C &mdash; propagation modes</a>
+  </div>
+</div>
+
+<!-- ----------------------------------------------------------------- ohm -->
+<div class="panel mt lab-pane" id="pane-ohm" hidden>
+  <div class="panel-title">Ohm's law and power &mdash; fill in any two</div>
+  <div class="grid cols-4">
+    <div class="field"><label>Volts (V)</label><input id="o-v" placeholder="—"></div>
+    <div class="field"><label>Amps (I)</label><input id="o-i" placeholder="—"></div>
+    <div class="field"><label>Ohms (R)</label><input id="o-r" placeholder="—"></div>
+    <div class="field"><label>Watts (P)</label><input id="o-p" placeholder="—"></div>
+  </div>
+  <div class="row"><button class="btn sm" id="o-go">Solve</button><button class="btn sm ghost" id="o-clear">Clear</button></div>
+  <div id="o-out" class="sim-out mt"></div>
+  <div class="row mt"><a class="btn sm ghost" href="/study/tech2026?section=T5C">Drill T5C</a>
+    <a class="btn sm ghost" href="/study/element3?section=3-9">Drill Element 3 Ohm's law</a></div>
+</div>
+
+<!-- --------------------------------------------------------------- react -->
+<div class="panel mt lab-pane" id="pane-react" hidden>
+  <div class="panel-title">Reactance and resonance</div>
+  <div class="grid cols-3">
+    <div class="field"><label>Frequency (kHz)</label><input id="r-f" value="7150"></div>
+    <div class="field"><label>Inductance (&micro;H)</label><input id="r-l" value="10"></div>
+    <div class="field"><label>Capacitance (pF)</label><input id="r-c" value="50"></div>
+  </div>
+  <div id="r-out" class="sim-out"></div>
+  <svg id="r-svg" viewBox="0 0 640 220" class="mt" style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
+  <div class="row mt"><a class="btn sm ghost" href="/study/extra2024?section=E5A">Drill E5A &mdash; resonance</a></div>
+</div>
+
+<!-- ----------------------------------------------------------------- swr -->
+<div class="panel mt lab-pane" id="pane-swr" hidden>
+  <div class="panel-title">SWR, reflection and what it actually costs you</div>
+  <div class="grid cols-3">
+    <div class="field"><label>Line impedance Z&#8320; (&Omega;)</label><input id="w-z0" value="50"></div>
+    <div class="field"><label>Load impedance (&Omega;, resistive)</label><input id="w-zl" value="75"></div>
+    <div class="field"><label>Transmitter power (W)</label><input id="w-p" value="100"></div>
+  </div>
+  <div id="w-out" class="sim-out"></div>
+  <div class="row mt"><a class="btn sm ghost" href="/study/gen2023?section=G9A">Drill G9A</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E9F">Drill E9F &mdash; transmission lines</a></div>
+</div>
+
+<!-- ----------------------------------------------------------------- ant -->
+<div class="panel mt lab-pane" id="pane-ant" hidden>
+  <div class="panel-title">Antenna and feed line dimensions</div>
+  <div class="grid cols-3">
+    <div class="field"><label>Frequency (MHz)</label><input id="a-f" value="14.2"></div>
+    <div class="field"><label>Coax velocity factor</label>
+      <select id="a-vf">
+        <option value="0.66">0.66 &mdash; RG-58/213 solid PE</option>
+        <option value="0.78">0.78 &mdash; foam PE</option>
+        <option value="0.84">0.84 &mdash; LMR / low loss foam</option>
+        <option value="0.95">0.95 &mdash; open wire ladder line</option>
+      </select></div>
+    <div class="field"><label>Electrical length wanted</label>
+      <select id="a-frac">
+        <option value="0.25">quarter wave</option>
+        <option value="0.5" selected>half wave</option>
+        <option value="1">full wave</option>
+      </select></div>
+  </div>
+  <div id="a-out" class="sim-out"></div>
+  <div class="row mt"><a class="btn sm ghost" href="/study/tech2026?section=T9A">Drill T9A</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E9A">Drill E9A</a></div>
+</div>
+
+<!-- ------------------------------------------------------------------ db -->
+<div class="panel mt lab-pane" id="pane-db" hidden>
+  <div class="panel-title">Decibels</div>
+  <div class="grid cols-3">
+    <div class="field"><label>Reference power (W)</label><input id="d-p1" value="5"></div>
+    <div class="field"><label>Resulting power (W)</label><input id="d-p2" value="100"></div>
+    <div class="field"><label>&hellip;or a dB figure</label><input id="d-db" placeholder="e.g. 6"></div>
+  </div>
+  <div id="d-out" class="sim-out"></div>
+  <div class="row mt"><a class="btn sm ghost" href="/study/tech2026?section=T5B">Drill T5B</a></div>
+</div>
+
+<!-- ---------------------------------------------------------------- path -->
+<div class="panel mt lab-pane" id="pane-path" hidden>
+  <div class="panel-title">Great circle path between two grid squares</div>
+  <div class="grid cols-3">
+    <div class="field"><label>Your grid</label><input id="g-a" value="EM79" maxlength="6"></div>
+    <div class="field"><label>Their grid</label><input id="g-b" value="IO91" maxlength="6"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn sm" id="g-go">Compute</button></div>
+  </div>
+  <div id="g-out" class="sim-out"></div>
+  <div class="row mt"><a class="btn sm ghost" href="/study/gen2023?section=G2D">Drill G2D</a></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='lab.js') }}"></script>
+{% endblock %}

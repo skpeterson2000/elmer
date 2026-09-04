@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Browse &middot; {{ pool.name }}{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">{{ pool.name }} &mdash; pool browser</h1>
+    <div class="quiz-context">{{ pool.questions|length }} questions &middot; {{ pool.edition }}</div>
+  </div>
+  <div class="row">
+    <a class="btn primary sm" href="/study/{{ pool.pool_id }}?section={{ section }}">Drill {{ section }}</a>
+    <a class="btn sm ghost" href="/progress/{{ pool.pool_id }}">Progress</a>
+  </div>
+</div>
+
+<div class="grid mt" style="grid-template-columns: 260px 1fr; align-items:start; gap:1rem">
+  <div class="panel tight" style="position:sticky; top:5.4rem; max-height:78vh; overflow:auto">
+    <div class="panel-title">Sections</div>
+    {% for sub in pool.subelements %}
+      <div class="tiny mono muted" style="margin:.6rem 0 .2rem">{{ sub.code }} &mdash; {{ sub.title[:34] }}</div>
+      {% for s in pool.sections if s.subelement == sub.code %}
+        <a href="/browse/{{ pool.pool_id }}?section={{ s.code }}"
+           style="display:flex; gap:.4rem; align-items:center; padding:.18rem .3rem; border-radius:5px;
+                  {% if s.code == section %}background:var(--panel-2); {% endif %}"
+           title="{{ s.title }}">
+          <span class="mono tiny" style="width:3.4rem; color:{% if s.code == section %}var(--amber){% else %}var(--dim){% endif %}">{{ s.code }}</span>
+          <span class="meter thin" style="flex:1"><i class="{{ per_section[s.code]|fill }}" style="width:{{ per_section[s.code]|width }}"></i></span>
+        </a>
+      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <div>
+    <div class="panel tight">
+      <div class="panel-title">{{ section }}</div>
+      <div>{{ pool.section_title(section) }}</div>
+    </div>
+
+    {% for row in questions %}
+      <div class="panel mt">
+        <div class="quiz-context">
+          <span class="qid">{{ row.q.id }}</span>
+          {% if row.q.refs %} &middot; FCC rule {{ row.q.refs }}{% endif %}
+          <span style="float:right">
+            {% if row.card and row.card.seen %}
+              <span class="pill {{ 'good' if row.skill >= 0.8 else 'warn' if row.skill >= 0.5 else 'bad' }}">
+                {{ row.card.correct }}/{{ row.card.seen }} &middot; {{ row.skill|pct }}
+              </span>
+            {% else %}<span class="pill">not seen</span>{% endif %}
+          </span>
+        </div>
+        <div class="question-text" style="font-size:1rem">{{ row.q.text }}</div>
+        {% if row.figure %}
+          <div class="figure-wrap">
+            {% if row.figure.endswith('.svg') %}
+              <object type="image/svg+xml" data="{{ row.figure }}"></object>
+            {% else %}<img src="{{ row.figure }}" alt="diagram">{% endif %}
+          </div>
+        {% endif %}
+        <div class="choices">
+          {% for c in row.q.choices %}
+            <div class="choice {% if loop.index0 == row.q.answer %}right{% endif %}" style="cursor:default">
+              <span class="choice-key">{{ 'ABCD'[loop.index0] }}</span><span>{{ c }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="explain-slot" data-q="{{ row.q.id }}"></div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<p class="tiny muted mt">
+  Choices are shown here in their published order with the key marked, for reference.
+  In drills and exams they are shuffled, as they are on the real test.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script>
+api('/api/explain/{{ pool.pool_id }}?section={{ section }}').then(all => {
+  document.querySelectorAll('.explain-slot').forEach(slot => {
+    const x = all[slot.dataset.q];
+    if (x) slot.innerHTML = explanationHTML(x, { pool: {{ pool.pool_id|tojson }} });
+  });
+}).catch(() => {});
+</script>
+{% endblock %}

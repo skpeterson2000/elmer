@@ -1,0 +1,459 @@
+{
+ "E1A": {
+  "note": "Extra privileges reach the bottom of every HF band, so the band-edge arithmetic matters more than ever: the whole emission, sidebands included, must stay inside. Automatic message forwarding makes the originating station responsible for content, but the forwarding station must stop it once it knows of a violation.",
+  "key_facts": [
+   "The entire emission, not the carrier, must fall within the band",
+   "The control operator of the originating station is responsible for forwarded content",
+   "630 m and 2200 m carry an EIRP limit and require prior notification to UTC",
+   "Stations aboard ships or aircraft need the captain's approval and must be separate from ship systems"
+  ]
+ },
+ "E1B": {
+  "note": "Station location and structure rules. Environmental review is triggered near designated sites and wilderness areas. Antenna structures near airports or over 200 feet need FCC/FAA notification. Spurious emission limits tighten with power and frequency, and the operator is responsible for meeting them.",
+  "key_facts": [
+   "Antenna structures over 200 ft or near an airport need FAA/FCC notification",
+   "An environmental assessment is needed near officially designated wilderness or wildlife areas",
+   "Spurious emissions must be at least 43 dB below the fundamental for transmitters above 30 MHz",
+   "Special restrictions apply within 1600 m of an FCC monitoring station"
+  ]
+ },
+ "E1C": {
+  "note": "Automatic and remote control differ in where the control operator is, not in who is responsible. Remote control means the operator is elsewhere but actively controlling through a link; automatic means no operator is present at all, which only certain station types may do. Operating abroad depends on reciprocal agreements such as CEPT.",
+  "key_facts": [
+   "Remote control: operator present at a control point via a link",
+   "Automatic control: no control operator present, limited station types only",
+   "An auxiliary station may be automatically controlled",
+   "CEPT and IARP agreements permit US amateurs to operate in participating countries"
+  ]
+ },
+ "E1D": {
+  "note": "A space station is an amateur station more than 50 km above the earth. Telecommand is control from the ground; telemetry is the spacecraft's own one-way status data, and both are specifically permitted exceptions to the one-way rule. Space stations must give notice to the FCC before and after launch.",
+  "key_facts": [
+   "A space station is over 50 km above the earth's surface",
+   "Telemetry is permitted one-way; telecommand is control from the ground",
+   "Pre-space and in-space notification to the FCC is required",
+   "Any licensee may be the control operator of a space station"
+  ]
+ },
+ "E1E": {
+  "note": "The VE and VEC framework in detail. A VE must be accredited, hold a class above the element being administered, and be at least 18. Three VEs must be present. VEs may be reimbursed only for out-of-pocket expenses, capped per candidate per year, and question pools must be published.",
+  "key_facts": [
+   "Three accredited VEs must observe and grade each examination",
+   "A VE must hold a licence class above the element administered",
+   "VEs may claim only actual out-of-pocket expenses, up to a published limit",
+   "Test papers and records must be retained and forwarded per the VEC's instructions"
+  ]
+ },
+ "E1F": {
+  "note": "Assorted rules that catch people out. External amplifiers must not be capable of operating on 24-35 MHz to be marketed for amateur use without certification. Spread spectrum is permitted with restrictions. Auxiliary stations link parts of a system. A station may not transmit a signal that has been intentionally obscured.",
+  "key_facts": [
+   "Amplifiers marketed for amateur use must not readily operate on 24-35 MHz",
+   "Spread spectrum is authorised above 222 MHz for US amateurs",
+   "An auxiliary station links, remotely controls or relays for another station",
+   "Special temporary authority may be requested for operation outside normal rules"
+  ]
+ },
+ "E2A": {
+  "note": "Orbital mechanics decides what you can work. A low earth orbit satellite is overhead for minutes; higher and elliptical orbits give longer passes. Apogee is the far point, perigee the near one. A satellite's mode names its uplink and downlink bands, and Doppler shift must be tracked continuously on the higher band.",
+  "key_facts": [
+   "Apogee is the farthest point of an orbit, perigee the nearest",
+   "Mode U/V means uplink on 70 cm, downlink on 2 m",
+   "Doppler shift is greatest on the higher of the two frequencies",
+   "Spin modulation causes a periodic fading as the satellite tumbles"
+  ]
+ },
+ "E2B": {
+  "note": "Fast-scan television uses the NTSC analogue standard: 525 lines, 30 frames per second, about 6 MHz of bandwidth, so it lives on 70 cm and above. Slow-scan sends a single still image as audio tones inside an SSB channel, taking one to two minutes per frame, and works fine on HF.",
+  "key_facts": [
+   "NTSC: 525 lines, 30 frames per second, about 6 MHz wide",
+   "SSTV sends a still image as audio tones through an SSB transmitter",
+   "Vestigial sideband reduces ATV bandwidth by partly suppressing one sideband",
+   "A VIS code at the start of an SSTV transmission identifies the mode"
+  ]
+ },
+ "E2C": {
+  "note": "Contesting and DXing are about rate and discipline. Split operation lets a DX station transmit on one frequency and listen on another, which is how a pileup is managed. Cabrillo is the standard log format for contest submission. Confirmation may be by paper QSL, Logbook of the World or eQSL depending on the award.",
+  "key_facts": [
+   "Cabrillo is the standard contest log submission format",
+   "Split operation separates the DX transmit and listening frequencies",
+   "Logbook of the World uses digitally signed logs for confirmation",
+   "Working a station on a new band or mode may count as a new contact for awards"
+  ]
+ },
+ "E2D": {
+  "note": "VHF and UHF weak-signal work. EME suffers about 2 dB of libration fading and a two-and-a-half second path delay, and needs high gain and patience. Meteor scatter uses the ionised trails of meteors, favouring short bursts and high-speed modes. APRS carries position data using unnumbered AX.25 frames.",
+  "key_facts": [
+   "EME round-trip delay is about 2.5 seconds",
+   "Meteor scatter bursts are brief, so high-speed digital modes are used",
+   "APRS uses AX.25 unproto (UI) frames",
+   "Digipeaters extend APRS coverage by repeating packets"
+  ]
+ },
+ "E2E": {
+  "note": "HF digital modes in depth. FSK shifts between discrete tones; PSK shifts phase. Baud is symbols per second while bit rate depends on how many bits each symbol carries. ARQ modes acknowledge and retransmit; FEC modes add redundancy instead, which suits one-way and broadcast paths.",
+  "key_facts": [
+   "Baud is symbols per second, not bits per second",
+   "ARQ retransmits errored frames; FEC adds redundancy so it need not",
+   "RTTY traditionally uses 170 Hz shift at 45.45 baud",
+   "A waterfall shows frequency horizontally and time vertically"
+  ]
+ },
+ "E3A": {
+  "note": "Specialised propagation at the extremes. EME needs about 2 dB extra for libration fading and benefits from ground gain at low elevation. Meteor scatter works best around dawn. Above about 1 GHz, rain scatter and tropospheric ducting take over, and the radio horizon extends about 15 percent beyond the visual one.",
+  "key_facts": [
+   "Libration fading on EME is a fluttery, rapid fade",
+   "Meteor scatter is most productive shortly before dawn",
+   "The radio horizon is about 15 percent further than the visual horizon",
+   "Tropospheric ducting can carry microwave signals many hundreds of miles"
+  ],
+  "lab": "skip"
+ },
+ "E3B": {
+  "note": "Long-haul HF oddities. Transequatorial propagation carries signals between points roughly equidistant north and south of the magnetic equator, often well above the predicted MUF. Chordal hop reflects between ionospheric layers without touching ground, giving low loss. The earth's magnetic field splits a wave into ordinary and extraordinary components.",
+  "key_facts": [
+   "TEP works between points equidistant either side of the magnetic equator",
+   "Chordal hop travels layer to layer without an intervening ground reflection",
+   "Long path is 180 degrees from short path and usually weaker but sometimes better",
+   "The geomagnetic field splits a signal into ordinary and extraordinary waves"
+  ],
+  "lab": "skip"
+ },
+ "E3C": {
+  "note": "Predicting conditions. The radio horizon depends on antenna heights and is about 15 percent beyond line of sight. Solar events arrive in stages: X-rays cause immediate shortwave fadeout on the sunlit side, protons follow in minutes to hours and disrupt polar paths, and the CME plasma arrives a day or two later as a geomagnetic storm.",
+  "key_facts": [
+   "An X-ray flare causes a sudden ionospheric disturbance on the sunlit side within minutes",
+   "A CME takes roughly 20-40 hours to arrive and causes geomagnetic storms",
+   "Aurora degrades polar paths and adds a harsh buzz to signals",
+   "The Kp index is the planetary geomagnetic index, on a 0-9 scale"
+  ],
+  "lab": "skip"
+ },
+ "E4A": {
+  "note": "Test gear and what it actually shows. A spectrum analyser plots amplitude against frequency, so it reveals harmonics, spurs and splatter that an oscilloscope cannot. An antenna analyser measures impedance and SWR against frequency without a full transmitter. Resolution bandwidth sets how close two signals can be and still be distinguished.",
+  "key_facts": [
+   "Spectrum analyser: amplitude versus frequency",
+   "Oscilloscope: amplitude versus time",
+   "Resolution bandwidth determines the ability to separate close signals",
+   "An antenna analyser measures impedance and SWR across a frequency sweep"
+  ]
+ },
+ "E4B": {
+  "note": "Every measurement has limits. A meter's accuracy is a percentage of full scale, so reading near the bottom of a range is proportionally worse. Probe capacitance and lead inductance load the circuit and distort readings at RF. Counter accuracy depends on its time base, and the error scales with the frequency measured.",
+  "key_facts": [
+   "Accuracy is usually a percentage of full scale, so use the lowest suitable range",
+   "A high-impedance probe minimises circuit loading",
+   "Frequency counter error scales with the measured frequency and time base accuracy",
+   "Lead inductance and stray capacitance dominate at VHF and above"
+  ]
+ },
+ "E4C": {
+  "note": "Receiver performance figures. MDS is the smallest signal distinguishable from noise. Noise floor sets that limit. Phase noise on the local oscillator spreads a strong nearby signal across your passband, producing reciprocal mixing. Image rejection depends on front-end selectivity and on the choice of intermediate frequency.",
+  "key_facts": [
+   "MDS is the minimum discernible signal, set by the noise floor",
+   "Narrower bandwidth lowers the noise floor: halving bandwidth gains 3 dB",
+   "Local oscillator phase noise causes reciprocal mixing",
+   "A higher first IF makes the image further away and easier to filter"
+  ]
+ },
+ "E4D": {
+  "note": "Dynamic range describes how well a receiver copes with strong and weak signals at once. Blocking dynamic range is where a strong signal desensitises the receiver; intermodulation dynamic range is where two strong signals mix to produce false ones. Third-order products fall closest to the wanted signal, which is why third-order intercept is the key figure.",
+  "key_facts": [
+   "Third-order products land nearest the wanted signals and are hardest to filter",
+   "A higher third-order intercept point means better strong-signal handling",
+   "Cross-modulation transfers modulation from a strong signal onto a weak one",
+   "An attenuator can improve intermodulation performance at the cost of sensitivity"
+  ]
+ },
+ "E4E": {
+  "note": "Noise sources and cures. Power line noise is a broadband buzz, often from a cracked insulator or loose hardware, and is best hunted with a directional antenna on VHF. Switching supplies and computers make narrow spurs at harmonics of their clocks. DSP noise reduction and automatic notch filters remove what cannot be cured at source.",
+  "key_facts": [
+   "Power line noise is broadband and buzzy; find it with a VHF directional antenna",
+   "Switching supplies produce spurs at harmonics of the switching frequency",
+   "An automatic notch filter removes a steady carrier without operator action",
+   "Common-mode current on the feed line brings shack noise to the antenna"
+  ]
+ },
+ "E5A": {
+  "note": "At resonance the reactances cancel. A series resonant circuit shows minimum impedance and maximum current; a parallel resonant circuit shows maximum impedance and minimum line current. Q is the ratio of stored to dissipated energy and sets the bandwidth: bandwidth equals resonant frequency divided by Q.",
+  "key_facts": [
+   "Resonant frequency f = 1 / (2 x pi x square root of L x C)",
+   "Series resonance: minimum impedance. Parallel resonance: maximum impedance",
+   "Bandwidth = resonant frequency / Q",
+   "Higher Q means narrower bandwidth and sharper selectivity"
+  ],
+  "lab": "react"
+ },
+ "E5B": {
+  "note": "One time constant is the time for a capacitor to charge to 63.2 percent of the applied voltage, or discharge to 36.8 percent; five time constants is effectively complete. Phase angle describes how far current leads or lags voltage \u2014 current leads in a capacitive circuit and lags in an inductive one.",
+  "key_facts": [
+   "One time constant = R x C, or L / R",
+   "After one time constant a capacitor reaches 63.2 percent of applied voltage",
+   "Capacitive circuit: current leads voltage. Inductive: current lags",
+   "Phase angle = arctangent of (reactance / resistance)"
+  ]
+ },
+ "E5C": {
+  "note": "Impedance can be written as a rectangular pair \u2014 resistance plus or minus reactance \u2014 or in polar form as a magnitude and an angle. They describe the same point. Phasors rotate to show phase relationships. A positive reactance is inductive and plots upward; a negative one is capacitive and plots downward.",
+  "key_facts": [
+   "Rectangular: R + jX. Polar: magnitude at an angle",
+   "Positive j is inductive reactance, negative j is capacitive",
+   "Magnitude = square root of (R squared + X squared)",
+   "Angle = arctangent of (X / R)"
+  ]
+ },
+ "E5D": {
+  "note": "At RF, components stop behaving ideally. Skin effect confines current to the surface of a conductor, raising resistance as frequency rises. Real power does work and is dissipated; reactive power sloshes back and forth and does none. A conductor's electrical length depends on velocity factor, not just its physical length.",
+  "key_facts": [
+   "Skin effect pushes RF current to the conductor surface, raising resistance",
+   "Real power is dissipated; reactive power circulates and is not consumed",
+   "Electrical length = physical length divided by velocity factor",
+   "Self-resonance limits every real capacitor and inductor at high frequency"
+  ]
+ },
+ "E6A": {
+  "note": "Silicon is doped to make N-type, with excess electrons, or P-type, with holes. A bipolar transistor is current-controlled with emitter, base and collector; beta is its current gain. A field-effect transistor is voltage-controlled with source, gate and drain, and has very high input impedance \u2014 JFETs conduct with no gate bias, MOSFETs are insulated-gate.",
+  "key_facts": [
+   "N-type has excess electrons; P-type has excess holes",
+   "Bipolar: current-controlled. FET: voltage-controlled, high input impedance",
+   "Beta is a bipolar transistor's current gain",
+   "MOSFET gates are easily destroyed by static and often have protective diodes"
+  ]
+ },
+ "E6B": {
+  "note": "Diodes for particular jobs. A varactor's junction capacitance varies with reverse bias, tuning oscillators electronically. A Schottky has a low forward drop and fast recovery, good for RF detection and mixing. A PIN diode acts as a current-controlled RF resistor or switch. A hot-carrier diode is preferred for high-level mixers.",
+  "key_facts": [
+   "Varactor: reverse-biased junction used as a voltage-variable capacitor",
+   "Schottky/hot-carrier: low forward drop, fast, good RF mixers and detectors",
+   "PIN diode: an RF switch or attenuator controlled by DC current",
+   "Zener: regulates by conducting at a defined reverse voltage"
+  ]
+ },
+ "E6C": {
+  "note": "Digital logic families and gates. CMOS draws almost no static current and has very high input impedance, so unused inputs must be tied high or low. TTL is faster and hungrier. Programmable logic \u2014 FPGAs and CPLDs \u2014 implements arbitrary logic in a single reconfigurable device, which is what makes modern SDR practical.",
+  "key_facts": [
+   "CMOS: very low power, high input impedance, wide supply range",
+   "Unused CMOS inputs must be tied to a defined logic level",
+   "An FPGA is a field-programmable gate array, reconfigurable after manufacture",
+   "Positive logic: the higher voltage is logic 1"
+  ]
+ },
+ "E6D": {
+  "note": "Core material sets an inductor's behaviour. Permeability multiplies the inductance a given winding produces; a toroid keeps almost all the flux inside the core, so it does not couple to neighbouring components. Powdered iron suits high-Q resonant work; ferrite gives higher permeability and suits broadband transformers and chokes.",
+  "key_facts": [
+   "A toroid confines its magnetic field almost entirely within the core",
+   "Higher permeability gives more inductance for the same number of turns",
+   "Powdered iron: high Q, stable. Ferrite: high permeability, broadband",
+   "A piezoelectric crystal converts mechanical stress to voltage and vice versa"
+  ]
+ },
+ "E6E": {
+  "note": "RF semiconductor packaging is about getting heat out and inductance down. Surface-mount packages have short leads and low parasitic inductance, essential above VHF. MMICs integrate a whole amplifier in a package needing only a bias resistor and blocking capacitors, and usually present 50 ohms in and out.",
+  "key_facts": [
+   "Surface-mount packages minimise lead inductance at UHF and above",
+   "An MMIC typically presents 50 ohms at input and output",
+   "MMIC bias is usually applied through a resistor to the output pin",
+   "Heat sinking determines the real power rating of an RF device"
+  ]
+ },
+ "E6F": {
+  "note": "Light and electronics together. A photoconductive device drops in resistance under light. A photovoltaic cell generates a voltage from light \u2014 about 0.5 V per silicon cell. An optoisolator couples a signal by light across an insulating gap, giving isolation between circuits at different potentials.",
+  "key_facts": [
+   "Photoconductivity: resistance falls as illumination rises",
+   "A silicon photovoltaic cell produces about 0.5 V open circuit",
+   "An optoisolator provides electrical isolation between input and output",
+   "An optical shaft encoder reports position by interrupting a light path"
+  ]
+ },
+ "E7A": {
+  "note": "Sequential logic. A flip-flop stores one bit and needs two to divide a frequency by four. A monostable produces one output pulse per trigger; an astable free-runs. A shift register moves bits along on each clock, converting between serial and parallel form.",
+  "key_facts": [
+   "Two flip-flops are needed to divide frequency by four",
+   "A monostable multivibrator produces one pulse per trigger",
+   "An astable multivibrator free-runs and has no stable state",
+   "A shift register converts between serial and parallel data"
+  ]
+ },
+ "E7B": {
+  "note": "Amplifier class again, in detail. Class A conducts the full cycle and is the most linear; AB conducts more than half but less than all and is the usual SSB choice; C conducts less than half, is efficient and non-linear, so it suits FM and frequency multiplication. Neutralisation cancels feedback through a device's internal capacitance.",
+  "key_facts": [
+   "Class A 360 degrees, AB between 180 and 360, B 180, C under 180",
+   "SSB requires a linear amplifier: class A or AB",
+   "Class C is efficient but generates strong harmonics \u2014 useful for multipliers",
+   "Neutralisation cancels unwanted feedback through internal capacitance"
+  ]
+ },
+ "E7C": {
+  "note": "Filters shape frequency response; matching networks transform impedance. Pi and T networks and the L network do both jobs depending on how they are arranged. Filter type is a trade: Butterworth is maximally flat, Chebyshev has ripple in the passband but a steeper skirt, and elliptic is steeper still with ripple in both.",
+  "key_facts": [
+   "Butterworth: maximally flat passband. Chebyshev: ripple, steeper skirts",
+   "A pi network matches a high impedance to a low one and filters harmonics",
+   "A crystal lattice filter gives narrow, steep bandpass response",
+   "Insertion loss is the signal lost by inserting the filter"
+  ]
+ },
+ "E7D": {
+  "note": "Regulators and supplies. A linear regulator drops the surplus as heat; a switching regulator chops and filters, which is efficient but noisy. A pass transistor extends a regulator's current capability. Series regulators sit in the current path; shunt regulators divert excess current to hold the voltage.",
+  "key_facts": [
+   "Linear regulators are quiet but dissipate the surplus as heat",
+   "Switching regulators are efficient but generate RF noise",
+   "A series pass transistor increases the current a regulator can supply",
+   "A solar charge controller prevents overcharging the battery"
+  ]
+ },
+ "E7E": {
+  "note": "Getting information on and off a carrier. A balanced modulator suppresses the carrier and leaves both sidebands, which is the first step to SSB. A product detector recovers SSB and CW by mixing with a beat frequency oscillator. A reactance modulator varies an oscillator's frequency to produce FM.",
+  "key_facts": [
+   "A balanced modulator suppresses the carrier, leaving double sideband",
+   "A product detector demodulates SSB and CW",
+   "A reactance modulator produces direct FM",
+   "A discriminator or ratio detector demodulates FM"
+  ]
+ },
+ "E7F": {
+  "note": "Software defined radio. Sampling must be at least twice the highest frequency of interest \u2014 the Nyquist rate \u2014 or aliasing folds signals into the passband. An anti-aliasing filter is therefore mandatory before the converter. Resolution in bits sets dynamic range: roughly 6 dB per bit. Direct sampling digitises RF straight off the antenna.",
+  "key_facts": [
+   "Nyquist: sample at more than twice the highest frequency present",
+   "Each bit of ADC resolution gives about 6 dB of dynamic range",
+   "An anti-aliasing filter must precede the analogue-to-digital converter",
+   "I and Q sampling captures both amplitude and phase"
+  ]
+ },
+ "E7G": {
+  "note": "An op-amp has very high open-loop gain, very high input impedance and very low output impedance, so its behaviour is set almost entirely by the feedback network. In the inverting configuration the gain is minus the ratio of feedback to input resistor. Offset voltage and slew rate are the practical limits.",
+  "key_facts": [
+   "Ideal op-amp: infinite gain, infinite input impedance, zero output impedance",
+   "Inverting gain = -Rf / Rin",
+   "Slew rate limits how fast the output can change",
+   "An active filter uses an op-amp to get filter response without inductors"
+  ]
+ },
+ "E7H": {
+  "note": "Signal sources. An oscillator needs gain and positive feedback through a frequency-determining network \u2014 Colpitts uses a capacitive divider, Hartley an inductive one. A phase-locked loop compares a divided output against a reference and steers a VCO to keep them locked, which is how synthesisers work. DDS builds the waveform numerically.",
+  "key_facts": [
+   "Colpitts: capacitive divider feedback. Hartley: tapped inductor",
+   "A PLL locks a VCO to a reference by comparing phase",
+   "DDS synthesises a waveform from a numeric table and a clock",
+   "Oscillator stability depends on temperature, supply and loading"
+  ]
+ },
+ "E8A": {
+  "note": "Any repeating waveform is a sum of sine waves \u2014 that is Fourier's result, and it is why a square wave contains odd harmonics. RMS is the DC-equivalent heating value. PEP is the average power at the crest of the modulation envelope, which for a single tone is RMS voltage squared over the load.",
+  "key_facts": [
+   "A square wave contains the fundamental plus odd harmonics",
+   "RMS = peak x 0.707 for a sine wave",
+   "PEP = (RMS voltage) squared / load resistance",
+   "For an unmodulated carrier PEP and average power are equal"
+  ]
+ },
+ "E8B": {
+  "note": "Modulation index is the ratio of deviation to modulating frequency; deviation ratio uses the maximum values of each. Both determine occupied bandwidth. Multiplexing shares a channel \u2014 frequency division gives each signal its own slice, time division gives each its own slot.",
+  "key_facts": [
+   "Modulation index = deviation / modulating frequency",
+   "Deviation ratio = maximum deviation / maximum modulating frequency",
+   "FDM assigns frequency slices; TDM assigns time slots",
+   "Frequency multiplication multiplies the deviation as well as the frequency"
+  ]
+ },
+ "E8C": {
+  "note": "Digital signal design is a trade between rate, bandwidth and robustness. More bandwidth buys more information rate. Forward error correction adds redundancy so errors can be fixed without retransmission \u2014 essential where there is no return path. A constellation diagram plots symbol phase and amplitude, and a smeared constellation means distortion or noise.",
+  "key_facts": [
+   "Higher symbol rate requires more bandwidth",
+   "FEC corrects errors without a retransmission request",
+   "A constellation diagram plots the amplitude and phase of each symbol",
+   "Gray coding ensures adjacent symbols differ by one bit, limiting error impact"
+  ]
+ },
+ "E8D": {
+  "note": "Keying defects put energy where it does not belong. Hard keying without shaping produces key clicks \u2014 wide sidebands either side of the signal. Overdriving a digital signal generates intermodulation that spreads it across the band. Spread spectrum deliberately spreads energy over a wide bandwidth, using frequency hopping or direct sequence.",
+  "key_facts": [
+   "Key clicks come from too-fast rise and fall times; shaping cures them",
+   "Overdriving a digital transmitter causes intermodulation and splatter",
+   "Frequency hopping and direct sequence are the two spread spectrum methods",
+   "Baudot uses 5 bits per character; ASCII uses 7"
+  ]
+ },
+ "E9A": {
+  "note": "The parameters that define an antenna. Radiation resistance is the equivalent resistance that accounts for radiated power; efficiency is radiation resistance divided by total resistance including losses. Gain is quoted against a dipole (dBd) or an isotropic radiator (dBi), and the two differ by 2.15 dB. ERP uses dBd; EIRP uses dBi.",
+  "key_facts": [
+   "dBi = dBd + 2.15",
+   "Efficiency = radiation resistance / total resistance",
+   "ERP is referenced to a half-wave dipole; EIRP to an isotropic radiator",
+   "Beamwidth is measured between the half-power (-3 dB) points"
+  ],
+  "lab": "ant"
+ },
+ "E9B": {
+  "note": "Radiation patterns are cuts through a three-dimensional shape: the azimuth pattern at a fixed elevation, the elevation pattern at a fixed bearing. Gain and beamwidth are inversely related \u2014 you cannot narrow the beam without raising the gain. Modelling software solves the currents numerically, usually by the method of moments.",
+  "key_facts": [
+   "Front-to-back ratio compares the main lobe with the pattern 180 degrees behind",
+   "Narrower beamwidth accompanies higher gain",
+   "Azimuth pattern: horizontal cut. Elevation pattern: vertical cut",
+   "NEC-based modelling divides the antenna into segments and solves for currents"
+  ]
+ },
+ "E9C": {
+  "note": "Real wire antennas are shaped by the ground beneath them. Height in wavelengths sets the elevation angle: a half-wave up gives a useful low angle, a quarter-wave up gives high-angle NVIS. A folded dipole raises feed point impedance about fourfold, to roughly 300 ohms. Phased arrays steer by controlling the relative phase between elements.",
+  "key_facts": [
+   "A folded dipole has about four times the impedance of a plain dipole",
+   "Antenna height above ground determines the elevation angle of the main lobe",
+   "Two in-phase elements a half-wave apart give a broadside pattern",
+   "Two elements a quarter-wave apart, fed 90 degrees out of phase, give a cardioid"
+  ]
+ },
+ "E9D": {
+  "note": "Yagis and dishes. Yagi gain rises with boom length rather than element count alone, and the design is always a compromise between gain, bandwidth and front-to-back ratio. A parabolic dish's gain rises with the square of diameter and of frequency. An electrically short antenna has low radiation resistance and high Q, so it is narrowband and lossy.",
+  "key_facts": [
+   "Yagi gain depends mainly on boom length",
+   "Parabolic gain rises with the square of both diameter and frequency",
+   "A short antenna has high Q, narrow bandwidth and low radiation resistance",
+   "Loading a short antenna at the centre or top is more efficient than at the base"
+  ]
+ },
+ "E9E": {
+  "note": "Matching networks transform impedance rather than absorbing mismatch. A quarter-wave transformer's impedance is the geometric mean of the two it joins. A gamma match feeds an unbalanced line to a grounded driven element. A balun converts between balanced and unbalanced, preventing feed line radiation.",
+  "key_facts": [
+   "Quarter-wave matching section: Z = square root of (Z1 x Z2)",
+   "A balun matches a balanced antenna to unbalanced coax",
+   "Phasing lines must be cut to electrical length, so velocity factor applies",
+   "A gamma match feeds coax to a grounded element without splitting it"
+  ],
+  "lab": "swr"
+ },
+ "E9F": {
+  "note": "Transmission line behaviour depends on electrical length. A shorted quarter-wave stub looks like an open circuit at its input; an open quarter-wave stub looks like a short. Velocity factor means physical length is always shorter than free-space length. Open wire line has far lower loss than coax but must be kept clear of metal.",
+  "key_facts": [
+   "Shorted quarter-wave stub: looks open. Open quarter-wave stub: looks shorted",
+   "A half-wave line repeats the load impedance at its input",
+   "Physical length = free-space length x velocity factor",
+   "Open wire line has lower loss than coax, especially at high SWR"
+  ],
+  "lab": "ant"
+ },
+ "E9G": {
+  "note": "The Smith chart is a plot of complex impedance mapped onto a circle so that the whole infinite plane fits on one page. The horizontal line is pure resistance; circles of constant resistance and arcs of constant reactance cross it. Moving along a transmission line is a rotation about the centre, which is what makes it useful for matching.",
+  "key_facts": [
+   "The horizontal axis is the pure resistance line",
+   "Constant resistance circles and constant reactance arcs form the grid",
+   "The chart centre is a perfect match; the outer edge is infinite SWR",
+   "Moving toward the generator rotates clockwise around the chart"
+  ]
+ },
+ "E9H": {
+  "note": "Receiving antennas can be judged on directivity and noise rather than efficiency, because on the low bands the limit is atmospheric noise, not signal. A Beverage is a long low wire, very directional and very inefficient \u2014 excellent receiving, useless transmitting. A small loop has a sharp null broadside used for direction finding.",
+  "key_facts": [
+   "A Beverage should be at least one wavelength long and close to ground",
+   "A small loop's null is sharpest and used for direction finding",
+   "A sense antenna resolves the 180-degree ambiguity of a loop null",
+   "On the low bands, receive performance is limited by noise, not efficiency"
+  ]
+ },
+ "E0A": {
+  "note": "Extra-level safety adds the calculations. RF exposure limits are lowest where the body absorbs best, around 30-300 MHz. Exposure falls with the square of distance. Beyond RF, beryllium oxide dust from some RF components is highly toxic and must never be machined or sanded, and polychlorinated biphenyls persist in old transformers and capacitors.",
+  "key_facts": [
+   "Peak human RF absorption occurs around 30-300 MHz",
+   "Power density falls with the square of distance from the antenna",
+   "Beryllium oxide dust is highly toxic \u2014 never file, sand or machine it",
+   "PCBs may be present in old high-voltage capacitors and transformers"
+  ]
+ }
+}

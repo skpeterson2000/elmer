@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}ELMER - dashboard{% endblock %}
+
+{% macro pool_card(row) %}
+<div class="panel pool-card">
+  <div class="pool-head">
+    <div>
+      <div class="pool-name">{{ row.pool.name }}</div>
+      <div class="pool-meta">{{ row.pool.long_name }}</div>
+    </div>
+    <span class="pool-track track-{{ row.pool.track }}">{{ row.pool.track }}</span>
+  </div>
+
+  <div class="grid cols-3" style="gap:.7rem">
+    <div class="stat">
+      <span class="stat-label">Mastery</span>
+      <span class="stat-value">{{ row.mastery|pct }}</span>
+      <div class="meter thin"><i class="{{ row.mastery|fill }}"
+           style="width:{{ row.mastery|width }}"></i></div>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Exam odds</span>
+      {% if row.seen %}
+        <span class="stat-value">{{ row.readiness.pass_probability|pct }}</span>
+        <span class="stat-note">{{ row.readiness.mean_score|round(0)|int }}/{{ row.readiness.total }} typical, {{ row.readiness.pass_mark }} to pass</span>
+      {% else %}
+        <span class="stat-value muted">&mdash;</span>
+        <span class="stat-note">answer some questions to estimate</span>
+      {% endif %}
+    </div>
+    <div class="stat">
+      <span class="stat-label">Coverage</span>
+      <span class="stat-value">{{ row.seen }}</span>
+      <span class="stat-note">of {{ row.total }} questions seen</span>
+    </div>
+  </div>
+
+  <div class="row tiny muted">
+    {% if row.due_now %}<span class="pill warn">{{ row.due_now }} due for review</span>{% endif %}
+    <span class="pill">{{ row.pool.exam_questions }}-question exam</span>
+    {% if row.pool.valid_to %}<span class="pill">pool valid to {{ row.pool.valid_to }}</span>{% endif %}
+  </div>
+
+  <div class="pool-actions">
+    <a class="btn primary sm" href="/study/{{ row.pool.pool_id }}">Study</a>
+    <a class="btn sm" href="/study/{{ row.pool.pool_id }}?mode=weak">Weak spots</a>
+    <a class="btn sm" href="/exam/{{ row.pool.pool_id }}">Mock exam</a>
+    <a class="btn sm" href="/progress/{{ row.pool.pool_id }}">Progress</a>
+    <a class="btn sm ghost" href="/browse/{{ row.pool.pool_id }}">Browse</a>
+  </div>
+</div>
+{% endmacro %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1>Good {{ greeting }}{% if profile.callsign %}, {{ profile.callsign }}{% endif %}</h1>
+    <p class="muted small">
+      {{ answered }} questions answered all-time &middot; {{ today }} today &middot;
+      {{ profile.streak_days }}-day streak (best {{ profile.best_streak }}) &middot;
+      rank <b>{{ rank.name }}</b>{% if rank.next_name %}, {{ rank.to_next }} XP to {{ rank.next_name }}{% endif %}
+    </p>
+  </div>
+  <div class="row">
+    <a class="btn ghost sm" href="/propagation">Band conditions</a>
+    <a class="btn ghost sm" href="/lab">Lab</a>
+  </div>
+</div>
+
+<div class="panel tight mt" id="propstrip">
+  <div class="panel-title">Live space weather</div>
+  <div class="muted small">loading&hellip;</div>
+</div>
+
+<h2 class="mt">Amateur radio</h2>
+<div class="grid cols-2">
+  {% for row in summary if row.pool.track == 'amateur' %}{{ pool_card(row) }}{% endfor %}
+</div>
+
+<h2 class="mt">Commercial &mdash; FCC operator licenses</h2>
+<div class="grid cols-2">
+  {% for row in summary if row.pool.track == 'commercial' %}{{ pool_card(row) }}{% endfor %}
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">Achievements &mdash; {{ achievements|length }} of {{ all_achievements|length }}</div>
+  <div class="row">
+    {% for code, name, desc in all_achievements %}
+      <span class="pill {% if code in achievements %}warn{% endif %}" title="{{ desc }}">
+        {% if code in achievements %}&#9733;{% else %}&#9734;{% endif %} {{ name }}
+      </span>
+    {% endfor %}
+  </div>
+</div>
+
+<p class="tiny muted mt">
+  Question pools are the current public releases: NCVEC amateur pools and the FCC
+  commercial element pools. ELMER stores your progress locally in
+  <span class="mono">data/elmer.db</span> &mdash; nothing leaves this machine except
+  the space-weather request.
+</p>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+api('/api/propagation').then(d => {
+  const box = document.getElementById('propstrip');
+  if (!d.ok) { box.querySelector('.muted').textContent = d.error; return; }
+  const cls = k => k >= 5 ? 'bad' : k >= 4 ? 'warn' : 'good';
+  const best = d.bands.filter(b => b.score >= 3).map(b => b.band).join(' ') || 'none rated good';
+  box.innerHTML =
+    '<div class="panel-title">Live space weather &mdash; ' + escapeHTML(d.updated) + '</div>' +
+    '<div class="row" style="gap:1.2rem">' +
+      '<span class="pill info">SFI ' + d.sfi + '</span>' +
+      '<span class="pill ' + cls(d.k_index) + '">K ' + d.k_index + '</span>' +
+      '<span class="pill">A ' + d.a_index + '</span>' +
+      '<span class="pill">SSN ' + d.sunspots + '</span>' +
+      '<span class="pill">MUF ~' + d.muf + ' MHz</span>' +
+      '<span class="small muted">Good now: <b>' + best + '</b></span>' +
+      '<a class="small" href="/propagation" style="margin-left:auto">full dashboard &rarr;</a>' +
+    '</div>' +
+    '<div class="small muted" style="margin-top:.5rem">' + escapeHTML(d.verdict) + '</div>';
+}).catch(() => {
+  document.querySelector('#propstrip .muted').textContent = 'space weather unavailable offline';
+});
+</script>
+{% endblock %}

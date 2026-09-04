@@ -1,0 +1,915 @@
+{
+ "3-1": {
+  "note": "The basic electrical quantities and how they relate. Apparent power is simply volts times amps as read on meters; true power is what is actually dissipated, and the two differ whenever current and voltage are out of phase. Their ratio is the power factor. Reactive power circulates between source and reactance without doing work.",
+  "key_facts": [
+   "Apparent power = AC voltmeter reading x AC ammeter reading",
+   "True power = apparent power x power factor",
+   "Reactive power is associated with inductance and capacitance",
+   "Energy in an electrostatic field is measured in joules"
+  ],
+  "lab": "ohm"
+ },
+ "3-2": {
+  "note": "Magnetism and electricity are two faces of one thing. Current through a conductor creates a magnetic field around it; a changing magnetic field through a conductor induces a voltage in it. Permeability describes how readily a material carries magnetic flux, and retentivity how well it keeps magnetism after the field is removed.",
+  "key_facts": [
+   "A moving magnetic field induces voltage in a conductor",
+   "Permeability: how readily a material conducts magnetic flux",
+   "Left-hand/right-hand rules relate current direction to field direction",
+   "Flux density is measured in teslas or gauss"
+  ]
+ },
+ "3-3": {
+  "note": "Conductors, insulators and semiconductors differ by how tightly their outer electrons are held. Copper and silver conduct well; glass, mica and ceramics insulate. Temperature coefficient describes how resistance changes with heat \u2014 positive for most metals, negative for carbon and for semiconductors.",
+  "key_facts": [
+   "Silver is the best conductor, then copper, then aluminium",
+   "Most metals have a positive temperature coefficient of resistance",
+   "Carbon and semiconductors have a negative temperature coefficient",
+   "Dielectric constant describes an insulator's ability to store charge"
+  ]
+ },
+ "3-4": {
+  "note": "The three passive properties. Resistance opposes current and dissipates energy as heat. Capacitance stores energy in an electric field and opposes a change in voltage. Inductance stores energy in a magnetic field and opposes a change in current. Only resistance actually consumes power.",
+  "key_facts": [
+   "A capacitor opposes a change in voltage",
+   "An inductor opposes a change in current",
+   "Capacitance rises with plate area and falls with plate spacing",
+   "Inductance rises with the square of the number of turns"
+  ],
+  "lab": "react"
+ },
+ "3-5": {
+  "note": "Doping pure silicon or germanium with impurities creates carriers. Pentavalent donors give N-type material with excess electrons; trivalent acceptors give P-type with excess holes. Where they meet, a depletion region forms with a barrier voltage \u2014 about 0.7 V for silicon, 0.3 V for germanium.",
+  "key_facts": [
+   "N-type: excess electrons. P-type: excess holes",
+   "The junction barrier is about 0.7 V for silicon, 0.3 V for germanium",
+   "Forward bias narrows the depletion region and allows conduction",
+   "Reverse bias widens it and blocks current until breakdown"
+  ]
+ },
+ "3-6": {
+  "note": "Meter connection and loading. A voltmeter goes across the circuit and should have high impedance; an ammeter goes in series and should have low resistance. Meter sensitivity is quoted in ohms per volt. An ohmmeter must never be used on a powered circuit.",
+  "key_facts": [
+   "Voltmeter in parallel, ammeter in series",
+   "Higher ohms-per-volt means less circuit loading",
+   "A shunt extends an ammeter's range; a multiplier extends a voltmeter's",
+   "Never measure resistance in an energised circuit"
+  ]
+ },
+ "3-7": {
+  "note": "Waveform vocabulary. A sine wave is the fundamental alone; any other repeating shape contains harmonics. A square wave contains the fundamental plus odd harmonics; a sawtooth contains both odd and even. Duty cycle is the fraction of each period the waveform is on.",
+  "key_facts": [
+   "A square wave contains odd harmonics of the fundamental",
+   "A sawtooth contains both odd and even harmonics",
+   "Period = 1 / frequency",
+   "Duty cycle = pulse width / period"
+  ]
+ },
+ "3-8": {
+  "note": "How current gets through different media. In metals, conduction is by free electrons. In semiconductors it is by both electrons and holes. In electrolytes and gases, ions carry the charge. Superconductors lose all resistance below a critical temperature.",
+  "key_facts": [
+   "Metals conduct by free electron flow",
+   "Semiconductors conduct by electrons and holes",
+   "Electrolytes and ionised gases conduct by ion movement",
+   "Conventional current flows from positive to negative; electrons flow the other way"
+  ]
+ },
+ "3-9": {
+  "note": "Ohm's law in its basic forms, applied to series and parallel networks. In series the current is common and the voltages divide; in parallel the voltage is common and the currents divide. The total of parallel resistances is always less than the smallest branch.",
+  "key_facts": [
+   "E = I x R,  I = E / R,  R = E / I",
+   "Series: resistances add, current is common",
+   "Parallel: 1/Rt = 1/R1 + 1/R2 + ...",
+   "Two equal resistors in parallel give half the value"
+  ],
+  "lab": "ohm"
+ },
+ "3-10": {
+  "note": "Ohm's law combined with the power formulas, often working backwards from a power rating. Watch the difference between RMS and peak-to-peak when RF voltages are involved: peak-to-peak is 2.828 times RMS for a sine wave.",
+  "key_facts": [
+   "P = E x I = I squared x R = E squared / R",
+   "E(RMS) = square root of (P x R)",
+   "Peak = RMS x 1.414;  peak-to-peak = RMS x 2.828",
+   "Maximum voltage across a resistor = square root of (rating x resistance)"
+  ],
+  "lab": "ohm"
+ },
+ "3-11": {
+  "note": "Frequency, period and wavelength are locked together by the speed of light. Multiply and divide by 300 to move between frequency in MHz and wavelength in metres. Harmonics are integer multiples of the fundamental.",
+  "key_facts": [
+   "Wavelength (m) = 300 / frequency (MHz)",
+   "Period = 1 / frequency",
+   "The second harmonic is twice the fundamental frequency",
+   "1 MHz = 1,000 kHz = 1,000,000 Hz"
+  ],
+  "lab": "ant"
+ },
+ "3-12": {
+  "note": "Reading amplitude off a sine wave at a given angle. The instantaneous value is the peak times the sine of the angle \u2014 so at 30 degrees it is half the peak, at 90 degrees it is the peak, and at 210 degrees it is negative half. Radians appear too: pi radians is 180 degrees.",
+  "key_facts": [
+   "Instantaneous value = peak x sine(angle)",
+   "pi/3 radians = 60 degrees; pi radians = 180 degrees",
+   "At 150 degrees the sine is +0.5; at 240 degrees it is -0.866",
+   "One full cycle is 360 degrees or 2 pi radians"
+  ]
+ },
+ "3-13": {
+  "note": "Power factor is the cosine of the phase angle between voltage and current. At 60 degrees the power factor is 0.5, so only half the apparent power is real. Changing a resistance with a fixed voltage applied changes power inversely: halve the resistance and the power doubles.",
+  "key_facts": [
+   "Power factor = cosine of the phase angle",
+   "60 degrees gives a power factor of 0.5; 30 degrees gives 0.866",
+   "With constant voltage, halving resistance doubles power",
+   "True power = apparent power x power factor"
+  ]
+ },
+ "3-14": {
+  "note": "An RC time constant is resistance times capacitance, in seconds when using ohms and farads. In one time constant a capacitor charges to 63.2 percent of the applied voltage, and it is considered fully charged after five.",
+  "key_facts": [
+   "Time constant = R x C",
+   "One time constant charges to 63.2 percent of applied voltage",
+   "Discharge falls to 36.8 percent in one time constant",
+   "Five time constants is effectively fully charged or discharged"
+  ]
+ },
+ "3-15": {
+  "note": "The same arithmetic with series and parallel capacitor combinations. Capacitors in parallel add; in series they combine like parallel resistors. Work out the effective capacitance first, then multiply by the resistance.",
+  "key_facts": [
+   "Capacitors in parallel add; in series use the reciprocal formula",
+   "Charge percentages: 63.2, 86.5, 95, 98.2, 99.3 after 1-5 time constants",
+   "1 microfarad x 1 megohm = 1 second",
+   "Convert to farads and ohms before multiplying"
+  ]
+ },
+ "3-16": {
+  "note": "Impedance is the vector sum of resistance and reactance, so they add at right angles rather than arithmetically. In a series RLC circuit, subtract the reactances first, then combine with the resistance using Pythagoras.",
+  "key_facts": [
+   "Z = square root of (R squared + X squared)",
+   "Net reactance = X_L - X_C",
+   "X_L = 2 x pi x f x L;  X_C = 1 / (2 x pi x f x C)",
+   "At resonance X_L = X_C and Z equals R"
+  ],
+  "lab": "react"
+ },
+ "3-17": {
+  "note": "Parallel impedance networks and resonance. At parallel resonance the circuit shows maximum impedance and minimum line current, while large currents circulate in the tank. Q sets the sharpness, and bandwidth is the resonant frequency divided by Q.",
+  "key_facts": [
+   "Parallel resonance: maximum impedance, minimum line current",
+   "Series resonance: minimum impedance, maximum current",
+   "f = 1 / (2 x pi x square root of (L x C))",
+   "Bandwidth = f resonant / Q"
+  ],
+  "lab": "react"
+ },
+ "3-18": {
+  "note": "Mixed calculations: decibels, ratios, transformer turns, and unit conversion. The decibel shortcuts are worth memorising because they turn most of these into mental arithmetic.",
+  "key_facts": [
+   "dB = 10 log10(power ratio) or 20 log10(voltage ratio)",
+   "3 dB doubles power; 6 dB doubles voltage; 10 dB is ten times power",
+   "Transformer voltage ratio = turns ratio; impedance ratio = turns ratio squared",
+   "Efficiency = output power / input power x 100"
+  ],
+  "lab": "db"
+ },
+ "3-19": {
+  "note": "Photoconductive devices change electrical properties with light. A photoresistor drops in resistance under illumination; a photodiode and phototransistor conduct more. An optoisolator couples signal by light while keeping the two circuits electrically separate.",
+  "key_facts": [
+   "A photoconductive cell's resistance falls as light increases",
+   "A photovoltaic cell generates voltage from light",
+   "An optoisolator provides electrical isolation between circuits",
+   "Phototransistors give more output than photodiodes but respond more slowly"
+  ]
+ },
+ "3-20": {
+  "note": "Capacitor types and ratings. The dielectric determines stability, loss and voltage rating. Electrolytics give large capacitance in a small package but are polarised and leaky. Working voltage must never be exceeded. In series the voltage ratings add but the capacitance falls.",
+  "key_facts": [
+   "Electrolytic capacitors are polarised and must be connected correctly",
+   "Capacitance rises with plate area and dielectric constant, falls with spacing",
+   "Capacitors in series divide voltage and reduce total capacitance",
+   "Mica and ceramic suit RF; electrolytics suit power supply filtering"
+  ]
+ },
+ "3-21": {
+  "note": "A transformer changes AC voltage in proportion to its turns ratio, and impedance in proportion to the square of it. It cannot work on DC. Power in equals power out less losses, so stepping voltage up steps current down.",
+  "key_facts": [
+   "Voltage ratio = turns ratio",
+   "Impedance ratio = turns ratio squared",
+   "A transformer does not pass DC",
+   "Step-up in voltage means step-down in current"
+  ]
+ },
+ "3-22": {
+  "note": "A Zener diode is operated in reverse breakdown, where it holds a nearly constant voltage across itself, and that makes it a voltage reference. A series regulator uses a pass transistor controlled by an error amplifier comparing output to that reference.",
+  "key_facts": [
+   "A Zener is operated reverse-biased in its breakdown region",
+   "A series dropping resistor limits Zener current",
+   "Series regulators pass current through; shunt regulators divert it",
+   "Line regulation: response to input changes. Load regulation: to output changes"
+  ]
+ },
+ "3-23": {
+  "note": "Thyristors switch power. An SCR conducts in one direction once gated and keeps conducting until the current falls near zero. A triac does the same in both directions, which suits AC control. A diac triggers a triac at a set voltage.",
+  "key_facts": [
+   "An SCR conducts one way and latches on until current drops to near zero",
+   "A triac controls both halves of an AC cycle",
+   "An SCR has anode, cathode and gate",
+   "A diac is a bidirectional trigger device used with triacs"
+  ]
+ },
+ "3-24": {
+  "note": "Diode varieties by job. A rectifier converts AC to pulsating DC. A Zener regulates. A varactor is a voltage-variable capacitor. A Schottky or hot-carrier diode has a low forward drop and switches fast. PIV is the maximum reverse voltage a rectifier can survive.",
+  "key_facts": [
+   "PIV is the peak inverse voltage a diode must withstand",
+   "A varactor's capacitance varies with reverse bias",
+   "Schottky diodes have a low forward drop and fast recovery",
+   "Diodes in series share reverse voltage; in parallel they share current"
+  ]
+ },
+ "3-25": {
+  "note": "Bipolar transistor basics. Base current controls a much larger collector current, and their ratio is beta. The emitter arrow points in the direction of conventional current and identifies NPN from PNP. Correct bias keeps the base-emitter junction forward and the base-collector junction reverse biased.",
+  "key_facts": [
+   "Beta = collector current / base current",
+   "NPN: emitter arrow points out. PNP: arrow points in",
+   "Normal bias: base-emitter forward, base-collector reverse",
+   "Alpha = collector current / emitter current, always slightly less than 1"
+  ]
+ },
+ "3-26": {
+  "note": "Transistor configurations and FETs. Common emitter gives both voltage and current gain and inverts the signal; common base gives voltage gain with low input impedance; common collector (emitter follower) gives current gain and high input impedance. FETs are voltage-controlled with very high input impedance.",
+  "key_facts": [
+   "Common emitter: high gain, phase inversion",
+   "Emitter follower: current gain, no voltage gain, high input impedance",
+   "FET terminals: source, gate, drain",
+   "JFETs conduct with zero gate bias; enhancement MOSFETs do not"
+  ]
+ },
+ "3-27": {
+  "note": "An LED is a forward-biased diode that emits light, with a forward drop of roughly 1.5 to 2.5 V depending on colour. It always needs a series current-limiting resistor. Seven-segment displays and indicators are built from arrays of them.",
+  "key_facts": [
+   "An LED emits light when forward biased",
+   "LED forward voltage is typically 1.5-2.5 V, higher for blue and white",
+   "Always use a series resistor to limit LED current",
+   "LEDs have a low reverse breakdown voltage"
+  ]
+ },
+ "3-28": {
+  "note": "Assorted components: crystals, relays, thermistors and varistors. A quartz crystal is a very high-Q resonator whose frequency depends on its physical cut and thickness. A thermistor changes resistance with temperature; a varistor clamps voltage surges.",
+  "key_facts": [
+   "A quartz crystal has very high Q and excellent frequency stability",
+   "Crystal frequency depends on the physical dimensions of the cut",
+   "A thermistor's resistance varies strongly with temperature",
+   "A varistor (MOV) clamps transient overvoltages"
+  ]
+ },
+ "3-29": {
+  "note": "R-L-C circuits combine all three elements. At resonance the reactances cancel and the circuit is purely resistive. Below resonance a series circuit looks capacitive; above it, inductive. Q determines the selectivity and the voltage magnification across the reactive elements.",
+  "key_facts": [
+   "At resonance X_L = X_C and the circuit is purely resistive",
+   "Series resonance: low impedance. Parallel resonance: high impedance",
+   "Q = X_L / R for a series circuit",
+   "Bandwidth = resonant frequency / Q"
+  ],
+  "lab": "react"
+ },
+ "3-30": {
+  "note": "Operational amplifiers have very high open-loop gain, high input impedance and low output impedance, so feedback sets their behaviour. Inverting gain is the ratio of feedback to input resistor, with a sign change. The two inputs sit at virtually the same voltage when feedback is applied.",
+  "key_facts": [
+   "Inverting gain = -Rf / Rin;  non-inverting gain = 1 + Rf / Rin",
+   "Ideal op-amp: infinite gain and input impedance, zero output impedance",
+   "The inverting input becomes a virtual ground in the inverting configuration",
+   "Slew rate limits the maximum rate of output change"
+  ]
+ },
+ "3-31": {
+  "note": "A phase-locked loop compares the phase of a divided output against a reference and steers a VCO until they match, which is how synthesisers generate many precise frequencies from one crystal. A mixer produces sum and difference frequencies from its two inputs.",
+  "key_facts": [
+   "A PLL contains a phase detector, low-pass filter and VCO",
+   "Changing the divider ratio changes the output frequency",
+   "A mixer output contains the sum and the difference of its inputs",
+   "Loop filter bandwidth sets lock time and noise performance"
+  ]
+ },
+ "3-32": {
+  "note": "Reading schematics. Identify the function of each block first, then the individual parts. Ground symbols, supply rails, and the direction of diode and transistor arrows carry most of the information about how a circuit is meant to work.",
+  "key_facts": [
+   "A schematic shows electrical connections, not physical layout",
+   "Dots at crossings mean connected; no dot means crossing over",
+   "The transistor emitter arrow shows conventional current direction",
+   "Follow the signal path from input to output to identify stages"
+  ]
+ },
+ "3-33": {
+  "note": "Logic families differ in speed, power and levels. TTL is bipolar, fast, and runs at 5 V. CMOS uses complementary MOSFETs, draws almost no static current, tolerates a wide supply range, and is static sensitive. ECL is the fastest and the hungriest.",
+  "key_facts": [
+   "CMOS: very low power, high input impedance, wide supply range",
+   "TTL: 5 V, faster than early CMOS, higher power",
+   "Unused CMOS inputs must be tied high or low, never left floating",
+   "CMOS devices are easily damaged by static discharge"
+  ]
+ },
+ "3-34": {
+  "note": "The gates. AND outputs 1 only when all inputs are 1. OR outputs 1 when any input is 1. NAND and NOR are their inverses and are functionally complete \u2014 any logic function can be built from either. XOR outputs 1 when its inputs differ.",
+  "key_facts": [
+   "AND: output high only when all inputs high",
+   "OR: output high when any input high",
+   "NAND and NOR each can build any other gate",
+   "XOR: output high when inputs differ"
+  ]
+ },
+ "3-35": {
+  "note": "Logic levels are voltage ranges, not exact values, with a guard band between the guaranteed high and low. Positive logic makes the higher voltage a 1; negative logic reverses that. Noise margin is the difference between what a driver guarantees and what a receiver requires.",
+  "key_facts": [
+   "Positive logic: the more positive voltage is logic 1",
+   "TTL: low is below 0.8 V, high is above 2.0 V",
+   "Noise margin is the difference between driver output and receiver input thresholds",
+   "Tri-state outputs add a high-impedance state to 0 and 1"
+  ]
+ },
+ "3-36": {
+  "note": "A flip-flop stores one bit. An RS flip-flop sets and resets; a D type captures its data input on a clock edge; a JK toggles when both inputs are high. Two flip-flops in cascade divide the input frequency by four.",
+  "key_facts": [
+   "One flip-flop divides frequency by two; two divide by four",
+   "A D flip-flop transfers D to Q on the clock edge",
+   "A JK flip-flop toggles when both J and K are high",
+   "N flip-flops can count to 2 to the power N"
+  ]
+ },
+ "3-37": {
+  "note": "Multivibrators by stability. Astable has no stable state and free-runs as an oscillator. Monostable has one stable state and produces a single pulse per trigger. Bistable has two stable states and stays where it is put \u2014 that is the flip-flop.",
+  "key_facts": [
+   "Astable: free-running, no stable state",
+   "Monostable (one-shot): one output pulse per trigger",
+   "Bistable: a flip-flop, stays in either state until changed",
+   "The 555 timer can be wired as astable or monostable"
+  ]
+ },
+ "3-38": {
+  "note": "Memory types. RAM is read-write and volatile \u2014 static RAM holds data as long as power is applied, dynamic RAM must be refreshed. ROM keeps its contents without power. EPROM is erased by ultraviolet light, EEPROM and flash electrically.",
+  "key_facts": [
+   "RAM is volatile; ROM is not",
+   "Dynamic RAM requires periodic refresh; static RAM does not",
+   "EPROM is erased by ultraviolet light through a window",
+   "Flash and EEPROM are erased electrically, in circuit"
+  ]
+ },
+ "3-39": {
+  "note": "A microprocessor executes instructions fetched from memory over a bus. The address bus selects a location, the data bus carries the contents, and the control bus says whether to read or write. Address bus width sets how much memory can be addressed.",
+  "key_facts": [
+   "Address bus selects the location; data bus carries the value",
+   "N address lines address 2 to the power N locations",
+   "The ALU performs arithmetic and logic operations",
+   "A clock synchronises every operation in the processor"
+  ]
+ },
+ "3-40": {
+  "note": "Counters and converters. A ripple counter chains flip-flops so each toggles the next; a synchronous counter clocks them all together, avoiding ripple delay. An A-to-D converter turns a voltage into a number; a D-to-A converter does the reverse.",
+  "key_facts": [
+   "A binary counter with N stages counts to 2 to the power N",
+   "Synchronous counters clock all stages together to avoid ripple delay",
+   "ADC resolution in bits sets the number of discrete output steps",
+   "A decade counter divides by ten"
+  ]
+ },
+ "3-41": {
+  "note": "The superheterodyne receiver converts every incoming signal to one fixed intermediate frequency, so the selective filtering and most of the gain happen at a single frequency where they can be optimised. Sensitivity is the ability to hear weak signals; selectivity is the ability to reject adjacent ones.",
+  "key_facts": [
+   "A superheterodyne mixes the signal to a fixed intermediate frequency",
+   "IF = difference between the incoming signal and the local oscillator",
+   "Selectivity comes mainly from the IF filters",
+   "Image frequency is offset from the wanted signal by twice the IF"
+  ]
+ },
+ "3-42": {
+  "note": "The RF amplifier sets the receiver's noise figure, because noise added at the first stage is amplified by everything after it. It also provides selectivity ahead of the mixer, which is what rejects the image frequency and reduces overload.",
+  "key_facts": [
+   "The first stage dominates the overall noise figure",
+   "RF selectivity ahead of the mixer rejects the image frequency",
+   "Too much RF gain causes overload and intermodulation",
+   "A low-noise transistor and correct bias set the noise figure"
+  ]
+ },
+ "3-43": {
+  "note": "Oscillator types by feedback network. Colpitts uses a capacitive divider, Hartley a tapped coil, and a crystal oscillator uses a quartz resonator for stability. Stability is degraded by temperature change, supply variation and loading \u2014 buffering the output helps.",
+  "key_facts": [
+   "Colpitts: capacitive divider. Hartley: tapped inductor",
+   "A crystal oscillator gives the best frequency stability",
+   "A buffer stage isolates the oscillator from load changes",
+   "Oscillation needs gain greater than 1 and positive feedback"
+  ]
+ },
+ "3-44": {
+  "note": "A mixer is deliberately non-linear, producing the sum and difference of its inputs along with the originals. The wanted product is selected by the IF filter. A balanced mixer suppresses the input signals themselves, leaving cleaner output.",
+  "key_facts": [
+   "Mixer output contains sum, difference and the original frequencies",
+   "The IF filter selects the wanted product",
+   "A balanced mixer suppresses one or both inputs at the output",
+   "Excessive mixer drive produces unwanted intermodulation products"
+  ]
+ },
+ "3-45": {
+  "note": "IF amplifiers supply most of a receiver's gain at a fixed frequency, which is why their filters can be tightly tailored. AGC is normally applied here, reducing gain on strong signals so the audio level stays roughly constant.",
+  "key_facts": [
+   "Most receiver gain occurs in the IF stages",
+   "AGC is usually applied to the IF and RF amplifiers",
+   "A lower IF gives better selectivity; a higher IF gives better image rejection",
+   "Double conversion uses a high first IF then a low second IF"
+  ]
+ },
+ "3-46": {
+  "note": "Filters set the receiver's passband. Bandwidth is chosen for the mode: a few hundred hertz for CW, about 2.4 kHz for SSB, 6 kHz or more for AM. Shape factor compares the 60 dB bandwidth to the 6 dB bandwidth \u2014 closer to 1 is a steeper, better filter.",
+  "key_facts": [
+   "CW ~500 Hz, SSB ~2.4 kHz, AM ~6 kHz",
+   "Shape factor = 60 dB bandwidth / 6 dB bandwidth",
+   "Crystal and mechanical filters give steep skirts",
+   "Insertion loss is the signal lost by adding the filter"
+  ]
+ },
+ "3-47": {
+  "note": "Filter types by function. Low-pass passes below a cutoff, high-pass above it, band-pass between two, band-stop or notch rejects between two. Cutoff is conventionally the half-power, or -3 dB, point.",
+  "key_facts": [
+   "Cutoff frequency is the -3 dB, half-power point",
+   "A notch or band-reject filter removes a narrow range",
+   "Low-pass filters at a transmitter output suppress harmonics",
+   "More filter sections give a steeper roll-off"
+  ]
+ },
+ "3-48": {
+  "note": "Detectors recover the information. A diode envelope detector handles AM. A product detector mixed with a beat frequency oscillator recovers SSB and CW. FM needs a discriminator, ratio detector or quadrature detector, all of which turn frequency change into amplitude change.",
+  "key_facts": [
+   "Envelope (diode) detector: AM",
+   "Product detector plus BFO: SSB and CW",
+   "Discriminator, ratio or quadrature detector: FM",
+   "A limiter ahead of an FM detector removes amplitude noise"
+  ]
+ },
+ "3-49": {
+  "note": "After detection comes audio. Squelch mutes the audio until a signal or a noise threshold is crossed, so the operator is not subjected to hiss. De-emphasis in an FM receiver undoes the pre-emphasis applied at the transmitter, restoring flat response and improving signal-to-noise.",
+  "key_facts": [
+   "Squelch mutes the audio in the absence of a signal",
+   "Noise-operated squelch senses high-frequency noise, not signal strength",
+   "De-emphasis complements transmitter pre-emphasis in FM",
+   "Audio power amplifiers are usually class AB or class B push-pull"
+  ]
+ },
+ "3-50": {
+  "note": "Measuring a receiver. Sensitivity is often quoted as the input for a stated signal-plus-noise to noise ratio. Selectivity is the bandwidth at stated attenuation. Dynamic range covers how well strong and weak signals coexist, and desensitisation is loss of sensitivity caused by a strong nearby signal.",
+  "key_facts": [
+   "Sensitivity is quoted as microvolts for a stated (S+N)/N ratio",
+   "Desensitisation is a loss of gain caused by a strong off-channel signal",
+   "Cross-modulation transfers modulation from a strong signal to a weak one",
+   "Image rejection depends on selectivity ahead of the mixer"
+  ]
+ },
+ "3-51": {
+  "note": "Amplifier class is set by how much of the input cycle the device conducts. Class A conducts all 360 degrees and is the most linear and least efficient. Class B conducts half, class AB somewhere between, and class C less than half. Linear amplification is required for SSB; class C would destroy it.",
+  "key_facts": [
+   "Class A: 360 degrees, most linear, efficiency under 50 percent",
+   "Class B: 180 degrees, push-pull pairs restore the full waveform",
+   "Class C: under 180 degrees, high efficiency, heavy harmonic output",
+   "SSB requires class A or AB linear amplification"
+  ]
+ },
+ "3-52": {
+  "note": "Practical amplifier concerns. Push-pull operation cancels even harmonics. Neutralisation cancels feedback through a device's internal capacitance that would otherwise cause self-oscillation. Bias sets the operating point; too little causes crossover distortion in class B.",
+  "key_facts": [
+   "Push-pull cancels even-order harmonics",
+   "Neutralisation cancels internal feedback capacitance",
+   "Insufficient class B bias causes crossover distortion",
+   "Parasitic oscillation is suppressed with a parasitic choke or ferrite bead"
+  ]
+ },
+ "3-53": {
+  "note": "Oscillators generate; modulators impress information. A crystal oscillator gives the best stability. A balanced modulator suppresses the carrier and leaves two sidebands \u2014 the first step in making SSB. A reactance modulator varies an oscillator's frequency to produce FM directly.",
+  "key_facts": [
+   "A balanced modulator suppresses the carrier, leaving double sideband",
+   "A reactance modulator produces direct FM",
+   "A crystal oscillator is the most frequency-stable type",
+   "A buffer isolates the oscillator from load changes"
+  ]
+ },
+ "3-54": {
+  "note": "Tuning networks match impedances and filter harmonics at the same time. A pi network steps a high plate impedance down to 50 ohms and attenuates harmonics; an L network is the simplest two-element match. Loaded Q sets both the harmonic suppression and the bandwidth.",
+  "key_facts": [
+   "A pi network matches high to low impedance and filters harmonics",
+   "Higher loaded Q gives better harmonic suppression but narrower bandwidth",
+   "At resonance the tank circuit appears purely resistive",
+   "An L network is the minimum two-component matching network"
+  ],
+  "lab": "react"
+ },
+ "3-55": {
+  "note": "SSB is generated by suppressing the carrier in a balanced modulator, then removing one sideband with a sharp filter or by the phasing method. Because there is no carrier and only one sideband, all the transmitter power goes into intelligence, giving a large effective advantage over AM.",
+  "key_facts": [
+   "Balanced modulator suppresses the carrier; a filter removes one sideband",
+   "SSB bandwidth is about 3 kHz, roughly half that of AM",
+   "Carrier suppression is typically 40 dB or better",
+   "ALC prevents overdriving and the resulting splatter"
+  ]
+ },
+ "3-56": {
+  "note": "Modern transmitter technology. Frequency synthesis with a PLL replaces banks of crystals. Solid-state finals need SWR protection because they cannot tolerate a mismatch the way a tube can. Automatic level control limits drive to keep the output linear.",
+  "key_facts": [
+   "A PLL synthesiser generates many frequencies from one reference",
+   "Solid-state finals fold back power on high SWR to protect themselves",
+   "ALC prevents overdriving the final amplifier",
+   "A low-pass filter at the output suppresses harmonics"
+  ]
+ },
+ "3-57": {
+  "note": "FM varies the carrier frequency in step with the modulating signal. Deviation is how far it swings; modulation index is deviation divided by modulating frequency. Bandwidth follows Carson's rule. Because the amplitude is constant, a limiter can strip amplitude noise before detection.",
+  "key_facts": [
+   "Modulation index = deviation / modulating frequency",
+   "Carson's rule: bandwidth ~ 2 x (deviation + highest modulating frequency)",
+   "A limiter removes amplitude variations ahead of the FM detector",
+   "Pre-emphasis at the transmitter is undone by de-emphasis at the receiver"
+  ]
+ },
+ "3-58": {
+  "note": "SSB modulation detail. The filter method uses a balanced modulator followed by a steep sideband filter; the phasing method combines two balanced modulators fed 90 degrees apart. Two-tone testing reveals flat-topping and distortion on an oscilloscope.",
+  "key_facts": [
+   "Filter method: balanced modulator then a sharp sideband filter",
+   "Phasing method: two balanced modulators driven 90 degrees apart",
+   "A two-tone test displays linearity on an oscilloscope",
+   "Unwanted sideband suppression is typically 40-60 dB"
+  ]
+ },
+ "3-59": {
+  "note": "Pulse modulation encodes information in the characteristics of a pulse train. PAM varies amplitude, PDM or PWM varies width, PPM varies position, and PCM converts samples to binary codes. PCM is the basis of all digital audio and telephony.",
+  "key_facts": [
+   "PAM varies amplitude, PWM varies width, PPM varies position",
+   "PCM converts samples into binary numbers",
+   "Sampling must exceed twice the highest frequency present",
+   "Quantisation error is the difference between the sample and its code"
+  ]
+ },
+ "3-60": {
+  "note": "Primary cells are used once; secondary cells recharge. Carbon-zinc and alkaline are primary; lead-acid, NiCd, NiMH and lithium-ion are secondary. Capacity is quoted in ampere-hours. Cells in series add voltage; in parallel they add current capability.",
+  "key_facts": [
+   "Primary cells cannot be recharged; secondary cells can",
+   "Lead-acid cell: 2.1 V. NiCd/NiMH: 1.2 V. Lithium-ion: about 3.6 V",
+   "Series connection adds voltage; parallel adds current capacity",
+   "Capacity is measured in ampere-hours"
+  ]
+ },
+ "3-61": {
+  "note": "Battery care and hazards. Lead-acid batteries give off hydrogen when charging, which is explosive, so charge in ventilated spaces. Specific gravity indicates state of charge. Nickel-cadmium cells suffer memory effect; lithium cells require protection circuitry against overcharge and overdischarge.",
+  "key_facts": [
+   "Charging lead-acid batteries releases explosive hydrogen",
+   "Specific gravity indicates a lead-acid cell's state of charge",
+   "Never short a battery: very high current, fire and explosion risk",
+   "Lithium cells need protection against overcharge and deep discharge"
+  ]
+ },
+ "3-62": {
+  "note": "Rotating machines. A generator converts mechanical energy to electrical by moving a conductor through a magnetic field; a motor does the reverse. Back EMF in a motor opposes the applied voltage and limits current once it is up to speed \u2014 which is why starting current is much higher than running current.",
+  "key_facts": [
+   "A generator converts mechanical to electrical energy; a motor the reverse",
+   "Back EMF opposes applied voltage and limits running current",
+   "Starting current is much higher than running current",
+   "A synchronous motor runs locked to the supply frequency"
+  ]
+ },
+ "3-63": {
+  "note": "Antenna fundamentals. A half-wave dipole fed at the centre presents about 73 ohms and radiates broadside. A quarter-wave vertical over a ground plane presents about 36 ohms. Gain always comes from concentrating radiation in some directions at the expense of others.",
+  "key_facts": [
+   "Half-wave dipole feed impedance is about 73 ohms",
+   "Quarter-wave ground plane feed impedance is about 36 ohms",
+   "Half-wave dipole in feet = 468 / f(MHz)",
+   "Isotropic gain (dBi) = dipole gain (dBd) + 2.15"
+  ],
+  "lab": "ant"
+ },
+ "3-64": {
+  "note": "Along a resonant antenna, current is maximum and voltage minimum at the centre of a half-wave dipole, with the reverse at the ends. That is why an end-fed half wave presents a very high impedance while a centre-fed one presents a low one.",
+  "key_facts": [
+   "Current is maximum at the centre of a half-wave dipole",
+   "Voltage is maximum at the ends of a half-wave dipole",
+   "Radiation resistance accounts for the power actually radiated",
+   "Efficiency = radiation resistance / total resistance"
+  ]
+ },
+ "3-65": {
+  "note": "Antenna bandwidth is set by Q: fatter conductors and larger structures give lower Q and wider bandwidth. An electrically short antenna has low radiation resistance and high Q, so it is narrowband and inefficient without careful loading.",
+  "key_facts": [
+   "Larger conductor diameter lowers Q and widens bandwidth",
+   "A short antenna has high Q, narrow bandwidth and low radiation resistance",
+   "Bandwidth is often quoted between the 2:1 SWR points",
+   "Loading coils resonate a short antenna at the cost of efficiency"
+  ]
+ },
+ "3-66": {
+  "note": "Transmission line behaviour. Characteristic impedance depends on conductor geometry, not length. A shorted quarter-wave stub looks open at its input and vice versa; a half-wave line repeats the load impedance. Velocity factor means physical length is always less than free-space length.",
+  "key_facts": [
+   "Shorted quarter-wave stub looks like an open circuit at its input",
+   "A half-wave line repeats the load impedance",
+   "Physical length = free-space length x velocity factor",
+   "SWR = higher impedance / lower impedance for a resistive mismatch"
+  ],
+  "lab": "swr"
+ },
+ "3-67": {
+  "note": "Effective radiated power is the transmitter output, less feed line and connector losses, times the antenna gain \u2014 all worked in decibels then converted back to watts. It represents the power an ideal reference antenna would need to produce the same field strength in the main lobe.",
+  "key_facts": [
+   "ERP = transmitter power - line losses + antenna gain, worked in dB",
+   "ERP is referenced to a half-wave dipole; EIRP to an isotropic radiator",
+   "EIRP = ERP + 2.15 dB",
+   "Doubling ERP is a 3 dB increase"
+  ],
+  "lab": "db"
+ },
+ "3-68": {
+  "note": "Distance measuring equipment works by interrogation and reply. The aircraft transmits a pulse pair, the ground beacon replies after a fixed 50-microsecond delay, and the aircraft measures the round-trip time. What it reports is slant range, not ground distance, so directly overhead it reads the aircraft's altitude.",
+  "key_facts": [
+   "DME operates in the 962-1213 MHz band",
+   "The ground transponder replies after a fixed 50 microsecond delay",
+   "DME reads slant range, not horizontal distance",
+   "Radio waves travel about 12.36 microseconds per nautical mile round trip"
+  ]
+ },
+ "3-69": {
+  "note": "VOR gives an aircraft its bearing from a ground station. The station radiates a reference phase equally in all directions and a variable phase that rotates; the phase difference between them equals the aircraft's magnetic bearing from the station, called the radial.",
+  "key_facts": [
+   "VOR operates in the 108-118 MHz band",
+   "The phase difference between reference and variable signals equals the radial",
+   "A VOR radial is a magnetic bearing FROM the station",
+   "VOR range is line of sight, so it increases with altitude"
+  ]
+ },
+ "3-70": {
+  "note": "The instrument landing system guides an aircraft down to the runway. The localizer gives left-right alignment on a VHF frequency; the glide slope gives vertical guidance on UHF, normally at about 3 degrees. Marker beacons on 75 MHz mark distance from the threshold.",
+  "key_facts": [
+   "Localizer: 108-112 MHz, provides lateral guidance",
+   "Glide slope: 329-335 MHz, typically a 3 degree descent path",
+   "Marker beacons operate on 75 MHz",
+   "Outer, middle and inner markers are identified by tone and light colour"
+  ]
+ },
+ "3-71": {
+  "note": "ADF uses a loop and sense antenna to point at a non-directional beacon in the low frequency band; the loop's sharp null gives the bearing and the sense antenna resolves the 180-degree ambiguity. A transponder replies to secondary radar interrogations with a code and altitude.",
+  "key_facts": [
+   "ADF works with NDBs in the 190-535 kHz range",
+   "A loop antenna's null is sharp; the sense antenna resolves ambiguity",
+   "Transponder: interrogated on 1030 MHz, replies on 1090 MHz",
+   "Mode C adds pressure altitude to the reply; Mode S adds a unique address"
+  ]
+ },
+ "3-72": {
+  "note": "Aircraft antennas must be small, rugged and aerodynamic, which means compromise. Communication VHF uses 118-137 MHz with vertical polarisation. Blade and towel-bar antennas are common. The airframe itself acts as the ground plane for most of them.",
+  "key_facts": [
+   "Aircraft VHF communications: 118-137 MHz, vertically polarised",
+   "121.5 MHz is the international VHF emergency frequency",
+   "The airframe serves as the ground plane",
+   "Blade antennas are used for VHF/UHF to reduce drag"
+  ]
+ },
+ "3-73": {
+  "note": "What each box does. The transponder replies to radar interrogation; the ELT transmits a distress signal on 406 MHz after a crash; the radio altimeter measures height above terrain directly; weather radar looks for precipitation ahead. Know which frequency belongs to which.",
+  "key_facts": [
+   "ELTs transmit on 406 MHz with a 121.5 MHz homing signal",
+   "Radio altimeters operate around 4.3 GHz",
+   "Airborne weather radar typically operates near 9.3 GHz",
+   "A transponder squawk of 7700 indicates a general emergency"
+  ]
+ },
+ "3-74": {
+  "note": "Meter movements and their extensions. A d'Arsonval movement responds to average current. A shunt resistor in parallel extends the current range; a multiplier resistor in series extends the voltage range. Meter sensitivity in ohms per volt describes how little it loads the circuit.",
+  "key_facts": [
+   "A shunt extends an ammeter's range; a multiplier extends a voltmeter's",
+   "Sensitivity in ohms per volt = 1 / full-scale current",
+   "A moving-vane meter reads RMS regardless of waveform",
+   "Meter accuracy is a percentage of full-scale deflection"
+  ]
+ },
+ "3-75": {
+  "note": "Choose the instrument by what it displays. A signal generator provides a known input; a frequency counter measures frequency precisely; a spectrum analyser plots amplitude against frequency; a dummy load absorbs full power without radiating. A wattmeter reads forward and reflected power separately.",
+  "key_facts": [
+   "A dummy load is a non-radiating resistive load for testing",
+   "A frequency counter's accuracy depends on its time base",
+   "A spectrum analyser shows amplitude versus frequency",
+   "A directional wattmeter separates forward and reflected power"
+  ]
+ },
+ "3-76": {
+  "note": "An oscilloscope plots voltage against time. The vertical axis is amplitude, the horizontal is time, and the trigger stabilises a repeating waveform. Its bandwidth must exceed the frequencies you want to see faithfully, and a low-capacitance probe keeps it from loading the circuit.",
+  "key_facts": [
+   "Vertical: amplitude. Horizontal: time. Trigger stabilises the display",
+   "Scope bandwidth must exceed the signal frequency of interest",
+   "A 10:1 probe reduces circuit loading but divides the signal by ten",
+   "Lissajous patterns compare frequency and phase between two signals"
+  ]
+ },
+ "3-77": {
+  "note": "Specialised instruments. A grid dip meter finds the resonant frequency of an unpowered circuit by loose coupling. A field strength meter measures relative radiated field. A network analyser measures gain and phase across frequency. A megger tests insulation resistance at high voltage.",
+  "key_facts": [
+   "A dip meter finds resonance in an unpowered circuit",
+   "A megger tests insulation resistance at high voltage",
+   "A field strength meter reads relative radiated field",
+   "A distortion analyser measures total harmonic distortion"
+  ]
+ },
+ "3-78": {
+  "note": "Good measurement practice. Load the circuit as little as possible, use the lowest range that will contain the reading, and be aware that RF measurements are affected by lead length and stray capacitance. Always check the instrument on a known reference before trusting an unexpected result.",
+  "key_facts": [
+   "Use the lowest range that contains the reading, for best accuracy",
+   "Keep leads short at RF to limit stray inductance",
+   "Never connect an ohmmeter to an energised circuit",
+   "Verify against a known reference before trusting a surprising reading"
+  ]
+ },
+ "3-79": {
+  "note": "Repair discipline. Discharge filter capacitors before working inside a supply, and remember they hold lethal charge long after power is removed. Observe electrostatic precautions with MOS devices. Replace components with equal or better ratings, and never defeat an interlock.",
+  "key_facts": [
+   "Discharge high-voltage capacitors before servicing",
+   "Use ESD wrist straps and mats when handling MOS devices",
+   "Replace fuses and components with the same or higher rating, never lower",
+   "Never defeat a safety interlock to work on a live cabinet"
+  ]
+ },
+ "3-80": {
+  "note": "Installation is governed by codes. Bond and ground properly, size conductors for the current, and protect cable runs. Lightning protection requires a low-impedance path to ground with short, straight conductors \u2014 bends add inductance and defeat the purpose.",
+  "key_facts": [
+   "Ground conductors should be short and straight; bends add inductance",
+   "Bond all equipment to a single point ground to avoid loops",
+   "Size conductors and overcurrent protection for the load",
+   "Follow the National Electrical Code for AC mains wiring"
+  ]
+ },
+ "3-81": {
+  "note": "Troubleshoot by halving the problem. Confirm the symptom, check power and grounds first, then split the signal path and determine which half is at fault. Signal injection works forward from the input; signal tracing works back from the output.",
+  "key_facts": [
+   "Check power supply voltages and grounds before anything else",
+   "Signal injection works forward; signal tracing works backward",
+   "Halve the signal chain each test to isolate the faulty stage",
+   "Intermittent faults are often thermal or mechanical: heat, cool and flex"
+  ]
+ },
+ "3-82": {
+  "note": "Emission designators encode bandwidth and modulation. The first character is the modulation type, the second the nature of the signal, the third the information type. A3E is AM telephony, J3E is single sideband suppressed carrier, F3E is FM telephony.",
+  "key_facts": [
+   "A3E: double-sideband AM telephony",
+   "J3E: single sideband, suppressed carrier, telephony",
+   "F3E: frequency modulation, telephony",
+   "A1A: on-off keyed CW telegraphy"
+  ]
+ },
+ "3-83": {
+  "note": "Multiplexing shares one channel among several signals. Frequency division gives each its own frequency slice; time division gives each its own recurring time slot. Coding schemes such as Baudot, ASCII and their descendants define how characters become bits.",
+  "key_facts": [
+   "FDM assigns frequency slices; TDM assigns time slots",
+   "Baudot uses 5 bits per character; ASCII uses 7",
+   "Parity adds a bit to detect single-bit errors",
+   "A CRC detects burst errors that parity would miss"
+  ]
+ },
+ "3-84": {
+  "note": "Digital signal processing filters, modulates and demodulates numerically. Sampling must exceed twice the highest frequency present or aliasing folds signals into the passband, so an anti-aliasing filter is mandatory. More bits gives more dynamic range, at about 6 dB per bit.",
+  "key_facts": [
+   "Nyquist: sample at more than twice the highest frequency present",
+   "Aliasing folds out-of-band signals into the passband",
+   "Each ADC bit adds about 6 dB of dynamic range",
+   "An anti-aliasing filter must precede the converter"
+  ]
+ },
+ "3-85": {
+  "note": "Marine VHF is channelised, FM, and short range. Channel 16 is the international distress, safety and calling channel and must be monitored. Channel 70 is reserved for digital selective calling only \u2014 never for voice. Power is 25 W high, 1 W low, and low power is required in harbours.",
+  "key_facts": [
+   "Channel 16 (156.800 MHz) is distress, safety and calling",
+   "Channel 70 is DSC only, never voice",
+   "Marine VHF: 25 W maximum, 1 W low power",
+   "Channel 6 is the intership safety channel"
+  ]
+ },
+ "3-86": {
+  "note": "MF and HF give beyond-horizon marine coverage using SSB. 2182 kHz is the MF distress frequency. SITOR is the marine radiotelex protocol: Mode A uses ARQ with acknowledgement, Mode B uses forward error correction for broadcast where no return path exists.",
+  "key_facts": [
+   "2182 kHz is the MF radiotelephone distress frequency",
+   "SITOR Mode A is ARQ; Mode B is FEC broadcast",
+   "DSC distress frequencies include 2187.5 kHz and 8414.5 kHz",
+   "HF marine bands support long-range communication via skywave"
+  ]
+ },
+ "3-87": {
+  "note": "Survival craft equipment under GMDSS. A SART is a radar transponder that paints a line of twelve blips on a rescuing vessel's 9 GHz radar. An EPIRB transmits on 406 MHz to the satellite system with a homing signal on 121.5 MHz. Survival craft VHF must include channel 16.",
+  "key_facts": [
+   "A SART responds to 9 GHz X-band radar with twelve blips",
+   "EPIRBs transmit on 406 MHz with 121.5 MHz homing",
+   "Survival craft VHF transceivers must include channel 16",
+   "EPIRB batteries and hydrostatic releases have expiry dates"
+  ]
+ },
+ "3-88": {
+  "note": "NAVTEX broadcasts navigational and weather warnings automatically on 518 kHz using narrow-band direct printing, with no operator action needed. Radiofacsimile transmits weather charts as a scanned image over HF SSB.",
+  "key_facts": [
+   "NAVTEX operates on 518 kHz internationally in English",
+   "NAVTEX uses FEC narrow-band direct printing, received automatically",
+   "NAVTEX range is typically 200-400 nautical miles",
+   "Weather fax is received on HF SSB and prints charts line by line"
+  ]
+ },
+ "3-89": {
+  "note": "NMEA 0183 is the serial standard by which marine electronics exchange data \u2014 GPS position, heading, depth. It is a one-talker, many-listener bus sending ASCII sentences that begin with a dollar sign and a talker identifier.",
+  "key_facts": [
+   "NMEA 0183 sentences are ASCII, starting with $ and a talker ID",
+   "One talker may drive multiple listeners on a bus",
+   "NMEA 0183 runs at 4800 baud for standard sentences",
+   "NMEA 2000 is a later CAN-based network standard"
+  ]
+ },
+ "3-90": {
+  "note": "Radar measures range by timing the echo of a transmitted pulse. Radio waves travel about 12.36 microseconds per nautical mile for the round trip, so echo delay converts directly to distance. Bearing comes from where the antenna is pointing when the echo returns.",
+  "key_facts": [
+   "Round-trip time is about 12.36 microseconds per nautical mile",
+   "Range = (echo time x speed of light) / 2",
+   "Marine radar operates in X band (9 GHz) and S band (3 GHz)",
+   "Bearing is determined by antenna direction at the moment of echo"
+  ]
+ },
+ "3-91": {
+  "note": "The radar building blocks. A magnetron generates the high-power pulse. The duplexer, using a TR cell, lets one antenna both transmit and receive by protecting the receiver during transmission. The synchroniser times everything; the indicator displays it.",
+  "key_facts": [
+   "The magnetron generates the transmitted RF pulse",
+   "A duplexer allows one antenna for transmit and receive",
+   "The TR cell protects the receiver during transmission",
+   "The synchroniser establishes timing for the whole system"
+  ]
+ },
+ "3-92": {
+  "note": "Pulse parameters set radar performance. Pulse width determines minimum range and range resolution \u2014 a short pulse resolves close targets. Pulse repetition frequency sets maximum unambiguous range: too high, and a distant echo arrives after the next pulse has gone out.",
+  "key_facts": [
+   "Shorter pulse width gives better range resolution and shorter minimum range",
+   "Lower PRF allows greater maximum unambiguous range",
+   "Duty cycle = pulse width x PRF",
+   "Average power = peak power x duty cycle"
+  ]
+ },
+ "3-93": {
+  "note": "Radar antennas are highly directional slotted waveguide arrays; a narrow horizontal beamwidth gives good bearing discrimination. Waveguide carries microwave energy with far less loss than coax, and its dimensions set the cutoff frequency below which it will not propagate.",
+  "key_facts": [
+   "Narrow horizontal beamwidth gives good bearing discrimination",
+   "Waveguide has a cutoff frequency set by its dimensions",
+   "Waveguide loss is far lower than coax at microwave frequencies",
+   "Waveguide must be kept clean, dry and free of dents"
+  ]
+ },
+ "3-94": {
+  "note": "Operating a radar set. Sea clutter near the ship is reduced with the STC or anti-clutter sea control; rain clutter with FTC. Excessive gain fills the screen with noise; too little hides weak targets. Interference from other radars appears as spiralling dotted patterns.",
+  "key_facts": [
+   "STC (sensitivity time control) reduces close-in sea clutter",
+   "FTC (fast time constant) reduces rain clutter",
+   "Excessive receiver gain masks targets in noise",
+   "Radar interference appears as curved dotted lines across the display"
+  ]
+ },
+ "3-95": {
+  "note": "Low earth orbit satellite systems circle a few hundred to a couple of thousand kilometres up, so each satellite is in view only briefly and a constellation with handoff is needed for continuous coverage. Low altitude means short path delay and lower power requirements.",
+  "key_facts": [
+   "LEO altitude is roughly 200-2000 km",
+   "A LEO satellite is in view for only minutes per pass",
+   "A constellation with handoff is needed for continuous coverage",
+   "LEO gives lower path loss and shorter delay than geostationary"
+  ]
+ },
+ "3-96": {
+  "note": "INMARSAT uses geostationary satellites over the equator to give near-global maritime coverage, excluding the polar regions. Geostationary orbit is about 35,786 km up, where the orbital period matches the earth's rotation so the satellite appears fixed in the sky.",
+  "key_facts": [
+   "Geostationary orbit altitude is about 35,786 km",
+   "A geostationary satellite appears stationary from the ground",
+   "INMARSAT does not cover the polar regions",
+   "Round-trip delay through a geostationary satellite is about 0.5 second"
+  ]
+ },
+ "3-97": {
+  "note": "INMARSAT services and terminals. Different terminal classes trade antenna size and data rate. The system supports distress alerting under GMDSS, telephony, telex and data. Antenna pointing must track the satellite as the vessel moves, which requires stabilisation.",
+  "key_facts": [
+   "INMARSAT provides GMDSS distress alerting via geostationary satellites",
+   "Shipboard antennas must be stabilised against vessel motion",
+   "Terminal classes differ in antenna size and data capability",
+   "Elevation angle to the satellite falls as latitude increases"
+  ]
+ },
+ "3-98": {
+  "note": "GPS gives position by measuring the travel time from several satellites at once. Three satellites fix latitude and longitude; a fourth resolves the receiver clock error and provides altitude. Selective availability is off, and differential corrections improve accuracy further.",
+  "key_facts": [
+   "Four satellites are needed for a three-dimensional fix with time",
+   "GPS satellites orbit at about 20,200 km in roughly 12-hour orbits",
+   "GPS transmits on L1 at 1575.42 MHz",
+   "Differential GPS uses a fixed reference station to correct errors"
+  ]
+ },
+ "3-99": {
+  "note": "RF radiation exposure limits depend on frequency because absorption peaks where the body is resonant, roughly 30-300 MHz. Power density falls with the square of distance. Microwave energy near a radar antenna or an open waveguide is a genuine burn and eye hazard.",
+  "key_facts": [
+   "Human RF absorption peaks around 30-300 MHz",
+   "Power density falls with the square of distance",
+   "Never look into an open waveguide or stand in front of a radiating dish",
+   "RF burns are deep tissue burns and heal slowly"
+  ]
+ },
+ "3-100": {
+  "note": "General safety practice. Treat every circuit as live until proven otherwise, discharge capacitors, and work with one hand where high voltage is present. A GFCI outlet senses current returning through a ground path and disconnects before the shock becomes lethal.",
+  "key_facts": [
+   "A GFCI trips on current leaking to ground, preventing electrocution",
+   "Discharge filter capacitors before working on a supply",
+   "Work with one hand in a high-voltage area to avoid a path across the chest",
+   "Shorted-stub lightning protectors work only over their tuned band"
+  ]
+ }
+}

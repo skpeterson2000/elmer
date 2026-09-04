@@ -1,0 +1,20 @@
+# Your progress, not the app's
+data/elmer.db
+data/elmer.db-journal
+data/elmer.db-wal
+data/elmer.db-shm
+data/elmer.log
+data/explanations/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

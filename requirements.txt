@@ -1,0 +1,3 @@
+# ELMER runtime dependencies. Everything else is the Python standard library.
+Flask>=2.2
+Pillow>=9.0

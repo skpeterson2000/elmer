@@ -1,0 +1,327 @@
+{
+ "T1A": {
+  "note": "Part 97 opens by saying what the service is for: emergency communication, advancing the radio art, training operators, and international goodwill. Everything else in the rules follows from that. Amateur radio is non-commercial by definition, and the FCC \u2014 not the ARRL, which is a membership association \u2014 writes and enforces the rules.",
+  "key_facts": [
+   "FCC regulates the Amateur Radio Service in the US",
+   "Amateur service is non-commercial by definition",
+   "Frequency coordinators are elected by local amateurs, not appointed by the FCC",
+   "A beacon transmits for observation of propagation"
+  ]
+ },
+ "T1B": {
+  "note": "Your licence class sets which slices of each band you may use, and the mode matters as much as the frequency: the whole transmitted signal, sidebands included, must stay inside the sub-band. Set your dial far enough from the edge that no part of your emission spills over \u2014 for SSB that means roughly 3 kHz of clearance.",
+  "key_facts": [
+   "The entire emission must stay inside the authorized sub-band",
+   "SSB occupies about 3 kHz, so leave that much room at a band edge",
+   "6 m, 2 m and 70 cm are the Technician's main VHF/UHF bands",
+   "Technicians also have CW privileges on 80, 40, 15 m and CW/SSB on 10 m"
+  ]
+ },
+ "T1C": {
+  "note": "There are three licence classes still issued: Technician, General and Amateur Extra. A licence runs ten years and there is a two-year grace period to renew \u2014 during the grace period the licence is expired, so you may not transmit until it is renewed. Call signs come sequentially by default; a vanity call is requested.",
+  "key_facts": [
+   "Licence term: 10 years, with a 2-year grace period to renew",
+   "You may not transmit during the grace period",
+   "Novice and Advanced classes still exist but are no longer issued",
+   "US amateur rules apply anywhere the FCC regulates, including US territories and vessels"
+  ]
+ },
+ "T1D": {
+  "note": "The prohibitions are the mirror of the purpose. No business communication, no broadcasting to the general public, no music, no codes intended to hide meaning, and nothing obscene. The narrow exceptions matter: you may communicate with anything to protect life and property in an emergency, and telecommand codes for a spacecraft are allowed.",
+  "key_facts": [
+   "No communication for hire or material compensation",
+   "No broadcasting \u2014 one-way transmissions to the general public",
+   "No messages encoded to obscure their meaning",
+   "In a genuine emergency, any means and any frequency may be used"
+  ]
+ },
+ "T1E": {
+  "note": "The control operator is the licensed amateur responsible for a transmission, and there is always one. Privileges are limited to those of the control operator's licence class, not the station licensee's. The station licensee and the control operator are jointly responsible. The control point is wherever the control operator function is performed.",
+  "key_facts": [
+   "Transmissions are limited to the control operator's privileges",
+   "Station licensee and control operator are jointly responsible",
+   "Local, remote and automatic control are the three control types",
+   "Only a repeater, auxiliary, beacon or space station may run under automatic control"
+  ]
+ },
+ "T1F": {
+  "note": "Identify with your call sign at least every ten minutes during a communication and at the end of it, in English by phone or by CW. Third-party traffic \u2014 a message from an unlicensed person \u2014 is permitted domestically and with countries that have a third-party agreement with the US. Repeater licensees are responsible for the repeater's transmissions.",
+  "key_facts": [
+   "Identify at least every 10 minutes and at the end of a communication",
+   "A phonetic alphabet is encouraged but not required",
+   "Third-party traffic abroad needs a third-party agreement",
+   "The repeater station licensee is responsible for its retransmissions"
+  ]
+ },
+ "T2A": {
+  "note": "Before transmitting, listen, then ask if the frequency is in use. Calling CQ means inviting any station to reply; answering means giving their call then yours. Repeater offsets and simplex conventions are set by band plans, which are voluntary agreements among amateurs, not FCC rules \u2014 but ignoring them makes you the problem.",
+  "key_facts": [
+   "Listen first, then ask whether the frequency is in use",
+   "Band plans are voluntary, not FCC regulation",
+   "2 m repeater offset is normally 600 kHz; 70 cm is 5 MHz",
+   "Use the minimum power necessary to carry out the communication"
+  ]
+ },
+ "T2B": {
+  "note": "A repeater listens on its input and retransmits on its output; your radio must transmit on the input, which is why you set an offset. A CTCSS sub-audible tone tells the repeater to open up, keeping it from responding to noise or distant stations. If you can hear the other station directly, move to simplex and leave the repeater free.",
+  "key_facts": [
+   "CTCSS is a sub-audible tone that opens a repeater's squelch",
+   "Reverse split listens on the repeater's input to hear the other station directly",
+   "DMR uses talkgroups and colour codes on a two-slot TDMA channel",
+   "If you can work simplex, do \u2014 it frees the repeater"
+  ]
+ },
+ "T2C": {
+  "note": "In an emergency the normal rules still apply, with one large exception: to protect immediate safety of life or property you may use any means of radio at your disposal. RACES and ARES are the two organised responses; ARES is ARRL-sponsored and open, RACES is a civil-defence activation. In a net, transmit only when directed by net control.",
+  "key_facts": [
+   "FCC rules always apply except when life or property is in immediate danger",
+   "ARES is open to any licensed amateur; RACES requires civil-defence enrolment",
+   "In a directed net, check in and transmit only when net control calls you",
+   "The station in distress sets the frequency; others stand by"
+  ]
+ },
+ "T3A": {
+  "note": "Signals rarely take one clean path. Multipath \u2014 the same signal arriving by several routes \u2014 causes flutter and picket-fencing on VHF and can distort data. Polarisation matters most on line-of-sight VHF/UHF, where a cross-polarised antenna loses many dB; on HF the ionosphere scrambles polarisation anyway.",
+  "key_facts": [
+   "Multipath causes rapid fading and data errors",
+   "Mismatched polarisation on VHF/UHF costs a lot of signal",
+   "Vertical polarisation is the convention for FM/repeater work",
+   "Horizontal polarisation is the convention for VHF/UHF SSB and CW"
+  ]
+ },
+ "T3B": {
+  "note": "Radio waves are electromagnetic: an electric field and a magnetic field at right angles to each other and to the direction of travel, moving at the speed of light. Because velocity is fixed, frequency and wavelength are locked together \u2014 as one rises the other falls.",
+  "key_facts": [
+   "Wavelength in metres = 300 / frequency in MHz",
+   "Radio waves travel at the speed of light, 300,000,000 m/s",
+   "The electric and magnetic fields are perpendicular to each other",
+   "Polarisation is defined by the orientation of the electric field"
+  ],
+  "lab": "ant"
+ },
+ "T3C": {
+  "note": "Beyond line of sight, several mechanisms get a VHF signal out. Sporadic E is the big summer opener on 6 m and 10 m. Tropospheric ducting carries UHF hundreds of miles along weather boundaries. Auroral propagation reflects off the auroral curtain and badly distorts audio \u2014 CW gets through when SSB will not.",
+  "key_facts": [
+   "Sporadic E is the most common cause of long-distance 6 m and 10 m openings",
+   "Tropospheric ducting mainly helps VHF and UHF",
+   "Auroral propagation adds a harsh buzz and favours CW",
+   "VHF line-of-sight reaches slightly past visual horizon due to refraction"
+  ],
+  "lab": "skip"
+ },
+ "T4A": {
+  "note": "Getting a station working is mostly about matching levels and impedances and keeping RF out of things it should not be in. Microphone gain sets how hard you drive the transmitter \u2014 too much causes splatter. An external antenna tuner goes between the transmitter and the feed line. Data cables carry audio at a level the sound card expects.",
+  "key_facts": [
+   "Excessive mic gain causes distortion and splatter",
+   "Ferrite chokes on cables reduce stray RF pickup",
+   "A tuner matches the transmitter to the line, not the antenna to the line",
+   "Power supply must be rated for the transceiver's peak current"
+  ]
+ },
+ "T4B": {
+  "note": "The controls exist to shape what reaches your ears. Squelch mutes the receiver until a signal exceeds a threshold. A narrower IF filter cuts adjacent interference at the cost of audio quality. AGC keeps loud and weak signals at a similar volume. A noise blanker attacks impulse noise such as ignition ticks.",
+  "key_facts": [
+   "Squelch mutes audio below a set signal threshold",
+   "Narrow filters help crowded bands: ~500 Hz for CW, ~2.4 kHz for SSB",
+   "AGC evens out signal levels; fast AGC suits CW",
+   "The noise blanker targets pulse noise, not steady hiss"
+  ]
+ },
+ "T5A": {
+  "note": "Current is the flow of electrons, measured in amperes; voltage is the electrical pressure that pushes them, measured in volts; resistance opposes the flow, measured in ohms. Direct current flows one way; alternating current reverses direction periodically, and its rate of reversal is its frequency.",
+  "key_facts": [
+   "Current = amperes, voltage = volts, resistance = ohms",
+   "Copper is a good conductor; glass, plastic and dry wood are insulators",
+   "AC reverses direction; DC does not",
+   "One hertz is one cycle per second"
+  ],
+  "lab": "ohm"
+ },
+ "T5B": {
+  "note": "Most of this is moving a decimal point and knowing the decibel. Each metric prefix is a factor of a thousand. The decibel expresses a ratio logarithmically, which is why gains and losses simply add along a signal path instead of multiplying.",
+  "key_facts": [
+   "milli = 1/1000, micro = 1/1,000,000, kilo = 1000, mega = 1,000,000",
+   "dB = 10 x log10(P2/P1) for power",
+   "3 dB is double the power; 10 dB is ten times",
+   "-6 dB is a quarter of the power"
+  ],
+  "lab": "db"
+ },
+ "T5C": {
+  "note": "Capacitance stores energy in an electric field and is measured in farads; inductance stores energy in a magnetic field and is measured in henries. Both oppose changing current, and that opposition is reactance, which varies with frequency. Impedance is the total opposition \u2014 resistance and reactance together \u2014 and is measured in ohms.",
+  "key_facts": [
+   "Capacitance in farads, inductance in henries",
+   "Impedance combines resistance and reactance, in ohms",
+   "Most amateur equipment is designed for 50 ohms",
+   "Power in watts = volts x amperes"
+  ],
+  "lab": "react"
+ },
+ "T5D": {
+  "note": "Ohm's law ties the three basic quantities together, and everything else in DC circuits follows. In series, current is the same everywhere and resistances add. In parallel, voltage is the same across each branch and the total resistance is always less than the smallest one.",
+  "key_facts": [
+   "E = I x R,  I = E / R,  R = E / I",
+   "P = E x I,  P = I squared x R,  P = E squared / R",
+   "Series: resistances add; current is the same throughout",
+   "Parallel: voltage is the same; total R is less than the smallest branch"
+  ],
+  "lab": "ohm"
+ },
+ "T6A": {
+  "note": "The passive parts. A resistor opposes current; a potentiometer is a variable one used as a control. A capacitor stores charge between plates separated by a dielectric. An inductor is a coil storing energy magnetically. A fuse protects a circuit by opening at a set current, and must always be replaced with the same rating.",
+  "key_facts": [
+   "A potentiometer is a variable resistor used as a control",
+   "Capacitor: two conductors separated by a dielectric",
+   "Never replace a fuse with a higher-rated one",
+   "Rechargeable: NiMH, lithium-ion, lead-acid. Not rechargeable: carbon-zinc"
+  ]
+ },
+ "T6B": {
+  "note": "Semiconductors do the work modern radios depend on. A diode conducts in one direction only, which makes rectification and detection possible. A transistor uses a small current or voltage at one terminal to control a much larger one, which is gain. Bipolar transistors are current-controlled; FETs are voltage-controlled.",
+  "key_facts": [
+   "A diode conducts in one direction only",
+   "Bipolar transistor: emitter, base, collector",
+   "Field-effect transistor: source, gate, drain",
+   "Gain is the ratio of output to input; an LED emits light when forward biased"
+  ]
+ },
+ "T6C": {
+  "note": "A schematic shows how components connect electrically, not how they are physically arranged. Learn the symbols and the diagram reads itself. In the Technician diagrams, count the terminals and look for the distinguishing mark \u2014 the arrow in a transistor emitter, the parallel plates of a capacitor, the coil of an inductor.",
+  "key_facts": [
+   "A schematic shows electrical connections, not physical layout",
+   "Resistor: zigzag or rectangle. Capacitor: two parallel lines",
+   "Inductor: series of loops. Battery: alternating long and short lines",
+   "A transistor's arrow is on the emitter and shows conventional current direction"
+  ]
+ },
+ "T6D": {
+  "note": "Functional blocks worth knowing by name. A rectifier turns AC into pulsating DC. A regulator holds output voltage steady as load or input varies. A relay is a switch operated by an electromagnet. A transformer changes AC voltage by the ratio of its windings. An integrated circuit packs many components into one device.",
+  "key_facts": [
+   "Rectifier: AC to DC. Regulator: holds voltage constant",
+   "A relay is an electrically operated switch",
+   "A transformer changes AC voltage; it does not work on DC",
+   "A resonant or tuned circuit is an inductor and capacitor together"
+  ]
+ },
+ "T7A": {
+  "note": "A transceiver combines a transmitter and receiver in one box. Sensitivity is the ability to hear weak signals; selectivity is the ability to reject adjacent ones. A preamplifier raises weak received signals but also raises noise, so it helps only when the receiver rather than the band is the limit. A transverter shifts a whole band to another.",
+  "key_facts": [
+   "Sensitivity: hearing weak signals. Selectivity: rejecting nearby ones",
+   "A transverter converts a transceiver's output to another band",
+   "An RF preamplifier goes at the antenna end to overcome feed line loss",
+   "The mixer in a superheterodyne produces the intermediate frequency"
+  ]
+ },
+ "T7B": {
+  "note": "Most complaints trace to too much signal somewhere. Overload happens when a strong nearby transmitter swamps a receiver's front end. Splatter and distortion usually mean overdriven audio or too much mic gain. A distorted signal on many frequencies at once is a sign of a fault, not of propagation.",
+  "key_facts": [
+   "Front-end overload: a strong local signal swamps the receiver",
+   "Splatter is caused by overmodulation or excessive mic gain",
+   "RF feedback causes distorted audio only while transmitting",
+   "Harmonics appear at integer multiples of the operating frequency"
+  ]
+ },
+ "T7C": {
+  "note": "SWR measures how well the antenna system matches the feed line. 1:1 is perfect; under about 2:1 is fine. High SWR means power is being reflected back rather than radiated, and it will make a solid-state transmitter reduce power to protect itself. Very high or infinite SWR points at an open or shorted feed line.",
+  "key_facts": [
+   "SWR 1:1 is a perfect match; below 2:1 is generally fine",
+   "High SWR makes solid-state finals fold back power",
+   "Infinite SWR suggests a short or open circuit in the antenna system",
+   "An antenna analyser measures SWR without transmitting a full signal"
+  ],
+  "lab": "swr"
+ },
+ "T7D": {
+  "note": "Measure voltage across a circuit with the voltmeter in parallel; measure current through it with the ammeter in series. Never measure resistance in a powered circuit \u2014 you will damage the meter and get a meaningless reading. Good solder joints are shiny and smooth; a dull grainy joint is a cold joint and will fail.",
+  "key_facts": [
+   "Voltmeter in parallel, ammeter in series",
+   "Never measure resistance on a live circuit",
+   "A cold solder joint looks dull and grainy",
+   "Use rosin-core solder for electronics, never acid-core"
+  ]
+ },
+ "T8A": {
+  "note": "Modulation puts information on a carrier, and how you do it sets how much spectrum you use. SSB removes the carrier and one sideband, so it fits in about 3 kHz and puts all the power into the remaining sideband \u2014 best for weak-signal work. FM is wider and needs a strong signal, but is quiet and constant-amplitude, which suits repeaters.",
+  "key_facts": [
+   "CW about 150 Hz, SSB about 3 kHz, FM about 10-15 kHz",
+   "SSB reaches further at the same power; FM is cleaner when strong",
+   "Fast-scan TV needs about 6 MHz",
+   "FM's capture effect lets the stronger signal dominate completely"
+  ]
+ },
+ "T8B": {
+  "note": "Satellites move fast, so their signals shift in frequency \u2014 Doppler \u2014 rising as the satellite approaches and falling as it recedes. A linear transponder relays a slice of spectrum and needs low power and SSB or CW; running excessive power desensitises it for everyone. Telemetry is the satellite reporting its own health.",
+  "key_facts": [
+   "Doppler shift changes the received frequency as the satellite passes",
+   "Use the minimum power that works \u2014 overdriving a transponder blocks others",
+   "LEO satellites are visible for only a few minutes per pass",
+   "Telemetry is the satellite's own status data"
+  ]
+ },
+ "T8C": {
+  "note": "Things to actually do with a licence. Radio direction finding uses a directional antenna and signal strength to locate a transmitter. Grid squares (Maidenhead locators) give a compact position exchange. Internet linking \u2014 EchoLink, IRLP \u2014 bridges repeaters worldwide, and requires proof of licence to use.",
+  "key_facts": [
+   "A directional antenna and attenuator are the RDF basics",
+   "Maidenhead grid squares are the standard VHF/UHF position exchange",
+   "EchoLink and IRLP link repeaters over the internet",
+   "Contest exchanges are kept short and are logged"
+  ],
+  "lab": "path"
+ },
+ "T8D": {
+  "note": "Digital modes trade speed for robustness. Packet uses addressed frames with error checking. PSK31 is a narrow keyboard mode that gets through at low power. APRS carries position and short messages, often from a GPS. FT8 is extremely weak-signal and works below the noise floor, at the cost of very limited message content.",
+  "key_facts": [
+   "APRS carries position, weather and short messages",
+   "PSK31 is a narrow-bandwidth keyboard-to-keyboard mode",
+   "A check sum or CRC detects errors in received data frames",
+   "NTSC is the analogue fast-scan television standard"
+  ]
+ },
+ "T9A": {
+  "note": "An antenna's gain is not free power \u2014 it is power taken from directions you do not want and put where you do. A half-wave dipole is the reference most gain figures are quoted against. A Yagi adds directors and a reflector to concentrate the pattern forward. Longer boom, more elements, more gain and a narrower beamwidth.",
+  "key_facts": [
+   "Half-wave dipole in feet = 468 / frequency in MHz",
+   "Quarter-wave vertical in feet = 234 / frequency in MHz",
+   "Gain comes from concentrating radiation, not from adding power",
+   "More Yagi elements means more gain and a narrower beamwidth"
+  ],
+  "lab": "ant"
+ },
+ "T9B": {
+  "note": "Feed line loss rises with frequency and with SWR, and it is loss you never get back. Larger, better cable loses less. A tuner does not reduce loss in the line \u2014 it presents the transmitter with a load it can drive. Keep connectors weatherproofed: water in coax is the most common cause of a station going deaf.",
+  "key_facts": [
+   "Feed line attenuation increases with frequency",
+   "High SWR increases loss in the feed line",
+   "PL-259/UHF connectors below 400 MHz; type N above",
+   "An antenna tuner matches the transmitter to the line, not the antenna"
+  ],
+  "lab": "swr"
+ },
+ "T0A": {
+  "note": "Mains voltage and large batteries both kill. Fuses and breakers protect the wiring, not you \u2014 that is what grounding and interlocks are for, and a fuse must never be replaced with a larger one. A shorted lead-acid battery can deliver hundreds of amps, causing burns, fire or an explosion, and charging one releases hydrogen.",
+  "key_facts": [
+   "Never replace a fuse with one of a higher rating",
+   "Shorting a battery can cause burns, fire or explosion",
+   "Charging lead-acid batteries releases explosive hydrogen",
+   "Connect equipment to a safety ground; use three-wire mains cords"
+  ]
+ },
+ "T0B": {
+  "note": "Tower work is the most dangerous thing most amateurs do. Never climb alone, always wear an approved climbing harness, and never rely on a single attachment. Before raising anything, look up: contact with a power line is the leading cause of amateur fatalities. Keep the antenna far enough away that it cannot reach a line even if it falls.",
+  "key_facts": [
+   "Never climb a tower alone or without a harness",
+   "Look for overhead power lines before raising any antenna",
+   "A crank-up tower must never be climbed while extended unless designed for it",
+   "Ground each tower leg with its own ground rod bonded together"
+  ]
+ },
+ "T0C": {
+  "note": "RF exposure limits depend on frequency, because the body absorbs energy most efficiently around 30-300 MHz \u2014 which is exactly where 2 m sits. Exposure falls with the square of distance, so a small increase in separation helps a lot. Duty cycle matters: modes that transmit intermittently average less exposure than continuous carriers.",
+  "key_facts": [
+   "The body absorbs RF most readily around 30-300 MHz",
+   "Exposure falls with the square of the distance from the antenna",
+   "Lower duty cycle means lower average exposure",
+   "RF is non-ionising radiation; the hazard is heating"
+  ]
+ }
+}

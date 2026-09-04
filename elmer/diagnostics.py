@@ -1,0 +1,219 @@
+"""Self-checks for `./elmer.py --doctor`.
+
+Written for the case where the app "won't open": it reports every address the
+server can actually be reached on, proves the pools and database are usable,
+and says plainly which part is at fault.
+"""
+import json
+import socket
+import shutil
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+OK, WARN, BAD = "  ok  ", " warn ", " FAIL "
+
+
+def _line(state, label, detail=""):
+    print(f"  [{state}] {label}" + (f"  -  {detail}" if detail else ""))
+
+
+def local_addresses():
+    """Every IPv4 address this machine answers on, best guess first."""
+    found = []
+    try:
+        out = subprocess.run(["ip", "-4", "-br", "addr"], capture_output=True,
+                             text=True, timeout=5).stdout
+        for row in out.splitlines():
+            parts = row.split()
+            if len(parts) >= 3 and parts[1] == "UP":
+                for cidr in parts[2:]:
+                    ip = cidr.split("/")[0]
+                    if not ip.startswith("127."):
+                        found.append((parts[0], ip))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if not found:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                found.append(("default", s.getsockname()[0]))
+        except OSError:
+            pass
+    return found
+
+
+def port_in_use(port, host="127.0.0.1"):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1.0)
+        return s.connect_ex((host, port)) == 0
+
+
+def check_pools():
+    directory = ROOT / "data" / "pools"
+    files = sorted(directory.glob("*.json"))
+    if not files:
+        _line(BAD, "question pools", "none built - run ./elmer.py --build")
+        return False
+    total, bad = 0, []
+    for path in files:
+        try:
+            pool = json.loads(path.read_text())
+            total += len(pool["questions"])
+            missing = [q["figure"] for q in pool["questions"]
+                       if q.get("figure") and q["figure"] not in pool.get("figures", {})]
+            if missing:
+                bad.append(f"{path.stem} missing figures {sorted(set(missing))}")
+        except (ValueError, KeyError) as exc:
+            bad.append(f"{path.name}: {exc}")
+    if bad:
+        _line(BAD, "question pools", "; ".join(bad))
+        return False
+    _line(OK, "question pools", f"{len(files)} pools, {total} questions")
+    return True
+
+
+def check_figures():
+    directory = ROOT / "data" / "figures"
+    count = sum(1 for _ in directory.rglob("*")) if directory.is_dir() else 0
+    files = [p for p in directory.rglob("*") if p.is_file()] if directory.is_dir() else []
+    if not files:
+        _line(WARN, "diagrams", "none extracted - figure questions will show no image")
+        return True
+    _line(OK, "diagrams", f"{len(files)} files")
+    return True
+
+
+def check_explanations():
+    from .content import load_pools
+    from .explain import coverage, part97
+    total = explained = 0
+    thin = []
+    for pool in load_pools().values():
+        c = coverage(pool)
+        total += c["questions"]
+        explained += c["explained"]
+        if c["sections_with_notes"] < c["sections"]:
+            thin.append(f"{c['pool_id']} {c['sections_with_notes']}/{c['sections']} sections")
+    rules = len(part97())
+    if not total:
+        _line(WARN, "explanations", "no pools loaded")
+        return True
+    state = OK if explained == total else WARN
+    detail = f"{explained}/{total} questions, {rules} CFR sections cached"
+    if thin:
+        detail += "; incomplete: " + ", ".join(thin)
+    if not rules:
+        detail += "; run --build-rules for FCC rule text"
+    _line(state, "explanations", detail)
+    return True
+
+
+def check_database():
+    from . import db
+    try:
+        conn = db.connect()
+        conn.execute("SELECT COUNT(*) FROM answer_log").fetchone()
+        answers = conn.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+        conn.close()
+        _line(OK, "progress database", f"{db.DB_PATH} ({answers} answers logged)")
+        return True
+    except Exception as exc:
+        _line(BAD, "progress database", f"{db.DB_PATH}: {exc}")
+        return False
+
+
+def check_templates():
+    from .app import app
+    missing = []
+    for name in ("base.html", "home.html", "study.html", "exam.html",
+                 "progress.html", "browse.html", "propagation.html", "lab.html"):
+        try:
+            app.jinja_env.get_template(name)
+        except Exception as exc:
+            missing.append(f"{name} ({type(exc).__name__})")
+    for asset in ("elmer.css", "elmer.js", "study.js", "exam.js",
+                  "propagation.js", "lab.js"):
+        if not (ROOT / "elmer" / "static" / asset).is_file():
+            missing.append(f"static/{asset}")
+    if missing:
+        _line(BAD, "templates and assets", ", ".join(missing))
+        return False
+    _line(OK, "templates and assets", "all present")
+    return True
+
+
+def check_tools():
+    have = [t for t in ("pdftotext", "pdftoppm", "pdfimages") if shutil.which(t)]
+    if len(have) == 3:
+        _line(OK, "poppler tools", "present (needed only for --build)")
+    else:
+        _line(WARN, "poppler tools", "missing " +
+              ", ".join(t for t in ("pdftotext", "pdftoppm", "pdfimages")
+                        if t not in have) + " - rebuilding pools will fail")
+    return True
+
+
+def check_internet():
+    try:
+        request = urllib.request.Request(
+            "https://www.hamqsl.com/solarxml.php",
+            headers={"User-Agent": "ELMER/1.0"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read(200)
+        _line(OK, "space weather feed", "hamqsl.com reachable")
+    except Exception as exc:
+        _line(WARN, "space weather feed", f"unreachable ({exc}) - "
+              "everything except the propagation page still works")
+    return True
+
+
+def check_server(port):
+    if port_in_use(port):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r:
+                body = r.read(400).decode("utf-8", "replace")
+            if "ELMER" in body:
+                _line(OK, f"server on port {port}", "already running and answering")
+            else:
+                _line(WARN, f"port {port}", "in use by something that is not ELMER")
+        except Exception as exc:
+            _line(WARN, f"port {port}", f"in use but not answering HTTP ({exc})")
+        return True
+    _line(OK, f"port {port}", "free - ready to start")
+    return True
+
+
+def doctor(port=5000):
+    print("\n  ELMER self-check\n")
+    print(f"  python      {sys.version.split()[0]}")
+    print(f"  project     {ROOT}")
+    try:
+        import flask
+        print(f"  flask       {flask.__version__}")
+    except Exception:
+        print("  flask       NOT INSTALLED - pip3 install flask")
+    print()
+
+    results = [
+        check_pools(), check_figures(), check_explanations(), check_database(),
+        check_templates(), check_tools(), check_internet(), check_server(port),
+    ]
+
+    print("\n  Open ELMER at any of these:\n")
+    print(f"      http://localhost:{port}          (on this Pi)")
+    addresses = local_addresses()
+    for interface, ip in addresses:
+        print(f"      http://{ip}:{port}      (from another device, via {interface})")
+    if not addresses:
+        print("      no network interface is up - only localhost will work")
+
+    print("\n  If a browser on another device cannot reach it, check that the")
+    print("  device is on the same network as this Pi, then watch the log while")
+    print("  you try:  tail -f data/elmer.log")
+    print("  If nothing appears there, the request never arrived and the problem")
+    print("  is the network, not ELMER.\n")
+    return all(results)
