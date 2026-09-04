@@ -19,8 +19,9 @@ from pathlib import Path
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
-from . import (bandpdf, bandplan, db, exams, explain, game, geocode, logs,
-               propagation, ranks, regional, rfexposure, rfpdf, srs, terrain)
+from . import (bandpdf, bandplan, callsign, db, exams, explain, game, geocode,
+               logs, propagation, ranks, regional, rfexposure, rfpdf, srs,
+               terrain)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -207,7 +208,8 @@ def profile_block(connection):
             "all_achievements": game.ACHIEVEMENTS,
             "rank_rules": {"current_days": ranks.CURRENT_DAYS,
                            "grace_days": ranks.GRACE_DAYS},
-            "qth": qth_for(connection, prof)}
+            "qth": qth_for(connection, prof),
+            "licence": prof["settings"].get("licence") or {}}
 
 
 # --------------------------------------------------------------------------
@@ -339,7 +341,9 @@ def bandplan_page():
     return render_template(
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
         classes=bandplan.CLASSES,
-        licence_class=profile["settings"].get("licence_class", "Technician"),
+        licence_class=profile["settings"].get("licence_class")
+                       or (profile["settings"].get("licence") or {}).get("licence_class")
+                       or "Technician",
         coordinators=regional.available(),
         state=profile["settings"].get("state", ""),
         **profile_block(connection))
@@ -747,6 +751,17 @@ def api_rf_exposure_pdf():
     })
 
 
+@app.route("/api/callsign/<call>")
+def api_callsign(call):
+    """Look up a US amateur licence. 503 when the lookup cannot be reached."""
+    found = callsign.lookup(call, refresh=request.args.get("refresh") == "1")
+    if found is None:
+        return jsonify({"ok": False,
+                        "error": "licence lookup unavailable - check the "
+                                 "callsign, or the network"}), 503
+    return jsonify({"ok": True, **found})
+
+
 @app.route("/api/geocode")
 def api_geocode():
     """Places matching a name, for the location boxes.
@@ -832,6 +847,20 @@ def api_settings():
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         db.set_callsign(connection, body["callsign"] or "")
+        # A callsign is enough to know the licence class and when it expires,
+        # so there is no reason to make the operator tell us separately.
+        found = callsign.lookup(body["callsign"]) if body.get("callsign") else None
+        if found and found.get("found"):
+            settings["licence"] = found
+            if found.get("licence_class"):
+                settings["licence_class"] = found["licence_class"]
+            log.info("licence for %s: %s, expires %s (%s)", found["callsign"],
+                     found.get("licence_class") or found.get("type"),
+                     found.get("expires"), found["status"]["state"])
+        elif found is not None:
+            settings["licence"] = found
+        elif body.get("callsign"):
+            log.warning("licence lookup unavailable for %s", body["callsign"])
     for key in ("licence_class", "state"):
         if key in body:
             settings[key] = body[key]

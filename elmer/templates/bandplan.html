@@ -12,7 +12,11 @@
   </div>
   <div class="row">
     <div class="field" style="margin-bottom:0">
-      <label>Your licence class</label>
+      <label>Licence class
+        {% if licence.get('licence_class') %}
+          <span class="verified" title="from the FCC record for {{ licence.callsign }}">verified</span>
+        {% endif %}
+      </label>
       <select id="bp-class">
         {% for c in classes %}
           <option value="{{ c }}" {% if c == licence_class %}selected{% endif %}>{{ c }}</option>
@@ -32,6 +36,47 @@
     <button class="btn sm" id="bp-pdf">Download chart (PDF)</button>
   </div>
 </div>
+
+{% if not licence.get('found') %}
+  <div class="panel tight mt licence-strip">
+    <div class="row" style="gap:.6rem">
+      <span class="small">Enter your callsign and ELMER will use your actual
+        privileges &mdash; and tell you when the licence expires.</span>
+      <input id="bp-call" class="mono" placeholder="callsign" maxlength="10"
+             value="{{ profile.callsign or '' }}"
+             style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.3rem .55rem;width:8rem">
+      <button class="btn sm" id="bp-lookup">Look up</button>
+      <span class="tiny muted" id="bp-call-hint"></span>
+    </div>
+  </div>
+{% endif %}
+
+{% if licence.get('found') %}
+  <div class="panel tight mt licence-strip
+      {% if licence.status.state == 'grace' %}warn{% elif licence.status.state == 'expired' %}bad{% endif %}">
+    <div class="row" style="gap:1.1rem">
+      <b class="mono">{{ licence.callsign }}</b>
+      {% if licence.licence_class %}<span class="pill info">{{ licence.licence_class }}</span>{% endif %}
+      <span class="small muted">granted {{ licence.granted }}</span>
+      {% if licence.status.state == 'current' %}
+        <span class="small">expires <b>{{ licence.expires }}</b> &mdash;
+          {{ licence.status.days }} days
+          {% if licence.status.days < 90 %}<span class="pill warn">renew soon</span>{% endif %}</span>
+      {% elif licence.status.state == 'grace' %}
+        <span class="small">expired {{ licence.expires }} &mdash;
+          <b>in the two-year grace period</b>, {{ licence.status.renew_within }} days left to renew
+          without re-testing. You may not transmit until it is renewed.</span>
+      {% else %}
+        <span class="small">expired {{ licence.expires }} &mdash; past the grace period,
+          so the licence must be earned again.</span>
+      {% endif %}
+      {% if licence.uls_url %}
+        <a class="tiny" style="margin-left:auto" href="{{ licence.uls_url }}"
+           target="_blank" rel="noopener">FCC ULS record &rarr;</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
 
 <div class="panel tight mt">
   <div class="row" id="bp-legend"></div>

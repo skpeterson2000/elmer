@@ -14,6 +14,8 @@ data/kiosk-profile/
 # so they are yours rather than the app's.
 data/geocode/
 data/terrain/
+data/regional/
+data/callsign/
 
 # Python
 __pycache__/
@@ -27,4 +29,3 @@ venv/
 *.swp
 .idea/
 .vscode/
-data/regional/
