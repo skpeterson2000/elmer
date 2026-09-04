@@ -727,9 +727,12 @@ def api_rf_exposure():
         return jsonify({"error": "no bands to evaluate", "cases": []}), 400
     try:
         return jsonify(rfexposure.evaluate(station, cases))
+    except rfexposure.InvalidCase as exc:
+        log.info("RF exposure input refused: %s", exc)
+        return jsonify({"error": str(exc), "cases": []}), 400
     except (TypeError, ValueError) as exc:
         log.warning("RF exposure evaluation rejected: %s", exc)
-        abort(400, "check the numbers entered")
+        return jsonify({"error": "check the numbers entered", "cases": []}), 400
 
 
 @app.route("/api/rf-exposure/pdf", methods=["POST"])
@@ -739,7 +742,11 @@ def api_rf_exposure_pdf():
     station, cases = _rf_payload(request.get_json(force=True) or {})
     if not cases:
         abort(400, "no bands to evaluate")
-    evaluation = rfexposure.evaluate(station, cases)
+    try:
+        evaluation = rfexposure.evaluate(station, cases)
+    except rfexposure.InvalidCase as exc:
+        log.info("RF exposure PDF refused: %s", exc)
+        abort(400, str(exc))
     pdf = rfpdf.build(evaluation, station)
     call = (station.get("callsign") or "station").replace("/", "-")
     name = f"RF-exposure-{call}-{station['date']}.pdf"

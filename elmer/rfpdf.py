@@ -42,10 +42,19 @@ def _styles():
 
 
 def _fmt(value, digits=3, dash="—"):
+    """Format a number to fit its column.
+
+    Very large and very small values go to scientific notation: a wildly
+    non-compliant station can produce six-figure power densities, and a number
+    that overflows its cell and collides with the next one is worse than no
+    number at all in a document meant to be read by someone else.
+    """
     if value is None:
         return dash
     if isinstance(value, float):
         if value != 0 and abs(value) < 10 ** -digits:
+            return f"{value:.2e}"
+        if abs(value) >= 100000:
             return f"{value:.2e}"
         return f"{value:,.{digits}f}"
     return str(value)
@@ -111,6 +120,13 @@ def build(evaluation, station=None):
              Paragraph(f'<font color="{(PASS if overall else FAIL).hexval()}">'
                        f'<b>{verdict}</b></font>', s["body"])]
 
+    warnings = evaluation.get("warnings") or []
+    if warnings:
+        flow += [Spacer(1, 5), Paragraph("<b>Check these before relying on it</b>",
+                                         s["body"])]
+        flow += [Paragraph(f'<font color="{FAIL.hexval()}">&#8226;</font> {w}',
+                           s["small"]) for w in dict.fromkeys(warnings)]
+
     for case in evaluation["cases"]:
         block = [Paragraph(
             f"{case['band']} &mdash; {_fmt(case['frequency_mhz'], 3)} MHz, "
@@ -124,14 +140,16 @@ def build(evaluation, station=None):
                    "Average power", f"{_fmt(case['average_watts'], 2)} W"],
                   ["Antenna gain", f"{_fmt(case['gain_dbd'], 2)} dBd "
                                    f"({_fmt(case['gain_dbi'], 2)} dBi)",
-                   "", ""]]
+                   "Gain figure",
+                   "modelled from the antenna"
+                   if case.get("gain_source") == "modelled"
+                   else "entered by the operator"]]
         block.append(_grid(inputs, [1.35 * inch, 1.75 * inch, 1.5 * inch, 2.4 * inch],
                            [("BACKGROUND", (0, 0), (0, -1), BAND),
                             ("BACKGROUND", (2, 0), (2, -1), BAND),
                             ("FONT", (0, 0), (0, -1), "Helvetica-Bold", 8.4),
                             ("FONT", (2, 0), (2, -1), "Helvetica-Bold", 8.4),
-                            ("SPAN", (2, 3), (3, 3)),
-                            ("BACKGROUND", (2, 3), (3, 3), colors.white)]))
+                            ]))
 
         rows = [["Environment", "Averaging", "MPE limit\n(mW/cm²)",
                  "Distance\n(ft)", "Estimated\n(mW/cm²)", "% of\nlimit",
@@ -184,6 +202,12 @@ def build(evaluation, station=None):
             "averaged over 30 minutes. Reference: " + method["reference"] + ". "
             "Requirement: " + method["requirement"] + ".", s["body"]),
         Paragraph(method["note"], s["small"]),
+        Paragraph(
+            "Antenna gain is the largest single lever on every figure above, and "
+            "this evaluation takes it as given. Where the table says a gain was "
+            "entered by the operator, nothing here has checked it against a real "
+            "antenna; where it says modelled, it was computed by ELMER from the "
+            "antenna's geometry. Neither is a measurement.", s["small"]),
         Spacer(1, 18),
         Paragraph("I have evaluated this station and, to the best of my knowledge, "
                   "the information above is correct.", s["body"]),
