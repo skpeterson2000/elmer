@@ -195,11 +195,16 @@ Interactive versions of the maths the pools test:
   resistance, efficiency and the loading it needs, which is the honest answer to
   why mobile HF is hard.
 - **RF exposure evaluation** — an antenna designed in the Antennas tab can be
-  sent straight here, carrying its frequency, gain and description, with the
-  distances started at the antenna height: directly beneath is the closest
-  anyone standing on the ground can get, so it is a defensible starting point
-  rather than a blank. Send several and they stack up as separate bands in one
-  evaluation. The evaluation every amateur has been
+  sent straight here, carrying its frequency, gain and description. The starting
+  distances are worked out per antenna type, because how close a person can get
+  has little to do with how high the antenna is: a horizontal wire is nearest
+  directly beneath it, an inverted-V at its drooping ends rather than its apex,
+  a ground-mounted vertical can be walked up to, and a mobile whip sits a few
+  feet from the people in the car. Each hand-off says which assumption it used,
+  and flags the high-voltage points — the ends of a dipole, the far end of an
+  end-fed, the base of a ground-mounted vertical — where an RF burn does not
+  need the field to exceed any limit. Send several antennas and they stack up as
+  separate bands in one evaluation. The evaluation every amateur has been
   required to perform since 2021, under 47 CFR 97.13(c). Enter each band you
   actually run: frequency, PEP, mode, how much of the averaging period you
   transmit for, antenna gain, and how far away people get. ELMER computes the
