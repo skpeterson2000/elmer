@@ -97,14 +97,20 @@ def main():
         # Started from the menu entry there is no terminal to print to, so a
         # second click would look like nothing happening at all.  If ELMER is
         # already serving, put a window on that instead of refusing.
+        #
+        # Deliberately an ordinary window rather than a kiosk one: that server
+        # is not ours to stop, so its pages carry no Exit button, and a full
+        # screen window with no way out and no button would strand the user.
         if args.kiosk:
             from elmer import kiosk
-            if kiosk.have_display() and kiosk.find_browser()[0]:
-                process = kiosk.launch(f"http://localhost:{args.port}")
-                if process is not None:
-                    print(f"\n  ELMER was already serving on port {args.port} - "
-                          "opened a window on it.\n")
-                    process.wait()
+            if kiosk.have_display():
+                import webbrowser
+                url = f"http://localhost:{args.port}"
+                if webbrowser.open(url):
+                    print(f"\n  ELMER is already serving on port {args.port} - "
+                          f"opened {url} in a window.\n"
+                          "  Stop that one first if you want the full-screen "
+                          "kiosk with its Exit button.\n")
                     return
         print(f"\n  Port {args.port} is already in use - ELMER may already be "
               f"running.\n  Try http://localhost:{args.port} first, or start this "
