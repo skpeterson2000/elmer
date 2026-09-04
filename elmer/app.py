@@ -581,7 +581,25 @@ def api_exam_submit(exam_id):
     row = connection.execute("SELECT * FROM exam WHERE id = ?", (exam_id,)).fetchone()
     if not row or not row["detail"]:
         abort(404)
-    exam = json.loads(row["detail"])["exam"]
+    stored = json.loads(row["detail"])
+    if "exam" not in stored:
+        # Scored by an earlier build that overwrote the questions. The result is
+        # on record, so hand that back rather than failing on a resubmit.
+        if row["finished"] and row["score"] is not None:
+            log.info("exam %s already scored; returning the recorded result", exam_id)
+            return jsonify({
+                "score": row["score"], "total": row["total"],
+                "pass_mark": get_pool(row["pool_id"]).pass_mark,
+                "passed": bool(row["passed"]), "seconds": row["seconds"] or 0,
+                "percent": round(100 * row["score"] / row["total"], 1),
+                "breakdown": stored.get("breakdown", []),
+                "results": stored.get("results", []),
+                "perfect": row["score"] == row["total"],
+                "already_scored": True, "xp": 0, "achievements": [],
+                "total_xp": db.get_profile(connection)["xp"],
+            })
+        abort(404)
+    exam = stored["exam"]
     result = exams.score(connection, exam_id, exam, body.get("responses", {}),
                          body.get("seconds", 0))
 
