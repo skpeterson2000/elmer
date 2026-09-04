@@ -81,6 +81,14 @@ CREATE TABLE IF NOT EXISTS user_note (
     PRIMARY KEY (pool_id, question_id)
 );
 
+CREATE TABLE IF NOT EXISTS cw_char (
+    ch       TEXT PRIMARY KEY,
+    sent     INTEGER NOT NULL DEFAULT 0,
+    copied   INTEGER NOT NULL DEFAULT 0,
+    confused TEXT    NOT NULL DEFAULT '{}',
+    updated  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS kv (
     k TEXT PRIMARY KEY,
     v TEXT NOT NULL
@@ -193,6 +201,33 @@ def save_note(conn, pool_id, question_id, body):
             (pool_id, question_id, body[:4000], utcnow().isoformat()))
     conn.commit()
     return body or None
+
+
+def cw_progress(conn):
+    return {r["ch"]: dict(r) for r in conn.execute("SELECT * FROM cw_char")}
+
+
+def cw_record(conn, per_char):
+    """Fold one copy session into the per-character record.
+
+    ``per_char`` maps a sent character to {"sent": n, "copied": n,
+    "confused": {typed: n}} - what was actually heard as what, which is the
+    thing that tells you which pairs still need separating.
+    """
+    import json as _json
+    for ch, stats in per_char.items():
+        row = conn.execute("SELECT * FROM cw_char WHERE ch = ?", (ch,)).fetchone()
+        confused = _json.loads(row["confused"]) if row else {}
+        for typed, n in (stats.get("confused") or {}).items():
+            confused[typed] = confused.get(typed, 0) + int(n)
+        conn.execute(
+            "INSERT INTO cw_char (ch, sent, copied, confused, updated) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT (ch) DO UPDATE SET "
+            "sent = sent + excluded.sent, copied = copied + excluded.copied, "
+            "confused = excluded.confused, updated = excluded.updated",
+            (ch, int(stats.get("sent", 0)), int(stats.get("copied", 0)),
+             _json.dumps(confused), utcnow().isoformat()))
+    conn.commit()
 
 
 def maintenance_window(conn, pool_id, days=30):
