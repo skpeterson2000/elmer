@@ -430,3 +430,11 @@ table.data tr.denied td { opacity: .45; }
 .licence-strip { border-left: 3px solid var(--cyan); }
 .licence-strip.warn { border-left-color: var(--amber); }
 .licence-strip.bad { border-left-color: var(--red); }
+
+/* ---------- NVIS block ---------- */
+.nvis {
+  border: 1px solid rgba(57,211,216,.3); background: rgba(57,211,216,.05);
+  border-radius: 9px; padding: .75rem .9rem; margin-bottom: 1rem;
+}
+.nvis table.data td { border-bottom-color: rgba(57,211,216,.12); }
+.nvis .watchout { color: #ffcf8a; font-size: .85rem; }

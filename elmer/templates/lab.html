@@ -121,6 +121,16 @@
       <div class="field an-when-height"><label>Height above ground (ft)</label>
         <input id="an-h" value="35"></div>
 
+      <div class="field an-when-v"><label>Leg droop from horizontal (&deg;)</label>
+        <input type="range" id="an-droop" min="0" max="60" step="1" value="35">
+        <span class="sim-out" id="an-droop-v"></span></div>
+
+      <label class="an-when-nvis" style="display:flex;align-items:center;gap:.45rem;
+             font:.78rem var(--sans);color:var(--dim);margin:.2rem 0 .7rem;cursor:pointer">
+        <input type="checkbox" id="an-nvis" style="width:auto;margin:0">
+        Set up for NVIS (high-angle, short skip)
+      </label>
+
       <div class="field an-when-yagi"><label>Elements</label>
         <input type="range" id="an-el" min="2" max="20" step="1" value="5">
         <span class="sim-out" id="an-el-v"></span></div>
