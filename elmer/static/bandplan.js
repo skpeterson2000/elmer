@@ -155,3 +155,33 @@ document.getElementById('bp-pdf').addEventListener('click', async () => {
 });
 
 bpLoad();
+
+/* Callsign lookup: the licence knows the class, so the operator need not. */
+const bpLookupBtn = document.getElementById('bp-lookup');
+if (bpLookupBtn) {
+  const field = document.getElementById('bp-call');
+  const hint = document.getElementById('bp-call-hint');
+  const run = async () => {
+    const call = (field.value || '').trim().toUpperCase();
+    if (!call) return;
+    bpLookupBtn.disabled = true;
+    hint.textContent = 'checking the FCC record…';
+    try {
+      const found = await api('/api/callsign/' + encodeURIComponent(call));
+      if (!found.found) {
+        hint.innerHTML = '<span style="color:var(--red)">' +
+          escapeHTML(found.reason || 'no FCC record found') + '</span>';
+      } else {
+        await postJSON('/api/settings', {callsign: call});
+        hint.textContent = 'found — reloading';
+        location.reload();
+      }
+    } catch (e) {
+      hint.innerHTML = '<span style="color:var(--red)">lookup unavailable ' +
+        '&mdash; pick your class manually</span>';
+    }
+    bpLookupBtn.disabled = false;
+  };
+  bpLookupBtn.addEventListener('click', run);
+  field.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+}

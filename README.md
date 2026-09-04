@@ -111,7 +111,15 @@ and a likely score range.
 A station reference at `/bandplan`, in three layers kept deliberately apart
 because they carry very different authority:
 
-- **Privileges are law.** 47 CFR 97.301 and 97.305, stated per licence class.
+- **Privileges are law**, and they come from your actual licence. Enter your
+  callsign once and ELMER reads the FCC record through callook.info: licence
+  class, grant and expiry dates, and the grid square. The band plan then shows
+  *your* privileges rather than a class you picked from a list, and the page
+  tells you how long the licence has left — flagging the last 90 days, and the
+  two-year grace period after expiry during which you may not transmit but can
+  still renew without re-testing. Only the class, dates and grid are kept; the
+  name and address the lookup also returns are public record but ELMER has no
+  use for them, so they are discarded. 47 CFR 97.301 and 97.305 per class.
   Anything outside your class is hatched out on the bar and marked "no" in the
   table, so the legal picture is never in doubt.
 - **Activity is convention.** 160 segments across sixteen bands, coloured by
