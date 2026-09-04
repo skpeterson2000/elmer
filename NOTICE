@@ -1,0 +1,58 @@
+ELMER - what is covered by which terms
+======================================
+
+ELMER ships government and volunteer-committee material alongside its own
+code. The LICENSE applies only to the parts this project actually wrote.
+
+
+Under the PolyForm Noncommercial License 1.0.0 (see LICENSE)
+------------------------------------------------------------
+
+    elmer/                  application code, templates, styles, scripts
+    elmer.py                launcher
+    data/notes/             concept notes written for this project
+    data/explanations/      per-question rationales written for this project
+    artwork/, elmer/static/icon.png     the ELMER icon
+
+    Copyright 2026 Scott (KC9SP)
+
+
+Not this project's to license
+-----------------------------
+
+FCC commercial pools - US Government works, in the public domain:
+
+    data/raw/element1.pdf, element3.pdf, element8.pdf
+    data/raw/gen_figures.pdf, extra_figures.pdf, tech_figures.pdf
+    data/pools/element1.json, element3.json, element8.json
+    the figures built from them under data/figures/
+
+    Marine Radio Operator Permit (Element 1), General Radiotelephone
+    Operator License (Element 3) and Ship Radar Endorsement (Element 8),
+    published by the Federal Communications Commission.
+
+47 CFR Part 97 - US Government work, in the public domain:
+
+    data/rules/part97.json
+
+NCVEC amateur pools - released by the National Conference of Volunteer
+Examiner Coordinators' Question Pool Committee for free use, and reproduced
+here verbatim including errata. The pools remain the NCVEC's, and nothing in
+LICENSE grants any rights in them:
+
+    data/raw/tech2026.docx, gen2023.docx, extra2024.docx
+    data/pools/tech2026.json, gen2023.json, extra2024.json
+    the figures built from them under data/figures/
+
+    Technician (Element 2), General (Element 3) and Amateur Extra
+    (Element 4) question pools.
+
+
+Why the pools are here at all
+-----------------------------
+
+Both bodies publish these pools so that anyone can study and teach from them,
+and ELMER reproduces the questions and keyed answers exactly as released,
+because that is what appears on the test. Redistributing them is intended and
+permitted; relicensing them is not, which is why the LICENSE is scoped and
+this file exists.

@@ -279,6 +279,20 @@ Python 3.11 with Flask and Pillow, plus `pdftotext`, `pdftoppm` and `pdfimages`
 from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS.
 Serving needs no network; only the propagation dashboard reaches out.
 
+## Licence
+
+ELMER's own code and artwork are under the
+[PolyForm Noncommercial License 1.0.0](LICENSE) — free for personal study,
+hobby and amateur use, for clubs, schools and other noncommercial
+organisations, but not for commercial use. Note that this is deliberately not
+an open-source licence in the OSI sense.
+
+The question pools and rule text under `data/` are *not* covered by that
+licence and are not this project's to relicense: the FCC pools and 47 CFR
+Part 97 are US Government works in the public domain, and the amateur pools
+belong to the NCVEC, which releases them for free use. [NOTICE](NOTICE) sets
+out exactly which files fall under which terms.
+
 ## A note on the sources
 
 The amateur pools are public releases from the NCVEC Question Pool Committee.
