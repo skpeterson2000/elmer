@@ -328,6 +328,9 @@ and a timed contest mode.
 ./elmer.py --port 8080        serve on another port
 ./elmer.py --doctor           self-check, and print every URL to try
 ./elmer.py --stats            print progress in the terminal
+./elmer.py --update           update this install and say what changed
+./elmer.py --update-check     say whether an update is waiting, change nothing
+./elmer.py --adopt            let a copied install update itself in future
 ./elmer.py --build            rebuild the pools from data/raw
 ./elmer.py --fetch            re-download the source pools, then rebuild
 ./elmer.py --log-level DEBUG  verbose console output
@@ -476,6 +479,62 @@ button. Instead you land on ELMER's own page saying where the link goes, with
 close button; the kiosk window stays on ELMER underneath, and windows opened this
 way are closed when ELMER stops. Off a kiosk — a laptop, a phone on the LAN —
 links open in a new tab as they always did.
+
+## Keeping it up to date
+
+An ELMER install is a git checkout, so an update is a fast-forward and nothing
+else. There is no downloader and no separate version feed: the checkout already
+knows where it came from.
+
+```
+./elmer.py --update-check     say whether anything is waiting, change nothing
+./elmer.py --update           apply it, after showing what it is
+./elmer.py --update --yes     apply it without asking
+```
+
+The dashboard carries the same thing. A **Software** panel at the bottom shows
+which commit this install is on and when it last looked; when something is
+waiting, a notice appears at the top with an **Update now** button. Applying one
+from there restarts ELMER onto the new code by itself — in kiosk mode the
+full-screen browser is handed to the new process rather than closed, so all
+anyone sees is the page reloading. Pressing it is offered only to a browser on
+the machine itself; a phone on the LAN sees the version and nothing to press.
+
+What happens when an update appears is a setting in that panel:
+
+| | |
+|---|---|
+| **tell me** | the default: check in the background, say so on the dashboard |
+| **apply automatically** | pull it and restart, unattended |
+| **never check** | no background checking at all |
+
+Three rules make it safe to leave switched on:
+
+- **Fast-forward only.** No merge is attempted and no rebase considered. If
+  history has diverged, ELMER says so and stops.
+- **Never over local edits.** A change to a tracked file is somebody's work in
+  progress, and an update that discards it is a bug. This is what keeps the
+  updater quiet on the machine ELMER is actually written on. Untracked files are
+  left out of that judgement — they are nobody's business but their owner's, and
+  git refuses by itself if an incoming commit would land on one.
+- **Never prompts.** The check runs on a background thread where a credential
+  prompt would simply hang, so git runs with prompting off and ssh in batch
+  mode. A repository it cannot read anonymously is reported as unreachable.
+
+A public repository is readable over HTTPS with no credentials, so a Pi that
+only consumes updates needs no key, no token and no account. When `origin` is an
+SSH URL — the way the machine that *pushes* is set up — the check falls back to
+the HTTPS form of the same repository.
+
+If a copy was made by hand rather than cloned it has no history to update from.
+`./elmer.py --adopt` gives it one without overwriting a single file: the history
+is fetched alongside, HEAD is pointed at it, and anything that differs locally
+is left in the working tree as ordinary uncommitted changes to look at.
+
+One thing to know before switching on **apply automatically**: `db.connect()`
+creates missing tables but cannot add a column to a table that already exists.
+An update whose code wants a new column on an existing table needs a migration
+written for it, or the new code will fail on an old database.
 
 ## Giving it an icon
 
