@@ -28,6 +28,15 @@
     <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
   </nav>
   <div class="status">
+    <div class="who">
+      <button type="button" class="who-btn" id="who-btn"
+              title="who is playing - switch, or add somebody">
+        <span class="who-mark">{{ profile.display_name[:2]|upper }}</span>
+        <span class="who-name">{{ profile.display_name }}</span>
+        <span class="who-caret">&#9662;</span>
+      </button>
+      <div class="who-menu" id="who-menu" hidden></div>
+    </div>
     <div class="titles">
       {% for key, track in tracks.items() %}
         <a class="title-line" href="/#ranks"
@@ -57,6 +66,7 @@
 
 <div id="toaster" class="toaster"></div>
 <script src="{{ url_for('static', filename='elmer.js') }}"></script>
+<script src="{{ url_for('static', filename='users.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

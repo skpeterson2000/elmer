@@ -308,9 +308,16 @@ def adopt(remote=None, branch="main"):
 # --------------------------------------------------------------------------
 
 def policy(conn):
-    """How this install wants to be updated: notify, auto or off."""
+    """How this install wants to be updated: notify, auto or off.
+
+    Kept against the unit rather than against a person: which software the
+    machine in the shack runs is not something that should change because
+    somebody else picked their own name in the top bar.
+    """
     from . import db
-    value = db.get_profile(conn)["settings"].get("updates")
+    value = db.unit_get(conn, "updates")
+    if value is None:                  # from before ELMER could be shared
+        value = db.get_profile(conn)["settings"].get("updates")
     return value if value in POLICIES else DEFAULT_POLICY
 
 
@@ -318,9 +325,7 @@ def set_policy(conn, value):
     from . import db
     if value not in POLICIES:
         raise ValueError(f"unknown update policy: {value}")
-    settings = db.get_profile(conn)["settings"]
-    settings["updates"] = value
-    db.save_settings(conn, settings)
+    db.unit_set(conn, "updates", value)
     log.info("update policy set to %s", value)
     return value
 

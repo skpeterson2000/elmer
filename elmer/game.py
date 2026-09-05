@@ -59,7 +59,8 @@ def xp_for_answer(correct, ms, card, was_due):
 def touch_streak(conn):
     """Roll the daily streak forward. Returns the streak length after today."""
     row = conn.execute(
-        "SELECT streak_days, best_streak, last_study_day FROM profile WHERE id = 1"
+        "SELECT streak_days, best_streak, last_study_day FROM profile WHERE id = ?",
+        (conn.user_id,)
     ).fetchone()
     now, last = today(), row["last_study_day"]
     streak = row["streak_days"]
@@ -72,7 +73,7 @@ def touch_streak(conn):
     best = max(streak, row["best_streak"])
     conn.execute(
         "UPDATE profile SET streak_days = ?, best_streak = ?, last_study_day = ? "
-        "WHERE id = 1", (streak, best, now),
+        "WHERE id = ?", (streak, best, now, conn.user_id),
     )
     return streak
 
@@ -93,12 +94,13 @@ def bump_run(conn, correct):
 
 
 def add_xp(conn, points):
-    conn.execute("UPDATE profile SET xp = xp + ? WHERE id = 1", (points,))
+    conn.execute("UPDATE profile SET xp = xp + ? WHERE id = ?",
+                 (points, conn.user_id))
 
 
 def earned(conn):
-    return {r["code"]: r["earned"]
-            for r in conn.execute("SELECT code, earned FROM achievement")}
+    return {r["code"]: r["earned"] for r in conn.execute(
+        "SELECT code, earned FROM achievement WHERE user_id = ?", (conn.user_id,))}
 
 
 def award(conn, codes):
@@ -108,8 +110,9 @@ def award(conn, codes):
     for code in codes:
         if code in have or code not in ACHIEVEMENT_INDEX:
             continue
-        conn.execute("INSERT INTO achievement (code, earned) VALUES (?, ?)",
-                     (code, today()))
+        conn.execute(
+            "INSERT INTO achievement (user_id, code, earned) VALUES (?, ?, ?)",
+            (conn.user_id, code, today()))
         name, desc = ACHIEVEMENT_INDEX[code]
         fresh.append({"code": code, "name": name, "description": desc})
         add_xp(conn, 50)

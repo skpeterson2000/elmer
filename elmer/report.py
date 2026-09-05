@@ -8,14 +8,41 @@ def bar(value, width=22):
     return "#" * filled + "." * (width - filled)
 
 
-def print_stats():
+def print_roster(conn):
+    """Everyone on the unit, when there is more than one of them."""
+    people = db.users(conn)
+    if len(people) < 2:
+        return
+    print("\n  On this unit\n")
+    for person in people:
+        answers = conn.execute(
+            "SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
+            (person["id"],)).fetchone()["c"]
+        print(f"      {person['display_name']:12s} {person['xp']:6d} XP  "
+              f"{answers:5d} answers  streak {person['streak_days']}d")
+    print("\n  Show somebody else with  ./elmer.py --stats --user NAME\n")
+
+
+def print_stats(who=None):
     conn = db.connect()
+    if who:
+        wanted = (who or "").strip().lower()
+        match = next((u for u in db.users(conn)
+                      if wanted in (u["display_name"].lower(), u["name"].lower())), None)
+        if not match:
+            print(f"\n  Nobody on this unit is called {who}. There is: "
+                  + ", ".join(u["display_name"] for u in db.users(conn)) + "\n")
+            conn.close()
+            return
+        conn.user_id = match["id"]
     prof = db.get_profile(conn)
-    answered = conn.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+    answered = conn.execute("SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
+                            (conn.user_id,)).fetchone()["c"]
     standings = db.kv_get(conn, "standings", {}) or {}
     tracks = ranks.overall(list(standings.values())) if standings else {}
 
-    print(f"\n  ELMER  {prof['callsign'] or 'no callsign set'}")
+    print(f"\n  ELMER  {prof['display_name']}"
+          + ("" if prof["licensed"] else "   (no callsign on file)"))
     for name, track in tracks.items():
         lapse = "  (lapsed)" if track["lapsed"] else ""
         print(f"  {track['label']:11s} {track['title']}{lapse}")
@@ -49,5 +76,6 @@ def print_stats():
             mark = "PASS" if e["passed"] else "fail"
             print(f"    {e['finished'][:16].replace('T', ' ')}  {e['pool_id']:10s}"
                   f" {e['score']:3d}/{e['total']:<3d}  {mark}")
+    print_roster(conn)
     print()
     conn.close()

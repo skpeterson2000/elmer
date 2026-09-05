@@ -13,7 +13,7 @@ import os
 import random
 import signal
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from urllib.parse import urlsplit
@@ -39,9 +39,27 @@ EMPTY_REASON = {
 }
 
 
+USER_COOKIE = "elmer_user"
+COOKIE_YEARS = 5 * 365 * 24 * 3600
+
+
+def _wanted_user():
+    """Who this browser last said it was.  None means "whoever is first".
+
+    The current user rides in a cookie rather than on the server, so the unit
+    in the shack and a phone on the sofa can be two different people at the
+    same time.  It is not a credential and is not treated as one: an unknown
+    or missing value simply falls back to the first user on the unit.
+    """
+    try:
+        return int(request.cookies.get(USER_COOKIE, ""))
+    except (TypeError, ValueError):
+        return None
+
+
 def conn():
     if "db" not in g:
-        g.db = db.connect()
+        g.db = db.connect(user_id=_wanted_user())
     return g.db
 
 
@@ -137,7 +155,8 @@ def standing_for(connection, pool, stats=None):
         stats = pool_stats(pool, db.cards_for_pool(connection, pool.pool_id),
                            trials=800)
     answered = connection.execute(
-        "SELECT COUNT(*) c FROM answer_log WHERE pool_id = ?", (pool.pool_id,)
+        "SELECT COUNT(*) c FROM answer_log WHERE user_id = ? AND pool_id = ?",
+        (connection.user_id, pool.pool_id)
     ).fetchone()["c"]
     figures = {
         "answered": answered,
@@ -203,9 +222,12 @@ def profile_block(connection):
     prof = db.get_profile(connection)
     standings = all_standings(connection)
     tracks = ranks.overall(standings)
-    answered = connection.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+    answered = connection.execute(
+        "SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
+        (connection.user_id,)).fetchone()["c"]
     today_count = connection.execute(
-        "SELECT COUNT(*) c FROM answer_log WHERE day = ?", (db.today(),)
+        "SELECT COUNT(*) c FROM answer_log WHERE user_id = ? AND day = ?",
+        (connection.user_id, db.today())
     ).fetchone()["c"]
     return {"profile": prof, "standings": standings, "tracks": tracks,
             "answered": answered, "today": today_count,
@@ -655,7 +677,9 @@ def api_answer():
     game.add_xp(connection, points)
     streak_days = game.touch_streak(connection)
     run, best_run = game.bump_run(connection, correct)
-    total = connection.execute("SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+    total = connection.execute(
+        "SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
+        (connection.user_id,)).fetchone()["c"]
     fresh = game.check_answer_achievements(
         connection, best_run, total, streak_days, datetime.now().hour)
 
@@ -725,7 +749,8 @@ def api_exam_start():
 def api_exam_submit(exam_id):
     body = request.get_json(force=True)
     connection = conn()
-    row = connection.execute("SELECT * FROM exam WHERE id = ?", (exam_id,)).fetchone()
+    row = connection.execute("SELECT * FROM exam WHERE id = ? AND user_id = ?",
+                             (exam_id, connection.user_id)).fetchone()
     if not row or not row["detail"]:
         abort(404)
     stored = json.loads(row["detail"])
@@ -1044,27 +1069,40 @@ def api_client_error():
     return jsonify({"logged": True})
 
 
+def _adopt_licence(connection, call, settings=None):
+    """Record a callsign on the current user and read its licence.
+
+    A callsign is enough to know the licence class and when it expires, so
+    there is no reason to make the operator tell us separately - and from here
+    on it is also what ELMER calls them.
+    """
+    save = settings is None
+    db.set_callsign(connection, call or "")
+    settings = db.get_profile(connection)["settings"] if save else settings
+    found = callsign.lookup(call) if call else None
+    if found and found.get("found"):
+        settings["licence"] = found
+        if found.get("licence_class"):
+            settings["licence_class"] = found["licence_class"]
+        log.info("licence for %s: %s, expires %s (%s)", found["callsign"],
+                 found.get("licence_class") or found.get("type"),
+                 found.get("expires"), found["status"]["state"])
+    elif found is not None:
+        settings["licence"] = found
+    elif call:
+        log.warning("licence lookup unavailable for %s", call)
+    if save:
+        db.save_settings(connection, settings)
+    return settings
+
+
 @app.route("/api/settings", methods=["POST"])
 def api_settings():
     body = request.get_json(force=True)
     connection = conn()
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
-        db.set_callsign(connection, body["callsign"] or "")
-        # A callsign is enough to know the licence class and when it expires,
-        # so there is no reason to make the operator tell us separately.
-        found = callsign.lookup(body["callsign"]) if body.get("callsign") else None
-        if found and found.get("found"):
-            settings["licence"] = found
-            if found.get("licence_class"):
-                settings["licence_class"] = found["licence_class"]
-            log.info("licence for %s: %s, expires %s (%s)", found["callsign"],
-                     found.get("licence_class") or found.get("type"),
-                     found.get("expires"), found["status"]["state"])
-        elif found is not None:
-            settings["licence"] = found
-        elif body.get("callsign"):
-            log.warning("licence lookup unavailable for %s", body["callsign"])
+        settings = _adopt_licence(connection, body["callsign"] or "", settings)
     for key in ("licence_class", "state"):
         if key in body:
             settings[key] = body[key]
@@ -1104,6 +1142,152 @@ def api_quit():
     # Ctrl+C already takes.
     threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
     return jsonify({"ok": True})
+
+
+# --------------------------------------------------------------------------
+# who is playing
+# --------------------------------------------------------------------------
+# Switching user is a choice, not a sign-in: there is nothing here worth
+# protecting and a password on a family appliance is a barrier to the eight
+# year old, not to anyone else.  Removing somebody is the exception - that
+# destroys their work, so it has to be done at the unit itself.
+
+def _user_block(connection):
+    current = db.get_profile(connection)
+    return {"users": [{"id": u["id"], "name": u["name"],
+                       "callsign": u["callsign"], "licensed": u["licensed"],
+                       "display_name": u["display_name"],
+                       "last_seen": u["last_seen"]}
+                      for u in db.users(connection)],
+            "current": current["id"],
+            "display_name": current["display_name"],
+            "local": _is_local(request.remote_addr)}
+
+
+def _with_user_cookie(payload, user_id):
+    """Answer, and remember on this browser who that was."""
+    response = jsonify(payload)
+    response.set_cookie(USER_COOKIE, str(user_id), max_age=COOKIE_YEARS,
+                        samesite="Lax")
+    return response
+
+
+@app.route("/api/users")
+def api_users():
+    return jsonify(_user_block(conn()))
+
+
+@app.route("/api/users/switch", methods=["POST"])
+def api_users_switch():
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    try:
+        wanted = int(body.get("id"))
+    except (TypeError, ValueError):
+        abort(400)
+    if not db.user_exists(connection, wanted):
+        abort(404)
+    connection.user_id = wanted
+    db.touch_user(connection)
+    log.info("now playing: %s", db.get_profile(connection)["display_name"])
+    return _with_user_cookie(_user_block(connection), wanted)
+
+
+@app.route("/api/users/add", methods=["POST"])
+def api_users_add():
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    try:
+        profile = db.add_user(connection, body.get("name", ""),
+                              body.get("callsign", ""))
+    except ValueError as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+    connection.user_id = profile["id"]
+    # A callsign given up front is worth resolving straight away: it is what
+    # decides whether ELMER calls them by it.
+    if profile["callsign"]:
+        _adopt_licence(connection, profile["callsign"])
+    log.info("new user on the unit: %s", profile["display_name"])
+    return _with_user_cookie(_user_block(connection), profile["id"])
+
+
+@app.route("/api/users/rename", methods=["POST"])
+def api_users_rename():
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    try:
+        db.rename_user(connection, connection.user_id, body.get("name", ""))
+    except ValueError as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
+    return jsonify(_user_block(connection))
+
+
+@app.route("/api/users/remove", methods=["POST"])
+def api_users_remove():
+    connection = conn()
+    if not _is_local(request.remote_addr):
+        log.warning("remove user refused: request from %s", request.remote_addr)
+        return jsonify({"ok": False, "message":
+                        "removing somebody has to be done at the unit itself"}), 403
+    body = request.get_json(silent=True) or {}
+    try:
+        wanted = int(body.get("id"))
+    except (TypeError, ValueError):
+        abort(400)
+    if not db.user_exists(connection, wanted):
+        abort(404)
+    name = db.get_user(connection, wanted)["display_name"]
+    try:
+        db.remove_user(connection, wanted)
+    except ValueError as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 409
+    log.info("removed %s and everything of theirs", name)
+    if connection.user_id == wanted:
+        connection.user_id = db.first_user_id(connection)
+    return _with_user_cookie(_user_block(connection), connection.user_id)
+
+
+@app.route("/api/scoreboard")
+def api_scoreboard():
+    """Everyone on the unit, side by side.
+
+    Read from each user's cached standings rather than recomputed: the point is
+    a glance at who is doing what, and it should not cost six exam simulations
+    per person to draw.
+    """
+    connection = conn()
+    was, board = connection.user_id, []
+    week = (datetime.now() - timedelta(days=7)).date().isoformat()
+    try:
+        for user in db.users(connection):
+            connection.user_id = user["id"]
+            standings = list((db.kv_get(connection, "standings", {}) or {}).values())
+            tracks = ranks.overall(standings) if standings else {}
+            counts = connection.execute(
+                "SELECT COUNT(*) AS total, "
+                "COALESCE(SUM(correct), 0) AS right_ FROM answer_log "
+                "WHERE user_id = ?", (user["id"],)).fetchone()
+            recent = connection.execute(
+                "SELECT COUNT(*) c FROM answer_log WHERE user_id = ? AND day >= ?",
+                (user["id"], week)).fetchone()["c"]
+            board.append({
+                "id": user["id"],
+                "name": user["display_name"],
+                "licensed": user["licensed"],
+                "titles": {k: t["title"] for k, t in tracks.items()},
+                "xp": user["xp"],
+                "streak": user["streak_days"],
+                "best_streak": user["best_streak"],
+                "answered": counts["total"] or 0,
+                "accuracy": (counts["right_"] / counts["total"]) if counts["total"] else 0.0,
+                "week": recent,
+                "last_seen": user["last_seen"],
+                "is_you": user["id"] == was,
+            })
+    finally:
+        connection.user_id = was
+    board.sort(key=lambda r: (-r["week"], -r["xp"]))
+    return jsonify({"board": board})
 
 
 # --------------------------------------------------------------------------

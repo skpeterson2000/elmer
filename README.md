@@ -328,6 +328,7 @@ and a timed contest mode.
 ./elmer.py --port 8080        serve on another port
 ./elmer.py --doctor           self-check, and print every URL to try
 ./elmer.py --stats            print progress in the terminal
+./elmer.py --stats --user SAM  print one person's progress on a shared unit
 ./elmer.py --update           update this install and say what changed
 ./elmer.py --update-check     say whether an update is waiting, change nothing
 ./elmer.py --adopt            let a copied install update itself in future
@@ -404,7 +405,8 @@ elmer/
   terrain.py          ground elevation profiles for the path tool
   explain.py          assembles rule text, concept notes and your own notes
   propagation.py      space weather fetch and band interpretation
-  db.py               SQLite storage
+  db.py               SQLite storage, per user, and the schema migrations
+  update.py           checking the repository and fast-forwarding onto it
   report.py           terminal stats
   pools/
     fetch.py          download the source documents
@@ -479,6 +481,44 @@ button. Instead you land on ELMER's own page saying where the link goes, with
 close button; the kiosk window stays on ELMER underneath, and windows opened this
 way are closed when ELMER stops. Off a kiosk — a laptop, a phone on the LAN —
 links open in a new tab as they always did.
+
+## Sharing one unit
+
+One ELMER in a house gets shared the way a radio does, so it holds more than one
+person. Everyone gets their own cards, their own review schedule, their own
+titles, streak, XP, achievements and notes. Nothing is pooled and nothing is
+averaged.
+
+The top bar names whoever is at it. Pressing it lists everybody on the unit,
+switches between them in one press, and takes a name and an optional callsign to
+add somebody new.
+
+**A callsign is what ELMER calls you.** Somebody who has one earned it in front
+of volunteer examiners, so that is the name the program uses — the same respect
+an operator gets on the air. Everyone else is called by their name, which is
+theirs and needs no licence. Add a callsign later and ELMER starts using it, at
+the moment they actually earned it.
+
+Once there are two of you the dashboard grows a **shack** panel: everyone side
+by side, their standing in each track, questions answered this week, accuracy,
+streak and XP. It sorts by what was answered this week, because that is the
+figure anybody can do something about today.
+
+There are no passwords. Switching user is a choice, not a sign-in: anyone who
+can reach ELMER can be anyone on it. That is a deliberate trade for a family
+appliance that holds nothing but how many radio questions somebody got right —
+rather less than the FCC already publishes about every licensee by name and
+address. Worth knowing before putting one on a network shared with people you
+would not hand the radio to. The one exception is removing somebody, since that
+destroys their work: that can only be done from a browser on the unit itself.
+
+`--stats` prints whoever is first on the unit, plus a roster of everybody;
+`--stats --user NAME` prints somebody in particular.
+
+Existing installs need nothing done. The first time ELMER opens a database from
+before it could be shared it migrates it in one transaction — every card, answer,
+exam, title and achievement carried over — and whoever was using it becomes the
+first user on the unit.
 
 ## Keeping it up to date
 

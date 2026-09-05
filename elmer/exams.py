@@ -48,8 +48,8 @@ def build(pool_id, seed=None):
 def start(conn, pool_id, seed=None):
     exam = build(pool_id, seed)
     cur = conn.execute(
-        "INSERT INTO exam (pool_id, started, total) VALUES (?, ?, ?)",
-        (pool_id, utcnow().isoformat(), exam["total"]),
+        "INSERT INTO exam (user_id, pool_id, started, total) VALUES (?, ?, ?, ?)",
+        (conn.user_id, pool_id, utcnow().isoformat(), exam["total"]),
     )
     conn.commit()
     exam["exam_id"] = cur.lastrowid
@@ -90,9 +90,9 @@ def score(conn, exam_id, exam, responses, seconds):
     detail = {"exam": exam, "results": results, "breakdown": breakdown}
     conn.execute(
         "UPDATE exam SET finished = ?, score = ?, total = ?, passed = ?, "
-        "seconds = ?, detail = ? WHERE id = ?",
+        "seconds = ?, detail = ? WHERE id = ? AND user_id = ?",
         (utcnow().isoformat(), correct, exam["total"], int(passed), seconds,
-         json.dumps(detail), exam_id),
+         json.dumps(detail), exam_id, conn.user_id),
     )
     conn.commit()
     return {
@@ -105,8 +105,8 @@ def score(conn, exam_id, exam, responses, seconds):
 
 def history(conn, pool_id=None, limit=20):
     sql = ("SELECT id, pool_id, started, finished, score, total, passed, seconds "
-           "FROM exam WHERE finished IS NOT NULL")
-    args = []
+           "FROM exam WHERE finished IS NOT NULL AND user_id = ?")
+    args = [conn.user_id]
     if pool_id:
         sql += " AND pool_id = ?"
         args.append(pool_id)
