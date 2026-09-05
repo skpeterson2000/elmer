@@ -23,7 +23,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 
 from . import (bandpdf, bandplan, callsign, cw, db, exams, explain, game,
                geocode, ionosonde, logs, propagation, ranks, regional,
-               rfexposure, rfpdf, srs, terrain)
+               rfexposure, rfpdf, srs, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -75,6 +75,9 @@ def _icon():
 # Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.
 app.config["KIOSK"] = False
 app.config["KIOSK_TOKEN"] = None
+# Raised by the updater: ./elmer.py reads it on the way out and re-execs
+# instead of stopping.
+app.config["RESTART"] = False
 
 
 def _is_local(address):
@@ -1101,6 +1104,86 @@ def api_quit():
     # Ctrl+C already takes.
     threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
     return jsonify({"ok": True})
+
+
+# --------------------------------------------------------------------------
+# updates
+# --------------------------------------------------------------------------
+# These are gated on the request coming from this machine, and on a JSON
+# content type.  Loopback keeps the network out; insisting on JSON keeps a
+# page on some other site out, since a cross-origin form post cannot set that
+# header without a preflight the browser will refuse.  There is no token here
+# because unlike /api/quit these are wanted outside kiosk mode too, where no
+# token is ever minted.
+
+def _local_json_or_403():
+    if not _is_local(request.remote_addr):
+        log.warning("update refused: request from %s", request.remote_addr)
+        abort(403)
+    if not request.is_json:
+        abort(415)
+
+
+def _update_payload(status):
+    """What the dashboard needs, in one object."""
+    connection = conn()
+    return {
+        "policy": update.policy(connection),
+        "policies": list(update.POLICIES),
+        "state": update.state(),
+        "status": status,
+        "blocked": update.blocked(status),
+        "local": _is_local(request.remote_addr),
+    }
+
+
+@app.route("/api/update")
+def api_update():
+    """The cached answer.  Deliberately does not touch the network."""
+    return jsonify(_update_payload(update.cached()))
+
+
+@app.route("/api/update/check", methods=["POST"])
+def api_update_check():
+    _local_json_or_403()
+    # An explicit press means now, but a page that reloads in a loop should
+    # not become a fetch in a loop.
+    return jsonify(_update_payload(update.check(max_age=20)))
+
+
+@app.route("/api/update/policy", methods=["POST"])
+def api_update_policy():
+    _local_json_or_403()
+    wanted = (request.get_json(silent=True) or {}).get("policy")
+    try:
+        update.set_policy(conn(), wanted)
+    except ValueError:
+        abort(400)
+    return jsonify(_update_payload(update.cached()))
+
+
+@app.route("/api/update/apply", methods=["POST"])
+def api_update_apply():
+    _local_json_or_403()
+    ok, message, detail = update.apply()
+    if not ok:
+        return jsonify({"ok": False, "message": message}), 409
+    restarting = bool(detail.get("to"))
+    if restarting:
+        request_restart()
+    return jsonify({"ok": True, "message": message, "detail": detail,
+                    "restarting": restarting})
+
+
+def request_restart():
+    """Come back on the new code, the same way the Exit button stops.
+
+    Answering first and interrupting afterwards keeps one shutdown path rather
+    than two: ./elmer.py decides on the way out whether it is stopping or
+    starting again.
+    """
+    app.config["RESTART"] = True
+    threading.Timer(0.4, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
 
 
 @app.template_filter("pct")

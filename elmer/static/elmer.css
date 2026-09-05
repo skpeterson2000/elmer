@@ -521,3 +521,15 @@ table.data tr.denied td { opacity: .45; }
   background: #0b1017; border: 1px solid var(--line); border-radius: 8px;
   padding: .55rem .7rem; margin: .3rem 0 .2rem;
 }
+
+/* ---------- software and updates ---------- */
+/* The notice collapses entirely when there is nothing waiting, so a current
+   install carries no clutter at the top of its dashboard. */
+#update-strip:empty { display: none; margin: 0; }
+.warntext { color: var(--amber); }
+#software ul { margin: .5rem 0 0; padding-left: 1rem; }
+#software li { color: var(--dim); font-size: .82rem; margin-bottom: .15rem; }
+#update-policy {
+  background: #0f151d; border: 1px solid var(--line-2); color: var(--text);
+  border-radius: 6px; padding: .15rem .3rem; font: inherit;
+}

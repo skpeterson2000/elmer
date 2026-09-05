@@ -265,6 +265,73 @@ def launch(url):
     return process
 
 
+class Adopted:
+    """A kiosk browser inherited from the process ELMER restarted out of.
+
+    os.execv replaces the program but not the process: the pid stays, and so
+    do its children.  The browser started before an update is therefore still
+    ours to wait on and to close - only the Popen object went with the old
+    image.  This puts back just enough of one for :func:`close` and
+    :func:`watch` to carry on without knowing the difference.
+    """
+
+    def __init__(self, pid):
+        self.pid = pid
+        self._status = None
+
+    def poll(self):
+        if self._status is not None:
+            return self._status
+        try:
+            pid, status = os.waitpid(self.pid, os.WNOHANG)
+        except ChildProcessError:      # reaped elsewhere, or never ours
+            self._status = -1
+            return self._status
+        except OSError:
+            return None
+        if pid == 0:
+            return None
+        self._status = status
+        return status
+
+    def wait(self, timeout=None):
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            status = self.poll()
+            if status is not None:
+                return status
+            if deadline is not None and time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(f"pid {self.pid}", timeout)
+            time.sleep(0.1)
+
+    def _signal(self, sig):
+        try:
+            os.kill(self.pid, sig)
+        except (OSError, ProcessLookupError):
+            self._status = -1
+
+    def terminate(self):
+        self._signal(signal.SIGTERM)
+
+    def kill(self):
+        self._signal(signal.SIGKILL)
+
+
+def adopt(pid):
+    """Take back the kiosk browser after a restart, or None if it is gone."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        log.info("kiosk: browser %s did not survive the restart", pid)
+        return None
+    log.info("kiosk: adopted the browser left running by the restart (pid %d)", pid)
+    return Adopted(pid)
+
+
 def close(process):
     """Shut the kiosk browser down, firmly if it will not go politely."""
     if process is None or process.poll() is not None:

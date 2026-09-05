@@ -67,6 +67,8 @@
   </div>
 </div>
 
+<div id="update-strip" class="mt"></div>
+
 {% if first_run.show %}
 <div class="panel mt welcome">
   <div class="panel-title">Start here</div>
@@ -226,6 +228,11 @@
   </div>
 </div>
 
+<div class="panel mt" id="software">
+  <div class="panel-title">Software</div>
+  <div class="muted small">checking&hellip;</div>
+</div>
+
 <p class="tiny muted mt">
   Question pools are the current public releases: NCVEC amateur pools and the FCC
   commercial element pools. ELMER stores your progress locally in
@@ -236,6 +243,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='update.js') }}"></script>
 <script>
 api('/api/propagation').then(d => {
   const box = document.getElementById('propstrip');

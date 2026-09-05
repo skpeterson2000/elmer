@@ -188,6 +188,36 @@ def check_kiosk():
     return True
 
 
+def check_updates():
+    """Whether this install can keep itself current, and whether it is.
+
+    Reads the last background check rather than making one: --doctor should
+    answer straight away and work with the network unplugged.
+    """
+    from . import update
+    st = update.state()
+    if not st["checkout"]:
+        _line(WARN, "updates", "not a git checkout - run ./elmer.py --adopt "
+                               "to point this copy at the repository")
+        return True
+    was = update.cached()
+    where = f"{st['head']} on {st['branch']}" if st["branch"] else st["head"]
+    if st["dirty"]:
+        _line(WARN, "updates", f"{where}, with local changes - held back "
+                               "until they are committed or put aside")
+        return True
+    if not was or not was.get("checked_at"):
+        _line(OK, "updates", f"{where} - not checked yet")
+    elif was.get("error"):
+        _line(WARN, "updates", f"{where} - last check: {was['error']}")
+    elif was.get("behind"):
+        _line(WARN, "updates", f"{where} - {was['behind']} waiting, "
+                               "apply with ./elmer.py --update")
+    else:
+        _line(OK, "updates", f"{where} - up to date")
+    return True
+
+
 def check_launcher():
     """Whether ELMER is in the applications menu."""
     from . import launcher
@@ -229,6 +259,7 @@ def doctor(port=5000):
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
         check_templates(), check_tools(), check_kiosk(), check_launcher(),
+        check_updates(),
         check_internet(), check_server(port),
     ]
 

@@ -7,6 +7,10 @@ data/elmer.log
 data/server-console.log
 data/explanations/
 
+# What the update check last saw. Writing it must never make the install look
+# modified, or it would block the very update it exists to announce.
+data/update.json
+
 # Throwaway browser profile made by --kiosk
 data/kiosk-profile/
 
