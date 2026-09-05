@@ -332,6 +332,7 @@ and a timed contest mode.
 ./elmer.py --update           update this install and say what changed
 ./elmer.py --update-check     say whether an update is waiting, change nothing
 ./elmer.py --adopt            let a copied install update itself in future
+./install.sh                  install, or ask: update, repair, remove, check
 ./elmer.py --build            rebuild the pools from data/raw
 ./elmer.py --fetch            re-download the source pools, then rebuild
 ./elmer.py --log-level DEBUG  verbose console output
@@ -519,6 +520,42 @@ Existing installs need nothing done. The first time ELMER opens a database from
 before it could be shared it migrates it in one transaction — every card, answer,
 exam, title and achievement carried over — and whoever was using it becomes the
 first user on the unit.
+
+## Running the installer again
+
+`./install.sh` on a machine that already has ELMER does not quietly install it
+again. It looks for study data, a virtual environment or a menu entry belonging
+to this copy, and if it finds any of them it asks what you came for:
+
+```
+ELMER is already installed here
+  found: study data, menu entry
+
+    1) Update    fetch the latest ELMER and apply it
+    2) Repair    put back anything missing or changed, and re-check
+    3) Remove    take away the menu entry and the virtualenv
+    4) Check     run the self-check and change nothing
+    5) Quit
+```
+
+The same four are flags for a scripted run — `--update`, `--repair`, `--check`,
+`--remove` (`--uninstall` still means the same). A run with `--yes`, or one with
+no terminal attached, behaves exactly as it always did and installs what is
+missing, since a script that expected an install should get one.
+
+**Repair** is the walk the installer already did — check what is here, put back
+what is not — plus the thing that was missing from it: tracked files that have
+drifted from the repository are what stops an install updating, so repair lists
+them and offers to put them back. That question ignores `--yes` and defaults to
+no, because "do not pester me" is not "you may delete my work"; a script has to
+say `--discard-local-changes` to answer it. Untracked files are never touched,
+and neither is anything in `data/`.
+
+The menu entry lives in your own share directory rather than in the install, so
+a machine with two copies of ELMER on it still has only one entry, belonging to
+whichever copy wrote it. Removing from a copy that does not own it leaves it
+alone and says where it lives, so a clone or a test checkout cannot take the
+menu entry away from the install actually in use.
 
 ## Keeping it up to date
 

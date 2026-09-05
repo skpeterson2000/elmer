@@ -126,8 +126,51 @@ def install():
     return written
 
 
-def remove():
-    """Take the launcher back out again.  Returns what was actually removed."""
+def entry_path():
+    """Where the menu entry lives."""
+    return _paths()["entry"]
+
+
+def owner():
+    """The install directory the menu entry points at, or None if there is none.
+
+    The entry lives in the user's own share directory, not in the install, so
+    on a machine with two copies of ELMER there is still only one of it - and
+    it belongs to whichever copy wrote it last.
+    """
+    entry = _paths()["entry"]
+    if not entry.is_file():
+        return None
+    for line in entry.read_text(errors="replace").splitlines():
+        if line.startswith("Exec="):
+            command = line[len("Exec="):].strip()
+            if not command:
+                return None
+            return Path(command.split()[0]).resolve().parent
+    return None
+
+
+def installed():
+    """True if the menu entry is in place, whoever it belongs to."""
+    return _paths()["entry"].is_file()
+
+
+def installed_here():
+    """True if the menu entry points at this copy of ELMER."""
+    mine = Path(__file__).resolve().parents[1]
+    return owner() == mine
+
+
+def remove(force=False):
+    """Take the launcher back out again.  Returns what was actually removed.
+
+    Returns None rather than removing anything when the entry belongs to a
+    different copy of ELMER: a second checkout - a clone, a test copy, the one
+    somebody is working in - should not be able to take the menu entry away
+    from the install that is actually being used.
+    """
+    if installed() and not installed_here() and not force:
+        return None
     paths = _paths()
     removed = []
     for target in paths["icons"] + [paths["entry"], paths["shortcut"]]:
@@ -136,8 +179,3 @@ def remove():
             removed.append(target)
     _refresh(_home_share())
     return removed
-
-
-def installed():
-    """True if the menu entry is in place."""
-    return _paths()["entry"].is_file()
