@@ -462,6 +462,16 @@ ELMER also stops if you close the kiosk window — otherwise the server would be
 left running on a machine with no terminal open to stop it from. `--doctor`
 reports whether kiosk mode can start before you rely on it.
 
+Links that leave ELMER — the FCC ULS record, the full rule text on eCFR, a
+frequency coordinator's own band plan — get a stop on the way out. A full-screen
+browser has no back button, so following one straight out would leave you on the
+FCC site with no way back to the study session and no way to reach the Exit
+button. Instead you land on ELMER's own page saying where the link goes, with
+**Back to ELMER** and an option to open the site in an ordinary window that has a
+close button; the kiosk window stays on ELMER underneath, and windows opened this
+way are closed when ELMER stops. Off a kiosk — a laptop, a phone on the LAN —
+links open in a new tab as they always did.
+
 ## Giving it an icon
 
 Drop an image at `elmer/static/icon.png` (or `.svg`, `.jpg`, `.webp`) and it

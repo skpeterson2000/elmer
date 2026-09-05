@@ -16,6 +16,8 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+from urllib.parse import urlsplit
+
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
@@ -471,6 +473,76 @@ def api_cw_result():
 @app.route("/lab")
 def lab():
     return render_template("lab.html", **profile_block(conn()))
+
+
+# --------------------------------------------------------------------------
+# leaving ELMER
+# --------------------------------------------------------------------------
+
+def _external_url(raw):
+    """An off-site http(s) URL, or None if it is not one we will send anyone to."""
+    parts = urlsplit((raw or "").strip())
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return None
+    return parts.geturl()
+
+
+def _internal_path(raw):
+    """A path back into ELMER, or "/" if it is anything else.
+
+    Only a single leading slash will do.  "//host" and "/\\host" are both read
+    by browsers as a protocol-relative address, which would turn the Back
+    button into a way off the machine - the exact thing this page exists to
+    prevent.
+    """
+    path = (raw or "").strip()
+    if not path.startswith("/") or path[:2] in ("//", "/\\"):
+        return "/"
+    return path
+
+
+@app.route("/away")
+def away():
+    """The step between ELMER and an off-site link.
+
+    In kiosk mode the browser has no back button, so following a link straight
+    out to the FCC would strand the operator there with no way back and no way
+    to stop the program.  This page stays inside ELMER - Exit button and all -
+    says where the link goes, and opens it in a window that can be closed.
+    """
+    url = _external_url(request.args.get("url"))
+    if not url:
+        abort(400)
+    return render_template("away.html", url=url,
+                           host=urlsplit(url).netloc,
+                           back=_internal_path(request.args.get("from")),
+                           **profile_block(conn()))
+
+
+@app.route("/api/open-external", methods=["POST"])
+def api_open_external():
+    """Open an off-site link in an ordinary window beside the kiosk.
+
+    Guarded exactly as /api/quit is: kiosk mode, this machine, and the token
+    minted at startup.  Otherwise a page fetched over the LAN could make the
+    machine in the shack open arbitrary windows.
+    """
+    if not app.config["KIOSK"]:
+        abort(404)
+    if not _is_local(request.remote_addr):
+        log.warning("open-external refused: request from %s", request.remote_addr)
+        abort(403)
+    body = request.get_json(silent=True) or {}
+    expected = app.config["KIOSK_TOKEN"] or ""
+    if not expected or not hmac.compare_digest(str(body.get("token", "")), expected):
+        log.warning("open-external refused: bad token")
+        abort(403)
+    url = _external_url(body.get("url"))
+    if not url:
+        abort(400)
+
+    from . import kiosk
+    return jsonify({"ok": True, "opened": kiosk.open_window(url)})
 
 
 @app.route("/figure/<pool_id>/<path:name>")

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Leaving ELMER{% endblock %}
+{% block body %}
+
+<div class="panel mt away">
+  <div class="panel-title">This link goes outside ELMER</div>
+
+  <p class="small">
+    {{ host }} is not part of ELMER and is not run by it. Nothing you do there is
+    stored here, and ELMER keeps your place until you come back.
+  </p>
+
+  <div class="away-url mono">{{ url }}</div>
+
+  <div class="row mt">
+    <a class="btn primary" href="{{ back }}">&larr; Back to ELMER</a>
+    {% if kiosk_token %}
+      <button class="btn" id="away-open"
+              data-token="{{ kiosk_token }}" data-url="{{ url }}">
+        Open it in a separate window</button>
+    {% else %}
+      <a class="btn" href="{{ url }}" target="_blank" rel="noopener">
+        Open it in a new tab &rarr;</a>
+    {% endif %}
+  </div>
+
+  <p class="tiny muted" id="away-hint" style="margin-top:.7rem">
+    {% if kiosk_token %}
+      ELMER is running full screen, so the site opens in its own window with a
+      close button. Shut that window and you are back here.
+    {% else %}
+      It opens in a new tab, so this one stays where it is.
+    {% endif %}
+  </p>
+</div>
+
+{% endblock %}
+{% block scripts %}
+{% if kiosk_token %}
+<script>
+/* Full screen means no back button, so the external site never replaces this
+   page - the server opens it in an ordinary window instead. */
+document.getElementById('away-open').addEventListener('click', async e => {
+  const button = e.currentTarget, hint = document.getElementById('away-hint');
+  button.disabled = true;
+  hint.textContent = 'opening…';
+  try {
+    const res = await postJSON('/api/open-external',
+      {token: button.dataset.token, url: button.dataset.url});
+    if (res.opened) {
+      hint.textContent = 'Opened in its own window. Close that window to come ' +
+                         'back to ELMER, which is still running behind it.';
+    } else {
+      hint.textContent = 'This machine could not open another window. The ' +
+                         'address above will work on a phone or another computer.';
+      button.disabled = false;
+    }
+  } catch (err) {
+    hint.textContent = 'Could not open it. The address above will work on a ' +
+                       'phone or another computer.';
+    button.disabled = false;
+  }
+});
+</script>
+{% endif %}
+{% endblock %}
