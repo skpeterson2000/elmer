@@ -608,3 +608,8 @@ option.not-permitted { color: var(--amber); }
 .nifog-band { margin-top: .7rem; }
 .nifog-band table.data { width: 100%; }
 .nifog-band .num { text-align: right; }
+.interop-opt { display: flex; align-items: center; gap: .3rem; align-self: flex-end;
+               padding-bottom: .45rem; cursor: pointer; }
+.nifog-more summary { cursor: pointer; color: var(--dim); padding: .3rem 0; }
+.nifog-more summary:hover { color: var(--text); }
+.nifog-more[open] summary { color: var(--text); margin-bottom: .2rem; }

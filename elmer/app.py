@@ -483,7 +483,8 @@ def api_bandplan_pdf():
     bands = body.get("bands") or [b["name"] for b in bandplan.BANDS]
     state = (body.get("state") or "").upper()
     plan = regional.plan(state) if state else None
-    pdf = bandpdf.build(bands, licence, plan)
+    pdf = bandpdf.build(bands, licence, plan,
+                        interop=bool(body.get("interop")))
     name = f"band-plan-{licence.lower()}{'-' + state.lower() if state else ''}.pdf"
     log.info("band chart PDF: %s, %d bands, regional=%s", licence, len(bands), state or "none")
     return Response(pdf, mimetype="application/pdf", headers={
