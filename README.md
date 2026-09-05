@@ -532,23 +532,36 @@ knows where it came from.
 ./elmer.py --update --yes     apply it without asking
 ```
 
-The dashboard carries the same thing. A **Software** panel at the bottom shows
+**ELMER never applies an update on its own.** It looks, it tells you what it
+found, and it waits. Nobody sitting down to study should find the program
+changed underneath them, and an update that arrives unasked on a machine in a
+shack is a fault report from somewhere far away rather than something anybody
+chose. Applying one is always a press of a button or a command typed on purpose.
+
+So it looks when it starts, and about once a day after that. If something is
+waiting it says so on the console as it launches, and then launches:
+
+```
+  An ELMER update is waiting: 1 commit, latest "Read the licence instead of asking for it"
+  Apply it from the dashboard, or with ./elmer.py --update, whenever it suits you.
+```
+
+The dashboard carries the same news. A **Software** panel at the bottom shows
 which commit this install is on and when it last looked; when something is
-waiting, a notice appears at the top with an **Update now** button. Applying one
-from there restarts ELMER onto the new code by itself — in kiosk mode the
+waiting, a notice appears at the top of the dashboard with an **Update now**
+button. Pressing that restarts ELMER onto the new code — in kiosk mode the
 full-screen browser is handed to the new process rather than closed, so all
-anyone sees is the page reloading. Pressing it is offered only to a browser on
+anyone sees is the page reloading. The button is offered only to a browser on
 the machine itself; a phone on the LAN sees the version and nothing to press.
 
-What happens when an update appears is a setting in that panel:
+The only setting is whether it looks at all:
 
 | | |
 |---|---|
-| **tell me** | the default: check in the background, say so on the dashboard |
-| **apply automatically** | pull it and restart, unattended |
-| **never check** | no background checking at all |
+| **tell me** | the default: look at startup and daily, say so, wait to be told |
+| **never check** | no looking at all |
 
-Three rules make it safe to leave switched on:
+Three rules hold whenever an update is actually asked for:
 
 - **Fast-forward only.** No merge is attempted and no rebase considered. If
   history has diverged, ELMER says so and stops.
@@ -571,10 +584,11 @@ If a copy was made by hand rather than cloned it has no history to update from.
 is fetched alongside, HEAD is pointed at it, and anything that differs locally
 is left in the working tree as ordinary uncommitted changes to look at.
 
-One thing to know before switching on **apply automatically**: `db.connect()`
-creates missing tables but cannot add a column to a table that already exists.
-An update whose code wants a new column on an existing table needs a migration
-written for it, or the new code will fail on an old database.
+A schema change still needs a migration written for it — `db.connect()` creates
+missing tables on its own but cannot add a column to a table that already
+exists, so `elmer/db.py` carries `migrate()` and `PRAGMA user_version` for the
+rest. Since an update only ever lands when somebody asks for one, a forgotten
+migration is a bad afternoon on one machine rather than every Pi at once.
 
 ## Giving it an icon
 

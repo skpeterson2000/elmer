@@ -281,11 +281,10 @@ def main():
             print("\n  Opening full screen. Stop it with the Exit button in "
                   "the top bar,")
             print("  or with Ctrl+C here.")
-    # Look for updates in the background.  What happens when one is found is
-    # the operator's choice, kept in the profile: notify on the dashboard,
-    # apply it, or nothing at all.
+    # Look for updates, and say so - that is the whole of it.  ELMER never
+    # applies one on its own: nobody sitting down to study should find the
+    # program changed underneath them.
     from elmer import update
-    from elmer.app import request_restart
 
     def _policy():
         from elmer import db
@@ -295,7 +294,17 @@ def main():
         finally:
             connection.close()
 
-    update.watch(_policy, request_restart)
+    # What the last look found, said now rather than in a few seconds' time,
+    # so it is on the screen before the browser is.  The fresh check follows
+    # on its own thread: a slow network delays the news, never the launch.
+    waiting = update.announce(update.cached())
+    if waiting and _policy() != "off":
+        print(f"\n  {waiting}")
+
+    def _later(message):
+        print(f"\n  {message}\n", flush=True)
+
+    update.watch(_policy, on_found=_later)
 
     print("\n  Press Ctrl+C to stop.\n" if not app.config["KIOSK"] else "")
 
