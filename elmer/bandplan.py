@@ -291,6 +291,43 @@ def may_transmit(band_name, licence_class, mhz):
     return False, None
 
 
+# An activity segment names a mode as well as a place, and the mode is half the
+# question: 47 CFR 97.305 permits no phone below 14.150 whoever you are. The
+# kinds that are a use rather than an emission - a calling frequency, a
+# repeater output - are judged only on whether you may transmit there at all.
+KIND_EMISSION = {"cw": "cw", "digital": "data", "phone": "phone",
+                 "image": "image", "beacon": "cw"}
+
+
+def usable_part(low, high, allowed, kind=None):
+    """How much of an activity segment this class may actually use.
+
+    Convention and law do not share their boundaries. The IARU Region 2 plan
+    puts SSB on 20 m from 14.112, while 97.305 permits no phone below 14.150 -
+    so the segment straddles the edge, and the honest answer is neither "yes"
+    nor "no" but "this part of it, in this mode".
+
+    Answering that with a boolean said "no" to an Extra against the largest
+    phone segment on the band, which is the one class that holds all of it.
+    Returns ("yes"|"part"|"no", low, high) where the pair is the usable piece.
+    """
+    emission = KIND_EMISSION.get(kind)
+    if emission:
+        allowed = [seg for seg in allowed if emission in emissions_in(seg[2])]
+    if high <= low:                       # a marker frequency, not a segment
+        inside = any(a <= low <= b for a, b, *_ in allowed)
+        return ("yes" if inside else "no"), low, high
+    pieces = [(max(low, a), min(high, b)) for a, b, *_ in allowed
+              if low < b and high > a]
+    if not pieces:
+        return "no", None, None
+    first, last = min(p[0] for p in pieces), max(p[1] for p in pieces)
+    covered = sum(b - a for a, b in pieces)
+    if covered >= (high - low) - 1e-9:
+        return "yes", low, high
+    return "part", first, last
+
+
 def gaps_for(band_name, licence_class):
     """Portions of a band this class may NOT use, as (low, high) pairs."""
     band = BAND_INDEX.get(band_name)

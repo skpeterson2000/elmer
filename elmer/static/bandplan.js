@@ -73,14 +73,22 @@ function bpRender() {
     : '<li class="muted">No privileges on this band for ' + escapeHTML(bpClass()) + '.</li>';
 
   const rows = band.activity.map(a => {
-    const allowed = band.privileges.some(([lo, hi]) => lo <= a.low && a.high <= hi);
-    return '<tr class="' + (allowed ? '' : 'denied') + '">' +
+    /* Three answers, not two: convention and law do not share their edges, so
+       a segment can be partly yours - and saying "no" to the part you may use
+       is the more damaging of the two possible mistakes. */
+    const you = a.you || {state: 'no'};
+    const mark = you.state === 'yes'
+      ? '<span class="pill good">yes</span>'
+      : you.state === 'part'
+        ? '<span class="pill warn" title="only this part of the segment, in this mode">' +
+          you.low + '&ndash;' + you.high + '</span>'
+        : '<span class="pill bad">no</span>';
+    return '<tr class="' + (you.state === 'no' ? 'denied' : '') + '">' +
       '<td class="mono tiny">' + a.low + (a.high !== a.low ? '<br>' + a.high : '') + '</td>' +
       '<td><span class="dot" style="background:' + KIND_COLOUR[a.kind] + '"></span>' +
         escapeHTML((bpData.kinds.find(k => k[0] === a.kind) || [])[1] || a.kind) + '</td>' +
       '<td class="small">' + escapeHTML(a.label) + '</td>' +
-      '<td>' + (allowed ? '<span class="pill good">yes</span>'
-                        : '<span class="pill bad">no</span>') + '</td></tr>';
+      '<td>' + mark + '</td></tr>';
   }).join('');
 
   document.getElementById('bp-out').innerHTML =

@@ -11,7 +11,8 @@ from reportlab.graphics.shapes import Drawing, Image, Line, Rect, String
 from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-from .bandplan import BAND_INDEX, KINDS, activity_for, gaps_for, privileges_for
+from .bandplan import (BAND_INDEX, KINDS, activity_for, gaps_for,
+                        privileges_for, usable_part)
 
 KIND_COLOUR = {
     "cw": colors.HexColor("#3d7ebf"), "digital": colors.HexColor("#7a4fbf"),
@@ -77,13 +78,18 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
         n = 0
         for low, high, kind, label in activity_for(name):
             n += 1
-            ok = any(a <= low and high <= b for a, b, _ in allowed)
+            state, part_low, part_high = usable_part(low, high, allowed, kind)
+            ok = state != "no"
+            answer = {"yes": "yes", "no": "no"}.get(
+                state, f"{_mhz(part_low)}\u2013{_mhz(part_high)}")
             rows.append([f"{low:.4f}".rstrip("0").rstrip("."),
                          f"{high:.4f}".rstrip("0").rstrip(".") if high != low else "",
                          KIND_LABEL.get(kind, kind),
                          Paragraph(label, s["cell"]),
-                         "yes" if ok else "no"])
+                         answer])
             style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOUR.get(kind, colors.black)))
+            if state == "part":
+                style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b8791f")))
             if not ok:
                 style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b03a48")))
                 style.append(("BACKGROUND", (0, n), (-1, n), colors.HexColor("#f6f6f6")))
@@ -409,7 +415,7 @@ def _interop_page(s):
     return flow
 
 
-def _table(rows, extra, widths=(0.8, 0.8, 1.1, 5.4, 0.5)):
+def _table(rows, extra, widths=(0.8, 0.8, 1.1, 4.9, 1.0)):
     t = Table(rows, colWidths=[w * inch for w in widths], hAlign="LEFT")
     t.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, -1), "Helvetica", 7.4),

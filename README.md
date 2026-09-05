@@ -126,6 +126,14 @@ because they carry very different authority:
   what happens there — CW, digital, phone, image, beacons, satellite,
   repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
   signal in the wrong place is what people complain about.
+
+  Convention and law do not share their edges, so each segment is answered with
+  three states rather than two. The IARU Region 2 plan puts SSB on 20 m from
+  14.112 while 97.305 permits no phone below 14.150, so against that row an
+  Extra is told **14.15–14.23** — the part of the convention they may actually
+  use, in that mode. A General is told 14.225–14.23. The answer accounts for the
+  emission as well as the place: an Extra may key up anywhere on 20 m, but not
+  on phone below 14.150.
 - **Regional plans come from your frequency coordinator.** Minnesota is wired
   up: 80 coordinated segments across 6 m, 2 m, 1.25 m, 70 cm and 23 cm, fetched
   from the Minnesota Repeater Council and cached for 30 days. Coordinator plans
