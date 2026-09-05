@@ -13,8 +13,8 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
-                                Spacer, Table, TableStyle)
+from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
+                                SimpleDocTemplate, Spacer, Table, TableStyle)
 
 INK = colors.HexColor("#1a1a1a")
 MUTED = colors.HexColor("#555555")
@@ -78,6 +78,85 @@ def _grid(rows, widths, style_extra=None, styles=None):
         style.extend(style_extra)
     table.setStyle(TableStyle(style))
     return table
+
+
+def _mhz(value):
+    """A frequency written the way an operator writes one.
+
+    Three decimals is how band edges are said aloud, so 1.800 rather than 1.8;
+    the 60 m channels genuinely need a fourth; and 1240 MHz does not want four
+    zeroes after it.
+    """
+    if value >= 1000 and abs(value - round(value)) < 1e-9:
+        return f"{value:.0f}"
+    text = f"{value:.4f}".rstrip("0")
+    whole, _, frac = text.partition(".")
+    return f"{whole}.{(frac + '000')[:max(3, len(frac))]}"
+
+
+def _privileges_page(evaluation, s):
+    """A reference table of what this operator may actually transmit on.
+
+    Only their own class, and only the bands they hold something on: a sheet
+    that lists everybody's privileges is a wall chart, while this one answers
+    "what may I do?" for the person whose callsign is at the top of it. It sits
+    behind the evaluation and is clearly not part of it - nothing here has been
+    checked against the station, it is the rules as they stand.
+    """
+    from . import bandplan
+
+    licence_class = (evaluation.get("licence_class")
+                     or (evaluation.get("station") or {}).get("licence_class") or "")
+    table = bandplan.privilege_table(licence_class)
+    if not table["bands"]:
+        return []
+
+    rows = [["Band", "Segment (MHz)", "What this licence may send there"]]
+    spans, n = [], 1
+    for band in table["bands"]:
+        first = n
+        for segment in band["segments"]:
+            rows.append([band["name"] if n == first else "",
+                         f"{_mhz(segment['low'])} \u2013 {_mhz(segment['high'])}",
+                         segment["terms"]])
+            n += 1
+        if n - first > 1:                       # merge the repeated band name
+            spans.append(("SPAN", (0, first), (0, n - 1)))
+            spans.append(("VALIGN", (0, first), (0, n - 1), "TOP"))
+
+    flow = [
+        PageBreak(),
+        Paragraph(f"Operating privileges &#8212; {licence_class}", s["h"]),
+        Paragraph(
+            "A reference for the operator named above, and for that class only. "
+            "These are privileges, which are law: 47 CFR 97.301 and 97.305. "
+            "They are <b>not part of the exposure evaluation</b> overleaf and "
+            "nothing here has been checked against this station. Power is "
+            "1500 W PEP maximum except where a segment says otherwise "
+            "(47 CFR 97.313), and you must always use the minimum power needed.",
+            s["small"]),
+        Spacer(1, 6),
+        _grid(rows, [0.8 * inch, 1.5 * inch, 4.2 * inch], spans),
+    ]
+
+    if table["none_on"]:
+        flow += [Spacer(1, 6), Paragraph(
+            "<b>No privileges at all on:</b> " + ", ".join(table["none_on"]) +
+            ". Transmitting there is a violation whatever the exposure figures say.",
+            s["small"])]
+
+    if any(b["channelised"] for b in table["bands"]):
+        channels = ", ".join(_mhz(c["mhz"]) for c in table["channels_60m"])
+        flow += [Spacer(1, 4), Paragraph(
+            "<b>60 m is five fixed channels</b>, not a band: " + channels +
+            " MHz (centre frequencies, USB). No other frequency in that range "
+            "may be used.", s["small"])]
+
+    flow += [Spacer(1, 8), Paragraph(
+        "Segment edges are the edges of the privilege, not of your signal: your "
+        "whole emission has to fall inside them, so a sideband's width counts "
+        "against the edge you are near.", s["small"])]
+    return flow
 
 
 def build(evaluation, station=None):
@@ -241,6 +320,11 @@ def build(evaluation, station=None):
                   "antenna, or the position of people around the station changes.",
                   s["small"]),
     ]
+
+    # The operator's own privileges, behind the evaluation and clearly apart
+    # from it. Nothing is added when the licence class is not known, rather
+    # than printing somebody else's bands under this callsign.
+    flow += _privileges_page(evaluation, s)
 
     doc.build(flow)
     return buffer.getvalue()
