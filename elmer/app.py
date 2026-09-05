@@ -483,8 +483,11 @@ def api_bandplan_pdf():
     bands = body.get("bands") or [b["name"] for b in bandplan.BANDS]
     state = (body.get("state") or "").upper()
     plan = regional.plan(state) if state else None
-    pdf = bandpdf.build(bands, licence, plan,
-                        interop=bool(body.get("interop")))
+    if body.get("layout") == "card":
+        pdf = bandpdf.build_card(licence, {"callsign": profile_callsign()})
+    else:
+        pdf = bandpdf.build(bands, licence, plan,
+                            interop=bool(body.get("interop")))
     name = f"band-plan-{licence.lower()}{'-' + state.lower() if state else ''}.pdf"
     log.info("band chart PDF: %s, %d bands, regional=%s", licence, len(bands), state or "none")
     return Response(pdf, mimetype="application/pdf", headers={
@@ -959,6 +962,10 @@ def api_note():
         abort(400, "unknown question")
     saved = db.save_note(conn(), pool.pool_id, question_id, body.get("body", ""))
     return jsonify({"saved": True, "body": saved})
+
+
+def profile_callsign():
+    return db.get_profile(conn())["callsign"] or ""
 
 
 def _rf_payload(body):

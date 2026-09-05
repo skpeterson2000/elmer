@@ -135,6 +135,26 @@ document.getElementById('bp-state').addEventListener('change', async () => {
   await postJSON('/api/settings', {state: bpState()}).catch(() => {});
   await bpLoadRegional(); bpRender();
 });
+/* The one-page picture: the bands drawn to scale, for pinning up. The full
+   chart is the reference; this is the thing you actually look at. */
+document.getElementById('bp-card').addEventListener('click', async () => {
+  const btn = document.getElementById('bp-card');
+  btn.disabled = true; btn.textContent = 'Building…';
+  try {
+    const res = await fetch('/api/bandplan/pdf', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({class: bpClass(), layout: 'card'})});
+    if (!res.ok) throw new Error(res.status);
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = 'band-card.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast('One-page chart ready', 'Print it and pin it up');
+  } catch (e) { toast('Could not build it', 'See data/elmer.log'); }
+  btn.disabled = false; btn.textContent = 'One page (PDF)';
+});
+
 document.getElementById('bp-pdf').addEventListener('click', async () => {
   const btn = document.getElementById('bp-pdf');
   btn.disabled = true; btn.textContent = 'Building…';

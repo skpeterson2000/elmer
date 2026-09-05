@@ -133,8 +133,15 @@ because they carry very different authority:
   another state means adding one entry with a parser to
   `elmer/regional.py`.
 
-**Download chart (PDF)** produces a landscape band chart for your licence class,
-with the regional segments folded in, to print and pin up.
+Two printouts. **One page (PDF)** is the picture: every band drawn to scale on a
+single landscape sheet, your privileges filled in and coloured by what you may
+send there — voice, CW and data, or CW only — and everything you may not
+transmit on left grey. Power ceilings below 1500 W are written into the segment
+they apply to, 60 m is drawn as the five fixed channels it actually is rather
+than a continuous band, and every privilege edge on the sheet is labelled. It is
+drawn from the allocations themselves rather than modelled on anybody's chart.
+**Full chart (PDF)** is the reference behind it: every activity segment in a
+table per band, with the regional segments folded in.
 
 The page also points at the **NIFOG** — the National Interoperability Field
 Operations Guide, published by CISA at the Department of Homeland Security and

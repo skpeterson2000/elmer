@@ -5,6 +5,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.graphics.shapes import Drawing, Line, Rect, String
 from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
@@ -116,6 +117,193 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
     # wasted on almost everybody who prints it.
     if interop:
         flow += _interop_page(s)
+    doc.build(flow)
+    return buf.getvalue()
+
+
+# --------------------------------------------------------------------------
+# the one-page chart
+# --------------------------------------------------------------------------
+# A picture of the bands, drawn from ELMER's own reading of 47 CFR 97.301 and
+# 97.305. The allocations are facts and belong to nobody; the drawing of them
+# is ours, and is deliberately not modelled on anybody else's chart.
+
+BAR_H = 15                     # height of a band's bar, points
+ROW_H_MAX = 50                 # a band and its labels, at its most generous
+# What is left for the drawing once the title, the note under it, the legend
+# and the footnote have taken their share of a landscape page. A Drawing that
+# does not fit is not shrunk by reportlab - it is moved to the next page, and
+# on a one-page chart that means it silently disappears. So the rows are sized
+# to the space rather than hoped to fit.
+DRAWING_SPACE = 460
+LABEL_W = 60                   # room for "1.25 m" and the range under it
+EDGE_GAP = 26                  # closest two edge labels may sit, points
+
+# What a segment lets you do, which is the thing worth seeing at a glance.
+SEG_COLOUR = {
+    "phone": colors.HexColor("#1f8f4e"),      # voice and image as well
+    "data": colors.HexColor("#7a4fbf"),       # CW and digital
+    "cw": colors.HexColor("#3d7ebf"),         # CW only
+}
+SEG_LABEL = {"phone": "Phone, image, CW, data", "data": "CW and data",
+             "cw": "CW only"}
+NO_PRIV = colors.HexColor("#e4e4e4")
+
+
+def _segment_kind(emissions):
+    if "phone" in emissions:
+        return "phone"
+    if "data" in emissions:
+        return "data"
+    return "cw"
+
+
+def _band_row(group, x, y, width, name, licence_class):
+    """One band: its name, its bar, and the edges worth reading off it."""
+    from .bandplan import BAND_INDEX, emissions_in, limits_in, privileges_for
+
+    band = BAND_INDEX.get(name)
+    if not band:
+        return
+    low, high = band["low"], band["high"]
+    span = high - low or 1.0
+    bar_x = x + LABEL_W
+    bar_w = width - LABEL_W
+
+    group.add(String(x, y + 3, name, fontName="Helvetica-Bold", fontSize=8.5))
+    group.add(String(x, y - 6, f"{_mhz(low)}\u2013{_mhz(high)}", fontSize=5.4,
+                     fillColor=colors.HexColor("#666666")))
+
+    # The whole band first, so anything not filled in afterwards is visibly
+    # somewhere this licence may not go.
+    group.add(Rect(bar_x, y - 2, bar_w, BAR_H, fillColor=NO_PRIV,
+                   strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
+
+    segments = sorted(privileges_for(name, licence_class))
+    if not segments:
+        group.add(String(bar_x + bar_w / 2, y + 3.5, "no privileges",
+                         fontSize=6, textAnchor="middle",
+                         fillColor=colors.HexColor("#8a8a8a")))
+        return
+
+    # 60 m is five 2.8 kHz channels, not a segment. Drawing it as a filled bar
+    # would say, in the only language a chart has, that the whole range is
+    # yours - so the channels are drawn where they actually are.
+    if band.get("channelised"):
+        from .bandplan import CHANNELS_60M
+        kind = _segment_kind(emissions_in(segments[0][2]))
+        width_mhz = 0.0028
+        for centre, label in CHANNELS_60M:
+            sx = bar_x + (centre - low) / span * bar_w
+            sw = max(2.0, width_mhz / span * bar_w)
+            group.add(Rect(sx - sw / 2, y - 2, sw, BAR_H,
+                           fillColor=SEG_COLOUR[kind],
+                           strokeColor=colors.white, strokeWidth=0.3))
+            group.add(String(sx, y - 13, _mhz(centre), fontSize=5,
+                             textAnchor="middle",
+                             fillColor=colors.HexColor("#444444")))
+        pep, erp = limits_in(segments[0][2])
+        if erp:
+            group.add(String(bar_x + bar_w, y + BAR_H + 1.5, f"{erp} W ERP, USB",
+                             fontSize=5.5, textAnchor="end",
+                             fillColor=colors.HexColor("#444444")))
+        return
+
+    edges, last_label_x = [], -999
+    for seg_low, seg_high, terms in segments:
+        kind = _segment_kind(emissions_in(terms))
+        sx = bar_x + (seg_low - low) / span * bar_w
+        sw = max(1.2, (seg_high - seg_low) / span * bar_w)
+        group.add(Rect(sx, y - 2, sw, BAR_H, fillColor=SEG_COLOUR[kind],
+                       strokeColor=colors.white, strokeWidth=0.3))
+        pep, erp = limits_in(terms)
+        ceiling = f"{pep} W" if pep else (f"{erp} W ERP" if erp else None)
+        if ceiling and sw > 34:
+            group.add(String(sx + sw / 2, y + 3.0, ceiling, fontSize=5,
+                             textAnchor="middle", fillColor=colors.white))
+        edges += [(seg_low, sx), (seg_high, sx + sw)]
+
+    # Edges go under the bar, but a narrow segment - the CW-only sliver at the
+    # bottom of 6 m and 2 m - would collide with the band edge beside it and be
+    # dropped, leaving a stripe the reader cannot put a number to. Those go
+    # above the bar instead, where there is nothing to collide with.
+    above_x = -999
+    for value, at in sorted(edges):
+        if at - last_label_x >= EDGE_GAP:
+            group.add(String(at, y - 13, _mhz(value), fontSize=5,
+                             textAnchor="middle",
+                             fillColor=colors.HexColor("#444444")))
+            group.add(Line(at, y - 4, at, y - 7.5,
+                           strokeColor=colors.HexColor("#888888"), strokeWidth=0.4))
+            last_label_x = at
+        elif at - above_x >= EDGE_GAP:
+            group.add(String(at, y + BAR_H + 1.5, _mhz(value), fontSize=5,
+                             textAnchor="middle",
+                             fillColor=colors.HexColor("#444444")))
+            group.add(Line(at, y + BAR_H - 1, at, y + BAR_H + 0.5,
+                           strokeColor=colors.HexColor("#888888"), strokeWidth=0.4))
+            above_x = at
+
+
+def build_card(licence_class, station=None):
+    """A single-page picture of the bands this class may use.
+
+    Everything on it is drawn from the allocations themselves: what may be
+    transmitted where is a fact of 47 CFR, and this is ELMER's own way of
+    showing it rather than anybody else's.
+    """
+    from .bandplan import BANDS
+
+    station = station or {}
+    s = _styles()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(LETTER),
+                            leftMargin=0.4 * inch, rightMargin=0.4 * inch,
+                            topMargin=0.35 * inch, bottomMargin=0.35 * inch,
+                            title=f"US amateur bands - {licence_class}")
+
+    who = f" &mdash; {station['callsign']}" if station.get("callsign") else ""
+    flow = [Paragraph(f"US Amateur Bands &mdash; {licence_class}{who}", s["title"]),
+            Paragraph(
+                "Privileges per 47 CFR 97.301 and 97.305, drawn to scale within "
+                "each band. Grey is spectrum this licence may not transmit on. "
+                "1500 W PEP unless a segment says otherwise, and always the "
+                "minimum power needed (97.313).", s["sub"])]
+
+    hf = [b["name"] for b in BANDS if b.get("group") == "HF"]
+    vhf = [b["name"] for b in BANDS if b.get("group") != "HF"]
+    rows = max(len(hf), len(vhf))
+    row_h = min(ROW_H_MAX, DRAWING_SPACE / rows)
+
+    page_w = landscape(LETTER)[0] - 0.8 * inch
+    col_w = (page_w - 26) / 2
+    height = rows * row_h + 8
+    drawing = Drawing(page_w, height)
+    top = height - 14
+
+    for column, names in ((0, hf), (1, vhf)):
+        x = column * (col_w + 26)
+        for n, name in enumerate(names):
+            _band_row(drawing, x, top - n * row_h, col_w, name, licence_class)
+
+    flow += [drawing, Spacer(1, 2)]
+
+    legend = Drawing(page_w, 14)
+    at = 0
+    for kind in ("phone", "data", "cw"):
+        legend.add(Rect(at, 2, 16, 9, fillColor=SEG_COLOUR[kind],
+                        strokeColor=colors.white, strokeWidth=0.3))
+        legend.add(String(at + 20, 4.5, SEG_LABEL[kind], fontSize=7))
+        at += 26 + len(SEG_LABEL[kind]) * 3.6
+    legend.add(Rect(at, 2, 16, 9, fillColor=NO_PRIV,
+                    strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
+    legend.add(String(at + 20, 4.5, "Not this licence", fontSize=7))
+    flow += [legend, Paragraph(
+        "60 m is five fixed channels rather than a band, and they are drawn "
+        "where they are and at the width they are. Segment edges bound your "
+        "whole emission, not the carrier. Produced by ELMER from the "
+        "allocations themselves.", s["small"])]
+
     doc.build(flow)
     return buf.getvalue()
 
