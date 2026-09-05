@@ -236,7 +236,16 @@ def home():
             "due_now": stats["due_now"], "total": len(pool.questions),
         })
     connection.commit()
+    profile = db.get_profile(connection)
+    answered = connection.execute(
+        "SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
+    first_run = {
+        "show": answered == 0,
+        "callsign": bool(profile["callsign"]),
+        "qth": bool((profile["settings"].get("location") or {}).get("lat")),
+    }
     return render_template("home.html", summary=summary, greeting=greeting(),
+                           first_run=first_run,
                            **profile_block(connection))
 
 
@@ -327,8 +336,6 @@ def propagation_page():
     connection = conn()
     prof = db.get_profile(connection)
     loc = prof["settings"].get("location") or {}
-    game.award(connection, ["propagation"])
-    connection.commit()
     return render_template("propagation.html", location=loc,
                            indicators=propagation.INDICATORS,
                            **profile_block(connection))
@@ -727,6 +734,10 @@ def api_propagation():
                                 force=request.args.get("force") == "1")
     if not snap.get("ok"):
         log.warning("space weather fetch failed: %s", snap.get("error"))
+    else:
+        # Earned by actually seeing conditions, not by the page rendering.
+        if game.award(connection, ["propagation"]):
+            connection.commit()
     return jsonify(snap)
 
 

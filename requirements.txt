@@ -1,3 +1,10 @@
 # ELMER runtime dependencies. Everything else is the Python standard library.
+#
+# On Debian and Raspberry Pi OS these are better installed with apt, because the
+# system Python is externally managed and pip will refuse it:
+#     sudo apt install python3-flask python3-pil python3-reportlab
+# install.sh does that for you, and falls back to a virtual environment when apt
+# is not available.
 Flask>=2.2
 Pillow>=9.0
+reportlab>=3.6

@@ -67,6 +67,59 @@
   </div>
 </div>
 
+{% if first_run.show %}
+<div class="panel mt welcome">
+  <div class="panel-title">Start here</div>
+  <p>
+    ELMER holds every question from the current US licence pools &mdash; 2,475 of
+    them across the three amateur classes and the three commercial elements &mdash;
+    with an explanation on each one, mock exams built to the real blueprint, and a
+    set of tools for the station itself.
+  </p>
+  <div class="grid cols-3 mt">
+    <div class="welcome-step">
+      <div class="welcome-num">1</div>
+      <b>Answer some questions</b>
+      <p class="small muted">
+        Technician is where most people begin. ELMER schedules what you get wrong
+        and estimates your exam odds once it has something to go on.
+      </p>
+      <a class="btn sm primary" href="/study/tech2026">Start with Technician</a>
+      <div class="tiny muted" style="margin-top:.35rem">
+        Already licensed? Jump to
+        <a href="/study/gen2023">General</a>,
+        <a href="/study/extra2024">Extra</a> or
+        <a href="/study/element3">GROL</a>.
+      </div>
+    </div>
+    <div class="welcome-step">
+      <div class="welcome-num {% if first_run.callsign %}done{% endif %}">2</div>
+      <b>Add your callsign</b>
+      <p class="small muted">
+        ELMER reads your licence from the FCC record &mdash; class, expiry date and
+        grid &mdash; so the band plan shows the privileges you actually hold.
+      </p>
+      <a class="btn sm" href="/bandplan">
+        {% if first_run.callsign %}Change it{% else %}Add a callsign{% endif %}</a>
+    </div>
+    <div class="welcome-step">
+      <div class="welcome-num {% if first_run.qth %}done{% endif %}">3</div>
+      <b>Set where you are</b>
+      <p class="small muted">
+        A grid square, coordinates or just a town name. It gives you local band
+        conditions, real terrain for path analysis and your nearest ionosonde.
+      </p>
+      <a class="btn sm" href="/propagation">
+        {% if first_run.qth %}Change it{% else %}Set your QTH{% endif %}</a>
+    </div>
+  </div>
+  <p class="tiny muted" style="margin-top:.9rem">
+    Steps 2 and 3 are optional &mdash; everything works without them. This panel
+    goes away once you have answered your first question.
+  </p>
+</div>
+{% endif %}
+
 <div class="panel tight mt" id="propstrip">
   <div class="panel-title">Live space weather</div>
   <div class="muted small">loading&hellip;</div>

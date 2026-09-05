@@ -481,3 +481,16 @@ table.data tr.denied td { opacity: .45; }
   word-break: break-all;
 }
 .cw-scope { width: 100%; background: #0b1017; border: 1px solid var(--line); border-radius: 8px; margin: .6rem 0; }
+
+/* ---------- first run ---------- */
+.welcome { border-left: 3px solid var(--amber); }
+.welcome-step { display: flex; flex-direction: column; gap: .3rem; align-items: flex-start; }
+.welcome-step p { margin: 0; }
+.welcome-step .btn { margin-top: .25rem; }
+.welcome-num {
+  width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 .8rem var(--mono); color: #241802;
+  background: var(--amber); margin-bottom: .1rem;
+}
+.welcome-num.done { background: var(--green); color: #06210d; }
