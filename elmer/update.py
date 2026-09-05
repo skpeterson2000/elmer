@@ -5,7 +5,14 @@ more.  That is the whole design: no downloader, no unpacking, no separate
 version feed to keep honest.  The checkout already knows where it came from and
 git already knows how to tell whether it has fallen behind.
 
-Three rules keep it safe to leave switched on:
+**ELMER never updates itself.**  It looks, it says what it found, and it waits
+to be told.  Nobody sitting down to study should find the program changed under
+them because a background thread decided it was time, and an update that
+arrives unasked on a machine in a shack is a fault report from somewhere far
+away rather than something anyone chose.  Applying one is always a press of a
+button or a command typed on purpose.
+
+Three rules hold for the applying, whenever it is asked for:
 
 * **Fast-forward only.**  A merge is never attempted and a rebase never
   considered.  If history has diverged, ELMER says so and stops.
@@ -25,10 +32,9 @@ Public repositories are readable over HTTPS with no credentials at all, so when
 falls back to the HTTPS form of the same repository.  A Pi that only ever
 consumes updates needs no key, no token and no account.
 
-One known gap, worth stating plainly: `db.connect()` creates missing tables but
-cannot add a column to a table that already exists.  An update whose code wants
-a new column on an existing table therefore needs a migration written for it -
-the updater will happily pull that commit and the new code will then fail.
+A schema change still needs a migration written for it - see
+:func:`elmer.db.migrate` - but since an update only ever lands when somebody
+asks for it, a missing one is a bad afternoon rather than six Pis at once.
 """
 import fcntl
 import json
@@ -45,13 +51,15 @@ log = logging.getLogger("elmer")
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "data" / "update.json"
 
-# How often the background check goes to the network.  Study sessions are long
-# and releases are not: a check every six hours is plenty, and the cached
-# answer is what the dashboard reads.
-CHECK_EVERY = 6 * 3600
-FIRST_CHECK_DELAY = 25          # let the server finish starting first
+# ELMER looks once at startup and then about once a day, which is as often as
+# a study appliance has any reason to care.  The cached answer is what the
+# dashboard reads, so opening it never waits on the network.
+CHECK_EVERY = 24 * 3600
+FIRST_CHECK_DELAY = 8           # let the server finish starting first
 
-POLICIES = ("notify", "auto", "off")
+# What an install does about updates.  There is no "apply it for me": looking
+# is the only thing ELMER does on its own.
+POLICIES = ("notify", "off")
 DEFAULT_POLICY = "notify"
 
 TIMEOUT = 30
@@ -308,11 +316,15 @@ def adopt(remote=None, branch="main"):
 # --------------------------------------------------------------------------
 
 def policy(conn):
-    """How this install wants to be updated: notify, auto or off.
+    """Whether this install looks for updates at all: notify or off.
 
     Kept against the unit rather than against a person: which software the
     machine in the shack runs is not something that should change because
     somebody else picked their own name in the top bar.
+
+    An install set to the old "apply automatically" reads as "notify" from
+    here on, because that setting no longer exists - looking is the only thing
+    ELMER does on its own now.
     """
     from . import db
     value = db.unit_get(conn, "updates")
@@ -391,13 +403,30 @@ def exec_restart(kiosk_pid=None):
 # the background check
 # --------------------------------------------------------------------------
 
-def watch(get_policy, on_updated, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY):
-    """Check for updates in the background for as long as ELMER runs.
+def announce(status):
+    """One line about a waiting update, or None.  Never changes anything."""
+    if not status or not status.get("behind"):
+        return None
+    n = status["behind"]
+    newest = (status.get("commits") or [{}])[0].get("subject", "")
+    line = (f"An ELMER update is waiting: {n} commit{'' if n == 1 else 's'}"
+            + (f", latest \"{newest}\"" if newest else ""))
+    why = blocked(status)
+    return line + (f"\n  It cannot be applied as things stand: {why}" if why
+                   else "\n  Apply it from the dashboard, or with "
+                        "./elmer.py --update, whenever it suits you.")
 
-    `get_policy` is called each time round, so switching the setting in the
-    dashboard takes effect without a restart.  Under "auto" a clean
-    fast-forward is applied and `on_updated` is called to bring the new code
-    in; under "notify" the answer is cached for the dashboard to show.
+
+def watch(get_policy, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY,
+          on_found=None):
+    """Look for updates in the background for as long as ELMER runs.
+
+    Looking is all it does.  What turns up is written to the cache for the
+    dashboard to show and handed to `on_found` to say out loud - applying it
+    is somebody's decision, made later, in their own time.
+
+    `get_policy` is called each time round, so turning the check off in the
+    dashboard takes effect without a restart.
     """
     import threading
 
@@ -407,26 +436,20 @@ def watch(get_policy, on_updated, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY)
             time.sleep(delay if first else interval)
             first = False
             try:
-                how = get_policy()
+                if get_policy() == "off":
+                    continue
             except Exception:                     # a closed database, say
-                continue
-            if how == "off":
                 continue
             try:
                 status = check()
             except Exception as exc:              # never take the server down
                 log.debug("update check failed: %s", exc)
                 continue
-            if not status.get("behind") or how != "auto":
-                continue
-            if blocked(status):
-                log.info("update available but held back: %s", blocked(status))
-                continue
-            ok, message, _ = apply()
-            log.info("automatic update: %s", message)
-            if ok:
-                on_updated()
-                return
+            said = announce(status)
+            if said:
+                log.info(said.replace("\n  ", " - "))
+                if on_found:
+                    on_found(said)
 
     thread = threading.Thread(target=run, name="update-watch", daemon=True)
     thread.start()

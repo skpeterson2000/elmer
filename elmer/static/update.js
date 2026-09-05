@@ -46,8 +46,10 @@ function renderUpdate(d) {
         escapeHTML(d.blocked) + '</div>' : '') +
     (d.local ? updateControls(d, waiting) : '') +
     '<p class="tiny muted" style="margin:.7rem 0 0">' +
-      'ELMER updates itself from the repository it was installed from, by ' +
-      'fast-forward only, and never while there are local changes here.</p>';
+      'ELMER checks the repository it was installed from and tells you what it ' +
+      'finds. It never applies an update on its own &mdash; that is always your ' +
+      'press, whenever it suits you. Updating is a fast-forward, and never ' +
+      'happens while there are local changes here.</p>';
 
   if (strip) {
     strip.innerHTML = waiting && !d.blocked
@@ -64,8 +66,9 @@ function renderUpdate(d) {
 }
 
 function updateControls(d, waiting) {
-  const options = [['notify', 'tell me'], ['auto', 'apply automatically'],
-                   ['off', 'never check']];
+  /* Looking is automatic; applying never is. The only choice here is whether
+     ELMER looks at all. */
+  const options = [['notify', 'tell me'], ['off', 'never check']];
   return '<div class="row" style="gap:.6rem;margin-top:.7rem">' +
     '<button class="btn sm" data-update="check">Check now</button>' +
     (waiting && !d.blocked
@@ -147,8 +150,7 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', async e => {
   if (e.target.id !== 'update-policy') return;
   renderUpdate(await postJSON('/api/update/policy', {policy: e.target.value}));
-  toast('Updates', {notify: 'ELMER will tell you when one appears',
-                    auto: 'ELMER will apply them and restart itself',
+  toast('Updates', {notify: 'ELMER will tell you when one appears, and wait',
                     off: 'ELMER will not check for updates'}[e.target.value]);
 });
 
