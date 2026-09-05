@@ -54,7 +54,9 @@
 
 <div class="spread">
   <div>
-    <h1>Good {{ greeting }}{% if profile.callsign %}, {{ profile.callsign }}{% endif %}</h1>
+    {# A callsign was earned in front of examiners, so it is what ELMER calls
+       somebody who has one. Everyone else is called by their name. #}
+    <h1>Good {{ greeting }}, {{ profile.display_name }}</h1>
     <p class="muted small">
       {{ answered }} questions answered all-time &middot; {{ today }} today &middot;
       {{ profile.streak_days }}-day streak (best {{ profile.best_streak }}) &middot;
@@ -227,6 +229,8 @@
     {% endfor %}
   </div>
 </div>
+
+<div class="panel mt" id="shack" hidden></div>
 
 <div class="panel mt" id="software">
   <div class="panel-title">Software</div>

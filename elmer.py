@@ -100,6 +100,8 @@ def main():
     ap.add_argument("--build", action="store_true", help="rebuild pools from data/raw")
     ap.add_argument("--fetch", action="store_true", help="re-download sources, then rebuild")
     ap.add_argument("--stats", action="store_true", help="print progress and exit")
+    ap.add_argument("--user", metavar="NAME",
+                    help="with --stats, whose progress to print on a shared unit")
     ap.add_argument("--update", action="store_true",
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
@@ -152,7 +154,7 @@ def main():
 
     if args.stats:
         from elmer.report import print_stats
-        print_stats()
+        print_stats(args.user)
         return
 
     if args.adopt:

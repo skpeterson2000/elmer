@@ -533,3 +533,53 @@ table.data tr.denied td { opacity: .45; }
   background: #0f151d; border: 1px solid var(--line-2); color: var(--text);
   border-radius: 6px; padding: .15rem .3rem; font: inherit;
 }
+
+/* ---------- who is playing ---------- */
+.who { position: relative; }
+.who-btn {
+  display: flex; align-items: center; gap: .4rem; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); color: var(--text);
+  border-radius: 20px; padding: .2rem .6rem .2rem .25rem; font: inherit;
+}
+.who-btn:hover { border-color: var(--amber); }
+.who-mark {
+  width: 1.5rem; height: 1.5rem; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 .62rem var(--mono); letter-spacing: .04em;
+  background: var(--amber); color: #241802;
+}
+.who-name { font-size: .82rem; font-weight: 600; }
+.who-caret { color: var(--dimmer); font-size: .6rem; }
+.who-menu {
+  position: absolute; top: calc(100% + .5rem); right: 0; z-index: 60;
+  width: 19rem; padding: .5rem;
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: var(--radius); box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+}
+.who-head {
+  font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dimmer); padding: .2rem .35rem .4rem;
+}
+.who-row {
+  display: flex; align-items: center; gap: .5rem; width: 100%; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 7px;
+  color: var(--text); font: inherit; text-align: left; padding: .38rem .45rem;
+}
+.who-row:hover { background: var(--panel-2); }
+.who-row.on { border-color: var(--line-2); background: var(--panel-2); }
+.who-row-name { font-weight: 600; font-size: .88rem; margin-right: auto; }
+.who-sep { height: 1px; background: var(--line); margin: .45rem .2rem; }
+.who-add { display: flex; gap: .35rem; padding: 0 .2rem; }
+.who-add input {
+  min-width: 0; flex: 1; background: #0f151d; color: var(--text);
+  border: 1px solid var(--line-2); border-radius: 7px; padding: .3rem .45rem;
+  font: inherit; font-size: .82rem;
+}
+.who-note { padding: .4rem .3rem 0; line-height: 1.4; }
+.who-actions { display: flex; gap: .4rem; padding: 0 .2rem; }
+.btn.danger { color: var(--red); border-color: rgba(248, 81, 73, .35); }
+
+/* ---------- the shack scoreboard ---------- */
+table.shack { width: 100%; }
+table.shack .num { text-align: right; }
+table.shack tr.you { background: rgba(255, 180, 84, .07); }
