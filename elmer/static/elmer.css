@@ -600,3 +600,8 @@ table.shack tr.you { background: rgba(255, 180, 84, .07); }
 }
 .rf-priv:empty { display: none; }
 option.not-permitted { color: var(--amber); }
+
+/* ---------- field reference ---------- */
+.nifog ul.facts { margin: .3rem 0 0; padding-left: 1rem; }
+.nifog ul.facts li { color: var(--dim); margin-bottom: .28rem; line-height: 1.45; }
+.nifog .panel-title { margin-bottom: .3rem; }

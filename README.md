@@ -136,6 +136,20 @@ because they carry very different authority:
 **Download chart (PDF)** produces a landscape band chart for your licence class,
 with the regional segments folded in, to print and pin up.
 
+The page also points at the **NIFOG** — the National Interoperability Field
+Operations Guide, published by CISA at the Department of Homeland Security and
+revised most years. It is the pocket reference that the standard interoperability
+channel names, and a fair number of the band charts in circulation, are copied
+out of, and it is oddly missing from the amateur study material. ELMER says where
+to get it, what is in it for an amateur and on which page, what it is actually
+for — programming a radio and filling in an ICS 205 — and, at least as
+importantly, that nearly nothing in it is amateur spectrum. Monitoring is free;
+transmitting on those channels needs an authorisation a licence does not give
+you, and owning the book is not it. Being a work of the US government it carries
+no copyright and can be printed and handed out freely, so ELMER links to it
+rather than bundling it: it is revised, and the copy on your shelf is the one
+that goes stale.
+
 ### CW
 
 A page at `/cw` for learning, practising and using Morse, with the tone
