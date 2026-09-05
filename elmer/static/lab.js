@@ -1269,21 +1269,111 @@ function renderRfRows() {
       '<div class="field"><label>You (ft)</label><input data-k="distance_controlled_ft" value="' +
         r.distance_controlled_ft + '"></div>' +
       '<button class="btn sm ghost rf-del" title="remove this band">&times;</button>' +
+      '<div class="rf-priv" data-priv="' + i + '"></div>' +
     '</div>').join('');
 
   box.querySelectorAll('.rf-row').forEach(row => {
     const i = +row.dataset.i;
-    row.querySelectorAll('[data-k]').forEach(el => el.addEventListener('input', () => {
-      const k = el.dataset.k;
-      if (k === 'gain_dbd') rfRows[i].gain_source = 'entered';
-      if (k === 'antenna' || k === 'mode') rfRows[i][k] = el.value;
-      else if (k === 'transmit_fraction_pct') rfRows[i].transmit_fraction = (+el.value || 0) / 100;
-      else rfRows[i][k] = +el.value;
-    }));
+    row.querySelectorAll('[data-k]').forEach(el => {
+      const handler = () => {
+        const k = el.dataset.k;
+        if (k === 'gain_dbd') rfRows[i].gain_source = 'entered';
+        if (k === 'antenna' || k === 'mode') rfRows[i][k] = el.value;
+        else if (k === 'transmit_fraction_pct') rfRows[i].transmit_fraction = (+el.value || 0) / 100;
+        else rfRows[i][k] = +el.value;
+        /* The frequency decides what may be sent, and the mode decides
+           whether what is selected is one of those things. Either one moving
+           means the answer under the row is now out of date. */
+        if (k === 'frequency_mhz' || k === 'mode' || k === 'pep_watts') showPrivilege(i);
+      };
+      el.addEventListener('input', handler);
+      el.addEventListener('change', handler);
+    });
     row.querySelector('.rf-del').addEventListener('click', () => {
       if (rfRows.length > 1) { rfRows.splice(i, 1); renderRfRows(); rfEvaluate(); }
     });
+    showPrivilege(i);
   });
+}
+
+/* ---------- what may actually be sent here ----------
+
+   ELMER holds 47 CFR 97.301 and 97.305 in full, so a mode list that offers
+   every mode on every frequency is not neutral - it quietly suggests the
+   operation is fine. Each option now says whether it is permitted where the
+   row is tuned, for the licence class on the profile.
+
+   Nothing is disabled. A licensee may legitimately evaluate a station they
+   cannot yet operate - a General planning an Extra segment, somebody working
+   out what a club station needs - and blocking that would be wrong. But the
+   record says so, on screen and on the printed sheet. */
+const privCache = {};
+
+async function showPrivilege(i) {
+  const row = document.querySelector('.rf-row[data-i="' + i + '"]');
+  if (!row) return;
+  const note = row.querySelector('.rf-priv');
+  const select = row.querySelector('select[data-k="mode"]');
+  const mhz = +rfRows[i].frequency_mhz;
+  if (!(mhz > 0)) { note.innerHTML = ''; return; }
+
+  let d = privCache[mhz];
+  if (!d) {
+    try {
+      d = await api('/api/privileges?mhz=' + encodeURIComponent(mhz));
+    } catch (e) { return; }
+    privCache[mhz] = d;
+  }
+  const byMode = {};
+  d.modes.forEach(m => { byMode[m.key] = m; });
+
+  /* The list itself carries the answer, so it is visible before a mode is
+     chosen rather than only after. */
+  select.querySelectorAll('option').forEach(opt => {
+    const m = byMode[opt.value];
+    const base = (RF_MODES.find(([v]) => v === opt.value) || [null, opt.value])[1];
+    opt.textContent = base + (m && m.permitted === false ? '  \u2014 not permitted here' : '');
+    opt.classList.toggle('not-permitted', !!(m && m.permitted === false));
+  });
+
+  const chosen = byMode[rfRows[i].mode];
+  let html = '';
+  if (!d.in_band) {
+    html = '<span class="warntext">' + mhz + ' MHz is not in a US amateur band.</span> ' +
+           'The exposure limits still apply, and are still evaluated.';
+  } else if (!d.known_class) {
+    html = '<b>' + escapeHTML(d.band) + '</b> &mdash; add your callsign on the ' +
+           'band plan page and ELMER can also say what your class may send here.';
+  } else if (!d.allowed) {
+    html = '<span class="warntext"><b>' + escapeHTML(d.band) + ':</b> a ' +
+      escapeHTML(d.licence_class) + ' licensee may not transmit on ' + mhz +
+      ' MHz.</span> 47 CFR 97.301.';
+  } else {
+    html = '<b>' + escapeHTML(d.band) + '</b>, ' + escapeHTML(d.licence_class) +
+      ': ' + escapeHTML(d.terms) + '.';
+    if (chosen && chosen.permitted === false) {
+      html += ' <span class="warntext">' + escapeHTML(chosen.label) +
+        ' is not one of them.</span>';
+    }
+    const pep = +rfRows[i].pep_watts;
+    if (d.max_pep && pep > d.max_pep) {
+      html += ' <span class="warntext">' + pep + ' W is over the ' + d.max_pep +
+        ' W PEP limit here.</span>';
+    }
+    if (d.max_erp && pep > d.max_erp) {
+      html += ' <span class="warntext">This segment is limited to ' + d.max_erp +
+        ' W ERP.</span>';
+    }
+    if (d.channelised && !d.channel) {
+      html += ' <span class="warntext">Not one of the five 60 m channels.</span>';
+    } else if (d.channel) {
+      html += ' ' + escapeHTML(d.channel.name) + '.';
+    }
+  }
+  if (chosen && chosen.caution) {
+    html += ' <span class="muted">' + escapeHTML(chosen.caution) + '.</span>';
+  }
+  note.innerHTML = html;
 }
 
 function rfStation() {
@@ -1311,9 +1401,13 @@ async function rfEvaluate() {
     out.innerHTML = '<span class="muted">Check the numbers entered.</span>'; return;
   }
 
-  const overall = data.compliant
+  const overall = (data.compliant
     ? '<span class="pill good">compliant at the distances entered</span>'
-    : '<span class="pill bad">one or more positions exceed the limit</span>';
+    : '<span class="pill bad">one or more positions exceed the limit</span>') +
+    /* A green pill next to an operation the licence does not allow would read
+       as approval of the whole thing. It is not: this evaluates exposure. */
+    ((data.privilege_warnings || []).length
+      ? '<span class="pill bad">not permitted by this licence</span>' : '');
 
   const seen = [];
   (data.warnings || []).forEach(w => { if (seen.indexOf(w) < 0) seen.push(w); });

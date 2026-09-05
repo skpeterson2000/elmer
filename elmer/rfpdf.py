@@ -120,6 +120,15 @@ def build(evaluation, station=None):
              Paragraph(f'<font color="{(PASS if overall else FAIL).hexval()}">'
                        f'<b>{verdict}</b></font>', s["body"])]
 
+    # Exposure compliance is not permission to operate, and a green line above
+    # a description of an operation the licence does not allow would read as
+    # though it were. Said immediately, next to the verdict it qualifies.
+    if evaluation.get("privilege_warnings"):
+        flow += [Paragraph(
+            f'<font color="{FAIL.hexval()}"><b>This is an exposure evaluation '
+            f'only. The operation described below is not one this licence '
+            f'permits &#8212; see the notes.</b></font>', s["body"])]
+
     warnings = evaluation.get("warnings") or []
     if warnings:
         flow += [Spacer(1, 5), Paragraph("<b>Check these before relying on it</b>",

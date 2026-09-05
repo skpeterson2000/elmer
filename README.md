@@ -271,7 +271,17 @@ Interactive versions of the maths the pools test:
   ones are computed but flagged in the record: power above the 1500 W legal
   limit, a gain large enough to suspect dBi was entered instead of dBd, a
   frequency outside the amateur bands, a distance close enough to touch the
-  antenna. The evaluation errs toward safety throughout — full ground
+  antenna. The mode list says what may actually be sent where the row is tuned:
+  ELMER holds 47 CFR 97.301 and 97.305 in full, so offering every mode on every
+  frequency would not be neutral — it would quietly suggest the operation is
+  fine. Modes the licence class may not use in that segment are marked, and a
+  line under the row names the band, the class and the terms. Nothing is
+  blocked, because evaluating a station you cannot yet operate is legitimate,
+  but a transmission the licence does not permit is written into the record and
+  onto the printed sheet, where an unqualified green "compliant" would otherwise
+  read as approval of the whole operation. The same check catches the 200 W PEP
+  ceiling on 30 m, the 100 W ERP ceiling on 60 m, and a 60 m frequency that is
+  not one of the five channels. The evaluation errs toward safety throughout — full ground
   reflection, the antenna treated as pointing its whole gain at the person, and
   a modelled gain rounded up rather than to nearest — and both the screen and
   the printed sheet say so, in as many words. A more detailed determination may

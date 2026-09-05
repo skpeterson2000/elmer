@@ -402,6 +402,54 @@ def api_bandplan():
     })
 
 
+@app.route("/api/privileges")
+def api_privileges():
+    """What may actually be transmitted here, by this class, on this frequency.
+
+    ELMER already holds 97.301 and 97.305 in full; this is what lets the rest
+    of the program act on them rather than merely display them. A tool that
+    knows a General may not use 14.200 and lets one be entered anyway is not
+    neutral - it has quietly endorsed the operation.
+    """
+    try:
+        mhz = float(request.args.get("mhz", ""))
+    except ValueError:
+        abort(400)
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    licence_class = (request.args.get("class")
+                     or settings.get("licence_class") or "")
+    result = bandplan.privilege_at(mhz, licence_class)
+
+    modes = []
+    for key, (label, _duty) in rfexposure.MODE_DUTY.items():
+        emission = rfexposure.MODE_EMISSION.get(key)
+        if not result["in_band"] or not licence_class:
+            permitted, why = None, None          # nothing claimed either way
+        elif not result["allowed"]:
+            permitted, why = False, "not in this class's part of the band"
+        elif emission is None:
+            permitted, why = True, None          # tuning, wherever you may talk
+        elif emission in result["emissions"]:
+            permitted, why = True, None
+        else:
+            permitted = False
+            why = (bandplan.EMISSION_LABELS.get(emission, emission)
+                   + " is not permitted in this segment")
+        caution = None
+        # Legal by emission category is not the same as legal by bandwidth.
+        if key == "fm" and result["in_band"] and mhz < 29.0:
+            caution = ("FM below 29 MHz is outside normal practice and the "
+                       "bandwidth rules - check before relying on it")
+        modes.append({"key": key, "label": label, "emission": emission,
+                      "permitted": permitted, "why": why, "caution": caution})
+
+    result["modes"] = modes
+    result["known_class"] = licence_class in bandplan.CLASSES
+    result["classes"] = bandplan.CLASSES
+    return jsonify(result)
+
+
 @app.route("/api/bandplan/regional/<state>")
 def api_bandplan_regional(state):
     """The local coordinator's plan. 503 when it cannot be reached."""
@@ -909,6 +957,10 @@ def _rf_payload(body):
     station.setdefault("location", qth.get("short") or qth.get("name") or "")
     station.setdefault("grid", qth.get("grid") or "")
     station.setdefault("date", db.today())
+    # The licence class comes from the profile, so the evaluation can say when
+    # the operation it is evaluating would not be permitted in the first place.
+    station.setdefault("licence_class",
+                       profile["settings"].get("licence_class") or "")
     cases = [c for c in (body.get("cases") or []) if c.get("frequency_mhz")]
     return station, cases
 
