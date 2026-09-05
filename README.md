@@ -281,7 +281,18 @@ Interactive versions of the maths the pools test:
   onto the printed sheet, where an unqualified green "compliant" would otherwise
   read as approval of the whole operation. The same check catches the 200 W PEP
   ceiling on 30 m, the 100 W ERP ceiling on 60 m, and a 60 m frequency that is
-  not one of the five channels. The evaluation errs toward safety throughout — full ground
+  not one of the five channels.
+
+  The printed sheet carries a second page: the operating privileges of the
+  operator whose callsign is on it, and of that class only — the bands they
+  hold, segment by segment, with what may be sent in each and any power ceiling
+  below the general 1500 W. Underneath, the bands that class holds nothing on
+  at all, which is the half of the answer that keeps somebody out of trouble.
+  It is clearly marked as a reference rather than part of the evaluation, and
+  it is left out entirely when no licence class is known, rather than printing
+  somebody else's bands under your callsign.
+
+  The evaluation errs toward safety throughout — full ground
   reflection, the antenna treated as pointing its whole gain at the person, and
   a modelled gain rounded up rather than to nearest — and both the screen and
   the printed sheet say so, in as many words. A more detailed determination may

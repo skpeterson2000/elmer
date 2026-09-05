@@ -32,6 +32,13 @@ KINDS = [
 
 # --- 47 CFR 97.301 / 97.305: what each class may transmit, and with what ----
 # Each entry: (low, high, modes) where modes is a short legal description.
+#
+# Power ceilings written into a description are the ones that are lower than
+# the general 1500 W PEP of 97.313: 200 W PEP throughout 30 m, 200 W PEP on the
+# HF segments a Novice or Technician may use, 100 W ERP on the 60 m channels,
+# and the small ceilings on 1.25 m and 23 cm for a Novice. Everywhere else the
+# 1500 W limit applies, and everywhere without exception so does the rule that
+# you use the minimum power needed.
 PRIVILEGES = {
     "160 m": {
         "Novice": [], "Technician": [],
@@ -40,8 +47,8 @@ PRIVILEGES = {
         "Extra": [(1.800, 2.000, "CW, phone, image, RTTY/data")],
     },
     "80 m": {
-        "Novice": [(3.525, 3.600, "CW only")],
-        "Technician": [(3.525, 3.600, "CW only")],
+        "Novice": [(3.525, 3.600, "CW only, 200 W PEP")],
+        "Technician": [(3.525, 3.600, "CW only, 200 W PEP")],
         "General": [(3.525, 3.600, "CW, RTTY/data"), (3.800, 4.000, "CW, phone, image")],
         "Advanced": [(3.525, 3.600, "CW, RTTY/data"), (3.700, 4.000, "CW, phone, image")],
         "Extra": [(3.500, 3.600, "CW, RTTY/data"), (3.600, 4.000, "CW, phone, image")],
@@ -53,8 +60,8 @@ PRIVILEGES = {
         "Extra": [(5.3305, 5.4065, "5 channels, USB/CW/data, 100 W ERP")],
     },
     "40 m": {
-        "Novice": [(7.025, 7.125, "CW only")],
-        "Technician": [(7.025, 7.125, "CW only")],
+        "Novice": [(7.025, 7.125, "CW only, 200 W PEP")],
+        "Technician": [(7.025, 7.125, "CW only, 200 W PEP")],
         "General": [(7.025, 7.125, "CW, RTTY/data"), (7.175, 7.300, "CW, phone, image")],
         "Advanced": [(7.025, 7.125, "CW, RTTY/data"), (7.125, 7.300, "CW, phone, image")],
         "Extra": [(7.000, 7.125, "CW, RTTY/data"), (7.125, 7.300, "CW, phone, image")],
@@ -78,8 +85,8 @@ PRIVILEGES = {
         "Extra": [(18.068, 18.110, "CW, RTTY/data"), (18.110, 18.168, "CW, phone, image")],
     },
     "15 m": {
-        "Novice": [(21.025, 21.200, "CW only")],
-        "Technician": [(21.025, 21.200, "CW only")],
+        "Novice": [(21.025, 21.200, "CW only, 200 W PEP")],
+        "Technician": [(21.025, 21.200, "CW only, 200 W PEP")],
         "General": [(21.025, 21.200, "CW, RTTY/data"), (21.275, 21.450, "CW, phone, image")],
         "Advanced": [(21.025, 21.200, "CW, RTTY/data"), (21.225, 21.450, "CW, phone, image")],
         "Extra": [(21.000, 21.200, "CW, RTTY/data"), (21.200, 21.450, "CW, phone, image")],
@@ -93,7 +100,8 @@ PRIVILEGES = {
     "10 m": {
         "Novice": [(28.000, 28.300, "CW, RTTY/data, 200 W PEP"),
                    (28.300, 28.500, "CW, phone, 200 W PEP")],
-        "Technician": [(28.000, 28.300, "CW, RTTY/data"), (28.300, 28.500, "CW, phone")],
+        "Technician": [(28.000, 28.300, "CW, RTTY/data, 200 W PEP"),
+                       (28.300, 28.500, "CW, phone, 200 W PEP")],
         "General": [(28.000, 28.300, "CW, RTTY/data"), (28.300, 29.700, "CW, phone, image")],
         "Advanced": [(28.000, 28.300, "CW, RTTY/data"), (28.300, 29.700, "CW, phone, image")],
         "Extra": [(28.000, 28.300, "CW, RTTY/data"), (28.300, 29.700, "CW, phone, image")],
@@ -239,6 +247,36 @@ def privilege_at(mhz, licence_class):
     if result["channelised"]:
         result["channel"] = channel_at(mhz)
     return result
+
+
+def privilege_table(licence_class):
+    """Every segment this class may transmit on, in band order.
+
+    Written for a printed reference: the bands they hold, and separately the
+    bands they hold nothing on, which is the half of the answer that keeps
+    somebody out of trouble.
+    """
+    if licence_class not in CLASSES:
+        return {"licence_class": licence_class, "bands": [], "none_on": []}
+    bands, none_on = [], []
+    for band in BANDS:
+        segments = sorted(privileges_for(band["name"], licence_class))
+        if not segments:
+            none_on.append(band["name"])
+            continue
+        bands.append({
+            "name": band["name"],
+            "group": band.get("group"),
+            "channelised": bool(band.get("channelised")),
+            "segments": [{"low": low, "high": high, "terms": terms,
+                          "emissions": sorted(emissions_in(terms)),
+                          "max_pep": limits_in(terms)[0],
+                          "max_erp": limits_in(terms)[1]}
+                         for low, high, terms in segments],
+        })
+    return {"licence_class": licence_class, "bands": bands, "none_on": none_on,
+            "channels_60m": [{"mhz": mhz, "name": name}
+                             for mhz, name in CHANNELS_60M]}
 
 
 def privileges_for(band_name, licence_class):
