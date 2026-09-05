@@ -383,6 +383,13 @@ def bandplan_page():
         **profile_block(connection))
 
 
+def _usable(low, high, kind, band_name, licence):
+    """What this class may do with one activity segment, for the page to show."""
+    state, a, b = bandplan.usable_part(
+        low, high, bandplan.privileges_for(band_name, licence), kind)
+    return {"state": state, "low": a, "high": b}
+
+
 @app.route("/api/bandplan")
 def api_bandplan():
     """Privileges and activity for every band, for one licence class."""
@@ -395,8 +402,10 @@ def api_bandplan():
             **band,
             "privileges": bandplan.privileges_for(band["name"], licence),
             "gaps": bandplan.gaps_for(band["name"], licence),
-            "activity": [{"low": a, "high": b, "kind": k, "label": l}
-                         for a, b, k, l in bandplan.activity_for(band["name"])],
+            "activity": [
+                {"low": a, "high": b, "kind": k, "label": l,
+                 "you": _usable(a, b, k, band["name"], licence)}
+                for a, b, k, l in bandplan.activity_for(band["name"])],
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
     })
