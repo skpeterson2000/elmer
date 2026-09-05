@@ -306,7 +306,12 @@ forty repeats of one easy card maintain nothing — and practice can only hold a
 tier that was earned by exam in the first place.
 
 Amateur and commercial are tracked separately, since progress in one says
-nothing about the other.
+nothing about the other. A track with nothing earned yet reads **Un-rated** —
+never "unlicensed". Every title here is ELMER's own standing against its own
+copy of the pools, it grants no operating privileges, and the wording is chosen
+so nobody can come away thinking ELMER has licensed them. Only the FCC issues a
+licence, and only a real session in front of accredited VEs or a COLEM leads to
+one.
 
 XP is kept as a pure effort meter and no longer confers any title. It is
 weighted so the answers worth the most are the ones that teach you the

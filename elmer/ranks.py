@@ -21,6 +21,13 @@ own pathway for an expired licence:
 
 Thresholds are deliberately gathered here as named constants so they can be
 tuned without hunting through the logic.
+
+None of these titles is a licence.  They are ELMER's own standings, earned
+against ELMER's own copy of the question pools, and they say nothing whatever
+about what the FCC has granted anybody.  The wording here is chosen with that
+in mind - a learner with no standing yet is "Un-rated", never "unlicensed" -
+because the one thing a study tool must never do is leave someone with the
+impression it has licensed them.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -54,6 +61,12 @@ MAINTENANCE_BAR = {}          # filled in below, once the step numbers exist
 
 LISTENER, LEARNER, OPERATOR, CLASS, ELMER = 1, 2, 3, 4, 5
 EXAM_PROVEN = OPERATOR         # steps at or above this need live exam evidence
+
+# What a track is called before its first step is earned.  Deliberately not
+# "unlicensed": every title here is ELMER's own standing, and nothing ELMER
+# says should ever be read as a statement about a real FCC licence - in either
+# direction.  See the module docstring.
+UNRANKED = "Un-rated"
 
 MAINTENANCE_BAR = {            # step -> (distinct questions, accuracy)
     OPERATOR: (30, 0.75),
@@ -252,7 +265,7 @@ def track_standing(standings, track):
     return {
         "track": track,
         "label": TRACK_TITLES[track],
-        "title": lead["step_name"] if lead and lead["step"] else "Unlicensed",
+        "title": lead["step_name"] if lead and lead["step"] else UNRANKED,
         "lapsed": bool(lead and lead["lapsed"]),
         "lead_pool": lead["pool_id"] if lead else None,
         "members": members,
