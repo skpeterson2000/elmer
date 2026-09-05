@@ -92,8 +92,18 @@ confirm_destructive() {
 
 do_remove() {
     head2 "Removing ELMER's menu entry and virtual environment"
-    "$PY" ./elmer.py --remove-launcher 2>/dev/null && ok "menu entry removed" \
-        || warn "no menu entry to remove"
+    local out rc=0
+    out="$("$PY" ./elmer.py --remove-launcher 2>&1)" || rc=$?
+    if [ "$rc" != 0 ]; then
+        # The entry belongs to another copy of ELMER. elmer.py has already
+        # said so and said where; repeating it as a warning would only argue
+        # with itself.
+        printf '%s\n' "$out" | sed 's/^  //; s/^/  /'
+    elif printf '%s' "$out" | grep -q "Nothing to remove"; then
+        warn "no menu entry to remove"
+    else
+        ok "menu entry removed"
+    fi
     if [ -d .venv ]; then
         rm -rf .venv && ok "virtual environment removed"
     fi
@@ -170,7 +180,7 @@ installed_signs() {
     local signs=()
     [ -f data/elmer.db ] && signs+=("study data")
     [ -d .venv ] && signs+=("virtual environment")
-    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed() else 1)' \
+    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed_here() else 1)' \
         2>/dev/null && signs+=("menu entry")
     # Joined by hand: IFS uses only its first character, so "', '" would put
     # the comma in and leave the space out.
@@ -342,7 +352,7 @@ fi
 if [ "$WANT_LAUNCHER" = 1 ]; then
     head2 "Menu entry"
     HAVE_ENTRY=0
-    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed() else 1)' \
+    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed_here() else 1)' \
         2>/dev/null && HAVE_ENTRY=1
     if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
         warn "no desktop session here, so no menu entry was added"

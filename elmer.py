@@ -119,6 +119,15 @@ def main():
         from elmer import launcher
         if args.remove_launcher:
             removed = launcher.remove()
+            if removed is None:
+                # It belongs to another copy of ELMER, which is very likely the
+                # one actually in use.  Say where it is rather than taking the
+                # menu entry away from it.
+                print(f"\n  The menu entry belongs to {launcher.owner()},")
+                print("  not to this copy, so it has been left alone.")
+                print("  Remove it from there, or delete")
+                print(f"      {launcher.entry_path()}\n")
+                sys.exit(1)
             print("\n  Removed:" if removed else "\n  Nothing to remove.")
             for path in removed:
                 print(f"      {path}")
