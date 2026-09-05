@@ -1,11 +1,13 @@
 """Band chart as a printable station reference."""
 import io
+from datetime import date
+from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.graphics.shapes import Drawing, Line, Rect, String
+from reportlab.graphics.shapes import Drawing, Image, Line, Rect, String
 from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
@@ -245,6 +247,42 @@ def _band_row(group, x, y, width, name, licence_class):
             above_x = at
 
 
+def _colophon(group, x, y, width, licence_class, station):
+    """Fill the corner the shorter column leaves empty.
+
+    The VHF and up bands run out four rows before the HF ones do, and a hole
+    under the right column makes a printed sheet look like a draft. The mark
+    goes there, and with it the provenance: who the sheet was drawn for,
+    against which class, and on what day - all of which a chart pinned above a
+    radio for two years ought to be able to answer for itself.
+    """
+    icon = Path(__file__).resolve().parents[1] / "elmer" / "static" / "icon.png"
+    right = x + width
+    size = 54
+
+    if icon.is_file():
+        group.add(Image(right - size, y - size, size, size, str(icon)))
+        mark_right = right - size - 12
+    else:
+        mark_right = right
+
+    group.add(String(mark_right, y - 22, "ELMER", fontName="Helvetica-Bold",
+                     fontSize=15, textAnchor="end"))
+    group.add(String(mark_right, y - 34, "radio study & propagation", fontSize=6.5,
+                     textAnchor="end", fillColor=colors.HexColor("#666666")))
+
+    # Below both, so nothing sits under the icon.
+    line = [p for p in (station.get("callsign"), licence_class,
+                        date.today().isoformat()) if p]
+    group.add(String(right, y - size - 13, "  \u00b7  ".join(line), fontSize=7,
+                     textAnchor="end", fillColor=colors.HexColor("#444444")))
+    group.add(String(right, y - size - 24,
+                     "Privileges change. Check the current 47 CFR 97.301 and "
+                     "97.305 before relying on this sheet.",
+                     fontSize=6, textAnchor="end",
+                     fillColor=colors.HexColor("#888888")))
+
+
 def build_card(licence_class, station=None):
     """A single-page picture of the bands this class may use.
 
@@ -285,6 +323,11 @@ def build_card(licence_class, station=None):
         x = column * (col_w + 26)
         for n, name in enumerate(names):
             _band_row(drawing, x, top - n * row_h, col_w, name, licence_class)
+
+    # The right column is the short one, so its leftover space gets the mark.
+    if len(vhf) < rows:
+        _colophon(drawing, col_w + 26, top - len(vhf) * row_h - 16, col_w,
+                  licence_class, station)
 
     flow += [drawing, Spacer(1, 2)]
 
