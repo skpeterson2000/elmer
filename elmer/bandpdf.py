@@ -35,7 +35,7 @@ def _styles():
     }
 
 
-def build(bands, licence_class, regional=None, station=None):
+def build(bands, licence_class, regional=None, station=None, interop=False):
     station = station or {}
     s = _styles()
     buf = io.BytesIO()
@@ -111,7 +111,11 @@ def build(bands, licence_class, regional=None, station=None):
         "complaints. Regional segments come from the local frequency coordinator "
         "and are reproduced from their published plan; check with them before "
         "relying on it. Produced by ELMER.", s["small"])]
-    flow += _interop_page(s)
+    # Off unless asked for. A band chart is a one-page thing to pin up, and
+    # three pages of channels nobody on this chart may transmit on is paper
+    # wasted on almost everybody who prints it.
+    if interop:
+        flow += _interop_page(s)
     doc.build(flow)
     return buf.getvalue()
 

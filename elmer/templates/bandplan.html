@@ -33,7 +33,12 @@
         {% endfor %}
       </select>
     </div>
-    <button class="btn sm" id="bp-pdf">Download chart (PDF)</button>
+    <div class="field" style="margin-bottom:0">
+      <label>Chart</label>
+      <button class="btn sm" id="bp-pdf">Download chart (PDF)</button>
+    </div>
+    <label class="tiny muted interop-opt" title="off by default: three extra pages of channels you may not transmit on">
+      <input type="checkbox" id="bp-interop"> add interoperability channels</label>
   </div>
 </div>
 
@@ -89,84 +94,28 @@
 <h2 class="mt" id="nifog">Field reference &mdash; the NIFOG</h2>
 <div class="panel nifog">
   <p class="small">
-    The <b>National Interoperability Field Operations Guide</b> is a pocket-sized
-    technical reference for incident communications, published by CISA at the
-    Department of Homeland Security and revised most years &mdash; version 2.02
-    is dated January 2025. It is the book the interoperability channel names and
-    a good many of the band charts in circulation are copied out of, and it is
-    strangely absent from the study material, so here it is.
+    The <b>National Interoperability Field Operations Guide</b> is CISA's
+    pocket reference for incident communications, revised most years. It is
+    where the standard interoperability channel names come from, and where a
+    good many of the band charts in circulation were copied out of. For an
+    amateur it holds the emergency and calling frequencies, the 60&nbsp;m
+    channels and why they exist, US bands and power limits, line-of-sight
+    formulas, CTCSS and DCS tables, and the marine, aviation and weather
+    listings you end up wanting to listen to.
   </p>
-
-  <div class="row" style="gap:.6rem;margin:.2rem 0 .8rem">
-    <a class="btn sm primary" href="https://www.cisa.gov/safecom/field-operations-guides"
-       target="_blank" rel="noopener">Field Operations Guides at CISA &rarr;</a>
-    <a class="btn sm" href="https://www.cisa.gov/resources-tools/resources/nifog"
-       target="_blank" rel="noopener">NIFOG page &rarr;</a>
-    <span class="tiny muted">The landing page outlives any one edition's file name.
-      There is also an <b>eNIFOG</b> phone app that works with no signal, which is
-      the form that is any use in the field.</span>
-  </div>
-
-  <div class="grid cols-2">
-    <div>
-      <div class="panel-title">What is in it for an amateur</div>
-      <ul class="facts small">
-        <li>Amateur emergency frequencies, and the Center of Activity calling
-          frequencies &mdash; p.&nbsp;103</li>
-        <li>The five 60&nbsp;m channels, carrier and centre frequencies, and why
-          they exist: federal stations are primary, amateurs secondary &mdash;
-          p.&nbsp;103</li>
-        <li>Amateur calling frequencies and the repeater coordinators by region
-          &mdash; p.&nbsp;105</li>
-        <li>US amateur bands and power limits &mdash; pp.&nbsp;106 and 112</li>
-        <li>Line-of-sight formulas, CTCSS/NAC and DCS code tables &mdash;
-          pp.&nbsp;61 and 67</li>
-        <li>NOAA weather, marine, aviation, railroad and FRS/GMRS listings
-          &mdash; the things you end up needing to <i>listen</i> to</li>
-        <li>Interference management, and how to file an STA</li>
-      </ul>
-    </div>
-    <div>
-      <div class="panel-title">How it is actually used</div>
-      <p class="small">
-        It is a programming and planning document. The nationwide channels have
-        standard names &mdash; VCALL10, VTAC11, UTAC41, 8TAC91 &mdash; and the
-        point of the names is that everybody's radio calls the same frequency the
-        same thing when several agencies turn up at the same incident. If you
-        support a served agency, this is where the channel list and the tone
-        codes for programming a radio come from, and it is what an
-        <b>ICS&nbsp;205</b> communications plan is filled in against.
-      </p>
-      <p class="small">
-        For most amateurs its everyday value is the other direction: knowing what
-        a frequency <i>is</i> before you touch it, and knowing which of the
-        thousands of channels in it are ones you may never transmit on.
-      </p>
-    </div>
-  </div>
-
-  <p class="small notice" style="margin-top:.8rem">
-    <b>Nearly nothing in the NIFOG is amateur spectrum.</b> The interoperability,
-    federal, marine and aviation channels it lists need an authorisation an
-    amateur licence does not give you, and holding the book is not that
-    authorisation. Even the amateur pages say it in as many words: a licence of
-    the appropriate class is required, and those frequencies are not available to
-    public safety agencies either. Part 97 does allow transmitting outside your
-    privileges when there is an immediate threat to life or property and no other
-    means &mdash; that provision is narrower than it sounds and is not a
-    programming plan. Monitor freely; transmit only where you are licensed to.
+  <p class="small notice">
+    <b>Nearly nothing in it is amateur spectrum.</b> Its channels need an
+    authorisation an amateur licence does not confer, and holding the guide is
+    not that authorisation. Monitor freely; transmit only where you are
+    licensed to.
   </p>
-
+  <div class="row" style="gap:.6rem;margin-top:.6rem">
+    <a class="btn sm" href="https://www.cisa.gov/safecom/field-operations-guides"
+       target="_blank" rel="noopener">Get it from CISA &rarr;</a>
+    <span class="tiny muted">Free, and free to copy &mdash; a work of the US
+      government. There is an <b>eNIFOG</b> phone app that works with no signal.</span>
+  </div>
   <div id="nifog-channels" class="mt"></div>
-
-  <p class="tiny muted" style="margin-top:.5rem">
-    A work of the US government, so it carries no copyright and you may print,
-    copy and hand it out freely (17&nbsp;U.S.C.&nbsp;&sect;105) &mdash; with the
-    ordinary caveat that a federal document can still contain third-party
-    material that is marked as somebody's own, and this one does. ELMER links to
-    it rather than bundling it, because it is revised and the copy on your shelf
-    is the one that goes stale.
-  </p>
 </div>
 
 <p class="tiny muted mt">

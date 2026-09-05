@@ -153,10 +153,12 @@ own page rather than a filename remembered in the source, downloads it, converts
 it with the poppler tools ELMER already needs, and reads the nationwide
 interoperability channels straight out of the tables — VCALL and VTAC, UCALL and
 UTAC, the 700 MHz and 800 MHz calling and tactical channels, with their CTCSS
-tones and P25 network access codes. They then appear on the band plan page and on
-a page of their own behind the printed chart. Because the guide is revised and a
-transcribed channel list goes quietly stale, ELMER reads the current one rather
-than carrying a copy.
+tones and P25 network access codes. They then appear on the band plan page,
+folded away behind a summary line, and can be added to the printed chart with a
+checkbox that is off by default — a band chart is a one-page thing to pin up, and
+three pages of channels nobody may transmit on is paper wasted on most people who
+print it. Because the guide is revised and a transcribed channel list goes quietly
+stale, ELMER reads the current one rather than carrying a copy.
 
 Everything parsed is checked before it is used: channel names against their
 pattern, every frequency against the band its group belongs to, and the four
@@ -166,9 +168,15 @@ copy kept — ELMER would rather show something a year old, and say so, than a
 number it has not satisfied itself about. Provenance travels with it: the version,
 the date on the cover, and when it was read all print on the chart.
 
-The interoperability channels are on their own page, deliberately not folded into
-the band chart. Everything on the chart is spectrum you may transmit on; nothing
-on that page is, and the two must not be read as one list.
+When they are included they go on pages of their own, never folded into the band
+chart: everything on the chart is spectrum you may transmit on, nothing on those
+pages is, and the two must not be read as one list.
+
+Nothing in the guide feeds ELMER's own calculations. Privileges, power limits and
+the mode checks all come from ELMER's reading of 47 CFR 97.301, 97.305 and 97.313.
+The NIFOG has been useful as an independent check on that reading — it confirmed
+the five 60 m carrier frequencies and the Novice and Technician power restriction
+— but it is a reference held alongside, not a source ELMER computes from.
 
 ### CW
 

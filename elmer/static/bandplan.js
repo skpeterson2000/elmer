@@ -142,7 +142,8 @@ document.getElementById('bp-pdf').addEventListener('click', async () => {
     const res = await fetch('/api/bandplan/pdf', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({class: bpClass(), state: bpState(),
-                            bands: bpData.bands.map(b => b.name)})});
+                            bands: bpData.bands.map(b => b.name),
+                            interop: !!(document.getElementById('bp-interop') || {}).checked})});
     if (!res.ok) throw new Error(res.status);
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
@@ -200,9 +201,13 @@ api('/api/nifog').then(d => {
       'here and on the printed chart.</p>';
     return;
   }
+  /* Folded away by default. 59 rows of channels nobody here may transmit on
+     should not be the biggest thing on the band plan page. */
   box.innerHTML =
-    '<div class="panel-title">Nationwide interoperability channels</div>' +
-    '<p class="tiny muted" style="margin:0 0 .5rem">Read from NIFOG version ' +
+    '<details class="nifog-more"><summary class="small">' +
+      'Nationwide interoperability channels read from the guide (' + d.count +
+      ') &mdash; for reference and monitoring</summary>' +
+    '<p class="tiny muted" style="margin:.5rem 0">Read from NIFOG version ' +
       escapeHTML(d.version || '?') + ' (' + escapeHTML(d.dated || '') +
       '), fetched ' + escapeHTML(d.fetched) + '. ' + d.count + ' channels. ' +
       '<b>None of them is amateur spectrum.</b></p>' +
@@ -218,5 +223,6 @@ api('/api/nifog').then(d => {
         '<td class="mono tiny">' + escapeHTML(c.rx_tone) + '</td>' +
         '<td class="num mono tiny">' + c.tx_mhz.toFixed(5).replace(/0+$/, '').replace(/\.$/, '.0') + '</td>' +
         '<td class="mono tiny">' + escapeHTML(c.tx_tone) + '</td></tr>').join('') +
-      '</tbody></table></div>').join('');
+      '</tbody></table></div>').join('') +
+    '</details>';
 }).catch(() => {});
