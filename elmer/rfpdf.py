@@ -207,7 +207,12 @@ def build(evaluation, station=None):
             "this evaluation takes it as given. Where the table says a gain was "
             "entered by the operator, nothing here has checked it against a real "
             "antenna; where it says modelled, it was computed by ELMER from the "
-            "antenna's geometry. Neither is a measurement.", s["small"]),
+            "antenna's geometry and rounded up. Neither is a measurement.",
+            s["small"]),
+        # Said on paper as well as on screen: the sheet is what gets kept, and
+        # somebody reading it later should know which way it was built to err.
+        Paragraph("<b>Where this evaluation errs.</b> " + method["conservatism"],
+                  s["small"]),
         Spacer(1, 18),
         Paragraph("I have evaluated this station and, to the best of my knowledge, "
                   "the information above is correct.", s["body"]),
