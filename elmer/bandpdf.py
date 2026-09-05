@@ -5,8 +5,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
-                                Spacer, Table, TableStyle)
+from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
+                                SimpleDocTemplate, Spacer, Table, TableStyle)
 
 from .bandplan import BAND_INDEX, KINDS, activity_for, gaps_for, privileges_for
 
@@ -111,8 +111,67 @@ def build(bands, licence_class, regional=None, station=None):
         "complaints. Regional segments come from the local frequency coordinator "
         "and are reproduced from their published plan; check with them before "
         "relying on it. Produced by ELMER.", s["small"])]
+    flow += _interop_page(s)
     doc.build(flow)
     return buf.getvalue()
+
+
+def _mhz(value):
+    """A channel frequency, whole.
+
+    Not "%g": these run to five decimals - 769.24375 - and %g stops at six
+    significant digits, which silently rounds that to 769.244. A frequency
+    somebody keys into a radio is the one number on the page that may not be
+    approximated.
+    """
+    return f"{value:.5f}".rstrip("0").rstrip(".")
+
+
+def _interop_page(s):
+    """The nationwide interoperability channels, on a page of their own.
+
+    Deliberately not folded into the band chart. Everything on the first page is
+    spectrum the holder of this chart may transmit on; nothing on this one is,
+    and the two must not be read as one list. A separate page with its own
+    heading and its own warning is the only honest way to carry both.
+    """
+    from . import nifog
+    record = nifog.load()
+    if not record:
+        return []
+
+    flow = [PageBreak(),
+            Paragraph("Nationwide interoperability channels", s["title"]),
+            Paragraph(
+                f"From the National Interoperability Field Operations Guide, "
+                f"version {record.get('version') or '?'} "
+                f"({record.get('dated') or 'undated'}), published by CISA and "
+                f"read on {record.get('fetched')}. A work of the US government, "
+                f"reproduced freely.", s["small"]),
+            Paragraph(
+                "<b>None of these channels is amateur spectrum, and this chart "
+                "is not authority to transmit on any of them.</b> They are here "
+                "to be monitored, and so that an operator supporting a served "
+                "agency knows the names everyone else at the incident is using. "
+                "Transmitting needs an authorisation an amateur licence does "
+                "not confer. Tones are CTCSS in Hz; a value beginning $ is a "
+                "P25 network access code in hexadecimal.", s["small"]),
+            Spacer(1, 6)]
+
+    for group in nifog.by_band(record):
+        rows = [["Channel", "Use", "RX (MHz)", "RX tone", "TX (MHz)", "TX tone"]]
+        for channel in group["channels"]:
+            rows.append([channel["name"], channel["use"],
+                         _mhz(channel["rx_mhz"]), channel["rx_tone"],
+                         _mhz(channel["tx_mhz"]), channel["tx_tone"]])
+        block = [Paragraph(group["band"], s["band"]),
+                 _table(rows, [("ALIGN", (2, 0), (2, -1), "RIGHT"),
+                               ("ALIGN", (4, 0), (4, -1), "RIGHT"),
+                               ("FONT", (0, 1), (0, -1), "Helvetica-Bold", 7.4)],
+                        widths=(0.9, 1.9, 1.0, 0.8, 1.0, 0.8)),
+                 Spacer(1, 7)]
+        flow.append(KeepTogether(block))
+    return flow
 
 
 def _table(rows, extra, widths=(0.8, 0.8, 1.1, 5.4, 0.5)):

@@ -146,9 +146,29 @@ for — programming a radio and filling in an ICS 205 — and, at least as
 importantly, that nearly nothing in it is amateur spectrum. Monitoring is free;
 transmitting on those channels needs an authorisation a licence does not give
 you, and owning the book is not it. Being a work of the US government it carries
-no copyright and can be printed and handed out freely, so ELMER links to it
-rather than bundling it: it is revised, and the copy on your shelf is the one
-that goes stale.
+no copyright and can be printed and handed out freely.
+
+`./elmer.py --fetch-nifog` goes further: it finds the current edition from CISA's
+own page rather than a filename remembered in the source, downloads it, converts
+it with the poppler tools ELMER already needs, and reads the nationwide
+interoperability channels straight out of the tables — VCALL and VTAC, UCALL and
+UTAC, the 700 MHz and 800 MHz calling and tactical channels, with their CTCSS
+tones and P25 network access codes. They then appear on the band plan page and on
+a page of their own behind the printed chart. Because the guide is revised and a
+transcribed channel list goes quietly stale, ELMER reads the current one rather
+than carrying a copy.
+
+Everything parsed is checked before it is used: channel names against their
+pattern, every frequency against the band its group belongs to, and the four
+nationwide calling channels have to be present or the parse is judged not to have
+understood the document. A parse that fails is discarded whole and the previous
+copy kept — ELMER would rather show something a year old, and say so, than a
+number it has not satisfied itself about. Provenance travels with it: the version,
+the date on the cover, and when it was read all print on the chart.
+
+The interoperability channels are on their own page, deliberately not folded into
+the band chart. Everything on the chart is spectrum you may transmit on; nothing
+on that page is, and the two must not be read as one list.
 
 ### CW
 
@@ -387,6 +407,7 @@ and a timed contest mode.
 ./elmer.py --update           update this install and say what changed
 ./elmer.py --update-check     say whether an update is waiting, change nothing
 ./elmer.py --adopt            let a copied install update itself in future
+./elmer.py --fetch-nifog      read the interoperability channels from the NIFOG
 ./install.sh                  install, or ask: update, repair, remove, check
 ./elmer.py --build            rebuild the pools from data/raw
 ./elmer.py --fetch            re-download the source pools, then rebuild

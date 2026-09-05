@@ -7,6 +7,11 @@ data/elmer.log
 data/server-console.log
 data/explanations/
 
+# Read out of the current NIFOG on demand. It is a public document and freely
+# reproducible, but it is CISA's to revise, so ELMER keeps a copy rather than
+# a fork of it.
+data/nifog/
+
 # What the update check last saw. Writing it must never make the install look
 # modified, or it would block the very update it exists to announce.
 data/update.json
