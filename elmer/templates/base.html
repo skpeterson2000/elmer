@@ -10,7 +10,7 @@
 {% else %}<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📻</text></svg>">
 {% endif %}
 </head>
-<body>
+<body{% if kiosk_token %} data-kiosk="1"{% endif %}>
 <header class="topbar">
   <a class="brand" href="/">
 {% if icon_file %}    <img class="brand-icon" alt=""

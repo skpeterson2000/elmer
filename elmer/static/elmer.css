@@ -494,3 +494,30 @@ table.data tr.denied td { opacity: .45; }
   background: var(--amber); margin-bottom: .1rem;
 }
 .welcome-num.done { background: var(--green); color: #06210d; }
+
+/* ---------- leaving ELMER ---------- */
+/* The Exit button and the off-site interstitial: the two ways out. Both are
+   worth being unmistakable, because on a kiosk they are the only ones. */
+.exit-btn {
+  font: .78rem var(--mono); color: var(--amber); cursor: pointer;
+  background: var(--panel); border: 1px solid rgba(255,180,84,.35);
+  border-radius: 7px; padding: .28rem .7rem; letter-spacing: .06em;
+}
+.exit-btn:hover { background: rgba(255,180,84,.14); }
+.exit-veil {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .4rem; text-align: center; background: var(--bg); color: var(--dim);
+}
+.exit-veil .mark {
+  font: 700 1.6rem/1 var(--mono); letter-spacing: .22em; color: var(--amber);
+  margin-bottom: .6rem;
+}
+.exit-veil code { color: var(--text); }
+
+.away { max-width: 46rem; border-left: 3px solid var(--amber); }
+.away-url {
+  font-size: .82rem; color: var(--text); word-break: break-all;
+  background: #0b1017; border: 1px solid var(--line); border-radius: 8px;
+  padding: .55rem .7rem; margin: .3rem 0 .2rem;
+}

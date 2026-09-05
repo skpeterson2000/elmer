@@ -275,6 +275,26 @@ document.addEventListener('click', e => {
   if (confirm('Stop ELMER and close this window?')) quitElmer(button);
 });
 
+/* ---------- off-site links ----------
+   In kiosk mode the browser is full screen with no back button, no tabs and no
+   address bar, so a link to the FCC or eCFR would strand the operator there:
+   no way back to the study session, no way to reach the Exit button. Every
+   off-site link is therefore routed through ELMER's own /away page, which
+   stays inside ELMER and opens the site in a window that can be closed.
+   Anywhere else - a laptop, a phone on the LAN - links behave normally. */
+function isOffSite(link) {
+  return !!link && /^https?:$/.test(link.protocol) && link.host !== location.host;
+}
+
+document.addEventListener('click', e => {
+  if (document.body.dataset.kiosk !== '1' || e.defaultPrevented) return;
+  const link = e.target.closest('a[href]');
+  if (!isOffSite(link)) return;
+  e.preventDefault();
+  location.href = '/away?url=' + encodeURIComponent(link.href) +
+                  '&from=' + encodeURIComponent(location.pathname + location.search);
+});
+
 /* ------------------------------------------------------------ places ----- */
 /* One place input that takes whatever the operator happens to know: a grid
    square, a lat,lon pair, or the name of a town or lake. Grids and coordinates

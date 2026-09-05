@@ -202,6 +202,9 @@ def main():
             from elmer import kiosk
             for process in browsers:
                 kiosk.close(process)
+            # Any window opened for an off-site link goes with it, rather than
+            # being left on the screen with ELMER gone from behind it.
+            kiosk.close_windows()
     print("\n  ELMER stopped.\n")
 
 

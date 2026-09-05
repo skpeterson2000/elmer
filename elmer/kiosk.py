@@ -10,6 +10,13 @@ two under Wayland, which is what Raspberry Pi OS runs now.  Either browser gets
 a throwaway profile of its own, because launched against the normal profile a
 browser that is already open would just add a tab to the existing window and
 never go full screen at all.
+
+A full-screen browser has no back button, no tabs and no address bar, so a link
+to somewhere outside ELMER is a one-way trip: the operator lands on the FCC site
+with no way back to the study session and no way to stop the program.  Off-site
+links therefore go through ELMER's own /away page, and :func:`open_window` puts
+the external site in an ordinary window - one with a close button - leaving the
+kiosk window still on ELMER underneath.
 """
 import logging
 import os
@@ -24,6 +31,10 @@ from pathlib import Path
 log = logging.getLogger("elmer")
 
 PROFILE_DIR = Path(__file__).resolve().parents[1] / "data" / "kiosk-profile"
+
+# Ordinary windows opened for an off-site link, kept so they can be shut when
+# ELMER stops rather than left orphaned on the screen.
+_windows = []
 
 # Chromium first - see the module docstring.  Each entry is the executable name
 # and the flags that put it full screen on a throwaway profile.
@@ -164,6 +175,63 @@ def _command(path, family, url, profile):
             "--password-store=basic",
         ]
     return [path, "--kiosk", "--new-instance", "--profile", str(profile), url]
+
+
+def _window_command(path, family, url, profile):
+    """A normal browser window: toolbar, back button, close button.
+
+    Deliberately *not* kiosk mode.  This is the window that takes somebody to
+    the FCC or eCFR, and the entire point of it is that they can get out of it
+    again and find ELMER still sitting there underneath.
+    """
+    if family == "chromium":
+        return [
+            path, "--new-window", url,
+            # A profile of its own again, and a different one from the kiosk
+            # window's: sharing it would hand the URL to the running kiosk
+            # instance, which would open it full screen with no way back.
+            f"--user-data-dir={profile}",
+            "--no-first-run", "--no-default-browser-check",
+            "--disable-session-crashed-bubble", "--noerrdialogs",
+            "--disable-translate", "--password-store=basic",
+            "--window-size=1200,860",
+        ]
+    return [path, "--new-instance", "--profile", str(profile), url]
+
+
+def open_window(url):
+    """Open `url` in an ordinary window beside the kiosk.  True if it started.
+
+    Used by the /away page.  Never raises: an external link failing to open is
+    a disappointment, not a reason to take the study session down.
+    """
+    if not have_display():
+        return False
+    path, family = find_browser()
+    if not path:
+        return False
+    profile = PROFILE_DIR / f"{family}-web"
+    profile.mkdir(parents=True, exist_ok=True)
+    command = _window_command(path, family, url, profile)
+    log.debug("kiosk: external window %s", " ".join(command))
+    try:
+        process = subprocess.Popen(
+            command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True)
+    except OSError as exc:
+        log.warning("kiosk: could not open a window on %s (%s)", url, exc)
+        return False
+    _windows[:] = [p for p in _windows if p.poll() is None]
+    _windows.append(process)
+    log.info("kiosk: opened %s in a separate window (pid %d)", url, process.pid)
+    return True
+
+
+def close_windows():
+    """Shut any external windows opened from the /away page."""
+    for process in _windows:
+        close(process)
+    _windows.clear()
 
 
 def launch(url):
