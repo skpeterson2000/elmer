@@ -30,7 +30,8 @@
   <div class="status">
     <div class="titles">
       {% for key, track in tracks.items() %}
-        <a class="title-line" href="/#ranks" title="{{ track.label }} standing">
+        <a class="title-line" href="/#ranks"
+           title="{{ track.label }} standing in ELMER - a study rank, not an FCC licence">
           <span class="title-track">{{ track.label }}</span>
           <span class="title-name {% if track.lapsed %}lapsed{% endif %}">{{ track.title }}</span>
           {% if track.lapsed %}<span class="lapse-dot" title="lapsed - one passing exam renews it">&#9888;</span>{% endif %}

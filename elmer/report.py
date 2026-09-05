@@ -15,7 +15,7 @@ def print_stats():
     standings = db.kv_get(conn, "standings", {}) or {}
     tracks = ranks.overall(list(standings.values())) if standings else {}
 
-    print(f"\n  ELMER  {prof['callsign'] or 'unlicensed'}")
+    print(f"\n  ELMER  {prof['callsign'] or 'no callsign set'}")
     for name, track in tracks.items():
         lapse = "  (lapsed)" if track["lapsed"] else ""
         print(f"  {track['label']:11s} {track['title']}{lapse}")
