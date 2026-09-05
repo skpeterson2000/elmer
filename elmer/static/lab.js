@@ -308,42 +308,112 @@ function calcSWR() {
 const LAMBDA_FT = f => 983.571 / f;          // free space wavelength, feet
 const FT_M = 0.3048;
 
-/* Yagi gain against element count at sensible spacing. Interpolated from
-   published designs; a real figure depends on the individual design. */
-const YAGI_GAIN = {2: 4.5, 3: 6.5, 4: 7.8, 5: 8.8, 6: 9.6, 7: 10.3, 8: 10.9,
-                   9: 11.4, 10: 11.9, 12: 12.7, 14: 13.3, 16: 13.9, 18: 14.4,
-                   20: 14.8};
+/* ---------------------------------------------------------------- Yagi gain
 
-function yagiGain(n) {
-  const keys = Object.keys(YAGI_GAIN).map(Number).sort((a, b) => a - b);
-  if (n <= keys[0]) return YAGI_GAIN[keys[0]];
-  if (n >= keys[keys.length - 1]) return YAGI_GAIN[keys[keys.length - 1]];
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (n >= keys[i] && n <= keys[i + 1]) {
-      const t = (n - keys[i]) / (keys[i + 1] - keys[i]);
-      return YAGI_GAIN[keys[i]] + t * (YAGI_GAIN[keys[i + 1]] - YAGI_GAIN[keys[i]]);
+   What a Yagi does is set by how long the boom is, not by how many elements
+   are bolted to it: elements are how the aperture gets filled, and past a
+   point another one on the same boom buys almost nothing. So gain is taken
+   from the boom length, and then charged for spacing that no good design
+   would use.
+
+   The anchors are free-space gains of optimised monoband designs against
+   boom length in wavelengths. They are deliberately at the conservative end
+   of what is published - a real antenna's figure depends on its own design,
+   and every one of these is worth about +/-1 dB. Nothing here is measured;
+   it is an estimate, and the panel says so.
+
+   Beyond the last anchor the curve continues at about 2.2 dB per doubling of
+   boom, which is what the anchors themselves work out at. It is emphatically
+   not the 6 dB per doubling that gets repeated on the bands - ground
+   reflection is capped at 6 dB in total, so it cannot be paid out again at
+   every doubling. */
+const BOOM_GAIN = [          // [boom length in wavelengths, free-space dBi]
+  [0.00,  5.2], [0.15,  6.0], [0.35,  7.8], [0.60,  8.8], [0.90,  9.8],
+  [1.30, 10.6], [2.00, 11.8], [3.00, 13.0], [4.50, 14.2], [6.00, 15.0],
+  [8.00, 15.9],
+];
+const BOOM_PER_DOUBLING = 2.2;      // dB, past the last anchor
+
+/* Directors in a good design sit between about 0.15 and 0.30 wavelengths
+   apart. Crammed closer, the elements shadow each other and the gain is not
+   there however many are added; stretched further, the aperture is left with
+   holes in it and the sidelobes grow. Either way it costs, and the cost is
+   capped because a badly spaced Yagi is still a Yagi. */
+const SPACING_GOOD = [0.15, 0.30];
+
+function boomGain(boomLam) {
+  const last = BOOM_GAIN[BOOM_GAIN.length - 1];
+  if (boomLam >= last[0]) {
+    return last[1] + BOOM_PER_DOUBLING * Math.log2(boomLam / last[0]);
+  }
+  for (let i = 0; i < BOOM_GAIN.length - 1; i++) {
+    const [l0, g0] = BOOM_GAIN[i], [l1, g1] = BOOM_GAIN[i + 1];
+    if (boomLam <= l1) {
+      return g0 + (g1 - g0) * ((boomLam - l0) / (l1 - l0));
     }
   }
-  return 0;
+  return last[1];
 }
 
+function spacingPenalty(spacing) {
+  if (spacing >= SPACING_GOOD[0] && spacing <= SPACING_GOOD[1]) return 0;
+  const edge = spacing < SPACING_GOOD[0] ? SPACING_GOOD[0] : SPACING_GOOD[1];
+  const off = Math.abs(Math.log10(spacing / edge));
+  return Math.min(3.0, 26 * off * off);
+}
+
+/* Free-space gain in dBd for `n` elements at `spacing` wavelengths apart. */
+function yagiGain(n, spacing) {
+  if (!(n >= 2)) return 0;                  // a driven element on its own
+  const boom = (n - 1) * spacing;
+  const dbi = Math.max(5.2, boomGain(boom) - spacingPenalty(spacing));
+  return dbi - 2.15;
+}
+
+/* Every gain here is against a half-wave dipole, and every one needs to say
+   what it was measured against and where - a gain figure without those is
+   the thing antenna advertising is made of.
+
+   `ref` is that condition. Horizontal wires are quoted in free space, which
+   is the honest reference but is not where anybody's antenna is: over real
+   ground a horizontal antenna picks up as much as 6 dB more at the peak of
+   its lobe, most of it once it is about half a wavelength up. Verticals are
+   quoted over an average ground plane instead, because a vertical without
+   ground is not an antenna at all, and theirs is the number that a real
+   installation most easily fails to reach. */
+const FREE_SPACE = 'free space';
+const OVER_GROUND = 'over an average ground plane';
+
 const ANTENNAS = {
-  dipole: {shape: 'wire', label: 'Half-wave dipole', gain: 0, z: 73,
+  dipole: {shape: 'wire', label: 'Half-wave dipole', gain: 0, z: 73, ref: FREE_SPACE,
     build: f => ({'Overall length': 468 / f, 'Each leg': 234 / f})},
-  invertedv: {shape: 'wire', label: 'Inverted-V dipole', gain: -0.5, z: 50,
+  // Its legs hang below the apex, so its average height is lower than a flat
+  // dipole strung at the same point, and the pattern is rounder. Modelled at
+  // the same average height it gives up about a dB; the much larger figures
+  // quoted for this comparison are usually against a *rotatable* dipole,
+  // which is a comparison of pointability rather than of gain.
+  invertedv: {shape: 'wire', label: 'Inverted-V dipole', gain: -1.0, z: 50,
+    ref: FREE_SPACE,
     build: f => ({'Overall length': 445 / f, 'Each leg': 222.5 / f})},
   efhw: {shape: 'wire', label: 'End-fed half wave', gain: 0, z: 2400,
+    ref: FREE_SPACE,
     build: f => ({'Wire length': 468 / f})},
-  loop: {shape: 'wire', label: 'Full-wave loop', gain: 1.2, z: 115,
+  loop: {shape: 'wire', label: 'Full-wave loop', gain: 1.2, z: 115, ref: FREE_SPACE,
     build: f => ({'Total perimeter': 1005 / f, 'Each side (square)': 251.25 / f})},
   quarter: {shape: 'vert', label: 'Quarter-wave vertical', gain: 0, z: 36,
+    ref: OVER_GROUND,
     build: f => ({'Radiator': 234 / f, 'Each radial (16+)': 234 / f})},
   fiveeighth: {shape: 'vert', label: '5/8-wave vertical', gain: 2.0, z: null,
+    ref: OVER_GROUND,
     build: f => ({'Radiator': 585 / f, 'Each radial': 234 / f})},
-  jpole: {shape: 'vert', label: 'J-pole', gain: 0, z: 50,
+  // A J-pole is an end-fed half wave with a matching stub, and radiates like
+  // one. The 3 dBd on the box is where the stub's own radiation went in the
+  // advertising rather than in the pattern.
+  jpole: {shape: 'vert', label: 'J-pole', gain: 0, z: 50, ref: OVER_GROUND,
     build: f => ({'Long element': 702 / f, 'Matching stub': 234 / f,
                   'Feed tap above base': 234 / f * 0.12})},
   groundplane: {shape: 'vert', label: 'Ground plane, drooping radials', gain: 0, z: 50,
+    ref: OVER_GROUND,
     build: f => ({'Radiator': 234 / f, 'Each of 4 radials': 246 / f})},
 };
 
@@ -442,6 +512,7 @@ function calcAnt() {
   if (!(f > 0)) { out('an-out', 'Enter a frequency.'); return; }
   const lamFt = LAMBDA_FT(f);
   let rows = {}, gain = 0, z = null, notes = [], shape = 'wire';
+  let gainRef = FREE_SPACE;
 
   if (type === 'yagi') {
     shape = 'yagi';
@@ -455,18 +526,33 @@ function calcAnt() {
     }
     rows['Element spacing'] = sp * lamFt;
     rows['Boom length'] = (n - 1) * sp * lamFt;
-    gain = yagiGain(n);
+    gain = yagiGain(n, sp);
     z = 22;
+    const boomLam = (n - 1) * sp;
     const gLin = Math.pow(10, (gain + 2.15) / 10);
     notes.push('Estimated gain <b>' + gain.toFixed(1) + ' dBd</b> (' +
-      (gain + 2.15).toFixed(1) + ' dBi), beamwidth roughly <b>' +
-      Math.round(Math.sqrt(41253 / (1.1 * gLin))) + '&deg;</b>.');
+      (gain + 2.15).toFixed(1) + ' dBi) in <b>free space</b>, beamwidth roughly <b>' +
+      Math.round(Math.sqrt(41253 / (1.1 * gLin))) + '&deg;</b>. ' +
+      'Worth about &plusmn;1&nbsp;dB: a real antenna depends on its own design.');
+    notes.push('That comes from the <b>' + boomLam.toFixed(2) +
+      '&nbsp;wavelength boom</b>, not the element count. Boom length is what ' +
+      'sets a Yagi\'s gain &mdash; doubling it is worth roughly 2.2&nbsp;dB, ' +
+      'while another element on the same boom is worth very little.');
+    const penalty = spacingPenalty(sp);
+    if (penalty > 0.15) {
+      notes.push('At ' + sp.toFixed(2) + '&nbsp;wavelength spacing this design is ' +
+        'charged <b>' + penalty.toFixed(1) + '&nbsp;dB</b> against an optimised one. ' +
+        (sp < SPACING_GOOD[0]
+          ? 'Elements this close shadow each other, and adding more does not help.'
+          : 'Spread this far the aperture has holes in it and the sidelobes grow.') +
+        ' Good designs sit between ' + SPACING_GOOD[0] + ' and ' + SPACING_GOOD[1] +
+        '&nbsp;wavelengths.');
+    }
     notes.push('A Yagi pulls the driven element impedance down to around ' + z +
       '&nbsp;&Omega;, so it needs a gamma, hairpin or beta match to reach 50&nbsp;&Omega;.');
-    notes.push('Boom length drives gain more than element count does: doubling the ' +
-      'boom is worth roughly 2.5&nbsp;dB, adding elements to a short boom is not.');
   } else if (type === 'whip') {
     shape = 'vert';
+    gainRef = 'over the vehicle body';
     const hFt = num('an-wh'), loss = num('an-loss'), hat = num('an-hat');
     if (!(hFt > 0)) { out('an-out', 'Enter a whip height.'); return; }
     const ratio = (hFt * hat) / lamFt;                 // effective electrical height
@@ -497,6 +583,7 @@ function calcAnt() {
     rows = spec.build(f);
     gain = spec.gain;
     z = spec.z;
+    gainRef = spec.ref || FREE_SPACE;
     if (type === 'efhw') notes.push('The end of a half wave is a high-voltage, ' +
       'high-impedance point &mdash; around ' + z + '&nbsp;&Omega; &mdash; so it needs a 49:1 ' +
       'transformer, not a direct coax feed.');
@@ -566,10 +653,21 @@ function calcAnt() {
     '<div class="row mt" style="gap:1rem">' +
       '<span>Wavelength <b>' + lamFt.toFixed(2) + ' ft</b></span>' +
       (z ? '<span>Feed impedance &asymp; <b>' + z + ' &Omega;</b></span>' : '') +
-      '<span>Gain <b>' + (gain >= 0 ? '+' : '') + gain.toFixed(1) + ' dBd</b></span>' +
+      '<span>Gain <b>' + (gain >= 0 ? '+' : '') + gain.toFixed(1) + ' dBd</b> ' +
+        '<span class="tiny muted">(' + (gain + 2.15).toFixed(1) + ' dBi, ' +
+        escapeHTML(gainRef) + ')</span></span>' +
     '</div>' +
     '<div class="small muted" style="margin-top:.6rem">' +
-      notes.map(n => '<p>' + n + '</p>').join('') + '</div>');
+      notes.map(n => '<p>' + n + '</p>').join('') +
+      '<p><b>What this figure is.</b> An estimate against a half-wave dipole, ' +
+      escapeHTML(gainRef) + ' &mdash; not a measurement, and worth about ' +
+      '&plusmn;1&nbsp;dB. Your own installation decides the rest: over real ' +
+      'ground a horizontal antenna gains as much as 6&nbsp;dB at the peak of ' +
+      'its lobe, most of it once it is half a wavelength up, and height ' +
+      'lowers the takeoff angle, which usually matters more for distance than ' +
+      'the peak figure does. A gain number quoted without saying what it was ' +
+      'measured against, and where, is worth nothing at all.</p>' +
+      '</div>');
 
   const heightFt = type === 'whip' ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
@@ -726,7 +824,11 @@ if (toRf) toRf.addEventListener('click', () => {
   const near = exposurePrefill(a);
   const row = rfDefaultRow();
   row.frequency_mhz = a.f;
-  row.gain_dbd = Math.round(a.gain * 10) / 10;
+  /* Rounded up, not to nearest. Gain is the largest single lever on an
+     exposure result, and the estimate carries about a dB either way - so the
+     half dB goes to the side that puts the person further from the antenna,
+     never the side that brings them closer. */
+  row.gain_dbd = Math.ceil(a.gain * 2) / 2;
   row.antenna = a.description;
   row.gain_source = 'modelled';        // computed here, not typed by hand
   if (near.controlled) row.distance_controlled_ft = near.controlled;
@@ -1261,7 +1363,14 @@ async function rfEvaluate() {
           ? '<div class="tiny muted" style="margin-top:.4rem">&dagger; inside the near ' +
             'field at this frequency &mdash; the estimate is indicative, keep people further back.</div>'
           : '') +
-      '</div>').join('');
+      '</div>').join('') +
+    /* The same words that go on the printed sheet. Somebody comparing this
+       against a figure from elsewhere should be able to see which way it was
+       built to err, and that a different method is not the same as this one
+       being wrong. */
+    '<div class="panel tight mt"><div class="panel-title">Where this ' +
+      'evaluation errs</div><p class="small muted" style="margin:0">' +
+      escapeHTML(data.method.conservatism || '') + '</p></div>';
 }
 
 async function rfDownload() {

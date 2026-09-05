@@ -230,6 +230,20 @@ Interactive versions of the maths the pools test:
   height above ground actually buys. A short whip reports its radiation
   resistance, efficiency and the loading it needs, which is the honest answer to
   why mobile HF is hard.
+
+  Every gain figure says what it was measured against and where — dBd, and free
+  space for horizontal wire, over an average ground plane for verticals —
+  because a gain number without those is the stuff antenna advertising is made
+  of. They are estimates worth about ±1 dB, not measurements. Yagi gain comes
+  from the **boom length**, which is what actually sets it: element count and
+  spacing decide the boom, and two Yagis with the same boom get the same answer
+  whether that boom carries five elements or seven. Spacing outside the 0.15 to
+  0.30 wavelength range a good design uses is charged for, since elements
+  crammed closer shadow each other and elements spread further leave holes in
+  the aperture. What the figures deliberately do not include is your ground: a
+  horizontal antenna picks up as much as 6 dB more at the peak of its lobe once
+  it is about half a wavelength up. That ceiling is 6 dB in total — it is not,
+  as the folklore has it, another 6 dB for every doubling of height.
 - **RF exposure evaluation** — an antenna designed in the Antennas tab can be
   sent straight here, carrying its frequency, gain and description. The starting
   distances are worked out per antenna type, because how close a person can get
@@ -257,7 +271,13 @@ Interactive versions of the maths the pools test:
   ones are computed but flagged in the record: power above the 1500 W legal
   limit, a gain large enough to suspect dBi was entered instead of dBd, a
   frequency outside the amateur bands, a distance close enough to touch the
-  antenna. And because antenna gain is the largest single lever on every
+  antenna. The evaluation errs toward safety throughout — full ground
+  reflection, the antenna treated as pointing its whole gain at the person, and
+  a modelled gain rounded up rather than to nearest — and both the screen and
+  the printed sheet say so, in as many words. A more detailed determination may
+  well show a shorter compliant distance and still satisfy the rules; that is
+  not a licence to work inside these distances, because this is the evaluation
+  on record. And because antenna gain is the largest single lever on every
   figure, the record distinguishes a gain **modelled** by ELMER from the
   antenna's geometry from one **entered by the operator**, which nothing has
   checked against any antenna. Neither is a measurement, and the record says so.

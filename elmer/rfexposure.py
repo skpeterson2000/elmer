@@ -310,5 +310,16 @@ def evaluate(station, cases):
                     "Distances inside the near field are flagged. The gain figure "
                     "is the largest single lever on the result, and where it was "
                     "entered by hand rather than modelled, the record says so.",
+            "conservatism": "This evaluation is deliberately built to err "
+                    "toward safety: full ground reflection is assumed, the "
+                    "antenna is treated as pointing its full gain at the "
+                    "person, and a modelled gain is rounded up rather than to "
+                    "nearest. A more detailed determination - one that models "
+                    "the actual pattern, or measures the field - may well show "
+                    "a shorter compliant distance and still satisfy the rules. "
+                    "That such a determination is possible is not a licence to "
+                    "operate inside the distances below: they are what this "
+                    "evaluation supports, and it is this evaluation that is on "
+                    "record.",
         },
     }
