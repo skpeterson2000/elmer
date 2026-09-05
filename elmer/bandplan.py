@@ -143,6 +143,104 @@ CHANNELS_60M = [
 ]
 
 
+# --- what a privilege description actually permits -------------------------
+# The descriptions above are written for a person to read. These turn them
+# into something the rest of the program can check an operator's intended
+# emission against, which is the difference between a program that holds the
+# rules and a program that applies them.
+
+EMISSION_LABELS = {"cw": "CW", "data": "RTTY/data", "phone": "Phone",
+                   "image": "Image"}
+
+
+def emissions_in(terms):
+    """The emission categories a privilege description allows."""
+    text = (terms or "").lower()
+    found = set()
+    if "cw" in text:
+        found.add("cw")
+    if "data" in text or "rtty" in text:
+        found.add("data")
+    if "phone" in text or "usb" in text:
+        found.add("phone")
+    if "image" in text:
+        found.add("image")
+    return found
+
+
+def limits_in(terms):
+    """Any power ceiling written into a privilege description, as (PEP, ERP)."""
+    import re
+    text = terms or ""
+    pep = re.search(r"(\d+)\s*W\s*PEP", text, re.I)
+    erp = re.search(r"(\d+)\s*W\s*ERP", text, re.I)
+    return (int(pep.group(1)) if pep else None,
+            int(erp.group(1)) if erp else None)
+
+
+def band_at(mhz):
+    """The amateur band a frequency falls in, or None if it is not in one."""
+    for band in BANDS:
+        if band["low"] <= mhz <= band["high"]:
+            return band
+    return None
+
+
+def channel_at(mhz, tolerance=0.0015):
+    """The 60 m channel a frequency sits on, or None."""
+    for centre, name in CHANNELS_60M:
+        if abs(mhz - centre) <= tolerance:
+            return {"centre": centre, "name": name}
+    return None
+
+
+def privilege_at(mhz, licence_class):
+    """Everything the rules say about operating here, for this class.
+
+    Returns a dict rather than a yes/no, because "may I?" has more than one
+    answer worth showing: outside the bands entirely, inside a band but not
+    inside this class's segment of it, or permitted but only for some
+    emissions or below some power.
+    """
+    band = band_at(mhz)
+    result = {
+        "mhz": mhz,
+        "band": band["name"] if band else None,
+        "group": band.get("group") if band else None,
+        "in_band": bool(band),
+        "licence_class": licence_class,
+        "allowed": False,
+        "terms": None,
+        "emissions": [],
+        "max_pep": None,
+        "max_erp": None,
+        "channelised": bool(band and band.get("channelised")),
+        "channel": None,
+        "segment": None,
+    }
+    if not band:
+        return result
+    if licence_class not in CLASSES:
+        # An unknown or absent class: say what the band is and stop short of
+        # claiming anything about permission.
+        return result
+
+    for low, high, terms in privileges_for(band["name"], licence_class):
+        if low <= mhz <= high:
+            pep, erp = limits_in(terms)
+            result.update({
+                "allowed": True, "terms": terms,
+                "emissions": sorted(emissions_in(terms)),
+                "max_pep": pep, "max_erp": erp,
+                "segment": [low, high],
+            })
+            break
+
+    if result["channelised"]:
+        result["channel"] = channel_at(mhz)
+    return result
+
+
 def privileges_for(band_name, licence_class):
     return PRIVILEGES.get(band_name, {}).get(licence_class, [])
 

@@ -65,6 +65,15 @@ MODE_DUTY = {
     "carrier": ("Continuous carrier / tune", 1.00),
 }
 
+# Which emission category each mode is, for checking an intended transmission
+# against what the licence class may actually send on that frequency. A bare
+# carrier is not one of the categories: it is a test transmission, permitted
+# wherever transmitting is permitted at all.
+MODE_EMISSION = {
+    "ssb": "phone", "ssb_proc": "phone", "am": "phone", "fm": "phone",
+    "cw": "cw", "rtty": "data", "digital": "data", "carrier": None,
+}
+
 REFLECTION_FIELD = 1.6          # OET-65 ground reflection factor on field
 REFLECTION_POWER = REFLECTION_FIELD ** 2      # 2.56 on power density
 FT_PER_M = 3.280839895
@@ -276,6 +285,51 @@ def band_for(f_mhz):
     return f"{f_mhz:g} MHz"
 
 
+def privilege_warnings(case, licence_class):
+    """What the rules say about the operation this case describes.
+
+    An exposure evaluation is a record the operator signs and keeps, so it
+    should not quietly bless an operation that is not permitted. ELMER holds
+    97.301 and 97.305 in full; not checking them here would make it a tool that
+    knows better and says nothing.
+    """
+    from . import bandplan
+    if licence_class not in bandplan.CLASSES:
+        return []
+
+    mhz = float(case["frequency_mhz"])
+    where = bandplan.privilege_at(mhz, licence_class)
+    a_class = ("an " if licence_class[0] in "AEIOU" else "a ") + licence_class
+    if not where["in_band"]:
+        return []                       # already warned about as a frequency
+    said = []
+    if not where["allowed"]:
+        said.append(f"{mhz:g} MHz is in the {where['band']} band but not in the "
+                    f"part of it {a_class} licensee may transmit on "
+                    f"(47 CFR 97.301)")
+        return said
+
+    mode = case.get("mode") or "ssb"
+    emission = MODE_EMISSION.get(mode)
+    if emission and emission not in where["emissions"]:
+        label = bandplan.EMISSION_LABELS.get(emission, emission)
+        said.append(f"{label} is not permitted at {mhz:g} MHz for {a_class} "
+                    f"licensee - this segment allows {where['terms']} "
+                    f"(47 CFR 97.305)")
+
+    pep = float(case.get("pep_watts") or 0)
+    if where["max_pep"] and pep > where["max_pep"]:
+        said.append(f"{pep:g} W exceeds the {where['max_pep']} W PEP limit that "
+                    f"applies at {mhz:g} MHz")
+    if where["max_erp"] and pep > where["max_erp"]:
+        said.append(f"{mhz:g} MHz is limited to {where['max_erp']} W ERP, and "
+                    f"{pep:g} W into an antenna with gain will exceed it")
+    if where["channelised"] and not where["channel"]:
+        said.append(f"{mhz:g} MHz is not one of the five 60 m channels, which "
+                    f"are the only frequencies usable in that band")
+    return said
+
+
 def evaluate(station, cases):
     """Evaluate a whole station: several bands and antennas at once.
 
@@ -283,19 +337,23 @@ def evaluate(station, cases):
     a hole in it is worse than none - but the error names the row, so it can be
     found without hunting.
     """
-    evaluated = []
+    licence_class = (station or {}).get("licence_class") or ""
+    evaluated, rule_warnings = [], []
     for n, case in enumerate([c for c in cases if c.get("frequency_mhz")], start=1):
         try:
             evaluated.append(evaluate_case(case))
         except InvalidCase as exc:
             where = case.get("antenna") or f"{case.get('frequency_mhz')} MHz"
             raise InvalidCase(f"band {n} ({where}): {exc}") from None
-    warnings = [w for c in evaluated for w in c["warnings"]]
+        rule_warnings += privilege_warnings(case, licence_class)
+    warnings = [w for c in evaluated for w in c["warnings"]] + rule_warnings
     return {
         "station": station,
         "cases": evaluated,
         "warnings": warnings,
         "asserted_gain": any(c["gain_source"] != "modelled" for c in evaluated),
+        "privilege_warnings": rule_warnings,
+        "licence_class": licence_class,
         "compliant": all(c["compliant"] for c in evaluated) if evaluated else None,
         "method": {
             "reference": "FCC OET Bulletin 65, Supplement B; limits per 47 CFR 1.1310",

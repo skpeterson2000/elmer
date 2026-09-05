@@ -589,3 +589,14 @@ table.data tr.denied td { opacity: .45; }
 table.shack { width: 100%; }
 table.shack .num { text-align: right; }
 table.shack tr.you { background: rgba(255, 180, 84, .07); }
+
+/* ---------- what may be transmitted here ---------- */
+/* The mode list says what the rules allow where the row is tuned. Options are
+   marked rather than removed: evaluating a station you cannot yet operate is
+   legitimate, and being told why is more use than being blocked. */
+.rf-priv {
+  grid-column: 1 / -1; font-size: .8rem; color: var(--dim);
+  padding: .1rem .1rem 0; line-height: 1.45;
+}
+.rf-priv:empty { display: none; }
+option.not-permitted { color: var(--amber); }
