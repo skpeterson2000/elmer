@@ -128,12 +128,18 @@ because they carry very different authority:
   signal in the wrong place is what people complain about.
 
   Convention and law do not share their edges, so each segment is answered with
-  three states rather than two. The IARU Region 2 plan puts SSB on 20 m from
-  14.112 while 97.305 permits no phone below 14.150, so against that row an
-  Extra is told **14.15–14.23** — the part of the convention they may actually
-  use, in that mode. A General is told 14.225–14.23. The answer accounts for the
-  emission as well as the place: an Extra may key up anywhere on 20 m, but not
-  on phone below 14.150.
+  three states rather than two, and the reason is written beside the row. The
+  IARU Region 2 plan puts SSB on 20 m from 14.112 while 97.305 permits no phone
+  below 14.150, so an Extra is told **14.150–14.230** and, in words, *"no licence
+  may use phone below 14.150 MHz"*.
+
+  That last distinction is the one worth having. Two quite different rules
+  produce the same shape on the page: below the emission sub-band **nobody** may
+  use that mode however far they upgrade, while above it the licence class is
+  the only thing in the way. So they are said separately. A General on the same
+  row reads *"no licence may use phone below 14.150 MHz; from there to 14.225 it
+  needs Advanced or Extra"* — one half is physics of the rulebook, the other half
+  is a reason to study.
 - **Regional plans come from your frequency coordinator.** Minnesota is wired
   up: 80 coordinated segments across 6 m, 2 m, 1.25 m, 70 cm and 23 cm, fetched
   from the Minnesota Repeater Council and cached for 30 days. Coordinator plans

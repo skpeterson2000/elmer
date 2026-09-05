@@ -12,7 +12,7 @@ from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
 from .bandplan import (BAND_INDEX, KINDS, activity_for, gaps_for,
-                        privileges_for, usable_part)
+                        privileges_for, usable_answer)
 
 KIND_COLOUR = {
     "cw": colors.HexColor("#3d7ebf"), "digital": colors.HexColor("#7a4fbf"),
@@ -78,14 +78,23 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
         n = 0
         for low, high, kind, label in activity_for(name):
             n += 1
-            state, part_low, part_high = usable_part(low, high, allowed, kind)
+            you = usable_answer(name, licence_class, low, high, kind)
+            state = you["state"]
             ok = state != "no"
-            answer = {"yes": "yes", "no": "no"}.get(
-                state, f"{_mhz(part_low)}\u2013{_mhz(part_high)}")
+            # Not dict.get with a default: the default is evaluated whatever
+            # the state is, and on a "no" row there is no range to format.
+            answer = (f"{_mhz(you['low'])}\u2013{_mhz(you['high'])}"
+                      if state == "part" else state)
+            # The reason goes beside the thing it is about. A range on its own
+            # in the last column tells the reader something is different
+            # without telling them what.
+            body = label
+            if you["note"] and state != "yes":
+                body += f'<br/><font size="6" color="#8a6d1f">{you["note"]}</font>'
             rows.append([f"{low:.4f}".rstrip("0").rstrip("."),
                          f"{high:.4f}".rstrip("0").rstrip(".") if high != low else "",
                          KIND_LABEL.get(kind, kind),
-                         Paragraph(label, s["cell"]),
+                         Paragraph(body, s["cell"]),
                          answer])
             style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOUR.get(kind, colors.black)))
             if state == "part":

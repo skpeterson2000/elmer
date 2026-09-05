@@ -613,3 +613,12 @@ option.not-permitted { color: var(--amber); }
 .nifog-more summary { cursor: pointer; color: var(--dim); padding: .3rem 0; }
 .nifog-more summary:hover { color: var(--text); }
 .nifog-more[open] summary { color: var(--text); margin-bottom: .2rem; }
+
+/* ---------- convention against privilege ---------- */
+/* A segment can be partly yours, and the reason has to sit beside the thing it
+   is about rather than in a tooltip nobody on a touchscreen can reach. */
+.bp-key { margin: -.2rem 0 .5rem; display: flex; flex-wrap: wrap;
+          align-items: center; gap: .25rem; line-height: 1.9; }
+.why { font-size: .72rem; line-height: 1.35; margin-top: .15rem; }
+.why.part { color: var(--amber); }
+.why.no { color: var(--dimmer); }

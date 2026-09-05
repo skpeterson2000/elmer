@@ -298,6 +298,11 @@ def may_transmit(band_name, licence_class, mhz):
 KIND_EMISSION = {"cw": "cw", "digital": "data", "phone": "phone",
                  "image": "image", "beacon": "cw"}
 
+# How an emission is written inside a sentence: an acronym keeps its capitals,
+# an ordinary word does not.
+MID_SENTENCE = {"cw": "CW", "data": "RTTY/data", "phone": "phone",
+                "image": "image"}
+
 
 def usable_part(low, high, allowed, kind=None):
     """How much of an activity segment this class may actually use.
@@ -326,6 +331,96 @@ def usable_part(low, high, allowed, kind=None):
     if covered >= (high - low) - 1e-9:
         return "yes", low, high
     return "part", first, last
+
+
+def _edge(value):
+    """A band edge written the way it is said: 14.150, not 14.15."""
+    text = f"{value:.4f}".rstrip("0")
+    whole, _, frac = text.partition(".")
+    return f"{whole}.{(frac + '000')[:max(3, len(frac))]}"
+
+
+def classes_permitting(band_name, low, high, emission):
+    """Which classes may send this emission anywhere in this range, weakest first.
+
+    Anywhere in it, not at its midpoint: on 20 m an Advanced may use phone from
+    14.175, so sampling the middle of a segment that starts at 14.112 would
+    leave them out of the answer entirely.
+    """
+    out = []
+    for name in CLASSES:
+        for a, b, terms in privileges_for(band_name, name):
+            overlaps = a <= low <= b if high <= low else (low < b and high > a)
+            if overlaps and (emission is None or emission in emissions_in(terms)):
+                out.append(name)
+                break
+    return out
+
+
+def _needs(classes):
+    if not classes:
+        return None
+    if len(classes) == 1:
+        return f"an {classes[0]}" if classes[0][0] in "AEIOU" else f"a {classes[0]}"
+    return " or ".join([", ".join(classes[:-1]), classes[-1]])
+
+
+def usable_answer(band_name, licence_class, low, high, kind=None):
+    """What this class may do with an activity segment, and why, in words.
+
+    A range on its own is a puzzle: the reader sees that something is different
+    about the row without being told what. And "phone is not permitted below
+    14.150" hides the more useful distinction, because two quite different
+    rules produce the same shape.
+
+    Below 14.150 on 20 m *no* licence may use phone: that is the emission
+    sub-band, and upgrading changes nothing. Between 14.150 and 14.225 phone is
+    perfectly legal and it is the licence that is the limit. One of those is
+    worth studying for and the other is not, so they are said differently.
+    """
+    allowed = privileges_for(band_name, licence_class)
+    state, a, b = usable_part(low, high, allowed, kind)
+    emission = KIND_EMISSION.get(kind)
+    label = EMISSION_LABELS.get(emission, "Transmitting")
+
+    # Where the most permissive class's edge sits: below that, nobody may.
+    top = privileges_for(band_name, CLASSES[-1])
+    _, top_a, top_b = usable_part(low, high, top, kind)
+
+    note = None
+    if state == "no":
+        others = classes_permitting(band_name, low, high, emission)
+        needs = _needs([c for c in others if c != licence_class])
+        note = (f"{label} here needs {needs}" if needs
+                else f"{label} is not permitted here on any licence")
+    elif state == "part":
+        # Two different rules make the same shape, and only one of them is a
+        # reason to study: below the emission sub-band nobody may transmit that
+        # mode, however far they upgrade, while above it the licence is the
+        # only thing in the way. Said separately, and only when each applies.
+        mid = MID_SENTENCE.get(emission, "transmitting")
+        parts = []
+        if a > low:
+            edge = top_a if (top_a is not None and top_a > low) else None
+            if edge:
+                parts.append(f"no licence may use {mid} below {_edge(edge)} MHz")
+            if a > (edge or low):
+                who = _needs(classes_permitting(
+                    band_name, edge or low, a, emission)) or "a higher class"
+                parts.append(f"from there to {_edge(a)} it needs {who}"
+                             if edge else
+                             f"below {_edge(a)} MHz it needs {who}")
+        if b < high:
+            edge = top_b if (top_b is not None and top_b < high) else None
+            if edge:
+                parts.append(f"no licence may use {mid} above {_edge(edge)} MHz")
+            if b < (edge or high):
+                who = _needs(classes_permitting(
+                    band_name, b, edge or high, emission)) or "a higher class"
+                parts.append(f"above {_edge(b)} MHz it needs {who}")
+        joined = "; ".join(parts)
+        note = (joined[:1].upper() + joined[1:]) if joined else None
+    return {"state": state, "low": a, "high": b, "note": note}
 
 
 def gaps_for(band_name, licence_class):
