@@ -185,3 +185,38 @@ if (bpLookupBtn) {
   bpLookupBtn.addEventListener('click', run);
   field.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 }
+
+/* ---------- nationwide interoperability channels ----------
+   Read out of the current NIFOG rather than transcribed, so the list is
+   whatever CISA last published rather than whatever was true when this was
+   written. Cached server-side; this only ever reads the cache. */
+api('/api/nifog').then(d => {
+  const box = document.getElementById('nifog-channels');
+  if (!box) return;
+  if (!d.have) {
+    box.innerHTML = '<p class="small muted">ELMER can read the interoperability ' +
+      'channels straight out of the current guide &mdash; run ' +
+      '<span class="mono">./elmer.py --fetch-nifog</span> once and they appear ' +
+      'here and on the printed chart.</p>';
+    return;
+  }
+  box.innerHTML =
+    '<div class="panel-title">Nationwide interoperability channels</div>' +
+    '<p class="tiny muted" style="margin:0 0 .5rem">Read from NIFOG version ' +
+      escapeHTML(d.version || '?') + ' (' + escapeHTML(d.dated || '') +
+      '), fetched ' + escapeHTML(d.fetched) + '. ' + d.count + ' channels. ' +
+      '<b>None of them is amateur spectrum.</b></p>' +
+    d.bands.map(g =>
+      '<div class="nifog-band"><div class="tiny mono muted">' + escapeHTML(g.band) +
+      '</div><table class="data"><thead><tr><th>Channel</th><th>Use</th>' +
+      '<th class="num">RX (MHz)</th><th>RX tone</th>' +
+      '<th class="num">TX (MHz)</th><th>TX tone</th></tr></thead><tbody>' +
+      g.channels.map(c =>
+        '<tr><td class="mono"><b>' + escapeHTML(c.name) + '</b></td>' +
+        '<td class="small">' + escapeHTML(c.use) + '</td>' +
+        '<td class="num mono tiny">' + c.rx_mhz.toFixed(5).replace(/0+$/, '').replace(/\.$/, '.0') + '</td>' +
+        '<td class="mono tiny">' + escapeHTML(c.rx_tone) + '</td>' +
+        '<td class="num mono tiny">' + c.tx_mhz.toFixed(5).replace(/0+$/, '').replace(/\.$/, '.0') + '</td>' +
+        '<td class="mono tiny">' + escapeHTML(c.tx_tone) + '</td></tr>').join('') +
+      '</tbody></table></div>').join('');
+}).catch(() => {});

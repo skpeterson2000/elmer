@@ -605,3 +605,6 @@ option.not-permitted { color: var(--amber); }
 .nifog ul.facts { margin: .3rem 0 0; padding-left: 1rem; }
 .nifog ul.facts li { color: var(--dim); margin-bottom: .28rem; line-height: 1.45; }
 .nifog .panel-title { margin-bottom: .3rem; }
+.nifog-band { margin-top: .7rem; }
+.nifog-band table.data { width: 100%; }
+.nifog-band .num { text-align: right; }

@@ -402,6 +402,19 @@ def api_bandplan():
     })
 
 
+@app.route("/api/nifog")
+def api_nifog():
+    """The cached interoperability channels. Never fetches on a page load."""
+    from elmer import nifog
+    record = nifog.load()
+    if not record:
+        return jsonify({"have": False, "page": nifog.SAFECOM_PAGE})
+    return jsonify({"have": True, "version": record.get("version"),
+                    "dated": record.get("dated"), "fetched": record.get("fetched"),
+                    "url": record.get("url"), "count": record.get("count"),
+                    "bands": nifog.by_band(record), "page": nifog.SAFECOM_PAGE})
+
+
 @app.route("/api/privileges")
 def api_privileges():
     """What may actually be transmitted here, by this class, on this frequency.

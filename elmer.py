@@ -106,6 +106,9 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--fetch-nifog", action="store_true",
+                    help="read the interoperability channels out of the current "
+                         "NIFOG and cache them")
     ap.add_argument("--adopt", action="store_true",
                     help="turn a copied install into a checkout so it can update")
     ap.add_argument("--yes", "-y", action="store_true",
@@ -164,6 +167,22 @@ def main():
     if args.stats:
         from elmer.report import print_stats
         print_stats(args.user)
+        return
+
+    if args.fetch_nifog:
+        from elmer import nifog
+        print("\n  Fetching the current NIFOG from CISA...")
+        try:
+            record = nifog.refresh()
+        except Exception as exc:
+            print(f"\n  Could not read it: {exc}\n")
+            sys.exit(1)
+        print(f"      version {record['version']} ({record['dated']}), "
+              f"{record['count']} interoperability channels")
+        for group in nifog.by_band(record):
+            print(f"      {group['band']:8s} {len(group['channels']):2d} channels")
+        print("\n  None of these is amateur spectrum. Monitor freely; transmit")
+        print("  only where you are licensed to.\n")
         return
 
     if args.adopt:
