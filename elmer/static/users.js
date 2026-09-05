@@ -7,6 +7,49 @@
 
 let whoData = null;
 
+const WHO_GAP = 8;          // between the chip and the menu below it
+
+/* Put the menu under the chip and wholly on the screen.
+
+   The top bar wraps, so the chip is not always in the same place - on a narrow
+   window it can sit near the left edge, and a menu hung off its right edge went
+   off the side of the screen with nothing readable left. So it is measured and
+   clamped every time it opens, rather than trusted to a fixed corner. */
+function placeWhoMenu() {
+  const menu = document.getElementById('who-menu');
+  const button = document.getElementById('who-btn');
+  if (!menu || !button || menu.hidden) return;
+  const chip = button.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const margin = 8;
+  let left = chip.right - width;                       // right edges aligned
+  left = Math.min(left, window.innerWidth - width - margin);
+  left = Math.max(margin, left);
+  let top = chip.bottom + WHO_GAP;
+  const height = menu.offsetHeight;
+  if (top + height > window.innerHeight - margin) {
+    // No room below - sit above the chip instead, and failing that, as high
+    // as it can while staying under the top of the window.
+    top = Math.max(margin, Math.min(chip.top - WHO_GAP - height,
+                                    window.innerHeight - height - margin));
+  }
+  menu.style.left = Math.round(left) + 'px';
+  menu.style.top = Math.round(top) + 'px';
+}
+
+function openWhoMenu(open) {
+  const menu = document.getElementById('who-menu');
+  if (!menu) return;
+  menu.hidden = !open;
+  if (open) placeWhoMenu();
+}
+
+window.addEventListener('resize', placeWhoMenu);
+window.addEventListener('scroll', placeWhoMenu, {passive: true});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') openWhoMenu(false);
+});
+
 function whoRow(u, current) {
   return '<button class="who-row' + (u.id === current ? ' on' : '') + '" ' +
          'data-user="' + u.id + '">' +
@@ -26,6 +69,7 @@ function renderWho(d) {
   if (!menu) return;
 
   const me = d.users.find(u => u.id === d.current) || {};
+  const wasOpen = !menu.hidden;
   menu.innerHTML =
     '<div class="who-head">Who is at the radio?</div>' +
     d.users.map(u => whoRow(u, d.current)).join('') +
@@ -45,6 +89,7 @@ function renderWho(d) {
         ? '<button class="btn sm ghost danger" data-who="remove">Remove&hellip;</button>'
         : '') +
     '</div>';
+  if (wasOpen) placeWhoMenu();          // its height just changed
 }
 
 async function switchUser(id) {
@@ -57,14 +102,15 @@ document.addEventListener('click', async e => {
   const menu = document.getElementById('who-menu');
   if (!menu) return;
   if (toggle) {
-    menu.hidden = !menu.hidden;
-    if (!menu.hidden && !whoData) renderWho(await api('/api/users'));
+    if (!menu.hidden) { openWhoMenu(false); return; }
+    if (!whoData) renderWho(await api('/api/users'));
+    openWhoMenu(true);          // measured once it has something in it
     return;
   }
   const row = e.target.closest('.who-row');
   if (row) {
     const id = +row.dataset.user;
-    if (whoData && id === whoData.current) { menu.hidden = true; return; }
+    if (whoData && id === whoData.current) { openWhoMenu(false); return; }
     return switchUser(id);
   }
   const action = e.target.closest('[data-who]');
@@ -89,7 +135,7 @@ document.addEventListener('click', async e => {
       return;
     }
   }
-  if (!menu.hidden && !e.target.closest('.who')) menu.hidden = true;
+  if (!menu.hidden && !e.target.closest('.who')) openWhoMenu(false);
 });
 
 document.addEventListener('submit', async e => {
