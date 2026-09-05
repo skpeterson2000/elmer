@@ -23,10 +23,20 @@ async function bpLoad() {
     '<button class="btn sm ' + (b.name === bpBand ? 'primary' : 'ghost') +
     '" data-band="' + escapeHTML(b.name) + '">' + escapeHTML(b.name) + '</button>').join('');
   document.querySelectorAll('#bp-bands [data-band]').forEach(btn =>
-    btn.addEventListener('click', () => { bpBand = btn.dataset.band; bpRender(); }));
-  /* Open on a band this class can actually use, rather than one that is
-     entirely hatched out. */
-  if (!bpBand || !bpData.bands.some(b => b.name === bpBand)) {
+    btn.addEventListener('click', () => {
+      bpBand = btn.dataset.band;
+      /* In the address, so a band can be linked to and comes back on reload. */
+      history.replaceState(null, '', '#' + bpBand.replace(/\s+/g, ''));
+      bpRender();
+    }));
+  /* Open on the band asked for, else on one this class can actually use
+     rather than one that is entirely hatched out. */
+  const asked = decodeURIComponent(location.hash.slice(1)).toLowerCase();
+  const linked = asked && bpData.bands.find(
+    b => b.name.replace(/\s+/g, '').toLowerCase() === asked.replace(/\s+/g, ''));
+  if (linked) {
+    bpBand = linked.name;
+  } else if (!bpBand || !bpData.bands.some(b => b.name === bpBand)) {
     const usable = bpData.bands.find(b => b.privileges.length);
     bpBand = (usable || bpData.bands[0]).name;
   }
@@ -72,24 +82,36 @@ function bpRender() {
         escapeHTML(modes) + '</li>').join('')
     : '<li class="muted">No privileges on this band for ' + escapeHTML(bpClass()) + '.</li>';
 
+  /* Three answers, not two: convention and law do not share their edges, so a
+     segment can be partly yours. A bare range in that column is a puzzle - the
+     reader sees that something is different without being told what - so the
+     reason travels with it, in words, next to the thing it is about. */
   const rows = band.activity.map(a => {
-    /* Three answers, not two: convention and law do not share their edges, so
-       a segment can be partly yours - and saying "no" to the part you may use
-       is the more damaging of the two possible mistakes. */
     const you = a.you || {state: 'no'};
     const mark = you.state === 'yes'
       ? '<span class="pill good">yes</span>'
       : you.state === 'part'
-        ? '<span class="pill warn" title="only this part of the segment, in this mode">' +
-          you.low + '&ndash;' + you.high + '</span>'
+        ? '<span class="pill warn">' + you.low + '&ndash;' + you.high + '</span>'
         : '<span class="pill bad">no</span>';
+    const why = you.note && you.state !== 'yes'
+      ? '<div class="why ' + you.state + '">' + escapeHTML(you.note) + '</div>' : '';
     return '<tr class="' + (you.state === 'no' ? 'denied' : '') + '">' +
       '<td class="mono tiny">' + a.low + (a.high !== a.low ? '<br>' + a.high : '') + '</td>' +
       '<td><span class="dot" style="background:' + KIND_COLOUR[a.kind] + '"></span>' +
         escapeHTML((bpData.kinds.find(k => k[0] === a.kind) || [])[1] || a.kind) + '</td>' +
-      '<td class="small">' + escapeHTML(a.label) + '</td>' +
+      '<td class="small">' + escapeHTML(a.label) + why + '</td>' +
       '<td>' + mark + '</td></tr>';
   }).join('');
+
+  /* A key: three states in an unlabelled column are not self explanatory
+     however carefully the middle one is worded. */
+  const key =
+    '<div class="tiny muted bp-key">' +
+      'Can you use it, in that mode? &nbsp;' +
+      '<span class="pill good">yes</span> all of it &nbsp;&middot;&nbsp; ' +
+      '<span class="pill warn">range</span> only that part, and the row says why ' +
+      '&nbsp;&middot;&nbsp; <span class="pill bad">no</span> none of it' +
+    '</div>';
 
   document.getElementById('bp-out').innerHTML =
     '<div class="panel">' +
@@ -101,7 +123,7 @@ function bpRender() {
       '<div class="grid cols-2 mt">' +
         '<div><div class="panel-title">Your privileges — 47 CFR 97.301</div>' +
           '<ul class="privlist">' + priv + '</ul></div>' +
-        '<div><div class="panel-title">Where the activity is</div>' +
+        '<div><div class="panel-title">Where the activity is</div>' + key +
           '<table class="data"><tbody>' + rows + '</tbody></table></div>' +
       '</div>' +
     '</div>';

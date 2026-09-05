@@ -384,10 +384,8 @@ def bandplan_page():
 
 
 def _usable(low, high, kind, band_name, licence):
-    """What this class may do with one activity segment, for the page to show."""
-    state, a, b = bandplan.usable_part(
-        low, high, bandplan.privileges_for(band_name, licence), kind)
-    return {"state": state, "low": a, "high": b}
+    """What this class may do with one activity segment, and why."""
+    return bandplan.usable_answer(band_name, licence, low, high, kind)
 
 
 @app.route("/api/bandplan")
