@@ -20,8 +20,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
 from . import (bandpdf, bandplan, callsign, cw, db, exams, explain, game,
-               geocode, logs, propagation, ranks, regional, rfexposure, rfpdf,
-               srs, terrain)
+               geocode, ionosonde, logs, propagation, ranks, regional,
+               rfexposure, rfpdf, srs, terrain)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -887,6 +887,34 @@ def api_reverse_geocode():
                  "kind": "coordinates", "lat": lat, "lon": lon,
                  "grid": geocode.to_grid(lat, lon)}
     return jsonify(place)
+
+
+@app.route("/api/ionosonde")
+def api_ionosonde():
+    """What the ionosonde network is measuring, and the closest one to you.
+
+    This is the honest answer to where the F2 layer is: somebody points a radar
+    straight up and times the echo. 503 when the network cannot be reached, so
+    the tools fall back to a typical height and say they are doing so.
+    """
+    connection = conn()
+    qth = qth_for(connection, db.get_profile(connection))
+    force = request.args.get("refresh") == "1"
+    try:
+        lat = float(request.args.get("lat", qth.get("lat")))
+        lon = float(request.args.get("lon", qth.get("lon")))
+    except (TypeError, ValueError):
+        lat = lon = None
+
+    overview = ionosonde.spread(force)
+    if overview is None:
+        log.warning("ionosonde network unreachable")
+        return jsonify({"ok": False, "typical": ionosonde.TYPICAL,
+                        "error": "no ionosonde data reachable"}), 503
+    closest = ionosonde.nearest(lat, lon) if lat is not None else None
+    return jsonify({"ok": True, "spread": overview, "nearest": closest,
+                    "typical": ionosonde.TYPICAL,
+                    "have_qth": lat is not None})
 
 
 @app.route("/api/terrain")

@@ -196,10 +196,17 @@ the MUF is on screen sticks much better than reading an answer key.
 
 Interactive versions of the maths the pools test:
 
-- **Ionospheric hop** — drag frequency, foF2 and layer height and watch rays
+- **Ionospheric hop** — drag frequency, foF2 and F2 peak height and watch rays
   refract or escape, with the skip zone drawn to scale. Uses the proper
   curved-earth secant law, so the M-factor tops out near 3.4 the way the real
   ionosphere does, instead of the flat-earth formula that claims a 90 MHz MUF.
+  The height is adjustable because the layer genuinely moves — the F2 peak runs
+  roughly 250 to 400 km, lower and denser by day, higher and thinner at night —
+  and you do not judge that by ear. It is measured, by ionosondes: a radar
+  pointed straight up that sweeps frequency and times the echo. **Use a real
+  measurement** pulls the nearest reporting station's current foF2 and hmF2 in,
+  and says how far away and how old they are, so the simulator runs on
+  observation rather than on a guess.
 - **Ohm and power** — fill in any two of E, I, R, P
 - **Reactance and resonance** — X_L, X_C and the resonance point, plotted
 - **SWR and feed line** — SWR, reflection coefficient, return loss, reflected
@@ -381,6 +388,7 @@ elmer/
   ranks.py            the nested class ladder, its decay and practice upkeep
   bandplan.py         privileges (law) and activity segments (convention)
   cw.py               Morse alphabet, Koch order, timing and practice text
+  ionosonde.py        live foF2 and F2 peak height from the GIRO network
   bandpdf.py          the printable band chart
   regional.py         frequency coordinator plans, fetched per state
   rfexposure.py       MPE limits and power density, per OET-65 Supplement B

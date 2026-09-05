@@ -64,7 +64,10 @@ function drawSkip() {
   const f = num('s-f'), fof2 = num('s-fof2'), h = num('s-h');
   document.getElementById('s-f-v').textContent = f.toFixed(1) + ' MHz';
   document.getElementById('s-fof2-v').textContent = fof2.toFixed(1) + ' MHz';
-  document.getElementById('s-h-v').textContent = h + ' km';
+  document.getElementById('s-h-v').textContent = h + ' km'
+    + (h < 250 ? ' — low, typical of a daytime layer'
+       : h > 380 ? ' — high, typical of a night layer'
+       : '');
 
   const thetaMax = maxTakeoff(f, fof2, h);
   const nvis = thetaMax === 90;
@@ -146,6 +149,45 @@ function drawSkip() {
         'Raise foF2 (more solar flux) or drop frequency and the skip zone shrinks.') +
     '</p>');
 }
+/* The height and critical frequency are measurements, not preferences: an
+   ionosonde reports both. Offering the real numbers is more use than a slider
+   the operator has no way to set honestly. */
+const sondeBtn = document.getElementById('s-measure');
+if (sondeBtn) sondeBtn.addEventListener('click', async () => {
+  const note = document.getElementById('s-sonde');
+  sondeBtn.disabled = true;
+  note.textContent = 'asking the ionosonde network…';
+  let data;
+  try {
+    data = await api('/api/ionosonde');
+  } catch (e) {
+    note.innerHTML = '<span style="color:var(--amber)">No ionosonde data reachable. ' +
+      'The slider still works — 300 km by day, 350 at night are fair guesses.</span>';
+    sondeBtn.disabled = false;
+    return;
+  }
+  const near = data.nearest, sp = data.spread;
+  if (!near) {
+    note.innerHTML = 'Set a QTH on the propagation page and ELMER can pick the ' +
+      'nearest station. Right now the network reports hmF2 between <b>' +
+      sp.hmf2.low + '</b> and <b>' + sp.hmf2.high + ' km</b> (median ' +
+      sp.hmf2.median + ').';
+    sondeBtn.disabled = false;
+    return;
+  }
+  document.getElementById('s-h').value = Math.round(
+    Math.max(150, Math.min(450, near.hmf2)));
+  document.getElementById('s-fof2').value = Math.max(2, Math.min(16, near.fof2));
+  drawSkip();
+  note.innerHTML =
+    '<b>' + escapeHTML(near.name) + '</b>, ' + near.distance_km + ' km away, ' +
+    near.age_minutes + ' min old — hmF2 <b>' + near.hmf2 + ' km</b>, foF2 <b>' +
+    near.fof2 + ' MHz</b>' + (near.mufd ? ', its own MUF(3000) ' + near.mufd.toFixed(1) + ' MHz' : '') +
+    '.<br>Across the ' + sp.count + ' stations reporting now the peak sits between ' +
+    sp.hmf2.low + ' and ' + sp.hmf2.high + ' km — that spread is mostly day against night.';
+  sondeBtn.disabled = false;
+});
+
 ['s-f', 's-fof2', 's-h'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', drawSkip);

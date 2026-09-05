@@ -16,6 +16,7 @@ data/geocode/
 data/terrain/
 data/regional/
 data/callsign/
+data/ionosonde/
 
 # Python
 __pycache__/
