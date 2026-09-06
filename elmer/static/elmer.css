@@ -653,3 +653,5 @@ option.not-permitted { color: var(--amber); }
 .seg-card-head { display: flex; align-items: baseline; gap: .4rem;
                  flex-wrap: wrap; margin-bottom: .3rem; }
 .seg-picked { border-left: 3px solid var(--amber); }
+.advice-ctx { font-size: .84rem; color: var(--dim); margin: .35rem 0 .2rem;
+              padding-left: .6rem; border-left: 2px solid var(--line-2); }
