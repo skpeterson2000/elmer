@@ -436,6 +436,44 @@ const ANTENNAS = {
 
 const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie'];
 
+/* Which antennas are balanced, because that and nothing else decides what goes
+   at the feedpoint. A balun crosses between balanced and unbalanced; an unun
+   stays on the unbalanced side; and a choke stops common-mode current whatever
+   else is fitted. The three get used as though they were interchangeable. */
+const BALANCED = ['dipole', 'invertedv', 'bowtie', 'loop', 'yagi'];
+
+function feedNote(type, slopeDeg) {
+  if (type === 'efhw') return '';           /* it has its own, longer, note */
+  const balanced = BALANCED.indexOf(type) >= 0;
+  if (!balanced) {
+    return '<b>Feeding it.</b> This is an unbalanced antenna, so coax suits it ' +
+      'directly &mdash; no balun is called for. Put a choke on the feedline ' +
+      'anyway: it stops the braid carrying current back into the shack and ' +
+      'joining in with the pattern.';
+  }
+  let html = '<b>Feeding it.</b> This is a <b>balanced</b> antenna. On coax, ' +
+    'which is not, put a <b>1:1 current balun</b> &mdash; a choke &mdash; at the ' +
+    'feedpoint: that is exactly the balanced-to-unbalanced crossing a balun is ' +
+    'for. On <b>ladder line</b> you need nothing at the antenna at all, because ' +
+    'balanced line into a balanced antenna crosses nothing; the balun belongs at ' +
+    'the far end, where the line meets an unbalanced rig or tuner. A ' +
+    'link-coupled or genuinely balanced tuner needs none even there.';
+  if (type === 'dipole' || type === 'bowtie' || type === 'loop') {
+    html += ' The 4:1 balun that usually gets fitted at the shack end of ladder ' +
+      'line is a habit rather than a calculation &mdash; the impedance up there ' +
+      'swings enormously band to band, and a 1:1 current balun ahead of a ' +
+      'wide-range tuner handles that better than a fixed 4:1 does.';
+  }
+  if (slopeDeg) {
+    html += ' <b>And note what the slope does to that:</b> a sloping dipole is a ' +
+      'balanced antenna in an unbalanced position. One half is higher than the ' +
+      'other, so the two halves see different ground, and the currents will not ' +
+      'match perfectly however carefully you feed it. The choke matters more ' +
+      'here than on a flat dipole, not less.';
+  }
+  return html;
+}
+
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
@@ -574,6 +612,7 @@ function calcAnt() {
     }
     notes.push('A Yagi pulls the driven element impedance down to around ' + z +
       '&nbsp;&Omega;, so it needs a gamma, hairpin or beta match to reach 50&nbsp;&Omega;.');
+    notes.push(feedNote('yagi', 0));
   } else if (type === 'whip') {
     shape = 'vert';
     gainRef = 'over the vehicle body';
@@ -633,6 +672,8 @@ function calcAnt() {
         'the rig, and the noise floor comes up. Most end-fed disappointment is ' +
         'this and not the antenna.');
     }
+    const feeding = feedNote(type, (type === 'dipole') ? num('an-slope') : 0);
+    if (feeding) notes.push(feeding);
     if (type === 'quarter' || type === 'groundplane') notes.push(
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +
       'Radial count matters more than radial length &mdash; 16 or more on the ground, or ' +
