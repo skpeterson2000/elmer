@@ -429,11 +429,16 @@ def api_pattern():
         heading = 0.0
     spec = patterns.ANTENNA_Q[kind]
 
-    # Where the operator is, so the compass can carry real directions rather
-    # than abstract degrees. A wire's null is a fact about the sky it misses.
+    # What this antenna can actually work decides who its neighbours are. An
+    # NVIS wire does not reach Europe, so putting Europe on its compass would
+    # invite somebody to turn an antenna to chase a contact it cannot make.
+    nvis = request.args.get("nvis") in ("1", "true", "yes")
+    use = request.args.get("use") or antenna_advice.default_use(mhz)
+    span = patterns.reach(kind, use, mhz, height_ft, nvis)
+
     connection = conn()
     place = qth_for(connection, db.get_profile(connection))
-    dx = (patterns.dx_bearings(place["lat"], place["lon"], kind, heading)
+    dx = (patterns.targets(place["lat"], place["lon"], kind, heading, span)
           if place.get("lat") is not None and place.get("lon") is not None else [])
 
     return jsonify({
@@ -446,6 +451,7 @@ def api_pattern():
         "swr": patterns.swr_curve(kind, mhz),
         "bandwidth": patterns.usable_bandwidth(kind, mhz),
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
+        "reach": span, "use": use,
     })
 
 

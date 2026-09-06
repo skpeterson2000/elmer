@@ -1914,8 +1914,10 @@ async function drawPattern(type, mhz, heightFt, heading) {
   if (!box) return;
   let d;
   try {
+    const nvisOn = (document.getElementById('an-nvis') || {}).checked ? 1 : 0;
     d = await api('/api/pattern?' + new URLSearchParams(
-      {type: type, mhz: mhz, height: heightFt || 0, heading: heading || 0}));
+      {type: type, mhz: mhz, height: heightFt || 0, heading: heading || 0,
+       nvis: nvisOn}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
   box.innerHTML =
@@ -1946,15 +1948,19 @@ async function drawPattern(type, mhz, heightFt, heading) {
    if the fence points at the house then so does the antenna. */
 
 function planPlot(d) {
-  const R = 104, cx = 152, cy = 122;
+  /* Room around the rim for the place names: they sit outside the circle, and
+     at the top and bottom they need more than the radius plus a whisker. */
+  const R = 96, cx = 160, cy = 148;
   const at = (bearing, r) => [
     (cx + r * Math.sin(bearing * Math.PI / 180)).toFixed(1),
     (cy - r * Math.cos(bearing * Math.PI / 180)).toFixed(1)];
   const g = [];
   [0.33, 0.66, 1].forEach(f => g.push('<circle cx="' + cx + '" cy="' + cy +
     '" r="' + (R * f).toFixed(1) + '" fill="none" stroke="#2a3441"/>'));
+  /* Compass letters inside the rim, place names outside it, so the two rings
+     of text cannot land on each other. */
   ['N', 'E', 'S', 'W'].forEach((c, i) => {
-    const [x, y] = at(i * 90, R + 13);
+    const [x, y] = at(i * 90, R - 11);
     g.push('<text x="' + x + '" y="' + (+y + 4) + '" fill="#8b98a5" font-size="10" ' +
            'text-anchor="middle">' + c + '</text>');
   });
@@ -1976,19 +1982,30 @@ function planPlot(d) {
   } else {
     g.push('<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#ffb454"/>');
   }
-  /* Real places, at their real bearings. */
+  /* The edge of what this antenna reaches, where that is a distance at all. */
+  if (d.reach && d.reach.radius_km) {
+    g.push('<text x="' + cx + '" y="' + (cy + R + 42) +
+           '" fill="#626e7b" font-size="9" text-anchor="middle">reach about ' +
+           Math.round(d.reach.radius_km * 0.6214) + ' miles</text>');
+  }
+  /* Real places, at their real bearings. Every one gets its spoke; the names
+     are thinned where two sit close together, because four labels on top of
+     each other is less use than three and a gap. */
+  let lastLabel = -999;
   (d.dx || []).forEach(t => {
     const [x, y] = at(t.bearing, R + 2);
     const weak = t.db !== undefined && t.db < -6;
     g.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y +
            '" stroke="' + (weak ? '#f85149' : '#39d3d8') + '" stroke-width="0.7" ' +
            'opacity="0.55"/>');
-    const [lx, ly] = at(t.bearing, R + 26);
+    if (t.bearing - lastLabel < 16) return;
+    lastLabel = t.bearing;
+    const [lx, ly] = at(t.bearing, R + 16);
     g.push('<text x="' + lx + '" y="' + (+ly + 3) + '" fill="' +
            (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle">' +
            escapeHTML(t.name.split(' ')[0]) + '</text>');
   });
-  return '<svg viewBox="0 0 304 250" style="width:100%;max-width:304px">' +
+  return '<svg viewBox="0 0 320 300" style="width:100%;max-width:320px">' +
          g.join('') + '</svg>';
 }
 
@@ -2012,17 +2029,25 @@ function planWords(d) {
       ? 'Turn the boom and the whole pattern turns with it.'
       : 'A wire radiates across itself, not along itself &mdash; so the ' +
         'direction it is strung decides the direction it hears.') + '</p>';
+  if (d.reach && d.reach.note) {
+    html += '<p class="tiny muted">' + escapeHTML(d.reach.note) + '</p>';
+  }
   const missed = (d.dx || []).filter(t => t.db < -6);
+  const named = t => escapeHTML(t.region ? t.name + ', ' + t.region : t.name);
   if (missed.length) {
     html += '<p class="tiny" style="color:var(--red)">In the null from ' +
       escapeHTML(d.qth || 'here') + ': <b>' +
-      missed.map(t => escapeHTML(t.name) + ' (' + t.bearing + '&deg;, ' +
-                 t.db + ' dB)').join(', ') + '</b>. Turning the antenna ' +
-      'is free; the decibels are not.</p>';
+      missed.map(t => named(t) + ' (' + t.bearing + '&deg;, ' + t.db +
+                 ' dB)').join(', ') + '</b>. Turning the antenna is free; the ' +
+      'decibels are not.</p>';
   } else if ((d.dx || []).length) {
-    html += '<p class="tiny" style="color:var(--green)">Nothing important is ' +
-      'in the null from ' + escapeHTML(d.qth || 'here') + ' at this ' +
-      'orientation.</p>';
+    html += '<p class="tiny" style="color:var(--green)">Nothing within reach ' +
+      'is in the null at this orientation.</p>';
+  } else if (d.reach && d.reach.kind === 'line_of_sight') {
+    html += '<p class="tiny muted">Nothing in ELMER\'s list of towns is within ' +
+      'line of sight of ' + escapeHTML(d.qth || 'here') + ', which is ordinary ' +
+      'for VHF simplex &mdash; the repeater you are using is doing the reaching, ' +
+      'not your antenna.</p>';
   }
   return html;
 }
