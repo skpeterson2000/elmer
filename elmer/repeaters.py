@@ -23,6 +23,8 @@ import json
 import math
 import os
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from . import bandplan
@@ -37,6 +39,7 @@ STORE = ROOT / "data" / "repeaters.json"
 ASSUMED_TOWER_FT = 200.0
 
 _cache = {"key": None, "rows": [], "source": None}
+_asked = {"at": 0.0}          # when a network TowerWitch was last tried
 
 
 def horizon_km(height_ft, other_ft=ASSUMED_TOWER_FT):
@@ -208,30 +211,63 @@ def from_towerwitch(path=None):
     return _dedupe(rows)
 
 
+def _newest(path):
+    """When TowerWitch last wrote anything, so a fresh lookup is noticed."""
+    newest = 0.0
+    for folder in ("data", "radio_cache"):
+        here = path / folder
+        if not here.is_dir():
+            continue
+        for entry in here.iterdir():
+            try:
+                newest = max(newest, entry.stat().st_mtime)
+            except OSError:
+                continue
+    return newest
+
+
+def _from_store():
+    """The copy ELMER keeps, so it works with no TowerWitch on the machine."""
+    if not STORE.is_file():
+        return [], None
+    try:
+        payload = json.loads(STORE.read_text())
+    except (OSError, ValueError):
+        return [], None
+    rows = [r for r in payload.get("repeaters", []) if r.get("lat") is not None]
+    for row in rows:
+        row.setdefault("band", _band(row["output"]))
+    return rows, (payload.get("source") or "ELMER's own list")
+
+
 def load():
-    """Every repeater ELMER knows about, and where the list came from."""
-    store_stamp = STORE.stat().st_mtime if STORE.is_file() else None
+    """Every repeater ELMER knows about, and where the list came from.
+
+    Both sources, merged - not one or the other. Preferring the saved copy was
+    wrong in exactly the case this exists for: drive to Montana, let TowerWitch
+    look up what is around you, and ELMER would go on reciting the list it
+    imported in Minnesota because a file existed. The saved copy is what makes
+    a machine without TowerWitch work; TowerWitch is what makes anywhere work.
+    """
     tw = find_towerwitch()
-    key = (str(store_stamp), str(tw))
+    key = (STORE.stat().st_mtime if STORE.is_file() else None,
+           str(tw), _newest(tw) if tw else None)
     if _cache["key"] == key:
         return _cache["rows"], _cache["source"]
 
-    rows, source = [], None
-    if STORE.is_file():
-        try:
-            payload = json.loads(STORE.read_text())
-            rows = [r for r in payload.get("repeaters", []) if r.get("lat") is not None]
-            for row in rows:
-                row.setdefault("band", _band(row["output"]))
-            source = payload.get("source") or "ELMER's own list"
-        except (OSError, ValueError):
-            rows = []
-    if not rows and tw:
-        rows = from_towerwitch(tw)
-        source = f"TowerWitch ({tw})" if rows else None
+    stored, stored_from = _from_store()
+    live = from_towerwitch(tw) if tw else []
+    # TowerWitch last, so its entries win a tie: it is the one that can have
+    # looked up where you are standing this afternoon.
+    rows = _dedupe(stored + live)
+    # The saved copy is usually an import of the very list beside it, so name
+    # each source once rather than saying "TowerWitch and TowerWitch".
+    named = list(dict.fromkeys(n for n in (stored_from if stored else None,
+                                           f"TowerWitch ({tw})" if live else None)
+                               if n))
 
-    _cache.update({"key": key, "rows": rows, "source": source})
-    return rows, source
+    _cache.update({"key": key, "rows": rows, "source": " and ".join(named) or None})
+    return rows, _cache["source"]
 
 
 def save(rows, source):
@@ -261,13 +297,103 @@ def import_towerwitch(path=None):
     return True, f"imported {save(rows, f'TowerWitch ({where})')} repeaters", len(rows)
 
 
-def nearby(lat, lon, mhz=None, radius_km=None, height_ft=30.0, limit=8):
+# Anything further than this is not "near here" by any reading, so a list
+# whose closest entry is beyond it is a list about somewhere else.
+COVERED_KM = 120.0
+SERVICE_TIMEOUT = 3.0
+SERVICE_ASK_EVERY = 180.0   # seconds between attempts at an absent service
+
+
+def service_url(conn=None):
+    """A TowerWitch that answers over the network, if one has been named."""
+    where = None
+    if conn is not None:
+        try:
+            from . import db
+            where = db.unit_get(conn, "towerwitch_url")
+        except Exception:
+            where = None
+    return (where or os.environ.get("ELMER_TOWERWITCH_URL") or "").strip() or None
+
+
+def from_service(url, lat, lon, radius_km=100):
+    """Ask a TowerWitch on another machine what is around this position.
+
+    The reply is the same shape TowerWitch already writes into radio_cache -
+    an object with a `data` list, or a bare list - so the endpoint can return
+    its cache payload unchanged. A machine that is off, busy or not listening
+    is not an error: the answer is then whatever is already on disk.
+    """
+    if not url:
+        return []
+    query = urllib.parse.urlencode({"lat": f"{lat:.5f}", "lon": f"{lon:.5f}",
+                                    "radius_km": int(radius_km)})
+    joiner = "&" if "?" in url else "?"
+    request = urllib.request.Request(
+        url + joiner + query,
+        headers={"User-Agent": "ELMER/1.0 (personal amateur radio study tool)"})
+    try:
+        with urllib.request.urlopen(request, timeout=SERVICE_TIMEOUT) as response:
+            payload = json.loads(response.read())
+    except Exception:
+        return []
+    rows = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        return []
+    out = []
+    for entry in rows:
+        if not isinstance(entry, dict):
+            continue
+        row = _row(entry.get("call"), entry.get("output") or entry.get("frequency"),
+                   input=_num(entry.get("input")), offset=_num(entry.get("offset")),
+                   tone=entry.get("tone") or entry.get("pl_tone"),
+                   location=(entry.get("location") or "").strip(),
+                   lat=_num(entry.get("lat")), lon=_num(entry.get("lon")))
+        if row and row["lat"] is not None:
+            out.append(row)
+    return out
+
+
+def coverage(lat, lon):
+    """Whether ELMER knows anything about repeaters *here*, as opposed to
+    knowing a great deal about somewhere it used to be.
+
+    An empty list means two very different things - there is nothing on the
+    air near you, or nobody has ever looked here - and telling an operator the
+    first when the truth is the second is how a program loses their trust.
+    """
+    rows, source = load()
+    if not rows:
+        return {"known": False, "nearest_km": None, "reason": "none",
+                "source": None}
+    nearest = min(great_circle(lat, lon, r["lat"], r["lon"])[0] for r in rows)
+    return {"known": nearest <= COVERED_KM, "nearest_km": round(nearest),
+            "reason": "here" if nearest <= COVERED_KM else "elsewhere",
+            "source": source}
+
+
+def nearby(lat, lon, mhz=None, radius_km=None, height_ft=30.0, limit=8,
+           conn=None):
     """The repeaters within reach of here, nearest first.
 
     `mhz` restricts the answer to the band being worked: somebody setting up
     for 2 m is not helped by a list of 70 cm machines.
     """
     rows, source = load()
+    # Nothing known about here? Ask a TowerWitch on the network, if one has
+    # been named - once every few minutes at most, so a machine that is off
+    # costs a timeout occasionally rather than on every panel of every page.
+    url = service_url(conn)
+    if url and time.time() - _asked["at"] > SERVICE_ASK_EVERY:
+        here = coverage(lat, lon)
+        if not here["known"]:
+            _asked["at"] = time.time()
+            fetched = from_service(url, lat, lon)
+            if fetched:
+                merged = _dedupe(rows + fetched)
+                save(merged, (source + " and " if source else "")
+                     + f"TowerWitch at {url}")
+                rows, source = load()
     if not rows:
         return [], None
     if radius_km is None:

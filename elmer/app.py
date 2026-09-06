@@ -24,7 +24,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               gps, repeaters, terrain, update)
+               gps, reachout, repeaters, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -435,6 +435,40 @@ def api_bandplan():
     })
 
 
+@app.route("/out")
+def reachout_page():
+    """What to try, from here, with what is in the vehicle."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    settings = profile["settings"]
+    return render_template(
+        "reachout.html", gear=reachout.GEAR, classes=bandplan.CLASSES,
+        licence_class=settings.get("licence_class")
+                      or (settings.get("licence") or {}).get("licence_class")
+                      or "Technician",
+        assumed=["ht"], **profile_block(connection))
+
+
+@app.route("/api/ways-out")
+def api_ways_out():
+    """Every avenue worth trying from where the station is now."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    if place.get("lat") is None:
+        return jsonify({"ways": [], "coverage": None, "qth": "",
+                        "note": "No position yet: set a QTH on the propagation "
+                                "page, or let a GPS answer."})
+    gear = [g for g in (request.args.get("gear") or "").split(",")
+            if g in reachout.GEAR]
+    licence = request.args.get("licence") or \
+        profile["settings"].get("licence_class") or "Technician"
+    answer = reachout.summary(place["lat"], place["lon"], gear, licence)
+    answer["qth"] = place.get("short") or place.get("grid") or ""
+    answer["qth_source"] = place.get("source") or "saved"
+    return jsonify(answer)
+
+
 @app.route("/api/pattern")
 def api_pattern():
     """Where the energy goes, and how much band you get - for one antenna."""
@@ -479,10 +513,11 @@ def api_pattern():
 
     # On FM above 50 MHz the repeater is what does the reaching, and saying so
     # without naming one was the least useful true sentence in the program.
-    reps, reps_from = [], None
+    reps, reps_from, coverage = [], None, None
     if use in ("local", "digital") and place.get("lat") is not None:
         reps, reps_from = repeaters.nearby(place["lat"], place["lon"], mhz,
-                                           height_ft=height_ft)
+                                           height_ft=height_ft, conn=connection)
+        coverage = repeaters.coverage(place["lat"], place["lon"])
         for row in reps:
             field = patterns.field_at(kind, row["bearing"], heading)
             row["field"] = round(field, 4)
@@ -503,6 +538,7 @@ def api_pattern():
         "qth_age_s": place.get("age_s"),
         "reach": span, "use": use,
         "repeaters": reps, "repeaters_from": reps_from,
+        "repeater_coverage": coverage,
         "repeater_radius_km": round(repeaters.horizon_km(height_ft)),
     })
 

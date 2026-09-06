@@ -116,6 +116,10 @@ def main():
                     help="read the GPS on another machine - the Pi with the "
                          "antenna on it. 'off' goes back to the typed QTH, "
                          "'local' to this machine's own gpsd")
+    ap.add_argument("--towerwitch-url", metavar="URL",
+                    help="a TowerWitch that answers over the network, asked "
+                         "when ELMER has no repeaters for where it is "
+                         "('off' to forget it)")
     ap.add_argument("--import-repeaters", nargs="?", const=True, metavar="PATH",
                     help="read the repeater list out of a TowerWitch install "
                          "(found automatically, or give the path) and keep a "
@@ -234,6 +238,26 @@ def main():
               + (f"  {alt:.0f} m" if alt is not None else ""))
         print(f"  {found['mode']}D fix. ELMER will use this instead of the "
               f"typed QTH.\n")
+        sys.exit(0)
+
+    if args.towerwitch_url:
+        from elmer import db, repeaters
+        connection = db.connect()
+        wanted = args.towerwitch_url.strip()
+        if wanted.lower() in ("off", "none", ""):
+            db.unit_set(connection, "towerwitch_url", "")
+            print("\n  Forgotten. ELMER will use what is on disk.\n")
+            sys.exit(0)
+        db.unit_set(connection, "towerwitch_url", wanted)
+        print(f"\n  Asking {wanted} ...")
+        rows = repeaters.from_service(wanted, 46.0, -94.0, 100)
+        if rows:
+            print(f"  It answered with {len(rows)} repeaters. ELMER will ask "
+                  f"it\n  whenever it has nothing for where it is.\n")
+        else:
+            print("  Nothing came back. The address is saved anyway - ELMER")
+            print("  will try it when it needs to, and use what is on disk")
+            print("  until then.\n")
         sys.exit(0)
 
     if args.import_repeaters:
