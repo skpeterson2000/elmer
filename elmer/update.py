@@ -292,20 +292,33 @@ def adopt(remote=None, branch="main"):
     the working tree as ordinary uncommitted changes for somebody to look at.
     """
     if is_checkout():
-        return False, "this install is already a git checkout"
+        return False, "this install is already a git checkout", None
     remote = remote or "https://github.com/skpeterson2000/elmer.git"
     for args in (("init", "--quiet"),
+                 # Name the unborn branch ourselves.  `git init` picks its own
+                 # default - master, on the git that ships with the Pi - and
+                 # the fallback below never renames it, so an adopted copy
+                 # would sit on a branch the repository has never heard of and
+                 # every later check would die with "couldn't find remote ref".
+                 ("symbolic-ref", "HEAD", f"refs/heads/{branch}"),
                  ("remote", "add", "origin", remote),
                  ("fetch", "--quiet", "origin", branch)):
         ok, out = _git(*args, timeout=180)
         if not ok:
-            return False, out or f"git {args[0]} failed"
+            return False, out or f"git {args[0]} failed", None
     ok, out = _git("checkout", "-B", branch, "--no-track", "FETCH_HEAD", "--")
     if not ok:                       # never with force: files here come first
         ok, out = _git("reset", "--mixed", "FETCH_HEAD")
         if not ok:
-            return False, out or "could not point this copy at the repository"
+            return False, out or "could not point this copy at the repository", None
+    # Updates name the branch explicitly, so this is not required for them to
+    # work - it is here so that git pull and git status behave for whoever
+    # opens a terminal in this directory later.
+    _git("branch", "--set-upstream-to", f"origin/{branch}", branch)
     st = state()
+    if st["branch"] != branch:       # belt and braces: say so rather than
+        return False, (f"this copy ended up on {st['branch']} rather than "
+                       f"{branch}, where updates would not find it"), st
     return True, (f"adopted at {st['head']}"
                   + (" - `git status` shows what differs locally"
                      if st["dirty"] else "")), st
