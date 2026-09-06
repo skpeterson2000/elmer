@@ -24,8 +24,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               bugreport, gps, reachout, repeaters, terrain,
-               update)
+               bugreport, conductors, gps, reachout, repeaters,
+               terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -476,6 +476,19 @@ def api_ways_out():
     return jsonify(answer)
 
 
+@app.route("/api/conductors")
+def api_conductors():
+    """What an element can be made of, and what each choice costs or buys."""
+    try:
+        mhz = float(request.args.get("mhz", "14.2"))
+    except ValueError:
+        abort(400)
+    if not 0.1 <= mhz <= 3000:
+        abort(400)
+    return jsonify({"mhz": mhz, "conductors": conductors.options(mhz),
+                    "reference": conductors.REFERENCE["key"]})
+
+
 @app.route("/api/pattern")
 def api_pattern():
     """Where the energy goes, and how much band you get - for one antenna."""
@@ -498,6 +511,14 @@ def api_pattern():
     except ValueError:
         slope = 0.0
     spec = patterns.ANTENNA_Q[kind]
+    # A fatter element is a lower-Q element and a lower-Q element holds its
+    # SWR across more of the band. The bowtie is left alone: its Q already
+    # comes from the width of the triangle, and scaling that by the gauge of
+    # the wire round the edge would count the same thing twice.
+    conductor = request.args.get("conductor") or conductors.REFERENCE["key"]
+    made_of = conductors.describe(conductor, mhz)
+    if kind != "bowtie" and made_of["q_scale"] != 1.0:
+        spec = dict(spec, q=spec["q"] * made_of["q_scale"])
 
     # What this antenna can actually work decides who its neighbours are. An
     # NVIS wire does not reach Europe, so putting Europe on its compass would
@@ -544,8 +565,9 @@ def api_pattern():
         "azimuth": patterns.azimuth(kind, heading),
         "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
         "slope": slope,
-        "swr": patterns.swr_curve(kind, mhz),
-        "bandwidth": patterns.usable_bandwidth(kind, mhz),
+        "swr": patterns.swr_curve(kind, mhz, q=spec["q"]),
+        "bandwidth": patterns.usable_bandwidth(kind, mhz, q=spec["q"]),
+        "conductor": made_of,
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
         "qth_source": place.get("source") or "saved",
         "qth_age_s": place.get("age_s"),

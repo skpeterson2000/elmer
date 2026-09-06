@@ -282,6 +282,33 @@ covering 800 km serves a question about 300. It used to match the radius
 exactly, which meant a trip prepared before leaving was never found again,
 since ELMER asks with a different radius for every band and antenna.
 
+## What it is made of
+
+The lab now asks what the element is actually made of - #18 flex, house wire,
+fence wire, a coat hanger, a tape measure blade, aluminium tube, EMT conduit,
+copper pipe in three sizes - and the answer changes the numbers, because it
+changes the antenna.
+
+The rule runs opposite to most people's intuition, so it is shown rather than
+asserted: **a fatter conductor has a *lower* Q, and a lower Q is a *wider*
+band.** A thin wire is the high-Q, narrow case. On 20 m a #18 wire dipole
+holds 2:1 across about 504 kHz; the same dipole in 1 in copper pipe holds it
+across 767 - and on 2 m the difference is nearly 1.7 to 1. It is the same
+reason a bowtie or a cage dipole covers a whole band where thin wire covers
+part of one, and why commercial VHF antennas are tube rather than wire.
+
+Being fatter also resonates shorter, so the element wants cutting to about
+0.935 of a half wavelength instead of 0.95 - the dimensions follow the choice.
+The number underneath is the thickness factor, 2 ln(4L/d), and it is labelled
+as the approximation it is. Steel choices carry their own warning: fence wire,
+conduit and coat hangers conduct about a tenth as well as copper, which a
+full-size resonant element mostly forgives and a loaded one does not.
+
+The bowtie is also drawn at the shape it actually is. It was being drawn as a
+slender dart about a fifth as wide as it is long, when the dimensions beside
+it said the tips are *wider* than each half is long - so the picture argued
+against the number and against the whole reason for building one.
+
 ## How far, and toward whom
 
 The plan view is a map now, not just a compass. Every antenna other than a
