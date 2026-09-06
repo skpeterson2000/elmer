@@ -60,6 +60,16 @@ async function roAsk() {
     return;
   }
 
+  /* No position is not "you have not ticked anything" - it is a different
+     problem with a different fix, and saying the wrong one leaves somebody
+     ticking boxes that were never the issue. */
+  if (d.located === false) {
+    where.textContent = '';
+    box.innerHTML = '<p class="tiny" style="color:var(--amber)">' +
+      escapeHTML(d.note) + '</p>';
+    return;
+  }
+
   where.innerHTML = 'From <b>' + escapeHTML(d.qth || 'the QTH on file') + '</b>' +
     (d.qth_source === 'gps' ? ' <span class="mono">(GPS)</span>' : '') +
     ', ' + (d.daytime ? 'in daylight' : 'after dark') + '. ' +

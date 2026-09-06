@@ -457,15 +457,21 @@ def api_ways_out():
     place = qth_for(connection, profile)
     if place.get("lat") is None:
         return jsonify({"ways": [], "coverage": None, "qth": "",
-                        "note": "No position yet: set a QTH on the propagation "
-                                "page, or let a GPS answer."})
+                        "located": False,
+                        "note": "ELMER does not know where you are yet, and "
+                                "every answer on this page is an answer about "
+                                "a place. Set a QTH on the propagation page - "
+                                "a grid square is enough - or let a GPS "
+                                "answer."})
     gear = [g for g in (request.args.get("gear") or "").split(",")
             if g in reachout.GEAR]
     licence = request.args.get("licence") or \
         profile["settings"].get("licence_class") or "Technician"
-    answer = reachout.summary(place["lat"], place["lon"], gear, licence)
+    answer = reachout.summary(place["lat"], place["lon"], gear, licence,
+                              conn=connection)
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
+    answer["located"] = True
     return jsonify(answer)
 
 

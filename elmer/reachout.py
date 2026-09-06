@@ -18,7 +18,6 @@ metres. Knowing that is the difference between waiting and working.
 The odds are stated in words rather than numbers because numbers here would be
 invented. "Worth trying" means worth trying.
 """
-import math
 import time
 
 from . import bandplan, repeaters
@@ -35,7 +34,6 @@ GEAR = {
     "hf_mobile": "HF with a vehicle whip",
     "hf_wire": "HF, and room to string a wire",
     "gmrs": "GMRS, FRS, MURS or CB",
-    "none": "No amateur radio to hand",
 }
 
 # 47 CFR 97.301: what a licence class may actually key up on.
@@ -66,12 +64,13 @@ def _vhf(gear):
     return bool({"ht", "mobile_vhf"} & set(gear))
 
 
-def repeater_ways(lat, lon, gear, height_ft=6.0):
+def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
     """The machines in range, which is where anybody should start."""
     if not _vhf(gear):
         return []
     watts = 50 if "mobile_vhf" in gear else 5
-    rows, source = repeaters.nearby(lat, lon, None, limit=6, height_ft=height_ft)
+    rows, source = repeaters.nearby(lat, lon, None, limit=6,
+                                    height_ft=height_ft, conn=conn)
     cover = repeaters.coverage(lat, lon)
     if not rows:
         if not cover["known"]:
@@ -94,8 +93,9 @@ def repeater_ways(lat, lon, gear, height_ft=6.0):
         odds = "long shot"
     return [{
         "key": "repeater", "title": f"{best['call']} on {best['output']:.3f}",
-        "odds": odds, "needs": f"{'A handheld' if watts == 5 else 'A mobile rig'} "
-                               f"on {best['band']}",
+        "odds": odds,
+        "needs": ("A handheld" if watts == 5 else "A mobile rig")
+                 + f" - the nearest is on {best['band']}, and the rest are below",
         "do": (f"{best['output']:.3f} MHz, "
                + (f"offset {best['offset']:+.1f} MHz, " if best.get("offset") else "")
                + (f"tone {best['tone']}. " if best.get("tone") else "no tone listed. ")
@@ -109,10 +109,11 @@ def repeater_ways(lat, lon, gear, height_ft=6.0):
     }]
 
 
-def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None):
+def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None,
+         conn=None):
     """Everything worth trying from here, best bet first."""
     gear = set(gear or [])
-    out = list(repeater_ways(lat, lon, gear, height_ft))
+    out = list(repeater_ways(lat, lon, gear, height_ft, conn))
     day = daytime(lon, now)
     rank = _class_rank(licence)
 
@@ -208,7 +209,7 @@ def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None):
                        "way on very little.",
             })
 
-    if "gmrs" in gear or not gear or gear == {"none"}:
+    if "gmrs" in gear or not gear:
         out.append({
             "key": "other-services", "title": "The radios that are not amateur",
             "odds": "worth trying",
@@ -252,9 +253,9 @@ def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None):
     return [w for w in sorted(out, key=sort_key) if w["odds"] != "no"]
 
 
-def summary(lat, lon, gear=(), licence="Technician", now=None):
+def summary(lat, lon, gear=(), licence="Technician", now=None, conn=None):
     """The whole answer, with the reasoning that produced it attached."""
-    found = ways(lat, lon, gear, licence, now=now)
+    found = ways(lat, lon, gear, licence, now=now, conn=conn)
     cover = repeaters.coverage(lat, lon)
     return {
         "ways": found,
