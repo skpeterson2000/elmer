@@ -244,6 +244,19 @@ outright. `--doctor` says the same at any time. ELMER keeps everything in
 `data/` beside itself, so the fix is always to move the whole folder somewhere
 permanent - `~/ELMER` does nicely - and the data comes with it.
 
+One thing moving does break: a `.desktop` entry holds an absolute path, so the
+menu icon keeps pointing at where ELMER used to be and quietly does nothing.
+`--doctor` now says so plainly instead of reporting "installed", and
+`./install.sh` offers to repoint it. `./elmer.py --install-launcher` does it
+directly. The entry declares `Categories=Education;HamRadio;`, which is why it
+turns up under both.
+
+Install without sudo. The menu entry goes in the invoking user's own share
+directory and `data/` takes the ownership of whoever writes it, so a root
+install puts the icon in a menu nobody uses and leaves ELMER unable to save
+anything when the desktop user runs it. The installer asks for sudo only when
+a system package is genuinely needed.
+
 ## Getting a message out
 
 The **Make Contact** page answers the question somebody a long way up a forest

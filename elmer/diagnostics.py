@@ -110,14 +110,14 @@ def check_location():
     """Where this copy lives, and whether that place will still exist later."""
     where = install_location()
     if where["ok"]:
-        return [_line("ok", "installed in a sensible place",
-                      f"{where['kind']}, writable")]
-    out = [_line("warn", f"installed in {where['kind']} storage")]
+        _line(OK, "install location", f"{where['kind']}, writable")
+        return True
+    _line(WARN, "install location", f"{where['kind']} storage")
     for concern in where["concerns"]:
-        out.append(_line("warn", concern))
-    out.append(_line("warn", "move the whole folder somewhere permanent - "
-                             "your data/ comes with it"))
-    return out
+        _line(WARN, "", concern)
+    _line(WARN, "", "move the whole folder somewhere permanent - data/ comes "
+                    "with it")
+    return True
 
 
 def check_pools():
@@ -287,13 +287,32 @@ def check_updates():
 
 
 def check_launcher():
-    """Whether ELMER is in the applications menu."""
+    """Whether ELMER is in the applications menu, and whether it points here.
+
+    A .desktop entry holds an absolute Exec path, so moving the install folder
+    leaves the icon pointing at somewhere that no longer exists - and the
+    advice to move a copy out of the downloads folder is advice that causes
+    exactly that. Saying "installed" for a dead icon would be the wrong kind
+    of true.
+    """
     from . import launcher
-    if launcher.installed():
-        _line(OK, "menu entry", "installed - ELMER is in the applications menu")
-    else:
+    if not launcher.installed():
         _line(WARN, "menu entry", "not installed - add it with "
                                   "./elmer.py --install-launcher")
+        return True
+    if launcher.installed_here():
+        _line(OK, "menu entry", "installed, and points at this copy")
+        return True
+    target = launcher.owner()
+    if target and target.exists():
+        _line(OK, "menu entry", "installed, but it points at another copy of "
+                                "ELMER on this machine")
+        _line(WARN, "", "./elmer.py --install-launcher would point it here "
+                        "instead")
+    else:
+        _line(BAD, "menu entry", "points at a folder that is no longer there - "
+                                 "the icon will do nothing")
+        _line(WARN, "", "./elmer.py --install-launcher repoints it at this copy")
     return True
 
 
