@@ -109,6 +109,13 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--report", action="store_true",
+                    help="write a problem report - versions, recent errors and "
+                         "the tail of the log - with the station's identity "
+                         "taken out of it")
+    ap.add_argument("--report-with-station", action="store_true",
+                    help="with --report, leave the callsign, grid and network "
+                         "addresses in. Only do this if you have read it")
     ap.add_argument("--gps", action="store_true",
                     help="ask the GPS where the station is, and say whether "
                          "ELMER will use it")
@@ -191,6 +198,34 @@ def main():
         from elmer.report import print_stats
         print_stats(args.user)
         return
+
+    if args.report or args.report_with_station:
+        from elmer import bugreport, db
+        try:
+            connection = db.connect()
+        except Exception:
+            connection = None
+        path, redacted, text = bugreport.write(
+            connection, include_station=args.report_with_station)
+        print(f"\n  Written to {path}\n")
+        if redacted:
+            print("  The callsign, the last two characters of the grid square,")
+            print("  any coordinates and the addresses of machines on your")
+            print("  network have been taken out. Versions, timings, errors and")
+            print("  tracebacks are still in - those are the parts that find a")
+            print("  fault.\n")
+            print("  Read it before you send it. --report-with-station leaves")
+            print("  the identifying detail in, if you would rather.\n")
+        else:
+            print("  This one has your callsign, grid and network addresses in")
+            print("  it, because you asked for that. Read it before you send it.\n")
+        if bugreport.CONTACT:
+            print(f"  Send it to {bugreport.CONTACT} if you would like somebody")
+            print("  to look at it. Nothing is sent anywhere by ELMER itself.\n")
+        else:
+            print("  ELMER does not send this anywhere. It is a file; it goes")
+            print("  where you decide to put it.\n")
+        sys.exit(0)
 
     if args.gpsd:
         from elmer import db, gps
@@ -394,6 +429,12 @@ def main():
     if log_path:
         print(f"\n  Logging to {log_path}")
         print(f"  Watch it live with:  tail -f {log_path}")
+
+    # Say which build this is, in the log, before anything else happens. A log
+    # that does not name its version costs whoever reads it the first hour.
+    import logging
+    from elmer import bugreport
+    bugreport.log_stamp(logging.getLogger("elmer"))
 
     from elmer import update
 

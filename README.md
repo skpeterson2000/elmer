@@ -206,6 +206,26 @@ you, and owning the book is not it. Being a work of the US government it carries
 no copyright and can be printed and handed out freely.
 
 
+## When it goes wrong
+
+Both halves of ELMER report faults into one place. The server logs unhandled
+exceptions with tracebacks; the browser catches JavaScript errors and unhandled
+promise rejections and beacons them to the same log, so a fault in a page does
+not stay in that page. The log rotates at 2 MB, keeping three. Every start
+stamps the build, the python and the platform into it, because a log that does
+not name its version costs whoever reads it the first hour.
+
+`./elmer.py --report`, or **Report a problem** on the dashboard, writes a
+single file: versions, what this install holds, every recent error and warning,
+and the tail of the log. It takes out the callsign, the town, the last two
+characters of the grid square, any coordinates and the addresses of machines on
+the home network - and says so. Versions, timings, tracebacks and the sequence
+of requests stay, because those are what find a fault.
+
+Nothing is sent anywhere. It is a file, and where it goes is the operator's
+decision, made after reading it. `--report-with-station` leaves the
+identifying detail in for somebody who would rather include it.
+
 ## Getting a message out
 
 The **Make Contact** page answers the question somebody a long way up a forest

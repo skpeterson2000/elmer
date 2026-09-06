@@ -51,3 +51,7 @@ venv/
 # Repeaters imported from TowerWitch or a RepeaterBook export. Yours, keyed
 # to where you are, so it is not the app's to ship.
 data/repeaters.json
+
+# Problem reports written by --report. They are generated, and may carry
+# whatever the operator chose to leave in them.
+data/elmer-report-*.txt

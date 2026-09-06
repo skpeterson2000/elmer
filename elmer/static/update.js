@@ -46,6 +46,12 @@ function renderUpdate(d) {
       ? '<div class="small warntext" style="margin-top:.3rem">Held back: ' +
         escapeHTML(d.blocked) + '</div>' : '') +
     (d.local ? updateControls(d, waiting) : '') +
+    (d.local ? '<div class="row" style="gap:.6rem;margin-top:.6rem;align-items:center">' +
+        '<button class="btn sm" data-report="1">Report a problem</button>' +
+        '<span class="tiny muted">Writes a file with the versions, the recent ' +
+        'errors and the tail of the log &mdash; with your callsign, QTH and ' +
+        'network addresses taken out. Nothing is sent anywhere.</span>' +
+      '</div><div id="report-out"></div>' : '') +
     '<p class="tiny muted" style="margin:.7rem 0 0">' +
       'ELMER checks the repository it was installed from and tells you what it ' +
       'finds. It never applies an update on its own &mdash; that is always your ' +
@@ -156,3 +162,35 @@ document.addEventListener('change', async e => {
 });
 
 api('/api/update').then(renderUpdate).catch(() => {});
+
+
+/* Writing a report is a local action with a file as its only result. It is
+   deliberately not a "send" button: what leaves this machine is the
+   operator's decision, made after reading the thing. */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-report]');
+  if (!btn) return;
+  const out = document.getElementById('report-out');
+  btn.disabled = true;
+  if (out) out.innerHTML = '<p class="tiny muted">Writing...</p>';
+  try {
+    const d = await api('/api/report', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({station: false}),
+    });
+    if (out) out.innerHTML =
+      '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
+        escapeHTML(d.path) + '</span>' +
+        (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.' : '') +
+        (d.contact ? ' Send it to <span class="mono">' + escapeHTML(d.contact) +
+                     '</span> if you would like somebody to look at it.' : '') +
+      '</p>' +
+      '<details><summary class="tiny muted" style="cursor:pointer">' +
+        'Read it before you send it</summary>' +
+        '<pre class="tiny" style="max-height:16rem;overflow:auto;white-space:pre-wrap">' +
+        escapeHTML(d.text.slice(0, 20000)) + '</pre></details>';
+  } catch (err) {
+    if (out) out.innerHTML = '<p class="tiny warntext">Could not write a report.</p>';
+  }
+  btn.disabled = false;
+});
