@@ -147,6 +147,35 @@ because they carry very different authority:
   another state means adding one entry with a parser to
   `elmer/regional.py`.
 
+The bar is a way in rather than only a picture. Hovering a segment says what
+happens there and whether the band is open right now, from the same space
+weather feed the dashboard uses. Clicking one keeps that on screen and offers to
+carry the frequency into the antenna designer — with the *intention* attached,
+read from what the segment is for: a repeater segment means local FM, 40 m means
+regional, 20 m means DX.
+
+What arrives at the other end is not a blank calculator. **`/lab?f=…&use=…`**
+answers the question a new licensee is actually asking — what should I put up,
+how high, which way round — and then sets the calculator to that answer, so the
+dimensions below are the dimensions of the thing being recommended:
+
+- **146.52 MHz, local FM** → a vertical, 20 ft. *FM is vertically polarised, and
+  a horizontal antenna hearing a vertical one loses around 20 dB — more than any
+  amplifier you could buy would give back.*
+- **7.200 MHz, regional** → an inverted-V at 25 ft, deliberately low. *The one
+  case where a low antenna is the right answer rather than a compromise, worth
+  knowing before somebody talks you into a tower.*
+- **14.200 MHz, DX** → a dipole at half a wavelength, 35 ft, hung broadside to
+  where you want to work, with a 1:1 choke balun at the feedpoint.
+
+Each comes with what usually goes wrong — the ends of a dipole are the
+high-voltage points, an end-fed will use your coax braid as a counterpoise if you
+do not give it one, digital modes are 100% duty cycle so turn the power down and
+redo the exposure evaluation — and an alternative for when the garden is too
+small. It is a starting point rather than a rule: good enough to make contacts
+with, which is what somebody needs before they have the experience to disagree
+with it.
+
 Two printouts. **One page (PDF)** is the picture: every band drawn to scale on a
 single landscape sheet, your privileges filled in and coloured by what you may
 send there — voice, CW and data, or CW only — and everything you may not
