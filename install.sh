@@ -22,6 +22,8 @@ ELMER installer
   ./install.sh --update        fetch and apply the latest ELMER
   ./install.sh --repair        put back what is missing or changed, and re-check
   ./install.sh --check         run the self-check and change nothing
+  ./install.sh --connect       give a downloaded copy the link it needs to
+                               update itself from now on
   ./install.sh --remove        take away the menu entry and the virtualenv
                                (--uninstall means the same thing)
 
@@ -41,7 +43,7 @@ ASSUME_YES=0
 FORCE_VENV=0
 WANT_LAUNCHER=1
 DISCARD=0
-MODE=""                       # update | repair | check | remove | install
+MODE=""                       # update | repair | check | connect | remove | install
 
 for arg in "$@"; do
     case "$arg" in
@@ -51,6 +53,7 @@ for arg in "$@"; do
         --update)      MODE=update ;;
         --repair)      MODE=repair ;;
         --check)       MODE=check ;;
+        --connect)     MODE=connect ;;
         --remove|--uninstall) MODE=remove ;;
         --discard-local-changes) DISCARD=1 ;;
         --help|-h)     usage; exit 0 ;;
@@ -111,8 +114,73 @@ do_remove() {
     printf '  Delete the whole directory to remove ELMER itself.\n\n'
 }
 
+is_checkout() { git rev-parse --git-dir >/dev/null 2>&1; }
+
+# A copy that was downloaded rather than cloned arrives as plain files with no
+# link back to where ELMER came from, so it cannot tell whether it is current
+# and has nothing to fetch from. Giving it that link is one command, but it is
+# a command nobody should have to know: it belongs behind a question in plain
+# words, which is what this is.
+connect_repository() {
+    head2 "This copy was downloaded rather than cloned"
+    printf '  It has no link back to where ELMER comes from, so it cannot\n'
+    printf '  tell whether it is current, and has nothing to update from.\n\n'
+    printf '  Connecting it fetches that history alongside the files already\n'
+    printf '  here. %sIt overwrites nothing%s - not one file, and never your\n' "$BOLD" "$OFF"
+    printf '  study data in data/.\n\n'
+    if ! ask "Connect this copy so it can update itself?"; then
+        warn "left as it is - this copy cannot update itself"
+        return 1
+    fi
+    "$PY" ./elmer.py --adopt || return 1
+
+    # Connecting says where the current release is; it does not make these
+    # files into it. Left there, the install is a contradiction - the newest
+    # version by its own reckoning, running whatever came in the zip - and it
+    # would cheerfully report itself up to date. So finish the job.
+    local differs count
+    differs="$(git status --porcelain --untracked-files=no || true)"
+    if [ -z "$differs" ]; then
+        ok "connected, and these files already match the current release"
+        return 0
+    fi
+    count="$(printf '%s\n' "$differs" | wc -l)"
+    head2 "$count file(s) here differ from the current release"
+    printf '%s\n' "$differs" | head -12 | sed 's/^/      /'
+    [ "$count" -gt 12 ] && printf '      %s...and %d more%s\n' "$DIM" "$((count - 12))" "$OFF"
+    printf '\n  Almost certainly that is just the copy you downloaded being an\n'
+    printf '  older one. Replacing them with the current release is what\n'
+    printf '  updating means here.\n'
+    printf '  %sIf you edited any of those files yourself, those edits go too.%s\n' "$AMBER" "$OFF"
+    printf '  %sYour study data in data/ is not affected.%s\n' "$DIM" "$OFF"
+    local self_changed=0
+    case "$differs" in *install.sh*) self_changed=1 ;; esac
+    if confirm_destructive "Bring these files up to the current release?"; then
+        git checkout -- . && ok "this install is now the current release"
+        # Bash reads a script as it goes. If this installer was one of the
+        # files just replaced, the rest of this run would be read out of a
+        # file that changed underneath it - so stop cleanly and let the new
+        # one do the rest. Connecting is done and does not need repeating.
+        if [ "$self_changed" = 1 ]; then
+            printf '\n  %sinstall.sh was one of those files, so this run is reading a\n' "$DIM"
+            printf '  script that has changed underneath it. Run ./install.sh again\n'
+            printf '  to carry on from the new one.%s\n\n' "$OFF"
+            exit 0
+        fi
+    else
+        warn "left alone - ELMER would report itself current while running the older files"
+        printf '  %sRun ./install.sh --connect again when you have looked them over.%s\n' \
+            "$DIM" "$OFF"
+        return 1
+    fi
+}
+
 do_update() {
     head2 "Updating ELMER"
+    if ! is_checkout; then
+        connect_repository || return 1
+        head2 "Updating ELMER"
+    fi
     if [ "$ASSUME_YES" = 1 ]; then
         "$PY" ./elmer.py --update --yes || return 1
     else
@@ -127,12 +195,10 @@ do_update() {
 # a checkout. Untracked files are left alone: they are nobody's business but
 # their owner's.
 repair_tracked_files() {
-    git rev-parse --git-dir >/dev/null 2>&1 || {
-        warn "not a git checkout, so there is nothing to compare against"
-        printf '  %sRun ./elmer.py --adopt to give this copy a history.%s\n' \
-            "$DIM" "$OFF"
+    if ! is_checkout; then
+        connect_repository || true    # declining is an answer; carry on repairing
         return 0
-    }
+    fi
     local changed
     changed="$(git status --porcelain --untracked-files=no || true)"
     if [ -z "$changed" ]; then
@@ -195,7 +261,11 @@ SIGNS="$(installed_signs || true)"
 if [ -z "$MODE" ] && [ -n "$SIGNS" ] && [ -t 0 ] && [ "$ASSUME_YES" = 0 ]; then
     head2 "ELMER is already installed here"
     printf '  %sfound: %s%s\n\n' "$DIM" "$SIGNS" "$OFF"
-    printf '    1) Update    fetch the latest ELMER and apply it\n'
+    if is_checkout; then
+        printf '    1) Update    fetch the latest ELMER and apply it\n'
+    else
+        printf '    1) Update    connect this downloaded copy, then bring it up to date\n'
+    fi
     printf '    2) Repair    put back anything missing or changed, and re-check\n'
     printf '    3) Remove    take away the menu entry and the virtualenv\n'
     printf '    4) Check     run the self-check and change nothing\n'
@@ -219,6 +289,13 @@ case "$MODE" in
     remove) do_remove; exit 0 ;;
     update) do_update; exit $? ;;
     check)  head2 "Checking the install"; "$PY" ./elmer.py --doctor; exit $? ;;
+    connect)
+        if is_checkout; then
+            ok "this install is already connected - nothing to do"
+            exit 0
+        fi
+        connect_repository
+        exit $? ;;
 esac
 
 # From here on it is an install or a repair, which are the same walk: check
