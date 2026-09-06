@@ -673,12 +673,16 @@ function calcAnt() {
               : '.') +
             ' Raise the support, shorten the angle, or run it flatter.');
         } else {
-          notes.push('<b>Slung at ' + slopeDeg + '&deg;</b> the top is at ' +
-            hFt.toFixed(0) + '&nbsp;ft and the bottom at <b>' + lowEnd.toFixed(0) +
-            '&nbsp;ft</b>, so it radiates from about <b>' + midFt.toFixed(0) +
-            '&nbsp;ft</b> &mdash; the height of its middle, not of the mast. ' +
-            'That is the figure people quote when a sloper disappoints against ' +
-            'the dipole they had imagined.');
+          notes.push('<b>Slung at ' + slopeDeg + '&deg;</b> the support end is ' +
+            'at ' + hFt.toFixed(0) + '&nbsp;ft and the low end at <b>' +
+            lowEnd.toFixed(0) + '&nbsp;ft</b>, so it radiates from about <b>' +
+            midFt.toFixed(0) + '&nbsp;ft</b> &mdash; the height of its middle, ' +
+            'not of the mast. That is the figure people quote when a sloper ' +
+            'disappoints against the dipole they had imagined.' +
+            (type === 'efhw'
+              ? ' Feed it at the low end: the far end of an end-fed is the ' +
+                'high-voltage point, and that is the one you want up the tree.'
+              : ''));
         }
         notes.push('Tilting mixes vertical polarisation into what was a ' +
           'horizontal antenna, and the vertical part does not null along the ' +
@@ -816,22 +820,74 @@ function drawAntenna(shape, rows, type) {
       lbl(W / 2 + 40, (cy + g) / 2, 'height', 'start');
   } else if (shape === 'wire') {
     const y = 90;
+    /* The angle on the screen is the angle you set. Both of these used to be
+       drawn at a fixed shape whatever the slider said, which made the picture
+       a decoration rather than a readout - and on a sloper the angle is the
+       entire subject. The horizontal span shrinks as the angle steepens so the
+       drop always fits between the wire and the ground, which keeps the drawn
+       angle true rather than flattening it to fit. */
+    const tilt = (deg, room) => {
+      const rad = Math.abs(deg) * Math.PI / 180;
+      const span = Math.min(200, rad > 0.01 ? room / Math.tan(rad) : 200);
+      return {span: span, drop: span * Math.tan(rad)};
+    };
     if (type === 'loop') {
       body = '<rect x="215" y="45" width="190" height="120" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
         '<line x1="310" y1="165" x2="310" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
         lbl(310, 38, 'one full wavelength of wire') + lbl(310, 200, 'feed', 'middle');
     } else if (type === 'efhw') {
-      body = '<line x1="120" y1="' + y + '" x2="520" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
-        '<circle cx="120" cy="' + y + '" r="5" fill="#58a6ff"/>' +
-        '<line x1="120" y1="' + y + '" x2="120" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
-        lbl(320, y - 12, 'half wavelength of wire') + lbl(120, y - 16, '49:1 unun');
+      const slope = num('an-slope') || 0;
+      if (slope > 0) {
+        /* Fed at the low end, rising to the support: that puts the far end -
+           which on an end-fed is the high-voltage one - at the top, where it
+           belongs and where it is out of reach. */
+        const t = tilt(slope, 62);
+        const top = 50, x1 = 310 - t.span, x2 = 310 + t.span;
+        const yLow = top + 2 * t.drop;
+        body =
+          '<line x1="' + x2 + '" y1="' + top + '" x2="' + x2 + '" y2="' + g +
+            '" stroke="#2a3441" stroke-width="3"/>' +
+          '<line x1="' + x1 + '" y1="' + yLow + '" x2="' + x2 + '" y2="' + top +
+            '" stroke="#ffb454" stroke-width="2.5"/>' +
+          '<circle cx="' + x1 + '" cy="' + yLow + '" r="5" fill="#58a6ff"/>' +
+          '<line x1="' + x1 + '" y1="' + yLow + '" x2="' + x1 + '" y2="' + g +
+            '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+          lbl(x1, yLow + 22, '49:1 unun, fed low') +
+          lbl(x2, top - 10, 'far end, high voltage') +
+          lbl((x1 + x2) / 2, (top + yLow) / 2 - 12, slope + '\u00b0');
+      } else {
+        body = '<line x1="120" y1="' + y + '" x2="520" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
+          '<circle cx="120" cy="' + y + '" r="5" fill="#58a6ff"/>' +
+          '<line x1="120" y1="' + y + '" x2="120" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+          lbl(320, y - 12, 'half wavelength of wire') + lbl(120, y - 16, '49:1 unun');
+      }
+    } else if (type === 'dipole' && num('an-slope') > 0) {
+      const slope = num('an-slope');
+      const t = tilt(slope, 62);
+      const top = 50, x1 = 310 - t.span, x2 = 310 + t.span;
+      const yLow = top + 2 * t.drop, yMid = top + t.drop;
+      body =
+        '<line x1="' + x2 + '" y1="' + top + '" x2="' + x2 + '" y2="' + g +
+          '" stroke="#2a3441" stroke-width="3"/>' +
+        '<line x1="' + x1 + '" y1="' + yLow + '" x2="' + x2 + '" y2="' + top +
+          '" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="310" cy="' + yMid + '" r="5" fill="#58a6ff"/>' +
+        '<line x1="310" y1="' + yMid + '" x2="310" y2="' + g +
+          '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+        lbl(310, yMid + 24, 'feed at the middle') +
+        lbl(x2, top - 10, 'high end') + lbl(x1, yLow + 16, 'low end') +
+        lbl((310 + x2) / 2, (top + yMid) / 2 - 10, slope + '\u00b0');
     } else {
-      const drop = type === 'invertedv' ? 55 : 0;
-      body = '<line x1="120" y1="' + (y + drop) + '" x2="320" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
-        '<line x1="320" y1="' + y + '" x2="520" y2="' + (y + drop) + '" stroke="#ffb454" stroke-width="2.5"/>' +
-        '<line x1="320" y1="' + y + '" x2="320" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
-        lbl(220, y + drop / 2 - 10, 'leg') + lbl(420, y + drop / 2 - 10, 'leg') +
-        lbl(320, y - 12, 'feed point') + lbl(360, (y + g) / 2, 'height', 'start');
+      /* The droop follows the slider now, rather than a fixed 55 pixels that
+         made the V look the same at 5 degrees as at 60. */
+      const t = type === 'invertedv' ? tilt(num('an-droop'), 95) : {span: 200, drop: 0};
+      const x1 = 310 - t.span, x2 = 310 + t.span;
+      body = '<line x1="' + x1 + '" y1="' + (y + t.drop) + '" x2="310" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<line x1="310" y1="' + y + '" x2="' + x2 + '" y2="' + (y + t.drop) + '" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<line x1="310" y1="' + y + '" x2="310" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+        lbl((x1 + 310) / 2, y + t.drop / 2 - 10, 'leg') +
+        lbl((310 + x2) / 2, y + t.drop / 2 - 10, 'leg') +
+        lbl(310, y - 12, 'feed point') + lbl(350, (y + g) / 2, 'height', 'start');
     }
   } else if (shape === 'vert') {
     const top = type === 'fiveeighth' ? 40 : 70;
