@@ -289,6 +289,23 @@ installed_signs() {
 
 check_location
 
+# The menu entry goes in the invoking user's own share directory, and data/
+# takes the ownership of whoever writes it. Installed with sudo, both belong
+# to root: the icon appears in a menu nobody uses, and ELMER cannot save
+# anything when the desktop user later runs it.
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    head2 "Running as root"
+    printf '  ELMER does not need root, and installing as root puts the menu\n'
+    printf '  entry in root'"'"'s applications menu rather than %s'"'"'s, and makes\n' "$SUDO_USER"
+    printf '  data/ root-owned so nothing can be saved when %s runs it.\n\n' "$SUDO_USER"
+    printf '  %sRun ./install.sh without sudo. It asks for sudo only if a system%s\n' "$DIM" "$OFF"
+    printf '  %spackage is genuinely needed.%s\n\n' "$DIM" "$OFF"
+    if ! ask "Carry on as root anyway?"; then
+        printf '\n  Nothing done.\n\n'
+        exit 0
+    fi
+fi
+
 SIGNS="$(installed_signs || true)"
 
 if [ -z "$MODE" ] && [ -n "$SIGNS" ] && [ -t 0 ] && [ "$ASSUME_YES" = 0 ]; then
@@ -464,6 +481,16 @@ if [ "$WANT_LAUNCHER" = 1 ]; then
     HAVE_ENTRY=0
     "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed_here() else 1)' \
         2>/dev/null && HAVE_ENTRY=1
+    # An entry holds an absolute path, so a folder that has been moved leaves
+    # an icon that quietly does nothing. Worth naming, because the advice to
+    # move a copy out of the downloads folder is what causes it.
+    STALE=0
+    if [ "$HAVE_ENTRY" = 0 ]; then
+        "$PY" -c 'from elmer import launcher
+gone = launcher.owner()
+raise SystemExit(0 if launcher.installed() and gone and not gone.exists() else 1)' \
+            2>/dev/null && STALE=1
+    fi
     if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
         warn "no desktop session here, so no menu entry was added"
         printf '  %sRun ./install.sh again from the desktop to add one.%s\n' "$DIM" "$OFF"
@@ -471,6 +498,15 @@ if [ "$WANT_LAUNCHER" = 1 ]; then
         # A repair puts the entry back as it should be without asking: it is
         # already there, and rewriting it is the repair.
         "$PY" ./elmer.py --log-level WARNING --install-launcher
+    elif [ "$STALE" = 1 ]; then
+        warn "the menu entry points at a folder that is no longer there"
+        printf '  %sThat happens when ELMER is moved: the icon keeps the old path.%s\n' \
+            "$DIM" "$OFF"
+        if ask "Point it at this copy instead?"; then
+            "$PY" ./elmer.py --log-level WARNING --install-launcher
+        else
+            printf '  %sleft alone — the icon will keep doing nothing%s\n' "$DIM" "$OFF"
+        fi
     elif ask "Add ELMER to the applications menu and the desktop?"; then
         # --log-level WARNING keeps the launcher's own log line out of the
         # installer's output; a new user should not be reading log formatting.
