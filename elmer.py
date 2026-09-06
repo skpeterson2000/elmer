@@ -106,6 +106,9 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--fetch-places", action="store_true",
+                    help="look up the towns around your QTH, for naming what "
+                         "an antenna reaches")
     ap.add_argument("--fetch-nifog", action="store_true",
                     help="read the interoperability channels out of the current "
                          "NIFOG and cache them")
@@ -167,6 +170,28 @@ def main():
     if args.stats:
         from elmer.report import print_stats
         print_stats(args.user)
+        return
+
+    if args.fetch_places:
+        from elmer import db, places
+        connection = db.connect()
+        settings = db.get_profile(connection)["settings"]
+        spot = settings.get("location") or {}
+        if spot.get("lat") is None:
+            print("\n  No QTH set. Put one in on the propagation page first -")
+            print("  a grid square, coordinates or a town name will do.\n")
+            sys.exit(1)
+        print(f"\n  Looking up what is around {spot.get('short') or spot.get('grid')}...")
+        try:
+            for radius in (500, 100):
+                rows = places.fetch(spot["lat"], spot["lon"], radius)
+                print(f"      {len(rows):3d} towns within {radius} km")
+        except Exception as exc:
+            print(f"\n  Could not reach OpenStreetMap: {exc}")
+            print("  ELMER will use its bundled list until this works.\n")
+            sys.exit(1)
+        print("\n  Cached. Antenna patterns will name these from now on,")
+        print("  with or without a network.\n")
         return
 
     if args.fetch_nifog:

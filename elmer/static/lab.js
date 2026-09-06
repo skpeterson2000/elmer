@@ -2032,6 +2032,14 @@ function planWords(d) {
   if (d.reach && d.reach.note) {
     html += '<p class="tiny muted">' + escapeHTML(d.reach.note) + '</p>';
   }
+  /* Say where the names came from. A bundled answer is a guess at what is near
+     you; a fetched one actually looked. */
+  if (d.reach && d.reach.places_from === 'bundled' && (d.dx || []).length) {
+    html += '<p class="tiny muted">Names from the list that ships with ELMER. ' +
+      'Run <span class="mono">./elmer.py --fetch-places</span> once, with a ' +
+      'network, and it will look up the towns actually around you &mdash; ' +
+      'including the small ones no bundled list would carry.</p>';
+  }
   const missed = (d.dx || []).filter(t => t.db < -6);
   const named = t => escapeHTML(t.region ? t.name + ', ' + t.region : t.name);
   if (missed.length) {
@@ -2048,6 +2056,14 @@ function planWords(d) {
       'line of sight of ' + escapeHTML(d.qth || 'here') + ', which is ordinary ' +
       'for VHF simplex &mdash; the repeater you are using is doing the reaching, ' +
       'not your antenna.</p>';
+  } else if (d.reach && d.reach.radius_km) {
+    /* The footprint is real even where the names are missing - an island, a
+       thinly settled stretch, or anywhere outside the list's North American
+       coverage. Say which of the two is missing. */
+    html += '<p class="tiny muted">No towns in ELMER\'s list fall inside this ' +
+      'footprint from ' + escapeHTML(d.qth || 'here') + '. The coverage is ' +
+      'real; the names are what is missing, and the list is a few hundred ' +
+      'North American cities rather than a gazetteer.</p>';
   }
   return html;
 }
