@@ -336,6 +336,20 @@ Interactive versions of the maths the pools test:
   horizontal antenna picks up as much as 6 dB more at the peak of its lobe once
   it is about half a wavelength up. That ceiling is 6 dB in total — it is not,
   as the folklore has it, another 6 dB for every doubling of height.
+- **Smith chart** — the one piece of the syllabus that a book cannot teach,
+  because it is a transformation rather than a picture. Set the antenna's R and
+  X, pick a feedline, and drag the length: the point walks around the chart in
+  front of you. The grid is labelled in ohms rather than normalised units, since
+  "0.5" means nothing to somebody learning and "25 Ω" means everything.
+
+  It is built to make three things land. A full turn of the chart is **half** a
+  wavelength of line, not a whole one. The spiral inward is loss, not magic. And
+  the trap: 100 ft of RG-58 into a 3:1 mismatch shows **2.0:1 at the shack while
+  the antenna sees 3.0:1** — the reflected wave crosses the lossy line twice, so
+  a bad feedline flatters the SWR meter by wasting the power it is not showing
+  you. Same antenna on LMR-400 reads a worse 2.6:1 and delivers 84 W instead of
+  56 W. Feeds the E9 and Element 3 drills.
+
 - **RF exposure evaluation** — an antenna designed in the Antennas tab can be
   sent straight here, carrying its frequency, gain and description. The starting
   distances are worked out per antenna type, because how close a person can get

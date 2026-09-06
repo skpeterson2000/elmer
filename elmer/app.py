@@ -23,7 +23,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
-               regional, rfexposure, rfpdf, srs, terrain, update)
+               regional, rfexposure, rfpdf, smith, srs, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -407,6 +407,25 @@ def api_bandplan():
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
     })
+
+
+@app.route("/api/smith")
+def api_smith():
+    """One antenna on one feedline, as the chart sees it."""
+    try:
+        r = float(request.args.get("r", "50"))
+        x = float(request.args.get("x", "0"))
+        mhz = float(request.args.get("mhz", "14.2"))
+        feet = float(request.args.get("feet", "100"))
+        watts = float(request.args.get("watts", "100"))
+    except ValueError:
+        abort(400)
+    line = request.args.get("line", "rg213")
+    if line not in smith.LINES:
+        abort(400)
+    if not (0.1 <= mhz <= 3000 and 0 <= feet <= 5000 and r >= 0 and watts > 0):
+        abort(400)
+    return jsonify(smith.analyse(r, x, line, mhz, feet, watts))
 
 
 @app.route("/api/antenna-advice")
