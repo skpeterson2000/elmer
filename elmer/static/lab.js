@@ -447,6 +447,38 @@ function radialZ(deg) {
 }
 
 
+/* What the element is made of, refreshed whenever the frequency moves: the
+   same pipe is a different antenna at 14 MHz and at 146. */
+let COND = {key: 'wire14', k: 0.95, q_scale: 1, band_scale: 1, label: ''};
+let CONDUCTORS = [];
+
+async function loadConductors(mhz) {
+  try {
+    const d = await api('/api/conductors?mhz=' + encodeURIComponent(mhz));
+    CONDUCTORS = d.conductors;
+  } catch (e) { return; }
+  const sel = document.getElementById('an-cond');
+  if (!sel) return;
+  const chosen = sel.value || COND.key || 'wire14';
+  sel.innerHTML = CONDUCTORS.map(c =>
+    '<option value="' + c.key + '"' + (c.key === chosen ? ' selected' : '') +
+    '>' + escapeHTML(c.label) + '</option>').join('');
+  COND = CONDUCTORS.find(c => c.key === chosen) || CONDUCTORS[0];
+  showConductor();
+}
+
+function showConductor() {
+  const out = document.getElementById('an-cond-v');
+  if (!out || !COND) return;
+  const wider = COND.band_scale;
+  out.innerHTML = COND.od_mm + ' mm across &mdash; ' +
+    (Math.abs(wider - 1) < 0.03
+      ? 'the reference'
+      : wider > 1
+        ? '<b>' + wider.toFixed(2) + '&times; the bandwidth</b> of #14 wire'
+        : '<b>' + (1 / wider).toFixed(2) + '&times; narrower</b> than #14 wire');
+}
+
 const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie'];
 
 /* Which antennas are balanced, because that and nothing else decides what goes
@@ -584,7 +616,10 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
 function calcAnt() {
   const type = document.getElementById('an-type').value;
   const f = num('an-f');
-  const k = num('an-k');
+  /* The velocity factor is now mostly the conductor's business: a fat element
+     resonates shorter than a thin one. The manual picker stays for anybody
+     who has measured their own, and whichever moved last wins. */
+  const k = COND.k || num('an-k');
   if (!(f > 0)) { out('an-out', 'Enter a frequency.'); return; }
   const lamFt = LAMBDA_FT(f);
   let rows = {}, gain = 0, z = null, notes = [], shape = 'wire';
@@ -658,6 +693,14 @@ function calcAnt() {
     const spec = ANTENNAS[type];
     shape = spec.shape;
     rows = spec.build(f);
+    /* The build formulas embed 0.95 - the wire case. Anything fatter comes
+       out shorter, and by enough to matter at VHF: a 2 m dipole in half-inch
+       copper is the better part of an inch short of the wire figure. */
+    if (Math.abs(k - 0.95) > 0.0005) {
+      Object.keys(rows).forEach(key => {
+        if (!/gap|Feed tap/i.test(key)) rows[key] = rows[key] * k / 0.95;
+      });
+    }
     gain = spec.gain;
     z = spec.z;
     if (type === 'groundplane') z = radialZ(num('an-radials'));
@@ -703,6 +746,19 @@ function calcAnt() {
     }
     const feeding = feedNote(type, (type === 'dipole') ? num('an-slope') : 0);
     if (feeding) notes.push(feeding);
+    if (COND && COND.note) {
+      notes.push('<b>' + escapeHTML(COND.label) + '.</b> ' +
+        escapeHTML(COND.note) +
+        (Math.abs(COND.band_scale - 1) > 0.03
+          ? ' At this frequency that is <b>' + COND.band_scale.toFixed(2) +
+            '&times;</b> the 2:1 bandwidth of #14 wire, and the element wants ' +
+            'cutting to <b>' + COND.k.toFixed(3) + '</b> of a half wavelength ' +
+            'rather than 0.95 &mdash; fatter resonates shorter.'
+          : ''));
+      if (COND.caution) {
+        notes.push('<b>Watch out:</b> ' + escapeHTML(COND.caution));
+      }
+    }
     if (type === 'quarter' || type === 'groundplane') notes.push(
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +
       'Radial count matters more than radial length &mdash; 16 or more on the ground, or ' +
@@ -905,7 +961,16 @@ function drawAntenna(shape, rows, type) {
   if (shape === 'bowtie') {
     /* Two triangles nose to nose: the picture is the explanation, because the
        width of the element is what buys the bandwidth. */
-    const cy = 96, halfSpan = 230, halfW = 46, gap = 9;
+    /* Drawn from the dimensions, not from a guess. A real bowtie is nearly as
+       wide across the tips as each half is long - the apex angle is about 70
+       degrees - and it was being drawn as a slender dart at a fifth of that,
+       which made the picture argue against the number beside it and against
+       the whole reason for building one. */
+    const edge = rows['Each element, feed to tip'] || 1;
+    const tipW = rows['Width across each tip'] || edge;
+    const axial = Math.sqrt(Math.max(0.0001, edge * edge - (tipW / 2) * (tipW / 2)));
+    const cy = 96, halfSpan = 200, gap = 9;
+    const halfW = Math.min(78, halfSpan * (tipW / 2) / Math.max(0.0001, axial));
     body =
       '<polygon points="' + (W / 2 - gap) + ',' + cy + ' ' +
         (W / 2 - halfSpan) + ',' + (cy - halfW) + ' ' +
@@ -918,7 +983,7 @@ function drawAntenna(shape, rows, type) {
       '<line x1="' + (W / 2) + '" y1="' + cy + '" x2="' + (W / 2) + '" y2="' + g +
         '" stroke="#58a6ff" stroke-width="1.4" stroke-dasharray="4 3"/>' +
       lbl(W / 2, cy - 60, 'feed at the apexes') +
-      lbl(W / 2 - halfSpan / 1.6, cy + 70, 'wide element = low Q = wide band') +
+      lbl(W / 2, cy + halfW + 22, 'wide element = low Q = wide band') +
       lbl(W / 2 + 40, (cy + g) / 2, 'height', 'start');
   } else if (shape === 'wire') {
     const y = 90;
@@ -1060,14 +1125,32 @@ function drawAntenna(shape, rows, type) {
 }
 
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-droop', 'an-radials', 'an-nvis', 'an-head']
+ 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
+      if (id === 'an-cond') {
+        COND = CONDUCTORS.find(c => c.key === el.value) || COND;
+        showConductor();
+      }
       antennaFields(document.getElementById('an-type').value);
       calcAnt();
     });
   });
+
+/* The same pipe is a different antenna at 14 MHz and at 146, so the list is
+   re-costed whenever the frequency moves. */
+(function () {
+  const freq = document.getElementById('an-f');
+  if (!freq) return;
+  let pending = null;
+  const refresh = () => {
+    clearTimeout(pending);
+    pending = setTimeout(() => loadConductors(num('an-f')).then(calcAnt), 250);
+  };
+  freq.addEventListener('input', refresh);
+  loadConductors(num('an-f')).then(calcAnt);
+})();
 
 /* How close a person can actually get differs completely by antenna type, and
    it is not the antenna's height. A horizontal wire is nearest directly
@@ -2172,7 +2255,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
     const nvisOn = (document.getElementById('an-nvis') || {}).checked ? 1 : 0;
     d = await api('/api/pattern?' + new URLSearchParams(
       {type: type, mhz: mhz, height: (effHeight || heightFt || 0),
-       heading: heading || 0, nvis: nvisOn, slope: slope || 0}));
+       heading: heading || 0, nvis: nvisOn, slope: slope || 0,
+       conductor: (COND && COND.key) || 'wire14'}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
   box.innerHTML =

@@ -484,7 +484,7 @@ def main_lobe(kind, height_wl, slope_deg=0.0):
     return best["deg"]
 
 
-def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121):
+def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121, q=None):
     """SWR against frequency, from the resonant-circuit approximation.
 
     Near resonance X ~ R*Q*(f/f0 - f0/f), which is the standard series-resonant
@@ -492,7 +492,10 @@ def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121):
     so the sweep is kept to +/-15% where it still means something.
     """
     spec = ANTENNA_Q.get(kind, ANTENNA_Q["dipole"])
-    q, r = spec["q"], spec["r"]
+    # `q` overrides the table so the conductor the element is made of can move
+    # it: a fatter element is a lower-Q element, and that is the whole reason
+    # anybody builds an antenna out of pipe.
+    q, r = (spec["q"] if q is None else float(q)), spec["r"]
     out = []
     for n in range(points):
         f = f0_mhz * (1 - span / 2 + span * n / (points - 1))
@@ -505,9 +508,9 @@ def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121):
     return out
 
 
-def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0):
+def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0, q=None):
     """The span where SWR stays under `limit`, in MHz and as a percentage."""
-    curve = swr_curve(kind, f0_mhz, z0=z0, points=601)
+    curve = swr_curve(kind, f0_mhz, z0=z0, points=601, q=q)
     good = [p["mhz"] for p in curve if p["swr"] <= limit]
     if not good:
         return {"limit": limit, "low": None, "high": None, "khz": 0, "percent": 0.0}
