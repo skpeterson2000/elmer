@@ -48,6 +48,54 @@ LICENSE grants any rights in them:
     (Element 4) question pools.
 
 
+OpenStreetMap - Open Database License (ODbL) 1.0
+------------------------------------------------
+
+    data/places.json        339 place names with coordinates
+
+    Coordinates resolved through OpenStreetMap's Nominatim service and shipped
+    so that a unit with no network can still name what an antenna reaches.
+
+        (c) OpenStreetMap contributors, https://www.openstreetmap.org/copyright
+        Made available under the Open Database License,
+        https://opendatacommons.org/licenses/odbl/1-0/
+
+    The place names themselves are ordinary knowledge; the coordinates came
+    from OSM, so the ODbL's attribution and share-alike terms apply to that
+    file and to any database derived from it. tools/build_places.py is the
+    script that produced it.
+
+
+Fetched at runtime, not shipped
+-------------------------------
+
+    These are looked up by the running program and cached under data/. They
+    are nobody's to redistribute here, and are named so that anyone auditing
+    an installation knows where its cached files came from.
+
+    OpenStreetMap Nominatim and Overpass  - place lookups and neighbours
+        (c) OpenStreetMap contributors, ODbL 1.0, as above.
+        Cached under data/geocode/ and data/places/.
+
+    OpenTopoData, SRTM 30 m               - ground profiles for path analysis
+        SRTM is a NASA/USGS product in the public domain; the service is a
+        courtesy, used within its published rate limits.
+        Cached under data/terrain/.
+
+    CISA NIFOG                            - interoperability channels
+        A work of the US government, no copyright, freely reproducible.
+        CISA's to revise, so ELMER keeps a copy rather than a fork.
+        Cached under data/nifog/.
+
+    Repeater data                         - read, never redistributed
+        data/repeaters.json is built on this machine from whatever the
+        operator already holds - a TowerWitch installation, or their own
+        RepeaterBook export. It is gitignored and ships with nothing. ELMER
+        does no repeater lookups of its own, deliberately: that data belongs
+        to whoever holds the subscription it came from, and this project has
+        no licence to pass it on.
+
+
 Why the pools are here at all
 -----------------------------
 

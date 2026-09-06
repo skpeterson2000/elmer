@@ -24,7 +24,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               gps, reachout, repeaters, terrain, update)
+               bugreport, gps, reachout, repeaters, terrain,
+               update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -1571,6 +1572,25 @@ def _update_payload(status):
         "blocked": update.blocked(status),
         "local": _is_local(request.remote_addr),
     }
+
+
+@app.route("/api/report", methods=["POST"])
+def api_report():
+    """Write a problem report somebody can read, then decide to send.
+
+    A report can carry the station's identity if asked for, so it is written
+    only for a browser on this machine - a phone on the LAN can look at ELMER
+    but cannot make it write one.
+    """
+    if not _is_local(request.remote_addr):
+        log.warning("report refused: request from %s", request.remote_addr)
+        abort(403)
+    include = request.json.get("station") is True if request.is_json else False
+    path, redacted, text = bugreport.write(conn(), include_station=include)
+    log.info("problem report written to %s (%s)", path.name,
+             "redacted" if redacted else "with station detail")
+    return jsonify({"path": str(path), "redacted": redacted, "text": text,
+                    "contact": bugreport.CONTACT})
 
 
 @app.route("/api/update")
