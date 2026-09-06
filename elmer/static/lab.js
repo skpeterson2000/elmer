@@ -608,9 +608,31 @@ function calcAnt() {
     gain = spec.gain;
     z = spec.z;
     gainRef = spec.ref || FREE_SPACE;
-    if (type === 'efhw') notes.push('The end of a half wave is a high-voltage, ' +
-      'high-impedance point &mdash; around ' + z + '&nbsp;&Omega; &mdash; so it needs a 49:1 ' +
-      'transformer, not a direct coax feed.');
+    if (type === 'efhw') {
+      notes.push('The end of a half wave is a high-voltage, high-impedance ' +
+        'point &mdash; around ' + z + '&nbsp;&Omega; &mdash; so it needs a 49:1 ' +
+        'transformer, not a direct coax feed.');
+      /* Two different jobs, two different words, and they are not
+         interchangeable however often the catalogue treats them as though
+         they were. */
+      notes.push('<b>Unun, not balun.</b> A <b>bal</b>un converts <b>bal</b>anced ' +
+        'to <b>un</b>balanced &mdash; a dipole is balanced, coax is not, so a ' +
+        'dipole wants one. An end-fed is a single wire worked against a ' +
+        'counterpoise: unbalanced on both sides, so what transforms the ' +
+        'impedance is an <b>un</b>balanced-to-<b>un</b>balanced transformer, an ' +
+        '<b>unun</b>. It is wound as an autotransformer &mdash; one winding with ' +
+        'a tap, the coax braid and the counterpoise sharing the common end &mdash; ' +
+        'which is what an unun is. Plenty of them are sold as "49:1 balun"; the ' +
+        'part is fine, the label is wrong.');
+      notes.push('That is not the end of it, and this is where end-feds get a ' +
+        'bad name. The unun matches the impedance but does nothing about ' +
+        'common-mode current, so give it a counterpoise and put a <b>choke</b> ' +
+        '&mdash; a 1:1 current balun, which really is a balun &mdash; on the coax ' +
+        'below it. Without one the braid becomes the counterpoise: the feedline ' +
+        'radiates, the pattern goes where it likes, the SWR moves when you touch ' +
+        'the rig, and the noise floor comes up. Most end-fed disappointment is ' +
+        'this and not the antenna.');
+    }
     if (type === 'quarter' || type === 'groundplane') notes.push(
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +
       'Radial count matters more than radial length &mdash; 16 or more on the ground, or ' +
