@@ -2313,11 +2313,26 @@ function planWords(d) {
    and terrain is not in a repeater list. */
 function repeaterList(d) {
   const reps = d.repeaters || [];
+  const cov = d.repeater_coverage;
   if (!reps.length) {
-    if (d.reach && d.reach.kind === 'line_of_sight' && d.repeaters_from === null) {
-      return '<p class="tiny muted">ELMER has no repeater list for here. ' +
-        'With TowerWitch installed alongside it reads that; otherwise run ' +
-        '<span class="mono">./elmer.py --import-repeaters</span> once.</p>';
+    /* An empty list means two very different things, and saying the wrong one
+       is how a program loses somebody in a place they need it. Nothing on the
+       air near you is a fact; nobody has ever looked here is an errand. */
+    if (cov && !cov.known) {
+      return '<p class="tiny" style="color:var(--amber)">' +
+        (cov.nearest_km === null
+          ? 'ELMER has no repeater list at all yet. '
+          : 'ELMER knows no repeaters within ' + Math.round(cov.nearest_km * 0.6214) +
+            ' miles of here &mdash; that is a gap in what it has been told, ' +
+            'not a quiet band. ') +
+        'TowerWitch can look this position up; ELMER reads what it writes. ' +
+        'Do it while you have a signal, and the list keeps working after ' +
+        'you lose one.</p>';
+    }
+    if (cov && cov.known) {
+      return '<p class="tiny muted">No repeaters on this band within reach, ' +
+        'though ELMER does know this area &mdash; the nearest it has is ' +
+        Math.round(cov.nearest_km * 0.6214) + ' miles off.</p>';
     }
     return '';
   }

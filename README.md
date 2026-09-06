@@ -206,6 +206,24 @@ you, and owning the book is not it. Being a work of the US government it carries
 no copyright and can be printed and handed out freely.
 
 
+## Getting a message out
+
+The **Make Contact** page answers the question somebody a long way up a forest
+road actually has: not "what is the best antenna", but "what might work now,
+with what I brought". Tick what is in the vehicle and it lists every avenue in
+the order worth trying - the repeater you cannot hear from the valley floor,
+the calling channels, APRS, the ISS digipeater passing overhead twice a day,
+NVIS on a wire eight feet off the ground, ten metres if you are a Technician
+who has been told they have no HF.
+
+The odds are words rather than numbers, because numbers there would be
+invented. And the last entry is 47 CFR 97.403: when life or property is in
+immediate danger and normal systems are not available, an amateur station may
+use any means of radiocommunication at its disposal. It is pinned to the
+bottom on purpose - answering "how do I get a message out" with "declare an
+emergency" is wrong for a flat tyre, and the entry has to keep its force for
+the day it is needed.
+
 ## Where the station is
 
 Every answer about reach, bearings and RF exposure is an answer about a place.
@@ -216,11 +234,42 @@ can see; `--gpsd HOST` points it at another machine, which is how a second Pi
 reads the one with the antenna on it. `--gpsd off` goes back to the typed QTH.
 The page says which of the two the figures came from.
 
-Above 50 MHz "what can I reach" is answered by repeaters, not by towns. Where
-[TowerWitch](https://github.com/skpeterson2000) is installed alongside, ELMER
-reads its repeater list directly; `--import-repeaters` keeps a copy so the
-same works on a machine without it. Copying `data/repeaters.json` to another
-install works too - it is read before anything else is looked for.
+Above 50 MHz "what can I reach" is answered by repeaters, not by towns. ELMER
+does not look repeaters up itself - TowerWitch does that, against a data source
+that is its subscription to hold - so ELMER reads what TowerWitch writes and
+merges it with its own saved copy. Neither replaces the other: the saved copy
+is what makes a machine without TowerWitch work, and TowerWitch is what makes
+anywhere work.
+
+`--import-repeaters` keeps a copy of what TowerWitch has. Copying
+`data/repeaters.json` to another install works too. And ELMER tells the two
+kinds of empty apart: no repeaters near you is a fact, no repeater data for
+where you are is an errand, and it says which one it is looking at.
+
+### Asking a TowerWitch over the network
+
+Two Pis in one vehicle: only one has TowerWitch and the credentials. Point the
+other at it with `./elmer.py --towerwitch-url http://pi52.local:8137/api/repeaters`
+and ELMER will ask - but only when it has nothing for where it is, and at most
+every few minutes, so a machine that is switched off is not a tax on every page.
+
+The endpoint it expects is deliberately the smallest thing that could work:
+
+```
+GET /api/repeaters?lat=46.59836&lon=-94.31539&radius_km=100
+
+{"data": [
+  {"call": "W0UJ", "output": 146.955, "input": 146.355, "offset": -0.6,
+   "tone": "141.3", "location": "Nisswa", "lat": 46.5216, "lon": -94.2883}
+]}
+```
+
+That is the row shape TowerWitch already writes into `radio_cache`, so the
+endpoint can return a cached payload unchanged. A bare list is accepted instead
+of `{"data": ...}`; `frequency` works as an alias for `output` and `pl_tone`
+for `tone`. Anything without a callsign and a coordinate is dropped. A machine
+that is off, busy or not listening is not an error - the answer is then
+whatever is already on disk.
 
 `./elmer.py --fetch-nifog` goes further: it finds the current edition from CISA's
 own page rather than a filename remembered in the source, downloads it, converts
@@ -571,6 +620,7 @@ and a timed contest mode.
 ./elmer.py --gpsd 192.168.1.5 read the GPS on another machine (off goes back
                               to the typed QTH)
 ./elmer.py --import-repeaters keep a copy of TowerWitch's repeater list
+./elmer.py --towerwitch-url URL   ask a TowerWitch on another machine
 ./install.sh                  install, or ask: update, repair, remove, check
 ./install.sh --connect        give a downloaded copy a link, so it can update
 ./elmer.py --build            rebuild the pools from data/raw
