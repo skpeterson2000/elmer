@@ -282,6 +282,30 @@ covering 800 km serves a question about 300. It used to match the radius
 exactly, which meant a trip prepared before leaving was never found again,
 since ELMER asks with a different radius for every band and antenna.
 
+## Showing the working
+
+ELMER does not ship antenna plans. There are plenty of those, and a plan
+somebody follows teaches them one antenna. Under every dimensions table is a
+fold marked *where these numbers come from - so you can do it without ELMER*,
+and inside it the arithmetic is done in front of you:
+
+```
+983.6 / 14.200 MHz     69.27 ft   one wavelength; 983.6 is c in feet per microsecond
+69.27 / 2              34.63 ft   a dipole is half a wave, fed in the middle
+x 0.949                32.85 ft   velocity factor - a wire is not free space
+468 / 14.200 x 0.998   32.91 ft   what the table prints, and why it differs
+```
+
+Three steps produce every wire length in amateur radio, on any band. The last
+row exists because being caught out by your own program is worse than not
+being taught: 468 is 983.6 / 2 x 0.95 rounded up, it lands 0.7 in from the
+line above it, and saying so is worth more than hiding it. Every figure shown
+can be checked on a pocket calculator - the constants displayed are the
+constants used.
+
+The aim is the operator who is up a hill with a tape measure and no Pi, and
+still has an antenna.
+
 ## What it is made of
 
 The lab now asks what the element is actually made of - #18 flex, house wire,
