@@ -35,6 +35,10 @@ RE_LATLON = re.compile(r"-?\b\d{1,3}\.\d{4,}\b")
 RE_PRIVATE_IP = re.compile(
     r"\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b")
 RE_CALL = re.compile(r"\b[AKNW][A-Z]?\d[A-Z]{1,3}\b")
+# An account name is often somebody's actual name, and a log is full of paths.
+# /home/jsmith/ELMER/data/elmer.log says more about a person than the grid
+# square that was so carefully cut down two lines above it.
+RE_HOME = re.compile(r"(/home/|/Users/|\\Users\\)[^/\\ \t\n\"',;:)\]]+")
 
 
 def redact(text, callsign=None, places=()):
@@ -55,6 +59,7 @@ def redact(text, callsign=None, places=()):
     text = RE_GRID.sub(r"\1xx", text)
     text = RE_LATLON.sub("[coord]", text)
     text = RE_PRIVATE_IP.sub("[lan-ip]", text)
+    text = RE_HOME.sub(lambda m: m.group(1) + "[user]", text)
     return text
 
 
@@ -127,6 +132,16 @@ def build(conn=None, lines=400, include_station=False):
             add(f"install    {people} profile(s), {answers} answers logged")
         except Exception as exc:
             add(f"install    could not be read ({type(exc).__name__})")
+
+    try:
+        from .diagnostics import install_location
+        where = install_location()
+        add(f"location   {where['kind']}, "
+            + ("writable" if where["writable"] else "NOT WRITABLE"))
+        for concern in where["concerns"]:
+            add(f"           WARNING: {concern}")
+    except Exception:
+        add("location   could not be determined")
 
     for name, path in (("repeaters", ROOT / "data" / "repeaters.json"),
                        ("places", ROOT / "data" / "places.json"),

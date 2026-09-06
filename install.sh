@@ -239,6 +239,37 @@ else
     exit 1
 fi
 
+# ------------------------------------------------------------ where is this?
+# Nothing stops a program running from the wastebasket or the downloads folder
+# - not on Raspberry Pi OS, and not on most others. That is exactly why this
+# check exists: the operating system will let somebody install here and say
+# nothing, and the day the folder is emptied their study data goes with it.
+check_location() {
+    local kind concerns
+    kind="$("$PY" -c 'from elmer.diagnostics import install_location
+print(install_location()["kind"])' 2>/dev/null || echo unknown)"
+    concerns="$("$PY" -c 'from elmer.diagnostics import install_location
+print("\n".join(install_location()["concerns"]))' 2>/dev/null || true)"
+    [ -z "$concerns" ] && { ok "installed in a sensible place ($kind)"; return 0; }
+
+    head2 "This is not a good place to keep ELMER"
+    printf '%s\n' "$concerns" | sed 's/^/  - /'
+    printf '\n  ELMER keeps everything in data/ next to itself: your progress,\n'
+    printf '  your settings, your logs. Moving the whole folder somewhere\n'
+    printf '  permanent takes them with it, and nothing else needs doing.\n\n'
+    printf '  %sSomewhere like ~/ELMER.%s\n\n' "$DIM" "$OFF"
+    if [ "$kind" = "trash" ]; then
+        bad "refusing to install from the wastebasket"
+        printf '  Move the folder out of the wastebasket and run this again.\n\n'
+        exit 1
+    fi
+    if ! ask "Carry on installing here anyway?"; then
+        printf '\n  Nothing done. Move the folder and run this again.\n\n'
+        exit 0
+    fi
+    warn "carrying on in $kind storage - you have been told"
+}
+
 # ------------------------------------------------- is there one here already?
 # Any of these means somebody has run ELMER on this machine before, so running
 # the installer again is far more likely to be a question than a first install.
@@ -255,6 +286,8 @@ installed_signs() {
     for sign in ${signs[@]+"${signs[@]}"}; do out="${out:+$out, }$sign"; done
     printf '%s' "$out"
 }
+
+check_location
 
 SIGNS="$(installed_signs || true)"
 

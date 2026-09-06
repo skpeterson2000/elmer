@@ -5,6 +5,7 @@ server can actually be reached on, proves the pools and database are usable,
 and says plainly which part is at fault.
 """
 import json
+import os
 import socket
 import shutil
 import subprocess
@@ -50,6 +51,73 @@ def port_in_use(port, host="127.0.0.1"):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1.0)
         return s.connect_ex((host, port)) == 0
+
+
+# Places a program can sit and still run, right up until the day it cannot.
+# None of these is blocked by the operating system - a script runs perfectly
+# well from the wastebasket on Raspberry Pi OS, which is the problem: nothing
+# stops you, and then one day the folder is emptied and the study data goes
+# with it.
+LOCATION_TRAPS = [
+    ("trash", ("/.trash", "/.local/share/trash", "/recycle.bin", "/$recycle.bin"),
+     "the wastebasket - emptying it deletes ELMER and every answer you have "
+     "logged"),
+    ("downloads", ("/downloads", "/download"),
+     "the downloads folder - it gets tidied, and re-downloading the zip "
+     "overwrites what is here"),
+    ("temporary", ("/tmp/", "/var/tmp/", "/private/var/folders"),
+     "temporary storage - the system clears this, often at reboot"),
+    ("removable", ("/media/", "/mnt/", "/run/media", "/volumes/"),
+     "removable storage - it works until the stick is pulled or fails to "
+     "mount"),
+]
+
+
+def install_location(root=None):
+    """What kind of place this copy is installed in, and whether that is wise.
+
+    Deliberately reports the kind and not the path: which folder somebody
+    keeps their radio software in is nobody's business, but whether that
+    folder survives a reboot is everybody's.
+    """
+    root = Path(root or ROOT).resolve()
+    lowered = str(root).lower().replace("\\", "/") + "/"
+    concerns = []
+    kind = "ordinary"
+    for name, needles, why in LOCATION_TRAPS:
+        if any(n in lowered for n in needles):
+            kind = name
+            concerns.append(why)
+            break
+    if kind == "ordinary" and str(root).startswith(str(Path.home())):
+        kind = "home"
+
+    # Test the nearest thing that actually exists: asking whether a directory
+    # nobody has created yet is writable always answers no, which would report
+    # a fault against every location that has not been installed to.
+    probe = root / "data"
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    writable = os.access(probe, os.W_OK)
+    if not writable:
+        concerns.append("ELMER cannot write to its own data folder, so nothing "
+                        "you do will be saved")
+    return {"kind": kind, "writable": writable, "concerns": concerns,
+            "ok": not concerns}
+
+
+def check_location():
+    """Where this copy lives, and whether that place will still exist later."""
+    where = install_location()
+    if where["ok"]:
+        return [_line("ok", "installed in a sensible place",
+                      f"{where['kind']}, writable")]
+    out = [_line("warn", f"installed in {where['kind']} storage")]
+    for concern in where["concerns"]:
+        out.append(_line("warn", concern))
+    out.append(_line("warn", "move the whole folder somewhere permanent - "
+                             "your data/ comes with it"))
+    return out
 
 
 def check_pools():
@@ -259,7 +327,7 @@ def doctor(port=5000):
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
         check_templates(), check_tools(), check_kiosk(), check_launcher(),
-        check_updates(),
+        check_updates(), check_location(),
         check_internet(), check_server(port),
     ]
 
