@@ -357,8 +357,14 @@ Interactive versions of the maths the pools test:
   *across* itself and is deaf off its ends, so which way you string it decides
   which way it hears — and a wire hung along the fence because the fence was
   there is an unforced error. Set the bearing it runs along and the pattern
-  turns with it, with the real great-circle bearings to Europe, Japan, Australia
-  and the rest laid over the top **from your own grid square**. Strung east–west
+  turns with it, with real great-circle bearings laid over the top **from your
+  own grid square** — and the places shown are the ones this antenna can
+  actually reach. A DX wire on 20 m gets Europe, Japan and Australia; an NVIS
+  wire on 80 m gets Bemidji, Duluth, Fargo and Minneapolis with a ring at about
+  300 miles, because putting Europe on an NVIS compass is worse than putting
+  nothing there — it invites somebody to turn an antenna to chase a contact it
+  cannot make. A 2 m vertical gets its radio horizon, and is told plainly that
+  the repeater is doing the reaching rather than the antenna. Strung east–west
   from EN26 the nulls fall on Africa at 87° and Hawaii at 266°, both around
   24 dB down, and it says so in as many words: *turning the antenna is free; the
   decibels are not.* A Yagi behaves the same way with a front and a back; a
