@@ -24,7 +24,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               terrain, update)
+               repeaters, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -452,6 +452,17 @@ def api_pattern():
             places.refresh_in_background(place["lat"], place["lon"],
                                          span["radius_km"])
 
+    # On FM above 50 MHz the repeater is what does the reaching, and saying so
+    # without naming one was the least useful true sentence in the program.
+    reps, reps_from = [], None
+    if use in ("local", "digital") and place.get("lat") is not None:
+        reps, reps_from = repeaters.nearby(place["lat"], place["lon"], mhz,
+                                           height_ft=height_ft)
+        for row in reps:
+            field = patterns.field_at(kind, row["bearing"], heading)
+            row["field"] = round(field, 4)
+            row["db"] = patterns.db(field)
+
     return jsonify({
         "type": kind, "mhz": mhz, "height_ft": height_ft,
         "height_wl": round(height_wl, 3), "heading": heading,
@@ -464,6 +475,8 @@ def api_pattern():
         "bandwidth": patterns.usable_bandwidth(kind, mhz),
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
         "reach": span, "use": use,
+        "repeaters": reps, "repeaters_from": reps_from,
+        "repeater_radius_km": round(repeaters.horizon_km(height_ft)),
     })
 
 

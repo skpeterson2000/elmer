@@ -18,6 +18,8 @@ with, which is what somebody needs before they have the experience to disagree
 with it.
 """
 
+import re
+
 C_FT = 983.571                      # speed of light, feet per microsecond
 
 
@@ -71,11 +73,19 @@ def default_use(mhz, kind=None):
     label = ((seg or {}).get("label") or "").lower()
 
     if mhz >= 50.0:
-        if kind == "calling":
-            # A calling frequency says what it is calling for in its own name.
-            if "ssb" in label or "cw" in label:
-                return "weaksignal"
-            return "local"
+        # Above 50 MHz the kind alone flattens SSB, CW and FT8 into whatever
+        # the band mostly does, which is how 2 m SSB came out as "you want FM
+        # repeaters". The label says what the segment is actually for, so read
+        # it: horizontal and weak-signal, or vertical and FM, are 20 dB apart
+        # on the wrong choice. Where a label carries both - 145.00 is weak
+        # signal AND packet AND FM simplex - the kind is the tie-breaker,
+        # because that is the band plan's own view of what leads there.
+        flat = label.replace("-", " ")
+        weak = re.search(r"\b(ssb|cw|ft8|eme|beacon|beacons|weak signal|"
+                         r"dx window)\b", flat)
+        fm = re.search(r"\b(fm|packet|repeater|repeaters|aprs)\b", flat)
+        if weak and not fm:
+            return "weaksignal"
         return VHF_KIND_USE.get(kind, "local")
 
     if kind == "digital" or (kind == "calling" and "ft8" in label):

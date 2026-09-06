@@ -1802,7 +1802,7 @@ async function antennaAdvice(mhz, use, kind) {
     ? '<div class="advice-ctx"><b>' + d.mhz + ' MHz</b> is ' +
       (ctx.point ? '' : 'in ') + escapeHTML(ctx.label) + ' on ' +
       escapeHTML(ctx.band) + '. Taking it that you want <b>' +
-      escapeHTML(d.use_label.toLowerCase()) + '</b> &mdash; change that above ' +
+      escapeHTML(d.use_label.toLowerCase()) + '</b> &mdash; change that below ' +
       'if not.</div>'
     : '<div class="advice-ctx">' + d.mhz + ' MHz is not in a US amateur band, ' +
       'so this assumes <b>' + escapeHTML(d.use_label.toLowerCase()) + '</b>.</div>';
@@ -2135,7 +2135,11 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         '<p class="tiny muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
         '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
         '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p></div>' +
-    '</div>';
+    '</div>' +
+    /* Full width, below the three plots: six columns of repeater do not fit in
+       a third of a page, and a table you have to scroll sideways to read the
+       bearing of is a table that failed at its one job. */
+    repeaterList(d);
 }
 
 /* ---------- the plan view ----------
@@ -2143,6 +2147,23 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
    round you hang it, which is the cheaper mistake to fix and the more common
    one to make. A dipole strung along the fence radiates across the fence, and
    if the fence points at the house then so does the antenna. */
+
+/* Break a place name into at most two lines at a word boundary, as evenly as
+   the words allow. One word long is left alone: there is nowhere to break it,
+   and half a word is worse than a wide one. */
+function wrapName(name, limit) {
+  limit = limit || 10;
+  const words = String(name).split(' ');
+  if (name.length <= limit || words.length < 2) return [name];
+  let best = 1, bestCost = Infinity;
+  for (let n = 1; n < words.length; n++) {
+    const a = words.slice(0, n).join(' ').length;
+    const b = words.slice(n).join(' ').length;
+    const cost = Math.max(a, b) * 2 + Math.abs(a - b);
+    if (cost < bestCost) { bestCost = cost; best = n; }
+  }
+  return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+}
 
 function planPlot(d) {
   /* Room around the rim for the place names: they sit outside the circle, and
@@ -2198,9 +2219,16 @@ function planPlot(d) {
     if (t.bearing - lastLabel < 16) return;
     lastLabel = t.bearing;
     const [lx, ly] = at(t.bearing, R + 16);
-    g.push('<text x="' + lx + '" y="' + (+ly + 3) + '" fill="' +
+    /* Wrap rather than cut. "Grand Forks" trimmed to "Grand" and "Saint Cloud"
+       to "Saint" are not names of anywhere, and the compass exists to be read
+       at a glance. Two short lines read; one clipped word does not. */
+    const lines = wrapName(t.name);
+    const dy = -(lines.length - 1) * 4.5;
+    g.push('<text x="' + lx + '" y="' + (+ly + 3 + dy) + '" fill="' +
            (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle">' +
-           escapeHTML(t.name.split(' ')[0]) + '</text>');
+           lines.map((line, n) => '<tspan x="' + lx + '" dy="' + (n ? 9 : 0) +
+                     '">' + escapeHTML(line) + '</tspan>').join('') +
+           '</text>');
   });
   return '<svg viewBox="0 0 320 300" style="width:100%;max-width:320px">' +
          g.join('') + '</svg>';
@@ -2263,4 +2291,53 @@ function planWords(d) {
       'North American cities rather than a gazetteer.</p>';
   }
   return html;
+}
+
+/* On FM the repeater is the antenna that matters, so name the ones in range.
+   Nothing here claims a contact: it says where a machine is and how far, and
+   marks the ones ELMER could only place to their county, because a bearing
+   from a county centroid is a direction to a county. Terrain decides the rest,
+   and terrain is not in a repeater list. */
+function repeaterList(d) {
+  const reps = d.repeaters || [];
+  if (!reps.length) {
+    if (d.reach && d.reach.kind === 'line_of_sight' && d.repeaters_from === null) {
+      return '<p class="tiny muted">ELMER has no repeater list for here. ' +
+        'With TowerWitch installed alongside it reads that; otherwise run ' +
+        '<span class="mono">./elmer.py --import-repeaters</span> once.</p>';
+    }
+    return '';
+  }
+  const approx = reps.some(r => r.approx);
+  let out = '<div class="rep-list"><p class="tiny"><b>Repeaters within about ' +
+    Math.round((d.repeater_radius_km || 0) * 0.6214) + ' miles</b> ' +
+    '<span class="muted">&mdash; a machine on a tower reaches much further ' +
+    'than your antenna reaches another like it, which is the whole point of ' +
+    'one.</span></p><table class="data rep-table"><tr>' +
+    '<th>Output</th><th>Call</th><th>Where</th><th>Distance</th>' +
+    '<th>Bearing</th><th>Tone</th></tr>';
+  reps.forEach(r => {
+    out += '<tr><td class="mono">' + r.output.toFixed(3) + '</td>' +
+      '<td class="mono">' + escapeHTML(r.call) + '</td>' +
+      '<td>' + escapeHTML(r.where || '') +
+        (r.approx ? ' <span class="muted">~</span>' : '') + '</td>' +
+      '<td>' + r.miles + ' mi</td>' +
+      '<td>' + r.bearing + '&deg;' +
+        (r.db !== undefined && r.db < -6
+          ? ' <span style="color:var(--red)">' + r.db + ' dB</span>' : '') +
+      '</td>' +
+      '<td class="mono">' + (r.tone ? escapeHTML(String(r.tone)) : '&mdash;') +
+      '</td></tr>';
+  });
+  out += '</table>';
+  if (approx) {
+    out += '<p class="tiny muted">~ placed to its county rather than its own ' +
+      'site, so read that bearing as a direction to the county.</p>';
+  }
+  if (d.repeaters_from) {
+    out += '<p class="tiny muted">List from ' + escapeHTML(d.repeaters_from) +
+      '. Being in range on paper is not being in range: a hill between you ' +
+      'and it wins every argument.</p>';
+  }
+  return out + '</div>';
 }

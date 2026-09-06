@@ -109,6 +109,10 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--import-repeaters", nargs="?", const=True, metavar="PATH",
+                    help="read the repeater list out of a TowerWitch install "
+                         "(found automatically, or give the path) and keep a "
+                         "copy, so VHF and UHF can name what is in range")
     ap.add_argument("--fetch-places", action="store_true",
                     help="look up the towns around your QTH, for naming what "
                          "an antenna reaches")
@@ -176,6 +180,20 @@ def main():
         from elmer.report import print_stats
         print_stats(args.user)
         return
+
+    if args.import_repeaters:
+        from elmer import repeaters
+        where = None if args.import_repeaters is True else args.import_repeaters
+        ok, message, count = repeaters.import_towerwitch(where)
+        print(f"\n  {message}")
+        if ok:
+            rough = sum(1 for r in repeaters.load()[0] if r.get("approx"))
+            print(f"  {count - rough} placed to their own town, {rough} only to "
+                  f"their county.")
+            print("  VHF and UHF will now name the machines in range.\n")
+        else:
+            print("  Nothing imported.\n")
+        sys.exit(0 if ok else 1)
 
     if args.fetch_places:
         from elmer import db, places
