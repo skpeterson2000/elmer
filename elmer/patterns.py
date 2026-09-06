@@ -182,6 +182,17 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False):
                 "note": "A satellite is overhead and moving, so ground bearings "
                         "do not describe it. What matters is a clear view of the "
                         "sky and being able to follow the pass."}
+    if mhz >= 50.0 and use == "weaksignal":
+        # SSB and CW on VHF are not line-of-sight work. A beam and a hundred
+        # watts routinely make a couple of hundred miles on tropospheric
+        # refraction alone, which is why the weak-signal crowd point antennas
+        # at towns rather than at the horizon.
+        return {"kind": "tropo", "radius_km": 320,
+                "note": "Weak-signal VHF: tropospheric refraction carries SSB "
+                        "and CW well beyond line of sight - about 200 miles on "
+                        "an ordinary day with a beam, much further when the air "
+                        "is layered or a band opens. Height and a clear takeoff "
+                        "matter more than power."}
     if mhz >= 50.0:
         # Radio horizon, 4/3 earth, to a station at a similar height.
         miles = 1.415 * math.sqrt(max(height_ft, 1.0)) * 2

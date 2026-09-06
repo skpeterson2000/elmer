@@ -655,3 +655,9 @@ option.not-permitted { color: var(--amber); }
 .seg-picked { border-left: 3px solid var(--amber); }
 .advice-ctx { font-size: .84rem; color: var(--dim); margin: .35rem 0 .2rem;
               padding-left: .6rem; border-left: 2px solid var(--line-2); }
+
+/* Repeaters in range, under the pattern. The table can be wider than a phone,
+   so it scrolls inside itself rather than pushing the page sideways. */
+.rep-list { margin-top: .7rem; }
+.rep-list .rep-table { display: block; overflow-x: auto; white-space: nowrap; }
+.rep-list .rep-table th, .rep-list .rep-table td { font-size: .74rem; padding: .3rem .5rem; }

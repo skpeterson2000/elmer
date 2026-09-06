@@ -47,3 +47,7 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Repeaters imported from TowerWitch or a RepeaterBook export. Yours, keyed
+# to where you are, so it is not the app's to ship.
+data/repeaters.json

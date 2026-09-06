@@ -303,13 +303,6 @@ function segMiddle(a) {
 }
 
 /* The intention to carry across, read from what the segment is for. */
-function segUse(a, band) {
-  if (a.kind === 'repeater' || a.kind === 'simplex') return 'local';
-  if (a.kind === 'digital') return 'digital';
-  if (band.low >= 50) return 'local';
-  if (band.high <= 7.3) return 'regional';
-  return 'dx';
-}
 
 function segCardHTML(a, band, forPick) {
   const cond = conditionsFor(band);
@@ -332,8 +325,12 @@ function segCardHTML(a, band, forPick) {
       escapeHTML(you.note) + '</div>' : '') +
     (forPick
       ? '<div class="row" style="gap:.5rem;margin-top:.6rem">' +
+          /* No use= here on purpose. Deciding what a frequency is for by
+             looking at the band is how 2 m SSB came out as "you want FM
+             repeaters": the band plan already knows, and antenna_advice
+             reads it. Send the frequency and let it answer. */
           '<a class="btn sm primary" href="/lab?f=' + segMiddle(a).toFixed(3) +
-            '&use=' + segUse(a, band) + '&kind=' + encodeURIComponent(a.kind) +
+            '&kind=' + encodeURIComponent(a.kind) +
             '#ant">Set up an antenna for this →</a>' +
           '<a class="btn sm ghost" href="/propagation">Full conditions</a>' +
           '<button class="btn sm ghost" id="bp-unpick">close</button>' +
