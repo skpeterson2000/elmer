@@ -309,6 +309,96 @@ function calcSWR() {
   if (el) el.addEventListener('input', calcSWR);
 });
 
+/* --------------------------------------------------------- the arithmetic */
+/* Where the dimensions come from, worked in front of the operator.
+
+   A calculator that only prints 32.96 ft has taught nothing: the next time
+   somebody is up a hill with a tape measure and no Pi, they have no antenna.
+   The same three steps produce every wire length in amateur radio, and once
+   they are seen a couple of times they are owned - so ELMER stops being the
+   thing that knows and becomes the thing that showed you.
+
+   There are plenty of antenna plans in the world. What is scarce is the
+   habit of deriving one. */
+
+function derivation(type, f, k, rows) {
+  if (!(f > 0)) return '';
+  const lam = LAMBDA_FT(f);
+  const step = (sum, result, why) =>
+    '<tr><td class="mono">' + sum + '</td><td class="mono">' + result +
+    '</td><td class="tiny muted">' + why + '</td></tr>';
+
+  /* Show the constant actually used, not the one usually quoted. Printing
+     "984" beside a result computed from 983.571 means anybody who checks the
+     line on a calculator gets a different answer - which is precisely the
+     person this table exists for. */
+  let steps = step('983.6 &divide; ' + f.toFixed(3) + ' MHz', lam.toFixed(2) + ' ft',
+    'One whole wavelength in free space. 983.6 is the speed of light in feet ' +
+    'per microsecond, and frequency in MHz is cycles per microsecond, so the ' +
+    'division is just distance = speed &times; time. Most books round it to ' +
+    '984, which is close enough to build from and half an inch different at ' +
+    '14 MHz.');
+
+  const kind = {
+    dipole: ['&divide; 2', 2, 'A dipole is half a wave: two quarter-wave legs, fed in the middle.'],
+    invertedv: ['&divide; 2', 2, 'Same half wave as a dipole - the droop changes the pattern and the feedpoint, not the length.'],
+    efhw: ['&divide; 2', 2, 'An end-fed half wave is the same half wavelength of wire, fed at the end instead of the middle.'],
+    bowtie: ['&divide; 2', 2, 'Still a half wave overall. The width is what buys the bandwidth; it does not change the resonant length much.'],
+    quarter: ['&divide; 4', 4, 'A quarter-wave vertical is half an antenna - the ground plane is the other half, which is why the radials matter.'],
+    groundplane: ['&divide; 4', 4, 'A quarter wave against its radials. Each radial is a quarter wave too.'],
+    jpole: ['&divide; 2', 2, 'The radiator is an end-fed half wave; the stub below it is a quarter-wave matching section.'],
+    fiveeighth: ['&times; 0.625', 1 / 0.625, 'Five eighths of a wave - not resonant, which is why it needs a base coil, and lower-angle in exchange.'],
+    loop: ['&times; 1', 1, 'A full-wave loop is one whole wavelength of wire in the perimeter.'],
+    yagi: ['&divide; 2', 2, 'Every element is about a half wave - the reflector a little longer, the directors a little shorter.'],
+  }[type];
+
+  if (kind) {
+    steps += step(lam.toFixed(2) + ' ' + kind[0], (lam / kind[1]).toFixed(2) + ' ft', kind[2]);
+    const vf = (lam / kind[1]) * k;
+    steps += step('&times; ' + k.toFixed(3), vf.toFixed(2) + ' ft',
+      'The velocity factor. A wire is not free space: the ends couple to ' +
+      'everything around them, so it behaves electrically longer than it ' +
+      'measures and has to be cut short. About 0.95 for ordinary wire, less ' +
+      'for anything fatter - which is why <b>468 &divide; f</b> is the number ' +
+      'everybody memorises for a dipole, and where it comes from.');
+  }
+
+  /* Reconcile with the constant everybody memorises, rather than leaving the
+     working half an inch away from the table above it and hoping nobody
+     checks. 984/2 x 0.95 is 467.4; the books say 468. That gap is the whole
+     character of the number - it is a practical constant somebody rounded,
+     not a derivation - and saying so is worth more than hiding it. */
+  /* Account for the table above, or the reader is left with two numbers and
+     no idea which to cut. ELMER prints the book constant - 468/f, scaled for
+     this conductor - because that is what the craft uses and what the pools
+     teach. The first-principles chain lands a fraction under it, and the size
+     of that fraction is the lesson: these constants disagree at the half-inch
+     level and it has never mattered. */
+  if (kind && Math.abs(kind[1] - 2) < 0.01) {
+    const derived = lam / 2 * k, printed = (468 / f) * (k / 0.95);
+    const gapIn = Math.abs(printed - derived) * 12;
+    steps += step('468 &divide; ' + f.toFixed(3) + ' &times; ' +
+        (k / 0.95).toFixed(3),
+      printed.toFixed(2) + ' ft',
+      'What the table above prints. 468 is the constant the books and the ' +
+      'question pools use, and it is 983.6 &divide; 2 &times; 0.95 = 467.2 ' +
+      'rounded up. So it lands ' + gapIn.toFixed(1) + ' in away from the ' +
+      'line above - inside the error of your tape and far inside what a ' +
+      'gutter or a wet tree will shift it. Cut to either and trim on the ' +
+      'analyser; that is what the trimming is for.');
+  }
+
+  return '<details class="derivation"><summary class="tiny">' +
+    'Where these numbers come from &mdash; so you can do it without ELMER' +
+    '</summary><table class="data tiny" style="max-width:640px"><tbody>' +
+    steps + '</tbody></table>' +
+    '<p class="tiny muted">Three steps, and they are the same three for every ' +
+    'wire antenna on any band: a wavelength, the fraction of it this antenna ' +
+    'uses, and the shortening the real world asks for. Learn them and the ' +
+    'plan comes from you - which is the point of the lab, and the reason it ' +
+    'does not ship cut-and-assemble instructions.</p></details>';
+}
+
 /* -------------------------------------------------------------- antennas */
 /* Lengths use the practical constants the pools teach (468/f and friends),
    which already allow for end effect on real wire. Gain figures are honest
@@ -887,6 +977,7 @@ function calcAnt() {
     '<table class="data" style="max-width:520px"><thead><tr><th>Dimension</th>' +
       '<th>feet</th><th>metres</th><th>inches</th></tr></thead><tbody>' + dims +
     '</tbody></table>' +
+    derivation(type, f, k, rows) +
     '<div class="row mt" style="gap:1rem">' +
       '<span>Wavelength <b>' + lamFt.toFixed(2) + ' ft</b></span>' +
       (z ? '<span>Feed impedance &asymp; <b>' + z + ' &Omega;</b></span>' : '') +

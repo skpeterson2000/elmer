@@ -667,3 +667,11 @@ option.not-permitted { color: var(--amber); }
 .instead { margin-top: .6rem; border-left: 3px solid var(--amber); padding-left: .7rem; }
 .instead ul { margin: .3rem 0 0; padding-left: 1.1rem; }
 .instead li { margin-bottom: .35rem; }
+
+/* The working, shown. Folded away by default - somebody who wants the number
+   should get the number, and somebody who wants to learn should not have to
+   go looking. */
+.derivation { margin-top: .7rem; border-left: 3px solid var(--line); padding-left: .7rem; }
+.derivation summary { cursor: pointer; color: var(--amber); }
+.derivation table { margin-top: .5rem; }
+.derivation td { vertical-align: top; }
