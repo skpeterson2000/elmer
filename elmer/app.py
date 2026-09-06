@@ -21,9 +21,9 @@ from urllib.parse import urlsplit
 from flask import (Flask, abort, g, jsonify, render_template, request,
                    send_from_directory)
 
-from . import (bandpdf, bandplan, callsign, cw, db, exams, explain, game,
-               geocode, ionosonde, logs, propagation, ranks, regional,
-               rfexposure, rfpdf, srs, terrain, update)
+from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
+               explain, game, geocode, ionosonde, logs, propagation, ranks,
+               regional, rfexposure, rfpdf, srs, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -407,6 +407,19 @@ def api_bandplan():
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
     })
+
+
+@app.route("/api/antenna-advice")
+def api_antenna_advice():
+    """What to put up here, and why - for a licensee who has not built one yet."""
+    try:
+        mhz = float(request.args.get("mhz", ""))
+    except ValueError:
+        abort(400)
+    if not 0.1 <= mhz <= 300000:
+        abort(400)
+    return jsonify(antenna_advice.recommend(
+        mhz, use=request.args.get("use"), kind=request.args.get("kind")))
 
 
 @app.route("/api/nifog")

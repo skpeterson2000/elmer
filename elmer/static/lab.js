@@ -1510,3 +1510,76 @@ function initRf() {
   rfEvaluate();
 }
 initRf();
+
+/* ---------- what to put up, and how ----------
+
+   The calculator answers "how long is a dipole for 14.2 MHz", which is the
+   easy half of the question a new licensee is actually asking. This asks the
+   other half - what should I put up, how high, which way round - and then sets
+   the calculator to that answer so the dimensions come out of it.
+
+   Reached from the band plan: clicking a segment there arrives here with the
+   frequency and the intended use already in the address. */
+
+async function antennaAdvice(mhz, use, kind) {
+  const box = document.getElementById('an-advice');
+  if (!box) return;
+  let d;
+  try {
+    d = await api('/api/antenna-advice?' + new URLSearchParams(
+      Object.entries({mhz: mhz, use: use || '', kind: kind || ''})
+        .filter(([, v]) => v !== '')));
+  } catch (e) { return; }
+
+  /* Set the calculator to the recommendation, so the dimensions below are the
+     dimensions of the thing being recommended rather than of whatever was
+     there before. */
+  document.getElementById('an-type').value = d.type;
+  document.getElementById('an-f').value = d.mhz;
+  const h = document.getElementById('an-h');
+  if (h) h.value = d.height_ft;
+  const nvis = document.getElementById('an-nvis');
+  if (nvis) nvis.checked = !!d.nvis;
+  const useSel = document.getElementById('an-use');
+  if (useSel) useSel.value = d.use;
+  antennaFields(d.type);
+  calcAnt();
+
+  box.hidden = false;
+  box.innerHTML =
+    '<div class="advice-head">' +
+      '<b>' + escapeHTML(d.title) + '</b>' +
+      '<span class="tiny muted">' + d.mhz + ' MHz &middot; ' +
+        escapeHTML(d.use_label) + ' &middot; wavelength ' + d.wavelength_ft +
+        ' ft</span>' +
+    '</div>' +
+    '<div class="grid cols-2" style="gap:.9rem;margin-top:.5rem">' +
+      '<div>' + d.why.map(w => '<p class="small">' + escapeHTML(w) + '</p>').join('') +
+        '<p class="small"><b>Height to aim for: ' + d.height_ft + ' ft.</b> ' +
+        escapeHTML(d.feedline) + '</p></div>' +
+      '<div><div class="panel-title">What usually goes wrong</div>' +
+        '<ul class="facts small">' +
+        d.watch.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>' +
+        (d.alternative ? '<p class="small muted"><b>Instead:</b> ' +
+          escapeHTML(d.alternative) + '</p>' : '') +
+      '</div>' +
+    '</div>' +
+    '<p class="tiny muted" style="margin:.5rem 0 0">A starting point, not a ' +
+      'rule &mdash; good enough to make contacts with, which is what you need ' +
+      'before you have the experience to disagree with it. The dimensions ' +
+      'below are now set to it.</p>';
+}
+
+const adviseBtn = document.getElementById('an-advise');
+if (adviseBtn) adviseBtn.addEventListener('click', () =>
+  antennaAdvice(num('an-f'), document.getElementById('an-use').value));
+
+/* Arriving from the band plan with a frequency in hand. */
+(function () {
+  const q = new URLSearchParams(location.search);
+  const f = q.get('f');
+  if (!f) return;
+  selectTab('ant');
+  history.replaceState(null, '', location.pathname + '#ant');
+  antennaAdvice(f, q.get('use'), q.get('kind'));
+})();
