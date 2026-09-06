@@ -661,3 +661,9 @@ option.not-permitted { color: var(--amber); }
 .rep-list { margin-top: .7rem; }
 .rep-list .rep-table { display: block; overflow-x: auto; white-space: nowrap; }
 .rep-list .rep-table th, .rep-list .rep-table td { font-size: .74rem; padding: .3rem .5rem; }
+
+/* What to do when the compass comes back empty. Bordered rather than tinted:
+   it is guidance, not a warning, and it should not read as a failure. */
+.instead { margin-top: .6rem; border-left: 3px solid var(--amber); padding-left: .7rem; }
+.instead ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+.instead li { margin-bottom: .35rem; }

@@ -2271,6 +2271,16 @@ function planPlot(d) {
     g.push('<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#ffb454"/>');
   }
   /* The edge of what this antenna reaches, where that is a distance at all. */
+  if (d.reach && d.reach.inner_km) {
+    /* The hole in the middle of a DX ring is the whole surprise: a high wire
+       cannot work the next county. Drawn as a dashed circle so it reads as a
+       boundary rather than as coverage. */
+    const rin = R * Math.min(1, d.reach.inner_km / d.reach.outer_km);
+    g.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + rin.toFixed(1) +
+           '" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4 4"/>');
+    g.push('<text x="' + cx + '" y="' + (cy - rin - 4).toFixed(1) +
+           '" fill="#f85149" font-size="8" text-anchor="middle">skip zone</text>');
+  }
   if (d.reach && d.reach.radius_km) {
     g.push('<text x="' + cx + '" y="' + (cy + R + 42) +
            '" fill="#626e7b" font-size="9" text-anchor="middle">reach about ' +
@@ -2280,12 +2290,19 @@ function planPlot(d) {
      are thinned where two sit close together, because four labels on top of
      each other is less use than three and a gap. */
   let lastLabel = -999;
+  /* Where distance is known, plot it: a spoke that stops where the town
+     actually is turns a bearing chart into a map, and it is what makes the
+     skip-zone circle mean something rather than decorate something. */
+  const scaleKm = (d.reach && d.reach.outer_km) || (d.reach && d.reach.radius_km) || 0;
   (d.dx || []).forEach(t => {
-    const [x, y] = at(t.bearing, R + 2);
+    const frac = (scaleKm && t.km) ? Math.min(1, t.km / scaleKm) : 1;
+    const [x, y] = at(t.bearing, R * frac);
     const weak = t.db !== undefined && t.db < -6;
     g.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y +
            '" stroke="' + (weak ? '#f85149' : '#39d3d8') + '" stroke-width="0.7" ' +
            'opacity="0.55"/>');
+    g.push('<circle cx="' + x + '" cy="' + y + '" r="2.2" fill="' +
+           (weak ? '#f85149' : '#39d3d8') + '"/>');
     if (t.bearing - lastLabel < 16) return;
     lastLabel = t.bearing;
     const [lx, ly] = at(t.bearing, R + 16);
@@ -2326,6 +2343,26 @@ function planWords(d) {
         'direction it is strung decides the direction it hears.') + '</p>';
   if (d.reach && d.reach.note) {
     html += '<p class="tiny muted">' + escapeHTML(d.reach.note) + '</p>';
+  }
+  /* Two answers, labelled, because they are not the same answer. The geometry
+     is what this program can compute; the day is what decides whether any of
+     it happens. Running them together as one paragraph is how a calculation
+     gets mistaken for a promise. */
+  if (d.reach && d.reach.lab) {
+    html += '<p class="tiny muted"><b>On paper:</b> ' + escapeHTML(d.reach.lab) +
+      '<br><b>In practice:</b> ' + escapeHTML(d.reach.real) + '</p>';
+  }
+  /* An empty compass is a real answer and a discouraging one, and the
+     discouragement is misplaced: it means this combination is wrong, not that
+     the operator is out of options. */
+  if ((d.instead || []).length) {
+    html += '<div class="instead"><p class="tiny"><b>Nothing in range with ' +
+      'this setup.</b> That is a fixable problem, and rarely with the power ' +
+      'knob:</p><ul class="tiny">';
+    d.instead.forEach(a => {
+      html += '<li><b>' + escapeHTML(a.do) + '.</b> ' + escapeHTML(a.why) + '</li>';
+    });
+    html += '</ul></div>';
   }
 
   /* Say where the names came from. A bundled answer is a guess at what is near
