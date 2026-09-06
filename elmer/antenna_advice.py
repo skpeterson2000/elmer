@@ -27,22 +27,58 @@ def wavelength_ft(mhz):
 
 # Intentions, in the words somebody would use about their own station.
 USES = {
-    "local": "Local FM - repeaters and simplex",
+    "local": "Local FM - repeaters, simplex and packet",
+    "weaksignal": "Weak signal - SSB, CW and EME on VHF and up",
+    "satellite": "Satellites",
     "regional": "Regional - out to a few hundred miles",
     "dx": "DX - as far as the band will carry",
     "digital": "Digital modes - FT8, PSK and the like",
     "portable": "Portable or limited space",
 }
 
+# What the band plan calls a segment, and what somebody is therefore doing
+# there. Above 50 MHz this decides the polarisation, which is the single
+# biggest thing about a VHF antenna: FM is vertical and weak-signal work is
+# horizontal, and getting it backwards costs about 20 dB.
+VHF_KIND_USE = {
+    "repeater": "local", "simplex": "local", "digital": "local",
+    "cw": "weaksignal", "phone": "weaksignal", "beacon": "weaksignal",
+    "image": "weaksignal", "satellite": "satellite",
+}
+
+
+def frequency_context(mhz):
+    """What the band plan says this frequency is for, if it says anything.
+
+    Worth asking before assuming. 146.520 is not "a VHF frequency, so probably
+    repeaters" - it is the national FM simplex calling channel, and calling it
+    a repeater channel is both wrong and a way to annoy people.
+    """
+    from . import bandplan
+    seg = bandplan.segment_at(float(mhz))
+    if not seg:
+        return None
+    return {"band": seg["band"], "kind": seg["kind"], "label": seg["label"],
+            "point": seg["high"] <= seg["low"],
+            "low": seg["low"], "high": seg["high"]}
+
 
 def default_use(mhz, kind=None):
-    """The intention to assume when nobody has said, from where they are tuned."""
+    """The intention to assume, read from the band plan rather than guessed."""
     mhz = float(mhz)
-    if kind in ("repeater", "simplex"):
-        return "local"
+    seg = frequency_context(mhz)
+    kind = (seg or {}).get("kind") or kind
+    label = ((seg or {}).get("label") or "").lower()
+
     if mhz >= 50.0:
-        return "local"
-    if kind == "digital":
+        if kind == "calling":
+            # A calling frequency says what it is calling for in its own name.
+            if "ssb" in label or "cw" in label:
+                return "weaksignal"
+            return "local"
+        return VHF_KIND_USE.get(kind, "local")
+
+    if kind == "digital" or (kind == "calling" and "ft8" in label):
         return "digital"
     if mhz <= 7.3:
         return "regional"       # 80 and 40 are where a new licensee works nearby
@@ -82,7 +118,11 @@ def recommend(mhz, use=None, kind=None):
         "alternative": None, "nvis": False,
     }
 
-    if use == "local" or mhz >= 50.0:
+    # Not "or mhz >= 50": that was the original sin here, a blanket assumption
+    # that anything above 50 MHz is somebody chasing repeaters. The frequency
+    # decides through the band plan now, and this branch only handles the case
+    # where it really is FM.
+    if use == "local":
         out.update({
             "type": "jpole",
             "title": "A vertical, as high as you can get it",
@@ -138,6 +178,67 @@ def recommend(mhz, use=None, kind=None):
         out["alternative"] = ("A flat dipole between two supports beats an "
                               "inverted-V slightly; the V is here because it "
                               "needs only one support in the middle.")
+
+    elif use == "weaksignal":
+        out.update({
+            "type": "yagi",
+            "title": "A horizontal beam - and horizontal is the point",
+            "height_ft": _height(mhz, 0, 25, 60),
+            "why": [
+                "SSB, CW and EME on VHF and up are worked horizontally "
+                "polarised, by long convention and everywhere. This is the "
+                "exact opposite of the FM side of the same band, and it is why "
+                "the vertical on your roof hears nothing on 144.200 while the "
+                "repeaters come booming in.",
+                "Cross-polarisation costs around 20 dB. That is not a "
+                "refinement - it is the difference between a solid contact and "
+                "not knowing anybody is there.",
+                "Weak-signal work rewards gain in a way FM does not, because "
+                "you are digging signals out of the noise rather than either "
+                "hearing a repeater or not. A small beam you can turn is worth "
+                "more here than height alone.",
+            ],
+            "watch": [
+                "Mount it well clear of a vertical on the same mast, and of "
+                "gutters and wiring - at these wavelengths a metre is a long "
+                "way and everything nearby is part of the antenna.",
+                "Rotating it matters. A beam pointed the wrong way is worse "
+                "than the dipole you did not put up.",
+            ],
+        })
+        out["alternative"] = ("A plain horizontal dipole is the honest place to "
+                              "start: it gets the polarisation right, which is "
+                              "most of the battle, and costs almost nothing.")
+
+    elif use == "satellite":
+        out.update({
+            "type": "yagi",
+            "title": "A small beam you can point and twist",
+            "height_ft": _height(mhz, 0, 6, 12),
+            "why": [
+                "A satellite is not on the horizon, it is overhead and moving. "
+                "A fixed vertical has a null straight up, which is precisely "
+                "where the pass is best - so the antenna most people already "
+                "own is the wrong shape for this.",
+                "A handheld beam solves it cheaply: you point it, and because "
+                "you can rotate it in your hands you can chase the "
+                "polarisation as the spacecraft tumbles. Height barely matters "
+                "here - a clear view of the sky does.",
+            ],
+            "watch": [
+                "Satellites are usually circularly polarised while your beam is "
+                "linear, so the signal fades in and out as the two drift "
+                "against each other. Twisting the antenna is the fix, and that "
+                "fading is normal rather than a fault.",
+                "Doppler shifts the frequency through the pass - up on "
+                "approach, down going away. You retune as you go, and on the "
+                "higher bands you retune a lot.",
+            ],
+        })
+        out["alternative"] = ("A turnstile or eggbeater is omnidirectional and "
+                              "needs no aiming, at the cost of the gain a beam "
+                              "gives you - a fair trade for unattended or "
+                              "digital work.")
 
     elif use == "portable":
         out.update({
@@ -196,4 +297,5 @@ def recommend(mhz, use=None, kind=None):
                               "rounder pattern - a good trade for most gardens.")
 
     out["feedline"] = _feedline(mhz)
+    out["context"] = frequency_context(mhz)
     return out

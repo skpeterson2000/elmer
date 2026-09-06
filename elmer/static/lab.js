@@ -1575,13 +1575,27 @@ async function antennaAdvice(mhz, use, kind) {
   calcAnt();
 
   box.hidden = false;
+  /* Say what the frequency is before saying what to build for it. Guessing
+     from the band alone once produced "146.52, so you must want repeaters",
+     which is wrong twice over: it is the national simplex calling channel, and
+     a repeater there would be a faux pas. */
+  const ctx = d.context;
+  const said = ctx
+    ? '<div class="advice-ctx"><b>' + d.mhz + ' MHz</b> is ' +
+      (ctx.point ? '' : 'in ') + escapeHTML(ctx.label) + ' on ' +
+      escapeHTML(ctx.band) + '. Taking it that you want <b>' +
+      escapeHTML(d.use_label.toLowerCase()) + '</b> &mdash; change that above ' +
+      'if not.</div>'
+    : '<div class="advice-ctx">' + d.mhz + ' MHz is not in a US amateur band, ' +
+      'so this assumes <b>' + escapeHTML(d.use_label.toLowerCase()) + '</b>.</div>';
+
   box.innerHTML =
     '<div class="advice-head">' +
       '<b>' + escapeHTML(d.title) + '</b>' +
       '<span class="tiny muted">' + d.mhz + ' MHz &middot; ' +
         escapeHTML(d.use_label) + ' &middot; wavelength ' + d.wavelength_ft +
         ' ft</span>' +
-    '</div>' +
+    '</div>' + said +
     '<div class="grid cols-2" style="gap:.9rem;margin-top:.5rem">' +
       '<div>' + d.why.map(w => '<p class="small">' + escapeHTML(w) + '</p>').join('') +
         '<p class="small"><b>Height to aim for: ' + d.height_ft + ' ft.</b> ' +

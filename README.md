@@ -159,9 +159,16 @@ answers the question a new licensee is actually asking — what should I put up,
 how high, which way round — and then sets the calculator to that answer, so the
 dimensions below are the dimensions of the thing being recommended:
 
-- **146.52 MHz, local FM** → a vertical, 20 ft. *FM is vertically polarised, and
-  a horizontal antenna hearing a vertical one loses around 20 dB — more than any
-  amplifier you could buy would give back.*
+- **146.52 MHz** → *"146.52 MHz is FM national simplex calling on 2 m. Taking it
+  that you want local FM — change that above if not."* Then a vertical, 20 ft,
+  because *FM is vertically polarised and a horizontal antenna hearing a vertical
+  one loses around 20 dB.*
+- **144.200 MHz** → a **horizontal** beam instead, because that is SSB calling and
+  weak-signal work on VHF is horizontal by convention. Same band, opposite
+  polarisation, and getting it backwards is the 20 dB that explains why the
+  vertical on the roof hears nothing there while the repeaters boom in.
+- **145.900 MHz** → a small beam you can point and twist, mounted low. A satellite
+  is overhead, and a fixed vertical has its null exactly there.
 - **7.200 MHz, regional** → an inverted-V at 25 ft, deliberately low. *The one
   case where a low antenna is the right answer rather than a compromise, worth
   knowing before somebody talks you into a tower.*

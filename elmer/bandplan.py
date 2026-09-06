@@ -340,6 +340,27 @@ def _edge(value):
     return f"{whole}.{(frac + '000')[:max(3, len(frac))]}"
 
 
+def segment_at(mhz):
+    """The narrowest activity segment covering a frequency, or None.
+
+    Narrowest because the plan overlaps deliberately: 146.520 is a calling
+    frequency sitting inside a wider simplex segment, and the calling frequency
+    is the more specific and more useful answer.
+    """
+    best = None
+    for band in BANDS:
+        if not band["low"] <= mhz <= band["high"]:
+            continue
+        for low, high, kind, label in activity_for(band["name"]):
+            if low <= mhz <= high or abs(mhz - low) < 1e-6:
+                width = high - low
+                if best is None or width < best["width"]:
+                    best = {"band": band["name"], "low": low, "high": high,
+                            "kind": kind, "label": label, "width": width,
+                            "point": high <= low}
+    return best
+
+
 def classes_permitting(band_name, low, high, emission):
     """Which classes may send this emission anywhere in this range, weakest first.
 
@@ -571,6 +592,9 @@ ACTIVITY = {
         (144.200, 144.275, "phone", "General SSB"),
         (144.275, 144.300, "beacon", "Propagation beacons"),
         (144.300, 144.500, "satellite", "Satellite"),
+        # The busiest single frequency on the band in North America, and it was
+        # disappearing inside the satellite segment it happens to sit in.
+        (144.390, 144.390, "digital", "APRS (North America)"),
         (144.500, 144.600, "satellite", "Linear translator inputs"),
         (144.600, 144.900, "repeater", "FM repeater inputs"),
         (144.900, 145.100, "digital", "Weak signal, packet and FM simplex"),
