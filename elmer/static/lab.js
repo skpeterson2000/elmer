@@ -2,6 +2,15 @@
    wording of the outputs deliberately mirrors the exam vocabulary. */
 
 /* ------------------------------------------------------------------ tabs */
+/* Points of the compass. Declared here rather than beside the plan view that
+   uses it: a const is hoisted but not initialised, and the antenna panel draws
+   itself at page load - which put this in the temporal dead zone and threw. */
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+function compass(deg) {
+  return COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+}
+
 function selectTab(name) {
   const btn = document.querySelector('#lab-tabs button[data-tab="' + name + '"]');
   if (!btn) return false;
@@ -431,6 +440,10 @@ function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
   show('.an-when-yagi', type === 'yagi');
+  /* A vertical is the same in every direction, so asking which way it is laid
+     would be a question with no answer - which is exactly why we call it
+     omnidirectional. */
+  show('.an-when-heading', (ANTENNAS[type] || {}).shape !== 'vert' && type !== 'whip');
   show('.an-when-whip', type === 'whip');
   show('.an-when-height', type !== 'whip');
   show('.an-when-v', type === 'invertedv');
@@ -680,7 +693,15 @@ function calcAnt() {
   const heightFt = type === 'whip' ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
                 rows['Radiator'] || 0;
-  drawPattern(type, f, heightFt);
+  const heading = num('an-head');
+  const headEl = document.getElementById('an-head-v');
+  if (headEl) {
+    headEl.textContent = type === 'yagi'
+      ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
+      : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
+        ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
+  }
+  drawPattern(type, f, heightFt, heading);
 
   window.LAB_ANTENNA = {
     type: type,
@@ -784,7 +805,7 @@ function drawAntenna(shape, rows, type) {
 }
 
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-droop', 'an-nvis']
+ 'an-k', 'an-droop', 'an-nvis', 'an-head']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -1888,17 +1909,19 @@ function swrPlot(curve, band) {
     '</svg>';
 }
 
-async function drawPattern(type, mhz, heightFt) {
+async function drawPattern(type, mhz, heightFt, heading) {
   const box = document.getElementById('an-pattern');
   if (!box) return;
   let d;
   try {
     d = await api('/api/pattern?' + new URLSearchParams(
-      {type: type, mhz: mhz, height: heightFt || 0}));
+      {type: type, mhz: mhz, height: heightFt || 0, heading: heading || 0}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
   box.innerHTML =
-    '<div class="grid cols-2" style="gap:1rem">' +
+    '<div class="grid cols-3" style="gap:1rem">' +
+      '<div><div class="panel-title">Looking down on it</div>' +
+        planPlot(d) + planWords(d) + '</div>' +
       '<div><div class="panel-title">Elevation pattern' +
         (d.shape === 'vertical' ? '' : ' at ' + d.height_wl + ' wavelengths up') +
         '</div>' + polarPlot(d.elevation, {mark: d.main_lobe_deg}) +
@@ -1914,4 +1937,92 @@ async function drawPattern(type, mhz, heightFt) {
         '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
         '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p></div>' +
     '</div>';
+}
+
+/* ---------- the plan view ----------
+   The elevation pattern argues about height; this one argues about which way
+   round you hang it, which is the cheaper mistake to fix and the more common
+   one to make. A dipole strung along the fence radiates across the fence, and
+   if the fence points at the house then so does the antenna. */
+
+function planPlot(d) {
+  const R = 104, cx = 152, cy = 122;
+  const at = (bearing, r) => [
+    (cx + r * Math.sin(bearing * Math.PI / 180)).toFixed(1),
+    (cy - r * Math.cos(bearing * Math.PI / 180)).toFixed(1)];
+  const g = [];
+  [0.33, 0.66, 1].forEach(f => g.push('<circle cx="' + cx + '" cy="' + cy +
+    '" r="' + (R * f).toFixed(1) + '" fill="none" stroke="#2a3441"/>'));
+  ['N', 'E', 'S', 'W'].forEach((c, i) => {
+    const [x, y] = at(i * 90, R + 13);
+    g.push('<text x="' + x + '" y="' + (+y + 4) + '" fill="#8b98a5" font-size="10" ' +
+           'text-anchor="middle">' + c + '</text>');
+  });
+  /* The pattern itself, as laid. */
+  const pts = d.azimuth.map(p => at(p.bearing, R * p.field).join(',')).join(' ');
+  g.push('<polygon points="' + pts + '" fill="rgba(63,185,80,.22)" ' +
+         'stroke="#3fb950" stroke-width="1.6"/>');
+  /* The antenna drawn on top, so the shape and the hardware line up. */
+  if (d.shape !== 'vertical') {
+    if (d.type === 'yagi') {
+      const [hx, hy] = at(d.heading, R * 0.92);
+      g.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + hx + '" y2="' + hy +
+             '" stroke="#ffb454" stroke-width="2.5"/>');
+    } else {
+      const [ax, ay] = at(d.heading, R * 0.8), [bx, by] = at(d.heading + 180, R * 0.8);
+      g.push('<line x1="' + ax + '" y1="' + ay + '" x2="' + bx + '" y2="' + by +
+             '" stroke="#ffb454" stroke-width="2.5"/>');
+    }
+  } else {
+    g.push('<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#ffb454"/>');
+  }
+  /* Real places, at their real bearings. */
+  (d.dx || []).forEach(t => {
+    const [x, y] = at(t.bearing, R + 2);
+    const weak = t.db !== undefined && t.db < -6;
+    g.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y +
+           '" stroke="' + (weak ? '#f85149' : '#39d3d8') + '" stroke-width="0.7" ' +
+           'opacity="0.55"/>');
+    const [lx, ly] = at(t.bearing, R + 26);
+    g.push('<text x="' + lx + '" y="' + (+ly + 3) + '" fill="' +
+           (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle">' +
+           escapeHTML(t.name.split(' ')[0]) + '</text>');
+  });
+  return '<svg viewBox="0 0 304 250" style="width:100%;max-width:304px">' +
+         g.join('') + '</svg>';
+}
+
+function planWords(d) {
+  if (d.shape === 'vertical') {
+    return '<p class="tiny muted">The same in every direction, so there is no ' +
+      'wrong way to face it. That is what omnidirectional buys you, and what ' +
+      'it costs: no gain anywhere, because there is no direction to take it ' +
+      'from.</p>';
+  }
+  const best = d.type === 'yagi'
+    ? [d.heading]
+    : [(d.heading + 90) % 360, (d.heading + 270) % 360];
+  const nulls = d.type === 'yagi'
+    ? [(d.heading + 180) % 360]
+    : [d.heading % 360, (d.heading + 180) % 360];
+  const say = a => a.map(b => Math.round(b) + '&deg; ' + compass(b)).join(' and ');
+  let html = '<p class="tiny muted">Strongest toward <b>' + say(best) +
+    '</b>, deaf toward <b>' + say(nulls) + '</b>. ' +
+    (d.type === 'yagi'
+      ? 'Turn the boom and the whole pattern turns with it.'
+      : 'A wire radiates across itself, not along itself &mdash; so the ' +
+        'direction it is strung decides the direction it hears.') + '</p>';
+  const missed = (d.dx || []).filter(t => t.db < -6);
+  if (missed.length) {
+    html += '<p class="tiny" style="color:var(--red)">In the null from ' +
+      escapeHTML(d.qth || 'here') + ': <b>' +
+      missed.map(t => escapeHTML(t.name) + ' (' + t.bearing + '&deg;, ' +
+                 t.db + ' dB)').join(', ') + '</b>. Turning the antenna ' +
+      'is free; the decibels are not.</p>';
+  } else if ((d.dx || []).length) {
+    html += '<p class="tiny" style="color:var(--green)">Nothing important is ' +
+      'in the null from ' + escapeHTML(d.qth || 'here') + ' at this ' +
+      'orientation.</p>';
+  }
+  return html;
 }

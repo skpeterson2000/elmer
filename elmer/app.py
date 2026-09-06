@@ -423,16 +423,29 @@ def api_pattern():
         abort(400)
     lam_ft = 983.571 / mhz
     height_wl = max(0.0, height_ft / lam_ft)
+    try:
+        heading = float(request.args.get("heading", "0")) % 360
+    except ValueError:
+        heading = 0.0
     spec = patterns.ANTENNA_Q[kind]
+
+    # Where the operator is, so the compass can carry real directions rather
+    # than abstract degrees. A wire's null is a fact about the sky it misses.
+    connection = conn()
+    place = qth_for(connection, db.get_profile(connection))
+    dx = (patterns.dx_bearings(place["lat"], place["lon"], kind, heading)
+          if place.get("lat") is not None and place.get("lon") is not None else [])
+
     return jsonify({
         "type": kind, "mhz": mhz, "height_ft": height_ft,
-        "height_wl": round(height_wl, 3),
+        "height_wl": round(height_wl, 3), "heading": heading,
         "shape": spec["shape"], "q": spec["q"], "fed": spec["fed"],
         "elevation": patterns.elevation(kind, height_wl),
-        "azimuth": patterns.azimuth(kind),
+        "azimuth": patterns.azimuth(kind, heading),
         "main_lobe_deg": patterns.main_lobe(kind, height_wl),
         "swr": patterns.swr_curve(kind, mhz),
         "bandwidth": patterns.usable_bandwidth(kind, mhz),
+        "dx": dx, "qth": place.get("grid") or place.get("short") or "",
     })
 
 

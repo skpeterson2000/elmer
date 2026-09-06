@@ -343,8 +343,8 @@ Interactive versions of the maths the pools test:
   horizontal antenna picks up as much as 6 dB more at the peak of its lobe once
   it is about half a wavelength up. That ceiling is 6 dB in total — it is not,
   as the folklore has it, another 6 dB for every doubling of height.
-  Every antenna also draws its **elevation pattern** and its **SWR across the
-  band**, because a gain figure answers neither of the questions that decide
+  Every antenna also draws a **plan view**, its **elevation pattern** and its
+  **SWR across the band**, because a gain figure answers neither of the questions that decide
   whether an antenna suits you: where does the energy go, and how much of the
   band can you use. The pattern is computed rather than sketched — over ground
   the antenna's image adds a second wave, and where the two add is where you
@@ -352,6 +352,18 @@ Interactive versions of the maths the pools test:
   peaks at 30°, at three quarters 19.5°, at a full wavelength 14.5°; that is the
   whole argument about height, drawn. Perfect ground is assumed, so treat the
   shape as right and the last couple of degrees as optimistic.
+
+  The plan view is the one that saves an afternoon of work. A dipole radiates
+  *across* itself and is deaf off its ends, so which way you string it decides
+  which way it hears — and a wire hung along the fence because the fence was
+  there is an unforced error. Set the bearing it runs along and the pattern
+  turns with it, with the real great-circle bearings to Europe, Japan, Australia
+  and the rest laid over the top **from your own grid square**. Strung east–west
+  from EN26 the nulls fall on Africa at 87° and Hawaii at 266°, both around
+  24 dB down, and it says so in as many words: *turning the antenna is free; the
+  decibels are not.* A Yagi behaves the same way with a front and a back; a
+  vertical draws a circle and says plainly that there is no wrong way to face
+  it, which is what omnidirectional buys and what it costs.
 
   The bandwidth plot is where the **bowtie** earns its place. Two triangles
   instead of two wires is a lower Q, and Q is what sets how fast the SWR climbs

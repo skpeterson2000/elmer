@@ -107,23 +107,66 @@ def elevation(kind, height_wl, points=181):
     return out
 
 
-def azimuth(kind, points=181):
-    """Relative field around the compass, 0 broadside to the wire."""
+# Somewhere to point at. Not a DXCC list - a handful of directions a US
+# operator actually thinks in, so a wire's nulls can be named rather than
+# merely drawn.
+DX_TARGETS = [
+    ("Europe", 50.0, 10.0),
+    ("Japan / east Asia", 35.7, 139.7),
+    ("Australia / NZ", -33.9, 151.2),
+    ("South America", -23.5, -46.6),
+    ("Africa", -26.2, 28.0),
+    ("Caribbean", 18.5, -66.1),
+    ("Hawaii / Pacific", 21.3, -157.9),
+    ("Alaska", 61.2, -149.9),
+]
+
+
+def field_at(kind, bearing, heading=0.0):
+    """Relative field toward a compass bearing, for an antenna laid this way.
+
+    `heading` is the bearing the antenna is laid along: the run of the wire for
+    a dipole, where the boom points for a beam. A vertical ignores it, which is
+    the whole reason it gets called omnidirectional.
+    """
+    shape = ANTENNA_Q.get(kind, {}).get("shape")
+    if shape == "vertical":
+        return 1.0
+    if kind == "yagi":
+        off = math.radians((bearing - heading + 180) % 360 - 180)
+        return abs(0.5 + 0.5 * math.cos(off)) ** 1.6
+    # A wire radiates broadside: strongest across itself, nothing off the ends.
+    off = math.radians((bearing - (heading + 90) + 180) % 360 - 180)
+    return abs(math.cos(off))
+
+
+def azimuth(kind, heading=0.0, points=361):
+    """Relative field around the compass, as the antenna is actually laid."""
+    return [{"bearing": n, "field": round(field_at(kind, n, heading), 5)}
+            for n in range(points)]
+
+
+def db(field):
+    """Field as decibels against the pattern's own maximum."""
+    if field <= 0.0005:
+        return -60.0
+    return round(20 * math.log10(field), 1)
+
+
+def dx_bearings(lat, lon, kind=None, heading=0.0):
+    """Where the well-known parts of the world are, and what the antenna does
+    toward each of them."""
+    from .terrain import great_circle
     out = []
-    for n in range(points):
-        deg = 360.0 * n / (points - 1)
-        rad = math.radians(deg)
-        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
-            field = 1.0                                  # omnidirectional
-        elif kind == "yagi":
-            # A beam, described rather than modelled: a cardioid shaped to the
-            # front-to-back ratio a real Yagi gets. Not a substitute for NEC.
-            field = abs(0.5 + 0.5 * math.cos(rad)) ** 1.6
-        else:
-            field = _dipole_free(math.pi / 2 - 0) * 0 + abs(math.cos(rad))
-            field = abs(math.cos(rad))                   # figure of eight
-        out.append({"deg": round(deg, 1), "field": round(field, 5)})
-    return out
+    for name, tlat, tlon in DX_TARGETS:
+        km, bearing = great_circle(lat, lon, tlat, tlon)
+        row = {"name": name, "bearing": round(bearing), "km": round(km)}
+        if kind:
+            field = field_at(kind, bearing, heading)
+            row["field"] = round(field, 4)
+            row["db"] = db(field)
+        out.append(row)
+    return sorted(out, key=lambda r: r["bearing"])
 
 
 def main_lobe(kind, height_wl):
