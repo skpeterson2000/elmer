@@ -364,7 +364,23 @@ Interactive versions of the maths the pools test:
   300 miles, because putting Europe on an NVIS compass is worse than putting
   nothing there — it invites somebody to turn an antenna to chase a contact it
   cannot make. A 2 m vertical gets its radio horizon, and is told plainly that
-  the repeater is doing the reaching rather than the antenna. Strung east–west
+  the repeater is doing the reaching rather than the antenna.
+
+  The names come from two places, and the better one wins. `./elmer.py
+  --fetch-places` asks OpenStreetMap what towns are actually around your QTH,
+  ranked by population, and caches them — so it works in Wales or Hokkaido as
+  well as in Minnesota, and it finds the small towns no bundled list would ever
+  carry. Behind that sits a list of 339 North American cities that ships with
+  the program, so a Pi that has never seen a network still has something to say;
+  when that is what you are seeing, the page says so and tells you how to do
+  better. The QTH is typed in by hand either way, so an off-grid station sets
+  its own location and keeps working — the network only buys better names.
+
+  A city takes its suburbs with it. Ranked by population, a town is only listed
+  if it is well clear of everything larger already listed, so Minneapolis stands
+  for Coon Rapids and Maple Grove — which is how anybody would say it, and
+  without it the list fills with dormitory towns that happen to sit a few miles
+  nearer than the city they belong to. Strung east–west
   from EN26 the nulls fall on Africa at 87° and Hawaii at 266°, both around
   24 dB down, and it says so in as many words: *turning the antenna is free; the
   decibels are not.* A Yagi behaves the same way with a front and a back; a

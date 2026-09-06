@@ -23,8 +23,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
-               patterns, regional, rfexposure, rfpdf, smith, srs, terrain,
-               update)
+               patterns, places, regional, rfexposure, rfpdf, smith, srs,
+               terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -438,8 +438,15 @@ def api_pattern():
 
     connection = conn()
     place = qth_for(connection, db.get_profile(connection))
-    dx = (patterns.targets(place["lat"], place["lon"], kind, heading, span)
-          if place.get("lat") is not None and place.get("lon") is not None else [])
+    dx = []
+    if place.get("lat") is not None and place.get("lon") is not None:
+        dx = patterns.targets(place["lat"], place["lon"], kind, heading, span)
+        # Ask OpenStreetMap what is really around this QTH, once, for next
+        # time. In the background: a pattern is not worth waiting on a web
+        # service for, and the bundled list answers well enough meanwhile.
+        if span.get("radius_km"):
+            places.refresh_in_background(place["lat"], place["lon"],
+                                         span["radius_km"])
 
     return jsonify({
         "type": kind, "mhz": mhz, "height_ft": height_ft,

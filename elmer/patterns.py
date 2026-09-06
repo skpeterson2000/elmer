@@ -122,23 +122,6 @@ DX_TARGETS = [
 ]
 
 
-PLACES = ROOT_PLACES = None
-
-
-def _places():
-    """The bundled city list, loaded once."""
-    global PLACES
-    if PLACES is None:
-        import json
-        from pathlib import Path
-        path = Path(__file__).resolve().parents[1] / "data" / "places.json"
-        try:
-            PLACES = json.loads(path.read_text())["places"]
-        except (OSError, ValueError, KeyError):
-            PLACES = []
-    return PLACES
-
-
 def reach(kind, use, mhz, height_ft=0.0, nvis=False):
     """How far this antenna actually works, and what to compare it against.
 
@@ -179,17 +162,37 @@ def nearby(lat, lon, radius_km, limit=8):
     footprint everything is workable, so what the operator wants is their own
     neighbours - the towns they would name if asked - not one token place per
     sector with the obvious ones squeezed out by whatever sat closer.
+
+    The candidates come from :mod:`elmer.places`, which prefers what it fetched
+    for this neighbourhood over what shipped with the program. Returns the rows
+    and which of the two they came from, because a bundled answer deserves to
+    be labelled as one.
     """
     from .terrain import great_circle
-    found = []
-    for place in _places():
+    from . import places as place_source
+
+    candidates, source = place_source.known(lat, lon, radius_km)
+
+    # A city takes its suburbs with it. Ranked by population, then a place is
+    # only kept if it is well clear of everything bigger already kept - so
+    # Minneapolis stands for Coon Rapids and Maple Grove, which is how anybody
+    # would say it. Without this the list fills with dormitory towns that
+    # happen to sit a few miles nearer than the city they belong to.
+    ordered = sorted(candidates, key=lambda p: -(p.get("population") or 0))
+    kept = []
+    for place in ordered:
         km, bearing = great_circle(lat, lon, place["lat"], place["lon"])
         if km < 15 or km > radius_km:
             continue
-        found.append({"name": place["name"], "region": place["region"],
-                      "bearing": round(bearing), "km": round(km)})
-    found.sort(key=lambda r: r["km"])
-    return sorted(found[:limit], key=lambda r: r["bearing"])
+        if any(great_circle(place["lat"], place["lon"],
+                            other["lat"], other["lon"])[0] < 45 for other in kept):
+            continue
+        kept.append(dict(place, km=round(km), bearing=round(bearing)))
+
+    kept.sort(key=lambda r: r["km"])
+    found = [{"name": r["name"], "region": r.get("region") or "",
+              "bearing": r["bearing"], "km": r["km"]} for r in kept[:limit]]
+    return sorted(found, key=lambda r: r["bearing"]), source
 
 
 def targets(lat, lon, kind, heading, reach_info):
@@ -199,7 +202,8 @@ def targets(lat, lon, kind, heading, reach_info):
     elif reach_info["kind"] == "satellite":
         rows = []
     else:
-        rows = nearby(lat, lon, reach_info["radius_km"])
+        rows, source = nearby(lat, lon, reach_info["radius_km"])
+        reach_info["places_from"] = source
         for row in rows:
             field = field_at(kind, row["bearing"], heading)
             row["field"] = round(field, 4)

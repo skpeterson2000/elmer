@@ -12,6 +12,10 @@ data/explanations/
 # a fork of it.
 data/nifog/
 
+# Towns fetched for wherever this station is. The bundled data/places.json is
+# the fallback and is committed; this is what the network filled in.
+data/places/
+
 # What the update check last saw. Writing it must never make the install look
 # modified, or it would block the very update it exists to announce.
 data/update.json
