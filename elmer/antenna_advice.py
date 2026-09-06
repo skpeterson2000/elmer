@@ -255,6 +255,10 @@ def recommend(mhz, use=None, kind=None):
                 "on both sides. Half the ones on sale are labelled wrongly.",
             ],
             "watch": [
+                "On open-wire line instead of coax it becomes an end-fed "
+                "Zepp: a real antenna, but only one conductor of the feeder "
+                "attaches to the wire, so the feeder currents never balance and "
+                "it radiates. Centre-feed it as a doublet if that matters.",
                 "It needs a counterpoise, and a choke on the coax below the "
                 "unun - a 1:1 current balun, which really is a balun. Without "
                 "them the braid becomes the counterpoise: RF in the shack, "

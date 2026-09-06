@@ -663,6 +663,20 @@ function calcAnt() {
         'a tap, the coax braid and the counterpoise sharing the common end &mdash; ' +
         'which is what an unun is. Plenty of them are sold as "49:1 balun"; the ' +
         'part is fine, the label is wrong.');
+      notes.push('<b>On ladder line it is a different animal.</b> Balanced line ' +
+        'into an unbalanced antenna is a crossing, and a crossing is what a ' +
+        'balun is for &mdash; so yes, in principle. But what you have actually ' +
+        'built is the <b>end-fed Zepp</b>: a half wave fed at the end through a ' +
+        'quarter wave of open-wire line, which transforms that high impedance ' +
+        'down for the tuner. It is a genuine antenna with a century of use ' +
+        'behind it, and a known flaw. Only one conductor of the feeder attaches ' +
+        'to the wire and the other attaches to nothing, so the two currents can ' +
+        'never balance and the feeder radiates &mdash; which is the Zepp\'s ' +
+        'reputation and is inherent to the topology rather than something a ' +
+        'balun at the antenna end cures. Feed it with a balanced tuner, keep the ' +
+        'feeder length deliberate, and expect some feeder radiation. If you want ' +
+        'the wire on ladder line without that, feed it in the middle and build a ' +
+        'doublet instead.');
       notes.push('That is not the end of it, and this is where end-feds get a ' +
         'bad name. The unun matches the impedance but does nothing about ' +
         'common-mode current, so give it a counterpoise and put a <b>choke</b> ' +
