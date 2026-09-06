@@ -622,3 +622,34 @@ option.not-permitted { color: var(--amber); }
 .why { font-size: .72rem; line-height: 1.35; margin-top: .15rem; }
 .why.part { color: var(--amber); }
 .why.no { color: var(--dimmer); }
+
+/* ---------- what to put up ---------- */
+/* The recommendation sits above the calculator, because it is the answer to
+   the question a beginner is actually asking; the dimensions are the working. */
+.advice {
+  border: 1px solid var(--line-2); border-left: 3px solid var(--amber);
+  border-radius: var(--radius); background: var(--panel-2);
+  padding: .8rem .9rem; margin-bottom: 1rem;
+}
+.advice .advice-head { display: flex; flex-wrap: wrap; align-items: baseline;
+                       gap: .6rem; }
+.advice .advice-head b { font-size: 1.02rem; }
+.advice p { margin: 0 0 .5rem; }
+.advice ul.facts { margin: .2rem 0 .5rem; padding-left: 1rem; }
+.advice ul.facts li { color: var(--dim); margin-bottom: .3rem; line-height: 1.45; }
+
+/* ---------- the band bar as a way in ---------- */
+.bandbar { position: relative; }
+.bandbar .seg { cursor: pointer; }
+.bandbar .seg:hover { outline: 1px solid var(--text); outline-offset: -1px; }
+/* Fixed rather than absolute: the card is a sibling of the bar, not a child
+   of it, so there is no positioned ancestor to hang it off. */
+.seg-card {
+  position: fixed; z-index: 30; width: 270px; pointer-events: none;
+  padding: .55rem .65rem;
+  background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 9px; box-shadow: 0 10px 26px rgba(0,0,0,.5);
+}
+.seg-card-head { display: flex; align-items: baseline; gap: .4rem;
+                 flex-wrap: wrap; margin-bottom: .3rem; }
+.seg-picked { border-left: 3px solid var(--amber); }

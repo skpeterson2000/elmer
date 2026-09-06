@@ -107,6 +107,7 @@
 <!-- ----------------------------------------------------------------- ant -->
 <div class="panel mt lab-pane" id="pane-ant" hidden>
   <div class="panel-title">Antenna calculator &mdash; dimensions, impedance and gain</div>
+  <div id="an-advice" class="advice" hidden></div>
   <div class="grid" style="grid-template-columns: 330px 1fr; gap:1.2rem; align-items:start">
     <div>
       <div class="field"><label>Antenna</label>
@@ -132,6 +133,17 @@
         </select></div>
 
       <div class="field"><label>Frequency (MHz)</label><input id="an-f" value="14.200"></div>
+
+      <div class="field"><label>What do you want to do with it?</label>
+        <select id="an-use">
+          <option value="">let ELMER choose from the frequency</option>
+          <option value="local">Local FM &mdash; repeaters and simplex</option>
+          <option value="regional">Regional &mdash; a few hundred miles</option>
+          <option value="dx">DX &mdash; as far as the band will carry</option>
+          <option value="digital">Digital modes &mdash; FT8, PSK</option>
+          <option value="portable">Portable, or limited space</option>
+        </select></div>
+      <button class="btn sm primary" id="an-advise">Recommend a setup &rarr;</button>
 
       <div class="field an-when-height"><label>Height above ground (ft)</label>
         <input id="an-h" value="35"></div>

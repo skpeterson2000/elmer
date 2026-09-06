@@ -63,13 +63,14 @@ function bpRender() {
   const span = band.high - band.low;
   const pct = f => ((f - band.low) / span) * 100;
 
-  /* The bar: activity in colour, privilege gaps hatched over the top. */
-  const bars = band.activity.map(a => {
+  /* The bar: activity in colour, privilege gaps hatched over the top. Each
+     segment carries what it needs for the hover card and the click, so the
+     bar becomes a way in rather than only a picture. */
+  const bars = band.activity.map((a, i) => {
     const w = Math.max(0.35, pct(a.high) - pct(a.low));
-    return '<i class="seg" style="left:' + pct(a.low).toFixed(3) + '%;width:' +
-      w.toFixed(3) + '%;background:' + KIND_COLOUR[a.kind] + '" title="' +
-      escapeHTML(a.low + (a.high !== a.low ? '–' + a.high : '') + ' MHz · ' + a.label) +
-      '"></i>';
+    return '<i class="seg" data-seg="' + i + '" style="left:' +
+      pct(a.low).toFixed(3) + '%;width:' + w.toFixed(3) + '%;background:' +
+      KIND_COLOUR[a.kind] + '"></i>';
   }).join('');
   const gaps = band.gaps.map(([lo, hi]) =>
     '<i class="seg gap" style="left:' + pct(lo).toFixed(3) + '%;width:' +
@@ -127,6 +128,8 @@ function bpRender() {
           '<table class="data"><tbody>' + rows + '</tbody></table></div>' +
       '</div>' +
     '</div>';
+
+  bindSegments(band);
 
   const rbox = document.getElementById('bp-regional');
   const segs = bpRegional && (bpRegional.bands || {})[band.name];
@@ -276,3 +279,99 @@ api('/api/nifog').then(d => {
       '</tbody></table></div>').join('') +
     '</details>';
 }).catch(() => {});
+
+/* ---------- the bar as a way in ----------
+
+   Hovering a segment says what is there and whether the band is open right
+   now; clicking one keeps that on screen and offers to carry the frequency
+   into the antenna designer. The conditions come from the propagation feed
+   already on the dashboard, matched to the band being looked at, so hovering
+   costs nothing beyond the one fetch this page makes at load. */
+
+let bpProp = null;
+
+api('/api/propagation').then(d => { bpProp = d.ok ? d : null; }).catch(() => {});
+
+function conditionsFor(band) {
+  if (!bpProp) return null;
+  const key = band.name.replace(/\s+/g, '');
+  return (bpProp.bands || []).find(b => b.band === key) || null;
+}
+
+function segMiddle(a) {
+  return a.high > a.low ? (a.low + a.high) / 2 : a.low;
+}
+
+/* The intention to carry across, read from what the segment is for. */
+function segUse(a, band) {
+  if (a.kind === 'repeater' || a.kind === 'simplex') return 'local';
+  if (a.kind === 'digital') return 'digital';
+  if (band.low >= 50) return 'local';
+  if (band.high <= 7.3) return 'regional';
+  return 'dx';
+}
+
+function segCardHTML(a, band, forPick) {
+  const cond = conditionsFor(band);
+  const you = a.you || {state: 'no'};
+  const range = a.high > a.low ? a.low + '–' + a.high : String(a.low);
+  const rate = cond
+    ? '<div class="small"><b>' + escapeHTML(cond.rating) + '</b> on ' +
+      escapeHTML(band.name) + ' right now' +
+      (cond.note ? ' — ' + escapeHTML(cond.note) : '') + '</div>' +
+      '<div class="tiny muted">MUF about ' + (bpProp.muf || '?') + ' MHz · ' +
+      'SFI ' + bpProp.sfi + ' · K ' + bpProp.k_index + '</div>'
+    : '<div class="tiny muted">Band conditions unavailable.</div>';
+  const mark = you.state === 'yes' ? '<span class="pill good">yours</span>'
+    : you.state === 'part' ? '<span class="pill warn">' + you.low + '–' + you.high + '</span>'
+    : '<span class="pill bad">not yours</span>';
+  return '<div class="seg-card-head"><b>' + escapeHTML(a.label) + '</b> ' + mark +
+      '<span class="tiny mono muted">' + range + ' MHz</span></div>' +
+    rate +
+    (you.note ? '<div class="tiny" style="color:var(--amber);margin-top:.3rem">' +
+      escapeHTML(you.note) + '</div>' : '') +
+    (forPick
+      ? '<div class="row" style="gap:.5rem;margin-top:.6rem">' +
+          '<a class="btn sm primary" href="/lab?f=' + segMiddle(a).toFixed(3) +
+            '&use=' + segUse(a, band) + '&kind=' + encodeURIComponent(a.kind) +
+            '#ant">Set up an antenna for this →</a>' +
+          '<a class="btn sm ghost" href="/propagation">Full conditions</a>' +
+          '<button class="btn sm ghost" id="bp-unpick">close</button>' +
+        '</div>'
+      : '<div class="tiny muted" style="margin-top:.4rem">Click for what to put ' +
+        'up for it.</div>');
+}
+
+function bindSegments(band) {
+  const bar = document.querySelector('#bp-out .bandbar');
+  const hover = document.getElementById('bp-hover');
+  const picked = document.getElementById('bp-picked');
+  if (!bar || !hover) return;
+  picked.innerHTML = '';
+
+  bar.querySelectorAll('.seg[data-seg]').forEach(el => {
+    const a = band.activity[+el.dataset.seg];
+    if (!a) return;
+    el.addEventListener('mouseenter', e => {
+      hover.innerHTML = segCardHTML(a, band, false);
+      hover.hidden = false;
+      place(e);
+    });
+    const place = e => {
+      const box = bar.getBoundingClientRect();
+      hover.style.left = Math.min(Math.max(e.clientX - 135, 8),
+                                  window.innerWidth - 278) + 'px';
+      hover.style.top = (box.bottom + 8) + 'px';
+    };
+    el.addEventListener('mousemove', place);
+    el.addEventListener('mouseleave', () => { hover.hidden = true; });
+    el.addEventListener('click', () => {
+      hover.hidden = true;
+      picked.innerHTML = '<div class="panel tight mt seg-picked">' +
+        segCardHTML(a, band, true) + '</div>';
+      const shut = document.getElementById('bp-unpick');
+      if (shut) shut.addEventListener('click', () => { picked.innerHTML = ''; });
+      picked.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+  });
+}
