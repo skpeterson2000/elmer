@@ -250,11 +250,16 @@ def recommend(mhz, use=None, kind=None):
                 "where you are standing. Sloping it up into a tree works.",
                 "The end of a half wave is a high-impedance point - around "
                 "2400 ohms - so it needs a 49:1 transformer, not a direct coax "
-                "connection. That transformer is the whole trick.",
+                "connection. That transformer is an unun, not a balun: a balun "
+                "converts balanced to unbalanced, and an end-fed is unbalanced "
+                "on both sides. Half the ones on sale are labelled wrongly.",
             ],
             "watch": [
-                "It needs a counterpoise or it will use your coax braid as "
-                "one, which puts RF in the shack and noise in the receiver.",
+                "It needs a counterpoise, and a choke on the coax below the "
+                "unun - a 1:1 current balun, which really is a balun. Without "
+                "them the braid becomes the counterpoise: RF in the shack, "
+                "noise in the receiver, and an SWR that moves when you touch "
+                "the rig.",
                 "The far end carries the high voltage. Tie it off out of reach.",
             ],
         })
