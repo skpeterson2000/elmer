@@ -1,0 +1,701 @@
+{
+ "note": "Coordinates from OpenStreetMap Nominatim; names are ordinary knowledge. Used to name what an antenna can actually reach.",
+ "places": [
+  {
+   "name": "Seattle",
+   "region": "WA",
+   "lat": 47.6038,
+   "lon": -122.3301
+  },
+  {
+   "name": "Portland",
+   "region": "OR",
+   "lat": 45.5202,
+   "lon": -122.6742
+  },
+  {
+   "name": "Spokane",
+   "region": "WA",
+   "lat": 47.6572,
+   "lon": -117.4235
+  },
+  {
+   "name": "Boise",
+   "region": "ID",
+   "lat": 43.6166,
+   "lon": -116.2009
+  },
+  {
+   "name": "Billings",
+   "region": "MT",
+   "lat": 45.7875,
+   "lon": -108.4961
+  },
+  {
+   "name": "Great Falls",
+   "region": "MT",
+   "lat": 47.5049,
+   "lon": -111.2919
+  },
+  {
+   "name": "Fargo",
+   "region": "ND",
+   "lat": 46.8772,
+   "lon": -96.7898
+  },
+  {
+   "name": "Bismarck",
+   "region": "ND",
+   "lat": 46.8083,
+   "lon": -100.7837
+  },
+  {
+   "name": "Sioux Falls",
+   "region": "SD",
+   "lat": 43.5476,
+   "lon": -96.7294
+  },
+  {
+   "name": "Rapid City",
+   "region": "SD",
+   "lat": 44.0806,
+   "lon": -103.228
+  },
+  {
+   "name": "Minneapolis",
+   "region": "MN",
+   "lat": 44.9773,
+   "lon": -93.2655
+  },
+  {
+   "name": "Duluth",
+   "region": "MN",
+   "lat": 46.7838,
+   "lon": -92.1053
+  },
+  {
+   "name": "Rochester",
+   "region": "MN",
+   "lat": 44.0234,
+   "lon": -92.463
+  },
+  {
+   "name": "Mankato",
+   "region": "MN",
+   "lat": 44.1659,
+   "lon": -94.0028
+  },
+  {
+   "name": "Saint Cloud",
+   "region": "MN",
+   "lat": 45.5616,
+   "lon": -94.1642
+  },
+  {
+   "name": "Bemidji",
+   "region": "MN",
+   "lat": 47.4723,
+   "lon": -94.8833
+  },
+  {
+   "name": "Des Moines",
+   "region": "IA",
+   "lat": 41.5869,
+   "lon": -93.6249
+  },
+  {
+   "name": "Omaha",
+   "region": "NE",
+   "lat": 41.2587,
+   "lon": -95.9384
+  },
+  {
+   "name": "Lincoln",
+   "region": "NE",
+   "lat": 40.8089,
+   "lon": -96.7078
+  },
+  {
+   "name": "Kansas City",
+   "region": "MO",
+   "lat": 39.1001,
+   "lon": -94.5781
+  },
+  {
+   "name": "Saint Louis",
+   "region": "MO",
+   "lat": 38.6254,
+   "lon": -90.19
+  },
+  {
+   "name": "Springfield",
+   "region": "MO",
+   "lat": 37.2082,
+   "lon": -93.2923
+  },
+  {
+   "name": "Wichita",
+   "region": "KS",
+   "lat": 37.6922,
+   "lon": -97.3375
+  },
+  {
+   "name": "Topeka",
+   "region": "KS",
+   "lat": 39.049,
+   "lon": -95.6776
+  },
+  {
+   "name": "Oklahoma City",
+   "region": "OK",
+   "lat": 35.473,
+   "lon": -97.5171
+  },
+  {
+   "name": "Tulsa",
+   "region": "OK",
+   "lat": 36.1563,
+   "lon": -95.9928
+  },
+  {
+   "name": "Dallas",
+   "region": "TX",
+   "lat": 32.7763,
+   "lon": -96.7969
+  },
+  {
+   "name": "Houston",
+   "region": "TX",
+   "lat": 29.7673,
+   "lon": -95.3677
+  },
+  {
+   "name": "San Antonio",
+   "region": "TX",
+   "lat": 29.4246,
+   "lon": -98.4951
+  },
+  {
+   "name": "Austin",
+   "region": "TX",
+   "lat": 30.2711,
+   "lon": -97.7437
+  },
+  {
+   "name": "El Paso",
+   "region": "TX",
+   "lat": 31.7601,
+   "lon": -106.487
+  },
+  {
+   "name": "Lubbock",
+   "region": "TX",
+   "lat": 33.5856,
+   "lon": -101.847
+  },
+  {
+   "name": "Denver",
+   "region": "CO",
+   "lat": 39.7752,
+   "lon": -105.0244
+  },
+  {
+   "name": "Colorado Springs",
+   "region": "CO",
+   "lat": 38.834,
+   "lon": -104.8253
+  },
+  {
+   "name": "Grand Junction",
+   "region": "CO",
+   "lat": 39.0673,
+   "lon": -108.5645
+  },
+  {
+   "name": "Cheyenne",
+   "region": "WY",
+   "lat": 45.2519,
+   "lon": -75.7307
+  },
+  {
+   "name": "Salt Lake City",
+   "region": "UT",
+   "lat": 40.7596,
+   "lon": -111.8868
+  },
+  {
+   "name": "Albuquerque",
+   "region": "NM",
+   "lat": 35.0841,
+   "lon": -106.651
+  },
+  {
+   "name": "Phoenix",
+   "region": "AZ",
+   "lat": 33.4484,
+   "lon": -112.0741
+  },
+  {
+   "name": "Tucson",
+   "region": "AZ",
+   "lat": 32.2229,
+   "lon": -110.9748
+  },
+  {
+   "name": "Flagstaff",
+   "region": "AZ",
+   "lat": 35.1988,
+   "lon": -111.6518
+  },
+  {
+   "name": "Las Vegas",
+   "region": "NV",
+   "lat": 36.1674,
+   "lon": -115.1484
+  },
+  {
+   "name": "Reno",
+   "region": "NV",
+   "lat": 39.5262,
+   "lon": -119.8127
+  },
+  {
+   "name": "Los Angeles",
+   "region": "CA",
+   "lat": 34.0537,
+   "lon": -118.2428
+  },
+  {
+   "name": "San Diego",
+   "region": "CA",
+   "lat": 32.7167,
+   "lon": -117.1693
+  },
+  {
+   "name": "San Francisco",
+   "region": "CA",
+   "lat": 37.7879,
+   "lon": -122.4075
+  },
+  {
+   "name": "Sacramento",
+   "region": "CA",
+   "lat": 38.5811,
+   "lon": -121.4939
+  },
+  {
+   "name": "Fresno",
+   "region": "CA",
+   "lat": 36.7383,
+   "lon": -119.7829
+  },
+  {
+   "name": "Eureka",
+   "region": "CA",
+   "lat": 40.8019,
+   "lon": -124.1708
+  },
+  {
+   "name": "Chicago",
+   "region": "IL",
+   "lat": 41.8756,
+   "lon": -87.6244
+  },
+  {
+   "name": "Peoria",
+   "region": "IL",
+   "lat": 40.6939,
+   "lon": -89.5891
+  },
+  {
+   "name": "Milwaukee",
+   "region": "WI",
+   "lat": 43.0386,
+   "lon": -87.9091
+  },
+  {
+   "name": "Madison",
+   "region": "WI",
+   "lat": 43.0747,
+   "lon": -89.3842
+  },
+  {
+   "name": "Green Bay",
+   "region": "WI",
+   "lat": 44.5126,
+   "lon": -88.0126
+  },
+  {
+   "name": "Detroit",
+   "region": "MI",
+   "lat": 42.3316,
+   "lon": -83.0466
+  },
+  {
+   "name": "Grand Rapids",
+   "region": "MI",
+   "lat": 42.9632,
+   "lon": -85.6679
+  },
+  {
+   "name": "Marquette",
+   "region": "MI",
+   "lat": 46.4482,
+   "lon": -87.6306
+  },
+  {
+   "name": "Indianapolis",
+   "region": "IN",
+   "lat": 39.7683,
+   "lon": -86.1583
+  },
+  {
+   "name": "Fort Wayne",
+   "region": "IN",
+   "lat": 41.08,
+   "lon": -85.1386
+  },
+  {
+   "name": "Columbus",
+   "region": "OH",
+   "lat": 39.9623,
+   "lon": -83.0007
+  },
+  {
+   "name": "Cleveland",
+   "region": "OH",
+   "lat": 41.4997,
+   "lon": -81.6937
+  },
+  {
+   "name": "Cincinnati",
+   "region": "OH",
+   "lat": 39.1013,
+   "lon": -84.5127
+  },
+  {
+   "name": "Louisville",
+   "region": "KY",
+   "lat": 38.2542,
+   "lon": -85.7594
+  },
+  {
+   "name": "Nashville",
+   "region": "TN",
+   "lat": 36.1623,
+   "lon": -86.7743
+  },
+  {
+   "name": "Memphis",
+   "region": "TN",
+   "lat": 35.146,
+   "lon": -90.0518
+  },
+  {
+   "name": "Knoxville",
+   "region": "TN",
+   "lat": 35.9604,
+   "lon": -83.921
+  },
+  {
+   "name": "Birmingham",
+   "region": "AL",
+   "lat": 33.5713,
+   "lon": -86.7658
+  },
+  {
+   "name": "Atlanta",
+   "region": "GA",
+   "lat": 33.7545,
+   "lon": -84.3898
+  },
+  {
+   "name": "Savannah",
+   "region": "GA",
+   "lat": 43.4129,
+   "lon": -79.7028
+  },
+  {
+   "name": "Jacksonville",
+   "region": "FL",
+   "lat": 30.3262,
+   "lon": -81.6579
+  },
+  {
+   "name": "Orlando",
+   "region": "FL",
+   "lat": 28.5421,
+   "lon": -81.379
+  },
+  {
+   "name": "Miami",
+   "region": "FL",
+   "lat": 25.7742,
+   "lon": -80.1936
+  },
+  {
+   "name": "Tampa",
+   "region": "FL",
+   "lat": 27.953,
+   "lon": -82.4509
+  },
+  {
+   "name": "Charlotte",
+   "region": "NC",
+   "lat": 35.2272,
+   "lon": -80.8431
+  },
+  {
+   "name": "Raleigh",
+   "region": "NC",
+   "lat": 35.7804,
+   "lon": -78.6391
+  },
+  {
+   "name": "Charleston",
+   "region": "SC",
+   "lat": 32.7923,
+   "lon": -79.9409
+  },
+  {
+   "name": "Richmond",
+   "region": "VA",
+   "lat": -32.8652,
+   "lon": 151.5012
+  },
+  {
+   "name": "Norfolk",
+   "region": "VA",
+   "lat": 36.8494,
+   "lon": -76.29
+  },
+  {
+   "name": "Washington",
+   "region": "DC",
+   "lat": 38.8951,
+   "lon": -77.0364
+  },
+  {
+   "name": "Baltimore",
+   "region": "MD",
+   "lat": 39.2909,
+   "lon": -76.6108
+  },
+  {
+   "name": "Philadelphia",
+   "region": "PA",
+   "lat": 39.9527,
+   "lon": -75.1635
+  },
+  {
+   "name": "Pittsburgh",
+   "region": "PA",
+   "lat": 40.4407,
+   "lon": -80.0026
+  },
+  {
+   "name": "Buffalo",
+   "region": "NY",
+   "lat": 42.8864,
+   "lon": -78.8781
+  },
+  {
+   "name": "Syracuse",
+   "region": "NY",
+   "lat": 43.0481,
+   "lon": -76.1474
+  },
+  {
+   "name": "New York",
+   "region": "NY",
+   "lat": 40.7127,
+   "lon": -74.006
+  },
+  {
+   "name": "Albany",
+   "region": "NY",
+   "lat": 42.6512,
+   "lon": -73.755
+  },
+  {
+   "name": "Boston",
+   "region": "MA",
+   "lat": 42.3588,
+   "lon": -71.0578
+  },
+  {
+   "name": "Portland",
+   "region": "ME",
+   "lat": 43.6635,
+   "lon": -70.2585
+  },
+  {
+   "name": "Bangor",
+   "region": "ME",
+   "lat": 44.8016,
+   "lon": -68.7713
+  },
+  {
+   "name": "Burlington",
+   "region": "VT",
+   "lat": 44.4762,
+   "lon": -73.2129
+  },
+  {
+   "name": "Concord",
+   "region": "NH",
+   "lat": 43.2072,
+   "lon": -71.5375
+  },
+  {
+   "name": "Hartford",
+   "region": "CT",
+   "lat": 42.3144,
+   "lon": -71.0729
+  },
+  {
+   "name": "Providence",
+   "region": "RI",
+   "lat": 51.4325,
+   "lon": -2.6643
+  },
+  {
+   "name": "Charleston",
+   "region": "WV",
+   "lat": 38.3506,
+   "lon": -81.6333
+  },
+  {
+   "name": "Little Rock",
+   "region": "AR",
+   "lat": 34.7465,
+   "lon": -92.2896
+  },
+  {
+   "name": "New Orleans",
+   "region": "LA",
+   "lat": 29.9561,
+   "lon": -90.0734
+  },
+  {
+   "name": "Shreveport",
+   "region": "LA",
+   "lat": 32.5135,
+   "lon": -93.7478
+  },
+  {
+   "name": "Jackson",
+   "region": "MS",
+   "lat": 29.735,
+   "lon": -95.3255
+  },
+  {
+   "name": "Anchorage",
+   "region": "AK",
+   "lat": 61.2163,
+   "lon": -149.8949
+  },
+  {
+   "name": "Fairbanks",
+   "region": "AK",
+   "lat": 64.8378,
+   "lon": -147.7167
+  },
+  {
+   "name": "Honolulu",
+   "region": "HI",
+   "lat": 21.3045,
+   "lon": -157.8557
+  },
+  {
+   "name": "Winnipeg",
+   "region": "MB",
+   "lat": 49.8955,
+   "lon": -97.1385
+  },
+  {
+   "name": "Thunder Bay",
+   "region": "ON",
+   "lat": 48.4064,
+   "lon": -89.2598
+  },
+  {
+   "name": "Toronto",
+   "region": "ON",
+   "lat": 43.6535,
+   "lon": -79.3839
+  },
+  {
+   "name": "Ottawa",
+   "region": "ON",
+   "lat": 45.4209,
+   "lon": -75.6901
+  },
+  {
+   "name": "Montreal",
+   "region": "QC",
+   "lat": 45.5032,
+   "lon": -73.5698
+  },
+  {
+   "name": "Quebec City",
+   "region": "QC",
+   "lat": 46.8137,
+   "lon": -71.2084
+  },
+  {
+   "name": "Halifax",
+   "region": "NS",
+   "lat": 44.6486,
+   "lon": -63.5859
+  },
+  {
+   "name": "Regina",
+   "region": "SK",
+   "lat": 50.448,
+   "lon": -104.6159
+  },
+  {
+   "name": "Saskatoon",
+   "region": "SK",
+   "lat": 52.1318,
+   "lon": -106.6608
+  },
+  {
+   "name": "Calgary",
+   "region": "AB",
+   "lat": 51.0456,
+   "lon": -114.0575
+  },
+  {
+   "name": "Edmonton",
+   "region": "AB",
+   "lat": 53.5462,
+   "lon": -113.4912
+  },
+  {
+   "name": "Vancouver",
+   "region": "BC",
+   "lat": 49.2609,
+   "lon": -123.114
+  },
+  {
+   "name": "Tijuana",
+   "region": "MX",
+   "lat": 32.5317,
+   "lon": -117.0195
+  },
+  {
+   "name": "Monterrey",
+   "region": "MX",
+   "lat": 25.6802,
+   "lon": -100.3153
+  },
+  {
+   "name": "Mexico City",
+   "region": "MX",
+   "lat": 19.3208,
+   "lon": -99.1515
+  }
+ ]
+}

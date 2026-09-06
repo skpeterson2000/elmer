@@ -122,6 +122,91 @@ DX_TARGETS = [
 ]
 
 
+PLACES = ROOT_PLACES = None
+
+
+def _places():
+    """The bundled city list, loaded once."""
+    global PLACES
+    if PLACES is None:
+        import json
+        from pathlib import Path
+        path = Path(__file__).resolve().parents[1] / "data" / "places.json"
+        try:
+            PLACES = json.loads(path.read_text())["places"]
+        except (OSError, ValueError, KeyError):
+            PLACES = []
+    return PLACES
+
+
+def reach(kind, use, mhz, height_ft=0.0, nvis=False):
+    """How far this antenna actually works, and what to compare it against.
+
+    The point of asking is that the answer decides who the neighbours are. An
+    NVIS wire on 80 m does not reach Europe and never will, so drawing Europe
+    on its compass is worse than drawing nothing: it invites somebody to turn
+    an antenna to chase a contact the antenna cannot make.
+    """
+    mhz = float(mhz)
+    if use == "satellite":
+        return {"kind": "satellite", "radius_km": None,
+                "note": "A satellite is overhead and moving, so ground bearings "
+                        "do not describe it. What matters is a clear view of the "
+                        "sky and being able to follow the pass."}
+    if mhz >= 50.0:
+        # Radio horizon, 4/3 earth, to a station at a similar height.
+        miles = 1.415 * math.sqrt(max(height_ft, 1.0)) * 2
+        return {"kind": "line_of_sight", "radius_km": round(miles * 1.609),
+                "note": f"Line of sight: about {round(miles)} miles to another "
+                        f"antenna at this height, and much further to a repeater "
+                        f"on a tower or a hill."}
+    if nvis or use == "regional":
+        return {"kind": "regional", "radius_km": 500,
+                "note": "Near-vertical incidence: the signal goes up and comes "
+                        "back down over the whole area, with no skip zone in the "
+                        "middle. Good for roughly 300 miles, and it needs the "
+                        "frequency to be below the critical frequency - which is "
+                        "why NVIS is an 80 and 40 metre trick by day."}
+    return {"kind": "dx", "radius_km": None,
+            "note": "Ionospheric propagation, so distance depends on the band "
+                    "and the hour rather than on the antenna alone."}
+
+
+def nearby(lat, lon, radius_km, limit=8):
+    """The places actually inside this antenna's reach, nearest first.
+
+    Nearest rather than spread evenly around the compass: inside an NVIS
+    footprint everything is workable, so what the operator wants is their own
+    neighbours - the towns they would name if asked - not one token place per
+    sector with the obvious ones squeezed out by whatever sat closer.
+    """
+    from .terrain import great_circle
+    found = []
+    for place in _places():
+        km, bearing = great_circle(lat, lon, place["lat"], place["lon"])
+        if km < 15 or km > radius_km:
+            continue
+        found.append({"name": place["name"], "region": place["region"],
+                      "bearing": round(bearing), "km": round(km)})
+    found.sort(key=lambda r: r["km"])
+    return sorted(found[:limit], key=lambda r: r["bearing"])
+
+
+def targets(lat, lon, kind, heading, reach_info):
+    """What to draw on the compass: whatever this antenna can actually work."""
+    if reach_info["kind"] == "dx":
+        rows = dx_bearings(lat, lon, kind, heading)
+    elif reach_info["kind"] == "satellite":
+        rows = []
+    else:
+        rows = nearby(lat, lon, reach_info["radius_km"])
+        for row in rows:
+            field = field_at(kind, row["bearing"], heading)
+            row["field"] = round(field, 4)
+            row["db"] = db(field)
+    return rows
+
+
 def field_at(kind, bearing, heading=0.0):
     """Relative field toward a compass bearing, for an antenna laid this way.
 
