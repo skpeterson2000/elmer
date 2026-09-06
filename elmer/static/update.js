@@ -8,9 +8,10 @@
 function updateStatusLine(d) {
   const st = d.state, s = d.status || {};
   if (!st.checkout) {
-    return ['warn', 'Not a git checkout, so it cannot update itself. ' +
-                    'Run <span class="mono">./elmer.py --adopt</span> to point ' +
-                    'this copy at the repository without touching your files.'];
+    return ['warn', 'This copy was downloaded rather than cloned, so it has ' +
+                    'no link back to where ELMER comes from and cannot update ' +
+                    'itself. Run <span class="mono">./install.sh --connect</span> ' +
+                    'to give it one - it asks first and overwrites nothing.'];
   }
   if (s.error) return ['warn', escapeHTML(s.error)];
   if (!s.checked_at) return ['', 'Not checked yet.'];

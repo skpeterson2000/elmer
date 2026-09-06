@@ -31,9 +31,12 @@ def _update_command(update, apply_it, assume_yes):
     if status.get("error"):
         print(f"\n  {status['error']}")
         if not state.get("checkout"):
-            print("\n  This directory was copied rather than cloned. Run")
-            print("      ./elmer.py --adopt")
-            print("  to point it at the repository without touching your files.\n")
+            print("\n  This directory was copied rather than cloned, so there is")
+            print("  no link back to where ELMER comes from. To give it one:")
+            print("\n      ./install.sh --connect")
+            print("\n  which asks first, explains itself, and overwrites nothing.")
+            print("  (./elmer.py --adopt makes the link alone, without")
+            print("  offering to bring these files up to the release.)\n")
         else:
             print()
         return False
@@ -113,7 +116,9 @@ def main():
                     help="read the interoperability channels out of the current "
                          "NIFOG and cache them")
     ap.add_argument("--adopt", action="store_true",
-                    help="turn a copied install into a checkout so it can update")
+                    help="give a copied install a link to the repository so it "
+                         "can update itself (./install.sh --connect asks first "
+                         "and explains what it is doing)")
     ap.add_argument("--yes", "-y", action="store_true",
                     help="with --update, do not ask before applying it")
     args = ap.parse_args()
