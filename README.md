@@ -257,6 +257,34 @@ install puts the icon in a menu nobody uses and leaves ELMER unable to save
 anything when the desktop user runs it. The installer asks for sudo only when
 a system package is genuinely needed.
 
+## How far, and toward whom
+
+The plan view is a map now, not just a compass. Every antenna other than a
+satellite one gets its reachable places plotted at their real bearing *and*
+their real distance, with the pattern's own strength toward each - so a dipole
+strung the wrong way shows Hartford sitting at -20 dB off the end of the wire,
+which is an unforced error you can see rather than one you discover.
+
+On HF the reach is worked out from the antenna's own takeoff angle rather than
+waved at. The main lobe is turned into one ionospheric hop, and the half-power
+edges of that lobe into a band of distance - so a 20 m dipole at 35 ft reaches
+roughly 450-1,570 km, and the same wire at 70 ft reaches 1,140-2,270 km. Raise
+it and you gain the far edge and *lose* the near one: the skip zone is drawn as
+a dashed circle, because a high wire cannot work the next county and nobody
+believes that until they see it.
+
+Two figures are given for every case and labelled separately: what the geometry
+says, and what the day says. The first is a calculation and the second is a
+warning, and running them together is how a calculation gets mistaken for a
+promise.
+
+When nothing at all is in range, that is a fixable problem and it is rarely
+fixed with the power knob. ELMER says which knob does move it - drop a band,
+lower the antenna, work the ring rather than the middle, try a weak-signal or
+digital mode, come back at a different hour - and, when the place list is the
+bundled North American one, says so first, because an empty compass in Bavaria
+is a gap in the data rather than an answer about an antenna.
+
 ## Getting a message out
 
 The **Make Contact** page answers the question somebody a long way up a forest

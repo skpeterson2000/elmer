@@ -504,10 +504,16 @@ def api_pattern():
     # invite somebody to turn an antenna to chase a contact it cannot make.
     nvis = request.args.get("nvis") in ("1", "true", "yes")
     use = request.args.get("use") or antenna_advice.default_use(mhz)
-    span = patterns.reach(kind, use, mhz, height_ft, nvis)
 
     connection = conn()
     place = qth_for(connection, db.get_profile(connection))
+    # The F2 layer sits lower by day than by night, and that changes how far
+    # one hop reaches - so the answer depends on the hour where the station
+    # is, not on the server's idea of noon.
+    day = reachout.daytime(place["lon"]) if place.get("lon") is not None else True
+    span = patterns.qualify(
+        patterns.reach(kind, use, mhz, height_ft, nvis, slope, day))
+
     dx = []
     if place.get("lat") is not None and place.get("lon") is not None:
         dx = patterns.targets(place["lat"], place["lon"], kind, heading, span)
@@ -544,6 +550,13 @@ def api_pattern():
         "qth_source": place.get("source") or "saved",
         "qth_age_s": place.get("age_s"),
         "reach": span, "use": use,
+        "daytime": day,
+        # When the compass comes back empty, an empty compass is not the whole
+        # answer - what to do instead is.
+        "instead": (patterns.advise_empty(span, mhz, kind, height_ft, use,
+                                          bundled=span.get("places_from") == "bundled")
+                    if not dx and not reps and span["kind"] != "satellite"
+                    else []),
         "repeaters": reps, "repeaters_from": reps_from,
         "repeater_coverage": coverage,
         "repeater_radius_km": round(repeaters.horizon_km(height_ft)),

@@ -168,7 +168,93 @@ DX_TARGETS = [
 ]
 
 
-def reach(kind, use, mhz, height_ft=0.0, nvis=False):
+EARTH_R_KM = 6371.0
+
+# Where the F2 layer sits, roughly: low by day, high at night. The height
+# matters because it sets how far one hop reaches, and an hour either side of
+# sunset moves it more than any antenna change will.
+F2_DAY_KM, F2_NIGHT_KM = 260.0, 350.0
+
+
+def hop_km(elev_deg, layer_km):
+    """Ground distance covered by one ionospheric hop leaving at this angle.
+
+    The same geometry the skip simulator draws, moved here so the antenna's
+    own takeoff angle can be turned into a distance. Curvature is included:
+    the flat-earth form blows up at low angles and would promise the moon.
+    """
+    elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
+    sin_phi = min(1.0, EARTH_R_KM * math.cos(elev) / (EARTH_R_KM + layer_km))
+    phi = math.asin(sin_phi)
+    psi = math.pi / 2 - elev - phi          # earth-central angle
+    return max(0.0, 2 * EARTH_R_KM * psi)
+
+
+def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0):
+    """The elevation angles where the main lobe has fallen by `drop_db`.
+
+    An antenna does not radiate at one angle, and a single number for "the
+    takeoff angle" turns a band of workable distances into a false point. The
+    half-power edges of the lobe are what turn it back into a band.
+    """
+    curve = elevation(kind, height_wl, slope_deg=slope_deg)
+    if not curve:
+        return None, None, None
+    best = max(curve, key=lambda p: p["field"])
+    if best["field"] <= 0:
+        return None, None, None
+    # An antenna a whole wavelength up has two lobes of *equal* amplitude, so
+    # taking the global maximum is a coin toss decided by rounding: half a
+    # foot of mast would swing the reported reach from 2300 km to 600. The
+    # lowest lobe within a decibel of the best is the one that does the DX,
+    # and it is the same lobe every time you ask.
+    floor = best["field"] * (10 ** (-1.0 / 20.0))
+    peak = best
+    for n in range(1, len(curve) - 1):
+        here = curve[n]
+        if (here["field"] >= floor
+                and here["field"] >= curve[n - 1]["field"]
+                and here["field"] >= curve[n + 1]["field"]):
+            peak = here
+            break
+    threshold = peak["field"] * (10 ** (-drop_db / 20.0))
+    # Walk outwards from the peak and stop at the first null. Taking the min
+    # and max of everything above the threshold would span a second lobe and
+    # the dead ring between them, and report coverage that is not there: at a
+    # wavelength up, a dipole has a lobe near 15 degrees and another near 60,
+    # and nothing worth having in between.
+    index = curve.index(peak)
+    low = high = index
+    while low > 0 and curve[low - 1]["field"] >= threshold:
+        low -= 1
+    while high < len(curve) - 1 and curve[high + 1]["field"] >= threshold:
+        high += 1
+    return curve[low]["deg"], peak["deg"], curve[high]["deg"]
+
+
+def hop_ring(kind, height_wl, slope_deg=0.0, day=True):
+    """How far one hop reaches, as a band of distance rather than a point.
+
+    A high takeoff angle lands close; a low one lands far. So the near edge of
+    what this antenna works comes from the top of its lobe and the far edge
+    from the bottom of it - which is why height, not power, is what changes an
+    HF station's reach.
+    """
+    low, peak, high = lobe_edges(kind, height_wl, slope_deg)
+    if low is None:
+        return None
+    layer = F2_DAY_KM if day else F2_NIGHT_KM
+    near = hop_km(high, layer)              # steepest angle -> shortest hop
+    far = hop_km(low, layer)                # shallowest angle -> longest hop
+    return {"near_km": round(near), "far_km": round(far),
+            "typical_km": round(hop_km(peak, layer)),
+            "takeoff_deg": round(peak, 1),
+            "lobe_deg": [round(low, 1), round(high, 1)],
+            "layer_km": layer}
+
+
+def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
+          day=True):
     """How far this antenna actually works, and what to compare it against.
 
     The point of asking is that the answer decides who the neighbours are. An
@@ -207,12 +293,66 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False):
                         "middle. Good for roughly 300 miles, and it needs the "
                         "frequency to be below the critical frequency - which is "
                         "why NVIS is an 80 and 40 metre trick by day."}
-    return {"kind": "dx", "radius_km": None,
-            "note": "Ionospheric propagation, so distance depends on the band "
-                    "and the hour rather than on the antenna alone."}
+    # One hop, from this antenna's own takeoff angle. Saying "it depends on
+    # the band and the hour" was true and useless: the operator wanted a
+    # distance, and the antenna they have already decides most of it.
+    lam_ft = 983.571 / mhz
+    ring = hop_ring(kind, max(0.0, height_ft / lam_ft), slope_deg, day)
+    if not ring:
+        return {"kind": "dx", "radius_km": None,
+                "note": "Ionospheric propagation, so distance depends on the "
+                        "band and the hour rather than on the antenna alone."}
+    return {
+        "kind": "dx", "radius_km": ring["far_km"], "inner_km": ring["near_km"],
+        "outer_km": ring["far_km"], "typical_km": ring["typical_km"],
+        "takeoff_deg": ring["takeoff_deg"], "lobe_deg": ring["lobe_deg"],
+        "layer_km": ring["layer_km"],
+        "note": (f"One hop off the F2 layer at about {ring['layer_km']:.0f} km, "
+                 f"leaving at {ring['takeoff_deg']}\u00b0: that lands roughly "
+                 f"{ring['near_km']}-{ring['far_km']} km out, typically around "
+                 f"{ring['typical_km']}. Inside the near edge is the skip zone "
+                 f"and the antenna cannot help you there - a lower band can."),
+    }
 
 
-def nearby(lat, lon, radius_km, limit=8):
+# What the geometry says, and what the day says. Both are true; only one of
+# them is a promise, and it is not the first.
+QUALIFIED = {
+    "dx": ("Geometry only: one hop, a smooth earth, and a layer where the "
+           "model puts it.",
+           "The band has to be open to that distance at that hour, and the "
+           "station at the far end needs to hear you. Expect the ring to "
+           "breathe by hundreds of kilometres through the day, and to close "
+           "entirely at night on the high bands."),
+    "regional": ("The signal goes up and comes back down over the whole area, "
+                 "with no skip zone in the middle.",
+                 "Only while the frequency stays below the critical frequency "
+                 "- which is why NVIS is an 80 and 40 metre trick, and why it "
+                 "fails on 20."),
+    "tropo": ("Refraction in the lower atmosphere, which does not care about "
+              "the sun.",
+              "Terrain decides it. A ridge in the way beats the calculation, "
+              "and a temperature inversion beats the ridge."),
+    "line_of_sight": ("Radio horizon over a smooth earth at 4/3 radius.",
+                      "Anything solid between the two antennas wins. Height "
+                      "is the whole game here: twenty feet up beats twenty "
+                      "watts."),
+    "satellite": ("A clear view of the sky.",
+                  "The pass has to be happening, and you have to be following "
+                  "it."),
+}
+
+
+def qualify(span):
+    """Attach the lab answer and the real-world answer, separately labelled."""
+    lab, real = QUALIFIED.get(span.get("kind"), (None, None))
+    if lab:
+        span["lab"] = lab
+        span["real"] = real
+    return span
+
+
+def nearby(lat, lon, radius_km, limit=8, inner_km=0.0, spread=False):
     """The places actually inside this antenna's reach, nearest first.
 
     Nearest rather than spread evenly around the compass: inside an NVIS
@@ -239,13 +379,23 @@ def nearby(lat, lon, radius_km, limit=8):
     kept = []
     for place in ordered:
         km, bearing = great_circle(lat, lon, place["lat"], place["lon"])
-        if km < 15 or km > radius_km:
+        if km < max(15.0, inner_km) or km > radius_km:
             continue
         if any(great_circle(place["lat"], place["lon"],
                             other["lat"], other["lon"])[0] < 45 for other in kept):
             continue
         kept.append(dict(place, km=round(km), bearing=round(bearing)))
 
+    if spread:
+        # A ring is about which way to point, so take the best place in each
+        # sector of the compass rather than the nearest few. Nearest-first on
+        # an annulus returns eight towns hugging the inner edge in whatever
+        # direction happens to be nearest, and the whole question was which
+        # direction.
+        sectors, step = {}, 360.0 / max(1, limit)
+        for row in sorted(kept, key=lambda r: -(r.get("population") or 0)):
+            sectors.setdefault(int(row["bearing"] / step), row)
+        kept = list(sectors.values())
     kept.sort(key=lambda r: r["km"])
     found = [{"name": r["name"], "region": r.get("region") or "",
               "bearing": r["bearing"], "km": r["km"]} for r in kept[:limit]]
@@ -254,17 +404,29 @@ def nearby(lat, lon, radius_km, limit=8):
 
 def targets(lat, lon, kind, heading, reach_info):
     """What to draw on the compass: whatever this antenna can actually work."""
+    if reach_info["kind"] == "satellite":
+        return []
+
     if reach_info["kind"] == "dx":
-        rows = dx_bearings(lat, lon, kind, heading)
-    elif reach_info["kind"] == "satellite":
-        rows = []
+        # The well-known parts of the world stay - they are what an operator
+        # points a beam at - but the compass now also carries the towns that
+        # actually fall in the ring this antenna reaches. "Somewhere in
+        # Europe" is a direction; Denver at 1,400 km is a contact.
+        reach_info["world"] = dx_bearings(lat, lon, kind, heading)
+        if not reach_info.get("outer_km"):
+            return reach_info["world"]
+        rows, source = nearby(lat, lon, reach_info["outer_km"],
+                              inner_km=reach_info.get("inner_km") or 0.0,
+                              spread=True)
+        reach_info["places_from"] = source
     else:
         rows, source = nearby(lat, lon, reach_info["radius_km"])
         reach_info["places_from"] = source
-        for row in rows:
-            field = field_at(kind, row["bearing"], heading)
-            row["field"] = round(field, 4)
-            row["db"] = db(field)
+
+    for row in rows:
+        field = field_at(kind, row["bearing"], heading)
+        row["field"] = round(field, 4)
+        row["db"] = db(field)
     return rows
 
 
@@ -352,3 +514,111 @@ def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0):
     low, high = min(good), max(good)
     return {"limit": limit, "low": round(low, 4), "high": round(high, 4),
             "khz": round((high - low) * 1000), "percent": round(100 * (high - low) / f0_mhz, 2)}
+
+
+# --------------------------------------------------------------------------
+# when the answer is "nobody"
+# --------------------------------------------------------------------------
+
+def advise_empty(span, mhz, kind, height_ft, use=None, bundled=False):
+    """What to do instead, when this antenna on this frequency reaches nobody.
+
+    An empty compass is a real answer and usually a discouraging one, and the
+    discouragement is misplaced: it almost never means the operator is out of
+    options, only that this combination is the wrong one. So say which knob
+    moves - and the answer is rarely the power knob.
+    """
+    mhz = float(mhz)
+    out = []
+    reach_kind = span.get("kind")
+
+    # "Nothing in range" and "nothing in the list that shipped with me" are
+    # different sentences, and the bundled list is North American. Telling an
+    # operator in Bavaria that their antenna reaches nobody would be a data
+    # gap wearing the costume of a propagation answer.
+    if bundled:
+        out.append({
+            "do": "Let ELMER look up what is actually around you first",
+            "why": ("The list that ships with ELMER is a few hundred North "
+                    "American cities. If you are anywhere else, an empty "
+                    "compass says more about the list than about your "
+                    "antenna. Run ./elmer.py --fetch-places once with a "
+                    "network and it will ask OpenStreetMap for your real "
+                    "neighbours."),
+        })
+
+    if reach_kind == "dx":
+        inner = span.get("inner_km") or 0
+        if inner > 200:
+            out.append({
+                "do": "Drop a band",
+                "why": (f"Everything inside {inner} km is skip zone for this "
+                        f"antenna - the signal is already over their heads. A "
+                        f"lower band bends back more steeply and fills that "
+                        f"hole in. On 40 or 80 the same wire covers the ground "
+                        f"this one steps across."),
+            })
+            out.append({
+                "do": "Lower the antenna, or feed it as an inverted V",
+                "why": ("Height buys distance by lowering the takeoff angle, "
+                        "and that is exactly what opened the hole. Half a "
+                        "wavelength up is the compromise; a quarter is "
+                        "deliberately near-vertical."),
+            })
+        out.append({
+            "do": "Work the ring, not the middle",
+            "why": (f"The contacts are between {span.get('inner_km', 0)} and "
+                    f"{span.get('outer_km', 0)} km out. Point the antenna and "
+                    f"the expectations there, and let a lower band have the "
+                    f"close-in work."),
+        })
+    elif reach_kind in ("line_of_sight", "tropo"):
+        out.append({
+            "do": "Get higher before you get louder",
+            "why": ("Above 50 MHz the horizon is the limit and power does not "
+                    "move it. Twenty feet up, or a hilltop, changes the answer "
+                    "in a way another hundred watts cannot."),
+        })
+        out.append({
+            "do": "Use a machine on a tower",
+            "why": ("A repeater is high so you do not have to be. That is the "
+                    "whole point of one, and it is why the FM bands are "
+                    "arranged around them."),
+        })
+        if mhz >= 50 and use in (None, "local", "digital"):
+            out.append({
+                "do": "Try a weak-signal mode instead of FM",
+                "why": ("SSB and CW work perhaps 10 to 20 dB further down into "
+                        "the noise than FM does, which is the difference "
+                        "between a quiet band and an empty one. Turn the "
+                        "antenna horizontal for them."),
+            })
+    else:
+        out.append({
+            "do": "Try a digital mode",
+            "why": ("FT8 and similar decode 10 to 15 dB below what an ear can "
+                    "hear. A path that carries nothing you can talk over will "
+                    "often still carry data."),
+        })
+
+    # Waiting helps everywhere, but not for the same reason - and giving the
+    # ionospheric reason to somebody working line of sight is the sort of
+    # nearly-right answer that teaches the wrong model.
+    if reach_kind in ("line_of_sight", "tropo"):
+        out.append({
+            "do": "Try again at dawn or dusk",
+            "why": ("Tropospheric ducting builds when the air layers, which is "
+                    "mostly early morning and evening and after a still, clear "
+                    "night. The ionosphere has nothing to do with it at these "
+                    "frequencies. Activity helps too: evenings and net nights "
+                    "are when anybody is listening."),
+        })
+    else:
+        out.append({
+            "do": "Come back at a different hour",
+            "why": ("The ionosphere is a different animal at dawn, at noon and "
+                    "after dark, and the band that is empty now may be the "
+                    "busy one in four hours. Nothing on the antenna changes "
+                    "that; waiting does."),
+        })
+    return out
