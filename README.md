@@ -226,6 +226,24 @@ Nothing is sent anywhere. It is a file, and where it goes is the operator's
 decision, made after reading it. `--report-with-station` leaves the
 identifying detail in for somebody who would rather include it.
 
+The report says what *kind* of place ELMER is installed in - a home directory,
+removable storage, the downloads folder - and never the path, because an
+account name is often somebody's actual name, and which folder they keep their
+radio software in is nobody's business.
+
+### Where to keep it
+
+Nothing in Raspberry Pi OS stops a program running from the downloads folder,
+or from the wastebasket. Both were tested; both run perfectly well. That is the
+problem: nothing stops you, and then one day the folder is emptied and `data/`
+goes with it - every answer logged, every setting, the lot.
+
+So `./install.sh` looks at where it has been put. Removable, temporary or
+downloads storage gets a warning and a question; the wastebasket is refused
+outright. `--doctor` says the same at any time. ELMER keeps everything in
+`data/` beside itself, so the fix is always to move the whole folder somewhere
+permanent - `~/ELMER` does nicely - and the data comes with it.
+
 ## Getting a message out
 
 The **Make Contact** page answers the question somebody a long way up a forest
