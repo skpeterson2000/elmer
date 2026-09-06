@@ -14,6 +14,7 @@
   <button class="btn sm ghost" data-tab="react">Reactance &amp; resonance</button>
   <button class="btn sm ghost" data-tab="swr">SWR &amp; feed line</button>
   <button class="btn sm ghost" data-tab="ant">Antennas</button>
+  <button class="btn sm ghost" data-tab="smith">Smith chart</button>
   <button class="btn sm ghost" data-tab="db">Decibels</button>
   <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
   <button class="btn sm ghost" data-tab="rf">RF exposure</button>
@@ -202,6 +203,54 @@
 </div>
 
 <!-- ------------------------------------------------------------------ db -->
+<div class="panel mt lab-pane" id="pane-smith" hidden>
+  <div class="panel-title">Smith chart &mdash; what the feedline does to your antenna</div>
+  <p class="small muted" style="margin-top:-.2rem">
+    The chart is the reflection coefficient plane. Every impedance, divided by the
+    line's own Z<sub>0</sub>, lands somewhere inside the circle: the centre is a
+    perfect match, the rim is total reflection. The circles running left to right
+    are constant resistance; the arcs curving off them are constant reactance,
+    inductive above the axis and capacitive below. Move the antenna and watch
+    where it goes; add feedline and watch it travel.
+  </p>
+  <div class="grid" style="grid-template-columns: 300px 1fr; gap:1.2rem; align-items:start">
+    <div>
+      <div class="field"><label>Antenna resistance R (&Omega;)</label>
+        <input id="sm-r" value="73"></div>
+      <div class="field"><label>Antenna reactance X (&Omega;)</label>
+        <input id="sm-x" value="0"></div>
+      <div class="tiny muted" style="margin:-.4rem 0 .7rem">
+        Positive is inductive &mdash; the antenna is long for the frequency.
+        Negative is capacitive, and it is short.
+      </div>
+      <div class="field"><label>Frequency (MHz)</label><input id="sm-f" value="14.200"></div>
+      <div class="field"><label>Feedline</label>
+        <select id="sm-line"></select></div>
+      <div class="field"><label>Length (ft)</label>
+        <input type="range" id="sm-len" min="0" max="300" step="1" value="100">
+        <span class="sim-out" id="sm-len-v"></span></div>
+      <div class="field"><label>Transmitter power (W)</label>
+        <input id="sm-w" value="100"></div>
+      <div class="row" style="gap:.4rem;flex-wrap:wrap">
+        <button class="btn sm ghost" data-preset="73,0">Resonant dipole</button>
+        <button class="btn sm ghost" data-preset="36,0">1/4-wave vertical</button>
+        <button class="btn sm ghost" data-preset="50,80">Too long</button>
+        <button class="btn sm ghost" data-preset="25,-60">Too short</button>
+        <button class="btn sm ghost" data-preset="450,0">Off-resonance</button>
+      </div>
+      <button class="btn sm mt" id="sm-from-ant">Use the antenna I designed &rarr;</button>
+    </div>
+    <div>
+      <div id="sm-chart"></div>
+      <div id="sm-out" class="mt"></div>
+    </div>
+  </div>
+  <div class="row mt">
+    <a class="btn sm ghost" href="/study/extra2024?mode=section&section=E9">Drill E9 &mdash; antennas and feedlines</a>
+    <a class="btn sm ghost" href="/study/element3?mode=section&section=3E">Drill 3E &mdash; GROL circuits</a>
+  </div>
+</div>
+
 <div class="panel mt lab-pane" id="pane-db" hidden>
   <div class="panel-title">Decibels</div>
   <div class="grid cols-3">

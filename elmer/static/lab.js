@@ -674,6 +674,7 @@ function calcAnt() {
                 rows['Radiator'] || 0;
   window.LAB_ANTENNA = {
     type: type,
+    z: z,                       /* so the Smith chart can start from it */
     label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
     legFt: legFt, droop: type === 'invertedv' ? num('an-droop') : 0,
@@ -1583,3 +1584,197 @@ if (adviseBtn) adviseBtn.addEventListener('click', () =>
   history.replaceState(null, '', location.pathname + '#ant');
   antennaAdvice(f, q.get('use'), q.get('kind'));
 })();
+
+/* ---------------------------------------------------------- Smith chart ---
+   Drawn rather than described, because the chart is a transformation and the
+   only thing that teaches a transformation is watching it happen. The grid is
+   geometry: a constant-resistance circle of r sits at x = r/(1+r) with radius
+   1/(1+r), and a constant-reactance arc of x is centred a unit to the right of
+   the rim at height 1/x with radius 1/|x|, trimmed to the unit circle. */
+
+const SM_R = 250, SM_CX = 285, SM_CY = 275;      // chart radius and centre, px
+const SM_RES = [0.2, 0.5, 1, 2, 5];
+const SM_REACT = [0.2, 0.5, 1, 2, 5];
+
+function smXY(x, y) {          // reflection coefficient -> pixels
+  return [SM_CX + x * SM_R, SM_CY - y * SM_R];
+}
+
+function smithGrid(z0) {
+  const g = [];
+  g.push('<clipPath id="sm-clip"><circle cx="' + SM_CX + '" cy="' + SM_CY +
+         '" r="' + SM_R + '"/></clipPath>');
+  g.push('<circle cx="' + SM_CX + '" cy="' + SM_CY + '" r="' + SM_R +
+         '" fill="#0c1116" stroke="#4a5663" stroke-width="1.2"/>');
+  g.push('<g clip-path="url(#sm-clip)" fill="none" stroke="#2f3a46" stroke-width="0.8">');
+  SM_RES.forEach(r => {
+    const rad = SM_R / (1 + r), cx = SM_CX + SM_R * (r / (1 + r));
+    g.push('<circle cx="' + cx.toFixed(1) + '" cy="' + SM_CY + '" r="' +
+           rad.toFixed(1) + '"' + (r === 1 ? ' stroke="#46525f"' : '') + '/>');
+  });
+  SM_REACT.forEach(x => {
+    [1, -1].forEach(sign => {
+      const rad = SM_R / x;
+      const cy = SM_CY - sign * rad;
+      g.push('<circle cx="' + (SM_CX + SM_R) + '" cy="' + cy.toFixed(1) +
+             '" r="' + rad.toFixed(1) + '"/>');
+    });
+  });
+  g.push('</g>');
+  g.push('<line x1="' + (SM_CX - SM_R) + '" y1="' + SM_CY + '" x2="' +
+         (SM_CX + SM_R) + '" y2="' + SM_CY + '" stroke="#46525f" stroke-width="1"/>');
+  /* The three landmarks worth knowing by sight. */
+  /* The resistance circles get their value in ohms, not just normalised: "0.5"
+     means nothing to somebody learning, and "25 Ω" means everything. Where the
+     circle crosses the axis, r maps to (r-1)/(r+1) on the chart. */
+  if (z0) {
+    SM_RES.concat([0]).forEach(r => {
+      const at = (r - 1) / (r + 1);
+      const [tx] = smXY(at, 0);
+      g.push('<line x1="' + tx.toFixed(1) + '" y1="' + (SM_CY - 3) + '" x2="' +
+             tx.toFixed(1) + '" y2="' + (SM_CY + 3) + '" stroke="#6b7784"/>');
+      g.push('<text x="' + tx.toFixed(1) + '" y="' + (SM_CY + 15) +
+             '" fill="#8b98a5" font-size="9" text-anchor="middle">' +
+             Math.round(r * z0) + '&#937;</text>');
+    });
+  }
+  g.push('<text x="' + (SM_CX - SM_R + 4) + '" y="' + (SM_CY - 9) +
+         '" fill="#8b98a5" font-size="10">short</text>');
+  g.push('<text x="' + (SM_CX + SM_R - 4) + '" y="' + (SM_CY - 9) +
+         '" fill="#8b98a5" font-size="10" text-anchor="end">open</text>');
+  g.push('<text x="' + SM_CX + '" y="' + (SM_CY - 9) +
+         '" fill="#3fb950" font-size="10" text-anchor="middle">match</text>');
+  g.push('<text x="' + (SM_CX + 6) + '" y="' + (SM_CY - SM_R + 16) +
+         '" fill="#8b98a5" font-size="10">+jX inductive</text>');
+  g.push('<text x="' + (SM_CX + 6) + '" y="' + (SM_CY + SM_R - 8) +
+         '" fill="#8b98a5" font-size="10">&minus;jX capacitive</text>');
+  return g.join('');
+}
+
+function smithPlot(d) {
+  const g = [smithGrid(d.z0)];
+  const mag = d.load.gamma_mag;
+  /* The constant-SWR circle: where a lossless line would keep you. */
+  if (mag > 0.001) {
+    g.push('<circle cx="' + SM_CX + '" cy="' + SM_CY + '" r="' +
+           (mag * SM_R).toFixed(1) + '" fill="none" stroke="#ffb454" ' +
+           'stroke-width="1" stroke-dasharray="4 3" opacity="0.75"/>');
+  }
+  /* The walk down the feedline, spiralling in as the line takes its cut. */
+  const pts = d.path.map(p => smXY(p.x, p.y).map(n => n.toFixed(1)).join(',')).join(' ');
+  g.push('<polyline points="' + pts + '" fill="none" stroke="#58a6ff" ' +
+         'stroke-width="2" opacity="0.9"/>');
+  const [lx, ly] = smXY(d.load.x, d.load.y);
+  const [sx, sy] = smXY(d.shack.x, d.shack.y);
+  g.push('<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) +
+         '" r="5.5" fill="#f85149" stroke="#0d1117" stroke-width="1.5"/>');
+  g.push('<text x="' + (lx + 9).toFixed(1) + '" y="' + (ly - 7).toFixed(1) +
+         '" fill="#f85149" font-size="11">antenna</text>');
+  g.push('<circle cx="' + sx.toFixed(1) + '" cy="' + sy.toFixed(1) +
+         '" r="5.5" fill="#3fb950" stroke="#0d1117" stroke-width="1.5"/>');
+  g.push('<text x="' + (sx + 9).toFixed(1) + '" y="' + (sy + 15).toFixed(1) +
+         '" fill="#3fb950" font-size="11">shack</text>');
+  return '<svg viewBox="0 0 580 560" style="width:100%;max-width:580px">' +
+         g.join('') + '</svg>';
+}
+
+function smithNotes(d) {
+  const turns = d.electrical_wavelengths;
+  const out = [];
+  const z = (o) => o.r.toFixed(1) + (o.x >= 0 ? ' + j' : ' − j') +
+                   Math.abs(o.x).toFixed(1) + ' Ω';
+  out.push('<p class="small"><b>At the antenna</b> the feedpoint is ' + z(d.load) +
+    '. Divided by the line\'s ' + d.z0 + '&nbsp;&#937; that is ' +
+    (d.load.r / d.z0).toFixed(2) + (d.load.x >= 0 ? ' + j' : ' − j') +
+    Math.abs(d.load.x / d.z0).toFixed(2) + ', which is the red dot. SWR there is <b>' +
+    (d.load.swr === null ? '∞' : d.load.swr.toFixed(2)) + ':1</b>.</p>');
+
+  out.push('<p class="small"><b>Down the line</b> you travel ' + turns.toFixed(3) +
+    ' wavelengths, which is ' + (turns * 2).toFixed(2) + ' turns around the chart. ' +
+    'A full turn is <b>half</b> a wavelength, not a whole one &mdash; the chart ' +
+    'repeats every 180&deg; of line, and that is the fact that catches everybody ' +
+    'out. The shack sees ' + z(d.shack) + '.</p>');
+
+  if (d.loss.matched_db > 0.05) {
+    const flatter = d.shack.swr !== null && d.load.swr !== null &&
+                    d.shack.swr < d.load.swr - 0.05;
+    out.push('<p class="small"><b>The spiral is the loss.</b> ' +
+      d.loss.matched_db.toFixed(2) + ' dB of it matched, ' +
+      d.loss.total_db.toFixed(2) + ' dB with this mismatch &mdash; so of ' +
+      d.loss.power_in + ' W in, <b>' + d.loss.power_at_antenna +
+      ' W</b> reaches the antenna.' +
+      (flatter
+        ? ' Notice the shack SWR (<b>' + d.shack.swr.toFixed(2) + ':1</b>) is ' +
+          'lower than the antenna\'s (' + d.load.swr.toFixed(2) + ':1). That is ' +
+          'not an improvement. The reflected wave has to travel the lossy line ' +
+          'twice, so the meter in the shack sees less of it &mdash; a bad ' +
+          'feedline flatters the SWR meter by wasting the power it is not ' +
+          'showing you.'
+        : '') + '</p>');
+  }
+  const near = Math.abs(d.shack.x) < 8 && Math.abs(d.shack.r - d.z0) < 12;
+  if (near) {
+    out.push('<p class="small" style="color:var(--green)">At this length the ' +
+      'line has brought the shack end close to the centre. The antenna has not ' +
+      'changed &mdash; the line has transformed it. This is what a matching ' +
+      'section does, and why feedline length matters when the antenna is not ' +
+      'resonant.</p>');
+  }
+  return out.join('');
+}
+
+async function calcSmith() {
+  const box = document.getElementById('sm-out');
+  if (!box) return;
+  const q = new URLSearchParams({
+    r: num('sm-r'), x: num('sm-x'), mhz: num('sm-f'),
+    line: document.getElementById('sm-line').value,
+    feet: num('sm-len'), watts: num('sm-w'),
+  });
+  document.getElementById('sm-len-v').textContent = num('sm-len') + ' ft';
+  let d;
+  try { d = await api('/api/smith?' + q); } catch (e) { return; }
+  document.getElementById('sm-chart').innerHTML = smithPlot(d);
+  box.innerHTML =
+    '<div class="row" style="gap:1.1rem;flex-wrap:wrap">' +
+      '<span>SWR at the antenna <b>' +
+        (d.load.swr === null ? '∞' : d.load.swr.toFixed(2)) + ':1</b></span>' +
+      '<span>at the shack <b>' +
+        (d.shack.swr === null ? '∞' : d.shack.swr.toFixed(2)) + ':1</b></span>' +
+      '<span>line loss <b>' + d.loss.total_db.toFixed(2) + ' dB</b></span>' +
+      '<span>reaching the antenna <b>' + d.loss.power_at_antenna + ' W</b></span>' +
+      '<span class="tiny muted">' + d.wavelength_ft + ' ft per wavelength in this line</span>' +
+    '</div>' + '<div class="mt">' + smithNotes(d) + '</div>';
+}
+
+if (document.getElementById('sm-chart')) {
+  const sel = document.getElementById('sm-line');
+  [['rg58', 'RG-58 — thin, common, lossy'], ['rg8x', 'RG-8X — mini-8'],
+   ['rg213', 'RG-213 — full size'], ['lmr400', 'LMR-400 — low loss'],
+   ['rg6', 'RG-6 — 75 Ω TV coax'], ['ladder', '450 Ω window line']]
+    .forEach(([v, l]) => sel.insertAdjacentHTML('beforeend',
+      '<option value="' + v + '"' + (v === 'rg213' ? ' selected' : '') + '>' + l + '</option>'));
+  ['sm-r', 'sm-x', 'sm-f', 'sm-len', 'sm-w', 'sm-line'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', calcSmith);
+    el.addEventListener('change', calcSmith);
+  });
+  document.querySelectorAll('[data-preset]').forEach(b =>
+    b.addEventListener('click', () => {
+      const [r, x] = b.dataset.preset.split(',');
+      document.getElementById('sm-r').value = r;
+      document.getElementById('sm-x').value = x;
+      calcSmith();
+    }));
+  const fromAnt = document.getElementById('sm-from-ant');
+  if (fromAnt) fromAnt.addEventListener('click', () => {
+    const a = window.LAB_ANTENNA;
+    if (!a) { toast('Design one first', 'Build an antenna in the Antennas tab'); return; }
+    document.getElementById('sm-r').value = a.z || 50;
+    document.getElementById('sm-x').value = 0;
+    document.getElementById('sm-f').value = a.f;
+    calcSmith();
+    toast('Carried over', a.label + ' at ' + a.f + ' MHz');
+  });
+  calcSmith();
+}
