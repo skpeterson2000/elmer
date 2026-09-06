@@ -2139,7 +2139,7 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
     /* Full width, below the three plots: six columns of repeater do not fit in
        a third of a page, and a table you have to scroll sideways to read the
        bearing of is a table that failed at its one job. */
-    repeaterList(d);
+    positionNote(d) + repeaterList(d);
 }
 
 /* ---------- the plan view ----------
@@ -2147,6 +2147,18 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
    round you hang it, which is the cheaper mistake to fix and the more common
    one to make. A dipole strung along the fence radiates across the fence, and
    if the fence points at the house then so does the antenna. */
+
+/* Say so when the answers are about where the GPS says the station is rather
+   than where somebody told ELMER they live. In a vehicle those are different
+   places, and which one the figures came from is the whole answer. */
+function positionNote(d) {
+  if (d.qth_source !== 'gps') return '';
+  const age = d.qth_age_s;
+  return '<p class="tiny muted">Position from GPS &mdash; <b>' +
+    escapeHTML(d.qth || '') + '</b>, read ' +
+    (!(age > 90) ? 'just now' : Math.round(age / 60) + ' min ago') +
+    '. These figures are about here, not about the QTH on file.</p>';
+}
 
 /* Break a place name into at most two lines at a word boundary, as evenly as
    the words allow. One word long is left alone: there is nowhere to break it,
@@ -2257,6 +2269,7 @@ function planWords(d) {
   if (d.reach && d.reach.note) {
     html += '<p class="tiny muted">' + escapeHTML(d.reach.note) + '</p>';
   }
+
   /* Say where the names came from. A bundled answer is a guess at what is near
      you; a fetched one actually looked. */
   if (d.reach && d.reach.places_from === 'bundled' && (d.dx || []).length) {

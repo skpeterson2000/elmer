@@ -205,6 +205,23 @@ transmitting on those channels needs an authorisation a licence does not give
 you, and owning the book is not it. Being a work of the US government it carries
 no copyright and can be printed and handed out freely.
 
+
+## Where the station is
+
+Every answer about reach, bearings and RF exposure is an answer about a place.
+ELMER asks for a QTH so it works in a field with no network, and that typed
+square stays the fallback - but where a GPS is reachable, the live fix wins,
+because a Pi in a vehicle is not where it was last winter. `--gps` says what it
+can see; `--gpsd HOST` points it at another machine, which is how a second Pi
+reads the one with the antenna on it. `--gpsd off` goes back to the typed QTH.
+The page says which of the two the figures came from.
+
+Above 50 MHz "what can I reach" is answered by repeaters, not by towns. Where
+[TowerWitch](https://github.com/skpeterson2000) is installed alongside, ELMER
+reads its repeater list directly; `--import-repeaters` keeps a copy so the
+same works on a machine without it. Copying `data/repeaters.json` to another
+install works too - it is read before anything else is looked for.
+
 `./elmer.py --fetch-nifog` goes further: it finds the current edition from CISA's
 own page rather than a filename remembered in the source, downloads it, converts
 it with the poppler tools ELMER already needs, and reads the nationwide
@@ -550,7 +567,12 @@ and a timed contest mode.
 ./elmer.py --update-check     say whether an update is waiting, change nothing
 ./elmer.py --adopt            let a copied install update itself in future
 ./elmer.py --fetch-nifog      read the interoperability channels from the NIFOG
+./elmer.py --gps              ask the GPS where the station is
+./elmer.py --gpsd 192.168.1.5 read the GPS on another machine (off goes back
+                              to the typed QTH)
+./elmer.py --import-repeaters keep a copy of TowerWitch's repeater list
 ./install.sh                  install, or ask: update, repair, remove, check
+./install.sh --connect        give a downloaded copy a link, so it can update
 ./elmer.py --build            rebuild the pools from data/raw
 ./elmer.py --fetch            re-download the source pools, then rebuild
 ./elmer.py --log-level DEBUG  verbose console output

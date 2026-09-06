@@ -24,7 +24,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               repeaters, terrain, update)
+               gps, repeaters, terrain, update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -193,12 +193,37 @@ def all_standings(connection, refresh=False):
 
 
 def qth_for(connection, profile):
-    """The saved QTH, with a friendly name filled in once and remembered.
+    """Where the station is: the GPS if one is talking, else the saved QTH.
 
     A QTH entered as a bare grid square has no name to show, so the first time
     it is needed the coordinates are reverse-geocoded and the result stored.
     Failure is fine - the grid square still works on its own.
+
+    A live fix outranks the typed square, because these Pis travel and every
+    answer about reach, bearings and exposure is an answer about a place. The
+    typed square is not thereby wasted: it is what the program runs on in a
+    field with no GPS and no network, which is why it is asked for.
     """
+    saved = _saved_qth(connection, profile)
+    if not gps.enabled(connection):
+        return saved
+    live = gps.place(connection)
+    if not live:
+        return saved
+    # Near home the saved QTH has a name on it and the fix does not, so keep
+    # the name and take the coordinates. Away from it, a grid square is the
+    # honest label: nothing here can reverse-geocode a lay-by off-grid.
+    if saved.get("lat") is not None:
+        km, _ = terrain.great_circle(saved["lat"], saved["lon"],
+                                     live["lat"], live["lon"])
+        if km <= 10 and saved.get("short"):
+            live = dict(live, short=saved["short"],
+                        name=saved.get("name") or saved["short"])
+    return live
+
+
+def _saved_qth(connection, profile):
+    """The QTH somebody typed in, named once and remembered."""
     place = dict(profile["settings"].get("location") or {})
     if not place.get("lat") or place.get("short"):
         return place
@@ -474,6 +499,8 @@ def api_pattern():
         "swr": patterns.swr_curve(kind, mhz),
         "bandwidth": patterns.usable_bandwidth(kind, mhz),
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
+        "qth_source": place.get("source") or "saved",
+        "qth_age_s": place.get("age_s"),
         "reach": span, "use": use,
         "repeaters": reps, "repeaters_from": reps_from,
         "repeater_radius_km": round(repeaters.horizon_km(height_ft)),
