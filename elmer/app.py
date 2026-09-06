@@ -427,6 +427,10 @@ def api_pattern():
         heading = float(request.args.get("heading", "0")) % 360
     except ValueError:
         heading = 0.0
+    try:
+        slope = max(0.0, min(89.0, float(request.args.get("slope", "0"))))
+    except ValueError:
+        slope = 0.0
     spec = patterns.ANTENNA_Q[kind]
 
     # What this antenna can actually work decides who its neighbours are. An
@@ -452,9 +456,10 @@ def api_pattern():
         "type": kind, "mhz": mhz, "height_ft": height_ft,
         "height_wl": round(height_wl, 3), "heading": heading,
         "shape": spec["shape"], "q": spec["q"], "fed": spec["fed"],
-        "elevation": patterns.elevation(kind, height_wl),
+        "elevation": patterns.elevation(kind, height_wl, slope_deg=slope),
         "azimuth": patterns.azimuth(kind, heading),
-        "main_lobe_deg": patterns.main_lobe(kind, height_wl),
+        "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
+        "slope": slope,
         "swr": patterns.swr_curve(kind, mhz),
         "bandwidth": patterns.usable_bandwidth(kind, mhz),
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",

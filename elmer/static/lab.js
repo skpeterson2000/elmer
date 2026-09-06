@@ -444,6 +444,9 @@ function antennaFields(type) {
      would be a question with no answer - which is exactly why we call it
      omnidirectional. */
   show('.an-when-heading', (ANTENNAS[type] || {}).shape !== 'vert' && type !== 'whip');
+  /* A straight wire on one support can be slung at an angle; a V already has
+     its own droop and a beam has a boom. */
+  show('.an-when-slope', type === 'efhw' || type === 'dipole');
   show('.an-when-whip', type === 'whip');
   show('.an-when-height', type !== 'whip');
   show('.an-when-v', type === 'invertedv');
@@ -640,9 +643,60 @@ function calcAnt() {
       const effFt = type === 'invertedv'
         ? hFt - V_CENTROID * legFt * Math.sin(num('an-droop') * Math.PI / 180)
         : hFt;
+      const slopeDeg = (type === 'efhw' || type === 'dipole') ? num('an-slope') : 0;
+      if (slopeDeg) {
+        /* A sloping wire radiates from the height of its middle, not the top
+           of the mast - which is the figure people quote, and the reason a
+           sloper disappoints against the dipole they had imagined. */
+        const wireFt = rows['Wire length'] || rows['Overall length'] || lamFt / 2;
+        const drop = wireFt * Math.sin(slopeDeg * Math.PI / 180) /
+                     (type === 'dipole' ? 2 : 1);
+        const lowEnd = hFt - drop, midFt = hFt - drop / 2;
+        /* Geometry before physics: a long wire at a steep angle from a short
+           support puts its far end underground, and printing a negative height
+           as though it were a result would be worse than useless. */
+        const maxDeg = Math.round(Math.asin(
+          Math.max(0, Math.min(1, (hFt - 8) / (wireFt / (type === 'dipole' ? 2 : 1))))
+        ) * 180 / Math.PI);
+        if (lowEnd < 8) {
+          notes.push('<span style="color:var(--red)"><b>That does not fit.</b></span> ' +
+            'A ' + wireFt.toFixed(0) + '&nbsp;ft wire at ' + slopeDeg +
+            '&deg; drops ' + drop.toFixed(0) + '&nbsp;ft, so from a ' +
+            hFt.toFixed(0) + '&nbsp;ft support the far end lands at ' +
+            lowEnd.toFixed(0) + '&nbsp;ft &mdash; ' +
+            (lowEnd < 0 ? 'below the ground.' : 'inside head height.') +
+            ' From this support the wire will take about <b>' + maxDeg +
+            '&deg;</b> before the end is too low' +
+            (type === 'efhw'
+              ? ', and on an end-fed that far end is the high-voltage point, so ' +
+                'it is the one to keep up.'
+              : '.') +
+            ' Raise the support, shorten the angle, or run it flatter.');
+        } else {
+          notes.push('<b>Slung at ' + slopeDeg + '&deg;</b> the top is at ' +
+            hFt.toFixed(0) + '&nbsp;ft and the bottom at <b>' + lowEnd.toFixed(0) +
+            '&nbsp;ft</b>, so it radiates from about <b>' + midFt.toFixed(0) +
+            '&nbsp;ft</b> &mdash; the height of its middle, not of the mast. ' +
+            'That is the figure people quote when a sloper disappoints against ' +
+            'the dipole they had imagined.');
+        }
+        notes.push('Tilting mixes vertical polarisation into what was a ' +
+          'horizontal antenna, and the vertical part does not null along the ' +
+          'horizon the way the horizontal part does. That is where the ' +
+          'low-angle radiation below comes from, and it is the whole of the ' +
+          'sloper\'s case. <b>Believe about half of it:</b> the plot assumes ' +
+          'perfect ground, and over ordinary soil the vertical component gives ' +
+          'up several decibels at exactly the low angles it is being credited ' +
+          'with. Over salt water it delivers what the drawing shows; over dry ' +
+          'sand it does not.');
+        notes.push('It also favours the downhill direction by a few decibels, ' +
+          'which is real but small &mdash; and it is not drawn below, because ' +
+          'putting a number on it needs the wire modelled over your actual ' +
+          'soil rather than a rule of thumb.');
+      }
       const hLam = effFt / lamFt;
       takeoff = Math.min(90, Math.asin(Math.min(1, 1 / (4 * hLam))) * 180 / Math.PI);
-      notes.push('At <b>' + hFt.toFixed(0) + '&nbsp;ft</b>' +
+      if (!slopeDeg) notes.push('At <b>' + hFt.toFixed(0) + '&nbsp;ft</b>' +
         (type === 'invertedv'
           ? ' at the apex &mdash; an effective <b>' + effFt.toFixed(1) + '&nbsp;ft</b> &mdash;'
           : '') +
@@ -693,6 +747,16 @@ function calcAnt() {
   const heightFt = type === 'whip' ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
                 rows['Radiator'] || 0;
+  const slope = (type === 'efhw' || type === 'dipole') ? num('an-slope') : 0;
+  const slopeEl = document.getElementById('an-slope-v');
+  if (slopeEl) {
+    slopeEl.textContent = slope
+      ? slope + '\u00b0 \u2014 a sloper' : 'flat';
+  }
+  const slopeWire = rows['Wire length'] || rows['Overall length'] || 0;
+  const slopeDrop = slopeWire * Math.sin(slope * Math.PI / 180) /
+                    (type === 'dipole' ? 2 : 1);
+  const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2) : heightFt;
   const heading = num('an-head');
   const headEl = document.getElementById('an-head-v');
   if (headEl) {
@@ -701,7 +765,7 @@ function calcAnt() {
       : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
         ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
   }
-  drawPattern(type, f, heightFt, heading);
+  drawPattern(type, f, heightFt, heading, slope, effHeight);
 
   window.LAB_ANTENNA = {
     type: type,
@@ -1909,15 +1973,15 @@ function swrPlot(curve, band) {
     '</svg>';
 }
 
-async function drawPattern(type, mhz, heightFt, heading) {
+async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
   const box = document.getElementById('an-pattern');
   if (!box) return;
   let d;
   try {
     const nvisOn = (document.getElementById('an-nvis') || {}).checked ? 1 : 0;
     d = await api('/api/pattern?' + new URLSearchParams(
-      {type: type, mhz: mhz, height: heightFt || 0, heading: heading || 0,
-       nvis: nvisOn}));
+      {type: type, mhz: mhz, height: (effHeight || heightFt || 0),
+       heading: heading || 0, nvis: nvisOn, slope: slope || 0}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
   box.innerHTML =

@@ -393,6 +393,19 @@ Interactive versions of the maths the pools test:
   a thin-wire dipole manages 532, a monoband Yagi 447 and a loaded mobile whip
   170. Same gain to within a rounding error — the width is the whole point.
 
+  A straight wire can be **slung as a sloper**, which is where the arguing
+  starts. Tilting mixes vertical polarisation into a horizontal antenna, and the
+  vertical part does not null along the horizon the way the horizontal part
+  does — so the low angles fill in, and that is the whole of the sloper's case.
+  ELMER draws it and then undercuts it: the model assumes perfect ground, and
+  over ordinary soil the vertical component gives up several decibels at exactly
+  the low angles it is being credited with. Over salt water it delivers what the
+  drawing shows; over dry sand it does not. It also reports the height of the
+  wire's *middle* rather than of the mast, which is the figure people quote and
+  the reason a sloper disappoints against the dipole they had imagined — and it
+  refuses to pretend a 65 ft wire at 35° from a 35 ft support is anything but a
+  wire in the ground.
+
 - **Smith chart** — the one piece of the syllabus that a book cannot teach,
   because it is a transformation rather than a picture. Set the antenna's R and
   X, pick a feedline, and drag the length: the point walks around the chart in
