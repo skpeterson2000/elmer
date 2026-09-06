@@ -417,6 +417,79 @@ def announce(status):
                         "./elmer.py --update, whenever it suits you.")
 
 
+def offer_at_startup(status=None, seconds=20, ask=None):
+    """Offer to install a waiting update, before the session has begun.
+
+    Asked here rather than left as a printed line, because this is the moment
+    somebody will say yes: nothing is in progress, nothing is lost by waiting
+    half a minute, and the alternative is remembering to run a command later,
+    which nobody does. It is still an offer - the answer is no by default and
+    no by silence.
+
+    `ask` is how the question gets put, so a kiosk with no terminal can put it
+    in a dialogue box instead. It takes (count, newest subject) and returns
+    True only for a real yes. Without one, the terminal is used, and if there
+    is no terminal either then there is nobody to ask and the answer is no.
+
+    Returns True if the update was applied and the caller should restart.
+    """
+    import select
+    import sys
+
+    status = status or cached()
+    if not status or not status.get("behind") or blocked(status):
+        return False
+
+    n = status["behind"]
+    newest = (status.get("commits") or [{}])[0].get("subject", "")
+
+    if ask is not None:
+        if not ask(n, newest):
+            return False
+        ok, message, detail = apply()
+        log.info("update at startup: %s", message)
+        return ok
+
+    if not (sys.stdin and sys.stdin.isatty()):
+        return False              # a service with no terminal has nobody to ask
+
+    print(f"\n  An ELMER update is waiting: {n} commit{'' if n == 1 else 's'}"
+          + (f', latest "{newest}"' if newest else ""))
+    print(f"  Install it now? It takes a moment and ELMER restarts into it.")
+    sys.stdout.write(f"  [Y/n, or nothing for no in {seconds}s] ")
+    sys.stdout.flush()
+
+    # Never block a start that nobody is watching: an appliance that hangs at
+    # boot waiting for an answer is worse than one that is a version behind.
+    ready, _, _ = select.select([sys.stdin], [], [], seconds)
+    if not ready:
+        print("\n  Left for later. Apply it whenever you like from the "
+              "dashboard, or with ./elmer.py --update.\n")
+        return False
+    line = sys.stdin.readline()
+    if line == "":
+        # End of input, not a keypress. A closed stdin behind an allocated
+        # terminal reads as ready and returns nothing, and treating that as a
+        # bare Enter had this installing updates nobody had agreed to - the one
+        # thing the whole design is supposed to make impossible.
+        print("\n  Nobody there. Left for later.\n")
+        return False
+    answer = line.strip().lower()
+    if answer not in ("", "y", "yes"):
+        print("  Left for later.\n")
+        return False
+
+    ok, message, detail = apply()
+    print(f"\n  {message}")
+    if not ok:
+        return False
+    if detail.get("rerun_install"):
+        print("  This one changed the dependencies - run ./install.sh "
+              "before starting again.")
+    print("  Restarting into it.\n", flush=True)
+    return True
+
+
 def watch(get_policy, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY,
           on_found=None):
     """Look for updates in the background for as long as ELMER runs.

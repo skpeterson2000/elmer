@@ -794,7 +794,15 @@ shack is a fault report from somewhere far away rather than something anybody
 chose. Applying one is always a press of a button or a command typed on purpose.
 
 So it looks when it starts, and about once a day after that. If something is
-waiting it says so on the console as it launches, and then launches:
+waiting it **asks**, once, before the session has begun — because that is the
+moment somebody will say yes. Nothing is in progress, nothing is lost by waiting
+half a minute, and the alternative is remembering to run a command later, which
+nobody does. On a kiosk the question goes in a dialogue box instead of a
+terminal, and it is put before the browser opens, so it interrupts nothing.
+
+The answer is no by default, no on silence, and no when there is nobody there:
+a run with no terminal and no screen is never asked and never waits. Decline and
+it says so on the console and launches:
 
 ```
   An ELMER update is waiting: 1 commit, latest "Read the licence instead of asking for it"

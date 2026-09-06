@@ -293,6 +293,39 @@ def main():
         print(f"\n  Logging to {log_path}")
         print(f"  Watch it live with:  tail -f {log_path}")
 
+    from elmer import update
+
+    def _policy():
+        from elmer import db
+        connection = db.connect()
+        try:
+            return update.policy(connection)
+        finally:
+            connection.close()
+
+    # Ask now, while nothing is in progress. Somebody who has just typed the
+    # command will accept a pause; the same person half an hour into a drill
+    # will not, and will not remember to come back to it either.
+    #
+    # On a kiosk there is no terminal to ask in, but there is a screen - and
+    # the browser has not opened yet, so the question interrupts nothing at
+    # all. The same dialogue that asks about taking over a port asks this.
+    asker = None
+    if args.kiosk:
+        from elmer import kiosk as _kiosk
+        if _kiosk.have_display():
+            def asker(count, newest):
+                plural = "" if count == 1 else "s"
+                text = (f"An ELMER update is waiting: {count} change{plural}."
+                        + (f"\n\n{newest}" if newest else "")
+                        + "\n\nInstall it now? ELMER will restart into it, "
+                          "which takes a moment.")
+                answer = _kiosk.ask(text, ["Install now", "Not now"], timeout=45)
+                return answer == "Install now"
+
+    if _policy() != "off" and update.offer_at_startup(ask=asker):
+        update.exec_restart()                       # never returns
+
     from elmer.app import app
 
     browsers, quitting = [], None
@@ -337,16 +370,6 @@ def main():
     # Look for updates, and say so - that is the whole of it.  ELMER never
     # applies one on its own: nobody sitting down to study should find the
     # program changed underneath them.
-    from elmer import update
-
-    def _policy():
-        from elmer import db
-        connection = db.connect()
-        try:
-            return update.policy(connection)
-        finally:
-            connection.close()
-
     # What the last look found, said now rather than in a few seconds' time,
     # so it is on the screen before the browser is.  The fresh check follows
     # on its own thread: a slow network delays the news, never the launch.
