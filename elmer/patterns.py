@@ -74,7 +74,53 @@ def _dipole_free(theta):
     return abs(math.cos(math.pi / 2 * math.cos(theta)) / s)
 
 
-def elevation(kind, height_wl, points=181):
+def _horizontal_over_ground(rad, height_wl):
+    """A horizontal wire's ground reflection: image reversed, null at the horizon."""
+    return abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
+
+
+def _vertical_over_ground(rad, height_wl):
+    """A vertical element's: image in phase, so no null along the ground."""
+    c = math.cos(rad)
+    element = abs(math.cos(math.pi / 2 * math.sin(rad)) / c) if abs(c) > 1e-9 else 0.0
+    return element * abs(2 * math.cos(2 * math.pi * height_wl * math.sin(rad)))
+
+
+def elevation(kind, height_wl, points=181, slope_deg=0.0):
+    """Relative field against elevation, with a slope if the wire has one.
+
+    A wire tilted at an angle is neither a horizontal antenna nor a vertical
+    one: it carries a horizontal component of cos(angle) and a vertical
+    component of sin(angle), and the two see completely different grounds. The
+    horizontal part has its image reversed, so it nulls along the horizon; the
+    vertical part has its image in phase, so it does not. Tilting a wire
+    therefore fills in the low angles, which is the whole of what a sloper is
+    for and the whole of what its reputation rests on.
+
+    The two components are added in power rather than in phase, which is the
+    usual way to describe a slanted radiator and is an approximation. It gets
+    the shape and the trend right; it is not a substitute for modelling the
+    actual wire over the actual soil, and the low-angle end is optimistic
+    because perfect ground is assumed throughout.
+    """
+    if slope_deg:
+        out = []
+        tilt = math.radians(max(0.0, min(90.0, slope_deg)))
+        h_share, v_share = math.cos(tilt) ** 2, math.sin(tilt) ** 2
+        for n in range(points):
+            deg = 90.0 * n / (points - 1)
+            rad = math.radians(deg)
+            power = (h_share * _horizontal_over_ground(rad, height_wl) ** 2
+                     + v_share * _vertical_over_ground(rad, height_wl) ** 2)
+            out.append({"deg": round(deg, 2), "field": math.sqrt(power)})
+        peak = max(p["field"] for p in out) or 1.0
+        for p in out:
+            p["field"] = round(p["field"] / peak, 5)
+        return out
+    return _elevation_plain(kind, height_wl, points)
+
+
+def _elevation_plain(kind, height_wl, points=181):
     """Relative field against elevation angle, 0 at the horizon to 90 overhead.
 
     Horizontal antennas are worked out by images: the ground reflects a second
@@ -258,9 +304,10 @@ def dx_bearings(lat, lon, kind=None, heading=0.0):
     return sorted(out, key=lambda r: r["bearing"])
 
 
-def main_lobe(kind, height_wl):
+def main_lobe(kind, height_wl, slope_deg=0.0):
     """The elevation angle the antenna actually favours."""
-    best = max(elevation(kind, height_wl), key=lambda p: p["field"])
+    best = max(elevation(kind, height_wl, slope_deg=slope_deg),
+               key=lambda p: p["field"])
     return best["deg"]
 
 
