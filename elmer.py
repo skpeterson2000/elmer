@@ -109,6 +109,13 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--gps", action="store_true",
+                    help="ask the GPS where the station is, and say whether "
+                         "ELMER will use it")
+    ap.add_argument("--gpsd", metavar="HOST[:PORT]",
+                    help="read the GPS on another machine - the Pi with the "
+                         "antenna on it. 'off' goes back to the typed QTH, "
+                         "'local' to this machine's own gpsd")
     ap.add_argument("--import-repeaters", nargs="?", const=True, metavar="PATH",
                     help="read the repeater list out of a TowerWitch install "
                          "(found automatically, or give the path) and keep a "
@@ -180,6 +187,54 @@ def main():
         from elmer.report import print_stats
         print_stats(args.user)
         return
+
+    if args.gpsd:
+        from elmer import db, gps
+        connection = db.connect()
+        wanted = args.gpsd.strip()
+        if wanted.lower() in ("off", "none"):
+            db.unit_set(connection, "gps", "off")
+            print("\n  GPS off. ELMER will use the QTH you typed in.\n")
+        else:
+            if wanted.lower() in ("local", "localhost", "here"):
+                wanted = gps.DEFAULT_HOST
+            db.unit_set(connection, "gps", "auto")
+            db.unit_set(connection, "gpsd", wanted)
+            host, port = gps.target(connection)
+            print(f"\n  Reading the GPS at {host}:{port}.")
+            found = gps.read_fix(host, port)
+            if found:
+                from elmer.geocode import to_grid
+                print(f"  It answered: {to_grid(found['lat'], found['lon'])} "
+                      f"({found['lat']:.5f}, {found['lon']:.5f}).\n")
+            else:
+                print("  Nothing answered there yet. ELMER will keep asking, "
+                      "and\n  use the QTH you typed in meanwhile.\n")
+        sys.exit(0)
+
+    if args.gps:
+        from elmer import db, gps
+        connection = db.connect()
+        host, port = gps.target(connection)
+        if not gps.enabled(connection):
+            print(f"\n  GPS is switched off for this unit "
+                  f"(./elmer.py --gpsd {host} turns it back on).\n")
+            sys.exit(0)
+        print(f"\n  Asking gpsd at {host}:{port} ...")
+        found = gps.read_fix(host, port)
+        if not found:
+            print("\n  No fix. That is not a fault: no GPS, none reachable, or")
+            print("  none locked yet. ELMER uses the QTH you typed in until")
+            print("  one answers.\n")
+            sys.exit(1)
+        from elmer.geocode import to_grid
+        alt = found.get("alt_m")
+        print(f"\n  {to_grid(found['lat'], found['lon'])}  "
+              f"{found['lat']:.5f}, {found['lon']:.5f}"
+              + (f"  {alt:.0f} m" if alt is not None else ""))
+        print(f"  {found['mode']}D fix. ELMER will use this instead of the "
+              f"typed QTH.\n")
+        sys.exit(0)
 
     if args.import_repeaters:
         from elmer import repeaters
