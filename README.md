@@ -336,6 +336,22 @@ Interactive versions of the maths the pools test:
   horizontal antenna picks up as much as 6 dB more at the peak of its lobe once
   it is about half a wavelength up. That ceiling is 6 dB in total — it is not,
   as the folklore has it, another 6 dB for every doubling of height.
+  Every antenna also draws its **elevation pattern** and its **SWR across the
+  band**, because a gain figure answers neither of the questions that decide
+  whether an antenna suits you: where does the energy go, and how much of the
+  band can you use. The pattern is computed rather than sketched — over ground
+  the antenna's image adds a second wave, and where the two add is where you
+  radiate, so the lobes fall out of arithmetic. A wire at half a wavelength
+  peaks at 30°, at three quarters 19.5°, at a full wavelength 14.5°; that is the
+  whole argument about height, drawn. Perfect ground is assumed, so treat the
+  shape as right and the last couple of degrees as optimistic.
+
+  The bandwidth plot is where the **bowtie** earns its place. Two triangles
+  instead of two wires is a lower Q, and Q is what sets how fast the SWR climbs
+  as you tune away: on 20 m the bowtie holds under 2:1 across **1960 kHz** where
+  a thin-wire dipole manages 532, a monoband Yagi 447 and a loaded mobile whip
+  170. Same gain to within a rounding error — the width is the whole point.
+
 - **Smith chart** — the one piece of the syllabus that a book cannot teach,
   because it is a transformation rather than a picture. Set the antenna's R and
   X, pick a feedline, and drag the length: the point walks around the chart in

@@ -1,0 +1,164 @@
+"""Radiation patterns and SWR bandwidth - why one antenna beats another.
+
+Two questions a gain figure does not answer. Where does the energy actually go,
+and how much of the band can you use before the SWR runs away? They are the
+questions that decide whether an antenna is any good for what you want, and
+they are the reason a bowtie and a thin wire dipole - identical on paper at
+2.15 dBi - behave nothing like each other in a garden.
+
+**Patterns** are computed, not sketched. A half-wave dipole in free space has a
+closed form, and over ground the image of the antenna adds a second wave whose
+path difference depends only on height - so the lobes and the nulls fall out of
+arithmetic rather than out of an artist's impression. That is worth doing
+properly because the elevation pattern is the whole argument about antenna
+height, and a drawing that is merely suggestive teaches the wrong lesson.
+
+Perfect ground is assumed. Real earth fills the deepest nulls in and takes the
+lowest degree or two off, so treat the shape as right and the last few degrees
+above the horizon as optimistic - the more so over dry sand, the less over salt
+water.
+
+**Bandwidth** is the resonant-circuit approximation: near resonance an antenna
+behaves like a series RLC, and its Q sets how fast reactance climbs as you tune
+away. Q is a property of how fat the antenna is, which is exactly what a bowtie
+changes - two triangles instead of two wires is a lower Q, and lower Q is a
+flatter SWR curve across the band. The Q figures here are typical of the type
+rather than derived from the geometry, and are labelled that way.
+"""
+import math
+
+# Typical loaded Q near resonance, and the feedpoint resistance to match.
+# Fatness is what sets Q: a thin wire is high Q and narrow, a fan or a cage is
+# low Q and wide, and a parasitic array is narrower than its driven element
+# alone because the parasitics load it.
+# `r` is the resistance the coax actually sees once the antenna is fed the way
+# it is normally fed - which is not the same as the bare feedpoint. A Yagi's
+# driven element sits near 25 ohms and is brought to 50 by its gamma or hairpin;
+# a loop is 115 and is fed through a balun; a J-pole's stub is the match. Using
+# the bare figure would report a 2:1 bandwidth of nothing for antennas that in
+# practice cover a whole band, which would be arithmetic winning over the truth.
+#
+# A dipole and a quarter-wave vertical are the honest exceptions: people really
+# do feed those straight off 50 ohm coax and really do live with 1.4:1.
+ANTENNA_Q = {
+    "dipole":      {"q": 13.0, "r": 73.0, "shape": "horizontal",
+                    "fed": "straight off 50 ohm coax, so it never quite reaches 1:1"},
+    "invertedv":   {"q": 11.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "the droop pulls the feedpoint down to about 50 ohms"},
+    "bowtie":      {"q": 4.5,  "r": 60.0, "shape": "horizontal",
+                    "fed": "fat elements, low Q - this is the whole point of it"},
+    "efhw":        {"q": 16.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "through its 49:1 transformer"},
+    "loop":        {"q": 9.0,  "r": 50.0, "shape": "horizontal",
+                    "fed": "115 ohms at the feedpoint, through a 4:1 balun"},
+    "quarter":     {"q": 12.0, "r": 36.0, "shape": "vertical",
+                    "fed": "straight off 50 ohm coax at about 36 ohms"},
+    "fiveeighth":  {"q": 15.0, "r": 50.0, "shape": "vertical",
+                    "fed": "through the base loading coil"},
+    "jpole":       {"q": 10.0, "r": 50.0, "shape": "vertical",
+                    "fed": "the matching stub is the match"},
+    "groundplane": {"q": 11.0, "r": 50.0, "shape": "vertical",
+                    "fed": "radials drooped to bring the feedpoint to 50 ohms"},
+    "yagi":        {"q": 22.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "25 ohms at the driven element, through a gamma or hairpin"},
+    "whip":        {"q": 55.0, "r": 50.0, "shape": "vertical",
+                    "fed": "through its matching network - and the Q is brutal"},
+}
+
+
+def _dipole_free(theta):
+    """Field of a half-wave dipole at angle `theta` from its own axis."""
+    s = math.sin(theta)
+    if abs(s) < 1e-9:
+        return 0.0
+    return abs(math.cos(math.pi / 2 * math.cos(theta)) / s)
+
+
+def elevation(kind, height_wl, points=181):
+    """Relative field against elevation angle, 0 at the horizon to 90 overhead.
+
+    Horizontal antennas are worked out by images: the ground reflects a second
+    wave, and the two arrive with a path difference set by the height, so the
+    array factor is 2*sin(2*pi*h*sin(angle)). That is where the lobes come
+    from, and why height rather than gain decides how low you radiate.
+
+    A vertical over ground has no such null at the horizon - its image is in
+    phase - which is the whole reason verticals are worth having for DX and
+    horizontals have to be got up high before they compete.
+    """
+    out = []
+    for n in range(points):
+        deg = 90.0 * n / (points - 1)
+        rad = math.radians(deg)
+        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
+            # Quarter-wave monopole over ground: maximum along the ground,
+            # nothing straight up.
+            c = math.cos(rad)
+            field = (abs(math.cos(math.pi / 2 * math.sin(rad)) / c)
+                     if abs(c) > 1e-9 else 0.0)
+        else:
+            # Broadside element, so the free-space term is flat in this plane;
+            # the height interference is what shapes it.
+            field = abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
+        out.append({"deg": round(deg, 2), "field": field})
+    peak = max(p["field"] for p in out) or 1.0
+    for p in out:
+        p["field"] = round(p["field"] / peak, 5)
+    return out
+
+
+def azimuth(kind, points=181):
+    """Relative field around the compass, 0 broadside to the wire."""
+    out = []
+    for n in range(points):
+        deg = 360.0 * n / (points - 1)
+        rad = math.radians(deg)
+        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
+            field = 1.0                                  # omnidirectional
+        elif kind == "yagi":
+            # A beam, described rather than modelled: a cardioid shaped to the
+            # front-to-back ratio a real Yagi gets. Not a substitute for NEC.
+            field = abs(0.5 + 0.5 * math.cos(rad)) ** 1.6
+        else:
+            field = _dipole_free(math.pi / 2 - 0) * 0 + abs(math.cos(rad))
+            field = abs(math.cos(rad))                   # figure of eight
+        out.append({"deg": round(deg, 1), "field": round(field, 5)})
+    return out
+
+
+def main_lobe(kind, height_wl):
+    """The elevation angle the antenna actually favours."""
+    best = max(elevation(kind, height_wl), key=lambda p: p["field"])
+    return best["deg"]
+
+
+def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121):
+    """SWR against frequency, from the resonant-circuit approximation.
+
+    Near resonance X ~ R*Q*(f/f0 - f0/f), which is the standard series-resonant
+    form. It is an approximation and stops being one a long way off resonance,
+    so the sweep is kept to +/-15% where it still means something.
+    """
+    spec = ANTENNA_Q.get(kind, ANTENNA_Q["dipole"])
+    q, r = spec["q"], spec["r"]
+    out = []
+    for n in range(points):
+        f = f0_mhz * (1 - span / 2 + span * n / (points - 1))
+        x = r * q * (f / f0_mhz - f0_mhz / f)
+        num = complex(r - z0, x)
+        den = complex(r + z0, x)
+        g = abs(num / den)
+        swr = (1 + g) / (1 - g) if g < 0.999999 else float("inf")
+        out.append({"mhz": round(f, 4), "swr": round(min(swr, 20.0), 3)})
+    return out
+
+
+def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0):
+    """The span where SWR stays under `limit`, in MHz and as a percentage."""
+    curve = swr_curve(kind, f0_mhz, z0=z0, points=601)
+    good = [p["mhz"] for p in curve if p["swr"] <= limit]
+    if not good:
+        return {"limit": limit, "low": None, "high": None, "khz": 0, "percent": 0.0}
+    low, high = min(good), max(good)
+    return {"limit": limit, "low": round(low, 4), "high": round(high, 4),
+            "khz": round((high - low) * 1000), "percent": round(100 * (high - low) / f0_mhz, 2)}
