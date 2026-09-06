@@ -23,7 +23,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
-               regional, rfexposure, rfpdf, smith, srs, terrain, update)
+               patterns, regional, rfexposure, rfpdf, smith, srs, terrain,
+               update)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -406,6 +407,32 @@ def api_bandplan():
                 for a, b, k, l in bandplan.activity_for(band["name"])],
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
+    })
+
+
+@app.route("/api/pattern")
+def api_pattern():
+    """Where the energy goes, and how much band you get - for one antenna."""
+    kind = request.args.get("type", "dipole")
+    try:
+        mhz = float(request.args.get("mhz", "14.2"))
+        height_ft = float(request.args.get("height", "35"))
+    except ValueError:
+        abort(400)
+    if kind not in patterns.ANTENNA_Q or not 0.1 <= mhz <= 3000:
+        abort(400)
+    lam_ft = 983.571 / mhz
+    height_wl = max(0.0, height_ft / lam_ft)
+    spec = patterns.ANTENNA_Q[kind]
+    return jsonify({
+        "type": kind, "mhz": mhz, "height_ft": height_ft,
+        "height_wl": round(height_wl, 3),
+        "shape": spec["shape"], "q": spec["q"], "fed": spec["fed"],
+        "elevation": patterns.elevation(kind, height_wl),
+        "azimuth": patterns.azimuth(kind),
+        "main_lobe_deg": patterns.main_lobe(kind, height_wl),
+        "swr": patterns.swr_curve(kind, mhz),
+        "bandwidth": patterns.usable_bandwidth(kind, mhz),
     })
 
 

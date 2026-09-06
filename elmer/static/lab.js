@@ -398,6 +398,14 @@ const ANTENNAS = {
   efhw: {shape: 'wire', label: 'End-fed half wave', gain: 0, z: 2400,
     ref: FREE_SPACE,
     build: f => ({'Wire length': 468 / f})},
+  // Two triangles instead of two wires. Same gain as a dipole to within a
+  // rounding error - the whole point of it is the bandwidth, because a fat
+  // element is a low-Q element and a low-Q element holds its SWR across a
+  // band a thin wire cannot.
+  bowtie: {shape: 'bowtie', label: 'Bowtie dipole', gain: 0.1, z: 60, ref: FREE_SPACE,
+    build: f => ({'Overall span': 446 / f, 'Each element, feed to tip': 223 / f,
+                  'Width across each tip': 257 / f,
+                  'Feed gap between apexes': 0.5})},
   loop: {shape: 'wire', label: 'Full-wave loop', gain: 1.2, z: 115, ref: FREE_SPACE,
     build: f => ({'Total perimeter': 1005 / f, 'Each side (square)': 251.25 / f})},
   quarter: {shape: 'vert', label: 'Quarter-wave vertical', gain: 0, z: 36,
@@ -417,7 +425,7 @@ const ANTENNAS = {
     build: f => ({'Radiator': 234 / f, 'Each of 4 radials': 246 / f})},
 };
 
-const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw'];
+const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie'];
 
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
@@ -672,6 +680,8 @@ function calcAnt() {
   const heightFt = type === 'whip' ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
                 rows['Radiator'] || 0;
+  drawPattern(type, f, heightFt);
+
   window.LAB_ANTENNA = {
     type: type,
     z: z,                       /* so the Smith chart can start from it */
@@ -701,7 +711,25 @@ function drawAntenna(shape, rows, type) {
       '" stroke="#2a3441"/>').join('');
   let body = '';
 
-  if (shape === 'wire') {
+  if (shape === 'bowtie') {
+    /* Two triangles nose to nose: the picture is the explanation, because the
+       width of the element is what buys the bandwidth. */
+    const cy = 96, halfSpan = 230, halfW = 46, gap = 9;
+    body =
+      '<polygon points="' + (W / 2 - gap) + ',' + cy + ' ' +
+        (W / 2 - halfSpan) + ',' + (cy - halfW) + ' ' +
+        (W / 2 - halfSpan) + ',' + (cy + halfW) +
+        '" fill="rgba(255,180,84,.20)" stroke="#ffb454" stroke-width="2"/>' +
+      '<polygon points="' + (W / 2 + gap) + ',' + cy + ' ' +
+        (W / 2 + halfSpan) + ',' + (cy - halfW) + ' ' +
+        (W / 2 + halfSpan) + ',' + (cy + halfW) +
+        '" fill="rgba(255,180,84,.20)" stroke="#ffb454" stroke-width="2"/>' +
+      '<line x1="' + (W / 2) + '" y1="' + cy + '" x2="' + (W / 2) + '" y2="' + g +
+        '" stroke="#58a6ff" stroke-width="1.4" stroke-dasharray="4 3"/>' +
+      lbl(W / 2, cy - 60, 'feed at the apexes') +
+      lbl(W / 2 - halfSpan / 1.6, cy + 70, 'wide element = low Q = wide band') +
+      lbl(W / 2 + 40, (cy + g) / 2, 'height', 'start');
+  } else if (shape === 'wire') {
     const y = 90;
     if (type === 'loop') {
       body = '<rect x="215" y="45" width="190" height="120" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
@@ -1777,4 +1805,99 @@ if (document.getElementById('sm-chart')) {
     toast('Carried over', a.label + ' at ' + a.f + ' MHz');
   });
   calcSmith();
+}
+
+/* ---------- where the energy goes, and how much band you get ----------
+
+   The two questions a gain figure does not answer, and the two that decide
+   whether an antenna suits what you want. Both are computed rather than
+   sketched: the elevation pattern from the ground reflection that height
+   creates, the SWR curve from the antenna's Q. */
+
+function polarPlot(points, opts) {
+  const R = 118, cx = 140, cy = 138;
+  const pts = points.map(p => {
+    const rad = (p.deg / 180) * Math.PI;
+    const r = R * p.field;
+    return [(cx + r * Math.cos(rad)).toFixed(1),
+            (cy - r * Math.sin(rad)).toFixed(1)].join(',');
+  }).join(' ');
+  const rings = [0.25, 0.5, 0.75, 1].map(f =>
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R * f).toFixed(1) +
+    '" fill="none" stroke="#2a3441"/>').join('');
+  const spokes = [0, 15, 30, 45, 60, 75, 90].map(d => {
+    const rad = (d / 180) * Math.PI;
+    return '<line x1="' + cx + '" y1="' + cy + '" x2="' +
+      (cx + R * Math.cos(rad)).toFixed(1) + '" y2="' +
+      (cy - R * Math.sin(rad)).toFixed(1) + '" stroke="#222c36"/>' +
+      '<text x="' + (cx + (R + 12) * Math.cos(rad)).toFixed(1) + '" y="' +
+      (cy - (R + 12) * Math.sin(rad) + 4).toFixed(1) +
+      '" fill="#626e7b" font-size="9" text-anchor="middle">' + d + '&#176;</text>';
+  }).join('');
+  return '<svg viewBox="0 0 290 165" style="width:100%;max-width:290px">' +
+    rings + spokes +
+    '<line x1="' + (cx - R - 6) + '" y1="' + cy + '" x2="' + (cx + R + 6) +
+      '" y2="' + cy + '" stroke="#8b98a5"/>' +
+    '<polygon points="' + cx + ',' + cy + ' ' + pts + '" fill="rgba(63,185,80,.22)" ' +
+      'stroke="#3fb950" stroke-width="1.6"/>' +
+    (opts && opts.mark !== undefined
+      ? '<line x1="' + cx + '" y1="' + cy + '" x2="' +
+        (cx + R * Math.cos(opts.mark / 180 * Math.PI)).toFixed(1) + '" y2="' +
+        (cy - R * Math.sin(opts.mark / 180 * Math.PI)).toFixed(1) +
+        '" stroke="#ffb454" stroke-width="1.4" stroke-dasharray="4 3"/>' : '') +
+    '</svg>';
+}
+
+function swrPlot(curve, band) {
+  const W = 300, H = 150, pad = 26;
+  const lo = curve[0].mhz, hi = curve[curve.length - 1].mhz;
+  const xs = f => pad + (f - lo) / (hi - lo) * (W - pad - 8);
+  const ys = s => H - 20 - (Math.min(s, 5) - 1) / 4 * (H - 40);
+  const line = curve.map(p => xs(p.mhz).toFixed(1) + ',' + ys(p.swr).toFixed(1)).join(' ');
+  const two = ys(2);
+  const shade = (band.low && band.high)
+    ? '<rect x="' + xs(band.low).toFixed(1) + '" y="' + ys(5).toFixed(1) +
+      '" width="' + (xs(band.high) - xs(band.low)).toFixed(1) + '" height="' +
+      (ys(1) - ys(5)).toFixed(1) + '" fill="rgba(63,185,80,.13)"/>' : '';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:300px">' +
+    shade +
+    '<line x1="' + pad + '" y1="' + two + '" x2="' + (W - 8) + '" y2="' + two +
+      '" stroke="#ffb454" stroke-dasharray="4 3"/>' +
+    '<text x="' + (pad + 3) + '" y="' + (two - 4) + '" fill="#ffb454" font-size="9">2:1</text>' +
+    '<polyline points="' + line + '" fill="none" stroke="#58a6ff" stroke-width="2"/>' +
+    '<line x1="' + pad + '" y1="' + (H - 20) + '" x2="' + (W - 8) + '" y2="' + (H - 20) +
+      '" stroke="#8b98a5"/>' +
+    '<text x="' + pad + '" y="' + (H - 7) + '" fill="#626e7b" font-size="9">' +
+      lo.toFixed(1) + '</text>' +
+    '<text x="' + (W - 8) + '" y="' + (H - 7) + '" fill="#626e7b" font-size="9" ' +
+      'text-anchor="end">' + hi.toFixed(1) + ' MHz</text>' +
+    '</svg>';
+}
+
+async function drawPattern(type, mhz, heightFt) {
+  const box = document.getElementById('an-pattern');
+  if (!box) return;
+  let d;
+  try {
+    d = await api('/api/pattern?' + new URLSearchParams(
+      {type: type, mhz: mhz, height: heightFt || 0}));
+  } catch (e) { box.innerHTML = ''; return; }
+  const b = d.bandwidth;
+  box.innerHTML =
+    '<div class="grid cols-2" style="gap:1rem">' +
+      '<div><div class="panel-title">Elevation pattern' +
+        (d.shape === 'vertical' ? '' : ' at ' + d.height_wl + ' wavelengths up') +
+        '</div>' + polarPlot(d.elevation, {mark: d.main_lobe_deg}) +
+        '<p class="tiny muted">Strongest at <b>' + d.main_lobe_deg +
+        '&deg;</b> above the horizon. ' +
+        (d.shape === 'vertical'
+          ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
+          : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Perfect ground assumed &mdash; real earth fills the deepest nulls and takes a degree or two off the bottom.') +
+        '</p></div>' +
+      '<div><div class="panel-title">SWR across the band</div>' +
+        swrPlot(d.swr, b) +
+        '<p class="tiny muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
+        '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
+        '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p></div>' +
+    '</div>';
 }
