@@ -65,12 +65,37 @@ def _key(lat, lon, radius_km):
 
 
 def cached(lat, lon, radius_km):
-    """Places already fetched for this neighbourhood, or None."""
-    path = CACHE / f"{_key(lat, lon, radius_km)}.json"
-    try:
-        return json.loads(path.read_text())["places"]
-    except (OSError, ValueError, KeyError):
-        return None
+    """Places already fetched for this neighbourhood, or None.
+
+    Any fetch that covered *at least* this radius answers the question: a
+    list of everything within 800 km contains everything within 300. Matching
+    the radius exactly - which is what the cache filename does - meant a trip
+    prepared before leaving home was never found again, because the program
+    asks with a different radius for every band and antenna. The caller
+    filters by distance anyway.
+    """
+    exact = CACHE / f"{_key(lat, lon, radius_km)}.json"
+    best, best_radius = None, -1.0
+    for path in ([exact] if exact.is_file() else []) + sorted(CACHE.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        centre, covered = payload.get("centre"), payload.get("radius_km")
+        if not centre or covered is None:
+            continue
+        if abs(centre[0] - lat) > 0.15 or abs(centre[1] - lon) > 0.15:
+            continue
+        if covered + 0.5 < radius_km:
+            continue                      # fetched a smaller area than asked
+        rows = payload.get("places") or []
+        # An empty cache must not outrank a full one. Overpass refuses or
+        # times out on very large areas and the refusal used to be written
+        # down as though it were an answer, so the widest file on disk is
+        # quite often the one that knows nothing.
+        if rows and covered > best_radius:
+            best, best_radius = rows, float(covered)
+    return best or None
 
 
 def _population(element):
@@ -110,6 +135,15 @@ def fetch(lat, lon, radius_km):
                      "population": population})
     rows.sort(key=lambda r: -r["population"])
     rows = rows[:KEEP]
+
+    if not rows:
+        # Overpass answers a query it will not serve with an empty set, not an
+        # error. Writing that down as "there is nothing near here" would be
+        # believing a refusal, and the file would then shadow every good
+        # answer beside it.
+        log.warning("places: nothing came back for %d km around %.3f,%.3f - "
+                    "not caching an empty answer", radius_km, lat, lon)
+        return []
 
     CACHE.mkdir(parents=True, exist_ok=True)
     path = CACHE / f"{_key(lat, lon, radius_km)}.json"

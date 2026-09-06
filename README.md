@@ -257,6 +257,31 @@ install puts the icon in a menu nobody uses and leaves ELMER unable to save
 anything when the desktop user runs it. The installer asks for sudo only when
 a system package is genuinely needed.
 
+## Packing for somewhere the internet is not
+
+ELMER runs with no network - that is the design - but several of the things
+that make it useful *about a place* are looked up once and then remembered.
+Off the grid it can only remember what it was told before you left.
+
+So name where you are going while you still have a signal:
+
+```
+./elmer.py --prepare "Moab, Utah"      # a town, a grid square, or lat,lon
+./elmer.py --trips                     # what is packed
+```
+
+It fetches the towns around that destination and keeps them, then says plainly
+what no preparation can carry: live solar numbers need the network at the time,
+repeaters come from TowerWitch and are its to fetch (`--import-repeaters`
+before you leave), and ground profiles are per-path with more paths than
+anybody could cache. Set the QTH to the destination's grid square and every
+answer - who is in reach, which way to point, what to try - is about there.
+
+This works because a cached area now answers for anything inside it: a fetch
+covering 800 km serves a question about 300. It used to match the radius
+exactly, which meant a trip prepared before leaving was never found again,
+since ELMER asks with a different radius for every band and antenna.
+
 ## How far, and toward whom
 
 The plan view is a map now, not just a compass. Every antenna other than a

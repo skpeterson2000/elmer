@@ -55,3 +55,7 @@ data/repeaters.json
 # Problem reports written by --report. They are generated, and may carry
 # whatever the operator chose to leave in them.
 data/elmer-report-*.txt
+
+# Places prepared for a trip. Where somebody is going is theirs, not the
+# application's.
+data/trips.json

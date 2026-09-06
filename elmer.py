@@ -77,6 +77,20 @@ def _update_command(update, apply_it, assume_yes):
     return True
 
 
+def _wrap(text, width):
+    """Break prose to a width, so terminal output stays readable."""
+    words, line, out = text.split(), "", []
+    for word in words:
+        if line and len(line) + 1 + len(word) > width:
+            out.append(line)
+            line = word
+        else:
+            line = f"{line} {word}".strip()
+    if line:
+        out.append(line)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -109,6 +123,17 @@ def main():
                     help="update this install from the repository it came from")
     ap.add_argument("--update-check", action="store_true",
                     help="report whether an update is waiting, and change nothing")
+    ap.add_argument("--prepare", metavar="PLACE",
+                    help="fetch and keep what ELMER needs about somewhere you "
+                         "are going, while you still have a network - a town "
+                         "and state, a grid square, or lat,lon")
+    ap.add_argument("--trips", action="store_true",
+                    help="list the places already prepared for use off-grid")
+    ap.add_argument("--forget-trip", metavar="PLACE",
+                    help="drop a prepared destination")
+    ap.add_argument("--radius", type=int, default=None, metavar="KM",
+                    help="with --prepare, how far around it to fetch "
+                         "(default 800 km)")
     ap.add_argument("--report", action="store_true",
                     help="write a problem report - versions, recent errors and "
                          "the tail of the log - with the station's identity "
@@ -198,6 +223,56 @@ def main():
         from elmer.report import print_stats
         print_stats(args.user)
         return
+
+    if args.prepare:
+        from elmer import trip
+        # Flushed, or the fetch's own log line lands above the header.
+        print(f"\n  Preparing for {args.prepare}\n", flush=True)
+        ok, message, record = trip.prepare(
+            args.prepare, args.radius or trip.DEFAULT_RADIUS_KM,
+            progress=lambda line: print(f"    {line}"))
+        if not record:
+            print(f"\n  {message}\n")
+            sys.exit(1)
+        print(f"\n  {record['name']}  {record['grid']}  "
+              f"({record['lat']}, {record['lon']}) - {message}")
+        for line in record["have"]:
+            print(f"    kept: {line}")
+        for line in record["missing"]:
+            print(f"    not kept: {line}")
+        print("\n  What no preparation can carry with you:\n")
+        for title, why in trip.cannot_pack():
+            print(f"    {title}")
+            for chunk in _wrap(why, 66):
+                print(f"      {chunk}")
+        print()
+        sys.exit(0 if ok else 1)
+
+    if args.forget_trip:
+        from elmer import trip
+        gone = trip.forget(args.forget_trip)
+        print(f"\n  {'forgotten' if gone else 'nothing by that name'}\n")
+        sys.exit(0)
+
+    if args.trips:
+        from elmer import trip
+        rows = trip.listing()
+        if not rows:
+            print("\n  Nowhere prepared yet. Before you leave a network:")
+            print("      ./elmer.py --prepare \"Moab, Utah\"\n")
+            sys.exit(0)
+        print("\n  Prepared for use off-grid:\n")
+        for row in rows:
+            when = time.strftime("%Y-%m-%d", time.localtime(row["prepared"]))
+            print(f"    {row['name']:28s} {row['grid']:8s} "
+                  f"{row['radius_km']} km   {when}")
+            for line in row.get("have", []):
+                print(f"        {line}")
+            for line in row.get("missing", []):
+                print(f"        (missing) {line}")
+        print("\n  Set the QTH to one of these grid squares on the propagation")
+        print("  page and everything ELMER says will be about there.\n")
+        sys.exit(0)
 
     if args.report or args.report_with_station:
         from elmer import bugreport, db
