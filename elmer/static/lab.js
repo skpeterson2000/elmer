@@ -434,6 +434,19 @@ const ANTENNAS = {
     build: f => ({'Radiator': 234 / f, 'Each of 4 radials': 246 / f})},
 };
 
+/* Feedpoint resistance of a quarter wave against its radials, as they are
+   drooped. Flat radials give about 36 ohms; at 45 degrees it is near 50, which
+   is the whole reason anybody droops them; carried all the way to 90 it is a
+   vertical dipole at about 72. This is a smooth curve through those three
+   textbook figures, not a modelled result - it is here so the slider shows
+   the effect the note claims, rather than asserting it at a drawing that
+   contradicts it. */
+function radialZ(deg) {
+  const x = Math.max(0, Math.min(90, deg)) / 90;
+  return Math.round(36 + 20 * x + 16 * x * x);
+}
+
+
 const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie'];
 
 /* Which antennas are balanced, because that and nothing else decides what goes
@@ -488,6 +501,7 @@ function antennaFields(type) {
   show('.an-when-whip', type === 'whip');
   show('.an-when-height', type !== 'whip');
   show('.an-when-v', type === 'invertedv');
+  show('.an-when-radials', type === 'groundplane');
   show('.an-when-nvis', NVIS_TYPES.indexOf(type) >= 0);
 }
 
@@ -646,6 +660,7 @@ function calcAnt() {
     rows = spec.build(f);
     gain = spec.gain;
     z = spec.z;
+    if (type === 'groundplane') z = radialZ(num('an-radials'));
     gainRef = spec.ref || FREE_SPACE;
     if (type === 'efhw') {
       notes.push('The end of a half wave is a high-voltage, high-impedance ' +
@@ -692,9 +707,16 @@ function calcAnt() {
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +
       'Radial count matters more than radial length &mdash; 16 or more on the ground, or ' +
       'four elevated.');
-    if (type === 'groundplane') notes.push('Drooping the radials about 45&deg; raises the ' +
-      'feed point impedance from roughly 36&nbsp;&Omega; to near 50&nbsp;&Omega;, which is the ' +
-      'whole point of the droop.');
+    if (type === 'groundplane') {
+      const dr = num('an-radials');
+      notes.push('Radials at <b>' + dr.toFixed(0) + '&deg;</b> put the feed point near <b>' +
+        radialZ(dr) + '&nbsp;&Omega;</b>. Flat radials give roughly 36&nbsp;&Omega; ' +
+        '&mdash; a 1.4:1 mismatch you can live with but need not &mdash; and about ' +
+        '45&deg; brings it to 50, which is the whole point of the droop. Past that ' +
+        'it climbs on towards the 72&nbsp;&Omega; of a vertical dipole.' +
+        (dr < 20 ? ' <b>At this angle they are barely drooped:</b> move the slider ' +
+                   'and watch the figure, and the drawing, follow.' : ''));
+    }
     if (type === 'fiveeighth') notes.push('A 5/8-wave radiator is not resonant, so it needs ' +
       'a base matching coil. In exchange it pushes the lobe down and gains about ' +
       '2&nbsp;dB over a quarter wave on flat ground.');
@@ -708,6 +730,9 @@ function calcAnt() {
 
   const droopEl = document.getElementById('an-droop-v');
   if (droopEl) droopEl.textContent = num('an-droop').toFixed(0) + '\u00b0 from horizontal';
+  const radEl = document.getElementById('an-radials-v');
+  if (radEl) radEl.textContent = num('an-radials').toFixed(0) + '\u00b0 down \u2014 about '
+    + radialZ(num('an-radials')) + ' \u03a9';
 
   /* Height above ground sets the takeoff angle for anything horizontal. */
   let takeoff = null;
@@ -967,14 +992,47 @@ function drawAntenna(shape, rows, type) {
         lbl(310, y - 12, 'feed point') + lbl(350, (y + g) / 2, 'height', 'start');
     }
   } else if (shape === 'vert') {
-    const top = type === 'fiveeighth' ? 40 : 70;
-    body = '<line x1="310" y1="' + top + '" x2="310" y2="' + g + '" stroke="#ffb454" stroke-width="3"/>' +
-      lbl(330, (top + g) / 2, 'radiator', 'start');
+    /* A ground plane is an elevated antenna - that is what lets the radials
+       droop at all - so it is drawn up a mast, with the radials above the
+       ground rather than driven through it. */
+    const elevated = type === 'groundplane';
+    const base = elevated ? 120 : g;
+    const top = elevated ? 40 : (type === 'fiveeighth' ? 40 : 70);
+    body = '<line x1="310" y1="' + top + '" x2="310" y2="' + base + '" stroke="#ffb454" stroke-width="3"/>' +
+      lbl(330, (top + base) / 2, 'radiator', 'start');
+    if (elevated) {
+      body += '<line x1="310" y1="' + base + '" x2="310" y2="' + g +
+        '" stroke="#8b98a5" stroke-width="1.5" stroke-dasharray="4 3"/>' +
+        lbl(322, (base + g) / 2 + 26, 'mast', 'start');
+    }
     if (type === 'jpole') {
       body += '<line x1="270" y1="140" x2="270" y2="' + g + '" stroke="#ffb454" stroke-width="3"/>' +
         '<line x1="270" y1="' + g + '" x2="310" y2="' + g + '" stroke="#ffb454" stroke-width="3"/>' +
         lbl(250, 135, 'stub', 'end') + '<circle cx="270" cy="' + (g - 18) + '" r="4" fill="#58a6ff"/>' +
         lbl(240, g - 18, 'feed', 'end');
+    } else if (type === 'groundplane') {
+      /* Drawn at the angle that is set, because the note next to it is about
+         that angle. A flat line here while the text explains why you droop
+         them is the program disagreeing with itself in front of a beginner. */
+      /* 90 px of radial keeps the steepest droop clear of the ground line
+         while staying about as long as the radiator, which is what a quarter
+         wave against a quarter wave should look like. */
+      const dr = num('an-radials'), r = 90;
+      const dx = r * Math.cos(dr * Math.PI / 180), dy = r * Math.sin(dr * Math.PI / 180);
+      body += '<line x1="310" y1="' + base + '" x2="' + (310 - dx).toFixed(1) +
+        '" y2="' + (base + dy).toFixed(1) + '" stroke="#39d3d8" stroke-width="2"/>' +
+        '<line x1="310" y1="' + base + '" x2="' + (310 + dx).toFixed(1) +
+        '" y2="' + (base + dy).toFixed(1) + '" stroke="#39d3d8" stroke-width="2"/>' +
+        /* the other two of the four, foreshortened, so it reads as a cone */
+        '<line x1="310" y1="' + base + '" x2="' + (310 - dx * 0.45).toFixed(1) +
+        '" y2="' + (base + dy * 0.72).toFixed(1) +
+        '" stroke="#39d3d8" stroke-width="1.2" opacity="0.65"/>' +
+        '<line x1="310" y1="' + base + '" x2="' + (310 + dx * 0.45).toFixed(1) +
+        '" y2="' + (base + dy * 0.72).toFixed(1) +
+        '" stroke="#39d3d8" stroke-width="1.2" opacity="0.65"/>' +
+        '<circle cx="310" cy="' + base + '" r="4" fill="#58a6ff"/>' +
+        lbl(300, base - 8, 'feed', 'end') +
+        lbl(310 + dx + 12, base + dy, dr.toFixed(0) + '\u00b0 radials', 'start');
     } else if (type !== 'whip') {
       body += '<line x1="180" y1="' + (g + 4) + '" x2="440" y2="' + (g + 4) +
         '" stroke="#39d3d8" stroke-width="2"/>' + lbl(460, g + 8, 'radials', 'start');
@@ -1002,7 +1060,7 @@ function drawAntenna(shape, rows, type) {
 }
 
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-droop', 'an-nvis', 'an-head']
+ 'an-k', 'an-droop', 'an-radials', 'an-nvis', 'an-head']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
