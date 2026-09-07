@@ -1936,11 +1936,31 @@ def api_gps():
     to the page, in the shape the button already saves.
     """
     connection = conn()
+    host, port = gps.target(connection)
     if not gps.enabled(connection):
-        return jsonify({"located": False, "reason": "off"})
+        return jsonify({"located": False, "reason": "off",
+                        "detail": "GPS is switched off for this unit"})
     live = gps.place(connection)
     if not live:
-        return jsonify({"located": False, "reason": "no fix"})
+        # Say which of the several quite different things went wrong. "No fix"
+        # covers a unit with no receiver, a receiver that has not locked yet,
+        # and a gpsd on another machine that is not answering, and those are
+        # not fixed the same way - so the page should not report them with one
+        # sentence either.
+        listening = diagnostics.port_in_use(port, host)
+        phone = phonegps.listener()
+        if listening:
+            detail = (f"gpsd at {host}:{port} is answering but has no fix yet "
+                      f"- a receiver indoors often never gets one")
+        elif phone:
+            detail = (f"nothing is listening at {host}:{port}, and no phone is "
+                      f"streaming to udp/{phone.port} yet")
+        else:
+            detail = (f"nothing is listening at {host}:{port} - this unit has "
+                      f"no GPS. A phone can be one: turn it on in Settings")
+        return jsonify({"located": False, "reason": "no fix", "detail": detail,
+                        "gpsd": f"{host}:{port}", "gpsd_listening": listening,
+                        "phone_listening": bool(phone)})
     place = geocode.reverse(live["lat"], live["lon"]) or {}
     return jsonify({
         "located": True,

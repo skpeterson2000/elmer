@@ -406,11 +406,19 @@ function geolocationAvailable() {
    resolves through a network lookup service Chromium has no key for, and it
    never consults gpsd - so on the machine with the receiver plugged into it,
    the browser was the one thing that could not answer. */
+/* Why the last attempt failed, so the page can say something more useful than
+   that it failed. Kept beside the call rather than thrown, because not having
+   a GPS is an ordinary state and not an error. */
+let lastFixReason = null;
+
 async function serverFix() {
   try {
     const d = await api('/api/gps');
-    return d && d.located ? d : null;
+    if (d && d.located) { lastFixReason = null; return d; }
+    lastFixReason = (d && d.detail) || null;
+    return null;
   } catch (e) {
+    lastFixReason = 'the server did not answer';
     return null;
   }
 }
@@ -450,9 +458,20 @@ async function locateMe() {
   const fix = await serverFix();
   if (fix) return fix;
   if (!geolocationAvailable()) {
-    throw new Error('no GPS fix, and not a secure context');
+    // Carry the server's own account of what is missing, so the page can
+    // repeat it rather than inventing a vaguer one.
+    const err = new Error(lastFixReason || 'this unit has no GPS');
+    err.reason = lastFixReason;
+    throw err;
   }
-  return browserFix();
+  try {
+    return await browserFix();
+  } catch (e) {
+    const err = new Error(lastFixReason ||
+      'the browser would not give a position either');
+    err.reason = lastFixReason;
+    throw err;
+  }
 }
 
 function saveQTH(place) {
