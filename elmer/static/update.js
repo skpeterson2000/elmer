@@ -252,3 +252,66 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-selfcheck]');
   if (b) runSelfCheck(b);
 });
+
+/* ------------------------------------------------------- other ELMERs here */
+/* A unit on its own has no way of knowing the shack Pi is up, or that four
+   tables are already playing. Saying so is most of the value; the offer of a
+   game is the rest. Nothing is ever started on a neighbour's say-so - this
+   only ever suggests. */
+
+let peersQuiet = false;          // "not now" lasts until the page is reloaded
+
+function peerRow(p) {
+  const bits = [];
+  if (p.gps) bits.push('<span class="pill ok tiny">has a fix</span>');
+  if (p.party && p.party.running) {
+    bits.push('<span class="pill info tiny">tournament running</span>');
+  } else if (p.party && p.party.players) {
+    bits.push('<span class="tiny muted">' + p.party.players + ' waiting</span>');
+  }
+  return '<li class="peer">' +
+    '<a href="' + escapeHTML(p.url || '#') + '" target="_blank">' +
+      escapeHTML(p.name) + '</a>' +
+    '<span class="mono tiny muted">' + escapeHTML(p.address) + '</span>' +
+    bits.join(' ') +
+    '</li>';
+}
+
+function renderPeers(d) {
+  const box = document.getElementById('peers');
+  if (!box) return;
+  if (peersQuiet || !d.count) { box.innerHTML = ''; return; }
+  const playing = (d.peers || []).filter(p => p.party && p.party.running);
+  const n = d.count;
+  box.innerHTML =
+    '<div class="panel"><div class="panel-title">' +
+      n + ' other ELMER' + (n === 1 ? '' : 's') + ' on this network</div>' +
+    '<ul class="peers">' + d.peers.map(peerRow).join('') + '</ul>' +
+    (playing.length
+      ? '<p class="tiny">A tournament is running on <b>' +
+        escapeHTML(playing[0].name) + '</b>. ' +
+        '<a href="' + escapeHTML(playing[0].url) + '/party/1" target="_blank">Join it &rarr;</a></p>'
+      : '<p class="tiny muted">Nobody is playing. A tournament needs two ' +
+        'minutes and somebody to start it.</p>') +
+    '<div class="row" style="gap:.5rem;margin-top:.6rem">' +
+      (playing.length ? ''
+        : '<a class="btn sm primary" href="/party/1">&#9873; Start a tournament</a>') +
+      '<a class="btn sm ghost" href="/net">Run it across all of them</a>' +
+      '<button class="btn sm ghost" data-peers="hide">Not now</button>' +
+    '</div></div>';
+}
+
+async function pollPeers() {
+  try { renderPeers(await api('/api/peers')); } catch (e) { /* quiet */ }
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-peers="hide"]')) {
+    peersQuiet = true;
+    const box = document.getElementById('peers');
+    if (box) box.innerHTML = '';
+  }
+});
+
+pollPeers();
+setInterval(pollPeers, 20000);

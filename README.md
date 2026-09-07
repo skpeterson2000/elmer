@@ -568,6 +568,34 @@ local solar elevation and day/night band ratings. It accepts a grid square,
 coordinates or a place name, and a QTH entered as a bare grid is given a
 readable name the first time it is used, so `FN31pr` shows as *Newington*.
 
+### One ELMER knows another
+
+Two Pis on a bench, or four on a club table, and neither knowing the other is
+there. That is a waste twice over: one of them may have a GPS antenna and a
+lock while the other has been guessing for ten minutes, and either could have
+been running a tournament against the other all evening.
+
+Each unit says hello on the network every few seconds and listens for the rest.
+Nothing is configured at either end, and a unit that goes quiet drops off the
+list by itself. The dashboard grows a panel when there is company, and none
+when there is not:
+
+    2 other ELMERs on this network
+      Shack Pi     192.168.1.31   has a fix   tournament running
+      Table 3      192.168.1.44   6 waiting
+
+Two things come of it. **Position**: a unit with a receiver announces its fix
+and a unit without one takes it, so a second Pi never needs a second antenna.
+**Company**: a tournament can be suggested rather than remembered, and joined
+in one press. The suggestion is all it is — a unit never starts a round on
+another unit's say-so.
+
+What is announced is what a neighbour needs to be useful: who this is, where to
+reach it, whether it has a position, and whether a game is on. Not the
+operator's name, not their progress, not their callsign. It goes to the local
+broadcast address and nowhere else, and position sharing can be switched off
+without switching discovery off.
+
 ### One receiver, every unit
 
 A station with more than one Pi does not need more than one GPS. TowerWitch

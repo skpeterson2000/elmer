@@ -719,3 +719,16 @@ b.ok { color: var(--green); } b.warn { color: var(--amber); } b.bad { color: var
   ul.checks .check { grid-template-columns: 1.4rem 1fr; }
   ul.checks .check span:last-child { grid-column: 2; }
 }
+
+/* Other ELMERs on the network. Present when there is company, absent when
+   there is not - a panel that says "nobody is here" every day is a panel
+   people stop reading. */
+ul.peers { list-style: none; margin: .5rem 0 .2rem; padding: 0; }
+ul.peers .peer {
+  display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+  padding: .35rem .2rem; border-bottom: 1px solid var(--line);
+}
+ul.peers .peer:last-child { border-bottom: 0; }
+ul.peers .peer a { font-weight: 600; }
+.pill.ok { background: rgba(63,185,80,.14); color: var(--green);
+           border: 1px solid rgba(63,185,80,.35); }
