@@ -1890,6 +1890,14 @@ def api_doctor():
                     "checked_at": time.time()})
 
 
+@app.route("/api/gps/raw")
+def api_gps_raw():
+    """What gpsd actually says, for working out a disagreement about it."""
+    host, port = gps.target(conn())
+    return jsonify(gps.probe(host, port,
+                             seconds=float(request.args.get("seconds", 4))))
+
+
 @app.route("/api/gps/phone", methods=["GET", "POST"])
 def api_gps_phone():
     """Listen for a phone streaming NMEA, or stop.

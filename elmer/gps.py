@@ -130,6 +130,84 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
     return None
 
 
+def probe(host=None, port=None, seconds=4.0):
+    """Everything gpsd says, verbatim, for somebody working out why.
+
+    Two programs on one Pi reading one gpsd and disagreeing about whether there
+    is a fix is not a thing to reason about from a distance. This reports the
+    conversation itself - which devices gpsd has, what it answers a poll with,
+    and what it streams - so the question becomes what gpsd said rather than
+    what anybody believes it said.
+    """
+    host = host or DEFAULT_HOST
+    port = port or DEFAULT_PORT
+    out = {"host": f"{host}:{port}", "connected": False, "messages": [],
+           "devices": [], "poll": None, "tpv": [], "sky": [],
+           "usable_fix": None, "error": None}
+    deadline = time.monotonic() + seconds
+    try:
+        sock = socket.create_connection((host, port), timeout=min(3.0, seconds))
+    except OSError as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+        return out
+    out["connected"] = True
+    try:
+        sock.sendall(b'?WATCH={"enable":true,"json":true};\n?POLL;\n')
+        buffer = b""
+        while time.monotonic() < deadline:
+            sock.settimeout(max(0.1, deadline - time.monotonic()))
+            try:
+                chunk = sock.recv(8192)
+            except OSError:
+                break
+            if not chunk:
+                break
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                try:
+                    message = json.loads(line)
+                except ValueError:
+                    continue
+                kind = message.get("class")
+                out["messages"].append(kind)
+                if kind == "DEVICES":
+                    out["devices"] = [
+                        {"path": d.get("path"), "driver": d.get("driver"),
+                         "activated": d.get("activated"), "bps": d.get("bps")}
+                        for d in message.get("devices") or []]
+                elif kind == "POLL":
+                    out["poll"] = {"active": message.get("active"),
+                                   "tpv": message.get("tpv") or []}
+                elif kind == "TPV":
+                    out["tpv"].append({k: message.get(k) for k in
+                                       ("mode", "lat", "lon", "alt", "time",
+                                        "status", "device")})
+                elif kind == "SKY":
+                    sats = message.get("satellites") or []
+                    out["sky"].append({
+                        "seen": len(sats),
+                        "used": sum(1 for s in sats if s.get("used")),
+                        "hdop": message.get("hdop")})
+                if out["usable_fix"] is None:
+                    found = usable(message, host, port)
+                    if found is None and kind == "POLL":
+                        for one in message.get("tpv") or []:
+                            found = usable(one, host, port)
+                            if found:
+                                break
+                    if found:
+                        out["usable_fix"] = found
+    except OSError as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+    return out
+
+
 def fix(conn=None, max_age=FRESH_FOR):
     """The current position, cached briefly so a page load is not a GPS read.
 
