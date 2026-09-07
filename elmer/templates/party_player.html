@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>Table {{ table }} &middot; ELMER</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+<style>
+/* A phone held in a noisy hall, at arm's length, by somebody who has not used
+   this before and will not read instructions. Big targets, one thing on the
+   screen at a time, and no navigation to get lost in. */
+body { margin: 0; background: var(--bg); color: var(--text);
+       font-family: var(--sans); -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 34rem; margin: 0 auto; padding: 1rem 1rem 3rem;
+        min-height: 100dvh; display: flex; flex-direction: column; }
+.tablebar { display: flex; align-items: baseline; gap: .5rem;
+            padding: .3rem 0 .8rem; border-bottom: 1px solid var(--line);
+            margin-bottom: 1rem; }
+.tablebar b { font-size: 1.05rem; }
+.tablebar .who { margin-left: auto; color: var(--dim); font-size: .85rem; }
+.big { font-size: 1.25rem; line-height: 1.45; margin: 0 0 1.1rem; }
+.choice { display: block; width: 100%; text-align: left; margin: 0 0 .7rem;
+          padding: 1rem 1.1rem; font-size: 1.05rem; line-height: 1.4;
+          border-radius: 12px; border: 1px solid var(--line-2);
+          background: var(--panel-2); color: var(--text);
+          font-family: inherit; cursor: pointer; }
+.choice:active { transform: scale(.99); }
+.choice[disabled] { opacity: .5; }
+.choice .k { display: inline-block; min-width: 1.6rem; font-weight: 700;
+             color: var(--amber); }
+.choice.picked { border-color: var(--amber); background: #2a2216; }
+.choice.right  { border-color: var(--green); background: #14301b; }
+.choice.wrong  { border-color: var(--red);   background: #331a1a; }
+.clock { font-variant-numeric: tabular-nums; font-family: var(--mono);
+         color: var(--dim); }
+.clock.urgent { color: var(--amber); }
+.state { text-align: center; padding: 3rem 1rem; color: var(--dim); }
+.state h2 { color: var(--text); margin: 0 0 .5rem; }
+.verdict { text-align: center; padding: 1.4rem 1rem; border-radius: 12px;
+           margin-bottom: 1rem; }
+.verdict.right { background: #14301b; border: 1px solid var(--green); }
+.verdict.wrong { background: #331a1a; border: 1px solid var(--red); }
+.verdict .h { font-size: 1.4rem; font-weight: 700; }
+.verdict .t { color: var(--dim); font-size: .9rem; margin-top: .25rem; }
+.mine { font-family: var(--mono); font-size: 1.6rem; }
+table.board { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.board td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); }
+table.board td.n { color: var(--dim); width: 2rem; }
+table.board td.ms { text-align: right; font-family: var(--mono);
+                    color: var(--dim); }
+table.board tr.me td { color: var(--amber); font-weight: 600; }
+.join input { width: 100%; padding: .9rem 1rem; font-size: 1.1rem;
+              border-radius: 12px; border: 1px solid var(--line-2);
+              background: var(--panel); color: var(--text); }
+.err { color: var(--red); margin-top: .8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tablebar">
+    <b>{{ name }}</b>
+    <span class="who" id="who"></span>
+  </div>
+  <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
+</div>
+<script>
+const TABLE = {{ table|tojson }};
+let me = null;              // {id, name, cohort}
+let shownRound = null;      // round number currently painted
+let paintedAt = 0;          // when this phone actually drew the question
+let answered = false;
+let poll = null;
+
+const view = document.getElementById('view');
+const who = document.getElementById('who');
+
+async function api(path, body) {
+  const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
+}
+
+/* ---------------------------------------------------------------- joining */
+function showJoin(reason) {
+  view.innerHTML = `
+    <div class="join">
+      <p class="big">What should we call you?</p>
+      <input id="nm" maxlength="24" autocomplete="off" autocapitalize="words"
+             placeholder="Your name or callsign">
+      <button class="btn primary wide" id="go" style="margin-top:1rem">Join this table</button>
+      ${reason ? `<div class="err">${reason}</div>` : ''}
+    </div>`;
+  const nm = document.getElementById('nm');
+  const go = document.getElementById('go');
+  const saved = localStorage.getItem('elmer_party_name');
+  if (saved) nm.value = saved;
+  nm.focus();
+  const join = async () => {
+    const name = nm.value.trim();
+    if (!name) { nm.focus(); return; }
+    go.disabled = true; go.textContent = 'Joining…';
+    localStorage.setItem('elmer_party_name', name);
+    const r = await api('/api/party/join', {name});
+    if (!r.data.joined) { showJoin(r.data.reason || 'Could not join.'); return; }
+    me = r.data.player;
+    sessionStorage.setItem('elmer_party_player', JSON.stringify(me));
+    who.textContent = me.name + ' · Cohort ' + me.cohort;
+    start();
+  };
+  go.addEventListener('click', join);
+  nm.addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+}
+
+/* ----------------------------------------------------------------- rounds */
+function paintWaiting(state) {
+  const n = (state.cohorts || []).reduce((a, c) => a + c.players, 0);
+  view.innerHTML = `<div class="state">
+      <h2>You're in.</h2>
+      <p>Waiting for the next question.</p>
+      <p class="clock">${n} player${n === 1 ? '' : 's'} at this table</p>
+    </div>`;
+}
+
+function paintQuestion(round) {
+  const q = round.question || {};
+  answered = false;
+  paintedAt = performance.now();     // the clock the race is actually timed on
+  const choices = (q.choices || []).map((c, i) =>
+    `<button class="choice" data-i="${i}">
+       <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('');
+  view.innerHTML = `
+    <div style="display:flex;gap:.6rem;align-items:baseline;margin-bottom:.6rem">
+      <span class="clock">Q${round.number}</span>
+      <span class="clock" style="color:var(--dimmer)">${escapeHTML(q.section || '')}</span>
+      <span class="clock" id="left" style="margin-left:auto"></span>
+    </div>
+    <p class="big">${escapeHTML(q.text || '')}</p>
+    ${q.figure ? `<img src="${q.figure}" alt="" style="max-width:100%;border-radius:10px;margin-bottom:1rem">` : ''}
+    <div id="choices">${choices}</div>`;
+  document.querySelectorAll('.choice').forEach(b => {
+    b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b));
+  });
+}
+
+async function send(index, button) {
+  if (answered) return;
+  answered = true;
+  // The interval this phone measured, from painting the question to the tap.
+  // Network time is deliberately not in it - that is the whole point.
+  const ms = Math.round(performance.now() - paintedAt);
+  document.querySelectorAll('.choice').forEach(b => { b.disabled = true; });
+  button.classList.add('picked');
+  const r = await api('/api/party/answer', {player: me.id, chosen: index, ms});
+  if (!r.data.accepted) {
+    answered = false;
+    document.querySelectorAll('.choice').forEach(b => { b.disabled = false; });
+    button.classList.remove('picked');
+  }
+}
+
+function paintResults(round) {
+  const rows = (round.results || []);
+  const mine = rows.find(r => r.player_id === me.id);
+  const top = rows.slice(0, 8).map((r, i) => `
+    <tr class="${r.player_id === me.id ? 'me' : ''}">
+      <td class="n">${r.place || '–'}</td>
+      <td>${escapeHTML(r.name)} ${r.correct ? '✓' : '✗'}</td>
+      <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
+      <td class="ms">${r.points || 0}</td>
+    </tr>`).join('');
+  view.innerHTML = `
+    ${mine ? `<div class="verdict ${mine.correct ? 'right' : 'wrong'}">
+        <div class="h">${mine.correct ? 'Correct' : 'Not this time'}</div>
+        <div class="mine">${(mine.ms / 1000).toFixed(2)}s</div>
+        <div class="t">${mine.correct
+          ? `${ordinal(mine.place)} on this table · ${mine.points} points`
+          : 'No points for this one'}</div>
+      </div>`
+      : `<div class="verdict wrong"><div class="h">No answer</div>
+         <div class="t">You did not get one in before time</div></div>`}
+    <table class="board">${top}</table>
+    <p class="state" style="padding:1.4rem 0">Waiting for the next question…</p>`;
+}
+
+function ordinal(n) {
+  if (!n) return '';
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function escapeHTML(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : s;
+  return d.innerHTML;
+}
+
+/* ------------------------------------------------------------------ poll */
+async function tick() {
+  let r;
+  try {
+    r = await api('/api/party/state?player=' + me.id);
+  } catch (e) { return; }
+  if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
+  const s = r.data, round = s.round;
+
+  if (!round) { if (shownRound !== null) { shownRound = null; paintWaiting(s); } return; }
+
+  if (round.closed) {
+    if (shownRound !== 'closed-' + round.number) {
+      shownRound = 'closed-' + round.number;
+      paintResults(round);
+    }
+    return;
+  }
+  if (shownRound !== round.number) {
+    shownRound = round.number;
+    paintQuestion(round);
+  }
+  const left = document.getElementById('left');
+  if (left) {
+    left.textContent = Math.ceil(round.remaining) + 's';
+    left.classList.toggle('urgent', round.remaining <= 10);
+  }
+}
+
+function start() {
+  if (poll) clearInterval(poll);
+  tick();
+  poll = setInterval(tick, 1000);
+}
+
+/* A phone that locks and comes back should not sit on a stale question. */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && me) tick();
+});
+
+const remembered = sessionStorage.getItem('elmer_party_player');
+if (remembered) {
+  me = JSON.parse(remembered);
+  who.textContent = me.name + ' · Cohort ' + me.cohort;
+  start();
+} else {
+  showJoin(null);
+}
+</script>
+</body>
+</html>

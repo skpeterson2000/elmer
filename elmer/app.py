@@ -13,6 +13,7 @@ import os
 import random
 import signal
 import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -24,7 +25,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               bugreport, conductors, gps, reachout, repeaters,
+               bugreport, conductors, diagnostics, gps, netcontrol, party, qr,
+               reachout, repeaters,
                terrain, update)
 from .content import get_pool, load_pools, presentation
 
@@ -1271,6 +1273,282 @@ def api_geocode():
     if not results:
         log.info("geocode found nothing for %r", query[:80])
     return jsonify({"results": results})
+
+
+# ------------------------------------------------------------------- party
+# A study party is a room on one unit: cohorts of players racing the same
+# question, timed by their own clocks. None of it touches the database while a
+# round is running - see elmer/party.py for why.
+
+def _party_or_404():
+    room = party.room()
+    if room is None:
+        abort(404, "no party is running on this unit")
+    return room
+
+
+@app.route("/api/party/open", methods=["POST"])
+def api_party_open():
+    """Start a party on this unit. The host's screen calls this once."""
+    body = request.get_json(silent=True) or {}
+    party.close_room()
+    room = party.room(create=True, cohorts=int(body.get("cohorts", 2) or 2))
+    log.info("party opened: %d cohorts, cap %d",
+             len(room.cohorts), room.health()["cap"])
+    return jsonify(room.state())
+
+
+@app.route("/api/party/join", methods=["POST"])
+def api_party_join():
+    """Take a seat, if there is one.
+
+    A refusal is a normal answer here, not an error to be swallowed: the whole
+    point of the cap is that somebody is told to use the next unit rather than
+    being let in to make the round slow for everybody.
+    """
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    cohort = body.get("cohort")
+    player, why = room.join(body.get("name"), int(cohort) if cohort else None)
+    if player is None:
+        return jsonify({"joined": False, "reason": why,
+                        "health": room.health()}), 409
+    return jsonify({"joined": True, "player": player.as_dict(),
+                    "state": room.state(player.id)})
+
+
+@app.route("/api/party/state")
+def api_party_state():
+    """What every device polls. Cheap on purpose: no database, no exam maths."""
+    room = _party_or_404()
+    started = time.perf_counter()
+    try:
+        who = int(request.args.get("player", "")) or None
+    except ValueError:
+        who = None
+    state = room.state(who)
+    # Feed the moving cap with what this unit is really delivering.
+    room.note_service((time.perf_counter() - started) * 1000.0)
+    return jsonify(state)
+
+
+@app.route("/api/party/round", methods=["POST"])
+def api_party_round():
+    """Put a question to the room.
+
+    The difficulty is the licence class, which is the pool. One shuffle is
+    drawn here and shown to everybody, because two people looking at the same
+    question in different orders are not racing the same question.
+    """
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    wanted = str(body.get("difficulty", "technician")).lower()
+    pool_id = party.DIFFICULTIES.get(wanted)
+    if not pool_id:
+        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    pool = _pool_or_404(pool_id)
+
+    section = body.get("section")
+    ids = [q["id"] for q in pool.by_id.values()
+           if not section or q["section"] == section]
+    if not ids:
+        abort(400, "no questions in that section")
+    question = pool.by_id[random.choice(ids)]
+    shown = presentation(question)
+
+    rnd = room.start_round(
+        pool_id, question["id"], shown["answer"],
+        seconds=float(body.get("seconds", party.DEFAULT_ROUND_SECONDS)),
+        payload={"text": question["text"], "choices": shown["choices"],
+                 "section": question["section"],
+                 "section_title": pool.section_title(question["section"]),
+                 "figure": pool.figure_url(question),
+                 "difficulty": wanted})
+    log.info("party round %d: %s %s", rnd.number, pool_id, question["id"])
+    return jsonify(room.state())
+
+
+@app.route("/api/party/answer", methods=["POST"])
+def api_party_answer():
+    """One answer, timed by the player's own clock."""
+    room = _party_or_404()
+    started = time.perf_counter()
+    body = request.get_json(silent=True) or {}
+    try:
+        who = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    chosen = body.get("chosen")
+    rnd = room.round
+    server_ms = (time.monotonic() - rnd.opened_at) * 1000.0 if rnd else None
+    entry, why = room.submit(who, chosen, body.get("ms"), server_ms)
+    room.note_service((time.perf_counter() - started) * 1000.0)
+    if entry is None:
+        return jsonify({"accepted": False, "reason": why}), 409
+    # Correctness is deliberately not returned yet: it is revealed when the
+    # round closes, so nobody learns the answer by watching a neighbour.
+    return jsonify({"accepted": True, "ms": entry["ms"],
+                    "everyone_in": room.everyone_answered()})
+
+
+@app.route("/api/party/close", methods=["POST"])
+def api_party_close():
+    """Score the round and say who picks next."""
+    room = _party_or_404()
+    summary = room.close_round()
+    if summary is None:
+        abort(409, "no round is open")
+    return jsonify({"summary": summary, "state": room.state()})
+
+
+@app.route("/api/party/leave", methods=["POST"])
+def api_party_leave():
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        room.leave(int(body.get("player")))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    return jsonify(room.state())
+
+
+def _join_url(table):
+    """The address a phone should be sent to, as seen from the hall.
+
+    Not request.host_url: the table screen is very often the kiosk browser on
+    the Pi itself, which would bake in "localhost" and hand every phone in the
+    room an address that means their own handset.
+    """
+    host = request.host.split(":")[0]
+    if host in ("localhost", "127.0.0.1", "::1"):
+        found = diagnostics.local_addresses()
+        host = found[0][1] if found else host
+    port = urlsplit(request.host_url).port or 5000
+    return f"http://{host}:{port}/j/{table}"
+
+
+@app.route("/party")
+@app.route("/party/<table>")
+def party_table(table="1"):
+    """The screen that sits on the table: the join code, and round control."""
+    running = party.room()
+    if running is None:
+        running = party.room(create=True, cohorts=1)
+    url = _join_url(table)
+    return render_template(
+        "party_table.html", table=table, name=f"Table {table}",
+        join_url=url, qr_svg=qr.as_svg(url, module=7, quiet=3))
+
+
+@app.route("/j/<table>")
+def party_join(table):
+    """Where the QR code lands: a phone, at one table."""
+    if party.room() is None:
+        abort(404, "no party is running on this unit")
+    return render_template("party_player.html", table=table,
+                           name=f"Table {table}")
+
+
+# --------------------------------------------------------------- net control
+# One master unit running a competition across many cohort units. The traffic
+# here is one conversation per unit, not one per player - see netcontrol.py.
+
+def _net_or_404():
+    running = netcontrol.net()
+    if running is None:
+        abort(404, "no net is running on this unit")
+    return running
+
+
+@app.route("/api/net/open", methods=["POST"])
+def api_net_open():
+    body = request.get_json(silent=True) or {}
+    netcontrol.close_net()
+    running = netcontrol.net(create=True,
+                             name=str(body.get("name", "ELMER Net"))[:60])
+    log.info("net control opened: %s", running.name)
+    return jsonify(running.board())
+
+
+@app.route("/api/net/checkin", methods=["POST"])
+def api_net_checkin():
+    """A cohort unit reports for duty, and learns what to put on its screens."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    unit_id = str(body.get("unit", "")).strip()[:40]
+    if not unit_id:
+        abort(400, "need a unit id")
+    started = time.perf_counter()
+    unit, why = running.check_in(unit_id, body.get("name"),
+                                 body.get("players", 0))
+    running.note_service((time.perf_counter() - started) * 1000.0)
+    if unit is None:
+        return jsonify({"checked_in": False, "reason": why,
+                        "health": running.health()}), 409
+    # The key travels to the unit: it scores its own cohort locally, which is
+    # what keeps eight players' worth of traffic off this machine.
+    return jsonify({"checked_in": True, "unit": unit.as_dict(),
+                    "round": running.current(include_key=True)})
+
+
+@app.route("/api/net/round", methods=["POST"])
+def api_net_round():
+    """Put one question to the whole hall."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    wanted = str(body.get("difficulty", "technician")).lower()
+    pool_id = party.DIFFICULTIES.get(wanted)
+    if not pool_id:
+        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    pool = _pool_or_404(pool_id)
+    section = body.get("section")
+    ids = [q["id"] for q in pool.by_id.values()
+           if not section or q["section"] == section]
+    if not ids:
+        abort(400, "no questions in that section")
+    question = pool.by_id[random.choice(ids)]
+    shown = presentation(question)
+    running.start_round(
+        pool_id, question["id"], shown["answer"],
+        {"text": question["text"], "choices": shown["choices"],
+         "section": question["section"],
+         "section_title": pool.section_title(question["section"]),
+         "figure": pool.figure_url(question), "difficulty": wanted},
+        seconds=float(body.get("seconds", party.DEFAULT_ROUND_SECONDS)))
+    log.info("net round %d: %s %s across %d units",
+             running.round_number, pool_id, question["id"],
+             len(running.present_units()))
+    return jsonify(running.board())
+
+
+@app.route("/api/net/report", methods=["POST"])
+def api_net_report():
+    """A unit hands in its cohort's results for the round."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    got, why = running.report(str(body.get("unit", "")),
+                              int(body.get("round", 0) or 0),
+                              body.get("players") or [])
+    if got is None:
+        return jsonify({"accepted": False, "reason": why}), 409
+    return jsonify({"accepted": True, "counted": got["accepted"],
+                    "everyone_in": running.everyone_reported()})
+
+
+@app.route("/api/net/close", methods=["POST"])
+def api_net_close():
+    running = _net_or_404()
+    summary = running.close_round()
+    if summary is None:
+        abort(409, "no round is open")
+    running.prune()
+    return jsonify({"summary": summary, "board": running.board()})
+
+
+@app.route("/api/net/board")
+def api_net_board():
+    """The hall's big screen, and what a late unit polls to catch up."""
+    return jsonify(_net_or_404().board())
 
 
 @app.route("/api/gps")

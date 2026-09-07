@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table {{ table }} &middot; ELMER party</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+<style>
+/* The screen on the table itself: a code to scan from across the table, and
+   enough of the round that nobody has to ask what is going on. */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+.host { max-width: 62rem; margin: 0 auto; padding: 1.2rem; }
+.head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: 1rem; }
+.head h1 { margin: 0; font-size: 1.5rem; }
+.head .cap { margin-left: auto; color: var(--dim); font-family: var(--mono);
+             font-size: .85rem; }
+.cols { display: grid; grid-template-columns: minmax(16rem, 22rem) 1fr;
+        gap: 1.4rem; align-items: start; }
+@media (max-width: 46rem) { .cols { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 1rem; }
+.qr { background: #fff; border-radius: 12px; padding: .7rem; line-height: 0; }
+.qr svg { width: 100%; height: auto; display: block; }
+.joinurl { font-family: var(--mono); font-size: .95rem; color: var(--amber);
+           word-break: break-all; margin-top: .7rem; text-align: center; }
+.hint { color: var(--dim); font-size: .85rem; text-align: center; margin-top: .3rem; }
+.seats { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .8rem; }
+.seat { padding: .3rem .6rem; border-radius: 999px; font-size: .85rem;
+        border: 1px solid var(--line-2); background: var(--panel-2); }
+.seat.c1 { border-color: var(--amber); }
+.seat.c2 { border-color: var(--cyan); }
+.seat.c3 { border-color: var(--violet); }
+.seat.c4 { border-color: var(--green); }
+.empty { color: var(--dimmer); font-style: italic; }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.qtext { font-size: 1.15rem; line-height: 1.5; margin: .3rem 0 1rem; }
+.chip { font-family: var(--mono); font-size: .8rem; color: var(--dim);
+        border: 1px solid var(--line); border-radius: 999px;
+        padding: .15rem .55rem; }
+table.res { width: 100%; border-collapse: collapse; }
+table.res td { padding: .45rem .35rem; border-bottom: 1px solid var(--line); }
+table.res td.n  { color: var(--dim); width: 2.4rem; }
+table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim); }
+.bigclock { font-family: var(--mono); font-size: 2.4rem; text-align: center;
+            color: var(--amber); }
+.tally { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .6rem; }
+.tally div { flex: 1 1 8rem; background: var(--panel-2); border-radius: 10px;
+             padding: .6rem .8rem; }
+.tally b { display: block; font-size: 1.4rem; font-family: var(--mono); }
+.tally span { color: var(--dim); font-size: .8rem; }
+</style>
+</head>
+<body>
+<div class="host">
+  <div class="head">
+    <h1>{{ name }}</h1>
+    <span class="chip" id="round-chip">no round</span>
+    <span class="cap" id="cap"></span>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="card">
+        <div class="qr">{{ qr_svg|safe }}</div>
+        <div class="joinurl">{{ join_url }}</div>
+        <div class="hint">Scan to join this table</div>
+      </div>
+      <div class="card" style="margin-top:1rem">
+        <b>At this table</b>
+        <div class="seats" id="seats"><span class="empty">nobody yet</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="controls">
+        <select class="btn" id="difficulty">
+          <option value="technician">Technician</option>
+          <option value="general">General</option>
+          <option value="extra">Amateur Extra</option>
+        </select>
+        <button class="btn primary" id="ask">Ask a question</button>
+        <button class="btn" id="close" disabled>Close the round</button>
+      </div>
+      <div class="card" id="stage">
+        <p class="empty">No round yet. Pick a difficulty and ask a question.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function api(path, body) {
+  const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
+}
+function esc(s) { const d = document.createElement('div');
+                  d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+const stage = document.getElementById('stage');
+const chip = document.getElementById('round-chip');
+let painted = null;
+
+document.getElementById('ask').addEventListener('click', async () => {
+  const difficulty = document.getElementById('difficulty').value;
+  await api('/api/party/round', {difficulty});
+  painted = null;
+  tick();
+});
+document.getElementById('close').addEventListener('click', async () => {
+  await api('/api/party/close', {});
+  painted = null;
+  tick();
+});
+
+function seats(state) {
+  const all = [];
+  (state.cohorts || []).forEach(c =>
+    (c.members || []).forEach(m => all.push({...m, cohort: c.id})));
+  const box = document.getElementById('seats');
+  box.innerHTML = all.length
+    ? all.map(m => `<span class="seat c${m.cohort}">${esc(m.name)}
+        <span style="color:var(--dim)">${m.score}</span></span>`).join('')
+    : '<span class="empty">nobody yet</span>';
+  const h = state.health || {};
+  document.getElementById('cap').textContent =
+    `${h.players || 0}/${h.cap || 0} seats` + (h.healthy === false ? '  ·  busy' : '');
+}
+
+async function tick() {
+  const r = await api('/api/party/state');
+  if (r.status === 404) { chip.textContent = 'party ended'; return; }
+  const s = r.data, round = s.round;
+  seats(s);
+  document.getElementById('close').disabled = !round || round.closed;
+
+  if (!round) { chip.textContent = 'no round';
+    if (painted !== 'none') { painted = 'none';
+      stage.innerHTML = '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>'; }
+    return;
+  }
+  chip.textContent = `Q${round.number} · ${(round.question || {}).difficulty || ''}`;
+
+  if (round.closed) {
+    if (painted === 'closed' + round.number) return;
+    painted = 'closed' + round.number;
+    const rows = (round.results || []).map(a => `
+      <tr><td class="n">${a.place || '–'}</td>
+          <td>${esc(a.name)} ${a.correct ? '✓' : '✗'}</td>
+          <td class="ms">${(a.ms / 1000).toFixed(2)}s</td>
+          <td class="ms">${a.points || 0}</td></tr>`).join('');
+    const correct = (round.results || []).filter(a => a.correct).length;
+    stage.innerHTML = `
+      <div class="tally">
+        <div><b>${correct}/${(round.results || []).length}</b><span>correct</span></div>
+        <div><b>${round.winner_cohort ? 'Cohort ' + round.winner_cohort : '—'}</b>
+             <span>takes the round</span></div>
+      </div>
+      <table class="res" style="margin-top:1rem">${rows}</table>`;
+    return;
+  }
+
+  if (painted !== round.number) {
+    painted = round.number;
+    const q = round.question || {};
+    stage.innerHTML = `
+      <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
+      <p class="qtext">${esc(q.text || '')}</p>
+      <div class="bigclock" id="clock"></div>
+      <p class="hint" id="waiting"></p>`;
+  }
+  const clock = document.getElementById('clock');
+  if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
+  const waiting = document.getElementById('waiting');
+  if (waiting) waiting.textContent =
+    `${round.answered} in, ${round.waiting_on} still thinking`;
+}
+
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
