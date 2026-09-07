@@ -8,7 +8,7 @@ test.
 It also runs a **tournament**: the same questions as a race, for one person
 against practice opponents, for a table of eight joining by QR code from their
 own phones, or for a hall of up to a hundred tables scored against each other
-from one Raspberry Pi.
+from one additional Raspberry Pi.
 
 Runs as a small local web app. Open it on the Pi itself, or from a phone or
 laptop on the same network.
