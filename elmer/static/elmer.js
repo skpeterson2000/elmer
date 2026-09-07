@@ -401,9 +401,32 @@ function geolocationAvailable() {
   return !!(navigator.geolocation && window.isSecureContext);
 }
 
-function locateMe() {
+/* The station's own GPS, read by the server from gpsd. This is the source
+   that actually works on a Pi in a vehicle: the browser's geolocation
+   resolves through a network lookup service Chromium has no key for, and it
+   never consults gpsd - so on the machine with the receiver plugged into it,
+   the browser was the one thing that could not answer. */
+async function serverFix() {
+  try {
+    const d = await api('/api/gps');
+    return d && d.located ? d : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* Whether to offer the button at all. The server's GPS works over plain HTTP
+   on the LAN address, where browser geolocation is refused outright, so ask
+   about both rather than hiding the button wherever the browser is fussy. */
+async function locationAvailable() {
+  return geolocationAvailable() || !!(await serverFix());
+}
+
+/* Ask the browser where it is. Only ever reached when the station has no
+   fix of its own, because on the machine with the receiver the browser is
+   the source least likely to know. */
+function browserFix() {
   return new Promise((resolve, reject) => {
-    if (!geolocationAvailable()) return reject(new Error('not a secure context'));
     navigator.geolocation.getCurrentPosition(
       async pos => {
         const {latitude: lat, longitude: lon} = pos.coords;
@@ -419,6 +442,17 @@ function locateMe() {
       },
       err => reject(err), {timeout: 15000, maximumAge: 600000});
   });
+}
+
+async function locateMe() {
+  // The GPS on the station first: it knows about this lay-by, and it needs
+  // neither a secure context nor a network lookup service.
+  const fix = await serverFix();
+  if (fix) return fix;
+  if (!geolocationAvailable()) {
+    throw new Error('no GPS fix, and not a secure context');
+  }
+  return browserFix();
 }
 
 function saveQTH(place) {
