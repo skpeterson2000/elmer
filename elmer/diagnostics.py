@@ -18,8 +18,43 @@ ROOT = Path(__file__).resolve().parents[1]
 OK, WARN, BAD = "  ok  ", " warn ", " FAIL "
 
 
+# When a caller wants the results rather than the printout - the dashboard
+# asking the same questions the terminal does - checks are collected here as
+# they run. One set of checks, two ways of reading them: a self-check that only
+# worked from a terminal was a self-check most operators never ran.
+_collected = None
+
+
 def _line(state, label, detail=""):
+    if _collected is not None:
+        _collected.append({"state": state.strip(), "label": label,
+                           "detail": detail})
+        return
     print(f"  [{state}] {label}" + (f"  -  {detail}" if detail else ""))
+
+
+def collect(port=5000):
+    """Run every check and return what they found, instead of printing it."""
+    global _collected
+    _collected = []
+    try:
+        for check in (check_pools, check_figures, check_explanations,
+                      check_database, check_templates, check_tools,
+                      check_kiosk, check_launcher, check_updates,
+                      check_location, check_gps, check_repeaters,
+                      check_towerwitch_service, check_internet):
+            try:
+                check()
+            except Exception as exc:
+                _collected.append({"state": BAD.strip(), "label": check.__name__,
+                                   "detail": f"{type(exc).__name__}: {exc}"})
+        try:
+            check_server(port)
+        except Exception:
+            pass
+        return list(_collected)
+    finally:
+        _collected = None
 
 
 def local_addresses():

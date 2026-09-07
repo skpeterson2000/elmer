@@ -78,6 +78,8 @@ function updateControls(d, waiting) {
   const options = [['notify', 'tell me'], ['off', 'never check']];
   return '<div class="row" style="gap:.6rem;margin-top:.7rem">' +
     '<button class="btn sm" data-update="check">Check now</button>' +
+    '<button class="btn sm" data-selfcheck="run" ' +
+      'title="run the same checks as ./elmer.py --doctor">Check this install</button>' +
     (waiting && !d.blocked
       ? '<button class="btn sm primary" data-update="apply">Update now</button>' : '') +
     '<label class="tiny muted" style="margin-left:auto">When an update appears&nbsp;' +
@@ -193,4 +195,60 @@ document.addEventListener('click', async e => {
     if (out) out.innerHTML = '<p class="tiny warntext">Could not write a report.</p>';
   }
   btn.disabled = false;
+});
+
+/* ------------------------------------------------------------ self-check */
+/* The same checks --doctor runs, for somebody who is not at a terminal - and
+   on a kiosk there is no terminal to be at. It reports; it does not repair.
+   Where something is wrong it says what to do about it rather than offering a
+   button that claims to have done it. */
+
+function checkRow(c) {
+  const tone = c.state === 'ok' ? 'ok' : (c.state === 'warn' ? 'warn' : 'bad');
+  const mark = c.state === 'ok' ? '✓' : (c.state === 'warn' ? '!' : '×');
+  return '<li class="check ' + tone + '"><span class="mark">' + mark + '</span>' +
+         '<b>' + escapeHTML(c.label) + '</b>' +
+         (c.detail ? '<span>' + escapeHTML(c.detail) + '</span>' : '') + '</li>';
+}
+
+function renderSelfCheck(d) {
+  const box = document.getElementById('selfcheck');
+  if (!box) return;
+  const bad = d.counts.FAIL || 0, warn = d.counts.warn || 0;
+  const verdict = bad
+    ? '<b class="bad">' + bad + ' fault' + (bad === 1 ? '' : 's') + ' found</b>'
+    : (warn ? '<b class="warn">' + warn + ' thing' + (warn === 1 ? '' : 's') +
+              ' worth a look</b>'
+            : '<b class="ok">Everything checks out</b>');
+  box.innerHTML =
+    '<div class="panel"><div class="panel-title">Self-check</div>' +
+    '<p class="tiny muted">' + verdict + ' &mdash; ' + d.checks.length +
+      ' checks. This looks; it does not change anything.</p>' +
+    '<ul class="checks">' + d.checks.map(checkRow).join('') + '</ul>' +
+    (bad || warn
+      ? '<p class="tiny muted">Anything that needs putting back is done from a ' +
+        'terminal, on purpose: <span class="mono">./install.sh --repair</span> ' +
+        'restores changed files from the repository, which throws those edits ' +
+        'away and cannot be undone.</p>'
+      : '') +
+    '<div class="row" style="margin-top:.7rem">' +
+      '<button class="btn sm" data-selfcheck="run">Check again</button></div>' +
+    '</div>';
+}
+
+async function runSelfCheck(btn) {
+  const box = document.getElementById('selfcheck');
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  else if (box) box.innerHTML = '<div class="panel"><p class="tiny muted">Checking…</p></div>';
+  try {
+    renderSelfCheck(await api('/api/doctor'));
+  } catch (e) {
+    if (box) box.innerHTML = '<div class="panel"><p class="tiny bad">' +
+      'The self-check could not run. Details are in data/elmer.log.</p></div>';
+  }
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-selfcheck]');
+  if (b) runSelfCheck(b);
 });
