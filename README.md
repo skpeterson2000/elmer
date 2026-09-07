@@ -1155,6 +1155,35 @@ net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors
 open.
 
+### What a spectator sees
+
+A big board is watched by people who are not playing — at a club night the
+half of the room waiting for a turn, at a hamfest whoever is walking past. Two
+things are for them.
+
+**Both scoreboards, along the foot.** A board on a table unit could only ever
+show that table's own eight players, which is the half a visitor already knows.
+The strip carries the other half: this table on the left, the hall on the
+right, each with the score and what it gained in the round that just went.
+
+    THIS TABLE  4 players · 1 practice   TECHNICIAN NET  3 tables · 15 players
+    1 Sam 29 +10  2 Dana 28 +9  3 Ola 8  1 Table 1 18 +9  2 Table 2 15 +9
+
+Net control's own screen does not get the second half — the hall standings are
+already the thing it is showing, and the same list twice is not a scoreboard.
+
+**The answer, when the winner goes up.** The round closes, the fastest correct
+answer is named, and the question is still in everybody's head: that is the one
+moment in an evening when a whole room is looking at the same screen wanting to
+know the same thing. So the answer goes up with the winner — the answer alone,
+not the other three choices and not the explanation, which stays where it
+belongs in the pool browser afterwards. It is surface familiarity rather than
+teaching, and surface familiarity is how most of this material is first met.
+
+It is held back until then. While a round is open the answer index never leaves
+the server, because a poll response is readable in any dev console; once the
+round is scored there is nothing left to protect.
+
 ### Several tournaments, one board
 
 A network can hold more than one net at a time, and a hamfest usually should:

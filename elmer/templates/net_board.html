@@ -99,6 +99,52 @@ tr.gold td { color: #ffd479; }
              border: 1px solid var(--line); border-radius: 999px;
              padding: .3vh .8vw; }
 .head .btn:hover { color: var(--text); border-color: var(--amber); }
+/* The reveal. A hall that has just read a question is a hall that will read
+   the answer to it, and this is the only moment anybody is looking. One line,
+   no explanation, no other choices - surface familiarity, which is how most
+   of this material is first met anyway. */
+.reveal { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 14px; padding: 1.2vh 1.6vw; margin-bottom: 1.2vh; }
+.reveal .tag { color: var(--dim); font-family: var(--mono);
+               font-size: clamp(.7rem, 1.1vw, 1rem); }
+.reveal .q { margin: .3vh 0 .8vh; color: var(--dim);
+             font-size: clamp(.85rem, 1.6vw, 1.4rem); line-height: 1.3;
+             display: -webkit-box; -webkit-line-clamp: 2;
+             -webkit-box-orient: vertical; overflow: hidden; }
+.reveal .a { display: flex; align-items: baseline; gap: .8vw; }
+.reveal .a b { color: var(--dim); font-size: clamp(.7rem, 1.1vw, 1rem);
+               text-transform: uppercase; letter-spacing: .06em; }
+.reveal .a span { color: var(--green); font-weight: 700;
+                  font-size: clamp(1rem, 2.2vw, 2rem); line-height: 1.25; }
+
+/* The foot of the board: this table on the left, the hall on the right. A
+   spectator standing at table three can see their own people climbing and
+   where the table stands among the rest, which between rounds is the only
+   thing on the screen anybody is actually following. */
+.foot { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2vw;
+        margin-top: 1.2vh; }
+.foot.one { grid-template-columns: 1fr; }
+.foot .box { background: var(--panel); border: 1px solid var(--line);
+             border-radius: 12px; padding: .8vh 1vw; overflow: hidden; }
+.foot h2 { margin: 0 0 .5vh; font-size: clamp(.7rem, 1.1vw, 1rem);
+           color: var(--dim); font-weight: 600; letter-spacing: .04em;
+           text-transform: uppercase; display: flex; gap: .6vw;
+           align-items: baseline; }
+.foot h2 em { font-style: normal; color: var(--dimmer); font-weight: 400;
+              letter-spacing: 0; text-transform: none; }
+.foot ol { list-style: none; margin: 0; padding: 0; display: flex;
+           flex-wrap: wrap; gap: .3vh 1.2vw; }
+/* Room at the end for the close hint, which is fixed to that corner and was
+   sitting on top of the last table's score. */
+.foot .box:last-child ol { padding-right: 9rem; }
+.foot li { display: flex; align-items: baseline; gap: .45vw;
+           font-size: clamp(.8rem, 1.4vw, 1.35rem); }
+.foot li .pos { color: var(--dimmer); font-family: var(--mono); }
+.foot li .pts { font-family: var(--mono); font-weight: 700; }
+.foot li .up { color: var(--green); font-family: var(--mono);
+               font-size: clamp(.65rem, 1vw, .95rem); }
+.foot li.bot { color: var(--dim); }
+.foot li.lead .pts { color: var(--amber); }
 .closehint { position: fixed; right: .8vw; bottom: .6vh; color: var(--dimmer);
              font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
              opacity: .55; }
@@ -114,6 +160,7 @@ tr.gold td { color: #ffd479; }
     <span class="clock" id="clock">—</span>
   </div>
   <div id="stage"><div class="waiting">Waiting for net control…</div></div>
+  <div id="foot" class="foot" hidden></div>
 </div>
 
 <script>
@@ -153,7 +200,7 @@ function lastRound(board) {
         <div><b>${last.units_reported}</b><span>tables in</span></div>
       </div>
       <table>${top}</table>
-      ${last.winner_unit ? `<div class="picker">${esc(last.winner_unit)} chooses the next question</div>` : ''}
+      ${last.winner_unit ? `<div class="picker">${esc(last.winner_name || last.winner_unit)} chooses the next question</div>` : ''}
     </div>`;
 }
 
@@ -295,12 +342,67 @@ document.getElementById('showall').addEventListener('click', () => {
   tick();
 });
 
+/* ------------------------------------------------- the foot of the board */
+/* Two scoreboards, because at a hamfest there are two races going on and a
+   spectator is following both: the people at this table, and the tables in the
+   hall. A board on a table unit could otherwise only ever show its own eight
+   players, which is the half a visitor already knows. */
+
+function footList(rows) {
+  return rows.map((r, i) => `
+    <li class="${r.bot ? 'bot' : ''} ${i === 0 && r.score > 0 ? 'lead' : ''}">
+      <span class="pos">${i + 1}</span>
+      <span>${esc(r.name)}</span>
+      <span class="pts">${r.score}</span>
+      ${r.gained ? `<span class="up">+${r.gained}</span>` : ''}
+    </li>`).join('');
+}
+
+function footBox(block, sub) {
+  return `<div class="box"><h2>${esc(block.name)}<em>${esc(sub)}</em></h2>
+    <ol>${footList(block.standings || [])}</ol></div>`;
+}
+
+function foot(all) {
+  const box = document.getElementById('foot');
+  if (!box) return;
+  const local = all.local, party = all.party;
+  const boxes = [];
+  if (local) {
+    const who = local.people + (local.people === 1 ? ' player' : ' players') +
+      (local.bots ? ` · ${local.bots} practice` : '');
+    boxes.push(footBox(local, who));
+  }
+  if (party && (party.standings || []).length) {
+    boxes.push(footBox(party, `${party.units} table${party.units === 1 ? '' : 's'} · ` +
+                              `${party.players} player${party.players === 1 ? '' : 's'}`));
+  }
+  box.className = 'foot' + (boxes.length === 1 ? ' one' : '');
+  box.innerHTML = boxes.join('');
+  box.hidden = !boxes.length;
+}
+
+/* What the answer was. Shown when the round is scored and the winner goes up,
+   which is the one moment the whole room is looking at the screen. */
+function reveal(round, last) {
+  const answer = (round && round.closed && round.answer) || (last && last.answer);
+  if (!answer) return '';
+  const q = (round && round.question) || {};
+  const text = q.text || (last && last.question) || '';
+  const number = (round && round.number) || (last && last.number) || '';
+  return `<div class="reveal">
+      <div class="tag">Round ${number} · the answer</div>
+      ${text ? `<p class="q">${esc(text)}</p>` : ''}
+      <div class="a"><b>Answer</b><span>${esc(answer)}</span></div>
+    </div>`;
+}
+
 async function tick() {
-  let games, known = 0, where = '';
+  let games, all = {}, known = 0, where = '';
   try {
     const r = await fetch('/api/boards');
     if (!r.ok) { document.getElementById('clock').textContent = '—'; return; }
-    const all = await r.json();
+    all = await r.json();
     known = (all.games || []).length;
     games = (all.games || []).filter(g => g.board);
     where = all.where || '';
@@ -337,6 +439,7 @@ async function tick() {
     document.getElementById('clock').textContent = '—';
     stage.innerHTML = wall(games);
     paintedPhase = 'wall';
+    foot(all);
     return;
   }
 
@@ -348,6 +451,7 @@ async function tick() {
     document.getElementById('sub').textContent = '';
     document.getElementById('clock').textContent = '—';
     if (paintedPhase !== 'idle') { paintedPhase = 'idle'; stage.innerHTML = idle(board); }
+    foot(all);
     return;
   }
 
@@ -370,7 +474,9 @@ async function tick() {
     clock.textContent = Math.ceil(left) + 's';
     clock.classList.toggle('done', left <= 0);
   } else {
-    clock.textContent = round ? 'time' : '—';
+    // "time" beside the answer read as a label for it. What has happened at
+    // this point is that the round is scored, so that is what it says.
+    clock.textContent = round ? 'scored' : '—';
     clock.classList.add('done');
   }
 
@@ -388,7 +494,7 @@ async function tick() {
         <div class="question">
           <div class="tag">Round ${round.number} · ${esc(q.difficulty || '')} · ${esc(q.section || '')}</div>
           <p>${esc(q.text || '')}</p>
-        </div>` : '') +
+        </div>` : reveal(round, board.last)) +
       `<div class="cols">${left(board)}${right(board)}</div>`;
   } else {
     // Same phase: refresh only the side panels, so the question does not
@@ -396,6 +502,8 @@ async function tick() {
     const cols = stage.querySelector('.cols');
     if (cols) cols.innerHTML = left(board) + right(board);
   }
+
+  foot(all);
 
   const tag = stage.querySelector('.question .tag');
   if (tag && round && !round.closed) {

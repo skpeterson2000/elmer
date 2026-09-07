@@ -192,6 +192,15 @@ class Round:
         return self.remaining <= 0.0
 
 
+def _answer_text(rnd):
+    """The right answer in words, or None if the payload cannot say."""
+    choices = (rnd.payload or {}).get("choices") or []
+    try:
+        return choices[rnd.answer_index]
+    except (IndexError, TypeError):
+        return None
+
+
 class Room:
     """The party on this unit.
 
@@ -586,6 +595,26 @@ class Room:
             return {"cohort": last["winner_cohort"] if last else None,
                     "difficulties": sorted(DIFFICULTIES)}
 
+    def standings(self, limit=8):
+        """Who is ahead at this table, and who just gained.
+
+        For the strip along the foot of the big board, where somebody standing
+        at the back is following the room rather than the question. The score
+        is the evening; the gain is the round that just went - which is the
+        part that makes a spectator look up.
+        """
+        with self.lock:
+            gained = {}
+            if self.history:
+                gained = {a["player_id"]: a.get("points") or 0
+                          for a in self.history[-1].get("answers", [])}
+            rows = sorted(self.players.values(),
+                          key=lambda p: (-p.score, p.name.lower()))
+            return [{"name": p.name, "score": p.score, "bot": p.bot,
+                     "gained": gained.get(p.id, 0),
+                     "correct": p.correct, "answered": p.answered}
+                    for p in rows[:limit]]
+
     def state(self, player_id=None):
         """Everything a connected device needs to draw the screen."""
         with self.lock:
@@ -624,6 +653,13 @@ class Room:
                     out["round"]["results"] = sorted(
                         rnd.answers.values(),
                         key=lambda a: (not a["correct"], a["ms"]))
+                    # And now the answer itself. It is held back while the
+                    # round is open because a poll response is readable in any
+                    # dev console; once the round is scored there is nothing
+                    # left to protect, and a room full of people who have just
+                    # watched a question go by should be told what the answer
+                    # was. That is most of what a spectator takes home.
+                    out["round"]["answer"] = _answer_text(rnd)
                 if player_id is not None:
                     out["you"] = rnd.answers.get(player_id)
             return out

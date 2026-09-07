@@ -148,7 +148,7 @@ async function tick() {
     stage.innerHTML = `
       <b>Round ${b.last.number}</b> — ${b.last.correct}/${b.last.answers} correct
       across ${b.last.units_reported} tables.
-      ${b.last.winner_unit ? `<b style="color:var(--amber)"> ${esc(b.last.winner_unit)} chooses next.</b>` : ''}
+      ${b.last.winner_unit ? `<b style="color:var(--amber)"> ${esc(b.last.winner_name || b.last.winner_unit)} chooses next.</b>` : ''}
       <table>${rows}</table>`;
   } else {
     stage.innerHTML = '<p class="empty">No round yet.</p>';
