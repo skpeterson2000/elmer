@@ -1,0 +1,32 @@
+[Unit]
+# Puts this station's GPS on the network in TowerWitch's packet, so every
+# other unit knows where it is without a receiver of its own.
+#
+# Install on whichever machine has the receiver:
+#   sed -e "s|__USER__|$USER|g" -e "s|__DIR__|$PWD|g" \
+#       systemd/elmer-gps-broadcast.service \
+#     | sudo tee /etc/systemd/system/elmer-gps-broadcast.service >/dev/null
+#   sudo systemctl enable --now elmer-gps-broadcast
+Description=Broadcast this station's GPS for other units
+After=network-online.target gpsd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 __DIR__/tools/gps_broadcast.py --interval 5
+Restart=always
+RestartSec=10
+
+# It reads gpsd and sends one small datagram. It has no reason to touch
+# anything else on the machine.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

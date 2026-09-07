@@ -568,6 +568,35 @@ local solar elevation and day/night band ratings. It accepts a grid square,
 coordinates or a place name, and a QTH entered as a bare grid is given a
 readable name the first time it is used, so `FN31pr` shows as *Newington*.
 
+### One receiver, every unit
+
+A station with more than one Pi does not need more than one GPS. TowerWitch
+broadcasts the station's position over UDP, and ELMER listens for it - on by
+default, configured at neither end. A unit with no receiver of its own picks
+the fix off the network:
+
+```
+[  ok  ] GPS  -  3D fix from TowerWitch at 192.168.1.5 - EN26uo (46.5984, -94.3154)
+```
+
+The broadcaster lives in `TowerWitch-P.py`. If the machine with the receiver is
+running a different build of TowerWitch, or none, `tools/gps_broadcast.py`
+sends the same packet from the local gpsd instead:
+
+```bash
+python3 tools/gps_broadcast.py            # every 5 seconds
+python3 tools/gps_broadcast.py --once     # send one and stop
+```
+
+`systemd/elmer-gps-broadcast.service` makes that survive a reboot. It sends
+only when gpsd actually has a fix, because a station that does not know where
+it is should say nothing rather than announce its last guess to every device in
+the vehicle.
+
+A receiver wired to the machine still wins wherever there is one; this sits
+between that and a phone. `--doctor` names which answered, so "no GPS on this
+unit" and "the GPS is on the other Pi" stop looking alike.
+
 ### The GPS already in your pocket
 
 A receiver on a USB lead is one more item on a list nobody reads before they
