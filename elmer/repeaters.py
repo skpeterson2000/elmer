@@ -63,6 +63,46 @@ def find_towerwitch():
     return None
 
 
+# TowerWitch writes where it last was into its own state file. On a unit where
+# it is the program holding the GPS - or simply the one that has been running
+# long enough to have got a lock - that file is a position ELMER can borrow
+# rather than argue with.
+#
+# It is never treated as a live fix. It carries the time it was written, and
+# that age travels with it all the way to the screen, because a position from
+# this morning is a fact about this morning. A station that has not moved is
+# still where it was; one in a vehicle is not, and only the operator knows
+# which they are.
+STATE_MAX_AGE = 24 * 3600.0
+
+
+def last_position(path=None):
+    """Where TowerWitch last knew itself to be, with the age of that knowledge."""
+    where = Path(path).expanduser() if path else find_towerwitch()
+    if not where:
+        return None
+    try:
+        state = json.loads((where / "towerwitch_state.json").read_text())
+    except (OSError, ValueError):
+        return None
+    lat, lon = _num(state.get("last_lat")), _num(state.get("last_lon"))
+    if lat is None or lon is None:
+        return None
+    age = None
+    stamp = state.get("timestamp")
+    if stamp:
+        try:
+            from datetime import datetime
+            age = max(0.0, (datetime.now()
+                            - datetime.fromisoformat(stamp)).total_seconds())
+        except (TypeError, ValueError):
+            age = None
+    if age is not None and age > STATE_MAX_AGE:
+        return None
+    return {"lat": lat, "lon": lon, "town": state.get("nearest_town") or None,
+            "age_s": age, "written": stamp, "from": str(where)}
+
+
 def _band(mhz):
     band = bandplan.band_at(mhz)
     if isinstance(band, dict):
