@@ -22,6 +22,7 @@ on its own clock, the report is held and sent when the master comes back, and
 net control meanwhile counts the table as quiet and carries on without it. A
 hall does not stop because one Pi in the corner lost its wifi.
 """
+import hashlib
 import json
 import logging
 import socket
@@ -29,6 +30,8 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
+from pathlib import Path
 
 from . import party
 
@@ -42,12 +45,54 @@ _bridge = None
 _lock = threading.Lock()
 
 
-def default_unit_id():
-    """Something stable and human enough to read off a big board."""
+def default_unit_name():
+    """What to call this machine on a big board: its hostname, plainly."""
     try:
         return socket.gethostname().split(".")[0][:40] or "table"
     except OSError:
         return "table"
+
+
+def machine_mark():
+    """Four characters that are this machine and not the one beside it.
+
+    Two Raspberry Pis out of the box are both called `raspberrypi`, and a name
+    is not an identity: as ids they collide, and everything that tells units
+    apart stops working at once. Discovery decides that a unit hearing its own
+    id is hearing its own broadcast, so two identically named units are
+    invisible to each other; net control keys tables by id, so the second table
+    to check in replaces the first and a hall silently loses half its players.
+
+    /etc/machine-id is the right thing to hash: unique per installation, stable
+    across reboots and readable without privileges. Where it is missing, the
+    MAC address behind uuid.getnode() is the fallback, and a random mark is the
+    last resort - unstable across restarts, but unique, which is the property
+    that actually matters here.
+    """
+    seed = ""
+    for path in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            seed = Path(path).read_text().strip()
+            if seed:
+                break
+        except OSError:
+            continue
+    if not seed:
+        try:
+            seed = f"{uuid.getnode():x}"
+        except Exception:                              # pragma: no cover
+            seed = uuid.uuid4().hex
+    return hashlib.sha1(seed.encode()).hexdigest()[:4]
+
+
+def default_unit_id():
+    """A stable id for this unit, unique on the network it is on.
+
+    The hostname leads, because an operator reading a log wants to recognise
+    it; the mark decides ties. See :func:`machine_mark` for why a bare hostname
+    is not enough.
+    """
+    return f"{default_unit_name()}-{machine_mark()}"[:40]
 
 
 class Bridge:
@@ -56,7 +101,9 @@ class Bridge:
     def __init__(self, url, unit_id=None, name=None):
         self.url = url.rstrip("/")
         self.unit_id = (unit_id or default_unit_id())[:40]
-        self.name = (name or self.unit_id)[:60]
+        # The id is for machines to tell apart; the name is for people to read
+        # off a board, so it falls back to the hostname without the mark.
+        self.name = (name or default_unit_name())[:60]
         self.stop = threading.Event()
         self.thread = None
         self.state = "starting"

@@ -447,6 +447,14 @@ def main():
                 break
             time.sleep(0.25)
 
+    # What port this unit is actually on. Everything that tells the rest of the
+    # network where to find it reads this - the announcement other units dial,
+    # and the self-check that says whether the port is answering. It defaulted
+    # to 5000 wherever it was not passed, so a unit started on any other port
+    # told the network to call it on a port it was not listening to, and the
+    # neighbours' boards and join buttons went nowhere.
+    app.config["PORT"] = args.port
+
     took_over = False
     if port_in_use(args.port):
         # Started from the menu entry there is no terminal to print to, so a
