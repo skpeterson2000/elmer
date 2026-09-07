@@ -263,17 +263,26 @@ def _place_format(m, version, mask):
     bits = _format_bits(mask)
     for i in range(15):
         bit = (bits >> i) & 1
-        # Copy one: around the top-left finder.
+        # Copy one: up column 8 beside the top-left finder, then left along
+        # row 8. Numbering runs from the least significant bit at (0, 8) to
+        # the most significant at (8, 0) - the mirror of copy two, which is
+        # what makes a reader able to check one against the other.
+        #
+        # This was written transposed, with every row and column the wrong way
+        # round. Copy two was right, so the two copies disagreed and no reader
+        # could recover the mask - the code looked perfect and scanned as
+        # nothing. A round trip through this module's own reader could never
+        # have caught it, because the reader made the same mistake.
         if i < 6:
-            m[8][i] = bit
+            m[i][8] = bit
         elif i == 6:
-            m[8][7] = bit
+            m[7][8] = bit
         elif i == 7:
             m[8][8] = bit
         elif i == 8:
-            m[7][8] = bit
+            m[8][7] = bit
         else:
-            m[14 - i][8] = bit
+            m[8][14 - i] = bit
         # Copy two: bits 0-6 run up column 8 from the bottom, bits 7-14 run
         # along row 8 from the right. Bit 7 belongs in the row, not the
         # column - (n-8, 8) is the dark module and is not format information.
@@ -422,15 +431,15 @@ def _read_back(grid, version):
     raw = 0
     for i in range(15):
         if i < 6:
-            bit = grid[8][i]
+            bit = grid[i][8]
         elif i == 6:
-            bit = grid[8][7]
+            bit = grid[7][8]
         elif i == 7:
             bit = grid[8][8]
         elif i == 8:
-            bit = grid[7][8]
+            bit = grid[8][7]
         else:
-            bit = grid[14 - i][8]
+            bit = grid[8][14 - i]
         raw |= bit << i
     mask = (raw ^ 0x5412) >> 10 & 0b111
 
@@ -531,6 +540,26 @@ def selftest(verbose=False):
         except Exception as exc:
             problems.append(f"{text[:20]!r}: {type(exc).__name__}: {exc}")
 
+    # The two format copies must agree. This is the only check here that does
+    # not rest on the writer's own assumptions: a copy placed wrongly still
+    # round-trips through a reader that shares the mistake, but it cannot
+    # match the copy on the other side of the matrix.
+    for text in ("A", "http://192.168.1.50:5000/j/7", "x" * 100):
+        grid = encode(text)
+        one, two = _read_format(grid, 1), _read_format(grid, 2)
+        if one != two:
+            problems.append(f"{text[:16]!r}: format copies disagree "
+                            f"({one:015b} vs {two:015b})")
+        else:
+            # Unmasking leaves five data bits at the top: two of error
+            # correction level, then three of mask number.
+            data = (one ^ 0x5412) >> 10
+            if (data >> 3) & 0b11 != 0b00:
+                problems.append(f"{text[:16]!r}: format says level "
+                                f"{(data >> 3) & 0b11:02b}, not M")
+            if (data & 0b111) > 7:
+                problems.append(f"{text[:16]!r}: mask out of range")
+
     # The three finder patterns must be where a scanner looks for them.
     grid = encode("test")
     n = len(grid)
@@ -540,3 +569,32 @@ def selftest(verbose=False):
     if grid[n - 8][8] != 1:
         problems.append("the dark module is not set")
     return problems
+
+
+def _read_format(grid, which):
+    """Read one of the two format-information copies out of a finished matrix.
+
+    Both copies carry the same fifteen bits in different places. Reading them
+    separately and comparing is the one structural check available from inside
+    this module that does not simply repeat the writer's own assumptions - a
+    transposed copy agrees with a reader that shares the mistake, but it cannot
+    agree with the *other* copy.
+    """
+    n = len(grid)
+    raw = 0
+    for i in range(15):
+        if which == 1:
+            if i < 6:
+                bit = grid[i][8]
+            elif i == 6:
+                bit = grid[7][8]
+            elif i == 7:
+                bit = grid[8][8]
+            elif i == 8:
+                bit = grid[8][7]
+            else:
+                bit = grid[8][14 - i]
+        else:
+            bit = grid[n - 1 - i][8] if i < 7 else grid[8][n - 15 + i]
+        raw |= bit << i
+    return raw

@@ -1456,12 +1456,7 @@ def _join_url(table):
     the Pi itself, which would bake in "localhost" and hand every phone in the
     room an address that means their own handset.
     """
-    host = request.host.split(":")[0]
-    if host in ("localhost", "127.0.0.1", "::1"):
-        found = diagnostics.local_addresses()
-        host = found[0][1] if found else host
-    port = urlsplit(request.host_url).port or 5000
-    return f"http://{host}:{port}/j/{table}"
+    return f"{_here()}/j/{table}"
 
 
 @app.route("/party")
@@ -1587,13 +1582,15 @@ def api_party_net():
     """Point this table at a net control, or cut it loose."""
     body = request.get_json(silent=True) or {}
     url = str(body.get("url", "")).strip()
+    connection = conn()
     if not url or str(body.get("join", True)).lower() in ("false", "0"):
-        cohort.disconnect()
+        cohort.disconnect(connection)
         return jsonify({"connected": False})
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
     party.room(create=True, cohorts=1)
-    link = cohort.connect(url, body.get("unit"), body.get("name"))
+    link = cohort.connect(url, body.get("unit"), body.get("name"),
+                          conn=connection)
     log.info("cohort: reporting to net control at %s as %s", link.url, link.unit_id)
     return jsonify({"connected": True, "bridge": link.as_dict()})
 
@@ -1605,12 +1602,24 @@ def api_party_net_state():
                     "bridge": link.as_dict() if link else None})
 
 
+def _here():
+    """This machine's address as the rest of the hall sees it."""
+    host = request.host.split(":")[0]
+    if host in ("localhost", "127.0.0.1", "::1"):
+        found = diagnostics.local_addresses()
+        host = found[0][1] if found else host
+    port = urlsplit(request.host_url).port or 5000
+    return f"http://{host}:{port}"
+
+
 @app.route("/net")
 def net_host():
     """The screen net control runs the hall from."""
     if netcontrol.net() is None:
         netcontrol.net(create=True)
-    return render_template("net_host.html", where=_join_url("").rstrip("/j/"))
+    where = _here()
+    return render_template("net_host.html", where=where,
+                           qr_svg=qr.as_svg(where, module=6, quiet=3))
 
 
 @app.route("/net/board")

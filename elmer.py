@@ -603,6 +603,14 @@ def main():
     print("\n  Press Ctrl+C to stop.\n" if not app.config["KIOSK"] else "")
 
     try:
+        # A table that was part of a net before the overnight reboot rejoins
+        # it on its own, rather than waiting for somebody to walk every Pi in
+        # the hall through a form before the doors open.
+        try:
+            from elmer import cohort, db as _db
+            cohort.resume(_db.connect())
+        except Exception:
+            pass
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
                 # The reloader runs a second copy of this process, which in
                 # kiosk mode would mean a second browser on top of the first.

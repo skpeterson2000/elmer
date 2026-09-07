@@ -192,19 +192,70 @@ def bridge():
         return _bridge
 
 
-def connect(url, unit_id=None, name=None):
+# Where a table remembers its net control, so a hall does not have to be
+# re-wired by hand every morning - these Pis reboot at 04:00 for updates, and
+# an operator should not arrive to find every table orphaned.
+URL_SETTING = "net_url"
+UNIT_SETTING = "net_unit"
+NAME_SETTING = "net_name"
+
+
+def connect(url, unit_id=None, name=None, conn=None):
     """Point this table at a net control and start reporting to it."""
     global _bridge
     with _lock:
         if _bridge is not None:
             _bridge.stop.set()
         _bridge = Bridge(url, unit_id, name).start()
-        return _bridge
+    if conn is not None:
+        remember(conn, _bridge)
+    return _bridge
 
 
-def disconnect():
+def remember(conn, link):
+    """Keep the wiring, so the table finds its way back after a reboot."""
+    try:
+        from . import db
+        db.unit_set(conn, URL_SETTING, link.url)
+        db.unit_set(conn, UNIT_SETTING, link.unit_id)
+        db.unit_set(conn, NAME_SETTING, link.name)
+    except Exception:                     # pragma: no cover
+        log.debug("cohort: could not save the net control address")
+
+
+def forget(conn):
+    try:
+        from . import db
+        db.unit_set(conn, URL_SETTING, "")
+    except Exception:                     # pragma: no cover
+        pass
+
+
+def resume(conn):
+    """Reconnect to the net control this table was last pointed at.
+
+    Called once at startup. A hall of tables that came back from an overnight
+    reboot should rejoin the net on its own; nobody wants to walk twenty Pis
+    through a form before the doors open.
+    """
+    try:
+        from . import db
+        url = (db.unit_get(conn, URL_SETTING) or "").strip()
+    except Exception:                     # pragma: no cover
+        return None
+    if not url:
+        return None
+    unit_id = db.unit_get(conn, UNIT_SETTING) or None
+    name = db.unit_get(conn, NAME_SETTING) or None
+    log.info("cohort: rejoining the net at %s as %s", url, unit_id or "this table")
+    return connect(url, unit_id, name)
+
+
+def disconnect(conn=None):
     global _bridge
     with _lock:
         if _bridge is not None:
             _bridge.stop.set()
         _bridge = None
+    if conn is not None:
+        forget(conn)
