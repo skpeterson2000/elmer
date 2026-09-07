@@ -22,6 +22,12 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .unit.in { border-color: var(--green); }
 .unit b { color: var(--amber); }
 .empty { color: var(--dimmer); font-style: italic; }
+.netaddr { display: flex; gap: 1rem; align-items: flex-start; }
+.netaddr .qrbox { background: #fff; padding: .5rem; border-radius: 10px;
+                  line-height: 0; flex: 0 0 auto; }
+.netaddr .qrbox svg { display: block; width: 9.5rem; height: auto; }
+.joinline { font-size: 1.15rem; }
+@media (max-width: 34rem) { .netaddr { flex-direction: column; } }
 .joinline { font-family: var(--mono); color: var(--amber); word-break: break-all; }
 table { width: 100%; border-collapse: collapse; margin-top: .6rem; }
 td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
@@ -38,13 +44,18 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
     <a class="btn sm" href="/net/board" target="_blank">Open the big board &rarr;</a>
   </div>
 
-  <div class="card">
-    <b>Tables point themselves here</b>
-    <p class="joinline" id="where">{{ where }}</p>
-    <p style="color:var(--dim);font-size:.85rem;margin:.2rem 0 0">
-      On each table's Pi, open its party screen and connect it to this address.
-      Eight players per table; the players never talk to this machine.</p>
-    <div class="units" id="units"><span class="empty">no tables yet</span></div>
+  <div class="card netaddr">
+    <div class="qrbox">{{ qr_svg|safe }}</div>
+    <div>
+      <b>Tables point themselves here</b>
+      <p class="joinline" id="where">{{ where }}</p>
+      <p style="color:var(--dim);font-size:.85rem;margin:.2rem 0 0">
+        On each table's Pi open <code>/party</code>, put this address in the
+        Net control box and press Join. Eight players per table; the players
+        never talk to this machine, and a table remembers the address across
+        a reboot.</p>
+      <div class="units" id="units"><span class="empty">no tables yet</span></div>
+    </div>
   </div>
 
   <div class="card">
