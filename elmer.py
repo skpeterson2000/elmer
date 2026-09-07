@@ -608,7 +608,14 @@ def main():
         # the hall through a form before the doors open.
         try:
             from elmer import cohort, db as _db
-            cohort.resume(_db.connect())
+            _conn = _db.connect()
+            cohort.resume(_conn)
+            # A station whose only GPS is somebody's phone should not have to
+            # be told again after every reboot.
+            _port = _db.unit_get(_conn, "phone_gps_port", 0)
+            if _port:
+                from elmer import phonegps
+                phonegps.start(int(_port))
         except Exception:
             pass
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
