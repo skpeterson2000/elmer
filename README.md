@@ -376,7 +376,7 @@ invented. And the last entry is 47 CFR 97.403: when life or property is in
 immediate danger and normal systems are not available, an amateur station may
 use any means of radiocommunication at its disposal. It is pinned to the
 bottom on purpose - answering "how do I get a message out" with "declare an
-emergency" is wrong for a flat tyre, and the entry has to keep its force for
+emergency" is wrong for a flat tire, and the entry has to keep its force for
 the day it is needed.
 
 ## Where the station is
