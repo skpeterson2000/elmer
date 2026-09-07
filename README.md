@@ -1247,6 +1247,36 @@ The top bar names whoever is at it. Pressing it lists everybody on the unit,
 switches between them in one press, and takes a name and an optional callsign to
 add somebody new.
 
+### An account can be locked
+
+On a club Pi the accounts are a list of names, and until now picking one off
+that list was enough to answer questions as that person, rename them, or - at
+the unit itself - delete them and everything they had done. Somebody's study
+record is the one thing they came here to build.
+
+So an account can carry a password. Set one from the **who** menu and it is
+then needed to switch to that account, rename it, or remove it. Accounts
+without one carry on exactly as before: somebody studying alone on their own Pi
+should not have to invent a password before they can answer a question, and an
+existing install upgrades with every account open.
+
+The person whose Pi it is can set a **moderator key**, which opens any account.
+That is what makes a forgotten password at a club night a thirty-second problem
+rather than an evening with a database editor. It can only be set at the unit
+itself, never from a phone at the back of the room.
+
+Passwords are stored as scrypt hashes with a per-account salt, at the standard
+16 MiB cost - about 45 ms on a Pi 5, slow enough to make guessing tedious and
+fast enough that nobody notices. The hash never leaves the machine: what the
+page is told is only whether an account is locked.
+
+**Be clear about what this is.** It stops a clubmate deleting somebody's
+progress or answering questions as them. It is not protection against somebody
+on the network who means harm: ELMER speaks plain HTTP, so a password crosses
+the wire in clear, and anybody holding the Pi holds the database anyway. It is
+a lock on a cupboard, not a safe - so use a password you do not use anywhere
+else.
+
 **A callsign is what ELMER calls you.** Somebody who has one earned it in front
 of volunteer examiners, so that is the name the program uses — the same respect
 an operator gets on the air. Everyone else is called by their name, which is

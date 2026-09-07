@@ -54,6 +54,8 @@ function whoRow(u, current) {
   return '<button class="who-row' + (u.id === current ? ' on' : '') + '" ' +
          'data-user="' + u.id + '">' +
     '<span class="who-row-name">' + escapeHTML(u.display_name) + '</span>' +
+    (u.locked ? '<span class="tiny muted" title="this account has a password">' +
+                '&#128274;</span>' : '') +
     (u.licensed ? '<span class="pill info tiny">licensed</span>' : '') +
     (u.id === current ? '<span class="tiny muted">playing</span>' : '') +
     '</button>';
@@ -85,16 +87,67 @@ function renderWho(d) {
     '<div class="who-actions">' +
       '<button class="btn sm ghost" data-who="rename">Rename ' +
         escapeHTML(me.name || me.display_name || 'this user') + '</button>' +
+      '<button class="btn sm ghost" data-who="password">' +
+        (me.locked ? 'Change password' : 'Set a password') + '</button>' +
       (d.local && d.users.length > 1
         ? '<button class="btn sm ghost danger" data-who="remove">Remove&hellip;</button>'
         : '') +
-    '</div>';
+    '</div>' +
+    '<div class="tiny muted who-note">' + (me.locked
+      ? 'This account is locked: your password is needed to switch to it, ' +
+        'rename it or remove it.'
+      : 'A password stops somebody else on this unit answering questions as ' +
+        'you, or deleting what you have done.') +
+      ' It travels over the network in clear, so choose one you do not use ' +
+      'elsewhere.</div>';
   if (wasOpen) placeWhoMenu();          // its height just changed
 }
 
 async function switchUser(id) {
-  renderWho(await postJSON('/api/users/switch', {id: id}));
+  /* A locked account asks. Answering questions as somebody else quietly
+     corrupts the one record they came here to build, so picking their name
+     off a list is deliberately not enough. */
+  const who = (whoData && whoData.users || []).find(u => u.id === id);
+  let password = '';
+  if (who && who.locked) {
+    password = prompt('Password for ' + who.display_name + ':') || '';
+    if (!password) return;
+  }
+  let r;
+  try {
+    r = await postJSON('/api/users/switch', {id: id, password: password});
+  } catch (e) {
+    toast('Not this time', 'That password does not open ' +
+          ((who && who.display_name) || 'that account') + '.');
+    return;
+  }
+  renderWho(r);
   location.reload();          // every number on the page belongs to somebody
+}
+
+/* Setting or changing a password. Changing one needs the old one, so an open
+   dashboard somebody wandered away from cannot be used to lock them out of
+   their own account. */
+async function setPassword(me) {
+  const wanted = prompt(me.locked
+    ? 'New password for ' + me.display_name + ' (blank removes it):'
+    : 'Choose a password for ' + me.display_name + ':');
+  if (wanted === null) return;
+  let current = '';
+  if (me.locked) {
+    current = prompt('Current password (or the moderator key):') || '';
+    if (!current) return;
+  }
+  try {
+    const r = await postJSON('/api/users/password',
+                             {id: me.id, password: wanted, current: current});
+    renderWho(r.users);
+    toast(wanted ? 'Password set' : 'Password removed',
+          wanted ? 'This account now asks for it.'
+                 : 'This account is open again.');
+  } catch (err) {
+    toast('Not changed', 'That password was not right.');
+  }
 }
 
 document.addEventListener('click', async e => {
@@ -118,7 +171,23 @@ document.addEventListener('click', async e => {
     if (action.dataset.who === 'rename') {
       const me = whoData.users.find(u => u.id === whoData.current) || {};
       const name = prompt('What should ELMER call you?', me.name || '');
-      if (name) renderWho(await postJSON('/api/users/rename', {name: name}));
+      if (!name) return;
+      let password = '';
+      if (me.locked) {
+        password = prompt('Password for this account:') || '';
+        if (!password) return;
+      }
+      try {
+        renderWho(await postJSON('/api/users/rename',
+                                 {id: me.id, name: name, password: password}));
+      } catch (err) {
+        toast('Not renamed', 'That password was not right.');
+      }
+      return;
+    }
+    if (action.dataset.who === 'password') {
+      const me = whoData.users.find(u => u.id === whoData.current) || {};
+      await setPassword(me);
       return;
     }
     if (action.dataset.who === 'remove') {
@@ -126,9 +195,15 @@ document.addEventListener('click', async e => {
       if (!confirm('Remove ' + me.display_name + ' from this ELMER?\n\n' +
                    'Their progress, titles, notes and streak go with them, ' +
                    'and it cannot be undone.')) return;
+      let password = '';
+      if (me.locked) {
+        password = prompt('Password for ' + me.display_name +
+                          ' (or the moderator key):') || '';
+        if (!password) return;
+      }
       const res = await fetch('/api/users/remove', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id: me.id})});
+        body: JSON.stringify({id: me.id, password: password})});
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { alert(d.message || 'Could not remove that user.'); return; }
       location.reload();
