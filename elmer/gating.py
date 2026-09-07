@@ -1,13 +1,13 @@
 """Which pools a newcomer is shown first, and what opens them.
 
-Somebody who has just downloaded this and has no licence yet is looking at
+Somebody who has just downloaded this and has no license yet is looking at
 2,475 questions across six pools, most of which are not their exam and three
 of which are not even amateur radio. That is not a library, it is a wall. So
 the amateur ladder starts at Technician and opens as there is reason to.
 
 What opens it:
 
-* **A licence class.** From the callsign lookup where that works, or typed in
+* **A license class.** From the callsign lookup where that works, or typed in
   where it does not - callook serves the FCC ULS and nothing else, so a
   Canadian or British operator has a perfectly good callsign that resolves to
   nothing, and must not be walled in by that.
@@ -26,7 +26,7 @@ program is named after the people who teach Technician classes, and a General
 reviewing the basics, or an Extra helping their child study, needs the lower
 pools. A window that locks a General out of Technician would be exactly wrong.
 
-The commercial pools are not gated on an amateur licence at all. An Extra
+The commercial pools are not gated on an amateur license at all. An Extra
 ticket says nothing whatever about whether somebody is ready for a GROL, and
 the two ladders are already separate in `ranks.TRACKS`. Gating a marine radio
 permit behind an amateur class would be a category error.
@@ -37,7 +37,7 @@ from . import ranks
 # open, plus the next one up as the thing worth working toward.
 AMATEUR_LADDER = ["tech2026", "gen2023", "extra2024"]
 
-# What a licence class entitles the holder to see. Novice and Advanced are no
+# What a license class entitles the holder to see. Novice and Advanced are no
 # longer issued but plenty are still held and still renewed, so they map onto
 # the modern pool whose privileges they most nearly resemble.
 CLASS_RUNG = {
@@ -52,8 +52,8 @@ def gate_on(settings):
     return str((settings or {}).get(SETTING, "on")).lower() != "off"
 
 
-def _rung_from_class(licence_class):
-    return CLASS_RUNG.get((licence_class or "").strip().title())
+def _rung_from_class(license_class):
+    return CLASS_RUNG.get((license_class or "").strip().title())
 
 
 def _rung_from_standings(standings):
@@ -85,13 +85,13 @@ def reach(settings=None, standings=None):
     if not gate_on(settings):
         return {"rung": len(AMATEUR_LADDER) - 1, "reason": "off", "gated": False}
 
-    licence = (settings.get("licence_class")
-               or (settings.get("licence") or {}).get("licence_class"))
-    from_class = _rung_from_class(licence)
+    license = (settings.get("license_class")
+               or (settings.get("license") or {}).get("license_class"))
+    from_class = _rung_from_class(license)
     from_rank = _rung_from_standings(standings)
 
     if from_class is not None and (from_rank is None or from_class >= from_rank):
-        return {"rung": from_class, "reason": "licence", "licence": licence,
+        return {"rung": from_class, "reason": "license", "license": license,
                 "gated": True}
     if from_rank is not None:
         return {"rung": from_rank, "reason": "rank", "gated": True}
@@ -132,6 +132,6 @@ def why_closed(pool_id, state):
     needed = AMATEUR_LADDER[max(0, rung - 1)]
     names = {"tech2026": "Technician", "gen2023": "General",
              "extra2024": "Amateur Extra"}
-    return (f"{names.get(pool_id, pool_id)} opens when you hold a licence that "
+    return (f"{names.get(pool_id, pool_id)} opens when you hold a license that "
             f"reaches it, or take {names.get(needed, needed)} to Elmer. "
             f"You can also open everything from Settings.")

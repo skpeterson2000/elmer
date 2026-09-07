@@ -1782,7 +1782,7 @@ function renderRfRows() {
    ELMER holds 47 CFR 97.301 and 97.305 in full, so a mode list that offers
    every mode on every frequency is not neutral - it quietly suggests the
    operation is fine. Each option now says whether it is permitted where the
-   row is tuned, for the licence class on the profile.
+   row is tuned, for the license class on the profile.
 
    Nothing is disabled. A licensee may legitimately evaluate a station they
    cannot yet operate - a General planning an Extra segment, somebody working
@@ -1827,10 +1827,10 @@ async function showPrivilege(i) {
            'band plan page and ELMER can also say what your class may send here.';
   } else if (!d.allowed) {
     html = '<span class="warntext"><b>' + escapeHTML(d.band) + ':</b> a ' +
-      escapeHTML(d.licence_class) + ' licensee may not transmit on ' + mhz +
+      escapeHTML(d.license_class) + ' licensee may not transmit on ' + mhz +
       ' MHz.</span> 47 CFR 97.301.';
   } else {
-    html = '<b>' + escapeHTML(d.band) + '</b>, ' + escapeHTML(d.licence_class) +
+    html = '<b>' + escapeHTML(d.band) + '</b>, ' + escapeHTML(d.license_class) +
       ': ' + escapeHTML(d.terms) + '.';
     if (chosen && chosen.permitted === false) {
       html += ' <span class="warntext">' + escapeHTML(chosen.label) +
@@ -1885,10 +1885,10 @@ async function rfEvaluate() {
   const overall = (data.compliant
     ? '<span class="pill good">compliant at the distances entered</span>'
     : '<span class="pill bad">one or more positions exceed the limit</span>') +
-    /* A green pill next to an operation the licence does not allow would read
+    /* A green pill next to an operation the license does not allow would read
        as approval of the whole thing. It is not: this evaluates exposure. */
     ((data.privilege_warnings || []).length
-      ? '<span class="pill bad">not permitted by this licence</span>' : '');
+      ? '<span class="pill bad">not permitted by this license</span>' : '');
 
   const seen = [];
   (data.warnings || []).forEach(w => { if (seen.indexOf(w) < 0) seen.push(w); });

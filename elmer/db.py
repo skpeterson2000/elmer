@@ -331,7 +331,7 @@ def display_name(profile):
     A callsign is a thing you earned from the FCC by sitting an exam, so if
     there is one on the profile that is the name ELMER uses - the same respect
     an operator gets on the air.  Everyone else is called by their name, which
-    is theirs and needs no licence.
+    is theirs and needs no license.
     """
     if not profile:
         return "Operator"
@@ -339,9 +339,35 @@ def display_name(profile):
         or (profile.get("name") or "").strip() or "Operator"
 
 
+# ELMER is a program about American radio licenses written, for a while, in
+# British English. "License" is the American spelling for both the noun and the
+# verb, and this is a program about FCC and NCVEC licenses, so that is the
+# spelling. The settings key was renamed with it - but a key is not prose, and
+# every install that has already saved one has it under the old name.
+# The old names are spelled out of one piece so that a search-and-replace over
+# the spelling cannot quietly turn this map into a no-op - which is exactly
+# what happened the first time, and it silently cost a saved Extra ticket.
+_OLD = "lic" + "ence"
+LEGACY_SETTINGS = {_OLD + "_class": "license_class", _OLD: "license"}
+
+
+def _modernise(settings):
+    """Read a settings blob saved under the older key names.
+
+    Nobody should lose the license class they typed in because the project
+    learned to spell. The old name is read where the new one is absent, and
+    left in place: rewriting somebody's saved settings on read is a change to
+    their data made for the program's convenience, not theirs.
+    """
+    for was, now in LEGACY_SETTINGS.items():
+        if was in settings and now not in settings:
+            settings[now] = settings[was]
+    return settings
+
+
 def _row_to_profile(row):
     prof = dict(row)
-    prof["settings"] = json.loads(prof["settings"] or "{}")
+    prof["settings"] = _modernise(json.loads(prof["settings"] or "{}"))
     prof["display_name"] = display_name(prof)
     prof["licensed"] = bool((prof.get("callsign") or "").strip())
     # The salt and the hash never leave here. This dict is what /api/users

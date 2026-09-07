@@ -12,14 +12,14 @@
   </div>
   <div class="row">
     <div class="field" style="margin-bottom:0">
-      <label>Licence class
-        {% if licence.get('licence_class') %}
-          <span class="verified" title="from the FCC record for {{ licence.callsign }}">verified</span>
+      <label>License class
+        {% if license.get('license_class') %}
+          <span class="verified" title="from the FCC record for {{ license.callsign }}">verified</span>
         {% endif %}
       </label>
       <select id="bp-class">
         {% for c in classes %}
-          <option value="{{ c }}" {% if c == licence_class %}selected{% endif %}>{{ c }}</option>
+          <option value="{{ c }}" {% if c == license_class %}selected{% endif %}>{{ c }}</option>
         {% endfor %}
       </select>
     </div>
@@ -45,11 +45,11 @@
   </div>
 </div>
 
-{% if not licence.get('found') %}
-  <div class="panel tight mt licence-strip">
+{% if not license.get('found') %}
+  <div class="panel tight mt license-strip">
     <div class="row" style="gap:.6rem">
       <span class="small">Enter your callsign and ELMER will use your actual
-        privileges &mdash; and tell you when the licence expires.</span>
+        privileges &mdash; and tell you when the license expires.</span>
       <input id="bp-call" class="mono" placeholder="callsign" maxlength="10"
              value="{{ profile.callsign or '' }}"
              style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.3rem .55rem;width:8rem">
@@ -59,27 +59,27 @@
   </div>
 {% endif %}
 
-{% if licence.get('found') %}
-  <div class="panel tight mt licence-strip
-      {% if licence.status.state == 'grace' %}warn{% elif licence.status.state == 'expired' %}bad{% endif %}">
+{% if license.get('found') %}
+  <div class="panel tight mt license-strip
+      {% if license.status.state == 'grace' %}warn{% elif license.status.state == 'expired' %}bad{% endif %}">
     <div class="row" style="gap:1.1rem">
-      <b class="mono">{{ licence.callsign }}</b>
-      {% if licence.licence_class %}<span class="pill info">{{ licence.licence_class }}</span>{% endif %}
-      <span class="small muted">granted {{ licence.granted }}</span>
-      {% if licence.status.state == 'current' %}
-        <span class="small">expires <b>{{ licence.expires }}</b> &mdash;
-          {{ licence.status.days }} days
-          {% if licence.status.days < 90 %}<span class="pill warn">renew soon</span>{% endif %}</span>
-      {% elif licence.status.state == 'grace' %}
-        <span class="small">expired {{ licence.expires }} &mdash;
-          <b>in the two-year grace period</b>, {{ licence.status.renew_within }} days left to renew
+      <b class="mono">{{ license.callsign }}</b>
+      {% if license.license_class %}<span class="pill info">{{ license.license_class }}</span>{% endif %}
+      <span class="small muted">granted {{ license.granted }}</span>
+      {% if license.status.state == 'current' %}
+        <span class="small">expires <b>{{ license.expires }}</b> &mdash;
+          {{ license.status.days }} days
+          {% if license.status.days < 90 %}<span class="pill warn">renew soon</span>{% endif %}</span>
+      {% elif license.status.state == 'grace' %}
+        <span class="small">expired {{ license.expires }} &mdash;
+          <b>in the two-year grace period</b>, {{ license.status.renew_within }} days left to renew
           without re-testing. You may not transmit until it is renewed.</span>
       {% else %}
-        <span class="small">expired {{ licence.expires }} &mdash; past the grace period,
-          so the licence must be earned again.</span>
+        <span class="small">expired {{ license.expires }} &mdash; past the grace period,
+          so the license must be earned again.</span>
       {% endif %}
-      {% if licence.uls_url %}
-        <a class="tiny" style="margin-left:auto" href="{{ licence.uls_url }}"
+      {% if license.uls_url %}
+        <a class="tiny" style="margin-left:auto" href="{{ license.uls_url }}"
            target="_blank" rel="noopener">FCC ULS record &rarr;</a>
       {% endif %}
     </div>
@@ -110,7 +110,7 @@
   </p>
   <p class="small notice">
     <b>Nearly nothing in it is amateur spectrum.</b> Its channels need an
-    authorisation an amateur licence does not confer, and holding the guide is
+    authorisation an amateur license does not confer, and holding the guide is
     not that authorisation. Monitor freely; transmit only where you are
     licensed to.
   </p>

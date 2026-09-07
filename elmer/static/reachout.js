@@ -52,7 +52,7 @@ async function roAsk() {
   try {
     d = await api('/api/ways-out?' + new URLSearchParams({
       gear: roGear().join(','),
-      licence: document.getElementById('ro-class').value,
+      license: document.getElementById('ro-class').value,
     }));
   } catch (e) {
     box.innerHTML = '<p class="tiny" style="color:var(--red)">Could not work ' +

@@ -55,13 +55,13 @@ Type=Application
 Version=1.0
 Name=ELMER
 GenericName=Radio Study Assistant
-Comment=Study for US amateur and commercial radio licences
+Comment=Study for US amateur and commercial radio licenses
 Exec={launcher} --kiosk
 Path={ROOT}
 Icon={APP_ID}
 Terminal=false
 Categories=Education;HamRadio;
-Keywords=ham;radio;amateur;licence;license;exam;propagation;morse;
+Keywords=ham;radio;amateur;license;license;exam;propagation;morse;
 StartupNotify=true
 Actions=Windowed;
 

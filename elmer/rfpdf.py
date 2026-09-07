@@ -105,13 +105,13 @@ def _privileges_page(evaluation, s):
     """
     from . import bandplan
 
-    licence_class = (evaluation.get("licence_class")
-                     or (evaluation.get("station") or {}).get("licence_class") or "")
-    table = bandplan.privilege_table(licence_class)
+    license_class = (evaluation.get("license_class")
+                     or (evaluation.get("station") or {}).get("license_class") or "")
+    table = bandplan.privilege_table(license_class)
     if not table["bands"]:
         return []
 
-    rows = [["Band", "Segment (MHz)", "What this licence may send there"]]
+    rows = [["Band", "Segment (MHz)", "What this license may send there"]]
     spans, n = [], 1
     for band in table["bands"]:
         first = n
@@ -126,7 +126,7 @@ def _privileges_page(evaluation, s):
 
     flow = [
         PageBreak(),
-        Paragraph(f"Operating privileges &#8212; {licence_class}", s["h"]),
+        Paragraph(f"Operating privileges &#8212; {license_class}", s["h"]),
         Paragraph(
             "A reference for the operator named above, and for that class only. "
             "These are privileges, which are law: 47 CFR 97.301 and 97.305. "
@@ -200,12 +200,12 @@ def build(evaluation, station=None):
                        f'<b>{verdict}</b></font>', s["body"])]
 
     # Exposure compliance is not permission to operate, and a green line above
-    # a description of an operation the licence does not allow would read as
+    # a description of an operation the license does not allow would read as
     # though it were. Said immediately, next to the verdict it qualifies.
     if evaluation.get("privilege_warnings"):
         flow += [Paragraph(
             f'<font color="{FAIL.hexval()}"><b>This is an exposure evaluation '
-            f'only. The operation described below is not one this licence '
+            f'only. The operation described below is not one this license '
             f'permits &#8212; see the notes.</b></font>', s["body"])]
 
     warnings = evaluation.get("warnings") or []
@@ -322,7 +322,7 @@ def build(evaluation, station=None):
     ]
 
     # The operator's own privileges, behind the evaluation and clearly apart
-    # from it. Nothing is added when the licence class is not known, rather
+    # from it. Nothing is added when the license class is not known, rather
     # than printing somebody else's bands under this callsign.
     flow += _privileges_page(evaluation, s)
 

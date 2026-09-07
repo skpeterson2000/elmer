@@ -24,10 +24,10 @@
   </div>
   <div class="row" style="gap:1rem;align-items:flex-end">
     <div class="field" style="margin-bottom:0">
-      <label>Licence class</label>
+      <label>License class</label>
       <select id="ro-class">
         {% for name in classes %}
-        <option value="{{ name }}" {% if name == licence_class %}selected{% endif %}>{{ name }}</option>
+        <option value="{{ name }}" {% if name == license_class %}selected{% endif %}>{{ name }}</option>
         {% endfor %}
       </select>
     </div>

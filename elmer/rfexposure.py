@@ -66,7 +66,7 @@ MODE_DUTY = {
 }
 
 # Which emission category each mode is, for checking an intended transmission
-# against what the licence class may actually send on that frequency. A bare
+# against what the license class may actually send on that frequency. A bare
 # carrier is not one of the categories: it is a test transmission, permitted
 # wherever transmitting is permitted at all.
 MODE_EMISSION = {
@@ -285,7 +285,7 @@ def band_for(f_mhz):
     return f"{f_mhz:g} MHz"
 
 
-def privilege_warnings(case, licence_class):
+def privilege_warnings(case, license_class):
     """What the rules say about the operation this case describes.
 
     An exposure evaluation is a record the operator signs and keeps, so it
@@ -294,12 +294,12 @@ def privilege_warnings(case, licence_class):
     knows better and says nothing.
     """
     from . import bandplan
-    if licence_class not in bandplan.CLASSES:
+    if license_class not in bandplan.CLASSES:
         return []
 
     mhz = float(case["frequency_mhz"])
-    where = bandplan.privilege_at(mhz, licence_class)
-    a_class = ("an " if licence_class[0] in "AEIOU" else "a ") + licence_class
+    where = bandplan.privilege_at(mhz, license_class)
+    a_class = ("an " if license_class[0] in "AEIOU" else "a ") + license_class
     if not where["in_band"]:
         return []                       # already warned about as a frequency
     said = []
@@ -337,7 +337,7 @@ def evaluate(station, cases):
     a hole in it is worse than none - but the error names the row, so it can be
     found without hunting.
     """
-    licence_class = (station or {}).get("licence_class") or ""
+    license_class = (station or {}).get("license_class") or ""
     evaluated, rule_warnings = [], []
     for n, case in enumerate([c for c in cases if c.get("frequency_mhz")], start=1):
         try:
@@ -345,7 +345,7 @@ def evaluate(station, cases):
         except InvalidCase as exc:
             where = case.get("antenna") or f"{case.get('frequency_mhz')} MHz"
             raise InvalidCase(f"band {n} ({where}): {exc}") from None
-        rule_warnings += privilege_warnings(case, licence_class)
+        rule_warnings += privilege_warnings(case, license_class)
     warnings = [w for c in evaluated for w in c["warnings"]] + rule_warnings
     return {
         "station": station,
@@ -353,7 +353,7 @@ def evaluate(station, cases):
         "warnings": warnings,
         "asserted_gain": any(c["gain_source"] != "modelled" for c in evaluated),
         "privilege_warnings": rule_warnings,
-        "licence_class": licence_class,
+        "license_class": license_class,
         "compliant": all(c["compliant"] for c in evaluated) if evaluated else None,
         "method": {
             "reference": "FCC OET Bulletin 65, Supplement B; limits per 47 CFR 1.1310",
@@ -375,7 +375,7 @@ def evaluate(station, cases):
                     "nearest. A more detailed determination - one that models "
                     "the actual pattern, or measures the field - may well show "
                     "a shorter compliant distance and still satisfy the rules. "
-                    "That such a determination is possible is not a licence to "
+                    "That such a determination is possible is not a license to "
                     "operate inside the distances below: they are what this "
                     "evaluation supports, and it is this evaluation that is on "
                     "record.",

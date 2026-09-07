@@ -7,7 +7,7 @@ odds attached - and they need it from a program that will still answer with no
 network, because that is the whole situation.
 
 So this is deliberately not a propagation model. It is the reasoning an Elmer
-does out loud: what have you got, what does your licence let you use it for,
+does out loud: what have you got, what does your license let you use it for,
 what is within reach of it, and what have you not thought of yet. Half its
 value is in the last part. A Technician with a 5 W handheld usually believes
 they have one option and no repeater; they in fact have a repeater they cannot
@@ -36,7 +36,7 @@ GEAR = {
     "gmrs": "GMRS, FRS, MURS or CB",
 }
 
-# 47 CFR 97.301: what a licence class may actually key up on.
+# 47 CFR 97.301: what a license class may actually key up on.
 TECH_HF = "Technician HF is 10 m SSB 28.300-28.500, plus CW on 80, 40 and 15."
 
 
@@ -52,8 +52,8 @@ def daytime(lon, now=None):
     return 7.0 <= hour <= 19.0
 
 
-def _class_rank(licence):
-    return bandplan.CLASS_RANK.get((licence or "").title(), 0)
+def _class_rank(license):
+    return bandplan.CLASS_RANK.get((license or "").title(), 0)
 
 
 def _has_hf(gear):
@@ -109,13 +109,13 @@ def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
     }]
 
 
-def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None,
+def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
          conn=None):
     """Everything worth trying from here, best bet first."""
     gear = set(gear or [])
     out = list(repeater_ways(lat, lon, gear, height_ft, conn))
     day = daytime(lon, now)
-    rank = _class_rank(licence)
+    rank = _class_rank(license)
 
     if _vhf(gear):
         out.append({
@@ -198,9 +198,9 @@ def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None,
         })
         if rank < bandplan.CLASS_RANK["General"]:
             out.append({
-                "key": "tech-hf", "title": "Ten metres, which your licence does allow",
+                "key": "tech-hf", "title": "Ten metres, which your license does allow",
                 "odds": "worth trying" if day else "long shot",
-                "needs": "A Technician licence and an HF radio",
+                "needs": "A Technician license and an HF radio",
                 "do": "28.300-28.500 MHz SSB. Also CW on 80, 40 and 15 if you "
                       "have the key and the code.",
                 "why": TECH_HF + " It is widely believed that a Technician has "
@@ -253,15 +253,15 @@ def ways(lat, lon, gear=(), licence="Technician", height_ft=6.0, now=None,
     return [w for w in sorted(out, key=sort_key) if w["odds"] != "no"]
 
 
-def summary(lat, lon, gear=(), licence="Technician", now=None, conn=None):
+def summary(lat, lon, gear=(), license="Technician", now=None, conn=None):
     """The whole answer, with the reasoning that produced it attached."""
-    found = ways(lat, lon, gear, licence, now=now, conn=conn)
+    found = ways(lat, lon, gear, license, now=now, conn=conn)
     cover = repeaters.coverage(lat, lon)
     return {
         "ways": found,
         "coverage": cover,
         "daytime": daytime(lon, now),
-        "licence": licence,
+        "license": license,
         "gear": sorted(gear or []),
         "note": ("Start with the top of this list and work down. Every entry "
                  "is something that has worked for somebody; none of them is "
