@@ -49,8 +49,11 @@ COHORT_SIZE = 8
 MAX_COHORTS = 4
 
 # A round is scored on the players who answered. Somebody who wandered off to
-# the coffee urn should not hold the room up for ever.
-DEFAULT_ROUND_SECONDS = 45.0
+# the coffee urn should not hold the room up for ever - but the clock is the
+# only thing that ends a round early, so it has to be long enough to read a
+# question and four choices without hurrying. A minute, and adjustable up to
+# three, because the people this is for are not all in a hurry.
+DEFAULT_ROUND_SECONDS = 60.0
 REVEAL_SECONDS = 8.0
 
 # Admission stops before the room is unpleasant, not after. These are the
@@ -499,8 +502,30 @@ class Room:
             return rnd.answers[player_id], None
 
     def everyone_answered(self):
+        """Whether the round may close early. Only people count.
+
+        Practice opponents do not get a vote. They answer in two to eighteen
+        seconds and they are only scenery, so letting them end a round would
+        mean a table of one person racing software that always finishes first
+        - and this is a game for amateur radio operators, plenty of whom read
+        at their own pace, or whose eyes or recall are not what they were.
+        Nobody should be hurried off a question by a machine. The clock is what
+        ends a round somebody has not answered, and the clock is generous.
+
+        Membership is tested rather than counted, because a bot that answered
+        and then retired to make room for an arriving person left its answer on
+        file: the count reached the number of players while the person who had
+        just sat down had not answered at all, and the round closed without
+        them. That is the fault this docstring is longer than the code for.
+        """
         with self.lock:
-            return bool(self.round) and len(self.round.answers) >= len(self.players)
+            if not self.round:
+                return False
+            people = [p for p in self.players.values() if not p.bot]
+            # With nobody real at the table - a demonstration, or a screen left
+            # running - the practice players are all there is to wait for.
+            who = people or list(self.players.values())
+            return all(p.id in self.round.answers for p in who)
 
     def close_round(self):
         """Score the round: correct answers only, fastest first.
@@ -589,7 +614,10 @@ class Room:
                     "remaining": round(rnd.remaining, 1),
                     "closed": rnd.closed,
                     "answered": len(rnd.answers),
-                    "waiting_on": max(0, len(self.players) - len(rnd.answers)),
+                    "waiting_on": sum(1 for p in self.players.values()
+                                      if not p.bot and p.id not in rnd.answers),
+                    "waiting_on_all": sum(1 for p in self.players.values()
+                                          if p.id not in rnd.answers),
                     "winner_cohort": rnd.winner_cohort,
                 }
                 if rnd.closed:
