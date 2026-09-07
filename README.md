@@ -14,7 +14,7 @@ cd elmer
 pip install -r requirements.txt
 ./elmer.py             # serve; open it from anywhere on the network
 ./elmer.py --kiosk     # serve, and open full screen on this machine
-#   ELMER is on http://192.168.1.119:5000
+#   ELMER is on http://192.168.1.5:5000
 ```
 
 The pools ship built, so it runs straight from a clone — no build step.
@@ -404,7 +404,7 @@ where you are is an errand, and it says which one it is looking at.
 ### Asking a TowerWitch over the network
 
 Two Pis in one vehicle: only one has TowerWitch and the credentials. Point the
-other at it with `./elmer.py --towerwitch-url http://pi52.local:8137/api/repeaters`
+other at it with `./elmer.py --towerwitch-url http://192.168.1.5:8137/api/repeaters`
 and ELMER will ask - but only when it has nothing for where it is, and at most
 every few minutes, so a machine that is switched off is not a tax on every page.
 
@@ -425,6 +425,12 @@ of `{"data": ...}`; `frequency` works as an alias for `output` and `pl_tone`
 for `tone`. Anything without a callsign and a coordinate is dropped. A machine
 that is off, busy or not listening is not an error - the answer is then
 whatever is already on disk.
+
+TowerWitch answers this with `repeater_service.py`, which serves the cached
+lookups and RepeaterBook exports it already has. It looks nothing up: the
+subscription and the credentials are TowerWitch's to hold, not this endpoint's
+to spend on behalf of whoever asks. `./elmer.py --doctor` reports whether the
+service answered, so a Pi that has stopped talking says so in one command.
 
 `./elmer.py --fetch-nifog` goes further: it finds the current edition from CISA's
 own page rather than a filename remembered in the source, downloads it, converts
