@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / "data" / "elmer.db"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -42,7 +42,9 @@ CREATE TABLE IF NOT EXISTS profile (
     best_streak     INTEGER NOT NULL DEFAULT 0,
     last_study_day  TEXT,
     last_seen       TEXT,
-    settings        TEXT    NOT NULL DEFAULT '{}'
+    settings        TEXT    NOT NULL DEFAULT '{}',
+    pw_salt         TEXT    NOT NULL DEFAULT '',
+    pw_hash         TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS card (
@@ -225,6 +227,8 @@ def migrate(conn):
     The whole thing runs in one transaction: an interruption, a power cut or a
     failure part way through leaves the database exactly as it was.
     """
+    import logging
+    log = logging.getLogger("elmer")
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version >= SCHEMA_VERSION:
         return version
@@ -238,11 +242,23 @@ def migrate(conn):
         conn.commit()
         return SCHEMA_VERSION
 
-    import logging
-    log = logging.getLogger("elmer")
     log.info("migrating the database from version %s to %s - "
              "existing progress becomes the first user",
              version, SCHEMA_VERSION)
+
+    if version == 2:
+        # Version 3 is optional account passwords. Two columns, both empty,
+        # so every existing account carries on exactly as it was - open, until
+        # somebody chooses otherwise.
+        for column in ("pw_salt", "pw_hash"):
+            if column not in _columns(conn, "profile"):
+                conn.execute(f"ALTER TABLE profile ADD COLUMN {column} "
+                             f"TEXT NOT NULL DEFAULT ''")
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+        log.info("database upgraded to version %s - accounts may now carry "
+                 "a password", SCHEMA_VERSION)
+        return SCHEMA_VERSION
 
     was = conn.isolation_level
     conn.isolation_level = None              # this transaction is managed here
@@ -328,6 +344,12 @@ def _row_to_profile(row):
     prof["settings"] = json.loads(prof["settings"] or "{}")
     prof["display_name"] = display_name(prof)
     prof["licensed"] = bool((prof.get("callsign") or "").strip())
+    # The salt and the hash never leave here. This dict is what /api/users
+    # answers with, and a stored hash served to the network is a stored hash
+    # somebody can work on at their leisure. What a caller legitimately needs
+    # to know is only whether the account is locked.
+    prof["locked"] = bool(prof.pop("pw_hash", ""))
+    prof.pop("pw_salt", None)
     return prof
 
 
@@ -534,6 +556,118 @@ def maintenance_window(conn, pool_id, days=30):
         "accuracy": (row["n_right"] / attempts) if attempts else 0.0,
         "window_days": days,
     }
+
+
+# --- account passwords ------------------------------------------------------
+# What this is and is not. It stops a clubmate deleting somebody's progress or
+# answering questions as them by picking their name off a list - which on a
+# shared unit is the whole of the problem. It is not protection against
+# somebody on the network who means harm: ELMER speaks plain HTTP, so a
+# password crosses the wire in clear, and anybody with the Pi in their hands
+# owns the database anyway. Saying so is better than implying otherwise.
+#
+# scrypt with a per-account salt, at the standard 16 MiB cost - about 45 ms on
+# a Pi 5, which is slow enough to make guessing tedious and fast enough that
+# nobody notices signing in.
+SCRYPT_N, SCRYPT_R, SCRYPT_P = 2 ** 14, 8, 1
+
+
+def _hash_password(password, salt):
+    import hashlib
+    return hashlib.scrypt(password.encode("utf-8"), salt=salt,
+                          n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
+                          dklen=32).hex()
+
+
+def set_password(conn, user_id, password):
+    """Give an account a password, or take it away with an empty one."""
+    import os
+    if not password:
+        conn.execute("UPDATE profile SET pw_salt = '', pw_hash = '' "
+                     "WHERE id = ?", (user_id,))
+        conn.commit()
+        return False
+    salt = os.urandom(16)
+    conn.execute("UPDATE profile SET pw_salt = ?, pw_hash = ? WHERE id = ?",
+                 (salt.hex(), _hash_password(password, salt), user_id))
+    conn.commit()
+    return True
+
+
+def has_password(conn, user_id):
+    row = conn.execute("SELECT pw_hash FROM profile WHERE id = ?",
+                       (user_id,)).fetchone()
+    return bool(row and row["pw_hash"])
+
+
+def check_password(conn, user_id, password):
+    """Whether this password opens that account.
+
+    An account with no password is open, which is the state every account
+    starts in: somebody studying alone on their own Pi should not have to
+    invent a password before they can answer a question.
+    """
+    import hmac
+    row = conn.execute("SELECT pw_salt, pw_hash FROM profile WHERE id = ?",
+                       (user_id,)).fetchone()
+    if not row or not row["pw_hash"]:
+        return True
+    if not password:
+        return False
+    try:
+        salt = bytes.fromhex(row["pw_salt"])
+    except ValueError:
+        return False
+    # Constant time, so a wrong password cannot be narrowed down by how long
+    # it took to be told so.
+    return hmac.compare_digest(_hash_password(password, salt), row["pw_hash"])
+
+
+MODERATOR_KEY = "moderator_pw"
+
+
+def set_moderator(conn, password):
+    """The key the person whose Pi this is holds, for when somebody forgets.
+
+    Without one, a forgotten password means the account can only be freed from
+    the machine itself. With one, whoever runs the club night can clear it.
+    """
+    import os
+    if not password:
+        unit_set(conn, MODERATOR_KEY, "")
+        return False
+    salt = os.urandom(16)
+    unit_set(conn, MODERATOR_KEY,
+             {"salt": salt.hex(), "hash": _hash_password(password, salt)})
+    return True
+
+
+def has_moderator(conn):
+    return bool(unit_get(conn, MODERATOR_KEY))
+
+
+def check_moderator(conn, password):
+    import hmac
+    stored = unit_get(conn, MODERATOR_KEY)
+    if not stored or not password:
+        return False
+    try:
+        salt = bytes.fromhex(stored["salt"])
+    except (ValueError, TypeError, KeyError):
+        return False
+    return hmac.compare_digest(_hash_password(password, salt), stored["hash"])
+
+
+def may_alter(conn, user_id, password):
+    """Whether this request may rename, remove or become that account.
+
+    The account's own password opens it; the moderator key opens any of them,
+    because somebody has to be able to sort out a forgotten password at a club
+    night without a keyboard and a database editor.
+    """
+    if check_password(conn, user_id, password):
+        return True
+    return check_moderator(conn, password)
 
 
 def unit_get(conn, key, default=None):

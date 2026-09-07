@@ -1786,6 +1786,61 @@ def api_pool_gate():
     return jsonify({"gate": wanted, "open": sorted(allowed), "state": state})
 
 
+@app.route("/api/users/password", methods=["POST"])
+def api_users_password():
+    """Set, change or clear the password on an account.
+
+    Changing one needs the old one, so somebody who wanders off from an open
+    dashboard does not come back to an account they are locked out of.
+    """
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    target = body.get("id")
+    try:
+        target = int(target) if target is not None else connection.user_id
+    except (TypeError, ValueError):
+        abort(400)
+    if not db.user_exists(connection, target):
+        abort(404)
+    if not db.may_alter(connection, target, body.get("current") or ""):
+        return jsonify({"ok": False, "locked": True,
+                        "message": "that account already has a password"}), 403
+    wanted = body.get("password") or ""
+    if wanted and len(wanted) < 4:
+        return jsonify({"ok": False,
+                        "message": "four characters at least"}), 400
+    db.set_password(connection, target, wanted)
+    log.info("account %s: password %s", target, "set" if wanted else "cleared")
+    return jsonify({"ok": True, "locked": bool(wanted),
+                    "users": _user_block(connection)})
+
+
+@app.route("/api/users/moderator", methods=["POST"])
+def api_users_moderator():
+    """The key the person whose Pi this is holds.
+
+    Set at the unit itself and nowhere else. It opens any account, which is
+    what makes a forgotten password at a club night a thirty-second problem
+    rather than an evening with a database editor - and is exactly why it
+    should not be settable from a phone at the back of the room.
+    """
+    connection = conn()
+    if not _is_local(request.remote_addr):
+        return jsonify({"ok": False, "message":
+                        "the moderator key is set at the unit itself"}), 403
+    body = request.get_json(silent=True) or {}
+    if db.has_moderator(connection) and not db.check_moderator(
+            connection, body.get("current") or ""):
+        return jsonify({"ok": False,
+                        "message": "the current moderator key is needed"}), 403
+    wanted = body.get("password") or ""
+    if wanted and len(wanted) < 4:
+        return jsonify({"ok": False, "message": "four characters at least"}), 400
+    db.set_moderator(connection, wanted)
+    log.info("moderator key %s", "set" if wanted else "cleared")
+    return jsonify({"ok": True, "set": bool(wanted)})
+
+
 @app.route("/api/doctor")
 def api_doctor():
     """The same checks --doctor runs, for somebody who is not at a terminal.
@@ -2045,10 +2100,15 @@ def _user_block(connection):
     return {"users": [{"id": u["id"], "name": u["name"],
                        "callsign": u["callsign"], "licensed": u["licensed"],
                        "display_name": u["display_name"],
+                       # Whether an account is locked, never anything about
+                       # what it is locked with.
+                       "locked": u["locked"],
                        "last_seen": u["last_seen"]}
                       for u in db.users(connection)],
             "current": current["id"],
             "display_name": current["display_name"],
+            "locked": db.has_password(connection, current["id"]),
+            "moderator": db.has_moderator(connection),
             "local": _is_local(request.remote_addr)}
 
 
@@ -2067,6 +2127,13 @@ def api_users():
 
 @app.route("/api/users/switch", methods=["POST"])
 def api_users_switch():
+    """Become another user on this unit.
+
+    An account with a password is not a name on a list any more: answering
+    questions as somebody else quietly corrupts the one record they came here
+    to build, and picking their name out of a menu should not be enough to do
+    that.
+    """
     connection = conn()
     body = request.get_json(silent=True) or {}
     try:
@@ -2075,9 +2142,10 @@ def api_users_switch():
         abort(400)
     if not db.user_exists(connection, wanted):
         abort(404)
-    connection.user_id = wanted
-    db.touch_user(connection)
-    log.info("now playing: %s", db.get_profile(connection)["display_name"])
+    if not db.may_alter(connection, wanted, body.get("password") or ""):
+        log.info("switch to user %s refused: wrong or missing password", wanted)
+        return jsonify({"ok": False, "locked": True,
+                        "message": "that account has a password"}), 403
     return _with_user_cookie(_user_block(connection), wanted)
 
 
@@ -2101,10 +2169,23 @@ def api_users_add():
 
 @app.route("/api/users/rename", methods=["POST"])
 def api_users_rename():
+    """Rename an account. Its own password, or the moderator's, opens it."""
     connection = conn()
     body = request.get_json(silent=True) or {}
+    # Renaming defaults to whoever you currently are, as it always did; an
+    # explicit id is for renaming somebody else, which needs their password.
+    target = body.get("id")
     try:
-        db.rename_user(connection, connection.user_id, body.get("name", ""))
+        target = int(target) if target is not None else connection.user_id
+    except (TypeError, ValueError):
+        abort(400)
+    if not db.user_exists(connection, target):
+        abort(404)
+    if not db.may_alter(connection, target, body.get("password") or ""):
+        return jsonify({"ok": False, "locked": True,
+                        "message": "that account has a password"}), 403
+    try:
+        db.rename_user(connection, target, body.get("name", ""))
     except ValueError as exc:
         return jsonify({"ok": False, "message": str(exc)}), 400
     return jsonify(_user_block(connection))
@@ -2124,6 +2205,10 @@ def api_users_remove():
         abort(400)
     if not db.user_exists(connection, wanted):
         abort(404)
+    if not db.may_alter(connection, wanted, body.get("password") or ""):
+        log.warning("remove user %s refused: wrong or missing password", wanted)
+        return jsonify({"ok": False, "locked": True,
+                        "message": "that account has a password"}), 403
     name = db.get_user(connection, wanted)["display_name"]
     try:
         db.remove_user(connection, wanted)
