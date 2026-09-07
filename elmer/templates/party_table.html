@@ -64,9 +64,11 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
 <body>
 <div class="host">
   <div class="head">
+    <a class="btn sm ghost" href="/" title="back to ELMER">&larr; ELMER</a>
     <h1>{{ name }}</h1>
     <span class="chip" id="round-chip">no round</span>
     <span class="cap" id="cap"></span>
+    <button class="btn sm danger" id="endtable">End tournament</button>
   </div>
 
   <div class="cols">
@@ -220,6 +222,12 @@ async function tick() {
         ? 'everyone is in — waiting on the practice players'
         : 'everyone is in');
 }
+
+document.getElementById('endtable').addEventListener('click', async () => {
+  if (!confirm('End the tournament and close this table?')) return;
+  await api('/api/party/end', {});
+  location.href = '/';
+});
 
 /* ------------------------------------------------------- tournament mode */
 const tourney = document.getElementById('tourney');
