@@ -153,6 +153,20 @@ def fix(conn=None, max_age=FRESH_FOR):
         # after gpsd has been asked and had nothing to say.
         from . import phonegps
         found = phonegps.current()
+    if not found:
+        # Last, what TowerWitch last knew. It is not a live fix and is not
+        # presented as one - the age it was written travels with it - but on a
+        # unit where TowerWitch has been running and ELMER has just started, it
+        # is the difference between knowing roughly where the station is and
+        # knowing nothing at all.
+        from . import repeaters
+        borrowed = repeaters.last_position()
+        if borrowed:
+            found = {"lat": borrowed["lat"], "lon": borrowed["lon"],
+                     "alt_m": None, "mode": 2,
+                     "read_at": time.time() - (borrowed["age_s"] or 0.0),
+                     "source": "towerwitch", "town": borrowed.get("town"),
+                     "from": "TowerWitch's last known position"}
     _last["at"] = now
     if found:
         _last["fix"] = found
@@ -172,8 +186,11 @@ def place(conn=None):
         return None
     from .geocode import to_grid
     grid = to_grid(found["lat"], found["lon"])
+    # A position borrowed from TowerWitch keeps the town it knew, because
+    # "Pequot Lakes" is a more honest label than a grid square implying a fix.
+    short = found.get("town") or grid
     return {"lat": found["lat"], "lon": found["lon"], "grid": grid,
-            "name": grid, "short": grid, "kind": "gps",
+            "name": short, "short": short, "kind": "gps",
             "alt_m": found.get("alt_m"), "mode": found.get("mode"),
             # Say which it came from. A fix off somebody's handset and a fix
             # off a receiver on the roof are both positions, but an operator

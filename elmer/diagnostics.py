@@ -308,6 +308,21 @@ def check_gps():
                              f"{to_grid(phone['lat'], phone['lon'])} "
                              f"({phone['lat']:.4f}, {phone['lon']:.4f})")
             return True
+        # And what TowerWitch last knew, which on a unit where it holds the
+        # GPS is the only position there is - reported with its age, so a
+        # stale one is visibly stale rather than quietly wrong.
+        from . import repeaters
+        borrowed = repeaters.last_position()
+        if borrowed:
+            age = borrowed.get("age_s")
+            when = (f"{age / 3600:.1f} hours ago" if age and age > 3600
+                    else f"{age:.0f} seconds ago" if age is not None
+                    else "at an unknown time")
+            _line(WARN, "GPS", f"no fix of its own, but TowerWitch last knew "
+                               f"itself at {borrowed.get('town') or 'a position'} "
+                               f"({borrowed['lat']:.4f}, {borrowed['lon']:.4f}), "
+                               f"written {when}")
+            return True
         # Distinguish "nothing is listening" from "listening, but no lock":
         # one is a wiring or address problem, the other is the sky.
         listener = phonegps.listener()
