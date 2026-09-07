@@ -1786,6 +1786,31 @@ def api_pool_gate():
     return jsonify({"gate": wanted, "open": sorted(allowed), "state": state})
 
 
+@app.route("/api/doctor")
+def api_doctor():
+    """The same checks --doctor runs, for somebody who is not at a terminal.
+
+    A self-check that only works from a command line is a self-check most
+    operators never run, and the station Pi is frequently a kiosk with no
+    terminal on it at all.
+
+    Account names are taken out of the paths, exactly as the problem report
+    does it: this answers over the network, and which folder somebody keeps
+    their radio software in is nobody's business. Whether that folder is sound
+    is the part with diagnostic value, and that is kept.
+    """
+    checks = diagnostics.collect(port=app.config.get("PORT", 5000))
+    for check in checks:
+        check["detail"] = bugreport.RE_HOME.sub(
+            lambda m: m.group(1) + "[user]", check["detail"])
+    counts = {"ok": 0, "warn": 0, "FAIL": 0}
+    for check in checks:
+        counts[check["state"]] = counts.get(check["state"], 0) + 1
+    return jsonify({"checks": checks, "counts": counts,
+                    "sound": counts.get("FAIL", 0) == 0,
+                    "checked_at": time.time()})
+
+
 @app.route("/api/gps/phone", methods=["GET", "POST"])
 def api_gps_phone():
     """Listen for a phone streaming NMEA, or stop.
