@@ -616,6 +616,19 @@ def main():
             if _port:
                 from elmer import phonegps
                 phonegps.start(int(_port))
+            # Listening for TowerWitch costs nothing and needs no setting up
+            # at either end, so it is on unless somebody has turned it off.
+            # A station that has to be told twice about the GPS it already
+            # broadcasts is a station somebody has to keep fixing.
+            if _db.unit_get(_conn, "towerwitch_net", "on") != "off":
+                from elmer import towerwitch as _tw
+                try:
+                    _tw.start(int(_db.unit_get(_conn, "towerwitch_net_port", 0)
+                                  or _tw.DEFAULT_PORT))
+                except OSError as _exc:
+                    import logging
+                    logging.getLogger("elmer").info(
+                        "not listening for TowerWitch: %s", _exc)
         except Exception:
             pass
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
