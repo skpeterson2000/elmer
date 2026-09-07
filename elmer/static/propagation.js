@@ -105,7 +105,9 @@ if (locateBtn) {
       qthPicker.set(place, true);
       saveAndReload(place);
     } catch (e) {
-      toast('Could not locate you', 'Type a place name or grid square instead');
+      toast('Could not locate you',
+            (e && e.message ? e.message + '. ' : '') +
+            'Type a place name or grid square instead.');
     }
     locateBtn.textContent = 'Locate me';
   });
