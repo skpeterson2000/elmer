@@ -90,10 +90,16 @@ class Unit:
 class Net:
     """The competition: many units, one question at a time, one leaderboard."""
 
-    def __init__(self, name="ELMER Net", cap=MAX_UNITS):
+    def __init__(self, name="ELMER Net", cap=MAX_UNITS,
+                 difficulty="technician"):
         self.lock = threading.RLock()
         self.name = name
         self.cap = cap
+        # What this net is studying. One network can hold several at once -
+        # Technician in one corner, General in another, Extra in the next room
+        # - and a unit deciding which to report to picks by the material, not
+        # by which Pi it happens to be running on. The name follows it.
+        self.difficulty = difficulty
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.units = {}
         self.round_number = 0
@@ -179,6 +185,11 @@ class Net:
             self.round_number += 1
             self.opened_at = _now()
             self.results = {}
+            if payload.get("difficulty"):
+                # A net that spent the evening drifting from Technician to
+                # General should say so on the network; the label is what the
+                # hall is doing, not what somebody typed when they opened it.
+                self.difficulty = payload["difficulty"]
             self.round = {
                 "number": self.round_number, "pool": pool_id,
                 "question_id": question_id, "answer_index": answer_index,
@@ -307,6 +318,7 @@ class Net:
             present = [u for u in units if u["present"]]
             return {
                 "name": self.name,
+                "difficulty": self.difficulty,
                 "health": self.health(),
                 "units": units,
                 "units_present": len(present),
@@ -321,11 +333,12 @@ _net = None
 _net_lock = threading.Lock()
 
 
-def net(create=False, name="ELMER Net", cap=MAX_UNITS):
+def net(create=False, name="ELMER Net", cap=MAX_UNITS,
+        difficulty="technician"):
     global _net
     with _net_lock:
         if _net is None and create:
-            _net = Net(name, cap)
+            _net = Net(name, cap, difficulty)
         return _net
 
 

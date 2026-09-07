@@ -577,24 +577,42 @@ been running a tournament against the other all evening.
 
 Each unit says hello on the network every few seconds and listens for the rest.
 Nothing is configured at either end, and a unit that goes quiet drops off the
-list by itself. The dashboard grows a panel when there is company, and none
-when there is not:
+list by itself. The dashboard grows a panel at its foot when there is company,
+and none when there is not.
 
-    2 other ELMERs on this network
-      Shack Pi     192.168.1.31   has a fix   tournament running
-      Table 3      192.168.1.44   6 waiting
+The panel says how many and not who. A hall with nine units in it would put
+nine names, nine addresses and nine version strings on the screen, and none of
+them answer the only question the operator actually has — which is what *this*
+unit should do about the others. There are three answers, and the panel is
+those three:
+
+    Another ELMER is on the network.
+    Technician net is running out there, and this unit can take a table in it.
+
+    A tournament here can be run three ways:
+      Independently   run one for the players in front of this unit
+      Host  [General ▾]   run a net from here for everyone who reports in
+      Join Technician net   3 tables · hand the scores to whoever runs it
 
 Two things come of it. **Position**: a unit with a receiver announces its fix
 and a unit without one takes it, so a second Pi never needs a second antenna.
 **Company**: a tournament can be suggested rather than remembered, and joined
 in one press. The suggestion is all it is — a unit never starts a round on
-another unit's say-so.
+another unit's say-so, and *not now* makes the panel go away.
+
+**One network, several tournaments.** Technician in this corner, General in
+that one, Extra in the next room. A net is named for what it is studying,
+because that is what somebody choosing between them is choosing on, and the
+name follows the material if the hall moves on to something harder. A unit that
+is only a table passes on the address of the net it reports to, which is how a
+late arrival finds a master it cannot hear directly — across a subnet, or on
+the end of a wire.
 
 What is announced is what a neighbour needs to be useful: who this is, where to
-reach it, whether it has a position, and whether a game is on. Not the
-operator's name, not their progress, not their callsign. It goes to the local
-broadcast address and nowhere else, and position sharing can be switched off
-without switching discovery off.
+reach it, whether it has a position, whether a game is on, and which net it is
+running or reporting to. Not the operator's name, not their progress, not their
+callsign. It goes to the local broadcast address and nowhere else, and position
+sharing can be switched off without switching discovery off.
 
 ### One receiver, every unit
 
@@ -1050,6 +1068,35 @@ net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors
 open.
 
+### Several tournaments, one board
+
+A network can hold more than one net at a time, and a hamfest usually should:
+Technician in one corner, General in another, Extra in the next room. A net is
+named for what it is studying, because that is what somebody choosing between
+them is choosing on, and the name follows the material if the hall moves on to
+something harder.
+
+The big board shows the network, not the Pi it happens to be plugged into. It
+lists every tournament it can hear — the nets, and any unit playing a game of
+its own — with the size of each, the question on the floor and who is leading
+it. Open one and it fills the screen exactly as if it were running here:
+
+    2 tournaments on the network
+    ┌───────────────────────────────┐  ┌───────────────────────────────┐
+    │ Technician net           33s  │  │ General net              33s  │
+    │ 3 tables · 15 players · rd 4  │  │ 2 tables · 9 players  · rd 4  │
+    │ 192.168.1.31:5000             │  │ 192.168.1.44:5000             │
+    │ What is a grid locator?       │  │ Which is true of SSB?         │
+    │ 1 Table 1        5p        12 │  │ 1 Table 1        4p         9 │
+    └───────────────────────────────┘  └───────────────────────────────┘
+
+The neighbours' boards are fetched by the unit serving the screen rather than
+by the browser: they are on other origins, a board polls about once a second,
+and several screens on one Pi should not each cost the hall a round of
+requests. A fetch that fails leaves the last board in place and says how long
+that tournament has been quiet — a screen at the front of a room must not go
+blank because one Pi in the corner lost its wifi.
+
 ### What a round costs
 
 A race is exactly the case that arrives all at once, so nothing in a round
@@ -1080,7 +1127,7 @@ people actually want to argue about them.
 | `/party/1` | the table: join code, roster, tournament controls |
 | `/j/1` | where the QR lands — the player's phone |
 | `/net` | net control, for running a hall |
-| `/net/board` | the big board, sized to read from the back of a room |
+| `/net/board` | the big board — every tournament on the network, sized to read from the back of a room |
 
 All six pools can host a tournament — the three amateur classes and the three
 commercial elements. They are offered grouped rather than as a flat list of

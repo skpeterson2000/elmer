@@ -11,6 +11,9 @@
 body { margin: 0; background: var(--bg); color: var(--text);
        font-family: var(--sans); overflow: hidden; }
 .board { height: 100dvh; display: flex; flex-direction: column; padding: 1.4vh 1.6vw; }
+/* The stage takes what the head leaves, so the panels inside it - and the
+   wall of tournaments - fill the screen rather than huddling at the top. */
+#stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .head { display: flex; align-items: baseline; gap: 1.2vw; margin-bottom: 1.2vh; }
 .head h1 { margin: 0; font-size: clamp(1.4rem, 3vw, 2.6rem); letter-spacing: .01em; }
 .head .sub { color: var(--dim); font-size: clamp(.8rem, 1.3vw, 1.2rem); }
@@ -60,6 +63,42 @@ tr.gold td { color: #ffd479; }
           max-width: 40ch; line-height: 1.5; }
 .idle .addr { font-family: var(--mono); color: var(--amber);
               font-size: clamp(1rem, 2.4vw, 2rem); }
+/* Several tournaments at once. One card each, sized so four fit a hall
+   screen and one fills a laptop; a card is a button, because the obvious
+   thing to do with a tournament on a wall is to look closer at it. */
+.games { flex: 1; display: grid; gap: 1.2vh 1.2vw; min-height: 0;
+         grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+         grid-auto-rows: min-content; align-content: start; overflow: auto; }
+.game { background: var(--panel); border: 1px solid var(--line);
+        border-radius: 14px; padding: 1.1vh 1.1vw; text-align: left;
+        color: inherit; cursor: pointer; overflow: hidden;
+        display: flex; flex-direction: column; }
+.game:focus-visible { outline: 2px solid var(--amber); }
+.game:hover { border-color: var(--amber); }
+.game.here { border-color: var(--green); }
+.game .top { display: flex; align-items: baseline; gap: .6vw; }
+.game h3 { margin: 0; font-size: clamp(1rem, 1.8vw, 1.7rem); }
+.game .when { margin-left: auto; font-family: var(--mono); color: var(--amber);
+              font-size: clamp(1rem, 2vw, 1.8rem); font-variant-numeric: tabular-nums; }
+.game .when.done { color: var(--dim); }
+.game .who { color: var(--dim); font-size: clamp(.7rem, 1.1vw, 1rem);
+             margin: .3vh 0 .6vh; }
+.game .q { font-size: clamp(.8rem, 1.3vw, 1.15rem); line-height: 1.35;
+           color: var(--text); margin: 0 0 .6vh;
+           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+           overflow: hidden; }
+.game table { margin-top: .2vh; }
+.game td { padding: .35vh .3vw; font-size: clamp(.75rem, 1.2vw, 1.15rem); }
+.game .addr { font-family: var(--mono); color: var(--dimmer);
+              font-size: clamp(.65rem, 1vw, .9rem); margin-bottom: .5vh; }
+.game .flag { font-size: clamp(.65rem, 1vw, .9rem); font-family: var(--mono);
+              color: var(--dimmer); }
+.game .flag.bad { color: var(--red); }
+.head .btn { font-family: var(--sans); font-size: clamp(.7rem, 1.1vw, 1rem);
+             background: var(--panel-2); color: var(--dim); cursor: pointer;
+             border: 1px solid var(--line); border-radius: 999px;
+             padding: .3vh .8vw; }
+.head .btn:hover { color: var(--text); border-color: var(--amber); }
 .closehint { position: fixed; right: .8vw; bottom: .6vh; color: var(--dimmer);
              font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
              opacity: .55; }
@@ -71,6 +110,7 @@ tr.gold td { color: #ffd479; }
   <div class="head">
     <h1 id="title">ELMER</h1>
     <span class="sub" id="sub"></span>
+    <button class="btn" id="showall" hidden>&larr; All tournaments</button>
     <span class="clock" id="clock">—</span>
   </div>
   <div id="stage"><div class="waiting">Waiting for net control…</div></div>
@@ -169,16 +209,139 @@ function idle(board) {
     </div>`;
 }
 
+/* ------------------------------------------------- the wall of tournaments */
+/* A hall can hold several at once, and a board that could only show the one
+   running on the Pi it happens to be plugged into was showing the wrong thing:
+   the screen at the front of a room should show the room. So every game this
+   unit can hear gets a card, and a card can be opened into the full board.
+   With one game running there is nothing to choose between, and the wall is
+   skipped entirely. */
+
+let focused = new URLSearchParams(location.search).get('net');
+if (focused === null) focused = undefined;   // undefined: nothing chosen yet
+
+function leaders(game) {
+  /* The top of whatever this game counts - tables in a hall, players at a
+     lone table. Five, because from the back of a room a card is read at a
+     glance and a full leaderboard is what opening one is for. */
+  const b = game.board || {};
+  if (game.kind === 'hall') {
+    return (b.units || []).slice(0, 5)
+      .map(u => [u.name, u.score, u.players + 'p']);
+  }
+  const all = [];
+  (b.cohorts || []).forEach(c => (c.members || []).forEach(m => all.push(m)));
+  all.sort((a, b2) => b2.score - a.score || a.name.localeCompare(b2.name));
+  return all.slice(0, 5).map(m => [m.name, m.score, m.correct + '/' + m.answered]);
+}
+
+function gameCard(game) {
+  const b = game.board || {};
+  const round = b.round;
+  const open = round && !round.closed;
+  const left = !round ? null
+    : (game.kind === 'hall' ? Math.max(0, (round.seconds || 0) - (round.elapsed || 0))
+                            : (round.remaining || 0));
+  const who = game.kind === 'hall'
+    ? `${b.units_present || 0} table${b.units_present === 1 ? '' : 's'} · ` +
+      `${b.players || 0} player${b.players === 1 ? '' : 's'}`
+    : `${b.people || 0} player${b.people === 1 ? '' : 's'}` +
+      (b.bots ? ` · ${b.bots} practice` : '');
+  const rows = leaders(game).map(([name, score, extra], i) => `
+    <tr class="${i === 0 && score > 0 ? 'gold' : ''}">
+      <td class="pos">${i + 1}</td><td>${esc(name)}</td>
+      <td class="ms">${esc(extra)}</td><td class="pts">${score}</td></tr>`).join('');
+  const q = (round && round.question) || {};
+  const flag = game.error && !game.board
+      ? '<span class="flag bad">not answering</span>'
+      : game.stale ? '<span class="flag bad">quiet for ' + Math.round(game.age_s) + 's</span>'
+      : game.here ? '<span class="flag">on this unit</span>' : '';
+  // A div rather than a button: a card holds a table of standings, and a
+  // table inside a button is not something a browser is obliged to draw.
+  return `<div class="game ${game.here ? 'here' : ''}" role="button" tabindex="0"
+       data-open="${esc(game.url)}">
+      <div class="top">
+        <h3>${esc(game.name || 'Tournament')}</h3>
+        <span class="when ${open ? '' : 'done'}">${
+          left === null ? '—' : (open ? Math.ceil(left) + 's' : 'scored')}</span>
+      </div>
+      <div class="who">${who}${round ? ' · round ' + round.number : ''} ${flag}</div>
+      ${game.url ? `<div class="addr">${esc(game.url.replace(/^https?:\/\//, ''))}</div>` : ''}
+      ${open && q.text ? `<p class="q">${esc(q.text)}</p>` : ''}
+      <table>${rows}</table>
+    </div>`;
+}
+
+function wall(games) {
+  return `<div class="games">${games.map(gameCard).join('')}</div>`;
+}
+
+stage.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('[data-open]');
+  if (card) { e.preventDefault(); card.click(); }
+});
+
+stage.addEventListener('click', e => {
+  const card = e.target.closest('[data-open]');
+  if (!card) return;
+  focused = card.getAttribute('data-open');
+  paintedPhase = null;
+  tick();
+});
+document.getElementById('showall').addEventListener('click', () => {
+  focused = null;                    // null: the wall, deliberately
+  paintedPhase = null;
+  tick();
+});
+
 async function tick() {
-  let board;
+  let games, known = 0, where = '';
   try {
-    const r = await fetch('/api/board');
+    const r = await fetch('/api/boards');
     if (!r.ok) { document.getElementById('clock').textContent = '—'; return; }
-    board = await r.json();
+    const all = await r.json();
+    known = (all.games || []).length;
+    games = (all.games || []).filter(g => g.board);
+    where = all.where || '';
   } catch (e) {
     document.getElementById('sub').textContent = 'lost contact with the server';
     return;
   }
+
+  // A neighbour's board takes a moment to arrive - the first poll sets the
+  // fetch going and the next one has it. Say so, rather than flashing "no
+  // tournament running" at a room where several are.
+  if (!games.length && known) {
+    document.getElementById('clock').textContent = '—';
+    if (paintedPhase !== 'finding') {
+      paintedPhase = 'finding';
+      stage.innerHTML = '<div class="waiting">Finding the tournaments on ' +
+                        'this network&hellip;</div>';
+    }
+    return;
+  }
+
+  const showAll = document.getElementById('showall');
+  // One game and there is nothing to choose between; several and the wall is
+  // the default, until somebody opens one.
+  const chosen = games.length > 1 && focused !== null
+    ? games.find(g => g.url === focused) || (games.length === 1 ? games[0] : null)
+    : (games.length === 1 ? games[0] : null);
+  showAll.hidden = !(chosen && games.length > 1);
+
+  if (games.length > 1 && !chosen) {
+    document.getElementById('title').textContent =
+      games.length + ' tournaments on the network';
+    document.getElementById('sub').textContent = '';
+    document.getElementById('clock').textContent = '—';
+    stage.innerHTML = wall(games);
+    paintedPhase = 'wall';
+    return;
+  }
+
+  const board = chosen ? chosen.board : {kind: 'idle', where: where};
+  if (chosen && chosen.name) board.name = board.name || chosen.name;
 
   if (board.kind === 'idle') {
     document.getElementById('title').textContent = 'ELMER';

@@ -65,6 +65,12 @@ class Bridge:
         self.reported_round = 0      # net round this table has handed in
         self.pending = None          # a report waiting for the network
         self.last_contact = 0.0
+        # Which net this is, learned at check-in. A network can hold several -
+        # Technician here, General in the next room - and a table that can only
+        # say it is reporting to an address cannot tell anybody which
+        # tournament it is actually in.
+        self.net_name = ""
+        self.net_difficulty = ""
 
     # ------------------------------------------------------------- transport
 
@@ -93,6 +99,10 @@ class Bridge:
         self.state = "joined"
         self.last_error = None
         self.last_contact = time.time()
+        which = reply.get("net") or {}
+        if which.get("name"):
+            self.net_name = str(which["name"])[:60]
+            self.net_difficulty = str(which.get("difficulty") or "")[:20]
         return reply.get("round")
 
     def _start_local(self, room, rnd):
@@ -179,6 +189,7 @@ class Bridge:
 
     def as_dict(self):
         return {"url": self.url, "unit": self.unit_id, "name": self.name,
+                "net_name": self.net_name, "difficulty": self.net_difficulty,
                 "state": self.state, "error": self.last_error,
                 "net_round": self.seen_round,
                 "reported": self.reported_round,

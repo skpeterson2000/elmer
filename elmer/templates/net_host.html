@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Net control &middot; ELMER</title>
+<title>{{ net_name }} &middot; ELMER</title>
 <link rel="stylesheet" href="{{ asset('elmer.css') }}">
 <style>
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
@@ -40,7 +40,7 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
 <div class="wrap">
   <div class="head">
     <a class="btn sm ghost" href="/" title="back to ELMER">&larr; ELMER</a>
-    <h1>Net control</h1>
+    <h1 id="netname">{{ net_name }}</h1>
     <span class="cap" id="cap"></span>
     <a class="btn sm" href="/net/board" target="_blank">Open the big board &rarr;</a>
     <button class="btn sm danger" id="endnet">End the net</button>
@@ -53,9 +53,11 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
       <p class="joinline" id="where">{{ where }}</p>
       <p style="color:var(--dim);font-size:.85rem;margin:.2rem 0 0">
         On each table's Pi open <code>/party</code>, put this address in the
-        Net control box and press Join. Eight players per table; the players
-        never talk to this machine, and a table remembers the address across
-        a reboot.</p>
+        Net control box and press Join &mdash; or let it find this net by
+        itself, from the panel at the foot of its dashboard. Eight players per
+        table; the players never talk to this machine, and a table remembers
+        the address across a reboot. A network can hold several nets at once,
+        and a table joins the one it wants by name.</p>
       <div class="units" id="units"><span class="empty">no tables yet</span></div>
     </div>
   </div>
@@ -65,12 +67,12 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
       <select class="btn" id="difficulty">
         <optgroup label="Amateur">
         {% for key, label in amateur %}
-          <option value="{{ key }}">{{ label }}</option>
+          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}>{{ label }}</option>
         {% endfor %}
         </optgroup>
         <optgroup label="Commercial">
         {% for key, label in commercial %}
-          <option value="{{ key }}">{{ label }}</option>
+          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}>{{ label }}</option>
         {% endfor %}
         </optgroup>
       </select>
@@ -110,6 +112,7 @@ async function tick() {
   if (!r.ok) return;
   const b = r.data, h = b.health || {}, round = b.round;
 
+  if (b.name) document.getElementById('netname').textContent = b.name;
   document.getElementById('cap').textContent =
     `${h.units || 0}/${h.cap || 0} tables · ${b.players || 0} players` +
     (h.healthy === false ? ' · busy' : '');

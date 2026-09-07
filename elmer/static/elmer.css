@@ -41,6 +41,13 @@ h2 { font-size: 1.1rem; }
 h3 { font-size: .95rem; }
 p { margin: 0 0 .8rem; }
 
+/* A thing told to be hidden is hidden, whatever else it is. A class that sets
+   a display of its own - .btn is inline-flex - quietly beats the browser's
+   own rule for the attribute, which is how a Stop button nobody had started
+   anything for sat on the CW screen from the moment it loaded, and how the
+   table screen offered to leave a net it had not joined. */
+[hidden] { display: none !important; }
+
 /* ---------- top bar ---------- */
 .topbar {
   display: flex; align-items: center; gap: 1.4rem;
@@ -722,13 +729,21 @@ b.ok { color: var(--green); } b.warn { color: var(--amber); } b.bad { color: var
 
 /* Other ELMERs on the network. Present when there is company, absent when
    there is not - a panel that says "nobody is here" every day is a panel
-   people stop reading. */
-ul.peers { list-style: none; margin: .5rem 0 .2rem; padding: 0; }
-ul.peers .peer {
-  display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
-  padding: .35rem .2rem; border-bottom: 1px solid var(--line);
+   people stop reading. What it holds is the three parts this unit can play,
+   one to a line: the choice on the left, what it means on the right. */
+ul.roles { list-style: none; margin: .4rem 0 .2rem; padding: 0; }
+ul.roles .role {
+  display: grid; grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: .2rem .8rem; align-items: baseline;
+  padding: .45rem .2rem; border-bottom: 1px solid var(--line);
 }
-ul.peers .peer:last-child { border-bottom: 0; }
-ul.peers .peer a { font-weight: 600; }
-.pill.ok { background: rgba(63,185,80,.14); color: var(--green);
-           border: 1px solid rgba(63,185,80,.35); }
+ul.roles .role:last-child { border-bottom: 0; }
+ul.roles .role .btn { white-space: nowrap; }
+ul.roles .role select.btn { max-width: 11rem; }
+/* How many tables are already in a net, inside the button that joins it. */
+ul.roles .role .count { opacity: .65; font-weight: 400; }
+
+@media (max-width: 560px) {
+  /* On a phone the explanation goes under the choice rather than beside it. */
+  ul.roles .role { grid-template-columns: 1fr; }
+}
