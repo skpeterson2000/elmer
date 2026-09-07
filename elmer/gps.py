@@ -66,7 +66,11 @@ def usable(tpv, host="", port=0):
         return {"lat": float(tpv["lat"]), "lon": float(tpv["lon"]),
                 "alt_m": tpv.get("alt"), "mode": tpv.get("mode"),
                 "time": tpv.get("time"), "read_at": time.time(),
-                "from": f"{host}:{port}"}
+                # Every fix says where it came from. Callers were left to
+                # assume it when the field was absent, and an assumption about
+                # the provenance of a position is the wrong thing to leave to
+                # a caller - one of them decides whether to pass it on.
+                "source": "gps", "from": f"{host}:{port}"}
     except (TypeError, ValueError):
         return None
 
@@ -237,6 +241,13 @@ def fix(conn=None, max_age=FRESH_FOR):
         # after gpsd has been asked and had nothing to say.
         from . import phonegps
         found = phonegps.current()
+    if not found:
+        # Another ELMER on the same network that has a receiver. It announces
+        # its fix; this one takes it. Same idea as TowerWitch's broadcast and
+        # deliberately separate: that is the arrangement when TowerWitch is
+        # running, this one holds when it is not.
+        from . import discovery
+        found = discovery.borrowed_fix()
     if not found:
         # Last, what TowerWitch last knew. It is not a live fix and is not
         # presented as one - the age it was written travels with it - but on a

@@ -620,6 +620,18 @@ def main():
             # at either end, so it is on unless somebody has turned it off.
             # A station that has to be told twice about the GPS it already
             # broadcasts is a station somebody has to keep fixing.
+            # One ELMER should know when there is another on the network:
+            # a unit with a receiver can tell one without, and neither should
+            # have to be told the other exists before a club night.
+            if _db.unit_get(_conn, "discovery", "on") != "off":
+                from elmer import discovery as _disc
+                from elmer.app import _describe_this_unit
+                try:
+                    _disc.start(_describe_this_unit)
+                except OSError as _exc:
+                    import logging
+                    logging.getLogger("elmer").info(
+                        "not announcing to other ELMERs: %s", _exc)
             if _db.unit_get(_conn, "towerwitch_net", "on") != "off":
                 from elmer import towerwitch as _tw
                 try:

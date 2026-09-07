@@ -25,7 +25,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               autoplay, bugreport, cohort, conductors, diagnostics, gating,
+               autoplay, bugreport, cohort, conductors, diagnostics,
+               discovery, gating,
                gps, netcontrol,
                party, phonegps, qr,
                reachout, repeaters,
@@ -1888,6 +1889,59 @@ def api_doctor():
     return jsonify({"checks": checks, "counts": counts,
                     "sound": counts.get("FAIL", 0) == 0,
                     "checked_at": time.time()})
+
+
+def _describe_this_unit():
+    """What this unit tells the network about itself, for discovery.
+
+    Called from the announcing thread, so it takes no request context and
+    never raises: a unit that cannot describe itself should go quiet, not
+    bring a thread down.
+    """
+    out = {"unit": cohort.default_unit_id(), "version": "", "party": {}}
+    try:
+        out["version"] = (update.state() or {}).get("head") or ""
+    except Exception:
+        pass
+    try:
+        found = diagnostics.local_addresses()
+        host = found[0][1] if found else "127.0.0.1"
+        out["url"] = f"http://{host}:{app.config.get('PORT', 5000)}"
+        out["name"] = out["unit"]
+    except Exception:
+        out.setdefault("url", "")
+        out.setdefault("name", out["unit"])
+    try:
+        connection = db.connect()
+        out["share_position"] = db.unit_get(connection, "share_position",
+                                            "on") != "off"
+        fix = gps.fix(connection)
+        # Never pass on a position that came from another unit. Two units with
+        # no receiver would otherwise echo one between themselves for ever,
+        # and it would never age out or be traceable to a real receiver.
+        if fix and fix.get("source") != "elmer-peer":
+            out["fix"] = fix
+    except Exception:
+        pass
+    try:
+        room = party.room()
+        if room is not None:
+            state = room.health()
+            out["party"] = {"running": bool(room.round),
+                            "players": state.get("players", 0),
+                            "seats": state.get("seats", 0)}
+    except Exception:
+        pass
+    return out
+
+
+@app.route("/api/peers")
+def api_peers():
+    """Other ELMERs on this network, and what they are up to."""
+    live = discovery.neighbourhood()
+    if live is None:
+        return jsonify({"running": False, "peers": [], "count": 0})
+    return jsonify(live.as_dict())
 
 
 @app.route("/api/gps/raw")
