@@ -56,8 +56,35 @@ def xp_for_answer(correct, ms, card, was_due):
     return points
 
 
+# One day of rest earned for every six studied, which is the oldest scheduling
+# advice there is. A streak that a single missed evening destroys stops being a
+# reason to study and becomes a reason to dread missing one; rest that has been
+# earned is a different thing from rest that is simply given.
+REST_EARNED_EVERY = 7
+
+
+def rest_days(conn):
+    """Rest days banked, spent, and available right now."""
+    row = conn.execute("SELECT streak_days FROM profile WHERE id = ?",
+                       (conn.user_id,)).fetchone()
+    streak = row["streak_days"] if row else 0
+    from . import db
+    spent = db.kv_get(conn, "rest_spent", 0) or 0
+    earned = streak // REST_EARNED_EVERY
+    return {"earned": earned, "spent": spent,
+            "available": max(0, earned - spent), "streak": streak}
+
+
 def touch_streak(conn):
-    """Roll the daily streak forward. Returns the streak length after today."""
+    """Roll the daily streak forward. Returns the streak length after today.
+
+    A missed day does not automatically end a streak. One rest day is banked
+    for every seven consecutive days studied, and missing a single day spends
+    one if any is available - so a long streak carries the slack it earned,
+    and a short one does not. Missing two days in a row ends it regardless:
+    the bank covers a day off, not a lapse in the habit.
+    """
+    from . import db
     row = conn.execute(
         "SELECT streak_days, best_streak, last_study_day FROM profile WHERE id = ?",
         (conn.user_id,)
@@ -66,15 +93,31 @@ def touch_streak(conn):
     streak = row["streak_days"]
     if last == now:
         return streak
-    if last and date.fromisoformat(last) == date.fromisoformat(now) - timedelta(days=1):
+
+    gap = None
+    if last:
+        gap = (date.fromisoformat(now) - date.fromisoformat(last)).days
+
+    rested = False
+    if gap == 1:
         streak += 1
+    elif gap == 2 and rest_days(conn)["available"] > 0:
+        # Exactly one day missed, and there is rest in hand to cover it.
+        db.kv_set(conn, "rest_spent", (db.kv_get(conn, "rest_spent", 0) or 0) + 1)
+        streak += 1
+        rested = True
     else:
         streak = 1
+        db.kv_set(conn, "rest_spent", 0)
+
     best = max(streak, row["best_streak"])
     conn.execute(
         "UPDATE profile SET streak_days = ?, best_streak = ?, last_study_day = ? "
         "WHERE id = ?", (streak, best, now, conn.user_id),
     )
+    if rested:
+        log = __import__("logging").getLogger("elmer")
+        log.info("streak: a rest day covered the gap, now %d days", streak)
     return streak
 
 

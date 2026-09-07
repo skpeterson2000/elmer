@@ -275,7 +275,8 @@ def readiness(pool, per_question, per_section, trials=4000, seed=None):
     }
 
 
-def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None):
+def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
+              new_left=None, review_left=None):
     """Cards to study next: overdue first, then unseen, then weakest.
 
     Priority is the point of the schedule and is not negotiable: what is
@@ -330,6 +331,18 @@ def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None):
     rng.shuffle(rest)
     overdue.sort(key=lambda x: -x[1])
     rest.sort(key=lambda x: x[1])
+    # Today's remaining budget, if the caller is keeping one. Trimmed after the
+    # sort so what survives is the most urgent of each kind, not the first
+    # a random shuffle happened to name.
+    if review_left is not None:
+        overdue = overdue[:max(0, review_left)]
+        # Working ahead is maintenance too, and it draws on the same budget.
+        # Without this the day has no bottom: the reviews and the new material
+        # run out, and the queue quietly starts offering cards that are not
+        # due yet - which is the treadmill this exists to stop.
+        rest = rest[:max(0, review_left - len(overdue))]
+    if new_left is not None:
+        fresh = fresh[:max(0, new_left)]
     order = _interleave([i for i, _ in overdue], [i for i, _ in fresh])
     order += [i for i, _ in rest]
     return order[:limit] if limit else order
@@ -364,3 +377,50 @@ def _interleave(reviews, new, every=NEW_EVERY):
     out.extend(r)
     out.extend(n)
     return out
+
+
+# --- a day that can be finished ---------------------------------------------
+# An schedule with no bottom is a treadmill: however much is done, the pile
+# looks the same, and the only signal available is guilt. A day that can be
+# finished is the difference between a game and a chore.
+#
+# Learning and remembering are budgeted apart because they cost differently.
+# Meeting a question for the first time earns it a steep curve - it will be
+# back within the day, then in a day, then four - so every new card taken on
+# today is a commitment to several sightings this week. Maintaining one already
+# known is a single glance at a long interval. Twenty new questions is a
+# substantial evening; a hundred and twenty reviews is twenty minutes. Budget
+# them from one pot and the new material either crowds out the maintenance or
+# quietly stops happening.
+DAILY_NEW = 20
+DAILY_REVIEW = 120
+
+
+def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW):
+    """How much of today's work is left, counted separately.
+
+    Counts distinct questions rather than answers, so a card seen twice in one
+    session - which relearning makes ordinary - does not eat two of the day's
+    allowance.
+    """
+    from .db import today
+    rows = conn.execute(
+        "SELECT question_id, MIN(ts) first_ts FROM answer_log "
+        "WHERE user_id = ? AND day = ? AND pool_id = ? GROUP BY question_id",
+        (conn.user_id, today(), pool_id)).fetchall()
+    done = {r["question_id"] for r in rows}
+    # A question first met today is new work; anything else was maintenance.
+    seen_before = conn.execute(
+        "SELECT DISTINCT question_id FROM answer_log "
+        "WHERE user_id = ? AND day < ? AND pool_id = ?",
+        (conn.user_id, today(), pool_id)).fetchall()
+    older = {r["question_id"] for r in seen_before}
+    fresh_done = len(done - older)
+    review_done = len(done & older)
+    return {
+        "new_done": fresh_done, "new_left": max(0, new_limit - fresh_done),
+        "review_done": review_done,
+        "review_left": max(0, review_limit - review_done),
+        "new_limit": new_limit, "review_limit": review_limit,
+        "done": fresh_done >= new_limit and review_done >= review_limit,
+    }
