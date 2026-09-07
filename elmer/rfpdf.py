@@ -149,8 +149,8 @@ def _privileges_page(evaluation, s):
         channels = ", ".join(_mhz(c["mhz"]) for c in table["channels_60m"])
         flow += [Spacer(1, 4), Paragraph(
             "<b>60 m is five fixed channels</b>, not a band: " + channels +
-            " MHz (centre frequencies, USB). No other frequency in that range "
-            "may be used.", s["small"])]
+            " MHz, the USB dial settings. No other frequency in that range may "
+            "be used.", s["small"])]
 
     flow += [Spacer(1, 8), Paragraph(
         "Segment edges are the edges of the privilege, not of your signal: your "

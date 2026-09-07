@@ -6,13 +6,14 @@ const KIND_COLOUR = {
   simplex: '#c9d13a', calling: '#ffffff', special: '#8b98a5',
 };
 
-let bpData = null, bpRegional = null, bpBand = null;
+let bpData = null, bpRegional = null, bpBand = null, bpChannels = [];
 
 function bpClass() { return document.getElementById('bp-class').value; }
 function bpState() { return document.getElementById('bp-state').value; }
 
 async function bpLoad() {
   bpData = await api('/api/bandplan?class=' + encodeURIComponent(bpClass()));
+  bpChannels = bpData.channels_60m || [];
   document.getElementById('bp-legend').innerHTML =
     bpData.kinds.map(([k, label]) =>
       '<span class="legend"><i style="background:' + KIND_COLOUR[k] + '"></i>' +
@@ -51,6 +52,21 @@ async function bpLoadRegional() {
     const r = await api('/api/bandplan/regional/' + encodeURIComponent(st));
     bpRegional = r.ok ? r : null;
   } catch (e) { bpRegional = null; }
+}
+
+/* 60 m is five 2.8 kHz channels and nothing in between, which on a bar 77 kHz
+   wide is five slivers a reader could easily take for rounding. So they are
+   named under the bar, at the frequency an operator actually dials - the
+   suppressed carrier, 1.5 kHz below the channel centre the rules name. */
+function channelTicks(band) {
+  if (!band.channelised || !bpChannels.length) return '';
+  const span = band.high - band.low;
+  const at = f => ((f - band.low) / span) * 100;
+  return '<div class="chanticks">' + bpChannels.map(c =>
+    '<i style="left:' + at(c.centre).toFixed(3) + '%" title="' + c.name +
+      ' — channel centre ' + c.centre.toFixed(4) + ' MHz, 2.8 kHz wide">' +
+      '<b>' + c.n + '</b><span>' + c.dial.toFixed(4) + '</span></i>').join('') +
+    '</div>';
 }
 
 function bpRender() {
@@ -120,7 +136,9 @@ function bpRender() {
       '<span class="mono tiny muted">' + band.low + ' – ' + band.high + ' MHz · ' +
         escapeHTML(band.group) + '</span></div>' +
       '<div class="bandbar">' + bars + gaps + '</div>' +
+      channelTicks(band) +
       '<div class="bandscale"><span>' + band.low + '</span><span>' + band.high + '</span></div>' +
+      conditionBar(band) +
       '<div class="grid cols-2 mt">' +
         '<div><div class="panel-title">Your privileges — 47 CFR 97.301</div>' +
           '<ul class="privlist">' + priv + '</ul></div>' +
@@ -290,12 +308,152 @@ api('/api/nifog').then(d => {
 
 let bpProp = null;
 
-api('/api/propagation').then(d => { bpProp = d.ok ? d : null; }).catch(() => {});
+/* The outlook, not the snapshot: the same space weather, asked band by band
+   and hour by hour. It costs no network of its own - the unit works it out
+   from the reading the dashboard already fetched. */
+api('/api/propagation/outlook').then(d => {
+  bpProp = d.ok ? d : null;
+  if (bpProp && bpData) bpRender();       // it arrived after the first draw
+}).catch(() => {});
 
 function conditionsFor(band) {
   if (!bpProp) return null;
   const key = band.name.replace(/\s+/g, '');
   return (bpProp.bands || []).find(b => b.band === key) || null;
+}
+
+/* ---------------------------------------------------- how good is it, now */
+/* A wall chart rates a group of bands Poor, Fair or Good, twice a day. That
+   answers "is it worth turning the radio on". It does not answer the question
+   an operator is actually holding, which is whether to call CQ on SSB now or
+   come back at eight o'clock and use CW - and the difference between those two
+   is most of an evening. So: one number for this band at this hour, what it
+   means for the mode, and the shape of the next day beside it.
+
+   The number is a model and is labelled as one wherever it appears. It knows
+   the sun's angle here, the MUF, and the state of the field; it knows nothing
+   about your antenna, your power or the far end. What it is right about is the
+   shape of the day, which is what timing is decided on. */
+
+const QUALITY_CLASS = s =>
+  s >= 80 ? 'q4' : s >= 60 ? 'q3' : s >= 35 ? 'q2' : s >= 15 ? 'q1' : 'q0';
+
+function hourLabel(iso) {
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2, '0');
+}
+
+function forecastStrip(cond) {
+  const rows = cond.hours || [];
+  if (!rows.length) {
+    return '<div class="tiny muted">Set a QTH on the ' +
+      '<a href="/propagation">propagation page</a> and this becomes an ' +
+      'hour-by-hour outlook for where you are &mdash; the sun\'s angle at your ' +
+      'own location is most of what decides it.</div>';
+  }
+  const cells = rows.map((h, i) => {
+    const label = hourLabel(h.at);
+    // "now" under the first cell, then every sixth hour: enough to read the
+    // shape against the clock without turning the strip into a ruler.
+    const tick = i === 0 ? 'now' : (i % 6 === 0 ? label : '');
+    return '<i class="fc ' + QUALITY_CLASS(h.score) + (i === 0 ? ' now' : '') +
+      (h.day ? ' day' : '') +
+      '" title="' + label + ':00 local — ' + h.score +
+      '/100, MUF about ' + h.muf + ' MHz' + (h.day ? ', daylight' : ', dark') +
+      '">' + (tick ? '<span>' + tick + '</span>' : '') + '</i>';
+  }).join('');
+  /* Said as an operator would say it: "now until eight", not a pair of
+     timestamps - and a band that never shuts should not be reported as
+     open from four o'clock until four o'clock. */
+  const first = rows[0].at, last = rows[rows.length - 1].at;
+  const wins = (cond.windows || []).map(w => {
+    const a = hourLabel(w.from), b = hourLabel(w.to);
+    if (w.from === first && w.to === last) return '<b>right through the day</b>';
+    if (w.from === first) return '<b>now until ' + b + ':00</b>';
+    return '<b>' + a + ':00&ndash;' + b + ':00</b>';
+  });
+  const say = wins.length
+    ? 'Worth using ' + wins.join(' and ') + ' &mdash; best about ' +
+      Math.max(...cond.windows.map(w => w.best)) + '/100, local time.'
+    : '<b>No usable window in the next day</b> on these numbers &mdash; the ' +
+      'band stays under what a contact needs.';
+  return '<div class="fcstrip">' + cells + '</div>' +
+    '<div class="tiny muted fcsay">' + say +
+    ' Colour is how good the hour looks; the pale bar along the foot of a ' +
+    'cell is daylight.</div>';
+}
+
+/* Above about 30 MHz none of this applies, and pretending otherwise would put
+   "Closed, 0/100" on 2 m every day of the year. The F layer does not refract
+   up there: openings are sporadic E, tropospheric ducting and aurora, which
+   are local, short-lived and not forecast from a solar flux number. So the
+   bands above HF get what is actually known - what the network is reporting
+   right now - and an honest sentence about why there is no curve. */
+function vhfBox(band) {
+  const v = (bpProp && bpProp.vhf) || {};
+  const eskip = v['E-Skip/north_america'] || '';
+  const aurora = v['vhf-aurora/northern_hemi'] || '';
+  const open = t => t && !/closed/i.test(t);
+  const bits = [];
+  if (eskip) bits.push('<span class="pill ' + (open(eskip) ? 'q4' : 'q0') +
+    '">Sporadic E: ' + escapeHTML(eskip) + '</span>');
+  if (aurora) bits.push('<span class="pill ' + (open(aurora) ? 'q2' : 'q0') +
+    '">Aurora: ' + escapeHTML(aurora) + '</span>');
+  return '<div class="condbox">' +
+    '<div class="condhead"><span class="panel-title" style="margin:0">' +
+      'Conditions on ' + escapeHTML(band.name) + ' now</span>' + bits.join(' ') +
+    '</div>' +
+    '<div class="tiny muted">Above about 30 MHz the F layer does not bend a ' +
+      'signal back, so there is no MUF to be under and no daily curve to ' +
+      'show. What opens these bands is sporadic E, tropospheric ducting and ' +
+      'aurora &mdash; local, short-lived, and not predictable from a solar ' +
+      'flux number. The line above is what the network is reporting at this ' +
+      'moment' + (bpProp && bpProp.aurora ? ', with the auroral activity index at ' +
+      bpProp.aurora : '') + '. Line of sight is always there: for that, the ' +
+      '<a href="/lab#ant">antenna and terrain tools</a> are the ones that ' +
+      'answer.</div></div>';
+}
+
+function conditionBar(band) {
+  if (band.high > 30) return vhfBox(band);
+  const cond = conditionsFor(band);
+  if (!cond || !cond.now) {
+    return '<div class="condbox"><div class="tiny muted">Band conditions ' +
+      'unavailable &mdash; the space-weather feed could not be reached.</div></div>';
+  }
+  const now = cond.now;
+  const st = bpProp.station;
+  const where = st ? escapeHTML(st.name) + ', ' + st.km + ' km away, ' +
+    st.age_minutes + ' min ago' : '';
+  /* Where the MUF came from, in the words that are true of it. A reading a
+     long way from the model is not thrown away and not swallowed either: it
+     is pulled as far as it is allowed to go, and the line says so. */
+  const from = bpProp.muf_source === 'measured'
+    ? 'MUF measured at ' + where
+    : bpProp.muf_source === 'bounded'
+      ? 'MUF from the sonde at ' + where + ' (' + st.measured + ' MHz), held ' +
+        'partway back to the model, which disagrees with it'
+      : 'MUF estimated from SFI ' + bpProp.sfi;
+  return '<div class="condbox">' +
+    '<div class="condhead">' +
+      '<span class="panel-title" style="margin:0">Conditions on ' +
+        escapeHTML(band.name) + ' now</span>' +
+      '<span class="pill ' + QUALITY_CLASS(now.score) + '">' +
+        escapeHTML(now.label) + ' &middot; ' + now.score + '/100</span>' +
+      (cond.rating ? '<span class="tiny muted">wall chart says ' +
+        escapeHTML(cond.rating) + '</span>' : '') +
+    '</div>' +
+    '<div class="condmeter"><i class="' + QUALITY_CLASS(now.score) +
+      '" style="width:' + now.score + '%"></i></div>' +
+    '<div class="small condmode"><b>' + escapeHTML(now.modes) + '</b></div>' +
+    '<div class="tiny muted">' + escapeHTML(now.why) + '. ' + from +
+      '; K index ' + bpProp.k_index + '.</div>' +
+    '<div class="panel-title mt" style="margin-bottom:.3rem">The next 24 hours</div>' +
+    forecastStrip(cond) +
+    '<div class="tiny muted fcnote">A model, not a prediction service: sun ' +
+      'angle, MUF and the state of the field, with today\'s flux held where it ' +
+      'is. It knows nothing about your antenna or the far end.</div>' +
+    '</div>';
 }
 
 function segMiddle(a) {
@@ -308,10 +466,11 @@ function segCardHTML(a, band, forPick) {
   const cond = conditionsFor(band);
   const you = a.you || {state: 'no'};
   const range = a.high > a.low ? a.low + '–' + a.high : String(a.low);
-  const rate = cond
-    ? '<div class="small"><b>' + escapeHTML(cond.rating) + '</b> on ' +
-      escapeHTML(band.name) + ' right now' +
-      (cond.note ? ' — ' + escapeHTML(cond.note) : '') + '</div>' +
+  const rate = cond && cond.now
+    ? '<div class="small"><span class="pill ' + QUALITY_CLASS(cond.now.score) +
+      '">' + escapeHTML(cond.now.label) + ' · ' + cond.now.score + '/100</span> ' +
+      'on ' + escapeHTML(band.name) + ' right now</div>' +
+      '<div class="tiny">' + escapeHTML(cond.now.modes) + '</div>' +
       '<div class="tiny muted">MUF about ' + (bpProp.muf || '?') + ' MHz · ' +
       'SFI ' + bpProp.sfi + ' · K ' + bpProp.k_index + '</div>'
     : '<div class="tiny muted">Band conditions unavailable.</div>';

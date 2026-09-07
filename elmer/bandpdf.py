@@ -210,13 +210,15 @@ def _band_row(group, x, y, width, name, license_class):
         from .bandplan import CHANNELS_60M
         kind = _segment_kind(emissions_in(segments[0][2]))
         width_mhz = 0.0028
-        for centre, label in CHANNELS_60M:
-            sx = bar_x + (centre - low) / span * bar_w
+        for channel in CHANNELS_60M:
+            sx = bar_x + (channel["centre"] - low) / span * bar_w
             sw = max(2.0, width_mhz / span * bar_w)
             group.add(Rect(sx - sw / 2, y - 2, sw, BAR_H,
                            fillColor=SEG_COLOUR[kind],
                            strokeColor=colors.white, strokeWidth=0.3))
-            group.add(String(sx, y - 13, _mhz(centre), fontSize=5,
+            # The dial setting, not the channel centre: this sheet is read
+            # with a radio in front of you, and that is the number you type.
+            group.add(String(sx, y - 13, _mhz(channel["dial"]), fontSize=5,
                              textAnchor="middle",
                              fillColor=colors.HexColor("#444444")))
         pep, erp = limits_in(segments[0][2])

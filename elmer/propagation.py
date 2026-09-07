@@ -107,6 +107,12 @@ def estimate_muf(sfi, elevation):
     fof2 = 2.5 + 0.055 * max(0.0, sfi - 60.0)          # night floor to solar max
     day_gain = max(0.0, math.sin(math.radians(max(elevation, 0.0)))) ** 0.35
     fof2 *= 0.55 + 0.75 * day_gain
+    # The F layer thins at night; it does not go away. Without a floor the
+    # model closed 40m at midnight in a quiet sun, which is the one thing
+    # every operator knows to be false - it is the band the night belongs to.
+    # Mid-latitude foF2 sits around 2.5 MHz on a quiet night, which is a MUF
+    # near 8 MHz, and that is what the floor says.
+    fof2 = max(fof2, 2.5)
     return round(fof2 * 3.2, 1), round(fof2, 1)        # secant factor ~3.2
 
 
@@ -204,6 +210,174 @@ def verdict(sfi, k, a):
                 "bands open in daylight.")
     return ("Low flux. Expect the action on 40m and below, with 20m opening "
             "around daylight hours.")
+
+
+# --- how good a band is, as a number ----------------------------------------
+#
+# A wall chart says Poor, Fair or Good for a group of bands, twice a day. That
+# is enough to know whether to bother; it is not enough to decide whether to
+# call CQ on SSB now or wait two hours and use CW, which is the decision an
+# operator is actually making. So ELMER computes a number for one band at one
+# moment, out of the three things that decide it and can be known here:
+#
+#   The band against the MUF. Above the maximum usable frequency a signal
+#   goes through the F layer instead of coming back, so the band is shut. Just
+#   under it is the sweet spot - the least absorption for the longest hop -
+#   and well under it the path still works but every hop costs more.
+#
+#   D-layer absorption. The D layer exists only in daylight and absorbs in
+#   proportion to roughly the inverse square of frequency, which is why 80m is
+#   a local band at noon and a continental one at midnight.
+#
+#   The geomagnetic field. A disturbed field means absorption and flutter,
+#   worst on paths near the poles, and a noisier low band.
+#
+# It is a teaching-grade model and says so wherever it is shown. It is not
+# VOACAP: it knows nothing about your antenna, your power, the far end, or the
+# path between you. What it is honest about is the shape of the day, and the
+# shape of the day is what timing decisions are made on.
+
+QUALITY = [(80, "Excellent"), (60, "Good"), (35, "Fair"), (15, "Poor"),
+           (0, "Closed")]
+
+# What a score is worth in practice. FT8 and CW get through where SSB will not
+# - about 10 to 15 dB below it - so the same band is open for one and shut for
+# the other, and saying which is the whole point of a number rather than a
+# word.
+MODES = [
+    (60, "SSB, and anything below it"),
+    (38, "CW and FT8 comfortably; SSB will be a struggle"),
+    (18, "FT8 and CW only"),
+    (0, "nothing much - the band is not open"),
+]
+
+
+def _pick(table, score):
+    for floor, label in table:
+        if score >= floor:
+            return label
+    return table[-1][1]
+
+
+def band_score(mhz, muf, elevation, k_index=2.0):
+    """0-100 for one band at one moment, with the reason in words.
+
+    `elevation` is the sun's angle at the operator's QTH: negative is night,
+    which is when the D layer is gone and the MUF is at its lowest.
+    """
+    muf = max(1.0, float(muf or 1.0))
+    ratio = mhz / muf
+    if ratio <= 1.0:
+        # Best just under the MUF, tailing off as the band drops away from it.
+        near = 1.0 - abs(ratio - 0.8) / 0.8
+        score = 45.0 + 55.0 * max(0.0, near)
+        why = (f"{mhz:g} MHz is {ratio:.2f} of the {muf:g} MHz MUF"
+               + (" - about where the band works best" if 0.6 <= ratio <= 0.95
+                  else ""))
+    else:
+        # Over the top: it does not fade out, it stops.
+        # Not a cliff edge: MUF(3000) is a median for a long hop, and shorter
+        # paths, sporadic E and a good day at the far end all live just over
+        # the line. Past about a third above it, nothing does.
+        score = max(0.0, 34.0 - 100.0 * (ratio - 1.0))
+        why = (f"{mhz:g} MHz is above the {muf:g} MHz MUF - signals go through "
+               "the F layer instead of coming back")
+
+    sun = max(0.0, math.sin(math.radians(max(elevation, -90.0))))
+    # Daytime D-layer absorption, heaviest on the lowest bands and gone by
+    # about 10 MHz. The exponent is the textbook inverse-square softened for
+    # the fact that this is a rating and not a link budget.
+    absorb = 45.0 * (sun ** 0.6) * (3.5 / max(mhz, 1.0)) ** 1.6
+    absorb = min(absorb, 55.0)
+    if absorb > 6:
+        why += ("; daylight D-layer absorption is what limits it"
+                if mhz <= 10.1 else "; a little daytime absorption")
+
+    storm = min(40.0, max(0.0, float(k_index or 0) - 2.0) * 7.0)
+    if storm > 6:
+        why += f"; K {k_index:g} means absorption and flutter, worst near the poles"
+
+    score = max(0.0, min(100.0, score - absorb - storm))
+    return {"score": round(score), "label": _pick(QUALITY, score),
+            "modes": _pick(MODES, score), "why": why,
+            "muf": round(muf, 1), "ratio": round(ratio, 2)}
+
+
+# How far a measurement is allowed to drag the model. A sonde a few hundred
+# miles away measuring twice what the model expects is telling the truth about
+# the sky; one disagreeing by more than this is measuring a different sky, or
+# is broken, and the curve it would produce is worse than the plain model.
+ANCHOR_RANGE = (0.5, 2.0)
+
+
+def muf_anchor(sfi, lat, lon, measured, when=None):
+    """How far the model has to be scaled to meet a measured MUF, bounded.
+
+    The factor is worked out once and used for every hour, so the level comes
+    from the ionosonde and the shape from the sun - and, more to the point, so
+    the meter that says how good the band is now and the strip that says how
+    the day looks cannot contradict each other.
+    """
+    if not measured or lat is None:
+        return 1.0
+    when = when or datetime.now(timezone.utc)
+    modelled, _ = estimate_muf(sfi, solar_elevation(lat, lon, when))
+    if not modelled:
+        return 1.0
+    low, high = ANCHOR_RANGE
+    return max(low, min(high, float(measured) / modelled))
+
+
+def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
+            muf_now=None, anchor=None):
+    """The next 24 hours on one band, hour by hour.
+
+    The sun's position is the one thing about tomorrow that is known exactly,
+    and on HF it is most of the answer: it sets the MUF, and it switches the D
+    layer on and off. So the flux and the field are held where they are now -
+    they move slowly, and pretending to forecast them would be inventing
+    numbers - and the sun is allowed to do what it is going to do anyway.
+
+    When a measured MUF is passed in, the modelled curve is scaled to meet it
+    at this hour, so the shape is the model's and the level is the ionosphere's.
+    """
+    start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
+                                                          microsecond=0)
+    if anchor is None:
+        anchor = muf_anchor(sfi, lat, lon, muf_now, start)
+    out = []
+    for step in range(hours + 1):
+        when = start + timedelta(hours=step)
+        elevation = solar_elevation(lat, lon, when)
+        muf, fof2 = estimate_muf(sfi, elevation)
+        muf = round(muf * anchor, 1)
+        got = band_score(mhz, muf, elevation, k_index)
+        got.update({"at": when.isoformat(), "hour": when.hour,
+                    "elevation": round(elevation, 1), "fof2": round(fof2, 1),
+                    "day": elevation > -6})
+        out.append(got)
+    return out
+
+
+def windows(hours, floor=38):
+    """When a band is worth using, said as times rather than as a graph.
+
+    The graph shows the shape; this is the sentence somebody reads off it -
+    the runs of hours at or above a usable score, in the order they happen.
+    """
+    runs, live = [], None
+    for row in hours:
+        if row["score"] >= floor:
+            live = live or row
+        elif live:
+            runs.append((live, row))
+            live = None
+    if live:
+        runs.append((live, hours[-1]))
+    return [{"from": a["at"], "to": b["at"],
+             "best": max(h["score"] for h in hours
+                         if a["at"] <= h["at"] <= b["at"])}
+            for a, b in runs]
 
 
 INDICATORS = [
