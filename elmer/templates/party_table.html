@@ -110,7 +110,7 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
           {% endfor %}
           </optgroup>
         </select>
-        <input class="btn" id="seconds" type="number" min="10" max="180" value="30"
+        <input class="btn" id="seconds" type="number" min="15" max="180" value="60"
                style="width:4.6rem" title="seconds per question">
         <button class="btn primary" id="tourney">&#9873; Start tournament</button>
         <button class="btn" id="stopt" hidden>Stop</button>
@@ -214,8 +214,11 @@ async function tick() {
   const clock = document.getElementById('clock');
   if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
   const waiting = document.getElementById('waiting');
-  if (waiting) waiting.textContent =
-    `${round.answered} in, ${round.waiting_on} still thinking`;
+  if (waiting) waiting.textContent = round.waiting_on
+    ? `${round.waiting_on} player${round.waiting_on === 1 ? '' : 's'} still thinking`
+    : (round.waiting_on_all
+        ? 'everyone is in — waiting on the practice players'
+        : 'everyone is in');
 }
 
 /* ------------------------------------------------------- tournament mode */
