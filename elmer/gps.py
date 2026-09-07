@@ -22,7 +22,11 @@ import time
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 2947
-TIMEOUT = 2.5             # seconds to wait for a fix before giving up
+# Long enough for a receiver that reports every few seconds to get a word in.
+# ?POLL usually answers instantly, so this is the safety net rather than the
+# normal path - and a unit with no GPS at all still fails in well under it,
+# because nothing is listening and the connection is refused outright.
+TIMEOUT = 5.0             # seconds to wait for a fix before giving up
 FRESH_FOR = 30.0          # how long a fix is reused before asking again
 STALE_AFTER = 300.0       # a fix older than this is history, not position
 
@@ -47,8 +51,39 @@ def target(conn=None):
     return host.strip() or DEFAULT_HOST, port
 
 
+def usable(tpv, host="", port=0):
+    """One gpsd TPV report as a fix, or None if it is not one.
+
+    mode 2 is a 2D fix - position without altitude, which is every answer
+    ELMER needs. mode 1 is "no fix yet" and is not a position at all, whatever
+    else the report carries.
+    """
+    if not isinstance(tpv, dict) or tpv.get("class") not in (None, "TPV"):
+        return None
+    if tpv.get("mode", 0) < 2 or tpv.get("lat") is None:
+        return None
+    try:
+        return {"lat": float(tpv["lat"]), "lon": float(tpv["lon"]),
+                "alt_m": tpv.get("alt"), "mode": tpv.get("mode"),
+                "time": tpv.get("time"), "read_at": time.time(),
+                "from": f"{host}:{port}"}
+    except (TypeError, ValueError):
+        return None
+
+
 def read_fix(host=None, port=None, timeout=TIMEOUT):
-    """One position from gpsd, or None. Never raises, never waits long."""
+    """One position from gpsd, or None. Never raises, never waits long.
+
+    Asks two ways at once, because watching alone was not enough. ?WATCH only
+    delivers a report when the receiver next sends one, so the wait is however
+    long that device's cycle happens to be - and a receiver reporting every few
+    seconds put a perfectly good fix on the far side of the timeout. A station
+    was reported as unable to find itself while the other program on the same
+    Pi was showing a 3D fix on twelve satellites, which is exactly that.
+
+    ?POLL asks gpsd for what it already knows instead, and answers immediately
+    from its cache. Both are sent; whichever arrives first is the answer.
+    """
     host = host or DEFAULT_HOST
     port = port or DEFAULT_PORT
     deadline = time.monotonic() + timeout
@@ -57,12 +92,12 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
     except OSError:
         return None
     try:
-        sock.sendall(b'?WATCH={"enable":true,"json":true};\n')
+        sock.sendall(b'?WATCH={"enable":true,"json":true};\n?POLL;\n')
         buffer = b""
         while time.monotonic() < deadline:
             sock.settimeout(max(0.1, deadline - time.monotonic()))
             try:
-                chunk = sock.recv(4096)
+                chunk = sock.recv(8192)
             except OSError:
                 break
             if not chunk:
@@ -74,20 +109,17 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
                     message = json.loads(line)
                 except ValueError:
                     continue
-                if message.get("class") != "TPV":
-                    continue
-                # mode 2 is a 2D fix: position without altitude, which is
-                # every answer ELMER needs. mode 1 is "no fix yet" and is not
-                # a position at all, whatever else the sentence carries.
-                if message.get("mode", 0) < 2 or message.get("lat") is None:
-                    continue
-                return {"lat": float(message["lat"]),
-                        "lon": float(message["lon"]),
-                        "alt_m": message.get("alt"),
-                        "mode": message.get("mode"),
-                        "time": message.get("time"),
-                        "read_at": time.time(),
-                        "from": f"{host}:{port}"}
+                kind = message.get("class")
+                if kind == "TPV":
+                    found = usable(message, host, port)
+                    if found:
+                        return found
+                elif kind == "POLL":
+                    # The cached answer: a list of reports, newest first.
+                    for tpv in message.get("tpv") or []:
+                        found = usable(tpv, host, port)
+                        if found:
+                            return found
     except OSError:
         return None
     finally:
