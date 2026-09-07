@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ row.title }} &middot; ELMER{% endblock %}
+{% block body %}
+
+{# The PDF is shown in the page it was made from, and printed from there. A
+   full-screen browser has no tabs and no downloads shelf, so a file handed to
+   the desktop is a file out of reach - and this is the one thing on the unit
+   that is meant to end up on paper. #}
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">{{ row.title }}</h1>
+    <div class="quiz-context mono">{{ row.name }}</div>
+  </div>
+  <div class="row">
+    <button class="btn primary" id="pv-print">Print</button>
+    <a class="btn" href="/prints/{{ row.id }}.pdf?save=1" download="{{ row.name }}">Save a copy</a>
+    <button class="btn ghost" id="pv-back" hidden>&larr; Back</button>
+    <a class="btn ghost" href="/prints">All printouts</a>
+  </div>
+</div>
+
+<div class="panel mt pdfframe">
+  <iframe id="pv-frame" src="/prints/{{ row.id }}.pdf#toolbar=1&amp;navpanes=0"
+          title="{{ row.title }}"></iframe>
+</div>
+
+<p class="tiny muted mt">
+  Print sends it to whatever printer this machine has set up; the same dialog
+  will also save it as a file if there is no printer. If the sheet comes out
+  cropped, choose <b>Fit to page</b> and landscape &mdash; the chart is drawn
+  landscape at A4 and letter both. If the page above stays blank, this browser
+  has no PDF viewer of its own: <b>Save a copy</b> and open it with a reader.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* Print the PDF itself rather than the page around it: same origin, so the
+   frame's own print dialog is ours to open, and what comes out is the
+   document rather than a screenshot of a viewer. */
+/* Back to whatever made this, when there is something to go back to. The
+   button that built it navigated here, so history is the way home - and in a
+   full-screen browser there is no other. */
+const back = document.getElementById('pv-back');
+if (history.length > 1) {
+  back.hidden = false;
+  back.addEventListener('click', () => history.back());
+}
+
+document.getElementById('pv-print').addEventListener('click', () => {
+  const frame = document.getElementById('pv-frame');
+  try {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  } catch (e) {
+    window.open('/prints/{{ row.id }}.pdf', '_blank');
+  }
+});
+</script>
+{% endblock %}

@@ -325,6 +325,23 @@ drawn from the allocations themselves rather than modelled on anybody's chart.
 **Full chart (PDF)** is the reference behind it: every activity segment in a
 table per band, with the regional segments folded in.
 
+**Where a printout goes.** Nowhere, is the answer that was wrong. A PDF built
+here used to be handed to the browser, which put it in a downloads folder — and
+on a Pi running full screen, with no tabs, no address bar and no file manager
+in reach, that is behind the application. The one thing on the unit that is
+meant to end up on paper was the one thing you had to leave the unit to get at.
+
+So the unit keeps what it prints. Building a chart now opens it, in the page,
+with **Print** beside it; every printout is listed under **Printouts** in the
+top bar, and can be opened, printed, saved out as a file or thrown away from
+there. The last thirty are kept and the oldest drop off by themselves — nothing
+on the shelf is the only copy of anything, since each one is rebuilt by the
+button that made it from the rules and pools on this unit.
+
+Print goes to whatever printer the machine has set up, and the same dialog will
+save it as a file when there is no printer. What is shown is the PDF itself
+rather than a picture of it, so what comes out of the printer is the document.
+
 The page also points at the **NIFOG** — the National Interoperability Field
 Operations Guide, published by CISA at the Department of Homeland Security and
 revised most years. It is the pocket reference that the standard interoperability
@@ -1324,6 +1341,7 @@ elmer/
   regional.py         frequency coordinator plans, fetched per state
   rfexposure.py       MPE limits and power density, per OET-65 Supplement B
   rfpdf.py            the printable station record
+  prints.py           the shelf of PDFs this unit has built, kept where it made them
   terrain.py          ground elevation profiles for the path tool
   explain.py          assembles rule text, concept notes and your own notes
   propagation.py      space weather fetch and band interpretation
@@ -1345,6 +1363,7 @@ data/
   explanations/       per-question rationales
   rules/              47 CFR Part 97 text
   terrain/            cached elevation profiles
+  prints/             what this unit has printed, newest thirty
   elmer.db            your progress
   elmer.log           request and error log
 ```

@@ -27,6 +27,11 @@
     <a href="/bandplan" {% if request.path.startswith('/bandplan') %}class="on"{% endif %}>Band Plan</a>
     <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
     <a href="/out" {% if request.path.startswith('/out') %}class="on"{% endif %}>Make Contact</a>
+    {# The one page that has to be reachable an hour later rather than only in
+       the moment: a chart printed this morning is looked for from wherever the
+       operator happens to be, and in a full-screen browser the nav is the only
+       way there. #}
+    <a href="/prints" {% if request.path.startswith('/prints') %}class="on"{% endif %}>Printouts</a>
   </nav>
   <div class="status">
     <div class="who">

@@ -196,12 +196,9 @@ document.getElementById('bp-card').addEventListener('click', async () => {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({class: bpClass(), layout: 'card'})});
     if (!res.ok) throw new Error(res.status);
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement('a');
-    a.href = url; a.download = 'band-card.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast('One-page chart ready', 'Print it and pin it up');
+    /* Straight to it. A chart that lands in a downloads folder is behind the
+       application on a machine with no way out of it and no way back. */
+    location.href = (await res.json()).view;
   } catch (e) { toast('Could not build it', 'See data/elmer.log'); }
   btn.disabled = false; btn.textContent = 'One page (PDF)';
 });
@@ -216,14 +213,9 @@ document.getElementById('bp-pdf').addEventListener('click', async () => {
                             bands: bpData.bands.map(b => b.name),
                             interop: !!(document.getElementById('bp-interop') || {}).checked})});
     if (!res.ok) throw new Error(res.status);
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement('a');
-    a.href = url; a.download = 'band-plan.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast('Band chart ready', 'Print it and pin it up');
+    location.href = (await res.json()).view;
   } catch (e) { toast('Could not build the chart', 'See data/elmer.log'); }
-  btn.disabled = false; btn.textContent = 'Download chart (PDF)';
+  btn.disabled = false; btn.textContent = 'Full chart (PDF)';
 });
 
 bpLoad();

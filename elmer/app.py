@@ -19,8 +19,8 @@ from pathlib import Path
 
 from urllib.parse import urlsplit
 
-from flask import (Flask, abort, g, jsonify, render_template, request,
-                   send_from_directory, url_for)
+from flask import (Flask, Response, abort, g, jsonify, render_template,
+                   request, send_from_directory, url_for)
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
@@ -28,7 +28,7 @@ from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                autoplay, bugreport, cohort, conductors, diagnostics,
                discovery, gating, netwatch,
                gps, netcontrol,
-               party, phonegps, qr,
+               party, phonegps, prints, qr,
                reachout, repeaters,
                terrain, update)
 from .content import get_pool, load_pools, presentation
@@ -728,9 +728,77 @@ def api_bandplan_regional(state):
     return jsonify({"ok": True, **data})
 
 
+# ------------------------------------------------------------- printouts
+# A PDF built here used to go straight into the browser's downloads folder,
+# which on a Pi running full screen with no tabs and no address bar meant
+# leaving ELMER to find a file manager. So the unit keeps what it prints and
+# hands back where to look at it, and the looking happens inside the app.
+
+def _print_reply(row, raw=False):
+    """Where to find a freshly built PDF - or, if asked, the PDF itself.
+
+    The pages want the address, because they show it in the application rather
+    than handing it to the desktop. Anything driving ELMER from a script wants
+    the bytes, and asking for them with raw=1 still leaves a copy on the shelf.
+    """
+    if raw:
+        pdf = prints.read(row["id"])
+        return Response(pdf, mimetype="application/pdf", headers={
+            "Content-Disposition": f'attachment; filename="{row["name"]}"',
+            "Content-Length": str(len(pdf))})
+    return jsonify({"ok": True, "id": row["id"], "name": row["name"],
+                    "title": row["title"], "bytes": row["bytes"],
+                    "view": url_for("print_view", print_id=row["id"]),
+                    "file": url_for("print_file", print_id=row["id"])})
+
+
+def _wants_raw(body):
+    return (request.args.get("raw") == "1"
+            or str(body.get("raw", "")).lower() in ("1", "true"))
+
+
+@app.route("/prints")
+def prints_page():
+    """Everything this unit has printed, and a way to print it again."""
+    return render_template("prints.html", shelf=prints.shelf(),
+                           keep=prints.KEEP, **profile_block(conn()))
+
+
+@app.route("/prints/<print_id>")
+def print_view(print_id):
+    """One printout, shown in the page rather than handed to the desktop."""
+    row = prints.one(print_id)
+    if row is None:
+        abort(404, "no such printout")
+    return render_template("print_view.html", row=row,
+                           **profile_block(conn()))
+
+
+@app.route("/prints/<print_id>.pdf")
+def print_file(print_id):
+    """The bytes, inline: this is what the viewer and the print dialog read."""
+    pdf = prints.read(print_id)
+    if pdf is None:
+        abort(404, "no such printout")
+    row = prints.one(print_id) or {"name": "printout.pdf"}
+    how = "attachment" if request.args.get("save") == "1" else "inline"
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'{how}; filename="{row["name"]}"',
+        "Content-Length": str(len(pdf))})
+
+
+@app.route("/api/prints")
+def api_prints():
+    return jsonify({"prints": prints.shelf(), "keep": prints.KEEP})
+
+
+@app.route("/api/prints/<print_id>", methods=["DELETE"])
+def api_prints_delete(print_id):
+    return jsonify({"deleted": prints.forget(print_id)})
+
+
 @app.route("/api/bandplan/pdf", methods=["POST"])
 def api_bandplan_pdf():
-    from flask import Response
     body = request.get_json(force=True) or {}
     license = body.get("class", "Technician")
     if license not in bandplan.CLASSES:
@@ -743,11 +811,16 @@ def api_bandplan_pdf():
     else:
         pdf = bandpdf.build(bands, license, plan,
                             interop=bool(body.get("interop")))
+    card = body.get("layout") == "card"
     name = f"band-plan-{license.lower()}{'-' + state.lower() if state else ''}.pdf"
+    if card:
+        name = f"band-card-{license.lower()}.pdf"
     log.info("band chart PDF: %s, %d bands, regional=%s", license, len(bands), state or "none")
-    return Response(pdf, mimetype="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="{name}"',
-        "Content-Length": str(len(pdf))})
+    row = prints.keep(pdf, name, "band-card" if card else "band-chart",
+                      f"{'One-page chart' if card else 'Full band chart'} "
+                      f"- {license}" + (f", {state}" if state else ""),
+                      {"class": license, "state": state})
+    return _print_reply(row, _wants_raw(body))
 
 
 @app.route("/cw")
@@ -1376,7 +1449,6 @@ def api_rf_exposure():
 @app.route("/api/rf-exposure/pdf", methods=["POST"])
 def api_rf_exposure_pdf():
     """The same evaluation as a station record to print and post."""
-    from flask import Response
     station, cases = _rf_payload(request.get_json(force=True) or {})
     if not cases:
         abort(400, "no bands to evaluate")
@@ -1390,10 +1462,11 @@ def api_rf_exposure_pdf():
     name = f"RF-exposure-{call}-{station['date']}.pdf"
     log.info("RF exposure PDF generated for %s: %d bands, compliant=%s",
              call, len(cases), evaluation["compliant"])
-    return Response(pdf, mimetype="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="{name}"',
-        "Content-Length": str(len(pdf)),
-    })
+    row = prints.keep(pdf, name, "rf-exposure",
+                      f"Station RF exposure record - {call}",
+                      {"callsign": call, "date": station["date"],
+                       "compliant": evaluation["compliant"]})
+    return _print_reply(row, _wants_raw(request.get_json(silent=True) or {}))
 
 
 @app.route("/api/callsign/<call>")

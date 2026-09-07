@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Printouts &middot; ELMER{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">Printouts</h1>
+    <div class="quiz-context">
+      Everything this unit has built as a PDF, kept here so it can be read and
+      printed without leaving ELMER to go looking for a downloads folder.
+    </div>
+  </div>
+  <div class="row">
+    <a class="btn sm ghost" href="/bandplan">Band charts</a>
+    <a class="btn sm ghost" href="/lab#rf">Station RF record</a>
+  </div>
+</div>
+
+{% if shelf %}
+  <div class="panel mt">
+    <table class="data printouts">
+      <tbody>
+      {% for row in shelf %}
+        <tr>
+          <td>
+            <a class="printname" href="/prints/{{ row.id }}">{{ row.title }}</a>
+            <div class="tiny muted mono">{{ row.name }}</div>
+          </td>
+          <td class="tiny muted when" data-at="{{ row.made_at }}">&mdash;</td>
+          <td class="tiny muted mono">{{ (row.bytes / 1024)|round|int }} kB</td>
+          <td class="row" style="gap:.4rem;justify-content:flex-end">
+            <a class="btn sm" href="/prints/{{ row.id }}">Open</a>
+            <a class="btn sm ghost" href="/prints/{{ row.id }}.pdf?save=1"
+               download="{{ row.name }}">Save a copy</a>
+            <button class="btn sm ghost" data-forget="{{ row.id }}">Delete</button>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="tiny muted mt">
+    The last {{ keep }} are kept and the oldest drop off by themselves. Nothing
+    here is the only copy of anything &mdash; every one of them is rebuilt by
+    the button that made it, from the rules and the pools on this unit.
+  </p>
+{% else %}
+  <div class="panel mt">
+    <div class="panel-title">Nothing printed yet</div>
+    <p class="small">
+      Build a chart from the <a href="/bandplan">band plan</a> &mdash; the
+      one-page picture to pin up, or the full reference &mdash; or a station RF
+      exposure record from the <a href="/lab#rf">lab</a>. Whatever you build
+      lands here, and opens in the page rather than in a folder somewhere
+      behind the application.
+    </p>
+  </div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.when').forEach(el => {
+  const at = parseFloat(el.dataset.at) * 1000;
+  if (at) el.textContent = new Date(at).toLocaleString();
+});
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-forget]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await fetch('/api/prints/' + btn.dataset.forget, {method: 'DELETE'});
+    btn.closest('tr').remove();
+  } catch (err) { btn.disabled = false; }
+});
+</script>
+{% endblock %}
