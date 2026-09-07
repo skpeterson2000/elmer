@@ -13,6 +13,9 @@
 {% if row.closed_why %}
   <p class="pool-gate-note">{{ row.closed_why }}</p>
   <button class="btn sm ghost" data-open-pools>Open every pool anyway</button>
+{% elif row.tournament %}
+  <a class="btn sm tournament" href="/party/1?difficulty={{ row.tournament }}">
+    &#9873; Tournament</a>
 {% endif %}
 
   <div class="grid cols-3" style="gap:.7rem">
@@ -221,6 +224,20 @@
 <h2 class="mt">Commercial &mdash; FCC operator licenses</h2>
 <div class="grid cols-2">
   {% for row in summary if row.pool.track == 'commercial' %}{{ pool_card(row) }}{% endfor %}
+</div>
+
+<div class="panel master-panel">
+  <div>
+    <b>Master game controller</b>
+    <p>Run a tournament across a whole class of cohorts &mdash; many tables, one
+       question at a time, one leaderboard. Each table keeps its own eight
+       players; this machine only keeps the score.</p>
+  </div>
+  <div class="master-actions">
+    <a class="btn primary" href="/net">Open net control</a>
+    <a class="btn" href="/net/board">Big board</a>
+    <a class="btn ghost" href="/party/1">This table only</a>
+  </div>
 </div>
 
 <div class="panel mt">

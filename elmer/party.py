@@ -1,9 +1,17 @@
-"""Study parties: cohorts of players racing the same question.
+"""Tournament mode: cohorts of players racing the same question.
 
 An instructor with a room full of people has a different problem from a lone
 operator with a Pi on the bench. The material is the same; the shape of the
 evening is not. This is the room layer - who is here, which cohort they are on,
 what question is on the screen, and who got there first.
+
+A tournament never shows an explanation. Everywhere else in ELMER the reason an
+answer is right appears the moment somebody commits to one, because that is
+where the learning is - but a tournament is a race, and stopping a hall of
+people mid-round to read a paragraph is neither. The payload a round carries is
+deliberately the question, its choices and its figure and nothing else; the
+explanations are a keystroke away in the pool browser afterwards, which is when
+somebody actually wants to argue about them.
 
 Three things decide the design, and all three came from measuring this Pi
 rather than guessing at it:
@@ -28,6 +36,7 @@ interval is the only honest answer. It is bounded against the server's own
 elapsed time, because a number the client supplies is a number the client can
 invent, and somebody in a room full of radio amateurs will try.
 """
+import random
 import threading
 import time
 from collections import deque
@@ -59,18 +68,44 @@ DELIVERY_SLACK_MS = POLL_SECONDS * 1000.0 + 1500.0
 DIFFICULTIES = {"technician": "tech2026", "general": "gen2023",
                 "extra": "extra2024"}
 
+# --- practice opponents -----------------------------------------------------
+# One person alone with a question is studying, not playing. A table tops
+# itself up with practice opponents so there is a race to be in, and gives the
+# seats back the moment real people want them: a human joining retires a bot,
+# which is the right way round - the machine yields to the person.
+#
+# They are never disguised. Every one is flagged as a bot the whole way out to
+# the screen, because a leaderboard that quietly counts software among the
+# operators is a leaderboard that cannot be trusted at a club night.
+BOT_FLOOR = 0.6            # keep a cohort at least this full
+
+# Named for the ladder in ranks.py, so what a bot is meant to represent is
+# legible: accuracy, and the range of seconds it takes to answer.
+BOT_SKILLS = {
+    "Listener": (0.45, 6.0, 18.0),
+    "Learner":  (0.62, 4.5, 14.0),
+    "Operator": (0.78, 3.0, 10.0),
+    "Elmer":    (0.90, 2.0, 7.0),
+}
+
+BOT_NAMES = ["Sparks", "Skip", "Static", "Hertz", "Marconi", "Doppler",
+             "Ionos", "Ragchew", "Beacon", "Quench", "Pileup", "Grayline",
+             "Whip", "Vertical", "Dipole", "Halyard"]
+
 
 def _now():
     return time.monotonic()
 
 
 class Player:
-    """One person in the room, on one device."""
+    """One person in the room, on one device - or a practice opponent."""
 
-    def __init__(self, player_id, name, cohort_id):
+    def __init__(self, player_id, name, cohort_id, bot=None):
         self.id = player_id
         self.name = name
         self.cohort_id = cohort_id
+        # None for a person; the skill level's name for a practice opponent.
+        self.bot = bot
         self.joined_at = _now()
         self.last_seen = self.joined_at
         self.score = 0
@@ -80,7 +115,7 @@ class Player:
     def as_dict(self):
         return {"id": self.id, "name": self.name, "cohort": self.cohort_id,
                 "score": self.score, "answered": self.answered,
-                "correct": self.correct}
+                "correct": self.correct, "bot": self.bot}
 
 
 class Cohort:
@@ -119,6 +154,7 @@ class Round:
         self.opened_at = _now()
         self.seconds = seconds
         self.answers = {}          # player_id -> dict
+        self.bot_plan = {}         # player_id -> what a practice player will do
         self.closed = False
         self.winner_cohort = None
 
@@ -148,6 +184,7 @@ class Room:
         self.history = []
         self._next_id = 1
         self._service = deque(maxlen=HEALTH_WINDOW)
+        self.bots_wanted = False
         self.open = True
         for i in range(max(1, min(int(cohorts), MAX_COHORTS))):
             cid = i + 1
@@ -198,14 +235,22 @@ class Room:
         free = [(n, cid) for cid, n in counts.items() if n < COHORT_SIZE]
         return min(free)[1] if free else None
 
-    def join(self, name, cohort=None):
+    def join(self, name, cohort=None, bot=None):
         """Admit a player, or say plainly why not.
 
-        Returns (player, None) or (None, reason).
+        Returns (player, None) or (None, reason). A person arriving at a full
+        table takes a practice opponent's seat rather than being turned away -
+        the bots are there to make a thin room playable, not to occupy it.
         """
         with self.lock:
             if not self.open:
                 return None, "the room is closed"
+            if not bot:
+                # A person is never turned away while software holds a seat.
+                while (self.health()["seats"] <= 0
+                       and any(p.bot for p in self.players.values())):
+                    if not self.retire_bot():
+                        break
             state = self.health()
             if state["seats"] <= 0:
                 if state["cap"] < state["hard_cap"]:
@@ -215,17 +260,29 @@ class Room:
                 return None, (f"this unit is full at {state['cap']} players - "
                               f"try the next unit")
             cid = self._seat_cohort(cohort)
+            if cid is None and not bot:
+                # Every cohort full of a mix of people and practice players:
+                # take a seat back from the fullest one that has a bot in it.
+                if self.retire_bot():
+                    cid = self._seat_cohort(cohort)
             if cid is None:
                 return None, "every cohort is full"
             player = Player(self._next_id, (name or "").strip()[:32]
-                            or f"Player {self._next_id}", cid)
+                            or f"Player {self._next_id}", cid, bot=bot)
             self.players[player.id] = player
             self._next_id += 1
+            if not bot:
+                self.rebalance_bots()
             return player, None
 
     def leave(self, player_id):
         with self.lock:
-            return self.players.pop(player_id, None) is not None
+            gone = self.players.pop(player_id, None)
+            if gone is not None and not gone.bot:
+                # Somebody left; top the table back up so the room does not
+                # thin out under the people still playing.
+                self.rebalance_bots()
+            return gone is not None
 
     # ---------------------------------------------------------------- rounds
 
@@ -236,7 +293,135 @@ class Room:
             self.round_number += 1
             self.round = Round(self.round_number, pool_id, question_id,
                                answer_index, seconds, payload, tag)
+            self._plan_bots()
             return self.round
+
+    # ------------------------------------------------------ practice players
+
+    def _plan_bots(self):
+        """Decide now what each practice opponent will do, and when.
+
+        Deciding up front rather than at the moment of answering is what makes
+        them arrive spread across the round instead of all at once, which is
+        what a room of people actually looks like.
+        """
+        rnd = self.round
+        if rnd is None:
+            return
+        for player in self.players.values():
+            if not player.bot:
+                continue
+            accuracy, quick, slow = BOT_SKILLS[player.bot]
+            right = random.random() < accuracy
+            wrong = [i for i in range(4) if i != rnd.answer_index]
+            rnd.bot_plan[player.id] = {
+                "at": random.uniform(quick, min(slow, max(quick + 0.5,
+                                                          rnd.seconds - 1.0))),
+                "chosen": rnd.answer_index if right else random.choice(wrong),
+            }
+
+    def run_bots(self):
+        """Submit any practice answers whose moment has come.
+
+        Driven from outside on a tick, so nothing here needs a timer of its
+        own. The reported time is the one that was planned, which is the same
+        number a phone would have measured.
+        """
+        with self.lock:
+            rnd = self.round
+            if rnd is None or rnd.closed:
+                return 0
+            elapsed = _now() - rnd.opened_at
+            sent = 0
+            for player_id, plan in list(rnd.bot_plan.items()):
+                if player_id in rnd.answers or plan["at"] > elapsed:
+                    continue
+                got, _ = self.submit(player_id, plan["chosen"],
+                                     plan["at"] * 1000.0,
+                                     plan["at"] * 1000.0)
+                if got:
+                    sent += 1
+            return sent
+
+    def _bot_target(self):
+        """How full a cohort should be kept, counting practice opponents."""
+        import math
+        return max(2, math.ceil(COHORT_SIZE * BOT_FLOOR))
+
+    def rebalance_bots(self, level=None):
+        """Keep each cohort at the floor, with practice players making up only
+        the difference.
+
+        Bots fill the gap between the people present and the floor - they do
+        not take seats beyond it. So a table of one person plays against four,
+        a table of five people has none, and every person who arrives displaces
+        exactly one machine.
+        """
+        with self.lock:
+            if not self.bots_wanted:
+                return []
+            want = self._bot_target()
+            changed = []
+            used = {p.name for p in self.players.values()}
+            for cid in self.cohorts:
+                here = [p for p in self.players.values() if p.cohort_id == cid]
+                humans = [p for p in here if not p.bot]
+                bots = [p for p in here if p.bot]
+                need = max(0, min(want, COHORT_SIZE) - len(humans))
+                while len(bots) > need:
+                    leaving = max(bots, key=lambda p: p.id)
+                    bots.remove(leaving)
+                    self.players.pop(leaving.id, None)
+                    if self.round and not self.round.closed:
+                        self.round.bot_plan.pop(leaving.id, None)
+                    changed.append(("out", leaving))
+                while len(bots) < need and len(self.players) < self.cap:
+                    pool = [n for n in BOT_NAMES if n not in used]
+                    if not pool:
+                        break
+                    name = random.choice(pool)
+                    used.add(name)
+                    player = Player(self._next_id, name, cid,
+                                    bot=level or random.choice(list(BOT_SKILLS)))
+                    self.players[player.id] = player
+                    self._next_id += 1
+                    bots.append(player)
+                    changed.append(("in", player))
+            if changed and self.round and not self.round.closed:
+                self._plan_bots()
+            return changed
+
+    def fill_bots(self, level=None):
+        """Switch practice opponents on and top the table up."""
+        with self.lock:
+            self.bots_wanted = True
+            self.rebalance_bots(level)
+            return [p for p in self.players.values() if p.bot]
+
+    def retire_bot(self, cohort_id=None):
+        """Give a seat back. The machine yields to the person."""
+        with self.lock:
+            bots = [p for p in self.players.values() if p.bot
+                    and (cohort_id is None or p.cohort_id == cohort_id)]
+            if not bots:
+                return None
+            # The newest first, so a bot that has been playing a while and is
+            # on the board does not vanish out from under the scoreboard.
+            leaving = max(bots, key=lambda p: p.id)
+            self.players.pop(leaving.id, None)
+            if self.round and not self.round.closed:
+                self.round.bot_plan.pop(leaving.id, None)
+            return leaving
+
+    def clear_bots(self):
+        with self.lock:
+            self.bots_wanted = False
+            gone = [p.id for p in self.players.values() if p.bot]
+            for pid in gone:
+                self.players.pop(pid, None)
+                if self.round:
+                    self.round.bot_plan.pop(pid, None)
+            return len(gone)
 
     def submit(self, player_id, chosen_index, client_ms, server_ms=None):
         """Take one answer, timed by the player's own clock.
@@ -362,6 +547,9 @@ class Room:
                            key=lambda c: -c["score"])
             out = {
                 "open": self.open,
+                "bots": sum(1 for p in self.players.values() if p.bot),
+                "people": sum(1 for p in self.players.values() if not p.bot),
+                "bots_on": self.bots_wanted,
                 "health": self.health(),
                 "cohorts": board,
                 "round": None,
