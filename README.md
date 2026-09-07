@@ -5,6 +5,11 @@ current US license question pools — amateur (NCVEC) and commercial (FCC) — w
 a live propagation dashboard and a lab of the calculators the exams actually
 test.
 
+It also runs a **tournament**: the same questions as a race, for one person
+against practice opponents, for a table of eight joining by QR code from their
+own phones, or for a hall of up to a hundred tables scored against each other
+from one Raspberry Pi.
+
 Runs as a small local web app. Open it on the Pi itself, or from a phone or
 laptop on the same network.
 
@@ -17,7 +22,9 @@ pip install -r requirements.txt
 #   ELMER is on http://192.168.1.5:5000
 ```
 
-The pools ship built, so it runs straight from a clone — no build step.
+The pools ship built, so it runs straight from a clone — no build step. The
+only dependencies are Flask, Pillow and reportlab; everything else, including
+the QR encoder, is the standard library.
 
 
 ---
@@ -65,6 +72,67 @@ Study modes:
 - **Lapses** — the ones that have caught you out before
 - **Contest** — five-minute rapid-fire round
 - Or drill any single syllabus section from the progress and browse pages
+
+**Forgetting something costs a setback, not a restart.** A lapse used to zero
+the interval, throwing away every day of spacing a card had earned and sending
+a question known at thirty days back to the bottom of the ladder beside one
+never seen. Maintaining knowledge is far cheaper than acquiring it and the
+schedule now says so: a lapse keeps a share of the spacing as a record of how
+well the card was known, brings it back within ten minutes, and resumes near
+where it was on the next correct answer. A card at thirty days that slips
+recovers to about ten; a brand-new card answered wrongly still starts at one.
+
+**The next date is jittered.** With fixed intervals everything answered in one
+sitting comes due in one sitting for ever, which is why a day's load used to
+look like a copy of the day before. Sixty mature cards answered together used
+to land on a single day; they now spread across eight, and a long-interval
+batch across forty or more. The spread grows with the interval, and short
+intervals get at least a day of scatter once there is room for it, because that
+is where the daily volume actually comes from. Variable schedules are also the
+better arrangement for retention, and for wanting to come back.
+
+**The day can be finished.** Drill budgets learning and remembering apart,
+because they cost differently: meeting a question for the first time buys a
+steep curve and several sightings this week, while maintaining one already
+known is a single glance at a long interval. Twenty new and a hundred and
+twenty reviews are separate allowances rather than competing for one pot, and
+when both are spent ELMER says what was done and that tomorrow is when the rest
+will do the most good. Only drill is rationed — weak spots, new, lapses and
+contest are deliberate choices to work on something specific, and somebody who
+wants to keep going should not have to argue with the program about it.
+
+**A rest day is earned for every seven studied.** Missing a single day spends
+one if the bank holds any, and the streak carries on; missing two ends it
+regardless, because the bank covers a day off rather than a lapse in the habit.
+A three-day streak still resets — the slack has to be earned before it can be
+spent. A streak that one missed evening destroys stops being a reason to study
+and becomes a reason to dread missing one.
+
+### Where a newcomer starts
+
+Somebody who has just downloaded this and holds no licence is looking at 2,475
+questions across six pools, most of which are not their exam and three of which
+are not amateur radio at all. That is not a library, it is a wall. So the
+amateur ladder starts at Technician and opens as there is reason to.
+
+A licence class opens everything up to it and the pool above — everything at or
+below, not a two-rung window, because this program is named after the people
+who run Technician classes and a General reviewing the basics needs the lower
+pools. The class can be typed in as well as looked up, since callook serves the
+FCC ULS and nothing else, and a Canadian or British operator has a perfectly
+good callsign that resolves to nothing.
+
+Taking Technician to Elmer opens General with no callsign at all. The rank
+ladder already demands exam evidence at that tier, so it is demonstrated
+mastery rather than an assertion, and it is the honest route for somebody
+studying hard before they have ever sat an exam.
+
+And the gate can simply be switched off from the dashboard. Its purpose is to
+keep a first evening from being overwhelming, not to rule on what a licensed
+operator may read — so a closed pool is shown rather than hidden, dimmed, with
+a sentence saying what opens it and a button that opens everything. The
+commercial pools are not gated on an amateur licence at all: an Extra ticket
+says nothing whatever about readiness for a GROL.
 
 ### Explanations on every question
 
@@ -500,11 +568,22 @@ local solar elevation and day/night band ratings. It accepts a grid square,
 coordinates or a place name, and a QTH entered as a bare grid is given a
 readable name the first time it is used, so `FN31pr` shows as *Newington*.
 
-Where the browser allows it there is a **locate me** button. Browsers only
-permit geolocation in a secure context, which over plain HTTP means the machine
-itself — so it appears when you open ELMER on the Pi (including in `--kiosk`
-mode, which opens `localhost`) and stays hidden on the LAN address rather than
-offering something that would fail.
+There is a **locate me** button, and it asks the station's own GPS first.
+
+That is the right order, and it used to be the wrong one. The button called the
+browser's geolocation, which on Raspberry Pi OS resolves through a network
+lookup service Chromium has no key for and which never consults gpsd at all —
+so on the one machine with a receiver plugged into it, the browser was the
+source least able to answer, and the button failed while gpsd was reporting a
+3D fix half a metre away. It now takes the fix from the server, reverse-geocoded
+to a name where one is known, and falls back to the browser only when the
+station has nothing.
+
+It also used to be hidden entirely on the LAN address, because browsers permit
+geolocation only in a secure context and that check gated whether the button
+was drawn at all. The server's GPS has no such objection over plain HTTP, so a
+phone on the network can now locate the station even though its own browser
+would refuse to.
 
 ### Live propagation
 
@@ -765,6 +844,157 @@ and a timed contest mode.
 
 ---
 
+## Tournament mode
+
+A study tool assumes one person and a quiet evening. A club night is neither.
+Tournament mode is the same 2,475 questions run as a race: everybody gets the
+same question at the same moment, and the fastest correct answer takes the
+round.
+
+It works at three sizes, and the same engine runs all of them.
+
+**One person.** Open a tournament from any pool card on the dashboard. The
+table fills with practice opponents so there is a race to be in, and the match
+runs itself — question, answers, result, next question — until you stop it.
+
+**One table.** Up to eight people join by pointing a phone at the code on the
+screen. Nobody installs anything.
+
+**A hall.** One Pi per table, one running net control, and up to a hundred
+tables on a single master.
+
+### The race is timed by the player's own clock
+
+The browser reports the interval between painting the question and the button
+going down, and that is what the placings are drawn from. Arrival order at the
+server would measure network jitter instead: across thirty players answering
+at once that spread was 300 to 600 ms, which is longer than the difference in
+thinking that the race is supposed to be about.
+
+A number the client supplies is a number the client can invent, so it is
+bounded at both ends against the round clock. A stopwatch left running cannot
+report longer than the round has been open, and a claim far *under* it is not a
+fast finger — the phone cannot have seen the question much before the round
+started. That caps what a made-up time is worth at about one poll interval
+rather than letting "1 ms" win every round for ever. It does not make the race
+unspoofable, which nothing server-side can, and saying so is better than
+implying otherwise.
+
+### Joining, by QR
+
+Each table screen shows a code that carries its own join address. Scanning it
+opens the player screen on a phone: type a name, and you are in.
+
+The codes are generated on the Pi, from `elmer/qr.py`, in the standard library.
+A hall may have no uplink, Raspberry Pi OS refuses `pip install` under PEP 668,
+and there is no apt package — every route out of that ended either in a
+dependency ELMER cannot promise or in eight hundred people hand-typing a URL.
+So the encoder is written here from ISO/IEC 18004: byte mode, error correction
+level M, versions 1 to 10, which covers any join address a table will need.
+
+### Practice opponents
+
+A table of one is not a race. Practice opponents fill each cohort to sixty per
+cent and no further, so a table of one plays against four, a table of five has
+none, and every person who arrives displaces exactly one machine. A person is
+never turned away while software holds a seat.
+
+They are named for the rank ladder, so what each represents is legible:
+
+| | Accuracy | Answers in |
+|---|---|---|
+| Listener | 45% | 6–18 s |
+| Learner | 62% | 4.5–14 s |
+| Operator | 78% | 3–10 s |
+| Elmer | 90% | 2–7 s |
+
+Each decides what it will do when the round opens rather than at the moment of
+answering, so the answers arrive spread across the round the way a room of
+people does instead of all in the same instant.
+
+They are never disguised. Every one is flagged as a bot the whole way out to
+the screen, because a leaderboard that quietly counts software among the
+operators is one nobody can trust at a club night.
+
+### Cohorts, and who picks next
+
+Players are seated in cohorts of eight and scored as teams, so eight people
+answering steadily beats one answering brilliantly while seven guess. The
+winning cohort chooses the next question — difficulty and topic — and where two
+are level the pick goes to whichever is behind overall, so a runaway leader
+does not also own the question list. Where they are level on that too it is
+drawn, because sorting by name handed the same table every tie all evening.
+
+### Net control
+
+For anything larger than one table, a master unit runs the net. The load on it
+scales with the number of **tables, not players**: eight players poll the Pi in
+front of them and net control never sees any of it. It holds one conversation
+per table, which is why a hall fits on one Raspberry Pi.
+
+Measured on a Pi 5 acting as net control, tables checking in once a second:
+
+| Tables | Players | Check-in p95 |
+|---|---|---|
+| 25 | 200 | 15 ms |
+| 100 | 800 | 46 ms |
+| 200 | 1,600 | 100 ms |
+| 400 | 3,200 | 1,067 ms |
+
+The cap is a hundred tables — eight hundred seats — which keeps roughly a
+fourfold margin under the knee, and is well under the limit that actually binds
+at a public event, which is not the master but the wireless. Eight hundred
+phones is a serious access-point deployment; net control is the one part of the
+evening that will not be what breaks.
+
+A table that loses the network keeps working. The round in front of it finishes
+on its own clock, the report is held and sent when the master comes back, and
+net control counts the table as quiet and carries on without it. The hall does
+not stop because one Pi in the corner lost its wifi. A table also remembers its
+net control across a reboot — these Pis update and restart in the small hours,
+and nobody should have to walk twenty tables through a form before the doors
+open.
+
+### What a round costs
+
+A race is exactly the case that arrives all at once, so nothing in a round
+touches the database. The ordinary answer path performs about seven separate
+commits and SQLite takes the write lock for each, which caps a unit near
+forty-six answers a second. Round state is held in memory and written when the
+round closes: twenty-four players answering simultaneously are served in 33 ms.
+
+Admission is capped and the cap moves. Sixty players at once took five seconds
+on a Pi 5; thirty took 642 ms. A unit stops admitting at twenty-four and lowers
+that figure further when it is measurably slow — and says which of the two is
+happening, because a party that quietly degrades is worse than one that says
+so.
+
+### No explanations
+
+Everywhere else in ELMER the reason an answer is right appears the moment
+somebody commits to one, because that is where the learning is. A tournament is
+a race, and stopping a hall mid-round to read a paragraph is neither. A round
+carries the question, its choices and its figure and nothing else. The
+explanations are a click away in the pool browser afterwards, which is when
+people actually want to argue about them.
+
+### The screens
+
+| | |
+|---|---|
+| `/party/1` | the table: join code, roster, tournament controls |
+| `/j/1` | where the QR lands — the player's phone |
+| `/net` | net control, for running a hall |
+| `/net/board` | the big board, sized to read from the back of a room |
+
+All six pools can host a tournament — the three amateur classes and the three
+commercial elements. They are offered grouped rather than as a flat list of
+six, because Technician to Extra really is a difficulty ladder while a marine
+permit, a radiotelephone licence and a radar endorsement are three different
+jobs rather than three degrees of one.
+
+---
+
 ## Commands
 
 ```
@@ -801,6 +1031,26 @@ Start here:
 It checks the pools, diagrams, database, templates, network and port, then
 prints every address the server can be reached on.
 
+It also reports on the two things that decide every answer ELMER gives about a
+place, because both could be dead while the rest of the self-check printed
+all-clear — which is how a GPS that has stopped answering becomes an afternoon
+of guessing rather than one command:
+
+```
+[  ok  ] GPS         -  3D fix from 127.0.0.1:2947 - EN26uo (46.5983, -94.3154)
+[  ok  ] repeaters   -  258 known, from TowerWitch (~/TowerWitch); nearest 9 km
+```
+
+The GPS line tells "nothing is listening" apart from "listening, but no lock" —
+the first is an address or a wire, the second is the sky, and they are not
+fixed the same way. The repeater line reports how far off the nearest machine
+is, because a list of 258 repeaters four hundred miles behind you is the
+failure that looks like success on a dashboard. A **TowerWitch service** line
+appears only when this unit has been pointed at one over the network, since a
+single-Pi station should not be told about a thing it does not use. None of
+them is fatal: a GPS that is off, silent or not locked yet is an ordinary
+Tuesday, and the typed QTH still works. The point is that the screen says so.
+
 Then watch the log while you try to load the page:
 
 ```
@@ -823,6 +1073,20 @@ red banner rather than sitting silently on "Loading…".
 Run `--fetch` when a pool is reissued or a new errata lands; it re-downloads
 from NCVEC and the FCC, rebuilds, and revalidates. If a download fails, the
 existing copy in `data/raw` is left untouched.
+
+### Tournament mode, by address
+
+```
+/party/1                      the table: join code, roster, tournament controls
+/party/1?difficulty=general   open a table already set to one licence class
+/j/1                          where the QR lands - the player's phone
+/net                          net control, for running a hall of tables
+/net/board                    the big board
+```
+
+There are no new command-line flags: a tournament is started from the dashboard
+or from the table screen, because the person running one is standing at a
+screen rather than at a terminal.
 
 ## Keyboard
 
