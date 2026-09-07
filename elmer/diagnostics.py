@@ -239,6 +239,117 @@ def check_internet():
     return True
 
 
+def check_gps():
+    """Whether the GPS is answering, and which one is being asked.
+
+    Every answer ELMER gives about reach and bearings is an answer about a
+    place, so "where does this think it is" belongs in the self-check. A GPS
+    that is off or silent is not a fault - the typed QTH is what makes the
+    program work in a field - but finding that out should take one command
+    rather than an afternoon.
+    """
+    from . import db, gps
+    try:
+        conn = db.connect()
+    except Exception:
+        conn = None
+    host, port = gps.target(conn)
+    where = f"{host}:{port}"
+    if conn is not None and not gps.enabled(conn):
+        _line(WARN, "GPS", f"switched off for this unit - the typed QTH is "
+                           f"used (./elmer.py --gpsd {host} turns it back on)")
+        return True
+    found = gps.read_fix(host, port)
+    if not found:
+        # Distinguish "nothing is listening" from "listening, but no lock":
+        # one is a wiring or address problem, the other is the sky.
+        if port_in_use(port, host):
+            _line(WARN, "GPS", f"gpsd at {where} answered but has no fix yet - "
+                               f"the typed QTH is used until it locks")
+        else:
+            _line(WARN, "GPS", f"nothing listening at {where} - the typed QTH "
+                               f"is used (./elmer.py --gpsd HOST points "
+                               f"elsewhere)")
+        return True
+    from .geocode import to_grid
+    _line(OK, "GPS", f"{found['mode']}D fix from {where} - "
+                     f"{to_grid(found['lat'], found['lon'])} "
+                     f"({found['lat']:.4f}, {found['lon']:.4f})")
+    return True
+
+
+def check_repeaters():
+    """Where the repeater list comes from, and whether it covers here.
+
+    A list of 258 machines is worthless if they are all four hundred miles
+    behind you, and that is exactly the failure that looks like success on a
+    dashboard. So report the source, and say whether it knows about *here*.
+    """
+    from . import repeaters
+    try:
+        rows, source = repeaters.load()
+    except Exception as exc:
+        _line(BAD, "repeaters", f"could not load ({type(exc).__name__}: {exc})")
+        return False
+
+    tw = repeaters.find_towerwitch()
+    if not rows:
+        _line(WARN, "repeaters", "none known - "
+                                 + ("./elmer.py --import-repeaters will copy "
+                                    f"the list from {tw}" if tw else
+                                    "no TowerWitch found and nothing imported; "
+                                    "VHF and UHF will not name machines"))
+        return True
+
+    detail = f"{len(rows)} known, from {source}"
+    # Coverage is only answerable if we know where we are. Prefer the live
+    # fix, because that is the position the operator is actually standing at.
+    spot = None
+    try:
+        from . import db, gps
+        conn = db.connect()
+        spot = gps.place(conn) if gps.enabled(conn) else None
+        if not spot:
+            spot = db.get_profile(conn)["settings"].get("location") or None
+    except Exception:
+        spot = None
+    if spot and spot.get("lat") is not None:
+        here = repeaters.coverage(spot["lat"], spot["lon"])
+        if here["known"]:
+            _line(OK, "repeaters", f"{detail}; nearest {here['nearest_km']} km")
+        else:
+            _line(WARN, "repeaters", f"{detail}, but the nearest is "
+                                     f"{here['nearest_km']} km away - this "
+                                     f"list is about somewhere else")
+        return True
+    _line(OK, "repeaters", detail)
+    return True
+
+
+def check_towerwitch_service():
+    """The TowerWitch on the network, if this unit has been pointed at one.
+
+    Silent when none is configured: a single-Pi station is the normal case and
+    should not be told about a thing it does not use.
+    """
+    from . import db, repeaters
+    try:
+        conn = db.connect()
+    except Exception:
+        conn = None
+    url = repeaters.service_url(conn)
+    if not url:
+        return True
+    rows = repeaters.from_service(url, 46.0, -94.0, 100)
+    if rows:
+        _line(OK, "TowerWitch service", f"{url} answered ({len(rows)} "
+                                        f"repeaters for a test position)")
+    else:
+        _line(WARN, "TowerWitch service", f"{url} did not answer - ELMER uses "
+                                          f"what is on disk until it does")
+    return True
+
+
 def check_kiosk():
     """What ./elmer.py --kiosk would do if it were run right now."""
     from . import kiosk
@@ -347,6 +458,7 @@ def doctor(port=5000):
         check_pools(), check_figures(), check_explanations(), check_database(),
         check_templates(), check_tools(), check_kiosk(), check_launcher(),
         check_updates(), check_location(),
+        check_gps(), check_repeaters(), check_towerwitch_service(),
         check_internet(), check_server(port),
     ]
 
