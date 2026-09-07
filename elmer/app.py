@@ -1700,11 +1700,42 @@ def net_host():
 
 
 @app.route("/net/board")
+@app.route("/board")
 def net_board():
-    """The big board: what the room looks at between rounds."""
-    if netcontrol.net() is None:
-        abort(404, "no net is running on this unit")
+    """The big board: what the room looks at between rounds.
+
+    This used to refuse with a 404 when no net was running, which on a screen
+    at the front of a room is a blank white page and no way to tell whether
+    anything is wrong. A board that people are watching should always say what
+    is happening, including that nothing is - so it never refuses, and it shows
+    a hall, a single table, or an invitation to start one, whichever is true.
+    """
     return render_template("net_board.html")
+
+
+@app.route("/api/board")
+def api_board():
+    """Whatever this unit is running, shaped for the screen at the front.
+
+    A hall if there are tables checked in, otherwise the table on this machine,
+    otherwise nothing - said plainly rather than as an error.
+    """
+    running = netcontrol.net()
+    if running is not None and running.units:
+        board = running.board()
+        board["kind"] = "hall"
+        return jsonify(board)
+    room = party.room()
+    if room is not None and (room.players or room.round):
+        state = room.state()
+        state["kind"] = "table"
+        state["name"] = "Tournament"
+        driver = autoplay.director()
+        state["auto"] = driver.as_dict() if driver else None
+        return jsonify(state)
+    return jsonify({"kind": "idle",
+                    "net": running is not None,
+                    "where": _here()})
 
 
 @app.route("/api/net/board")
