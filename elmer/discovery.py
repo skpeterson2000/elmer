@@ -21,11 +21,26 @@ simply another ELMER. A station that has a lock should not have to be asked.
 suggest a tournament, which is the point of having built one. The suggestion is
 made and nothing more: a unit never starts a round on another unit's say-so.
 
+The roster is deliberately not the interface. A hall with nine units in it
+would give the operator nine names, nine addresses and nine versions to read,
+and none of that answers the only question in front of them, which is what
+this unit should do about the others: run on its own, run a net, or take a
+table under somebody else's net. So the roster stays here for the code to work
+from, and what goes to the screen is a summary - how many, is anyone playing,
+and which nets there are to report to.
+
+The nets are named, because a network is expected to hold more than one of
+them: Technician in this corner, General in that one, Extra in the next room.
+A unit choosing between them is choosing on the material, so that is what a
+net announces about itself, and a unit that is only a table passes on the
+address of the net it reports to - which is how a late arrival finds a master
+it cannot hear directly.
+
 What is announced is what a neighbour needs to be useful - who this is, where
-to reach it, whether it has a position, and whether a game is on. Not the
-operator's name, not their progress, not their callsign. It goes to the local
-broadcast address and nowhere else, and position sharing can be switched off
-without switching off discovery.
+to reach it, whether it has a position, whether a game is on, and whether it is
+running or reporting to a net. Not the operator's name, not their progress, not
+their callsign. It goes to the local broadcast address and nowhere else, and
+position sharing can be switched off without switching off discovery.
 """
 import json
 import logging
@@ -45,7 +60,8 @@ GONE_AFTER = 30.0
 MAGIC = "elmer-unit"
 
 
-def _payload(unit, name, url, version, fix, party, share_position=True):
+def _payload(unit, name, url, version, fix, party, share_position=True,
+             net=None):
     """What this unit tells the network about itself."""
     out = {"elmer": MAGIC, "unit": unit, "name": name, "url": url,
            "version": version, "sent": time.time()}
@@ -65,6 +81,10 @@ def _payload(unit, name, url, version, fix, party, share_position=True):
                       "mode": fix.get("mode"), "source": fix.get("source", "gps"),
                       "age_s": round(max(0.0, time.time() - fix["read_at"]), 1)}
     out["party"] = party or {}
+    # Which of the three parts this unit is already playing: running the net
+    # for the hall, reporting to somebody else's, or neither. A neighbour that
+    # is about to be offered a role needs to know which roles are left.
+    out["net"] = net or {}
     return json.dumps(out).encode()
 
 
@@ -83,7 +103,8 @@ def parse(data, sender_ip):
             "url": str(got.get("url") or "")[:120],
             "version": str(got.get("version") or "")[:40],
             "address": sender_ip, "heard_at": time.time(),
-            "party": got.get("party") or {}}
+            "party": got.get("party") or {},
+            "net": got.get("net") if isinstance(got.get("net"), dict) else {}}
     gps = got.get("gps")
     if isinstance(gps, dict):
         try:
@@ -147,7 +168,7 @@ class Neighbourhood:
         data = _payload(mine.get("unit", ""), mine.get("name", ""),
                         mine.get("url", ""), mine.get("version", ""),
                         mine.get("fix"), mine.get("party"),
-                        mine.get("share_position", True))
+                        mine.get("share_position", True), mine.get("net"))
         self.sock.sendto(data, ("255.255.255.255", self.port))
         self.sent += 1
 
@@ -180,6 +201,79 @@ class Neighbourhood:
                 return peer
         return None
 
+    def nets(self):
+        """The tournaments running out there, told apart by their material.
+
+        One network is expected to hold several: Technician in one corner,
+        General in another, Extra in the next room. So this is a list, keyed
+        by the address of the unit running each one, and what is shown of a
+        net is what it is studying - which is what somebody choosing between
+        them is actually choosing on.
+        """
+        live = self.current()
+        found = {}
+        for peer in live:
+            net = peer.get("net") or {}
+            if net.get("hosting") and peer.get("url"):
+                found[peer["url"]] = {
+                    "url": peer["url"],
+                    "name": str(net.get("name") or "a net")[:60],
+                    "difficulty": str(net.get("difficulty") or "")[:20],
+                    "units": int(net.get("units") or 0)}
+        for peer in live:
+            net = peer.get("net") or {}
+            url = net.get("table_of")
+            # A table may report to a net this unit cannot hear itself - a
+            # master on another subnet, or one wired in. It is still joinable,
+            # and the table knows what it is called.
+            if url and url not in found:
+                found[url] = {"url": str(url)[:120],
+                              "name": str(net.get("table_in") or "a net")[:60],
+                              "difficulty": "", "units": 0}
+        return sorted(found.values(), key=lambda n: (-n["units"], n["name"]))
+
+    def games(self):
+        """Every tournament out there worth putting on a board.
+
+        A net is one game however many tables are in it, so a unit that is
+        somebody's table is not listed again on its own account - its players
+        are already in the hall's standings. A unit playing by itself is a
+        game, and belongs on the board as much as a hall does: "a game on
+        another Pi" is exactly what the screen at the front of the room was
+        missing.
+        """
+        out = [dict(net, kind="hall", path="/api/net/board")
+               for net in self.nets()]
+        seen = {net["url"] for net in out}
+        for peer in self.current():
+            net = peer.get("net") or {}
+            if net.get("hosting") or net.get("table_of"):
+                continue
+            if (peer.get("party") or {}).get("running") and peer.get("url"):
+                if peer["url"] in seen:
+                    continue
+                out.append({"url": peer["url"], "name": peer["name"],
+                            "difficulty": "", "units": 0,
+                            "kind": "table", "path": "/api/board"})
+                seen.add(peer["url"])
+        return out
+
+    def summary(self):
+        """What the screen needs: how many, and what can be joined.
+
+        Names and addresses of units stay out of it on purpose. The panel this
+        feeds asks the operator to pick a part for this unit, and a list of
+        which Pis are switched on does not help them pick it. The tournaments
+        are named, because choosing between them is the one choice here that
+        needs a name attached.
+        """
+        live = self.current()
+        return {"count": len(live),
+                "with_fix": any(p.get("gps") for p in live),
+                "playing": any((p.get("party") or {}).get("running")
+                               for p in live),
+                "nets": self.nets()}
+
     def start(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -207,7 +301,8 @@ class Neighbourhood:
         peers = self.current()
         return {"running": bool(self.listener and self.listener.is_alive()),
                 "port": self.port, "sent": self.sent, "heard": self.heard,
-                "peers": peers, "count": len(peers), "error": self.error}
+                "peers": peers, "count": len(peers), "error": self.error,
+                "summary": self.summary()}
 
 
 _net = None
@@ -239,6 +334,12 @@ def stop_listening():
 def peers():
     live = neighbourhood()
     return live.current() if live else []
+
+
+def games():
+    """Every tournament this unit can hear, for the big board."""
+    live = neighbourhood()
+    return live.games() if live else []
 
 
 def borrowed_fix():

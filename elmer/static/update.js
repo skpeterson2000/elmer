@@ -255,54 +255,175 @@ document.addEventListener('click', e => {
 
 /* ------------------------------------------------------- other ELMERs here */
 /* A unit on its own has no way of knowing the shack Pi is up, or that four
-   tables are already playing. Saying so is most of the value; the offer of a
-   game is the rest. Nothing is ever started on a neighbour's say-so - this
-   only ever suggests. */
+   tables are already playing. Saying so is most of the value; what to do about
+   it is the rest.
+
+   It says how many and not who. A hall with nine units in it would put nine
+   names, nine addresses and nine version strings on the dashboard, and none of
+   them answers the only question the operator has, which is what this unit
+   should do about the others. There are three answers, and this panel is those
+   three:
+
+     Independently  run a tournament for the players in front of this unit
+     Host           run a net from here for everyone who reports in
+     Table          take a table under a net somebody else is running
+
+   The tournaments themselves are named, because that is the one choice here
+   that needs a name on it: Technician in this corner, General in that one,
+   Extra in the next room, and a unit joining has to say which. Nothing is
+   started on a neighbour's say-so - the roles are offered on this screen and
+   taken by somebody pressing one. */
 
 let peersQuiet = false;          // "not now" lasts until the page is reloaded
+let peerState = {};
 
-function peerRow(p) {
-  const bits = [];
-  if (p.gps) bits.push('<span class="pill ok tiny">has a fix</span>');
-  if (p.party && p.party.running) {
-    bits.push('<span class="pill info tiny">tournament running</span>');
-  } else if (p.party && p.party.players) {
-    bits.push('<span class="tiny muted">' + p.party.players + ' waiting</span>');
+function peerHeadline(n) {
+  return n === 1 ? 'Another ELMER is on the network.'
+                 : n + ' other ELMERs are on the network.';
+}
+
+/* What is going on out there, in one line. */
+function peerStanding(d) {
+  const s = d.summary || {}, me = d.me || {}, nets = s.nets || [];
+  if (me.hosting) {
+    const u = me.units || 0;
+    return 'This unit is running <b>' + escapeHTML(me.name || 'a net') + '</b>' +
+      (u ? ', with ' + u + ' table' + (u === 1 ? '' : 's') + ' reporting in.' : '.');
   }
-  return '<li class="peer">' +
-    '<a href="' + escapeHTML(p.url || '#') + '" target="_blank">' +
-      escapeHTML(p.name) + '</a>' +
-    '<span class="mono tiny muted">' + escapeHTML(p.address) + '</span>' +
-    bits.join(' ') +
-    '</li>';
+  if (me.table_of) {
+    return 'This unit is a table in <b>' +
+      escapeHTML(me.table_in || 'somebody else’s net') + '</b>.';
+  }
+  if (nets.length > 1) {
+    return nets.length + ' nets are running out there. A table can only be in one.';
+  }
+  if (nets.length) {
+    return '<b>' + escapeHTML(nets[0].name) + '</b> is running out there, and ' +
+           'this unit can take a table in it.';
+  }
+  if (s.playing) return 'A tournament is running out there, on its own table.';
+  return 'Nobody is playing. A tournament takes two minutes and somebody to start it.';
+}
+
+function netButton(n) {
+  // How big it already is, inside the button: two of these sit side by side,
+  // and a table count floating between them belongs to neither.
+  const tables = n.units
+    ? ' <span class="count">&middot; ' + n.units + ' table' +
+      (n.units === 1 ? '' : 's') + '</span>' : '';
+  return '<button class="btn sm" data-role="table" data-net="' +
+    escapeHTML(n.url) + '">Join ' + escapeHTML(n.name) + tables + '</button>';
+}
+
+/* The picker that names a net before it is opened. Three tournaments on one
+   network are told apart by their material, so it is chosen here rather than
+   left until the first round. */
+function hostPicker(d) {
+  const opts = (d.difficulties || []).map(
+    ([key, label]) => '<option value="' + escapeHTML(key) + '">' +
+                      escapeHTML(label) + '</option>').join('');
+  return '<span class="row" style="gap:.4rem">' +
+    '<button class="btn sm primary" data-role="host">Host</button>' +
+    (opts ? '<select class="btn sm" id="host-difficulty">' + opts + '</select>' : '') +
+    '</span>';
+}
+
+function roleRow(head, what) {
+  return '<li class="role">' + head +
+         '<span class="tiny muted">' + what + '</span></li>';
+}
+
+function currentRole(what) {
+  return '<span class="pill good">' + what + '</span>';
 }
 
 function renderPeers(d) {
   const box = document.getElementById('peers');
   if (!box) return;
-  if (peersQuiet || !d.count) { box.innerHTML = ''; return; }
-  const playing = (d.peers || []).filter(p => p.party && p.party.running);
-  const n = d.count;
+  // The panel redraws on a timer, and a redraw that forgets which tournament
+  // the operator had just picked is worse than no redraw at all.
+  const picked = (document.getElementById('host-difficulty') || {}).value;
+  const s = d.summary || {}, me = d.me || {}, nets = s.nets || [];
+  if (peersQuiet || !s.count) { box.innerHTML = ''; return; }
+  // Nothing is "current" on a unit with no tournament running on it.
+  const now = me.hosting ? 'host'
+            : me.table_of ? 'table'
+            : me.playing_here ? 'alone' : '';
+
+  const rows = [
+    roleRow(now === 'alone' ? currentRole('Independently')
+              : '<button class="btn sm" data-role="alone">Independently</button>',
+            'Run a tournament on this unit for the players in front of it, and ' +
+            'leave the others to themselves.' +
+            (now === 'alone' ? ' <b>This is what it is doing now.</b>' : '')),
+    roleRow(now === 'host' ? currentRole('Host') : hostPicker(d),
+            'Run a net from here: this unit sets the question and keeps the ' +
+            'leaderboard, and every unit that joins it answers the same one.' +
+            (now === 'host'
+              ? ' <b>This is what it is doing now.</b> ' +
+                '<a href="/net">Back to net control &rarr;</a>' : '')),
+    roleRow(now === 'table' ? currentRole('Table')
+              : (nets.length
+                  ? '<span class="row" style="gap:.4rem">' +
+                    nets.map(netButton).join('') + '</span>'
+                  : '<span class="pill">Table</span>'),
+            'Keep this unit’s own players and its own screen, and hand the ' +
+            'scores to whoever is running the net.' +
+            (now === 'table' ? ' <b>This is what it is doing now.</b>'
+              : nets.length ? ''
+              : ' <b>Nothing to join yet</b> — a table becomes possible the ' +
+                'moment one of them opens a net.')),
+  ];
+
   box.innerHTML =
-    '<div class="panel"><div class="panel-title">' +
-      n + ' other ELMER' + (n === 1 ? '' : 's') + ' on this network</div>' +
-    '<ul class="peers">' + d.peers.map(peerRow).join('') + '</ul>' +
-    (playing.length
-      ? '<p class="tiny">A tournament is running on <b>' +
-        escapeHTML(playing[0].name) + '</b>. ' +
-        '<a href="' + escapeHTML(playing[0].url) + '/party/1" target="_blank">Join it &rarr;</a></p>'
-      : '<p class="tiny muted">Nobody is playing. A tournament needs two ' +
-        'minutes and somebody to start it.</p>') +
+    '<div class="panel"><div class="panel-title">' + peerHeadline(s.count) + '</div>' +
+    '<p class="tiny">' + peerStanding(d) +
+      (s.with_fix ? ' One of them has a GPS fix, which this unit will use if it ' +
+                    'has none of its own.' : '') +
+    '</p>' +
+    '<p class="tiny muted">A tournament here can be run three ways:</p>' +
+    '<ul class="roles">' + rows.join('') + '</ul>' +
     '<div class="row" style="gap:.5rem;margin-top:.6rem">' +
-      (playing.length ? ''
-        : '<a class="btn sm primary" href="/party/1">&#9873; Start a tournament</a>') +
-      '<a class="btn sm ghost" href="/net">Run it across all of them</a>' +
+      '<a class="btn sm ghost" href="/net/board">Big board</a>' +
       '<button class="btn sm ghost" data-peers="hide">Not now</button>' +
     '</div></div>';
+
+  const pick = document.getElementById('host-difficulty');
+  if (pick && picked) pick.value = picked;
+}
+
+/* Taking a role. Each one is this unit's own decision about itself: nothing
+   here reaches out and changes what a neighbour is doing. */
+async function takeRole(role, netUrl) {
+  if (role === 'host') {
+    const pick = document.getElementById('host-difficulty');
+    location.href = '/net' + (pick ? '?difficulty=' + encodeURIComponent(pick.value) : '');
+    return;
+  }
+  const me = peerState.me || {};
+  // Going independent while running a hall closes the net under everybody in
+  // it. A tournament other people are in is not something to end on one
+  // mis-aimed press.
+  if (role === 'alone' && me.hosting &&
+      !confirm('Close the net? Tables in it will find it gone and carry on ' +
+               'by themselves.')) return;
+  try {
+    if (role === 'alone') {
+      await postJSON('/api/party/net', { join: false });
+      await postJSON('/api/net/end', {});
+    } else if (role === 'table') {
+      if (!netUrl) return;
+      await postJSON('/api/party/net', { url: netUrl });
+    }
+  } catch (e) { return; }               // api() has already said so on screen
+  location.href = '/party/1';
 }
 
 async function pollPeers() {
-  try { renderPeers(await api('/api/peers')); } catch (e) { /* quiet */ }
+  try {
+    peerState = await api('/api/peers');
+    renderPeers(peerState);
+  } catch (e) { /* quiet */ }
 }
 
 document.addEventListener('click', e => {
@@ -310,7 +431,10 @@ document.addEventListener('click', e => {
     peersQuiet = true;
     const box = document.getElementById('peers');
     if (box) box.innerHTML = '';
+    return;
   }
+  const b = e.target.closest('[data-role]');
+  if (b) takeRole(b.getAttribute('data-role'), b.getAttribute('data-net'));
 });
 
 pollPeers();

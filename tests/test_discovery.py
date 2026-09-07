@@ -39,7 +39,8 @@ def hello(**over):
            "sent": time.time(),
            "gps": {"lat": 44.9778, "lon": -93.2650, "mode": 3,
                    "source": "gps", "age_s": 2.0},
-           "party": {"running": False, "players": 0, "seats": 24}}
+           "party": {"running": False, "players": 0, "seats": 24},
+           "net": {}}
     out.update(over)
     return json.dumps(out).encode()
 
@@ -145,6 +146,70 @@ def main():
     payload = json.loads(discovery._payload(
         "u", "n", "http://x", "v", own, {}, False))
     check("and not when position sharing is off", "gps" in payload, False)
+
+    print("\n-- several nets on one network --")
+    # Technician in this corner, General in that one, Extra in the next room.
+    # A unit deciding where to report picks on the material, so that is what
+    # the summary carries - and never the names of the Pis running them.
+    port = free_port()
+    live = discovery.start(lambda: {"unit": "bench-pi", "name": "Bench",
+                                    "url": "http://127.0.0.1:5000"}, port=port)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.sendto(hello(unit="a", name="A", url="http://10.0.0.1:5000",
+                          net={"hosting": True, "name": "Technician net",
+                               "difficulty": "technician", "units": 3}),
+                    ("127.0.0.1", port))
+        sock.sendto(hello(unit="b", name="B", url="http://10.0.0.2:5000",
+                          gps=None,
+                          net={"hosting": True, "name": "General net",
+                               "difficulty": "general", "units": 1}),
+                    ("127.0.0.1", port))
+        deadline = time.time() + 3
+        while len(discovery.peers()) < 2 and time.time() < deadline:
+            time.sleep(0.05)
+        nets = live.nets()
+        check("both nets are found", len(nets), 2)
+        check("  the busiest first", nets[0]["name"], "Technician net")
+        check("  and each is joinable", nets[0]["url"], "http://10.0.0.1:5000")
+        summary = live.summary()
+        check("the summary counts the units", summary["count"], 2)
+        check("  notices a fix among them", summary["with_fix"], True)
+        check("  and names no unit at all",
+              [k for k in summary if k in ("peers", "name", "address")], [])
+
+        # A table can reach a master this unit cannot hear itself.
+        sock.sendto(hello(unit="c", name="C", url="http://10.0.0.3:5000",
+                          net={"table_of": "http://10.9.9.9:5000",
+                               "table_in": "Extra net"}),
+                    ("127.0.0.1", port))
+        deadline = time.time() + 3
+        while len(live.nets()) < 3 and time.time() < deadline:
+            time.sleep(0.05)
+        far = [n for n in live.nets() if n["url"] == "http://10.9.9.9:5000"]
+        check("a net heard of second-hand is still joinable", len(far), 1)
+        check("  and knows what it is called", far[0]["name"], "Extra net")
+
+        # The unit hosting a net is heard directly as well as through its
+        # tables; that is one net, not two.
+        sock.sendto(hello(unit="d", name="D", url="http://10.0.0.4:5000",
+                          net={"table_of": "http://10.0.0.1:5000"}),
+                    ("127.0.0.1", port))
+        time.sleep(0.4)
+        check("a net reported twice is counted once",
+              len([n for n in live.nets() if n["url"] == "http://10.0.0.1:5000"]), 1)
+    finally:
+        sock.close()
+        discovery.stop_listening()
+
+    print("\n-- what this unit says it is doing --")
+    payload = json.loads(discovery._payload(
+        "u", "n", "http://x", "v", None, {}, True,
+        {"hosting": True, "name": "General net", "difficulty": "general"}))
+    check("the part it is playing goes out with it",
+          payload["net"]["name"], "General net")
+    payload = json.loads(discovery._payload("u", "n", "http://x", "v", None, {}))
+    check("and is empty when it is playing none", payload["net"], {})
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

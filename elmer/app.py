@@ -26,7 +26,7 @@ from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               discovery, gating,
+               discovery, gating, netwatch,
                gps, netcontrol,
                party, phonegps, qr,
                reachout, repeaters,
@@ -1358,6 +1358,18 @@ def _tournament_choices():
              if party.TRACK_OF.get(k) == "commercial"])
 
 
+def _net_name_for(difficulty):
+    """What to call a net, so several on one network tell themselves apart.
+
+    A hamfest can easily hold three at once - Technician in one corner,
+    General in another, Extra in the next room - and "ELMER Net" three times
+    over tells a unit deciding where to report exactly nothing. The material is
+    the thing that distinguishes them, so it is the name.
+    """
+    label = party.LABELS.get(difficulty, "").split("\u2014")[0].strip()
+    return f"{label} net" if label else "ELMER Net"
+
+
 def _party_or_404():
     room = party.room()
     if room is None:
@@ -1618,9 +1630,13 @@ def _net_or_404():
 @app.route("/api/net/open", methods=["POST"])
 def api_net_open():
     body = request.get_json(silent=True) or {}
+    wanted = str(body.get("difficulty", "technician")).lower()
+    if wanted not in party.DIFFICULTIES:
+        wanted = "technician"
     netcontrol.close_net()
-    running = netcontrol.net(create=True,
-                             name=str(body.get("name", "ELMER Net"))[:60])
+    running = netcontrol.net(create=True, difficulty=wanted,
+                             name=str(body.get("name")
+                                      or _net_name_for(wanted))[:60])
     log.info("net control opened: %s", running.name)
     return jsonify(running.board())
 
@@ -1643,6 +1659,8 @@ def api_net_checkin():
     # The key travels to the unit: it scores its own cohort locally, which is
     # what keeps eight players' worth of traffic off this machine.
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
+                    "net": {"name": running.name,
+                            "difficulty": running.difficulty},
                     "round": running.current(include_key=True)})
 
 
@@ -1663,6 +1681,12 @@ def api_net_round():
         abort(400, "no questions in that section")
     question = pool.by_id[random.choice(ids)]
     shown = presentation(question)
+    # A net that moves from Technician to General is a General net now, and
+    # the hall's screens say so - unless somebody named it by hand, in which
+    # case the name they chose is theirs and stays.
+    was = running.difficulty
+    if running.name == _net_name_for(was):
+        running.name = _net_name_for(wanted)
     running.start_round(
         pool_id, question["id"], shown["answer"],
         {"text": question["text"], "choices": shown["choices"],
@@ -1737,12 +1761,25 @@ def _here():
 
 @app.route("/net")
 def net_host():
-    """The screen net control runs the hall from."""
-    if netcontrol.net() is None:
-        netcontrol.net(create=True)
+    """The screen net control runs the hall from.
+
+    The difficulty asked for here names the net, because a network can hold
+    more than one at a time and the name is how a table tells them apart. An
+    already-running net keeps the name it has: arriving at this screen is not
+    a reason to rename the tournament underneath it.
+    """
+    wanted = str(request.args.get("difficulty", "")).lower()
+    if wanted not in party.DIFFICULTIES:
+        wanted = "technician"
+    running = netcontrol.net()
+    if running is None:
+        running = netcontrol.net(create=True, difficulty=wanted,
+                                 name=_net_name_for(wanted))
     where = _here()
     amateur, commercial = _tournament_choices()
     return render_template("net_host.html", where=where,
+                           net_name=running.name,
+                           difficulty=running.difficulty,
                            amateur=amateur, commercial=commercial,
                            qr_svg=qr.as_svg(where, module=6, quiet=3))
 
@@ -1790,6 +1827,60 @@ def api_board():
 def api_net_board():
     """The hall's big screen, and what a late unit polls to catch up."""
     return jsonify(_net_or_404().board())
+
+
+def _board_here():
+    """This unit's own game, in the shape the board draws.
+
+    The same answer /api/board gives, minus the fetch: the board asks this unit
+    for every game on the network, and the one running here is not worth a
+    round trip to itself.
+    """
+    running = netcontrol.net()
+    if running is not None and running.units:
+        return dict(running.board(), kind="hall")
+    room = party.room()
+    if room is not None and (room.players or room.round):
+        driver = autoplay.director()
+        return dict(room.state(), kind="table", name="Tournament",
+                    auto=driver.as_dict() if driver else None)
+    if running is not None:
+        return dict(running.board(), kind="hall")
+    return None
+
+
+@app.route("/api/boards")
+def api_boards():
+    """Every tournament on the network, for one screen at the front.
+
+    A hall can hold several at once and the board should show the hall, not
+    whichever one happens to be running on the Pi the screen is plugged into.
+    The neighbours' boards are fetched here rather than from the browser: they
+    are on other origins, a board polls every second, and several screens on
+    one unit should not each cost the hall a round of requests.
+    """
+    mine = _board_here()
+    out = []
+    if mine is not None:
+        running = netcontrol.net()
+        out.append({"url": "", "here": True, "kind": mine.get("kind"),
+                    "name": (running.name if running is not None
+                             else "Tournament"),
+                    "difficulty": (running.difficulty if running is not None
+                                   else ""),
+                    "board": mine, "stale": False, "error": None})
+    away = [g for g in discovery.games() if g.get("url")]
+    for got in netwatch.look(away):
+        board = got.get("board")
+        if board is not None and got.get("kind") == "hall":
+            board = dict(board, kind="hall")
+        out.append({"url": got["url"], "here": False,
+                    "kind": got.get("kind"), "name": got.get("name") or "",
+                    "difficulty": got.get("difficulty") or "",
+                    "board": board, "stale": got.get("stale"),
+                    "age_s": got.get("age_s"), "error": got.get("error")})
+    netwatch.forget(keep=[g["url"] for g in away])
+    return jsonify({"games": out, "count": len(out), "where": _here()})
 
 
 @app.route("/api/pool-gate", methods=["POST"])
@@ -1932,16 +2023,68 @@ def _describe_this_unit():
                             "seats": state.get("seats", 0)}
     except Exception:
         pass
+    out["net"] = _net_role()
     return out
+
+
+def _net_role():
+    """Which part this unit is playing in a hall, for the announcement.
+
+    Three parts and no more: running the net for everyone, reporting to
+    somebody else's, or on its own. A unit that is only a table still says
+    which net it reports to, so a third unit arriving late can join the same
+    net without having to be told where it is by hand.
+    """
+    role = {}
+    try:
+        running = netcontrol.net()
+        if running is not None:
+            role["hosting"] = True
+            role["name"] = running.name
+            role["difficulty"] = running.difficulty
+            role["units"] = len(running.present_units())
+            role["round"] = running.round_number
+    except Exception:
+        pass
+    try:
+        link = cohort.bridge()
+        if link is not None:
+            role["table_of"] = link.url
+            if link.net_name:
+                role["table_in"] = link.net_name
+    except Exception:
+        pass
+    return role
 
 
 @app.route("/api/peers")
 def api_peers():
-    """Other ELMERs on this network, and what they are up to."""
+    """Other ELMERs on this network, and the part this one is playing.
+
+    The roster comes back too - it is what the code works from, and a
+    diagnostic wants it - but the dashboard reads only the summary. Nine units
+    in a hall is nine names, nine addresses and nine versions on the screen,
+    and none of it answers the question actually in front of the operator,
+    which is what this unit should do about the others.
+    """
+    mine = _net_role()
+    try:
+        # Whether anything is running here at all. A unit with no tournament on
+        # it is not "playing independently", it is simply idle, and a panel
+        # that tells it otherwise is telling it something untrue.
+        mine["playing_here"] = party.room() is not None
+    except Exception:
+        pass
+    # The panel offers to open a net, and a net is named for what it studies,
+    # so the choices travel with the answer rather than being written out a
+    # second time in the browser.
+    choices = [[key, party.LABELS[key]] for key in party.DIFFICULTIES]
     live = discovery.neighbourhood()
     if live is None:
-        return jsonify({"running": False, "peers": [], "count": 0})
-    return jsonify(live.as_dict())
+        return jsonify({"running": False, "peers": [], "count": 0,
+                        "summary": {"count": 0, "nets": []}, "me": mine,
+                        "difficulties": choices})
+    return jsonify(dict(live.as_dict(), me=mine, difficulties=choices))
 
 
 @app.route("/api/gps/raw")
