@@ -2150,7 +2150,11 @@ def _describe_this_unit():
     never raises: a unit that cannot describe itself should go quiet, not
     bring a thread down.
     """
-    out = {"unit": cohort.default_unit_id(), "version": "", "party": {}}
+    # The id tells units apart; the name is what a person reads. They are not
+    # the same string: two Pis out of the box share a hostname, so the id
+    # carries a mark that makes it unique and the name stays the hostname.
+    out = {"unit": cohort.default_unit_id(), "name": cohort.default_unit_name(),
+           "version": "", "party": {}}
     try:
         out["version"] = (update.state() or {}).get("head") or ""
     except Exception:
@@ -2159,10 +2163,8 @@ def _describe_this_unit():
         found = diagnostics.local_addresses()
         host = found[0][1] if found else "127.0.0.1"
         out["url"] = f"http://{host}:{app.config.get('PORT', 5000)}"
-        out["name"] = out["unit"]
     except Exception:
         out.setdefault("url", "")
-        out.setdefault("name", out["unit"])
     try:
         connection = db.connect()
         out["share_position"] = db.unit_get(connection, "share_position",
