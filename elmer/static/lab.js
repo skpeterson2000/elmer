@@ -1956,19 +1956,14 @@ async function rfDownload() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({station: rfStation(), cases: rfRows})});
     if (!res.ok) throw new Error('status ' + res.status);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (res.headers.get('Content-Disposition') || '')
-      .match(/filename="?([^"]+)"?/)?.[1] || 'RF-exposure.pdf';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast('Station record ready', 'Print it and post it in the shack');
+    /* Straight to the record, in the page. It is a document to sign and post
+       in the shack, and finding it in a downloads folder was a trip out of
+       ELMER on a machine that may have no way out of it. */
+    location.href = (await res.json()).view;
   } catch (e) {
     toast('Could not build the PDF', 'See data/elmer.log');
   }
-  btn.disabled = false; btn.textContent = 'Download station record (PDF)';
+  btn.disabled = false; btn.textContent = 'Station record (PDF)';
 }
 
 function initRf() {

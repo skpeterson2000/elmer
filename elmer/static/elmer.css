@@ -807,3 +807,16 @@ ul.roles .role .count { opacity: .65; font-weight: 400; }
   /* On a phone the explanation goes under the choice rather than beside it. */
   ul.roles .role { grid-template-columns: 1fr; }
 }
+
+
+/* ---------- printouts ----------
+   The shelf of PDFs this unit has made, and the one being looked at. The
+   viewer fills what is left of the window: it is a sheet of paper on screen,
+   and a small one is no use to anybody. */
+table.data.printouts td { vertical-align: middle; }
+.printname { font-weight: 600; }
+.pdfframe { padding: 0; overflow: hidden; }
+.pdfframe iframe {
+  display: block; width: 100%; height: min(78vh, 1100px);
+  border: 0; background: #21262d;
+}
