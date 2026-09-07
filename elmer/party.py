@@ -65,8 +65,31 @@ HEALTH_WINDOW = 40       # how many recent services the judgement is made on
 POLL_SECONDS = 1.0
 DELIVERY_SLACK_MS = POLL_SECONDS * 1000.0 + 1500.0
 
-DIFFICULTIES = {"technician": "tech2026", "general": "gen2023",
-                "extra": "extra2024"}
+# What a tournament can be run on. The amateur ladder is a difficulty in the
+# ordinary sense - Technician then General then Extra, each harder than the
+# last. The commercial elements are not a ladder and are not harder versions of
+# each other: a marine permit, a radiotelephone licence and a radar
+# endorsement are three different jobs. They are here because a club that
+# studies them should be able to hold a night on them too, and the game does
+# not care which pool the questions came from.
+DIFFICULTIES = {
+    "technician": "tech2026", "general": "gen2023", "extra": "extra2024",
+    "mrop": "element1", "grol": "element3", "radar": "element8",
+}
+
+# The track each belongs to, so a screen can group them rather than offering
+# six flat options with no hint that three of them are not amateur radio.
+TRACK_OF = {
+    "technician": "amateur", "general": "amateur", "extra": "amateur",
+    "mrop": "commercial", "grol": "commercial", "radar": "commercial",
+}
+
+LABELS = {
+    "technician": "Technician", "general": "General", "extra": "Amateur Extra",
+    "mrop": "Element 1 — Marine Radio Operator Permit",
+    "grol": "Element 3 — General Radiotelephone (GROL)",
+    "radar": "Element 8 — Ship Radar Endorsement",
+}
 
 # --- practice opponents -----------------------------------------------------
 # One person alone with a question is studying, not playing. A table tops

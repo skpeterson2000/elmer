@@ -1324,6 +1324,15 @@ def api_geocode():
 POOL_DIFFICULTY = {v: k for k, v in party.DIFFICULTIES.items()}
 
 
+def _tournament_choices():
+    """What a tournament can be run on, grouped by track for the pickers."""
+    order = list(party.DIFFICULTIES)
+    return ([(k, party.LABELS[k]) for k in order
+             if party.TRACK_OF.get(k) == "amateur"],
+            [(k, party.LABELS[k]) for k in order
+             if party.TRACK_OF.get(k) == "commercial"])
+
+
 def _party_or_404():
     room = party.room()
     if room is None:
@@ -1531,9 +1540,10 @@ def party_table(table="1"):
     wanted = str(request.args.get("difficulty", "")).lower()
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
+    amateur, commercial = _tournament_choices()
     return render_template(
         "party_table.html", table=table, name=f"Table {table}",
-        difficulty=wanted, join_url=url,
+        difficulty=wanted, join_url=url, amateur=amateur, commercial=commercial,
         qr_svg=qr.as_svg(url, module=7, quiet=3))
 
 
@@ -1683,7 +1693,9 @@ def net_host():
     if netcontrol.net() is None:
         netcontrol.net(create=True)
     where = _here()
+    amateur, commercial = _tournament_choices()
     return render_template("net_host.html", where=where,
+                           amateur=amateur, commercial=commercial,
                            qr_svg=qr.as_svg(where, module=6, quiet=3))
 
 
