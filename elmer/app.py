@@ -27,7 +27,7 @@ from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics, gating,
                gps, netcontrol,
-               party, qr,
+               party, phonegps, qr,
                reachout, repeaters,
                terrain, update)
 from .content import get_pool, load_pools, presentation
@@ -1784,6 +1784,41 @@ def api_pool_gate():
     db.save_settings(connection, settings)
     allowed, state = _open_pools(connection)
     return jsonify({"gate": wanted, "open": sorted(allowed), "state": state})
+
+
+@app.route("/api/gps/phone", methods=["GET", "POST"])
+def api_gps_phone():
+    """Listen for a phone streaming NMEA, or stop.
+
+    The address to point the phone at is returned, because that is the only
+    thing the operator has to type into whichever forwarding app they already
+    have, and reading it off the screen beats working it out.
+    """
+    connection = conn()
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        if body.get("on", True):
+            port = int(body.get("port") or phonegps.DEFAULT_PORT)
+            try:
+                phonegps.start(port)
+            except OSError as exc:
+                return jsonify({"listening": False,
+                                "error": f"could not listen on {port}: {exc}"}), 409
+            db.unit_set(connection, "phone_gps_port", port)
+        else:
+            phonegps.stop_listening()
+            db.unit_set(connection, "phone_gps_port", 0)
+    live = phonegps.listener()
+    state = live.as_dict() if live else {"listening": False,
+                                         "port": phonegps.DEFAULT_PORT}
+    state["send_to"] = f"{_here().split('//')[1].split(':')[0]}:{state['port']}"
+    got = phonegps.current()
+    if got:
+        from .geocode import to_grid
+        state["fix"] = {"lat": got["lat"], "lon": got["lon"],
+                        "grid": to_grid(got["lat"], got["lon"]),
+                        "mode": got.get("mode"), "alt_m": got.get("alt_m")}
+    return jsonify(state)
 
 
 @app.route("/api/gps")

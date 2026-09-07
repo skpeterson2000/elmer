@@ -261,15 +261,30 @@ def check_gps():
         return True
     found = gps.read_fix(host, port)
     if not found:
+        # A phone streaming NMEA is the fallback, and on a station with no
+        # receiver on a lead it is the whole answer - so say so before
+        # reporting the receiver as a problem.
+        from . import phonegps
+        phone = phonegps.current()
+        if phone:
+            from .geocode import to_grid
+            _line(OK, "GPS", f"{phone.get('mode', 2)}D fix from a phone at "
+                             f"{phone.get('from')} - "
+                             f"{to_grid(phone['lat'], phone['lon'])} "
+                             f"({phone['lat']:.4f}, {phone['lon']:.4f})")
+            return True
         # Distinguish "nothing is listening" from "listening, but no lock":
         # one is a wiring or address problem, the other is the sky.
+        listener = phonegps.listener()
+        also = (f"; a phone may stream NMEA to udp/{listener.port}"
+                if listener else "")
         if port_in_use(port, host):
             _line(WARN, "GPS", f"gpsd at {where} answered but has no fix yet - "
-                               f"the typed QTH is used until it locks")
+                               f"the typed QTH is used until it locks{also}")
         else:
             _line(WARN, "GPS", f"nothing listening at {where} - the typed QTH "
                                f"is used (./elmer.py --gpsd HOST points "
-                               f"elsewhere)")
+                               f"elsewhere){also}")
         return True
     from .geocode import to_grid
     _line(OK, "GPS", f"{found['mode']}D fix from {where} - "

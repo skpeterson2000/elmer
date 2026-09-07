@@ -568,6 +568,44 @@ local solar elevation and day/night band ratings. It accepts a grid square,
 coordinates or a place name, and a QTH entered as a bare grid is given a
 readable name the first time it is used, so `FN31pr` shows as *Newington*.
 
+### The GPS already in your pocket
+
+A receiver on a USB lead is one more item on a list nobody reads before they
+leave, and the day it is forgotten is the day the position mattered. Almost
+everybody is already carrying a GPS, so ELMER will listen to one.
+
+Switch it on, point any NMEA-forwarding app on the phone at this Pi, and the
+position arrives - no receiver, no antenna, no pairing:
+
+```
+./elmer.py --doctor
+[  ok  ] GPS  -  2D fix from a phone at 192.168.1.42 - EN36ws (46.7750, -92.1017)
+```
+
+A hardware receiver still wins wherever there is one; the phone fills in when
+there is not, which is the case it exists for, and `--doctor` and the location
+itself both say which is being used. The listener is remembered across a
+reboot, since a station whose only GPS is somebody's phone should not have to
+be told again every morning.
+
+**Not Bluetooth Low Energy**, which is the obvious guess and the one route that
+does not work. The Bluetooth SIG defines a Location and Navigation Service, but
+phones implement it as a *client* - to read a bike computer - and neither
+Android nor iOS will serve its own fix over GATT. Getting at it that way means
+writing and installing a phone application, which is exactly the "one more
+thing to remember" this exists to avoid. Plain UDP over the wifi the phone is
+already on needs nothing that is not already there. Classic Bluetooth SPP works
+too, if the wifi does not suit, since that carries NMEA the same way.
+
+The sentences are ordinary NMEA 0183, so anything that speaks GPS speaks this.
+Only RMC and GGA are read, and both are checked: the checksum must match, a
+void RMC is refused, and a GGA reporting fix quality zero is refused. A
+position is not a value that announces when it is wrong - a corrupted sentence
+produces a plausible number in the wrong ocean rather than an error - so the
+parser's job is mostly refusing things.
+
+### Locate me
+
 There is a **locate me** button, and it asks the station's own GPS first.
 
 That is the right order, and it used to be the wrong one. The button called the

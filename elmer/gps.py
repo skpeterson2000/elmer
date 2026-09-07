@@ -113,6 +113,14 @@ def fix(conn=None, max_age=FRESH_FOR):
         return _last["fix"]
     host, port = target(conn)
     found = read_fix(host, port)
+    if not found:
+        # No receiver, or none with a lock. A phone streaming NMEA at this unit
+        # is the fallback, and for a station with no antenna on a lead it is
+        # the only source there is - which is the case it exists for. A real
+        # receiver still wins when there is one, so this is only consulted
+        # after gpsd has been asked and had nothing to say.
+        from . import phonegps
+        found = phonegps.current()
     _last["at"] = now
     if found:
         _last["fix"] = found
@@ -135,7 +143,10 @@ def place(conn=None):
     return {"lat": found["lat"], "lon": found["lon"], "grid": grid,
             "name": grid, "short": grid, "kind": "gps",
             "alt_m": found.get("alt_m"), "mode": found.get("mode"),
-            "source": "gps", "from": found.get("from"),
+            # Say which it came from. A fix off somebody's handset and a fix
+            # off a receiver on the roof are both positions, but an operator
+            # deciding whether to trust a bearing deserves to know which.
+            "source": found.get("source", "gps"), "from": found.get("from"),
             "age_s": round(max(0.0, time.time() - found["read_at"]), 1)}
 
 
