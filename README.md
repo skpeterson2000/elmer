@@ -791,6 +791,10 @@ Every indicator is annotated with what it means and why the exams care, with
 one-click links into the matching pool sections — reading about the MUF while
 the MUF is on screen sticks much better than reading an answer key.
 
+This page is the state of the sky. The [band plan](#band-plan) turns it into a
+decision about one band: a 0–100 score for the band in front of you, what it
+means for the mode, and the next 24 hours hour by hour.
+
 ### Lab
 
 Interactive versions of the maths the pools test:
@@ -979,9 +983,11 @@ Interactive versions of the maths the pools test:
   antenna's geometry from one **entered by the operator**, which nothing has
   checked against any antenna. Neither is a measurement, and the record says so.
 
-  **Download station record (PDF)** produces a signed
-  one-page document with the inputs, the equation used, every intermediate
-  value and the conclusion — meant to be printed and posted in the shack.
+  **Station record (PDF)** produces a signed one-page document with the inputs,
+  the equation used, every intermediate value and the conclusion — meant to be
+  printed and posted in the shack. It opens in the page with Print beside it
+  and stays under **Printouts**, so posting it in the shack does not begin with
+  hunting through a downloads folder.
 - **Path and line of sight** — the tool that answers "will this link work".
   Both ends take whatever you happen to know: a grid square, a lat,lon pair, or
   a place name such as "Walker, MN" or "Swamp Lake, Cass County, MN", resolved
