@@ -212,13 +212,23 @@ def readiness(pool, per_question, per_section, trials=4000, seed=None):
     }
 
 
-def due_queue(pool, cards, now=None, limit=None, sections=None):
+def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None):
     """Cards to study next: overdue first, then unseen, then weakest.
 
-    Ties break toward the question that has been wrong most recently, which is
-    what actually moves an exam score.
+    Priority is the point of the schedule and is not negotiable: what is
+    overdue comes before what is not, and the further overdue the sooner. But
+    priority only orders the cards it can tell apart, and a great many of them
+    tie - everything freshly due scores the same, and nothing unseen has a
+    score at all. A stable sort then falls back on the order the questions
+    happen to sit in the pool, which is why starting the Technician path used
+    to open with the same question every time, followed by the same four.
+
+    So each group is shuffled before it is sorted. The sort is stable, so the
+    ranking it can distinguish survives untouched and only the ties come out
+    in a different order each time. Pass `rng` to make that repeatable.
     """
     now = now or utcnow()
+    rng = rng or random
     from datetime import datetime
 
     overdue, fresh, rest = [], [], []
@@ -237,10 +247,24 @@ def due_queue(pool, cards, now=None, limit=None, sections=None):
         else:
             days_over = 0.0
         if days_over >= 0:
-            overdue.append((q["id"], days_over / max(card["interval"], 0.5)))
+            # Rounded, because the ratio carries far more precision than it
+            # has meaning. Cards in relearning all have an interval of zero
+            # and are all due now; what separates them is the minute at which
+            # they were last answered, which ranks them 1.448 against 1.436
+            # and then hands back the same order for ever. Something twice
+            # overdue still sorts before something barely overdue - only
+            # differences too small to mean anything are allowed to tie, and
+            # ties are shuffled below.
+            overdue.append((q["id"],
+                            round(days_over / max(card["interval"], 0.5), 1)))
         else:
-            rest.append((q["id"], -(skill(card, now) or 0.0)))
+            rest.append((q["id"], -round(skill(card, now) or 0.0, 2)))
 
+    # Shuffle first, sort second. Equal scores keep the shuffled order; unequal
+    # ones are put back in the order the schedule asked for.
+    rng.shuffle(overdue)
+    rng.shuffle(fresh)
+    rng.shuffle(rest)
     overdue.sort(key=lambda x: -x[1])
     rest.sort(key=lambda x: x[1])
     order = _interleave([i for i, _ in overdue], [i for i, _ in fresh])
