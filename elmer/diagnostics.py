@@ -296,6 +296,17 @@ def check_gps():
         return True
     found = gps.read_fix(host, port)
     if not found:
+        # TowerWitch broadcasts the station's position over the network, so
+        # one receiver serves every device. If that is arriving, this unit has
+        # a fix and the missing receiver is not a fault.
+        from . import towerwitch as twnet
+        shared = twnet.current()
+        if shared:
+            from .geocode import to_grid
+            _line(OK, "GPS", f"3D fix from {shared['from']} - "
+                             f"{to_grid(shared['lat'], shared['lon'])} "
+                             f"({shared['lat']:.4f}, {shared['lon']:.4f})")
+            return True
         # A phone streaming NMEA is the fallback, and on a station with no
         # receiver on a lead it is the whole answer - so say so before
         # reporting the receiver as a problem.
@@ -327,8 +338,12 @@ def check_gps():
         # Distinguish "nothing is listening" from "listening, but no lock":
         # one is a wiring or address problem, the other is the sky.
         listener = phonegps.listener()
+        heard = twnet.listener()
         also = (f"; a phone may stream NMEA to udp/{listener.port}"
                 if listener else "")
+        if heard:
+            also += (f"; listening for a TowerWitch broadcast on "
+                     f"udp/{heard.port} but none has arrived")
         if port_in_use(port, host):
             _line(WARN, "GPS", f"gpsd at {where} answered but has no fix yet - "
                                f"the typed QTH is used until it locks{also}")

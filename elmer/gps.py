@@ -224,6 +224,12 @@ def fix(conn=None, max_age=FRESH_FOR):
     host, port = target(conn)
     found = read_fix(host, port)
     if not found:
+        # The station's own GPS, taken off the network where TowerWitch puts
+        # it. One receiver in the vehicle, every device knowing where it is -
+        # which is the arrangement, and it wants no configuring at either end.
+        from . import towerwitch
+        found = towerwitch.current()
+    if not found:
         # No receiver, or none with a lock. A phone streaming NMEA at this unit
         # is the fallback, and for a station with no antenna on a lead it is
         # the only source there is - which is the case it exists for. A real
