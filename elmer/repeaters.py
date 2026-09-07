@@ -68,12 +68,17 @@ def find_towerwitch():
 # long enough to have got a lock - that file is a position ELMER can borrow
 # rather than argue with.
 #
-# It is never treated as a live fix. It carries the time it was written, and
-# that age travels with it all the way to the screen, because a position from
-# this morning is a fact about this morning. A station that has not moved is
-# still where it was; one in a vehicle is not, and only the operator knows
-# which they are.
-STATE_MAX_AGE = 24 * 3600.0
+# The timestamp in that file is when TowerWitch last *wrote* it, which is not
+# the age of the position. A station on a bench that has not moved since
+# Tuesday has a position from Tuesday that is exactly as correct as one from a
+# minute ago; a station in a vehicle does not. Reliable-but-stationary and
+# stale are different things, and a write time cannot tell them apart.
+#
+# So nothing is refused for being old. The age is reported and the operator
+# judges, which is the same bargain the typed QTH makes. The only cutoff is an
+# absurdity guard: a position from last month is not evidence about today, and
+# by then the typed QTH is the better answer anyway.
+STATE_MAX_AGE = 30 * 24 * 3600.0
 
 
 def last_position(path=None):
