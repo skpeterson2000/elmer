@@ -95,8 +95,8 @@ document.getElementById('q-save').addEventListener('click', async () => {
 });
 
 const locateBtn = document.getElementById('q-locate');
-if (locateBtn && geolocationAvailable()) {
-  locateBtn.hidden = false;
+if (locateBtn) {
+  locationAvailable().then(ok => { if (ok) locateBtn.hidden = false; });
   locateBtn.addEventListener('click', async () => {
     locateBtn.textContent = 'Locating…';
     try {

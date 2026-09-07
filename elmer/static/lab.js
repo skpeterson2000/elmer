@@ -1406,8 +1406,8 @@ function initPathPlaces() {
   });
 
   const locBtn = document.getElementById('p-locate');
-  if (locBtn && geolocationAvailable()) {
-    locBtn.hidden = false;
+  if (locBtn) {
+    locationAvailable().then(ok => { if (ok) locBtn.hidden = false; });
     locBtn.addEventListener('click', async () => {
       locBtn.textContent = 'locating…';
       try {

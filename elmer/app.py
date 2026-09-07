@@ -1273,6 +1273,33 @@ def api_geocode():
     return jsonify({"results": results})
 
 
+@app.route("/api/gps")
+def api_gps():
+    """The station's own GPS fix, named if it can be named.
+
+    "Locate me" used to mean only the browser's geolocation, which on a Pi in
+    a vehicle is the one source that cannot work: Chromium resolves position
+    through a network lookup service it has no key for, and it never consults
+    gpsd. Meanwhile the receiver on the desk has a 3D fix. This offers that fix
+    to the page, in the shape the button already saves.
+    """
+    connection = conn()
+    if not gps.enabled(connection):
+        return jsonify({"located": False, "reason": "off"})
+    live = gps.place(connection)
+    if not live:
+        return jsonify({"located": False, "reason": "no fix"})
+    place = geocode.reverse(live["lat"], live["lon"]) or {}
+    return jsonify({
+        "located": True,
+        "name": place.get("name") or live["grid"],
+        "short": place.get("short") or live["grid"],
+        "kind": "gps", "lat": live["lat"], "lon": live["lon"],
+        "grid": live["grid"], "mode": live.get("mode"),
+        "age_s": live.get("age_s"), "from": live.get("from"),
+    })
+
+
 @app.route("/api/reverse-geocode")
 def api_reverse_geocode():
     """Name the place at these coordinates - used after browser geolocation."""
