@@ -19,6 +19,9 @@ body { margin: 0; background: var(--bg); color: var(--text);
             margin-bottom: 1rem; }
 .tablebar b { font-size: 1.05rem; }
 .tablebar .who { margin-left: auto; color: var(--dim); font-size: .85rem; }
+.tablebar .leave { margin-left: .6rem; background: none; border: 0;
+                   color: var(--dimmer); font: inherit; font-size: .8rem;
+                   text-decoration: underline; cursor: pointer; padding: 0; }
 .big { font-size: 1.25rem; line-height: 1.45; margin: 0 0 1.1rem; }
 .choice { display: block; width: 100%; text-align: left; margin: 0 0 .7rem;
           padding: 1rem 1.1rem; font-size: 1.05rem; line-height: 1.4;
@@ -61,6 +64,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   <div class="tablebar">
     <b>{{ name }}</b>
     <span class="who" id="who"></span>
+    <button class="leave" id="leave" hidden>leave</button>
   </div>
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
@@ -107,6 +111,7 @@ function showJoin(reason) {
     me = r.data.player;
     sessionStorage.setItem('elmer_party_player', JSON.stringify(me));
     who.textContent = me.name + ' · Cohort ' + me.cohort;
+    leaveBtn.hidden = false;
     start();
   };
   go.addEventListener('click', join);
@@ -236,10 +241,23 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && me) tick();
 });
 
+const leaveBtn = document.getElementById('leave');
+leaveBtn.addEventListener('click', async () => {
+  if (!confirm('Leave the table?')) return;
+  if (poll) clearInterval(poll);
+  try { await api('/api/party/leave', {player: me.id}); } catch (e) { /* going anyway */ }
+  sessionStorage.removeItem('elmer_party_player');
+  me = null; shownRound = null;
+  who.textContent = '';
+  leaveBtn.hidden = true;
+  showJoin(null);
+});
+
 const remembered = sessionStorage.getItem('elmer_party_player');
 if (remembered) {
   me = JSON.parse(remembered);
   who.textContent = me.name + ' · Cohort ' + me.cohort;
+  leaveBtn.hidden = false;
   start();
 } else {
   showJoin(null);

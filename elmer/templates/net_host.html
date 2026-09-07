@@ -39,9 +39,11 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
 <body>
 <div class="wrap">
   <div class="head">
+    <a class="btn sm ghost" href="/" title="back to ELMER">&larr; ELMER</a>
     <h1>Net control</h1>
     <span class="cap" id="cap"></span>
     <a class="btn sm" href="/net/board" target="_blank">Open the big board &rarr;</a>
+    <button class="btn sm danger" id="endnet">End the net</button>
   </div>
 
   <div class="card netaddr">
@@ -149,6 +151,12 @@ async function tick() {
     stage.innerHTML = '<p class="empty">No round yet.</p>';
   }
 }
+document.getElementById('endnet').addEventListener('click', async () => {
+  if (!confirm('Close the net? Tables will find it gone and carry on alone.')) return;
+  await api('/api/net/end', {});
+  location.href = '/';
+});
+
 tick();
 setInterval(tick, 1000);
 </script>

@@ -252,6 +252,9 @@ async function tick() {
 const hint = document.createElement('div');
 hint.className = 'closehint';
 hint.textContent = 'Ctrl+C, Esc or Q to close';
+hint.style.cursor = 'pointer';
+hint.title = 'close the board';
+hint.addEventListener('click', () => closeBoard());
 document.body.appendChild(hint);
 
 function closeBoard() {

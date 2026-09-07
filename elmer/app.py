@@ -1491,6 +1491,29 @@ def api_party_auto():
                     "state": room.state()})
 
 
+@app.route("/api/party/end", methods=["POST"])
+def api_party_end():
+    """Pack the table up: stop the match, dismiss the practice players, close
+    the room. Leaving the screen is not the same as finishing, and somebody who
+    is done should be able to say so rather than leaving a tournament running
+    on a Pi nobody is looking at."""
+    autoplay.stop()
+    room = party.room()
+    if room is not None:
+        room.clear_bots()
+    party.close_room()
+    log.info("party: table closed")
+    return jsonify({"open": False})
+
+
+@app.route("/api/net/end", methods=["POST"])
+def api_net_end():
+    """Close the net. Tables will find it gone and carry on by themselves."""
+    netcontrol.close_net()
+    log.info("net control: closed")
+    return jsonify({"open": False})
+
+
 @app.route("/api/party/auto-state")
 def api_party_auto_state():
     """Whether a tournament is running on this table."""
