@@ -42,5 +42,5 @@
 {# After elmer.js, which is where api() and escapeHTML() live. A page script
    in the body block runs before them and every call is a ReferenceError. #}
 {% block scripts %}
-<script src="{{ url_for('static', filename='reachout.js') }}"></script>
+<script src="{{ asset('reachout.js') }}"></script>
 {% endblock %}

@@ -269,7 +269,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='update.js') }}"></script>
+<script src="{{ asset('update.js') }}"></script>
 <script>
 api('/api/propagation').then(d => {
   const box = document.getElementById('propstrip');

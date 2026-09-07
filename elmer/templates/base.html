@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}ELMER{% endblock %}</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+<link rel="stylesheet" href="{{ asset('elmer.css') }}">
 {% if icon_file %}<link rel="icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 {% else %}<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📻</text></svg>">
@@ -66,8 +66,8 @@
 </main>
 
 <div id="toaster" class="toaster"></div>
-<script src="{{ url_for('static', filename='elmer.js') }}"></script>
-<script src="{{ url_for('static', filename='users.js') }}"></script>
+<script src="{{ asset('elmer.js') }}"></script>
+<script src="{{ asset('users.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
