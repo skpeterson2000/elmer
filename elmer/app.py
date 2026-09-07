@@ -20,7 +20,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from flask import (Flask, abort, g, jsonify, render_template, request,
-                   send_from_directory)
+                   send_from_directory, url_for)
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
@@ -94,6 +94,30 @@ def _icon():
         if icon.exists():
             return {"icon_file": name, "icon_v": int(icon.stat().st_mtime)}
     return {"icon_file": None, "icon_v": 0}
+
+
+@app.template_global()
+def asset(filename):
+    """A static URL that changes when the file does.
+
+    Without this an update lands, the server restarts, and a page that has been
+    open on a kiosk since before it carries on running the previous
+    JavaScript - so a fixed fault stays fixed everywhere except the screen most
+    likely to be looking at it. That is not a theoretical worry: the "locate me"
+    fix was reported as still broken from a page that had been open since
+    before it shipped, and the server log showed the request it should have
+    made was never made at all.
+
+    Stamped with the file's own modification time, the way the icon already
+    was, so the browser fetches a new URL exactly when there is something new
+    at it and keeps its cache the rest of the time.
+    """
+    url = url_for("static", filename=filename)
+    try:
+        stamp = int((Path(app.static_folder) / filename).stat().st_mtime)
+    except OSError:
+        return url
+    return f"{url}?v={stamp}"
 
 
 # Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.

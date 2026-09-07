@@ -61,5 +61,5 @@ window.STUDY = {
   rapid: {{ (mode == 'rapid')|tojson }}
 };
 </script>
-<script src="{{ url_for('static', filename='study.js') }}"></script>
+<script src="{{ asset('study.js') }}"></script>
 {% endblock %}

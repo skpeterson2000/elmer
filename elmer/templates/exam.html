@@ -71,5 +71,5 @@
   .qmap.here { outline: 2px solid var(--amber); }
 </style>
 <script>window.EXAM = { pool: {{ pool.pool_id|tojson }} };</script>
-<script src="{{ url_for('static', filename='exam.js') }}"></script>
+<script src="{{ asset('exam.js') }}"></script>
 {% endblock %}

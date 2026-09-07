@@ -399,5 +399,5 @@
 {% block scripts %}
 <script>window.QTH = {{ (qth or {})|tojson }};
 window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
-<script src="{{ url_for('static', filename='lab.js') }}"></script>
+<script src="{{ asset('lab.js') }}"></script>
 {% endblock %}
