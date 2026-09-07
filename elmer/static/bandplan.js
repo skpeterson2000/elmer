@@ -1,4 +1,4 @@
-/* Band plan: colour by activity, shade what your licence class may not use. */
+/* Band plan: colour by activity, shade what your license class may not use. */
 
 const KIND_COLOUR = {
   cw: '#58a6ff', digital: '#bc8cff', phone: '#3fb950', image: '#ffb454',
@@ -161,7 +161,7 @@ function bpRender() {
 }
 
 document.getElementById('bp-class').addEventListener('change', async () => {
-  await postJSON('/api/settings', {licence_class: bpClass()}).catch(() => {});
+  await postJSON('/api/settings', {license_class: bpClass()}).catch(() => {});
   bpLoad();
 });
 document.getElementById('bp-state').addEventListener('change', async () => {
@@ -210,7 +210,7 @@ document.getElementById('bp-pdf').addEventListener('click', async () => {
 
 bpLoad();
 
-/* Callsign lookup: the licence knows the class, so the operator need not. */
+/* Callsign lookup: the license knows the class, so the operator need not. */
 const bpLookupBtn = document.getElementById('bp-lookup');
 if (bpLookupBtn) {
   const field = document.getElementById('bp-call');

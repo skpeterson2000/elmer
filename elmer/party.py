@@ -71,7 +71,7 @@ DELIVERY_SLACK_MS = POLL_SECONDS * 1000.0 + 1500.0
 # What a tournament can be run on. The amateur ladder is a difficulty in the
 # ordinary sense - Technician then General then Extra, each harder than the
 # last. The commercial elements are not a ladder and are not harder versions of
-# each other: a marine permit, a radiotelephone licence and a radar
+# each other: a marine permit, a radiotelephone license and a radar
 # endorsement are three different jobs. They are here because a club that
 # studies them should be able to hold a night on them too, and the game does
 # not care which pool the questions came from.

@@ -1,4 +1,4 @@
-"""Look up a US amateur licence so ELMER can use the real one.
+"""Look up a US amateur license so ELMER can use the real one.
 
 Source is callook.info, which serves the FCC ULS record without a key. Only
 the parts ELMER actually needs are kept - class, the grant and expiry dates,
@@ -6,7 +6,7 @@ and the grid square. The name and street address that the lookup also returns
 are public FCC record, but there is no reason for this app to store them, so it
 does not.
 
-A licence runs ten years and then has a two-year grace period, during which it
+A license runs ten years and then has a two-year grace period, during which it
 is expired and may not be used but can still be renewed without re-testing.
 That is the same shape as the rank decay in :mod:`elmer.ranks`, which is not a
 coincidence - the ranks were modelled on it.
@@ -49,7 +49,7 @@ def _parse_date(text):
 
 
 def status_for(expiry):
-    """Where a licence sits: current, grace, or expired past renewal."""
+    """Where a license sits: current, grace, or expired past renewal."""
     if not expiry:
         return {"state": "unknown", "days": None}
     today = date.today()
@@ -72,7 +72,7 @@ def _fetch(call):
 
 
 def lookup(call, refresh=False):
-    """Return the licence, or None. Never raises on a network failure."""
+    """Return the license, or None. Never raises on a network failure."""
     call = normalise(call)
     if not RE_CALL.match(call):
         return None
@@ -118,7 +118,7 @@ def lookup(call, refresh=False):
         "callsign": current.get("callsign") or call,
         "found": True,
         "type": raw.get("type"),                       # PERSON or CLUB
-        "licence_class": CLASS_NAMES.get(raw_class),
+        "license_class": CLASS_NAMES.get(raw_class),
         "class_code": raw_class or None,
         "granted": other.get("grantDate"),
         "expires": other.get("expiryDate"),

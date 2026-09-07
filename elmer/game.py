@@ -6,7 +6,7 @@ the same direction: answering a hard, overdue card is worth far more than
 re-answering something already mastered.
 
 XP measures effort and nothing more. Titles live in :mod:`elmer.ranks`, where
-they are earned inside the licence class they name - a global XP ladder handed
+they are earned inside the license class they name - a global XP ladder handed
 out a "General" title to someone who had never opened a General question.
 """
 from datetime import date, timedelta

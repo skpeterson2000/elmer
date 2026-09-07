@@ -202,7 +202,7 @@ def channel_at(mhz, tolerance=0.0015):
     return None
 
 
-def privilege_at(mhz, licence_class):
+def privilege_at(mhz, license_class):
     """Everything the rules say about operating here, for this class.
 
     Returns a dict rather than a yes/no, because "may I?" has more than one
@@ -216,7 +216,7 @@ def privilege_at(mhz, licence_class):
         "band": band["name"] if band else None,
         "group": band.get("group") if band else None,
         "in_band": bool(band),
-        "licence_class": licence_class,
+        "license_class": license_class,
         "allowed": False,
         "terms": None,
         "emissions": [],
@@ -228,12 +228,12 @@ def privilege_at(mhz, licence_class):
     }
     if not band:
         return result
-    if licence_class not in CLASSES:
+    if license_class not in CLASSES:
         # An unknown or absent class: say what the band is and stop short of
         # claiming anything about permission.
         return result
 
-    for low, high, terms in privileges_for(band["name"], licence_class):
+    for low, high, terms in privileges_for(band["name"], license_class):
         if low <= mhz <= high:
             pep, erp = limits_in(terms)
             result.update({
@@ -249,18 +249,18 @@ def privilege_at(mhz, licence_class):
     return result
 
 
-def privilege_table(licence_class):
+def privilege_table(license_class):
     """Every segment this class may transmit on, in band order.
 
     Written for a printed reference: the bands they hold, and separately the
     bands they hold nothing on, which is the half of the answer that keeps
     somebody out of trouble.
     """
-    if licence_class not in CLASSES:
-        return {"licence_class": licence_class, "bands": [], "none_on": []}
+    if license_class not in CLASSES:
+        return {"license_class": license_class, "bands": [], "none_on": []}
     bands, none_on = [], []
     for band in BANDS:
-        segments = sorted(privileges_for(band["name"], licence_class))
+        segments = sorted(privileges_for(band["name"], license_class))
         if not segments:
             none_on.append(band["name"])
             continue
@@ -274,18 +274,18 @@ def privilege_table(licence_class):
                           "max_erp": limits_in(terms)[1]}
                          for low, high, terms in segments],
         })
-    return {"licence_class": licence_class, "bands": bands, "none_on": none_on,
+    return {"license_class": license_class, "bands": bands, "none_on": none_on,
             "channels_60m": [{"mhz": mhz, "name": name}
                              for mhz, name in CHANNELS_60M]}
 
 
-def privileges_for(band_name, licence_class):
-    return PRIVILEGES.get(band_name, {}).get(licence_class, [])
+def privileges_for(band_name, license_class):
+    return PRIVILEGES.get(band_name, {}).get(license_class, [])
 
 
-def may_transmit(band_name, licence_class, mhz):
+def may_transmit(band_name, license_class, mhz):
     """Whether this class may transmit on this frequency, and under what terms."""
-    for low, high, modes in privileges_for(band_name, licence_class):
+    for low, high, modes in privileges_for(band_name, license_class):
         if low <= mhz <= high:
             return True, modes
     return False, None
@@ -386,7 +386,7 @@ def _needs(classes):
     return " or ".join([", ".join(classes[:-1]), classes[-1]])
 
 
-def usable_answer(band_name, licence_class, low, high, kind=None):
+def usable_answer(band_name, license_class, low, high, kind=None):
     """What this class may do with an activity segment, and why, in words.
 
     A range on its own is a puzzle: the reader sees that something is different
@@ -394,12 +394,12 @@ def usable_answer(band_name, licence_class, low, high, kind=None):
     14.150" hides the more useful distinction, because two quite different
     rules produce the same shape.
 
-    Below 14.150 on 20 m *no* licence may use phone: that is the emission
+    Below 14.150 on 20 m *no* license may use phone: that is the emission
     sub-band, and upgrading changes nothing. Between 14.150 and 14.225 phone is
-    perfectly legal and it is the licence that is the limit. One of those is
+    perfectly legal and it is the license that is the limit. One of those is
     worth studying for and the other is not, so they are said differently.
     """
-    allowed = privileges_for(band_name, licence_class)
+    allowed = privileges_for(band_name, license_class)
     state, a, b = usable_part(low, high, allowed, kind)
     emission = KIND_EMISSION.get(kind)
     label = EMISSION_LABELS.get(emission, "Transmitting")
@@ -411,20 +411,20 @@ def usable_answer(band_name, licence_class, low, high, kind=None):
     note = None
     if state == "no":
         others = classes_permitting(band_name, low, high, emission)
-        needs = _needs([c for c in others if c != licence_class])
+        needs = _needs([c for c in others if c != license_class])
         note = (f"{label} here needs {needs}" if needs
-                else f"{label} is not permitted here on any licence")
+                else f"{label} is not permitted here on any license")
     elif state == "part":
         # Two different rules make the same shape, and only one of them is a
         # reason to study: below the emission sub-band nobody may transmit that
-        # mode, however far they upgrade, while above it the licence is the
+        # mode, however far they upgrade, while above it the license is the
         # only thing in the way. Said separately, and only when each applies.
         mid = MID_SENTENCE.get(emission, "transmitting")
         parts = []
         if a > low:
             edge = top_a if (top_a is not None and top_a > low) else None
             if edge:
-                parts.append(f"no licence may use {mid} below {_edge(edge)} MHz")
+                parts.append(f"no license may use {mid} below {_edge(edge)} MHz")
             if a > (edge or low):
                 who = _needs(classes_permitting(
                     band_name, edge or low, a, emission)) or "a higher class"
@@ -434,7 +434,7 @@ def usable_answer(band_name, licence_class, low, high, kind=None):
         if b < high:
             edge = top_b if (top_b is not None and top_b < high) else None
             if edge:
-                parts.append(f"no licence may use {mid} above {_edge(edge)} MHz")
+                parts.append(f"no license may use {mid} above {_edge(edge)} MHz")
             if b < (edge or high):
                 who = _needs(classes_permitting(
                     band_name, b, edge or high, emission)) or "a higher class"
@@ -444,12 +444,12 @@ def usable_answer(band_name, licence_class, low, high, kind=None):
     return {"state": state, "low": a, "high": b, "note": note}
 
 
-def gaps_for(band_name, licence_class):
+def gaps_for(band_name, license_class):
     """Portions of a band this class may NOT use, as (low, high) pairs."""
     band = BAND_INDEX.get(band_name)
     if not band:
         return []
-    allowed = sorted(privileges_for(band_name, licence_class))
+    allowed = sorted(privileges_for(band_name, license_class))
     gaps, cursor = [], band["low"]
     for low, high, _ in allowed:
         if low > cursor:

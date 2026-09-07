@@ -20,7 +20,7 @@ show a number it has not satisfied itself about.
 None of these channels is amateur spectrum.  They are here to be known and
 monitored, and because an operator supporting a served agency needs to speak the
 same channel names as everybody else at the incident - not to be transmitted on
-without the authorisation that an amateur licence does not confer.
+without the authorisation that an amateur license does not confer.
 """
 import json
 import logging

@@ -1,4 +1,4 @@
-"""Rank progression: a five-step ladder nested inside every licence class.
+"""Rank progression: a five-step ladder nested inside every license class.
 
 The point of the nesting is that a title can only be earned with the material
 it names.  There is no route to a General title that does not run through
@@ -10,11 +10,11 @@ Within a class the steps are::
 
 The first two are earned by coverage and estimated mastery.  The upper three
 require mock exam evidence, and that evidence goes stale, modelled on the FCC's
-own pathway for an expired licence:
+own pathway for an expired license:
 
 * **current** - a passing exam within CURRENT_DAYS.
 * **grace**   - past that but within GRACE_DAYS. The tier is retained but shown
-  as lapsed, and a single passing exam renews it, exactly as a licence in its
+  as lapsed, and a single passing exam renews it, exactly as a license in its
   grace period is renewed without re-testing.
 * **expired** - past GRACE_DAYS. The exam-proven tiers are lost and must be
   earned again in full, as an amateur past the grace period must re-test.
@@ -22,7 +22,7 @@ own pathway for an expired licence:
 Thresholds are deliberately gathered here as named constants so they can be
 tuned without hunting through the logic.
 
-None of these titles is a licence.  They are ELMER's own standings, earned
+None of these titles is a license.  They are ELMER's own standings, earned
 against ELMER's own copy of the question pools, and they say nothing whatever
 about what the FCC has granted anybody.  The wording here is chosen with that
 in mind - a learner with no standing yet is "Un-rated", never "unlicensed" -
@@ -64,7 +64,7 @@ EXAM_PROVEN = OPERATOR         # steps at or above this need live exam evidence
 
 # What a track is called before its first step is earned.  Deliberately not
 # "unlicensed": every title here is ELMER's own standing, and nothing ELMER
-# says should ever be read as a statement about a real FCC licence - in either
+# says should ever be read as a statement about a real FCC license - in either
 # direction.  See the module docstring.
 UNRANKED = "Un-rated"
 

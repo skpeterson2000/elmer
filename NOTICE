@@ -93,7 +93,7 @@ Fetched at runtime, not shipped
         RepeaterBook export. It is gitignored and ships with nothing. ELMER
         does no repeater lookups of its own, deliberately: that data belongs
         to whoever holds the subscription it came from, and this project has
-        no licence to pass it on.
+        no license to pass it on.
 
 
 Why the pools are here at all

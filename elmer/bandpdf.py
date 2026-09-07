@@ -39,7 +39,7 @@ def _styles():
     }
 
 
-def build(bands, licence_class, regional=None, station=None, interop=False):
+def build(bands, license_class, regional=None, station=None, interop=False):
     station = station or {}
     s = _styles()
     buf = io.BytesIO()
@@ -48,7 +48,7 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
                             topMargin=0.45 * inch, bottomMargin=0.45 * inch,
                             title="Band plan")
     flow = [Paragraph("US Amateur Band Plan", s["title"])]
-    line = (f"Privileges shown for <b>{licence_class}</b> class, per 47 CFR 97.301 "
+    line = (f"Privileges shown for <b>{license_class}</b> class, per 47 CFR 97.301 "
             f"and 97.305. Activity segments are convention, not law.")
     if regional:
         line += (f" Regional segments from the {regional['name']} "
@@ -66,8 +66,8 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
         band = BAND_INDEX.get(name)
         if not band:
             continue
-        allowed = privileges_for(name, licence_class)
-        gaps = gaps_for(name, licence_class)
+        allowed = privileges_for(name, license_class)
+        gaps = gaps_for(name, license_class)
         head = f"{name} &mdash; {band['low']:g} to {band['high']:g} MHz"
         if not allowed:
             head += "  (no privileges for this class)"
@@ -78,7 +78,7 @@ def build(bands, licence_class, regional=None, station=None, interop=False):
         n = 0
         for low, high, kind, label in activity_for(name):
             n += 1
-            you = usable_answer(name, licence_class, low, high, kind)
+            you = usable_answer(name, license_class, low, high, kind)
             state = you["state"]
             ok = state != "no"
             # Not dict.get with a default: the default is evaluated whatever
@@ -175,7 +175,7 @@ def _segment_kind(emissions):
     return "cw"
 
 
-def _band_row(group, x, y, width, name, licence_class):
+def _band_row(group, x, y, width, name, license_class):
     """One band: its name, its bar, and the edges worth reading off it."""
     from .bandplan import BAND_INDEX, emissions_in, limits_in, privileges_for
 
@@ -192,11 +192,11 @@ def _band_row(group, x, y, width, name, licence_class):
                      fillColor=colors.HexColor("#666666")))
 
     # The whole band first, so anything not filled in afterwards is visibly
-    # somewhere this licence may not go.
+    # somewhere this license may not go.
     group.add(Rect(bar_x, y - 2, bar_w, BAR_H, fillColor=NO_PRIV,
                    strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
 
-    segments = sorted(privileges_for(name, licence_class))
+    segments = sorted(privileges_for(name, license_class))
     if not segments:
         group.add(String(bar_x + bar_w / 2, y + 3.5, "no privileges",
                          fontSize=6, textAnchor="middle",
@@ -262,7 +262,7 @@ def _band_row(group, x, y, width, name, licence_class):
             above_x = at
 
 
-def _colophon(group, x, y, width, licence_class, station):
+def _colophon(group, x, y, width, license_class, station):
     """Fill the corner the shorter column leaves empty.
 
     The VHF and up bands run out four rows before the HF ones do, and a hole
@@ -287,7 +287,7 @@ def _colophon(group, x, y, width, licence_class, station):
                      textAnchor="end", fillColor=colors.HexColor("#666666")))
 
     # Below both, so nothing sits under the icon.
-    line = [p for p in (station.get("callsign"), licence_class,
+    line = [p for p in (station.get("callsign"), license_class,
                         date.today().isoformat()) if p]
     group.add(String(right, y - size - 13, "  \u00b7  ".join(line), fontSize=7,
                      textAnchor="end", fillColor=colors.HexColor("#444444")))
@@ -298,7 +298,7 @@ def _colophon(group, x, y, width, licence_class, station):
                      fillColor=colors.HexColor("#888888")))
 
 
-def build_card(licence_class, station=None):
+def build_card(license_class, station=None):
     """A single-page picture of the bands this class may use.
 
     Everything on it is drawn from the allocations themselves: what may be
@@ -313,13 +313,13 @@ def build_card(licence_class, station=None):
     doc = SimpleDocTemplate(buf, pagesize=landscape(LETTER),
                             leftMargin=0.4 * inch, rightMargin=0.4 * inch,
                             topMargin=0.35 * inch, bottomMargin=0.35 * inch,
-                            title=f"US amateur bands - {licence_class}")
+                            title=f"US amateur bands - {license_class}")
 
     who = f" &mdash; {station['callsign']}" if station.get("callsign") else ""
-    flow = [Paragraph(f"US Amateur Bands &mdash; {licence_class}{who}", s["title"]),
+    flow = [Paragraph(f"US Amateur Bands &mdash; {license_class}{who}", s["title"]),
             Paragraph(
                 "Privileges per 47 CFR 97.301 and 97.305, drawn to scale within "
-                "each band. Grey is spectrum this licence may not transmit on. "
+                "each band. Grey is spectrum this license may not transmit on. "
                 "1500 W PEP unless a segment says otherwise, and always the "
                 "minimum power needed (97.313).", s["sub"])]
 
@@ -337,12 +337,12 @@ def build_card(licence_class, station=None):
     for column, names in ((0, hf), (1, vhf)):
         x = column * (col_w + 26)
         for n, name in enumerate(names):
-            _band_row(drawing, x, top - n * row_h, col_w, name, licence_class)
+            _band_row(drawing, x, top - n * row_h, col_w, name, license_class)
 
     # The right column is the short one, so its leftover space gets the mark.
     if len(vhf) < rows:
         _colophon(drawing, col_w + 26, top - len(vhf) * row_h - 16, col_w,
-                  licence_class, station)
+                  license_class, station)
 
     flow += [drawing, Spacer(1, 2)]
 
@@ -355,7 +355,7 @@ def build_card(licence_class, station=None):
         at += 26 + len(SEG_LABEL[kind]) * 3.6
     legend.add(Rect(at, 2, 16, 9, fillColor=NO_PRIV,
                     strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
-    legend.add(String(at + 20, 4.5, "Not this licence", fontSize=7))
+    legend.add(String(at + 20, 4.5, "Not this license", fontSize=7))
     flow += [legend, Paragraph(
         "60 m is five fixed channels rather than a band, and they are drawn "
         "where they are and at the width they are. Segment edges bound your "
@@ -403,7 +403,7 @@ def _interop_page(s):
                 "is not authority to transmit on any of them.</b> They are here "
                 "to be monitored, and so that an operator supporting a served "
                 "agency knows the names everyone else at the incident is using. "
-                "Transmitting needs an authorisation an amateur licence does "
+                "Transmitting needs an authorisation an amateur license does "
                 "not confer. Tones are CTCSS in Hz; a value beginning $ is a "
                 "P25 network access code in hexadecimal.", s["small"]),
             Spacer(1, 6)]

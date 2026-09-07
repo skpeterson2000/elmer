@@ -110,12 +110,12 @@ and becomes a reason to dread missing one.
 
 ### Where a newcomer starts
 
-Somebody who has just downloaded this and holds no licence is looking at 2,475
+Somebody who has just downloaded this and holds no license is looking at 2,475
 questions across six pools, most of which are not their exam and three of which
 are not amateur radio at all. That is not a library, it is a wall. So the
 amateur ladder starts at Technician and opens as there is reason to.
 
-A licence class opens everything up to it and the pool above — everything at or
+A license class opens everything up to it and the pool above — everything at or
 below, not a two-rung window, because this program is named after the people
 who run Technician classes and a General reviewing the basics needs the lower
 pools. The class can be typed in as well as looked up, since callook serves the
@@ -131,7 +131,7 @@ And the gate can simply be switched off from the dashboard. Its purpose is to
 keep a first evening from being overwhelming, not to rule on what a licensed
 operator may read — so a closed pool is shown rather than hidden, dimmed, with
 a sentence saying what opens it and a button that opens everything. The
-commercial pools are not gated on an amateur licence at all: an Extra ticket
+commercial pools are not gated on an amateur license at all: an Extra ticket
 says nothing whatever about readiness for a GROL.
 
 ### Explanations on every question
@@ -179,11 +179,11 @@ and a likely score range.
 A station reference at `/bandplan`, in three layers kept deliberately apart
 because they carry very different authority:
 
-- **Privileges are law**, and they come from your actual licence. Enter your
-  callsign once and ELMER reads the FCC record through callook.info: licence
+- **Privileges are law**, and they come from your actual license. Enter your
+  callsign once and ELMER reads the FCC record through callook.info: license
   class, grant and expiry dates, and the grid square. The band plan then shows
   *your* privileges rather than a class you picked from a list, and the page
-  tells you how long the licence has left — flagging the last 90 days, and the
+  tells you how long the license has left — flagging the last 90 days, and the
   two-year grace period after expiry during which you may not transmit but can
   still renew without re-testing. Only the class, dates and grid are kept; the
   name and address the lookup also returns are public record but ELMER has no
@@ -198,14 +198,14 @@ because they carry very different authority:
   Convention and law do not share their edges, so each segment is answered with
   three states rather than two, and the reason is written beside the row. The
   IARU Region 2 plan puts SSB on 20 m from 14.112 while 97.305 permits no phone
-  below 14.150, so an Extra is told **14.150–14.230** and, in words, *"no licence
+  below 14.150, so an Extra is told **14.150–14.230** and, in words, *"no license
   may use phone below 14.150 MHz"*.
 
   That last distinction is the one worth having. Two quite different rules
   produce the same shape on the page: below the emission sub-band **nobody** may
-  use that mode however far they upgrade, while above it the licence class is
+  use that mode however far they upgrade, while above it the license class is
   the only thing in the way. So they are said separately. A General on the same
-  row reads *"no licence may use phone below 14.150 MHz; from there to 14.225 it
+  row reads *"no license may use phone below 14.150 MHz; from there to 14.225 it
   needs Advanced or Extra"* — one half is physics of the rulebook, the other half
   is a reason to study.
 - **Regional plans come from your frequency coordinator.** Minnesota is wired
@@ -269,7 +269,7 @@ out of, and it is oddly missing from the amateur study material. ELMER says wher
 to get it, what is in it for an amateur and on which page, what it is actually
 for — programming a radio and filling in an ICS 205 — and, at least as
 importantly, that nearly nothing in it is amateur spectrum. Monitoring is free;
-transmitting on those channels needs an authorisation a licence does not give
+transmitting on those channels needs an authorisation a license does not give
 you, and owning the book is not it. Being a work of the US government it carries
 no copyright and can be printed and handed out freely.
 
@@ -823,10 +823,10 @@ Interactive versions of the maths the pools test:
   antenna. The mode list says what may actually be sent where the row is tuned:
   ELMER holds 47 CFR 97.301 and 97.305 in full, so offering every mode on every
   frequency would not be neutral — it would quietly suggest the operation is
-  fine. Modes the licence class may not use in that segment are marked, and a
+  fine. Modes the license class may not use in that segment are marked, and a
   line under the row names the band, the class and the terms. Nothing is
   blocked, because evaluating a station you cannot yet operate is legitimate,
-  but a transmission the licence does not permit is written into the record and
+  but a transmission the license does not permit is written into the record and
   onto the printed sheet, where an unqualified green "compliant" would otherwise
   read as approval of the whole operation. The same check catches the 200 W PEP
   ceiling on 30 m, the 100 W ERP ceiling on 60 m, and a 60 m frequency that is
@@ -838,7 +838,7 @@ Interactive versions of the maths the pools test:
   below the general 1500 W. Underneath, the bands that class holds nothing on
   at all, which is the half of the answer that keeps somebody out of trouble.
   It is clearly marked as a reference rather than part of the evaluation, and
-  it is left out entirely when no licence class is known, rather than printing
+  it is left out entirely when no license class is known, rather than printing
   somebody else's bands under your callsign.
 
   The evaluation errs toward safety throughout — full ground
@@ -846,7 +846,7 @@ Interactive versions of the maths the pools test:
   a modelled gain rounded up rather than to nearest — and both the screen and
   the printed sheet say so, in as many words. A more detailed determination may
   well show a shorter compliant distance and still satisfy the rules; that is
-  not a licence to work inside these distances, because this is the evaluation
+  not a license to work inside these distances, because this is the evaluation
   on record. And because antenna gain is the largest single lever on every
   figure, the record distinguishes a gain **modelled** by ELMER from the
   antenna's geometry from one **entered by the operator**, which nothing has
@@ -870,7 +870,7 @@ Interactive versions of the maths the pools test:
 
 ### Game layer
 
-Titles are earned inside the licence class they name. Each class carries a
+Titles are earned inside the license class they name. Each class carries a
 five-step ladder:
 
     <Class> Listener -> Learner -> Operator -> <Class> -> <Class> Elmer
@@ -881,9 +881,9 @@ the class itself, and for the Elmer tier all of your last five passed averaging
 90% or better. There is no route to a General title that does not run through
 General questions, which is precisely what a single global XP ladder got wrong.
 
-Exam evidence goes stale the way a licence does. A tier is **current** for 90
+Exam evidence goes stale the way a license does. A tier is **current** for 90
 days after a passing exam, then sits in a 90-day **grace period** where it is
-shown as lapsed and a single passing exam renews it, exactly as a licence in
+shown as lapsed and a single passing exam renews it, exactly as a license in
 grace is renewed without re-testing. Past that it **expires**, and the
 exam-proven tiers must be earned again in full. Thresholds live as named
 constants at the top of `elmer/ranks.py`.
@@ -900,7 +900,7 @@ nothing about the other. A track with nothing earned yet reads **Un-rated** —
 never "unlicensed". Every title here is ELMER's own standing against its own
 copy of the pools, it grants no operating privileges, and the wording is chosen
 so nobody can come away thinking ELMER has licensed them. Only the FCC issues a
-licence, and only a real session in front of accredited VEs or a COLEM leads to
+license, and only a real session in front of accredited VEs or a COLEM leads to
 one.
 
 XP is kept as a pure effort meter and no longer confers any title. It is
@@ -1057,7 +1057,7 @@ people actually want to argue about them.
 All six pools can host a tournament — the three amateur classes and the three
 commercial elements. They are offered grouped rather than as a flat list of
 six, because Technician to Extra really is a difficulty ladder while a marine
-permit, a radiotelephone licence and a radar endorsement are three different
+permit, a radiotelephone license and a radar endorsement are three different
 jobs rather than three degrees of one.
 
 ---
@@ -1145,7 +1145,7 @@ existing copy in `data/raw` is left untouched.
 
 ```
 /party/1                      the table: join code, roster, tournament controls
-/party/1?difficulty=general   open a table already set to one licence class
+/party/1?difficulty=general   open a table already set to one license class
 /j/1                          where the QR lands - the player's phone
 /net                          net control, for running a hall of tables
 /net/board                    the big board
@@ -1309,7 +1309,7 @@ else.
 **A callsign is what ELMER calls you.** Somebody who has one earned it in front
 of volunteer examiners, so that is the name the program uses — the same respect
 an operator gets on the air. Everyone else is called by their name, which is
-theirs and needs no licence. Add a callsign later and ELMER starts using it, at
+theirs and needs no license. Add a callsign later and ELMER starts using it, at
 the moment they actually earned it.
 
 Once there are two of you the dashboard grows a **shack** panel: everyone side
@@ -1399,7 +1399,7 @@ a run with no terminal and no screen is never asked and never waits. Decline and
 it says so on the console and launches:
 
 ```
-  An ELMER update is waiting: 1 commit, latest "Read the licence instead of asking for it"
+  An ELMER update is waiting: 1 commit, latest "Read the license instead of asking for it"
   Apply it from the dashboard, or with ./elmer.py --update, whenever it suits you.
 ```
 
@@ -1460,16 +1460,16 @@ Python 3.11 with Flask and Pillow, plus `pdftotext`, `pdftoppm` and `pdfimages`
 from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS.
 Serving needs no network; only the propagation dashboard reaches out.
 
-## Licence
+## License
 
 ELMER's own code and artwork are under the
 [PolyForm Noncommercial License 1.0.0](LICENSE) — free for personal study,
 hobby and amateur use, for clubs, schools and other noncommercial
 organisations, but not for commercial use. Note that this is deliberately not
-an open-source licence in the OSI sense.
+an open-source license in the OSI sense.
 
 The question pools and rule text under `data/` are *not* covered by that
-licence and are not this project's to relicense: the FCC pools and 47 CFR
+license and are not this project's to relicense: the FCC pools and 47 CFR
 Part 97 are US Government works in the public domain, and the amateur pools
 belong to the NCVEC, which releases them for free use. [NOTICE](NOTICE) sets
 out exactly which files fall under which terms.

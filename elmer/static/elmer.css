@@ -421,15 +421,15 @@ input[type=range]::-moz-range-thumb {
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .35rem; }
 table.data tr.denied td { opacity: .45; }
 
-/* ---------- licence strip ---------- */
+/* ---------- license strip ---------- */
 .verified {
   font: .58rem var(--mono); letter-spacing: .1em; text-transform: uppercase;
   color: var(--green); border: 1px solid rgba(63,185,80,.4);
   border-radius: 10px; padding: 0 .3rem; margin-left: .3rem;
 }
-.licence-strip { border-left: 3px solid var(--cyan); }
-.licence-strip.warn { border-left-color: var(--amber); }
-.licence-strip.bad { border-left-color: var(--red); }
+.license-strip { border-left: 3px solid var(--cyan); }
+.license-strip.warn { border-left-color: var(--amber); }
+.license-strip.bad { border-left-color: var(--red); }
 
 /* ---------- NVIS block ---------- */
 .nvis {
@@ -686,7 +686,7 @@ option.not-permitted { color: var(--amber); }
   color: var(--dim); border-left: 2px solid var(--line-2); padding-left: .6rem;
 }
 
-/* Tournament mode: the launcher on a licence class, and the controller that
+/* Tournament mode: the launcher on a license class, and the controller that
    runs a hall of them. */
 .btn.tournament { border-color: var(--amber); color: var(--amber); }
 .btn.tournament:hover { background: #2a2216; border-color: var(--amber); }

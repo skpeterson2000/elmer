@@ -291,7 +291,7 @@ def profile_block(connection):
             "rank_rules": {"current_days": ranks.CURRENT_DAYS,
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
-            "licence": prof["settings"].get("licence") or {}}
+            "license": prof["settings"].get("license") or {}}
 
 
 # --------------------------------------------------------------------------
@@ -436,34 +436,34 @@ def bandplan_page():
     return render_template(
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
         classes=bandplan.CLASSES,
-        licence_class=profile["settings"].get("licence_class")
-                       or (profile["settings"].get("licence") or {}).get("licence_class")
+        license_class=profile["settings"].get("license_class")
+                       or (profile["settings"].get("license") or {}).get("license_class")
                        or "Technician",
         coordinators=regional.available(),
         state=profile["settings"].get("state", ""),
         **profile_block(connection))
 
 
-def _usable(low, high, kind, band_name, licence):
+def _usable(low, high, kind, band_name, license):
     """What this class may do with one activity segment, and why."""
-    return bandplan.usable_answer(band_name, licence, low, high, kind)
+    return bandplan.usable_answer(band_name, license, low, high, kind)
 
 
 @app.route("/api/bandplan")
 def api_bandplan():
-    """Privileges and activity for every band, for one licence class."""
-    licence = request.args.get("class", "Technician")
-    if licence not in bandplan.CLASSES:
-        abort(400, "unknown licence class")
+    """Privileges and activity for every band, for one license class."""
+    license = request.args.get("class", "Technician")
+    if license not in bandplan.CLASSES:
+        abort(400, "unknown license class")
     return jsonify({
-        "class": licence, "kinds": bandplan.KINDS,
+        "class": license, "kinds": bandplan.KINDS,
         "bands": [{
             **band,
-            "privileges": bandplan.privileges_for(band["name"], licence),
-            "gaps": bandplan.gaps_for(band["name"], licence),
+            "privileges": bandplan.privileges_for(band["name"], license),
+            "gaps": bandplan.gaps_for(band["name"], license),
             "activity": [
                 {"low": a, "high": b, "kind": k, "label": l,
-                 "you": _usable(a, b, k, band["name"], licence)}
+                 "you": _usable(a, b, k, band["name"], license)}
                 for a, b, k, l in bandplan.activity_for(band["name"])],
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
@@ -478,8 +478,8 @@ def reachout_page():
     settings = profile["settings"]
     return render_template(
         "reachout.html", gear=reachout.GEAR, classes=bandplan.CLASSES,
-        licence_class=settings.get("licence_class")
-                      or (settings.get("licence") or {}).get("licence_class")
+        license_class=settings.get("license_class")
+                      or (settings.get("license") or {}).get("license_class")
                       or "Technician",
         assumed=["ht"], **profile_block(connection))
 
@@ -500,9 +500,9 @@ def api_ways_out():
                                 "answer."})
     gear = [g for g in (request.args.get("gear") or "").split(",")
             if g in reachout.GEAR]
-    licence = request.args.get("licence") or \
-        profile["settings"].get("licence_class") or "Technician"
-    answer = reachout.summary(place["lat"], place["lon"], gear, licence,
+    license = request.args.get("license") or \
+        profile["settings"].get("license_class") or "Technician"
+    answer = reachout.summary(place["lat"], place["lon"], gear, license,
                               conn=connection)
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
@@ -679,14 +679,14 @@ def api_privileges():
         abort(400)
     connection = conn()
     settings = db.get_profile(connection)["settings"]
-    licence_class = (request.args.get("class")
-                     or settings.get("licence_class") or "")
-    result = bandplan.privilege_at(mhz, licence_class)
+    license_class = (request.args.get("class")
+                     or settings.get("license_class") or "")
+    result = bandplan.privilege_at(mhz, license_class)
 
     modes = []
     for key, (label, _duty) in rfexposure.MODE_DUTY.items():
         emission = rfexposure.MODE_EMISSION.get(key)
-        if not result["in_band"] or not licence_class:
+        if not result["in_band"] or not license_class:
             permitted, why = None, None          # nothing claimed either way
         elif not result["allowed"]:
             permitted, why = False, "not in this class's part of the band"
@@ -707,7 +707,7 @@ def api_privileges():
                       "permitted": permitted, "why": why, "caution": caution})
 
     result["modes"] = modes
-    result["known_class"] = licence_class in bandplan.CLASSES
+    result["known_class"] = license_class in bandplan.CLASSES
     result["classes"] = bandplan.CLASSES
     return jsonify(result)
 
@@ -726,19 +726,19 @@ def api_bandplan_regional(state):
 def api_bandplan_pdf():
     from flask import Response
     body = request.get_json(force=True) or {}
-    licence = body.get("class", "Technician")
-    if licence not in bandplan.CLASSES:
-        abort(400, "unknown licence class")
+    license = body.get("class", "Technician")
+    if license not in bandplan.CLASSES:
+        abort(400, "unknown license class")
     bands = body.get("bands") or [b["name"] for b in bandplan.BANDS]
     state = (body.get("state") or "").upper()
     plan = regional.plan(state) if state else None
     if body.get("layout") == "card":
-        pdf = bandpdf.build_card(licence, {"callsign": profile_callsign()})
+        pdf = bandpdf.build_card(license, {"callsign": profile_callsign()})
     else:
-        pdf = bandpdf.build(bands, licence, plan,
+        pdf = bandpdf.build(bands, license, plan,
                             interop=bool(body.get("interop")))
-    name = f"band-plan-{licence.lower()}{'-' + state.lower() if state else ''}.pdf"
-    log.info("band chart PDF: %s, %d bands, regional=%s", licence, len(bands), state or "none")
+    name = f"band-plan-{license.lower()}{'-' + state.lower() if state else ''}.pdf"
+    log.info("band chart PDF: %s, %d bands, regional=%s", license, len(bands), state or "none")
     return Response(pdf, mimetype="application/pdf", headers={
         "Content-Disposition": f'attachment; filename="{name}"',
         "Content-Length": str(len(pdf))})
@@ -1260,10 +1260,10 @@ def _rf_payload(body):
     station.setdefault("location", qth.get("short") or qth.get("name") or "")
     station.setdefault("grid", qth.get("grid") or "")
     station.setdefault("date", db.today())
-    # The licence class comes from the profile, so the evaluation can say when
+    # The license class comes from the profile, so the evaluation can say when
     # the operation it is evaluating would not be permitted in the first place.
-    station.setdefault("licence_class",
-                       profile["settings"].get("licence_class") or "")
+    station.setdefault("license_class",
+                       profile["settings"].get("license_class") or "")
     cases = [c for c in (body.get("cases") or []) if c.get("frequency_mhz")]
     return station, cases
 
@@ -1309,11 +1309,11 @@ def api_rf_exposure_pdf():
 
 @app.route("/api/callsign/<call>")
 def api_callsign(call):
-    """Look up a US amateur licence. 503 when the lookup cannot be reached."""
+    """Look up a US amateur license. 503 when the lookup cannot be reached."""
     found = callsign.lookup(call, refresh=request.args.get("refresh") == "1")
     if found is None:
         return jsonify({"ok": False,
-                        "error": "licence lookup unavailable - check the "
+                        "error": "license lookup unavailable - check the "
                                  "callsign, or the network"}), 503
     return jsonify({"ok": True, **found})
 
@@ -1413,7 +1413,7 @@ def api_party_state():
 def api_party_round():
     """Put a question to the room.
 
-    The difficulty is the licence class, which is the pool. One shuffle is
+    The difficulty is the license class, which is the pool. One shuffle is
     drawn here and shown to everybody, because two people looking at the same
     question in different orders are not racing the same question.
     """
@@ -2064,10 +2064,10 @@ def api_client_error():
     return jsonify({"logged": True})
 
 
-def _adopt_licence(connection, call, settings=None):
-    """Record a callsign on the current user and read its licence.
+def _adopt_license(connection, call, settings=None):
+    """Record a callsign on the current user and read its license.
 
-    A callsign is enough to know the licence class and when it expires, so
+    A callsign is enough to know the license class and when it expires, so
     there is no reason to make the operator tell us separately - and from here
     on it is also what ELMER calls them.
     """
@@ -2076,16 +2076,16 @@ def _adopt_licence(connection, call, settings=None):
     settings = db.get_profile(connection)["settings"] if save else settings
     found = callsign.lookup(call) if call else None
     if found and found.get("found"):
-        settings["licence"] = found
-        if found.get("licence_class"):
-            settings["licence_class"] = found["licence_class"]
-        log.info("licence for %s: %s, expires %s (%s)", found["callsign"],
-                 found.get("licence_class") or found.get("type"),
+        settings["license"] = found
+        if found.get("license_class"):
+            settings["license_class"] = found["license_class"]
+        log.info("license for %s: %s, expires %s (%s)", found["callsign"],
+                 found.get("license_class") or found.get("type"),
                  found.get("expires"), found["status"]["state"])
     elif found is not None:
-        settings["licence"] = found
+        settings["license"] = found
     elif call:
-        log.warning("licence lookup unavailable for %s", call)
+        log.warning("license lookup unavailable for %s", call)
     if save:
         db.save_settings(connection, settings)
     return settings
@@ -2097,8 +2097,8 @@ def api_settings():
     connection = conn()
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
-        settings = _adopt_licence(connection, body["callsign"] or "", settings)
-    for key in ("licence_class", "state"):
+        settings = _adopt_license(connection, body["callsign"] or "", settings)
+    for key in ("license_class", "state"):
         if key in body:
             settings[key] = body[key]
     if "location" in body:
@@ -2214,7 +2214,7 @@ def api_users_add():
     # A callsign given up front is worth resolving straight away: it is what
     # decides whether ELMER calls them by it.
     if profile["callsign"]:
-        _adopt_licence(connection, profile["callsign"])
+        _adopt_license(connection, profile["callsign"])
     log.info("new user on the unit: %s", profile["display_name"])
     return _with_user_cookie(_user_block(connection), profile["id"])
 
