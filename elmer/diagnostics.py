@@ -320,8 +320,9 @@ def check_gps():
                     else "at an unknown time")
             _line(WARN, "GPS", f"no fix of its own, but TowerWitch last knew "
                                f"itself at {borrowed.get('town') or 'a position'} "
-                               f"({borrowed['lat']:.4f}, {borrowed['lon']:.4f}), "
-                               f"written {when}")
+                               f"({borrowed['lat']:.4f}, {borrowed['lon']:.4f}). "
+                               f"TowerWitch wrote that {when} - still right if "
+                               f"the station has not moved since")
             return True
         # Distinguish "nothing is listening" from "listening, but no lock":
         # one is a wiring or address problem, the other is the sky.
