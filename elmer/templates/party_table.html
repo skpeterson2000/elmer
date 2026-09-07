@@ -99,9 +99,16 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
     <div>
       <div class="controls">
         <select class="btn" id="difficulty">
-          <option value="technician"{% if difficulty == 'technician' %} selected{% endif %}>Technician</option>
-          <option value="general"{% if difficulty == 'general' %} selected{% endif %}>General</option>
-          <option value="extra"{% if difficulty == 'extra' %} selected{% endif %}>Amateur Extra</option>
+          <optgroup label="Amateur">
+          {% for key, label in amateur %}
+            <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+          </optgroup>
+          <optgroup label="Commercial">
+          {% for key, label in commercial %}
+            <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+          </optgroup>
         </select>
         <input class="btn" id="seconds" type="number" min="10" max="180" value="30"
                style="width:4.6rem" title="seconds per question">
