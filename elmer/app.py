@@ -25,7 +25,7 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               bugreport, conductors, diagnostics, gating, gps, netcontrol,
+               bugreport, cohort, conductors, diagnostics, gating, gps, netcontrol,
                party, qr,
                reachout, repeaters,
                terrain, update)
@@ -1580,6 +1580,45 @@ def api_net_close():
         abort(409, "no round is open")
     running.prune()
     return jsonify({"summary": summary, "board": running.board()})
+
+
+@app.route("/api/party/net", methods=["POST"])
+def api_party_net():
+    """Point this table at a net control, or cut it loose."""
+    body = request.get_json(silent=True) or {}
+    url = str(body.get("url", "")).strip()
+    if not url or str(body.get("join", True)).lower() in ("false", "0"):
+        cohort.disconnect()
+        return jsonify({"connected": False})
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+    party.room(create=True, cohorts=1)
+    link = cohort.connect(url, body.get("unit"), body.get("name"))
+    log.info("cohort: reporting to net control at %s as %s", link.url, link.unit_id)
+    return jsonify({"connected": True, "bridge": link.as_dict()})
+
+
+@app.route("/api/party/net")
+def api_party_net_state():
+    link = cohort.bridge()
+    return jsonify({"connected": link is not None,
+                    "bridge": link.as_dict() if link else None})
+
+
+@app.route("/net")
+def net_host():
+    """The screen net control runs the hall from."""
+    if netcontrol.net() is None:
+        netcontrol.net(create=True)
+    return render_template("net_host.html", where=_join_url("").rstrip("/j/"))
+
+
+@app.route("/net/board")
+def net_board():
+    """The big board: what the room looks at between rounds."""
+    if netcontrol.net() is None:
+        abort(404, "no net is running on this unit")
+    return render_template("net_board.html")
 
 
 @app.route("/api/net/board")

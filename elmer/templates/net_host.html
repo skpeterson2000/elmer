@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Net control &middot; ELMER</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+<style>
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+.wrap { max-width: 60rem; margin: 0 auto; padding: 1.2rem; }
+.head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: 1rem; }
+.head h1 { margin: 0; font-size: 1.5rem; }
+.head .cap { margin-left: auto; font-family: var(--mono); font-size: .85rem;
+             color: var(--dim); }
+.card { background: var(--panel); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.units { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+.unit { padding: .3rem .6rem; border-radius: 999px; font-size: .85rem;
+        border: 1px solid var(--line-2); background: var(--panel-2); }
+.unit.quiet { opacity: .5; border-style: dashed; }
+.unit.in { border-color: var(--green); }
+.unit b { color: var(--amber); }
+.empty { color: var(--dimmer); font-style: italic; }
+.joinline { font-family: var(--mono); color: var(--amber); word-break: break-all; }
+table { width: 100%; border-collapse: collapse; margin-top: .6rem; }
+td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
+td.n { color: var(--dim); width: 2.2rem; }
+td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
+.big { font-family: var(--mono); font-size: 2rem; color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Net control</h1>
+    <span class="cap" id="cap"></span>
+    <a class="btn sm" href="/net/board" target="_blank">Open the big board &rarr;</a>
+  </div>
+
+  <div class="card">
+    <b>Tables point themselves here</b>
+    <p class="joinline" id="where">{{ where }}</p>
+    <p style="color:var(--dim);font-size:.85rem;margin:.2rem 0 0">
+      On each table's Pi, open its party screen and connect it to this address.
+      Eight players per table; the players never talk to this machine.</p>
+    <div class="units" id="units"><span class="empty">no tables yet</span></div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <select class="btn" id="difficulty">
+        <option value="technician">Technician</option>
+        <option value="general">General</option>
+        <option value="extra">Amateur Extra</option>
+      </select>
+      <input class="btn" id="seconds" type="number" min="10" max="180" value="45"
+             style="width:5rem" title="seconds per round">
+      <button class="btn primary" id="ask">Put a question to the hall</button>
+      <button class="btn" id="close" disabled>Close the round</button>
+      <span class="big" id="clock"></span>
+    </div>
+    <div id="stage" style="margin-top:.8rem"><p class="empty">No round yet.</p></div>
+  </div>
+</div>
+
+<script>
+async function api(path, body) {
+  const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
+}
+function esc(s) { const d = document.createElement('div');
+                  d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+document.getElementById('ask').addEventListener('click', async () => {
+  await api('/api/net/round', {
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 45});
+  tick();
+});
+document.getElementById('close').addEventListener('click', async () => {
+  await api('/api/net/close', {});
+  tick();
+});
+
+async function tick() {
+  const r = await api('/api/net/board');
+  if (!r.ok) return;
+  const b = r.data, h = b.health || {}, round = b.round;
+
+  document.getElementById('cap').textContent =
+    `${h.units || 0}/${h.cap || 0} tables · ${b.players || 0} players` +
+    (h.healthy === false ? ' · busy' : '');
+
+  const box = document.getElementById('units');
+  box.innerHTML = (b.units || []).length
+    ? b.units.map(u => {
+        const inThisRound = round && u.reported_round === round.number;
+        return `<span class="unit ${u.present ? '' : 'quiet'} ${inThisRound ? 'in' : ''}">
+          ${esc(u.name)} <b>${u.score}</b>
+          <span style="color:var(--dim)">${u.players}p</span></span>`;
+      }).join('')
+    : '<span class="empty">no tables yet</span>';
+
+  document.getElementById('close').disabled = !round;
+  const clock = document.getElementById('clock');
+  clock.textContent = round
+    ? Math.max(0, Math.ceil((round.seconds || 0) - (round.elapsed || 0))) + 's' : '';
+
+  const stage = document.getElementById('stage');
+  if (round) {
+    const q = round.question || {};
+    stage.innerHTML = `
+      <div style="color:var(--dim);font-family:var(--mono);font-size:.8rem">
+        Round ${round.number} · ${esc(q.section || '')} · ${esc(q.difficulty || '')}</div>
+      <p style="font-size:1.05rem;line-height:1.5">${esc(q.text || '')}</p>
+      <p style="color:var(--dim)">${round.reported} of ${round.reported + round.awaiting} tables reported</p>`;
+  } else if (b.last) {
+    const rows = (b.last.top || []).map(x => `
+      <tr><td class="n">${x.place}</td><td>${esc(x.name)}</td>
+          <td class="r">${esc(x.unit_name)}</td>
+          <td class="r">${(x.ms / 1000).toFixed(2)}s</td></tr>`).join('');
+    stage.innerHTML = `
+      <b>Round ${b.last.number}</b> — ${b.last.correct}/${b.last.answers} correct
+      across ${b.last.units_reported} tables.
+      ${b.last.winner_unit ? `<b style="color:var(--amber)"> ${esc(b.last.winner_unit)} chooses next.</b>` : ''}
+      <table>${rows}</table>`;
+  } else {
+    stage.innerHTML = '<p class="empty">No round yet.</p>';
+  }
+}
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big board &middot; ELMER</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='elmer.css') }}">
+<style>
+/* Read from the back of a hall, by people holding a paper plate. Everything
+   here is sized for distance: few things on screen, all of them large. */
+body { margin: 0; background: var(--bg); color: var(--text);
+       font-family: var(--sans); overflow: hidden; }
+.board { height: 100dvh; display: flex; flex-direction: column; padding: 1.4vh 1.6vw; }
+.head { display: flex; align-items: baseline; gap: 1.2vw; margin-bottom: 1.2vh; }
+.head h1 { margin: 0; font-size: clamp(1.4rem, 3vw, 2.6rem); letter-spacing: .01em; }
+.head .sub { color: var(--dim); font-size: clamp(.8rem, 1.3vw, 1.2rem); }
+.head .clock { margin-left: auto; font-family: var(--mono);
+               font-size: clamp(1.6rem, 5vw, 4.5rem); color: var(--amber);
+               font-variant-numeric: tabular-nums; line-height: 1; }
+.head .clock.done { color: var(--dim); }
+
+.question { background: var(--panel); border: 1px solid var(--line);
+            border-radius: 14px; padding: 1.6vh 1.6vw; margin-bottom: 1.4vh; }
+.question .tag { color: var(--dim); font-family: var(--mono);
+                 font-size: clamp(.7rem, 1.1vw, 1rem); }
+.question p { margin: .4vh 0 0; font-size: clamp(1.1rem, 2.4vw, 2.2rem);
+              line-height: 1.35; }
+
+.cols { flex: 1; display: grid; grid-template-columns: 1.15fr 1fr;
+        gap: 1.4vw; min-height: 0; }
+.panelbox { background: var(--panel); border: 1px solid var(--line);
+            border-radius: 14px; padding: 1.2vh 1.2vw; overflow: hidden;
+            display: flex; flex-direction: column; }
+.panelbox h2 { margin: 0 0 .8vh; font-size: clamp(.85rem, 1.4vw, 1.3rem);
+               color: var(--dim); font-weight: 600; letter-spacing: .04em;
+               text-transform: uppercase; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: .55vh .4vw; border-bottom: 1px solid var(--line);
+     font-size: clamp(.85rem, 1.5vw, 1.5rem); }
+td.pos { color: var(--dim); width: 2.6ch; font-family: var(--mono); }
+td.pts, td.ms { text-align: right; font-family: var(--mono); }
+td.ms { color: var(--dim); }
+tr.lead td { color: var(--amber); font-weight: 700; }
+tr.gold td { color: #ffd479; }
+.tally { display: flex; gap: 1vw; margin-bottom: 1.2vh; }
+.tally div { flex: 1; background: var(--panel-2); border-radius: 12px;
+             padding: .9vh 1vw; }
+.tally b { display: block; font-family: var(--mono);
+           font-size: clamp(1.2rem, 3vw, 2.6rem); line-height: 1.1; }
+.tally span { color: var(--dim); font-size: clamp(.65rem, 1vw, .95rem);
+              text-transform: uppercase; letter-spacing: .05em; }
+.waiting { text-align: center; color: var(--dim); padding: 6vh 2vw;
+           font-size: clamp(1rem, 2vw, 1.8rem); }
+.picker { margin-top: 1vh; text-align: center; color: var(--amber);
+          font-size: clamp(.9rem, 1.7vw, 1.6rem); }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="head">
+    <h1 id="title">ELMER</h1>
+    <span class="sub" id="sub"></span>
+    <span class="clock" id="clock">—</span>
+  </div>
+  <div id="stage"><div class="waiting">Waiting for net control…</div></div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+let paintedRound = null, paintedPhase = null;
+
+function esc(s) { const d = document.createElement('div');
+                  d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+function standings(board) {
+  const rows = (board.units || []).slice(0, 10).map((u, i) => `
+    <tr class="${i === 0 && u.score > 0 ? 'gold' : ''}">
+      <td class="pos">${i + 1}</td>
+      <td>${esc(u.name)}${u.present ? '' : ' <span style="color:var(--dimmer)">(quiet)</span>'}</td>
+      <td class="ms">${u.players}</td>
+      <td class="pts">${u.score}</td>
+    </tr>`).join('');
+  return `<div class="panelbox"><h2>Tables</h2><table>${rows}</table></div>`;
+}
+
+function lastRound(board) {
+  const last = board.last;
+  if (!last) return `<div class="panelbox"><h2>Last round</h2>
+      <div class="waiting">No rounds yet</div></div>`;
+  const top = (last.top || []).slice(0, 8).map((r, i) => `
+    <tr class="${i === 0 ? 'lead' : ''}">
+      <td class="pos">${r.place}</td>
+      <td>${esc(r.name)}</td>
+      <td class="ms">${esc(r.unit_name)}</td>
+      <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
+    </tr>`).join('');
+  return `<div class="panelbox">
+      <h2>Round ${last.number} &mdash; fastest correct</h2>
+      <div class="tally">
+        <div><b>${last.correct}</b><span>correct</span></div>
+        <div><b>${last.answers}</b><span>answers</span></div>
+        <div><b>${last.units_reported}</b><span>tables in</span></div>
+      </div>
+      <table>${top}</table>
+      ${last.winner_unit ? `<div class="picker">${esc(last.winner_unit)} chooses the next question</div>` : ''}
+    </div>`;
+}
+
+async function tick() {
+  let board;
+  try {
+    const r = await fetch('/api/net/board');
+    if (!r.ok) { document.getElementById('clock').textContent = '—'; return; }
+    board = await r.json();
+  } catch (e) { return; }
+
+  document.getElementById('title').textContent = board.name || 'ELMER';
+  const h = board.health || {};
+  document.getElementById('sub').textContent =
+    `${board.units_present} table${board.units_present === 1 ? '' : 's'} · ` +
+    `${board.players} player${board.players === 1 ? '' : 's'}`;
+
+  const round = board.round;
+  const clock = document.getElementById('clock');
+  if (round) {
+    const left = Math.max(0, (round.seconds || 0) - (round.elapsed || 0));
+    clock.textContent = Math.ceil(left) + 's';
+    clock.classList.toggle('done', left <= 0);
+  } else {
+    clock.textContent = '—';
+    clock.classList.add('done');
+  }
+
+  const phase = round ? 'q' + round.number : 'idle';
+  if (phase !== paintedPhase) {
+    paintedPhase = phase;
+    if (round) {
+      const q = round.question || {};
+      stage.innerHTML = `
+        <div class="question">
+          <div class="tag">Round ${round.number} · ${esc(q.difficulty || '')} · ${esc(q.section || '')}</div>
+          <p>${esc(q.text || '')}</p>
+        </div>
+        <div class="cols">${standings(board)}${lastRound(board)}</div>`;
+    } else {
+      stage.innerHTML = `<div class="cols">${standings(board)}${lastRound(board)}</div>`;
+    }
+  } else {
+    // Same phase: refresh only the two side panels, so the question does not
+    // flicker under a room full of people trying to read it.
+    const cols = stage.querySelector('.cols');
+    if (cols) cols.innerHTML = standings(board) + lastRound(board);
+  }
+
+  if (round) {
+    const tag = stage.querySelector('.question .tag');
+    if (tag) tag.textContent =
+      `Round ${round.number} · ${round.reported} of ${round.reported + round.awaiting} tables in`;
+  }
+}
+
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

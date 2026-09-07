@@ -104,7 +104,7 @@ class Round:
     """One question, put to the room, and the answers that came back."""
 
     def __init__(self, number, pool_id, question_id, answer_index, seconds,
-                 payload=None):
+                 payload=None, tag=None):
         self.number = number
         self.pool_id = pool_id
         self.question_id = question_id
@@ -113,6 +113,9 @@ class Round:
         # question in different orders are not racing the same question.
         self.answer_index = answer_index
         self.payload = payload or {}
+        # Which net-control round this is, when the table is part of a larger
+        # competition. None when the table is running its own evening.
+        self.tag = tag
         self.opened_at = _now()
         self.seconds = seconds
         self.answers = {}          # player_id -> dict
@@ -227,12 +230,12 @@ class Room:
     # ---------------------------------------------------------------- rounds
 
     def start_round(self, pool_id, question_id, answer_index,
-                    seconds=DEFAULT_ROUND_SECONDS, payload=None):
+                    seconds=DEFAULT_ROUND_SECONDS, payload=None, tag=None):
         """Put a question to the room."""
         with self.lock:
             self.round_number += 1
             self.round = Round(self.round_number, pool_id, question_id,
-                               answer_index, seconds, payload)
+                               answer_index, seconds, payload, tag)
             return self.round
 
     def submit(self, player_id, chosen_index, client_ms, server_ms=None):
