@@ -2022,8 +2022,8 @@ def api_boards():
     """
     mine = _board_here()
     out = []
+    running = netcontrol.net()
     if mine is not None:
-        running = netcontrol.net()
         out.append({"url": "", "here": True, "kind": mine.get("kind"),
                     "name": (running.name if running is not None
                              else "Tournament"),
@@ -2031,6 +2031,14 @@ def api_boards():
                                    else ""),
                     "board": mine, "stale": False, "error": None})
     away = [g for g in discovery.games() if g.get("url")]
+    # The net this unit reports to, whether or not it was heard announcing
+    # itself. A board on a table needs the hall's standings above all, and the
+    # master may be on another subnet or on the end of a wire.
+    link = cohort.bridge()
+    if link is not None and not any(g["url"] == link.url for g in away):
+        away.append({"url": link.url, "name": link.net_name or "the net",
+                     "difficulty": link.net_difficulty, "units": 0,
+                     "kind": "hall", "path": "/api/net/board"})
     for got in netwatch.look(away):
         board = got.get("board")
         if board is not None and got.get("kind") == "hall":
@@ -2041,7 +2049,53 @@ def api_boards():
                     "board": board, "stale": got.get("stale"),
                     "age_s": got.get("age_s"), "error": got.get("error")})
     netwatch.forget(keep=[g["url"] for g in away])
-    return jsonify({"games": out, "count": len(out), "where": _here()})
+    party_now = _party_standings(out, link, running)
+    if link is not None:
+        # The net this unit is a table in is not a second tournament to watch
+        # alongside its own board - it is the same one, seen from the master.
+        # It belongs in the strip at the foot as context, and listing it as a
+        # rival to the table's own screen would count these players twice.
+        out = [g for g in out if g["url"] != link.url]
+    return jsonify({"games": out, "count": len(out), "where": _here(),
+                    "local": _local_standings(), "party": party_now})
+
+
+def _local_standings():
+    """Who is ahead at this table. None when nobody is playing here.
+
+    This is the half of the foot of the board that belongs to the people in
+    the room: their own names, their own scores. On a unit that is only net
+    control there is nobody at it, and the strip says so by not being there.
+    """
+    room = party.room()
+    if room is None:
+        return None
+    rows = room.standings()
+    if not rows:
+        return None
+    state = room.state()
+    return {"name": "This table", "standings": rows,
+            "people": state.get("people", 0), "bots": state.get("bots", 0)}
+
+
+def _party_standings(games, link, running):
+    """Where the tables stand in the hall this unit belongs to.
+
+    Only for a table. Net control's own screen is the hall standings already,
+    and repeating them along the foot of it would be the same list twice; the
+    unit that needs this is the one whose board can otherwise show nothing but
+    its own eight players.
+    """
+    if link is None:
+        return None
+    for game in games:
+        if game.get("url") == link.url and game.get("board"):
+            board = game["board"]
+            return {"name": board.get("name") or game.get("name") or "The hall",
+                    "standings": board.get("standings") or [],
+                    "units": board.get("units_present", 0),
+                    "players": board.get("players", 0)}
+    return None
 
 
 @app.route("/api/pool-gate", methods=["POST"])

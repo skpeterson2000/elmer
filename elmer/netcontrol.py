@@ -293,20 +293,55 @@ class Net:
                 self.units[winner].rounds_won += 1
             self.picker_unit = winner
 
+            # The question and its answer travel with the summary. A hall
+            # watching a round close is a room full of people who have just
+            # read a question, and telling them the answer at the moment the
+            # winner goes up is the only teaching a spectator gets - the
+            # explanation stays where it belongs, in the pool browser
+            # afterwards, but the answer itself costs nothing and sticks.
+            payload = self.round.get("question") or {}
+            choices = payload.get("choices") or []
+            index = self.round.get("answer_index")
             summary = {
                 "number": self.round_number,
                 "question_id": self.round["question_id"],
                 "pool": self.round["pool"],
+                "question": payload.get("text", ""),
+                "answer": (choices[index] if isinstance(index, int)
+                           and 0 <= index < len(choices) else None),
                 "units_reported": len(self.results),
                 "answers": len(everyone),
                 "correct": len(right),
                 "winner_unit": winner,
+                # And what that unit is called. The id is a machine's handle -
+                # a hostname with a mark on it, so that two Pis of the same
+                # name are still two Pis - and putting it on a screen at the
+                # front of a hall tells the room nothing it wants to know.
+                "winner_name": (self.units[winner].name if winner in self.units
+                                else None),
                 "unit_points": per_unit,
                 "top": right[:10],
             }
             self.history.append(summary)
             self.round = None
             return summary
+
+    def standings(self, limit=8):
+        """Which tables are ahead, and which just gained.
+
+        For the strip along the foot of a board that is not net control's own
+        screen. A spectator at table three can see their own table's players
+        on this unit; what they cannot see, and most want to, is where the
+        table stands in the hall.
+        """
+        with self.lock:
+            gained = (self.history[-1].get("unit_points") or {}
+                      if self.history else {})
+            rows = sorted(self.units.values(),
+                          key=lambda u: (-u.score, u.name.lower()))
+            return [{"name": u.name, "score": u.score,
+                     "gained": gained.get(u.id, 0), "players": u.players,
+                     "present": u.present} for u in rows[:limit]]
 
     # ---------------------------------------------------------------- board
 
@@ -321,10 +356,15 @@ class Net:
                 "difficulty": self.difficulty,
                 "health": self.health(),
                 "units": units,
+                # Ready-made for the strip at the foot of a board, including
+                # the boards on other units that fetch this one over HTTP.
+                "standings": self.standings(),
                 "units_present": len(present),
                 "players": sum(u["players"] for u in present),
                 "round": self.current(),
                 "picker_unit": self.picker_unit,
+                "picker_name": (self.units[self.picker_unit].name
+                                if self.picker_unit in self.units else None),
                 "last": self.history[-1] if self.history else None,
             }
 
