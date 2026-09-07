@@ -25,7 +25,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               bugreport, cohort, conductors, diagnostics, gating, gps, netcontrol,
+               autoplay, bugreport, cohort, conductors, diagnostics, gating,
+               gps, netcontrol,
                party, qr,
                reachout, repeaters,
                terrain, update)
@@ -290,6 +291,9 @@ def home():
         standing_for(connection, pool, stats)
         summary.append({
             "pool": pool, "open": pid in allowed,
+            # Only the amateur ladder has a tournament difficulty; the
+            # commercial pools are not part of the class-versus-class game.
+            "tournament": POOL_DIFFICULTY.get(pid),
             "closed_why": gating.why_closed(pid, gate_state),
             "mastery": stats["mastery"],
             "readiness": stats["readiness"], "seen": stats["seen"],
@@ -1317,6 +1321,9 @@ def api_geocode():
 # question, timed by their own clocks. None of it touches the database while a
 # round is running - see elmer/party.py for why.
 
+POOL_DIFFICULTY = {v: k for k, v in party.DIFFICULTIES.items()}
+
+
 def _party_or_404():
     room = party.room()
     if room is None:
@@ -1379,29 +1386,12 @@ def api_party_round():
     """
     room = _party_or_404()
     body = request.get_json(silent=True) or {}
-    wanted = str(body.get("difficulty", "technician")).lower()
-    pool_id = party.DIFFICULTIES.get(wanted)
-    if not pool_id:
-        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
-    pool = _pool_or_404(pool_id)
-
-    section = body.get("section")
-    ids = [q["id"] for q in pool.by_id.values()
-           if not section or q["section"] == section]
-    if not ids:
-        abort(400, "no questions in that section")
-    question = pool.by_id[random.choice(ids)]
-    shown = presentation(question)
-
-    rnd = room.start_round(
-        pool_id, question["id"], shown["answer"],
-        seconds=float(body.get("seconds", party.DEFAULT_ROUND_SECONDS)),
-        payload={"text": question["text"], "choices": shown["choices"],
-                 "section": question["section"],
-                 "section_title": pool.section_title(question["section"]),
-                 "figure": pool.figure_url(question),
-                 "difficulty": wanted})
-    log.info("party round %d: %s %s", rnd.number, pool_id, question["id"])
+    try:
+        rnd = _ask_party(body.get("difficulty", "technician"),
+                         body.get("section"), body.get("seconds"))
+    except ValueError as exc:
+        abort(400, str(exc))
+    log.info("party round %d: %s %s", rnd.number, rnd.pool_id, rnd.question_id)
     return jsonify(room.state())
 
 
@@ -1426,6 +1416,77 @@ def api_party_answer():
     # round closes, so nobody learns the answer by watching a neighbour.
     return jsonify({"accepted": True, "ms": entry["ms"],
                     "everyone_in": room.everyone_answered()})
+
+
+def _ask_party(difficulty="technician", section=None, seconds=None):
+    """Put one question to the table. Shared by the button and the director."""
+    pool_id = party.DIFFICULTIES.get(str(difficulty).lower())
+    if not pool_id:
+        raise ValueError(f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    pool = _pool_or_404(pool_id)
+    ids = [q["id"] for q in pool.by_id.values()
+           if not section or q["section"] == section]
+    if not ids:
+        raise ValueError("no questions in that section")
+    question = pool.by_id[random.choice(ids)]
+    shown = presentation(question)
+    room = _party_or_404()
+    return room.start_round(
+        pool_id, question["id"], shown["answer"],
+        seconds=float(seconds or party.DEFAULT_ROUND_SECONDS),
+        payload={"text": question["text"], "choices": shown["choices"],
+                 "section": question["section"],
+                 "section_title": pool.section_title(question["section"]),
+                 "figure": pool.figure_url(question),
+                 "difficulty": str(difficulty).lower()})
+
+
+@app.route("/api/party/bots", methods=["POST"])
+def api_party_bots():
+    """Switch practice opponents on or off for this table."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    if body.get("on", True):
+        room.fill_bots(body.get("level"))
+    else:
+        room.clear_bots()
+    return jsonify(room.state())
+
+
+@app.route("/api/party/auto", methods=["POST"])
+def api_party_auto():
+    """Start or stop a match that runs itself.
+
+    Once started, questions follow one another: the round closes when everyone
+    has answered or the clock runs out, the result stands for a moment, and the
+    next question goes up. The game master starts it and can stop it; nothing
+    in between needs a button.
+    """
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    if not body.get("on", True):
+        autoplay.stop()
+        return jsonify({"auto": autoplay.director().as_dict()
+                        if autoplay.director() else None, "running": False})
+    difficulty = str(body.get("difficulty", "technician")).lower()
+    seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
+    section = body.get("section")
+    rounds = body.get("rounds")
+    if body.get("bots", True):
+        room.fill_bots(body.get("level"))
+    driver = autoplay.start(
+        room, lambda: _ask_party(difficulty, section, seconds),
+        rounds=int(rounds) if rounds else None,
+        reveal=float(body.get("reveal") or autoplay.REVEAL_SECONDS))
+    return jsonify({"running": True, "auto": driver.as_dict(),
+                    "state": room.state()})
+
+
+@app.route("/api/party/auto-state")
+def api_party_auto_state():
+    """Whether a tournament is running on this table."""
+    driver = autoplay.director()
+    return jsonify({"auto": driver.as_dict() if driver else None})
 
 
 @app.route("/api/party/close", methods=["POST"])
@@ -1467,9 +1528,13 @@ def party_table(table="1"):
     if running is None:
         running = party.room(create=True, cohorts=1)
     url = _join_url(table)
+    wanted = str(request.args.get("difficulty", "")).lower()
+    if wanted not in party.DIFFICULTIES:
+        wanted = "technician"
     return render_template(
         "party_table.html", table=table, name=f"Table {table}",
-        join_url=url, qr_svg=qr.as_svg(url, module=7, quiet=3))
+        difficulty=wanted, join_url=url,
+        qr_svg=qr.as_svg(url, module=7, quiet=3))
 
 
 @app.route("/j/<table>")

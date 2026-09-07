@@ -99,12 +99,21 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
     <div>
       <div class="controls">
         <select class="btn" id="difficulty">
-          <option value="technician">Technician</option>
-          <option value="general">General</option>
-          <option value="extra">Amateur Extra</option>
+          <option value="technician"{% if difficulty == 'technician' %} selected{% endif %}>Technician</option>
+          <option value="general"{% if difficulty == 'general' %} selected{% endif %}>General</option>
+          <option value="extra"{% if difficulty == 'extra' %} selected{% endif %}>Amateur Extra</option>
         </select>
-        <button class="btn primary" id="ask">Ask a question</button>
-        <button class="btn" id="close" disabled>Close the round</button>
+        <input class="btn" id="seconds" type="number" min="10" max="180" value="30"
+               style="width:4.6rem" title="seconds per question">
+        <button class="btn primary" id="tourney">&#9873; Start tournament</button>
+        <button class="btn" id="stopt" hidden>Stop</button>
+        <span class="chip" id="autostate"></span>
+      </div>
+      <div class="controls" style="margin-top:.5rem">
+        <label class="chip" style="cursor:pointer">
+          <input type="checkbox" id="botson" checked> practice opponents</label>
+        <button class="btn sm ghost" id="ask">Ask one question</button>
+        <button class="btn sm ghost" id="close" disabled>Close the round</button>
       </div>
       <div class="card" id="stage">
         <p class="empty">No round yet. Pick a difficulty and ask a question.</p>
@@ -201,6 +210,42 @@ async function tick() {
   if (waiting) waiting.textContent =
     `${round.answered} in, ${round.waiting_on} still thinking`;
 }
+
+/* ------------------------------------------------------- tournament mode */
+const tourney = document.getElementById('tourney');
+const stopt = document.getElementById('stopt');
+const autostate = document.getElementById('autostate');
+
+tourney.addEventListener('click', async () => {
+  tourney.disabled = true;
+  await api('/api/party/auto', {
+    on: true,
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 30,
+    bots: document.getElementById('botson').checked});
+  tourney.disabled = false;
+  autoTick();
+});
+stopt.addEventListener('click', async () => {
+  await api('/api/party/auto', {on: false});
+  autoTick();
+});
+document.getElementById('botson').addEventListener('change', async e => {
+  await api('/api/party/bots', {on: e.target.checked});
+  tick();
+});
+
+async function autoTick() {
+  const r = await api('/api/party/auto-state');
+  const a = r.data && r.data.auto;
+  const on = !!(a && a.running);
+  stopt.hidden = !on;
+  tourney.hidden = on;
+  autostate.textContent = on
+    ? `${a.state} · ${a.played} round${a.played === 1 ? '' : 's'}` : '';
+}
+autoTick();
+setInterval(autoTick, 2000);
 
 /* ---------------------------------------------------------- net control */
 const netUrl = document.getElementById('neturl');
