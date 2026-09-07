@@ -22,6 +22,7 @@ loses the network mid-round finishes its round locally and reports late; the
 net notices it is quiet and carries on without it, rather than stopping the
 hall because one Pi in the corner went off the air.
 """
+import random
 import threading
 import time
 from collections import deque
@@ -250,11 +251,16 @@ class Net:
                            key=lambda r: r["ms"])
             per_unit = {}
             for place, row in enumerate(right, start=1):
-                # Across a hall, place points flatten quickly - otherwise one
-                # fast table takes everything and the rest stop trying. Being
-                # correct is most of the value; being first is a bonus.
+                # The podium is separated, the tail is flattened. Flattening
+                # the whole curve stops one fast table taking everything, but
+                # flattening the podium too meant that a hall with three or
+                # fewer correct answers - which is most club evenings - tied
+                # every round and decided it on a coin toss. Being correct is
+                # still most of the value: last place scores a fifth of first,
+                # not a hundredth.
                 row["place"] = place
-                row["points"] = 5 if place <= 3 else (3 if place <= 10 else 1)
+                row["points"] = (7 - place if place <= 3
+                                 else 3 if place <= 10 else 1)
                 per_unit[row["unit"]] = per_unit.get(row["unit"], 0) + row["points"]
 
             for uid, points in per_unit.items():
@@ -266,8 +272,13 @@ class Net:
                 best = max(per_unit.values())
                 tied = [u for u, p in per_unit.items() if p == best]
                 # A tie hands the pick to whoever is behind overall, so a
-                # runaway table does not also own the question list.
-                winner = min(tied, key=lambda u: (self.units[u].score, u))
+                # runaway table does not also own the question list. Where they
+                # are level on that too, it is drawn - sorting by unit id gave
+                # the same table every tie all evening, which over a long hall
+                # is a real advantage handed out alphabetically.
+                floor = min(self.units[u].score for u in tied)
+                level = [u for u in tied if self.units[u].score == floor]
+                winner = random.choice(level)
                 self.units[winner].rounds_won += 1
             self.picker_unit = winner
 
