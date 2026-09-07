@@ -675,3 +675,13 @@ option.not-permitted { color: var(--amber); }
 .derivation summary { cursor: pointer; color: var(--amber); }
 .derivation table { margin-top: .5rem; }
 .derivation td { vertical-align: top; }
+
+/* A pool that is not open yet is shown, not hidden: the questions ship with
+   every copy and pretending otherwise would be its own kind of lie. It is
+   dimmed, it says what opens it, and it offers the way past. */
+.pool-card.pool-closed { opacity: .62; }
+.pool-card.pool-closed .stat-value { color: var(--dim); }
+.pool-gate-note {
+  margin: .1rem 0 .6rem; font-size: .85rem; line-height: 1.45;
+  color: var(--dim); border-left: 2px solid var(--line-2); padding-left: .6rem;
+}

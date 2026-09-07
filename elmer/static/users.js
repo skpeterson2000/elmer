@@ -187,3 +187,19 @@ function renderShack(d) {
 if (document.getElementById('shack')) {
   api('/api/scoreboard').then(renderShack).catch(() => {});
 }
+
+/* "Open every pool anyway" - the gate is a kindness to a beginner, not a
+   ruling about what a licensed operator may read. */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-open-pools]');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Opening…';
+  try {
+    await postJSON('/api/pool-gate', {open: true});
+    location.reload();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Open every pool anyway';
+  }
+});
