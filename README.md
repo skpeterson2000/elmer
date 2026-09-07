@@ -251,6 +251,70 @@ small. It is a starting point rather than a rule: good enough to make contacts
 with, which is what somebody needs before they have the experience to disagree
 with it.
 
+**60 m is five channels, and the page draws five channels.** 47 CFR 97.303(h)
+permits 2.8 kHz on each of five fixed frequencies and nothing at all between
+them, so a bar filled from 5.3305 to 5.4065 says, in the only language a chart
+has, that the whole range is yours. It is drawn as what it is: five slivers,
+hatched between, numbered 1 to 5 and labelled with the dial setting.
+
+Two frequencies belong to each channel and they are not the same number. The
+rules name the channel by its centre — 5332.0 kHz and the rest. The operator
+types the suppressed carrier, 1.5 kHz below that, and *that* is the number
+printed on every 60 m chart in a go-bag. Both are held, both answer "yes", and
+the page shows the one you dial with the one the rules name behind it, because
+an operator who knows only one of them is the one who ends up 1.5 kHz off and
+certain the chart is wrong.
+
+The privileges are generated from the channels rather than written out beside
+them, so being permitted on 60 m and being on a channel are now the same fact
+everywhere in the program: the antenna designer, the exposure evaluation and
+the printed sheet all refuse 5.340 MHz for the reason that is actually true of
+it. Only upper sideband, CW and data are permitted there — an AM carrier on a
+60 m channel is refused where the same carrier on 80 m is somebody's ordinary
+evening.
+
+**A second bar, under the first.** The top bar is where you may transmit. The
+one under it is whether it is worth it: one number for that band at this hour,
+what it means for the mode, and the shape of the next day beside it.
+
+    Conditions on 40 m now   [ Fair · 50/100 ]   wall chart says Poor
+    ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░
+    CW and FT8 comfortably; SSB will be a struggle
+    7 MHz is 0.42 of the 16.8 MHz MUF; daylight D-layer absorption is what
+    limits it. MUF measured at Idaho Natl Lab, 1468 km away, 27 min ago.
+
+    The next 24 hours
+    ▁▁▁▃▅▇▇▇▇▇▇▇▇▅▃▁▁▁▁▁▁▁▁▁
+    now      22       04       10       16
+    Worth using right through the day — best about 79/100, local time.
+
+A wall chart rates a *group* of bands Poor, Fair or Good, twice a day. That
+answers whether to turn the radio on. It does not answer the question actually
+in hand, which is whether to call CQ on SSB now or come back at eight o'clock
+and use CW — and the difference between those two is most of an evening. So the
+number is worked per band per hour, out of the three things that decide it and
+can be known here: the band against the MUF, daytime D-layer absorption, and
+the state of the geomagnetic field. The mode line comes from the same number,
+because FT8 and CW get through some 10 to 15 dB below where SSB gives up, and a
+band that is shut for one is open for the other.
+
+The forecast is the sun. Where the sun will be tomorrow is the one thing about
+tomorrow that is known exactly, and on HF it is most of the answer: it sets the
+MUF and it switches the D layer on and off. So the flux and the field are held
+where they are now — they move slowly, and pretending to forecast them would be
+inventing numbers — and the sun is allowed to do what it is going to do anyway.
+Where an ionosonde is reporting within 2000 km, its measured MUF sets the level
+and the model supplies only the shape, so the meter and the curve are anchored
+to a measurement rather than to a flux figure. It is a model and says so on the
+page: it knows nothing about your antenna, your power, or the far end.
+
+Above about 30 MHz none of it applies, and the bands above HF say so instead of
+showing a meter that would read *closed* every day of the year. There is no MUF
+to be under: what opens 6 m and 2 m is sporadic E, tropospheric ducting and
+aurora, which are local, short-lived and not predictable from a solar flux
+number. Those bands get what is actually known — what the network is reporting
+at this moment — and a sentence about why there is no curve.
+
 Two printouts. **One page (PDF)** is the picture: every band drawn to scale on a
 single landscape sheet, your privileges filled in and coloured by what you may
 send there — voice, CW and data, or CW only — and everything you may not

@@ -693,6 +693,11 @@ def api_privileges():
             permitted, why = False, "not in this class's part of the band"
         elif emission is None:
             permitted, why = True, None          # tuning, wherever you may talk
+        elif (emission == "phone" and result["phone_modes"] == ["usb"]
+                and key not in ("ssb", "ssb_proc")):
+            permitted = False
+            why = ("only upper sideband is permitted here - 60 m carries USB "
+                   "voice, CW and data and nothing else (47 CFR 97.305(c))")
         elif emission in result["emissions"]:
             permitted, why = True, None
         else:
@@ -1187,6 +1192,89 @@ def api_propagation():
         if game.award(connection, ["propagation"]):
             connection.commit()
     return jsonify(snap)
+
+
+# How far away an ionosonde can be and still be measuring the ionosphere you
+# are transmitting through. Beyond this it is a different sky, and the model is
+# the more honest answer.
+ANCHOR_KM = 2000
+
+
+@app.route("/api/propagation/outlook")
+def api_propagation_outlook():
+    """Band by band: how good it is now, and how the next day looks.
+
+    The wall-chart rating says Poor, Fair or Good for a group of bands twice a
+    day. This is the same question asked hour by hour for one band, which is
+    the form the answer is needed in when the decision is whether to call CQ on
+    SSB now or come back at eight and use CW.
+
+    Nothing here fetches: it works from the space-weather snapshot the
+    dashboard already caches and from the ionosonde reading if one happens to
+    be in hand, so opening the band plan costs no network at all.
+    """
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    loc = settings.get("location") or {}
+    lat, lon = loc.get("lat"), loc.get("lon")
+    snap = propagation.snapshot(lat=lat, lon=lon)
+    if not snap.get("ok"):
+        return jsonify({"ok": False, "error": snap.get("error", "no space weather")})
+
+    muf, source, station, anchor = snap["muf"], "modelled", None, 1.0
+    if lat is not None:
+        near = ionosonde.nearest(lat, lon, offline=True)
+        if near and near["distance_km"] <= ANCHOR_KM:
+            # A measurement beats a model about the level, even when the model
+            # is the only thing that can say anything about tomorrow. The same
+            # scaling goes into every hour of the outlook, so the meter and the
+            # strip below it can never contradict each other.
+            measured = round(near.get("mufd") or near["fof2"] * 3.2, 1)
+            anchor = propagation.muf_anchor(snap["sfi"], lat, lon, measured)
+            muf = round(snap["muf"] * anchor, 1)
+            source = "measured" if abs(muf - measured) < 0.6 else "bounded"
+            station = {"name": near["name"], "km": near["distance_km"],
+                       "age_minutes": near["age_minutes"],
+                       "measured": measured}
+        elif near:
+            station = {"name": near["name"], "km": near["distance_km"],
+                       "age_minutes": near["age_minutes"], "too_far": True}
+
+    # With no QTH there is no sun angle, so the snapshot's day-or-night guess
+    # from the clock is all there is - enough for a rating now, not enough for
+    # an hour-by-hour outlook, and the page says so rather than inventing one.
+    elevation = snap.get("elevation")
+    if elevation is None:
+        elevation = 25.0 if snap.get("is_day") else -25.0
+    k_index = snap.get("k_index") or 0
+    rated = {row["band"]: row for row in snap.get("bands", [])}
+
+    bands = []
+    for name, mhz, _group in propagation.BANDS:
+        now = propagation.band_score(mhz, muf, elevation, k_index)
+        hours, when = [], []
+        if lat is not None:
+            when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
+                                       anchor=anchor)
+            hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
+                      "day": row["day"]} for row in when]
+        bands.append({"band": name, "mhz": mhz, "now": now,
+                      "rating": (rated.get(name) or {}).get("rating", ""),
+                      "note": (rated.get(name) or {}).get("note", ""),
+                      "hours": hours,
+                      "windows": propagation.windows(when) if when else []})
+    return jsonify({"ok": True, "located": lat is not None,
+                    "muf": muf, "muf_source": source, "station": station,
+                    "sfi": snap["sfi"], "k_index": k_index,
+                    "a_index": snap.get("a_index"),
+                    "is_day": snap.get("is_day"),
+                    "elevation": snap.get("elevation"),
+                    "verdict": snap.get("verdict", ""),
+                    # Above about 30 MHz the model has nothing to say, so what
+                    # the network is reporting is passed through instead.
+                    "vhf": snap.get("vhf") or {},
+                    "aurora": snap.get("aurora"),
+                    "fetched": snap.get("fetched"), "bands": bands})
 
 
 @app.route("/api/stats/<pool_id>")

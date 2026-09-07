@@ -304,14 +304,28 @@ def privilege_warnings(case, license_class):
         return []                       # already warned about as a frequency
     said = []
     if not where["allowed"]:
-        said.append(f"{mhz:g} MHz is in the {where['band']} band but not in the "
-                    f"part of it {a_class} licensee may transmit on "
-                    f"(47 CFR 97.301)")
+        if where["channelised"] and not where["channel"]:
+            # "Not in your segment" is true of 60 m and unhelpful about it.
+            # There are no segments there: five channels and nothing between.
+            # A class with no 60 m privileges at all still gets told that
+            # instead - being on channel 1 is not this operator's problem.
+            said.append(f"{mhz:g} MHz is not one of the five 60 m channels, "
+                        f"which are the only frequencies usable in that band "
+                        f"(47 CFR 97.303(h))")
+        else:
+            said.append(f"{mhz:g} MHz is in the {where['band']} band but not in "
+                        f"the part of it {a_class} licensee may transmit on "
+                        f"(47 CFR 97.301)")
         return said
 
     mode = case.get("mode") or "ssb"
     emission = MODE_EMISSION.get(mode)
-    if emission and emission not in where["emissions"]:
+    if (emission == "phone" and where["phone_modes"] == ["usb"]
+            and mode not in ("ssb", "ssb_proc")):
+        said.append(f"only upper sideband is permitted at {mhz:g} MHz - the "
+                    f"60 m channels carry USB voice, CW and data and no other "
+                    f"emission (47 CFR 97.305(c))")
+    elif emission and emission not in where["emissions"]:
         label = bandplan.EMISSION_LABELS.get(emission, emission)
         said.append(f"{label} is not permitted at {mhz:g} MHz for {a_class} "
                     f"licensee - this segment allows {where['terms']} "
@@ -324,9 +338,9 @@ def privilege_warnings(case, license_class):
     if where["max_erp"] and pep > where["max_erp"]:
         said.append(f"{mhz:g} MHz is limited to {where['max_erp']} W ERP, and "
                     f"{pep:g} W into an antenna with gain will exceed it")
-    if where["channelised"] and not where["channel"]:
-        said.append(f"{mhz:g} MHz is not one of the five 60 m channels, which "
-                    f"are the only frequencies usable in that band")
+    # Nothing more to say about a channel here: the privileges and the channel
+    # list are generated from each other, so being permitted on 60 m and being
+    # on a channel are now the same fact.
     return said
 
 

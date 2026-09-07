@@ -423,6 +423,20 @@ input[type=range]::-moz-range-thumb {
   opacity: 1;
 }
 .bandscale { display: flex; justify-content: space-between; font: .68rem var(--mono); color: var(--dimmer); }
+/* 60 m: the five channels named under the bar, since at this scale each one is
+   a sliver two pixels wide and would otherwise read as a rounding artefact. */
+.chanticks { position: relative; height: 2.6rem; margin-top: .15rem; }
+.chanticks i {
+  position: absolute; transform: translateX(-50%); text-align: center;
+  font-style: normal; line-height: 1.15;
+}
+.chanticks i::before {
+  content: ''; display: block; width: 1px; height: 5px; margin: 0 auto .15rem;
+  background: var(--line-2);
+}
+.chanticks + .bandscale { margin-top: .3rem; }
+.chanticks b { display: block; font-size: .68rem; color: var(--amber); }
+.chanticks span { font: .62rem var(--mono); color: var(--dimmer); }
 .privlist { margin: 0; padding-left: 1rem; font-size: .85rem; line-height: 1.7; }
 .privlist .mono { color: var(--amber); }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .35rem; }
@@ -660,6 +674,52 @@ option.not-permitted { color: var(--amber); }
 .seg-card-head { display: flex; align-items: baseline; gap: .4rem;
                  flex-wrap: wrap; margin-bottom: .3rem; }
 .seg-picked { border-left: 3px solid var(--amber); }
+
+/* ---------- how good the band is, and when it will be better ----------
+   A second bar under the first one. The top bar is where you may transmit;
+   this one is whether it is worth it. Five steps, because a number without a
+   word beside it is read as more precise than it is. */
+.q0 { --q: #8b3a3a; } .q1 { --q: #f85149; } .q2 { --q: #ffb454; }
+.q3 { --q: #7ac74f; } .q4 { --q: #3fb950; }
+/* Written out rather than mixed from --q: a browser that does not know
+   color-mix would render these invisible, and some of the screens this runs
+   on are older than the feature. */
+.pill.q0 { color: #c98080; border-color: rgba(139,58,58,.45);  background: rgba(139,58,58,.12); }
+.pill.q1 { color: var(--red);   border-color: rgba(248,81,73,.4);  background: rgba(248,81,73,.08); }
+.pill.q2 { color: var(--amber); border-color: rgba(255,180,84,.4); background: rgba(255,180,84,.08); }
+.pill.q3 { color: #7ac74f;      border-color: rgba(122,199,79,.4); background: rgba(122,199,79,.08); }
+.pill.q4 { color: var(--green); border-color: rgba(63,185,80,.4);  background: rgba(63,185,80,.08); }
+.condbox { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid var(--line); }
+.condhead { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+            margin-bottom: .45rem; }
+.condmeter {
+  height: 12px; border-radius: 6px; overflow: hidden;
+  background: #0b1017; border: 1px solid var(--line);
+}
+.condmeter i { display: block; height: 100%; background: var(--q);
+               transition: width .35s ease; }
+.condmode { margin: .4rem 0 .25rem; }
+
+/* The next day, one cell an hour, lit by how good that hour looks. Daylight
+   hours carry a lighter face, so the shape of the day is legible before a
+   single number is read. */
+.fcstrip { display: flex; gap: 2px; height: 30px; margin: .2rem 0 .3rem; }
+.fcstrip .fc {
+  position: relative; flex: 1; border-radius: 3px; background: var(--q);
+  min-width: 4px;
+}
+/* Daylight is marked with a bar along the foot of the cell rather than by
+   dimming it. Dimming put the good hours - which on the low bands are the
+   dark ones - in the faintest colours, so the strip read backwards from three
+   feet away. Colour is quality here and nothing else. */
+.fcstrip .fc.day { box-shadow: inset 0 -5px 0 rgba(255,255,255,.42); }
+.fcstrip .fc.now { outline: 2px solid var(--text); outline-offset: 1px; }
+.fcstrip .fc span {
+  position: absolute; left: 0; right: 0; bottom: -1.05rem; text-align: center;
+  font: .6rem var(--mono); color: var(--dimmer);
+}
+.fcsay { margin-top: 1.15rem; }
+.fcnote { margin-top: .5rem; font-style: italic; }
 .advice-ctx { font-size: .84rem; color: var(--dim); margin: .35rem 0 .2rem;
               padding-left: .6rem; border-left: 2px solid var(--line-2); }
 

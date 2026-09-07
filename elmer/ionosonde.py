@@ -72,18 +72,26 @@ def _clean(rows, now):
     return out
 
 
-def stations(force=False):
-    """Every station reporting recently, or None when unreachable."""
+def stations(force=False, offline=False):
+    """Every station reporting recently, or None when unreachable.
+
+    `offline` answers from the cache or not at all. A page that only wants to
+    sharpen a number it already has should never be the page that waits on the
+    network for it - the dashboard and the propagation page do the fetching,
+    and everything else is welcome to what they brought back.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
     path = CACHE / "stations.json"
     now = datetime.now(timezone.utc)
     if path.is_file() and not force:
         age = (time.time() - path.stat().st_mtime) / 60.0
-        if age < CACHE_MINUTES:
+        if age < CACHE_MINUTES or offline:
             try:
                 return _clean(json.loads(path.read_text()), now)
             except ValueError:
                 pass
+    if offline:
+        return None
     try:
         raw = _fetch()
     except Exception:
@@ -104,9 +112,9 @@ def great_circle(lat1, lon1, lat2, lon2):
         + math.cos(p1) * math.cos(p2) * math.cos(math.radians(lon2 - lon1)))))
 
 
-def nearest(lat, lon, force=False):
+def nearest(lat, lon, force=False, offline=False):
     """The closest recently reporting ionosonde, with its distance."""
-    found = stations(force)
+    found = stations(force, offline=offline)
     if not found:
         return None
     best = min(found, key=lambda s: great_circle(lat, lon, s["lat"], s["lon"]))

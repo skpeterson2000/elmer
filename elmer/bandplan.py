@@ -39,6 +39,48 @@ KINDS = [
 # and the small ceilings on 1.25 m and 23 cm for a Novice. Everywhere else the
 # 1500 W limit applies, and everywhere without exception so does the rule that
 # you use the minimum power needed.
+# 60 m is not a band with segments in it. It is five channels, each 2.8 kHz
+# wide, and 47 CFR 97.303(h) permits nothing in between them - which is a rule
+# a chart drawn as a continuous bar quietly contradicts.
+#
+# Two frequencies belong to each channel and they are not the same number. The
+# rules name the channel by its centre. The operator types the suppressed
+# carrier into the radio, 1.5 kHz below the centre for upper sideband, and that
+# is the number written on every band chart in a go-bag. Both are carried here,
+# because an operator who knows only one of them is the one who ends up 1.5 kHz
+# off and certain the chart is wrong.
+CHANNEL_WIDTH = 0.0028                       # 2.8 kHz, 97.303(h)
+
+
+def _channel(number, centre):
+    dial = round(centre - 0.0015, 4)         # USB suppressed carrier
+    # The span runs from the dial setting to the top of the occupied channel.
+    # Strictly the emission starts 100 Hz above the dial, because the carrier
+    # is suppressed and nothing is sent there - but the dial frequency is the
+    # number an operator types, and a program that answers "no" to the exact
+    # frequency printed on every 60 m chart is a program nobody will believe
+    # the second time.
+    return {"n": number, "name": f"Channel {number}", "centre": centre,
+            "dial": dial, "mhz": dial,       # "mhz" is the dial: what you set
+            "low": dial, "high": round(centre + CHANNEL_WIDTH / 2, 5)}
+
+
+CHANNELS_60M = [_channel(1, 5.3320), _channel(2, 5.3480), _channel(3, 5.3585),
+                _channel(4, 5.3730), _channel(5, 5.4050)]
+
+# What may be sent on them: USB voice, CW at the channel centre, and data.
+# Image is not among them, so it is not in the words either - emissions_in()
+# reads this text, and a program that applies the rules has to be told the
+# truth in the form it reads.
+CHANNEL_TERMS = "CW, USB phone, RTTY/data, 100 W ERP"
+
+
+def channel_privileges():
+    return [(ch["low"], ch["high"],
+             f'{ch["name"]}: dial {ch["dial"]:.4f} USB - {CHANNEL_TERMS}')
+            for ch in CHANNELS_60M]
+
+
 PRIVILEGES = {
     "160 m": {
         "Novice": [], "Technician": [],
@@ -55,9 +97,9 @@ PRIVILEGES = {
     },
     "60 m": {
         "Novice": [], "Technician": [],
-        "General": [(5.3305, 5.4065, "5 channels, USB/CW/data, 100 W ERP")],
-        "Advanced": [(5.3305, 5.4065, "5 channels, USB/CW/data, 100 W ERP")],
-        "Extra": [(5.3305, 5.4065, "5 channels, USB/CW/data, 100 W ERP")],
+        "General": channel_privileges(),
+        "Advanced": channel_privileges(),
+        "Extra": channel_privileges(),
     },
     "40 m": {
         "Novice": [(7.025, 7.125, "CW only, 200 W PEP")],
@@ -144,13 +186,6 @@ BANDS = [
 ]
 BAND_INDEX = {b["name"]: b for b in BANDS}
 
-# The 60 m channels are fixed, not a band segment (47 CFR 97.303(h)).
-CHANNELS_60M = [
-    (5.3305, "Channel 1"), (5.3465, "Channel 2"), (5.3570, "Channel 3"),
-    (5.3715, "Channel 4"), (5.4035, "Channel 5"),
-]
-
-
 # --- what a privilege description actually permits -------------------------
 # The descriptions above are written for a person to read. These turn them
 # into something the rest of the program can check an operator's intended
@@ -194,11 +229,18 @@ def band_at(mhz):
     return None
 
 
-def channel_at(mhz, tolerance=0.0015):
-    """The 60 m channel a frequency sits on, or None."""
-    for centre, name in CHANNELS_60M:
-        if abs(mhz - centre) <= tolerance:
-            return {"centre": centre, "name": name}
+def channel_at(mhz):
+    """The 60 m channel a frequency sits on, or None.
+
+    The channel proper is 2.8 kHz centred on the frequency the rules name, and
+    the dial setting sits 100 Hz below the bottom of it. Both count as being on
+    the channel: the carrier is suppressed, so nothing is transmitted at the
+    dial frequency, but it is the number an operator sets and asks about.
+    """
+    for ch in CHANNELS_60M:
+        if ch["low"] <= mhz <= ch["high"]:
+            return {"centre": ch["centre"], "dial": ch["dial"],
+                    "name": ch["name"], "low": ch["low"], "high": ch["high"]}
     return None
 
 
@@ -225,6 +267,12 @@ def privilege_at(mhz, license_class):
         "channelised": bool(band and band.get("channelised")),
         "channel": None,
         "segment": None,
+        # Where only one flavour of phone is permitted. The emission categories
+        # here are deliberately coarse - CW, data, phone, image - which is
+        # enough everywhere except 60 m, where 97.305(c) permits upper sideband
+        # and no other voice mode at all. Saying "phone" there would let a
+        # program bless an AM carrier on a channel that cannot carry one.
+        "phone_modes": None,
     }
     if not band:
         return result
@@ -241,6 +289,8 @@ def privilege_at(mhz, license_class):
                 "emissions": sorted(emissions_in(terms)),
                 "max_pep": pep, "max_erp": erp,
                 "segment": [low, high],
+                "phone_modes": (["usb"] if "usb" in (terms or "").lower()
+                                else None),
             })
             break
 
@@ -275,8 +325,7 @@ def privilege_table(license_class):
                          for low, high, terms in segments],
         })
     return {"license_class": license_class, "bands": bands, "none_on": none_on,
-            "channels_60m": [{"mhz": mhz, "name": name}
-                             for mhz, name in CHANNELS_60M]}
+            "channels_60m": [dict(ch) for ch in CHANNELS_60M]}
 
 
 def privileges_for(band_name, license_class):
@@ -486,8 +535,12 @@ ACTIVITY = {
         (3.845, 3.845, "image", "SSTV"),
         (3.885, 3.885, "phone", "AM calling"),
     ],
+    # One entry per channel, so the picture says what the rule says. The space
+    # between them is not a quiet part of the band; it is not the band.
     "60 m": [
-        (5.3305, 5.4065, "special", "Five fixed channels, USB, 2.8 kHz, 100 W ERP"),
+        (ch["low"], ch["high"], "special",
+         f'{ch["name"]} - set {ch["dial"]:.4f} USB, 2.8 kHz, 100 W ERP')
+        for ch in CHANNELS_60M
     ],
     "40 m": [
         (7.000, 7.040, "cw", "CW, DX at the bottom"),
