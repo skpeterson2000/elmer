@@ -881,7 +881,19 @@ def api_next():
     cards = db.cards_for_pool(connection, pool.pool_id)
 
     sections = {section} if section else None
-    queue = srs.due_queue(pool, cards, limit=None, sections=sections)
+    # Drill is the mode with a day that can be finished; the others are
+    # deliberate choices to work on something specific and are not rationed.
+    plan = srs.day_plan(connection, pool.pool_id) if mode == "drill" else None
+    queue = srs.due_queue(
+        pool, cards, limit=None, sections=sections,
+        new_left=plan["new_left"] if plan else None,
+        review_left=plan["review_left"] if plan else None)
+    if plan and not queue:
+        return jsonify({
+            "done": True, "finished_today": True, "plan": plan,
+            "reason": (f"That is today's study done - {plan['new_done']} new "
+                       f"and {plan['review_done']} reviewed. More tomorrow, "
+                       f"when it will do the most good.")})
 
     if mode == "new":
         queue = [q for q in queue if not cards.get(q, {}).get("seen")]
