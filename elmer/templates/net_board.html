@@ -53,6 +53,17 @@ tr.gold td { color: #ffd479; }
            font-size: clamp(1rem, 2vw, 1.8rem); }
 .picker { margin-top: 1vh; text-align: center; color: var(--amber);
           font-size: clamp(.9rem, 1.7vw, 1.6rem); }
+.idle { display: flex; flex-direction: column; align-items: center;
+        justify-content: center; flex: 1; text-align: center; gap: 1.4vh; }
+.idle h2 { margin: 0; font-size: clamp(1.4rem, 4vw, 3rem); }
+.idle p { margin: 0; color: var(--dim); font-size: clamp(.9rem, 1.8vw, 1.6rem);
+          max-width: 40ch; line-height: 1.5; }
+.idle .addr { font-family: var(--mono); color: var(--amber);
+              font-size: clamp(1rem, 2.4vw, 2rem); }
+.closehint { position: fixed; right: .8vw; bottom: .6vh; color: var(--dimmer);
+             font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
+             opacity: .55; }
+.closehint.armed { color: var(--amber); opacity: 1; }
 </style>
 </head>
 <body>
@@ -106,58 +117,162 @@ function lastRound(board) {
     </div>`;
 }
 
+function players(board) {
+  /* One table's own leaderboard - the view for a club night rather than a
+     hall, so somebody's family can watch them climb it. */
+  const all = [];
+  (board.cohorts || []).forEach(c => (c.members || []).forEach(m => all.push(m)));
+  all.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const rows = all.slice(0, 12).map((m, i) => `
+    <tr class="${i === 0 && m.score > 0 ? 'gold' : ''}">
+      <td class="pos">${i + 1}</td>
+      <td>${esc(m.name)}${m.bot ? ` <span style="color:var(--dimmer)">${esc(m.bot)}</span>` : ''}</td>
+      <td class="ms">${m.correct}/${m.answered}</td>
+      <td class="pts">${m.score}</td>
+    </tr>`).join('');
+  return `<div class="panelbox"><h2>Players</h2><table>${rows}</table></div>`;
+}
+
+function tableRound(board) {
+  const r = board.round;
+  if (!r || !r.closed) {
+    const c = (board.cohorts || []).map(x => `
+      <tr><td class="pos"></td><td>${esc(x.name)}</td>
+          <td class="ms">${x.players}</td><td class="pts">${x.score}</td></tr>`).join('');
+    return `<div class="panelbox"><h2>Cohorts</h2><table>${c}</table></div>`;
+  }
+  const res = (r.results || []).slice(0, 10).map(a => `
+    <tr class="${a.place === 1 ? 'lead' : ''}">
+      <td class="pos">${a.place || '–'}</td>
+      <td>${esc(a.name)} ${a.correct ? '✓' : '✗'}</td>
+      <td class="ms">${(a.ms / 1000).toFixed(2)}s</td>
+      <td class="pts">${a.points || 0}</td>
+    </tr>`).join('');
+  const right = (r.results || []).filter(a => a.correct).length;
+  return `<div class="panelbox">
+      <h2>Round ${r.number} &mdash; fastest correct</h2>
+      <div class="tally">
+        <div><b>${right}</b><span>correct</span></div>
+        <div><b>${(r.results || []).length}</b><span>answered</span></div>
+      </div>
+      <table>${res}</table>
+      ${r.winner_cohort ? `<div class="picker">Cohort ${r.winner_cohort} takes the round</div>` : ''}
+    </div>`;
+}
+
+function idle(board) {
+  return `<div class="idle">
+      <h2>No tournament running</h2>
+      <p>Start one from a licence class on the dashboard, or open net control
+         to run a hall of tables.</p>
+      <p class="addr">${esc(board.where || '')}</p>
+    </div>`;
+}
+
 async function tick() {
   let board;
   try {
-    const r = await fetch('/api/net/board');
+    const r = await fetch('/api/board');
     if (!r.ok) { document.getElementById('clock').textContent = '—'; return; }
     board = await r.json();
-  } catch (e) { return; }
+  } catch (e) {
+    document.getElementById('sub').textContent = 'lost contact with the server';
+    return;
+  }
+
+  if (board.kind === 'idle') {
+    document.getElementById('title').textContent = 'ELMER';
+    document.getElementById('sub').textContent = '';
+    document.getElementById('clock').textContent = '—';
+    if (paintedPhase !== 'idle') { paintedPhase = 'idle'; stage.innerHTML = idle(board); }
+    return;
+  }
 
   document.getElementById('title').textContent = board.name || 'ELMER';
   const h = board.health || {};
-  document.getElementById('sub').textContent =
-    `${board.units_present} table${board.units_present === 1 ? '' : 's'} · ` +
-    `${board.players} player${board.players === 1 ? '' : 's'}`;
+  document.getElementById('sub').textContent = board.kind === 'hall'
+    ? `${board.units_present} table${board.units_present === 1 ? '' : 's'} · ` +
+      `${board.players} player${board.players === 1 ? '' : 's'}`
+    : `${board.people} player${board.people === 1 ? '' : 's'}` +
+      (board.bots ? ` · ${board.bots} practice` : '');
 
+  const hall = board.kind === 'hall';
   const round = board.round;
   const clock = document.getElementById('clock');
-  if (round) {
-    const left = Math.max(0, (round.seconds || 0) - (round.elapsed || 0));
+  if (round && !round.closed) {
+    // A hall reports how long the round has been open; a table counts down.
+    const left = hall
+      ? Math.max(0, (round.seconds || 0) - (round.elapsed || 0))
+      : (round.remaining || 0);
     clock.textContent = Math.ceil(left) + 's';
     clock.classList.toggle('done', left <= 0);
   } else {
-    clock.textContent = '—';
+    clock.textContent = round ? 'time' : '—';
     clock.classList.add('done');
   }
 
-  const phase = round ? 'q' + round.number : 'idle';
+  const left = hall ? standings : players;
+  const right = hall ? lastRound : tableRound;
+
+  // The phase includes whether the round is closed, so a table flips from the
+  // question to the result the moment it is scored.
+  const phase = board.kind + (round ? 'q' + round.number + (round.closed ? 'r' : '') : 'idle');
   if (phase !== paintedPhase) {
     paintedPhase = phase;
-    if (round) {
-      const q = round.question || {};
-      stage.innerHTML = `
+    const q = (round && round.question) || {};
+    const showQuestion = round && !round.closed && q.text;
+    stage.innerHTML = (showQuestion ? `
         <div class="question">
           <div class="tag">Round ${round.number} · ${esc(q.difficulty || '')} · ${esc(q.section || '')}</div>
           <p>${esc(q.text || '')}</p>
-        </div>
-        <div class="cols">${standings(board)}${lastRound(board)}</div>`;
-    } else {
-      stage.innerHTML = `<div class="cols">${standings(board)}${lastRound(board)}</div>`;
-    }
+        </div>` : '') +
+      `<div class="cols">${left(board)}${right(board)}</div>`;
   } else {
-    // Same phase: refresh only the two side panels, so the question does not
+    // Same phase: refresh only the side panels, so the question does not
     // flicker under a room full of people trying to read it.
     const cols = stage.querySelector('.cols');
-    if (cols) cols.innerHTML = standings(board) + lastRound(board);
+    if (cols) cols.innerHTML = left(board) + right(board);
   }
 
-  if (round) {
-    const tag = stage.querySelector('.question .tag');
-    if (tag) tag.textContent =
-      `Round ${round.number} · ${round.reported} of ${round.reported + round.awaiting} tables in`;
+  const tag = stage.querySelector('.question .tag');
+  if (tag && round && !round.closed) {
+    tag.textContent = hall
+      ? `Round ${round.number} · ${round.reported} of ${round.reported + round.awaiting} tables in`
+      : `Round ${round.number} · ${round.answered} answered` +
+        (round.waiting_on ? `, waiting on ${round.waiting_on}` : '');
   }
 }
+
+/* Closing it. A board is usually the only thing on a screen at the front of a
+   room, often full screen with no visible chrome, so there has to be a way off
+   it from the keyboard of the machine driving it. Ctrl+C is what people reach
+   for; Esc and Q work too. A window opened from a link cannot always close
+   itself, so if it is still here a moment later we go back to net control
+   rather than leaving somebody stuck. */
+const hint = document.createElement('div');
+hint.className = 'closehint';
+hint.textContent = 'Ctrl+C, Esc or Q to close';
+document.body.appendChild(hint);
+
+function closeBoard() {
+  hint.classList.add('armed');
+  hint.textContent = 'closing…';
+  try { window.close(); } catch (e) { /* not opened by script */ }
+  setTimeout(() => {
+    if (!window.closed) location.href = '/net';
+  }, 250);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === 'q' || e.key === 'Q'
+      || (e.ctrlKey && (e.key === 'c' || e.key === 'C'))) {
+    // Ctrl+C is copy when there is a selection; only take it when there
+    // is nothing selected, so nobody loses a copy they meant to make.
+    if (e.ctrlKey && String(window.getSelection() || '')) return;
+    e.preventDefault();
+    closeBoard();
+  }
+});
 
 tick();
 setInterval(tick, 1000);
