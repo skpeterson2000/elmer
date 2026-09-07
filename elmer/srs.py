@@ -22,6 +22,18 @@ DECAY = -math.log(TARGET_RETENTION)
 MAX_INTERVAL = 180.0
 MIN_EASE, MAX_EASE = 1.3, 2.8
 FAST_MS, SLOW_MS = 6000, 25000
+
+# --- graduated relearning ---------------------------------------------------
+# A lapse brings the card back within minutes, but keeps this share of the
+# spacing it had earned, so recovery is proportional to how well it was known.
+RELEARN_DAYS = 10 / 1440.0     # ten minutes
+LAPSE_KEEP = 0.35
+
+# --- variable scheduling ----------------------------------------------------
+# Cards answered in one sitting would otherwise return in one sitting for ever.
+# The spread grows with the interval: a day-old card moves by hours, a
+# hundred-day card by a week or more.
+FUZZ_MIN, FUZZ_GROWTH, FUZZ_MAX = 0.05, 0.004, 0.25
 RECOGNITION_FLOOR = 0.60   # multiple choice survives forgetting better than recall
 EVIDENCE_HALF = 30         # answers before inference about unseen questions is half-trusted
 
@@ -39,9 +51,32 @@ def grade(correct, ms):
     return 3
 
 
-def schedule(card, quality, now=None):
-    """Return the updated scheduling fields for a card after one answer."""
+def schedule(card, quality, now=None, rng=None):
+    """Return the updated scheduling fields for a card after one answer.
+
+    Two things separate this from a plain SM-2 ladder, and both exist because
+    a schedule that is punishing is a schedule that gets abandoned.
+
+    **Forgetting something costs a setback, not a restart.** A lapse used to
+    zero the interval, which threw away every day of spacing the card had
+    earned and sent a well-known question back to day one. Maintaining
+    knowledge is much cheaper than acquiring it, and the schedule should say
+    so: a lapse now keeps a share of the spacing as memory of how well the
+    card was known, shows it again within minutes, and on the next correct
+    answer resumes near where it was rather than at the bottom.
+
+    **The next date is jittered.** Fixed intervals mean everything answered in
+    one sitting comes due in one sitting, for ever - which is exactly why the
+    daily load looks like a copy of what was answered the day before. Spreading
+    each card by a few percent breaks the batch up over several days. It also
+    makes the schedule variable rather than fixed, which is the more effective
+    arrangement both for retention and for wanting to come back.
+
+    `interval` is the policy spacing and is what the mastery estimate reasons
+    about; `due` is when the card is actually next shown, jitter included.
+    """
     now = now or utcnow()
+    rng = rng or random
     ease = card["ease"] if card else 2.5
     interval = card["interval"] if card else 0.0
     reps = card["reps"] if card else 0
@@ -52,17 +87,39 @@ def schedule(card, quality, now=None):
 
     if quality < 3:
         reps, lapses = 0, lapses + 1
-        interval = 0.0                      # relearn: due again immediately
+        # Keep part of the spacing. The card still comes back within minutes,
+        # but what it had learned is not thrown away - a card known at thirty
+        # days that slips is not the same as one never seen.
+        interval = max(RELEARN_DAYS, interval * LAPSE_KEEP)
+        due_in = RELEARN_DAYS
     else:
-        if reps == 0:
+        if reps == 0 and lapses:
+            # Recovering from a lapse: resume at the remembered spacing rather
+            # than crawling back up through 1 day and 4 days.
+            interval = max(1.0, interval)
+        elif reps == 0:
             interval = 1.0
         elif reps == 1:
             interval = 4.0
         else:
             interval = min(MAX_INTERVAL, interval * ease)
         reps += 1
+        due_in = interval
 
-    due = now + timedelta(days=interval)
+    # Jitter only real spacing - a card due back in ten minutes does not want
+    # smearing, and the proportion widens with the interval so that long gaps
+    # scatter more than short ones.
+    if due_in >= 1.0:
+        spread = min(FUZZ_MAX, FUZZ_MIN + due_in * FUZZ_GROWTH) * due_in
+        # A proportional spread is nothing at all on the short intervals, and
+        # short intervals are where the daily volume actually comes from. Once
+        # there is room to move a card by a whole day without making it due
+        # tomorrow, use it.
+        if due_in >= 3.0:
+            spread = max(spread, 1.0)
+        due_in = max(1.0, due_in + rng.uniform(-spread, spread))
+
+    due = now + timedelta(days=due_in)
     return {"ease": round(ease, 4), "interval": round(interval, 4),
             "reps": reps, "lapses": lapses, "due": due.isoformat(),
             "last_seen": now.isoformat()}
@@ -97,7 +154,13 @@ def skill(card, now=None, prior=0.5):
     accuracy = ((card["correct"] + PRIOR_WEIGHT * prior)
                 / (card["seen"] + PRIOR_WEIGHT))
     base = max(0.0, (accuracy - GUESS) / (1 - GUESS))
-    if card["interval"] > 0:
+    if card["reps"] == 0 and card["lapses"]:
+        # In relearning. The interval now survives a lapse as a record of how
+        # well the card was once known, so it can no longer be used to detect
+        # this state - and a card just answered wrongly must not read as fully
+        # retained simply because no time has passed since.
+        retention = 0.55
+    elif card["interval"] > 0:
         retention = math.exp(-DECAY * _elapsed_days(card, now) / card["interval"])
     else:
         retention = 0.55 if card["reps"] == 0 else 1.0
