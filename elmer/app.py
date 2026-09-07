@@ -25,7 +25,8 @@ from flask import (Flask, abort, g, jsonify, render_template, request,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                explain, game, geocode, ionosonde, logs, propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               bugreport, conductors, diagnostics, gps, netcontrol, party, qr,
+               bugreport, conductors, diagnostics, gating, gps, netcontrol,
+               party, qr,
                reachout, repeaters,
                terrain, update)
 from .content import get_pool, load_pools, presentation
@@ -282,12 +283,15 @@ def home():
     connection = conn()
     pools = load_pools()
     cards = {pid: db.cards_for_pool(connection, pid) for pid in pools}
+    allowed, gate_state = _open_pools(connection)
     summary = []
     for pid, pool in pools.items():
         stats = pool_stats(pool, cards[pid], trials=600)
         standing_for(connection, pool, stats)
         summary.append({
-            "pool": pool, "mastery": stats["mastery"],
+            "pool": pool, "open": pid in allowed,
+            "closed_why": gating.why_closed(pid, gate_state),
+            "mastery": stats["mastery"],
             "readiness": stats["readiness"], "seen": stats["seen"],
             "due_now": stats["due_now"], "total": len(pool.questions),
         })
@@ -307,7 +311,7 @@ def home():
 
 @app.route("/study/<pool_id>")
 def study(pool_id):
-    pool = _pool_or_404(pool_id)
+    pool = _studyable_or_403(conn(), pool_id)
     mode = request.args.get("mode", "drill")
     if mode not in MODES:
         mode = "drill"
@@ -867,13 +871,34 @@ def _pool_or_404(pool_id):
         abort(404)
 
 
+def _open_pools(connection):
+    """Which pools this user may study, and the gate state behind that."""
+    settings = db.get_profile(connection)["settings"]
+    standings = all_standings(connection)
+    return gating.open_pools(settings, standings, list(load_pools()))
+
+
+def _studyable_or_403(connection, pool_id):
+    """A pool the user may actually study. Closed is not the same as missing.
+
+    404 would be a lie - the pool is there and its questions ship with every
+    copy. It is closed, which is a different thing, and the reply says which
+    pool would open it.
+    """
+    pool = _pool_or_404(pool_id)
+    allowed, state = _open_pools(connection)
+    if pool_id not in allowed:
+        abort(403, gating.why_closed(pool_id, state) or "not open yet")
+    return pool
+
+
 # --------------------------------------------------------------------------
 # study API
 # --------------------------------------------------------------------------
 
 @app.route("/api/next")
 def api_next():
-    pool = _pool_or_404(request.args.get("pool", ""))
+    pool = _studyable_or_403(conn(), request.args.get("pool", ""))
     mode = request.args.get("mode", "drill")
     section = request.args.get("section")
     exclude = set(filter(None, request.args.get("exclude", "").split(",")))
@@ -937,7 +962,7 @@ def api_next():
 @app.route("/api/answer", methods=["POST"])
 def api_answer():
     body = request.get_json(force=True)
-    pool = _pool_or_404(body.get("pool", ""))
+    pool = _studyable_or_403(conn(), body.get("pool", ""))
     question = pool.by_id.get(body.get("question_id"))
     if not question:
         abort(400, "unknown question")
@@ -1561,6 +1586,25 @@ def api_net_close():
 def api_net_board():
     """The hall's big screen, and what a late unit polls to catch up."""
     return jsonify(_net_or_404().board())
+
+
+@app.route("/api/pool-gate", methods=["POST"])
+def api_pool_gate():
+    """Open every pool, or put the gate back.
+
+    Offered plainly rather than buried: the gate exists so that a first
+    evening is not a wall of 2,475 questions, not to tell a licensed operator
+    what they may read.
+    """
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    wanted = "off" if body.get("open") else "on"
+    profile = db.get_profile(connection)
+    settings = dict(profile["settings"])
+    settings[gating.SETTING] = wanted
+    db.save_settings(connection, settings)
+    allowed, state = _open_pools(connection)
+    return jsonify({"gate": wanted, "open": sorted(allowed), "state": state})
 
 
 @app.route("/api/gps")
