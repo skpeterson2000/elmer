@@ -447,14 +447,6 @@ def main():
                 break
             time.sleep(0.25)
 
-    # What port this unit is actually on. Everything that tells the rest of the
-    # network where to find it reads this - the announcement other units dial,
-    # and the self-check that says whether the port is answering. It defaulted
-    # to 5000 wherever it was not passed, so a unit started on any other port
-    # told the network to call it on a port it was not listening to, and the
-    # neighbours' boards and join buttons went nowhere.
-    app.config["PORT"] = args.port
-
     took_over = False
     if port_in_use(args.port):
         # Started from the menu entry there is no terminal to print to, so a
@@ -552,12 +544,20 @@ def main():
     if _policy() != "off" and update.offer_at_startup(ask=asker):
         update.exec_restart()                       # never returns
 
-    from elmer.app import app
+    import threading
+
+    from elmer.app import app, warm
+
+    # What port this unit is actually on. Everything that tells the rest of the
+    # network where to find it reads this - the announcement other units dial,
+    # and the self-check that says whether the port is answering. It defaulted
+    # to 5000 wherever it was not passed, so a unit started on any other port
+    # told the network to call it on a port it was not listening to, and the
+    # neighbours' boards and join buttons went nowhere.
+    app.config["PORT"] = args.port
 
     browsers, quitting = [], None
     if args.kiosk:
-        import threading
-
         from elmer import kiosk
         if not kiosk.have_display():
             print("\n  --kiosk needs a screen, and this session has none.")
@@ -651,6 +651,11 @@ def main():
                         "not listening for TowerWitch: %s", _exc)
         except Exception:
             pass
+        # The dashboard's first render reads a megabyte of pools off the card,
+        # six tables out of SQLite and compiles the templates, and on a cold
+        # Pi that is several seconds of nothing on screen. The browser takes a
+        # moment to come up; this fills it.
+        threading.Thread(target=warm, daemon=True, name="elmer-warm").start()
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
                 # The reloader runs a second copy of this process, which in
                 # kiosk mode would mean a second browser on top of the first.

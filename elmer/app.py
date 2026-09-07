@@ -304,6 +304,42 @@ def greeting():
     return "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
 
 
+def warm(log_it=True):
+    """Do the dashboard's expensive reading before anybody asks for it.
+
+    On a cold Pi the first page is the slow one: a megabyte of pool JSON comes
+    off the card, six tables of cards come out of SQLite, the templates are
+    compiled, and only then does anything appear. Every bit of that is cached
+    afterwards, which is why the second visit is instant and the first one
+    feels broken.
+
+    In kiosk mode there is a gap of a second or two between the server binding
+    and the browser asking for a page, and this is work that fits in it. It is
+    read-only and it is allowed to fail: a warm-up that raises must never be
+    the reason the unit does not start.
+    """
+    started = time.perf_counter()
+    try:
+        pools = load_pools()
+        for name in ("base.html", "home.html"):
+            app.jinja_env.get_template(name)
+        connection = db.connect()
+        try:
+            for pool_id, pool in pools.items():
+                cards = db.cards_for_pool(connection, pool_id)
+                # One pool's worth of the readiness simulation, to bring the
+                # code and the card rows into memory. The other five are the
+                # same work on warm caches by the time anybody looks.
+                pool_stats(pool, cards, trials=60)
+        finally:
+            connection.close()
+    except Exception as exc:                          # pragma: no cover
+        log.debug("warm-up skipped: %s", exc)
+        return
+    if log_it:
+        log.info("warmed up in %.1fs", time.perf_counter() - started)
+
+
 @app.route("/")
 def home():
     connection = conn()
