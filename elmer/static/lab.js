@@ -2751,6 +2751,42 @@ function sxRow(n) {
   '</tr>';
 }
 
+/* A worked example, because "here is a form, take three sights" asks somebody
+   to buy an instrument before they can find out whether any of this is real.
+   These are the altitudes the sun genuinely had over a point in the Boundary
+   Waters on 8 September 2026, rounded to the tenth of a minute a sextant can
+   actually be read to. Pressing the button fills the form and works it out, so
+   the first time anybody sees the arithmetic run it is running on numbers that
+   land somewhere checkable rather than on their own first shaky sight. */
+const SX_DEMO = {
+  date: '2026-09-08', horizon: 'artificial', index: 0, height: 0,
+  where: 'a lake in the Boundary Waters, about 20 miles east of Ely',
+  truth: {lat: 47.95, lon: -91.50, grid: 'EN47fw'},
+  sights: [
+    {deg: 67, min: 3.0,  time: '15:10:00', limb: 'lower'},
+    {deg: 94, min: 15.7, time: '18:20:00', limb: 'lower'},
+    {deg: 64, min: 43.4, time: '21:05:00', limb: 'lower'},
+  ],
+};
+
+function sxLoadDemo() {
+  document.getElementById('sx-horizon').value = SX_DEMO.horizon;
+  document.getElementById('sx-horizon').dispatchEvent(new Event('change'));
+  document.getElementById('sx-index').value = SX_DEMO.index;
+  document.getElementById('sx-height').value = SX_DEMO.height;
+  document.getElementById('sx-date').value = SX_DEMO.date;
+  document.getElementById('sx-useqth').checked = false;
+  SX_ROWS.innerHTML = SX_DEMO.sights.map((_, i) => sxRow(i + 1)).join('');
+  [...SX_ROWS.rows].forEach((row, i) => {
+    const sight = SX_DEMO.sights[i];
+    row.querySelector('.sx-deg').value = sight.deg;
+    row.querySelector('.sx-min').value = sight.min;
+    row.querySelector('.sx-time').value = sight.time;
+    row.querySelector('.sx-limb').value = sight.limb;
+  });
+  sxSolve();
+}
+
 function sxRenumber() {
   [...SX_ROWS.rows].forEach((r, i) => { r.cells[0].textContent = i + 1; });
 }
@@ -2812,6 +2848,8 @@ if (SX_ROWS) {
   syncHorizon();
 
   document.getElementById('sx-go').addEventListener('click', sxSolve);
+  const demo = document.getElementById('sx-demo');
+  if (demo) demo.addEventListener('click', sxLoadDemo);
 }
 
 async function sxSolve() {
@@ -2862,7 +2900,107 @@ async function sxSolve() {
     out.innerHTML = '<div class="watchout">' + escapeHTML(d.error) + '</div>';
     return;
   }
-  out.innerHTML = sxWorking(d) + sxAnswer(d);
+  out.innerHTML = sxWorking(d) + sxAnswer(d) + sxWalkOut(d);
+}
+
+/* A latitude and a longitude are not what somebody in trouble needs. "Which
+   way do I walk, and how far" is, and the gap between the two is a skill
+   nobody has any more. So the fix is followed by the part that uses it. */
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const point = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+
+/* Charts and topographic maps are ruled in degrees and minutes, not in the
+   decimal degrees a computer likes, and the margin ticks somebody has to count
+   along are minutes. Handing over only the decimal form leaves them to do a
+   conversion in the one situation where arithmetic is hardest. */
+function dm(value, pos, neg) {
+  const hemi = value >= 0 ? pos : neg;
+  const abs = Math.abs(value);
+  const deg = Math.floor(abs);
+  return deg + '&deg; ' + ((abs - deg) * 60).toFixed(1) + '&prime; ' + hemi;
+}
+
+function sxWalkOut(d) {
+  const north = d.north || {};
+  const places = d.landfall || [];
+  const first = places[0];
+
+  const rows = places.map(p =>
+    '<tr><td><b>' + escapeHTML(p.name) +
+      (p.region ? ' <span class="muted">' + escapeHTML(p.region) + '</span>' : '') +
+    '</b></td>' +
+    '<td class="mono">' + p.miles + ' mi</td>' +
+    '<td class="mono">' + p.bearing + '&deg; true</td>' +
+    '<td class="mono muted">' + point(p.bearing) + '</td></tr>').join('');
+
+  return '<div class="panel-title mt">Putting it on a map, and walking out</div>' +
+
+    '<div class="small muted">Charts and topographic maps are ruled in degrees ' +
+      'and minutes, and the ticks in the margin you count along are minutes. ' +
+      'So the same position, in the form the map is in:</div>' +
+    '<div class="mono mt" style="font-size:1.05rem">' +
+      dm(d.lat, 'N', 'S') + ' &nbsp; ' + dm(d.lon, 'E', 'W') + '</div>' +
+    '<div class="tiny muted">Find the latitude on the left and right edges, the ' +
+      'longitude on the top and bottom, lay a straight edge between each pair, ' +
+      'and you are where they cross &mdash; inside a circle of about <b>' +
+      d.uncertainty_nm + ' nautical miles</b>, which is ' +
+      Math.round(d.uncertainty_nm * 1.151) + ' statute miles and is the circle ' +
+      'to draw rather than the dot.</div>' +
+
+    (rows
+      ? '<div class="panel-title mt" style="margin-bottom:.3rem">What is near you</div>' +
+        '<table class="data" style="max-width:560px"><tbody>' + rows + '</tbody></table>' +
+        '<div class="tiny muted">' +
+          (d.landfall_from === 'bundled'
+            ? 'From the list that ships with ELMER, which is a few hundred ' +
+              'North American towns &mdash; so it names the ones worth walking ' +
+              'to and misses the hamlet down the road.'
+            : 'From the places ELMER looked up for this area while it had a ' +
+              'network.') +
+        '</div>'
+      : '<div class="small muted mt">ELMER has no place list for here, so the ' +
+        'position is all it can give you. On a paper map it is still the whole ' +
+        'answer.</div>') +
+
+    '<div class="panel-title mt" style="margin-bottom:.3rem">Finding true north ' +
+      'without a compass</div>' +
+    '<div class="small muted">Those bearings are <b>true</b>, not magnetic, and ' +
+      'a compass points at neither without knowing the local declination. You do ' +
+      'not need one: the sun that gave you the fix gives you north as well. ' +
+      (north.sun_azimuth !== undefined
+        ? 'Right now, from where you are, the sun bears <b>' + north.sun_azimuth +
+          '&deg; true</b> and stands <b>' + north.sun_altitude + '&deg;</b> up. ' +
+          'Face it, and true north is <b>' +
+          Math.round(((360 - north.sun_azimuth) % 360)) + '&deg; to your right' +
+          '</b> &mdash; or simply that the sun is ' + point(north.sun_azimuth) +
+          ' of you. '
+        : '') +
+      'Sight along a stick to the sun, turn off the angle, and you have a ' +
+      'reference good to a degree or two, which is better than a compass with ' +
+      'an unknown correction.</div>' +
+
+    '<div class="panel-title mt" style="margin-bottom:.3rem">Then walk it</div>' +
+    '<div class="small muted">' +
+      (first
+        ? '<b>Do not walk at ' + escapeHTML(first.name) + '.</b> It is a point, ' +
+          'your position has a ' + d.uncertainty_nm + ' nm circle around it, ' +
+          'and you will not know which side of the point you came out on. Walk ' +
+          'at a <b>line</b> instead &mdash; a road, a river, a shoreline, a ' +
+          'power line, a railway &mdash; because a line is impossible to miss ' +
+          'and it tells you where you are the moment you reach it. '
+        : '<b>Walk at a line, not at a point</b> &mdash; a road, a river, a ' +
+          'shoreline, a power line. A point can be missed and a line cannot. ') +
+      'Then <b>aim off</b>: pick a heading deliberately to one side of where ' +
+      'the line meets your target, ten or fifteen degrees of it, so that when ' +
+      'you hit the line you already know which way to turn along it. Aiming ' +
+      'straight at a thing means arriving at the line with no idea whether it ' +
+      'is left or right, and half of those guesses are wrong.</div>' +
+    '<div class="small muted mt">Take a fresh set of sights after a few hours ' +
+      'of walking. Two fixes are a track: they tell you your speed over the ' +
+      'ground and whether you are actually going where you meant to, which one ' +
+      'fix cannot. On foot in rough country three miles in an hour is good ' +
+      'going, and it is usually less.</div>';
 }
 
 /* Every correction, with its sign and its reason. */

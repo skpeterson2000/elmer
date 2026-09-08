@@ -185,3 +185,33 @@ def refresh_in_background(lat, lon, radius_km):
     thread = threading.Thread(target=run, name="places-fetch", daemon=True)
     thread.start()
     return thread
+
+
+def nearest(lat, lon, limit=5, radius_km=400.0):
+    """The closest named places, nearest first, with a bearing to each.
+
+    Not :func:`elmer.patterns.nearby`, which answers a different question. That
+    one is about an antenna's footprint, so it ranks by population, drops
+    anything inside 15 km as too close to be interesting, and lets a city stand
+    for its suburbs. Every one of those is wrong for somebody who has just
+    worked out where they are and wants to know which way to walk: the hamlet
+    twelve kilometres off is the whole answer, and it is the first thing that
+    rule throws away.
+
+    So this ranks by distance and keeps what it finds. Offline, from whatever
+    :func:`known` has - which is the point, because a person reading this has
+    no network and possibly no phone.
+    """
+    from .terrain import great_circle
+
+    candidates, source = known(lat, lon, radius_km)
+    rows = []
+    for place in candidates:
+        km, bearing = great_circle(lat, lon, place["lat"], place["lon"])
+        if km > radius_km:
+            continue
+        rows.append({"name": place["name"], "region": place.get("region", ""),
+                     "km": round(km, 1), "miles": round(km / 1.609, 1),
+                     "bearing": round(bearing)})
+    rows.sort(key=lambda r: r["km"])
+    return rows[:limit], source
