@@ -23,7 +23,8 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
-               celestial, explain, game, geocode, ionosonde, logs,
+               celestial, explain, game, geocode, groundwave,
+               ionosonde, logs,
                propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
@@ -1387,6 +1388,11 @@ def api_propagation_outlook():
         now = propagation.band_score(mhz, muf, elevation, k_index,
                                      snap.get("fof2"),
                                      (cal or {}).get("hmf2") or 300.0)
+        # When there is a hole in the middle, say what covers it. Ground wave
+        # is the only thing that reaches into a skip zone, and it is the one
+        # kind of propagation the antenna really does decide.
+        if now.get("skip_km"):
+            now["ground_wave"] = groundwave.describe(mhz, watts=100.0)
         hours, when = [], []
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
