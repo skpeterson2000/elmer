@@ -319,6 +319,39 @@ def verdict(sfi, k, a):
 # path between you. What it is honest about is the shape of the day, and the
 # shape of the day is what timing decisions are made on.
 
+# --- where the absorbing layer actually is -----------------------------------
+#
+# A point 80 km up does not lose the sun when the ground does. It stays lit
+# until the sun is acos(R/(R+h)) below the horizon, and for the D layer that is
+# about nine degrees; for the F2 peak at 300 km it is about seventeen.
+#
+#     D layer    70-90 km    lit to about  -8.5 to -9.6 degrees
+#     F2 peak       300 km   lit to about      -17.2 degrees
+#
+# Between those two the D layer is dark and the F2 is still lit: absorption
+# gone, ionisation still up. That is the grey line, it is plain geometry, and
+# it lasts the half hour or so the effect is known to last.
+#
+# The term this replaces used max(0, sin(elevation)) - the sun as the *ground*
+# sees it - so absorption switched off at the geometric horizon, nine degrees
+# early and all at once. The evening went from full daytime absorption to none
+# between one sample and the next, and the window collapsed to an instant.
+#
+# This is the local half of the problem. It gets the shape of your own evening
+# right; it still cannot tell you that the path to a station on the far side of
+# the terminator is open, because band_score is handed one sun angle - yours -
+# and a path has two ends.
+EARTH_RADIUS_KM = 6371.0
+D_LAYER_KM = 80.0
+D_LAYER_DIP = math.degrees(math.acos(EARTH_RADIUS_KM /
+                                     (EARTH_RADIUS_KM + D_LAYER_KM)))
+
+# Absorption at the top of the scale. Lowered from 45 to hold midday where it
+# was: shifting the driver by the dip raises it everywhere, and this change is
+# meant to be about the terminator rather than a quiet re-tuning of noon.
+# 41.5 x sin(45 + dip)^0.6 == 45 x sin(45)^0.6.
+D_ABSORPTION = 41.5
+
 QUALITY = [(80, "Excellent"), (60, "Good"), (35, "Fair"), (15, "Poor"),
            (0, "Closed")]
 
@@ -365,15 +398,23 @@ def band_score(mhz, muf, elevation, k_index=2.0):
         why = (f"{mhz:g} MHz is above the {muf:g} MHz MUF - signals go through "
                "the F layer instead of coming back")
 
-    sun = max(0.0, math.sin(math.radians(max(elevation, -90.0))))
-    # Daytime D-layer absorption, heaviest on the lowest bands and gone by
-    # about 10 MHz. The exponent is the textbook inverse-square softened for
-    # the fact that this is a rating and not a link budget.
-    absorb = 45.0 * (sun ** 0.6) * (3.5 / max(mhz, 1.0)) ** 1.6
+    # The sun as the D layer sees it, not as the ground does. See the note
+    # above: the layer is 80 km up and keeps its daylight about nine degrees
+    # longer than you keep yours.
+    lit = max(-90.0, min(90.0, elevation + D_LAYER_DIP))
+    sun = max(0.0, math.sin(math.radians(lit)))
+    # Absorption is heaviest on the lowest bands and gone by about 10 MHz. The
+    # exponent is the textbook inverse-square softened for the fact that this
+    # is a rating and not a link budget.
+    absorb = D_ABSORPTION * (sun ** 0.6) * (3.5 / max(mhz, 1.0)) ** 1.6
     absorb = min(absorb, 55.0)
     if absorb > 6:
-        why += ("; daylight D-layer absorption is what limits it"
-                if mhz <= 10.1 else "; a little daytime absorption")
+        if elevation < 0:
+            why += ("; the sun has set here but not on the D layer 80 km up, "
+                    "which is still absorbing")
+        else:
+            why += ("; daylight D-layer absorption is what limits it"
+                    if mhz <= 10.1 else "; a little daytime absorption")
 
     storm = min(40.0, max(0.0, float(k_index or 0) - 2.0) * 7.0)
     if storm > 6:

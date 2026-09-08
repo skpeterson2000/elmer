@@ -91,9 +91,11 @@ def main():
           all(0 <= h["score"] <= 100 for h in hours), True)
     check("  with day and night in it",
           len({h["day"] for h in hours}), 2)
-    # 40m is a night band. Its best hour is not necessarily "dark" - the
-    # model puts it at the grey line, where the D layer has gone but the MUF
-    # has not yet fallen through the band, which is where it belongs.
+    # 40m is a night band, so its best hour is not a daylight one. It is not
+    # at the grey line either: with no path and no far end, nothing here can
+    # produce the terminator enhancement, and the model settles on the middle
+    # of the night. Saying otherwise - as this comment used to - was claiming
+    # something the numbers do not show.
     best = max(hours, key=lambda h: h["score"])
     check("40m's best hour is not the middle of the day",
           best["elevation"] < 15, True)
@@ -128,6 +130,39 @@ def main():
           or runs[0]["to"] != night[-1]["at"], True)
     shut = [dict(h, score=0) for h in night]
     check("a band that is never open has no window", P.windows(shut), [])
+
+    print("\n-- the absorbing layer is 80 km up, not underfoot --")
+    # The D layer keeps its daylight about nine degrees longer than the ground
+    # does, because it is 80 km closer to the sun's line. The term this
+    # replaces switched absorption off at the geometric horizon, so the low
+    # bands opened nine degrees early and did it between one sample and the
+    # next.
+    import math as _math
+    check("the dip is geometry, not a tuned number",
+          round(P.D_LAYER_DIP, 3),
+          round(_math.degrees(_math.acos(P.EARTH_RADIUS_KM /
+                                         (P.EARTH_RADIUS_KM + P.D_LAYER_KM))), 3))
+    check("  which for 80 km is about nine degrees",
+          8.5 < P.D_LAYER_DIP < 9.6, True)
+
+    def absorbed(mhz, elev):
+        """How much the D layer is taking out, in points of score."""
+        clear = P.band_score(mhz, 100.0, -90.0, 0)["score"]
+        return clear - P.band_score(mhz, 100.0, elev, 0)["score"]
+
+    check("the band is not wide open the moment the sun touches the horizon",
+          absorbed(3.5, 0.0) > 5, True)
+    check("  and absorption is gone once the layer itself is in the dark",
+          absorbed(3.5, -(P.D_LAYER_DIP + 0.5)), 0)
+    check("  with nothing left well below that", absorbed(3.5, -20.0), 0)
+    # A step would show up as two values where there should be a slope.
+    slope = [absorbed(3.5, e) for e in (6, 3, 0, -3, -6, -9)]
+    check("the evening is a ramp, not a cliff",
+          len(set(slope)), len(slope))
+    check("  running downhill the whole way",
+          all(a >= b for a, b in zip(slope, slope[1:])), True)
+    check("high bands barely notice it either way",
+          absorbed(28.0, 30.0) < 3, True)
 
     print("\n-- the night is not one number --")
     # The old model's day term was sin(elevation) to a power, which is exactly
