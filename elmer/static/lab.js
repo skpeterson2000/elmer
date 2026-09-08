@@ -2906,10 +2906,6 @@ async function sxSolve() {
 /* A latitude and a longitude are not what somebody in trouble needs. "Which
    way do I walk, and how far" is, and the gap between the two is a skill
    nobody has any more. So the fix is followed by the part that uses it. */
-const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-                 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-const point = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
-
 /* Charts and topographic maps are ruled in degrees and minutes, not in the
    decimal degrees a computer likes, and the margin ticks somebody has to count
    along are minutes. Handing over only the decimal form leaves them to do a
@@ -2932,7 +2928,7 @@ function sxWalkOut(d) {
     '</b></td>' +
     '<td class="mono">' + p.miles + ' mi</td>' +
     '<td class="mono">' + p.bearing + '&deg; true</td>' +
-    '<td class="mono muted">' + point(p.bearing) + '</td></tr>').join('');
+    '<td class="mono muted">' + compass(p.bearing) + '</td></tr>').join('');
 
   return '<div class="panel-title mt">Putting it on a map, and walking out</div>' +
 
@@ -2973,7 +2969,7 @@ function sxWalkOut(d) {
           '&deg; true</b> and stands <b>' + north.sun_altitude + '&deg;</b> up. ' +
           'Face it, and true north is <b>' +
           Math.round(((360 - north.sun_azimuth) % 360)) + '&deg; to your right' +
-          '</b> &mdash; or simply that the sun is ' + point(north.sun_azimuth) +
+          '</b> &mdash; or simply that the sun is ' + compass(north.sun_azimuth) +
           ' of you. '
         : '') +
       'Sight along a stick to the sun, turn off the angle, and you have a ' +
