@@ -72,7 +72,9 @@ async function roAsk() {
 
   where.innerHTML = 'From <b>' + escapeHTML(d.qth || 'the QTH on file') + '</b>' +
     (d.qth_source === 'gps' ? ' <span class="mono">(GPS)</span>' : '') +
-    ', ' + (d.daytime ? 'in daylight' : 'after dark') + '. ' +
+    ', ' + ({lit: 'in daylight', grey: 'on the grey line', dark: 'after dark',
+             twilight: 'in twilight that will not clear'}[d.sun]
+            || 'in daylight') + '. ' +
     (d.coverage && d.coverage.known
       ? 'ELMER knows the repeaters around here.'
       : 'ELMER has no repeater list for this area &mdash; TowerWitch can look ' +

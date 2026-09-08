@@ -40,8 +40,13 @@ async function load(force) {
     '<div class="row"><span class="pill ' + kClass(d.k_index) + '">' +
     escapeHTML(d.geomag || 'field') + '</span>' +
     '<span class="pill info">noise ' + escapeHTML(d.noise || 'n/a') + '</span>' +
-    '<span class="pill">' + (d.located ? (d.is_day ? 'daylight at your QTH' : 'darkness at your QTH')
-                                       : (d.is_day ? 'assuming daylight - no QTH set' : 'assuming darkness - no QTH set')) +
+    '<span class="pill' + (d.regime === 'grey' ? ' good' : '') + '">' +
+    (d.located
+      ? {lit: 'daylight at your QTH', grey: 'grey line at your QTH',
+         dark: 'darkness at your QTH',
+         twilight: 'twilight at your QTH - no true grey line'}[d.regime]
+      : (d.is_day ? 'assuming daylight - no QTH set'
+                  : 'assuming darkness - no QTH set')) +
     '</span></div>' +
     '<p style="margin:.6rem 0 0">' + escapeHTML(d.verdict) + '</p>';
 
@@ -101,7 +106,24 @@ async function load(force) {
              'sun angle, so the correction travels without carrying the station\'s daylight with it.'
           : '. No ionosonde within ' + Math.round(PROP_CAL_KM) + ' km, so that figure is ' +
             'the plain model.') +
-      (Math.abs(d.elevation) < 8 ? ' You are near the grey line — watch the low bands.' : '');
+      /* The grey line is a state the model names, not a caption fired by a
+         threshold that agreed with nothing else on the page. It runs from your
+         sunset to the D layer's, which is the stretch over which this page's
+         own absorption figure falls to zero. */
+      (d.regime === 'grey'
+        ? ' <b>You are on the grey line.</b> The sun has set here but not on ' +
+          'the D layer 80 km up, so absorption is collapsing while the F ' +
+          'layer stays ionised - this is the hour 160 and 80 reach furthest, ' +
+          'and it closes when the sun is nine degrees down.'
+        : d.regime === 'twilight'
+          ? ' <b>Twilight, not a grey line.</b> The sun is below your horizon ' +
+            'but it will not get below the D layer\'s tonight - at this ' +
+            'latitude and season it stays lit 80 km up until it comes back ' +
+            'round, so absorption never reaches zero and the low bands never ' +
+            'get the hour they get further south.'
+        : d.regime === 'lit' && d.elevation < 4
+          ? ' The sun is low; the grey line is not far off.'
+          : '');
   }
 
   document.querySelectorAll('[data-live]').forEach(el => {

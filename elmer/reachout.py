@@ -18,9 +18,9 @@ metres. Knowing that is the difference between waiting and working.
 The odds are stated in words rather than numbers because numbers here would be
 invented. "Worth trying" means worth trying.
 """
-import time
+from datetime import datetime, timezone
 
-from . import bandplan, repeaters
+from . import bandplan, propagation, repeaters
 
 # How good a bet each avenue is, worst to best. Sorting is by this, then by
 # how little it asks of the operator.
@@ -40,16 +40,24 @@ GEAR = {
 TECH_HF = "Technician HF is 10 m SSB 28.300-28.500, plus CW on 80, 40 and 15."
 
 
-def _local_hour(lon, now=None):
-    """Rough local solar hour from longitude alone - no clock setting, no
-    network, and good enough to know whether 40 m is a day band right now."""
-    utc = time.gmtime(now if now is not None else time.time())
-    return (utc.tm_hour + utc.tm_min / 60.0 + lon / 15.0) % 24
+def sun_state(lat, lon, now=None):
+    """Lit, grey or dark where the operator is standing.
 
+    This still asks nothing of the network - `solar_elevation` is arithmetic -
+    but it does now ask the sun rather than the clock. What it replaces read
+    local solar hour off longitude alone and called 7 to 19 daylight: no
+    latitude, so no season, and at 46 N in September it was calling half eight
+    in the morning "night" and telling somebody in full daylight that darkness
+    wanted 80 m.
 
-def daytime(lon, now=None):
-    hour = _local_hour(lon, now)
-    return 7.0 <= hour <= 19.0
+    A boolean would still have been wrong at the ends of the day, which is
+    exactly where somebody stuck up a forest road is most likely to be looking
+    at it. So this returns the same three states everything else now uses.
+    """
+    when = (datetime.fromtimestamp(now, timezone.utc) if now is not None
+            else datetime.now(timezone.utc))
+    return propagation.sun_regime(
+        propagation.solar_elevation(lat, lon, when), lat, when)
 
 
 def _class_rank(license):
@@ -114,7 +122,8 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
     """Everything worth trying from here, best bet first."""
     gear = set(gear or [])
     out = list(repeater_ways(lat, lon, gear, height_ft, conn))
-    day = daytime(lon, now)
+    state = sun_state(lat, lon, now)
+    day = state == "lit"
     rank = _class_rank(license)
 
     if _vhf(gear):
@@ -168,7 +177,25 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
         })
 
     if _has_hf(gear):
-        band = "40 m (7.175-7.300)" if day else "80 m (3.800-4.000)"
+        # Twilight keeps 40: the absorber never goes, so the band that would
+        # normally take over after dark does not get its advantage.
+        band = ("40 m (7.175-7.300)" if state in ("lit", "twilight")
+                else "80 m (3.800-4.000)")
+        # The half hour nobody should be told to sit out. Both bands are worth
+        # a call: 40 has not shut and 80 has stopped being absorbed, and the
+        # only instruction that fits is to follow the one down to the other.
+        timing = {
+            "lit": "Daylight wants 40; ",
+            "grey": "You are on the grey line - the sun has set here but not "
+                    "on the absorbing layer 80 km up, so it is going and 80 is "
+                    "opening while 40 is still up. Call on 40, then follow it "
+                    "down to 80; ",
+            "dark": "Darkness wants 80; ",
+            "twilight": "The sun is down but it will not clear the absorbing "
+                        "layer tonight - this far north in summer there is no "
+                        "real grey line and 80 stays lossy, so 40 is still the "
+                        "better bet even though it is dark; ",
+        }[state]
         out.append({
             "key": "nvis", "title": f"Regional HF - {band}, straight up",
             "odds": "good" if rank >= bandplan.CLASS_RANK["General"] else "no",
@@ -181,7 +208,7 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
             "why": ("A low wire is not a compromise here, it is the design: it "
                     "covers everything within about 300 miles, which is where "
                     "the people who can actually come and get you are. "
-                    + ("Daylight wants 40; " if day else "Darkness wants 80; ")
+                    + timing
                     + "the band that works is the one below the critical "
                       "frequency."),
         })
@@ -260,7 +287,10 @@ def summary(lat, lon, gear=(), license="Technician", now=None, conn=None):
     return {
         "ways": found,
         "coverage": cover,
-        "daytime": daytime(lon, now),
+        "sun": sun_state(lat, lon, now),
+        # Kept for anything still asking the old question. "Daytime" now means
+        # the absorber is up, which is what it was always taken to mean.
+        "daytime": sun_state(lat, lon, now) == "lit",
         "license": license,
         "gear": sorted(gear or []),
         "note": ("Start with the top of this list and work down. Every entry "
