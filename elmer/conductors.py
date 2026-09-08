@@ -93,6 +93,26 @@ CONDUCTORS = [
      "material": "copper", "sigma": 1.00,
      "note": "About as fat as anybody builds from tube. Heavy, expensive, and "
              "the widest band a single element will give you."},
+    # Soft-drawn refrigeration tube, the stuff an ice maker is plumbed with.
+    # Sized by its real outside diameter, unlike rigid pipe, which is named by
+    # its bore - so a quarter inch here really is 6.35 mm, four times a #14
+    # wire. It is sold in coils, which is the point of it: fifty feet of
+    # antenna goes in a pannier and comes out straight.
+    {"key": "tube14", "label": "1/4 in soft copper tube (ice-maker line)",
+     "od_mm": 6.35, "material": "copper", "sigma": 1.00,
+     "note": "The coil of soft copper sold to plumb an ice maker or a "
+             "humidifier - 25 and 50 ft rolls, in every hardware store. Four "
+             "times the diameter of #14 wire, so a usefully wider band, and it "
+             "solders. Annealed, so it uncoils by hand, holds a shape, and "
+             "will stand on its own for a metre or two.",
+     "caution": "It work-hardens: bend the same spot repeatedly and it "
+                "cracks. Heavier than wire, so a long horizontal span needs "
+                "support or it will sag and stretch."},
+    {"key": "tube38", "label": "3/8 in soft copper tube", "od_mm": 9.53,
+     "material": "copper", "sigma": 1.00,
+     "note": "The other size sold in coils. Stiffer and wider-band than the "
+             "quarter inch, and still rolls up - a good compromise for a "
+             "portable vertical."},
 ]
 
 INDEX = {c["key"]: c for c in CONDUCTORS}

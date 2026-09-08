@@ -2086,17 +2086,48 @@ async function antennaAdvice(mhz, use, kind) {
 }
 
 const adviseBtn = document.getElementById('an-advise');
-if (adviseBtn) adviseBtn.addEventListener('click', () =>
-  antennaAdvice(num('an-f'), document.getElementById('an-use').value));
+if (adviseBtn) adviseBtn.addEventListener('click', () => {
+  const ctx = {mhz: num('an-f'),
+               use: document.getElementById('an-use').value, kind: ''};
+  rememberAntenna(ctx);
+  antennaAdvice(ctx.mhz, ctx.use);
+});
 
-/* Arriving from the band plan with a frequency in hand. */
+/* Arriving from the band plan with a frequency in hand - and still having it
+   on the way back.
+
+   The handoff used to be one-shot: the frequency came in on the query string,
+   the URL was tidied a line later, and that was the only record of it. Leave
+   the page to look up the MUF and come back and there was nothing to come back
+   to - the tool had been set up for a band it no longer knew about. So the
+   context is kept, and restored whenever the page loads without one. */
+const ANTENNA_KEY = 'elmer.lab.antenna';
+
+function rememberAntenna(ctx) {
+  try { localStorage.setItem(ANTENNA_KEY, JSON.stringify(ctx)); } catch (e) {}
+}
+
+function recallAntenna() {
+  try { return JSON.parse(localStorage.getItem(ANTENNA_KEY) || 'null'); }
+  catch (e) { return null; }
+}
+
 (function () {
   const q = new URLSearchParams(location.search);
   const f = q.get('f');
-  if (!f) return;
-  selectTab('ant');
-  history.replaceState(null, '', location.pathname + '#ant');
-  antennaAdvice(f, q.get('use'), q.get('kind'));
+  if (f) {
+    const ctx = {mhz: f, use: q.get('use') || '', kind: q.get('kind') || ''};
+    rememberAntenna(ctx);
+    selectTab('ant');
+    history.replaceState(null, '', location.pathname + '#ant');
+    antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+    return;
+  }
+  /* No frequency on the URL: either a plain visit or a return trip. Restore
+     what was last set up, without stealing the tab - somebody arriving at
+     #smith wanted the Smith chart. */
+  const ctx = recallAntenna();
+  if (ctx && ctx.mhz) antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
 })();
 
 /* ---------------------------------------------------------- Smith chart ---

@@ -603,8 +603,31 @@ def api_pattern():
     # one hop reaches - so the answer depends on the hour where the station
     # is, not on the server's idea of noon.
     day = reachout.daytime(place["lon"]) if place.get("lon") is not None else True
+
+    # Near-vertical incidence lives or dies on whether the frequency is under
+    # the critical frequency, so it gets the measured one rather than a rule of
+    # thumb. Both lookups are cheap and neither is allowed to break the antenna
+    # tool: the snapshot is cached for fifteen minutes and the sonde is read
+    # from cache only, and if either is missing the model says so and falls
+    # back to the 300-mile average.
+    fof2 = hmf2 = None
+    if nvis or use == "regional":
+        try:
+            snap = propagation.snapshot(lat=place.get("lat"), lon=place.get("lon"))
+            if snap.get("ok"):
+                fof2 = snap.get("fof2")
+        except Exception:
+            log.info("no space weather for the NVIS footprint", exc_info=False)
+        try:
+            if place.get("lat") is not None:
+                near = ionosonde.nearest(place["lat"], place["lon"], offline=True)
+                if near and near["distance_km"] <= propagation.CALIBRATION_KM:
+                    hmf2 = near["hmf2"]
+        except Exception:
+            pass
+
     span = patterns.qualify(
-        patterns.reach(kind, use, mhz, height_ft, nvis, slope, day))
+        patterns.reach(kind, use, mhz, height_ft, nvis, slope, day, fof2, hmf2))
 
     dx = []
     if place.get("lat") is not None and place.get("lon") is not None:
