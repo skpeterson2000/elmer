@@ -14,7 +14,7 @@ import random
 import signal
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from urllib.parse import urlsplit
@@ -2589,6 +2589,26 @@ def api_celestial_fix():
     found["grid"] = geocode.to_grid(found["lat"], found["lon"])
     found["working"] = working
     found["hinted"] = hint is not None
+
+    # A position is not the answer somebody in trouble needs. "Which way do I
+    # walk" is, and the two are only the same to a person who already reads
+    # charts. So the fix comes back with the nearest named places and a
+    # bearing to each, offline, from the list that shipped with the program.
+    try:
+        found["landfall"], found["landfall_from"] = places.nearest(
+            found["lat"], found["lon"])
+    except Exception:                                   # never lose the fix
+        log.debug("no places for a celestial fix", exc_info=False)
+        found["landfall"], found["landfall_from"] = [], None
+
+    # And which way that bearing is measured from. There is no magnetic model
+    # here and there does not need to be one: the same sun that gave the fix
+    # gives true north directly, and a compass with an unknown declination is
+    # the thing being replaced rather than the thing being relied on.
+    now = datetime.now(timezone.utc)
+    alt_now, az_now = celestial.altitude_azimuth(found["lat"], found["lon"], now)
+    found["north"] = {"when": now.isoformat(), "sun_azimuth": round(az_now, 1),
+                      "sun_altitude": round(alt_now, 1)}
     for other in found.get("alternatives", []):
         other["grid"] = geocode.to_grid(other["lat"], other["lon"])
     log.info("celestial fix from %d sights: %s, +/-%s nm (%s geometry)",
