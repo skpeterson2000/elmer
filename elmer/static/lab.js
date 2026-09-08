@@ -2751,6 +2751,321 @@ function sxRow(n) {
   '</tr>';
 }
 
+/* ------------------------------------------------- drawing the sextant ---
+   The Smith chart is drawn rather than described because a transformation can
+   only be watched. A sextant is drawn for a plainer reason: the skill has
+   died, and the words "bring the lower limb tangent to the horizon and rock
+   for the bottom of the arc" mean nothing at all to somebody who has never
+   seen the thing. Three pictures - what the parts are, why the light gets to
+   your eye at all, and what you are looking at while you do it. */
+
+const SX_INK = '#8b98a5', SX_LINE = '#4a5663', SX_DIM = '#2f3a46',
+      SX_SUN = '#ffb454', SX_GLASS = '#5b6b7d', SX_OK = '#3fb950';
+
+function sxLabel(x, y, text, anchor) {
+  return '<text x="' + x + '" y="' + y + '" fill="' + SX_INK +
+    '" font-size="11" text-anchor="' + (anchor || 'start') + '">' + text + '</text>';
+}
+
+function sxLead(x1, y1, x2, y2) {
+  return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+    '" stroke="' + SX_LINE + '" stroke-width="0.8" stroke-dasharray="2 2"/>';
+}
+
+/* --- 1. the instrument, with its parts named -------------------------------
+   Pivot at the top, arc below it: the frame is a sector of sixty degrees,
+   which is where the name comes from. The arc is graduated to a hundred and
+   twenty, which is the fact the next picture explains. */
+function sxInstrument() {
+  const P = [330, 92], R = 196, IN = 150, ARM = 97;
+  const at = (deg, r) => [P[0] + r * Math.cos(deg * Math.PI / 180),
+                          P[1] + r * Math.sin(deg * Math.PI / 180)];
+  const xy = a => a[0].toFixed(1) + ' ' + a[1].toFixed(1);
+  const arm = at(ARM, R), g = [];
+
+  g.push('<path d="M ' + xy(P) + ' L ' + xy(at(60, R)) + ' A ' + R + ' ' + R +
+         ' 0 0 1 ' + xy(at(120, R)) + ' Z" fill="#151b23" stroke="' + SX_LINE +
+         '" stroke-width="1.4"/>');
+  g.push('<path d="M ' + xy(at(90, 44)) + ' L ' + xy(at(67, IN)) + ' A ' + IN +
+         ' ' + IN + ' 0 0 1 ' + xy(at(113, IN)) + ' Z" fill="#0d1117" stroke="' +
+         SX_DIM + '" stroke-width="1"/>');
+
+  /* Ticks every 2.5 degrees of frame. The numbers are twice that, which is the
+     whole trick of the instrument and is why they are worth drawing on. */
+  for (let d = 60; d <= 120.01; d += 2.5) {
+    const major = Math.abs(d % 5) < 0.01;
+    g.push('<line x1="' + xy(at(d, R)) .replace(' ', '" y1="') + '" x2="' +
+           xy(at(d, major ? R - 14 : R - 8)).replace(' ', '" y2="') +
+           '" stroke="' + SX_INK + '" stroke-width="' + (major ? 1.1 : 0.6) + '"/>');
+    if (Math.abs(d - 60) % 30 < 0.01) {          // 0, 60, 120 only: enough to
+                                                 // make the point, and it
+                                                 // leaves room for the callouts
+      const t = at(d, R + 20);
+      g.push('<text x="' + t[0].toFixed(1) + '" y="' + t[1].toFixed(1) +
+             '" fill="' + SX_INK + '" font-size="11" text-anchor="middle" ' +
+             'dominant-baseline="middle">' + Math.round((d - 60) * 2) + '</text>');
+    }
+  }
+
+  g.push('<line x1="' + P[0] + '" y1="' + P[1] + '" x2="' + arm[0].toFixed(1) +
+         '" y2="' + arm[1].toFixed(1) + '" stroke="' + SX_INK +
+         '" stroke-width="8" stroke-linecap="round"/>');
+  g.push('<line x1="' + P[0] + '" y1="' + P[1] + '" x2="' + arm[0].toFixed(1) +
+         '" y2="' + arm[1].toFixed(1) + '" stroke="#c9d4e0" stroke-width="2.4"/>');
+  g.push('<circle cx="' + arm[0].toFixed(1) + '" cy="' + arm[1].toFixed(1) +
+         '" r="15" fill="#151b23" stroke="' + SX_INK + '" stroke-width="1.6"/>');
+  g.push('<circle cx="' + arm[0].toFixed(1) + '" cy="' + arm[1].toFixed(1) +
+         '" r="7.5" fill="' + SX_DIM + '"/>');
+  g.push('<g transform="translate(' + P[0] + ',' + P[1] + ') rotate(-22)">' +
+         '<rect x="-3.5" y="-20" width="7" height="40" rx="1.5" fill="#dfe7ef" ' +
+         'stroke="' + SX_LINE + '"/></g>');
+
+  g.push('<g transform="translate(240,198) rotate(-58)">' +
+         '<rect x="-3.5" y="-21" width="7" height="21" rx="1.5" fill="#dfe7ef" ' +
+         'stroke="' + SX_LINE + '"/>' +
+         '<rect x="-3.5" y="0" width="7" height="21" rx="1.5" fill="none" ' +
+         'stroke="' + SX_GLASS + '" stroke-dasharray="3 2"/></g>');
+  g.push('<g transform="translate(289,144) rotate(-58)">' +
+         '<rect x="-12" y="-4" width="10" height="17" fill="#8a6427"/>' +
+         '<rect x="-1" y="-4" width="10" height="17" fill="#5c421d"/></g>');
+  g.push('<g transform="translate(207,250) rotate(-58)">' +
+         '<rect x="-5" y="-4" width="10" height="15" fill="#3a4a5a"/></g>');
+  g.push('<rect x="112" y="190" width="116" height="18" rx="6" fill="#151b23" ' +
+         'stroke="' + SX_INK + '" stroke-width="1.3"/>');
+  g.push('<circle cx="112" cy="199" r="11" fill="#0d1117" stroke="' + SX_INK +
+         '" stroke-width="1.3"/>');
+  g.push('<rect x="356" y="140" width="27" height="78" rx="12" fill="#20160c" ' +
+         'stroke="' + SX_LINE + '" stroke-width="1.2"/>');
+
+  /* Numbered callouts against a list, rather than leader lines to text this
+     code cannot measure and therefore cannot aim. */
+  const marks = [[330, 74], [296, 158], [285, 126], [369, 150],
+                 [366, 300], [222, 212], [196, 262], [150, 199], [212, 306]];
+  const leads = [null, [318, 170], null, null, [325, 292], [236, 202],
+                 [205, 252], null, [244, 276]];
+  leads.forEach((l, i) => {
+    if (l) g.push('<line x1="' + marks[i][0] + '" y1="' + marks[i][1] +
+                  '" x2="' + l[0] + '" y2="' + l[1] + '" stroke="' + SX_LINE +
+                  '" stroke-width="0.9"/>');
+  });
+  marks.forEach((m, i) => {
+    g.push('<circle cx="' + m[0].toFixed(1) + '" cy="' + m[1].toFixed(1) +
+           '" r="10" fill="#0d1117" stroke="' + SX_SUN + '" stroke-width="1.4"/>');
+    g.push('<text x="' + m[0].toFixed(1) + '" y="' + m[1].toFixed(1) +
+           '" fill="' + SX_SUN + '" font-size="11" text-anchor="middle" ' +
+           'dominant-baseline="central">' + (i + 1) + '</text>');
+  });
+
+  const legend = [
+    'Index mirror, fully silvered. It is fixed to the arm, so it turns when the arm does.',
+    'Index arm. Swinging it is how you bring the sun down.',
+    'Index shades. These go in <b>before</b> the instrument comes near your eye.',
+    'Handle, on the back. The frame is held, never the arm.',
+    'Micrometer drum and vernier: degrees come off the arc, minutes off here.',
+    'Horizon glass. Silvered on one half, clear on the other, so you see the reflected sun and the real horizon at once.',
+    'Horizon shades, for glare coming off water.',
+    'Telescope. It looks at the horizon glass, not at the sky.',
+    'The arc. Sixty degrees of frame &mdash; that is where the name comes from &mdash; graduated to 120.',
+  ];
+  return '<div class="row" style="gap:1.1rem;align-items:flex-start;flex-wrap:wrap">' +
+    '<div style="flex:1 1 380px;min-width:300px">' +
+      '<svg viewBox="0 0 470 330" style="width:100%">' + g.join('') + '</svg></div>' +
+    '<div style="flex:1 1 250px;min-width:240px"><ol class="small muted" ' +
+      'style="margin:0;padding-left:1.3rem;line-height:1.45">' +
+      legend.map(t => '<li>' + t + '</li>').join('') + '</ol></div></div>';
+}
+
+/* --- 2. why it works at all -----------------------------------------------
+   The part nobody guesses: you are not looking at the sun through the
+   instrument. You are looking straight ahead at the horizon, through a piece
+   of clear glass - and the sun has been folded down onto it by two mirrors.
+   Both arrive at the same eye at the same instant, which is what makes the
+   comparison possible from a moving deck. */
+function sxOptics() {
+  const SUN = [608, 56], IM = [558, 170], HG = [252, 238], EYE = [92, 266];
+  const g = [];
+
+  /* A mirror at b turning a ray a->b into b->c lies along the bisector, so it
+     is drawn at the angle it would really sit at rather than a guessed one.
+     Getting this wrong is what made the first attempt read as a straight
+     line with a kink in it. */
+  const unit = (p, q) => {
+    const dx = q[0] - p[0], dy = q[1] - p[1], m = Math.hypot(dx, dy);
+    return [dx / m, dy / m];
+  };
+  const mirrorDeg = (a, b, c) => {
+    const u = unit(a, b), v = unit(b, c);
+    const n = [v[0] - u[0], v[1] - u[1]];
+    return Math.atan2(n[1], n[0]) * 180 / Math.PI + 90;
+  };
+
+  g.push('<line x1="690" y1="' + EYE[1] + '" x2="' + EYE[0] + '" y2="' + EYE[1] +
+         '" stroke="' + SX_GLASS + '" stroke-width="1.8"/>');
+  g.push('<text x="688" y="' + (EYE[1] + 18) + '" fill="' + SX_GLASS +
+         '" font-size="11" text-anchor="end">the horizon, straight through the clear half</text>');
+
+  g.push('<circle cx="' + SUN[0] + '" cy="' + SUN[1] + '" r="18" fill="' + SX_SUN + '"/>');
+  for (let a = 0; a < 360; a += 45) {
+    const rad = a * Math.PI / 180;
+    g.push('<line x1="' + (SUN[0] + 24 * Math.cos(rad)).toFixed(1) + '" y1="' +
+           (SUN[1] + 24 * Math.sin(rad)).toFixed(1) + '" x2="' +
+           (SUN[0] + 33 * Math.cos(rad)).toFixed(1) + '" y2="' +
+           (SUN[1] + 33 * Math.sin(rad)).toFixed(1) + '" stroke="' + SX_SUN +
+           '" stroke-width="1.7"/>');
+  }
+
+  g.push('<polyline points="' + (SUN[0] - 8) + ',' + (SUN[1] + 24) + ' ' +
+         IM + ' ' + HG + ' ' + EYE + '" fill="none" stroke="' + SX_SUN +
+         '" stroke-width="2.2" stroke-linejoin="round"/>');
+  /* Arrowheads placed along each leg, pointing the way the light travels. */
+  [[SUN, IM, 0.55], [IM, HG, 0.5], [HG, EYE, 0.5]].forEach(([a, b, t]) => {
+    const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
+    const deg = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+    g.push('<path d="M -6 -6 L 5 0 L -6 6" fill="none" stroke="' + SX_SUN +
+           '" stroke-width="2" transform="translate(' + x.toFixed(1) + ',' +
+           y.toFixed(1) + ') rotate(' + deg.toFixed(1) + ')"/>');
+  });
+
+  g.push('<g transform="translate(' + IM[0] + ',' + IM[1] + ') rotate(' +
+         mirrorDeg(SUN, IM, HG).toFixed(1) + ')">' +
+         '<rect x="-4" y="-30" width="8" height="60" rx="2" fill="#dfe7ef" ' +
+         'stroke="' + SX_LINE + '"/></g>');
+  g.push('<g transform="translate(' + HG[0] + ',' + HG[1] + ') rotate(' +
+         mirrorDeg(IM, HG, EYE).toFixed(1) + ')">' +
+         '<rect x="-4" y="-46" width="8" height="46" rx="2" fill="#dfe7ef" ' +
+         'stroke="' + SX_LINE + '"/>' +
+         '<rect x="-4" y="0" width="8" height="46" rx="2" fill="none" stroke="' +
+         SX_GLASS + '" stroke-width="1.4" stroke-dasharray="4 3"/></g>');
+
+  g.push('<circle cx="' + EYE[0] + '" cy="' + EYE[1] + '" r="16" fill="#151b23" ' +
+         'stroke="' + SX_INK + '" stroke-width="1.6"/>');
+  g.push('<circle cx="' + EYE[0] + '" cy="' + EYE[1] + '" r="5.5" fill="' + SX_INK + '"/>');
+
+  g.push('<text x="' + EYE[0] + '" y="304" fill="' + SX_INK + '" font-size="11" ' +
+         'text-anchor="middle">your eye</text>');
+  g.push('<text x="' + (IM[0] - 22) + '" y="' + (IM[1] + 56) + '" fill="' + SX_INK +
+         '" font-size="11" text-anchor="end">index mirror, on the arm</text>');
+  g.push('<text x="' + (HG[0] + 20) + '" y="192" fill="' + SX_INK +
+         '" font-size="11">horizon glass &mdash; silvered above&hellip;</text>');
+  g.push('<text x="' + (HG[0] + 20) + '" y="300" fill="' + SX_GLASS +
+         '" font-size="11">&hellip;and clear below</text>');
+  g.push('<text x="16" y="40" fill="' + SX_SUN + '" font-size="12.5">' +
+         'Swing the arm and the sun slides down your eyepiece to meet the horizon.</text>');
+  g.push('<text x="16" y="62" fill="' + SX_INK + '" font-size="11">' +
+         'Turn a mirror through an angle and the beam turns through twice it,</text>');
+  g.push('<text x="16" y="79" fill="' + SX_INK + '" font-size="11">' +
+         'which is why sixty degrees of frame is graduated to a hundred and twenty.</text>');
+  return '<svg viewBox="0 0 700 320" style="width:100%;max-width:700px">' +
+    g.join('') + '</svg>';
+}
+
+/* --- 3. what you actually see, step by step -------------------------------- */
+const SX_VIEW = [
+  {title: 'Shades in, arc at zero, look at the sun',
+   note: 'Set the arc to zero and put the index shades in <b>before</b> the ' +
+         'instrument comes up to your eye. Now look straight at the sun ' +
+         'through it. Both images sit together, because at zero the mirrors ' +
+         'are parallel.',
+   suns: [[0, -46, 1]], horizon: null},
+  {title: 'Swing the arm: the sun comes down',
+   note: 'Keeping the sun in view, turn the index arm. Its image slides down ' +
+         'the field. Follow it down, lowering the instrument as you go, until ' +
+         'the horizon comes into the bottom of the view.',
+   suns: [[0, -46, .25], [0, 4, 1]], horizon: 64, arrow: true},
+  {title: 'Rock it: the sun swings an arc',
+   note: 'Tilt the sextant slowly side to side. The sun swings through an arc ' +
+         'and dips lowest when the instrument is truly vertical. <b>That</b> ' +
+         'is the reading &mdash; a sight taken without rocking is always too high.',
+   suns: [[-58, 8, .3], [0, 30, 1], [58, 8, .3]], horizon: 64, swing: true},
+  {title: 'Contact: lower limb just kisses the horizon',
+   note: 'At the bottom of the swing, turn the micrometer until the sun’s ' +
+         'lower edge sits exactly on the horizon &mdash; touching, not ' +
+         'overlapping. Call the instant. <b>Then</b> read the arc; it will not move.',
+   suns: [[0, 42, 1]], horizon: 64, contact: true},
+  {title: 'Inland: the same thing, twice over',
+   note: 'With a pan of water there is no horizon, so you bring the real sun ' +
+         'down to its own reflection until the two discs touch. The arc then ' +
+         'reads <b>twice</b> the altitude &mdash; type in what it says and let ' +
+         'ELMER halve it.',
+   suns: [[0, -13, 1], [0, 29, .55]], horizon: null, pan: true},
+];
+
+function sxEyepiece(step) {
+  const v = SX_VIEW[step] || SX_VIEW[0];
+  const CX = 150, CY = 140, RAD = 112, g = [];
+  g.push('<defs><clipPath id="sx-field"><circle cx="' + CX + '" cy="' + CY +
+         '" r="' + RAD + '"/></clipPath></defs>');
+  g.push('<circle cx="' + CX + '" cy="' + CY + '" r="' + RAD +
+         '" fill="#0b1015" stroke="' + SX_LINE + '" stroke-width="3"/>');
+  g.push('<g clip-path="url(#sx-field)">');
+  if (v.horizon !== null && v.horizon !== undefined) {
+    const y = CY + v.horizon;
+    g.push('<rect x="' + (CX - RAD) + '" y="' + y + '" width="' + (RAD * 2) +
+           '" height="' + RAD + '" fill="#111c26"/>');
+    g.push('<line x1="' + (CX - RAD) + '" y1="' + y + '" x2="' + (CX + RAD) +
+           '" y2="' + y + '" stroke="' + SX_GLASS + '" stroke-width="2"/>');
+  }
+  if (v.pan) {
+    g.push('<line x1="' + (CX - RAD) + '" y1="' + (CY + 8) + '" x2="' +
+           (CX + RAD) + '" y2="' + (CY + 8) + '" stroke="' + SX_DIM +
+           '" stroke-width="1" stroke-dasharray="4 4"/>');
+  }
+  if (v.swing) {
+    g.push('<path d="M ' + (CX - 76) + ' ' + (CY - 6) + ' Q ' + CX + ' ' +
+           (CY + 56) + ' ' + (CX + 76) + ' ' + (CY - 6) + '" fill="none" ' +
+           'stroke="' + SX_SUN + '" stroke-width="1" stroke-dasharray="3 3" ' +
+           'opacity=".65"/>');
+  }
+  if (v.arrow) {
+    g.push('<path d="M ' + (CX + 62) + ' ' + (CY - 40) + ' L ' + (CX + 62) +
+           ' ' + (CY - 6) + '" stroke="' + SX_SUN + '" stroke-width="1.6" ' +
+           'opacity=".8"/><path d="M ' + (CX + 56) + ' ' + (CY - 12) + ' L ' +
+           (CX + 62) + ' ' + (CY - 2) + ' L ' + (CX + 68) + ' ' + (CY - 12) +
+           '" fill="none" stroke="' + SX_SUN + '" stroke-width="1.6" opacity=".8"/>');
+  }
+  v.suns.forEach(([dx, dy, op]) =>
+    g.push('<circle cx="' + (CX + dx) + '" cy="' + (CY + dy) + '" r="21" fill="' +
+           SX_SUN + '" opacity="' + op + '"/>'));
+  if (v.contact) {
+    g.push('<circle cx="' + CX + '" cy="' + (CY + 42) + '" r="21" fill="none" ' +
+           'stroke="' + SX_OK + '" stroke-width="2"/>');
+  }
+  g.push('</g>');
+  return '<svg viewBox="0 0 300 300" style="width:100%;max-width:300px">' +
+    g.join('') + '</svg>';
+}
+
+function sxShowStep(n) {
+  const view = document.getElementById('sx-eyepiece');
+  if (!view) return;
+  const step = Math.max(0, Math.min(SX_VIEW.length - 1, n));
+  view.dataset.step = step;
+  view.innerHTML = sxEyepiece(step);
+  document.getElementById('sx-step-title').innerHTML =
+    '<b>' + (step + 1) + '.</b> ' + SX_VIEW[step].title;
+  document.getElementById('sx-step-note').innerHTML = SX_VIEW[step].note;
+  document.querySelectorAll('#sx-steps button').forEach((b, i) => {
+    b.classList.toggle('primary', i === step);
+    b.classList.toggle('ghost', i !== step);
+  });
+}
+
+function sxDrawArt() {
+  const a = document.getElementById('sx-instrument');
+  if (!a || a.dataset.drawn) return;
+  a.innerHTML = sxInstrument();
+  document.getElementById('sx-optics').innerHTML = sxOptics();
+  const steps = document.getElementById('sx-steps');
+  steps.innerHTML = SX_VIEW.map((v, i) =>
+    '<button class="btn sm ghost" data-step="' + i + '">' + (i + 1) + '</button>').join('');
+  steps.addEventListener('click', e => {
+    const b = e.target.closest('button[data-step]');
+    if (b) sxShowStep(+b.dataset.step);
+  });
+  sxShowStep(0);
+  a.dataset.drawn = '1';
+}
+
 /* A worked example, because "here is a form, take three sights" asks somebody
    to buy an instrument before they can find out whether any of this is real.
    These are the altitudes the sun genuinely had over a point in the Boundary
@@ -2848,6 +3163,10 @@ if (SX_ROWS) {
   syncHorizon();
 
   document.getElementById('sx-go').addEventListener('click', sxSolve);
+  /* The drawings cost nothing to build but there is no reason to build them
+     for somebody who never opens the fold. */
+  const art = document.getElementById('sx-art');
+  if (art) art.addEventListener('toggle', () => { if (art.open) sxDrawArt(); });
   const demo = document.getElementById('sx-demo');
   if (demo) demo.addEventListener('click', sxLoadDemo);
 }
