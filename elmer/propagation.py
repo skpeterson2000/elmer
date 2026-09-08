@@ -475,6 +475,15 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0):
            "muf": round(muf, 1), "ratio": round(ratio, 2)}
 
     # Who the rating is for. A band can be excellent and useless at once.
+    #
+    # And when it is useless the operator's next thought is the antenna, which
+    # is the wrong lever and an expensive one. The antenna decides what you
+    # launch; the ionosphere decides what comes back. If it will not return
+    # anything steeper than 31 degrees then launching steeper only throws power
+    # into space, and launching shallower - which is what a vertical does -
+    # pushes the first landfall further out, not nearer. The lever that works
+    # is frequency: get under the critical frequency and the signal comes back
+    # from straight overhead. So the band that would do it gets named.
     nearest = skip_km(mhz, fof2, hmf2) if fof2 else 0.0
     if fof2:
         out["skip_km"] = None if nearest is None else round(nearest)
@@ -487,6 +496,8 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0):
                            "critical frequency a signal comes back from "
                            "overhead, above it the near stations are the ones "
                            "that go" % round(nearest / 1.609))
+        under = [name for name, freq, _ in BANDS if freq <= fof2]
+        out["fills_the_gap"] = under[-1] if under and nearest else None
     return out
 
 
