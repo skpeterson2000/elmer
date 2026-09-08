@@ -503,6 +503,93 @@ table.data tr.denied td { opacity: .45; }
 }
 .cw-scope { width: 100%; background: #0b1017; border: 1px solid var(--line); border-radius: 8px; margin: .6rem 0; }
 
+/* ---------- CW: the code drawn, rather than spelled ---------- */
+/* A dit and a dah are a short sound and a long one. Printing them as a full
+   stop and a hyphen asks the eye to translate punctuation into duration, which
+   is the opposite of the job. Drawn to length, the shape is the sound. */
+.cw-code { display: inline-flex; align-items: center; gap: .2rem; line-height: 1; }
+.cw-code i {
+  display: inline-block; height: .48rem; border-radius: .24rem;
+  background: var(--line-2); transition: background .08s linear, box-shadow .08s linear;
+}
+.cw-code i.dit { width: .42rem; }
+.cw-code i.dah { width: 1.26rem; }
+.cw-code i.lit { background: var(--amber); box-shadow: 0 0 .5rem rgba(255,180,84,.7); }
+.cw-code.big i { height: .8rem; border-radius: .4rem; }
+.cw-code.big i.dit { width: .8rem; }
+.cw-code.big i.dah { width: 2.4rem; }
+.cw-code.big { gap: .38rem; }
+
+/* the teaching display: code sounding now, letter revealed after */
+.cw-teach {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .9rem; min-height: 9.5rem; margin-top: .6rem;
+  background: #0b1017; border: 1px solid var(--line); border-radius: 10px;
+  padding: 1rem;
+}
+.cw-teach-letter {
+  font: 700 3.2rem/1 var(--mono); letter-spacing: .06em; color: var(--amber);
+  min-height: 3.2rem; opacity: 0; transition: opacity .18s ease;
+}
+.cw-teach-letter.show { opacity: 1; }
+.cw-teach-letter small { display: block; font: .8rem var(--sans); color: var(--dim);
+  letter-spacing: 0; margin-top: .3rem; }
+.cw-teach-hint { font: .78rem var(--sans); color: var(--dimmer); }
+
+/* the wall chart */
+.cw-chart-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: .4rem; margin-top: .5rem;
+}
+.cw-chart-cell {
+  display: flex; align-items: center; gap: .6rem; padding: .45rem .6rem;
+  background: #0f151d; border: 1px solid var(--line); border-radius: 8px;
+  cursor: pointer; text-align: left;
+}
+.cw-chart-cell:hover { border-color: var(--amber); background: #131b25; }
+.cw-chart-cell.playing { border-color: var(--amber); background: rgba(255,180,84,.1); }
+.cw-chart-cell b { font: 700 1rem var(--mono); color: var(--text); min-width: 2.1rem; }
+.cw-chart-cell b.solid { color: var(--green); }
+.cw-chart-cell b.shaky { color: var(--amber); }
+.cw-chart-cell b.weak  { color: var(--red); }
+.cw-chart-cell b.unmet { color: var(--dimmer); }
+/* One line, clipped with an ellipsis, the whole of it on the tooltip. Left to
+   wrap, "error, start that word again" turns its cell into a column four lines
+   deep and the row of prosigns stops being a row. */
+.cw-chart-cell .m {
+  font: .68rem var(--sans); color: var(--dimmer);
+  margin-left: auto; text-align: right; max-width: 6.5rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cw-chart-cell .cw-code { flex: 0 0 auto; }
+/* A prosign's code is long and its meaning is a sentence. Side by side one of
+   them loses; underneath, both fit. */
+.cw-chart-grid.wide { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.cw-chart-grid.wide .cw-chart-cell { flex-wrap: wrap; }
+.cw-chart-grid.wide .cw-chart-cell .m {
+  flex-basis: 100%; margin-left: 0; text-align: left; max-width: none;
+  white-space: normal; overflow: visible;
+}
+
+/* ---------- CW: paddle ---------- */
+.cw-levers { display: flex; gap: .6rem; max-width: 26rem; }
+.cw-lever {
+  flex: 1; height: 5.5rem; border-radius: 12px; border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, #1b2430, #131a23);
+  color: var(--dim); font: .78rem var(--mono); letter-spacing: .1em;
+  text-transform: uppercase; cursor: pointer; user-select: none;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: .45rem;
+}
+.cw-lever.down { background: linear-gradient(180deg, #ffb454, #f59a2e); color: #241802; }
+.cw-lever.down .cw-code i { background: #241802; }
+.cw-lever kbd {
+  font: .68rem var(--mono); background: #0b1017; color: var(--dim);
+  border: 1px solid var(--line); border-radius: 4px; padding: .05rem .3rem;
+}
+.cw-lever.down kbd { background: rgba(0,0,0,.25); color: #241802; border-color: rgba(0,0,0,.3); }
+.cw-keyer-modes { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+
 /* ---------- first run ---------- */
 .welcome { border-left: 3px solid var(--amber); }
 .welcome-step { display: flex; flex-direction: column; gap: .3rem; align-items: flex-start; }
