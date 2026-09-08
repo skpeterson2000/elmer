@@ -835,10 +835,16 @@ def windows(hours, floor=38):
             live = None
     if live:
         runs.append((live, hours[-1]))
-    return [{"from": a["at"], "to": b["at"],
-             "best": max(h["score"] for h in hours
-                         if a["at"] <= h["at"] <= b["at"])}
-            for a, b in runs]
+    out = []
+    for a, b in runs:
+        inside = [h for h in hours if a["at"] <= h["at"] <= b["at"]]
+        peak = max(inside, key=lambda h: h["score"])
+        # The hour of the peak, not only its height. "Best about 89/100" is
+        # half a sentence: the number an operator wants out of a forecast is
+        # when to be at the radio.
+        out.append({"from": a["at"], "to": b["at"],
+                    "best": peak["score"], "best_at": peak["at"]})
+    return out
 
 
 INDICATORS = [

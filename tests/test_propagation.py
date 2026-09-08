@@ -167,6 +167,20 @@ def main():
           or runs[0]["to"] != night[-1]["at"], True)
     shut = [dict(h, score=0) for h in night]
     check("a band that is never open has no window", P.windows(shut), [])
+    # "Best about 89/100" is half a sentence. What somebody wants out of a
+    # forecast is the hour to be at the radio, and the window carried the
+    # height of the peak without ever saying when it fell.
+    check("a window says when its peak is, not only how high",
+          all("best_at" in w for w in runs), True)
+    for run in runs:
+        inside = [h for h in night if run["from"] <= h["at"] <= run["to"]]
+        check("  and the hour named is the one that scores highest",
+              max(h["score"] for h in inside), run["best"])
+        check("    at the time it actually happens",
+              next(h["at"] for h in inside if h["score"] == run["best"]),
+              run["best_at"])
+        check("    which falls inside the window it belongs to",
+              run["from"] <= run["best_at"] <= run["to"], True)
 
     print("\n-- the absorbing layer is 80 km up, not underfoot --")
     # The D layer keeps its daylight about nine degrees longer than the ground
