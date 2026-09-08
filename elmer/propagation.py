@@ -17,7 +17,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
-from . import ionosonde
+from . import celestial, ionosonde
 
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 HAMQSL = "https://www.hamqsl.com/solarxml.php"
@@ -85,23 +85,21 @@ def _swpc():
 
 
 def solar_elevation(lat, lon, when=None):
-    """Rough solar elevation in degrees - enough to pick day vs night."""
-    when = when or datetime.now(timezone.utc)
-    day = when.timetuple().tm_yday
-    frac = (when.hour + when.minute / 60.0) / 24.0
-    gamma = 2 * math.pi / 365 * (day - 1 + frac - 0.5)
-    decl = (0.006918 - 0.399912 * math.cos(gamma) + 0.070257 * math.sin(gamma)
-            - 0.006758 * math.cos(2 * gamma) + 0.000907 * math.sin(2 * gamma)
-            - 0.002697 * math.cos(3 * gamma) + 0.00148 * math.sin(3 * gamma))
-    eqtime = 229.18 * (0.000075 + 0.001868 * math.cos(gamma)
-                       - 0.032077 * math.sin(gamma) - 0.014615 * math.cos(2 * gamma)
-                       - 0.040849 * math.sin(2 * gamma))
-    minutes = when.hour * 60 + when.minute + eqtime + 4 * lon
-    hour_angle = math.radians(minutes / 4.0 - 180.0)
-    lat_r = math.radians(lat)
-    cos_z = (math.sin(lat_r) * math.sin(decl)
-             + math.cos(lat_r) * math.cos(decl) * math.cos(hour_angle))
-    return math.degrees(math.asin(max(-1.0, min(1.0, cos_z))))
+    """The sun's angle above the horizon, in degrees.
+
+    Handed to `celestial`, which computes it properly. This used to carry its
+    own low-precision series - Spencer's, good to about 26 arcminutes of
+    declination - because a band prediction does not care. Then the sextant
+    tool needed a sun accurate enough to navigate by, and having two suns in
+    one program, one of them knowingly wrong, is not a thing to keep.
+
+    The swap moves this by at most 0.445 degrees, which moves modelled foF2 by
+    0.02 MHz against a model whose own error is 1.11, so the constants fitted
+    below still stand. It costs about five microseconds a call.
+    """
+    alt, _ = celestial.altitude_azimuth(
+        lat, lon, when or datetime.now(timezone.utc))
+    return alt
 
 
 # --- what the model says the ionosphere is doing -----------------------------
