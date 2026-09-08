@@ -588,6 +588,13 @@ table.data tr.denied td { opacity: .45; }
   border: 1px solid var(--line); border-radius: 4px; padding: .05rem .3rem;
 }
 .cw-lever.down kbd { background: rgba(0,0,0,.25); color: #241802; border-color: rgba(0,0,0,.3); }
+.cw-bind { cursor: pointer; min-width: 2.2rem; text-align: center; }
+.cw-bind:hover { border-color: var(--amber); color: var(--amber); }
+.cw-bind.listening {
+  border-color: var(--amber); color: var(--amber);
+  background: rgba(255,180,84,.12); animation: cw-bind-pulse 1s ease-in-out infinite;
+}
+@keyframes cw-bind-pulse { 50% { opacity: .45; } }
 .cw-keyer-modes { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 
 /* ---------- first run ---------- */
