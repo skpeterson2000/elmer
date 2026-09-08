@@ -101,7 +101,12 @@ const player = new CWPlayer();
 
 /* --------------------------------------------------------------- settings */
 const settings = Object.assign(
-  {tone: 600, volume: 35, wpm: 20, effective: 10, lesson: 2},
+  {tone: 600, volume: 35, wpm: 20, effective: 10, lesson: 2,
+   /* Which keys are the paddles, and which instrument you were last using.
+      Arrows to begin with because they are where a hand already is, but the
+      right pair depends on the keyboard and on the operator, so they are
+      settings rather than a decision made here. */
+   keyer: 'straight', keyDit: 'ArrowLeft', keyDah: 'ArrowRight'},
   CWS.settings || {});
 
 function bindSetting(id, key, fmt) {
@@ -708,8 +713,70 @@ function timingReport(stats, targetDit) {
    because most people learning to send now learn on a paddle. */
 
 const keyDecoder = new MorseDecoder(1200 / settings.wpm);
-let keyerMode = 'straight';                 // 'straight' | 'A' | 'B'
-let swapPaddles = false;
+let keyerMode = settings.keyer || 'straight';   // 'straight' | 'A' | 'B'
+
+/* KeyboardEvent.code is what gets stored - it names the physical key, so a
+   binding survives a change of layout - but nobody wants to read "BracketLeft"
+   on a paddle, so it is printed the way the key is printed. */
+const KEY_LABELS = {
+  ArrowLeft: '\u2190', ArrowRight: '\u2192', ArrowUp: '\u2191',
+  ArrowDown: '\u2193', Space: 'Space', Enter: 'Enter', Tab: 'Tab',
+  ControlLeft: 'L Ctrl', ControlRight: 'R Ctrl',
+  ShiftLeft: 'L Shift', ShiftRight: 'R Shift',
+  AltLeft: 'L Alt', AltRight: 'R Alt',
+  MetaLeft: 'L Meta', MetaRight: 'R Meta',
+  Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'",
+  BracketLeft: '[', BracketRight: ']', Backslash: '\\', Backquote: '`',
+  Minus: '-', Equal: '=', CapsLock: 'Caps',
+};
+
+function keyLabel(code) {
+  if (KEY_LABELS[code]) return KEY_LABELS[code];
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad/.test(code)) return 'Num ' + code.slice(6);
+  return code;
+}
+
+function paintBindings() {
+  const d = document.getElementById('cw-kbd-dit');
+  const h = document.getElementById('cw-kbd-dah');
+  if (d && !d.classList.contains('listening')) d.textContent = keyLabel(settings.keyDit);
+  if (h && !h.classList.contains('listening')) h.textContent = keyLabel(settings.keyDah);
+}
+
+/* Rebinding: click the key, press the one you want. Assigning a key that the
+   other paddle already has swaps them rather than leaving both on it, because
+   a binding screen that can produce a broken state is a worse binding screen. */
+let capturing = null;
+
+function startCapture(which) {
+  if (capturing) stopCapture();
+  capturing = which;
+  const el = document.getElementById('cw-kbd-' + which);
+  el.classList.add('listening');
+  el.textContent = 'press a key';
+}
+
+function stopCapture() {
+  if (!capturing) return;
+  document.getElementById('cw-kbd-' + capturing).classList.remove('listening');
+  capturing = null;
+  paintBindings();
+}
+
+document.addEventListener('keydown', e => {
+  if (!capturing) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.code === 'Escape') { stopCapture(); return; }
+  const mine = capturing === 'dit' ? 'keyDit' : 'keyDah';
+  const other = capturing === 'dit' ? 'keyDah' : 'keyDit';
+  if (settings[other] === e.code) settings[other] = settings[mine];
+  settings[mine] = e.code;
+  stopCapture();
+  saveSettings();
+}, true);
 
 const KEY_BLURB = {
   straight:
@@ -717,14 +784,14 @@ const KEY_BLURB = {
     'what you actually sent and measures your timing \u2014 you cannot hear ' +
     'your own swing, but the chart can show it to you.',
   A:
-    'Left and right arrow keys, or the levers below, are the two paddles. ' +
-    'Hold one for a run of dits or dahs; squeeze both and it alternates. ' +
-    'Curtis A: when you let go, the element in progress finishes and it stops.',
+    'The two keys below, or the levers themselves, are the paddles. Hold one ' +
+    'for a run of dits or dahs; squeeze both and it alternates. Curtis A: ' +
+    'when you let go, the element in progress finishes and it stops.',
   B:
-    'Left and right arrow keys, or the levers below, are the two paddles. ' +
-    'Curtis B: releasing both during an element still owes you the opposite ' +
-    'one, so a squeezed dit-dah comes out complete even if you let go early. ' +
-    'If that sounds like an extra element you did not ask for, you want A.',
+    'The two keys below, or the levers themselves, are the paddles. Curtis B: ' +
+    'releasing both during an element still owes you the opposite one, so a ' +
+    'squeezed dit-dah comes out complete even if you let go early. If that ' +
+    'sounds like an extra element you did not ask for, you want A.',
 };
 
 /* ------------------------------------------------------------ straight key */
@@ -867,11 +934,6 @@ class IambicKeyer {
 
 const keyer = new IambicKeyer(keyDecoder);
 
-/* Which physical lever is which. Reversing them is a real preference and a
-   real setting on every keyer, so it is one here. */
-function ditSide() { return swapPaddles ? 'dah' : 'dit'; }
-function dahSide() { return swapPaddles ? 'dit' : 'dah'; }
-
 function renderKey() {
   document.getElementById('cw-key-raw').textContent =
     keyDecoder.symbols.join('') || '\u00b7';
@@ -893,8 +955,10 @@ function renderKey() {
   }
 }
 
-function setKeyerMode(mode) {
+function setKeyerMode(mode, remember) {
   keyerMode = mode;
+  settings.keyer = mode;
+  stopCapture();
   keyer.stop();
   keyEnd();
   document.querySelectorAll('#cw-keyer-modes button').forEach(b => {
@@ -904,9 +968,12 @@ function setKeyerMode(mode) {
   const straight = mode === 'straight';
   document.getElementById('cw-paddle').hidden = !straight;
   document.getElementById('cw-levers').hidden = straight;
-  document.getElementById('cw-swap-wrap').hidden = straight;
+  document.getElementById('cw-swap').hidden = straight;
+  document.getElementById('cw-bind-hint').hidden = straight;
   document.getElementById('cw-key-blurb').textContent = KEY_BLURB[mode];
+  paintBindings();
   renderKey();
+  if (remember !== false) saveSettings();
 }
 
 /* --------------------------------------------------------------- bindings */
@@ -917,13 +984,23 @@ if (paddle) {
   ['mouseup', 'mouseleave', 'touchend'].forEach(ev =>
     paddle.addEventListener(ev, e => { e.preventDefault(); keyEnd(); }));
 
-  [['cw-lever-dit', ditSide], ['cw-lever-dah', dahSide]].forEach(([id, side]) => {
-    const el = document.getElementById(id);
+  ['dit', 'dah'].forEach(which => {
+    const el = document.getElementById('cw-lever-' + which);
     if (!el) return;
-    el.addEventListener('mousedown', e => { e.preventDefault(); keyer.press(side()); });
-    el.addEventListener('touchstart', e => { e.preventDefault(); keyer.press(side()); });
+    el.addEventListener('mousedown', e => { e.preventDefault(); keyer.press(which); });
+    el.addEventListener('touchstart', e => { e.preventDefault(); keyer.press(which); });
     ['mouseup', 'mouseleave', 'touchend'].forEach(ev =>
-      el.addEventListener(ev, e => { e.preventDefault(); keyer.release(side()); }));
+      el.addEventListener(ev, e => { e.preventDefault(); keyer.release(which); }));
+
+    /* The key sits inside the lever, and pressing the lever is how you send -
+       so clicking the key to rebind it must not also key the transmitter. */
+    const kbd = document.getElementById('cw-kbd-' + which);
+    ['mousedown', 'touchstart'].forEach(ev =>
+      kbd.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }));
+    ['click', 'touchend'].forEach(ev =>
+      kbd.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); startCapture(which);
+      }));
   });
 
   document.getElementById('cw-key-clear').addEventListener('click', () => {
@@ -931,10 +1008,15 @@ if (paddle) {
     lastUpAt = 0; keyer.prevEnd = null;
     renderKey();
   });
-  document.getElementById('cw-swap').addEventListener('change', e => {
-    swapPaddles = e.target.checked;
-    document.getElementById('cw-kbd-dit').innerHTML = swapPaddles ? '\u2192' : '\u2190';
-    document.getElementById('cw-kbd-dah').innerHTML = swapPaddles ? '\u2190' : '\u2192';
+  /* With the keys assignable, reversing the paddles is just exchanging two
+     bindings - so it is an action, not a mode the levers have to lie about. */
+  document.getElementById('cw-swap').addEventListener('click', () => {
+    const was = settings.keyDit;
+    settings.keyDit = settings.keyDah;
+    settings.keyDah = was;
+    stopCapture();
+    paintBindings();
+    saveSettings();
   });
   document.querySelectorAll('#cw-keyer-modes button').forEach(b =>
     b.addEventListener('click', () => setKeyerMode(b.dataset.keyer)));
@@ -948,8 +1030,8 @@ document.addEventListener('keydown', e => {
     keyStart();
     return;
   }
-  if (e.code === 'ArrowLeft') { e.preventDefault(); keyer.press(ditSide()); }
-  else if (e.code === 'ArrowRight') { e.preventDefault(); keyer.press(dahSide()); }
+  if (e.code === settings.keyDit) { e.preventDefault(); keyer.press('dit'); }
+  else if (e.code === settings.keyDah) { e.preventDefault(); keyer.press('dah'); }
 });
 
 document.addEventListener('keyup', e => {
@@ -960,8 +1042,8 @@ document.addEventListener('keyup', e => {
     keyEnd();
     return;
   }
-  if (e.code === 'ArrowLeft') { e.preventDefault(); keyer.release(ditSide()); }
-  else if (e.code === 'ArrowRight') { e.preventDefault(); keyer.release(dahSide()); }
+  if (e.code === settings.keyDit) { e.preventDefault(); keyer.release('dit'); }
+  else if (e.code === settings.keyDah) { e.preventDefault(); keyer.release('dah'); }
 });
 
 /* --------------------------------------------------------- off-air decode */
@@ -1068,5 +1150,5 @@ if (micBtn) {
 /* ------------------------------------------------------------------ start */
 paintCodes();
 renderLesson();
-setKeyerMode('straight');
+setKeyerMode(settings.keyer || 'straight', false);
 showMode((location.hash || '#learn').replace('#', '') || 'learn');
