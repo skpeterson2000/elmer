@@ -1384,7 +1384,9 @@ def api_propagation_outlook():
 
     bands = []
     for name, mhz, _group in propagation.BANDS:
-        now = propagation.band_score(mhz, muf, elevation, k_index)
+        now = propagation.band_score(mhz, muf, elevation, k_index,
+                                     snap.get("fof2"),
+                                     (cal or {}).get("hmf2") or 300.0)
         hours, when = [], []
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,

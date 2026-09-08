@@ -72,6 +72,28 @@ def main():
         check(f"a quiet midnight at SFI {sfi} still keeps 40m open",
               score(7.0, muf, -40) >= 35, True)
 
+    print("\n-- a score with no distance on it is a trap --")
+    # The rating is against MUF(3000), a full hop. On a night with foF2 at 4,
+    # 30m rates Good and cannot reach anything within a thousand miles - so
+    # somebody reads Good, calls CQ for a local contact, hears nothing, and
+    # concludes the tool is wrong. It was not wrong, it was unqualified.
+    local = P.band_score(3.5, 11.3, -37, 2.0, 4.0)
+    far = P.band_score(10.1, 11.3, -37, 2.0, 4.0)
+    shut = P.band_score(14.0, 11.3, -37, 2.0, 4.0)
+    check("a band under the critical frequency reaches everywhere",
+          local["reaches_local"], True)
+    check("  and says so in the reasons", "closer than" in local["why"], False)
+    check("a band above it rates well and still reaches nothing near",
+          far["score"] >= 60 and far["skip_km"] > 1000, True)
+    check("  and the words carry the distance",
+          "closer than" in far["why"], True)
+    check("a band nothing returns from says that, not a distance",
+          shut["skip_km"], None)
+    check("the skip zone grows as the frequency climbs",
+          P.band_score(7.0, 11.3, -37, 2.0, 4.0)["skip_km"] < far["skip_km"], True)
+    check("and with no measured foF2 it makes no claim at all",
+          "skip_km" in P.band_score(10.1, 11.3, -37, 2.0), False)
+
     print("\n-- what a score is worth in practice --")
     check("a good band is open to SSB",
           "SSB" in P.band_score(10.1, 12.0, 20)["modes"], True)

@@ -479,6 +479,22 @@ function conditionBar(band) {
     '</div>' +
     '<div class="condmeter"><i class="' + QUALITY_CLASS(now.score) +
       '" style="width:' + now.score + '%"></i></div>' +
+    /* A score with no distance on it is the misleading part. The rating is
+       against MUF(3000) - a full hop - so a band can read Good and still not
+       reach the next county, which is how somebody ends up calling CQ into a
+       skip zone and concluding the tool is wrong. */
+    (now.skip_km === undefined ? '' :
+      now.skip_km === null
+        ? '<div class="small" style="color:var(--red)">Reaches nobody &mdash; ' +
+          'nothing comes back at any angle tonight.</div>'
+        : now.reaches_local
+          ? '<div class="small" style="color:var(--green)">Reaches everywhere, ' +
+            'local included &mdash; this band is under the critical frequency, ' +
+            'so it comes back from straight overhead.</div>'
+          : '<div class="small" style="color:var(--amber)">Nothing closer than ' +
+            '<b>' + Math.round(now.skip_km / 1.609) + ' miles</b>. The rating ' +
+            'is for a long path; inside that there is a skip zone and no ' +
+            'amount of power crosses it.</div>') +
     '<div class="small condmode"><b>' + escapeHTML(now.modes) + '</b></div>' +
     '<div class="tiny muted">' + escapeHTML(now.why) + '. ' + from +
       '; K index ' + bpProp.k_index + '.</div>' +

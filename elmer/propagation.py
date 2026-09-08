@@ -396,11 +396,38 @@ def _pick(table, score):
     return table[-1][1]
 
 
-def band_score(mhz, muf, elevation, k_index=2.0):
+def skip_km(mhz, fof2, hmf2=300.0):
+    """The nearest station this band can reach. 0 means it reaches everywhere.
+
+    None means nothing comes back at any angle. Below the critical frequency a
+    signal returns even from straight up, so there is no skip zone at all;
+    above it the steepest ray that still returns lands some way out, and
+    everything inside that is unreachable however loud you are.
+    """
+    from . import patterns             # imported here: patterns has no need of us
+    if not fof2 or mhz <= 0:
+        return 0.0
+    steepest = patterns._max_takeoff(mhz, fof2, hmf2)
+    if steepest is None:
+        return None
+    if steepest >= 90.0:
+        return 0.0
+    return patterns._hop_km(steepest, hmf2)
+
+
+def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0):
     """0-100 for one band at one moment, with the reason in words.
 
     `elevation` is the sun's angle at the operator's QTH: negative is night,
     which is when the D layer is gone and the MUF is at its lowest.
+
+    The score is against MUF(3000) - a full hop, a long path - because that is
+    what a MUF is, and it is the right ceiling for the DX this rating is
+    usually read for. It is the wrong one for anybody working across the
+    county, and a number with no distance attached invites exactly that
+    mistake: on a night with foF2 at 4, 30m rates Good and cannot reach
+    anything closer than a thousand miles. So when foF2 is known the nearest
+    reachable station comes back with the score, and the words say so.
     """
     muf = max(1.0, float(muf or 1.0))
     ratio = mhz / muf
@@ -443,9 +470,24 @@ def band_score(mhz, muf, elevation, k_index=2.0):
         why += f"; K {k_index:g} means absorption and flutter, worst near the poles"
 
     score = max(0.0, min(100.0, score - absorb - storm))
-    return {"score": round(score), "label": _pick(QUALITY, score),
-            "modes": _pick(MODES, score), "why": why,
-            "muf": round(muf, 1), "ratio": round(ratio, 2)}
+    out = {"score": round(score), "label": _pick(QUALITY, score),
+           "modes": _pick(MODES, score), "why": why,
+           "muf": round(muf, 1), "ratio": round(ratio, 2)}
+
+    # Who the rating is for. A band can be excellent and useless at once.
+    nearest = skip_km(mhz, fof2, hmf2) if fof2 else 0.0
+    if fof2:
+        out["skip_km"] = None if nearest is None else round(nearest)
+        out["reaches_local"] = nearest == 0.0
+        if nearest is None:
+            out["why"] += ("; nothing returns at any angle, so this is shut "
+                           "over every path, not merely long ones")
+        elif nearest > 0:
+            out["why"] += ("; and nothing closer than %d miles - below the "
+                           "critical frequency a signal comes back from "
+                           "overhead, above it the near stations are the ones "
+                           "that go" % round(nearest / 1.609))
+    return out
 
 
 # --- anchoring the model to what is being measured ---------------------------
@@ -588,7 +630,7 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         when = start + timedelta(hours=step)
         elevation = solar_elevation(lat, lon, when)
         muf, fof2 = levels(sfi, elevation, lat, m3000, anchor)
-        got = band_score(mhz, muf, elevation, k_index)
+        got = band_score(mhz, muf, elevation, k_index, fof2)
         got.update({"at": when.isoformat(), "hour": when.hour,
                     "elevation": round(elevation, 1), "fof2": fof2,
                     "day": elevation > -6})
