@@ -184,16 +184,41 @@ if (sondeBtn) sondeBtn.addEventListener('click', async () => {
     sondeBtn.disabled = false;
     return;
   }
-  document.getElementById('s-h').value = Math.round(
-    Math.max(150, Math.min(450, near.hmf2)));
-  document.getElementById('s-fof2').value = Math.max(2, Math.min(16, near.fof2));
+  const height = Math.round(Math.max(150, Math.min(450, near.hmf2)));
+  const critical = Math.max(2, Math.min(16, near.fof2));
+  document.getElementById('s-h').value = height;
+  document.getElementById('s-fof2').value = critical;
   drawSkip();
+
+  /* This is one station's measurement of the sky above that station, and the
+     sliders now hold it exactly. The propagation page shows a foF2 too, and it
+     will not be quite this number: that one is the model corrected by every
+     sonde in range and then evaluated at your own sun angle, which is the
+     right number for your QTH. Saying so here is the difference between two
+     figures that look like a bug and two that look like what they are. */
+  const far = near.distance_km > 1500;
   note.innerHTML =
     '<b>' + escapeHTML(near.name) + '</b>, ' + near.distance_km + ' km away, ' +
     near.age_minutes + ' min old — hmF2 <b>' + near.hmf2 + ' km</b>, foF2 <b>' +
-    near.fof2 + ' MHz</b>' + (near.mufd ? ', its own MUF(3000) ' + near.mufd.toFixed(1) + ' MHz' : '') +
-    '.<br>Across the ' + sp.count + ' stations reporting now the peak sits between ' +
-    sp.hmf2.low + ' and ' + sp.hmf2.high + ' km — that spread is mostly day against night.';
+    near.fof2 + ' MHz</b>' +
+    (near.m3000 ? ', M(3000)F2 <b>' + near.m3000.toFixed(2) + '</b>' : '') +
+    (near.mufd ? ', so its own MUF(3000) is ' + near.mufd.toFixed(1) + ' MHz' : '') + '.' +
+    (critical !== near.fof2
+      ? '<br><span style="color:var(--amber)">The slider stops at ' + critical +
+        ' MHz, so it is holding that rather than the ' + near.fof2 + ' measured.</span>'
+      : '') +
+    '<br>' + (far
+      ? '<span style="color:var(--amber)">That is a long way off — it is the ionosphere ' +
+        'over ' + escapeHTML(near.name.split(',')[0]) + ', not over you, and at this hour ' +
+        'the sun is at a different angle there.</span> '
+      : '') +
+    'This is one station\'s measurement. The foF2 on the ' +
+    '<a href="/propagation">band conditions page</a> is a different figure on purpose: ' +
+    'the model corrected by every sonde in range, then read at <i>your</i> sun angle.' +
+    '<br>Across the ' + sp.count + ' stations reporting now the peak sits between ' +
+    sp.hmf2.low + ' and ' + sp.hmf2.high + ' km — that spread is mostly day against night' +
+    (sp.m3000 ? ', and the median M(3000)F2 is ' + sp.m3000.toFixed(2) +
+                ' — the factor that turns foF2 into MUF' : '') + '.';
   sondeBtn.disabled = false;
 });
 

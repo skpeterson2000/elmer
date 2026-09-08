@@ -25,6 +25,13 @@ CACHE_MINUTES = 15
 MAX_AGE_HOURS = 3.0
 EARTH_R = 6371.0
 
+# The Digisonde autoscaler grades its own work 0-100. A trace it could not read
+# is worse than a missing station: one sonde reporting twice its neighbours'
+# foF2 because the software lost the F2 trace is exactly the thing that can
+# drag a calibration off. A *missing* grade (-1) is not a bad grade - several
+# networks never send one - so only an explicit low score is refused.
+MIN_CONFIDENCE = 20.0
+
 # Where the F2 peak usually sits, for the times there is no station in reach.
 TYPICAL = {"day": 300.0, "night": 350.0, "low": 200.0, "high": 450.0}
 
@@ -39,7 +46,7 @@ def _number(value):
 
 def _fetch():
     request = urllib.request.Request(API, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=25) as response:
+    with urllib.request.urlopen(request, timeout=15) as response:
         return json.loads(response.read())
 
 
@@ -60,6 +67,9 @@ def _clean(rows, now):
         hmf2 = _number(row.get("hmf2"))
         if None in (lat, lon, fof2, hmf2) or age < 0 or age > MAX_AGE_HOURS:
             continue
+        confidence = _number(row.get("cs"))
+        if confidence is not None and 0 <= confidence < MIN_CONFIDENCE:
+            continue
         if lon > 180:
             lon -= 360.0
         out.append({
@@ -67,6 +77,12 @@ def _clean(rows, now):
             "lat": round(lat, 3), "lon": round(lon, 3),
             "fof2": round(fof2, 2), "hmf2": round(hmf2, 1),
             "mufd": _number(row.get("mufd")),
+            # The station's own M(3000)F2 - the factor its measured MUF is its
+            # measured foF2 times. Worth carrying: it is the one number the
+            # model would otherwise have to guess, and it varies from 2.5 to
+            # 3.7 across the network on the same evening.
+            "m3000": _number(row.get("md")),
+            "confidence": confidence,
             "age_minutes": round(age * 60), "time": when.isoformat(),
         })
     return out
@@ -130,10 +146,12 @@ def spread(force=False):
         return None
     heights = sorted(s["hmf2"] for s in found)
     fof2 = sorted(s["fof2"] for s in found)
+    factors = sorted(s["m3000"] for s in found if s.get("m3000"))
     middle = lambda a: a[len(a) // 2]
     return {
         "count": len(found),
         "hmf2": {"low": heights[0], "high": heights[-1], "median": middle(heights)},
         "fof2": {"low": fof2[0], "high": fof2[-1], "median": middle(fof2)},
+        "m3000": middle(factors) if factors else None,
         "source": "prop.kc2g.com, aggregating the GIRO/Digisonde network",
     }
