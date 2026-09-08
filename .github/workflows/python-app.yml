@@ -24,12 +24,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    # v7 and v7 both target Node 24. On v4/v5 GitHub forced them onto 24
+    # anyway and annotated every run to say so, which is noise on a green
+    # build and teaches people to stop reading the annotations.
+    - uses: actions/checkout@v7
     # The version the units in the field actually run: Raspberry Pi OS
     # bookworm ships 3.11, and testing anything else tests somebody else's
     # install.
     - name: Set up Python 3.11
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: "3.11"
     - name: Install dependencies
