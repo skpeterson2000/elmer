@@ -28,13 +28,22 @@ document.querySelectorAll('#lab-tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     selectTab(btn.dataset.tab);
     history.replaceState(null, '', '#' + btn.dataset.tab);
+    remember('lab.tab', btn.dataset.tab);
   });
 });
 
-/* A concept note links here as /lab#skip, so honour the fragment on arrival. */
+/* A concept note links here as /lab#skip, so honour the fragment on arrival -
+   and otherwise reopen whatever was last being used, because coming back from
+   the propagation page to a Lab that has forgotten which tool you had open is
+   the same small waste as the band plan forgetting your band. */
 function openFromHash() {
   const name = (location.hash || '').replace('#', '');
-  if (name) selectTab(name);
+  if (name) {
+    if (selectTab(name)) remember('lab.tab', name);
+    return;
+  }
+  const last = recall('lab.tab');
+  if (last) selectTab(last);
 }
 window.addEventListener('hashchange', openFromHash);
 
@@ -2130,16 +2139,8 @@ if (adviseBtn) adviseBtn.addEventListener('click', () => {
    the page to look up the MUF and come back and there was nothing to come back
    to - the tool had been set up for a band it no longer knew about. So the
    context is kept, and restored whenever the page loads without one. */
-const ANTENNA_KEY = 'elmer.lab.antenna';
-
-function rememberAntenna(ctx) {
-  try { localStorage.setItem(ANTENNA_KEY, JSON.stringify(ctx)); } catch (e) {}
-}
-
-function recallAntenna() {
-  try { return JSON.parse(localStorage.getItem(ANTENNA_KEY) || 'null'); }
-  catch (e) { return null; }
-}
+const rememberAntenna = ctx => remember('lab.antenna', ctx);
+const recallAntenna = () => recall('lab.antenna', null);
 
 (function () {
   const q = new URLSearchParams(location.search);

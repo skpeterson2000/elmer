@@ -9,6 +9,25 @@ const KIND_COLOUR = {
 let bpData = null, bpRegional = null, bpBand = null, bpChannels = [];
 
 function bpClass() { return document.getElementById('bp-class').value; }
+
+/* Bands in the order somebody would actually reach for them, rather than in
+   frequency order. The first one this licence can hold a conversation on is
+   the one to open. */
+const BP_PREFERRED = ['20 m', '40 m', '2 m', '10 m', '70 cm', '17 m', '15 m',
+                      '80 m', '6 m', '12 m', '30 m', '1.25 m', '160 m'];
+
+function bpHasPhone(band) {
+  return (band.privileges || []).some(p => !/CW only|data only|RTTY only/i.test(p[2] || ''));
+}
+
+function bpDefaultBand() {
+  for (const name of BP_PREFERRED) {
+    const band = bpData.bands.find(b => b.name === name && bpHasPhone(b));
+    if (band) return band.name;
+  }
+  const usable = bpData.bands.find(b => b.privileges.length);
+  return (usable || bpData.bands[0]).name;
+}
 function bpState() { return document.getElementById('bp-state').value; }
 
 async function bpLoad() {
@@ -26,21 +45,35 @@ async function bpLoad() {
   document.querySelectorAll('#bp-bands [data-band]').forEach(btn =>
     btn.addEventListener('click', () => {
       bpBand = btn.dataset.band;
+      remember('bandplan.band', bpBand);
       /* In the address, so a band can be linked to and comes back on reload. */
       history.replaceState(null, '', '#' + bpBand.replace(/\s+/g, ''));
       bpRender();
     }));
-  /* Open on the band asked for, else on one this class can actually use
-     rather than one that is entirely hatched out. */
+  /* Which band to open on. A link asking for one wins; then the one you were
+     last looking at, because leaving for the Lab and coming back should not
+     cost you your place; and only then a default.
+
+     The old default was the first band this class may legally touch, which is
+     the lowest one - 160 m for a General, and for a Technician 80 m, where
+     they may send CW and nothing else. Both are legal and neither is where
+     anybody operates. A Technician who opens the band plan and is shown a
+     band they can only key CW on has been told, accurately and unhelpfully,
+     that this hobby is not for them yet. So the default is the first band on
+     this list they have *phone* privileges on: 20 m for a General, 2 m for a
+     Technician, which is where each of them actually is. */
   const asked = decodeURIComponent(location.hash.slice(1)).toLowerCase();
   const linked = asked && bpData.bands.find(
     b => b.name.replace(/\s+/g, '').toLowerCase() === asked.replace(/\s+/g, ''));
+  const known = name => name && bpData.bands.some(b => b.name === name);
+
   if (linked) {
     bpBand = linked.name;
-  } else if (!bpBand || !bpData.bands.some(b => b.name === bpBand)) {
-    const usable = bpData.bands.find(b => b.privileges.length);
-    bpBand = (usable || bpData.bands[0]).name;
+  } else if (!known(bpBand)) {
+    const last = recall('bandplan.band');
+    bpBand = known(last) ? last : bpDefaultBand();
   }
+  remember('bandplan.band', bpBand);
   await bpLoadRegional();
   bpRender();
 }
