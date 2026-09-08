@@ -23,7 +23,8 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
-               explain, game, geocode, ionosonde, logs, propagation, ranks,
+               celestial, explain, game, geocode, ionosonde, logs,
+               propagation, ranks,
                patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
                discovery, gating, netwatch,
@@ -2495,6 +2496,78 @@ def api_ionosonde():
     return jsonify({"ok": True, "spread": overview, "nearest": closest,
                     "typical": ionosonde.TYPICAL,
                     "have_qth": lat is not None})
+
+
+@app.route("/api/celestial/fix", methods=["POST"])
+def api_celestial_fix():
+    """Where you are, from sextant sights of the sun and an accurate clock.
+
+    Every step is returned, not just the answer: the point of the tool is that
+    somebody can watch the arithmetic happen and come to trust it, and nobody
+    trusts a black box they might one day have to rely on.
+    """
+    body = request.get_json(force=True) or {}
+    rows = body.get("sights") or []
+    if not isinstance(rows, list) or len(rows) < 2:
+        return jsonify({"ok": False,
+                        "error": "Two sights at least. One is a circle, not "
+                                 "a place."}), 400
+    if len(rows) > 8:
+        return jsonify({"ok": False, "error": "eight sights is plenty"}), 400
+
+    horizon = body.get("horizon")
+    if horizon not in ("artificial", "shadow"):
+        horizon = "sea"
+    try:
+        index_error = float(body.get("index_error_arcmin") or 0.0)
+        height_ft = max(0.0, float(body.get("height_ft") or 0.0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "check the corrections"}), 400
+
+    sights, working = [], []
+    for i, row in enumerate(rows, 1):
+        try:
+            hs = float(row.get("hs"))
+            when = datetime.fromisoformat(str(row.get("when")).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False,
+                            "error": f"sight {i}: check the angle and the time"}), 400
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        if not -1.0 <= hs <= 180.0:
+            return jsonify({"ok": False,
+                            "error": f"sight {i}: {hs} is not an altitude"}), 400
+        limb = row.get("limb") if row.get("limb") in ("lower", "upper") else "centre"
+        done = celestial.reduce_sight(hs, when, index_error, height_ft,
+                                      limb, horizon)
+        # Each sight carries what it is worth, so a stick reading is not
+        # given a sextant's confidence when the uncertainty is worked out.
+        sights.append({"ho": done["ho"], "when": when,
+                       "sigma": done["sigma_arcmin"]})
+        working.append({"n": i, "when": when.isoformat(), "limb": limb,
+                        "ho": round(done["ho"], 4),
+                        "sigma_arcmin": done["sigma_arcmin"],
+                        "steps": [{"name": n, "value": round(v, 4), "why": w}
+                                  for n, v, w in done["steps"]]})
+
+    hint = None
+    if body.get("use_qth"):
+        place = qth_for(conn(), db.get_profile(conn()))
+        if place.get("lat") is not None:
+            hint = (place["lat"], place["lon"])
+
+    found = celestial.fix(sights, hint=hint)
+    if not found.get("ok"):
+        return jsonify(found), 400
+    found["grid"] = geocode.to_grid(found["lat"], found["lon"])
+    found["working"] = working
+    found["hinted"] = hint is not None
+    for other in found.get("alternatives", []):
+        other["grid"] = geocode.to_grid(other["lat"], other["lon"])
+    log.info("celestial fix from %d sights: %s, +/-%s nm (%s geometry)",
+             len(sights), found["grid"], found.get("uncertainty_nm"),
+             found.get("geometry"))
+    return jsonify(found)
 
 
 @app.route("/api/terrain")

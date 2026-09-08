@@ -2721,3 +2721,232 @@ function repeaterList(d) {
   }
   return out + '</div>';
 }
+
+/* ------------------------------------------------------------- sextant ---
+   Where you are, from the sun and a clock.
+
+   The arithmetic lives on the server, but the point of the tool is that it is
+   shown rather than pronounced: somebody who might one day depend on this
+   needs to have watched it work. So every correction that turns a sextant
+   reading into a true altitude is listed with its sign and its reason, and the
+   answer arrives with an honest uncertainty rather than a reassuring one. */
+
+const SX_ROWS = document.getElementById('sx-rows');
+
+function sxRow(n) {
+  return '<tr>' +
+    '<td class="mono muted">' + n + '</td>' +
+    '<td class="row" style="gap:.3rem;flex-wrap:nowrap">' +
+      '<input type="number" class="sx-deg" style="width:5.5rem" min="0" max="179" step="1" placeholder="deg">' +
+      '<input type="number" class="sx-min" style="width:5.5rem" min="0" max="59.9" step="0.1" placeholder="min">' +
+    '</td>' +
+    '<td><input type="time" class="sx-time" step="1" style="width:9rem"></td>' +
+    '<td><select class="sx-limb mono">' +
+      '<option value="lower">lower</option>' +
+      '<option value="upper">upper</option>' +
+      '<option value="centre">centre</option>' +
+    '</select></td>' +
+    '<td><button class="btn sm ghost sx-now" title="stamp this row with the time now">now</button></td>' +
+  '</tr>';
+}
+
+function sxRenumber() {
+  [...SX_ROWS.rows].forEach((r, i) => { r.cells[0].textContent = i + 1; });
+}
+
+if (SX_ROWS) {
+  SX_ROWS.innerHTML = sxRow(1) + sxRow(2) + sxRow(3);
+  const today = new Date();
+  document.getElementById('sx-date').value =
+    today.toISOString().slice(0, 10);
+
+  document.getElementById('sx-add').addEventListener('click', () => {
+    if (SX_ROWS.rows.length >= 8) return;
+    SX_ROWS.insertAdjacentHTML('beforeend', sxRow(SX_ROWS.rows.length + 1));
+    sxRenumber();
+  });
+
+  /* Stamping the time from the machine's own clock, which is the one thing in
+     this that has to be right - so it goes in to the second. */
+  SX_ROWS.addEventListener('click', e => {
+    const btn = e.target.closest('.sx-now');
+    if (!btn) return;
+    e.preventDefault();
+    const now = new Date();
+    btn.closest('tr').querySelector('.sx-time').value =
+      now.toISOString().slice(11, 19);
+    document.getElementById('sx-date').value = now.toISOString().slice(0, 10);
+  });
+
+  /* Dip is a sea-horizon correction. With a pan of water there is no horizon
+     to be above, so the field says so rather than sitting there inviting a
+     number that will be ignored. */
+  const horizon = document.getElementById('sx-horizon');
+  const heightNote = document.getElementById('sx-height-note');
+  /* The three ways of taking a sight want three different sets of numbers,
+     and offering fields that will be ignored is how people come to distrust a
+     tool. Dip belongs to a sea horizon; a limb belongs to an instrument you
+     sight through; a stick has neither. */
+  const syncHorizon = () => {
+    const how = horizon.value;
+    const shadow = how === 'shadow';
+    const sea = how === 'sea';
+    document.getElementById('sx-height').disabled = !sea;
+    heightNote.textContent = sea ? '' : '— no dip without a sea horizon';
+    document.getElementById('sx-index').disabled = shadow;
+    document.getElementById('sx-shadow-note').hidden = !shadow;
+    document.getElementById('sx-head-angle').textContent =
+      shadow ? 'Stick height / shadow length' : 'Sextant reading';
+    document.getElementById('sx-head-limb').textContent = shadow ? '' : 'Limb';
+    [...SX_ROWS.rows].forEach(r => {
+      r.querySelector('.sx-deg').placeholder = shadow ? 'height' : 'deg';
+      r.querySelector('.sx-min').placeholder = shadow ? 'shadow' : 'min';
+      r.querySelector('.sx-deg').step = shadow ? 0.01 : 1;
+      r.querySelector('.sx-min').step = shadow ? 0.01 : 0.1;
+      r.querySelector('.sx-min').max = shadow ? 100000 : 59.9;
+      r.querySelector('.sx-limb').hidden = shadow;
+    });
+  };
+  horizon.addEventListener('change', syncHorizon);
+  syncHorizon();
+
+  document.getElementById('sx-go').addEventListener('click', sxSolve);
+}
+
+async function sxSolve() {
+  const out = document.getElementById('sx-out');
+  const date = document.getElementById('sx-date').value;
+  if (!date) { out.innerHTML = '<div class="watchout">Set the UTC date.</div>'; return; }
+
+  const how = document.getElementById('sx-horizon').value;
+  const shadow = how === 'shadow';
+  const sights = [];
+  for (const row of SX_ROWS.rows) {
+    const a = parseFloat(row.querySelector('.sx-deg').value);
+    const b = parseFloat(row.querySelector('.sx-min').value);
+    const time = row.querySelector('.sx-time').value;
+    if (!isFinite(a) || !time) continue;        // a blank row is not an error
+    let hs;
+    if (shadow) {
+      if (!isFinite(b) || b <= 0 || a <= 0) continue;
+      hs = Math.atan2(a, b) * 180 / Math.PI;    // atan(height / shadow)
+    } else {
+      hs = a + (isFinite(b) ? b : 0) / 60;
+    }
+    sights.push({hs: hs, when: date + 'T' + time + 'Z',
+                 limb: shadow ? 'centre' : row.querySelector('.sx-limb').value});
+  }
+  if (sights.length < 2) {
+    out.innerHTML = '<div class="watchout">Two sights at least &mdash; one ' +
+      'is a circle, not a place. Fill in the angle and the time for each.</div>';
+    return;
+  }
+
+  out.innerHTML = '<div class="small muted">working&hellip;</div>';
+  let d;
+  try {
+    d = await postJSON('/api/celestial/fix', {
+      sights: sights,
+      horizon: how,
+      height_ft: parseFloat(document.getElementById('sx-height').value) || 0,
+      index_error_arcmin: parseFloat(document.getElementById('sx-index').value) || 0,
+      use_qth: document.getElementById('sx-useqth').checked,
+    });
+  } catch (e) {
+    out.innerHTML = '<div class="watchout">' +
+      escapeHTML((e && e.message) || 'that did not work') + '</div>';
+    return;
+  }
+  if (!d.ok) {
+    out.innerHTML = '<div class="watchout">' + escapeHTML(d.error) + '</div>';
+    return;
+  }
+  out.innerHTML = sxWorking(d) + sxAnswer(d);
+}
+
+/* Every correction, with its sign and its reason. */
+function sxWorking(d) {
+  const shadow = document.getElementById('sx-horizon').value === 'shadow';
+  return '<div class="panel-title mt">Working each sight up</div>' +
+    '<div class="tiny muted">' + (shadow
+      ? 'The angle a shadow gives you is not quite the sun\'s altitude ' +
+        'either: the atmosphere has lifted it, and you are standing on a ' +
+        'planet with a radius rather than at its centre.'
+      : 'A sextant reading is not an altitude. It is an altitude plus the ' +
+        'instrument, your height, the atmosphere, and the fact that you ' +
+        'brought an edge of the sun down rather than a centre you cannot see.'
+    ) + '</div>' +
+    d.working.map(w =>
+      '<table class="data mt" style="max-width:720px"><thead><tr>' +
+        '<th colspan="3">Sight ' + w.n + ' &mdash; ' +
+        escapeHTML(w.when.slice(11, 19)) + ' UTC' +
+        (shadow ? '' : ', ' + escapeHTML(w.limb) + ' limb') +
+        '</th></tr></thead><tbody>' +
+      w.steps.map(s =>
+        '<tr><td>' + escapeHTML(s.name) + '</td>' +
+        '<td class="mono">' + s.value.toFixed(4) + '&deg;</td>' +
+        '<td class="tiny muted">' + escapeHTML(s.why) + '</td></tr>').join('') +
+      '<tr><td><b>true altitude</b></td><td class="mono"><b>' +
+        w.ho.toFixed(4) + '&deg;</b></td>' +
+        '<td class="tiny muted">what the sky actually did, good to about ' +
+        w.sigma_arcmin + '&prime; the way you took it</td></tr>' +
+      '</tbody></table>').join('');
+}
+
+function sxAnswer(d) {
+  const cls = d.geometry === 'good' ? 'good' : d.geometry === 'usable' ? 'warn' : 'bad';
+  const alts = (d.alternatives || []).map(a =>
+    '<li class="small"><span class="mono">' + a.lat.toFixed(3) + ', ' +
+    a.lon.toFixed(3) + '</span> (' + escapeHTML(a.grid) + ') &mdash; ' +
+    a.away_nm + ' nm away</li>').join('');
+
+  return '<div class="panel-title mt">Where that puts you</div>' +
+    '<div class="row" style="gap:1.4rem;flex-wrap:wrap;align-items:baseline">' +
+      '<span style="font:700 1.7rem var(--mono);color:var(--amber)">' +
+        escapeHTML(d.grid) + '</span>' +
+      '<span class="mono">' + d.lat.toFixed(4) + ', ' + d.lon.toFixed(4) + '</span>' +
+      '<span class="pill ' + cls + '">&plusmn;' + d.uncertainty_nm +
+        ' nautical miles</span>' +
+      '<span class="pill">' + escapeHTML(d.geometry) + ' geometry, ' +
+        d.bearing_spread_deg + '&deg; apart</span>' +
+    '</div>' +
+    /* The residual is not the safety check and must not be dressed up as one:
+       three sights taken minutes apart can agree beautifully with each other
+       and with the wrong place. */
+    '<div class="tiny muted mt">Your ' + d.sights + ' sights agree with each ' +
+      'other to <b>' + d.rms_arcmin + '&prime;</b>. That is not the same as ' +
+      'being right &mdash; sights close together in time agree easily and can ' +
+      'agree on the wrong place, which is why the figure to read is the ' +
+      '&plusmn;' + d.uncertainty_nm + ' nm, worked out from how widely the ' +
+      'bearings were spread rather than from how neatly they fit.' +
+      (d.hinted ? ' Your saved QTH was used to settle which crossing you are at.' : '') +
+    '</div>' +
+    (d.ambiguous
+      ? '<div class="watchout mt"><b>Two places fit.</b> ' +
+        escapeHTML(d.ambiguity_note) + '<ul>' + alts + '</ul></div>'
+      : (alts ? '<div class="tiny muted mt">Other crossings considered and ' +
+                'rejected:<ul>' + alts + '</ul></div>' : '')) +
+    '<div class="row mt">' +
+      '<button class="btn sm" id="sx-setqth" data-lat="' + d.lat +
+        '" data-lon="' + d.lon + '">Set this as my QTH</button>' +
+      '<span class="tiny muted">a four-character grid needs about 30 nm; ' +
+      'six characters needs about 2</span>' +
+    '</div>';
+}
+
+/* Handing the answer to the rest of the program, which is the point of having
+   worked it out on a unit whose GPS may have nothing to say. */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('#sx-setqth');
+  if (!btn) return;
+  e.preventDefault();
+  btn.disabled = true;
+  try {
+    await saveQTH({lat: +btn.dataset.lat, lon: +btn.dataset.lon,
+                   name: 'By sextant', short: 'By sextant', kind: 'celestial',
+                   grid: btn.closest('#sx-out').querySelector('span').textContent});
+    toast('QTH set', 'from your sights');
+  } catch (err) {
+    btn.disabled = false;
+  }
+});

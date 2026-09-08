@@ -17,10 +17,93 @@
   <button class="btn sm ghost" data-tab="smith">Smith chart</button>
   <button class="btn sm ghost" data-tab="db">Decibels</button>
   <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
+  <button class="btn sm ghost" data-tab="sextant">Sextant</button>
   <button class="btn sm ghost" data-tab="rf">RF exposure</button>
 </div>
 
 <!-- ---------------------------------------------------------------- skip -->
+<div class="panel mt lab-pane" id="pane-sextant" hidden>
+  <div class="panel-title">Sextant &mdash; where you are, from the sun and a clock</div>
+  <p class="small muted">
+    A sextant measures how high the sun is. That one number puts you somewhere
+    on a circle drawn on the earth: every point on it sees the sun at that
+    altitude at that instant. One sight is a circle. Two sights an hour apart
+    are two circles, and they cross. That crossing is where you are, and
+    everything below is arithmetic in service of it.
+  </p>
+  <p class="small muted">
+    Navigators did this with an almanac, log tables and a plotting sheet,
+    because the arithmetic was the expensive part. It is not expensive any
+    more, so ELMER works out the sun's true altitude for any place and instant
+    and searches for the position that best predicts every sight you took. No
+    assumed position, no tables. <b>It needs the time to be right</b> &mdash;
+    four seconds of clock error is a nautical mile of longitude, which is what
+    WWV and CHU are broadcast for.
+  </p>
+
+  <div class="cw-settings">
+    <div class="field">
+      <label>Horizon</label>
+      <select id="sx-horizon" class="mono">
+        <option value="sea">Sextant, sea horizon</option>
+        <option value="artificial" selected>Sextant, artificial horizon</option>
+        <option value="shadow">A stick and its shadow</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Height of eye (ft) <span class="tiny muted" id="sx-height-note"></span></label>
+      <input type="number" id="sx-height" value="9" min="0" max="10000" step="1">
+    </div>
+    <div class="field">
+      <label>Index error (arcmin)</label>
+      <input type="number" id="sx-index" value="0" min="-60" max="60" step="0.1">
+    </div>
+    <div class="field">
+      <label>Date (UTC)</label>
+      <input type="date" id="sx-date">
+    </div>
+  </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    Inland there is no sea horizon, so the usual answer is an artificial one
+    &mdash; a shallow pan of water or old oil, sheltered from wind. You bring
+    the real sun down to its reflection, which is twice the altitude, and there
+    is no dip to allow for because you are not looking at a horizon at all.
+  </div>
+  <div class="tiny muted" id="sx-shadow-note" hidden style="margin-top:.4rem">
+    No sextant at all: stand a stick up plumb, measure it, and measure its
+    shadow. The altitude is <span class="mono">atan(height / shadow)</span>.
+    Read the middle of the soft edge &mdash; the sun is half a degree wide, so
+    the shadow's edge is too. Half a centimetre on a metre of stick is about a
+    fifth of a degree, which is loose for a sextant and ample for a
+    four-character grid. It is <b>most accurate with the sun low</b> and its
+    shadow long, which is the opposite way round from a sextant, so take these
+    in the morning and the evening rather than at noon.
+  </div>
+
+  <div class="panel-title mt">The sights</div>
+  <div class="tiny muted">
+    Two at least, three is better, and spread them across an hour or more
+    &mdash; sights taken minutes apart cross at a shallow angle and the fix
+    slides a long way for a small error.
+  </div>
+  <table class="data mt" style="max-width:760px">
+    <thead><tr>
+      <th>#</th><th id="sx-head-angle">Sextant reading</th>
+      <th>UTC time</th><th id="sx-head-limb">Limb</th><th></th>
+    </tr></thead>
+    <tbody id="sx-rows"></tbody>
+  </table>
+  <div class="row mt">
+    <button class="btn sm" id="sx-add">Add a sight</button>
+    <button class="btn sm primary" id="sx-go">Work it out</button>
+    <label class="tiny muted row" style="gap:.35rem;margin:0">
+      <input type="checkbox" id="sx-useqth"> use my saved QTH to settle an ambiguity
+    </label>
+  </div>
+
+  <div id="sx-out" class="mt"></div>
+</div>
+
 <div class="panel mt lab-pane" id="pane-skip">
   <div class="panel-title">Ionospheric hop &mdash; why a band "opens" and where the skip zone falls</div>
   <div class="grid" style="grid-template-columns: 300px 1fr; gap:1.2rem; align-items:start">
