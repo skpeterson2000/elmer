@@ -201,8 +201,8 @@ def estimate_muf(sfi, elevation, lat=None, m3000=None):
     return levels(sfi, elevation, lat, m3000)
 
 
-def _band_rows(ham, is_day, muf):
-    period = "day" if is_day else "night"
+def _band_rows(ham, regime, muf):
+    period = "day" if regime == "lit" else "night"
     rows = []
     for name, freq, group in BANDS:
         if group:
@@ -213,9 +213,16 @@ def _band_rows(ham, is_day, muf):
         score = RATING_SCORE.get(rating, 0)
         if freq > muf:
             note = f"above the estimated {muf} MHz MUF - refraction fails, signals escape"
-        elif not is_day and freq >= 21:
+        elif regime == "twilight" and freq <= 7.0:
+            note = ("the sun will not clear the D layer tonight - no grey "
+                    "line at this latitude in this season, and absorption "
+                    "never reaches zero")
+        elif regime == "grey" and freq <= 7.0:
+            note = ("grey line - the sun is down here but not on the D layer, "
+                    "so absorption is collapsing and the low bands are opening")
+        elif regime == "dark" and freq >= 21:
             note = "high bands normally close after dark"
-        elif is_day and freq <= 3.5:
+        elif regime == "lit" and freq <= 3.5:
             note = "D-layer absorption keeps the low bands short by day"
         else:
             note = ""
@@ -253,10 +260,17 @@ def snapshot(lat=None, lon=None, force=False):
     a_index = swpc.get("a_running", a_index) or a_index
     elevation = solar_elevation(lat, lon) if lat is not None else None
     if elevation is not None:
-        is_day = elevation > -6
+        regime = sun_regime(elevation, lat, now)
     else:
-        # no QTH set: the machine's own clock is the best guess we have
-        is_day = 6 <= datetime.now().hour < 18
+        # No QTH set: the machine's own clock is the best guess we have, and a
+        # clock cannot see a terminator. Answering only "lit" or "dark" is
+        # honest about that - claiming the middle state with no position would
+        # be inventing the one thing this change exists to stop inventing.
+        regime = "lit" if 6 <= datetime.now().hour < 18 else "dark"
+    # The wall chart has a day column and a night column and always will. Grey
+    # reads off the night one: that column is about the absorber, and by then
+    # the absorber has gone.
+    is_day = regime == "lit"
     # With no QTH there is no sun angle, and this used to take a daytime one
     # for the MUF and a night-time one for everything that read it - a noon MUF
     # scored against midnight absorption, which said 20m was open at 82/100 in
@@ -288,8 +302,11 @@ def snapshot(lat=None, lon=None, force=False):
         # The angle actually used, which is the assumed one when there is no
         # QTH. Anything deriving its own would drift away from these numbers.
         "elevation_used": round(assumed, 1),
+        "regime": regime,
+        # Kept because a two-column wall chart still needs one bit, and three
+        # pages read this. It is now "lit", not "not dark".
         "is_day": is_day, "located": elevation is not None,
-        "bands": _band_rows(ham, is_day, muf),
+        "bands": _band_rows(ham, regime, muf),
         "vhf": ham["vhf"],
         "verdict": verdict(sfi, k_index, a_index),
         "cached": False,
@@ -368,6 +385,143 @@ D_LAYER_KM = 80.0
 D_LAYER_DIP = math.degrees(math.acos(EARTH_RADIUS_KM /
                                      (EARTH_RADIUS_KM + D_LAYER_KM)))
 
+def night_floor(lat, when):
+    """The sun's elevation at local solar midnight - the deepest it will get.
+
+    Closed form: at midnight the hour angle is 180 degrees, so cos(lha) is -1
+    and the spherical triangle collapses to asin(-cos(lat + dec)). Checked
+    against a minute-by-minute scan at Anchorage and Fairbanks on the solstice:
+    identical to two decimal places, and it costs one trig call instead of
+    1440 solar positions.
+    """
+    dec = celestial.sun_position(when)["dec"]
+    return math.degrees(math.asin(
+        max(-1.0, min(1.0, -math.cos(math.radians(lat + dec))))))
+
+
+def day_ceiling(lat, when):
+    """And the highest, at local noon. Below zero means the sun never rises."""
+    dec = celestial.sun_position(when)["dec"]
+    return 90.0 - abs(lat - dec)
+
+
+def sun_regime(elevation, lat=None, when=None):
+    """Which of four states the sky overhead is in, from the sun's angle.
+
+    "lit"  - the sun is up and the D layer is absorbing.
+    "grey" - the sun has set on the ground but not yet on the D layer 80 km up.
+             Absorption is collapsing while the F layer stays ionised, and that
+             gap is the grey line. It ends at the D layer's own horizon.
+    "dark" - the D layer is wholly in shadow. Absorption is already zero and
+             has been for some minutes; nothing further happens to it.
+
+    "twilight" - the sun is down and the D layer will not clear tonight, or it
+             is up and never rises. There is no grey line here because there is
+             no terminator passage: at Anchorage on the solstice the sun bottoms
+             out 5.3 degrees down, the layer 80 km up keeps its light all night,
+             and 80 m absorption never falls below 8 - a third of its noon
+             value. Reported without the two states given lat and `when`, that
+             stretch was called "grey line" for five hours, which is the summer
+             at high latitude being sold as the best hour of the day.
+
+    The upper edge is the ground terminator and the lower one is the layer
+    height, and the interval between them is not a convention - it is exactly
+    where `band_score`'s own absorption term falls from a third of its noon
+    value to nothing. On 8 September at 46.6 N: 13.3 at sunset, 6.7 a quarter
+    of an hour later, 0.0 by the time the sun is nine degrees down.
+
+    What this replaces hung the lower edge on the F2 peak's dip - 17 degrees,
+    the angle at which 300 km stops being sunlit - on the reasoning that the
+    reflector outlasts the absorber. It does, but not for that reason: F2
+    ionisation survives the night by slow recombination, not by staying lit,
+    which is why 80 m works at two in the morning with the F layer long dark.
+    Hanging the window on illumination put it between 9 and 17 degrees down -
+    an hour that began after the absorption had already finished going. It
+    named the grey line half an hour after the grey line, and at 50 N in June,
+    where the sun never reaches 17 degrees down at all, it named it for five
+    hours straight.
+
+    Nothing here is a new model. `_fof2` and `band_score` already ramp
+    continuously through all three states; this exists so that the parts which
+    have to name a state - a wall chart with two columns, a strip of coloured
+    hours, a sentence of advice - name the same one, on the same evidence.
+    """
+    if elevation is None:
+        return None
+    if elevation >= 0.0:
+        return "lit"
+    # A grey line is a terminator passage. Where the sun neither sets on the D
+    # layer nor rises at all, there is not one to name, and the honest answer
+    # is that this is twilight - which is a real state of its own at latitude,
+    # and not the same claim. Without a position this cannot be known, so the
+    # geometry is reported as it stands.
+    crosses = (lat is None or when is None
+               or (night_floor(lat, when) <= -D_LAYER_DIP
+                   and day_ceiling(lat, when) >= 0.0))
+    if elevation >= -D_LAYER_DIP:
+        return "grey" if crosses else "twilight"
+    return "dark"
+
+# --- how far inside the auroral oval the operator is -------------------------
+#
+# `band_score` has always printed "worst near the poles" beside its K-index
+# penalty and then applied the same number at every latitude. The words were
+# right and the arithmetic was not: a K of 5 in Minnesota is an unsettled
+# afternoon, and a K of 5 at Fairbanks is the oval overhead and the polar paths
+# shut. Nothing in the score could tell those apart.
+#
+# What decides it is geomagnetic latitude, not geographic, and the two are far
+# apart over North America because the pole is over Arctic Canada rather than
+# the geographic one. Pequot Lakes is 46.6 N and 55 geomagnetic; Fairbanks is
+# 64.8 and 65.7. A dipole is enough here - checked against published corrected
+# geomagnetic latitudes, it lands within a degree at both - and the alternative
+# is shipping a field model to scale one penalty.
+GEOMAG_POLE = (80.7, -72.7)         # IGRF dipole north pole, near enough
+
+# Where the existing constant was fitted. N0NBH's ratings are aimed at
+# mid-latitude North America and Europe, which is about 55 geomagnetic, so the
+# factor is 1.0 there and this change moves nobody who was already right.
+AURORAL_REF = 55.0
+# The quiet equatorward edge of the oval. Superseded by the observed boundary
+# when the feed reports one, which is the whole point of it being in the feed.
+AURORAL_EDGE = 65.0
+AURORAL_MAX = 2.5
+
+
+def geomagnetic_latitude(lat, lon):
+    """Latitude measured from the magnetic pole, which is what aurora obeys."""
+    pole_lat, pole_lon = GEOMAG_POLE
+    phi, phi_p = math.radians(lat), math.radians(pole_lat)
+    d_lon = math.radians(lon - pole_lon)
+    return math.degrees(math.asin(max(-1.0, min(1.0,
+        math.sin(phi) * math.sin(phi_p)
+        + math.cos(phi) * math.cos(phi_p) * math.cos(d_lon)))))
+
+
+def auroral_factor(geomag_lat, boundary=None):
+    """How much harder a disturbed field bites here than at mid-latitudes.
+
+    1.0 at the latitude the K-index penalty was fitted for, falling to 0.5 in
+    the tropics where a geomagnetic storm is somebody else's problem, and
+    doubling at the oval's edge. It scales the disturbance rather than adding
+    absorption of its own: at K 2 and below the field is quiet and this
+    multiplies nothing, which is the conservative reading and keeps the model
+    from inventing an aurora on a calm day.
+    """
+    if geomag_lat is None:
+        return 1.0
+    edge = float(boundary) if boundary else AURORAL_EDGE
+    edge = max(AURORAL_REF + 5.0, min(75.0, edge))
+    g = abs(geomag_lat)
+    if g <= 30.0:
+        return 0.5
+    if g <= AURORAL_REF:
+        return 0.5 + 0.5 * (g - 30.0) / (AURORAL_REF - 30.0)
+    if g <= edge:
+        return 1.0 + (g - AURORAL_REF) / (edge - AURORAL_REF)
+    return min(AURORAL_MAX, 2.0 + 0.5 * (g - edge) / 10.0)
+
+
 # Absorption at the top of the scale. Lowered from 45 to hold midday where it
 # was: shifting the driver by the dip raises it everywhere, and this change is
 # meant to be about the terminator rather than a quiet re-tuning of noon.
@@ -415,7 +569,8 @@ def skip_km(mhz, fof2, hmf2=300.0):
     return patterns._hop_km(steepest, hmf2)
 
 
-def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0):
+def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0,
+               geomag_lat=None, aurora_lat=None):
     """0-100 for one band at one moment, with the reason in words.
 
     `elevation` is the sun's angle at the operator's QTH: negative is night,
@@ -465,9 +620,19 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0):
             why += ("; daylight D-layer absorption is what limits it"
                     if mhz <= 10.1 else "; a little daytime absorption")
 
-    storm = min(40.0, max(0.0, float(k_index or 0) - 2.0) * 7.0)
+    # Scaled by where the operator is with respect to the oval, not asserted to
+    # be worse near the poles and then applied flat. See the note above.
+    polar = auroral_factor(geomag_lat, aurora_lat)
+    storm = min(40.0, max(0.0, float(k_index or 0) - 2.0) * 7.0 * polar)
     if storm > 6:
-        why += f"; K {k_index:g} means absorption and flutter, worst near the poles"
+        why += f"; K {k_index:g} means absorption and flutter"
+        if geomag_lat is None:
+            why += ", worst near the poles"
+        elif polar >= 1.6:
+            why += (f", and at {abs(geomag_lat):.0f} degrees geomagnetic you are "
+                    "under the auroral oval, where it bites hardest")
+        elif polar <= 0.7:
+            why += ", though this far from the oval a disturbed field costs little"
 
     score = max(0.0, min(100.0, score - absorb - storm))
     out = {"score": round(score), "label": _pick(QUALITY, score),
@@ -620,7 +785,7 @@ def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
 
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
-            muf_now=None, anchor=None, m3000=None):
+            muf_now=None, anchor=None, m3000=None, aurora_lat=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -636,15 +801,21 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
                                                           microsecond=0)
     if anchor is None:
         anchor = muf_anchor(sfi, lat, lon, muf_now, start, m3000)
+    # One geomagnetic latitude for the whole run: the operator does not move
+    # over the next day, and the oval's own boundary is a fetched number that
+    # this deliberately does not try to forecast either.
+    geomag = geomagnetic_latitude(lat, lon)
     out = []
     for step in range(hours + 1):
         when = start + timedelta(hours=step)
         elevation = solar_elevation(lat, lon, when)
         muf, fof2 = levels(sfi, elevation, lat, m3000, anchor)
-        got = band_score(mhz, muf, elevation, k_index, fof2)
+        got = band_score(mhz, muf, elevation, k_index, fof2,
+                         geomag_lat=geomag, aurora_lat=aurora_lat)
+        state = sun_regime(elevation, lat, when)
         got.update({"at": when.isoformat(), "hour": when.hour,
                     "elevation": round(elevation, 1), "fof2": fof2,
-                    "day": elevation > -6})
+                    "regime": state, "day": state == "lit"})
         out.append(got)
     return out
 

@@ -807,6 +807,13 @@ option.not-permitted { color: var(--amber); }
    dark ones - in the faintest colours, so the strip read backwards from three
    feet away. Colour is quality here and nothing else. */
 .fcstrip .fc.day { box-shadow: inset 0 -5px 0 rgba(255,255,255,.42); }
+/* And the hour between the two sunsets gets its own mark. It is neither of the
+   other two and it is the one somebody is waiting for on the low bands, so it
+   is not left to be inferred from the absence of a pale bar. */
+.fcstrip .fc.grey { box-shadow: inset 0 -5px 0 rgba(255,190,90,.85); }
+/* And a fourth, for the high-latitude summer night the sun never finishes:
+   half a bar, because the absorber is half gone and stays there. */
+.fcstrip .fc.dusk { box-shadow: inset 0 -5px 0 rgba(255,190,90,.35); }
 .fcstrip .fc.now { outline: 2px solid var(--text); outline-offset: 1px; }
 .fcstrip .fc span {
   position: absolute; left: 0; right: 0; bottom: -1.05rem; text-align: center;

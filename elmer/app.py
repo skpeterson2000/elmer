@@ -604,7 +604,14 @@ def api_pattern():
     # The F2 layer sits lower by day than by night, and that changes how far
     # one hop reaches - so the answer depends on the hour where the station
     # is, not on the server's idea of noon.
-    day = reachout.daytime(place["lon"]) if place.get("lon") is not None else True
+    # Three states where the operator is, then the one bit the hop geometry
+    # actually wants. The F2 peak has a day height and a night height and no
+    # third one, and by the grey line it is already rising - so grey counts as
+    # night here. That is the only consumer left that a boolean genuinely fits.
+    sun = (reachout.sun_state(place["lat"], place["lon"])
+           if place.get("lat") is not None and place.get("lon") is not None
+           else "lit")
+    day = sun == "lit"
 
     # Near-vertical incidence lives or dies on whether the frequency is under
     # the critical frequency, so it gets the measured one rather than a rule of
@@ -668,7 +675,7 @@ def api_pattern():
         "qth_source": place.get("source") or "saved",
         "qth_age_s": place.get("age_s"),
         "reach": span, "use": use,
-        "daytime": day,
+        "daytime": day, "sun": sun,
         # When the compass comes back empty, an empty compass is not the whole
         # answer - what to do instead is.
         "instead": (patterns.advise_empty(span, mhz, kind, height_ft, use,
@@ -1381,13 +1388,20 @@ def api_propagation_outlook():
     # - the same one it computed its own MUF from, so the two cannot drift.
     elevation = snap["elevation_used"]
     k_index = snap.get("k_index") or 0
+    # Where this station sits relative to the auroral oval, and where the feed
+    # says the oval's edge is tonight. Without these the K index costs the same
+    # in Miami as at Fairbanks, which it does not.
+    geomag = (propagation.geomagnetic_latitude(lat, lon)
+              if lat is not None and lon is not None else None)
+    aurora_lat = snap.get("aurora_lat") or None
     rated = {row["band"]: row for row in snap.get("bands", [])}
 
     bands = []
     for name, mhz, _group in propagation.BANDS:
         now = propagation.band_score(mhz, muf, elevation, k_index,
                                      snap.get("fof2"),
-                                     (cal or {}).get("hmf2") or 300.0)
+                                     (cal or {}).get("hmf2") or 300.0,
+                                     geomag_lat=geomag, aurora_lat=aurora_lat)
         # When there is a hole in the middle, say what covers it. Ground wave
         # is the only thing that reaches into a skip zone, and it is the one
         # kind of propagation the antenna really does decide.
@@ -1396,9 +1410,11 @@ def api_propagation_outlook():
         hours, when = [], []
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
-                                       anchor=anchor, m3000=m3000)
+                                       anchor=anchor, m3000=m3000,
+                                       aurora_lat=aurora_lat)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
-                      "day": row["day"]} for row in when]
+                      "regime": row["regime"], "day": row["day"]}
+                     for row in when]
         bands.append({"band": name, "mhz": mhz, "now": now,
                       "rating": (rated.get(name) or {}).get("rating", ""),
                       "note": (rated.get(name) or {}).get("note", ""),
@@ -1410,12 +1426,15 @@ def api_propagation_outlook():
                     "sfi": snap["sfi"], "k_index": k_index,
                     "a_index": snap.get("a_index"),
                     "is_day": snap.get("is_day"),
+                    "regime": snap.get("regime"),
                     "elevation": snap.get("elevation"),
                     "verdict": snap.get("verdict", ""),
                     # Above about 30 MHz the model has nothing to say, so what
                     # the network is reporting is passed through instead.
                     "vhf": snap.get("vhf") or {},
                     "aurora": snap.get("aurora"),
+                    "geomag_lat": round(geomag, 1) if geomag is not None else None,
+                    "aurora_lat": aurora_lat,
                     "fetched": snap.get("fetched"), "bands": bands})
 
 

@@ -363,6 +363,15 @@ function conditionsFor(band) {
 const QUALITY_CLASS = s =>
   s >= 80 ? 'q4' : s >= 60 ? 'q3' : s >= 35 ? 'q2' : s >= 15 ? 'q1' : 'q0';
 
+/* One word for the sky, from the same three states the model uses. "Tonight"
+   used to be hardcoded into three sentences here, which is how a page showing
+   a 33-degree sun came to talk about tonight's critical frequency. */
+function skyNow() {
+  const r = bpProp && bpProp.regime;
+  return r === 'grey' ? 'the grey line\u2019s' : r === 'dark' ? 'tonight\u2019s'
+                                                : 'today\u2019s';
+}
+
 function hourLabel(iso) {
   const d = new Date(iso);
   return String(d.getHours()).padStart(2, '0');
@@ -381,10 +390,14 @@ function forecastStrip(cond) {
     // "now" under the first cell, then every sixth hour: enough to read the
     // shape against the clock without turning the strip into a ruler.
     const tick = i === 0 ? 'now' : (i % 6 === 0 ? label : '');
+    const sky = h.regime === 'grey' ? ', grey line'
+              : h.regime === 'twilight' ? ', twilight - the D layer never clears'
+              : h.regime === 'dark' ? ', dark' : ', daylight';
     return '<i class="fc ' + QUALITY_CLASS(h.score) + (i === 0 ? ' now' : '') +
-      (h.day ? ' day' : '') +
+      (h.regime === 'grey' ? ' grey' : h.regime === 'twilight' ? ' dusk'
+                                     : h.regime === 'dark' ? '' : ' day') +
       '" title="' + label + ':00 local — ' + h.score +
-      '/100, MUF about ' + h.muf + ' MHz' + (h.day ? ', daylight' : ', dark') +
+      '/100, MUF about ' + h.muf + ' MHz' + sky +
       '">' + (tick ? '<span>' + tick + '</span>' : '') + '</i>';
   }).join('');
   /* Said as an operator would say it: "now until eight", not a pair of
@@ -405,7 +418,8 @@ function forecastStrip(cond) {
   return '<div class="fcstrip">' + cells + '</div>' +
     '<div class="tiny muted fcsay">' + say +
     ' Colour is how good the hour looks; the pale bar along the foot of a ' +
-    'cell is daylight.</div>';
+    'cell is daylight, and an amber one is the grey line &mdash; sunset here, ' +
+    'but not yet 80 km up, which is where the absorption is.</div>';
 }
 
 /* Above about 30 MHz none of this applies, and pretending otherwise would put
@@ -486,7 +500,7 @@ function conditionBar(band) {
     (now.skip_km === undefined ? '' :
       now.skip_km === null
         ? '<div class="small" style="color:var(--red)">Reaches nobody &mdash; ' +
-          'nothing comes back at any angle tonight.</div>'
+          'nothing comes back at any angle just now.</div>'
         : now.reaches_local
           ? '<div class="small" style="color:var(--green)">Reaches everywhere, ' +
             'local included &mdash; this band is under the critical frequency, ' +
@@ -500,9 +514,9 @@ function conditionBar(band) {
             'the wrong way: it launches lower, which lands further out still. ' +
             (now.fills_the_gap
               ? 'The lever that works is frequency &mdash; <b>' +
-                escapeHTML(now.fills_the_gap) + '</b> is under tonight\'s ' +
-                'critical frequency and reaches them.'
-              : 'Nothing on HF is under tonight\'s critical frequency, so ' +
+                escapeHTML(now.fills_the_gap) + '</b> is under ' + skyNow() +
+                ' critical frequency and reaches them.'
+              : 'Nothing on HF is under ' + skyNow() + ' critical frequency, so ' +
                 'the close-in answer is ground wave, VHF or a repeater.') +
             (now.ground_wave && now.ground_wave.miles
               ? ' Ground wave covers the first <b>' + now.ground_wave.miles +
