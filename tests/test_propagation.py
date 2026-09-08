@@ -93,6 +93,21 @@ def main():
           P.band_score(7.0, 11.3, -37, 2.0, 4.0)["skip_km"] < far["skip_km"], True)
     check("and with no measured foF2 it makes no claim at all",
           "skip_km" in P.band_score(10.1, 11.3, -37, 2.0), False)
+    # The instinct on being told a band cannot reach nearby is to change the
+    # antenna. It is the wrong lever: the antenna picks what leaves, the
+    # ionosphere picks what returns, and a vertical launches lower - landing
+    # further out, not nearer. Frequency is the lever, so the band is named.
+    check("a band that cannot reach nearby names one that can",
+          far["fills_the_gap"], "80m")
+    check("  and a band with no gap has nothing to suggest",
+          local["fills_the_gap"], None)
+    check("  with nothing suggested when no band is under foF2",
+          P.band_score(7.0, 4.0, -37, 2.0, 1.2)["fills_the_gap"], None)
+    # Launching lower pushes the first landfall further out. This is the fact
+    # that makes "just use a vertical" wrong, so it is worth pinning down.
+    from elmer import patterns as _PA
+    check("a shallower launch lands further away, not nearer",
+          _PA._hop_km(10, 300.0) > _PA._hop_km(30, 300.0), True)
 
     print("\n-- what a score is worth in practice --")
     check("a good band is open to SSB",

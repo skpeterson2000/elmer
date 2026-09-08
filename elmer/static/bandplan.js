@@ -493,8 +493,18 @@ function conditionBar(band) {
             'so it comes back from straight overhead.</div>'
           : '<div class="small" style="color:var(--amber)">Nothing closer than ' +
             '<b>' + Math.round(now.skip_km / 1.609) + ' miles</b>. The rating ' +
-            'is for a long path; inside that there is a skip zone and no ' +
-            'amount of power crosses it.</div>') +
+            'is for a long path; inside that is a skip zone, and neither power ' +
+            'nor a different antenna crosses it &mdash; the antenna decides ' +
+            'what you launch, the ionosphere decides what comes back, and it ' +
+            'is returning nothing steep enough to land nearer. A vertical is ' +
+            'the wrong way: it launches lower, which lands further out still. ' +
+            (now.fills_the_gap
+              ? 'The lever that works is frequency &mdash; <b>' +
+                escapeHTML(now.fills_the_gap) + '</b> is under tonight\'s ' +
+                'critical frequency and reaches them.'
+              : 'Nothing on HF is under tonight\'s critical frequency, so ' +
+                'the close-in answer is ground wave, VHF or a repeater.') +
+            '</div>') +
     '<div class="small condmode"><b>' + escapeHTML(now.modes) + '</b></div>' +
     '<div class="tiny muted">' + escapeHTML(now.why) + '. ' + from +
       '; K index ' + bpProp.k_index + '.</div>' +
