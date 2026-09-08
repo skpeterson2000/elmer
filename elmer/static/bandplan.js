@@ -410,9 +410,15 @@ function forecastStrip(cond) {
     if (w.from === first) return '<b>now until ' + b + ':00</b>';
     return '<b>' + a + ':00&ndash;' + b + ':00</b>';
   });
+  /* The peak, with the hour it falls on. "Best about 89/100" was half a
+     sentence - the thing somebody wants out of a forecast is when to be at
+     the radio, and the trailing "local time" was left over from the window
+     times it had been separated from. */
+  const top = (cond.windows || []).reduce(
+    (best, w) => (best && best.best >= w.best ? best : w), null);
   const say = wins.length
-    ? 'Worth using ' + wins.join(' and ') + ' &mdash; best about ' +
-      Math.max(...cond.windows.map(w => w.best)) + '/100, local time.'
+    ? 'Worth using ' + wins.join(' and ') + ', local time &mdash; best around ' +
+      '<b>' + hourLabel(top.best_at) + ':00</b> at ' + top.best + '/100.'
     : '<b>No usable window in the next day</b> on these numbers &mdash; the ' +
       'band stays under what a contact needs.';
   return '<div class="fcstrip">' + cells + '</div>' +
