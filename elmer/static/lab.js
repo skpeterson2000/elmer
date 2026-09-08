@@ -227,6 +227,34 @@ if (sondeBtn) sondeBtn.addEventListener('click', async () => {
   if (el) el.addEventListener('input', drawSkip);
 });
 
+/* Sending an antenna to the hop simulator.
+
+   The antenna page offers this and the link used to be a bare fragment: it
+   changed tab and carried nothing, so the simulator went on showing whichever
+   frequency the slider was left at. Worse, the sentence offering it says to
+   check the frequency against foF2 - and the foF2 slider would still be at its
+   default, so there was nothing real on either axis. Both ends now come
+   across: the antenna's own frequency, and the ionosphere that is actually up
+   there tonight. */
+document.addEventListener('click', e => {
+  const link = e.target.closest('[data-skip-f]');
+  if (!link) return;
+  e.preventDefault();
+  const freq = document.getElementById('s-f');
+  const wanted = parseFloat(link.dataset.skipF);
+  if (freq && isFinite(wanted)) {
+    freq.value = Math.max(parseFloat(freq.min),
+                          Math.min(parseFloat(freq.max), wanted));
+  }
+  selectTab('skip');
+  history.replaceState(null, '', location.pathname + '#skip');
+  drawSkip();
+  document.getElementById('pane-skip').scrollIntoView({block: 'start'});
+  // Checking it against a default is not checking it against anything.
+  const measure = document.getElementById('s-measure');
+  if (measure && !measure.disabled) measure.click();
+});
+
 /* --------------------------------------------------------- ohm and power */
 function solveOhm() {
   const v = num('o-v'), i = num('o-i'), r = num('o-r'), p = num('o-p');
@@ -685,7 +713,8 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
     ? '<p class="watchout">At ' + f.toFixed(3) + ' MHz NVIS will usually fail: a ' +
       'near-vertical signal only comes back below foF2, which is rarely above ' +
       '8&nbsp;MHz. NVIS is an 80, 60 and 40 metre technique. ' +
-      '<a href="/lab#skip">Check it against foF2 in the hop simulator &rarr;</a></p>'
+      '<a href="#skip" data-skip-f="' + f + '">Check it against foF2 in ' +
+      'the hop simulator &rarr;</a></p>'
     : '';
 
   const apexRow = type === 'invertedv'
