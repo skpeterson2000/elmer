@@ -86,6 +86,8 @@ class CWPlayer {
     this.playingUntil = t;
     if (onDone) this.doneTimer = setTimeout(
       () => onDone(), Math.max(0, (t - startedAt) * 1000) + 120);
+    marks.startedAt = startedAt;
+    marks.until = t;
     return marks;
   }
 
@@ -142,6 +144,107 @@ bindSetting('cw-wpm', 'wpm', v => v + ' wpm');
 bindSetting('cw-eff', 'effective', v => v + ' wpm');
 bindSetting('cw-lesson', 'lesson', v => 'characters 1–' + v);
 
+/* ------------------------------------------------------- the code, drawn */
+/* A dit is a short sound and a dah is a long one, three times over. Printed as
+   a full stop and a hyphen the eye has to translate punctuation into duration;
+   drawn to length it is just the shape, which is the thing being learnt. */
+
+function codeHTML(code) {
+  return [...(code || '')].map(el =>
+    '<i class="' + (el === '-' ? 'dah' : 'dit') + '"></i>').join('');
+}
+
+/* Fill every .cw-code that carries a data-code - the chart and the paddle
+   levers are rendered by the template and only need their shapes putting in. */
+function paintCodes(root) {
+  (root || document).querySelectorAll('.cw-code[data-code]').forEach(el => {
+    if (!el.dataset.painted) {
+      el.innerHTML = codeHTML(el.dataset.code);
+      el.dataset.painted = '1';
+    }
+  });
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* Play one character on its own and light each element as it sounds. Returns
+   when the last element has finished. Scheduling is on the audio clock, so the
+   tone is exact; the lighting follows it rather than the other way round. */
+function playSymbol(sym, timing, boxes) {
+  player.ensure();
+  const ctx = player.ctx;
+  let t = ctx.currentTime + 0.08;
+  const start = t;
+  /* One scheduling, any number of displays: the chart cell you clicked and the
+     big panel above it are the same sound, and must not be two of them. */
+  const rows = (Array.isArray(boxes) ? boxes : [boxes]).filter(Boolean);
+  rows.forEach(box => { box.innerHTML = codeHTML(sym.code); });
+  const spans = rows.map(box => [...box.querySelectorAll('i')]);
+  const lit = [];
+  for (const el of sym.code) {
+    const dur = (el === '-' ? timing.dah : timing.dit) / 1000;
+    player.mark(t, dur);
+    lit.push({at: t, end: t + dur});
+    t += dur + timing.symbol_gap / 1000;
+  }
+  const end = t - timing.symbol_gap / 1000;
+  return new Promise(resolve => {
+    const frame = () => {
+      if (!player.ctx || teachStop) { resolve(); return; }
+      const now = player.ctx.currentTime;
+      lit.forEach((m, i) => {
+        const on = now >= m.at && now < m.end;
+        spans.forEach(row => { if (row[i]) row[i].classList.toggle('lit', on); });
+      });
+      if (now >= end) {
+        spans.forEach(row => row.forEach(sp => sp.classList.remove('lit')));
+        resolve();
+      } else {
+        requestAnimationFrame(frame);
+      }
+    };
+    requestAnimationFrame(frame);
+  }).then(() => ({start, end}));
+}
+
+/* Sound first, name second. The character is drawn while it sounds; the letter
+   arrives afterwards and is held long enough to read. That order matters: a
+   letter shown at the same time as the sound is what teaches people to
+   translate rather than to hear. */
+const REVEAL_MS = 2000;
+let teachStop = false, teaching = false;
+
+async function teachRun(symbols, timing, ui, opts) {
+  const settle = (opts && opts.settle) || 260;
+  teachStop = false;
+  teaching = true;
+  try {
+    for (const sym of symbols) {
+      if (teachStop) break;
+      ui.letter.classList.remove('show');
+      await playSymbol(sym, timing, ui.code);
+      if (teachStop) break;
+      if (ui.reveal && ui.reveal()) {
+        ui.letter.innerHTML = escapeHTML(sym.char) +
+          (sym.meaning ? '<small>' + escapeHTML(sym.meaning) + '</small>' : '');
+        ui.letter.classList.add('show');
+        await sleep(REVEAL_MS);
+        ui.letter.classList.remove('show');
+      }
+      await sleep(settle);
+    }
+  } finally {
+    teaching = false;
+    if (ui.onDone) ui.onDone();
+  }
+}
+
+function teachHalt() {
+  teachStop = true;
+  teaching = false;
+  player.stop();
+}
+
 document.getElementById('cw-test').addEventListener('click', () => {
   player.ensure();
   player.mark(player.ctx.currentTime + 0.05, 0.35);
@@ -157,6 +260,7 @@ function showMode(name) {
     p.hidden = p.id !== 'cw-' + name;
   });
   if (name !== 'decode') stopMic();
+  teachHalt();
   if (name !== 'copy') player.stop();
   history.replaceState(null, '', '#' + name);
 }
@@ -173,9 +277,17 @@ function charClass(stat) {
 function renderLesson() {
   const chars = (CWS.koch || []).slice(0, settings.lesson);
   const box = document.getElementById('cw-lesson-chars');
-  if (box) box.innerHTML = chars.map(c =>
-    '<span class="cw-char ' + charClass((CWS.progress || {})[c]) + '">' +
-    escapeHTML(c) + '</span>').join('');
+  if (box) {
+    /* The lesson's characters with their shapes beside them, and clickable:
+       "what does K sound like again" should not need a trip to the chart. */
+    box.innerHTML = chars.map(c =>
+      '<button class="cw-chart-cell" data-char="' + escapeHTML(c) +
+      '" data-code="' + (CODE[c] || '') + '">' +
+      '<b class="' + charClass((CWS.progress || {})[c]) + '">' + escapeHTML(c) +
+      '</b><span class="cw-code" data-code="' + (CODE[c] || '') + '"></span></button>'
+    ).join('');
+    paintCodes(box);
+  }
   renderProgress();
 }
 
@@ -197,11 +309,73 @@ function renderProgress() {
   }).join('');
 }
 
-document.getElementById('cw-hear').addEventListener('click', async () => {
-  const chars = (CWS.koch || []).slice(0, settings.lesson).join(' ');
-  const data = await api('/api/cw/encode?' + new URLSearchParams(
-    {text: chars, wpm: settings.wpm, effective: Math.min(settings.effective, 12)}));
-  player.send(data.groups, data.timing);
+/* The same PARIS timing the server computes, worked out here because a single
+   character does not need a round trip for it. */
+function localTiming() {
+  const dit = 1200 / settings.wpm;
+  return {dit: dit, dah: 3 * dit, symbol_gap: dit,
+          char_gap: 3 * dit, word_gap: 7 * dit};
+}
+
+const teachUI = {
+  code: document.getElementById('cw-teach-code'),
+  letter: document.getElementById('cw-teach-letter'),
+  reveal: () => document.getElementById('cw-teach-reveal').checked,
+  onDone: () => {
+    document.getElementById('cw-hear').hidden = false;
+    document.getElementById('cw-teach-stop').hidden = true;
+    document.getElementById('cw-teach-hint').textContent =
+      'Press below and each character is drawn as it sounds, then named.';
+  },
+};
+
+/* One character at a time with a pause you can think in. The Farnsworth
+   spacing used for copy practice cannot do this: at any speed worth learning
+   at, three dits of gap is a fifth of a second, and the name has to be
+   readable. So the sequence is driven here instead of scheduled in one go. */
+async function teachChars(symbols) {
+  if (teaching) { teachHalt(); return; }
+  document.getElementById('cw-hear').hidden = true;
+  document.getElementById('cw-teach-stop').hidden = false;
+  document.getElementById('cw-teach-hint').textContent = 'listen';
+  await teachRun(symbols, localTiming(), teachUI);
+}
+
+document.getElementById('cw-hear').addEventListener('click', () => {
+  const chars = (CWS.koch || []).slice(0, settings.lesson);
+  teachChars(chars.map(c => ({char: c, code: CODE[c] || ''})));
+});
+document.getElementById('cw-teach-stop').addEventListener('click', () => {
+  teachHalt();
+  teachUI.onDone();
+});
+
+/* Anything drawn as a code cell plays when clicked - the chart, and the
+   lesson's own characters. */
+document.addEventListener('click', e => {
+  const cell = e.target.closest('.cw-chart-cell');
+  if (!cell || !cell.dataset.code) return;
+  document.querySelectorAll('.cw-chart-cell.playing')
+    .forEach(c => c.classList.remove('playing'));
+  cell.classList.add('playing');
+  /* Lit where it was clicked, so the shape and the sound are in the same
+     place. In the lesson it also drives the big display above. */
+  const own = cell.querySelector('.cw-code');
+  const big = cell.closest('#cw-learn')
+    ? document.getElementById('cw-teach-code') : null;
+  const sym = {char: cell.dataset.char, code: cell.dataset.code};
+  teachHalt();
+  setTimeout(() => {
+    playSymbol(sym, localTiming(), [own, big]).then(() => {
+      setTimeout(() => cell.classList.remove('playing'), 200);
+      if (big) {
+        const letter = document.getElementById('cw-teach-letter');
+        letter.innerHTML = escapeHTML(sym.char);
+        letter.classList.add('show');
+        setTimeout(() => letter.classList.remove('show'), REVEAL_MS);
+      }
+    });
+  }, 30);
 });
 document.getElementById('cw-start-copy').addEventListener('click', () => {
   document.getElementById('cw-kind').value = 'koch';
@@ -220,7 +394,7 @@ async function sendPractice(repeat) {
     currentData = await api('/api/cw/practice?' + new URLSearchParams({
       kind: kind, count: kind === 'qso' ? 1 : 5, lesson: settings.lesson,
       wpm: settings.wpm, effective: settings.effective}));
-    currentText = currentData.text;
+    currentText = currentData.plain || currentData.text;
     document.getElementById('cw-typed').value = '';
     document.getElementById('cw-result').innerHTML = '';
   }
@@ -284,7 +458,8 @@ document.getElementById('cw-check').addEventListener('click', async () => {
     '</span></div>' +
     '<div class="cw-compare mt">' + marks.join('') + '</div>' +
     '<div class="tiny muted" style="margin-top:.4rem">sent: <span class="mono">' +
-      escapeHTML(sent) + '</span></div>' + glossary;
+      escapeHTML((currentData.text || sent).replace(/\s+/g, ' ').trim()) +
+      '</span></div>' + glossary;
 
   const res = await postJSON('/api/cw/result',
     {per_char: perChar, settings: settings}).catch(() => null);
@@ -295,6 +470,117 @@ document.getElementById('cw-check').addEventListener('click', async () => {
           ' — move the lesson slider up one.');
   }
 });
+
+/* -------------------------------------------------------------- send text */
+/* Type a sentence and hear it. The characters are drawn as they sound and
+   named as they pass, and the line builds up underneath, so it can be read as
+   well as heard - which is how you find out that <BT> is one sound. */
+
+let textSending = false;
+
+async function sendTypedText() {
+  const input = document.getElementById('cw-text-input');
+  const status = document.getElementById('cw-text-status');
+  const line = document.getElementById('cw-text-line');
+  const text = (input.value || '').trim();
+  if (!text) { status.textContent = 'nothing to send'; input.focus(); return; }
+
+  status.textContent = 'encoding…';
+  let data;
+  try {
+    data = await api('/api/cw/encode?' + new URLSearchParams(
+      {text: text, wpm: settings.wpm, effective: settings.effective}));
+  } catch (e) {
+    status.textContent = 'could not encode that';
+    return;
+  }
+  if (!data.characters) {
+    status.textContent = 'nothing in there has a Morse equivalent';
+    return;
+  }
+  textSending = true;
+  document.getElementById('cw-text-send').hidden = true;
+  document.getElementById('cw-text-stop').hidden = false;
+  /* The skipped characters outlive the sending. Somebody who typed a semicolon
+     needs to know the code has no semicolon, and that is still true a second
+     after the last dah - so it is kept, not replaced by "sent". */
+  const skipped = data.skipped.length
+    ? ' — no code for ' + data.skipped.map(c => '"' + c + '"').join(' ') +
+      ', so ' + (data.skipped.length === 1 ? 'it was' : 'they were') + ' skipped'
+    : '';
+  const heading = data.characters + ' characters at ' +
+    Math.round(data.timing.wpm) + ' wpm' +
+    (data.timing.farnsworth
+      ? ' (spaced as ' + Math.round(data.timing.effective_wpm) + ')' : '');
+  status.textContent = heading + skipped;
+  line.textContent = '';
+
+  const sched = player.send(data.groups, data.timing, null, () => {
+    textSending = false;
+    document.getElementById('cw-text-send').hidden = false;
+    document.getElementById('cw-text-stop').hidden = true;
+    document.getElementById('cw-text-code').innerHTML = '';
+    document.getElementById('cw-text-letter').classList.remove('show');
+    status.textContent = 'sent' + skipped;
+  });
+
+  /* Follow the schedule rather than re-timing it: the audio is already laid
+     out on the audio clock, and the display should agree with the ear. */
+  const codeBox = document.getElementById('cw-text-code');
+  const letterBox = document.getElementById('cw-text-letter');
+  const words = data.groups;
+  const flat = [];
+  words.forEach((w, wi) => w.forEach(sym => flat.push({sym: sym, word: wi})));
+  let shown = -1, lastWord = -1;
+
+  const follow = () => {
+    if (!textSending || !player.ctx) return;
+    const now = player.ctx.currentTime;
+    let at = -1;
+    for (let i = 0; i < sched.length; i++) if (now >= sched[i].at) at = i;
+    if (at >= 0 && at !== shown) {
+      shown = at;
+      const item = flat[at];
+      codeBox.innerHTML = codeHTML(item.sym.code);
+      letterBox.textContent = item.sym.char;
+      letterBox.classList.add('show');
+      if (item.word !== lastWord && lastWord >= 0) line.textContent += ' ';
+      lastWord = item.word;
+      line.textContent += item.sym.char;
+    }
+    if (at >= 0) {
+      const spans = codeBox.querySelectorAll('i');
+      const sym = flat[at].sym;
+      let t = sched[at].at;
+      [...sym.code].forEach((el, i) => {
+        const dur = (el === '-' ? data.timing.dah : data.timing.dit) / 1000;
+        if (spans[i]) spans[i].classList.toggle('lit', now >= t && now < t + dur);
+        t += dur + data.timing.symbol_gap / 1000;
+      });
+    }
+    requestAnimationFrame(follow);
+  };
+  requestAnimationFrame(follow);
+}
+
+const textSendBtn = document.getElementById('cw-text-send');
+if (textSendBtn) {
+  textSendBtn.addEventListener('click', sendTypedText);
+  document.getElementById('cw-text-stop').addEventListener('click', () => {
+    textSending = false;
+    player.stop();
+    document.getElementById('cw-text-send').hidden = false;
+    document.getElementById('cw-text-stop').hidden = true;
+    document.getElementById('cw-text-status').textContent = 'stopped';
+  });
+  /* Ctrl+Enter sends, because the box is a textarea and Enter is a newline. */
+  document.getElementById('cw-text-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      sendTypedText();
+    }
+  });
+}
 
 /* ------------------------------------------------------- decoding tables */
 const CODE = {
@@ -415,11 +701,37 @@ function timingReport(stats, targetDit) {
 }
 
 /* -------------------------------------------------------- hand key input */
+/* Two instruments, not one. A straight key is a switch and every bit of the
+   timing is yours - which is what the chart below measures. A paddle is not:
+   you ask for dits and dahs and the keyer makes them, perfectly, and what you
+   are practising is which lever to hold and when to let go. Both belong here,
+   because most people learning to send now learn on a paddle. */
+
 const keyDecoder = new MorseDecoder(1200 / settings.wpm);
-let keyDown = false, keyDownAt = 0, lastUpAt = 0;
+let keyerMode = 'straight';                 // 'straight' | 'A' | 'B'
+let swapPaddles = false;
+
+const KEY_BLURB = {
+  straight:
+    'Hold the space bar, or the key below, as a straight key. ELMER decodes ' +
+    'what you actually sent and measures your timing \u2014 you cannot hear ' +
+    'your own swing, but the chart can show it to you.',
+  A:
+    'Left and right arrow keys, or the levers below, are the two paddles. ' +
+    'Hold one for a run of dits or dahs; squeeze both and it alternates. ' +
+    'Curtis A: when you let go, the element in progress finishes and it stops.',
+  B:
+    'Left and right arrow keys, or the levers below, are the two paddles. ' +
+    'Curtis B: releasing both during an element still owes you the opposite ' +
+    'one, so a squeezed dit-dah comes out complete even if you let go early. ' +
+    'If that sounds like an extra element you did not ask for, you want A.',
+};
+
+/* ------------------------------------------------------------ straight key */
+let keyDown = false, keyDownAt = 0, lastUpAt = 0, keyIdle = null;
 
 function keyStart() {
-  if (keyDown) return;
+  if (keyDown || keyerMode !== 'straight') return;
   keyDown = true;
   const now = performance.now();
   if (lastUpAt) keyDecoder.space(now - lastUpAt);
@@ -440,39 +752,216 @@ function keyEnd() {
   clearTimeout(keyIdle);
   keyIdle = setTimeout(() => { keyDecoder.flush(); renderKey(); }, 1400);
 }
-let keyIdle = null;
+
+/* ------------------------------------------------------------ iambic keyer */
+/* The keyer owns the clock. Elements are laid on the audio timeline so they
+   are exact, and the decoder is told the same figures rather than a
+   measurement of them - there is nothing to measure, which is the point of a
+   keyer and worth saying plainly under the chart. */
+
+class IambicKeyer {
+  constructor(decoder) {
+    this.decoder = decoder;
+    this.ditDown = this.dahDown = false;
+    this.ditMem = this.dahMem = false;
+    this.squeezed = false;
+    this.last = null;
+    this.running = false;
+    this.prevEnd = null;
+    this.nextAt = 0;
+    this.timer = null;
+  }
+
+  get ditMs() { return 1200 / settings.wpm; }
+
+  press(which) {
+    if (this[which + 'Down']) return;
+    this[which + 'Down'] = true;
+    if (this.running) {
+      this[which + 'Mem'] = true;
+      if (this.ditDown && this.dahDown) this.squeezed = true;
+    }
+    this.paint();
+    if (!this.running) this.start();
+  }
+
+  release(which) {
+    this[which + 'Down'] = false;
+    this.paint();
+  }
+
+  /* What to send next, from the paddles, the memory, and - in mode B - the
+     squeeze that was on when this element began. */
+  decide() {
+    const dit = this.ditDown || this.ditMem;
+    const dah = this.dahDown || this.dahMem;
+    if (dit && dah) return this.last === 'dit' ? 'dah' : 'dit';
+    if (dit) return 'dit';
+    if (dah) return 'dah';
+    if (keyerMode === 'B' && this.squeezed) {
+      this.squeezed = false;
+      return this.last === 'dit' ? 'dah' : 'dit';
+    }
+    return null;
+  }
+
+  start() {
+    player.ensure();
+    this.running = true;
+    this.nextAt = player.ctx.currentTime + 0.012;
+    this.step();
+  }
+
+  step() {
+    const element = this.decide();
+    if (!element) {
+      this.running = false;
+      this.squeezed = false;
+      clearTimeout(keyIdle);
+      keyIdle = setTimeout(() => { this.decoder.flush(); renderKey(); }, 1400);
+      this.paint();
+      renderKey();
+      return;
+    }
+    const dit = this.ditMs;
+    const ms = element === 'dit' ? dit : dit * 3;
+    const ctx = player.ctx;
+    const at = Math.max(ctx.currentTime + 0.008, this.nextAt);
+
+    player.mark(at, ms / 1000);
+    if (this.prevEnd !== null) {
+      const gap = (at - this.prevEnd) * 1000;
+      if (gap > 1) this.decoder.space(gap);
+    }
+    this.decoder.mark(ms);
+    this.prevEnd = at + ms / 1000;
+
+    this[element + 'Mem'] = false;
+    this.last = element;
+    this.squeezed = this.ditDown && this.dahDown;
+    this.nextAt = at + (ms + dit) / 1000;
+
+    clearTimeout(keyIdle);
+    renderKey();
+    this.timer = setTimeout(() => this.step(),
+      Math.max(0, (this.nextAt - ctx.currentTime) * 1000 - 4));
+  }
+
+  stop() {
+    clearTimeout(this.timer);
+    this.running = false;
+    this.ditDown = this.dahDown = this.ditMem = this.dahMem = false;
+    this.squeezed = false;
+    this.prevEnd = null;
+    player.silence();
+    this.paint();
+  }
+
+  paint() {
+    const d = document.getElementById('cw-lever-dit');
+    const h = document.getElementById('cw-lever-dah');
+    if (d) d.classList.toggle('down', this.ditDown);
+    if (h) h.classList.toggle('down', this.dahDown);
+  }
+}
+
+const keyer = new IambicKeyer(keyDecoder);
+
+/* Which physical lever is which. Reversing them is a real preference and a
+   real setting on every keyer, so it is one here. */
+function ditSide() { return swapPaddles ? 'dah' : 'dit'; }
+function dahSide() { return swapPaddles ? 'dit' : 'dah'; }
 
 function renderKey() {
   document.getElementById('cw-key-raw').textContent =
-    keyDecoder.symbols.join('') || '·';
+    keyDecoder.symbols.join('') || '\u00b7';
   document.getElementById('cw-key-decoded').textContent =
-    keyDecoder.text || '—';
-  document.getElementById('cw-key-timing').innerHTML =
-    timingReport(keyDecoder.stats(), 1200 / settings.wpm);
+    keyDecoder.text || '\u2014';
+  const box = document.getElementById('cw-key-timing');
+  if (keyerMode === 'straight') {
+    box.innerHTML = timingReport(keyDecoder.stats(), 1200 / settings.wpm);
+  } else {
+    /* Showing a timing chart here would be theatre: it grades the keyer, and
+       the keyer is a machine set to the speed above. It will always be
+       perfect, which tells you nothing about your sending. */
+    box.innerHTML = '<div class="small muted">The keyer is making the ' +
+      'elements, so the timing below is its own and always perfect \u2014 ' +
+      'there is nothing of your fist in it to measure. What a paddle asks of ' +
+      'you is which lever, and when to let go: watch the decoded line above ' +
+      'and see whether you got the character you meant. Switch to the ' +
+      'straight key to have your timing measured.</div>';
+  }
 }
 
+function setKeyerMode(mode) {
+  keyerMode = mode;
+  keyer.stop();
+  keyEnd();
+  document.querySelectorAll('#cw-keyer-modes button').forEach(b => {
+    b.classList.toggle('primary', b.dataset.keyer === mode);
+    b.classList.toggle('ghost', b.dataset.keyer !== mode);
+  });
+  const straight = mode === 'straight';
+  document.getElementById('cw-paddle').hidden = !straight;
+  document.getElementById('cw-levers').hidden = straight;
+  document.getElementById('cw-swap-wrap').hidden = straight;
+  document.getElementById('cw-key-blurb').textContent = KEY_BLURB[mode];
+  renderKey();
+}
+
+/* --------------------------------------------------------------- bindings */
 const paddle = document.getElementById('cw-paddle');
 if (paddle) {
   paddle.addEventListener('mousedown', e => { e.preventDefault(); keyStart(); });
   paddle.addEventListener('touchstart', e => { e.preventDefault(); keyStart(); });
   ['mouseup', 'mouseleave', 'touchend'].forEach(ev =>
     paddle.addEventListener(ev, e => { e.preventDefault(); keyEnd(); }));
-  document.getElementById('cw-key-clear').addEventListener('click', () => {
-    keyDecoder.reset(1200 / settings.wpm); lastUpAt = 0; renderKey();
+
+  [['cw-lever-dit', ditSide], ['cw-lever-dah', dahSide]].forEach(([id, side]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('mousedown', e => { e.preventDefault(); keyer.press(side()); });
+    el.addEventListener('touchstart', e => { e.preventDefault(); keyer.press(side()); });
+    ['mouseup', 'mouseleave', 'touchend'].forEach(ev =>
+      el.addEventListener(ev, e => { e.preventDefault(); keyer.release(side()); }));
   });
+
+  document.getElementById('cw-key-clear').addEventListener('click', () => {
+    keyDecoder.reset(1200 / settings.wpm);
+    lastUpAt = 0; keyer.prevEnd = null;
+    renderKey();
+  });
+  document.getElementById('cw-swap').addEventListener('change', e => {
+    swapPaddles = e.target.checked;
+    document.getElementById('cw-kbd-dit').innerHTML = swapPaddles ? '\u2192' : '\u2190';
+    document.getElementById('cw-kbd-dah').innerHTML = swapPaddles ? '\u2190' : '\u2192';
+  });
+  document.querySelectorAll('#cw-keyer-modes button').forEach(b =>
+    b.addEventListener('click', () => setKeyerMode(b.dataset.keyer)));
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' || isTyping(e)) return;
-  if (document.getElementById('cw-key').hidden) return;
-  e.preventDefault();
-  keyStart();
+  if (isTyping(e) || document.getElementById('cw-key').hidden || e.repeat) return;
+  if (keyerMode === 'straight') {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    keyStart();
+    return;
+  }
+  if (e.code === 'ArrowLeft') { e.preventDefault(); keyer.press(ditSide()); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); keyer.press(dahSide()); }
 });
+
 document.addEventListener('keyup', e => {
-  if (e.code !== 'Space' || isTyping(e)) return;
-  if (document.getElementById('cw-key').hidden) return;
-  e.preventDefault();
-  keyEnd();
+  if (isTyping(e) || document.getElementById('cw-key').hidden) return;
+  if (keyerMode === 'straight') {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    keyEnd();
+    return;
+  }
+  if (e.code === 'ArrowLeft') { e.preventDefault(); keyer.release(ditSide()); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); keyer.release(dahSide()); }
 });
 
 /* --------------------------------------------------------- off-air decode */
@@ -577,6 +1066,7 @@ if (micBtn) {
 }
 
 /* ------------------------------------------------------------------ start */
+paintCodes();
 renderLesson();
-renderKey();
+setKeyerMode('straight');
 showMode((location.hash || '#learn').replace('#', '') || 'learn');

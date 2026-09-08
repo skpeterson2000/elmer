@@ -867,7 +867,7 @@ def cw_page():
     return render_template(
         "cw.html", kinds=cw.KINDS, koch_order=cw.KOCH_ORDER,
         cw_settings=settings, progress=db.cw_progress(connection),
-        meanings=cw.MEANINGS, **profile_block(connection))
+        meanings=cw.MEANINGS, chart=cw.chart(), **profile_block(connection))
 
 
 @app.route("/api/cw/practice")
@@ -885,22 +885,36 @@ def api_cw_practice():
     text = cw.practice(kind, count, lesson, seed=None, callsign=call)[0]
     return jsonify({
         "kind": kind, "text": text, "groups": cw.encode(text),
+        # What is sent is written <AR>; what a student writes down is AR.
+        "plain": cw.plain(text),
         "timing": cw.timing(wpm, effective),
         "lesson_chars": cw.koch_set(lesson) if kind == "koch" else None,
-        "meanings": {w: cw.MEANINGS[w] for w in set(text.split())
+        "meanings": {w: cw.MEANINGS[w] for w in set(cw.plain(text).split())
                      if w in cw.MEANINGS},
     })
 
 
 @app.route("/api/cw/encode")
 def api_cw_encode():
-    text = request.args.get("text", "")
+    """Any text as sendable code - what the type-and-hear box posts to.
+
+    Characters with no Morse equivalent are reported rather than dropped in
+    silence, because somebody who typed a semicolon and heard nothing has been
+    told the tool is broken when in fact the code has no semicolon.
+    """
+    text = request.args.get("text", "")[:2000]
     try:
         wpm = max(3.0, min(60.0, float(request.args.get("wpm", 20))))
         effective = max(3.0, min(wpm, float(request.args.get("effective", wpm))))
     except ValueError:
         abort(400, "check the numbers")
-    return jsonify({"text": text.upper(), "groups": cw.encode(text),
+    groups = cw.encode(text)
+    sendable = set(cw.MORSE) | {"<", ">"}
+    skipped = sorted({c for c in text.upper()
+                      if not c.isspace() and c not in sendable})
+    return jsonify({"text": text.upper(), "plain": cw.plain(text),
+                    "groups": groups, "skipped": skipped,
+                    "characters": sum(len(w) for w in groups),
                     "timing": cw.timing(wpm, effective)})
 
 

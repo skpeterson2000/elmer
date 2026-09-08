@@ -11,7 +11,9 @@
   </div>
   <div class="row" id="cw-modes">
     <button class="btn sm primary" data-mode="learn">Learn</button>
+    <button class="btn sm ghost" data-mode="chart">Chart</button>
     <button class="btn sm ghost" data-mode="copy">Copy practice</button>
+    <button class="btn sm ghost" data-mode="text">Send text</button>
     <button class="btn sm ghost" data-mode="key">Your sending</button>
     <button class="btn sm ghost" data-mode="decode">Decode off air</button>
   </div>
@@ -65,9 +67,27 @@
     <input type="range" id="cw-lesson" min="2" max="40" step="1" value="2">
   </div>
   <div id="cw-lesson-chars" class="cw-chars"></div>
+
+  <div class="cw-teach" id="cw-teach">
+    <div class="cw-code big" id="cw-teach-code"></div>
+    <div class="cw-teach-letter" id="cw-teach-letter"></div>
+    <div class="cw-teach-hint" id="cw-teach-hint">
+      Press below and each character is drawn as it sounds, then named.
+    </div>
+  </div>
+
   <div class="row mt">
-    <button class="btn sm primary" id="cw-hear">Hear this lesson's characters</button>
+    <button class="btn sm primary" id="cw-hear">Hear this lesson&rsquo;s characters</button>
+    <button class="btn sm" id="cw-teach-stop" hidden>Stop</button>
     <button class="btn sm" id="cw-start-copy">Start copying it</button>
+    <label class="tiny muted row" style="gap:.35rem;margin:0">
+      <input type="checkbox" id="cw-teach-reveal" checked> name it afterwards
+    </label>
+  </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    The shape is drawn while the character sounds and the letter appears two
+    seconds later &mdash; the sound first, the name second, which is the order
+    you want them learnt in. Turn the naming off once you no longer need it.
   </div>
   <div class="panel-title" style="margin-top:1.3rem">Where you stand</div>
   <div id="cw-progress" class="cw-chars"></div>
@@ -75,6 +95,37 @@
     Green is copied reliably, amber is shaky, red needs work, grey is not met yet.
     Hover for the confusions &mdash; which character you actually heard it as.
   </div>
+</div>
+
+<!-- ------------------------------------------------------------- chart -->
+<div class="panel mt cw-pane" id="cw-chart" hidden>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">The whole code</div>
+    <span class="tiny muted">click anything to hear it</span>
+  </div>
+  <p class="small muted">
+    Dits and dahs drawn to length rather than printed as dots and dashes: a dah
+    is three times a dit, and the gap inside a character is one dit, which is
+    what the spacing here shows. Prosigns are run together with no gap inside
+    &mdash; that is the whole difference between the prosign AR and the letters
+    A R, and it is audible.
+  </p>
+  {% for section in chart %}
+    <div class="panel-title" style="margin-top:1rem">{{ section.title }}</div>
+    <div class="tiny muted">{{ section.note }}</div>
+    <div class="cw-chart-grid{% if section.wide %} wide{% endif %}">
+      {% for item in section['items'] %}
+        <button class="cw-chart-cell" data-char="{{ item.char }}"
+                data-code="{{ item.code }}"
+                {% if item.meaning %}title="{{ item.char }} — {{ item.meaning }}"{% endif %}
+                {% if item.prosign %}data-prosign="1"{% endif %}>
+          <b>{{ item.char }}</b>
+          <span class="cw-code" data-code="{{ item.code }}"></span>
+          {% if item.meaning %}<span class="m">{{ item.meaning }}</span>{% endif %}
+        </button>
+      {% endfor %}
+    </div>
+  {% endfor %}
 </div>
 
 <!-- -------------------------------------------------------------- copy -->
@@ -100,17 +151,64 @@
   <div id="cw-result" class="mt"></div>
 </div>
 
+<!-- ---------------------------------------------------------- send text -->
+<div class="panel mt cw-pane" id="cw-text" hidden>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Send text</div>
+    <div class="row">
+      <button class="btn sm primary" id="cw-text-send">Send</button>
+      <button class="btn sm" id="cw-text-stop" hidden>Stop</button>
+    </div>
+  </div>
+  <p class="small muted">
+    Type anything and hear it as code, at the speed set above. Prosigns go in
+    angle brackets &mdash; <span class="mono">&lt;AR&gt;</span>,
+    <span class="mono">&lt;SK&gt;</span>, <span class="mono">&lt;BT&gt;</span>
+    &mdash; and are sent run together, as one sound.
+  </p>
+  <textarea id="cw-text-input" class="cw-input" rows="3" spellcheck="false"
+            placeholder="CQ CQ DE {{ profile.callsign or 'W1AW' }} K"></textarea>
+  <div class="row">
+    <span class="tiny muted" id="cw-text-status"></span>
+  </div>
+  <div class="cw-teach" id="cw-text-teach" style="min-height:7rem">
+    <div class="cw-code big" id="cw-text-code"></div>
+    <div class="cw-teach-letter" id="cw-text-letter" style="font-size:2.4rem"></div>
+  </div>
+  <div id="cw-text-line" class="cw-decoded"></div>
+</div>
+
 <!-- --------------------------------------------------------------- key -->
 <div class="panel mt cw-pane" id="cw-key" hidden>
-  <div class="panel-title">Your sending</div>
-  <p class="small muted">
-    Hold the space bar, or press and hold the paddle below, as a straight key.
-    ELMER decodes what you actually sent and measures your timing &mdash; you
-    cannot hear your own swing, but a chart shows it.
-  </p>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Your sending</div>
+    <div class="cw-keyer-modes" id="cw-keyer-modes">
+      <button class="btn sm primary" data-keyer="straight">Straight key</button>
+      <button class="btn sm ghost" data-keyer="A">Iambic A</button>
+      <button class="btn sm ghost" data-keyer="B">Iambic B</button>
+    </div>
+  </div>
+
+  <p class="small muted" id="cw-key-blurb"></p>
+
   <button class="cw-paddle" id="cw-paddle">hold to key</button>
+
+  <div class="cw-levers" id="cw-levers" hidden>
+    <button class="cw-lever" id="cw-lever-dit">
+      <span class="cw-code" data-code="."></span>
+      <span>dit</span><kbd id="cw-kbd-dit">&larr;</kbd>
+    </button>
+    <button class="cw-lever" id="cw-lever-dah">
+      <span class="cw-code" data-code="-"></span>
+      <span>dah</span><kbd id="cw-kbd-dah">&rarr;</kbd>
+    </button>
+  </div>
+
   <div class="row mt">
     <button class="btn sm" id="cw-key-clear">Clear</button>
+    <label class="tiny muted row" style="gap:.35rem;margin:0" id="cw-swap-wrap" hidden>
+      <input type="checkbox" id="cw-swap"> swap the paddles
+    </label>
     <span class="tiny muted">target speed follows the character speed above</span>
   </div>
   <div class="cw-readout mt"><span id="cw-key-raw" class="mono"></span></div>

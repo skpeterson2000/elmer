@@ -10,6 +10,7 @@ a slowed-down character teaches the wrong sound, and it has to be unlearned
 later; learning the real sound with more thinking time between does not.
 """
 import random
+import re
 
 MORSE = {
     "A": ".-", "B": "-...", "C": "-.-.", "D": "-..", "E": ".", "F": "..-.",
@@ -101,17 +102,58 @@ def timing(wpm, effective_wpm=None):
             "effective_wpm": effective, "farnsworth": True}
 
 
+# A prosign written out: <AR>, <SK>, <BT>. Two or three letters run together
+# with no gap inside them, which is the whole difference between the prosign AR
+# and the letters A R - and it is audible. The brackets are how every logging
+# program and bulletin writes them, so they are what ELMER reads.
+#
+# Bare "AR" is deliberately *not* treated as a prosign: "AS" and "BK" are also
+# ordinary words, and somebody typing a sentence into the sender means the
+# letters. Anything generated here that means the prosign says so in brackets.
+PROSIGN_ANY = re.compile(r"<([A-Z]{2,3})>")
+
+
 def encode(text):
-    """Text to a list of {char, code} , keeping unknown characters out."""
+    """Text to a list of words, each a list of {char, code}.
+
+    Unknown characters are dropped. <AR> and friends become one symbol with no
+    gap inside, which is what makes a prosign a prosign, and they are found
+    wherever they sit rather than only when they are a whole word - "<AR>" at
+    the end of a line usually has something after it.
+    """
     out = []
     for word in str(text).upper().split():
-        symbols = []
-        for char in word:
-            if char in MORSE:
-                symbols.append({"char": char, "code": MORSE[char]})
+        symbols, pos = [], 0
+
+        def letters(run):
+            for char in run:
+                if char in MORSE:
+                    symbols.append({"char": char, "code": MORSE[char]})
+
+        for found in PROSIGN_ANY.finditer(word):
+            letters(word[pos:found.start()])
+            name = found.group(1)
+            if name in PROSIGNS:
+                code, meaning = PROSIGNS[name]
+                symbols.append({"char": name, "code": code,
+                                "meaning": meaning, "prosign": True})
+            else:
+                letters(name)              # <XY> that is not a prosign we know
+            pos = found.end()
+        letters(word[pos:])
         if symbols:
             out.append(symbols)
     return out
+
+
+def plain(text):
+    """The same text as it should be typed back - <AR> reads as AR.
+
+    What is sent and what a student writes down are not spelled the same way,
+    and marking somebody wrong for the angle brackets they cannot hear would be
+    nonsense.
+    """
+    return PROSIGN_ANY.sub(lambda m: m.group(1), str(text).upper())
 
 
 def encode_prosign(name):
@@ -139,11 +181,11 @@ def _callsign(rng, dx=False):
 
 QSO_TEMPLATES = [
     "CQ CQ DE {me} {me} K",
-    "{you} DE {me} GE OM UR RST {rst} {rst} QTH {qth} BT HW? AR",
-    "{you} DE {me} R R TNX FER CALL UR RST {rst} BT NAME {name} ES QTH {qth} K",
-    "{you} DE {me} R FB {name} TNX FER QSO 73 ES GL SK",
+    "{you} DE {me} GE OM UR RST {rst} {rst} QTH {qth} <BT> HW? <AR>",
+    "{you} DE {me} R R TNX FER CALL UR RST {rst} <BT> NAME {name} ES QTH {qth} K",
+    "{you} DE {me} R FB {name} TNX FER QSO 73 ES GL <SK>",
     "{you} DE {me} QRZ? QSB ES QRM HR PSE AGN K",
-    "{you} DE {me} R TU FER RPRT WX HR {wx} BT RIG {watts}W ANT DIPOLE AR",
+    "{you} DE {me} R TU FER RPRT WX HR {wx} <BT> RIG {watts}W ANT DIPOLE <AR>",
 ]
 NAMES = ["JIM", "BOB", "ANN", "SUE", "TOM", "MAX", "LEE", "PAT", "RAY", "JOE"]
 QTHS = ["MN", "OH", "TX", "CA", "NY", "FL", "WA", "ME", "AZ", "CO"]
@@ -180,7 +222,7 @@ def practice(kind, count=5, lesson=10, seed=None, callsign=None):
         return [" ".join(keys)]
     if kind == "prosigns":
         keys = rng.sample(sorted(PROSIGNS), min(count, len(PROSIGNS)))
-        return [" ".join(keys)]
+        return [" ".join(f"<{k}>" for k in keys)]
     if kind == "qso":
         me = callsign or _callsign(rng)
         return [rng.choice(QSO_TEMPLATES).format(
@@ -189,6 +231,37 @@ def practice(kind, count=5, lesson=10, seed=None, callsign=None):
             name=rng.choice(NAMES), qth=rng.choice(QTHS),
             wx=rng.choice(WX), watts=rng.choice([5, 10, 50, 100]))]
     return practice("koch", count, lesson, seed, callsign)
+
+
+PUNCTUATION = ".,?/=+-:()\"'@!"
+
+
+def chart():
+    """The whole code, grouped the way a wall chart groups it.
+
+    Each entry carries the character and its code; the page draws the dits and
+    dahs rather than printing dots and dashes, because the shape is the thing
+    being learnt and a full stop and a hyphen are a poor way to show a sound.
+    """
+    def rows(chars):
+        return [{"char": c, "code": MORSE[c], "meaning": MEANINGS.get(c, "")}
+                for c in chars if c in MORSE]
+
+    return [
+        {"title": "Letters", "note": "in Koch order - hardest and most "
+         "distinctive first, which is the order the lessons add them",
+         "items": rows([c for c in KOCH_ORDER if c.isalpha()])},
+        {"title": "Numbers", "note": "five elements each, dits filling in from "
+         "the left as the digit rises", "items": rows("1234567890")},
+        {"title": "Punctuation", "note": "the ones that actually get sent",
+         "items": rows(PUNCTUATION)},
+        {"title": "Prosigns", "wide": True,
+         "note": "run together with no gap inside - that "
+         "is what makes them one sound rather than two letters",
+         "items": [{"char": name, "code": code, "meaning": meaning,
+                    "prosign": True}
+                   for name, (code, meaning) in sorted(PROSIGNS.items())]},
+    ]
 
 
 MEANINGS = {}
