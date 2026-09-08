@@ -268,6 +268,7 @@ function showMode(name) {
   teachHalt();
   if (name !== 'copy') player.stop();
   history.replaceState(null, '', '#' + name);
+  remember('cw.mode', name);
 }
 document.querySelectorAll('#cw-modes button').forEach(b =>
   b.addEventListener('click', () => showMode(b.dataset.mode)));
@@ -1151,4 +1152,8 @@ if (micBtn) {
 paintCodes();
 renderLesson();
 setKeyerMode(settings.keyer || 'straight', false);
-showMode((location.hash || '#learn').replace('#', '') || 'learn');
+/* The fragment if a link supplied one, else wherever you were - somebody
+   halfway through a Koch lesson who glances at the band plan should come back
+   to the lesson, not to the top of the page. */
+showMode((location.hash || '').replace('#', '')
+         || recall('cw.mode', 'learn'));

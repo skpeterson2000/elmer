@@ -237,6 +237,34 @@ document.addEventListener('keydown', e => {
 /* True when the user is typing into a field, so page-level keyboard shortcuts
    stay out of the way. Without this, a space typed into the note box triggers
    "next question" instead of a space. */
+/* ------------------------------------------------------- remembering where
+   you were.
+
+   Leaving a page to check something and coming back should not cost you your
+   place. It is a small thing until you count it: open the band plan, find your
+   band, go to the Lab for one number, come back, and the band plan has
+   forgotten you and is showing 160 m again - so you re-select the band, then
+   have to remember what you came back for.
+
+   Per browser rather than per account, because it is a convenience about this
+   screen rather than anything worth carrying between machines. Storage can be
+   absent or refused, so every read and write is allowed to fail quietly and
+   the caller gets whatever it would have used anyway. */
+
+function remember(key, value) {
+  try { localStorage.setItem('elmer.' + key, JSON.stringify(value)); }
+  catch (e) { /* private window, or storage refused: not worth a word */ }
+}
+
+function recall(key, fallback) {
+  try {
+    const raw = localStorage.getItem('elmer.' + key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+
 function isTyping(event) {
   const el = event.target;
   if (!el) return false;
