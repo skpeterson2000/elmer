@@ -504,6 +504,12 @@ function conditionBar(band) {
                 'critical frequency and reaches them.'
               : 'Nothing on HF is under tonight\'s critical frequency, so ' +
                 'the close-in answer is ground wave, VHF or a repeater.') +
+            (now.ground_wave && now.ground_wave.miles
+              ? ' Ground wave covers the first <b>' + now.ground_wave.miles +
+                ' miles</b> of it on this band &mdash; from a vertical, over ' +
+                escapeHTML(now.ground_wave.ground_label.toLowerCase()) +
+                ', at 100 W. A horizontal antenna has almost none.'
+              : '') +
             '</div>') +
     '<div class="small condmode"><b>' + escapeHTML(now.modes) + '</b></div>' +
     '<div class="tiny muted">' + escapeHTML(now.why) + '. ' + from +
