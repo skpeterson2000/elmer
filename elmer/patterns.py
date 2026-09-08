@@ -253,8 +253,125 @@ def hop_ring(kind, height_wl, slope_deg=0.0, day=True):
             "layer_km": layer}
 
 
+# --- near-vertical incidence, against the ionosphere that is actually up there
+#
+# "Good for roughly 300 miles" is the rule of thumb and a fair average. It is
+# also the one number an NVIS operator most needs to stop being an average,
+# because what decides whether NVIS works at all is not the antenna: it is
+# whether the frequency is under the critical frequency. Above it nothing comes
+# back from overhead, a skip zone opens, and the near stations the antenna was
+# put up to work are the exact ones that vanish. A fixed 500 km cannot say that.
+#
+# So where the ionosonde network has given us foF2 and the height of the layer,
+# both get used. The outer edge is where a low wire's pattern gives out, taken
+# as 45 degrees of takeoff - which off a night layer lands near the 500 km this
+# used to assume, so the rule of thumb is what the model reduces to on an
+# ordinary night rather than something it contradicts.
+EARTH_R_KM = 6371.0
+NVIS_EDGE_ANGLE = 45.0        # where a low horizontal wire stops being useful
+TYPICAL_HMF2 = {True: 270.0, False: 330.0}    # day, night - when none measured
+
+
+def _incidence(elev_deg, h_km):
+    """Angle of incidence at the layer, allowing for the curve of the earth."""
+    sin_phi = min(1.0, EARTH_R_KM * math.cos(math.radians(elev_deg))
+                  / (EARTH_R_KM + h_km))
+    return math.degrees(math.asin(sin_phi))
+
+
+def _hop_km(elev_deg, h_km):
+    """Ground distance covered by one hop leaving at this takeoff angle."""
+    psi = 90.0 - elev_deg - _incidence(elev_deg, h_km)
+    return 2.0 * EARTH_R_KM * math.radians(max(0.0, psi))
+
+
+def _max_takeoff(mhz, fof2, h_km):
+    """Steepest ray that still comes back. 90 means even straight up does."""
+    if fof2 >= mhz:
+        return 90.0
+    sin_phi = math.sqrt(max(0.0, 1.0 - (fof2 / mhz) ** 2))
+    c = sin_phi * (EARTH_R_KM + h_km) / EARTH_R_KM
+    return None if c > 1.0 else math.degrees(math.acos(c))
+
+
+def _miles(km):
+    return round(km / 1.609)
+
+
+def nvis_reach(mhz, fof2=None, hmf2=None, day=True):
+    """What near-vertical incidence will actually do on this frequency now."""
+    if not fof2:
+        return {"kind": "regional", "radius_km": 500, "outer_km": 500,
+                "modelled": False,
+                "note": "Near-vertical incidence: the signal goes up and comes "
+                        "back down over the whole area, with no skip zone in "
+                        "the middle. Good for roughly 300 miles, and it needs "
+                        "the frequency to be below the critical frequency - "
+                        "which is why NVIS is an 80 and 40 metre trick by day. "
+                        "No ionosonde reading is in hand, so that is the rule "
+                        "of thumb rather than this evening's figure."}
+    height = float(hmf2 or TYPICAL_HMF2[bool(day)])
+    where = ("a layer measured at %d km" % round(height) if hmf2
+             else "a layer assumed at %d km" % round(height))
+
+    if mhz > fof2:
+        # The failure the rule of thumb cannot warn anybody about.
+        steepest = _max_takeoff(mhz, fof2, height)
+        inner = _hop_km(steepest, height) if steepest is not None else None
+        if inner is None:
+            return {"kind": "regional", "radius_km": 0, "outer_km": 0,
+                    "inner_km": 0, "modelled": True, "works": False,
+                    "fof2": round(fof2, 1), "hmf2": round(height),
+                    "note": "Not working. The critical frequency is %.1f MHz "
+                            "and this is %.3f, so nothing comes back at any "
+                            "angle: the band is shut over this path, not "
+                            "merely steep." % (fof2, mhz)}
+        # The outer edge is still the antenna's own pattern - a wire this low
+        # has no gain at the shallow angles it would take to reach past the
+        # skip, so scaling the ring up with the skip would be drawing reach the
+        # antenna does not have.
+        outer = _hop_km(NVIS_EDGE_ANGLE, height)
+        if inner >= outer:
+            return {"kind": "regional", "radius_km": 0, "outer_km": 0,
+                    "inner_km": round(inner), "modelled": True, "works": False,
+                    "skip_km": round(inner),
+                    "fof2": round(fof2, 1), "hmf2": round(height),
+                    "note": "Nothing, on this band, off this antenna. The "
+                            "critical frequency is %.1f MHz and you are on "
+                            "%.3f, so the steepest ray that comes back already "
+                            "lands %d miles out - past everything a wire at "
+                            "this height can usefully reach. It is not that "
+                            "NVIS is degraded: there is no NVIS here. Off %s."
+                            % (fof2, mhz, _miles(inner), where)}
+        return {"kind": "regional", "radius_km": round(outer),
+                "outer_km": round(outer), "inner_km": round(inner),
+                "modelled": True, "works": False, "skip_km": round(inner),
+                "fof2": round(fof2, 1), "hmf2": round(height),
+                "note": "Near-vertical incidence is not working on this "
+                        "frequency now. The critical frequency is %.1f MHz and "
+                        "you are on %.3f, so nothing comes back from overhead: "
+                        "there is a hole about %d miles across in the middle of "
+                        "the footprint, and the near stations this antenna was "
+                        "put up to work are the ones inside it. Off %s. A lower "
+                        "band gets them back." % (fof2, mhz, _miles(inner), where)}
+
+    radius = _hop_km(NVIS_EDGE_ANGLE, height)
+    headroom = fof2 - mhz
+    return {"kind": "regional", "radius_km": round(radius),
+            "outer_km": round(radius), "modelled": True, "works": True,
+            "fof2": round(fof2, 1), "hmf2": round(height),
+            "headroom_mhz": round(headroom, 1),
+            "note": "Near-vertical incidence, and it is working: the critical "
+                    "frequency is %.1f MHz, so %.3f still comes back from "
+                    "straight overhead with %.1f MHz to spare. Continuous "
+                    "coverage out to about %d miles off %s, with no skip zone "
+                    "in the middle. It holds for as long as the critical "
+                    "frequency stays above the band, which is the thing to "
+                    "watch." % (fof2, mhz, headroom, _miles(radius), where)}
+
+
 def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
-          day=True):
+          day=True, fof2=None, hmf2=None):
     """How far this antenna actually works, and what to compare it against.
 
     The point of asking is that the answer decides who the neighbours are. An
@@ -287,12 +404,7 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
                         f"antenna at this height, and much further to a repeater "
                         f"on a tower or a hill."}
     if nvis or use == "regional":
-        return {"kind": "regional", "radius_km": 500,
-                "note": "Near-vertical incidence: the signal goes up and comes "
-                        "back down over the whole area, with no skip zone in the "
-                        "middle. Good for roughly 300 miles, and it needs the "
-                        "frequency to be below the critical frequency - which is "
-                        "why NVIS is an 80 and 40 metre trick by day."}
+        return nvis_reach(mhz, fof2, hmf2, day)
     # One hop, from this antenna's own takeoff angle. Saying "it depends on
     # the band and the hour" was true and useless: the operator wanted a
     # distance, and the antenna they have already decides most of it.
@@ -420,7 +532,11 @@ def targets(lat, lon, kind, heading, reach_info):
                               spread=True)
         reach_info["places_from"] = source
     else:
-        rows, source = nearby(lat, lon, reach_info["radius_km"])
+        # inner_km matters here too now: when the critical frequency has
+        # fallen through the band an NVIS footprint is a ring, and the towns
+        # inside the hole are precisely the ones that cannot be worked.
+        rows, source = nearby(lat, lon, reach_info["radius_km"],
+                              inner_km=reach_info.get("inner_km") or 0.0)
         reach_info["places_from"] = source
 
     for row in rows:
