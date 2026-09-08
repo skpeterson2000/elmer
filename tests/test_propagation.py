@@ -129,6 +129,99 @@ def main():
     shut = [dict(h, score=0) for h in night]
     check("a band that is never open has no window", P.windows(shut), [])
 
+    print("\n-- the night is not one number --")
+    # The old model's day term was sin(elevation) to a power, which is exactly
+    # zero at every negative angle, so every hour of every night at every
+    # latitude came out identical - and a quarter low. That flatness is what
+    # made the band conditions page and the Lab disagree about foF2.
+    deep = P._fof2(110, -60, 45)
+    dusk = P._fof2(110, -8, 45)
+    check("dusk has more layer left than the middle of the night", dusk > deep, True)
+    check("  and the difference is real, not rounding",
+          dusk - deep > 0.2, True)
+    check("the sun still moves it after it has set",
+          len({round(P._fof2(110, e, 45), 2) for e in (-40, -20, -10)}), 3)
+    check("and noon is well above any of them", P._fof2(110, 60, 45) > dusk, True)
+
+    print("\n-- where you are, not just when --")
+    check("the tropics carry more layer than the poles",
+          P._fof2(110, 30, 10) > P._fof2(110, 30, 65), True)
+    check("  and the two hemispheres are alike",
+          P._fof2(110, 30, 40), P._fof2(110, 30, -40))
+    check("no QTH is treated as mid-latitude",
+          P._fof2(110, 30), P._fof2(110, 30, P.ASSUMED_LATITUDE))
+
+    print("\n-- a reading is carried as an error, not as a level --")
+    # The bug this replaces: a sonde's reading was divided by the model
+    # evaluated at the *operator's* location, so "the model is low" and "the
+    # sonde is in daylight and I am not" arrived as a single number. Corrected
+    # at the station's own sun angle, a station that agrees with the model must
+    # produce a factor of 1.0 however far away it is and whatever its sun is
+    # doing - which is the whole reason the radius can be opened up.
+    when = datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)
+    here = (45.0, -93.0)
+
+    def honest(lat, lon, scale=1.0):
+        """A station reporting exactly what the model expects of it."""
+        elev = P.solar_elevation(lat, lon, when)
+        return {"lat": lat, "lon": lon, "name": f"{lat},{lon}",
+                "fof2": P._fof2(110, elev, lat) * scale, "m3000": 2.9,
+                "age_minutes": 5}
+
+    for lon in (-93.0, -120.0, -70.0):
+        agrees = P.calibration(110, *here, when=when, sondes=[honest(45.0, lon)])
+        check(f"a station at {lon:.0f} that agrees with the model asks for no change",
+              agrees["factor"], 1.0)
+    far = P.calibration(110, *here, when=when, sondes=[honest(25.0, -110.0)])
+    check("  and so does one 2600 km off in a different latitude and sun",
+          far["factor"], 1.0)
+    check("    which the old anchor could not have managed",
+          round(P.muf_anchor(110, *here,
+                             P._fof2(110, P.solar_elevation(25.0, -110.0, when), 25.0) * 2.9,
+                             when), 2) != 1.0, True)
+
+    # And a station that really does disagree is still believed.
+    low = P.calibration(110, *here, when=when, sondes=[honest(45.0, -100.0, 1.4)])
+    check("a station reading 40% high moves the model 40%", low["factor"], 1.4)
+
+    print("\n-- one bad station cannot drag it --")
+    # The autoscaler loses the F2 trace often enough that this matters, and the
+    # broken station is as likely as any other to be the closest one.
+    votes = [honest(45.0, -93.0, 3.0),        # nearest, and wrong
+             honest(45.0, -100.0), honest(45.0, -86.0)]
+    robust = P.calibration(110, *here, when=when, sondes=votes)
+    check("the weighted median ignores the outlier", robust["factor"], 1.0)
+    check("  though it still counted the station", robust["stations"], 3)
+    check("a reading beyond all reason is bounded",
+          P.calibration(110, *here, when=when,
+                        sondes=[honest(45.0, -93.0, 40.0)])["factor"],
+          P.ANCHOR_RANGE[1])
+    check("  and says that is what happened",
+          P.calibration(110, *here, when=when,
+                        sondes=[honest(45.0, -93.0, 40.0)])["source"], "bounded")
+    check("nothing in range is admitted rather than guessed",
+          P.calibration(110, *here, when=when, sondes=[honest(-40.0, 140.0)]), None)
+    check("  and no QTH means no calibration at all",
+          P.calibration(110, None, None, when=when, sondes=[honest(45.0, -93.0)]), None)
+
+    print("\n-- distance costs, but is no longer a cliff --")
+    near_w = 1.0 / (1.0 + (200.0 / P.CALIBRATION_HALF_KM) ** 2)
+    far_w = 1.0 / (1.0 + (4000.0 / P.CALIBRATION_HALF_KM) ** 2)
+    check("a close station outvotes a distant one", near_w > 4 * far_w, True)
+    check("  but the distant one still has a voice", far_w > 0.0, True)
+    check("the old 2000 km cliff is gone", P.CALIBRATION_KM > 2000, True)
+
+    print("\n-- foF2 and MUF are the same number twice --")
+    # They are shown on different pages. They must not be able to drift.
+    muf, fof2 = P.estimate_muf(110, 30, 45, 2.9)
+    check("MUF is foF2 times the secant factor, and nothing else",
+          abs(muf - fof2 * 2.9) < 0.1, True)
+    check("a measured M(3000) is used when there is one",
+          P.estimate_muf(110, 30, 45, 2.5)[0] < P.estimate_muf(110, 30, 45, 3.4)[0],
+          True)
+    check("  and the fallback is the network median, not 3.2",
+          P.M3000_DEFAULT, 2.9)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

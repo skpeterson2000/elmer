@@ -76,8 +76,14 @@
 
 <p class="tiny muted mt">
   Solar and geomagnetic data from N0NBH (hamqsl.com) and NOAA SWPC, cached for
-  15 minutes. The MUF figure is a teaching estimate from flux and solar elevation,
-  not an ionosonde reading &mdash; use it to see how the physics moves, not to plan a schedule.
+  15 minutes; ionosonde readings from the GIRO/Digisonde network via
+  prop.kc2g.com. The MUF and foF2 are a teaching model of flux, sun angle and
+  latitude, scaled to meet whatever sondes are in range &mdash; the level comes
+  from them and the shape from the sun. Where the tiles above say how many
+  stations that was, they are corrected; where they say <i>Est.</i>, nothing
+  was in range and the model is standing on its own. Either way it is a model
+  of the average ionosphere, not of your antenna, your power or the far end:
+  read it to see how the physics moves, not to plan a schedule.
 </p>
 
 {% endblock %}

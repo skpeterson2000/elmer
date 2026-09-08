@@ -17,6 +17,8 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
+from . import ionosonde
+
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 HAMQSL = "https://www.hamqsl.com/solarxml.php"
 SWPC_K = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
@@ -31,7 +33,11 @@ BANDS = [
 ]
 RATING_SCORE = {"Poor": 1, "Fair": 2, "Good": 3, "Band Closed": 0}
 
-_cache = {"at": None, "data": None}
+# Keyed on where as well as when. It always held the sun angle for one QTH;
+# now it holds that QTH's ionosonde calibration too, and handing those to a
+# second location would put back exactly the disagreement this removes.
+# A tenth of a degree is about 11 km - far finer than anything here resolves.
+_cache = {"at": None, "data": None, "where": None}
 
 
 def _fetch(url, timeout=15):
@@ -98,22 +104,79 @@ def solar_elevation(lat, lon, when=None):
     return math.degrees(math.asin(max(-1.0, min(1.0, cos_z))))
 
 
-def estimate_muf(sfi, elevation):
-    """A teaching-grade MUF(3000) estimate from flux and solar elevation.
+# --- what the model says the ionosphere is doing -----------------------------
+#
+#   foF2 = base(flux) x solar(sun angle) x latitude(distance from the tropics)
+#
+# The shape is Chapman-ish; the constants were fitted to the GIRO/Digisonde
+# network - 27 stations spanning 140 degrees of sun angle and 105 of latitude -
+# by least squares on log foF2, then checked leave-one-out so they describe the
+# ionosphere rather than the evening they were taken from:
+#
+#   mean absolute error      1.43 -> 1.11 MHz    (out of sample)
+#   within 25% of measured   11/27 -> 18/27
+#   median bias              0.75x -> 1.00x
+#
+# What this replaces was flat after dark. The old day term was sin(elevation)
+# raised to a power, which is exactly zero at every negative angle, so the
+# whole night collapsed to a single number - the same one for every latitude,
+# every season and every hour after sunset. It was also a quarter low, and that
+# is what put 20m above the MUF at midnight while the wall chart beside it
+# still said Fair.
+#
+# It remains a model of the average ionosphere rather than of yours. What
+# closes that gap is `calibration` below, which measures how wrong it is now.
+
+FOF2_FLUX = (7.50, 0.0427)    # foF2 overhead at the equator: floor, and per SFI
+FOF2_NIGHT = 0.49             # the share of that which survives the night
+FOF2_POWER = 2.57             # how sharply the layer follows the sun by day
+FOF2_LATITUDE = 0.72          # how much of it has gone by the poles
+FOF2_TROPICS = 20.0           # ...counted from here, not from the equator
+ASSUMED_LATITUDE = 45.0       # no QTH: mid-latitudes is the least wrong guess
+
+# foF2 to MUF(3000): the secant of the incidence angle for a 3000 km hop. Every
+# sonde reports its own as M(3000)F2, and it is not the 3.2 this used to
+# assume - across the network on one evening it ran 2.48 to 3.66, median 2.90.
+# When stations are in reach their own figures are used; this is the fallback.
+M3000_DEFAULT = 2.9
+
+
+def _fof2(sfi, elevation, lat=None):
+    """Critical frequency of the F2 layer, unrounded. See the note above."""
+    base = FOF2_FLUX[0] + FOF2_FLUX[1] * max(0.0, sfi - 60.0)
+    # sin(elevation) mapped onto 0-1, so the term goes on varying after sunset
+    # instead of clipping to zero the moment the sun touches the horizon.
+    drive = max(0.0, min(1.0, 0.5 * (1.0 + math.sin(math.radians(elevation)))))
+    solar = FOF2_NIGHT + (1.0 - FOF2_NIGHT) * drive ** FOF2_POWER
+    away = max(0.0, abs(ASSUMED_LATITUDE if lat is None else lat) - FOF2_TROPICS)
+    return base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0)
+
+
+def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0):
+    """foF2 and MUF for one place and one moment, as they will be shown.
+
+    The only place these two numbers are made. Everything that displays either
+    of them comes through here, which is what stops the propagation page, the
+    band plan and the Lab from each arriving at their own answer.
+
+    The MUF is worked out from the *rounded* foF2 rather than the unrounded
+    one, so the pair multiplies out. They appear beside each other, and an
+    operator who checks them with a calculator should find that they agree; a
+    twentieth of a megahertz of precision is a fair price for that, being far
+    inside what the model is right to anyway.
+    """
+    fof2 = round(_fof2(sfi, elevation, lat) * anchor, 1)
+    return round(fof2 * (m3000 or M3000_DEFAULT), 1), fof2
+
+
+def estimate_muf(sfi, elevation, lat=None, m3000=None):
+    """A teaching-grade MUF(3000) and foF2 from flux, sun angle and latitude.
 
     Not a substitute for an ionosonde - it exists so the dashboard can show how
-    critical frequency tracks the sun, which is the point the pools test.
+    critical frequency tracks the sun, which is the point the pools test. Where
+    a sonde is in reach, `calibration` scales this to meet what it measured.
     """
-    fof2 = 2.5 + 0.055 * max(0.0, sfi - 60.0)          # night floor to solar max
-    day_gain = max(0.0, math.sin(math.radians(max(elevation, 0.0)))) ** 0.35
-    fof2 *= 0.55 + 0.75 * day_gain
-    # The F layer thins at night; it does not go away. Without a floor the
-    # model closed 40m at midnight in a quiet sun, which is the one thing
-    # every operator knows to be false - it is the band the night belongs to.
-    # Mid-latitude foF2 sits around 2.5 MHz on a quiet night, which is a MUF
-    # near 8 MHz, and that is what the floor says.
-    fof2 = max(fof2, 2.5)
-    return round(fof2 * 3.2, 1), round(fof2, 1)        # secant factor ~3.2
+    return levels(sfi, elevation, lat, m3000)
 
 
 def _band_rows(ham, is_day, muf):
@@ -142,7 +205,9 @@ def _band_rows(ham, is_day, muf):
 def snapshot(lat=None, lon=None, force=False):
     """Current conditions, cached. Returns a dict the dashboard renders directly."""
     now = datetime.now(timezone.utc)
-    if not force and _cache["at"] and now - _cache["at"] < timedelta(minutes=CACHE_MINUTES):
+    where = (round(lat, 1), round(lon, 1)) if lat is not None else None
+    if (not force and _cache["at"] and _cache["where"] == where
+            and now - _cache["at"] < timedelta(minutes=CACHE_MINUTES)):
         cached = dict(_cache["data"])
         cached["cached"] = True
         return cached
@@ -170,7 +235,19 @@ def snapshot(lat=None, lon=None, force=False):
     else:
         # no QTH set: the machine's own clock is the best guess we have
         is_day = 6 <= datetime.now().hour < 18
-    muf, fof2 = estimate_muf(sfi, elevation if elevation is not None else 20.0)
+    # With no QTH there is no sun angle, and this used to take a daytime one
+    # for the MUF and a night-time one for everything that read it - a noon MUF
+    # scored against midnight absorption, which said 20m was open at 82/100 in
+    # the small hours. One assumed angle now, used for both.
+    assumed = elevation if elevation is not None else (25.0 if is_day else -25.0)
+
+    # What the ionosonde network makes of the model, if it can see where you
+    # are. This is what keeps the three pages agreeing: the propagation page,
+    # the band plan and the lab all read the numbers below, so correcting them
+    # here corrects them everywhere rather than in one view out of three.
+    cal = calibration(sfi, lat, lon)
+    muf, fof2 = levels(sfi, assumed, lat, cal and cal["m3000"],
+                       cal["factor"] if cal else 1.0)
 
     data = {
         "ok": True,
@@ -183,14 +260,19 @@ def snapshot(lat=None, lon=None, force=False):
         "aurora": num("aurora"), "aurora_lat": num("latdegree"),
         "geomag": ham.get("geomagfield", ""), "noise": ham.get("signalnoise", ""),
         "muf": muf, "fof2": fof2,
+        "muf_source": cal["source"] if cal else "modelled",
+        "calibration": cal,
         "elevation": round(elevation, 1) if elevation is not None else None,
+        # The angle actually used, which is the assumed one when there is no
+        # QTH. Anything deriving its own would drift away from these numbers.
+        "elevation_used": round(assumed, 1),
         "is_day": is_day, "located": elevation is not None,
         "bands": _band_rows(ham, is_day, muf),
         "vhf": ham["vhf"],
         "verdict": verdict(sfi, k_index, a_index),
         "cached": False,
     }
-    _cache["at"], _cache["data"] = now, data
+    _cache["at"], _cache["data"], _cache["where"] = now, data, where
     return data
 
 
@@ -303,25 +385,118 @@ def band_score(mhz, muf, elevation, k_index=2.0):
             "muf": round(muf, 1), "ratio": round(ratio, 2)}
 
 
-# How far a measurement is allowed to drag the model. A sonde a few hundred
-# miles away measuring twice what the model expects is telling the truth about
-# the sky; one disagreeing by more than this is measuring a different sky, or
-# is broken, and the curve it would produce is worse than the plain model.
+# --- anchoring the model to what is being measured ---------------------------
+#
+# A sonde a long way off is not measuring your sky. But it is measuring how
+# wrong the model is, and that travels a great deal further than the ionosphere
+# does - provided the reading is turned into an error before it is carried
+# anywhere.
+#
+# So each station is compared against what the model would have said at *that
+# station's* own sun angle and latitude. What is left over is dimensionless:
+# how far out the model is, right now. That is the thing carried to the QTH and
+# applied to the model there.
+#
+# This is what used to be wrong. The old anchor divided a reading taken in
+# Idaho by the model evaluated in Minnesota, so "the model is 40% low" and
+# "Idaho's sun is eleven degrees higher than mine" came out as one number and
+# were applied as though they were the first. That conflation is the reason the
+# radius had to be 2000 km - further out, the sun-angle error swamped the
+# calibration it was buried in - and with around twenty stations reporting
+# worldwide, most operators fell outside it and were given no correction at all.
+#
+# Corrected for sun angle, distance costs much less. So stations vote out to
+# CALIBRATION_KM with a weight that falls away smoothly, rather than being
+# accepted or refused at a line, and the vote is a weighted median so that one
+# station whose autoscaler lost the trace cannot drag the answer.
+
+CALIBRATION_KM = 5000.0        # past this it is honestly a different ionosphere
+CALIBRATION_HALF_KM = 1500.0   # the distance at which a station's vote halves
+
+# How far a measurement is allowed to drag the model. A sonde measuring twice
+# what the model expects is telling the truth about the sky; a factor beyond
+# this is a broken station or a different planet, and the curve it would
+# produce is worse than the plain model.
 ANCHOR_RANGE = (0.5, 2.0)
 
 
-def muf_anchor(sfi, lat, lon, measured, when=None):
-    """How far the model has to be scaled to meet a measured MUF, bounded.
+def _weighted_median(pairs):
+    """The value with half the weight lying either side of it."""
+    if not pairs:
+        return None
+    pairs = sorted(pairs)
+    half = sum(weight for _, weight in pairs) / 2.0
+    seen = 0.0
+    for value, weight in pairs:
+        seen += weight
+        if seen >= half:
+            return value
+    return pairs[-1][0]
 
-    The factor is worked out once and used for every hour, so the level comes
-    from the ionosonde and the shape from the sun - and, more to the point, so
-    the meter that says how good the band is now and the strip that says how
-    the day looks cannot contradict each other.
+
+def calibration(sfi, lat, lon, when=None, sondes=None):
+    """How far out the model is right now, measured where it can be measured.
+
+    Returns None when there is nothing in reach to measure against - which is
+    the honest answer. The model then stands on its own, and says so.
+    """
+    if lat is None:
+        return None
+    if sondes is None:
+        try:
+            sondes = ionosonde.stations()
+        except Exception:                        # network, cache, malformed
+            sondes = None
+    if not sondes:
+        return None
+    when = when or datetime.now(timezone.utc)
+    votes, factors, nearest, closest = [], [], None, None
+    for station in sondes:
+        km = ionosonde.great_circle(lat, lon, station["lat"], station["lon"])
+        if km > CALIBRATION_KM:
+            continue
+        modelled = _fof2(sfi, solar_elevation(station["lat"], station["lon"], when),
+                         station["lat"])
+        if modelled <= 0:
+            continue
+        weight = 1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
+        votes.append((station["fof2"] / modelled, weight))
+        if station.get("m3000"):
+            factors.append((station["m3000"], weight))
+        if nearest is None or km < nearest:
+            nearest, closest = km, station
+    if not votes:
+        return None
+    low, high = ANCHOR_RANGE
+    raw = _weighted_median(votes)
+    factor = max(low, min(high, raw))
+    return {
+        "factor": round(factor, 3),
+        "m3000": round(_weighted_median(factors) or M3000_DEFAULT, 2),
+        "stations": len(votes),
+        "nearest_km": round(nearest),
+        "nearest": closest["name"],
+        "age_minutes": closest["age_minutes"],
+        "measured_fof2": closest["fof2"],
+        "source": ("bounded" if abs(raw - factor) > 1e-9
+                   else "measured" if nearest <= CALIBRATION_HALF_KM
+                   else "regional"),
+    }
+
+
+def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
+    """How far the model has to be scaled to meet one measured MUF, bounded.
+
+    The single-station form of `calibration`, for when a MUF has been handed in
+    directly rather than looked up. The factor is worked out once and used for
+    every hour, so the level comes from the ionosonde and the shape from the
+    sun - and so the meter saying how good the band is now and the strip saying
+    how the day looks cannot contradict each other.
     """
     if not measured or lat is None:
         return 1.0
     when = when or datetime.now(timezone.utc)
-    modelled, _ = estimate_muf(sfi, solar_elevation(lat, lon, when))
+    modelled, _ = estimate_muf(sfi, solar_elevation(lat, lon, when), lat, m3000)
     if not modelled:
         return 1.0
     low, high = ANCHOR_RANGE
@@ -329,7 +504,7 @@ def muf_anchor(sfi, lat, lon, measured, when=None):
 
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
-            muf_now=None, anchor=None):
+            muf_now=None, anchor=None, m3000=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -344,16 +519,15 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
                                                           microsecond=0)
     if anchor is None:
-        anchor = muf_anchor(sfi, lat, lon, muf_now, start)
+        anchor = muf_anchor(sfi, lat, lon, muf_now, start, m3000)
     out = []
     for step in range(hours + 1):
         when = start + timedelta(hours=step)
         elevation = solar_elevation(lat, lon, when)
-        muf, fof2 = estimate_muf(sfi, elevation)
-        muf = round(muf * anchor, 1)
+        muf, fof2 = levels(sfi, elevation, lat, m3000, anchor)
         got = band_score(mhz, muf, elevation, k_index)
         got.update({"at": when.isoformat(), "hour": when.hour,
-                    "elevation": round(elevation, 1), "fof2": round(fof2, 1),
+                    "elevation": round(elevation, 1), "fof2": fof2,
                     "day": elevation > -6})
         out.append(got)
     return out
@@ -395,12 +569,16 @@ INDICATORS = [
     ("sunspots", "Sunspot Number",
      "Count of visible spots. It tracks the 11-year cycle that drives long-term "
      "HF conditions.", "Tracks the solar cycle rather than today's opening."),
-    ("muf", "Estimated MUF",
+    ("muf", "MUF",
      "Maximum usable frequency for a long single-hop path. Above it, signals "
-     "penetrate the F layer instead of refracting back to earth.",
+     "penetrate the F layer instead of refracting back to earth. Modelled from "
+     "flux, sun angle and latitude, then scaled to meet the ionosondes in "
+     "range - so the level is measured even though the shape is modelled.",
      "Work below the MUF; the best band is usually just under it."),
-    ("fof2", "Estimated foF2",
+    ("fof2", "foF2",
      "Critical frequency of the F2 layer - the highest frequency reflected "
-     "straight up. MUF is roughly foF2 times the secant of the incidence angle.",
+     "straight up. MUF is foF2 times M(3000)F2, the secant of the incidence "
+     "angle for a 3000 km hop, which each sonde measures for itself and which "
+     "runs about 2.5 to 3.7.",
      "The vertical-incidence limit that sets the MUF."),
 ]

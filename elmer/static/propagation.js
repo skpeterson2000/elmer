@@ -17,6 +17,9 @@ function ratingPill(rating, score) {
 
 function kClass(k) { return k >= 5 ? 'bad' : k >= 4 ? 'warn' : 'good'; }
 
+/* Kept in step with propagation.CALIBRATION_KM, for the "nothing in range" line. */
+const PROP_CAL_KM = 5000;
+
 async function load(force) {
   let d;
   try {
@@ -42,13 +45,28 @@ async function load(force) {
     '</span></div>' +
     '<p style="margin:.6rem 0 0">' + escapeHTML(d.verdict) + '</p>';
 
+  /* Where the MUF and foF2 came from. These two are the only numbers on the
+     page that are not simply read off a feed, and until they said so the same
+     foF2 appeared here as 2.9 and in the Lab as 5.8 with nothing to explain
+     which was which. The Lab quotes one sonde's reading; this is the model
+     that sonde has corrected, at your sun angle rather than at its own, so
+     the two are close but not identical and both are now labelled. */
+  const cal = d.calibration;
+  const measured = d.muf_source !== 'modelled' && cal;
+  const provenance = !cal
+    ? 'modelled &mdash; no sonde in range'
+    : d.muf_source === 'bounded'
+      ? 'sonde disagrees with the model by more than it is allowed to; held partway'
+      : cal.stations + ' sonde' + (cal.stations === 1 ? '' : 's') +
+        ', nearest ' + cal.nearest_km + ' km';
+
   const stats = [
     ['Solar flux', d.sfi, 'SFI 10.7 cm'],
     ['K index', d.k_index, 'geomagnetic, 0-9'],
     ['A index', d.a_index, 'daily average'],
     ['Sunspots', d.sunspots, 'visible count'],
-    ['Est. MUF', d.muf + ' MHz', 'single 3000 km hop'],
-    ['Est. foF2', d.fof2 + ' MHz', 'vertical critical freq'],
+    [(measured ? 'MUF' : 'Est. MUF'), d.muf + ' MHz', provenance],
+    [(measured ? 'foF2' : 'Est. foF2'), d.fof2 + ' MHz', provenance],
     ['Solar wind', Math.round(d.solar_wind) + ' km/s', 'particle speed'],
     ['X-ray', d.xray || 'n/a', 'flare background'],
   ];
@@ -74,7 +92,15 @@ async function load(force) {
     document.getElementById('p-qth').innerHTML =
       'Sun is <b>' + d.elevation + '&deg;</b> ' + (d.elevation >= 0 ? 'above' : 'below') +
       ' your horizon, so ELMER is using the <b>' + (d.is_day ? 'daytime' : 'night-time') +
-      '</b> band ratings and a MUF of <b>' + d.muf + ' MHz</b>.' +
+      '</b> band ratings and a MUF of <b>' + d.muf + ' MHz</b>' +
+      (cal ? ', which is the model corrected to meet <b>' + cal.stations + '</b> ionosonde' +
+             (cal.stations === 1 ? '' : 's') + ' &mdash; nearest <b>' +
+             escapeHTML(cal.nearest) + '</b>, ' + cal.nearest_km + ' km away, reading foF2 ' +
+             cal.measured_fof2 + ' MHz ' + cal.age_minutes + ' min ago. ' +
+             'Each reading is compared with what the model says at <i>that station\'s</i> ' +
+             'sun angle, so the correction travels without carrying the station\'s daylight with it.'
+          : '. No ionosonde within ' + Math.round(PROP_CAL_KM) + ' km, so that figure is ' +
+            'the plain model.') +
       (Math.abs(d.elevation) < 8 ? ' You are near the grey line — watch the low bands.' : '');
   }
 

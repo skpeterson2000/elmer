@@ -1303,12 +1303,6 @@ def api_propagation():
     return jsonify(snap)
 
 
-# How far away an ionosonde can be and still be measuring the ionosphere you
-# are transmitting through. Beyond this it is a different sky, and the model is
-# the more honest answer.
-ANCHOR_KM = 2000
-
-
 @app.route("/api/propagation/outlook")
 def api_propagation_outlook():
     """Band by band: how good it is now, and how the next day looks.
@@ -1330,31 +1324,23 @@ def api_propagation_outlook():
     if not snap.get("ok"):
         return jsonify({"ok": False, "error": snap.get("error", "no space weather")})
 
-    muf, source, station, anchor = snap["muf"], "modelled", None, 1.0
-    if lat is not None:
-        near = ionosonde.nearest(lat, lon, offline=True)
-        if near and near["distance_km"] <= ANCHOR_KM:
-            # A measurement beats a model about the level, even when the model
-            # is the only thing that can say anything about tomorrow. The same
-            # scaling goes into every hour of the outlook, so the meter and the
-            # strip below it can never contradict each other.
-            measured = round(near.get("mufd") or near["fof2"] * 3.2, 1)
-            anchor = propagation.muf_anchor(snap["sfi"], lat, lon, measured)
-            muf = round(snap["muf"] * anchor, 1)
-            source = "measured" if abs(muf - measured) < 0.6 else "bounded"
-            station = {"name": near["name"], "km": near["distance_km"],
-                       "age_minutes": near["age_minutes"],
-                       "measured": measured}
-        elif near:
-            station = {"name": near["name"], "km": near["distance_km"],
-                       "age_minutes": near["age_minutes"], "too_far": True}
+    # The snapshot has already been anchored to the ionosonde network, so there
+    # is nothing to redo here. It used to be redone - a second anchor with a
+    # second radius and a different secant factor - and those two answers are
+    # what had the band plan and the propagation page quoting different MUFs
+    # for the same sky at the same moment.
+    cal = snap.get("calibration")
+    muf = snap["muf"]
+    anchor = cal["factor"] if cal else 1.0
+    m3000 = cal["m3000"] if cal else propagation.M3000_DEFAULT
+    station = {"name": cal["nearest"], "km": cal["nearest_km"],
+               "age_minutes": cal["age_minutes"],
+               "measured": cal["measured_fof2"],
+               "stations": cal["stations"]} if cal else None
 
-    # With no QTH there is no sun angle, so the snapshot's day-or-night guess
-    # from the clock is all there is - enough for a rating now, not enough for
-    # an hour-by-hour outlook, and the page says so rather than inventing one.
-    elevation = snap.get("elevation")
-    if elevation is None:
-        elevation = 25.0 if snap.get("is_day") else -25.0
+    # With no QTH there is no sun angle, so the snapshot's assumed one is used
+    # - the same one it computed its own MUF from, so the two cannot drift.
+    elevation = snap["elevation_used"]
     k_index = snap.get("k_index") or 0
     rated = {row["band"]: row for row in snap.get("bands", [])}
 
@@ -1364,7 +1350,7 @@ def api_propagation_outlook():
         hours, when = [], []
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
-                                       anchor=anchor)
+                                       anchor=anchor, m3000=m3000)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "day": row["day"]} for row in when]
         bands.append({"band": name, "mhz": mhz, "now": now,
@@ -1373,7 +1359,8 @@ def api_propagation_outlook():
                       "hours": hours,
                       "windows": propagation.windows(when) if when else []})
     return jsonify({"ok": True, "located": lat is not None,
-                    "muf": muf, "muf_source": source, "station": station,
+                    "muf": muf, "muf_source": snap["muf_source"],
+                    "fof2": snap["fof2"], "station": station,
                     "sfi": snap["sfi"], "k_index": k_index,
                     "a_index": snap.get("a_index"),
                     "is_day": snap.get("is_day"),

@@ -420,12 +420,21 @@ function conditionBar(band) {
   /* Where the MUF came from, in the words that are true of it. A reading a
      long way from the model is not thrown away and not swallowed either: it
      is pulled as far as it is allowed to go, and the line says so. */
+  /* Four ways the MUF can have been arrived at, and they are not the same
+     claim. Every sonde is compared against the model at its own sun angle, so
+     a distant one can still correct the level here without dragging its own
+     daylight along with it - but "corrected by stations a long way off" is a
+     weaker thing to say than "measured next door", and the line says which. */
+  const votes = st ? st.stations + ' sonde' + (st.stations === 1 ? '' : 's') : '';
   const from = bpProp.muf_source === 'measured'
-    ? 'MUF measured at ' + where
-    : bpProp.muf_source === 'bounded'
-      ? 'MUF from the sonde at ' + where + ' (' + st.measured + ' MHz), held ' +
-        'partway back to the model, which disagrees with it'
-      : 'MUF estimated from SFI ' + bpProp.sfi;
+    ? 'MUF from ' + votes + ', nearest ' + where
+    : bpProp.muf_source === 'regional'
+      ? 'MUF corrected by ' + votes + ', the nearest ' + where + ' — far ' +
+        'enough that this is a regional figure rather than a local one'
+      : bpProp.muf_source === 'bounded'
+        ? 'MUF from ' + votes + ' (nearest ' + where + ', reading foF2 ' +
+          st.measured + ' MHz), held partway back to the model, which disagrees'
+        : 'MUF estimated from SFI ' + bpProp.sfi + ' — no sonde within range';
   return '<div class="condbox">' +
     '<div class="condhead">' +
       '<span class="panel-title" style="margin:0">Conditions on ' +
