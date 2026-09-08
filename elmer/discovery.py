@@ -148,8 +148,17 @@ class Neighbourhood:
             peer = parse(data, sender[0])
             if peer is None:
                 continue
+            # Outside the lock. describe() is the application's callback and
+            # it reaches back in here: it reports this unit's position, and a
+            # unit with no receiver of its own borrows one from the roster -
+            # current(), which takes this same lock. Called from inside the
+            # lock that is a self-deadlock, and a plain Lock cannot survive it.
+            # The listener stops, the announcer piles up behind it, and every
+            # page load blocks for ever. It only bit when the fix cache was
+            # cold and another ELMER was broadcasting, so it showed up as an
+            # occasional hang on startup rather than as anything reproducible.
+            mine = self.describe() if self.describe else {}
             with self.lock:
-                mine = self.describe() if self.describe else {}
                 if peer["unit"] == (mine.get("unit") or ""):
                     continue              # this unit hearing its own broadcast
                 first = peer["unit"] not in self.peers
