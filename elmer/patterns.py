@@ -607,21 +607,31 @@ def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121, q=None):
     form. It is an approximation and stops being one a long way off resonance,
     so the sweep is kept to +/-15% where it still means something.
     """
+    out = []
+    for n in range(points):
+        f = f0_mhz * (1 - span / 2 + span * n / (points - 1))
+        z = feedpoint_z(kind, f, f0_mhz, q)
+        g = abs((z - z0) / (z + z0))
+        swr = (1 + g) / (1 - g) if g < 0.999999 else float("inf")
+        out.append({"mhz": round(f, 4), "swr": round(min(swr, 20.0), 3)})
+    return out
+
+
+def feedpoint_z(kind, mhz, f0_mhz, q=None):
+    """The complex impedance at the feedpoint, at one frequency.
+
+    Pulled out of `swr_curve` because an SWR number is not enough to draw what
+    an instrument shows. A VNA measures a complex reflection: the resistance
+    and the reactance separately, and the sign of the reactance is what tells
+    somebody whether the antenna is long or short. Collapsing that to one
+    magnitude throws away the half of the answer that says which way to cut.
+    """
     spec = ANTENNA_Q.get(kind, ANTENNA_Q["dipole"])
     # `q` overrides the table so the conductor the element is made of can move
     # it: a fatter element is a lower-Q element, and that is the whole reason
     # anybody builds an antenna out of pipe.
     q, r = (spec["q"] if q is None else float(q)), spec["r"]
-    out = []
-    for n in range(points):
-        f = f0_mhz * (1 - span / 2 + span * n / (points - 1))
-        x = r * q * (f / f0_mhz - f0_mhz / f)
-        num = complex(r - z0, x)
-        den = complex(r + z0, x)
-        g = abs(num / den)
-        swr = (1 + g) / (1 - g) if g < 0.999999 else float("inf")
-        out.append({"mhz": round(f, 4), "swr": round(min(swr, 20.0), 3)})
-    return out
+    return complex(r, r * q * (mhz / f0_mhz - f0_mhz / mhz))
 
 
 def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0, q=None):

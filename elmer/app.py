@@ -26,13 +26,13 @@ from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                celestial, explain, game, geocode, groundwave,
                ionosonde, logs,
                propagation, ranks,
-               patterns, places, regional, rfexposure, rfpdf, smith, srs,
+               nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
                discovery, gating, netwatch,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
-               terrain, update)
+               terrain, update, vna)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -705,6 +705,61 @@ def api_smith():
     if not (0.1 <= mhz <= 3000 and 0 <= feet <= 5000 and r >= 0 and watts > 0):
         abort(400)
     return jsonify(smith.analyse(r, x, line, mhz, feet, watts))
+
+
+@app.route("/api/vna/sweep")
+def api_vna_sweep():
+    """What an instrument would show, for an antenna nobody has built yet."""
+    try:
+        f0 = float(request.args.get("f0", "14.2"))
+        centre = float(request.args.get("centre") or f0)
+        span = float(request.args.get("span", "0.14"))
+        feet = float(request.args.get("feet", "0"))
+        points = int(request.args.get("points", vna.DEFAULT_POINTS))
+        q = request.args.get("q")
+        q = float(q) if q else None
+    except ValueError:
+        abort(400)
+    kind = request.args.get("kind", "dipole")
+    line = request.args.get("line", "rg8x")
+    if line not in smith.LINES or not (0.1 <= f0 <= 3000 and 0.1 <= centre <= 3000):
+        abort(400)
+    return jsonify(vna.sweep(kind, f0, line, feet, centre, span, points, q))
+
+
+@app.route("/api/vna/ports")
+def api_vna_ports():
+    """Anything on the USB bus that might be an instrument."""
+    found, error = nanovna.candidates()
+    return jsonify({"ports": found, "error": error})
+
+
+@app.route("/api/vna/identify")
+def api_vna_identify():
+    """Open one port and ask it what it is."""
+    device = request.args.get("device") or ""
+    if not device.startswith("/dev/"):
+        abort(400)
+    info, error = nanovna.identify(device)
+    return jsonify({"ok": info is not None, "info": info, "error": error})
+
+
+@app.route("/api/vna/measure")
+def api_vna_measure():
+    """One real sweep off the instrument. Slow, so it is asked for explicitly."""
+    device = request.args.get("device") or ""
+    if not device.startswith("/dev/"):
+        abort(400)
+    try:
+        start = float(request.args.get("start", "14.0"))
+        stop = float(request.args.get("stop", "14.35"))
+        points = int(request.args.get("points", "101"))
+    except ValueError:
+        abort(400)
+    got, error = nanovna.measure(device, start, stop, points)
+    if error:
+        log.info("vna sweep failed: %s", error)
+    return jsonify({"ok": got is not None, "sweep": got, "error": error})
 
 
 @app.route("/api/antenna-advice")

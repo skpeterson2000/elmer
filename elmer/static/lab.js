@@ -2395,32 +2395,6 @@ function polarPlot(points, opts) {
     '</svg>';
 }
 
-function swrPlot(curve, band) {
-  const W = 300, H = 150, pad = 26;
-  const lo = curve[0].mhz, hi = curve[curve.length - 1].mhz;
-  const xs = f => pad + (f - lo) / (hi - lo) * (W - pad - 8);
-  const ys = s => H - 20 - (Math.min(s, 5) - 1) / 4 * (H - 40);
-  const line = curve.map(p => xs(p.mhz).toFixed(1) + ',' + ys(p.swr).toFixed(1)).join(' ');
-  const two = ys(2);
-  const shade = (band.low && band.high)
-    ? '<rect x="' + xs(band.low).toFixed(1) + '" y="' + ys(5).toFixed(1) +
-      '" width="' + (xs(band.high) - xs(band.low)).toFixed(1) + '" height="' +
-      (ys(1) - ys(5)).toFixed(1) + '" fill="rgba(63,185,80,.13)"/>' : '';
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:300px">' +
-    shade +
-    '<line x1="' + pad + '" y1="' + two + '" x2="' + (W - 8) + '" y2="' + two +
-      '" stroke="#ffb454" stroke-dasharray="4 3"/>' +
-    '<text x="' + (pad + 3) + '" y="' + (two - 4) + '" fill="#ffb454" font-size="9">2:1</text>' +
-    '<polyline points="' + line + '" fill="none" stroke="#58a6ff" stroke-width="2"/>' +
-    '<line x1="' + pad + '" y1="' + (H - 20) + '" x2="' + (W - 8) + '" y2="' + (H - 20) +
-      '" stroke="#8b98a5"/>' +
-    '<text x="' + pad + '" y="' + (H - 7) + '" fill="#626e7b" font-size="9">' +
-      lo.toFixed(1) + '</text>' +
-    '<text x="' + (W - 8) + '" y="' + (H - 7) + '" fill="#626e7b" font-size="9" ' +
-      'text-anchor="end">' + hi.toFixed(1) + ' MHz</text>' +
-    '</svg>';
-}
-
 async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
   const box = document.getElementById('an-pattern');
   if (!box) return;
@@ -2446,11 +2420,18 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
           ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
           : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Perfect ground assumed &mdash; real earth fills the deepest nulls and takes a degree or two off the bottom.') +
         '</p></div>' +
-      '<div><div class="panel-title">SWR across the band</div>' +
-        swrPlot(d.swr, b) +
-        '<p class="tiny muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
+      /* The SWR curve used to be drawn here too, small and static, next to
+         the two patterns. It has moved to the sweep at the foot of this tab,
+         where it is the same quantity with a feedline, a trim slider and a
+         marker readout attached - two charts of one number on one page is one
+         chart too many. What is kept is the sentence, because Q and what the
+         feedpoint is fed through are not on the trace. */
+      '<div><div class="panel-title">How sharp it is</div>' +
+        '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
         '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
-        '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p></div>' +
+        '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p>' +
+        '<p class="tiny muted">The trace for this, with a feedline on it and a ' +
+        'length you can drag, is at the foot of this tab.</p></div>' +
     '</div>' +
     /* Full width, below the three plots: six columns of repeater do not fit in
        a third of a page, and a table you have to scroll sideways to read the
@@ -2749,6 +2730,315 @@ function sxRow(n) {
     '</select></td>' +
     '<td><button class="btn sm ghost sx-now" title="stamp this row with the time now">now</button></td>' +
   '</tr>';
+}
+
+/* ------------------------------------------------------ the VNA trace ---
+   What a NanoVNA puts on its screen, for an antenna that is still a plan.
+
+   The point of drawing it rather than printing an SWR number is that the
+   shape carries the instruction. A dip to the left of where you are means the
+   antenna is long; a dip to the right means it is short; no dip at all means
+   you are not looking in the right place. None of that survives being reduced
+   to "2.4:1", which is what an SWR meter gives you and why an SWR meter
+   cannot tell you which way to cut. */
+
+const VN_W = 640, VN_H = 260, VN_L = 46, VN_R = 14, VN_T = 16, VN_B = 34;
+const VN_TOP_SWR = 5;
+
+function vnSwrY(swr) {                       // 1:1 at the floor, 5:1 at the ceiling
+  const s = Math.max(1, Math.min(VN_TOP_SWR, swr || VN_TOP_SWR));
+  return VN_H - VN_B - (s - 1) / (VN_TOP_SWR - 1) * (VN_H - VN_T - VN_B);
+}
+
+function vnPath(rows, key, lo, hi) {
+  const pts = [];
+  rows.forEach(r => {
+    const v = r[key];
+    if (v === null || v === undefined) return;
+    const x = VN_L + (r.mhz - lo) / (hi - lo) * (VN_W - VN_L - VN_R);
+    pts.push(x.toFixed(1) + ',' + vnSwrY(v).toFixed(1));
+  });
+  return pts.length ? 'M ' + pts.join(' L ') : '';
+}
+
+/* `extra` may carry a measured sweep and a cursor frequency. Everything is
+   optional: the same chart draws a prediction alone, a measurement alone, or
+   the two on top of each other, which is the comparison that teaches. */
+function vnaChart(d, extra) {
+  extra = extra || {};
+  const rows = d.rows || [];
+  if (!rows.length) return '<div class="tiny muted">no sweep</div>';
+  const lo = extra.lo || rows[0].mhz, hi = extra.hi || rows[rows.length - 1].mhz;
+  const X = mhz => VN_L + (mhz - lo) / (hi - lo) * (VN_W - VN_L - VN_R);
+  const g = [];
+
+  g.push('<rect x="' + VN_L + '" y="' + VN_T + '" width="' + (VN_W - VN_L - VN_R) +
+         '" height="' + (VN_H - VN_T - VN_B) + '" fill="#0b1015" stroke="' +
+         SX_LINE + '"/>');
+
+  /* The 2:1 line is drawn heavier than the rest. It is not physics - nothing
+     happens at 2:1 - but it is the number every rig's foldback is set near,
+     so it is the line an operator is actually trying to get under. */
+  [1.5, 2, 3, 5].forEach(s => {
+    const y = vnSwrY(s);
+    g.push('<line x1="' + VN_L + '" y1="' + y.toFixed(1) + '" x2="' + (VN_W - VN_R) +
+           '" y2="' + y.toFixed(1) + '" stroke="' + (s === 2 ? '#4a5663' : '#222c36') +
+           '" stroke-width="' + (s === 2 ? 1.2 : 0.8) + '"' +
+           (s === 2 ? '' : ' stroke-dasharray="3 3"') + '/>');
+    g.push('<text x="' + (VN_L - 6) + '" y="' + (y + 3.5).toFixed(1) + '" fill="' +
+           SX_INK + '" font-size="10" text-anchor="end">' + s + ':1</text>');
+  });
+
+  const band = (d.antenna && d.antenna.band_2to1) || null;
+  if (band && !band.wider_than_sweep) {
+    g.push('<rect x="' + X(band.low_mhz).toFixed(1) + '" y="' + VN_T + '" width="' +
+           Math.max(0, X(band.high_mhz) - X(band.low_mhz)).toFixed(1) + '" height="' +
+           (VN_H - VN_T - VN_B) + '" fill="' + SX_OK + '" opacity=".07"/>');
+  }
+
+  for (let i = 0; i <= 4; i++) {
+    const f = lo + (hi - lo) * i / 4, x = X(f);
+    g.push('<line x1="' + x.toFixed(1) + '" y1="' + (VN_H - VN_B) + '" x2="' +
+           x.toFixed(1) + '" y2="' + (VN_H - VN_B + 4) + '" stroke="' + SX_INK + '"/>');
+    g.push('<text x="' + x.toFixed(1) + '" y="' + (VN_H - VN_B + 16) + '" fill="' +
+           SX_INK + '" font-size="10" text-anchor="middle">' + f.toFixed(3) + '</text>');
+  }
+  g.push('<text x="' + ((VN_L + VN_W - VN_R) / 2) + '" y="' + (VN_H - 4) +
+         '" fill="' + SX_INK + '" font-size="10" text-anchor="middle">MHz</text>');
+
+  if (extra.cursor && extra.cursor >= lo && extra.cursor <= hi) {
+    const x = X(extra.cursor);
+    g.push('<line x1="' + x.toFixed(1) + '" y1="' + VN_T + '" x2="' + x.toFixed(1) +
+           '" y2="' + (VN_H - VN_B) + '" stroke="#e6edf3" stroke-width="1" ' +
+           'stroke-dasharray="4 3" opacity=".55"/>');
+    g.push('<text x="' + (x + 4).toFixed(1) + '" y="' + (VN_T + 12) +
+           '" fill="#e6edf3" font-size="10">where you transmit</text>');
+  }
+
+  if (d.feet) {
+    const p = vnPath(rows, 'swr_in', lo, hi);
+    if (p) g.push('<path d="' + p + '" fill="none" stroke="' + SX_GLASS +
+                  '" stroke-width="1.6" stroke-dasharray="5 3"/>');
+  }
+  const main = vnPath(rows, 'swr', lo, hi);
+  if (main) g.push('<path d="' + main + '" fill="none" stroke="' + SX_SUN +
+                   '" stroke-width="2.2"/>');
+  if (extra.measured && extra.measured.length) {
+    const p = vnPath(extra.measured, 'swr', lo, hi);
+    if (p) g.push('<path d="' + p + '" fill="none" stroke="' + SX_OK +
+                  '" stroke-width="2"/>');
+  }
+
+  const best = d.antenna && d.antenna.best_mhz;
+  if (best !== undefined && best !== null && best >= lo && best <= hi) {
+    g.push('<circle cx="' + X(best).toFixed(1) + '" cy="' +
+           vnSwrY(d.antenna.best_swr).toFixed(1) + '" r="4" fill="' + SX_SUN +
+           '" stroke="#0b1015" stroke-width="1.5"/>');
+  }
+
+  const keys = [['antenna, at the feedpoint', SX_SUN, false]];
+  if (d.feet) keys.push(['at the shack end of ' + d.feet + ' ft', SX_GLASS, true]);
+  if (extra.measured && extra.measured.length) keys.push(['measured', SX_OK, false]);
+  const legend = keys.map((k, i) =>
+    '<span style="white-space:nowrap"><svg width="26" height="8" style="vertical-align:middle">' +
+    '<line x1="1" y1="4" x2="25" y2="4" stroke="' + k[1] + '" stroke-width="2.4"' +
+    (k[2] ? ' stroke-dasharray="5 3"' : '') + '/></svg> ' + k[0] + '</span>').join(
+    '<span class="muted"> &nbsp;&middot;&nbsp; </span>');
+
+  return '<svg viewBox="0 0 ' + VN_W + ' ' + VN_H + '" style="width:100%;max-width:' +
+    VN_W + 'px">' + g.join('') + '</svg>' +
+    '<div class="tiny muted" style="margin-top:.2rem">' + legend + '</div>';
+}
+
+/* The numbers under the trace: what a marker readout would say. */
+function vnaMarkers(d) {
+  const a = d.antenna || {}, sh = d.shack || {};
+  const cell = (label, value, note) =>
+    '<div class="panel stat"><span class="stat-label">' + label + '</span>' +
+    '<span class="stat-value">' + value + '</span>' +
+    '<span class="stat-note">' + (note || '') + '</span></div>';
+  const band = a.band_2to1;
+  return '<div class="grid cols-3 mt">' +
+    cell('Resonance', a.resonance_mhz ? a.resonance_mhz.toFixed(3) + ' MHz' : '—',
+         'where the reactance crosses zero') +
+    cell('Best match', (a.best_swr !== undefined ? a.best_swr.toFixed(2) + ':1' : '—'),
+         a.best_mhz ? 'at ' + a.best_mhz.toFixed(3) + ' MHz' : '') +
+    cell('Under 2:1', band ? band.khz + ' kHz' : 'nowhere',
+         band ? band.low_mhz.toFixed(3) + '–' + band.high_mhz.toFixed(3) +
+           (band.wider_than_sweep ? ' (runs off the sweep)' : '') : 'not in this span') +
+    (d.feet ? cell('At the shack', (sh.best_swr !== undefined ? sh.best_swr.toFixed(2) + ':1' : '—'),
+         d.matched_loss_db + ' dB matched loss in ' + d.feet + ' ft') : '') +
+    '</div>';
+}
+
+/* --- the sweep on the Antennas tab, and the VNA tab ------------------------
+   Both drive the same chart off the same endpoint. The only difference is
+   that one of them can also ask a real instrument, and lay what it says over
+   what the model predicted. */
+
+let vnTimer = null;
+function vnSoon(fn) {                 // a slider fires on every pixel of drag
+  clearTimeout(vnTimer);
+  vnTimer = setTimeout(fn, 110);
+}
+
+async function vnFetch(params) {
+  try { return await api('/api/vna/sweep?' + new URLSearchParams(params)); }
+  catch (e) { return null; }
+}
+
+function vnDraw(chartId, markerId, readId, d, extra) {
+  if (!d) return;
+  document.getElementById(chartId).innerHTML = vnaChart(d, extra);
+  document.getElementById(markerId).innerHTML = vnaMarkers(d);
+  document.getElementById(readId).innerHTML =
+    (d.read || []).map(t => '<p style="margin:.35rem 0">' + t + '</p>').join('');
+}
+
+/* The Antennas tab. The trim slider is a length, not a frequency, because a
+   length is what somebody is actually holding a pair of cutters over - and
+   resonance goes inversely with it, so 5% long is a dip 5% low. */
+async function avUpdate() {
+  const trim = +document.getElementById('av-trim').value;
+  const feet = +document.getElementById('av-feet').value;
+  const f = parseFloat(document.getElementById('an-f').value);
+  if (!isFinite(f) || f <= 0) return;
+  document.getElementById('av-trim-v').textContent =
+    trim.toFixed(2) + '% ' + (Math.abs(trim - 100) < 0.01 ? '(as calculated)'
+      : trim > 100 ? '(long)' : '(short)');
+  document.getElementById('av-feet-v').textContent =
+    feet ? feet + ' ft' : 'measuring at the antenna';
+  const d = await vnFetch({
+    kind: document.getElementById('an-type').value,
+    f0: (f / (trim / 100)).toFixed(6), centre: f, span: 0.14,
+    line: document.getElementById('av-line').value, feet: feet,
+  });
+  vnDraw('av-chart', 'av-markers', 'av-read', d, {cursor: f});
+}
+
+/* The VNA tab. Same chart, plus whatever the instrument on the bench says. */
+let vnMeasured = null;
+
+async function vnUpdate() {
+  const f0 = parseFloat(document.getElementById('vn-f0').value);
+  const centre = parseFloat(document.getElementById('vn-centre').value) || f0;
+  const spanPct = +document.getElementById('vn-span').value;
+  const feet = +document.getElementById('vn-feet').value;
+  if (!isFinite(f0) || f0 <= 0) return;
+  document.getElementById('vn-span-v').textContent = '±' + (spanPct / 2) + '%';
+  document.getElementById('vn-feet-v').textContent =
+    feet ? feet + ' ft' : 'at the antenna';
+  const d = await vnFetch({
+    kind: document.getElementById('vn-kind').value,
+    f0: f0, centre: centre, span: spanPct / 100,
+    line: document.getElementById('vn-line').value, feet: feet,
+  });
+  if (!d) return;
+  vnDraw('vn-chart', 'vn-markers', 'vn-read', d, {
+    cursor: centre,
+    measured: vnMeasured && vnMeasured.rows,
+    lo: d.low_mhz, hi: d.high_mhz,
+  });
+  window.vnLast = d;
+}
+
+function vnPorts(list, error) {
+  const sel = document.getElementById('vn-port');
+  sel.innerHTML = (list || []).map(p =>
+    '<option value="' + p.device + '">' + p.device +
+    (p.description ? ' — ' + p.description : '') + '</option>').join('');
+  const any = (list || []).length > 0;
+  document.getElementById('vn-id').disabled = !any;
+  document.getElementById('vn-measure').disabled = !any;
+  document.getElementById('vn-dev').innerHTML = any
+    ? (list[0].looks_right
+        ? 'Found <b>' + escapeHTML(list[0].why) + '</b> on ' + list[0].device +
+          '. Ask it what it is before sweeping.'
+        : 'Found ' + list.length + ' serial port' + (list.length === 1 ? '' : 's') +
+          ', none of which announces itself as a VNA. ' +
+          escapeHTML(list[0].why) + '.')
+    : '<span style="color:var(--amber)">' + escapeHTML(error || 'nothing found') +
+      '</span> Plug it in, switch it on, and press again. On Linux you may need ' +
+      'to be in the <span class="mono">dialout</span> group.';
+}
+
+if (document.getElementById('vn-chart')) {
+  ['vn-f0', 'vn-centre', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => vnSoon(vnUpdate));
+    el.addEventListener('change', () => vnSoon(vnUpdate));
+  });
+
+  document.getElementById('vn-find').addEventListener('click', async e => {
+    e.target.disabled = true;
+    try {
+      const d = await api('/api/vna/ports');
+      vnPorts(d.ports, d.error);
+    } catch (err) {
+      document.getElementById('vn-dev').textContent = 'could not look for ports';
+    }
+    e.target.disabled = false;
+  });
+
+  document.getElementById('vn-id').addEventListener('click', async e => {
+    const dev = document.getElementById('vn-port').value;
+    e.target.disabled = true;
+    document.getElementById('vn-dev').textContent = 'asking ' + dev + '…';
+    try {
+      const d = await api('/api/vna/identify?device=' + encodeURIComponent(dev));
+      document.getElementById('vn-dev').innerHTML = d.ok
+        ? '<b>' + escapeHTML(dev) + '</b> answers:<pre class="mono tiny" ' +
+          'style="white-space:pre-wrap;margin:.3rem 0">' +
+          escapeHTML((d.info.info || '') + '\n' + (d.info.version || '')).trim() +
+          '</pre>'
+        : '<span style="color:var(--amber)">' + escapeHTML(d.error) + '</span>';
+    } catch (err) {
+      document.getElementById('vn-dev').textContent = 'no answer from ' + dev;
+    }
+    e.target.disabled = false;
+  });
+
+  document.getElementById('vn-measure').addEventListener('click', async e => {
+    const dev = document.getElementById('vn-port').value;
+    const d = window.vnLast;
+    if (!d) return;
+    e.target.disabled = true;
+    document.getElementById('vn-dev').innerHTML =
+      'sweeping ' + d.low_mhz.toFixed(3) + '–' + d.high_mhz.toFixed(3) +
+      ' MHz on ' + escapeHTML(dev) + '… this takes a few seconds.';
+    try {
+      const got = await api('/api/vna/measure?device=' + encodeURIComponent(dev) +
+        '&start=' + d.low_mhz + '&stop=' + d.high_mhz + '&points=101');
+      if (got.ok) {
+        vnMeasured = got.sweep;
+        document.getElementById('vn-dev').innerHTML =
+          '<span style="color:var(--green)">' + got.sweep.points +
+          ' points back from ' + escapeHTML(dev) + '.</span> The green trace is ' +
+          'what it measured. Where it disagrees with the model, believe the ' +
+          'instrument &mdash; but check the calibration below before you believe ' +
+          'either of them.';
+        vnUpdate();
+      } else {
+        document.getElementById('vn-dev').innerHTML =
+          '<span style="color:var(--amber)">' + escapeHTML(got.error) + '</span>';
+      }
+    } catch (err) {
+      document.getElementById('vn-dev').textContent = 'the sweep did not come back';
+    }
+    e.target.disabled = false;
+  });
+
+  vnUpdate();
+}
+
+if (document.getElementById('av-chart')) {
+  ['av-trim', 'av-feet', 'av-line', 'an-f', 'an-type'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => vnSoon(avUpdate));
+    el.addEventListener('change', () => vnSoon(avUpdate));
+  });
+  avUpdate();
 }
 
 /* ------------------------------------------------- drawing the sextant ---
