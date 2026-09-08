@@ -497,6 +497,14 @@ def main():
                   f"this one on another port with --port 5001\n")
             sys.exit(1)
 
+    # Load the server before promising anywhere to reach it. This import is
+    # where a missing dependency shows up, and printing the URLs first turned
+    # that into a banner followed by silence - which reads as a hang, and from
+    # the Terminal=false menu entry as nothing happening at all.
+    import threading
+
+    from elmer.app import app, warm
+
     print("\n  ELMER is starting. Open it at:\n")
     print(f"      http://localhost:{args.port}          (on this machine)")
     for interface, ip in local_addresses():
@@ -543,10 +551,6 @@ def main():
 
     if _policy() != "off" and update.offer_at_startup(ask=asker):
         update.exec_restart()                       # never returns
-
-    import threading
-
-    from elmer.app import app, warm
 
     # What port this unit is actually on. Everything that tells the rest of the
     # network where to find it reads this - the announcement other units dial,
