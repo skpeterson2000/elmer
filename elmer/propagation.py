@@ -138,6 +138,27 @@ ASSUMED_LATITUDE = 45.0       # no QTH: mid-latitudes is the least wrong guess
 # When stations are in reach their own figures are used; this is the fallback.
 M3000_DEFAULT = 2.9
 
+# What the ionosphere has ever actually been observed doing. The model is a
+# fitted curve and the anchor is a multiplier, and neither of them knows that:
+# left alone they will assert a critical frequency the earth has never had.
+# Stacked up - a high flux, an overhead sun, an equatorial latitude, and a
+# sonde correction of two - this could reach 130 MHz, which is not an
+# ionospheric prediction, it is arithmetic that got away.
+#
+# foF2 runs from about 1 MHz on a polar winter night to 15 or 16 at the crests
+# of the equatorial anomaly on a solar-maximum afternoon. It does not go
+# outside that, so neither does this. At 16 MHz and the highest M factor the
+# network reports, the ceiling on MUF(3000) works out near 59 MHz - which
+# correctly still allows the rare 6 m F2 opening rather than legislating it
+# away, and forbids the rest.
+FOF2_OBSERVED = (1.0, 16.0)
+
+
+def _bounded(fof2):
+    """Keep a critical frequency inside what has ever been measured."""
+    low, high = FOF2_OBSERVED
+    return max(low, min(high, fof2))
+
 
 def _fof2(sfi, elevation, lat=None):
     """Critical frequency of the F2 layer, unrounded. See the note above."""
@@ -147,7 +168,7 @@ def _fof2(sfi, elevation, lat=None):
     drive = max(0.0, min(1.0, 0.5 * (1.0 + math.sin(math.radians(elevation)))))
     solar = FOF2_NIGHT + (1.0 - FOF2_NIGHT) * drive ** FOF2_POWER
     away = max(0.0, abs(ASSUMED_LATITUDE if lat is None else lat) - FOF2_TROPICS)
-    return base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0)
+    return _bounded(base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0))
 
 
 def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0):
@@ -163,7 +184,10 @@ def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0):
     twentieth of a megahertz of precision is a fair price for that, being far
     inside what the model is right to anyway.
     """
-    fof2 = round(_fof2(sfi, elevation, lat) * anchor, 1)
+    # Bounded again after the anchor: a measurement can sharpen the model, but
+    # a multiplier applied to it must not carry it somewhere the ionosphere has
+    # never been.
+    fof2 = round(_bounded(_fof2(sfi, elevation, lat) * anchor), 1)
     return round(fof2 * (m3000 or M3000_DEFAULT), 1), fof2
 
 

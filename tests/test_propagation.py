@@ -178,6 +178,25 @@ def main():
           len({round(P._fof2(110, e, 45), 2) for e in (-40, -20, -10)}), 3)
     check("and noon is well above any of them", P._fof2(110, 60, 45) > dusk, True)
 
+    print("\n-- the model cannot assert an ionosphere that has never existed --")
+    # A fitted curve and a multiplier do not know what the earth does. Left
+    # alone they stacked up to a MUF near 130 MHz, which is not a prediction,
+    # it is arithmetic that got away - and it would be quoted back as fact
+    # because it appeared on a screen with a number next to it.
+    check("foF2 is held to what has been observed",
+          P._fof2(400, 90, 0), P.FOF2_OBSERVED[1])
+    check("  even after an ionosonde correction is applied",
+          P.levels(400, 90, 0, 3.66, 2.0)[1], P.FOF2_OBSERVED[1])
+    check("  and it cannot be talked below the floor either",
+          P._fof2(0, -90, 89) >= P.FOF2_OBSERVED[0], True)
+    check("the ceiling is where the equatorial anomaly really tops out",
+          14.0 <= P.FOF2_OBSERVED[1] <= 17.0, True)
+    # It has to stay generous enough for the rare things that do happen.
+    check("a 6m F2 opening is still reachable, because it is real",
+          P.levels(240, 90, 10, 3.6, 1.3)[0] > 50.0, True)
+    check("  while an ordinary evening is untouched",
+          P.levels(110, -20, 46)[0] < 15.0, True)
+
     print("\n-- where you are, not just when --")
     check("the tropics carry more layer than the poles",
           P._fof2(110, 30, 10) > P._fof2(110, 30, 65), True)
