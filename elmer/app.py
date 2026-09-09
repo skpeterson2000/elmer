@@ -25,7 +25,7 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
 from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
                celestial, explain, game, geocode, groundwave,
                ionosonde, logs,
-               propagation, ranks,
+               propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
                discovery, gating, netwatch,
@@ -760,6 +760,20 @@ def api_vna_measure():
     if error:
         log.info("vna sweep failed: %s", error)
     return jsonify({"ok": got is not None, "sweep": got, "error": error})
+
+
+@app.route("/api/waves")
+def api_waves():
+    """A radio frequency put into the sound of the same size."""
+    try:
+        mhz = max(0.03, min(3000.0, float(request.args.get("mhz", 14.2))))
+        obstacle = float(request.args.get("obstacle_m", 8.0))
+    except (TypeError, ValueError):
+        abort(400, "check the numbers")
+    out = waves.describe(mhz, obstacle_m=max(0.05, min(2000.0, obstacle)))
+    out["parallels"] = [{"title": t, "text": x} for t, x in waves.PARALLELS]
+    out["mismatches"] = [{"title": t, "text": x} for t, x in waves.MISMATCHES]
+    return jsonify(out)
 
 
 @app.route("/api/antenna-advice")
