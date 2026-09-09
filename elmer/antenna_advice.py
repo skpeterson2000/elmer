@@ -555,6 +555,146 @@ def nvis_height_ft(mhz, kind):
     return max(12, round(wanted))
 
 
+# --- what you have actually got ---------------------------------------------
+#
+# "Half a wavelength up" is 69 feet on 40m. On a farm that is a mast; in a flat
+# it is a daydream, and printing it at somebody in a flat is not advice, it is
+# a door closing. Worse, it is the wrong answer: a low antenna is not a broken
+# one, it is a different one, and the arithmetic says so plainly. At 25 feet on
+# 40m the main lobe is straight up - which makes you a near-vertical station
+# whether you meant to be or not, and that is a real capability with a name.
+#
+# So the height is capped by what somebody can actually do, and the consequence
+# is stated as a number rather than softened.
+SITES = {
+    "tower": {
+        "label": "A mast or tower, and room for it",
+        "max_ft": None,
+        "works": ["Whatever the band calls for. This is the case every book "
+                  "is written about."],
+        "costs": [],
+        "good_at": "everything the textbook says, which is why the textbook "
+                   "says it",
+    },
+    "house": {
+        "label": "A house, a garden, some trees",
+        "max_ft": 35,
+        "works": ["A wire from the roofline to a tree, which is most of the "
+                  "wire antennas in the world.",
+                  "A vertical at the bottom of the garden, where its radials "
+                  "can lie under the lawn and it is away from the house wiring."],
+        "costs": ["Thirty-five feet is under half a wave below about 14 MHz, "
+                  "so on 40m and 80m the takeoff angle stays high. That is a "
+                  "regional station on the low bands and a DX one on the high "
+                  "ones, from the same wire."],
+        "good_at": "20m and up for distance, 40m and 80m for your own region",
+    },
+    "small": {
+        "label": "A small lot or a short garden",
+        "max_ft": 22,
+        "works": ["A low dipole or inverted-V. At this height on the low bands "
+                  "it is a near-vertical antenna, which is a capability rather "
+                  "than a compromise - it will work the whole state reliably "
+                  "when the tower stations are talking over the top of it.",
+                  "A quarter-wave vertical, which needs no height at all. It "
+                  "wants radials rather than air, and radials fit under grass."],
+        "costs": ["On 40m and below the lobe is essentially straight up. "
+                  "Chasing DX from here on those bands is fighting the "
+                  "geometry; on 20m and up the same wire is a fair performer."],
+        "good_at": "regional work on the low bands, and everything normal "
+                   "above 14 MHz",
+    },
+    "attic": {
+        "label": "Indoors - the attic or roof space",
+        "max_ft": 25,
+        "works": ["A dipole folded to fit the roof line. Bending the ends down "
+                  "or back costs less than not having an antenna.",
+                  "Anything on 20m and up, where the wire is short enough to "
+                  "fit without folding."],
+        "costs": ["A decibel or several into the roof, more with a wet roof, "
+                  "and foil-backed insulation or a metal roof stops it dead - "
+                  "check before you build.",
+                  "Everything in the house is now inside the near field. "
+                  "Interference to your own electronics and the RF exposure "
+                  "assessment become the limits here, not the antenna."],
+        "good_at": "getting on the air at all when nothing outside is allowed",
+    },
+    "apartment": {
+        "label": "A flat - a balcony, or a window",
+        "max_ft": 0,
+        "works": ["A small magnetic loop. It is tunable, it works indoors, it "
+                  "is quiet, and it has deep nulls you can turn onto a noise "
+                  "source - which in a block of flats is worth more than gain.",
+                  "A wire out of a window, sloping to anywhere it can be tied, "
+                  "fed against a counterpoise run along the skirting.",
+                  "A short vertical clamped to the balcony rail, with the rail "
+                  "itself as the counterpoise."],
+        "costs": ["No ground and no space, so efficiency is poor and low-angle "
+                  "performance is largely out of reach on the low bands.",
+                  "The noise floor is usually the real enemy rather than the "
+                  "antenna. A city flat can be twenty decibels noisier than a "
+                  "field, which costs more than any antenna choice - so a "
+                  "quiet antenna beats an efficient one here, and that is why "
+                  "the loop is first on the list."],
+        "good_at": "20m and up, digital modes, and - if you are high up - "
+                   "VHF and UHF from a location most people would envy",
+    },
+    "portable": {
+        "label": "Nothing at home - I go out",
+        "max_ft": 30,
+        "works": ["A wire into a tree, or up a fishing pole. Thirty feet in a "
+                  "park is easy and beats anything most people manage at home.",
+                  "An end-fed half wave, because the feedpoint ends up where "
+                  "you are standing and it needs one support."],
+        "costs": ["It has to go up and come down again every time, so "
+                  "everything is a compromise with the walk back to the car."],
+        "good_at": "having a better antenna than your house allows, which is "
+                   "most of why people do this",
+    },
+}
+
+
+def takeoff_deg(height_ft, mhz):
+    """Where the main lobe of a horizontal antenna sits, in degrees up."""
+    waves = max(0.001, float(height_ft) / wavelength_ft(mhz))
+    return math.degrees(math.asin(min(1.0, 1.0 / (4.0 * waves))))
+
+
+def reality(kind, mhz, wanted_ft, site):
+    """What that height means where somebody actually lives.
+
+    Returns None when the site imposes nothing, so the ordinary case stays
+    uncluttered.
+    """
+    spec = SITES.get(site)
+    if not spec:
+        return None
+    cap = spec["max_ft"]
+    out = {"site": site, "label": spec["label"], "works": list(spec["works"]),
+           "costs": list(spec["costs"]), "good_at": spec["good_at"],
+           "wanted_ft": wanted_ft, "max_ft": cap, "capped": False}
+    if cap is None or wanted_ft <= cap:
+        out["height_ft"] = wanted_ft
+        return out
+    out["capped"] = True
+    out["height_ft"] = cap
+    if TYPES.get(kind, {}).get("polarisation") == "horizontal" and cap > 0:
+        angle = takeoff_deg(cap, mhz)
+        out["takeoff_deg"] = round(angle)
+        out["means"] = (
+            "At %d ft on %g MHz the main lobe sits %d degrees up, not the %d "
+            "it would at %d ft. That is not a broken antenna, it is a "
+            "different one: %s. Work with it rather than against it - the "
+            "contacts it makes easily are the ones the tower stations are "
+            "talking over the top of."
+            % (cap, mhz, round(angle), round(takeoff_deg(wanted_ft, mhz)),
+               wanted_ft,
+               "it goes up and comes down over your own region"
+               if angle > 55 else
+               "it favours a first hop rather than a long one"))
+    return out
+
+
 def suits(kind, use, mhz):
     """Whether this antenna is the right shape for this intention."""
     spec = TYPES.get(kind)
@@ -629,7 +769,7 @@ def suits(kind, use, mhz):
     return {"verdict": "suits it", "note": ""}
 
 
-def for_type(mhz, kind, use=None):
+def for_type(mhz, kind, use=None, site=None):
     """How to use the antenna somebody has actually chosen.
 
     The other half of `recommend`. That one answers "what should I put up";
@@ -648,6 +788,12 @@ def for_type(mhz, kind, use=None):
     else:
         fraction, floor, ceiling = spec["height"]
         height = _height(mhz, fraction, floor, ceiling)
+    # And then what is actually possible where somebody lives. The ideal
+    # height is worth knowing; a number they cannot reach is worth less than
+    # the truth about the one they can.
+    where = reality(kind, mhz, height, site)
+    if where:
+        height = where["height_ft"]
     fit = suits(kind, use, mhz)
     return {
         "mhz": mhz, "use": use, "use_label": USES[use],
@@ -661,6 +807,7 @@ def for_type(mhz, kind, use=None):
         "better": (NVIS_BETTER + list(spec.get("better_nvis", []))
                    if hanging_low else list(spec["better"])),
         "fit": fit,
+        "reality": where,
         "nvis": use == "regional" and spec["polarisation"] == "horizontal",
         "alternative": None,
         "feedline": _feedline(mhz),
@@ -668,13 +815,13 @@ def for_type(mhz, kind, use=None):
     }
 
 
-def recommend(mhz, use=None, kind=None):
+def recommend(mhz, use=None, kind=None, site=None):
     """A starting antenna for this frequency and intention, with its reasoning."""
     mhz = float(mhz)
     # Somebody who named an antenna wants to be taught that antenna, not
     # talked back to a dipole.
     if kind in TYPES:
-        return for_type(mhz, kind, use)
+        return for_type(mhz, kind, use, site)
     use = use if use in USES else default_use(mhz, kind)
     lam = wavelength_ft(mhz)
     out = {

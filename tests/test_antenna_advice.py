@@ -194,6 +194,39 @@ def main():
     check("  and an unknown antenna is not narrowed by accident",
           len(C.options(7.1, "nonesuch")), len(C.options(7.1)))
 
+    print("\n-- and what somebody has actually got --")
+    # "Half a wavelength up" is 69 ft on 40m: a mast on a farm and a daydream
+    # in a flat. Printing it at somebody in a flat is not advice.
+    ideal = A.recommend(7.1, "dx", "dipole")["height_ft"]
+    check("with no site given, the textbook answer is unchanged",
+          A.recommend(7.1, "dx", "dipole", None)["height_ft"], ideal)
+    check("  and nothing is added to clutter it",
+          A.recommend(7.1, "dx", "dipole", None)["reality"], None)
+    for site in ("house", "small", "attic", "apartment", "portable"):
+        got = A.recommend(7.1, "dx", "dipole", site)
+        check(f"a {site} is not told to put a 40m dipole at {ideal} ft",
+              got["height_ft"] < ideal, True)
+        check(f"  and is told what does work there",
+              bool(got["reality"]["works"]), True)
+    check("a tower is not capped, because it does not need to be",
+          A.recommend(7.1, "dx", "dipole", "tower")["height_ft"], ideal)
+
+    # The honest part: a low antenna is a different antenna, not a broken one,
+    # and the arithmetic says which.
+    small = A.recommend(7.1, "dx", "dipole", "small")
+    check("a capped height explains what it costs, as an angle",
+          small["reality"]["takeoff_deg"] > 55, True)
+    check("  and names what it is good for instead",
+          "region" in small["reality"]["means"], True)
+    check("every site says what it is good at rather than only what it lacks",
+          [s for s in A.SITES if not A.SITES[s]["good_at"]], [])
+    # A flat has no height at all, and that has to not read as an error.
+    flat = A.recommend(7.1, "dx", "dipole", "apartment")["reality"]
+    check("a flat is capped to nothing and still offered three antennas",
+          (flat["height_ft"], len(flat["works"]) >= 3), (0, True))
+    check("  and told the noise floor is the real enemy there",
+          any("noise" in c for c in flat["costs"]), True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
