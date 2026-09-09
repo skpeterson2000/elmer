@@ -39,6 +39,10 @@ def _styles():
     }
 
 
+# Landscape letter, less the half-inch margins each side.
+CHART_WIDTH = landscape(LETTER)[0] - inch
+
+
 def build(bands, license_class, regional=None, station=None, interop=False):
     station = station or {}
     s = _styles()
@@ -49,7 +53,9 @@ def build(bands, license_class, regional=None, station=None, interop=False):
                             title="Band plan")
     flow = [Paragraph("US Amateur Band Plan", s["title"])]
     line = (f"Privileges shown for <b>{license_class}</b> class, per 47 CFR 97.301 "
-            f"and 97.305. Activity segments are convention, not law.")
+            f"and 97.305. Activity segments are convention, not law. Each band "
+            f"is drawn to scale below its heading in the colours above; "
+            f"hatching is where a {license_class} may not transmit.")
     if regional:
         line += (f" Regional segments from the {regional['name']} "
                  f"({regional['short']}), fetched {regional.get('fetched', '')}.")
@@ -71,9 +77,16 @@ def build(bands, license_class, regional=None, station=None, interop=False):
         head = f"{name} &mdash; {band['low']:g} to {band['high']:g} MHz"
         if not allowed:
             head += "  (no privileges for this class)"
-        block = [Paragraph(head, s["band"])]
+        block = [Paragraph(head, s["band"]),
+                 activity_bar(name, license_class, CHART_WIDTH),
+                 Spacer(1, 2)]
 
-        rows = [["From", "To", "Activity", "What happens there", "You?"]]
+        # The band's name rides in the header row because these tables may now
+        # break across a page, and the repeated header is all a reader gets on
+        # the far side of the fold - four columns of frequencies belonging to
+        # nothing in particular is worse than the page break that caused it.
+        rows = [["From", "To", "Activity", f"What happens there on {name}",
+                 "You?"]]
         style = []
         n = 0
         for low, high, kind, label in activity_for(name):
@@ -107,7 +120,8 @@ def build(bands, license_class, regional=None, station=None, interop=False):
         if regional and name in (regional.get("bands") or {}):
             block.append(Paragraph(
                 f"{regional['short']} coordinated segments for {name}", s["small"]))
-            rrows = [["From", "To", "Activity", "Coordinated use"]]
+            rrows = [["From", "To", "Activity",
+                      f"Coordinated use on {name}"]]
             rstyle = []
             for m, seg in enumerate(regional["bands"][name], start=1):
                 rrows.append([f"{seg['low']:g}", f"{seg['high']:g}" if seg["high"] != seg["low"] else "",
@@ -121,7 +135,8 @@ def build(bands, license_class, regional=None, station=None, interop=False):
             block.append(Paragraph(
                 "Outside your privileges on this band: " +
                 ", ".join(f"{a:g}–{b:g}" for a, b in gaps) + " MHz.", s["small"]))
-        flow.append(KeepTogether(block))
+        flow.append(KeepTogether(block[:2]))          # heading and its picture
+        flow.extend(block[2:])                       # the rest may break
 
     flow += [Spacer(1, 10), Paragraph(
         "Privileges are law. Activity segments are voluntary band plan convention "
@@ -136,6 +151,91 @@ def build(bands, license_class, regional=None, station=None, interop=False):
         flow += _interop_page(s)
     doc.build(flow)
     return buf.getvalue()
+
+
+# --------------------------------------------------------------------------
+# the picture that goes above each band's table
+# --------------------------------------------------------------------------
+# The full chart is a good reference and a poor map. A table answers "what is
+# at 7.175" precisely and cannot answer "what is this band FOR", because shape
+# is not something a column of numbers has. One look at a drawn band says how
+# many different things people do there and how much room each of them gets -
+# which is the question somebody has when they are choosing a band rather than
+# checking a frequency.
+#
+# It carries no labels at all, deliberately. The colour key is already at the
+# top of the page and every segment is written out in the table directly
+# underneath, so numbers on the drawing would repeat what is a centimetre away
+# and crowd out the one thing the picture is there to show. The present form
+# is the key; this is the map.
+
+CHART_BAR_H = 13               # a little under the card's, since it repeats
+CHART_GROUND = colors.HexColor("#ededed")
+HATCH_COLOUR = colors.HexColor("#8f8f8f")
+HATCH_STEP = 3.4               # points between the diagonals, on the page
+
+
+def _hatch(group, x, y, width, height, step=HATCH_STEP):
+    """Diagonals across a box, clipped to it - "not yours" on the web page.
+
+    reportlab's shapes have no clipping path, so each line is cut to the
+    rectangle by hand: on a 45 degree line X - Y is constant, so walking that
+    constant across the box and solving for where it enters and leaves gives
+    the two ends.
+    """
+    lowest = x - (y + height)
+    highest = x + width - y
+    offset = lowest
+    while offset <= highest:
+        x0 = max(x, y + offset)
+        x1 = min(x + width, y + height + offset)
+        if x1 > x0:
+            group.add(Line(x0, x0 - offset, x1, x1 - offset,
+                           strokeColor=HATCH_COLOUR, strokeWidth=0.35))
+        offset += step
+
+
+def activity_bar(name, license_class, width, height=CHART_BAR_H):
+    """One band drawn as what can be done on it, and where you may do it.
+
+    Colours are the legend's own, so the key at the top of the page reads the
+    drawing as well as the table. Anything this licence may not transmit in is
+    hatched over rather than left out: the activity is still there, it is
+    simply not yours yet, and a chart that hid it would be answering a
+    different question from the one on the page.
+    """
+    band = BAND_INDEX.get(name)
+    drawing = Drawing(width, height + 2)
+    if not band:
+        return drawing
+    low, high = band["low"], band["high"]
+    span = (high - low) or 1.0
+
+    def at(mhz):
+        return max(0.0, min(width, (mhz - low) / span * width))
+
+    # The band itself, so a stretch nobody has an activity for still reads as
+    # part of the band rather than as the edge of the paper.
+    drawing.add(Rect(0, 1, width, height, fillColor=CHART_GROUND,
+                     strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
+
+    for seg_low, seg_high, kind, _label in activity_for(name):
+        x0, x1 = at(seg_low), at(max(seg_high, seg_low))
+        # A calling frequency is a point, not a range, and would otherwise be
+        # drawn a hundredth of a millimetre wide and vanish.
+        drawing.add(Rect(x0, 1, max(1.1, x1 - x0), height,
+                         fillColor=KIND_COLOUR.get(kind, colors.grey),
+                         strokeColor=colors.white, strokeWidth=0.3))
+
+    allowed = sorted(privileges_for(name, license_class))
+    edge = low
+    for seg_low, seg_high, _terms in allowed:
+        if seg_low > edge:
+            _hatch(drawing, at(edge), 1, at(seg_low) - at(edge), height)
+        edge = max(edge, seg_high)
+    if edge < high:
+        _hatch(drawing, at(edge), 1, width - at(edge), height)
+    return drawing
 
 
 # --------------------------------------------------------------------------
@@ -427,7 +527,11 @@ def _interop_page(s):
 
 
 def _table(rows, extra, widths=(0.8, 0.8, 1.1, 4.9, 1.0)):
-    t = Table(rows, colWidths=[w * inch for w in widths], hAlign="LEFT")
+    # repeatRows, because these tables are allowed to break across a page now:
+    # a continuation with four unlabelled columns of numbers is worse than the
+    # page break it came from.
+    t = Table(rows, colWidths=[w * inch for w in widths], hAlign="LEFT",
+              repeatRows=1)
     t.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, -1), "Helvetica", 7.4),
         ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7.4),
