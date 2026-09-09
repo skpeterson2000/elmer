@@ -2072,7 +2072,9 @@ async function antennaAdvice(mhz, use, kind) {
 
   /* Set the calculator to the recommendation, so the dimensions below are the
      dimensions of the thing being recommended rather than of whatever was
-     there before. */
+     there before - unless the antenna was the question. Somebody who picked a
+     full-wave loop and asked about it should not find the selector quietly
+     changed to "dipole" underneath them. */
   document.getElementById('an-type').value = d.type;
   document.getElementById('an-f').value = d.mhz;
   const h = document.getElementById('an-h');
@@ -2117,18 +2119,44 @@ async function antennaAdvice(mhz, use, kind) {
           escapeHTML(d.alternative) + '</p>' : '') +
       '</div>' +
     '</div>' +
-    '<p class="tiny muted" style="margin:.5rem 0 0">A starting point, not a ' +
-      'rule &mdash; good enough to make contacts with, which is what you need ' +
-      'before you have the experience to disagree with it. The dimensions ' +
-      'below are now set to it.</p>';
+    /* Whether the antenna somebody chose suits what they said they are doing.
+       Not to overrule them - one mast and one wire is a real constraint - but
+       the mismatch is the thing worth knowing, and it is nearly always
+       polarisation or takeoff angle rather than anything exotic. */
+    (d.fit && d.fit.note
+      ? '<div class="' + (d.fit.verdict === 'wrong shape' ? 'watchout' : 'nvis') +
+        '" style="margin-top:.7rem"><b>' + escapeHTML(d.fit.verdict) +
+        ' for ' + escapeHTML(d.use_label.toLowerCase()) + '.</b> ' +
+        escapeHTML(d.fit.note) + '</div>'
+      : '') +
+    /* The point of the page is not a set of plans. It is a baseline honest
+       enough to depart from, so it says which way to depart. */
+    (d.better && d.better.length
+      ? '<div class="panel-title mt">Where to go from here</div>' +
+        '<ul class="facts small">' +
+        d.better.map(b => '<li>' + escapeHTML(b) + '</li>').join('') + '</ul>'
+      : '') +
+    '<p class="tiny muted" style="margin:.5rem 0 0">' +
+      (d.chosen
+        ? 'How to get the best out of the antenna you picked, at this ' +
+          'frequency. Change the type above and this changes with it; clear ' +
+          'it and ELMER will suggest one instead.'
+        : 'A starting point, not a rule &mdash; good enough to make contacts ' +
+          'with, which is what you need before you have the experience to ' +
+          'disagree with it.') +
+      ' The dimensions below are now set to it.</p>';
 }
 
 const adviseBtn = document.getElementById('an-advise');
 if (adviseBtn) adviseBtn.addEventListener('click', () => {
+  /* Ask about the antenna on screen. The button used to send no type at all,
+     so however carefully somebody had chosen one, the answer came back about
+     a dipole. */
   const ctx = {mhz: num('an-f'),
-               use: document.getElementById('an-use').value, kind: ''};
+               use: document.getElementById('an-use').value,
+               kind: document.getElementById('an-type').value};
   rememberAntenna(ctx);
-  antennaAdvice(ctx.mhz, ctx.use);
+  antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
 });
 
 /* Arriving from the band plan with a frequency in hand - and still having it

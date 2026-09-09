@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Checks that the antenna advice follows the antenna somebody chose.
+
+    python3 tests/test_antenna_advice.py
+
+The page offers eleven antennas to calculate and used to teach one. Whatever
+you selected, asking for advice answered with a half-wave dipole and quietly
+changed the selector to match - because the guidance was keyed on what you were
+trying to do, and each intention had a single antenna baked into it.
+
+What is tested here is that every type the calculator can draw is also a type
+it can teach, that the teaching is about that antenna rather than a generic
+wire, and that choosing one for the wrong job is said out loud rather than
+silently corrected.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from elmer import antenna_advice as A  # noqa: E402
+
+FAILS = []
+
+# Every option in the calculator's type selector.
+CALCULATOR_TYPES = ["dipole", "invertedv", "efhw", "bowtie", "loop", "quarter",
+                    "fiveeighth", "jpole", "groundplane", "yagi", "whip"]
+
+
+def check(label, got, want):
+    ok = got == want
+    print(f"  {'ok  ' if ok else 'FAIL'}  {label}: {got!r}"
+          + ("" if ok else f"  (wanted {want!r})"))
+    if not ok:
+        FAILS.append(label)
+
+
+def main():
+    print("\n-- every antenna it can draw, it can also teach --")
+    check("no calculator type is left without guidance",
+          [t for t in CALCULATOR_TYPES if t not in A.TYPES], [])
+    check("and none of them is an empty stub",
+          [t for t, v in A.TYPES.items()
+           if not (v["why"] and v["watch"] and v["better"])], [])
+    check("each says which way it is polarised",
+          sorted({v["polarisation"] for v in A.TYPES.values()}),
+          ["horizontal", "vertical"])
+
+    print("\n-- asking about an antenna answers about that antenna --")
+    for kind in CALCULATOR_TYPES:
+        got = A.recommend(7.1, "dx", kind)
+        check(f"a question about {kind} comes back about {kind}",
+              got["type"], kind)
+    check("  and says it was the one chosen, not one suggested",
+          A.recommend(7.1, "dx", "loop")["chosen"], True)
+    check("with no type named it still suggests one",
+          A.recommend(7.1, "dx").get("chosen", False), False)
+    check("  and that suggestion is a real antenna",
+          A.recommend(7.1, "dx")["type"] in A.TYPES, True)
+
+    print("\n-- the advice is about this antenna, not a generic wire --")
+    # The old failure was that every answer read the same. Guidance for a
+    # vertical should talk about radials; guidance for a whip about loading.
+    text = lambda k: " ".join(A.TYPES[k]["why"] + A.TYPES[k]["watch"]
+                              + A.TYPES[k]["better"]).lower()
+    check("a vertical's advice is about its radials",
+          "radial" in text("quarter"), True)
+    check("a mobile whip's is about loading and efficiency",
+          "loading" in text("whip") and "efficien" in text("whip"), True)
+    check("a loop's is about area and its feedpoint impedance",
+          "area" in text("loop") and "ohm" in text("loop"), True)
+    check("a J-pole's is about common-mode current",
+          "common-mode" in text("jpole"), True)
+    check("a bowtie's is about bandwidth",
+          "bandwidth" in text("bowtie"), True)
+    check("and no two of them read the same",
+          len({text(k) for k in CALCULATOR_TYPES}), len(CALCULATOR_TYPES))
+
+    print("\n-- choosing one for the wrong job is said, not corrected --")
+    # Polarisation is the usual mismatch and it costs about 20 dB, which no
+    # amount of anything else gets back.
+    bad = A.recommend(146.52, "local", "yagi")
+    check("a horizontal beam for FM is called wrong", bad["fit"]["verdict"],
+          "wrong shape")
+    check("  and the type is still the one asked about", bad["type"], "yagi")
+    check("a vertical for near-vertical incidence is called wrong",
+          A.recommend(7.1, "regional", "quarter")["fit"]["verdict"],
+          "wrong shape for the far end")
+    check("  because a low angle is the one direction that does not come back",
+          "up" in A.recommend(7.1, "regional", "quarter")["fit"]["note"], True)
+    check("a wire hung low is right for regional work, and told to be low",
+          "low" in A.recommend(7.1, "regional", "dipole")["fit"]["note"], True)
+    check("a dipole for DX is told the height is the argument",
+          "height" in A.recommend(7.1, "dx", "dipole")["fit"]["note"], True)
+    # A vertical for distance is not merely acceptable, it is the point of the
+    # shape - a low takeoff angle without needing height. That is why a short
+    # loaded whip on a car works stations a garden wire cannot.
+    check("a vertical for DX is called well suited, not merely allowed",
+          A.recommend(7.1, "dx", "quarter")["fit"]["verdict"], "well suited")
+    check("  and the reason given is the takeoff angle",
+          "angle" in A.recommend(7.1, "dx", "whip")["fit"]["note"], True)
+    # And the regional verdict must not flatly contradict every operator who
+    # has worked somebody down the road on a mobile whip.
+    near = A.recommend(7.1, "regional", "whip")["fit"]
+    check("a vertical for regional work is wrong only for the far end",
+          near["verdict"], "wrong shape for the far end")
+    check("  and it is credited with the ground wave it does have",
+          "ground wave" in near["note"], True)
+
+    print("\n-- the numbers follow the antenna too --")
+    check("a five-eighths vertical is taller than a quarter wave",
+          A.recommend(7.1, "dx", "fiveeighth")["height_ft"]
+          > A.recommend(7.1, "dx", "quarter")["height_ft"], True)
+    check("a mobile whip is not asked to go 60 feet up",
+          A.recommend(7.1, "dx", "whip")["height_ft"] < 15, True)
+    check("every type gets a height, a feedline note and the band context",
+          [k for k in CALCULATOR_TYPES
+           if not (A.recommend(7.1, "dx", k)["height_ft"]
+                   and A.recommend(7.1, "dx", k)["feedline"])], [])
+
+    print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
+    return 1 if FAILS else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
