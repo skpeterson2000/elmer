@@ -13,7 +13,7 @@ sun angle and a K index; the fetching is somebody else's job.
 """
 import math
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -271,8 +271,11 @@ def main():
         """A station reporting exactly what the model expects of it."""
         elev = P.solar_elevation(lat, lon, when)
         return {"lat": lat, "lon": lon, "name": f"{lat},{lon}",
-                "fof2": P._fof2(110, elev, lat) * scale, "m3000": 2.9,
-                "age_minutes": 5}
+                # What the model expects of it now, which includes the layer's
+                # own lag - the same figure calibration will compare against.
+                "fof2": P._fof2(110, elev, lat,
+                                P.f2_drive(lat, lon, when)) * scale,
+                "m3000": 2.9, "age_minutes": 5}
 
     for lon in (-93.0, -120.0, -70.0):
         agrees = P.calibration(110, *here, when=when, sondes=[honest(45.0, lon)])
@@ -404,6 +407,56 @@ def main():
           night_untold < 15.0, True)
     check("and 80 m gets its night back",
           max(r["score"] for r in untold if r["regime"] == "dark") >= 80, True)
+
+    print("\n-- the layer chases the sun, it does not follow it --")
+    # Production switches on with sunlight; loss at F2 heights does not switch
+    # off with it. So the morning rise is prompt, the afternoon is held up, and
+    # foF2 peaks after local noon rather than at it.
+    #
+    # Scanned finely and on the unrounded figure, because the claim is about
+    # where the peak falls: hourly samples and a tenth of a megahertz of
+    # rounding would both smear it into a plateau and prove nothing.
+    lat, lon = 46.6, -94.3
+    base = datetime(2026, 9, 9, 0, 0, tzinfo=timezone.utc)
+    grid = [base + timedelta(minutes=10 * n) for n in range(6 * 24)]
+    noon = max(grid, key=lambda t: P.solar_elevation(lat, lon, t))
+    peak = max(grid, key=lambda t: P._fof2(
+        150.0, P.solar_elevation(lat, lon, t), lat, P.f2_drive(lat, lon, t)))
+    after = (peak - noon).total_seconds() / 3600.0
+    check("the layer's best hour is after the sun's", after > 0.5, True)
+    check("  by no more than the lag it was given",
+          after <= P.F2_LAG_HOURS + 0.2, True)
+    check("  and with no lag the two coincide",
+          abs((max(grid, key=lambda t: P._fof2(
+              150.0, P.solar_elevation(lat, lon, t), lat))
+               - noon).total_seconds()) < 700, True)
+
+    print("\n-- the same sun twice, and not the same layer --")
+    # The asymmetry is the point. At equal sun heights either side of noon the
+    # layer is fuller in the afternoon, because in the morning it is still
+    # filling and in the afternoon it is still draining.
+    up_at, down_at = noon - timedelta(hours=4), noon + timedelta(hours=4)
+    rising = P.solar_elevation(lat, lon, up_at)
+    falling = P.solar_elevation(lat, lon, down_at)
+    check("the sun is at the same height either side of noon",
+          abs(rising - falling) < 2.0, True)
+    up = P.levels(150.0, rising, lat, drive=P.f2_drive(lat, lon, up_at))[1]
+    down = P.levels(150.0, falling, lat,
+                    drive=P.f2_drive(lat, lon, down_at))[1]
+    check("  but the layer is fuller on the way down", down > up, True)
+    check("  where the old model could barely tell them apart",
+          abs(P.levels(150.0, rising, lat)[1]
+              - P.levels(150.0, falling, lat)[1]) < 0.2, True)
+
+    print("\n-- and the lag does not reach into the middle of the night --")
+    deep = datetime(2026, 9, 9, 8, 0, tzinfo=timezone.utc)   # local small hours
+    el = P.solar_elevation(lat, lon, deep)
+    check("the sun is well down", el < -25, True)
+    check("  and foF2 there is the model's own",
+          abs(P.levels(150.0, el, lat, drive=P.f2_drive(lat, lon, deep))[1]
+              - P.levels(150.0, el, lat)[1]) <= 0.3, True)
+    check("an angle with no time attached is unlagged, as it always was",
+          P._fof2(150.0, 30.0, 45.0), P._fof2(150.0, 30.0, 45.0, None))
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
