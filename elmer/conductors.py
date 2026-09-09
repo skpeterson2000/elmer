@@ -35,16 +35,27 @@ CONDUCTORS = [
              "about this thick."},
     {"key": "wire18", "label": "#18 AWG wire / speaker flex", "od_mm": 1.02,
      "material": "copper", "sigma": 1.00,
+     "found": "out of anything with a loudspeaker in it",
+     "work": "Snips or a knife. Twist a proper splice - it carries RF "
+             "unsoldered - and a lighter will solder it if you want it to "
+             "last.",
      "note": "Light enough to carry and to hang from a branch. Thin means "
              "high Q and a narrow band, and it will stretch under its own "
              "weight over a long span."},
     {"key": "wire12", "label": "#12 AWG house wire", "od_mm": 2.05,
      "material": "copper", "sigma": 1.00,
+     "found": "stripped out of a length of twin-and-earth",
+     "work": "Side cutters, or bend it until it snaps. Splice and solder, "
+             "or clamp it under a bolt and a washer.",
      "note": "Salvaged from a length of twin-and-earth. Stiff, tough, and "
              "holds a shape - good for a portable dipole that gets packed and "
              "unpacked."},
     {"key": "fence", "label": "Galvanised fence wire", "od_mm": 2.5,
      "material": "steel", "sigma": 0.10,
+     "found": "off any farm fence, in any length you like",
+     "work": "Fencing pliers or a hacksaw. Solder will not take to zinc: "
+             "wrap the joint tight and clamp it, the way the fence itself "
+             "is joined.",
      "note": "On a farm it is the wire you already have, in any length you "
              "like.",
      "caution": "Steel conducts about a tenth as well as copper and the skin "
@@ -53,6 +64,9 @@ CONDUCTORS = [
                 "not."},
     {"key": "hanger", "label": "Coat hanger / welding rod", "od_mm": 2.5,
      "material": "steel", "sigma": 0.10,
+     "found": "a closet, a motel wardrobe, a welding kit",
+     "work": "Hacksaw, or bend it back and forth until it breaks. File "
+             "the paint or plating off wherever it has to make contact.",
      "note": "The classic field expedient for a VHF ground plane: four "
              "radials and a radiator out of a coat hanger works, and works "
              "tonight.",
@@ -60,6 +74,9 @@ CONDUCTORS = [
                 "resonant quarter wave, poor for anything that needs a coil."},
     {"key": "tape", "label": "Steel tape measure blade", "od_mm": 12.7,
      "material": "steel", "sigma": 0.10,
+     "found": "the toolbox - and it rolls itself back up",
+     "work": "Tin snips. Scrape the coating back to bright steel, then "
+             "bolt or clamp - it will not solder and does not need to.",
      "note": "Rolls up, springs out, survives being sat on. The blade is wide "
              "rather than round, which behaves like a conductor about as fat "
              "as it is wide - so it is broadbanded as well as portable.",
@@ -67,6 +84,10 @@ CONDUCTORS = [
                 "the conductivity."},
     {"key": "alu12", "label": "1/2 in aluminium tube", "od_mm": 12.7,
      "material": "aluminium", "sigma": 0.61,
+     "found": "a tent pole, a curtain rail, an old TV mast",
+     "work": "Hacksaw or a tube cutter. It will not solder with anything "
+             "in a toolbox: slit the end, telescope it, and pull a hose "
+             "clamp over.",
      "note": "What beams are made of. Light, stiff, telescopes into the next "
              "size up, and does not need soldering."},
     {"key": "alu34", "label": "3/4 in aluminium tube", "od_mm": 19.05,
@@ -75,6 +96,9 @@ CONDUCTORS = [
              "hold up on a mast."},
     {"key": "emt12", "label": "1/2 in EMT conduit", "od_mm": 17.9,
      "material": "steel", "sigma": 0.10,
+     "found": "an offcut off any building site or shelf",
+     "work": "Hacksaw or a pipe cutter. Self-tapping screws, clamps or "
+             "the couplings made for it - the zinc refuses solder.",
      "note": "In every hardware store, cheap, and straight. Good for a "
              "vertical or a mast.",
      "caution": "Steel and usually zinc plated. Solder will not take to it - "
@@ -82,6 +106,9 @@ CONDUCTORS = [
                 "it looks."},
     {"key": "pipe12", "label": "1/2 in copper pipe (15.9 mm OD)", "od_mm": 15.9,
      "material": "copper", "sigma": 1.00,
+     "found": "the plumbing aisle, or somebody's scrap pile",
+     "work": "Tube cutter or hacksaw. It solders properly, but wants a "
+             "torch - an iron cannot get half-inch pipe hot enough.",
      "note": "Excellent antenna material and the standard J-pole. Solders "
              "cleanly, holds itself up, and named by its bore - half-inch "
              "pipe is 15.9 mm across the outside."},
@@ -100,6 +127,9 @@ CONDUCTORS = [
     # antenna goes in a pannier and comes out straight.
     {"key": "tube14", "label": "1/4 in soft copper tube (ice-maker line)",
      "od_mm": 6.35, "material": "copper", "sigma": 1.00,
+     "found": "the coil an ice maker or humidifier is plumbed with",
+     "work": "Bend and snap it, or a tube cutter. Solders with a torch, "
+             "or flatten the end with a hammer and drill it for a bolt.",
      "note": "The coil of soft copper sold to plumb an ice maker or a "
              "humidifier - 25 and 50 ft rolls, in every hardware store. Four "
              "times the diameter of #14 wire, so a usefully wider band, and it "
@@ -221,3 +251,27 @@ def options(mhz, kind=None):
     return [describe(c["key"], mhz)
             for c in sorted(rows, key=lambda c: (allowed.index(c["key"])
                                                  if allowed else c["od_mm"]))]
+
+
+def improvised():
+    """The entries somebody could plausibly find rather than buy, and where.
+
+    This exists for the Make Contact page, which asks what the operator has on
+    hand. The gear list there is radios, and radios are things you either
+    brought or did not. The antenna is not like that: it is the part of the
+    station that can still be built out of the surroundings, and an operator
+    who has not been shown that once does not think of a fence as an antenna.
+
+    So this hands that page a sample, deliberately - the entries this module
+    already has real numbers for, each with the everyday place it comes from.
+    It is not a catalogue of what can be an antenna and the page says so out
+    loud, because a list presented as complete would do the opposite of what
+    it is for: the whole point is to send somebody looking at what is actually
+    around them, and that is a longer list than any program can hold. What
+    settles a candidate is not whether it appears here. It is whether it
+    conducts, whether it can be got up and clear, and what a sweep says about
+    it - which is why the page hands the question to the VNA in the Lab.
+    """
+    return [{"key": c["key"], "label": c["label"], "found": c["found"],
+             "work": c["work"]}
+            for c in CONDUCTORS if c.get("found")]

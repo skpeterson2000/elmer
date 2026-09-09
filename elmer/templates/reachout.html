@@ -7,7 +7,7 @@
     <h1 style="margin-bottom:.2rem">Getting a message out</h1>
     <div class="quiz-context">
       Everything worth trying from where you are, best bet first &mdash; with
-      what you actually have in the vehicle.
+      what you actually have on hand.
     </div>
   </div>
 </div>
@@ -34,9 +34,95 @@
     <button class="btn primary" id="ro-go">What can I reach? &rarr;</button>
   </div>
   <p class="tiny muted" id="ro-where" style="margin-top:.6rem"></p>
+  <p class="tiny muted" style="margin:.3rem 0 0">
+    Those are radios, and a radio you did not bring is not going to appear.
+    The antenna is not like that &mdash; <a href="#made-of">what one can be
+    made of</a> and <a href="#tools">what you can work it with</a> are at the
+    foot of this page, and neither is mostly things you brought.
+  </p>
 </div>
 
 <div id="ro-out" style="margin-top:1rem"></div>
+
+{# Deliberately below the answer: this is a standing reference rather than a
+   reply to the button, and it reads as the next thought after "the repeater
+   is nine miles away and I cannot hit it". #}
+<div class="panel" id="made-of" style="margin-top:1rem">
+  <div class="panel-title">And what the antenna can be made of</div>
+  <p class="small muted" style="margin:.35rem 0 .9rem">
+    The antenna is the half of the station that can still be built out of what
+    is standing around you. These are the ones ELMER has real numbers for:
+  </p>
+  <div class="grid cols-2" style="gap:.9rem 1.4rem">
+    {% for c in made_of %}
+      <div class="tiny">
+        <b>{{ c.label }}</b><br>
+        <span class="muted">{{ c.found }}</span><br>
+        <span style="color:var(--dim)">{{ c.work }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="grid cols-2" style="margin-top:1rem">
+  <p class="small" style="margin:0">
+    Those are examples and not the list &mdash; they are simply the ones this
+    program can put a figure on. Nothing settles a candidate except whether it
+    conducts, whether you can get it up and clear of things, and whether it is
+    the right length. And a piece of metal that fails all three can still be
+    the ground, the counterpoise, the reflector or the mast, which is where
+    most of what is lying about turns out to be useful.
+  </p>
+  <p class="small muted" style="margin:0">
+    None of it has to be guessed at. With a NanoVNA on hand, anything that
+    conducts can be swept and asked directly: it gives the reactance with its
+    sign, so it says both whether the thing is resonant where you need it and
+    which way to cut. Reading that is a skill, and it is the skill this program
+    is here to hand over &mdash; the <a href="/lab#vna">Lab teaches it</a> with
+    an instrument or without one, and the
+    <a href="/lab#ant">antenna calculator</a> will cut any material above to
+    length.
+  </p>
+  </div>
+</div>
+
+{# The third inventory, and the one that decides whether the second is real:
+   a fence you cannot cut is scenery. Same rule as the materials - the tool
+   the job wants, then what people actually reach for instead. #}
+<div class="panel" id="tools" style="margin-top:1rem">
+  <div class="panel-title">And what you can work it with</div>
+  <p class="small muted" style="margin:.35rem 0 .9rem">
+    Tools are an inventory too, and they improvise the same way the metal
+    does. Each of these is the tool the job wants, and then what has stood in
+    for it when that tool was forty miles away.
+  </p>
+  <div class="grid" style="gap:1.2rem 1.6rem;
+       grid-template-columns:repeat(auto-fit,minmax(420px,1fr))">
+    {% for op in tools %}
+      <div>
+        <b class="small">{{ op.title }}</b>
+        <div class="tiny" style="margin:.15rem 0 .3rem">
+          Wants: <span class="muted">{{ op.first }}</span>
+        </div>
+        <ul class="tiny muted" style="margin:0 0 .35rem;padding-left:1.1rem;
+                                      line-height:1.5">
+          {% for alt in op.instead %}<li>{{ alt }}</li>{% endfor %}
+        </ul>
+        <p class="tiny" style="margin:0;color:var(--dim)">{{ op.why }}</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <details class="derivation" style="margin-top:1rem">
+    <summary class="small">{{ arc.title }}</summary>
+    <p class="small muted" style="margin:.4rem 0 .5rem;max-width:74ch">
+      {{ arc.it_works }}
+    </p>
+    <ul class="small" style="margin:0 0 .5rem;padding-left:1.2rem;
+                             line-height:1.5;color:var(--amber);max-width:74ch">
+      {% for d in arc.dangers %}<li>{{ d }}</li>{% endfor %}
+    </ul>
+    <p class="small muted" style="margin:0;max-width:74ch">{{ arc.but }}</p>
+  </details>
+</div>
 {% endblock %}
 
 {# After elmer.js, which is where api() and escapeHTML() live. A page script

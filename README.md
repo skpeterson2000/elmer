@@ -514,11 +514,49 @@ is a gap in the data rather than an answer about an antenna.
 
 The **Make Contact** page answers the question somebody a long way up a forest
 road actually has: not "what is the best antenna", but "what might work now,
-with what I brought". Tick what is in the vehicle and it lists every avenue in
+with what I brought". Tick what you have on hand and it lists every avenue in
 the order worth trying - the repeater you cannot hear from the valley floor,
 the calling channels, APRS, the ISS digipeater passing overhead twice a day,
 NVIS on a wire eight feet off the ground, ten metres if you are a Technician
 who has been told they have no HF.
+
+Under the list is the other half of that inventory. The tick boxes are radios,
+and a radio somebody did not bring is not going to appear - but the antenna is
+the part of the station that can still be built out of what is standing
+around: fence wire, a coat hanger, a tape measure blade, house wire stripped
+out of twin-and-earth, the coil of soft copper an ice maker is plumbed with.
+Those are the entries `conductors` already has real numbers for, and the page
+says out loud that they are examples rather than the list, because a list
+presented as complete would do the opposite of what it is for. What settles a
+candidate is whether it conducts, whether it can be got up and clear, and
+whether it is the right length - and a piece of metal that fails all three can
+still be the ground, the counterpoise, the reflector or the mast, which is
+where most of what is lying about turns out to be useful. With a NanoVNA on
+hand none of it has to be guessed at: anything conductive can be swept and
+asked directly, and reading the answer is a skill rather than a purchase, so
+the page hands that question to the Lab, which teaches it with an instrument
+or without one.
+
+Under that again are the tools, because a fence somebody cannot cut is
+scenery. Same shape a third time: the tool each job wants - cutting, joining,
+getting it up there, finding out whether it works - and then what has stood in
+for that tool when it was forty miles away. A bare hacksaw blade with a rag
+wrapped round one end. A file and a bend. Hose clamps, which are already
+holding every heater hose in the vehicle. A rock on a line over a branch, and
+a water bottle that throws further and does not stick in the tree. The one
+that carries the most weight is the joint, because that is where scavenged
+antennas die: every mating face has to be clean to bright metal, and a
+corroded joint can read like a short on a meter and still rectify at RF.
+
+And yes, a vehicle is also a welder. `fieldkit.ARC` says how - two or three
+batteries in series, heavy cables, a rod - with the hydrogen, the cornea, the
+cable insulation and the zinc fumes all named, because the half-remembered
+version of that trick is the dangerous one. It ends by saying not to: for an
+antenna a bolted joint is as good electrically, comes apart when the first
+guess was the wrong length, and asks nothing of anybody but a spanner.
+`tests/test_fieldkit.py` keeps both halves honest - no entry that is not
+copper may recommend solder, and the warnings cannot be quietly trimmed out
+later.
 
 The odds are words rather than numbers, because numbers there would be
 invented. And the last entry is 47 CFR 97.403: when life or property is in

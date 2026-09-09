@@ -27,7 +27,7 @@ from . import bandplan, propagation, repeaters
 ODDS = ["no", "long shot", "worth trying", "good"]
 ODDS_RANK = {name: n for n, name in enumerate(ODDS)}
 
-# What somebody might have in a vehicle, in the words they would use.
+# What somebody might have on hand, in the words they would use.
 GEAR = {
     "ht": "A handheld (2 m / 70 cm)",
     "mobile_vhf": "A mobile VHF/UHF rig",
