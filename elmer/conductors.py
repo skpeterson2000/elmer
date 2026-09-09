@@ -108,6 +108,23 @@ CONDUCTORS = [
      "caution": "It work-hardens: bend the same spot repeatedly and it "
                 "cracks. Heavier than wire, so a long horizontal span needs "
                 "support or it will sag and stretch."},
+    # What a bought whip is actually made of. Stainless is chosen for the car
+    # wash and the pothole, not for the radio: 304 conducts about 2.5% as well
+    # as copper, worse even than plain steel. On a full-size element that would
+    # be a scandal; on a mobile whip, where the radiation resistance is already
+    # a few ohms and the loading coil dominates the losses, it is one more
+    # entry on a list of compromises somebody made so the thing would survive
+    # being driven around.
+    {"key": "stainless", "label": "Stainless steel whip element", "od_mm": 4.8,
+     "material": "stainless", "sigma": 0.025, "bought": True,
+     "note": "What commercial mobile whips are made of. Springy, it does not "
+             "corrode, and it survives a car wash and a low branch - which is "
+             "what is being bought.",
+     "caution": "It conducts about a fortieth as well as copper, worse than "
+                "ordinary steel. On a shortened, loaded antenna the losses are "
+                "already the whole game, so this is a real cost and not a "
+                "quibble - it is simply the cost of an antenna that survives "
+                "the road."},
     {"key": "tube38", "label": "3/8 in soft copper tube", "od_mm": 9.53,
      "material": "copper", "sigma": 1.00,
      "note": "The other size sold in coils. Stiffer and wider-band than the "
@@ -183,7 +200,24 @@ def describe(key, mhz):
     }
 
 
-def options(mhz):
-    """Every choice, sorted thin to fat, so the trend is visible in the list."""
+# Some antennas are bought rather than built, and offering a coat hanger as
+# the element of a commercial mobile whip is a question nobody is asking. What
+# they are asking is what the thing in their hand is made of and what that
+# costs them - which is a better question, and has an answer.
+BUILT_FROM = {
+    "whip": ["stainless", "tube14", "tube38", "alu12"],
+}
+
+
+def options(mhz, kind=None):
+    """Every choice, sorted thin to fat, so the trend is visible in the list.
+
+    `kind` narrows it to what that antenna is plausibly made of. A mobile whip
+    is a bought item with a stainless element; the wire, fence and tape-measure
+    entries belong to antennas somebody strings up themselves.
+    """
+    allowed = BUILT_FROM.get(kind)
+    rows = [c for c in CONDUCTORS if allowed is None or c["key"] in allowed]
     return [describe(c["key"], mhz)
-            for c in sorted(CONDUCTORS, key=lambda c: c["od_mm"])]
+            for c in sorted(rows, key=lambda c: (allowed.index(c["key"])
+                                                 if allowed else c["od_mm"]))]

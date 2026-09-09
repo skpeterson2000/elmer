@@ -118,6 +118,22 @@ def main():
            if not (A.recommend(7.1, "dx", k)["height_ft"]
                    and A.recommend(7.1, "dx", k)["feedline"])], [])
 
+    print("\n-- a bought antenna is not a shopping list of materials --")
+    from elmer import conductors as C  # noqa: E402
+    whip = [c["key"] for c in C.options(7.1, "whip")]
+    check("a mobile whip is offered what whips are made of",
+          whip[0], "stainless")
+    check("  and not a coat hanger or a tape measure",
+          [k for k in ("hanger", "tape", "fence", "emt12") if k in whip], [])
+    check("stainless is a poor conductor, and the entry says so",
+          "conducts about a fortieth" in
+          (next(c for c in C.CONDUCTORS if c["key"] == "stainless")
+           .get("caution") or ""), True)
+    check("everything else still gets the whole list",
+          len(C.options(7.1, "dipole")), len(C.options(7.1)))
+    check("  and an unknown antenna is not narrowed by accident",
+          len(C.options(7.1, "nonesuch")), len(C.options(7.1)))
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
