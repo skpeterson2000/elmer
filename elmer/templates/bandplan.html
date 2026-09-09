@@ -29,7 +29,7 @@
         <option value="">none</option>
         {% for c in coordinators %}
           <option value="{{ c.state }}" {% if c.state == state %}selected{% endif %}>
-            {{ c.state_name }} &mdash; {{ c.short }}</option>
+            {{ c.state_name }} &mdash; {{ c.coordinators|join(', ') }}{% if c.readable %} &#10003;{% endif %}</option>
         {% endfor %}
       </select>
     </div>

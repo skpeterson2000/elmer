@@ -482,8 +482,14 @@ def bandplan_page():
         license_class=profile["settings"].get("license_class")
                        or (profile["settings"].get("license") or {}).get("license_class")
                        or "Technician",
-        coordinators=regional.available(),
-        state=profile["settings"].get("state", ""),
+        coordinators=regional.states(),
+        # Chosen from the QTH when nobody has picked one. The reverse-geocoded
+        # place name already carries the state and it was being thrown away,
+        # so a Wisconsin operator got a silent "none" rather than the name of
+        # whoever actually coordinates them.
+        state=(profile["settings"].get("state")
+               or regional.state_of(profile["settings"].get("location") or {})
+               or ""),
         **profile_block(connection))
 
 
@@ -866,8 +872,17 @@ def api_bandplan_regional(state):
     """The local coordinator's plan. 503 when it cannot be reached."""
     data = regional.plan(state, refresh=request.args.get("refresh") == "1")
     if not data:
-        return jsonify({"ok": False,
-                        "error": f"no coordinator plan available for {state}"}), 503
+        # Not an error, and it used to read like one. Only a handful of the
+        # forty-odd coordinators publish a plan this can read, so for the rest
+        # the useful answer is who to ask rather than a 503 - the operator
+        # wanted their coordinator, and naming them is most of that.
+        who = regional.for_state(state)
+        return jsonify({
+            "ok": False, "state": state.upper(),
+            "coordinators": who,
+            "error": ("no plan here yet for %s" % state.upper() if who
+                      else "no coordinator listed for %s" % state.upper()),
+        }), 200
     return jsonify({"ok": True, **data})
 
 
