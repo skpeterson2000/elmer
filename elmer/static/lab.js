@@ -3047,25 +3047,66 @@ async function avUpdate() {
 /* The VNA tab. Same chart, plus whatever the instrument on the bench says. */
 let vnMeasured = null;
 
+/* What the instrument itself is set to, once it has said so - from driving it
+   or from a sweep coming back. While this is known it owns the horizontal
+   axis, because a chart that says 14.10-14.25 while the instrument in front
+   of you is sweeping 14.00-14.35 is not a second opinion, it is a wrong
+   caption. Touch the model's own centre or span and it lets go: at that point
+   the operator has taken the wheel and asked to look somewhere else. */
+let vnFollow = null;
+
+function vnFollowing(span) {
+  if (!span) return;
+  const lo = +span.low_mhz, hi = +span.high_mhz;
+  // An instrument parked on a single frequency reports every point the same,
+  // and a window with no width divides by zero and draws nothing. Decline to
+  // follow that rather than take the axis somewhere it cannot come back from.
+  if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return;
+  vnFollow = {low_mhz: lo, high_mhz: hi, points: span.points};
+  const centre = (lo + hi) / 2;
+  const box = document.getElementById('vn-centre');
+  if (box) box.value = centre.toFixed(3);   // set, not typed: fires nothing
+  vnSoon(vnUpdate);
+}
+
 async function vnUpdate() {
   const f0 = parseFloat(document.getElementById('vn-f0').value);
-  const centre = parseFloat(document.getElementById('vn-centre').value) || f0;
-  const spanPct = +document.getElementById('vn-span').value;
   const feet = +document.getElementById('vn-feet').value;
   if (!isFinite(f0) || f0 <= 0) return;
-  document.getElementById('vn-span-v').textContent = '±' + (spanPct / 2) + '%';
+
+  let centre, span, lo, hi;
+  if (vnFollow) {
+    lo = vnFollow.low_mhz;
+    hi = vnFollow.high_mhz;
+    centre = (lo + hi) / 2;
+    span = (hi - lo) / centre;
+    document.getElementById('vn-span-v').textContent =
+      'following the instrument: ' + lo.toFixed(3) + '–' + hi.toFixed(3) +
+      ' MHz' + (vnFollow.points ? ', ' + vnFollow.points + ' points' : '');
+  } else {
+    const spanPct = +document.getElementById('vn-span').value;
+    centre = parseFloat(document.getElementById('vn-centre').value) || f0;
+    span = spanPct / 100;
+    document.getElementById('vn-span-v').textContent = '±' + (spanPct / 2) + '%';
+  }
   document.getElementById('vn-feet-v').textContent =
     feet ? feet + ' ft' : 'at the antenna';
   const d = await vnFetch({
     kind: document.getElementById('vn-kind').value,
-    f0: f0, centre: centre, span: spanPct / 100,
+    f0: f0, centre: centre, span: span,
     line: document.getElementById('vn-line').value, feet: feet,
   });
   if (!d) return;
+  /* The axis is the instrument's when there is one, even where the model
+     cannot follow it that far: the prediction is only defended near
+     resonance, so a wide sweep draws it across the part it can answer for and
+     leaves the rest to the measurement. Stretching the axis to fit the model
+     instead would put the measured trace off the side of the picture, which
+     is the bug this is here to stop. */
   vnDraw('vn-chart', 'vn-markers', 'vn-read', d, {
     cursor: centre,
     measured: vnMeasured && vnMeasured.rows,
-    lo: d.low_mhz, hi: d.high_mhz,
+    lo: lo || d.low_mhz, hi: hi || d.high_mhz,
   });
   window.vnLast = d;
 }
@@ -3178,6 +3219,9 @@ async function vnControl(button, confirmed) {
     return;
   }
   const r = d.result;
+  /* The instrument just told us where it is. That is the chart's window from
+     now on - the whole point of setting a span is seeing it. */
+  vnFollowing(r.span);
   const span = r.span
     ? ' &middot; now sweeping <b>' + r.span.low_mhz + '–' + r.span.high_mhz +
       ' MHz</b> over ' + r.span.points + ' points'
@@ -3196,8 +3240,17 @@ document.addEventListener('click', e => {
 if (document.getElementById('vn-chart')) {
   ['vn-f0', 'vn-centre', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
     const el = document.getElementById(id);
-    el.addEventListener('input', () => vnSoon(vnUpdate));
-    el.addEventListener('change', () => vnSoon(vnUpdate));
+    // Moving the window by hand is a request to look somewhere else, so the
+    // chart stops following the instrument until it is driven again.
+    const own = (id === 'vn-centre' || id === 'vn-span');
+    el.addEventListener('input', () => {
+      if (own) vnFollow = null;
+      vnSoon(vnUpdate);
+    });
+    el.addEventListener('change', () => {
+      if (own) vnFollow = null;
+      vnSoon(vnUpdate);
+    });
   });
 
   document.getElementById('vn-find').addEventListener('click', async e => {
@@ -3233,21 +3286,47 @@ if (document.getElementById('vn-chart')) {
     const dev = document.getElementById('vn-port').value;
     const d = window.vnLast;
     if (!d) return;
+    /* Where the instrument is, if it has said - otherwise the window on
+       screen. Imposing the model's span here would undo the span somebody
+       had just set on the instrument, which is the opposite of driving it. */
+    const low = vnFollow ? vnFollow.low_mhz : d.low_mhz;
+    const high = vnFollow ? vnFollow.high_mhz : d.high_mhz;
+    const points = (vnFollow && vnFollow.points) || 101;
     e.target.disabled = true;
     document.getElementById('vn-dev').innerHTML =
-      'sweeping ' + d.low_mhz.toFixed(3) + '–' + d.high_mhz.toFixed(3) +
+      'sweeping ' + low.toFixed(3) + '–' + high.toFixed(3) +
       ' MHz on ' + escapeHTML(dev) + '… this takes a few seconds.';
     try {
       const got = await api('/api/vna/measure?device=' + encodeURIComponent(dev) +
-        '&start=' + d.low_mhz + '&stop=' + d.high_mhz + '&points=101');
+        '&start=' + low + '&stop=' + high + '&points=' + points);
       if (got.ok) {
         vnMeasured = got.sweep;
+        // What came back is what it actually swept, which is not always what
+        // it was asked for - so the axis follows the data, not the request.
+        vnFollowing({low_mhz: got.sweep.low_mhz, high_mhz: got.sweep.high_mhz,
+                     points: got.sweep.points});
         document.getElementById('vn-dev').innerHTML =
           '<span style="color:var(--green)">' + got.sweep.points +
           ' points back from ' + escapeHTML(dev) + '.</span> The green trace is ' +
           'what it measured. Where it disagrees with the model, believe the ' +
           'instrument &mdash; but check the calibration below before you believe ' +
           'either of them.';
+        /* "I can see no trace" is usually this: the scale stops at 5:1 and
+           everything measured is above it, so the green line is drawn along
+           the very top of the frame where it reads as part of the border. An
+           open port, no calibration, or the standards put on the wrong end of
+           the coax all look exactly like that, and none of them is a fault in
+           the program - so it says which it is rather than leaving somebody
+           hunting for a drawing bug. */
+        const drawn = (got.sweep.rows || []).filter(r => r.swr !== null);
+        if (drawn.length && drawn.every(r => r.swr >= 5)) {
+          document.getElementById('vn-dev').innerHTML +=
+            ' <span style="color:var(--amber)">Every point is above 5:1, ' +
+            'which is the top of this scale &mdash; the green trace is pinned ' +
+            'along the ceiling rather than missing. An open port, no ' +
+            'calibration, or the standards measured at the wrong end of the ' +
+            'coax all look like this.</span>';
+        }
         const ex = document.getElementById('vn-export');
         if (ex) ex.hidden = false;         // there is now something to export
         vnUpdate();
