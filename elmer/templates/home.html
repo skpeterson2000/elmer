@@ -70,6 +70,11 @@
       {% for key, track in tracks.items() %}{{ track.label|lower }} standing <b>{{ track.title }}</b>{% if not loop.last %} &middot; {% endif %}{% endfor %}
     </p>
   </div>
+  {# Beside the name, because it is the same thing: who this operator is on
+     the air. Filled in by JS so a dashboard with no network still loads at
+     once and this arrives late or not at all. #}
+  <div id="pota" class="pota" data-call="{{ profile.callsign or '' }}"
+       data-optin="{% if profile.settings.pota is defined and profile.settings.pota is not none %}{{ 'yes' if profile.settings.pota else 'no' }}{% else %}ask{% endif %}"></div>
   <div class="row">
     <a class="btn ghost sm" href="/propagation">Band conditions</a>
     <a class="btn ghost sm" href="/lab">Lab</a>

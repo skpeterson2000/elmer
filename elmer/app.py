@@ -31,7 +31,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                autoplay, bugreport, cohort, conductors, diagnostics,
                discovery, gating, netwatch,
                gps, netcontrol,
-               party, phonegps, prints, qr,
+               party, phonegps, pota, prints, qr,
                reachout, repeaters,
                terrain, touchstone, update, vna)
 from .content import get_pool, load_pools, presentation
@@ -1781,6 +1781,18 @@ def api_callsign(call):
     return jsonify({"ok": True, **found})
 
 
+@app.route("/api/pota/<call>")
+def api_pota(call):
+    """One operator's Parks on the Air record. Public, keyless, and anybody's.
+
+    Deliberately not restricted to the signed-in operator: the data is a public
+    page on POTA's own site, and the useful case is looking up a station you
+    have just worked without leaving ELMER. The page is responsible for saying
+    whose record it is showing.
+    """
+    return jsonify(pota.lookup(call, refresh=request.args.get("refresh") == "1"))
+
+
 @app.route("/api/geocode")
 def api_geocode():
     """Places matching a name, for the location boxes.
@@ -2920,6 +2932,11 @@ def api_settings():
     for key in ("license_class", "state"):
         if key in body:
             settings[key] = body[key]
+    # Whether this operator wants their callsign sent to POTA at all. Stored as
+    # a real choice with three states - never asked, yes, no - so declining is
+    # remembered rather than re-offered on every page load.
+    if "pota" in body:
+        settings["pota"] = bool(body["pota"])
     if "location" in body:
         place = body["location"] or {}
         if place.get("lat") is not None and place.get("lon") is not None:

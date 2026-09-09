@@ -505,3 +505,128 @@ async function locateMe() {
 function saveQTH(place) {
   return postJSON('/api/settings', {location: place});
 }
+
+/* ------------------------------------------------------- POTA, by callsign --
+   What an operator has earned, beside their name. It is public data on POTA's
+   own site and needs no key, which is why it is here and why DXCC is not - the
+   ARRL awards live behind the operator's own Logbook of the World login, and
+   asking for that password is a different thing entirely.
+
+   Nothing is fetched until the operator says so. Their callsign leaving this
+   unit for somebody else's server is their decision and not a detail of how
+   the dashboard happens to be built, so the panel opens by explaining what it
+   would do and waiting. The answer is remembered either way - a no stays no
+   rather than being re-offered every time the page loads.
+
+   The lookup takes any callsign, not just this unit's. That is the half worth
+   having: work somebody, put their call in, see what they have been doing.
+   The panel always says whose record it is showing, because another
+   operator's awards must never sit under your own greeting as though they
+   were yours. */
+(function () {
+  const box = document.getElementById('pota');
+  if (!box) return;
+  const mine = (box.dataset.call || '').toUpperCase();
+  if (!mine) return;                       // no callsign, nothing to offer
+
+  const chip = a =>
+    '<span class="pota-award" title="' +
+    escapeHTML(a.name + (a.granted ? ' \u2014 granted ' + a.granted : '') +
+      (a.endorsements.length ? ' \u2014 ' + a.endorsements.join(', ') : '')) +
+    '">' + escapeHTML(a.name) +
+    (a.endorsements.length ? ' <i>+' + a.endorsements.length + '</i>' : '') +
+    '</span>';
+
+  const form = who =>
+    '<form class="pota-ask" autocomplete="off">' +
+      '<input name="call" class="mono" placeholder="look up a callsign" ' +
+        'aria-label="look up a callsign on POTA" spellcheck="false">' +
+      (who && who !== mine
+        ? '<button type="button" class="btn sm ghost" data-mine>back to ' +
+          escapeHTML(mine) + '</button>'
+        : '<button type="button" class="btn sm ghost" data-off>stop</button>') +
+    '</form>';
+
+  /* The offer. It says what would be sent, to whom, and what comes back,
+     because "connect your account" with no further detail is how people end
+     up surprised. */
+  function offer() {
+    box.innerHTML =
+      '<div class="pota-head">Parks on the Air</div>' +
+      '<div class="tiny muted">ELMER can show your POTA awards here. ' +
+      'It would send <b>' + escapeHTML(mine) + '</b> \u2014 and nothing else ' +
+      'about you \u2014 to POTA\u2019s public profile page, and keep the ' +
+      'answer on this unit so it works offline afterwards. Your awards are ' +
+      'already public there.</div>' +
+      '<div class="pota-ask">' +
+        '<button type="button" class="btn sm primary" data-yes>Show my awards</button>' +
+        '<button type="button" class="btn sm ghost" data-no>No thanks</button>' +
+      '</div>';
+  }
+
+  function render(d, asked) {
+    const who = (d.call || asked || '').toUpperCase();
+    const theirs = who && who !== mine;
+    const head = theirs ? escapeHTML(who) + ' on Parks on the Air'
+                        : 'Your Parks on the Air';
+    if (!d.found) {
+      box.innerHTML = '<div class="pota-head">' + head + '</div>' +
+        '<div class="tiny muted">' + escapeHTML(d.error || 'nothing on record') +
+        (d.error && /reach/.test(d.error) ? ''
+          : ' \u2014 the awards start at ten parks hunted.') + '</div>' +
+        form(who);
+      return;
+    }
+    const a = d.awards || [], h = d.hunter || {}, act = d.activator || {};
+    const counts = [];
+    if (h.parks) counts.push('<b>' + h.parks + '</b> parks hunted');
+    if (act.activations) counts.push('<b>' + act.activations + '</b> activations');
+    if (d.endorsements) counts.push('<b>' + d.endorsements + '</b> endorsements');
+    box.innerHTML =
+      '<div class="pota-head">' + head +
+        (d.stale ? ' <span class="tiny muted">(last known \u2014 no network)</span>'
+                 : '') + '</div>' +
+      (a.length ? '<div class="pota-awards">' + a.map(chip).join('') + '</div>'
+                : '<div class="tiny muted">No awards yet.</div>') +
+      (counts.length ? '<div class="tiny muted">' + counts.join(' \u00b7 ') +
+                       '</div>' : '') +
+      form(who);
+  }
+
+  async function show(call) {
+    try {
+      render(await api('/api/pota/' + encodeURIComponent(call)), call);
+    } catch (e) {
+      box.innerHTML = '<div class="pota-head">Parks on the Air</div>' +
+        '<div class="tiny muted">POTA could not be reached.</div>' + form(call);
+    }
+  }
+
+  const remember = yes => fetch('/api/settings', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pota: yes})}).catch(() => {});
+
+  const declined = () => {
+    box.innerHTML = '<div class="tiny muted"><a href="#" data-again>' +
+      'Show my POTA awards</a></div>';
+  };
+
+  box.addEventListener('click', e => {
+    if (e.target.matches('[data-yes]')) { remember(true); show(mine); }
+    else if (e.target.matches('[data-no]')) { remember(false); declined(); }
+    else if (e.target.matches('[data-again]')) {
+      e.preventDefault(); remember(true); show(mine);
+    } else if (e.target.matches('[data-off]')) { remember(false); declined(); }
+    else if (e.target.matches('[data-mine]')) show(mine);
+  });
+  box.addEventListener('submit', e => {
+    e.preventDefault();
+    const asked = (new FormData(e.target).get('call') || '').trim();
+    if (asked) show(asked);
+  });
+
+  const optin = box.dataset.optin;
+  if (optin === 'yes') show(mine);
+  else if (optin === 'no') declined();
+  else offer();
+})();
