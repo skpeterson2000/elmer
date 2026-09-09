@@ -7,9 +7,23 @@
    itself at page load - which put this in the temporal dead zone and threw. */
 const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
                  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+/* The sweep off the instrument, shared by the two panes that care: the VNA
+   takes it and the Smith chart draws it. Declared here for the same reason
+   COMPASS is - the Smith chart paints itself during this file's own
+   evaluation, and a `let` further down is hoisted without being initialised,
+   so reading it from up here threw and the chart quietly did not appear until
+   somebody moved a control. On the Lab it is filled from the server, since
+   the instrument is on another page now. */
+let vnMeasured = null;
 function compass(deg) {
   return COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
 }
+
+/* Which bench this is. One script serves the Lab and Tools, and the tab each
+   was left on is remembered separately: coming back to the Lab should reopen
+   the Lab's tab, not whichever instrument was last looked at next door. */
+const BENCH = 'tab.' + location.pathname;
 
 function selectTab(name) {
   const btn = document.querySelector('#lab-tabs button[data-tab="' + name + '"]');
@@ -28,7 +42,7 @@ document.querySelectorAll('#lab-tabs button').forEach(btn => {
   btn.addEventListener('click', () => {
     selectTab(btn.dataset.tab);
     history.replaceState(null, '', '#' + btn.dataset.tab);
-    remember('lab.tab', btn.dataset.tab);
+    remember(BENCH, btn.dataset.tab);
   });
 });
 
@@ -39,10 +53,10 @@ document.querySelectorAll('#lab-tabs button').forEach(btn => {
 function openFromHash() {
   const name = (location.hash || '').replace('#', '');
   if (name) {
-    if (selectTab(name)) remember('lab.tab', name);
+    if (selectTab(name)) remember(BENCH, name);
     return;
   }
-  const last = recall('lab.tab');
+  const last = recall(BENCH);
   if (last) selectTab(last);
 }
 window.addEventListener('hashchange', openFromHash);
@@ -1778,8 +1792,12 @@ if (pathGo) {
   });
 }
 
-/* first paint */
-initPathPlaces();
+/* first paint. Every one of these is guarded on something it needs, because
+   this script serves two benches now and the panes are split between them:
+   an initialiser that assumes its own pane is present throws on the page it
+   is not, and a throw at the top level takes every pane after it down with
+   it - which is how the analyser stopped drawing when the sextant moved. */
+if (document.getElementById('pane-path')) initPathPlaces();
 openFromHash();
 if (document.getElementById('s-svg')) drawSkip();
 if (document.getElementById('r-svg')) drawReact();
@@ -1787,7 +1805,8 @@ if (document.getElementById('an-type')) {
   antennaFields(document.getElementById('an-type').value);
   calcAnt();
 }
-calcSWR(); calcDb();
+if (document.getElementById('pane-swr')) calcSWR();
+if (document.getElementById('pane-db')) calcDb();
 
 /* ------------------------------------------------------- RF exposure ----- */
 /* The evaluation every station is required to have done. Numbers come from
@@ -2065,7 +2084,7 @@ function initRf() {
     postJSON('/api/settings', {callsign: call.value}).catch(() => {}));
   rfEvaluate();
 }
-initRf();
+if (document.getElementById('pane-rf')) initRf();
 
 /* ---------- what to put up, and how ----------
 
@@ -2474,6 +2493,27 @@ function smMeasSync() {
   if (+slider.value > rows.length - 1) slider.value = String(rows.length - 1);
 }
 
+/* The sweep was taken on the Tools page and this is the Lab, so it comes off
+   the server rather than out of a variable. Asked for once, not on every
+   event: a slider dragged across the chart should not fetch a measurement on
+   every pixel of the drag. */
+let smAsked = false;
+
+async function smHeldSweep() {
+  if (smAsked || vnMeasured) return;
+  smAsked = true;
+  let d;
+  try {
+    d = await api('/api/vna/last');
+  } catch (err) {
+    return;                       // no sweep to be had is not a page error
+  }
+  if (!d || !d.sweep || !(d.sweep.rows || []).length) return;
+  vnMeasured = d.sweep;
+  smMeasSync();
+  calcSmith();
+}
+
 function smMeasuredPoint() {
   const rows = (vnMeasured && vnMeasured.rows) || [];
   const use = document.getElementById('sm-use');
@@ -2566,6 +2606,7 @@ if (document.getElementById('sm-chart')) {
     toast('Carried over', a.label + ' at ' + a.f + ' MHz');
   });
   calcSmith();
+  smHeldSweep();
 }
 
 /* ---------- where the energy goes, and how much band you get ----------
@@ -3130,8 +3171,9 @@ async function avUpdate() {
   vnDraw('av-chart', 'av-markers', 'av-read', d, {cursor: f});
 }
 
-/* The VNA tab. Same chart, plus whatever the instrument on the bench says. */
-let vnMeasured = null;
+/* The VNA tab. Same chart, plus whatever the instrument on the bench says.
+   `vnMeasured` is declared at the top of this file, not here - see the note
+   beside it. */
 
 /* What the instrument itself is set to, once it has said so - from driving it
    or from a sweep coming back. While this is known it owns the horizontal

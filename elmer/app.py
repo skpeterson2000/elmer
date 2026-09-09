@@ -27,7 +27,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               discovery, fieldkit, gating, host, netwatch,
+               discovery, fieldkit, gating, host, netwatch, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
@@ -815,7 +815,25 @@ def api_vna_measure():
     got, error = nanovna.measure(device, start, stop, points)
     if error:
         log.info("vna sweep failed: %s", error)
+    # Held where another page can find it. The Smith chart is no longer a tab
+    # of the same document as the instrument, and a measurement that lived in
+    # the page that took it could not cross that.
+    if got is not None:
+        sweeps.keep(got)
     return jsonify({"ok": got is not None, "sweep": got, "error": error})
+
+
+@app.route("/api/vna/last")
+def api_vna_last():
+    """The last sweep the instrument gave this station, if there is one.
+
+    Read by the Smith chart, which lives on a different page from the VNA now
+    and so cannot be handed the trace directly. Anyone on the network may look
+    at what the antenna measured; only a browser on the machine itself can
+    make the instrument do anything, which is the split the control endpoint
+    already draws.
+    """
+    return jsonify({"sweep": sweeps.last()})
 
 
 @app.route("/api/vna/s1p", methods=["POST"])
@@ -1188,6 +1206,17 @@ def api_cw_result():
 @app.route("/lab")
 def lab():
     return render_template("lab.html", **profile_block(conn()))
+
+
+@app.route("/tools")
+def tools():
+    """The bench, as opposed to the syllabus.
+
+    Split out of the Lab because the Lab is the material the exams ask about
+    and these are not: no element has ever asked how to drive a NanoVNA or
+    take a sun sight. They are worth having and they were worth moving.
+    """
+    return render_template("tools.html", **profile_block(conn()))
 
 
 # --------------------------------------------------------------------------

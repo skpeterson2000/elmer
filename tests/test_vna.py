@@ -152,6 +152,36 @@ def main():
           sorted(o["action"] for o in nanovna.offered() if o["destroys"]),
           ["cal-reset", "save"])
 
+    print("\n-- and the sweep outlives the page that took it --")
+    # The instrument and the Smith chart are on different pages now, so a
+    # measurement cannot be handed from one to the other in a variable. It
+    # goes on the card instead, which also means it survives a reload.
+    import json, tempfile          # noqa: E402
+    from pathlib import Path as _P  # noqa: E402
+    from elmer import sweeps        # noqa: E402
+    with tempfile.TemporaryDirectory() as tmp:
+        sweeps.STORE = _P(tmp) / "sweep.json"
+        check("nothing held to begin with", sweeps.last(), None)
+        rows = [{"mhz": 14.0, "swr": 1.4}, {"mhz": 14.1, "swr": 1.2}]
+        kept = sweeps.keep({"device": "/dev/ttyACM0", "rows": rows,
+                            "low_mhz": 14.0, "high_mhz": 14.1,
+                            "over_unity": 0})
+        check("a sweep is kept", kept["points"], 2)
+        check("  and read back whole", sweeps.last()["rows"], rows)
+        check("  with the span it was taken over",
+              [sweeps.last()["low_mhz"], sweeps.last()["high_mhz"]],
+              [14.0, 14.1])
+        check("  and when", sweeps.last()["taken"] > 0, True)
+        # One sweep, not a history: the last thing measured is what a page
+        # asking "what did it measure" means.
+        sweeps.keep({"device": "x", "rows": [{"mhz": 7.1, "swr": 3.0}]})
+        check("a second replaces the first", sweeps.last()["points"], 1)
+        check("nothing to keep is not kept", sweeps.keep({"rows": []}), None)
+        check("  nor is a sweep no instrument could produce",
+              sweeps.keep({"rows": [{}] * (sweeps.MAX_POINTS + 1)}), None)
+        check("and it can be thrown away", sweeps.forget(), True)
+        check("  leaving nothing behind", sweeps.last(), None)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

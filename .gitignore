@@ -69,3 +69,7 @@ data/trips.json
 # The parks and summits fetched for wherever this operator goes. Same
 # reasoning as the trip list: it is a record of where somebody intends to be.
 data/references.json
+
+# The last sweep off the VNA. A measurement of this operator's antenna, taken
+# on this bench - output, and theirs.
+data/sweep.json
