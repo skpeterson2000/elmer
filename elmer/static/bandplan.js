@@ -83,7 +83,10 @@ async function bpLoadRegional() {
   if (!st) { bpRegional = null; return; }
   try {
     const r = await api('/api/bandplan/regional/' + encodeURIComponent(st));
-    bpRegional = r.ok ? r : null;
+    /* A state with no readable plan is not a failure - most coordinators do
+       not publish one this can parse. Keep the answer so the page can name
+       who covers them instead of showing nothing. */
+    bpRegional = r.ok ? r : (r.coordinators ? r : null);
   } catch (e) { bpRegional = null; }
 }
 
@@ -183,6 +186,21 @@ function bpRender() {
   bindSegments(band);
 
   const rbox = document.getElementById('bp-regional');
+  if (bpRegional && !bpRegional.ok && bpRegional.coordinators) {
+    const who = bpRegional.coordinators;
+    rbox.innerHTML = '<div class="tiny muted"><b>' +
+      escapeHTML(bpRegional.state) + ' is coordinated by ' +
+      who.map(c => '<a href="' + escapeHTML(c.url) + '" target="_blank" ' +
+        'rel="noopener">' + escapeHTML(c.name) + '</a>').join(' and ') +
+      '.</b> ELMER cannot read their plan yet &mdash; there is no common ' +
+      'format between coordinators and most publish PDFs or a query form, so ' +
+      'the ones it parses are added a site at a time. The national band plan ' +
+      'above still applies; the local plan narrows it.' +
+      (who.some(c => c.note)
+        ? ' ' + who.filter(c => c.note).map(c => escapeHTML(c.note)).join(' ')
+        : '') + '</div>';
+    return;
+  }
   const segs = bpRegional && (bpRegional.bands || {})[band.name];
   if (!segs) {
     rbox.innerHTML = bpState() && bpRegional
