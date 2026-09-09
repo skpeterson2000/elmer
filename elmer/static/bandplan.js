@@ -460,7 +460,28 @@ function vhfBox(band) {
 }
 
 function conditionBar(band) {
-  if (band.high > 30) return vhfBox(band);
+  /* Above about 30 MHz there is usually no F layer return and so no daily
+     curve worth drawing - but "usually" is not "never", and 6m is the band
+     where it matters. It is in the propagation model, the outlook returns a
+     full day of hours for it, and since the critical frequency was bounded at
+     what has actually been observed the modelled MUF reaches 58 MHz at solar
+     maximum, which is a real 6m F2 opening. Throwing that away and printing
+     only the sporadic-E note told somebody nothing on the one VHF band the
+     model can speak about. So it gets both: the curve where there is one, and
+     the note about what else opens it. */
+  if (band.high > 30) {
+    const vhf = vhfBox(band);
+    const cond = conditionsFor(band);
+    if (!cond || !cond.now || !(cond.hours || []).length) return vhf;
+    return vhf + '<div class="condbox">' +
+      '<div class="panel-title" style="margin:0">If the F layer reaches it</div>' +
+      '<div class="tiny muted">Rare, and worth showing because it is the one ' +
+      'band above 30 MHz where it happens: at solar maximum the critical ' +
+      'frequency can climb far enough that 6m opens like an HF band. This is ' +
+      'the same model the HF bands use, and on most days it will say the ' +
+      'band is shut - which is the honest answer.</div>' +
+      forecastStrip(cond) + '</div>';
+  }
   const cond = conditionsFor(band);
   if (!cond || !cond.now) {
     return '<div class="condbox"><div class="tiny muted">Band conditions ' +
