@@ -103,6 +103,69 @@ function renderWho(d) {
   if (wasOpen) placeWhoMenu();          // its height just changed
 }
 
+/* Asking for a password without showing it to the room.
+
+   prompt() renders what is typed in the clear, which hands the password to
+   whoever is standing behind you - and "somebody in the room" is the one
+   attacker an account password on a shared unit actually defends against. So
+   it is masked, with a box to unmask it deliberately when nobody is looking.
+
+   Masking makes a typo invisible, so setting a new one asks twice. That is not
+   ceremony: a mistyped password on an account you then cannot switch to is a
+   bad five minutes for whoever runs the club night, and without a moderator
+   key set it takes a database editor to undo.
+
+   Returns the password, or null if cancelled - the same contract prompt() had,
+   because an empty string means "remove the password" and must not be confused
+   with backing out. */
+function askPassword(opts) {
+  const dlg = document.getElementById('pw-ask');
+  if (!dlg || !dlg.showModal) {          // no dialog support: do not lock anyone out
+    const said = prompt(opts.label || 'Password:');
+    return Promise.resolve(said);
+  }
+  const input = document.getElementById('pw-input');
+  const again = document.getElementById('pw-again');
+  const againRow = document.getElementById('pw-again-row');
+  const show = document.getElementById('pw-show');
+  const note = document.getElementById('pw-note');
+
+  document.getElementById('pw-title').textContent = opts.title || 'Password';
+  document.getElementById('pw-label').textContent = opts.label || 'Password';
+  input.value = again.value = '';
+  againRow.hidden = !opts.confirm;
+  show.checked = false;
+  note.textContent = opts.note || '';
+  const setType = () => {
+    const t = show.checked ? 'text' : 'password';
+    input.type = t; again.type = t;
+  };
+  setType();
+  show.onchange = setType;
+
+  return new Promise(resolve => {
+    const ok = document.getElementById('pw-ok');
+    const finish = value => {
+      dlg.onclose = null; ok.onclick = null; show.onchange = null;
+      dlg.close();
+      resolve(value);
+    };
+    ok.onclick = e => {
+      if (opts.confirm && input.value !== again.value) {
+        e.preventDefault();
+        note.innerHTML = '<span style="color:var(--red)">Those two do not ' +
+          'match. Tick the box above to see what you are typing.</span>';
+        return;
+      }
+      e.preventDefault();
+      finish(input.value);
+    };
+    dlg.onclose = () => { if (dlg.returnValue !== 'ok') finish(null); };
+    dlg.showModal();
+    input.focus();
+  });
+}
+
 async function switchUser(id) {
   /* A locked account asks. Answering questions as somebody else quietly
      corrupts the one record they came here to build, so picking their name
@@ -110,7 +173,9 @@ async function switchUser(id) {
   const who = (whoData && whoData.users || []).find(u => u.id === id);
   let password = '';
   if (who && who.locked) {
-    password = prompt('Password for ' + who.display_name + ':') || '';
+    password = await askPassword(
+      {title: 'Switch to ' + who.display_name,
+       label: 'Password for ' + who.display_name}) || '';
     if (!password) return;
   }
   let r;
@@ -156,13 +221,20 @@ async function offerPassword(me) {
 }
 
 async function setPassword(me) {
-  const wanted = prompt(me.locked
-    ? 'New password for ' + me.display_name + ' (blank removes it):'
-    : 'Choose a password for ' + me.display_name + ':');
+  const wanted = await askPassword({
+    title: me.locked ? 'Change password' : 'Set a password',
+    label: me.locked
+      ? 'New password for ' + me.display_name + ' - leave it blank to remove it'
+      : 'A password for ' + me.display_name,
+    note: 'Any length, anything you like. It travels over the network in '
+        + 'clear, so do not reuse one that matters.',
+    confirm: true});
   if (wanted === null) return;
   let current = '';
   if (me.locked) {
-    current = prompt('Current password (or the moderator key):') || '';
+    current = await askPassword(
+      {title: 'Confirm it is you',
+       label: 'Current password, or the moderator key'}) || '';
     if (!current) return;
   }
   try {
@@ -201,7 +273,8 @@ document.addEventListener('click', async e => {
       if (!name) return;
       let password = '';
       if (me.locked) {
-        password = prompt('Password for this account:') || '';
+        password = await askPassword(
+          {title: 'Rename', label: 'Password for this account'}) || '';
         if (!password) return;
       }
       try {
@@ -224,8 +297,10 @@ document.addEventListener('click', async e => {
                    'and it cannot be undone.')) return;
       let password = '';
       if (me.locked) {
-        password = prompt('Password for ' + me.display_name +
-                          ' (or the moderator key):') || '';
+        password = await askPassword({
+          title: 'Remove ' + me.display_name,
+          label: 'Password for ' + me.display_name + ', or the moderator key',
+          note: 'This cannot be undone.'}) || '';
         if (!password) return;
       }
       const res = await fetch('/api/users/remove', {

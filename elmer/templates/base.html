@@ -70,6 +70,26 @@
 {% block body %}{% endblock %}
 </main>
 
+<dialog id="pw-ask" class="pw-ask">
+  <form method="dialog">
+    <div class="pw-title" id="pw-title">Password</div>
+    <label class="pw-label" for="pw-input" id="pw-label">Password</label>
+    <input type="password" id="pw-input" autocomplete="off" autocapitalize="off"
+           autocorrect="off" spellcheck="false">
+    <div class="pw-again" id="pw-again-row" hidden>
+      <label class="pw-label" for="pw-again">And again, to be sure</label>
+      <input type="password" id="pw-again" autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false">
+    </div>
+    <label class="pw-show"><input type="checkbox" id="pw-show"> Show what I am typing</label>
+    <div class="pw-note tiny muted" id="pw-note"></div>
+    <div class="pw-buttons">
+      <button class="btn sm" value="cancel" id="pw-cancel">Cancel</button>
+      <button class="btn sm primary" value="ok" id="pw-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toaster" class="toaster"></div>
 <script>
 /* Whether to offer this account a password. The server already knows, so it is

@@ -921,3 +921,31 @@ table.data.printouts td { vertical-align: middle; }
   display: block; width: 100%; height: min(78vh, 1100px);
   border: 0; background: #21262d;
 }
+
+
+/* ---------- asking for a password ----------
+   A browser prompt() shows what is typed in the clear, which hands the
+   password to whoever is standing behind you - the one attacker an account
+   password on a shared unit actually defends against. So it is masked, with a
+   box to unmask it deliberately when nobody is looking. */
+.pw-ask {
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--panel); color: var(--text); padding: 1.1rem 1.2rem;
+  min-width: min(24rem, 92vw); box-shadow: 0 18px 50px rgba(0,0,0,.55);
+}
+.pw-ask::backdrop { background: rgba(5,8,12,.66); }
+.pw-title { font: 600 1rem var(--sans); margin-bottom: .7rem; }
+.pw-label { display: block; font: .78rem var(--sans); color: var(--dim);
+  margin-bottom: .25rem; }
+.pw-ask input[type="password"], .pw-ask input[type="text"] {
+  width: 100%; background: #0f151d; border: 1px solid var(--line-2);
+  color: var(--text); border-radius: 8px; padding: .5rem .6rem;
+  font: 1rem var(--mono); letter-spacing: .08em;
+}
+.pw-ask input:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
+.pw-again { margin-top: .6rem; }
+.pw-show { display: flex; align-items: center; gap: .4rem; margin-top: .7rem;
+  font: .8rem var(--sans); color: var(--dim); cursor: pointer; }
+.pw-note { margin-top: .5rem; min-height: 1rem; }
+.pw-buttons { display: flex; gap: .5rem; justify-content: flex-end;
+  margin-top: .9rem; }
