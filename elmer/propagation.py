@@ -731,17 +731,18 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
     if not sondes:
         return None
     when = when or datetime.now(timezone.utc)
-    votes, factors, nearest, closest = [], [], None, None
+    votes, factors, suns, nearest, closest = [], [], [], None, None
     for station in sondes:
         km = ionosonde.great_circle(lat, lon, station["lat"], station["lon"])
         if km > CALIBRATION_KM:
             continue
-        modelled = _fof2(sfi, solar_elevation(station["lat"], station["lon"], when),
-                         station["lat"])
+        sun = solar_elevation(station["lat"], station["lon"], when)
+        modelled = _fof2(sfi, sun, station["lat"])
         if modelled <= 0:
             continue
         weight = 1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
         votes.append((station["fof2"] / modelled, weight))
+        suns.append((sun, weight))
         if station.get("m3000"):
             factors.append((station["m3000"], weight))
         if nearest is None or km < nearest:
@@ -753,6 +754,12 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
     factor = max(low, min(high, raw))
     return {
         "factor": round(factor, 3),
+        # The sun angle this was measured under. An anchor is evidence about
+        # the ionosphere that was overhead the sondes at the time, and the sun
+        # is most of what decides that - so carrying it to an hour with a
+        # different sun means carrying it past what it can support.
+        "sun_deg": round(sum(e * w for e, w in suns) / sum(w for _, w in suns), 1)
+                   if suns else None,
         "m3000": round(_weighted_median(factors) or M3000_DEFAULT, 2),
         "stations": len(votes),
         "nearest_km": round(nearest),
@@ -763,6 +770,49 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
                    else "measured" if nearest <= CALIBRATION_HALF_KM
                    else "regional"),
     }
+
+
+# How far the anchor may be carried from the sky it was measured under.
+#
+# A calibration is a measurement of how wrong the model is *now*, and "now"
+# includes the sun. Applying tonight's factor to tomorrow's noon assumes the
+# model's error is the same fraction in daylight as in darkness, and it is not:
+# checked against every sonde reporting at one moment, the ratio of measured to
+# modelled foF2 ran about 0.77 at the stations in darkness and about 1.20 at
+# the stations in daylight. It does not merely change size, it changes sign.
+#
+# So an anchor taken at night, carried through the following day, is wrong
+# twice over - and it was closing 20 m for twenty-four hours straight on a flux
+# of 110, against a wall chart that called the same band Good day and night.
+#
+# The plateau is the span over which the sky has not really changed and the
+# measurement still stands; beyond it the anchor fades out and the model is
+# left to speak for itself, which is the honest position when there is no
+# measurement for that sun angle. Both are chosen rather than fitted - there is
+# not enough of a sonde record here to fit them - and they are deliberately
+# wide, because letting go of evidence too early is the smaller error.
+ANCHOR_PLATEAU_DEG = 12.0
+ANCHOR_FADE_DEG = 40.0
+
+
+def anchor_at(anchor, measured_sun, sun):
+    """The anchor's weight at one sun angle, given where it was measured.
+
+    Full strength where the sun is where it was when the sondes were read, so
+    the current hour is unchanged; fading to 1.0 - the model alone - as the sky
+    moves away from that.
+    """
+    if anchor is None:
+        return 1.0
+    if measured_sun is None:
+        return float(anchor)
+    gap = abs(float(sun) - float(measured_sun))
+    if gap <= ANCHOR_PLATEAU_DEG:
+        return float(anchor)
+    if gap >= ANCHOR_FADE_DEG:
+        return 1.0
+    held = 1.0 - (gap - ANCHOR_PLATEAU_DEG) / (ANCHOR_FADE_DEG - ANCHOR_PLATEAU_DEG)
+    return 1.0 + (float(anchor) - 1.0) * held
 
 
 def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
@@ -784,8 +834,88 @@ def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
     return max(low, min(high, float(measured) / modelled))
 
 
+# --- what the wall chart says, and what we say ------------------------------
+#
+# Two answers to nearly the same question, and they are not the same question.
+# N0NBH rates a *group* of bands twice a day from the flux and the field; this
+# rates *one* band for *this* hour against a critical frequency measured near
+# the operator. They should sometimes differ, and when they do the difference
+# is information rather than a fault - on an evening when 30 m is under the MUF
+# and 20 m is over it, the group they share can only be right about one of them.
+#
+# So neither is corrected toward the other and neither is hidden. Ours is shown
+# because it is the one that knows where the operator is standing; theirs is
+# shown beside it because an independent second opinion from a source every
+# operator already reads is worth more than a quiet agreement would be. What is
+# added here is the sentence that says which is which, and how far apart they
+# are, so a reader is never left to notice a contradiction on their own.
+#
+# The one honest asymmetry: when a sonde is in reach, ours is anchored to a
+# real reading and theirs is not; when there is no sonde, ours is a model and
+# theirs is the better-founded of the two. The note says so either way.
+
+WALL_WORDS = {"Good": 2, "Fair": 1, "Poor": 0}
+
+
+def _as_wall_word(score):
+    """Our five words in their three, so the comparison is like for like."""
+    if score >= 60:
+        return "Good"
+    if score >= 35:
+        return "Fair"
+    return "Poor"
+
+
+def reconcile(score, rating, muf_source=None, is_group=True):
+    """Line our rating up against the wall chart's and say where they part.
+
+    Returns None when there is nothing to compare against, which is the honest
+    answer and not an error - the feed does not rate every band.
+    """
+    rating = (rating or "").strip().title()
+    if rating not in WALL_WORDS or score is None:
+        return None
+    ours = _as_wall_word(score)
+    gap = abs(WALL_WORDS[ours] - WALL_WORDS[rating])
+    out = {"theirs": rating, "ours": ours, "score": round(score),
+           "agree": gap == 0, "gap": gap}
+    if gap == 0:
+        out["note"] = ""
+        return out
+
+    # Why they can differ at all, said once and plainly.
+    why = ("The wall chart rates a group of bands twice a day from the flux "
+           "and the field. This rates one band for this hour, against the "
+           "critical frequency measured nearest you and the sun's angle where "
+           "you are standing. Two bands in one group can be on opposite sides "
+           "of the MUF, and then one word cannot be right about both."
+           if is_group else
+           "The wall chart is twice a day from the flux and the field; this "
+           "is this hour, at your latitude.")
+    if muf_source == "measured":
+        trust = ("Ours is anchored to a sonde reading taken near you within "
+                 "the hour, so on this band at this moment it is the better "
+                 "informed of the two - but it is still a model wearing a "
+                 "measurement, and the wall chart is a real second opinion.")
+    elif muf_source in ("regional", "bounded"):
+        trust = ("Ours is corrected by sondes, but distant ones, so it is a "
+                 "regional figure rather than a local measurement. Where the "
+                 "two disagree this far apart, believe neither and turn the "
+                 "radio on.")
+    else:
+        trust = ("No sonde was in reach, so ours is the model alone and the "
+                 "wall chart is the better founded of the two here. Treat "
+                 "this disagreement as a reason to doubt us first.")
+    out["note"] = ("%s says %s, we make it %s.%s %s"
+                   % ("The wall chart", rating, ours,
+                      " That is a flat contradiction, not a shade of one."
+                      if gap >= 2 else "", why + " " + trust))
+    return out
+
+
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
-            muf_now=None, anchor=None, m3000=None, aurora_lat=None):
+            muf_now=None, anchor=None, m3000=None, aurora_lat=None,
+            anchor_sun=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -809,7 +939,11 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     for step in range(hours + 1):
         when = start + timedelta(hours=step)
         elevation = solar_elevation(lat, lon, when)
-        muf, fof2 = levels(sfi, elevation, lat, m3000, anchor)
+        # The anchor is worth what it was measured under, and no more. Held at
+        # full strength while the sun is near where the sondes saw it, then
+        # released - see `anchor_at`.
+        muf, fof2 = levels(sfi, elevation, lat, m3000,
+                           anchor_at(anchor, anchor_sun, elevation))
         got = band_score(mhz, muf, elevation, k_index, fof2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         state = sun_regime(elevation, lat, when)
