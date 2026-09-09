@@ -70,6 +70,9 @@ function renderUpdate(d) {
         '</div></div>'
       : '';
   }
+  // A redraw during an update - somebody pressing Check now while it runs -
+  // would otherwise hand back a fresh button that looks pressable and is not.
+  applyButtons(updating);
 }
 
 function updateControls(d, waiting) {
@@ -94,6 +97,19 @@ function updateControls(d, waiting) {
       : '');
 }
 
+/* The same press is offered in two places - the strip across the top and the
+   panel below it - and applying replaces only the one the operator happened
+   to press. Left alone the other one stays lit and still says "Update now",
+   which is an invitation to press it again while the first fast-forward is
+   still running. So being busy belongs to the action rather than to whichever
+   button carried it, and both are told. */
+function applyButtons(busy) {
+  document.querySelectorAll('[data-update="apply"]').forEach(b => {
+    b.disabled = busy;
+    b.textContent = busy ? 'Updating…' : 'Update now';
+  });
+}
+
 /* The server goes away mid-request when it restarts onto the new code, so the
    page waits for it to answer again and reloads itself. On a kiosk this is the
    only thing anybody sees of an update. */
@@ -109,7 +125,16 @@ async function waitForServer(box, tries) {
     'come back yet. Reload the page in a moment.</div>';
 }
 
+/* A second press before the first repaints would start a second
+   fast-forward, and git's index lock turns that into a failure message about
+   a running git process - which reads as ELMER breaking rather than as the
+   operator pressing twice. */
+let updating = false;
+
 async function applyUpdate() {
+  if (updating) return;
+  updating = true;
+  applyButtons(true);
   const strip = document.getElementById('update-strip');
   const panel = document.getElementById('software');
   const box = strip && strip.innerHTML ? strip : panel;
@@ -120,12 +145,18 @@ async function applyUpdate() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: '{}'});
   } catch (err) {
+    // Contact lost is not the same as refused: the update may well have
+    // landed, so this does not offer the press again.
     box.innerHTML = '<div class="panel tight welcome">Lost contact while ' +
                     'updating. Reload the page in a moment.</div>';
     return;
   }
   const d = await res.json().catch(() => ({}));
   if (!res.ok || !d.ok) {
+    // Refused, and nothing has changed - so the press comes back, because
+    // holding a machine that has not moved is worse than saying no.
+    updating = false;
+    applyButtons(false);
     box.innerHTML = '<div class="panel tight welcome">Could not update: ' +
                     escapeHTML(d.message || res.status) + '</div>';
     return;
