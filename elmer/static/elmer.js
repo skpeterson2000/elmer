@@ -505,3 +505,49 @@ async function locateMe() {
 function saveQTH(place) {
   return postJSON('/api/settings', {location: place});
 }
+
+
+/* ------------------------------------------------------------- nav tabs */
+/* A tab is a whole page load, and on a Pi that is long enough for somebody to
+   decide the press did not register. The second press throws away the load
+   already running and starts it again, so the page they are waiting for
+   arrives later for having asked twice. The tab says it heard, the same way
+   the update button says "Updating".
+
+   Only for navigations this page is actually going to perform. A held
+   modifier or a middle click opens the page somewhere else and leaves this
+   one exactly where it is, and a tab left glowing for a load that is not
+   happening here would be a lie. */
+let goingTab = null, goingAt = 0;
+
+/* Long enough to cover the impatient second tap, short enough that a load
+   which has genuinely stalled can still be asked for again. Blocking the
+   press outright would be tidier and would trap anybody whose server has
+   gone away mid-navigation. */
+const TAB_REPEAT_MS = 1500;
+
+document.addEventListener('click', e => {
+  const tab = e.target.closest('.nav a');
+  if (!tab || e.defaultPrevented) return;
+  if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (tab.target && tab.target !== '_self') return;
+
+  if (tab === goingTab && Date.now() - goingAt < TAB_REPEAT_MS) {
+    e.preventDefault();               // already on its way; asking again is
+    return;                           // how it gets slower, not faster
+  }
+  document.querySelectorAll('.nav a.going').forEach(a =>
+    a.classList.remove('going'));
+  tab.classList.add('going');
+  goingTab = tab;
+  goingAt = Date.now();
+});
+
+/* The Back button hands this page back exactly as it was left, mark and all.
+   The load it was announcing finished long ago, so it comes off. */
+window.addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  document.querySelectorAll('.nav a.going').forEach(a =>
+    a.classList.remove('going'));
+  goingTab = null;
+});

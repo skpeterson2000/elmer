@@ -11,6 +11,9 @@
   --dim:     #8b98a5;
   --dimmer:  #626e7b;
   --amber:   #ffb454;
+  /* Half-way between a resting tab and the current one, for the moment in
+     between: pressed, and not arrived. */
+  --amber-dim: #d1a974;
   --green:   #3fb950;
   --red:     #f85149;
   --blue:    #58a6ff;
@@ -79,6 +82,18 @@ p { margin: 0 0 .8rem; }
 }
 .nav a:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
 .nav a.on { color: var(--amber); border-color: var(--line-2); background: var(--panel); }
+/* Pressed, and the page is on its way. Deliberately not the amber of "you are
+   here" - it is not where you are yet, and wearing the same colour would make
+   the nav lie for as long as the load takes. The pulse is what says working
+   rather than selected, at a glance and across a room. */
+.nav a.going, .nav a.on.going {
+  color: var(--amber-dim); border-color: var(--line); background: var(--panel-2);
+  animation: tab-going 1.1s ease-in-out infinite;
+}
+@keyframes tab-going { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .nav a.going, .nav a.on.going { animation: none; }
+}
 
 .status { display: flex; align-items: center; gap: .85rem; }
 .titles { display: flex; flex-direction: column; gap: 1px; }
