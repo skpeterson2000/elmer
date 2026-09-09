@@ -195,6 +195,15 @@ TYPES = {
             "If a second support ever appears, flatten it into a proper "
             "dipole and take the decibel back.",
         ],
+        "better_nvis": [
+            "Keep the ends up. They are the part nearest the ground and the "
+            "part that loses power into it - a few feet of clearance is worth "
+            "having, and they are the high-voltage ends anyway.",
+            "The apex has to sit higher than the height you actually want, "
+            "because a V radiates from the current-weighted middle of its "
+            "legs rather than from its peak. That allowance is already in the "
+            "figure above.",
+        ],
     },
     "efhw": {
         "title": "End-fed half wave",
@@ -514,6 +523,28 @@ V_CENTROID = (math.pi - 2) / math.pi
 DEFAULT_DROOP_DEG = 35.0          # what the Lab's droop slider starts at
 
 
+# Where to go from here is a different list when the point is to go up.
+#
+# Every horizontal antenna's improvement advice began "raise it", because for
+# distance that is the whole answer and almost nothing else matters. Hung for
+# near-vertical incidence it is precisely wrong, and it was being printed under
+# a height that had just been chosen to be low - so the tool told somebody to
+# put an inverted-V at 35 feet and then, in the next paragraph, to raise it.
+NVIS_BETTER = [
+    "Leave it low. This is the one case in the book where higher is worse: "
+    "take it up toward half a wavelength and the lobe splits, and a skip zone "
+    "opens between you and the people you put it up to work.",
+    "Lay a wire on the ground underneath it instead, a few per cent longer "
+    "than the antenna and roughly below it. It acts as a reflector, is worth "
+    "a couple of decibels over ordinary soil, and steadies the pattern on "
+    "ground that would otherwise be swallowing the downward half.",
+    "After that the antenna is not the control any more - the band is. NVIS "
+    "works while the frequency stays under the critical frequency, so when it "
+    "stops working the answer is a lower band, not a higher mast. The "
+    "propagation page says what the critical frequency is right now.",
+]
+
+
 def nvis_height_ft(mhz, kind):
     """How high to hang a horizontal antenna when the point is to go up."""
     wanted = NVIS_TARGET * wavelength_ft(mhz)
@@ -611,7 +642,8 @@ def for_type(mhz, kind, use=None):
     use = use if use in USES else default_use(mhz, kind)
     # The height follows what the antenna is being used for, not only what it
     # is. Half a wavelength is right for distance and wrong for the county.
-    if use == "regional" and spec["polarisation"] == "horizontal":
+    hanging_low = use == "regional" and spec["polarisation"] == "horizontal"
+    if hanging_low:
         height = nvis_height_ft(mhz, kind)
     else:
         fraction, floor, ceiling = spec["height"]
@@ -626,7 +658,8 @@ def for_type(mhz, kind, use=None):
         "polarisation": spec["polarisation"],
         "why": list(spec["why"]),
         "watch": list(spec["watch"]),
-        "better": list(spec["better"]),
+        "better": (NVIS_BETTER + list(spec.get("better_nvis", []))
+                   if hanging_low else list(spec["better"])),
         "fit": fit,
         "nvis": use == "regional" and spec["polarisation"] == "horizontal",
         "alternative": None,
