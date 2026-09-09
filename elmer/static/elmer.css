@@ -830,6 +830,9 @@ option.not-permitted { color: var(--amber); }
    half a bar, because the absorber is half gone and stays there. */
 .fcstrip .fc.dusk { box-shadow: inset 0 -5px 0 rgba(255,190,90,.35); }
 .fcstrip .fc.now { outline: 2px solid var(--text); outline-offset: 1px; }
+/* The stretch where the band is at its best. Along the top, because the foot
+   of the cell already carries daylight and the grey line. */
+.fcstrip .fc.peak { border-top: 3px solid rgba(230, 237, 243, .6); }
 .fcstrip .fc span {
   position: absolute; left: 0; right: 0; bottom: -1.05rem; text-align: center;
   font: .6rem var(--mono); color: var(--dimmer);

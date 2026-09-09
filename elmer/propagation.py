@@ -1108,30 +1108,66 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     return out
 
 
+# How near the best hour still counts as being at the best. A score is an
+# estimate whose own error is far larger than this, so hours within a few
+# points of one another are not distinguishable - and a band's peak is nearly
+# always a plateau rather than an instant. Naming one hour out of a flat run
+# of them sends somebody to the radio at an hour that was never special, and
+# implies the rest are worse when they are the same.
+PEAK_TOLERANCE = 3
+
+
+def _apart(a, b):
+    """Hours from one hourly sample to another, and never less than one.
+
+    A window one sample wide is an hour of usable band, not nothing: the
+    sample stands for the hour it opens.
+    """
+    gap = datetime.fromisoformat(b["at"]) - datetime.fromisoformat(a["at"])
+    return max(1, round(gap.total_seconds() / 3600.0))
+
+
 def windows(hours, floor=38):
     """When a band is worth using, said as times rather than as a graph.
 
     The graph shows the shape; this is the sentence somebody reads off it -
-    the runs of hours at or above a usable score, in the order they happen.
+    the runs of hours at or above a usable score, in the order they happen,
+    each with the plateau at its peak and how wide that plateau is.
     """
-    runs, live = [], None
+    runs, live, good = [], None, None
     for row in hours:
         if row["score"] >= floor:
             live = live or row
+            good = row
         elif live:
-            runs.append((live, row))
+            # The last hour that was usable, not the first that was not. A
+            # window that ends at the hour the band shut is an hour longer
+            # than the band was open.
+            runs.append((live, good))
             live = None
     if live:
-        runs.append((live, hours[-1]))
+        runs.append((live, good))
     out = []
     for a, b in runs:
         inside = [h for h in hours if a["at"] <= h["at"] <= b["at"]]
-        peak = max(inside, key=lambda h: h["score"])
-        # The hour of the peak, not only its height. "Best about 89/100" is
-        # half a sentence: the number an operator wants out of a forecast is
-        # when to be at the radio.
-        out.append({"from": a["at"], "to": b["at"],
-                    "best": peak["score"], "best_at": peak["at"]})
+        top = max(h["score"] for h in inside)
+        at = next(n for n, h in enumerate(inside) if h["score"] == top)
+        # Outward from the peak while the hours are as good as it is, and
+        # contiguous - an equally good hour on the far side of a dip is a
+        # second opportunity, not part of this one.
+        low = high = at
+        while low and inside[low - 1]["score"] >= top - PEAK_TOLERANCE:
+            low -= 1
+        while high + 1 < len(inside) \
+                and inside[high + 1]["score"] >= top - PEAK_TOLERANCE:
+            high += 1
+        out.append({"from": a["at"], "to": b["at"], "hours": _apart(a, b),
+                    "best": top, "best_at": inside[at]["at"],
+                    # The aperture: when the band is at its best, and for how
+                    # long, which is the part a single hour could never say.
+                    "best_from": inside[low]["at"],
+                    "best_to": inside[high]["at"],
+                    "best_hours": _apart(inside[low], inside[high])})
     return out
 
 

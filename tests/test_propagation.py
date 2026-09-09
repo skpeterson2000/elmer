@@ -458,6 +458,53 @@ def main():
     check("an angle with no time attached is unlagged, as it always was",
           P._fof2(150.0, 30.0, 45.0), P._fof2(150.0, 30.0, 45.0, None))
 
+    print("\n-- a peak is a stretch, and the window says how wide --")
+
+    def strip(scores, first=6):
+        """Hourly rows with the scores given, starting at `first` o'clock."""
+        return [{"at": (datetime(2026, 9, 9, first, tzinfo=timezone.utc)
+                        + timedelta(hours=n)).isoformat(), "score": v}
+                for n, v in enumerate(scores)]
+
+    # A flat top. Naming its first hour and stopping is the thing this fixes.
+    flat = P.windows(strip([40, 60, 89, 89, 89, 89, 70, 30]))
+    check("one window", len(flat), 1)
+    check("  whose peak runs from the first of the flat hours",
+          flat[0]["best_from"], strip([0] * 8)[2]["at"])
+    check("  to the last of them", flat[0]["best_to"],
+          strip([0] * 8)[5]["at"])
+    check("  and says how many hours that is", flat[0]["best_hours"], 3)
+    check("  while still naming where it starts",
+          flat[0]["best_at"], flat[0]["best_from"])
+
+    print("\n-- and a window ends on the last usable hour --")
+    check("not on the first unusable one", flat[0]["to"],
+          strip([0] * 8)[6]["at"])
+    check("  with the width of the window given too", flat[0]["hours"], 6)
+
+    print("\n-- a genuinely sharp peak is still reported as one hour --")
+    sharp = P.windows(strip([40, 50, 95, 60, 45]))
+    check("the peak has no width to speak of",
+          sharp[0]["best_from"], sharp[0]["best_to"])
+    check("  which is an hour, not nothing", sharp[0]["best_hours"], 1)
+
+    print("\n-- and an equal hour across a dip is a second chance --")
+    # Two openings, not one eight-hour one. The plateau has to be contiguous
+    # or the sentence promises a band that shut in the middle of it.
+    split = P.windows(strip([88, 88, 20, 88, 88]))
+    check("two windows", len(split), 2)
+    check("  and the first peak stops at the dip",
+          split[0]["best_to"], strip([0] * 5)[1]["at"])
+    check("  with the second starting after it",
+          split[1]["best_from"], strip([0] * 5)[3]["at"])
+
+    print("\n-- a band that never shuts is one window all day --")
+    always = P.windows(strip([70] * 25))
+    check("one window", len(always), 1)
+    check("  twenty-four hours wide", always[0]["hours"], 24)
+    check("a band that never opens has no window",
+          P.windows(strip([10] * 25)), [])
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
