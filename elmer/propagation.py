@@ -528,6 +528,18 @@ def auroral_factor(geomag_lat, boundary=None):
 # 41.5 x sin(45 + dip)^0.6 == 45 x sin(45)^0.6.
 D_ABSORPTION = 41.5
 
+# How much of the "far below the MUF" penalty comes off once the D layer has
+# gone. That penalty and `D_ABSORPTION` are two descriptions of the same loss,
+# and after dark only one of them correctly falls to nothing - so without this
+# the low bands are charged twice for a layer that is not there, and 80 m
+# reads "Good" through the hours it is at its best.
+#
+# Not 1.0. Being well under the MUF still is not the sweet spot: below the LUF
+# nothing works at any hour, and the lowest bands stay noisy after dark
+# whatever the ionosphere is doing. What this buys 80 m on a quiet night is
+# the difference between Good and Excellent, which is where it belongs.
+NIGHT_RELIEF = 0.7
+
 QUALITY = [(80, "Excellent"), (60, "Good"), (35, "Fair"), (15, "Poor"),
            (0, "Closed")]
 
@@ -584,15 +596,46 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0,
     anything closer than a thousand miles. So when foF2 is known the nearest
     reachable station comes back with the score, and the words say so.
     """
+    # The sun as the D layer sees it, not as the ground does. See the note
+    # above: the layer is 80 km up and keeps its daylight about nine degrees
+    # longer than you keep yours. Worked out here rather than further down
+    # because the shape below needs it too.
+    lit = max(-90.0, min(90.0, elevation + D_LAYER_DIP))
+    sun = max(0.0, math.sin(math.radians(lit)))
+
     muf = max(1.0, float(muf or 1.0))
     ratio = mhz / muf
     if ratio <= 1.0:
         # Best just under the MUF, tailing off as the band drops away from it.
-        near = 1.0 - abs(ratio - 0.8) / 0.8
-        score = 45.0 + 55.0 * max(0.0, near)
+        near = max(0.0, 1.0 - abs(ratio - 0.8) / 0.8)
+        # What that tail actually charges for is absorption on the way
+        # through, and absorption is the D layer's business - which is why it
+        # is also charged for below, in `absorb`. In daylight that is one
+        # thing said twice and roughly right. After dark it is a bill for a
+        # layer that has gone home: `absorb` correctly falls to nothing while
+        # this tail does not, and 80 m sits at "Good" through the hours it is
+        # at its best. So the shape relaxes as the D layer goes.
+        #
+        # By exactly as much as that band was being absorbed, and no more. The
+        # frequency term is `absorb`'s own, so the relief is the complement of
+        # the bill: 80 m gets nearly all of it back, 40 m a third, and 10 m
+        # essentially nothing - which is right, because 10 m sitting well
+        # under a 100 MHz MUF is not being held down by the D layer and does
+        # not improve at nightfall. It relaxes rather than vanishing because
+        # being far under the MUF still is not the sweet spot: below the LUF
+        # nothing works at any hour, and the low bands stay noisy after dark
+        # whatever the ionosphere is doing.
+        d_layers_share = min(1.0, (3.5 / max(mhz, 1.0)) ** 1.6)
+        near += ((1.0 - near) * NIGHT_RELIEF * d_layers_share
+                 * (1.0 - sun ** 0.6))
+        score = 45.0 + 55.0 * near
         why = (f"{mhz:g} MHz is {ratio:.2f} of the {muf:g} MHz MUF"
                + (" - about where the band works best" if 0.6 <= ratio <= 0.95
                   else ""))
+        if sun < 0.2 and ratio < 0.6 and d_layers_share > 0.25:
+            why += ("; well under it, which costs nothing after dark - the "
+                    "absorption that penalises a low band is the D layer's, "
+                    "and it is not there")
     else:
         # Over the top: it does not fade out, it stops.
         # Not a cliff edge: MUF(3000) is a median for a long hop, and shorter
@@ -602,11 +645,6 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0,
         why = (f"{mhz:g} MHz is above the {muf:g} MHz MUF - signals go through "
                "the F layer instead of coming back")
 
-    # The sun as the D layer sees it, not as the ground does. See the note
-    # above: the layer is 80 km up and keeps its daylight about nine degrees
-    # longer than you keep yours.
-    lit = max(-90.0, min(90.0, elevation + D_LAYER_DIP))
-    sun = max(0.0, math.sin(math.radians(lit)))
     # Absorption is heaviest on the lowest bands and gone by about 10 MHz. The
     # exponent is the textbook inverse-square softened for the fact that this
     # is a rating and not a link budget.
@@ -947,6 +985,14 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
                                                           microsecond=0)
     if anchor is None:
         anchor = muf_anchor(sfi, lat, lon, muf_now, start, m3000)
+    # An anchor whose sky was not recorded was still measured under a sky, and
+    # it is this one: the calibration is the current hour's. Assuming that is
+    # strictly better than the alternative, which is treating it as valid
+    # under every sky there is - and that is how a noon ionosonde reading ends
+    # up describing midnight, holding the MUF up all night and telling
+    # somebody 80 m is mediocre at the hour it is at its best.
+    if anchor_sun is None:
+        anchor_sun = solar_elevation(lat, lon, start)
     # One geomagnetic latitude for the whole run: the operator does not move
     # over the next day, and the oval's own boundary is a fetched number that
     # this deliberately does not try to forecast either.
