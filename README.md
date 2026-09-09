@@ -882,13 +882,10 @@ Interactive versions of the maths the pools test:
   The **build sheet** each of these prints carries the whole band it is cut
   for at the top of it, once: the same coloured segment bar the band chart
   draws, with the slice this antenna holds under 2:1 outlined on it, and
-  whatever the licence may not transmit in hatched over. Two reasons, and the
-  second is the better one. A wire cut for one frequency reaches a good deal
-  more of a band than the frequency it was cut for, and most of what is up
-  there is a mode rather than a frequency — a mode nobody thinks of is usually
-  only out of mind because it was out of sight. And every band's pattern of
-  segments is unlike any other's, so the stripes name the sheet from across a
-  room, the way a leaf names its tree, before a word of it is read.
+  whatever the licence may not transmit in hatched over. A wire cut for one
+  frequency reaches a good deal more of a band than the frequency it was cut
+  for, and most of what is up there is a mode rather than a frequency — one
+  nobody thinks of is usually only out of mind because it was out of sight.
 
   Every gain figure says what it was measured against and where — dBd, and free
   space for horizontal wire, over an average ground plane for verticals —
