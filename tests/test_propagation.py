@@ -11,6 +11,7 @@ but the things about the ionosphere that must never come out backwards.
 Nothing here touches the network. The model is arithmetic over a flux figure, a
 sun angle and a K index; the fetching is somebody else's job.
 """
+import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -326,6 +327,83 @@ def main():
           True)
     check("  and the fallback is the network median, not 3.2",
           P.M3000_DEFAULT, 2.9)
+
+    print("\n-- the low bands are not charged twice for the D layer --")
+    # 80 m is at its worst under a midday sun and at its best in the middle of
+    # the night. Both halves have to come out of the same function, because a
+    # forecast that says otherwise is telling somebody to stay off the band at
+    # the hour it is theirs.
+    noon = P.band_score(3.75, 12.0, 60.0)["score"]
+    dark = P.band_score(3.75, 12.0, -20.0)["score"]
+    check("80 m at noon is poor", noon < 40, True)
+    check("  and after dark it is excellent", dark >= 80, True)
+    check("  which is the way round it actually is", dark > noon + 40, True)
+    check("the reason is given once it matters",
+          "not there" in P.band_score(3.75, 12.0, -20.0)["why"], True)
+
+    print("\n-- and the relief is the D layer's, so daylight keeps its own --")
+    # It is the complement of the absorption being charged, so with the layer
+    # at full strength it is worth nothing and the daytime answer is the one
+    # it always was. Under a lower sun the layer is weaker and a little comes
+    # back, which is the same slope the absorption itself runs down.
+    bare = 45.0 + 55.0 * max(0.0, 1.0 - abs((3.75 / 12.0) - 0.8) / 0.8)
+
+    def charged(elevation):
+        return min(55.0, P.D_ABSORPTION
+                   * (max(0.0, math.sin(math.radians(
+                       min(90.0, elevation + P.D_LAYER_DIP)))) ** 0.6)
+                   * (3.5 / 3.75) ** 1.6)
+
+    check("with the sun overhead nothing is given back",
+          P.band_score(3.75, 12.0, 90.0)["score"],
+          round(max(0.0, bare - charged(90.0))))
+    for elevation in (60.0, 45.0):
+        lift = P.band_score(3.75, 12.0, elevation)["score"] - \
+            round(max(0.0, bare - charged(elevation)))
+        check(f"sun {elevation:g}: a weaker layer gives a little back",
+              0 <= lift <= 5, True)
+
+    print("\n-- and only to the bands it was taxing --")
+    # 10 m well under a very high MUF is not held down by the D layer, so it
+    # must not improve at nightfall. This is the check that caught the first
+    # draft of the relief, which lifted every band below the MUF.
+    high_dark = P.band_score(28.0, 100.0, -90.0, 0)["score"]
+    high_lit = P.band_score(28.0, 100.0, 30.0, 0)["score"]
+    check("10 m barely notices the terminator", high_dark - high_lit < 3, True)
+    check("  where 80 m notices it a great deal",
+          P.band_score(3.5, 100.0, -90.0, 0)["score"]
+          - P.band_score(3.5, 100.0, 30.0, 0)["score"] > 25, True)
+
+    print("\n-- a band over the MUF is not rescued by nightfall --")
+    shut = P.band_score(14.1, 12.0, -20.0)
+    check("20 m above a night MUF stays shut", shut["score"] < 35, True)
+    check("  and says why", "above the" in shut["why"], True)
+
+    print("\n-- night ordering survives the relief --")
+    night = {mhz: P.band_score(mhz, 12.0, -20.0)["score"]
+             for mhz in (1.8, 3.75, 7.1, 10.1)}
+    check("30 m beats 40 beats 80 beats 160",
+          [night[10.1] >= night[7.1], night[7.1] >= night[3.75],
+           night[3.75] >= night[1.8]], [True, True, True])
+
+    print("\n-- and a measurement is not held across a sky it never saw --")
+    # An anchor whose sky was not recorded used to be treated as valid under
+    # every sky there is, which carried a noon ionosonde reading through the
+    # following midnight and held the MUF up all night.
+    start = datetime(2026, 9, 9, 18, 0, tzinfo=timezone.utc)
+    lat, lon = 46.6, -94.3
+    told = P.outlook(3.75, lat, lon, 150.0, 2.0, start=start, anchor=1.45,
+                     anchor_sun=P.solar_elevation(lat, lon, start))
+    untold = P.outlook(3.75, lat, lon, 150.0, 2.0, start=start, anchor=1.45,
+                       anchor_sun=None)
+    night_told = max(r["muf"] for r in told if r["regime"] == "dark")
+    night_untold = max(r["muf"] for r in untold if r["regime"] == "dark")
+    check("an unrecorded sky is assumed to be this one",
+          abs(night_told - night_untold) < 0.05, True)
+    check("  so the night MUF is the night's, not noon's",
+          night_untold < 15.0, True)
+    check("and 80 m gets its night back",
+          max(r["score"] for r in untold if r["regime"] == "dark") >= 80, True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
