@@ -448,12 +448,54 @@ function forecastStrip(cond) {
 
 /* Above about 30 MHz none of this applies, and pretending otherwise would put
    "Closed, 0/100" on 2 m every day of the year. The F layer does not refract
-   up there: openings are sporadic E, tropospheric ducting and aurora, which
-   are local, short-lived and not forecast from a solar flux number. So the
-   bands above HF get what is actually known - what the network is reporting
-   right now - and an honest sentence about why there is no curve. */
+   up there: openings are sporadic E, tropospheric ducting, aurora and meteor
+   scatter. So the bands above HF get what is actually known - what the network
+   is reporting right now - and an honest sentence about why there is no curve.
+
+   That sentence used to say there was "no daily curve to show", which claims
+   more than we know. Two of those four keep fairly regular hours, and they
+   keep DIFFERENT ones - which is the whole reason this is worth spelling out
+   rather than saying "dawn" once and leaving it:
+
+     Tropospheric ducting is a ground-level effect. The nocturnal inversion
+     builds while the ground radiates its heat away and the air above it does
+     not, so the duct is deepest at the end of the night and the sun pulls it
+     apart within a couple of hours of clearing the horizon. Its clock is
+     sunrise, and sunrise moves through the year.
+
+     Meteor scatter is not a sunlight effect at all. The rate peaks near 06:00
+     local because that is when your side of the Earth has swung round to face
+     the direction of travel and is sweeping the debris up head-on, and that
+     hour barely moves with the season. Here at 46 N the two anchors are
+     within half an hour of each other in September and nearly two hours apart
+     in December, so quoting one number for both would be wrong for a good
+     part of the year.
+
+   Note which sunrise is which. `regime` calls an hour "lit" at elevation >= 0,
+   the sun over the horizon where the operator is standing, and "grey" down to
+   D_LAYER_DIP - 9.03 degrees below, where the sun has left the ground but not
+   yet the D layer 80 km up. That D-layer geometry is most of the shape of the
+   HF strip. Up here it is worth almost nothing: D absorption falls as 1/f^2,
+   so what costs 80 m its whole daylight costs 2 m nothing measurable. The
+   inversion is weather at head height, and the ground's own sunrise is the
+   one that governs it - so this reads the "lit" flip and not the grey hour.
+   Getting that backwards would hand somebody an hour that is right on 80 m
+   and 40 minutes early on 2 m. */
+
+/* Sunrise where the operator is standing, read off the outlook. The sun's
+   regime is the same for every band, so any band's hours will do. Inside a
+   polar day or night the flag never flips and this says nothing. */
+function sunriseHour() {
+  const rows = ((bpProp && bpProp.bands) || []).map(b => b.hours || [])
+    .find(h => h.length) || [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].day && !rows[i - 1].day) return hourLabel(rows[i].at);
+  }
+  return null;
+}
 function vhfBox(band) {
   const v = (bpProp && bpProp.vhf) || {};
+  const hour = sunriseHour();
   const eskip = v['E-Skip/north_america'] || '';
   const aurora = v['vhf-aurora/northern_hemi'] || '';
   const open = t => t && !/closed/i.test(t);
@@ -467,12 +509,33 @@ function vhfBox(band) {
       'Conditions on ' + escapeHTML(band.name) + ' now</span>' + bits.join(' ') +
     '</div>' +
     '<div class="tiny muted">Above about 30 MHz the F layer does not bend a ' +
-      'signal back, so there is no MUF to be under and no daily curve to ' +
-      'show. What opens these bands is sporadic E, tropospheric ducting and ' +
-      'aurora &mdash; local, short-lived, and not predictable from a solar ' +
-      'flux number. The line above is what the network is reporting at this ' +
-      'moment' + (bpProp && bpProp.aurora ? ', with the auroral activity index at ' +
-      bpProp.aurora : '') + '. Line of sight is always there: for that, the ' +
+      'signal back, so there is no MUF to be under and no curve we can work ' +
+      'out for you. What opens these bands is sporadic E, tropospheric ' +
+      'ducting, aurora and meteor scatter, and not one of them follows a ' +
+      'solar flux number &mdash; which is why the HF bands get a strip and ' +
+      'this gets a paragraph. The line above is what the network is ' +
+      'reporting at this moment' + (bpProp && bpProp.aurora ?
+      ', with the auroral activity index at ' + bpProp.aurora : '') + '.</div>' +
+    '<div class="tiny muted mt"><b>Two of them do keep hours, though, and ' +
+      'they are not the same hours.</b> ' +
+      '<b>Tropospheric ducting</b> runs on sunrise: the ground gives its heat ' +
+      'back overnight, the air above stays warm, and that inversion bends ' +
+      'signals far past the horizon. It is deepest at the end of the night ' +
+      'and the sun takes it apart within a couple of hours of clearing the ' +
+      'horizon' + (hour ? ' &mdash; sunrise here is about <b>' + hour +
+      ':00</b> local' : '') + '. ' +
+      '<b>Meteor scatter</b> runs on a different clock entirely: it peaks ' +
+      'near <b>06:00</b> local whatever the season, because that is when your ' +
+      'side of the Earth has turned to face the way the planet is travelling ' +
+      'and sweeps the debris up head-on instead of catching it from behind. ' +
+      'In midsummer those two land almost together; in December they are ' +
+      'nearly two hours apart. Neither is a prediction &mdash; both are just ' +
+      'when it is worth going to look.</div>' +
+    '<div class="tiny muted mt">The grey line does almost nothing for you up ' +
+      'here. D-layer absorption falls as 1/f&sup2;, so what shuts 80 m all ' +
+      'day costs 2 m nothing you could measure &mdash; the whole business of ' +
+      'the sun setting on the ground before it sets 80 km up is an HF story. ' +
+      'And line of sight is always there, at every hour: for that, the ' +
       '<a href="/lab#ant">antenna and terrain tools</a> are the ones that ' +
       'answer.</div></div>';
 }
