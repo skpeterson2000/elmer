@@ -2175,6 +2175,17 @@ async function antennaAdvice(mhz, use, kind, quiet) {
       ' The dimensions below are now set to it.</p>';
 }
 
+/* Two different questions, and they had been sharing one button. "Evaluate
+   this setup" asks about the antenna on screen; "suggest one" is for somebody
+   who does not yet know what to put up, which was the button's original job
+   and became unreachable when the advice started following the selector. */
+const suggestBtn = document.getElementById('an-suggest');
+if (suggestBtn) suggestBtn.addEventListener('click', () => {
+  const use = document.getElementById('an-use').value;
+  rememberAntenna({mhz: num('an-f'), use: use, kind: ''});
+  antennaAdvice(num('an-f'), use);        // no kind: let it choose, and set up for it
+});
+
 const adviseBtn = document.getElementById('an-advise');
 if (adviseBtn) adviseBtn.addEventListener('click', () => {
   /* Ask about the antenna on screen. The button used to send no type at all,

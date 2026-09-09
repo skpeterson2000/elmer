@@ -13,6 +13,7 @@ it can teach, that the teaching is about that antenna rather than a generic
 wire, and that choosing one for the wrong job is said out loud rather than
 silently corrected.
 """
+import math
 import sys
 from pathlib import Path
 
@@ -117,6 +118,36 @@ def main():
           [k for k in CALCULATOR_TYPES
            if not (A.recommend(7.1, "dx", k)["height_ft"]
                    and A.recommend(7.1, "dx", k)["feedline"])], [])
+
+    print("\n-- the height follows the purpose, not only the antenna --")
+    # The bug: an inverted-V for NVIS on 40m was told to go up to 69 ft, and
+    # the evaluator three inches below on the same page marked 69 ft as too
+    # high for NVIS. Both halves were reading the same antenna and only one of
+    # them knew what it was for.
+    for kind in ("dipole", "invertedv", "loop", "bowtie"):
+        dx = A.recommend(7.1, "dx", kind)["height_ft"]
+        near = A.recommend(7.1, "regional", kind)["height_ft"]
+        check(f"a {kind} is hung lower for the county than for DX",
+              near < dx, True)
+    # And it has to land inside the window the Lab's evaluator actually uses,
+    # or the two will contradict each other again.
+    lam = A.wavelength_ft(7.1)
+    for kind in ("dipole", "loop", "bowtie"):
+        h = A.recommend(7.1, "regional", kind)["height_ft"]
+        check(f"  and a {kind} lands inside 0.15-0.25 wavelengths",
+              A.NVIS_LOW <= h / lam <= A.NVIS_HIGH, True)
+    # An inverted-V radiates from its current-weighted mean height, not its
+    # apex, so the apex has to clear the target by whatever the legs drop.
+    apex = A.recommend(7.1, "regional", "invertedv")["height_ft"]
+    flat = A.recommend(7.1, "regional", "dipole")["height_ft"]
+    check("an inverted-V's apex is raised to allow for the droop", apex > flat, True)
+    effective = apex - A.V_CENTROID * (234.0 / 7.1) * math.sin(
+        math.radians(A.DEFAULT_DROOP_DEG))
+    check("  so that its effective height is what lands in the window",
+          A.NVIS_LOW <= effective / lam <= A.NVIS_HIGH, True)
+    check("a vertical is not given an NVIS height, because it is not for that",
+          A.recommend(7.1, "regional", "quarter")["height_ft"]
+          == A.recommend(7.1, "dx", "quarter")["height_ft"], True)
 
     print("\n-- a bought antenna is not a shopping list of materials --")
     from elmer import conductors as C  # noqa: E402

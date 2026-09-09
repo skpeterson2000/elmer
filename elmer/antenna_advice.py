@@ -18,6 +18,7 @@ with, which is what somebody needs before they have the experience to disagree
 with it.
 """
 
+import math
 import re
 
 C_FT = 983.571                      # speed of light, feet per microsecond
@@ -495,6 +496,34 @@ WANTS = {
 LOW_ANGLE = {"quarter", "fiveeighth", "groundplane", "jpole", "whip"}
 
 
+# Near-vertical incidence wants the antenna low, and "low" is a fraction of a
+# wavelength rather than a number of feet. These mirror the constants the
+# evaluator in the Lab uses, and they have to: the tool told somebody to put an
+# inverted-V up at 69 feet for NVIS on 40m and then, three inches further down
+# the same page, marked 69 feet as too high for NVIS. Both halves were reading
+# the same antenna and only one of them knew what it was for.
+NVIS_LOW, NVIS_TARGET, NVIS_HIGH = 0.15, 0.20, 0.25
+
+# An inverted-V does not radiate from its apex. The pattern follows the
+# current-weighted mean height, and current is greatest at the centre, so the
+# mean sits (pi - 2) / pi of the way out along each sloping leg. The apex
+# therefore has to be higher than the height you actually want by whatever the
+# legs drop - which is why the right apex for NVIS comes out near 35 ft on 40m
+# and not the 28 the bare fraction would suggest.
+V_CENTROID = (math.pi - 2) / math.pi
+DEFAULT_DROOP_DEG = 35.0          # what the Lab's droop slider starts at
+
+
+def nvis_height_ft(mhz, kind):
+    """How high to hang a horizontal antenna when the point is to go up."""
+    wanted = NVIS_TARGET * wavelength_ft(mhz)
+    if kind == "invertedv":
+        # Half of 468/f, the length each leg actually is.
+        leg = 234.0 / float(mhz)
+        wanted += V_CENTROID * leg * math.sin(math.radians(DEFAULT_DROOP_DEG))
+    return max(12, round(wanted))
+
+
 def suits(kind, use, mhz):
     """Whether this antenna is the right shape for this intention."""
     spec = TYPES.get(kind)
@@ -580,8 +609,13 @@ def for_type(mhz, kind, use=None):
     mhz = float(mhz)
     spec = TYPES[kind]
     use = use if use in USES else default_use(mhz, kind)
-    fraction, floor, ceiling = spec["height"]
-    height = _height(mhz, fraction, floor, ceiling)
+    # The height follows what the antenna is being used for, not only what it
+    # is. Half a wavelength is right for distance and wrong for the county.
+    if use == "regional" and spec["polarisation"] == "horizontal":
+        height = nvis_height_ft(mhz, kind)
+    else:
+        fraction, floor, ceiling = spec["height"]
+        height = _height(mhz, fraction, floor, ceiling)
     fit = suits(kind, use, mhz)
     return {
         "mhz": mhz, "use": use, "use_label": USES[use],
