@@ -29,7 +29,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               discovery, gating, netwatch,
+               discovery, fieldkit, gating, netwatch,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
@@ -529,7 +529,7 @@ def api_bandplan():
 
 @app.route("/out")
 def reachout_page():
-    """What to try, from here, with what is in the vehicle."""
+    """What to try, from here, with what is on hand."""
     connection = conn()
     profile = db.get_profile(connection)
     settings = profile["settings"]
@@ -538,6 +538,12 @@ def reachout_page():
         license_class=settings.get("license_class")
                       or (settings.get("license") or {}).get("license_class")
                       or "Technician",
+        # The gear list is radios. These are the other two thirds of the
+        # inventory - what an antenna can be made of, and what it takes to
+        # work that material - and both are deliberately samples rather than
+        # catalogues. `conductors.improvised` and `fieldkit` say why.
+        made_of=conductors.improvised(), tools=fieldkit.ladder(),
+        arc=fieldkit.ARC,
         assumed=["ht"], **profile_block(connection))
 
 
