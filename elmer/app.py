@@ -686,13 +686,17 @@ def api_pattern():
     return jsonify({
         "type": kind, "mhz": mhz, "height_ft": height_ft,
         "height_wl": round(height_wl, 3), "heading": heading,
-        "shape": spec["shape"], "q": spec["q"], "fed": spec["fed"],
+        # The antenna's Q at this frequency, which for a screwdriver is not
+        # the table's figure - see patterns.Q_SCALES_WITH_BAND.
+        "shape": spec["shape"], "q": round(patterns.base_q(kind, mhz), 1),
+        "fed": spec["fed"],
         "elevation": patterns.elevation(kind, height_wl, slope_deg=slope),
         "azimuth": patterns.azimuth(kind, heading),
         "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
         "slope": slope,
-        "swr": patterns.swr_curve(kind, mhz, q=spec["q"]),
-        "bandwidth": patterns.usable_bandwidth(kind, mhz, q=spec["q"]),
+        "swr": patterns.swr_curve(kind, mhz, q=patterns.base_q(kind, mhz)),
+        "bandwidth": patterns.usable_bandwidth(
+            kind, mhz, q=patterns.base_q(kind, mhz)),
         "conductor": made_of,
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
         "qth_source": place.get("source") or "saved",
@@ -899,9 +903,18 @@ def api_antenna_pdf():
     site = body.get("site") or "house"
     if site not in antenna_advice.SITES:
         site = "house"
+    # The licence decides what is hatched over on the band bar at the top of
+    # the sheet. Taking it from the profile rather than the request keeps the
+    # sheet's answer to "may I transmit here" the same one every other page
+    # gives, rather than one the browser could ask for.
+    settings = db.get_profile(conn())["settings"]
+    license_class = (settings.get("license_class")
+                     or (settings.get("license") or {}).get("license_class")
+                     or "Technician")
     pdf = antennapdf.build(kind, mhz, height_ft, conductor, site,
                            use=body.get("use") or None,
-                           callsign=profile_callsign() or "")
+                           callsign=profile_callsign() or "",
+                           license_class=license_class)
     title = (antenna_advice.TYPES.get(kind) or {}).get("title", kind)
     name = f"antenna-{kind}-{mhz:.3f}mhz.pdf".replace(" ", "-")
     log.info("antenna sheet PDF: %s at %.3f MHz, %.0f ft, %s",

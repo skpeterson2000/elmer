@@ -22,7 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from elmer import antenna_advice, antennapdf, conductors, patterns   # noqa: E402
+from elmer import (antenna_advice, antennapdf, bandplan,   # noqa: E402
+                   conductors, patterns)
 
 FAILS = []
 
@@ -115,6 +116,44 @@ def main():
     fallback = antennapdf.dimensions("dipole", 7.1, "unobtainium")
     check("an unknown material becomes the reference",
           fallback["conductor"]["key"], conductors.REFERENCE["key"])
+
+    print("\n-- the band bar that goes at the top of it --")
+    band = bandplan.band_at(14.2)
+    wide = {"low": 13.9, "high": 14.5, "khz": 600}
+    slice_ = {"low": 14.15, "high": 14.25, "khz": 100}
+    none_ = {"low": None, "high": None, "khz": 0}
+    check("an antenna wider than the band covers the whole of it",
+          antennapdf.covers_whole(wide, band), True)
+    check("  and one narrower than it does not",
+          antennapdf.covers_whole(slice_, band), False)
+    check("  and one that never reaches 2:1 certainly does not",
+          antennapdf.covers_whole(none_, band), False)
+    strip, got = antennapdf._band_strip(14.2, slice_, "General", 400)
+    check("a band the operator is on gets a bar", got["name"], "20 m")
+    check("  which is drawn", strip is not None, True)
+    # 11 MHz is nobody's band. The sheet still has to build - somebody trying
+    # a frequency out of curiosity should get a sheet, not a traceback.
+    off, none_band = antennapdf._band_strip(11.0, slice_, "General", 400)
+    check("a frequency in no band gets no bar", [off, none_band], [None, None])
+    check("  and the sheet is built anyway",
+          len(antennapdf.build("dipole", 11.0, 33.0, "wire14", "house")) > 2000,
+          True)
+
+    print("\n-- and the screwdriver, whose Q is not one number --")
+    q40 = patterns.base_q("screwdriver", 7.15)
+    q10 = patterns.base_q("screwdriver", 28.4)
+    check("it is sharper low than high", q40 > q10 * 3, True)
+    check("  and the fixed whip still has the one figure",
+          patterns.base_q("whip", 7.15), patterns.base_q("whip", 28.4))
+    w40 = patterns.usable_bandwidth("screwdriver", 7.15, q=q40)["khz"]
+    w10 = patterns.usable_bandwidth("screwdriver", 28.4, q=q10)["khz"]
+    # What builders measure: tens of kilohertz on 40, most of a megahertz on
+    # 10. These are wide brackets on purpose - the point is the shape of it.
+    check("about 50 kHz on 40 m", 25 <= w40 <= 90, True)
+    check("  and most of a megahertz on 10 m", 500 <= w10 <= 1200, True)
+    check("a screwdriver sheet builds",
+          len(antennapdf.build("screwdriver", 7.19, 5.0, "stainless",
+                               "house")) > 2000, True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

@@ -867,13 +867,28 @@ Interactive versions of the maths the pools test:
   of the way out along each leg, so an inverted-V behaves lower than its apex
   suggests. Above about 10 MHz it says plainly that NVIS will not work, since a
   near-vertical signal only returns below foF2.
-- **Antennas** — ten configurations across wire (dipole, inverted-V, end-fed
-  half wave, full-wave loop), vertical (quarter wave, 5/8 wave, J-pole, ground
-  plane), the Yagi, and loaded mobile whips. Dimensions in feet, metres and
+- **Antennas** — twelve configurations across wire (dipole, inverted-V,
+  end-fed half wave, bowtie, full-wave loop), vertical (quarter wave, 5/8 wave,
+  J-pole, ground plane), the Yagi, and mobile: a loaded whip, and a screwdriver
+  whose coil is driven in and out by a motor. That last one is the only antenna
+  here without a single Q, because it is defined by covering a decade — its
+  figure is anchored at 40 m and scaled, which lands on the tens of kilohertz
+  builders measure down there and most of a megahertz on 10 m. Dimensions in feet, metres and
   inches, feed impedance, gain, and for horizontal wire the takeoff angle your
   height above ground actually buys. A short whip reports its radiation
   resistance, efficiency and the loading it needs, which is the honest answer to
   why mobile HF is hard.
+
+  The **build sheet** each of these prints carries the whole band it is cut
+  for at the top of it, once: the same coloured segment bar the band chart
+  draws, with the slice this antenna holds under 2:1 outlined on it, and
+  whatever the licence may not transmit in hatched over. Two reasons, and the
+  second is the better one. A wire cut for one frequency reaches a good deal
+  more of a band than the frequency it was cut for, and most of what is up
+  there is a mode rather than a frequency — a mode nobody thinks of is usually
+  only out of mind because it was out of sight. And every band's pattern of
+  segments is unlike any other's, so the stripes name the sheet from across a
+  room, the way a leaf names its tree, before a word of it is read.
 
   Every gain figure says what it was measured against and where — dBd, and free
   space for horizontal wire, over an average ground plane for verticals —

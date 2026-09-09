@@ -63,7 +63,42 @@ ANTENNA_Q = {
                     "fed": "25 ohms at the driven element, through a gamma or hairpin"},
     "whip":        {"q": 55.0, "r": 50.0, "shape": "vertical",
                     "fed": "through its matching network - and the Q is brutal"},
+    "screwdriver": {"q": 100.0, "r": 50.0, "shape": "vertical",
+                    "fed": "at the base, and the motor is what keeps it there"},
 }
+
+# A screwdriver is not one antenna but the same antenna at every frequency it
+# reaches, and the difference between its ends is the whole story: on 40 m it
+# is a very short radiator with a very large coil, sharp enough that a few tens
+# of kilohertz needs retuning, and by 10 m the whip is most of a quarter wave
+# and behaves like one. One Q figure for all of that would be wrong at both
+# ends, so its Q is stated at a reference frequency and scaled from there.
+#
+# The scaling is anchored to what builders measure rather than derived: about
+# 50 kHz of 2:1 bandwidth on 40 m, a couple of hundred on 20 m, most of a
+# megahertz on 10 m. That lands on Q falling roughly with the first power of
+# frequency. The naive argument - radiation resistance goes as f squared for a
+# short radiator, so bandwidth should too - overshoots the measurements badly,
+# because the coil's own losses and stored energy move as well. This is an
+# approximation and is labelled as one; the direction of it is not in doubt.
+#
+# The fixed whip deliberately keeps a single figure. It is sold cut for one
+# band and used there, so the Q at its own frequency is the only one that ever
+# applies to it. The screwdriver is defined by covering a decade, which is
+# exactly why it cannot have one number.
+Q_SCALES_WITH_BAND = {
+    "screwdriver": {"ref_mhz": 7.15, "power": 1.0, "floor": 14.0},
+}
+
+
+def base_q(kind, mhz):
+    """The antenna's own Q at this frequency, before the conductor's share."""
+    spec = ANTENNA_Q.get(kind) or ANTENNA_Q["dipole"]
+    rule = Q_SCALES_WITH_BAND.get(kind)
+    if not rule:
+        return spec["q"]
+    ratio = rule["ref_mhz"] / max(0.1, float(mhz))
+    return max(rule["floor"], spec["q"] * (ratio ** rule["power"]))
 
 
 def _dipole_free(theta):

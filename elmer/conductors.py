@@ -236,6 +236,10 @@ def describe(key, mhz):
 # costs them - which is a better question, and has an answer.
 BUILT_FROM = {
     "whip": ["stainless", "tube14", "tube38", "alu12"],
+    # The radiator above the coil is the same bought whip, and the same
+    # argument applies to it: what is being paid for is a thing that survives
+    # a car wash and a low branch.
+    "screwdriver": ["stainless", "tube14", "tube38", "alu12"],
 }
 
 
