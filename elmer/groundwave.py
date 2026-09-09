@@ -205,6 +205,36 @@ HORIZONTAL_NOTE = (
     "wants a vertical.")
 
 
+# Where the surface wave stops being the mechanism.
+#
+# The Sommerfeld-Norton solution this module implements does not fall over at
+# any particular frequency - hand it 446 MHz and it will return a number, and
+# the number is meaningless. The surface wave is what LF and MF broadcasting
+# runs on and it is still real through HF, but its attenuation climbs steeply
+# with frequency and by VHF there is essentially nothing left: what reaches you
+# on 2 m from beyond the horizon is line of sight and then diffraction over
+# it, not a wave following the ground.
+#
+# So the model says so instead of answering anyway. It had been reporting
+# "12 miles of ground wave" on 2 m and 8 on 70 cm, which is the right order of
+# distance for entirely the wrong reason - and a plausible number attached to
+# the wrong mechanism teaches somebody something they will have to unlearn.
+# Above the limit the honest answer is that this is a path question, and ELMER
+# has a path tool.
+#
+# The edge is soft and is stated as one. Thirty megahertz is the conventional
+# top of HF rather than a discontinuity in the physics.
+SURFACE_WAVE_MAX_MHZ = 30.0
+
+NOT_THE_MECHANISM = (
+    "Above about 30 MHz the ground wave is not what is carrying you. The "
+    "surface wave's attenuation climbs steeply with frequency and by VHF "
+    "there is nothing usable left - what gets past the horizon up here is "
+    "line of sight, and then diffraction and tropospheric bending beyond it. "
+    "The antenna and the terrain decide that, not the soil, so the path and "
+    "line-of-sight tool is the one that answers it.")
+
+
 def useful_range_km(mhz, watts=100.0, ground="average", site="rural",
                     mode="ssb", gain_dbi=0.0, bandwidth_hz=2400.0,
                     polarization="vertical"):
@@ -215,6 +245,8 @@ def useful_range_km(mhz, watts=100.0, ground="average", site="rural",
     """
     if polarization == "horizontal":
         return None
+    if float(mhz) > SURFACE_WAVE_MAX_MHZ:
+        return None                       # not this mechanism up here
     needed = noise_floor_dbuv(mhz, site, bandwidth_hz) + MODE_SNR.get(mode, 10.0)
     close = field_strength(0.5, mhz, watts, ground, gain_dbi)["dbuv_per_m"]
     if close < needed:
@@ -242,6 +274,11 @@ def describe(mhz, watts=100.0, ground="average", site="rural", mode="ssb",
     if polarization == "horizontal":
         out.update({"km": None, "miles": None, "note": HORIZONTAL_NOTE})
         return out
+    if float(mhz) > SURFACE_WAVE_MAX_MHZ:
+        out.update({"km": None, "miles": None, "applies": False,
+                    "note": NOT_THE_MECHANISM})
+        return out
+    out["applies"] = True
     km = useful_range_km(mhz, watts, ground, site, mode, gain_dbi,
                          polarization=polarization)
     out["km"] = None if km is None else round(km, 1)

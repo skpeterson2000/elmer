@@ -473,11 +473,7 @@ TYPES = {
             "exist.",
         ],
         "better": [
-            "Know what you are actually working. A contact made driving down "
-            "the road is ground wave - vertically polarised, following the "
-            "surface - not line of sight and not the ionosphere. That is why "
-            "it works at all on a nine-foot antenna, and why it is measured in "
-            "tens of miles rather than hundreds.",
+            "Know which one you are working, because this antenna does both, and they are not the same contact. Close in it is ground wave - vertically polarised, hugging the surface, tens of miles of it, and the one kind of propagation a horizontal wire cannot manage at all. The contacts that surprise people are the other kind: a short vertical launches at a low angle, so what little it radiates leaves flat and comes back off the F layer hundreds or thousands of miles out. Working across the country from a moving car on 20 m is not ground wave - it is the ionosphere, reached by an antenna that is inefficient but aimed right. Being inefficient and being short-ranged are different failures, and this antenna only has the first.",
             "Move the coil up the whip. Centre loading beats base loading by "
             "a decibel or two, because it puts current where the radiating "
             "happens.",
@@ -639,6 +635,53 @@ SITES = {
         "good_at": "20m and up, digital modes, and - if you are high up - "
                    "VHF and UHF from a location most people would envy",
     },
+    "mobile": {
+        "label": "In the vehicle - mounted on the car or truck",
+        # The feedpoint on a roof or a fender sits about here. It is used the
+        # same way every other site's cap is: to say what a horizontal antenna
+        # would be doing at that height, which on a car is nothing good, and
+        # to make the point that height is not the lever here.
+        "max_ft": 6,
+        "works": ["A loaded whip, which is what this site is for. On 40 m a "
+                  "quarter wave is 33 feet and does not fit on a car, so a "
+                  "coil stands in for the missing wire and what is left is "
+                  "short, sharp and inefficient - deliberately, and knowing "
+                  "the size of that trade is what lets you improve it.",
+                  "A screwdriver or a tapped coil if you change bands. A "
+                  "hamstick is one band and moving a hundred kilohertz can be "
+                  "enough to need retuning it.",
+                  "VHF and UHF, where a quarter wave is a few inches, the "
+                  "whole antenna is full size and efficient, and the car roof "
+                  "is a genuinely good ground plane. This is the one place "
+                  "where the mobile installation is not a compromise at all."],
+        "costs": ["The vehicle is the other half of the antenna, and it is an "
+                  "undersized half: a car is about fifteen feet where a 40 m "
+                  "quarter wave wants thirty-three. Bond the hood, the trunk, "
+                  "the doors and the exhaust to the frame with strap, not "
+                  "wire - panels are bolted through paint and are not "
+                  "connected at RF until you connect them. A bad bond costs "
+                  "more than any coil.",
+                  "Most of your power heats the loading coil. Radiation "
+                  "resistance on 80 m is a couple of ohms against tens of ohms "
+                  "of loss, so a perfect 1:1 can be a perfect match into a "
+                  "heater. Efficiency is the thing to work on, and SWR will "
+                  "not show it to you.",
+                  "The car makes its own noise - alternator, fuel pump, "
+                  "ignition, the engine computer. On a quiet band that noise "
+                  "floor, not the antenna, is usually what decides whether you "
+                  "hear the other station.",
+                  "Where it is mounted matters more than what it cost. Centre "
+                  "of the roof is best and symmetric; a hitch or bumper mount "
+                  "puts the whip at the edge and skews the pattern toward the "
+                  "far side of the car. Then remember it is up there - "
+                  "garages, drive-throughs and low branches all win.",
+                  "It is feet from people, so the exposure evaluation is a "
+                  "real one here rather than a formality."],
+        "good_at": "far more than it has any right to be - a short vertical "
+                   "launches low, so the little it radiates leaves flat and "
+                   "works distance on 20 m and 40 m, while the ground wave "
+                   "covers the near end a home wire flies over",
+    },
     "portable": {
         "label": "Nothing at home - I go out",
         "max_ft": 30,
@@ -658,6 +701,13 @@ def takeoff_deg(height_ft, mhz):
     """Where the main lobe of a horizontal antenna sits, in degrees up."""
     waves = max(0.001, float(height_ft) / wavelength_ft(mhz))
     return math.degrees(math.asin(min(1.0, 1.0 / (4.0 * waves))))
+
+
+# Where a horizontal wire stops being a low antenna and starts being a ground
+# heater. It is a soft edge and it is stated as one: efficiency over real earth
+# falls away steadily below about a fifth of a wavelength and is bad by a
+# tenth. The number is here so the sentence that uses it can name it.
+GROUND_LIMIT = 0.10
 
 
 def reality(kind, mhz, wanted_ft, site):
@@ -681,6 +731,26 @@ def reality(kind, mhz, wanted_ft, site):
     if TYPES.get(kind, {}).get("polarisation") == "horizontal" and cap > 0:
         angle = takeoff_deg(cap, mhz)
         out["takeoff_deg"] = round(angle)
+        waves = cap / wavelength_ft(mhz)
+        if waves < GROUND_LIMIT:
+            # "Low is a capability" is true at a fifth of a wavelength and a
+            # lie at a twentieth. Below about a tenth the pattern argument
+            # stops being the point: the ground underneath is absorbing the
+            # near field faster than the antenna can radiate it, and telling
+            # somebody they have built a fine NVIS station is not honest.
+            out["means"] = (
+                "At %d ft on %g MHz this is %.2f of a wavelength up, and that "
+                "is low enough that the pattern is no longer the problem - the "
+                "ground under it is. Below about a tenth of a wave the earth "
+                "absorbs the near field faster than the wire radiates it, and "
+                "several decibels go into warming the soil. A deliberately low "
+                "wire for regional work wants a fifth of a wavelength, %d ft "
+                "here; this is a good deal less than that. It will make "
+                "contacts and it is worth having over no antenna at all, but "
+                "it is losing most of what you put into it, and the fix is "
+                "height or a different antenna rather than power."
+                % (cap, mhz, waves, round(NVIS_TARGET * wavelength_ft(mhz))))
+            return out
         out["means"] = (
             "At %d ft on %g MHz the main lobe sits %d degrees up, not the %d "
             "it would at %d ft. That is not a broken antenna, it is a "
@@ -718,7 +788,17 @@ def suits(kind, use, mhz):
             try:
                 from . import groundwave
                 km = groundwave.useful_range_km(mhz, 100.0, "average")
-                if km:
+                if mhz > groundwave.SURFACE_WAVE_MAX_MHZ:
+                    # Different radio entirely up here. Saying "ground wave"
+                    # about a 2 m contact is the wrong name for the right
+                    # distance, and the wrong name is what sticks.
+                    reach = (" Up here none of that is the question anyway: "
+                             "above about 30 MHz there is no ionospheric "
+                             "return to be under and no surface wave worth "
+                             "the name, so what you work is line of sight and "
+                             "whatever diffracts over the edge of it. Height "
+                             "and terrain decide that, not takeoff angle.")
+                elif km:
                     reach = (" What it does have is a ground wave - about %d "
                              "miles of it here at 100 W over average ground, "
                              "vertically polarised and hugging the surface. "
@@ -822,6 +902,15 @@ def recommend(mhz, use=None, kind=None, site=None):
     # talked back to a dipole.
     if kind in TYPES:
         return for_type(mhz, kind, use, site)
+    # A vehicle settles the question before the intention does. Nobody hangs a
+    # dipole off a car, and the advice used to offer one "as high as you can
+    # manage" to somebody who had just said they were in a truck. What changes
+    # with frequency is only which whip: below 30 MHz the quarter wave does not
+    # fit and a coil stands in for the missing wire, and above it the whole
+    # antenna is full size and a five-eighths gets real gain out of a roof that
+    # is finally a good ground plane.
+    if site == "mobile":
+        return for_type(mhz, "fiveeighth" if mhz > 30.0 else "whip", use, site)
     use = use if use in USES else default_use(mhz, kind)
     lam = wavelength_ft(mhz)
     out = {
