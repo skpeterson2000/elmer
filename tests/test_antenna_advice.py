@@ -149,6 +149,35 @@ def main():
           A.recommend(7.1, "regional", "quarter")["height_ft"]
           == A.recommend(7.1, "dx", "quarter")["height_ft"], True)
 
+    print("\n-- and the advice under the height agrees with it --")
+    # Fixing the number was not enough. Every horizontal antenna's improvement
+    # advice began "raise it", which is the whole answer for distance and
+    # precisely wrong hung low - so the tool put an inverted-V at 35 ft and
+    # then, in the next paragraph, told somebody to raise it.
+    # Asserted structurally rather than by keyword: "do not raise it" contains
+    # the word raise, and a test that reads prose for banned words fails the
+    # sentence that says the right thing.
+    for kind in ("dipole", "invertedv", "loop", "bowtie", "efhw"):
+        near = A.recommend(7.1, "regional", kind)
+        check(f"a {kind} hung low is not given the raise-it advice",
+              near["better"] == A.TYPES[kind]["better"], False)
+        check(f"  it gets the low-hanging advice instead",
+              near["better"][:len(A.NVIS_BETTER)], A.NVIS_BETTER)
+        check(f"  and is told plainly that higher is worse",
+              "higher is worse" in " ".join(near["better"]), True)
+    check("it offers the ground reflector, which is the real NVIS improvement",
+          "reflector" in " ".join(A.recommend(7.1, "regional", "dipole")["better"]),
+          True)
+    check("and points at the band rather than the mast when it stops working",
+          "lower band" in " ".join(A.recommend(7.1, "regional", "dipole")["better"]),
+          True)
+    # The DX advice must keep saying the opposite, because there it is right.
+    check("the same antenna hung for DX keeps its own advice, which says go up",
+          A.recommend(7.1, "dx", "dipole")["better"], A.TYPES["dipole"]["better"])
+    check("  and a vertical is never given the low-hanging advice at all",
+          A.recommend(7.1, "regional", "quarter")["better"],
+          A.TYPES["quarter"]["better"])
+
     print("\n-- a bought antenna is not a shopping list of materials --")
     from elmer import conductors as C  # noqa: E402
     whip = [c["key"] for c in C.options(7.1, "whip")]
