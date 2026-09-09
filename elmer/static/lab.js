@@ -604,14 +604,20 @@ function radialZ(deg) {
 let COND = {key: 'wire14', k: 0.95, q_scale: 1, band_scale: 1, label: ''};
 let CONDUCTORS = [];
 
-async function loadConductors(mhz) {
+async function loadConductors(mhz, kind) {
+  /* Narrowed to what this antenna is plausibly made of. Offering a coat hanger
+     as the element of a commercial mobile whip is a question nobody is asking;
+     what they want to know is what the thing in their hand is made of and what
+     that costs them, which is a better question and has an answer. */
   try {
-    const d = await api('/api/conductors?mhz=' + encodeURIComponent(mhz));
+    const d = await api('/api/conductors?' + new URLSearchParams(
+      kind ? {mhz: mhz, kind: kind} : {mhz: mhz}));
     CONDUCTORS = d.conductors;
   } catch (e) { return; }
   const sel = document.getElementById('an-cond');
   if (!sel) return;
-  const chosen = sel.value || COND.key || 'wire14';
+  let chosen = sel.value || COND.key || 'wire14';
+  if (!CONDUCTORS.some(c => c.key === chosen)) chosen = CONDUCTORS[0].key;
   sel.innerHTML = CONDUCTORS.map(c =>
     '<option value="' + c.key + '"' + (c.key === chosen ? ' selected' : '') +
     '>' + escapeHTML(c.label) + '</option>').join('');
@@ -1288,6 +1294,16 @@ function drawAntenna(shape, rows, type) {
         showConductor();
       }
       antennaFields(document.getElementById('an-type').value);
+      /* The advice panel sits above all this and only refreshed when the
+         button was pressed, so changing the antenna underneath it left it
+         describing whichever one you last asked about. That was harmless
+         while the advice was generic and is wrong now that it follows the
+         type. It refreshes itself, and deliberately does not touch the
+         numbers you have typed - see antennaAdvice's `quiet`. */
+      if (id === 'an-type') {
+        refreshAdvice();
+        loadConductors(num('an-f'), el.value);
+      }
       calcAnt();
     });
   });
@@ -1300,10 +1316,10 @@ function drawAntenna(shape, rows, type) {
   let pending = null;
   const refresh = () => {
     clearTimeout(pending);
-    pending = setTimeout(() => loadConductors(num('an-f')).then(calcAnt), 250);
+    pending = setTimeout(() => loadConductors(num('an-f'), (document.getElementById('an-type') || {}).value).then(calcAnt), 250);
   };
   freq.addEventListener('input', refresh);
-  loadConductors(num('an-f')).then(calcAnt);
+  loadConductors(num('an-f'), (document.getElementById('an-type') || {}).value).then(calcAnt);
 })();
 
 /* How close a person can actually get differs completely by antenna type, and
@@ -2060,7 +2076,17 @@ initRf();
    Reached from the band plan: clicking a segment there arrives here with the
    frequency and the intended use already in the address. */
 
-async function antennaAdvice(mhz, use, kind) {
+/* Re-ask about the antenna now selected, but only if advice is already on
+   screen: somebody who has not asked for it should not have it appear because
+   they browsed the list. */
+function refreshAdvice() {
+  const box = document.getElementById('an-advice');
+  if (!box || box.hidden) return;
+  antennaAdvice(num('an-f'), document.getElementById('an-use').value,
+                document.getElementById('an-type').value, true);
+}
+
+async function antennaAdvice(mhz, use, kind, quiet) {
   const box = document.getElementById('an-advice');
   if (!box) return;
   let d;
@@ -2075,16 +2101,18 @@ async function antennaAdvice(mhz, use, kind) {
      there before - unless the antenna was the question. Somebody who picked a
      full-wave loop and asked about it should not find the selector quietly
      changed to "dipole" underneath them. */
-  document.getElementById('an-type').value = d.type;
-  document.getElementById('an-f').value = d.mhz;
-  const h = document.getElementById('an-h');
-  if (h) h.value = d.height_ft;
-  const nvis = document.getElementById('an-nvis');
-  if (nvis) nvis.checked = !!d.nvis;
-  const useSel = document.getElementById('an-use');
-  if (useSel) useSel.value = d.use;
-  antennaFields(d.type);
-  calcAnt();
+  if (!quiet) {
+    document.getElementById('an-type').value = d.type;
+    document.getElementById('an-f').value = d.mhz;
+    const h = document.getElementById('an-h');
+    if (h) h.value = d.height_ft;
+    const nvis = document.getElementById('an-nvis');
+    if (nvis) nvis.checked = !!d.nvis;
+    const useSel = document.getElementById('an-use');
+    if (useSel) useSel.value = d.use;
+    antennaFields(d.type);
+    calcAnt();
+  }
 
   box.hidden = false;
   /* Say what the frequency is before saying what to build for it. Guessing

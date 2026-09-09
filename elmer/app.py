@@ -562,7 +562,8 @@ def api_conductors():
         abort(400)
     if not 0.1 <= mhz <= 3000:
         abort(400)
-    return jsonify({"mhz": mhz, "conductors": conductors.options(mhz),
+    kind = request.args.get("kind") or None
+    return jsonify({"mhz": mhz, "conductors": conductors.options(mhz, kind),
                     "reference": conductors.REFERENCE["key"]})
 
 
