@@ -115,12 +115,13 @@ def _styles():
     }
 
 
-# Tall enough to be recognised across a room rather than read at arm's length.
-# The bar is on the sheet twice over: once to say what else this antenna can
-# be used for, and once because every band's pattern of segments is its own -
-# a glance at the stripes says which sheet this is without reading a word of
-# it, which is what somebody hunting through a pile of them actually does.
-STRIP_H = 22
+# The card's bar height rather than the chart's, because like the card's it
+# appears once here instead of repeating down a page. Not enlarged: what makes
+# one of these recognisable is the pattern of the segments, not their size -
+# 60 m is five channels and could not be mistaken for anything at any scale -
+# and that recognition comes from having seen the bar before. It needs no
+# help from the layout and none from the page pointing at it.
+STRIP_H = bandpdf.BAR_H
 
 
 def covers_whole(span, band):
@@ -289,12 +290,15 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
         st["sub"]))
 
     # --- the band it lives on -----------------------------------------------
-    # Once per sheet and near the top, which is both of the reasons it is
-    # here. An antenna cut for one frequency covers a slice of a band, and the
-    # rest of that band is full of things the same wire will do - a mode
-    # nobody thought of is often only out of mind because it was out of sight.
-    # And a band's pattern of segments is unlike any other band's, so the
-    # stripes name the sheet from across a room before a word is read.
+    # Once per sheet and near the top. An antenna cut for one frequency covers
+    # a slice of a band, and the rest of that band is full of things the same
+    # wire will do - a mode nobody thought of is usually only out of mind
+    # because it was out of sight, which is the reason the sheet says so.
+    #
+    # It is also what tells one sheet from another in a pile, since no two
+    # bands share a pattern of segments. That half is for whoever maintains
+    # this and not for the operator: it works by having been seen before, so
+    # it wants no tailoring and no explaining on the page.
     strip, band = _band_strip(mhz, span, license_class, 7.1 * inch)
     if strip is not None:
         flow.append(Spacer(1, 2))
