@@ -27,10 +27,11 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.graphics.shapes import Line, Rect
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
                                 Spacer, Table, TableStyle)
 
-from . import antenna_advice, conductors, patterns
+from . import antenna_advice, bandplan, bandpdf, conductors, patterns
 
 INK = colors.HexColor("#1a1a1a")
 MUTED = colors.HexColor("#555555")
@@ -114,6 +115,81 @@ def _styles():
     }
 
 
+# Tall enough to be recognised across a room rather than read at arm's length.
+# The bar is on the sheet twice over: once to say what else this antenna can
+# be used for, and once because every band's pattern of segments is its own -
+# a glance at the stripes says which sheet this is without reading a word of
+# it, which is what somebody hunting through a pile of them actually does.
+STRIP_H = 22
+
+
+def covers_whole(span, band):
+    """Whether this antenna holds under 2:1 right across the band."""
+    if span.get("low") is None or span.get("high") is None:
+        return False
+    return span["low"] <= band["low"] and span["high"] >= band["high"]
+
+
+def _band_strip(mhz, span, license_class, width):
+    """The whole band this antenna is cut for, with its slice marked on it.
+
+    Drawn by the same code as the band chart, deliberately: an operator with
+    both printed should see one picture, not two dialects of it. What is added
+    here is where this particular antenna sits - the span it holds under 2:1,
+    outlined on the band, so the sheet answers "what else is this good for"
+    without being asked.
+    """
+    band = bandplan.band_at(mhz)
+    if not band:
+        return None, None
+    name = band["name"]
+    drawing = bandpdf.activity_bar(name, license_class, width, height=STRIP_H)
+    low, high = band["low"], band["high"]
+    reach = (high - low) or 1.0
+
+    def at(f):
+        return max(0.0, min(width, (f - low) / reach * width))
+
+    base = bandpdf.CHART_LABEL_H
+    # An antenna whose 2:1 window is wider than the band has no slice to
+    # outline - the outline would sit exactly on the bar's own edges and
+    # vanish, while implying the opposite of what is true. That case is told
+    # in words underneath instead, where it is better news anyway.
+    if not covers_whole(span, band) and span.get("low") is not None:
+        x0, x1 = at(span["low"]), at(span["high"])
+        # Outlined twice, pale over dark, so it reads on any of the segment
+        # colours underneath rather than only on the light ones.
+        for colour, inset, wide in ((colors.white, 0.0, 2.4),
+                                    (colors.black, 1.2, 1.0)):
+            drawing.add(Rect(x0 + inset, base + inset,
+                             max(1.5, x1 - x0 - 2 * inset),
+                             STRIP_H - 2 * inset,
+                             fillColor=None, strokeColor=colour,
+                             strokeWidth=wide))
+    tick = at(mhz)
+    drawing.add(Line(tick, base - 2, tick, base + STRIP_H + 2,
+                     strokeColor=colors.black, strokeWidth=2.0))
+    drawing.add(Line(tick, base - 2, tick, base + STRIP_H + 2,
+                     strokeColor=colors.white, strokeWidth=0.8))
+    return drawing, band
+
+
+def _band_legend(name, style):
+    """What the colours in that band mean - only the ones actually in it."""
+    seen = []
+    for _low, _high, kind, _label in bandplan.activity_for(name):
+        if kind not in seen:
+            seen.append(kind)
+    if not seen:
+        return None
+    parts = []
+    for kind in seen:
+        colour = bandpdf.KIND_COLOUR.get(kind, colors.grey)
+        parts.append(f'<font color="#{colour.hexval()[2:]}">&#9608;</font> '
+                     f'{bandpdf.KIND_LABEL.get(kind, kind)}')
+    return Paragraph(" &nbsp;".join(parts), style)
+
+
 def _feet_inches(feet):
     """Feet and inches, because that is what the tape measure is marked in."""
     if feet is None:
@@ -173,7 +249,7 @@ def dimensions(kind, mhz, conductor_key):
 
 
 def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
-          use=None, callsign="", nvis=False):
+          use=None, callsign="", nvis=False, license_class="Extra"):
     """The sheet, as PDF bytes."""
     st = _styles()
     advice = antenna_advice.for_type(mhz, kind, use=use, site=site)
@@ -192,8 +268,9 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     reality = antenna_advice.reality(kind, mhz, wanted_ft or height_ft, site)
     nvis_ft = antenna_advice.nvis_height_ft(mhz, kind)
 
-    q = spec["q_scale"] * patterns.ANTENNA_Q.get(
-        kind, patterns.ANTENNA_Q["dipole"])["q"]
+    # base_q rather than the table, because an antenna that covers a decade
+    # does not have one Q - see patterns.Q_SCALES_WITH_BAND.
+    q = spec["q_scale"] * patterns.base_q(kind, mhz)
     z = patterns.feedpoint_z(kind, mhz, mhz, q=q)
     span = patterns.usable_bandwidth(kind, mhz, q=q)
 
@@ -210,6 +287,44 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
         f"{who}Build sheet and evaluation &middot; {made} &middot; "
         f"wavelength {lam_ft:.1f} ft &middot; {advice.get('use_label', '')}",
         st["sub"]))
+
+    # --- the band it lives on -----------------------------------------------
+    # Once per sheet and near the top, which is both of the reasons it is
+    # here. An antenna cut for one frequency covers a slice of a band, and the
+    # rest of that band is full of things the same wire will do - a mode
+    # nobody thought of is often only out of mind because it was out of sight.
+    # And a band's pattern of segments is unlike any other band's, so the
+    # stripes name the sheet from across a room before a word is read.
+    strip, band = _band_strip(mhz, span, license_class, 7.1 * inch)
+    if strip is not None:
+        flow.append(Spacer(1, 2))
+        flow.append(strip)
+        legend = _band_legend(band["name"], st["sub"])
+        if legend is not None:
+            flow.append(legend)
+        if covers_whole(span, band):
+            where = (f"<b>{band['name']}</b> &mdash; this antenna holds under "
+                     f"2:1 across the whole band, so everything on the bar is "
+                     f"within reach of it without retuning anything. Most of "
+                     f"what is up there is a mode rather than a frequency.")
+        elif span.get("low") is not None:
+            # Quoted inside the band, because a window that runs off the end
+            # of it is not usable width - it is width spent somewhere the
+            # licence does not go.
+            low = max(span["low"], band["low"])
+            high = min(span["high"], band["high"])
+            khz = round((high - low) * 1000)
+            where = (f"<b>{band['name']}</b> &mdash; the outlined slice is "
+                     f"where this antenna holds under 2:1: {low:.3f} to "
+                     f"{high:.3f} MHz, {khz} kHz of the {band['name']} band. "
+                     f"The rest of the bar is still there, and most of what is "
+                     f"in it is a mode rather than a frequency.")
+        else:
+            where = (f"<b>{band['name']}</b> &mdash; nothing here holds under "
+                     f"2:1 with this antenna as described. The marked line is "
+                     f"what it is cut for, and the bar is the band it is "
+                     f"sitting in.")
+        flow.append(Paragraph(where, st["sub"]))
 
     # --- what to cut --------------------------------------------------------
     flow.append(Paragraph("What to cut", st["h"]))

@@ -482,6 +482,60 @@ TYPES = {
             "change.",
         ],
     },
+    "screwdriver": {
+        "title": "Screwdriver - motor-tuned mobile vertical",
+        "height": [0, 5, 12],
+        "polarisation": "vertical",
+        "why": [
+            "A loaded whip is resonant on one band. This one moves its own "
+            "coil: a motor drives the winding in and out of the form, so the "
+            "same antenna is resonant anywhere from 40 m to 10 m - and on the "
+            "big ones from 80 - with no tap to change and no tuner to hide "
+            "behind. It is named for the cordless screwdriver the first ones "
+            "were built out of.",
+            "That is a real trick and it is worth having. What it does not do "
+            "is make the antenna long. It is the same short radiator with the "
+            "same small radiation resistance, and the coil that makes it "
+            "resonant is also where a great deal of the power goes.",
+        ],
+        "watch": [
+            "Resonant is not efficient. The motor will find you a 1:1 on any "
+            "frequency you like, and a perfect match into a lossy coil is "
+            "still a lossy coil. Efficiency climbs steeply with frequency: on "
+            "10 m the whip is most of a quarter wave and behaves like one; on "
+            "80 m it is largely a heater with an excellent SWR.",
+            "It is sharpest exactly where it is least efficient. Reckon on "
+            "retuning after a few tens of kilohertz on 40 m and a couple of "
+            "hundred on 20 - which is not a fault, it is the reason the motor "
+            "is there. ELMER works the figure out for the frequency you are "
+            "on rather than quoting one number for the whole decade.",
+            "Do not transmit while it is moving. The contact crossing turns "
+            "under power arcs, and pitted contacts are how one of these "
+            "starts refusing to tune.",
+            "When one stops tuning it is nearly always water and corrosion in "
+            "the coil rather than the motor. They live on a bumper at 70 mph "
+            "in the rain, which is a hard life for a variable inductor.",
+            "The vehicle is still the other half of the antenna. A "
+            "screwdriver on a badly bonded mount is a good antenna wasted, "
+            "exactly as any mobile whip would be.",
+        ],
+        "better": [
+            "A capacitance hat above the coil is the single best thing most "
+            "of these can be given. It raises the radiation resistance and "
+            "shortens the coil needed to resonate, which is efficiency bought "
+            "with a few ounces of wire and a little wind loading.",
+            "Get the base up out of the bodywork. A bumper mount low behind a "
+            "steel body is shielded from a good part of the world, and height "
+            "at the base does more than length at the top.",
+            "Counterpoise, on anything that is not a large steel vehicle. A "
+            "fibreglass camper, a trailer or a stationary set-up needs "
+            "radials laid out, and the difference is not subtle.",
+            "Learn roughly where the coil sits for each band. An automatic "
+            "controller hunts for minimum SWR, which is fine until it hunts "
+            "across a band edge - knowing where it should be is how you catch "
+            "that before you key up.",
+        ],
+    },
 }
 
 
