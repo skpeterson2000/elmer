@@ -767,6 +767,35 @@ def api_vna_identify():
     return jsonify({"ok": info is not None, "info": info, "error": error})
 
 
+@app.route("/api/vna/controls")
+def api_vna_controls():
+    """What may be asked of an instrument, and what each one costs."""
+    return jsonify({"controls": nanovna.offered(),
+                    "standards": nanovna.CAL_STANDARDS,
+                    "slots": nanovna.MAX_SLOT})
+
+
+@app.route("/api/vna/control", methods=["POST"])
+def api_vna_control():
+    """Change one thing on the instrument.
+
+    Local only, and for the same reason the update controls are: reading an
+    instrument from a phone across the room is harmless, and wiping its
+    calibration from one is a decision that belongs to somebody standing in
+    front of the bench it is on.
+    """
+    _local_json_or_403()
+    body = request.get_json(silent=True) or {}
+    device = body.get("device") or ""
+    if not host.is_serial_device(device):
+        abort(400)
+    result, error = nanovna.control(device, body.get("action") or "",
+                                    body.get("value"),
+                                    confirmed=bool(body.get("confirmed")))
+    return jsonify({"ok": result is not None, "result": result,
+                    "error": error})
+
+
 @app.route("/api/vna/measure")
 def api_vna_measure():
     """One real sweep off the instrument. Slow, so it is asked for explicitly."""

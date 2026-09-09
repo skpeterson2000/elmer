@@ -427,6 +427,57 @@
   </div>
   <div id="vn-dev" class="small muted mt"></div>
 
+  <div class="panel-title mt">Drive it</div>
+  <p class="small muted" style="margin:.2rem 0 .6rem">
+    Sweeping asks the instrument a question and nothing is worse for having
+    asked. These change what it is set to, and two of them destroy work &mdash;
+    those say so and wait. Everything sent and everything answered is written
+    down underneath, because most of these commands accept in silence, and the
+    screen on the instrument itself is the other half of the check.
+  </p>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="margin-bottom:0"><label>Start (MHz)</label>
+      <input id="vn-ctl-start" value="14.000"></div>
+    <div class="field" style="margin-bottom:0"><label>Stop (MHz)</label>
+      <input id="vn-ctl-stop" value="14.350"></div>
+    <div class="field" style="margin-bottom:0"><label>Points</label>
+      <input id="vn-ctl-points" value="101"></div>
+    <button class="btn sm" data-vna="sweep" disabled>Set its span</button>
+    <button class="btn sm" data-vna="pause" disabled>Hold</button>
+    <button class="btn sm" data-vna="resume" disabled>Sweep on</button>
+  </div>
+
+  <div class="panel-title mt" style="margin-bottom:.2rem">
+    Calibrate it, one standard at a time</div>
+  <p class="tiny muted" style="margin:0 0 .5rem">
+    Set the span first &mdash; a calibration belongs to the sweep it was taken
+    over. Then put each standard on the end of the same jumper that will screw
+    onto the antenna, and press its button. Each one takes a sweep, so give it
+    a moment. OPEN, SHORT and LOAD are all an antenna needs; ISOLN and THRU are
+    for two-port work.
+  </p>
+  <div class="row" style="gap:.4rem;flex-wrap:wrap">
+    <button class="btn sm" data-vna="cal-step" data-value="open" disabled>OPEN</button>
+    <button class="btn sm" data-vna="cal-step" data-value="short" disabled>SHORT</button>
+    <button class="btn sm" data-vna="cal-step" data-value="load" disabled>LOAD</button>
+    <button class="btn sm ghost" data-vna="cal-step" data-value="isoln" disabled>ISOLN</button>
+    <button class="btn sm ghost" data-vna="cal-step" data-value="thru" disabled>THRU</button>
+    <button class="btn sm primary" data-vna="cal-done" disabled>DONE</button>
+  </div>
+  <div class="row" style="gap:.4rem;flex-wrap:wrap;margin-top:.5rem;
+                          align-items:flex-end">
+    <button class="btn sm" data-vna="cal-on" disabled>Apply it</button>
+    <button class="btn sm" data-vna="cal-off" disabled>Show it raw</button>
+    <button class="btn sm danger" data-vna="cal-reset" disabled>Throw it away</button>
+    <div class="field" style="margin-bottom:0;margin-left:auto">
+      <label>Slot</label>
+      <select id="vn-ctl-slot" class="mono"></select>
+    </div>
+    <button class="btn sm" data-vna="recall" disabled>Recall</button>
+    <button class="btn sm" data-vna="save" disabled>Save into it</button>
+  </div>
+  <div id="vn-ctl-out" class="mt"></div>
+
   <details class="derivation mt">
     <summary class="small">Calibrate it first &mdash; and calibrate it in the right place</summary>
     <p class="small muted">

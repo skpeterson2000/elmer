@@ -199,3 +199,177 @@ def measure(device, start_mhz, stop_mhz, points=101, timeout=SWEEP_TIMEOUT):
             "low_mhz": out[0]["mhz"] if out else None,
             "high_mhz": out[-1]["mhz"] if out else None,
             "rows": out}, None
+
+
+# --------------------------------------------------------------------------
+# changing something on the instrument
+# --------------------------------------------------------------------------
+# Reading an instrument and driving one are different acts. A sweep asks a
+# question and nothing is worse afterwards for having asked it. These change
+# what the instrument is, and two of them destroy work: `cal reset` throws
+# away the calibration that is loaded, and `save` overwrites a stored one.
+# Neither can be undone except by doing the calibration again, standard by
+# standard, which is ninety seconds somebody may not have where they are
+# standing. So those two are marked, and the caller has to say it meant it.
+#
+# The shell on the other end will execute any string it is handed. This table
+# is the whole of what ELMER will hand it: an action name from the page maps
+# to a command built here, and nothing types through from a browser to a
+# device that runs what it is given.
+#
+# These are the NanoVNA-H and H4 shell commands. The -F family runs different
+# firmware behind a CH340 and may not answer them at all - which is not a
+# thing to guess about on somebody's behalf, so a command that is not
+# understood comes back as whatever the instrument said and is shown, rather
+# than being reported as done.
+CAL_STANDARDS = ["open", "short", "load", "isoln", "thru"]
+
+# Slots differ by model - five on an H, seven on an H4 - so this is the widest
+# range any of them has and the instrument is left to refuse the rest. Being
+# wrong in that direction costs an error message; being wrong the other way
+# would hide a slot somebody paid for.
+MAX_SLOT = 6
+
+
+def _slot(value):
+    number = int(value)
+    if not 0 <= number <= MAX_SLOT:
+        raise ValueError("calibration slots are 0 to %d" % MAX_SLOT)
+    return number
+
+
+def _sweep_command(value):
+    value = value or {}
+    start = int(round(float(value.get("start_mhz")) * 1e6))
+    stop = int(round(float(value.get("stop_mhz")) * 1e6))
+    points = max(11, min(401, int(value.get("points") or 101)))
+    if stop <= start:
+        raise ValueError("the stop frequency has to be above the start")
+    return "sweep %d %d %d" % (start, stop, points)
+
+
+CONTROLS = {
+    "sweep": {
+        "build": _sweep_command,
+        "does": "set the span the instrument itself is sweeping",
+        "wants": "a start and stop in MHz",
+    },
+    "pause": {
+        "build": lambda _: "pause",
+        "does": "stop sweeping, so the trace on the screen holds still",
+    },
+    "resume": {
+        "build": lambda _: "resume",
+        "does": "start sweeping again",
+    },
+    "cal-step": {
+        "build": lambda v: "cal %s" % _standard(v),
+        "does": "measure one calibration standard",
+        "wants": "which standard is on the port",
+        "slow": True,
+    },
+    "cal-done": {
+        "build": lambda _: "cal done",
+        "does": "finish the calibration and apply it",
+        "slow": True,
+    },
+    "cal-on": {
+        "build": lambda _: "cal on",
+        "does": "apply the calibration that is loaded",
+    },
+    "cal-off": {
+        "build": lambda _: "cal off",
+        "does": "show the raw measurement, with no correction applied",
+    },
+    "cal-reset": {
+        "build": lambda _: "cal reset",
+        "does": "throw away the calibration that is loaded",
+        "destroys": "the calibration in the instrument's working memory. "
+                    "Anything saved to a slot is still there; this is the one "
+                    "being used now, and it comes back only by measuring the "
+                    "standards again.",
+        "slow": True,
+    },
+    "save": {
+        "build": lambda v: "save %d" % _slot(v),
+        "does": "store the current calibration in a slot",
+        "wants": "which slot",
+        "destroys": "whatever was in that slot. Slots are not a history - "
+                    "there is one calibration per slot and the old one is "
+                    "gone.",
+    },
+    "recall": {
+        "build": lambda v: "recall %d" % _slot(v),
+        "does": "load a stored calibration and its span",
+        "wants": "which slot",
+        "slow": True,
+    },
+}
+
+
+def _standard(value):
+    name = str(value or "").strip().lower()
+    if name not in CAL_STANDARDS:
+        raise ValueError("a calibration standard is one of: %s"
+                         % ", ".join(CAL_STANDARDS))
+    return name
+
+
+def offered():
+    """What the page may ask for, and what each one costs."""
+    return [{"action": name, "does": spec["does"],
+             "wants": spec.get("wants"), "destroys": spec.get("destroys"),
+             "standards": CAL_STANDARDS if name == "cal-step" else None,
+             "slots": MAX_SLOT if name in ("save", "recall") else None}
+            for name, spec in CONTROLS.items()]
+
+
+def control(device, action, value=None, confirmed=False):
+    """Change one thing on the instrument, and report what it said back.
+
+    Returns (result, error). The result carries the exact command sent and the
+    instrument's own words, because most of these answer with nothing at all
+    when they work - and "it said nothing" is a truthful thing to show an
+    operator standing next to a screen that will show them the rest.
+    """
+    spec = CONTROLS.get(action)
+    if spec is None:
+        return None, "%s is not something ELMER asks a VNA to do" % action
+    if spec.get("destroys") and not confirmed:
+        return None, "that one destroys %s" % spec["destroys"]
+    try:
+        command = spec["build"](value)
+    except (TypeError, ValueError) as exc:
+        return None, str(exc) or "that is not a usable setting"
+
+    serial, _ = _serial()
+    if serial is None:
+        return None, "pyserial is not installed on this machine"
+    try:
+        with serial.Serial(device, BAUD, timeout=READ_TIMEOUT) as ser:
+            time.sleep(0.2)
+            _drain(ser)
+            said = _ask(ser, command,
+                        timeout=SWEEP_TIMEOUT if spec.get("slow")
+                        else READ_TIMEOUT)
+            # What the instrument is on now, asked rather than assumed. A
+            # command that was refused, or that this firmware has never heard
+            # of, leaves the span exactly where it was - and that shows here
+            # rather than in a surprise three steps later.
+            span = _span(ser)
+    except Exception as exc:
+        return None, "could not talk to %s (%s)" % (device, exc)
+    return {"device": device, "action": action, "sent": command,
+            "said": said, "span": span}, None
+
+
+def _span(ser):
+    """The first and last frequency the instrument is actually sweeping."""
+    try:
+        rows = _floats(_ask(ser, "frequencies"))
+    except Exception:
+        return None
+    if not rows:
+        return None
+    return {"low_mhz": round(rows[0][0] / 1e6, 5),
+            "high_mhz": round(rows[-1][0] / 1e6, 5), "points": len(rows)}

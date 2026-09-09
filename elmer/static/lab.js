@@ -3078,6 +3078,18 @@ function vnPorts(list, error) {
   const any = (list || []).length > 0;
   document.getElementById('vn-id').disabled = !any;
   document.getElementById('vn-measure').disabled = !any;
+  vnCtlEnable(any);
+  const slots = document.getElementById('vn-ctl-slot');
+  if (any && slots && !slots.options.length) {
+    /* How many slots there are is the server's to say - five on an H, seven
+       on an H4 - so it is asked once, when there is finally an instrument to
+       ask about. */
+    api('/api/vna/controls').then(c => {
+      let html = '';
+      for (let n = 0; n <= c.slots; n++) html += '<option>' + n + '</option>';
+      slots.innerHTML = html;
+    }).catch(() => { slots.innerHTML = '<option>0</option>'; });
+  }
   document.getElementById('vn-dev').innerHTML = any
     ? (list[0].looks_right
         ? 'Found <b>' + escapeHTML(list[0].why) + '</b> on ' + list[0].device +
@@ -3089,6 +3101,97 @@ function vnPorts(list, error) {
       '</span> Plug it in, switch it on, and press again. On Linux you may need ' +
       'to be in the <span class="mono">dialout</span> group.';
 }
+
+/* ------------------------------------------------ driving the instrument */
+/* Reading a VNA and driving one are different acts, and this is the second.
+   Every press sends exactly one command and prints both halves of the
+   exchange, because most of these are accepted in silence - "it said nothing"
+   is the truth about this protocol rather than a shrug, and the instrument's
+   own screen is two feet away and shows the rest.
+
+   What may be sent is decided on the server, in one table, and so is the
+   warning on anything that destroys work: this asks, is refused with the
+   reason, puts that reason in front of the operator, and only then asks again
+   having said it meant it. The page does not carry its own copy of what is
+   dangerous, so the two cannot drift apart. */
+function vnCtlEnable(on) {
+  document.querySelectorAll('[data-vna]').forEach(b => { b.disabled = !on; });
+}
+
+function vnCtlSay(html, tone) {
+  const box = document.getElementById('vn-ctl-out');
+  if (!box) return;
+  const line = document.createElement('div');
+  line.className = 'small';
+  line.style.cssText = 'border-left:2px solid ' + (tone || 'var(--line-2)') +
+    ';padding:.2rem .6rem;margin-top:.35rem';
+  line.innerHTML = html;
+  box.prepend(line);
+  while (box.children.length > 12) box.lastChild.remove();
+}
+
+function vnCtlValue(button) {
+  const action = button.getAttribute('data-vna');
+  if (action === 'cal-step') return button.getAttribute('data-value');
+  if (action === 'save' || action === 'recall') {
+    return parseInt(document.getElementById('vn-ctl-slot').value, 10);
+  }
+  if (action === 'sweep') {
+    return {
+      start_mhz: parseFloat(document.getElementById('vn-ctl-start').value),
+      stop_mhz: parseFloat(document.getElementById('vn-ctl-stop').value),
+      points: parseInt(document.getElementById('vn-ctl-points').value, 10),
+    };
+  }
+  return null;
+}
+
+async function vnControl(button, confirmed) {
+  const action = button.getAttribute('data-vna');
+  const device = (document.getElementById('vn-port') || {}).value;
+  if (!device) return;
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Sending…';
+  let d;
+  try {
+    d = await postJSON('/api/vna/control', {
+      device: device, action: action, value: vnCtlValue(button),
+      confirmed: !!confirmed,
+    });
+  } catch (err) {
+    vnCtlSay('The server would not pass that on.', 'var(--red)');
+    button.disabled = false; button.textContent = label;
+    return;
+  }
+  button.disabled = false;
+  button.textContent = label;
+
+  if (!d.ok) {
+    /* The refusal carries its own reason, which is the warning text. Asking
+       again with that shown is the whole of the confirmation. */
+    if (/^that one destroys/.test(d.error || '') && !confirmed &&
+        confirm(d.error + '\n\nGo ahead?')) {
+      return vnControl(button, true);
+    }
+    vnCtlSay(escapeHTML(d.error || 'refused'), 'var(--amber)');
+    return;
+  }
+  const r = d.result;
+  const span = r.span
+    ? ' &middot; now sweeping <b>' + r.span.low_mhz + '–' + r.span.high_mhz +
+      ' MHz</b> over ' + r.span.points + ' points'
+    : '';
+  vnCtlSay('<span class="mono">' + escapeHTML(r.sent) + '</span> &rarr; ' +
+    (r.said ? '<span class="mono">' + escapeHTML(r.said) + '</span>'
+            : '<span class="muted">accepted without comment</span>') + span,
+    'var(--green)');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-vna]');
+  if (b && !b.disabled) vnControl(b, false);
+});
 
 if (document.getElementById('vn-chart')) {
   ['vn-f0', 'vn-centre', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
