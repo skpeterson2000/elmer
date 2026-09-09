@@ -107,6 +107,14 @@
           {% for alt in op.instead %}<li>{{ alt }}</li>{% endfor %}
         </ul>
         <p class="tiny" style="margin:0;color:var(--dim)">{{ op.why }}</p>
+        {% if op.aside %}
+          <details class="derivation" style="margin-top:.5rem">
+            <summary class="tiny">{{ op.aside.title }}</summary>
+            {% for para in op.aside.body %}
+              <p class="tiny muted" style="margin:.45rem 0 0">{{ para }}</p>
+            {% endfor %}
+          </details>
+        {% endif %}
       </div>
     {% endfor %}
   </div>

@@ -38,15 +38,56 @@ OPERATIONS = [
         "instead": [
             "a bare hacksaw blade with a rag wrapped round one end - the "
             "frame is a convenience, not the tool",
-            "a file drawn across one spot, then bend it and it breaks there",
-            "bending it back and forth until it work-hardens and snaps, "
-            "which is how both soft copper and steel wire give up",
+            "fatigue: nick the spot with a file or a sharp stone, then bend "
+            "it back and forth, hard and tight and always in the same place, "
+            "until the crack that starts at the nick runs through",
+            "anything that will hold one half while you work the other - a "
+            "door shut on it at the hinge side, a vice, two rocks, the gap "
+            "in a fence post. The leverage is what keeps the bend tight and "
+            "in one spot, which is the whole trick",
             "a cold chisel, or any hard edge and a rock",
         ],
         "why": "Length is the dimension that decides whether the thing "
                "resonates, and it is the only one you cannot add back. Cut "
                "long, measure, trim. Nobody has ever regretted a wire that "
                "started too long.",
+        "aside": {
+            "title": "Fatigue - what takes airliners apart, run on purpose",
+            "body": [
+                "Bending metal at one spot does two things at once. It work-"
+                "hardens: dislocations pile up, and the metal gets harder and "
+                "less willing to deform. And it starts a fatigue crack at the "
+                "outer fibre of the bend, which grows a little on every cycle "
+                "until what is left cannot carry the load.",
+
+                "That is not a curiosity. It took the roof off Aloha 243 in "
+                "1988 after tens of thousands of short pressurisation cycles, "
+                "and it broke two Comets apart at altitude in 1954. The "
+                "Comets are worth being accurate about, because the version "
+                "everybody repeats - square windows - is the tidied-up one. "
+                "The crack on the first aircraft was traced to a rivet hole "
+                "near the corner of a cutout in the roof. It was a small flaw "
+                "at a place where the stress was already concentrated, which "
+                "is what a fatigue crack always needs and is the only part of "
+                "the story a person with a coat hanger has to remember.",
+
+                "So that is the instruction. The nick you file is the rivet "
+                "hole: it decides where the break happens instead of leaving "
+                "it to chance. Bend hard and tight rather than gently, "
+                "because a wide curve spreads the strain over a length and "
+                "will never crack, and keep every cycle in the same place. "
+                "Ten or twenty of them do what thousands of pressurisations "
+                "did.",
+
+                "Two things follow. It only works on stock you can genuinely "
+                "work by hand - wire, a coat hanger, thin soft tube - and "
+                "never on half-inch pipe, which is what a saw is for. And the "
+                "end it leaves is hardened and brittle: file it back before "
+                "it becomes a joint, and bend any hook or eye you need "
+                "somewhere else along the wire, because that spot will not "
+                "take another bend.",
+            ],
+        },
     },
     {
         "key": "join",

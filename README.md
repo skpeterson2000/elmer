@@ -541,9 +541,12 @@ Under that again are the tools, because a fence somebody cannot cut is
 scenery. Same shape a third time: the tool each job wants - cutting, joining,
 getting it up there, finding out whether it works - and then what has stood in
 for that tool when it was forty miles away. A bare hacksaw blade with a rag
-wrapped round one end. A file and a bend. Hose clamps, which are already
-holding every heater hose in the vehicle. A rock on a line over a branch, and
-a water bottle that throws further and does not stick in the tree. The one
+wrapped round one end. A nick from a file and then metal fatigue - the same
+crack that took the roof off Aloha 243 and broke two Comets apart in 1954, run
+deliberately and in one spot, with the nick standing in for the rivet hole
+that started the real one. Hose clamps, which are already holding every heater
+hose in the vehicle. A rock on a line over a branch, and a water bottle that
+throws further and does not stick in the tree. The one
 that carries the most weight is the joint, because that is where scavenged
 antennas die: every mating face has to be clean to bright metal, and a
 corroded joint can read like a short on a meter and still rectify at RF.
