@@ -128,6 +128,33 @@ async function switchUser(id) {
 /* Setting or changing a password. Changing one needs the old one, so an open
    dashboard somebody wandered away from cannot be used to lock them out of
    their own account. */
+/* Offered once, when a unit stops being one person's.
+
+   Deliberately says nothing about anybody else's account. The second person to
+   arrive sees exactly these words whether the first has a password or not -
+   telling them a clubmate is unprotected would be its own small betrayal, and
+   would turn "should I bother" into a question about who else had bothered.
+
+   No rules about what the password has to be. It is a shared study Pi on a
+   home network, not a bank, and inventing strength requirements here would
+   only teach people that the tool does not understand its own stakes. */
+async function offerPassword(me) {
+  const yes = confirm(
+    'More than one person is using this ELMER now.\n\n' +
+    'A password keeps your progress yours: nobody else on this unit can ' +
+    'answer questions as you, rename your account, or remove what you have ' +
+    'done.\n\n' +
+    'It is entirely optional, there are no rules about what it has to be, ' +
+    'and you can set or change one any time from the account menu.\n\n' +
+    'Set one now?');
+  /* Recorded either way, and before the prompt, so a declined offer stays
+     declined and a closed browser does not bring it back. */
+  try {
+    await postJSON('/api/users/offered', {});
+  } catch (e) { /* it can be offered again next time rather than break */ }
+  if (yes) await setPassword(me);
+}
+
 async function setPassword(me) {
   const wanted = prompt(me.locked
     ? 'New password for ' + me.display_name + ' (blank removes it):'
@@ -278,3 +305,22 @@ document.addEventListener('click', async e => {
     btn.textContent = 'Open every pool anyway';
   }
 });
+
+
+/* At the start of the session rather than behind the account menu. The menu
+   loads its data lazily when opened, so hooking the offer to it meant the
+   person who never opens it is never asked - which is most people. The server
+   hands the flag over with the page instead.
+
+   Fired once, after a beat, so it arrives over a drawn page rather than a
+   blank one. */
+if (window.OFFER_PASSWORD) {
+  setTimeout(async () => {
+    let d;
+    try { d = await api('/api/users'); } catch (e) { return; }
+    if (!d.offer_password) return;          // set or declined in another tab
+    renderWho(d);
+    const me = (d.users || []).find(u => u.id === d.current) || d;
+    await offerPassword(me);
+  }, 1200);
+}

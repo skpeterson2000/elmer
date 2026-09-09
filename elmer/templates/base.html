@@ -71,6 +71,13 @@
 </main>
 
 <div id="toaster" class="toaster"></div>
+<script>
+/* Whether to offer this account a password. The server already knows, so it is
+   handed over with the page rather than fetched: the account menu loads its
+   data lazily when opened, and an offer that waits for somebody to open a menu
+   is not an offer made at the start of a session. */
+window.OFFER_PASSWORD = {{ offer_password|default(false)|tojson }};
+</script>
 <script src="{{ asset('elmer.js') }}"></script>
 <script src="{{ asset('users.js') }}"></script>
 {% block scripts %}{% endblock %}
