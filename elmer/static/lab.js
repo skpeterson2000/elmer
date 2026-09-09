@@ -2145,7 +2145,11 @@ async function antennaAdvice(mhz, use, kind, quiet) {
       '<div><div class="panel-title">What usually goes wrong</div>' +
         '<ul class="facts small">' +
         d.watch.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>' +
-        (d.alternative ? '<p class="small muted"><b>Instead:</b> ' +
+        /* "Instead:" told the reader to do the other thing. It is not an
+           instead, it is the runner-up and the conditions under which it
+           wins - and labelling it as a replacement made the page look like
+           it was recommending two antennas at once. */
+        (d.alternative ? '<p class="small muted"><b>Second choice:</b> ' +
           escapeHTML(d.alternative) + '</p>' : '') +
       '</div>' +
     '</div>' +

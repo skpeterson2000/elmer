@@ -926,7 +926,7 @@ def recommend(mhz, use=None, kind=None, site=None):
     if use == "local":
         out.update({
             "type": "jpole",
-            "title": "A vertical, as high as you can get it",
+            "title": "A J-pole vertical, as high as you can get it",
             "height_ft": _height(mhz, 0, 20, 40),
             "why": [
                 "FM repeaters and simplex are vertically polarised, and a "
@@ -956,7 +956,11 @@ def recommend(mhz, use=None, kind=None, site=None):
         out.update({
             "type": "invertedv",
             "nvis": True,
-            "title": "A low dipole, deliberately low",
+            # Named for what it actually is. It said "A low dipole" while
+            # recommending an inverted-V, and the alternative underneath
+            # mentioned a flat dipole - so the page appeared to be proposing
+            # two antennas at once to somebody who has never put up either.
+            "title": "An inverted-V, hung deliberately low",
             "height_ft": _height(mhz, 0.18, 15),
             "why": [
                 f"For a few hundred miles you want the signal going up, not "
@@ -967,18 +971,26 @@ def recommend(mhz, use=None, kind=None, site=None):
                 "This is the one case where a low antenna is the right answer "
                 "rather than a compromise, which is worth knowing before "
                 "somebody talks you into a tower.",
+                "An inverted-V is a dipole. Same wire, same length, same "
+                "feedpoint - it just hangs from one support in the middle "
+                "with the ends sloping away, instead of being stretched flat "
+                "between two. That is why the two names turn up in the same "
+                "breath: they are one antenna and two ways of hanging it.",
             ],
             "watch": [
                 "Higher is worse here, not better: get it up near half a "
                 "wavelength and you start putting a skip zone between you and "
                 "the people you are trying to work.",
-                "The ends of a dipole are the high-voltage points. Keep them "
+                "The ends of the wire are the high-voltage points, and on a "
+                "V they are the ends that come down towards people. Keep them "
                 "above head height and away from anything anybody touches.",
             ],
         })
-        out["alternative"] = ("A flat dipole between two supports beats an "
-                              "inverted-V slightly; the V is here because it "
-                              "needs only one support in the middle.")
+        out["alternative"] = ("Two supports rather than one? Then a flat "
+                              "dipole between them is worth about a decibel "
+                              "over the V. The V is the pick here because it "
+                              "hangs from a single point in the middle, which "
+                              "is what most people actually have.")
 
     elif use == "weaksignal":
         out.update({
