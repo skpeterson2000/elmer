@@ -649,6 +649,43 @@ def check_password(conn, user_id, password):
     return hmac.compare_digest(_hash_password(password, salt), row["pw_hash"])
 
 
+# Offering a password when the unit stops being one person's.
+#
+# A password is optional and starts unset, which is right: somebody studying
+# alone on their own Pi should not have to invent one before answering a
+# question. But nothing used to change when a second person appeared, and that
+# is exactly when it starts to matter - so the protection sat in a menu nobody
+# opened until after they had been bitten.
+#
+# The offer is made from three facts and no others: how many accounts are on
+# the unit, whether *this* account has a password, and whether this account has
+# been asked before. It never consults another account's state, so the second
+# person to arrive sees the same words whether the first has a password or not.
+# Telling somebody that a clubmate is unprotected would be its own small
+# betrayal, and would make the honest answer to "should I bother" a matter of
+# who else had bothered.
+OFFERED_KEY = "password_offered"
+
+
+def should_offer_password(conn, user_id):
+    """Whether to offer this account a password, once."""
+    shared = conn.execute("SELECT COUNT(*) c FROM profile").fetchone()["c"] > 1
+    if not shared or has_password(conn, user_id):
+        return False
+    row = conn.execute("SELECT v FROM kv WHERE user_id = ? AND k = ?",
+                       (user_id, OFFERED_KEY)).fetchone()
+    return not (row and json.loads(row["v"]))
+
+
+def mark_password_offered(conn, user_id):
+    """Remember that this account was asked, whichever way it answered."""
+    conn.execute(
+        "INSERT INTO kv (user_id, k, v) VALUES (?, ?, ?) "
+        "ON CONFLICT (user_id, k) DO UPDATE SET v = excluded.v",
+        (user_id, OFFERED_KEY, json.dumps(True)))
+    conn.commit()
+
+
 MODERATOR_KEY = "moderator_pw"
 
 

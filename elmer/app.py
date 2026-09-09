@@ -288,6 +288,10 @@ def profile_block(connection):
         (connection.user_id, db.today())
     ).fetchone()["c"]
     return {"profile": prof, "standings": standings, "tracks": tracks,
+            # Handed to every page, because the offer belongs at the start of a
+            # session rather than behind the account menu.
+            "offer_password": db.should_offer_password(connection,
+                                                       connection.user_id),
             "answered": answered, "today": today_count,
             "achievements": game.earned(connection),
             "all_achievements": game.ACHIEVEMENTS,
@@ -2303,6 +2307,18 @@ def api_users_password():
                     "users": _user_block(connection)})
 
 
+@app.route("/api/users/offered", methods=["POST"])
+def api_users_offered():
+    """Remember that this account was offered a password, either answer.
+
+    Declining is a real answer and it sticks. Being asked twice about something
+    optional is how a program teaches people to dismiss it without reading.
+    """
+    connection = conn()
+    db.mark_password_offered(connection, connection.user_id)
+    return jsonify(_user_block(connection))
+
+
 @app.route("/api/users/moderator", methods=["POST"])
 def api_users_moderator():
     """The key the person whose Pi this is holds.
@@ -2824,6 +2840,11 @@ def _user_block(connection):
             "display_name": current["display_name"],
             "locked": db.has_password(connection, current["id"]),
             "moderator": db.has_moderator(connection),
+            # Offered once, when the unit stops being one person's. Computed
+            # from this account alone, so it reveals nothing about anybody
+            # else's - see the note in db.py.
+            "offer_password": db.should_offer_password(connection,
+                                                       current["id"]),
             "local": _is_local(request.remote_addr)}
 
 
