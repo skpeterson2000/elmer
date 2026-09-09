@@ -1510,6 +1510,39 @@ def api_propagation_outlook():
                       "note": (rated.get(name) or {}).get("note", ""),
                       "hours": hours,
                       "windows": propagation.windows(when) if when else []})
+    # The clock times behind the hourly strip. Nothing is fetched for these and
+    # nothing is cached: `celestial` already computes the sun's altitude for an
+    # instant in order to reduce a sextant sight, and a rise time is that same
+    # arithmetic solved the other way round - for the moment rather than for the
+    # height. A unit with the network unplugged answers this for any date.
+    #
+    # Two heights, because they are two different events and the difference is
+    # the whole grey-line argument: the sun leaves the ground at -0.833 (upper
+    # limb, refraction and semidiameter included, which is what an almanac
+    # prints) and leaves the D layer 80 km up at D_LAYER_DIP below that. The
+    # gap between them is the window where the absorber is collapsing and the
+    # reflector is still lit.
+    sun_times = None
+    if lat is not None and lon is not None:
+        now_utc = datetime.now(timezone.utc)
+
+        def _iso(t):
+            return t.isoformat() if t else None
+
+        ground = celestial.rise_set(lat, lon, now_utc)
+        d_layer = celestial.rise_set(lat, lon, now_utc,
+                                     altitude=-propagation.D_LAYER_DIP)
+        sun_times = {
+            "rise": _iso(ground["rise"]), "set": _iso(ground["set"]),
+            "up_all_day": ground["up_all_window"],
+            "down_all_day": ground["down_all_window"],
+            # Where the sun stands for the D layer: it rises there first and
+            # sets there last, so these bracket the ground times.
+            "d_layer_rise": _iso(d_layer["rise"]),
+            "d_layer_set": _iso(d_layer["set"]),
+            "d_layer_dip": round(propagation.D_LAYER_DIP, 2),
+        }
+
     return jsonify({"ok": True, "located": lat is not None,
                     "muf": muf, "muf_source": snap["muf_source"],
                     "fof2": snap["fof2"], "station": station,
@@ -1525,6 +1558,7 @@ def api_propagation_outlook():
                     "aurora": snap.get("aurora"),
                     "geomag_lat": round(geomag, 1) if geomag is not None else None,
                     "aurora_lat": aurora_lat,
+                    "sun": sun_times,
                     "fetched": snap.get("fetched"), "bands": bands})
 
 
