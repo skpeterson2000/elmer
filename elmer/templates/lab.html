@@ -727,6 +727,23 @@
         Negative is capacitive, and it is short.
       </div>
       <div class="field"><label>Frequency (MHz)</label><input id="sm-f" value="14.200"></div>
+      {# A sweep taken in the VNA tab is the same antenna seen from the other
+         side, so it is offered here rather than left in the other tab. The
+         slider is the interesting part: walking a real measurement round the
+         chart is the thing a static picture of one cannot teach. #}
+      <div id="sm-meas" class="tiny" style="margin:-.4rem 0 .9rem">
+        <span id="sm-meas-none" class="muted">No measured sweep yet &mdash;
+          take one in the VNA tab and it appears here, on the chart, with a
+          slider to walk it point by point.</span>
+        <label id="sm-meas-on" hidden
+               style="display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" id="sm-use">
+          <span id="sm-use-label"></span>
+        </label>
+        <input type="range" id="sm-point" min="0" max="100" step="1" value="0"
+               hidden style="width:100%;margin-top:.45rem">
+        <div id="sm-point-v" class="mono" style="margin-top:.25rem"></div>
+      </div>
       <div class="field"><label>Feedline</label>
         <select id="sm-line"></select></div>
       <div class="field"><label>Length (ft)</label>
