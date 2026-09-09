@@ -117,6 +117,41 @@ def main():
           nanovna.measure("/dev/ttyACM-nope", 14.35, 14.0)[1],
           "the stop frequency has to be above the start")
 
+    print("\n-- and driving it only sends what is on the list --")
+    # Every one of these has to be refused before a port is opened, which is
+    # what the device path proves: it does not exist, so an error that names
+    # the port instead of the reason would mean the gate ran second.
+    nowhere = "/dev/ttyACM-nope"
+    check("an action nobody offered is refused",
+          nanovna.control(nowhere, "reboot")[1],
+          "reboot is not something ELMER asks a VNA to do")
+    check("  and so is an empty one", nanovna.control(nowhere, "")[0], None)
+    check("a standard that is not a standard is refused",
+          "calibration standard" in nanovna.control(
+              nowhere, "cal-step", "banana")[1], True)
+    check("a slot out of range is refused",
+          "calibration slots are 0 to" in nanovna.control(
+              nowhere, "save", 99, confirmed=True)[1], True)
+    check("a backwards span is refused here too",
+          nanovna.control(nowhere, "sweep",
+                          {"start_mhz": 14.35, "stop_mhz": 14.0})[1],
+          "the stop frequency has to be above the start")
+
+    print("\n-- and the two that destroy work say so and stop --")
+    for action, value in (("cal-reset", None), ("save", 2)):
+        refusal = nanovna.control(nowhere, action, value)[1]
+        check(f"{action} is refused unconfirmed",
+              refusal.startswith("that one destroys"), True)
+        check("  and says what would be lost", len(refusal) > 40, True)
+    # Confirmed, it gets as far as the port - which is the failure that proves
+    # the gate let it through rather than the gate refusing it again.
+    check("confirmed, it is the port that stops it, not the gate",
+          "could not talk to" in nanovna.control(
+              nowhere, "cal-reset", confirmed=True)[1], True)
+    check("what is on offer says which ones destroy",
+          sorted(o["action"] for o in nanovna.offered() if o["destroys"]),
+          ["cal-reset", "save"])
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
