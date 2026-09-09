@@ -33,7 +33,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
-               terrain, update, vna)
+               terrain, touchstone, update, vna)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -772,6 +772,36 @@ def api_vna_measure():
     if error:
         log.info("vna sweep failed: %s", error)
     return jsonify({"ok": got is not None, "sweep": got, "error": error})
+
+
+@app.route("/api/vna/s1p", methods=["POST"])
+def api_vna_s1p():
+    """A measured sweep as Touchstone, for every other program that reads it.
+
+    The rows come from the browser, which is the opposite of how the antenna
+    sheet works and is right here for the same reason it is wrong there: a
+    sheet is computed and can always be recomputed, where a sweep is a
+    measurement and exists only where it was taken. Recomputing it would mean
+    sweeping the instrument again, which would be a different measurement.
+    """
+    body = request.get_json(force=True) or {}
+    rows = body.get("rows") or []
+    if not isinstance(rows, list) or not rows:
+        abort(400, "no sweep to export")
+    if len(rows) > 5000:
+        abort(400, "that is not a sweep")
+    try:
+        text = touchstone.s1p(rows, z0=float(body.get("z0") or 50.0),
+                              device=body.get("device") or None,
+                              note=body.get("note") or None)
+    except (TypeError, ValueError) as exc:
+        abort(400, str(exc))
+    low = min(float(r["mhz"]) for r in rows if r.get("mhz") is not None)
+    high = max(float(r["mhz"]) for r in rows if r.get("mhz") is not None)
+    name = touchstone.filename(low, high)
+    log.info("touchstone export: %d points, %.3f-%.3f MHz", len(rows), low, high)
+    return Response(text, mimetype="application/octet-stream", headers={
+        "Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @app.route("/api/waves")
