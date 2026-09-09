@@ -1285,7 +1285,7 @@ function drawAntenna(shape, rows, type) {
 }
 
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head']
+ 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -1300,6 +1300,7 @@ function drawAntenna(shape, rows, type) {
          while the advice was generic and is wrong now that it follows the
          type. It refreshes itself, and deliberately does not touch the
          numbers you have typed - see antennaAdvice's `quiet`. */
+      if (id === 'an-site') refreshAdvice();
       if (id === 'an-type') {
         refreshAdvice();
         loadConductors(num('an-f'), el.value);
@@ -2092,7 +2093,8 @@ async function antennaAdvice(mhz, use, kind, quiet) {
   let d;
   try {
     d = await api('/api/antenna-advice?' + new URLSearchParams(
-      Object.entries({mhz: mhz, use: use || '', kind: kind || ''})
+      Object.entries({mhz: mhz, use: use || '', kind: kind || '',
+                      site: (document.getElementById('an-site') || {}).value || ''})
         .filter(([, v]) => v !== '')));
   } catch (e) { return; }
 
@@ -2159,6 +2161,30 @@ async function antennaAdvice(mhz, use, kind, quiet) {
       : '') +
     /* The point of the page is not a set of plans. It is a baseline honest
        enough to depart from, so it says which way to depart. */
+    /* What is actually possible where somebody lives. "Half a wavelength up"
+       is 69 ft on 40m: a mast on a farm and a daydream in a flat, and printing
+       it at somebody in a flat is not advice, it is a door closing. */
+    (d.reality
+      ? '<div class="nvis mt"><b>' + escapeHTML(d.reality.label) + '.</b> ' +
+        (d.reality.capped
+          ? 'The textbook answer is <b>' + d.reality.wanted_ft + ' ft</b>, ' +
+            (d.reality.height_ft > 0
+              ? 'and what fits here is <b>' + d.reality.height_ft + ' ft</b>. '
+              : 'and there is no height to be had here at all. That rules out ' +
+                'the low bands for distance and rules almost nothing else out. ') +
+            escapeHTML(d.reality.means || '')
+          : 'The textbook height fits here.') +
+        '<div class="mt"><b>What works:</b><ul class="facts small">' +
+        d.reality.works.map(w => '<li>' + escapeHTML(w) + '</li>').join('') +
+        '</ul></div>' +
+        (d.reality.costs.length
+          ? '<div><b>What it costs:</b><ul class="facts small">' +
+            d.reality.costs.map(w => '<li>' + escapeHTML(w) + '</li>').join('') +
+            '</ul></div>'
+          : '') +
+        '<div class="small">And what it is <b>good at</b>: ' +
+        escapeHTML(d.reality.good_at) + '.</div></div>'
+      : '') +
     (d.better && d.better.length
       ? '<div class="panel-title mt">Where to go from here</div>' +
         '<ul class="facts small">' +

@@ -791,7 +791,8 @@ def api_antenna_advice():
     if not 0.1 <= mhz <= 300000:
         abort(400)
     return jsonify(antenna_advice.recommend(
-        mhz, use=request.args.get("use"), kind=request.args.get("kind")))
+        mhz, use=request.args.get("use"), kind=request.args.get("kind"),
+        site=request.args.get("site") or None))
 
 
 @app.route("/api/nifog")
