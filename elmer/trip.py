@@ -8,8 +8,9 @@ left.
 
 So this is the packing list. Name where you are going while you still have a
 signal, and ELMER fetches and keeps what it will need there: the neighbours,
-the coordinates, the grid square. Then in a canyon with no bars it can still
-answer "who can I reach from here, and which way do I point".
+the coordinates, the grid square, and the parks and summits within a day's
+drive of it. Then in a canyon with no bars it can still answer "who can I
+reach from here, which way do I point, and what is worth walking up".
 
 What it cannot pack is said plainly rather than left to be discovered at the
 worst moment. Live solar numbers need the network at the time. Repeaters come
@@ -23,7 +24,7 @@ import json
 import time
 from pathlib import Path
 
-from . import geocode, places
+from . import geocode, places, references
 from .terrain import great_circle
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -120,6 +121,28 @@ def prepare(where, radius_km=DEFAULT_RADIUS_KM, progress=None):
                            "the query too wide to be served")
     except Exception as exc:
         missing.append(f"towns could not be fetched ({type(exc).__name__})")
+
+    # The reference radius is a drive rather than a footprint, so it is not
+    # the town radius: what matters here is what somebody would get in the car
+    # for once they have arrived, which is a different circle drawn from the
+    # same centre.
+    try:
+        say("asking POTA and SOTA what is worth activating from there ...")
+        area = references.fetch(
+            spot["lat"], spot["lon"], references.DEFAULT_RADIUS_KM,
+            label=spot.get("short") or spot.get("name"), say=say)
+        for name, rows in (("POTA park", area.get("parks")),
+                           ("SOTA summit", area.get("summits"))):
+            if rows is None:
+                missing.append(f"{name}s could not be fetched - the programme "
+                               f"did not answer")
+            else:
+                got.append(f"{len(rows)} {name}"
+                           f"{'' if len(rows) == 1 else 's'} within "
+                           f"{references.DEFAULT_RADIUS_KM} km")
+    except Exception as exc:
+        missing.append(f"parks and summits could not be fetched "
+                       f"({type(exc).__name__})")
 
     record = {
         "name": spot.get("short") or spot.get("name"),

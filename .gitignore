@@ -65,3 +65,7 @@ data/elmer-report-*.txt
 # Places prepared for a trip. Where somebody is going is theirs, not the
 # application's.
 data/trips.json
+
+# The parks and summits fetched for wherever this operator goes. Same
+# reasoning as the trip list: it is a record of where somebody intends to be.
+data/references.json
