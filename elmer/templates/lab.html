@@ -19,10 +19,59 @@
   <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
   <button class="btn sm ghost" data-tab="vna">VNA</button>
   <button class="btn sm ghost" data-tab="sextant">Sextant</button>
+  <button class="btn sm ghost" data-tab="waves">Waves you can hear</button>
   <button class="btn sm ghost" data-tab="rf">RF exposure</button>
 </div>
 
 <!-- ---------------------------------------------------------------- skip -->
+<div class="panel mt lab-pane" id="pane-waves" hidden>
+  <div class="panel-title">Waves you can hear &mdash; why big ones get around and small ones do not</div>
+  <p class="small muted">
+    You already know this one. Two streets away you hear the bass from a car
+    and none of the tune: the long waves bend around the houses and the short
+    ones are stopped by them. Radio is the same game in a different medium, and
+    mostly the same equations with a different constant &mdash; light goes
+    874,000 times faster than sound, so a radio wave and a sound wave of the
+    same <b>size</b> are that far apart in pitch.
+  </p>
+  <p class="small muted">
+    Drag the frequency. The wave is drawn to scale against the house, and the
+    note is the sound of exactly that size in air &mdash; press it and listen.
+  </p>
+
+  <div class="grid" style="grid-template-columns: 320px 1fr; gap:1.2rem; align-items:start">
+    <div>
+      <div class="field"><label>Frequency (MHz)</label>
+        <input type="range" id="w-f" min="0.5" max="450" step="0.1" value="14.2">
+        <span class="sim-out" id="w-f-v"></span></div>
+      <div class="field"><label>Something in the way (m across)</label>
+        <input type="range" id="w-ob" min="0.2" max="60" step="0.2" value="8">
+        <span class="sim-out" id="w-ob-v"></span></div>
+      <button class="btn sm primary" id="w-play">Hear that size</button>
+      <div class="tiny muted" id="w-play-note" style="margin-top:.4rem"></div>
+      <div id="w-facts" class="mt"></div>
+    </div>
+    <div>
+      <svg id="w-svg" viewBox="0 0 640 300" style="width:100%;background:#0b1017;border:1px solid var(--line);border-radius:8px"></svg>
+      <div id="w-verdict" class="mt"></div>
+    </div>
+  </div>
+
+  <div class="grid cols-2 mt" style="gap:1.2rem">
+    <div>
+      <div class="panel-title">Where the analogy is exact</div>
+      <div id="w-parallels" class="small"></div>
+    </div>
+    <div>
+      <div class="panel-title">And where it breaks</div>
+      <p class="tiny muted" style="margin-top:0">These matter more than the
+        parallels. An analogy is dangerous exactly where somebody has stopped
+        checking it.</p>
+      <div id="w-mismatches" class="small"></div>
+    </div>
+  </div>
+</div>
+
 <div class="panel mt lab-pane" id="pane-sextant" hidden>
   <div class="panel-title">Sextant &mdash; where you are, from the sun and a clock</div>
   <p class="small muted">

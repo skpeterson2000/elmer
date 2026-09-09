@@ -3722,3 +3722,151 @@ document.addEventListener('click', async e => {
     btn.disabled = false;
   }
 });
+
+/* -------------------------------------------------- waves you can hear ---
+   The one analogy that does most of the work in this whole program: a radio
+   wave behaves like a sound wave of the same size, and everybody has already
+   learned how sound waves behave without being taught. So the drawing is to
+   scale against something familiar, and the note is played rather than named,
+   because "165 Hz" means nothing and a bass guitar means everything. */
+
+let wTimer = null, wAudio = null, wOsc = null;
+
+function wDraw(d) {
+  const svg = document.getElementById('w-svg');
+  if (!svg) return;
+  const W = 640, H = 300, ground = 235;
+  const obstacle = +document.getElementById('w-ob').value;
+
+  /* Everything to one scale, chosen so the obstacle is always a sensible size
+     on screen and the wave grows and shrinks against it. That comparison is
+     the entire point of the picture. */
+  const pxPerM = Math.min(30, 150 / Math.max(1, obstacle));
+  const obW = Math.max(8, obstacle * pxPerM);
+  const obH = Math.max(14, obstacle * pxPerM * 1.1);
+  const lamPx = d.wavelength_m * pxPerM;
+
+  /* The wave, drawn as its actual crests. Where the wavelength dwarfs the
+     obstacle the crests sail past it; where it is small they pile up in front
+     and leave a gap behind. */
+  const shadow = d.meets && d.meets.verdict === 'casts a shadow';
+  const partial = d.meets && d.meets.verdict === 'bends round it, weakened';
+  const obX = 400;
+  let crests = '';
+  for (let x = 40; x < W - 10; x += Math.max(6, lamPx)) {
+    const past = x > obX;
+    const dim = past && shadow ? 0.06 : past && partial ? 0.4 : 1;
+    crests += '<line x1="' + x.toFixed(1) + '" y1="60" x2="' + x.toFixed(1) +
+      '" y2="' + (ground - 4) + '" stroke="#39d3d8" stroke-width="2" ' +
+      'opacity="' + dim + '"/>';
+  }
+
+  /* One wavelength called out, so the number on the slider has a length. */
+  const barY = 40;
+  const barEnd = Math.min(W - 12, 40 + lamPx);
+  const rule = '<line x1="40" y1="' + barY + '" x2="' + barEnd + '" y2="' + barY +
+    '" stroke="var(--amber)" stroke-width="2"/>' +
+    '<line x1="40" y1="' + (barY - 5) + '" x2="40" y2="' + (barY + 5) +
+      '" stroke="var(--amber)" stroke-width="2"/>' +
+    (barEnd < W - 12
+      ? '<line x1="' + barEnd + '" y1="' + (barY - 5) + '" x2="' + barEnd +
+        '" y2="' + (barY + 5) + '" stroke="var(--amber)" stroke-width="2"/>'
+      : '<text x="' + (W - 8) + '" y="' + (barY + 4) +
+        '" fill="var(--amber)" font-size="11" text-anchor="end">&#8594;</text>') +
+    '<text x="46" y="' + (barY - 9) + '" fill="var(--amber)" font-size="12">' +
+      'one wavelength &mdash; ' + d.wavelength_m.toFixed(1) + ' m</text>';
+
+  svg.innerHTML =
+    crests + rule +
+    '<rect x="' + (obX - obW / 2) + '" y="' + (ground - obH) + '" width="' + obW +
+      '" height="' + obH + '" fill="#1b2430" stroke="var(--line-2)"/>' +
+    '<text x="' + obX + '" y="' + (ground - obH - 8) +
+      '" fill="var(--dim)" font-size="11" text-anchor="middle">' +
+      obstacle.toFixed(1) + ' m</text>' +
+    '<line x1="0" y1="' + ground + '" x2="' + W + '" y2="' + ground +
+      '" stroke="var(--line-2)" stroke-width="2"/>' +
+    '<text x="12" y="' + (ground + 22) + '" fill="var(--dim)" font-size="12">' +
+      d.mhz.toFixed(1) + ' MHz</text>' +
+    '<text x="' + (W - 12) + '" y="' + (ground + 22) +
+      '" fill="var(--dim)" font-size="12" text-anchor="end">' +
+      (shadow ? 'shadow behind' : partial ? 'weakened behind'
+                                          : 'closes up behind') + '</text>';
+}
+
+async function wUpdate() {
+  const mhz = +document.getElementById('w-f').value;
+  const ob = +document.getElementById('w-ob').value;
+  document.getElementById('w-f-v').textContent = mhz.toFixed(1) + ' MHz';
+  document.getElementById('w-ob-v').textContent = ob.toFixed(1) + ' m';
+  let d;
+  try {
+    d = await api('/api/waves?' + new URLSearchParams({mhz: mhz, obstacle_m: ob}));
+  } catch (e) { return; }
+  wDraw(d);
+
+  document.getElementById('w-facts').innerHTML =
+    '<table class="data"><tbody>' +
+    '<tr><td>Wavelength</td><td class="mono">' + d.wavelength_m + ' m</td></tr>' +
+    '<tr><td>The same size, in air</td><td class="mono">' + d.sound_hz +
+      ' Hz' + (d.note ? ' &middot; ' + d.note : '') + '</td></tr>' +
+    '<tr><td>Which sounds like</td><td>' + escapeHTML(d.sounds_like) + '</td></tr>' +
+    '</tbody></table>' +
+    '<p class="small muted">' + escapeHTML(d.meaning) + '</p>';
+
+  const play = document.getElementById('w-play');
+  play.disabled = !d.audible;
+  document.getElementById('w-play-note').innerHTML = d.audible
+    ? ''
+    : '<b>' + d.sound_hz + ' Hz is below hearing.</b> Nothing can play it for ' +
+      'you and that is the point &mdash; a wave this size is not stopped by ' +
+      'anything in a room, or a street, or a hill.';
+  play.dataset.hz = d.sound_hz;
+
+  const m = d.meets || {};
+  document.getElementById('w-verdict').innerHTML =
+    '<div class="' + (m.verdict === 'casts a shadow' ? 'watchout' : 'nvis') + '">' +
+    '<b>' + escapeHTML(m.verdict || '') + '.</b> ' + escapeHTML(m.note || '') +
+    ' The obstacle is <b>' + (m.ratio || 0).toFixed(2) + '</b> of a wavelength.' +
+    '</div>';
+
+  const list = rows => rows.map(r =>
+    '<p><b>' + escapeHTML(r.title) + '.</b> ' + escapeHTML(r.text) + '</p>').join('');
+  document.getElementById('w-parallels').innerHTML = list(d.parallels);
+  document.getElementById('w-mismatches').innerHTML = list(d.mismatches);
+}
+
+/* Playing it. A plain sine at the mapped pitch, ramped rather than switched,
+   because a hard edge on a 30 Hz tone is a thump in the speaker and teaches
+   nothing. */
+function wPlay(hz) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  if (!wAudio) wAudio = new Ctx();
+  if (wAudio.state === 'suspended') wAudio.resume();
+  if (wOsc) { try { wOsc.stop(); } catch (e) {} wOsc = null; }
+  const osc = wAudio.createOscillator();
+  const gain = wAudio.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = hz;
+  const now = wAudio.currentTime;
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+  gain.gain.setValueAtTime(0.25, now + 1.6);
+  gain.gain.linearRampToValueAtTime(0, now + 1.9);
+  osc.connect(gain); gain.connect(wAudio.destination);
+  osc.start(now); osc.stop(now + 2.0);
+  wOsc = osc;
+}
+
+if (document.getElementById('w-f')) {
+  ['w-f', 'w-ob'].forEach(id =>
+    document.getElementById(id).addEventListener('input', () => {
+      clearTimeout(wTimer);
+      wTimer = setTimeout(wUpdate, 120);      // the slider moves faster than a fetch
+    }));
+  document.getElementById('w-play').addEventListener('click', e => {
+    const hz = parseFloat(e.currentTarget.dataset.hz);
+    if (isFinite(hz)) wPlay(hz);
+  });
+  wUpdate();
+}
