@@ -9,9 +9,7 @@ import hmac
 import ipaddress
 import json
 import logging
-import os
 import random
-import signal
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -29,7 +27,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               discovery, fieldkit, gating, netwatch,
+               discovery, fieldkit, gating, host, netwatch,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
@@ -763,7 +761,7 @@ def api_vna_ports():
 def api_vna_identify():
     """Open one port and ask it what it is."""
     device = request.args.get("device") or ""
-    if not device.startswith("/dev/"):
+    if not host.is_serial_device(device):
         abort(400)
     info, error = nanovna.identify(device)
     return jsonify({"ok": info is not None, "info": info, "error": error})
@@ -773,7 +771,7 @@ def api_vna_identify():
 def api_vna_measure():
     """One real sweep off the instrument. Slow, so it is asked for explicitly."""
     device = request.args.get("device") or ""
-    if not device.startswith("/dev/"):
+    if not host.is_serial_device(device):
         abort(400)
     try:
         start = float(request.args.get("start", "14.0"))
@@ -2960,7 +2958,8 @@ def api_quit():
     # Answer first, then interrupt the main thread: ./elmer.py closes the
     # browser and exits from there, so the shutdown path is the same one
     # Ctrl+C already takes.
-    threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
+    threading.Timer(0.3, lambda: host.stop_main_thread(
+        app.config.get("PORT"))).start()
     return jsonify({"ok": True})
 
 
@@ -3241,7 +3240,8 @@ def request_restart():
     starting again.
     """
     app.config["RESTART"] = True
-    threading.Timer(0.4, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
+    threading.Timer(0.4, lambda: host.stop_main_thread(
+        app.config.get("PORT"))).start()
 
 
 @app.template_filter("pct")

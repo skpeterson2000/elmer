@@ -173,6 +173,17 @@ def main():
     from elmer import logs
     log_path = logs.setup(args.log_level, to_file=not args.no_log_file)
 
+    # The kiosk is a Linux appliance: it finds the browser it started by
+    # reading /proc, signals it by pid, and expects an X or Wayland session.
+    # Somewhere else it would start, open nothing, and leave somebody looking
+    # at a terminal wondering - so it says which of those two things happened.
+    from elmer import host
+    if args.kiosk and not host.can_kiosk():
+        print(f"\n  --kiosk needs Linux and this is {host.name()}.")
+        print(f"  Serving anyway - open http://localhost:{args.port} in a "
+              f"browser.\n")
+        args.kiosk = False
+
     if args.install_launcher or args.remove_launcher:
         from elmer import launcher
         if args.remove_launcher:
@@ -660,6 +671,10 @@ def main():
         # Pi that is several seconds of nothing on screen. The browser takes a
         # moment to come up; this fills it.
         threading.Thread(target=warm, daemon=True, name="elmer-warm").start()
+        # Windows cannot signal itself awake, so stopping the server there
+        # needs one connection to this port to break the accept loop. See
+        # elmer.host.stop_main_thread.
+        app.config["PORT"] = args.port
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True,
                 # The reloader runs a second copy of this process, which in
                 # kiosk mode would mean a second browser on top of the first.
