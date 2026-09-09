@@ -1688,10 +1688,60 @@ becomes the browser tab icon, and the home-screen icon if you save ELMER to a
 phone. Nothing else to change — without one, ELMER falls back to a 📻 glyph.
 A square image of 512×512 or larger works best.
 
+## On Windows
+
+ELMER is a Python program and almost none of it cares what it runs on. The
+handful of things that do now live in one module, `elmer/host.py`, rather than
+as platform tests dropped into whichever file needed one - which is how a
+program ends up half-ported with nobody able to say what the Windows path
+actually does.
+
+```
+powershell -ExecutionPolicy Bypass -File install.ps1
+.\elmer.cmd
+```
+
+The execution policy on a Windows client defaults to Restricted, which is why
+the first part is not optional; it applies to that one command and changes
+nothing about the machine. The installer builds a virtual environment in
+`.venv` and puts Flask, Pillow and reportlab in it. `-Shortcut` adds a Start
+Menu entry, `-Serial` adds pyserial so the Lab can talk to a NanoVNA.
+
+Three differences are real, and are named rather than papered over.
+
+**Stopping is not the same operation.** The Exit button and an applied update
+both hand control back to `./elmer.py`, which is the only place that decides
+between stopping and coming back on the new code. On the Pi that is a SIGINT
+to itself. Windows has no such delivery - `os.kill` there does not raise
+anything, it terminates the process, which would take the restart decision
+with it and leave an update half-applied. So Windows uses
+`_thread.interrupt_main`, and because that lands between bytecodes rather than
+interrupting a blocked `accept`, one throwaway connection to ELMER's own port
+is what wakes the serving loop up to notice.
+
+**A serial port has a different name.** `/dev/ttyACM0` on the Pi, `COM3` on
+Windows, `\\.\COM10` once there are ten of them. The endpoint behind the VNA
+panel opens whatever it is handed, so it is a gate rather than a hint: it asks
+what a port is called on this machine before touching a file.
+
+**The kiosk is not ported.** It finds the browser it started by reading
+`/proc`, signals it by pid, and expects an X or Wayland session - a Pi with a
+touchscreen bolted to a bench, not a portability gap to be papered over.
+`--kiosk` on Windows says which of those it is and serves normally.
+
+Poppler is not on a Windows machine by default, so the NIFOG channel reader
+cannot read its PDF until `pdftotext` is on PATH. The installer checks and
+says so; everything else works without it.
+
+`tests/test_host.py` passes on both, and forces each machine's rules on the
+other - a rule only ever run where it was written is a habit rather than a
+rule.
+
 ## Requirements
 
 Python 3.11 with Flask and Pillow, plus `pdftotext`, `pdftoppm` and `pdfimages`
-from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS.
+from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS;
+on Windows `install.ps1` fetches the Python side and names what is missing.
 Serving needs no network; only the propagation dashboard reaches out.
 
 ## License

@@ -25,10 +25,11 @@ Written against the documented protocol but never yet run against a device on
 this machine - there was none attached. Every failure path returns a reason
 rather than raising into a page.
 """
-import glob
 import logging
 import math
 import time
+
+from . import host
 
 log = logging.getLogger("elmer")
 
@@ -64,12 +65,10 @@ def candidates():
     found = []
     for port in list_ports.comports():
         vid, pid = port.vid, port.pid
-        # A NanoVNA is a USB device. The Pi's own on-board UARTs turn up in
-        # this list too, and on this rig one of them may have a GPS on it -
-        # opening that and sending "info" at it is nobody's idea of a good
-        # time. USB only, and let the identify step settle the rest.
-        if vid is None and not (port.device.startswith("/dev/ttyACM")
-                                or port.device.startswith("/dev/ttyUSB")):
+        # USB only, and let the identify step settle the rest. What counts as
+        # a USB port is the machine's business rather than this module's -
+        # /dev/ttyACM0 on the Pi, COM3 on Windows - so host answers it.
+        if not host.usb_serial(port.device, vid):
             continue
         why = next((name for v, p, name in KNOWN if v == vid and p == pid), None)
         found.append({
@@ -81,7 +80,7 @@ def candidates():
         })
     found.sort(key=lambda p: not p["looks_right"])
     if not found:
-        for path in sorted(glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*")):
+        for path in host.serial_fallback():
             found.append({"device": path, "description": "", "vid": None,
                           "pid": None, "looks_right": False,
                           "why": "a serial port, with nothing saying what it is"})
