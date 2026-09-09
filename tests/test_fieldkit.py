@@ -82,6 +82,28 @@ def main():
           "VNA" in dict((o["key"], o["first"]) for o in fieldkit.ladder())
           ["check"], True)
 
+    print("\n-- cutting by fatigue says where the crack starts --")
+    cut = dict((o["key"], o) for o in fieldkit.ladder())["cut"]
+    aside = cut.get("aside") or {}
+    body = " ".join(aside.get("body", [])).lower()
+    check("there is a note about it", bool(body), True)
+    check("it names the mechanism", "fatigue crack" in body, True)
+    check("  and work hardening alongside it", "work-" in body, True)
+    check("the nick is what decides where it breaks",
+          "nick" in body and "decides where" in body, True)
+    check("a wide bend is said not to work", "will never crack" in body, True)
+    # The popular account of the Comets blames square windows. The crack was
+    # traced to a rivet hole by a cutout corner, and a program that repeats
+    # the tidy version to teach a real technique has taught the wrong lesson:
+    # it is the flaw that starts it, which is the whole reason to file a nick.
+    check("and the Comet is told accurately, not as the myth",
+          ("rivet hole" in body) if "comet" in body else True, True)
+
+    print("\n-- and it says where fatigue stops being the answer --")
+    check("not on stock too thick to work by hand",
+          "half-inch pipe" in body, True)
+    check("and the end it leaves is called brittle", "brittle" in body, True)
+
     print("\n-- and the welding note still carries every warning --")
     dangers = " ".join(fieldkit.ARC["dangers"]).lower()
     check("the eye", "cornea" in dangers, True)
