@@ -22,7 +22,8 @@ from urllib.parse import urlsplit
 from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
-from . import (antenna_advice, bandpdf, bandplan, callsign, cw, db, exams,
+from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
+               db, exams,
                celestial, explain, game, geocode, groundwave,
                ionosonde, logs,
                propagation, ranks, waves,
@@ -799,6 +800,47 @@ def api_antenna_advice():
     return jsonify(antenna_advice.recommend(
         mhz, use=request.args.get("use"), kind=request.args.get("kind"),
         site=request.args.get("site") or None))
+
+
+@app.route("/api/antenna/pdf", methods=["POST"])
+def api_antenna_pdf():
+    """The antenna sheet: what to cut, how high, and what to expect.
+
+    The browser sends the choices and nothing else - the sheet recomputes every
+    figure from the same modules the page drew from, so a printout can never
+    quietly disagree with the screen it was made from.
+    """
+    body = request.get_json(force=True) or {}
+    try:
+        mhz = float(body.get("mhz", ""))
+        height_ft = float(body.get("height", 35))
+    except (TypeError, ValueError):
+        abort(400, "a frequency and a height are needed")
+    kind = body.get("kind") or "dipole"
+    if kind not in patterns.ANTENNA_Q:
+        abort(400, "unknown antenna")
+    if not 0.1 <= mhz <= 300000:
+        abort(400, "frequency out of range")
+    if not 0.0 <= height_ft <= 2000.0:
+        abort(400, "height out of range")
+    conductor = body.get("conductor") or "wire14"
+    if conductor not in conductors.INDEX:
+        conductor = "wire14"
+    site = body.get("site") or "house"
+    if site not in antenna_advice.SITES:
+        site = "house"
+    pdf = antennapdf.build(kind, mhz, height_ft, conductor, site,
+                           use=body.get("use") or None,
+                           callsign=profile_callsign() or "")
+    title = (antenna_advice.TYPES.get(kind) or {}).get("title", kind)
+    name = f"antenna-{kind}-{mhz:.3f}mhz.pdf".replace(" ", "-")
+    log.info("antenna sheet PDF: %s at %.3f MHz, %.0f ft, %s",
+             kind, mhz, height_ft, conductor)
+    row = prints.keep(pdf, name, "antenna",
+                      f"{title} - {mhz:.3f} MHz, {height_ft:.0f} ft",
+                      {"kind": kind, "mhz": mhz, "height": height_ft,
+                       "conductor": conductor, "site": site})
+    return _print_reply(row, _wants_raw(body))
 
 
 @app.route("/api/nifog")

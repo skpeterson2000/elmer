@@ -2224,6 +2224,37 @@ if (adviseBtn) adviseBtn.addEventListener('click', () => {
   antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
 });
 
+/* The sheet. Everything worked out on this page is worked out indoors, and
+   the tape measure is not - so the same answers go on a piece of paper that
+   can be carried to the far end of the garden with a pencil.
+
+   Only the choices are sent. The PDF recomputes every figure from the same
+   modules that drew the screen, so a sheet found in a toolbox next year cannot
+   quietly disagree with the program that made it. */
+const printBtn = document.getElementById('an-print');
+if (printBtn) printBtn.addEventListener('click', async () => {
+  const was = printBtn.textContent;
+  printBtn.disabled = true; printBtn.textContent = 'Building\u2026';
+  try {
+    const body = {
+      kind: document.getElementById('an-type').value || 'dipole',
+      mhz: num('an-f'),
+      height: num('an-h'),
+      use: document.getElementById('an-use').value,
+      site: document.getElementById('an-site').value,
+      conductor: (document.getElementById('an-cond') || {}).value || ''
+    };
+    const res = await fetch('/api/antenna/pdf', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)});
+    if (!res.ok) throw new Error(res.status);
+    // Straight to it, the way the band charts go: a file in a downloads
+    // folder is out of reach on a unit running full screen.
+    location.href = (await res.json()).view;
+  } catch (e) { toast('Could not build the sheet', 'See data/elmer.log'); }
+  printBtn.disabled = false; printBtn.textContent = was;
+});
+
 /* Arriving from the band plan with a frequency in hand - and still having it
    on the way back.
 
