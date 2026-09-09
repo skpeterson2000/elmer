@@ -3141,6 +3141,8 @@ if (document.getElementById('vn-chart')) {
           'what it measured. Where it disagrees with the model, believe the ' +
           'instrument &mdash; but check the calibration below before you believe ' +
           'either of them.';
+        const ex = document.getElementById('vn-export');
+        if (ex) ex.hidden = false;         // there is now something to export
         vnUpdate();
       } else {
         document.getElementById('vn-dev').innerHTML =
@@ -3150,6 +3152,42 @@ if (document.getElementById('vn-chart')) {
       document.getElementById('vn-dev').textContent = 'the sweep did not come back';
     }
     e.target.disabled = false;
+  });
+
+  /* Out of the building. A sweep is the one number in this program that was
+     measured rather than modelled, and a measurement that cannot leave the
+     machine it was taken on is half a measurement. Touchstone is what the
+     modelling packages, NanoVNA-Saver and an antenna manufacturer all read, so
+     that is what goes out - the raw reflection coefficient the instrument
+     handed back, not a picture of it and not a conversion of it.
+
+     The file is fetched rather than linked because it is a POST: the sweep
+     lives in this page and nowhere else, so it has to be sent up to be
+     written. The blob is what turns the reply into a save dialog. */
+  const exportBtn = document.getElementById('vn-export');
+  if (exportBtn) exportBtn.addEventListener('click', async () => {
+    if (!vnMeasured || !(vnMeasured.rows || []).length) return;
+    const was = exportBtn.textContent;
+    exportBtn.disabled = true; exportBtn.textContent = 'Writing\u2026';
+    try {
+      const kind = (document.getElementById('an-type') || {}).value || '';
+      const res = await fetch('/api/vna/s1p', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          rows: vnMeasured.rows, device: vnMeasured.device,
+          note: kind ? 'Antenna under test: ' + kind : ''})});
+      if (!res.ok) throw new Error(res.status);
+      const name = (res.headers.get('Content-Disposition') || '')
+        .match(/filename="([^"]+)"/);
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = name ? name[1] : 'sweep.s1p';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast('Saved ' + (name ? name[1] : 'the sweep'),
+            'Touchstone .s1p - any antenna program will read it');
+    } catch (err) { toast('Could not write it', 'See data/elmer.log'); }
+    exportBtn.disabled = false; exportBtn.textContent = was;
   });
 
   vnUpdate();
