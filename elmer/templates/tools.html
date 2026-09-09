@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Tools &middot; ELMER{% endblock %}
+{% block body %}
+
+<h1>Tools</h1>
+<p class="muted small">
+  The instruments and the settings. The Lab next door is the material the
+  exams ask about; this is everything else the bench needs &mdash; a real
+  analyser on a real antenna, a sun sight when nothing else knows where you
+  are, and the sounds behind the arithmetic.
+</p>
+
+{# The same tab machinery the Lab uses, driven by the same script: which panes
+   exist decides which page this is, so nothing here needs its own copy of the
+   switching, the hash routing or the chart drawing. #}
+<div class="row mt" id="lab-tabs">
+  <button class="btn sm primary" data-tab="vna">VNA</button>
+  <button class="btn sm ghost" data-tab="sextant">Sextant</button>
+  <button class="btn sm ghost" data-tab="waves">Waves you can hear</button>
+</div>
+
+<!-- ----------------------------------------------------------------- vna -->
+<div class="panel mt lab-pane" id="pane-vna">
+  <div class="panel-title">VNA &mdash; what the instrument sees, and how to trust it</div>
+  <p class="small muted">
+    A NanoVNA costs about what a cheap handheld does and has done more for
+    amateur antenna work than anything else of the last decade, because it
+    answers the question an SWR meter cannot. An SWR meter says <i>how bad</i>.
+    A VNA says <i>which way to cut</i> &mdash; it measures the reactance with
+    its sign, and the sign is the instruction.
+  </p>
+
+  <div class="grid cols-3">
+    <div class="field"><label>Antenna is cut for (MHz)</label>
+      <input id="vn-f0" value="14.200"></div>
+    <div class="field"><label>Sweep centred on (MHz)</label>
+      <input id="vn-centre" value="14.200"></div>
+    <div class="field"><label>Sweep width <span class="tiny muted" id="vn-span-v"></span></label>
+      <input type="range" id="vn-span" min="2" max="30" step="1" value="10"></div>
+  </div>
+  <div class="grid cols-3">
+    <div class="field"><label>Antenna</label>
+      <select id="vn-kind" class="mono">
+        <option value="dipole" selected>Half-wave dipole</option>
+        <option value="invertedv">Inverted-V dipole</option>
+        <option value="efhw">End-fed half wave</option>
+        <option value="quarter">Quarter-wave vertical</option>
+        <option value="groundplane">Ground plane</option>
+        <option value="yagi">Yagi-Uda beam</option>
+        <option value="whip">Loaded mobile whip</option>
+        <option value="screwdriver">Screwdriver - motor-tuned mobile</option>
+        <option value="loop">Full-wave loop</option>
+      </select></div>
+    <div class="field"><label>Feedline</label>
+      <select id="vn-line" class="mono"><option value="rg58">RG-58 &mdash; thin, common, lossy</option>
+          <option value="rg8x" selected>RG-8X (mini-8)</option>
+          <option value="rg213">RG-213 &mdash; full size</option>
+          <option value="lmr400">LMR-400 &mdash; low loss</option>
+          <option value="rg6">RG-6 &mdash; 75 ohm TV coax</option>
+          <option value="ladder">450 ohm window line</option></select></div>
+    <div class="field"><label>Feedline length <span class="tiny muted" id="vn-feet-v"></span></label>
+      <input type="range" id="vn-feet" min="0" max="300" step="5" value="0"></div>
+  </div>
+
+  <div id="vn-chart" class="mt"></div>
+  <div id="vn-markers"></div>
+  <div id="vn-read" class="small muted mt"></div>
+
+  <div class="panel-title mt">The real instrument</div>
+  <div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center">
+    <button class="btn sm" id="vn-find">Look for a VNA</button>
+    <select id="vn-port" class="mono" style="min-width:14rem"></select>
+    <button class="btn sm" id="vn-id" disabled>Ask what it is</button>
+    <button class="btn sm primary" id="vn-measure" disabled>Sweep it</button>
+    <button class="btn sm ghost" id="vn-export" hidden>Export .s1p</button>
+  </div>
+  <div id="vn-dev" class="small muted mt"></div>
+
+  <div class="panel-title mt">Drive it</div>
+  <p class="small muted" style="margin:.2rem 0 .6rem">
+    Sweeping asks the instrument a question and nothing is worse for having
+    asked. These change what it is set to, and two of them destroy work &mdash;
+    those say so and wait. Everything sent and everything answered is written
+    down underneath, because most of these commands accept in silence, and the
+    screen on the instrument itself is the other half of the check.
+  </p>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="margin-bottom:0"><label>Start (MHz)</label>
+      <input id="vn-ctl-start" value="14.000"></div>
+    <div class="field" style="margin-bottom:0"><label>Stop (MHz)</label>
+      <input id="vn-ctl-stop" value="14.350"></div>
+    <div class="field" style="margin-bottom:0"><label>Points</label>
+      <input id="vn-ctl-points" value="101"></div>
+    <button class="btn sm" data-vna="sweep" disabled>Set its span</button>
+    <button class="btn sm" data-vna="pause" disabled>Hold</button>
+    <button class="btn sm" data-vna="resume" disabled>Sweep on</button>
+  </div>
+
+  <div class="panel-title mt" style="margin-bottom:.2rem">
+    Calibrate it, one standard at a time</div>
+  <p class="tiny muted" style="margin:0 0 .5rem">
+    Set the span first &mdash; a calibration belongs to the sweep it was taken
+    over. Then put each standard on the end of the same jumper that will screw
+    onto the antenna, and press its button. Each one takes a sweep, so give it
+    a moment. OPEN, SHORT and LOAD are all an antenna needs; ISOLN and THRU are
+    for two-port work.
+  </p>
+  <div class="row" style="gap:.4rem;flex-wrap:wrap">
+    <button class="btn sm" data-vna="cal-step" data-value="open" disabled>OPEN</button>
+    <button class="btn sm" data-vna="cal-step" data-value="short" disabled>SHORT</button>
+    <button class="btn sm" data-vna="cal-step" data-value="load" disabled>LOAD</button>
+    <button class="btn sm ghost" data-vna="cal-step" data-value="isoln" disabled>ISOLN</button>
+    <button class="btn sm ghost" data-vna="cal-step" data-value="thru" disabled>THRU</button>
+    <button class="btn sm primary" data-vna="cal-done" disabled>DONE</button>
+  </div>
+  <div class="row" style="gap:.4rem;flex-wrap:wrap;margin-top:.5rem;
+                          align-items:flex-end">
+    <button class="btn sm" data-vna="cal-on" disabled>Apply it</button>
+    <button class="btn sm" data-vna="cal-off" disabled>Show it raw</button>
+    <button class="btn sm danger" data-vna="cal-reset" disabled>Throw it away</button>
+    <div class="field" style="margin-bottom:0;margin-left:auto">
+      <label>Slot</label>
+      <select id="vn-ctl-slot" class="mono"></select>
+    </div>
+    <button class="btn sm" data-vna="recall" disabled>Recall</button>
+    <button class="btn sm" data-vna="save" disabled>Save into it</button>
+  </div>
+  <div id="vn-ctl-out" class="mt"></div>
+
+  <details class="derivation mt">
+    <summary class="small">Calibrate it first &mdash; and calibrate it in the right place</summary>
+    <p class="small muted">
+      A VNA measures what comes back. Before it can tell you what came back
+      <b>from the antenna</b>, it has to be told what comes back from things
+      whose answer is already known. That is calibration, it takes ninety
+      seconds, and skipping it is why most first sweeps are wrong in a way that
+      looks completely convincing.
+    </p>
+    <ol class="small muted" style="padding-left:1.3rem;line-height:1.5">
+      <li><b>Set the span first.</b> A calibration belongs to the sweep it was
+        taken over. Change the start or stop afterwards and it is no longer
+        valid &mdash; the instrument will interpolate and will not warn you.</li>
+      <li><b>OPEN.</b> Nothing on the port. All the power comes back, in phase.
+        This teaches it the right-hand edge of the Smith chart.</li>
+      <li><b>SHORT.</b> The shorting cap on. All the power comes back, out of
+        phase. The left-hand edge.</li>
+      <li><b>LOAD.</b> The 50 ohm cap on. Nothing should come back at all. The
+        centre &mdash; and the one of the three whose quality decides how deep a
+        null the instrument can honestly show.</li>
+      <li><b>ISOLN and THRU</b> if the menu asks: they are for two-port
+        measurements. For an antenna you only need the three above.</li>
+      <li><b>SAVE</b> to a slot. A calibration that is not saved is gone the
+        moment it is powered off, and you will not notice.</li>
+    </ol>
+    <p class="small" style="color:var(--amber)">
+      <b>Calibrate at the far end of the coax you will use.</b> Put the three
+      standards on the end of the same jumper that will screw onto the antenna,
+      not on the instrument's own port. Otherwise you have measured a beautiful
+      antenna plus fifty feet of RG-58, and the coax will flatter it &mdash;
+      that is the dashed trace above, and it is not an improvement, it is loss.
+    </p>
+    <p class="small muted">
+      <b>What a bad calibration looks like.</b> A trace that never gets below
+      about 1.3:1 anywhere, or a return loss that flattens out around 20 dB
+      across the whole sweep, usually means the LOAD step was poor or the
+      calibration is being interpolated onto a span it was not taken over. A
+      trace with fine ripple on it that moves when you wiggle the cable is a
+      connector, not an antenna. And a dip that shifts when you touch the coax
+      is common-mode current on the outside of the braid, which a choke at the
+      feedpoint fixes and no amount of trimming will.
+    </p>
+    <p class="small muted">
+      <b>Then check yourself against physics.</b> Sweep a known half wave and
+      see the dip land where the length says it should. An instrument that
+      agrees with arithmetic you did beforehand is an instrument you can start
+      to believe on an antenna you have never measured.
+    </p>
+  </details>
+
+  <div class="row mt"><a class="btn sm ghost" href="/study/gen2023?section=G4B">Drill G4B &mdash; test equipment</a>
+    <a class="btn sm ghost" href="/study/extra2024?section=E4A">Drill E4A &mdash; test gear</a></div>
+</div>
+
+<div class="panel mt lab-pane" id="pane-sextant" hidden>
+  <div class="panel-title">Sextant &mdash; where you are, from the sun and a clock</div>
+  <p class="small muted">
+    A sextant measures how high the sun is. That one number puts you somewhere
+    on a circle drawn on the earth: every point on it sees the sun at that
+    altitude at that instant. One sight is a circle. Two sights an hour apart
+    are two circles, and they cross. That crossing is where you are, and
+    everything below is arithmetic in service of it.
+  </p>
+  <p class="small muted">
+    Navigators did this with an almanac, log tables and a plotting sheet,
+    because the arithmetic was the expensive part. It is not expensive any
+    more, so ELMER works out the sun's true altitude for any place and instant
+    and searches for the position that best predicts every sight you took. No
+    assumed position, no tables. <b>It needs the time to be right</b> &mdash;
+    four seconds of clock error is a nautical mile of longitude, which is what
+    WWV and CHU are broadcast for.
+  </p>
+
+  <details class="derivation" id="sx-art">
+    <summary class="small">What one looks like, and what you see through it</summary>
+
+    <div class="panel-title mt" style="margin-bottom:.2rem">The instrument</div>
+    <div class="tiny muted">Sixty degrees of frame, which is where the name
+      comes from, and every part on it in service of reading one angle.</div>
+    <div id="sx-instrument" class="mt"></div>
+
+    <div class="panel-title mt" style="margin-bottom:.2rem">Why it works</div>
+    <div class="tiny muted">The part nobody guesses: you are not looking at the
+      sun through it. You are looking straight ahead at the horizon through a
+      piece of clear glass, and the sun has been folded down onto it by two
+      mirrors. Both reach the same eye at the same instant, which is what makes
+      the comparison possible from a moving deck.</div>
+    <div id="sx-optics" class="mt"></div>
+
+    <div class="panel-title mt" style="margin-bottom:.2rem">Taking the sight</div>
+    <div class="row" style="gap:1.4rem;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:0 0 300px"><div id="sx-eyepiece"></div></div>
+      <div style="flex:1 1 300px;min-width:260px">
+        <div class="row" id="sx-steps" style="gap:.3rem;margin-bottom:.5rem"></div>
+        <div class="small" id="sx-step-title"></div>
+        <div class="small muted mt" id="sx-step-note"></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="derivation">
+    <summary class="small">Never held one? What a sextant is, and how to take a sight</summary>
+
+    <p class="small muted">
+      A sextant measures the angle between two things you can see at once. It
+      does it with two mirrors: one on a swinging arm that catches the sun, one
+      fixed and half silvered, so that looking through the eyepiece you see the
+      horizon through the clear half and the sun reflected in the silvered
+      half, in the same view at the same moment. Swing the arm until the sun
+      sits on the horizon and read the angle off the arc. Everything else on
+      the instrument &mdash; the micrometer drum for the last degree, the
+      vernier for the last minute, the shades &mdash; is in service of reading
+      that one angle finely.
+    </p>
+
+    <p class="small" style="color:var(--red)">
+      <b>The shades go on first, every time.</b> The instrument concentrates
+      the sun into your eye and there is no pain to warn you. Use the darkest
+      shade that still shows the sun as a clean disc, and check before the
+      sextant comes up to your face rather than after. Damage from this is
+      immediate and permanent. If a shade is missing or cracked, that sextant
+      is for looking at, not through.
+    </p>
+
+    <p class="small muted">
+      <b>Find the index error before you take anything.</b> Set the arc to
+      exactly zero and look at the horizon, or at anything far away and
+      straight-edged. The direct and reflected images should form one unbroken
+      line. If they are offset, the instrument's zero is not zero: bring them
+      into line with the micrometer and read what it says. That figure, in
+      arcminutes, goes in the box above, and it is the difference between a fix
+      and a fix that is quietly a mile out. It is worth re-checking each
+      session &mdash; the error moves with knocks and with temperature.
+    </p>
+
+    <p class="small muted">
+      <b>Taking a sight against a sea horizon.</b> Set the arc near zero, put
+      the shades in, and look at the sun. Now swing the index arm slowly and
+      the sun will come down the field of view; follow it until it is near the
+      horizon. Then rock the instrument gently side to side. The sun swings
+      through an arc, and the bottom of that swing is the moment the sextant is
+      truly vertical &mdash; that is the reading you want, and a sight taken
+      without rocking is always too high. Turn the micrometer until the sun's
+      lower edge just kisses the horizon, and call the instant you are
+      satisfied. Read the arc afterwards; it will not move.
+    </p>
+
+    <p class="small muted">
+      <b>Inland, with an artificial horizon.</b> There is no true horizon, so
+      you make one: a pan of water, or old oil for a steadier surface, set
+      somewhere out of the wind and shaded from direct sun. Instead of bringing
+      the sun to a horizon you bring the real sun down to its own reflection in
+      the pan until the two discs touch, edge to edge. Because you are
+      measuring from the sun to its mirror image, the arc reads <b>twice</b>
+      the altitude &mdash; <b>type in what the instrument says and let ELMER
+      halve it</b>, which is what the horizon setting above is for. Do not
+      halve it yourself, or the fix will come out on the wrong circle
+      entirely. There is no dip to allow for, because you are not looking at a
+      horizon at all, so the height-of-eye box goes quiet.
+    </p>
+
+    <p class="small muted">
+      <b>The clock matters more than the arc.</b> Four seconds of error is a
+      nautical mile of longitude, and a minute of arc is only a mile too
+      &mdash; so a sloppy time ruins a careful sight. Two people is the easy
+      way: one calls "mark" at the instant of contact and the other reads the
+      watch. Alone, get the contact, hold it, and glance at the second hand.
+      Set the watch against WWV on 5, 10, 15 or 20 MHz, or CHU on 3.330, 7.850
+      or 14.670, before you start and again after.
+    </p>
+
+    <p class="small muted">
+      <b>How many, and how far apart.</b> Three or four, spread across an hour
+      or more. Two sights taken minutes apart give circles that cross at a
+      shallow angle, and a shallow crossing slides a long way for a small
+      error. Take them, write them all down, and let the arithmetic decide
+      &mdash; do not throw one away because you dislike it. If one really is
+      wild, the working below will say so more honestly than your memory of
+      taking it.
+    </p>
+
+    <p class="small muted">
+      <b>What to expect.</b> A metal sextant in a practised hand is good to a
+      mile or so. A plastic one &mdash; a Davis is the usual first sextant, and
+      costs about what a cheap handheld does &mdash; is good to a few miles,
+      which is a four-character grid square correct every time and a
+      six-character one usually. Neither is a GPS, and that is not the point:
+      the point is that it works with no satellite, no network and no
+      permission from anybody, using a sky that cannot be jammed. The first
+      few fixes will be bad. The tenth will not be.
+    </p>
+  </details>
+
+  <div class="cw-settings">
+    <div class="field">
+      <label>Horizon</label>
+      <select id="sx-horizon" class="mono">
+        <option value="sea">Sextant, sea horizon</option>
+        <option value="artificial" selected>Sextant, artificial horizon</option>
+        <option value="shadow">A stick and its shadow</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Height of eye (ft) <span class="tiny muted" id="sx-height-note"></span></label>
+      <input type="number" id="sx-height" value="9" min="0" max="10000" step="1">
+    </div>
+    <div class="field">
+      <label>Index error (arcmin)</label>
+      <input type="number" id="sx-index" value="0" min="-60" max="60" step="0.1">
+    </div>
+    <div class="field">
+      <label>Date (UTC)</label>
+      <input type="date" id="sx-date">
+    </div>
+  </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    Inland there is no sea horizon, so the usual answer is an artificial one
+    &mdash; a shallow pan of water or old oil, sheltered from wind. You bring
+    the real sun down to its reflection, which is twice the altitude, and there
+    is no dip to allow for because you are not looking at a horizon at all.
+  </div>
+  <div class="tiny muted" id="sx-shadow-note" hidden style="margin-top:.4rem">
+    No sextant at all: stand a stick up plumb, measure it, and measure its
+    shadow. The altitude is <span class="mono">atan(height / shadow)</span>.
+    Read the middle of the soft edge &mdash; the sun is half a degree wide, so
+    the shadow's edge is too. Half a centimetre on a metre of stick is about a
+    fifth of a degree, which is loose for a sextant and ample for a
+    four-character grid. It is <b>most accurate with the sun low</b> and its
+    shadow long, which is the opposite way round from a sextant, so take these
+    in the morning and the evening rather than at noon.
+  </div>
+
+  <div class="panel-title mt">The sights</div>
+  <div class="tiny muted">
+    Two at least, three is better, and spread them across an hour or more
+    &mdash; sights taken minutes apart cross at a shallow angle and the fix
+    slides a long way for a small error.
+  </div>
+  <table class="data mt" style="max-width:760px">
+    <thead><tr>
+      <th>#</th><th id="sx-head-angle">Sextant reading</th>
+      <th>UTC time</th><th id="sx-head-limb">Limb</th><th></th>
+    </tr></thead>
+    <tbody id="sx-rows"></tbody>
+  </table>
+  <div class="row mt">
+    <button class="btn sm" id="sx-add">Add a sight</button>
+    <button class="btn sm primary" id="sx-go">Work it out</button>
+    <button class="btn sm ghost" id="sx-demo">Show me one that works</button>
+    <label class="tiny muted row" style="gap:.35rem;margin:0">
+      <input type="checkbox" id="sx-useqth"> use my saved QTH to settle an ambiguity
+    </label>
+  </div>
+
+  <div class="tiny muted mt">
+    Never done this before, or have no sextant yet? <b>Show me one that works</b>
+    loads three real sights &mdash; the altitudes the sun actually had over a
+    lake in the Boundary Waters on 8 September 2026, rounded to the tenth of a
+    minute an instrument can be read to &mdash; and works them all the way
+    through. It lands within a mile of the point they were taken from, and
+    everything below is the arithmetic that got it there. Watch it once on
+    numbers that are known to be right before you trust it on your own.
+  </div>
+
+  <div id="sx-out" class="mt"></div>
+</div>
+
+<div class="panel mt lab-pane" id="pane-waves" hidden>
+  <div class="panel-title">Waves you can hear &mdash; why big ones get around and small ones do not</div>
+  <p class="small muted">
+    You already know this one. Two streets away you hear the bass from a car
+    and none of the tune: the long waves bend around the houses and the short
+    ones are stopped by them. Radio is the same game in a different medium, and
+    mostly the same equations with a different constant &mdash; light goes
+    874,000 times faster than sound, so a radio wave and a sound wave of the
+    same <b>size</b> are that far apart in pitch.
+  </p>
+  <p class="small muted">
+    Drag the frequency. The wave is drawn to scale against the house, and the
+    note is the sound of exactly that size in air &mdash; press it and listen.
+  </p>
+
+  <div class="grid" style="grid-template-columns: 320px 1fr; gap:1.2rem; align-items:start">
+    <div>
+      <div class="field"><label>Frequency (MHz)</label>
+        <input type="range" id="w-f" min="0.5" max="450" step="0.1" value="14.2">
+        <span class="sim-out" id="w-f-v"></span></div>
+      <div class="field"><label>Something in the way (m across)</label>
+        <input type="range" id="w-ob" min="0.2" max="60" step="0.2" value="8">
+        <span class="sim-out" id="w-ob-v"></span></div>
+      <button class="btn sm primary" id="w-play">Hear that size</button>
+      <div class="tiny muted" id="w-play-note" style="margin-top:.4rem"></div>
+      <div id="w-facts" class="mt"></div>
+    </div>
+    <div>
+      <svg id="w-svg" viewBox="0 0 640 300" style="width:100%;background:#0b1017;border:1px solid var(--line);border-radius:8px"></svg>
+      <div id="w-verdict" class="mt"></div>
+    </div>
+  </div>
+
+  <div class="grid cols-2 mt" style="gap:1.2rem">
+    <div>
+      <div class="panel-title">Where the analogy is exact</div>
+      <div id="w-parallels" class="small"></div>
+    </div>
+    <div>
+      <div class="panel-title">And where it breaks</div>
+      <p class="tiny muted" style="margin-top:0">These matter more than the
+        parallels. An analogy is dangerous exactly where somebody has stopped
+        checking it.</p>
+      <div id="w-mismatches" class="small"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>window.QTH = {{ (qth or {})|tojson }};
+window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+{# One script serves both benches. Every pane in it is guarded on the elements
+   it needs, so the half that is not on this page simply does not start. #}
+<script src="{{ asset('lab.js') }}"></script>
+{% endblock %}
