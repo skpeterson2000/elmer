@@ -491,6 +491,13 @@ def bandplan_page():
         state=(profile["settings"].get("state")
                or regional.state_of(profile["settings"].get("location") or {})
                or ""),
+        # Whether there is a QTH at all, which decides what the empty option in
+        # the coordinator list should say. With a location and no match - a
+        # station outside the US, say - "none" is the true answer and telling
+        # somebody to set a location they have already set would be nonsense.
+        # With no location, "none" is a dead end that explains nothing.
+        has_location=bool((profile["settings"].get("location") or {}).get("lat")
+                          is not None),
         **profile_block(connection))
 
 

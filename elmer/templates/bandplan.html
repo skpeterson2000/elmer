@@ -26,12 +26,24 @@
     <div class="field" style="margin-bottom:0">
       <label>Regional coordinator</label>
       <select id="bp-state">
-        <option value="">none</option>
+        {# "none" is accurate and tells nobody anything. Where there is no QTH
+           the empty option can say what would fill the list instead, which
+           costs nothing and commits to nothing - picking it is still "show me
+           the national plan and no local one". #}
+        <option value="">{% if has_location %}none &mdash; national plan only{%
+          else %}none &mdash; set a location on the propagation page{% endif %}</option>
         {% for c in coordinators %}
           <option value="{{ c.state }}" {% if c.state == state %}selected{% endif %}>
             {{ c.state_name }} &mdash; {{ c.coordinators|join(', ') }}{% if c.readable %} &#10003;{% endif %}</option>
         {% endfor %}
       </select>
+      {% if not has_location %}
+        <div class="tiny muted" style="margin-top:.25rem">
+          <a href="/propagation">Set your QTH</a> and this picks your
+          coordinator on its own &mdash; and the band conditions become local
+          rather than assumed.
+        </div>
+      {% endif %}
     </div>
     <div class="field" style="margin-bottom:0">
       <label>Chart</label>
