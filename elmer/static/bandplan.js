@@ -627,11 +627,25 @@ function conditionBar(band) {
         escapeHTML(band.name) + ' now</span>' +
       '<span class="pill ' + QUALITY_CLASS(now.score) + '">' +
         escapeHTML(now.label) + ' &middot; ' + now.score + '/100</span>' +
-      (cond.rating ? '<span class="tiny muted">wall chart says ' +
-        escapeHTML(cond.rating) + '</span>' : '') +
+      /* The wall chart beside ours. Agreement is worth a quiet line - it is
+         a real second opinion and it confirming us is information. A
+         disagreement gets said out loud and explained underneath, because a
+         reader who spots the contradiction on their own and is not told why
+         it exists has been given two numbers and no way to choose. */
+      (cond.rating
+        ? '<span class="pill ' + (now.wall && !now.wall.agree ? 'warn' : 'info') +
+          '">wall chart: ' + escapeHTML(cond.rating) +
+          (now.wall && !now.wall.agree ? ' \u2260 ' + escapeHTML(now.wall.ours)
+                                       : ' \u2713') + '</span>'
+        : '') +
     '</div>' +
     '<div class="condmeter"><i class="' + QUALITY_CLASS(now.score) +
       '" style="width:' + now.score + '%"></i></div>' +
+    /* Said where the two numbers are, not in a footnote. */
+    (now.wall && !now.wall.agree
+      ? '<div class="small" style="color:var(--amber)">' +
+        escapeHTML(now.wall.note) + '</div>'
+      : '') +
     /* A score with no distance on it is the misleading part. The rating is
        against MUF(3000) - a full hop - so a band can read Good and still not
        reach the next county, which is how somebody ends up calling CQ into a

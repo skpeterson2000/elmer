@@ -1580,10 +1580,20 @@ def api_propagation_outlook():
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
                                        anchor=anchor, m3000=m3000,
-                                       aurora_lat=aurora_lat)
+                                       aurora_lat=aurora_lat,
+                                       # The sky the anchor was measured under.
+                                       # Without it a night calibration is
+                                       # carried through the following noon.
+                                       anchor_sun=(cal or {}).get("sun_deg"))
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "regime": row["regime"], "day": row["day"]}
                      for row in when]
+        # Ours against the wall chart's, with the disagreement said out loud
+        # rather than left for the reader to spot. Neither is corrected toward
+        # the other; see propagation.reconcile.
+        now["wall"] = propagation.reconcile(
+            now.get("score"), (rated.get(name) or {}).get("rating", ""),
+            snap.get("muf_source"))
         bands.append({"band": name, "mhz": mhz, "now": now,
                       "rating": (rated.get(name) or {}).get("rating", ""),
                       "note": (rated.get(name) or {}).get("note", ""),
