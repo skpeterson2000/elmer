@@ -283,6 +283,44 @@ def main():
     check("  but 22 ft is still a real regional antenna",
           "region" in ok_low["means"], True)
 
+    print("\n-- the heading names the antenna it picked --")
+    # It recommended type "invertedv" under the heading "A low dipole", with an
+    # alternative underneath that mentioned a flat dipole - so the page looked
+    # like it was proposing two antennas at once to somebody who has never put
+    # up either. A title that does not name its own pick is the whole fault.
+    NAMES = {"dipole": "dipole", "invertedv": "inverted-v", "jpole": "j-pole",
+             "yagi": "beam", "quarter": "quarter", "efhw": "end-fed",
+             "loop": "loop", "whip": "whip", "groundplane": "ground",
+             "fiveeighth": "eighth", "bowtie": "bowtie"}
+    for mhz in (1.9, 3.5, 7.1, 14.2, 28.5, 52.0, 146.0, 446.0):
+        for use in ("regional", "dx", "local", None):
+            r = A.recommend(mhz, use=use, site="house")
+            kind, title = r.get("type"), (r.get("title") or "").lower()
+            want = NAMES.get(kind)
+            if want is None:
+                continue
+            check(f"{mhz:g} MHz {use}: {kind} titled {title!r}",
+                  want in title, True)
+
+    print("\n-- and an inverted-V is explained as a dipole, not beside one --")
+    v = A.recommend(3.5, use="regional", site="house")
+    check("the pick is the V", v["type"], "invertedv")
+    check("  its own heading says so", "inverted-v" in v["title"].lower(), True)
+    said = " ".join(v["why"]).lower()
+    check("  and it says the two are the same antenna",
+          "an inverted-v is a dipole" in said, True)
+    # The second choice has to lead with the case it applies to, or it reads
+    # as a competing recommendation rather than a runner-up.
+    # "A flat dipole beats an inverted-V" led with the verdict and read as a
+    # correction to the recommendation above it. Leading with the case it
+    # applies to - "Two supports rather than one?" - makes it a runner-up.
+    import re
+    for kind, use in (("invertedv", "regional"), ("dipole", "dx")):
+        alt = A.recommend(3.5, use=use, site="house")["alternative"]
+        first = re.search(r"[.?!]", alt)
+        check(f"  the {kind} second choice opens with the condition",
+              first and first.group(), "?")
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
