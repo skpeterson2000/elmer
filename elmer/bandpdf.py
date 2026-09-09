@@ -54,8 +54,10 @@ def build(bands, license_class, regional=None, station=None, interop=False):
     flow = [Paragraph("US Amateur Band Plan", s["title"])]
     line = (f"Privileges shown for <b>{license_class}</b> class, per 47 CFR 97.301 "
             f"and 97.305. Activity segments are convention, not law. Each band "
-            f"is drawn to scale below its heading in the colours above; "
-            f"hatching is where a {license_class} may not transmit.")
+            f"is drawn to scale below its heading in the colours above, with "
+            f"the band edges numbered and as many segment boundaries as fit. "
+            f"Hatching is where a {license_class} may not transmit; plain grey "
+            f"is band with no activity convention on it.")
     if regional:
         line += (f" Regional segments from the {regional['name']} "
                  f"({regional['short']}), fetched {regional.get('fetched', '')}.")
@@ -195,6 +197,35 @@ def _hatch(group, x, y, width, height, step=HATCH_STEP):
         offset += step
 
 
+# How close two labels may sit before one of them is dropped. A number that
+# collides with its neighbour is worse than a number that is not there: the
+# reader cannot tell which tick either of them belongs to.
+CHART_EDGE_GAP = 36
+CHART_LABEL_H = 11             # room under the bar for a tick and a number
+
+
+# Two spacings, because the labels are not all worth the same. Where this
+# licence begins and ends is the number the holder of the chart came for, and
+# it is worth letting it sit closer to its neighbour than an ordinary segment
+# boundary would be allowed to.
+CHART_CLOSE_GAP = 24
+
+
+def _rank(edges, yours, changes):
+    """Which frequencies earn a label first, when they cannot all have one.
+
+    Where the hatching starts and stops goes first: that is where what this
+    licence may do changes, and it is the reason somebody printed the chart
+    for their own class rather than a generic one. Then boundaries where the
+    activity changes, which is the frequency anybody needs to know. Last, and
+    usually dropped, boundaries between two segments of the same kind - those
+    are a detail of how the table happens to be split up.
+    """
+    def key(e):
+        return (0 if e in yours else 1 if e in changes else 2, e)
+    return sorted(edges, key=key)
+
+
 def activity_bar(name, license_class, width, height=CHART_BAR_H):
     """One band drawn as what can be done on it, and where you may do it.
 
@@ -203,38 +234,87 @@ def activity_bar(name, license_class, width, height=CHART_BAR_H):
     hatched over rather than left out: the activity is still there, it is
     simply not yours yet, and a chart that hid it would be answering a
     different question from the one on the page.
+
+    The band edges are always numbered, because a bar with no scale on it is a
+    picture of nothing in particular. Inside them, as many segment boundaries
+    are numbered as will fit without crowding, the ones where the activity
+    changes going first. The rest are in the table underneath - this is meant
+    to be read at arm's length, not measured with a rule.
     """
     band = BAND_INDEX.get(name)
-    drawing = Drawing(width, height + 2)
+    drawing = Drawing(width, height + CHART_LABEL_H + 2)
     if not band:
         return drawing
     low, high = band["low"], band["high"]
     span = (high - low) or 1.0
+    base = CHART_LABEL_H                       # the bar sits above the numbers
 
     def at(mhz):
         return max(0.0, min(width, (mhz - low) / span * width))
 
     # The band itself, so a stretch nobody has an activity for still reads as
     # part of the band rather than as the edge of the paper.
-    drawing.add(Rect(0, 1, width, height, fillColor=CHART_GROUND,
+    drawing.add(Rect(0, base, width, height, fillColor=CHART_GROUND,
                      strokeColor=colors.HexColor("#9a9a9a"), strokeWidth=0.4))
 
+    edges, changes, yours, previous = set(), set(), set(), None
     for seg_low, seg_high, kind, _label in activity_for(name):
         x0, x1 = at(seg_low), at(max(seg_high, seg_low))
         # A calling frequency is a point, not a range, and would otherwise be
         # drawn a hundredth of a millimetre wide and vanish.
-        drawing.add(Rect(x0, 1, max(1.1, x1 - x0), height,
+        seg_w = max(1.1, x1 - x0)
+        drawing.add(Rect(x0, base, seg_w, height,
                          fillColor=KIND_COLOUR.get(kind, colors.grey),
-                         strokeColor=colors.white, strokeWidth=0.3))
+                         strokeColor=colors.white if seg_w > 2.5 else None,
+                         strokeWidth=0.3))
+        edges.update((seg_low, seg_high))
+        if previous is not None and kind != previous:
+            changes.add(seg_low)
+        previous = kind
 
     allowed = sorted(privileges_for(name, license_class))
     edge = low
     for seg_low, seg_high, _terms in allowed:
         if seg_low > edge:
-            _hatch(drawing, at(edge), 1, at(seg_low) - at(edge), height)
+            _hatch(drawing, at(edge), base, at(seg_low) - at(edge), height)
         edge = max(edge, seg_high)
+        # Where the hatching stops is where this licence starts, which is the
+        # most useful number on the drawing for the person holding it.
+        yours.update((seg_low, seg_high))
+        edges.update((seg_low, seg_high))
     if edge < high:
-        _hatch(drawing, at(edge), 1, width - at(edge), height)
+        _hatch(drawing, at(edge), base, width - at(edge), height)
+
+    def label(mhz, x, anchor="middle"):
+        drawing.add(String(x, base - 8.4, _mhz(mhz), fontSize=6.0,
+                           textAnchor=anchor,
+                           fillColor=colors.HexColor("#444444")))
+        drawing.add(Line(x, base - 2.5, x, base,
+                         strokeColor=colors.HexColor("#888888"),
+                         strokeWidth=0.4))
+
+    # 60 m is five channels rather than a band, and both edges of a 2.8 kHz
+    # channel is two numbers where the operator wants one. What they want is
+    # the dial setting - this sheet is read with a radio in front of it, and
+    # that is the figure they type - so the channels are labelled and the band
+    # edges are left off, having nothing to say about a band nobody tunes
+    # across.
+    if band.get("channelised"):
+        from .bandplan import CHANNELS_60M
+        for channel in CHANNELS_60M:
+            label(channel["dial"], at(channel["centre"]))
+        return drawing
+
+    # The two edges are anchored inward so they cannot hang off the paper.
+    label(low, 0, "start")
+    label(high, width, "end")
+    taken = [0.0, width]
+    for mhz in _rank([e for e in edges if low < e < high], yours, changes):
+        x = at(mhz)
+        gap = CHART_CLOSE_GAP if mhz in yours else CHART_EDGE_GAP
+        if all(abs(x - t) >= gap for t in taken):
+            label(mhz, x)
+            taken.append(x)
     return drawing
 
 
