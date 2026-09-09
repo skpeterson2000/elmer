@@ -36,7 +36,6 @@ A schema change still needs a migration written for it - see
 :func:`elmer.db.migrate` - but since an update only ever lands when somebody
 asks for it, a missing one is a bad afternoon rather than six Pis at once.
 """
-import fcntl
 import json
 import logging
 import os
@@ -45,6 +44,17 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+# Close-on-exec is a POSIX idea and so is the /proc that finds the descriptors
+# to apply it to. Windows has neither: handles are not inherited unless a
+# process asks for it, so the leak this guards against cannot happen there.
+# Importing it unconditionally was the one thing in the whole program that
+# stopped it running off a Pi - `app` imports `update`, so a missing fcntl took
+# the entire application down at import rather than disabling one restart path.
+try:
+    import fcntl
+except ImportError:                                    # not POSIX
+    fcntl = None
 
 log = logging.getLogger("elmer")
 
@@ -372,6 +382,10 @@ def _seal_fds():
     it - a restart that hangs and never serves again.  Everything above stdin,
     stdout and stderr is therefore marked close-on-exec first.
     """
+    if fcntl is None:
+        # Nothing to do and nothing at risk: without fork-and-exec semantics
+        # there is no descriptor to carry across one.
+        return
     try:
         fds = [int(name) for name in os.listdir("/proc/self/fd")]
     except (OSError, ValueError):
