@@ -395,6 +395,23 @@ function hourLabel(iso) {
   return String(d.getHours()).padStart(2, '0');
 }
 
+/* The grey line as clock times rather than a shaded hour. Both ends come from
+   the same ephemeris, differing only in the height asked for: the horizon the
+   operator stands on, and the D layer's own horizon 9.03 degrees further down.
+   Where the sun does not set at all there is no window and this says nothing
+   rather than inventing one. */
+function greyWindow() {
+  const s = bpProp && bpProp.sun;
+  if (!s || s.up_all_day || s.down_all_day) return '';
+  const dusk = clockAt(s.set), dark = clockAt(s.d_layer_set);
+  const dawn = clockAt(s.d_layer_rise), up = clockAt(s.rise);
+  if (!dusk || !dark) return '';
+  return ' Tonight the sun sets here at <b>' + dusk + '</b> and on the D ' +
+    'layer at <b>' + dark + '</b>, so that is the evening window; in the ' +
+    'morning it runs the other way, <b>' + dawn + '</b> to <b>' + up +
+    '</b>.';
+}
+
 function forecastStrip(cond) {
   const rows = cond.hours || [];
   if (!rows.length) {
@@ -443,7 +460,13 @@ function forecastStrip(cond) {
     '<div class="tiny muted fcsay">' + say +
     ' Colour is how good the hour looks; the pale bar along the foot of a ' +
     'cell is daylight, and an amber one is the grey line &mdash; sunset here, ' +
-    'but not yet 80 km up, which is where the absorption is.</div>';
+    'but not yet 80 km up, which is where the absorption is.' +
+    /* The strip is hourly because the model is. The window itself is not, and
+       the unit knows it to the minute: the sun leaves the ground at one time
+       and the D layer 80 km up at another, and the gap is the whole event.
+       Naming both makes the amber cell a thing somebody can be ready for
+       rather than a colour they notice afterwards. */
+    greyWindow() + '</div>';
 }
 
 /* Above about 30 MHz none of this applies, and pretending otherwise would put
@@ -482,20 +505,28 @@ function forecastStrip(cond) {
    Getting that backwards would hand somebody an hour that is right on 80 m
    and 40 minutes early on 2 m. */
 
-/* Sunrise where the operator is standing, read off the outlook. The sun's
-   regime is the same for every band, so any band's hours will do. Inside a
-   polar day or night the flag never flips and this says nothing. */
-function sunriseHour() {
-  const rows = ((bpProp && bpProp.bands) || []).map(b => b.hours || [])
-    .find(h => h.length) || [];
-  for (let i = 1; i < rows.length; i++) {
-    if (rows[i].day && !rows[i - 1].day) return hourLabel(rows[i].at);
-  }
-  return null;
+/* Sunrise where the operator is standing, to the minute.
+
+   This used to hunt for the hour the daylight flag turned over in the forecast
+   rows, which could only ever be right to the nearest hour and was reading a
+   flag to answer a question about the sky. The unit computes the real time
+   now: the same ephemeris that reduces a sextant sight, solved for the moment
+   rather than for the altitude. Nothing is fetched and nothing is cached, so
+   this is as true with the network unplugged as with it. Inside a polar day or
+   night there is no sunrise to name and the server says so instead. */
+function clockAt(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2, '0') + ':' +
+         String(d.getMinutes()).padStart(2, '0');
+}
+
+function sunriseAt() {
+  return clockAt(bpProp && bpProp.sun && bpProp.sun.rise);
 }
 function vhfBox(band) {
   const v = (bpProp && bpProp.vhf) || {};
-  const hour = sunriseHour();
+  const hour = sunriseAt();
   const eskip = v['E-Skip/north_america'] || '';
   const aurora = v['vhf-aurora/northern_hemi'] || '';
   const open = t => t && !/closed/i.test(t);
@@ -522,8 +553,8 @@ function vhfBox(band) {
       'back overnight, the air above stays warm, and that inversion bends ' +
       'signals far past the horizon. It is deepest at the end of the night ' +
       'and the sun takes it apart within a couple of hours of clearing the ' +
-      'horizon' + (hour ? ' &mdash; sunrise here is about <b>' + hour +
-      ':00</b> local' : '') + '. ' +
+      'horizon' + (hour ? ' &mdash; sunrise here is <b>' + hour +
+      '</b> local' : '') + '. ' +
       '<b>Meteor scatter</b> runs on a different clock entirely: it peaks ' +
       'near <b>06:00</b> local whatever the season, because that is when your ' +
       'side of the Earth has turned to face the way the planet is travelling ' +

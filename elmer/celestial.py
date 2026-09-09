@@ -24,7 +24,7 @@ interpolation between printed rows.
     cannot share a sun.
 """
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # Meeus, *Astronomical Algorithms*, chapter 25 - the "low accuracy" solar
 # position, which is good to about 0.01 degrees. That is 0.6 of a nautical
@@ -111,6 +111,137 @@ def altitude_azimuth(lat, lon, when, sun=None):
         -math.cos(dec) * math.sin(lha),
         math.sin(dec) * math.cos(phi) - math.cos(dec) * math.sin(phi) * math.cos(lha)))
     return alt, az % 360.0
+
+
+# --- when the sun crosses a height, rather than how high it is ---------------
+#
+# Everything above answers "how high is the sun at this instant". Sunrise is
+# the same question turned around: at what instant is the sun at THIS height.
+# There is no second model needed and nothing to fetch or cache - the ephemeris
+# that reduces a sight will give a rise time for any date, any latitude, for as
+# long as the clock is right. A unit in a field with no network has it.
+#
+# There is no closed form, because the sun's declination is itself moving while
+# you solve. The honest way is to walk the day in coarse steps, notice where
+# the altitude crosses the height you asked about, and bisect that bracket
+# until it stops moving. Four-minute steps cannot skip a crossing anywhere on
+# earth - the sun moves at most about a degree in that time - and thirty
+# bisections take the answer far below the second.
+#
+# The height matters and is an argument rather than a constant, because the
+# interesting ones are not all the same event:
+#
+#   -0.833  Sunrise as everybody means it, and as almanacs print it: the upper
+#           limb touching the horizon. That is the sun's semidiameter, 16', plus
+#           the 34' of refraction that has the sun visibly up while it is
+#           geometrically still down. Sunrise is an illusion by more than half
+#           a degree, and this is where the half degree comes from.
+#    0.0    The geometric centre on the horizon. Not what you see, but what the
+#           D-layer arithmetic is written against.
+#   -6/-12/-18  Civil, nautical and astronomical twilight - light to work by,
+#           a usable sea horizon with stars, and true darkness.
+#
+# The grey line wants its own figure, 9.03 degrees down, where the sun has left
+# the ground but not the D layer 80 km up. That number belongs to `propagation`
+# and is passed in from there rather than duplicated here, so there is one
+# definition of it in the program and it lives with the physics that needs it.
+
+SUN_UPPER_LIMB = -0.8333        # refraction 34' + semidiameter 16'
+SUN_CENTRE = 0.0
+CIVIL_TWILIGHT = -6.0
+NAUTICAL_TWILIGHT = -12.0
+ASTRONOMICAL_TWILIGHT = -18.0
+
+
+def _altitude(lat, lon, when):
+    return altitude_azimuth(lat, lon, when)[0]
+
+
+def crossings(lat, lon, start, hours=24.0, altitude=SUN_UPPER_LIMB,
+              step_minutes=4.0):
+    """Every time the sun crosses `altitude` in a window, in UTC.
+
+    Returns a list of `(when, rising)` pairs in order, `rising` being True where
+    the sun was coming up through the height. An empty list means the sun spent
+    the whole window on one side of it, which is the polar answer and a real
+    one - `rise_set` reports which side.
+    """
+    start = start.astimezone(timezone.utc) if start.tzinfo else \
+        start.replace(tzinfo=timezone.utc)
+    step = timedelta(minutes=float(step_minutes))
+    span = timedelta(hours=float(hours))
+    found, when = [], start
+    prev_t, prev_v = start, _altitude(lat, lon, start) - altitude
+    while when < start + span:
+        when = min(when + step, start + span)
+        value = _altitude(lat, lon, when) - altitude
+        if prev_v == 0.0:
+            found.append((prev_t, value > 0.0))
+        elif (prev_v < 0.0) != (value < 0.0):
+            # Bisect the bracket. Thirty halvings of four minutes is under a
+            # microsecond, so this stops on the arithmetic, not the loop.
+            lo, hi, lo_v = prev_t, when, prev_v
+            for _ in range(30):
+                mid = lo + (hi - lo) / 2
+                mid_v = _altitude(lat, lon, mid) - altitude
+                if (lo_v < 0.0) != (mid_v < 0.0):
+                    hi = mid
+                else:
+                    lo, lo_v = mid, mid_v
+            found.append((lo + (hi - lo) / 2, value > prev_v))
+        prev_t, prev_v = when, value
+        if when >= start + span:
+            break
+    return found
+
+
+def rise_set(lat, lon, when, altitude=SUN_UPPER_LIMB):
+    """Sunrise and sunset for the 24 hours from `when`, and the polar cases.
+
+    `when` is taken as the start of the window rather than "some time on the
+    day", because a day is a local idea and this is arithmetic in UTC - the
+    caller who knows the operator's timezone is the one who can say when their
+    day starts. Pass local midnight expressed in UTC and the answer is that
+    person's day.
+
+    Either time can be None on its own: at latitude the sun can rise in a
+    window and not set in it. `up_all_window` and `down_all_window` say which
+    side it stayed when neither happened, so a caller never has to guess
+    whether None means midnight sun or polar night.
+    """
+    marks = crossings(lat, lon, when, 24.0, altitude)
+    rise = next((t for t, up in marks if up), None)
+    fall = next((t for t, up in marks if not up), None)
+    if not marks:
+        high = _altitude(lat, lon, when) > altitude
+    else:
+        high = False
+    return {"rise": rise, "set": fall,
+            "up_all_window": not marks and high,
+            "down_all_window": not marks and not high,
+            "altitude": altitude}
+
+
+def day_length_hours(lat, lon, when, altitude=SUN_UPPER_LIMB):
+    """How long the sun is above `altitude`, for the 24 hours from `when`."""
+    marks = crossings(lat, lon, when, 24.0, altitude)
+    if not marks:
+        return 24.0 if _altitude(lat, lon, when) > altitude else 0.0
+    total, lit_since = 0.0, None
+    if not marks[0][1]:                     # already up when the window opened
+        lit_since = when.astimezone(timezone.utc) if when.tzinfo else \
+            when.replace(tzinfo=timezone.utc)
+    for t, up in marks:
+        if up:
+            lit_since = t
+        elif lit_since is not None:
+            total += (t - lit_since).total_seconds()
+            lit_since = None
+    if lit_since is not None:               # still up when the window closed
+        end = (when.astimezone(timezone.utc) if when.tzinfo
+               else when.replace(tzinfo=timezone.utc)) + timedelta(hours=24)
+        total += (end - lit_since).total_seconds()
+    return total / 3600.0
 
 
 # --- getting from what the sextant said to what the sky did ------------------
