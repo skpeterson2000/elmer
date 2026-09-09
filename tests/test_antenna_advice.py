@@ -19,7 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from elmer import antenna_advice as A  # noqa: E402
+from elmer import antenna_advice as A
+from elmer import groundwave as G  # noqa: E402
 
 FAILS = []
 
@@ -226,6 +227,61 @@ def main():
           (flat["height_ft"], len(flat["works"]) >= 3), (0, True))
     check("  and told the noise floor is the real enemy there",
           any("noise" in c for c in flat["costs"]), True)
+
+    print("\n-- somebody in a vehicle --")
+    # A car settles the question before the intention does. The advice used to
+    # offer a half-wave dipole "as high as you can manage" to somebody who had
+    # just said they were in a truck.
+    check("mobile is a place you can say you are", "mobile" in A.SITES, True)
+    check("  on HF a car gets a loaded whip",
+          A.recommend(7.1, site="mobile")["type"], "whip")
+    check("  and on 2 m a five-eighths, where the whip is full size already",
+          A.recommend(146.0, site="mobile")["type"], "fiveeighth")
+    car = A.for_type(7.1, "whip", site="mobile")["reality"]
+    check("  the vehicle is named as the other half of the antenna",
+          any("other half" in c for c in car["costs"]), True)
+    check("  bonding is in the costs, because it beats any coil",
+          any("ond" in c for c in car["costs"]), True)
+    check("  and so is the noise the car makes itself",
+          any("alternator" in c for c in car["costs"]), True)
+
+    print("\n-- a mobile whip works two ways, and they are different contacts --")
+    # This text asserted the flat opposite: that a contact from the road was
+    # ground wave and "not the ionosphere", measured "in tens of miles rather
+    # than hundreds". Distance mobile on 20 m is skywave off a low-launching
+    # vertical, and saying otherwise contradicts every operator who has done it.
+    better = " ".join(A.TYPES["whip"]["better"])
+    check("the ionosphere is not denied", "not the ionosphere" in better, False)
+    check("  the ground wave is still credited", "ground wave" in better, True)
+    check("  and so is the skywave that does the distance",
+          "F layer" in better, True)
+
+    print("\n-- ground wave is an HF answer, and stops being one --")
+    check("it is still the mechanism at the top of HF",
+          G.useful_range_km(28.0, 100.0, "average") is not None, True)
+    for mhz in (50.0, 146.0, 446.0):
+        check(f"  at {mhz:g} MHz it is not",
+              G.useful_range_km(mhz, 100.0, "average"), None)
+    vhf = G.describe(146.0)
+    check("  and the description says what carries you instead",
+          vhf["applies"], False)
+    check("  naming line of sight", "line of sight" in vhf["note"], True)
+    # The band plan reads `miles`, so a None there is what keeps the wrong
+    # sentence off the screen.
+    check("  with no mileage to quote", vhf["miles"], None)
+
+    print("\n-- low is a capability until it is a ground heater --")
+    # A fifth of a wavelength up is a deliberate NVIS antenna. A twentieth is
+    # not, and telling somebody they have built a fine regional station at
+    # 6 ft on 40 m is not honest.
+    low = A.recommend(7.1, "dx", "dipole", "mobile")["reality"]
+    check("6 ft on 40 m is called what it is",
+          "ground under it" in low["means"], True)
+    check("  and the fix is named as height, not power",
+          "rather than power" in low["means"], True)
+    ok_low = A.recommend(7.1, "dx", "dipole", "small")["reality"]
+    check("  but 22 ft is still a real regional antenna",
+          "region" in ok_low["means"], True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
