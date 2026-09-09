@@ -420,8 +420,18 @@ function forecastStrip(cond) {
       'hour-by-hour outlook for where you are &mdash; the sun\'s angle at your ' +
       'own location is most of what decides it.</div>';
   }
+  /* The best window, worked out before the cells so they can be marked with
+     it. A peak is nearly always a plateau and the strip already draws that -
+     but "best around 19:00" underneath it says otherwise, so the run gets a
+     bar along its top and the sentence gets its width. */
+  const top = (cond.windows || []).reduce(
+    (best, w) => (best && best.best >= w.best ? best : w), null);
+  const peakFrom = top ? top.best_from : null;
+  const peakTo = top ? top.best_to : null;
+
   const cells = rows.map((h, i) => {
     const label = hourLabel(h.at);
+    const atBest = peakFrom && h.at >= peakFrom && h.at <= peakTo;
     // "now" under the first cell, then every sixth hour: enough to read the
     // shape against the clock without turning the strip into a ruler.
     const tick = i === 0 ? 'now' : (i % 6 === 0 ? label : '');
@@ -429,6 +439,7 @@ function forecastStrip(cond) {
               : h.regime === 'twilight' ? ', twilight - the D layer never clears'
               : h.regime === 'dark' ? ', dark' : ', daylight';
     return '<i class="fc ' + QUALITY_CLASS(h.score) + (i === 0 ? ' now' : '') +
+      (atBest ? ' peak' : '') +
       (h.regime === 'grey' ? ' grey' : h.regime === 'twilight' ? ' dusk'
                                      : h.regime === 'dark' ? '' : ' day') +
       '" title="' + label + ':00 local — ' + h.score +
@@ -445,15 +456,24 @@ function forecastStrip(cond) {
     if (w.from === first) return '<b>now until ' + b + ':00</b>';
     return '<b>' + a + ':00&ndash;' + b + ':00</b>';
   });
-  /* The peak, with the hour it falls on. "Best about 89/100" was half a
-     sentence - the thing somebody wants out of a forecast is when to be at
-     the radio, and the trailing "local time" was left over from the window
-     times it had been separated from. */
-  const top = (cond.windows || []).reduce(
-    (best, w) => (best && best.best >= w.best ? best : w), null);
+  /* The peak, with the hours it covers rather than the hour it starts. A
+     band's best is a stretch, not an instant: 40 m can sit within a point of
+     its own maximum for eight hours, and naming one of them implies the other
+     seven are worse when they are the same. Only a genuinely one-hour peak is
+     reported as an hour. */
+  const peak = !top ? ''
+    : top.best_from === top.best_to
+      ? 'best around <b>' + hourLabel(top.best_at) + ':00</b> at ' +
+        top.best + '/100.'
+      : 'best from <b>' + hourLabel(top.best_from) + ':00</b> to <b>' +
+        hourLabel(top.best_to) + ':00</b> at ' + top.best + '/100' +
+        // Only worth counting when there is something to count. "1 hours of
+        // it" after a pair of adjacent hours is noise, and the two times
+        // have already said it.
+        (top.best_hours > 1 ? ' &mdash; ' + top.best_hours +
+                              ' hours of it.' : '.');
   const say = wins.length
-    ? 'Worth using ' + wins.join(' and ') + ', local time &mdash; best around ' +
-      '<b>' + hourLabel(top.best_at) + ':00</b> at ' + top.best + '/100.'
+    ? 'Worth using ' + wins.join(' and ') + ', local time &mdash; ' + peak
     : '<b>No usable window in the next day</b> on these numbers &mdash; the ' +
       'band stays under what a contact needs.';
   return '<div class="fcstrip">' + cells + '</div>' +
