@@ -10,6 +10,7 @@ Two public sources, both keyless:
 Everything is cached so opening the dashboard repeatedly does not hammer either
 service.
 """
+import functools
 import json
 import math
 import urllib.error
@@ -125,6 +126,42 @@ def solar_elevation(lat, lon, when=None):
 # It remains a model of the average ionosphere rather than of yours. What
 # closes that gap is `calibration` below, which measures how wrong it is now.
 
+# The layer does not follow the sun, it chases it. Production switches on with
+# sunlight and stops with it, but loss at F2 heights is slow - recombination
+# there runs in tens of minutes to hours - so electron density goes on building
+# after the sun starts down, and foF2 peaks in the early afternoon rather than
+# at local noon. Every sonde in the network shows it.
+#
+# Modelled as what it is: production put through the layer's own inertia. The
+# drive is averaged over the hours behind it with an exponential weight, which
+# is the first-order form of dN/dt = production - N/tau and is the standard way
+# to say "this responds, but not at once".
+#
+# A causal average of a symmetric bump peaks after the bump does, which is the
+# whole effect and is why an earlier draft of this did not work: taking the
+# greater of the drive now and the drive two hours ago slows the evening decay
+# but leaves the maximum exactly at noon, and the flat top it appears to
+# produce is a tenth of a megahertz of rounding rather than the ionosphere.
+#
+# Two hours is a middle value for the time constant. The real figure varies
+# with season, latitude and longitude sector, and one number cannot carry that
+# - this is an approximation and is labelled as one. The direction is not in
+# doubt: every sonde in the network shows the afternoon maximum.
+#
+# One honest cost. The constants below were least-squares fitted against the
+# *unlagged* drive, so they are no longer the optimum for this shape: the
+# smoothed peak comes out about 3% lower than the fitted one, the morning
+# perhaps 8% lower and the evening as much higher. That is well inside the
+# model's own 1.11 MHz error, and it is systematic rather than random, which
+# is worth saying out loud. They want refitting against the network the next
+# time that dataset is to hand. Where a sonde is in reach it does not arise:
+# `calibration` measures the model against what was actually observed and
+# scales it, and it compares like with like because the lag is applied on both
+# sides of that comparison.
+F2_LAG_HOURS = 2.0
+F2_LAG_STEP = 0.5             # how finely the hours behind are sampled
+F2_LAG_SPAN = 6.0             # how far back is worth sampling at all
+
 FOF2_FLUX = (7.50, 0.0427)    # foF2 overhead at the equator: floor, and per SFI
 FOF2_NIGHT = 0.49             # the share of that which survives the night
 FOF2_POWER = 2.57             # how sharply the layer follows the sun by day
@@ -160,18 +197,56 @@ def _bounded(fof2):
     return max(low, min(high, fof2))
 
 
-def _fof2(sfi, elevation, lat=None):
-    """Critical frequency of the F2 layer, unrounded. See the note above."""
+def _drive(elevation):
+    """The sun's grip on the layer, 0 to 1.
+
+    sin(elevation) mapped onto 0-1, so the term goes on varying after sunset
+    instead of clipping to zero the moment the sun touches the horizon.
+    """
+    return max(0.0, min(1.0, 0.5 * (1.0 + math.sin(math.radians(elevation)))))
+
+
+# Thirteen sun positions per call, and the outlook asks for the same twenty-five
+# hours once per band. Cached, that is 25 computations instead of 275 - which
+# on a Pi is the difference between 48 ms and single figures for the strip
+# behind the propagation page. Small enough that it costs nothing to hold, and
+# the keys age out on their own as the hours move.
+@functools.lru_cache(maxsize=512)
+def f2_drive(lat, lon, when):
+    """How hard the layer is being driven, allowing for its own inertia.
+
+    The sun over the hours behind this one, weighted so that the recent hours
+    count for most and six hours ago counts for almost nothing. See the note
+    above F2_LAG_HOURS for why it is the hours behind rather than this one.
+    """
+    total = weight = 0.0
+    steps = int(F2_LAG_SPAN / F2_LAG_STEP) + 1
+    for step in range(steps):
+        hours = step * F2_LAG_STEP
+        share = math.exp(-hours / F2_LAG_HOURS)
+        total += share * _drive(
+            solar_elevation(lat, lon, when - timedelta(hours=hours)))
+        weight += share
+    return total / weight if weight else 0.0
+
+
+def _fof2(sfi, elevation, lat=None, drive=None):
+    """Critical frequency of the F2 layer, unrounded. See the note above.
+
+    `drive` is the layer's own idea of how sunlit it is, from `f2_drive`, for
+    callers that know the time and the place and can work it out. Without it
+    the layer follows the sun exactly, which is what this did before and is
+    still the right answer when all anybody has is an angle.
+    """
     base = FOF2_FLUX[0] + FOF2_FLUX[1] * max(0.0, sfi - 60.0)
-    # sin(elevation) mapped onto 0-1, so the term goes on varying after sunset
-    # instead of clipping to zero the moment the sun touches the horizon.
-    drive = max(0.0, min(1.0, 0.5 * (1.0 + math.sin(math.radians(elevation)))))
+    if drive is None:
+        drive = _drive(elevation)
     solar = FOF2_NIGHT + (1.0 - FOF2_NIGHT) * drive ** FOF2_POWER
     away = max(0.0, abs(ASSUMED_LATITUDE if lat is None else lat) - FOF2_TROPICS)
     return _bounded(base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0))
 
 
-def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0):
+def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0, drive=None):
     """foF2 and MUF for one place and one moment, as they will be shown.
 
     The only place these two numbers are made. Everything that displays either
@@ -187,7 +262,7 @@ def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0):
     # Bounded again after the anchor: a measurement can sharpen the model, but
     # a multiplier applied to it must not carry it somewhere the ionosphere has
     # never been.
-    fof2 = round(_bounded(_fof2(sfi, elevation, lat) * anchor), 1)
+    fof2 = round(_bounded(_fof2(sfi, elevation, lat, drive) * anchor), 1)
     return round(fof2 * (m3000 or M3000_DEFAULT), 1), fof2
 
 
@@ -282,8 +357,13 @@ def snapshot(lat=None, lon=None, force=False):
     # the band plan and the lab all read the numbers below, so correcting them
     # here corrects them everywhere rather than in one view out of three.
     cal = calibration(sfi, lat, lon)
+    # Only where there is a place and therefore a real sun: with no QTH the
+    # assumed angle is a stand-in for a sky nobody has, and lagging a stand-in
+    # by two hours would be arithmetic on a guess.
+    driven = (f2_drive(lat, lon, now)
+              if lat is not None and elevation is not None else None)
     muf, fof2 = levels(sfi, assumed, lat, cal and cal["m3000"],
-                       cal["factor"] if cal else 1.0)
+                       cal["factor"] if cal else 1.0, drive=driven)
 
     data = {
         "ok": True,
@@ -775,7 +855,12 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
         if km > CALIBRATION_KM:
             continue
         sun = solar_elevation(station["lat"], station["lon"], when)
-        modelled = _fof2(sfi, sun, station["lat"])
+        # The same lag the model uses everywhere else. If the measurement were
+        # compared against an unlagged model, the factor would quietly absorb
+        # the lag as though it were the station's own error - correcting the
+        # model here and then correcting it again by the same amount there.
+        modelled = _fof2(sfi, sun, station["lat"],
+                         f2_drive(station["lat"], station["lon"], when))
         if modelled <= 0:
             continue
         weight = 1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
@@ -865,7 +950,13 @@ def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
     if not measured or lat is None:
         return 1.0
     when = when or datetime.now(timezone.utc)
-    modelled, _ = estimate_muf(sfi, solar_elevation(lat, lon, when), lat, m3000)
+    # Against the same model the hours will be scored with, lag and all. A
+    # factor worked out against an unlagged model and applied to a lagged one
+    # would miss the measurement it exists to meet, by exactly the amount the
+    # lag moves the layer - which is worst in the morning and the evening,
+    # where the anchor is least likely to be checked.
+    modelled, _ = levels(sfi, solar_elevation(lat, lon, when), lat, m3000,
+                         drive=f2_drive(lat, lon, when))
     if not modelled:
         return 1.0
     low, high = ANCHOR_RANGE
@@ -1005,7 +1096,8 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         # full strength while the sun is near where the sondes saw it, then
         # released - see `anchor_at`.
         muf, fof2 = levels(sfi, elevation, lat, m3000,
-                           anchor_at(anchor, anchor_sun, elevation))
+                           anchor_at(anchor, anchor_sun, elevation),
+                           drive=f2_drive(lat, lon, when))
         got = band_score(mhz, muf, elevation, k_index, fof2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         state = sun_regime(elevation, lat, when)
