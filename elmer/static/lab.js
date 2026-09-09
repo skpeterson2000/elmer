@@ -2354,8 +2354,9 @@ function smithGrid(z0) {
   return g.join('');
 }
 
-function smithPlot(d) {
+function smithPlot(d, measured) {
   const g = [smithGrid(d.z0)];
+  if (measured) g.push(smithLocus(measured.rows, measured.at));
   const mag = d.load.gamma_mag;
   /* The constant-SWR circle: where a lossless line would keep you. */
   if (mag > 0.001) {
@@ -2379,6 +2380,31 @@ function smithPlot(d) {
          '" fill="#3fb950" font-size="11">shack</text>');
   return '<svg viewBox="0 0 580 560" style="width:100%;max-width:580px">' +
          g.join('') + '</svg>';
+}
+
+/* The measurement on the Smith chart, which is the view the SWR plot cannot
+   give. A point at or past |G| = 1 has no SWR - the formula divides by
+   (1 - |G|) - so it is missing from that trace entirely and the trace can
+   come out empty with nothing said. Here the same point simply lands outside
+   the unit circle, and that is not a missing reading, it is the diagnosis:
+   nothing passive returns more than was sent into it, so what you are looking
+   at is an instrument with no calibration loaded. */
+function smithLocus(rows, at) {
+  if (!rows || !rows.length) return '';
+  const g = [];
+  const pts = rows.map(r => smXY(r.gx, r.gy).map(n => n.toFixed(1)).join(','))
+                  .join(' ');
+  g.push('<polyline points="' + pts + '" fill="none" stroke="#3fb950" ' +
+         'stroke-width="2" opacity="0.85"/>');
+  if (at) {
+    const [mx, my] = smXY(at.gx, at.gy);
+    g.push('<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) +
+           '" r="6" fill="none" stroke="#3fb950" stroke-width="2"/>');
+    g.push('<text x="' + (mx + 10).toFixed(1) + '" y="' + (my + 4).toFixed(1) +
+           '" fill="#3fb950" font-size="11">' + at.mhz.toFixed(3) +
+           ' MHz measured</text>');
+  }
+  return g.join('');
 }
 
 function smithNotes(d) {
@@ -2426,9 +2452,58 @@ function smithNotes(d) {
   return out.join('');
 }
 
+/* Whether there is a measurement to offer, and whether the operator has asked
+   for it. Kept as two questions because they answer differently: a sweep can
+   exist while somebody is deliberately looking at a typed impedance instead,
+   and taking a new sweep should not yank the chart out from under them. */
+function smMeasSync() {
+  const none = document.getElementById('sm-meas-none');
+  const label = document.getElementById('sm-meas-on');
+  const slider = document.getElementById('sm-point');
+  if (!none || !label || !slider) return;
+  const rows = (vnMeasured && vnMeasured.rows) || [];
+  none.hidden = rows.length > 0;
+  label.hidden = !rows.length;
+  const on = rows.length && document.getElementById('sm-use').checked;
+  slider.hidden = !on;
+  if (!rows.length) { document.getElementById('sm-point-v').textContent = ''; return; }
+  document.getElementById('sm-use-label').innerHTML =
+    'Read it from the measured sweep &mdash; ' + rows.length + ' points, ' +
+    vnMeasured.low_mhz.toFixed(3) + '–' + vnMeasured.high_mhz.toFixed(3) + ' MHz';
+  slider.max = String(rows.length - 1);
+  if (+slider.value > rows.length - 1) slider.value = String(rows.length - 1);
+}
+
+function smMeasuredPoint() {
+  const rows = (vnMeasured && vnMeasured.rows) || [];
+  const use = document.getElementById('sm-use');
+  if (!rows.length || !use || !use.checked) return null;
+  const slider = document.getElementById('sm-point');
+  return rows[Math.max(0, Math.min(rows.length - 1, +slider.value))] || null;
+}
+
 async function calcSmith() {
   const box = document.getElementById('sm-out');
   if (!box) return;
+  smMeasSync();
+  const point = smMeasuredPoint();
+  if (point) {
+    /* The measurement fills the boxes rather than bypassing them, so
+       everything downstream - the walk down the line, the loss, the notes -
+       is the same machinery working on a real antenna instead of a typed one.
+       A resistance below zero is not a thing a feedline can be walked down,
+       and it is what a point outside the circle means; it is floored here and
+       named underneath rather than sent to the server to be refused. */
+    document.getElementById('sm-f').value = point.mhz.toFixed(3);
+    document.getElementById('sm-r').value =
+      Math.max(0, point.r === null ? 50 : point.r).toFixed(1);
+    document.getElementById('sm-x').value =
+      (point.x === null ? 0 : point.x).toFixed(1);
+    document.getElementById('sm-point-v').innerHTML =
+      point.mhz.toFixed(3) + ' MHz &nbsp; |&#915;| ' +
+      (point.gmag === undefined ? '—' : point.gmag.toFixed(3)) +
+      ' &nbsp; SWR ' + (point.swr === null ? 'undefined' : point.swr + ':1');
+  }
   const q = new URLSearchParams({
     r: num('sm-r'), x: num('sm-x'), mhz: num('sm-f'),
     line: document.getElementById('sm-line').value,
@@ -2437,7 +2512,16 @@ async function calcSmith() {
   document.getElementById('sm-len-v').textContent = num('sm-len') + ' ft';
   let d;
   try { d = await api('/api/smith?' + q); } catch (e) { return; }
-  document.getElementById('sm-chart').innerHTML = smithPlot(d);
+  document.getElementById('sm-chart').innerHTML = smithPlot(d,
+    point ? {rows: vnMeasured.rows, at: point} : null);
+  const outside = point && point.gmag !== undefined && point.gmag >= 1
+    ? '<p class="small" style="color:var(--amber)">This point is outside the ' +
+      'circle: |&#915;| is ' + point.gmag.toFixed(3) + ', so more came back ' +
+      'than went out and there is no SWR to quote. Nothing passive does that ' +
+      '&mdash; it is what an uncalibrated instrument looks like, and it is why ' +
+      'the SWR trace has a hole in it. Calibrate at the far end of the jumper ' +
+      'that screws onto the antenna and sweep again.</p>'
+    : '';
   box.innerHTML =
     '<div class="row" style="gap:1.1rem;flex-wrap:wrap">' +
       '<span>SWR at the antenna <b>' +
@@ -2447,7 +2531,7 @@ async function calcSmith() {
       '<span>line loss <b>' + d.loss.total_db.toFixed(2) + ' dB</b></span>' +
       '<span>reaching the antenna <b>' + d.loss.power_at_antenna + ' W</b></span>' +
       '<span class="tiny muted">' + d.wavelength_ft + ' ft per wavelength in this line</span>' +
-    '</div>' + '<div class="mt">' + smithNotes(d) + '</div>';
+    '</div>' + outside + '<div class="mt">' + smithNotes(d) + '</div>';
 }
 
 if (document.getElementById('sm-chart')) {
@@ -2457,8 +2541,10 @@ if (document.getElementById('sm-chart')) {
    ['rg6', 'RG-6 — 75 Ω TV coax'], ['ladder', '450 Ω window line']]
     .forEach(([v, l]) => sel.insertAdjacentHTML('beforeend',
       '<option value="' + v + '"' + (v === 'rg213' ? ' selected' : '') + '>' + l + '</option>'));
-  ['sm-r', 'sm-x', 'sm-f', 'sm-len', 'sm-w', 'sm-line'].forEach(id => {
+  ['sm-r', 'sm-x', 'sm-f', 'sm-len', 'sm-w', 'sm-line',
+   'sm-use', 'sm-point'].forEach(id => {
     const el = document.getElementById(id);
+    if (!el) return;
     el.addEventListener('input', calcSmith);
     el.addEventListener('change', calcSmith);
   });
@@ -3311,22 +3397,48 @@ if (document.getElementById('vn-chart')) {
           'what it measured. Where it disagrees with the model, believe the ' +
           'instrument &mdash; but check the calibration below before you believe ' +
           'either of them.';
-        /* "I can see no trace" is usually this: the scale stops at 5:1 and
-           everything measured is above it, so the green line is drawn along
-           the very top of the frame where it reads as part of the border. An
-           open port, no calibration, or the standards put on the wrong end of
-           the coax all look exactly like that, and none of them is a fault in
-           the program - so it says which it is rather than leaving somebody
-           hunting for a drawing bug. */
-        const drawn = (got.sweep.rows || []).filter(r => r.swr !== null);
-        if (drawn.length && drawn.every(r => r.swr >= 5)) {
-          document.getElementById('vn-dev').innerHTML +=
-            ' <span style="color:var(--amber)">Every point is above 5:1, ' +
-            'which is the top of this scale &mdash; the green trace is pinned ' +
-            'along the ceiling rather than missing. An open port, no ' +
-            'calibration, or the standards measured at the wrong end of the ' +
-            'coax all look like this.</span>';
+        /* "There is no green trace" has three causes and none of them is a
+           drawing bug, so the page says which one it is rather than leaving
+           somebody hunting for one.
+
+           SWR is not defined at or past |G| = 1: the formula divides by
+           (1 - |G|), and past unity more has come back than went out, which
+           nothing passive does. Those points are null, they are missing from
+           the trace, and if they all are then the trace is genuinely empty.
+           That is the ordinary look of an instrument with no calibration
+           loaded - and it is exactly what the Smith chart draws well, because
+           there the same points land outside the circle instead of vanishing.
+
+           Failing that, the scale here stops at 5:1, so a sweep entirely
+           above it is drawn along the very top of the frame where it reads as
+           part of the border. */
+        const rows = got.sweep.rows || [];
+        const drawn = rows.filter(r => r.swr !== null);
+        const unity = got.sweep.over_unity || 0;
+        let why = '';
+        if (!drawn.length) {
+          why = 'There is no SWR trace because SWR is not defined for any of ' +
+            'it: every point came back at or past total reflection, |&#915;| ' +
+            '&ge; 1, meaning more returned than went out. No passive antenna ' +
+            'does that, so this is an instrument with no calibration loaded, ' +
+            'or an open port. Take it to the Smith chart tab - it draws these ' +
+            'points outside the circle, which is the picture that says so.';
+        } else if (unity) {
+          why = unity + ' of ' + rows.length + ' points came back at |&#915;| ' +
+            '&ge; 1 and are missing from the trace, because SWR is not defined ' +
+            'there. That is usually the calibration rather than the antenna.';
+        } else if (drawn.every(r => r.swr >= 5)) {
+          why = 'Every point is above 5:1, which is the top of this scale ' +
+            '&mdash; the green trace is pinned along the ceiling rather than ' +
+            'missing. An open port, no calibration, or the standards measured ' +
+            'at the wrong end of the coax all look like this.';
         }
+        if (why) {
+          document.getElementById('vn-dev').innerHTML +=
+            ' <span style="color:var(--amber)">' + why + '</span>';
+        }
+        // The other tab can offer it now, whether or not anybody goes there.
+        smMeasSync();
         const ex = document.getElementById('vn-export');
         if (ex) ex.hidden = false;         // there is now something to export
         vnUpdate();

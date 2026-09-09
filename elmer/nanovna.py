@@ -180,10 +180,18 @@ def measure(device, start_mhz, stop_mhz, points=101, timeout=SWEEP_TIMEOUT):
     out = []
     for mhz, re_, im in pts:
         mag = math.hypot(re_, im)
+        # SWR is not defined when the magnitude reaches one: the formula
+        # divides by (1 - |G|), and at or past unity more has come back than
+        # went out, which no passive antenna does. Raw uncorrected data sits
+        # there all the time - it is the ordinary look of an instrument with
+        # no calibration loaded - so it is reported as null rather than as a
+        # number, and counted, because a trace with nothing to draw needs to
+        # say why instead of coming out blank.
         swr = None if mag >= 0.999999 else (1 + mag) / (1 - mag)
         out.append({
             "mhz": round(mhz, 5),
             "gx": round(re_, 5), "gy": round(im, 5),
+            "gmag": round(mag, 5),
             "swr": None if swr is None else round(min(swr, 20.0), 3),
             "rl_db": round(-20 * math.log10(mag), 2) if mag > 1e-9 else 60.0,
             # Z from the reflection coefficient, which is the number an SWR
@@ -195,9 +203,14 @@ def measure(device, start_mhz, stop_mhz, points=101, timeout=SWEEP_TIMEOUT):
         if abs(1 - g) > 1e-9:
             z = 50.0 * (1 + g) / (1 - g)
             row["r"], row["x"] = round(z.real, 2), round(z.imag, 2)
+    unity = sum(1 for row in out if row["swr"] is None)
     return {"device": device, "points": len(out),
             "low_mhz": out[0]["mhz"] if out else None,
             "high_mhz": out[-1]["mhz"] if out else None,
+            # How many points came back at or past total reflection. Zero is
+            # an ordinary antenna; all of them is an instrument that has not
+            # been calibrated, or one measuring an open port.
+            "over_unity": unity,
             "rows": out}, None
 
 
