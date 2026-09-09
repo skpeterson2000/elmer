@@ -892,20 +892,36 @@ def reconcile(score, rating, muf_source=None, is_group=True):
            if is_group else
            "The wall chart is twice a day from the flux and the field; this "
            "is this hour, at your latitude.")
-    if muf_source == "measured":
+    # Good against Poor is not a shade of difference and must not be answered
+    # as one. It has been a fault here rather than a subtlety, and the fault
+    # was ours: a sonde anchor measured at night was carried through the
+    # following noon, which held 20 m shut for a whole day at a flux of 110
+    # while the wall chart called it Good. Worse, the version of this note
+    # that shipped that morning would have said ours was "the better informed
+    # of the two", because it had a measured anchor - the code was most
+    # confident exactly where it was most wrong.
+    #
+    # So a flat contradiction claims nothing for either side. Having a
+    # measurement did not make the forecast right; misapplying the measurement
+    # is what made it wrong, and no amount of provenance protects against that.
+    if gap >= 2:
+        trust = ("Treat a gap this wide as a reason to doubt this page first. "
+                 "Two answers one word apart is the two methods disagreeing; "
+                 "Good against Poor usually means one of them is broken, and "
+                 "it has been this one before now. Turn the radio on and "
+                 "believe what you hear over either of us.")
+    elif muf_source == "measured":
         trust = ("Ours is anchored to a sonde reading taken near you within "
-                 "the hour, so on this band at this moment it is the better "
-                 "informed of the two - but it is still a model wearing a "
+                 "the hour, so it knows something about your sky that a "
+                 "national figure cannot - but it is a model wearing a "
                  "measurement, and the wall chart is a real second opinion.")
     elif muf_source in ("regional", "bounded"):
         trust = ("Ours is corrected by sondes, but distant ones, so it is a "
-                 "regional figure rather than a local measurement. Where the "
-                 "two disagree this far apart, believe neither and turn the "
-                 "radio on.")
+                 "regional figure rather than a local measurement.")
     else:
         trust = ("No sonde was in reach, so ours is the model alone and the "
-                 "wall chart is the better founded of the two here. Treat "
-                 "this disagreement as a reason to doubt us first.")
+                 "wall chart is the better founded of the two here. Doubt us "
+                 "first.")
     out["note"] = ("%s says %s, we make it %s.%s %s"
                    % ("The wall chart", rating, ours,
                       " That is a flat contradiction, not a shade of one."
