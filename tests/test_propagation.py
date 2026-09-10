@@ -505,6 +505,27 @@ def main():
     check("a band that never opens has no window",
           P.windows(strip([10] * 25)), [])
 
+    print("\n-- and the DX caveat is not the same at both ends of HF --")
+    from elmer import patterns as PA  # noqa: E402
+    low = PA.qualify(PA.reach("dipole", "dx", 3.885, height_ft=128), 3.885)
+    high = PA.qualify(PA.reach("dipole", "dx", 28.4, height_ft=35), 28.4)
+    check("80 m is told the ring is a night one",
+          "night ring" in low["real"], True)
+    check("  and never that it closes after dark",
+          "closes after dark" in low["real"], False)
+    check("10 m is told the opposite",
+          "closes after dark" in high["real"], True)
+    check("  and never that its hours are after dark",
+          "night ring" in high["real"], False)
+    check("the middle of HF is told it runs both",
+          "day and night" in PA.dx_hours(14.2), True)
+    # With no frequency it says nothing about the clock at all, because half
+    # the guesses would be backwards.
+    check("no band, no claim about the hour", "dark" in PA.dx_hours(None),
+          False)
+    check("  and the regional caveat is untouched",
+          "critical frequency" in PA.QUALIFIED["regional"][1], True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

@@ -468,9 +468,7 @@ QUALIFIED = {
     "dx": ("Geometry only: one hop, a smooth earth, and a layer where the "
            "model puts it.",
            "The band has to be open to that distance at that hour, and the "
-           "station at the far end needs to hear you. Expect the ring to "
-           "breathe by hundreds of kilometres through the day, and to close "
-           "entirely at night on the high bands."),
+           "station at the far end needs to hear you."),
     "regional": ("The signal goes up and comes back down over the whole area, "
                  "with no skip zone in the middle.",
                  "Only while the frequency stays below the critical frequency "
@@ -490,12 +488,49 @@ QUALIFIED = {
 }
 
 
-def qualify(span):
+# When a DX ring is actually there, which is the opposite question at the two
+# ends of HF and cannot be answered with one sentence. A ring on 20 m and up
+# is a daylight thing that shuts after dark. A ring on 80 or 40 is the other
+# way round entirely: the day is what kills it, and the hours it reaches are
+# the ones after sunset. Printing "closes at night" over an 80 m answer is not
+# a caveat, it is the truth upside down - and it is the sort of wrong that
+# sends somebody to bed at the hour their band was about to open.
+DX_HOURS = [
+    (10.0, "Down here that is a night ring. The D layer absorbs most of the "
+           "day away and the distance collapses with it; the hours this "
+           "reaches are the ones after dark, and the far edge goes on opening "
+           "as the night deepens."),
+    (18.0, "Through the middle of HF it runs day and night - widest through "
+           "the afternoon, and holding open some way past sunset before it "
+           "shortens."),
+    (None, "Up here it is a daylight ring. It breathes by hundreds of "
+           "kilometres through the day and closes after dark, and on a quiet "
+           "sun it may not open at all."),
+]
+
+
+def dx_hours(mhz):
+    """When the DX ring is actually open, for the band it is drawn on.
+
+    Without a frequency this says nothing about the clock rather than
+    guessing: half the guesses would be backwards.
+    """
+    if not mhz:
+        return "When it is open depends on the band and the hour."
+    for edge, said in DX_HOURS:
+        if edge is None or float(mhz) < edge:
+            return said
+    return ""
+
+
+def qualify(span, mhz=None):
     """Attach the lab answer and the real-world answer, separately labelled."""
     lab, real = QUALIFIED.get(span.get("kind"), (None, None))
     if lab:
         span["lab"] = lab
         span["real"] = real
+        if span.get("kind") == "dx":
+            span["real"] = (real + " " + dx_hours(mhz)).strip()
     return span
 
 

@@ -659,7 +659,8 @@ def api_pattern():
             pass
 
     span = patterns.qualify(
-        patterns.reach(kind, use, mhz, height_ft, nvis, slope, day, fof2, hmf2))
+        patterns.reach(kind, use, mhz, height_ft, nvis, slope, day, fof2, hmf2),
+        mhz)
 
     dx = []
     if place.get("lat") is not None and place.get("lon") is not None:
