@@ -286,7 +286,17 @@ what it means for the mode, and the shape of the next day beside it.
     The next 24 hours
     ▁▁▁▃▅▇▇▇▇▇▇▇▇▅▃▁▁▁▁▁▁▁▁▁
     now      22       04       10       16
-    Worth using right through the day — best about 79/100, local time.
+    Worth using right through the day, local time — best from 22:00 to
+    05:00 at 83/100 — 7 hours of it.
+
+The peak is given as a stretch because that is what it is. A band sits within
+a point or two of its own maximum for hours at a time, and naming one of them
+sends somebody to the radio at an hour that was never special while implying
+the rest are worse. The hours either side of the top that are as good as it is
+— within three points, which is well inside the error of a rating that is an
+estimate — are the peak, and the strip marks that run along its top edge. On
+40 m here that is seven hours; on 20 m it is one, which is the contrast worth
+having.
 
 A wall chart rates a *group* of bands Poor, Fair or Good, twice a day. That
 answers whether to turn the radio on. It does not answer the question actually
@@ -308,6 +318,33 @@ and the model supplies only the shape, so the meter and the curve are anchored
 to a measurement rather than to a flux figure. It is a model and says so on the
 page: it knows nothing about your antenna, your power, or the far end.
 
+Two things about that sun are worth stating, because both were wrong and both
+were wrong in the same direction — against the low bands after dark.
+
+The layer chases the sun rather than following it. Production switches on with
+sunlight and stops with it, but loss at F2 heights is slow, so electron density
+goes on building after the sun starts down and foF2 peaks in the early
+afternoon rather than at local noon. It is driven by the sun over the hours
+behind, exponentially weighted, which is the first-order form of
+*dN/dt = production − N/τ*; at a two-hour time constant the peak lands about an
+hour and a half after noon, the evening decays slowly and the deep night is
+untouched. One honest cost, written into the constants: they were fitted
+against the unlagged drive, so they are no longer that fit's optimum — the peak
+comes out about 3% lower — which is well inside the model's own 1.11 MHz error
+and is systematic rather than random. Where a sonde is in reach it does not
+arise, because calibration measures the model against what was observed and
+scales it, and the lag is applied on both sides of that comparison.
+
+And a band well below the MUF is not charged twice. The penalty for sitting far
+under it is absorption, and absorption is the D layer's — which is charged for
+separately. In daylight that is one thing said twice and roughly right; after
+dark the separate term correctly falls to nothing while the other did not, so
+80 m read "Good" through the hours it is at its best. The shape relaxes as the
+layer goes, by exactly as much as that band was being absorbed and no more —
+so 80 m gets nearly all of it back and 10 m essentially none, which is right,
+because 10 m well under a high MUF is not being held down by the D layer and
+does not improve at nightfall.
+
 Above about 30 MHz none of it applies, and the bands above HF say so instead of
 showing a meter that would read *closed* every day of the year. There is no MUF
 to be under: what opens 6 m and 2 m is sporadic E, tropospheric ducting and
@@ -324,6 +361,18 @@ than a continuous band, and every privilege edge on the sheet is labelled. It is
 drawn from the allocations themselves rather than modelled on anybody's chart.
 **Full chart (PDF)** is the reference behind it: every activity segment in a
 table per band, with the regional segments folded in.
+
+**Whose chart it is.** The band plan draws any class for anybody, which is how
+somebody decides whether an upgrade is worth sitting for. On paper that becomes
+a different object: a sheet headed "US Amateur Bands — Extra — KC9SP" is read as
+a claim to hold Extra, by anybody who reads it, whatever the page that made it
+meant. So a callsign goes on a chart only when the chart is of that station's
+own privileges — taken from the FCC record where there is one, not from the
+class being browsed — and anything else is drawn without it and says on its
+face that it is a study sheet, not a licence, and not a statement of what any
+station holds. Other operators would know and the one waving it would be
+caught; that is not the point. The door reflects on the community whose licence
+this program exists to teach people to respect.
 
 **Where a printout goes.** Nowhere, is the answer that was wrong. A PDF built
 here used to be handed to the browser, which put it in a downloads folder — and
@@ -569,6 +618,51 @@ bottom on purpose - answering "how do I get a message out" with "declare an
 emergency" is wrong for a flat tire, and the entry has to keep its force for
 the day it is needed.
 
+## Parks and summits
+
+Parks on the Air and Summits on the Air are what get most people to carry a
+radio somewhere, and almost every wasted trip is a planning failure rather than
+a radio one — the wrong kit, or the wrong side of a contour. That is fixable at
+a table days early, for nothing, which is what the page is for.
+
+**What is within a day's drive.** Four hours of road is about 350 km in a
+straight line, and the parks and summits inside that are fetched once while
+there is a signal and then held. POTA answers per state and province, SOTA per
+region — and SOTA publishes a bounding box for every association, so both can
+be asked only about ground that matters rather than downloading a 24 MB list of
+all 179,000 summits. From here that is thirteen location lists and four
+associations: 486 parks and 32 summits, in about fourteen seconds. After that
+it answers in a valley with no bars, which is the whole point of fetching it in
+advance.
+
+A centre decides who to ask and never decides what is near. POTA's own location
+list is wrong about some of its centres — as this was written it placed South
+Africa's North West province in Indiana — so every reference is measured on its
+own coordinates instead, and the distance is recomputed from wherever the
+operator is standing rather than from where the list was fetched.
+
+**What counts.** Both rule sets, each carrying the document it was read from
+and the day somebody read it, because these change by another body's decision
+rather than by physics. POTA wants ten QSOs inside one UTC day with the
+activator and all the equipment inside the boundary. SOTA takes one QSO to be
+an activation and four different stations for the summit's points, from inside
+the activation zone — typically 25 vertical metres, though each Association
+sets its own. Neither counts a terrestrial repeater. Both count a satellite,
+which means the ISS digipeater on the Make Contact list earns credit in both.
+
+**What you would be carrying**, judged against each programme from the same
+gear list Make Contact uses, worst news first. A whip on the car is a park
+antenna and a disqualification on a summit — SOTA rule 3.7.1 forbids the
+station being in or near a motor vehicle or connected to one in any way — and
+the trailhead is an expensive place to find that out.
+
+**The operator's own POTA record**, once they have said so. The panel names
+what it would send, to whom, and what comes back before it sends anything: a
+callsign leaving this unit for somebody else's server is a decision, not a
+detail of how a page is built. What is kept is the awards and the counts; the
+name, the town and the avatar the endpoint also returns are thrown away, the
+same choice `callsign` already makes about the FCC record it reads.
+
 ## Where the station is
 
 Every answer about reach, bearings and RF exposure is an answer about a place.
@@ -667,6 +761,17 @@ most comfortably, and it is remembered.
 - **Copy practice** sends and you type: Koch groups, plain letters, numbers,
   mixed, callsigns, Q signals, abbreviations, prosigns, and whole QSO fragments
   built around your own callsign. Scored per character.
+- **The whole code** as a chart, drawn as dits and dahs at their real lengths
+  rather than printed as dots and dashes — a dah is three times a dit, and the
+  gap inside a character is one dit, which is what the spacing shows. Click
+  anything to hear it. The eighteen Q signals are on it too, each with its name
+  over its own code and the meaning beside them, because three letters of code
+  will not share a line with a definition and leave either readable. A space in
+  a code means the gap between two letters, drawn as silence of the right width
+  and sounded as silence of the right length: that is the whole difference
+  between the Q signal QRM and a prosign, which has no gaps inside it at all
+  and is one sound. And a question mark makes one a question — QRL? asks
+  whether the frequency is busy, QRL answers that it is.
 - **Your sending** turns the space bar or an on-screen paddle into a straight
   key, decodes what you actually sent, and measures your timing against the
   target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your
@@ -838,7 +943,10 @@ means for the mode, and the next 24 hours hour by hour.
 
 ### Lab
 
-Interactive versions of the maths the pools test:
+Interactive versions of the maths the pools test. Only that: the analyser, the
+sextant and the audible-wave demonstrations moved to **Tools** next door,
+because no exam element has ever asked how to drive a NanoVNA or take a sun
+sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
 
 - **Ionospheric hop** — drag frequency, foF2 and F2 peak height and watch rays
   refract or escape, with the skip zone drawn to scale. Uses the proper
@@ -1054,6 +1162,35 @@ Interactive versions of the maths the pools test:
   network the smooth-earth maths still runs and says the terrain is unknown.
   The antenna tab hands its gain figure straight to it.
 
+### Tools
+
+The bench rather than the syllabus. Three things that are worth having and are
+on no exam paper.
+
+- **VNA** — the modelled trace an analyser would show for an antenna you have
+  not built yet, and the real one off an instrument on the bench. It finds the
+  port, asks what is on it, and sweeps. It also *drives* it: the span, hold and
+  resume, the five calibration standards one at a time, done, apply, bypass,
+  and save or recall a slot. What may be sent is one table on the server and
+  nothing types through from a browser to a device that runs what it is given.
+  Two of those commands destroy work — `cal reset` and `save` — and are refused
+  until the caller says it meant it, with the refusal carrying the reason. Most
+  of the rest are accepted in silence, so every result shows the instrument's
+  own words and reads the span back afterwards: a command this firmware has
+  never heard of shows up now rather than three steps later.
+
+  The sweep is held on the unit rather than in the page that took it. It
+  survives a reload, it can be read from a phone while the instrument sits by
+  the Pi, and the Smith chart in the Lab reads it from there — which is what
+  lets those two live on different pages at all. One sweep, not a history:
+  there is one instrument and one antenna, and "what did it measure" means the
+  last thing it measured.
+- **Sextant** — a sun sight reduced to a position line, for when nothing else
+  knows where you are. On no exam and useful anyway.
+- **Waves you can hear** — the analogy under the arithmetic, at audio, where a
+  long wavelength bending round an obstacle is something you listen to rather
+  than take on trust.
+
 ### Game layer
 
 Titles are earned inside the license class they name. Each class carries a
@@ -1109,6 +1246,24 @@ It works at three sizes, and the same engine runs all of them.
 **One person.** Open a tournament from any pool card on the dashboard. The
 table fills with practice opponents so there is a race to be in, and the match
 runs itself — question, answers, result, next question — until you stop it.
+
+Nobody has to press it, either. A table with somebody in it starts fifteen
+seconds after the first person arrives: long enough for a second and a third
+to get in behind them, short enough that nobody is left reading a countdown,
+and both screens show it running down rather than saying "waiting" at each
+other. The class it asks about is the one the operator is studying. Before
+that, a player who scanned the code and got a screen saying "waiting for the
+next question" waited for somebody at the table screen to press something —
+right for a club night, where the instructor starts the evening, and for one
+operator with a Pi and a phone it was a program that did not work and looked
+like one that was broken.
+
+Not under a net, because a table in a hall answers what net control put up;
+not while a game is running; and not for an empty room, so the last person
+leaving takes the countdown off again. A phone alone on an idle table also
+gets a Start button, checked on the server rather than trusted from the screen
+that offered it: a player may start a game they are alone in and may not start
+one in a room with other people in it.
 
 **One table.** Up to eight people join by pointing a phone at the code on the
 screen. Nobody installs anything.
@@ -1413,6 +1568,9 @@ screen rather than at a terminal.
 
 ## Layout
 
+A selection rather than a manifest — the modules a reader of the sections above
+would go looking for. There are others.
+
 ```
 elmer.py              entry point
 elmer/
@@ -1433,6 +1591,17 @@ elmer/
   terrain.py          ground elevation profiles for the path tool
   explain.py          assembles rule text, concept notes and your own notes
   propagation.py      space weather fetch and band interpretation
+  patterns.py         elevation and plan patterns, reach, and what it is worth
+  antenna_advice.py   which antenna, how high, and what usually goes wrong
+  antennapdf.py       the printable build sheet
+  conductors.py       what an element can be made of, and what it costs
+  fieldkit.py         what it takes to work the metal, and what stands in
+  activations.py      POTA and SOTA rules, with the documents they came from
+  references.py       parks and summits within a day's drive, held on the unit
+  pota.py             one operator's POTA awards, once they have said so
+  nanovna.py          talking to an analyser, and driving one
+  sweeps.py           the last sweep, kept where more than one page can see it
+  host.py             the few things that differ by machine
   db.py               SQLite storage, per user, and the schema migrations
   update.py           checking the repository and fast-forwarding onto it
   report.py           terminal stats
