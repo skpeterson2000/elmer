@@ -62,36 +62,50 @@ def main():
     prints.keep = fake_keep
     client = elmer_app.app.test_client()
 
-    with elmer_app.app.test_request_context():
-        held = elmer_app._own_class()
-    print(f"\n-- this station holds {held!r} --")
-    check("there is a class on file to compare against", bool(held), True)
+    # The licence is stated here rather than read off whoever's unit this is
+    # running on. A test that asks the machine what class it holds passes on
+    # the Pi it was written on and fails on a fresh install, where nobody has
+    # entered a callsign yet - which is every clean checkout and every build.
+    def holding(cls):
+        elmer_app._own_class = lambda: cls
 
     def ask(cls, layout="card"):
         client.post("/api/bandplan/pdf",
                     json={"class": cls, "layout": layout, "raw": True})
         return dict(seen)
 
-    print("\n-- its own class may carry the callsign --")
+    held = "Extra"
+    holding(held)
+    print(f"\n-- a station holding {held} --")
     mine = ask(held)
     check("drawn for the class held", mine["license_class"], held)
     check("  and it is marked as the operator's own", mine["own"], True)
-    check("  so the callsign goes on",
-          bool((mine["station"] or {}).get("callsign")), True)
+    # That the callsign is offered, not that there is one to offer. A unit
+    # nobody has claimed has no callsign at all, and the decision under test
+    # is the route's, not the operator's.
+    check("  so the callsign is offered",
+          "callsign" in (mine["station"] or {}), True)
 
-    print("\n-- and no other class may --")
-    for other in ("Technician", "General", "Novice", "Advanced", "Extra"):
-        if other.lower() == held.lower():
-            continue
+    print("\n-- and no other class may carry it --")
+    for other in ("Technician", "General", "Novice", "Advanced"):
         got = ask(other)
         check(f"{other}: not the operator's own", got["own"], False)
         check(f"  {other}: no callsign on it", got["station"], None)
 
     print("\n-- the full chart is told the same thing --")
-    full = ask("Novice" if held.lower() != "novice" else "Extra", "full")
     check("a class not held is marked on the full chart too",
-          full["own"], False)
+          ask("Novice", "full")["own"], False)
     check("  and the operator's own is not", ask(held, "full")["own"], True)
+
+    print("\n-- and a unit nobody has claimed yet claims nothing --")
+    # A fresh install has no callsign and no class on file. It must not put a
+    # callsign on anything, and every sheet it prints is a study sheet -
+    # which is also the state every clean checkout builds in.
+    holding("")
+    for cls in ("Technician", "General", "Extra"):
+        blank = ask(cls)
+        check(f"{cls}: nothing is claimed", blank["own"], False)
+        check(f"  {cls}: and no callsign", blank["station"], None)
 
     print("\n-- and a sheet that is not yours says so on its face --")
     check("there is wording for it", bool(bandpdf.NOT_HELD.strip()), True)
