@@ -2255,7 +2255,10 @@ def _party_auto_join(room):
     if cohort.bridge() is not None:
         return True                       # already reporting to somebody
     if netcontrol.net() is not None:
-        return False                      # this unit is the one running it
+        # Hosting.  Its own table belongs in its own hall, and never in
+        # somebody else's: a host that wandered off into a neighbour's net
+        # would be serving one room and answering another.
+        return False
     connection = conn()
     if not cohort.auto_join_wanted(connection):
         return False
@@ -2371,8 +2374,11 @@ def api_party_end():
 def api_net_end():
     """Close the net. Tables will find it gone and carry on by themselves."""
     # Whatever was conducting it stops with it - a conductor ticking a net
-    # that is gone would keep asking questions into an empty room.
+    # that is gone would keep asking questions into an empty room - and the
+    # host's own table is let go with it, or it would sit reporting to a net
+    # that has closed instead of playing for the people in front of it.
     hall.halt()
+    cohort.disconnect(conn())
     netcontrol.close_net()
     log.info("net control: closed")
     return jsonify({"open": False})
@@ -2479,12 +2485,36 @@ def api_net_open():
     wanted = str(body.get("difficulty", "technician")).lower()
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
+    connection = conn()
     hall.halt()                       # the old net's conductor goes with it
     netcontrol.close_net()
+    # A unit cannot be its own net and somebody else's table at once - it
+    # would be taking questions from one hall while serving another.  Opening
+    # a net says which of the two this machine is.
+    cohort.disconnect(connection)
     running = netcontrol.net(create=True, difficulty=wanted,
                              name=str(body.get("name")
                                       or _net_name_for(wanted))[:60])
     log.info("net control opened: %s", running.name)
+
+    # The people sitting at the host are in the hall like anybody else.  It
+    # goes through the same bridge every other table uses rather than a short
+    # cut, because a host that runs its own players down a private path is a
+    # host whose own table is the one case never exercised - and it is the
+    # table the instructor is sitting at.
+    cohort.set_auto_join(connection, True)
+    party.room(create=True, cohorts=1)
+    link = cohort.connect(f"http://127.0.0.1:{app.config.get('PORT', 5000)}",
+                          None, None, conn=connection)
+    log.info("cohort: the host takes a table in its own net as %s", link.unit_id)
+
+    # And it conducts.  A net that needs a second press before it will do
+    # anything is a net that sits at nought tables all evening, which is what
+    # was on the board.  Rounds still wait for somebody to be seated - see
+    # hall.py - so opening one early costs nothing.
+    section = body.get("section")
+    seconds = body.get("seconds")
+    hall.start(running, lambda: _ask_net(running, wanted, section, seconds))
     return jsonify(running.board())
 
 
