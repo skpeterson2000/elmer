@@ -154,9 +154,15 @@ bindSetting('cw-lesson', 'lesson', v => 'characters 1–' + v);
    a full stop and a hyphen the eye has to translate punctuation into duration;
    drawn to length it is just the shape, which is the thing being learnt. */
 
+/* A space in a code is the gap between two letters, not a symbol. It is drawn
+   as a piece of silence the right width and it is sounded as one, which is
+   what lets a Q signal be shown as the three letters it actually is - and it
+   is the whole difference between QRM and a prosign, which has no gaps in it
+   at all. */
 function codeHTML(code) {
   return [...(code || '')].map(el =>
-    '<i class="' + (el === '-' ? 'dah' : 'dit') + '"></i>').join('');
+    el === ' ' ? '<i class="gap"></i>'
+               : '<i class="' + (el === '-' ? 'dah' : 'dit') + '"></i>').join('');
 }
 
 /* Fill every .cw-code that carries a data-code - the chart and the paddle
@@ -187,6 +193,14 @@ function playSymbol(sym, timing, boxes) {
   const spans = rows.map(box => [...box.querySelectorAll('i')]);
   const lit = [];
   for (const el of sym.code) {
+    if (el === ' ') {
+      // Silence, and it keeps its place in the list so the lighting stays
+      // lined up with what was drawn. The symbol gap after the previous
+      // element is already counted, so only the rest of it is added here.
+      lit.push(null);
+      t += (timing.char_gap - timing.symbol_gap) / 1000;
+      continue;
+    }
     const dur = (el === '-' ? timing.dah : timing.dit) / 1000;
     player.mark(t, dur);
     lit.push({at: t, end: t + dur});
@@ -198,6 +212,7 @@ function playSymbol(sym, timing, boxes) {
       if (!player.ctx || teachStop) { resolve(); return; }
       const now = player.ctx.currentTime;
       lit.forEach((m, i) => {
+        if (!m) return;                      // a gap has nothing to light
         const on = now >= m.at && now < m.end;
         spans.forEach(row => { if (row[i]) row[i].classList.toggle('lit', on); });
       });

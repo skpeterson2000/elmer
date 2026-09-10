@@ -113,15 +113,24 @@
   {% for section in chart %}
     <div class="panel-title" style="margin-top:1rem">{{ section.title }}</div>
     <div class="tiny muted">{{ section.note }}</div>
-    <div class="cw-chart-grid{% if section.wide %} wide{% endif %}">
+    <div class="cw-chart-grid{% if section.wide %} wide{% endif %}{% if section.stacked %} stacked{% endif %}">
       {% for item in section['items'] %}
         <button class="cw-chart-cell" data-char="{{ item.char }}"
                 data-code="{{ item.code }}"
                 {% if item.meaning %}title="{{ item.char }} — {{ item.meaning }}"{% endif %}
                 {% if item.prosign %}data-prosign="1"{% endif %}>
-          <b>{{ item.char }}</b>
-          <span class="cw-code" data-code="{{ item.code }}"></span>
-          {% if item.meaning %}<span class="m">{{ item.meaning }}</span>{% endif %}
+          {% if item.stacked %}
+            {# The name over its own code, and the meaning beside the pair.
+               Three letters of code will not sit in a row with a definition
+               and leave either of them readable. #}
+            <span class="k"><b>{{ item.char }}</b>
+              <span class="cw-code" data-code="{{ item.code }}"></span></span>
+            <span class="m">{{ item.meaning }}</span>
+          {% else %}
+            <b>{{ item.char }}</b>
+            <span class="cw-code" data-code="{{ item.code }}"></span>
+            {% if item.meaning %}<span class="m">{{ item.meaning }}</span>{% endif %}
+          {% endif %}
         </button>
       {% endfor %}
     </div>
