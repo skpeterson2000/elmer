@@ -40,7 +40,12 @@ SPLASH = Path(__file__).resolve().parent / "static" / "splash.html"
 # behind it - the fast one waits this out and the slow one is covered by it, so
 # the two open the same way.  The splash enforces it; this is here because the
 # number belongs beside the thing it describes.
-HOLD_SECONDS = 1.4
+#
+# Set to about the median start counted on the Pis rather than to the slowest
+# of them: at the median half the fleet never waits on this at all and the
+# other half is covered, where a hold set to the worst board would make every
+# machine sit through the worst board's day.
+HOLD_SECONDS = 4.0
 
 # Ordinary windows opened for an off-site link, kept so they can be shut when
 # ELMER stops rather than left orphaned on the screen.
