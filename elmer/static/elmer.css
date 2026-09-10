@@ -105,7 +105,7 @@ p { margin: 0 0 .8rem; }
 .title-line:hover .title-name { color: var(--amber); }
 .title-track {
   font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
-  color: var(--dimmer); width: 5.2rem; text-align: right;
+  color: var(--dimmer); width: 7.4rem; text-align: right;
 }
 .title-name { font-size: .82rem; font-weight: 600; color: var(--text); }
 .title-name.lapsed { color: var(--dim); text-decoration: line-through .5px; }
@@ -290,7 +290,11 @@ table.data tr:hover td { background: #171f28; }
 
 @media (max-width: 640px) {
   .status-xp { display: none; }
-  .title-track { display: none; }
+  /* Not hidden any more. It was, to save room in a cramped bar, which left a
+     phone showing a bare "Technician Operator" beside a callsign and nothing
+     at all to say it was a study rank. That is the one thing this must never
+     imply, and the room is worth less than the implication. */
+  .title-track { width: auto; text-align: left; }
   .wrap { padding: 1rem .8rem 3rem; }
   .stat-value { font-size: 1.35rem; }
 }

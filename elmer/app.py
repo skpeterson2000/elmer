@@ -1122,6 +1122,24 @@ def api_prints_delete(print_id):
     return jsonify({"deleted": prints.forget(print_id)})
 
 
+def _own_class():
+    """The class this station actually holds, from the FCC record where there
+    is one.
+
+    Deliberately not the class being *looked at*. The band plan lets anybody
+    read any class's privileges, which is worth having and is how somebody
+    decides whether the upgrade is worth sitting for - but a printed sheet
+    with a callsign on it is read as a claim about that station, and those two
+    questions must not be allowed to produce the same document.
+    """
+    settings = db.get_profile(conn())["settings"]
+    record = settings.get("license") or {}
+    if record.get("found"):
+        return str(record.get("licence_class")
+                   or record.get("license_class") or "")
+    return str(settings.get("license_class") or "")
+
+
 @app.route("/api/bandplan/pdf", methods=["POST"])
 def api_bandplan_pdf():
     body = request.get_json(force=True) or {}
@@ -1131,11 +1149,19 @@ def api_bandplan_pdf():
     bands = body.get("bands") or [b["name"] for b in bandplan.BANDS]
     state = (body.get("state") or "").upper()
     plan = regional.plan(state) if state else None
+    # A callsign goes on a chart only when the chart is of that station's own
+    # privileges. Anything else is a study sheet, and a study sheet with a
+    # callsign on it is a document somebody can wave - which is not what this
+    # program is for and reflects on more people than the one waving it.
+    own = _own_class()
+    mine = bool(own) and license.lower() == own.lower()
     if body.get("layout") == "card":
-        pdf = bandpdf.build_card(license, {"callsign": profile_callsign()})
+        pdf = bandpdf.build_card(
+            license, {"callsign": profile_callsign()} if mine else None,
+            own=mine)
     else:
         pdf = bandpdf.build(bands, license, plan,
-                            interop=bool(body.get("interop")))
+                            interop=bool(body.get("interop")), own=mine)
     card = body.get("layout") == "card"
     name = f"band-plan-{license.lower()}{'-' + state.lower() if state else ''}.pdf"
     if card:

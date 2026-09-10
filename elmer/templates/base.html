@@ -46,9 +46,15 @@
     </div>
     <div class="titles">
       {% for key, track in tracks.items() %}
+        {# "AMATEUR" over "Technician Operator" reads as a licence class, and
+           the correction was in a tooltip - which a touchscreen does not have.
+           The word rank goes in the visible label instead. The ladder keeps
+           the class names on purpose, since a title is only earned with the
+           material it names; what must not happen is somebody reading one as
+           a grant, and that is a matter of where the word sits. #}
         <a class="title-line" href="/#ranks"
            title="{{ track.label }} standing in ELMER - a study rank, not an FCC license">
-          <span class="title-track">{{ track.label }}</span>
+          <span class="title-track">{{ track.label }} rank</span>
           <span class="title-name {% if track.lapsed %}lapsed{% endif %}">{{ track.title }}</span>
           {% if track.lapsed %}<span class="lapse-dot" title="lapsed - one passing exam renews it">&#9888;</span>{% endif %}
         </a>
