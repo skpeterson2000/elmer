@@ -1658,15 +1658,23 @@ Either one gets a throwaway profile under `data/kiosk-profile/`, because pointed
 at your normal profile a browser that is already open would just add a tab to
 the existing window instead of going full screen.
 
-Starting takes a moment on a cold card — a megabyte of pools comes off it before
-the first page renders. The browser opens straight away on a splash screen held
-on disk — the owl tile out of `artwork/Mixed.jpg` — which watches the port and
-goes to the program once the server answers, and never sooner than four seconds.
-That hold is deliberate, and it is set to about the median start rather than to
-the slowest board: a fast machine would otherwise flash the splash and be gone
-while a slow one sat on it, and every board should open the same way. How long
-the server actually took is written to `data/elmer.log` instead, where it is
-worth something to whoever goes looking and costs nothing to whoever doesn't.
+Starting takes a moment on a cold card — a megabyte of pools comes off it the
+first time a page asks for one, which is why the socket can be bound in a tenth
+of a second while the first page still takes five. The browser opens straight
+away on a splash screen held on disk — the owl tile out of `artwork/Mixed.jpg` —
+and the kiosk asks for the first page behind it, so the pools are coming off the
+card during the hold rather than after it. The splash lifts once the server
+answers and never sooner than four seconds, which is set to about the median
+start rather than to the slowest board: a fast machine would otherwise flash the
+splash and be gone while a slow one sat on it, and every board should open the
+same way.
+
+What that first page actually cost is written down rather than shown — to
+`data/elmer.log`, and to `--doctor`, which reports it as **start** and answers
+over HTTP at `/api/doctor`. So one unit can read what every other unit on the
+network took to come up, and a median can be taken from a chair instead of on
+foot. It is the page's own build time that is kept, not the wall clock: a unit
+nobody opens until morning would otherwise record an eight hour start.
 
 The Exit button is deliberately narrow. ELMER binds every interface so a phone
 can reach it, and nobody on the network should be able to switch the study

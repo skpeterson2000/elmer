@@ -46,8 +46,25 @@ class Heard(logging.Handler):
         self.lines.append(record.getMessage())
 
 
-def run(comes_up_after, timeout=2.0):
+class Page:
+    """A page, served the moment it is asked for."""
+
+    def read(self, _n=None):
+        return b"<html>ELMER</html>"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def run(comes_up_after, timeout=2.0, page_takes=0.0, page_fails=False):
     """Start the launcher against a port that answers after so many seconds.
+
+    `page_takes` is the part the socket does not know about - the pools coming
+    off the card on the first request - which is the whole reason the launcher
+    asks for a page instead of connecting to a port.
 
     Returns the URL the browser was opened on - or None - and the log.
     """
@@ -61,24 +78,35 @@ def run(comes_up_after, timeout=2.0):
         opened.append(url)
         return None                       # nothing to watch or shut down
 
+    def urlopen(_request, timeout=None):
+        if page_fails:
+            raise OSError("nothing there")
+        time.sleep(page_takes)
+        return Page()
+
     heard = Heard()
     log = logging.getLogger("elmer")
     was_probe, was_launch = diagnostics.port_in_use, kiosk.launch
+    was_open = kiosk.urllib.request.urlopen
     diagnostics.port_in_use = port_in_use
     kiosk.launch = launch
+    kiosk.urllib.request.urlopen = urlopen
     log.addHandler(heard)
     was_level = log.level
     log.setLevel(logging.INFO)
     try:
         kiosk.launch_when_ready("http://localhost:5000", 5000,
                                 threading.Event(), timeout=timeout)
-        # Long enough for the watching thread to finish whatever it will do.
-        deadline = time.monotonic() + min(comes_up_after, timeout) + 1.0
+        # Long enough for the watching thread to finish whatever it will do -
+        # including the page, which is the part that takes the time.
+        deadline = (time.monotonic() + min(comes_up_after, timeout)
+                    + page_takes + 1.0)
         while time.monotonic() < deadline:
             time.sleep(0.02)
     finally:
         diagnostics.port_in_use = was_probe
         kiosk.launch = was_launch
+        kiosk.urllib.request.urlopen = was_open
         log.removeHandler(heard)
         log.setLevel(was_level)
     return (opened[0] if opened else None), heard.lines
@@ -87,7 +115,7 @@ def run(comes_up_after, timeout=2.0):
 def timed(lines):
     """The seconds out of the log line, or None if nobody wrote one."""
     for line in lines:
-        found = re.search(r"answered after ([\d.]+)s", line)
+        found = re.search(r"first page in ([\d.]+)s", line)
         if found:
             return float(found.group(1))
     return None
@@ -127,6 +155,24 @@ print("\nso does the slow one, and the log carries what the screen does not")
 slow, said = run(comes_up_after=1.2)
 check("the same splash", "splash.html" in (slow or ""), True)
 check("the log knows this board was slower", (timed(said) or 0) >= 1.0, True)
+
+print("\nthe number is the page, not the port - which is the whole of the fix")
+# A board where the socket is instant and the first page is not: timing the
+# port would call this a tenth of a second and be wrong by a factor of ten.
+_, said = run(comes_up_after=0.05, page_takes=1.0, timeout=3.0)
+check("timed what the operator waits for", (timed(said) or 0) >= 1.0, True)
+check("not what the socket did", (timed(said) or 9) < 0.5, False)
+
+print("\na port that is open with nothing behind it is not a start")
+was = kiosk.SPLASH
+kiosk.SPLASH = Path(__file__).resolve().parent / "no-such-splash.html"
+try:
+    stuck, said = run(comes_up_after=0.05, page_fails=True, timeout=2.0)
+    check("opened nothing on a page that never came", stuck, None)
+    check("and said why", any("first page did not come" in line
+                              for line in said), True)
+finally:
+    kiosk.SPLASH = was
 
 print("\na server that never comes up is said out loud")
 never, said = run(comes_up_after=99, timeout=0.4)

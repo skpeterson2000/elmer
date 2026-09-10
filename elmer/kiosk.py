@@ -26,6 +26,7 @@ import signal
 import subprocess
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 log = logging.getLogger("elmer")
@@ -46,6 +47,11 @@ SPLASH = Path(__file__).resolve().parent / "static" / "splash.html"
 # other half is covered, where a hold set to the worst board would make every
 # machine sit through the worst board's day.
 HOLD_SECONDS = 4.0
+
+# A cold card can take a long time over the first page and the splash is on
+# screen the whole while, so this is patience rather than a deadline: it is
+# only reached when something is wrong, and then the log says so.
+WARM_TIMEOUT = 90.0
 
 # Ordinary windows opened for an off-site link, kept so they can be shut when
 # ELMER stops rather than left orphaned on the screen.
@@ -415,29 +421,60 @@ def launch_when_ready(url, port, quitting, timeout=20.0):
             holder.append(process)
             watch(process, quitting)
 
-    def time_the_start():
-        """Below the waterline: how long this machine actually took."""
+    def fetch_home():
+        """Ask for a real page, and wait for it the way the operator will.
+
+        The socket is bound long before a page can be built - the pools come
+        off the card on the first request, not at import - so connecting to
+        the port measures nothing and reports a tenth of a second on the
+        slowest board there is.  One honest request costs the same time
+        somebody was going to spend anyway, and spends it before the browser
+        arrives rather than after, so the page the splash hands over to is
+        already built.
+        """
         began = time.monotonic()
         deadline = began + timeout
         while time.monotonic() < deadline:
             if port_in_use(port):
-                log.info("kiosk: server answered after %.1fs",
-                         time.monotonic() - began)
-                return
+                break
             time.sleep(0.1)
-        log.warning("kiosk: server did not come up within %.0fs", timeout)
+        else:
+            log.warning("kiosk: server did not come up within %.0fs", timeout)
+            return None
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{port}/",
+                headers={"User-Agent": "ELMER/kiosk (warming the first page)"})
+            with urllib.request.urlopen(request, timeout=WARM_TIMEOUT) as page:
+                page.read(2048)
+        except Exception as exc:
+            log.warning("kiosk: the first page did not come: %s", exc)
+            return None
+        return time.monotonic() - began
+
+    def time_the_start():
+        """Below the waterline: how long this machine actually took.
+
+        The number itself is written down by the server that served the page -
+        see :mod:`elmer.startup` - so that the doctor can carry it to whoever
+        asks.  This says it on the console too, where somebody watching a
+        start is already looking.
+        """
+        took = fetch_home()
+        if took is not None:
+            log.info("kiosk: first page in %.1fs", took)
 
     def wait_then_launch():
-        began = time.monotonic()
-        deadline = began + timeout
-        while time.monotonic() < deadline:
-            if port_in_use(port):
-                log.info("kiosk: server answered after %.1fs",
-                         time.monotonic() - began)
-                started(launch(url))
-                return
-            time.sleep(0.1)
-        log.warning("kiosk: server did not come up within %.0fs", timeout)
+        """With no splash to hold the screen, wait for a page and then open.
+
+        The same honest wait as above: opening on a bound socket would put
+        chromium in front of a page that is still being built, which is the
+        empty screen this was all meant to stop.
+        """
+        took = fetch_home()
+        if took is not None:
+            log.info("kiosk: first page in %.1fs", took)
+            started(launch(url))
 
     holder = []
     watcher = wait_then_launch

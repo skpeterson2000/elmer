@@ -10,6 +10,7 @@ import socket
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -42,7 +43,8 @@ def collect(port=5000):
                       check_database, check_templates, check_tools,
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
-                      check_towerwitch_service, check_internet):
+                      check_towerwitch_service, check_internet,
+                      check_start):
             try:
                 check()
             except Exception as exc:
@@ -508,6 +510,48 @@ def check_launcher():
     return True
 
 
+def check_start():
+    """What this unit last took to serve its first page.
+
+    Reported rather than judged, mostly: a board that takes eight seconds off
+    a tired card is not broken, it is slow, and the operator can see that for
+    themselves.  What is worth saying is when it has grown past the splash's
+    hold, because past that the covering stops working and somebody is left
+    watching a wait.
+
+    It answers over HTTP with the rest of the doctor, which is the point of
+    keeping it - one unit can read what every unit on the network took, and a
+    median can be taken from a chair instead of on foot.
+    """
+    from . import db, startup
+    try:
+        record = startup.last(db.connect())
+    except Exception as exc:
+        _line(WARN, "start", f"could not be read ({exc})")
+        return True
+    if not record:
+        _line(OK, "start", "not timed yet - this unit has not served a page "
+                           "since the timing was added")
+        return True
+    took = record["build"]
+    when = ""
+    if record.get("at"):
+        try:
+            when = time.strftime(" on %d %b at %H:%M",
+                                 time.localtime(float(record["at"])))
+        except (TypeError, ValueError):
+            when = ""
+    from . import kiosk
+    if took > kiosk.HOLD_SECONDS:
+        _line(WARN, "start",
+              f"first page took {took:.1f}s to build{when} - longer than the "
+              f"{kiosk.HOLD_SECONDS:.0f}s the splash holds for, so the wait "
+              f"shows")
+    else:
+        _line(OK, "start", f"first page built in {took:.1f}s{when}")
+    return True
+
+
 def check_server(port):
     if port_in_use(port):
         try:
@@ -540,7 +584,7 @@ def doctor(port=5000):
         check_templates(), check_tools(), check_kiosk(), check_launcher(),
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
-        check_internet(), check_server(port),
+        check_internet(), check_start(), check_server(port),
     ]
 
     print("\n  Open ELMER at any of these:\n")
