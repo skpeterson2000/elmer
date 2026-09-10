@@ -132,15 +132,56 @@ finally:
     cohort.disconnect(connection)
     db.unit_set(connection, cohort.AUTO_SETTING, was_auto)
 
-print("\nand a unit running the net does not report to itself")
+print("\na unit running a net does not wander into somebody else's")
 from elmer import netcontrol  # noqa: E402
 netcontrol.net(create=True, difficulty="technician")
+was_hood = discovery.neighbourhood
+discovery.neighbourhood = lambda: Heard([TECH, GENERAL])
 try:
     with appmod.app.test_request_context():
-        check("the host stays the host",
+        check("it does not join the neighbours",
               appmod._party_auto_join(appmod.party.room(create=True)), False)
 finally:
+    discovery.neighbourhood = was_hood
     netcontrol.close_net()
+
+print("\nopening a net makes the host a table in it, and starts it conducting")
+appmod.app.config["TESTING"] = True
+connection = db.connect()
+was_auto = db.unit_get(connection, cohort.AUTO_SETTING)
+try:
+    with appmod.app.test_client() as client:
+        board = client.post("/api/net/open",
+                            json={"difficulty": "technician"}).get_json()
+    # The instructor's own players are in the hall like anybody else's, and
+    # they get there down the same bridge every other table uses - so the
+    # host's table is not the one case that never gets exercised.
+    #
+    # The arriving is over the wire, and a test client serves no port, so the
+    # check-in itself cannot land here: what is asked for below is that the
+    # bridge was made and pointed at this unit.  Against a real server the
+    # table shows up on the board a few seconds later, named for the host.
+    check("no table yet - the check-in is a request", len(board["units"]), 0)
+    link = cohort.bridge()
+    check("by the ordinary route", link is not None, True)
+    check("pointed at itself",
+          (link.url if link else "").startswith("http://127.0.0.1:"), True)
+    from elmer import hall  # noqa: E402
+    running = hall.conductor()
+    check("and it is conducting", running is not None, True)
+    check("waiting for somebody to sit down",
+          running.waiting_for() if running else None,
+          "waiting for a table with somebody at it")
+
+    with appmod.app.test_client() as client:
+        client.post("/api/net/end", json={})
+    check("ending the net lets its own table go", cohort.bridge(), None)
+    check("and stops the conducting", hall.conductor(), None)
+finally:
+    hall.halt()
+    netcontrol.close_net()
+    cohort.disconnect(connection)
+    db.unit_set(connection, cohort.AUTO_SETTING, was_auto)
 
 print()
 if FAILS:
