@@ -976,6 +976,30 @@ def api_privileges():
                      or settings.get("license_class") or "")
     result = bandplan.privilege_at(mhz, license_class)
 
+    # What this class may use on this band, whether or not it may use *here*.
+    # Saying no without saying what instead leaves somebody to go and look it
+    # up, and the thing they came for was the answer. The suggestion is the
+    # middle of the widest segment they do have, which is where a calculator
+    # can be pointed with one press.
+    segments, suggest = [], None
+    if result["band"] and license_class:
+        for low, high, terms in bandplan.privileges_for(result["band"],
+                                                        license_class):
+            segments.append({"low": low, "high": high, "terms": terms})
+        if segments and not result["allowed"]:
+            widest = max(segments, key=lambda seg: seg["high"] - seg["low"])
+            suggest = round((widest["low"] + widest["high"]) / 2.0, 3)
+    result["band_segments"] = segments
+    result["suggest_mhz"] = suggest
+    result["classes"] = list(bandplan.CLASSES)
+    # What the profile holds, as well as what this answer was worked out for.
+    # A page that has been handed a class - from the band plan, or by somebody
+    # choosing one - should be able to say so rather than implying the profile
+    # said it.
+    result["profile_class"] = settings.get("license_class") or ""
+    result["asked_class"] = request.args.get("class") or ""
+
+
     modes = []
     for key, (label, _duty) in rfexposure.MODE_DUTY.items():
         emission = rfexposure.MODE_EMISSION.get(key)
