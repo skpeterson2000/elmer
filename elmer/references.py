@@ -207,6 +207,9 @@ def held():
 def nearby(lat, lon, kind=None, limit=12, radius_km=None):
     """The references held for anywhere, nearest to here first.
 
+    `limit` of None is all of them, which is how a caller counts what is held
+    without its own display cap quietly becoming the answer.
+
     Distances are recomputed against this position rather than trusted from
     the fetch, because the operator has moved since - that is the entire point
     of having driven somewhere.
@@ -223,7 +226,8 @@ def nearby(lat, lon, kind=None, limit=12, radius_km=None):
             if radius_km is not None and km > radius_km:
                 continue
             out.append(dict(row, km=round(km), bearing=round(bearing)))
-    return sorted(out, key=lambda r: r["km"])[:limit]
+    out.sort(key=lambda r: r["km"])
+    return out if limit is None else out[:limit]
 
 
 def coverage(lat, lon):

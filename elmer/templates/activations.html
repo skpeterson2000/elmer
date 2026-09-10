@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Parks &amp; summits &middot; ELMER{% endblock %}
+{% block body %}
+
+<h1>Parks and summits</h1>
+<p class="muted small" style="max-width:74ch">
+  Parks on the Air and Summits on the Air are what get most people to carry a
+  radio somewhere. Almost every wasted trip is a planning failure rather than a
+  radio one &mdash; the wrong kit, or the wrong side of a contour &mdash; and
+  that is fixable at a table days early, for nothing.
+</p>
+
+<div class="panel mt">
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Within a day's drive</div>
+    <span class="tiny muted" id="ac-cover"></span>
+  </div>
+  <p class="small muted" id="ac-note" style="margin:.4rem 0 .6rem"></p>
+  <div class="row" style="gap:.6rem;align-items:center">
+    <button class="btn sm primary" id="ac-fetch">Fetch what is near</button>
+    <span class="tiny muted" id="ac-fetch-say"></span>
+  </div>
+  <div id="ac-near" class="mt"></div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">What counts</div>
+  <p class="small muted" style="margin:.35rem 0 .8rem;max-width:74ch">
+    Both programmes are run by people who change their own rules, so each of
+    these says which document it came from and the day somebody read it. That
+    is the one part of this page that goes stale by another body's decision
+    rather than by physics.
+  </p>
+  <div class="grid cols-2" id="ac-rules" style="gap:1.2rem"></div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">What you would be carrying</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:74ch">
+    The same list as Make Contact, judged against each programme. A vehicle
+    whip is a park antenna and a disqualification on a summit, and finding that
+    out at the trailhead is the expensive way.
+  </p>
+  <div id="ac-gear" class="row" style="flex-wrap:wrap;gap:.9rem;margin:.5rem 0">
+    {% for key, label in gear.items() %}
+      <label class="tiny" style="display:flex;align-items:center;gap:.35rem">
+        <input type="checkbox" value="{{ key }}"
+               {% if key == 'hf_wire' %}checked{% endif %}> {{ label }}
+      </label>
+    {% endfor %}
+  </div>
+  <div id="ac-verdicts"></div>
+</div>
+
+<div class="panel mt" id="ac-awards-panel">
+  <div class="panel-title">Your POTA record</div>
+  <div id="ac-awards"></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>window.POTA_ASKED = {{ pota_asked|tojson }};
+window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+<script src="{{ asset('activations.js') }}"></script>
+{% endblock %}

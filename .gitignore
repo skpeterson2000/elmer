@@ -30,6 +30,9 @@ data/geocode/
 data/terrain/
 data/regional/
 data/callsign/
+# Awards fetched by callsign. Public where they came from, and still not
+# something one operator's unit should carry into everybody else's checkout.
+data/pota/
 data/ionosonde/
 
 # Python
