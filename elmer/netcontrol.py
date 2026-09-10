@@ -53,9 +53,16 @@ DROP_AFTER = 300.0
 SLOW_MS = 400.0
 HEALTH_WINDOW = 60
 
-# A round closes when every present unit has reported, or when this much time
-# has passed since it opened. A hall does not wait indefinitely for one table.
-ROUND_GRACE = 90.0
+# A round closes when every present unit has reported, or this long after the
+# clock the tables are showing has run out. A hall does not wait indefinitely
+# for one table.
+#
+# Measured from the round's own length rather than fixed, because the two have
+# to stay in step in both directions: a fixed grace shorter than the round
+# would close it under the people still answering, and one much longer leaves
+# a hall of thirty-second rounds stalled for three of them because one table
+# went off the air.
+GRACE_AFTER_TIME = 20.0
 
 
 # Tables that are not there.  A net with nothing checked in shows an empty
@@ -409,7 +416,10 @@ class Net:
 
     def overdue(self):
         with self.lock:
-            return bool(self.round) and (_now() - self.opened_at) > ROUND_GRACE
+            if not self.round:
+                return False
+            showing = float(self.round.get("seconds") or 0.0)
+            return (_now() - self.opened_at) > showing + GRACE_AFTER_TIME
 
     def close_round(self):
         """Rank the hall, award the unit score, and hand over the pick."""

@@ -51,9 +51,15 @@ MAX_COHORTS = 4
 # A round is scored on the players who answered. Somebody who wandered off to
 # the coffee urn should not hold the room up for ever - but the clock is the
 # only thing that ends a round early, so it has to be long enough to read a
-# question and four choices without hurrying. A minute, and adjustable up to
-# three, because the people this is for are not all in a hurry.
-DEFAULT_ROUND_SECONDS = 60.0
+# question and four choices without hurrying.
+#
+# Half a minute. A minute was generous to the point of being slack: the room
+# spends most of it watching a question everybody has already answered, and a
+# hall of tables moves at the speed of its slowest clock, not its slowest
+# reader. Adjustable, because a room of first-timers reads slower than a club
+# night, but not up to three minutes any more - nothing was using that except
+# the wait.
+DEFAULT_ROUND_SECONDS = 30.0
 REVEAL_SECONDS = 8.0
 
 # Admission stops before the room is unpleasant, not after. These are the
