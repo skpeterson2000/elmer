@@ -1305,7 +1305,9 @@ implying otherwise.
 ### Joining, by QR
 
 Each table screen shows a code that carries its own join address. Scanning it
-opens the player screen on a phone: type a name, and you are in.
+opens the player screen on a phone: type a name, and you are in. The host
+screen shows one too, for that machine's own table, so somebody standing in
+front of a board with a round on it can join the round they are looking at.
 
 The codes are generated on the Pi, from `elmer/qr.py`, in the standard library.
 A hall may have no uplink, Raspberry Pi OS refuses `pip install` under PEP 668,
@@ -1334,9 +1336,19 @@ Each decides what it will do when the round opens rather than at the moment of
 answering, so the answers arrive spread across the round the way a room of
 people does instead of all in the same instant.
 
-They are never disguised. Every one is flagged as a bot the whole way out to
-the screen, because a leaderboard that quietly counts software among the
-operators is one nobody can trust at a club night.
+The flag travels the whole way out — to the table, to the net, into the round
+summary — because everything downstream needs it: a person joining displaces
+one, the host's panel shows which places are being held, and a name somebody
+takes over has to be known to have been free.
+
+What a screen does with it is that screen's business, and the big board
+deliberately does not mark them. A board with a dozen names on it reads as an
+evening; the same board with eight struck through as software reads as an empty
+room being flattered, and the room is what the screen at the front is for.
+Nothing is scored differently either way.
+
+The same idea runs one level up, for whole tables rather than players — see
+*Tables that are not there*.
 
 ### Cohorts, and who picks next
 
@@ -1376,6 +1388,66 @@ not stop because one Pi in the corner lost its wifi. A table also remembers its
 net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors
 open.
+
+### Opening a net, and what starts a round
+
+There is one way in, whichever way you ask for one: pressing the button and
+simply arriving at `/net` build the same net. A second way of doing a thing is
+a second thing to keep working, and when the two drift the difference is
+invisible — a hall with no conductor and no table for the people at that
+machine looks exactly like a hall nobody has joined yet.
+
+**The host takes a table in its own net.** The people sitting at the
+instructor's Pi are in the hall like anybody else's, and they get there down
+the same bridge every other table uses rather than a private path. A host whose
+own table is the one code path never exercised is a host whose own table is the
+one that breaks, and it is the table the instructor is sitting at.
+
+**A round starts because a table said it has people at it.** Check-in has
+always carried the count, so this is a report rather than a guess, and it beats
+a timer at both ends: a clock firing into an empty hall starts a game nobody is
+playing, and one that has not fired yet holds up a room that is ready. A table
+that fills up late joins the next round — the hall is asked again every tick,
+not once at the beginning.
+
+**Rounds are thirty seconds**, adjustable from ten to sixty. A minute was
+generous to the point of slack: the room spends most of it watching a question
+everybody has already answered, and a hall moves at the speed of its slowest
+clock rather than its slowest reader. In practice a round closes sooner,
+because it closes as soon as every table has reported. The hall's patience for
+a table that has gone quiet follows the same dial — twenty seconds past the
+clock the tables were showing, so the two stay in step whichever way you move
+it.
+
+**The code on the host screen is for people; the address beside it is for
+Pis.** Scanning puts a phone straight into the round on screen, at that
+machine's own table. The bare address would land them on the dashboard, looking
+for the game they can see from where they are standing — and a phone is not
+what anybody points at a net address anyway, since tables find the net
+themselves.
+
+### Tables that are not there
+
+A hall can be filled with tables nobody is sitting at. **Add practice tables**
+on the host screen puts four in, named for wireless stations — Poldhu, Glace
+Bay, Nauen, Signal Hill — and they play: they answer inside the round, spread
+across it rather than all at once, each consistently as good as it is so the
+board has a shape worth watching.
+
+They are there because an instructor setting an evening up cannot tell whether
+any of it works until eight people have arrived and sat down, and a board with
+nothing on it is the least useful thing a screen at the front of a room can
+show. A real unit checking in **takes one of their places** — weakest first, so
+what gets displaced is the table nobody was watching and the evening's story
+survives somebody walking in halfway through it.
+
+The big board does not mark them. A board with a dozen names on it reads as an
+evening; the same board with eight struck through as software reads as an empty
+room being flattered, and the room is what the screen at the front is for.
+Nothing is scored differently — a person beats them or loses to them on the
+same terms. The host's own panel does mark them, with a small hollow square,
+because whoever is running the net needs to know which places are being held
+even when the hall does not.
 
 ### What a spectator sees
 
