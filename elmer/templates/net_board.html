@@ -43,8 +43,19 @@ td { padding: .55vh .4vw; border-bottom: 1px solid var(--line);
 td.pos { color: var(--dim); width: 2.6ch; font-family: var(--mono); }
 td.pts, td.ms { text-align: right; font-family: var(--mono); }
 td.ms { color: var(--dim); }
+.openslots { margin: .6rem 0 0; font-size: .82rem; color: var(--dimmer); }
 tr.lead td { color: var(--amber); font-weight: 700; }
 tr.gold td { color: #ffd479; }
+/* Somebody who is not there.  Italic rather than hidden, and never mixed in
+   silently: a leaderboard that puts people and machines in the same column
+   without saying which is which is one nobody should trust - and on this
+   board an italic line is also an invitation, because that is a seat a
+   person can take.  A human joining retires the machine holding it. */
+tr.made-up td { font-style: italic; color: var(--dim); }
+tr.made-up.gold td, tr.made-up.lead td { color: #d8bd8a; }
+td .stands-in { font-style: normal; font-size: .78em; letter-spacing: .06em;
+                text-transform: uppercase; color: var(--dimmer);
+                margin-left: .45em; }
 .tally { display: flex; gap: 1vw; margin-bottom: 1.2vh; }
 .tally div { flex: 1; background: var(--panel-2); border-radius: 12px;
              padding: .9vh 1vw; }
@@ -172,13 +183,19 @@ function esc(s) { const d = document.createElement('div');
 
 function standings(board) {
   const rows = (board.units || []).slice(0, 10).map((u, i) => `
-    <tr class="${i === 0 && u.score > 0 ? 'gold' : ''}">
+    <tr class="${i === 0 && u.score > 0 ? 'gold' : ''}${u.simulated ? ' made-up' : ''}">
       <td class="pos">${i + 1}</td>
-      <td>${esc(u.name)}${u.present ? '' : ' <span style="color:var(--dimmer)">(quiet)</span>'}</td>
+      <td>${esc(u.name)}${u.simulated ? '<span class="stands-in">open</span>' : ''}${u.present ? '' : ' <span style="color:var(--dimmer)">(quiet)</span>'}</td>
       <td class="ms">${u.players}</td>
       <td class="pts">${u.score}</td>
     </tr>`).join('');
-  return `<div class="panelbox"><h2>Tables</h2><table>${rows}</table></div>`;
+  const open = (board.units || []).filter(u => u.simulated).length;
+  const note = open
+    ? `<p class="openslots">${open} table${open === 1 ? '' : 's'} in italics `
+      + `${open === 1 ? 'is' : 'are'} held by the machine - bring a Pi and take `
+      + `${open === 1 ? 'it' : 'one'}.</p>`
+    : '';
+  return `<div class="panelbox"><h2>Tables</h2><table>${rows}</table>${note}</div>`;
 }
 
 function lastRound(board) {
@@ -186,9 +203,9 @@ function lastRound(board) {
   if (!last) return `<div class="panelbox"><h2>Last round</h2>
       <div class="waiting">No rounds yet</div></div>`;
   const top = (last.top || []).slice(0, 8).map((r, i) => `
-    <tr class="${i === 0 ? 'lead' : ''}">
+    <tr class="${i === 0 ? 'lead' : ''}${r.bot ? ' made-up' : ''}">
       <td class="pos">${r.place}</td>
-      <td>${esc(r.name)}</td>
+      <td>${esc(r.name)}${r.bot ? '<span class="stands-in">practice</span>' : ''}</td>
       <td class="ms">${esc(r.unit_name)}</td>
       <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
     </tr>`).join('');
@@ -211,9 +228,9 @@ function players(board) {
   (board.cohorts || []).forEach(c => (c.members || []).forEach(m => all.push(m)));
   all.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const rows = all.slice(0, 12).map((m, i) => `
-    <tr class="${i === 0 && m.score > 0 ? 'gold' : ''}">
+    <tr class="${i === 0 && m.score > 0 ? 'gold' : ''}${m.bot ? ' made-up' : ''}">
       <td class="pos">${i + 1}</td>
-      <td>${esc(m.name)}${m.bot ? ` <span style="color:var(--dimmer)">${esc(m.bot)}</span>` : ''}</td>
+      <td>${esc(m.name)}${m.bot ? ` <span class="stands-in">${esc(m.bot)}</span>` : ''}</td>
       <td class="ms">${m.correct}/${m.answered}</td>
       <td class="pts">${m.score}</td>
     </tr>`).join('');
@@ -274,12 +291,13 @@ function leaders(game) {
   const b = game.board || {};
   if (game.kind === 'hall') {
     return (b.units || []).slice(0, 5)
-      .map(u => [u.name, u.score, u.players + 'p']);
+      .map(u => [u.name, u.score, u.players + 'p', u.simulated]);
   }
   const all = [];
   (b.cohorts || []).forEach(c => (c.members || []).forEach(m => all.push(m)));
   all.sort((a, b2) => b2.score - a.score || a.name.localeCompare(b2.name));
-  return all.slice(0, 5).map(m => [m.name, m.score, m.correct + '/' + m.answered]);
+  return all.slice(0, 5)
+    .map(m => [m.name, m.score, m.correct + '/' + m.answered, !!m.bot]);
 }
 
 function gameCard(game) {
@@ -294,8 +312,8 @@ function gameCard(game) {
       `${b.players || 0} player${b.players === 1 ? '' : 's'}`
     : `${b.people || 0} player${b.people === 1 ? '' : 's'}` +
       (b.bots ? ` · ${b.bots} practice` : '');
-  const rows = leaders(game).map(([name, score, extra], i) => `
-    <tr class="${i === 0 && score > 0 ? 'gold' : ''}">
+  const rows = leaders(game).map(([name, score, extra, madeUp], i) => `
+    <tr class="${i === 0 && score > 0 ? 'gold' : ''}${madeUp ? ' made-up' : ''}">
       <td class="pos">${i + 1}</td><td>${esc(name)}</td>
       <td class="ms">${esc(extra)}</td><td class="pts">${score}</td></tr>`).join('');
   const q = (round && round.question) || {};

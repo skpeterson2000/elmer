@@ -319,7 +319,7 @@ class Net:
             for name in names:
                 took = random.uniform(SIM_EARLIEST, latest)
                 slowest = max(slowest, took)
-                rows.append({"name": name,
+                rows.append({"name": name, "bot": "practice",
                              "correct": random.random() < unit.skill,
                              "ms": round(took * 1000.0, 1)})
             # A table reports when its cohort is done, not when its first
@@ -392,7 +392,10 @@ class Net:
                         "unit": unit_id, "unit_name": unit.name,
                         "name": str(p.get("name", ""))[:32],
                         "correct": bool(p.get("correct")),
-                        "ms": float(p.get("ms", 0)) or 0.0})
+                        "ms": float(p.get("ms", 0)) or 0.0,
+                        # Carried, not inferred: a table knows which of its
+                        # players were practice and the hall does not.
+                        "bot": p.get("bot") or None})
                 except (TypeError, ValueError):
                     continue
             self.results[unit_id] = rows

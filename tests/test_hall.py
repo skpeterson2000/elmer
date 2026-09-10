@@ -122,6 +122,23 @@ check("the weakest stood down, not the leader",
       or board["units"][0]["score"] == 0, True)
 hall.halt()
 
+print("\nnobody is disguised in the round summary either")
+net2 = netcontrol.Net()
+net2.add_simulated(2)
+net2.start_round("technician", "T001", 0,
+                 {"text": "q", "choices": ["a", "b"]}, seconds=1.0)
+wait_until(lambda: net2.tick_simulated() or net2.everyone_reported(), 6.0)
+for _ in range(20):
+    net2.tick_simulated()
+    if net2.everyone_reported():
+        break
+    time.sleep(0.2)
+summary = net2.close_round() or {}
+top = summary.get("top") or []
+check("the fastest were recorded", bool(top), True)
+check("and every one of them is marked practice",
+      all(r.get("bot") for r in top), True)
+
 print("\nthe hall stops when it is told to")
 check("stopped", hall.conductor(), None)
 

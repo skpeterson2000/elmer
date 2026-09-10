@@ -175,8 +175,11 @@ class Bridge:
             return
         self.pending = {
             "unit": self.unit_id, "round": tag,
+            # Which of these were practice players travels with them. A hall
+            # board that lists a machine among the fastest without saying so
+            # is the one thing the practice players were built not to do.
             "players": [{"name": a["name"], "correct": a["correct"],
-                         "ms": a["ms"]}
+                         "ms": a["ms"], "bot": a.get("bot")}
                         for a in summary["answers"]],
         }
 
