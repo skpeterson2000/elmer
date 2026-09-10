@@ -11,11 +11,11 @@
     display: flex; align-items: center; justify-content: center;
   }
   .mark { text-align: center; }
-  img { width: 30vmin; height: 30vmin; max-width: 260px; max-height: 260px;
-        border-radius: 22%; display: block; margin: 0 auto 1.6rem; }
+  /* The rounding and the ground are in the file, so nothing is clipped here
+     and the corners meet the page exactly. */
+  img { width: 34vmin; max-width: 300px; height: auto;
+        display: block; margin: 0 auto 1.6rem; }
   p { margin: 0; font-size: .82rem; }
-  .clock { margin-top: .45rem; font-size: 1.35rem; color: #ffb454;
-           font-variant-numeric: tabular-nums; }
   .bar { width: 12rem; height: 3px; margin: 1.4rem auto 0; border-radius: 2px;
          background: #1b2430; overflow: hidden; }
   .bar i { display: block; width: 40%; height: 100%; background: #ffb454;
@@ -27,20 +27,23 @@
 </head>
 <body>
 <div class="mark">
-  <img id="icon" alt="ELMER">
-  <p id="say">slow to start</p>
-  <p class="clock"><span id="secs">0</span>s</p>
+  <img id="icon" alt="ELMER, by KC9SP">
+  <p id="say">starting&hellip;</p>
   <div class="bar"><i></i></div>
 </div>
 <script>
-/* Shown from the disk, before there is a server to show anything - and only
-   on a machine that has already missed a healthy start, which is the whole
-   reason it carries a clock.  A splash on every machine would hide the one
-   that is struggling behind the same picture as the one that came up in a
-   quarter of a second; the fleet would look uniform and the slow card would
-   only be findable in a log.  So the kiosk holds this back through a grace
-   period and shows it late, where its presence is already the symptom and
-   the seconds say how bad.
+/* Shown from the disk, before there is a server to show anything. The kiosk
+   used to wait for the port and only then open the browser, so a cold Pi sat
+   on an empty screen for as long as the first render took - which is several
+   seconds while a megabyte of pools comes off the card. This is up
+   immediately and goes to the program once it answers.
+
+   Once it answers, but never before HOLD_MS. A machine that was ready in a
+   quarter of a second would otherwise flash this and be gone, and the fast
+   board and the slow one would open visibly differently - which is the seam
+   showing. Every board waits out the same short hold and opens the same way.
+   How long this one really took is in the log, where it is worth something to
+   whoever goes looking and costs nothing to whoever does not.
 
    The probe is an image rather than a fetch because this page is a file:// and
    a fetch to http://localhost is another origin; an <img> reports load and
@@ -49,32 +52,38 @@ var params = new URLSearchParams(location.search);
 var port = params.get('port') || '5000';
 var base = 'http://127.0.0.1:' + port;
 var say = document.getElementById('say');
-var secs = document.getElementById('secs');
+var began = Date.now();
 
-// Seeded with what the kiosk had already spent waiting, so the count is the
-// time since the program was asked to start rather than since this appeared.
-var began = Date.now() - (parseFloat(params.get('waited')) || 0) * 1000;
+// Kept in step with kiosk.HOLD_SECONDS by hand - there is no server to ask.
+var HOLD_MS = 1400;
 
-// The icon is beside this file, so it is on screen without waiting for
-// anything - the probe below is a second, cache-busted request.
-document.getElementById('icon').src = 'icon.png';
+// Beside this file, so it is on screen without waiting for anything - the
+// probe below is a second, cache-busted request to the server.
+//
+// splash.jpg is the centre tile of artwork/Mixed.jpg, which is a sheet rather
+// than a picture: white ground, a Smith chart and a spectrum panel either
+// side, two thumbnails in the corner. The tile is cut out of it at
+// (381, 50)-(1026, 730), its rounded corners and drop shadow flooded away and
+// the result laid on --bg, so it sits on this page with no seam.
+document.getElementById('icon').src = 'splash.jpg';
 
-function tick() {
-  var waited = Math.floor((Date.now() - began) / 1000);
-  secs.textContent = waited;
-  if (waited >= 90) {
-    say.innerHTML = 'the server has not come up. There may be something on '
-      + 'the log: <span style="color:#e6edf3">data/elmer.log</span>';
-  } else if (waited >= 30) {
-    say.textContent = 'still starting - a cold card is slow';
-  }
+function go() {
+  setTimeout(function () { location.href = base + '/'; },
+             Math.max(0, HOLD_MS - (Date.now() - began)));
 }
-setInterval(tick, 250);
-tick();
+
+// Long enough that something is wrong rather than slow, which is the one case
+// the operator is better off being told about than kept away from.
+setTimeout(function () { say.textContent = 'still starting - a cold card is slow'; },
+           30000);
+setTimeout(function () {
+  say.innerHTML = 'the server has not come up. There may be something on '
+    + 'the log: <span style="color:#e6edf3">data/elmer.log</span>';
+}, 90000);
 
 function probe() {
   var test = new Image();
-  test.onload = function () { location.href = base + '/'; };
+  test.onload = go;
   test.onerror = function () { setTimeout(probe, 500); };
   test.src = base + '/static/icon.png?probe=' + Date.now();
 }
