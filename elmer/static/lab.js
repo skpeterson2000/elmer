@@ -1307,6 +1307,8 @@ function drawAntenna(shape, rows, type) {
         COND = CONDUCTORS.find(c => c.key === el.value) || COND;
         showConductor();
       }
+      // Typed here, so it is a measurement from now on and follows nothing.
+      if (id === 'an-h') anHeightSuggested = false;
       antennaFields(document.getElementById('an-type').value);
       /* The advice panel sits above all this and only refreshed when the
          button was pressed, so changing the antenna underneath it left it
@@ -1331,7 +1333,15 @@ function drawAntenna(shape, rows, type) {
   let pending = null;
   const refresh = () => {
     clearTimeout(pending);
-    pending = setTimeout(() => loadConductors(num('an-f'), (document.getElementById('an-type') || {}).value).then(calcAnt), 250);
+    pending = setTimeout(() => {
+      loadConductors(num('an-f'),
+                     (document.getElementById('an-type') || {}).value)
+        .then(calcAnt);
+      // The panel refreshed for the type and the site and not for the band,
+      // so changing bands left it describing the last one while every figure
+      // underneath described the new one.
+      refreshAdvice();
+    }, 250);
   };
   freq.addEventListener('input', refresh);
   loadConductors(num('an-f'), (document.getElementById('an-type') || {}).value).then(calcAnt);
@@ -2121,6 +2131,16 @@ function refreshAdvice() {
    notice names the class it is judging by, and offers to judge by another -
    which changes this evaluation and not the profile, because guessing at
    somebody's licence and then writing it down would be worse than either. */
+/* Whether the number in the height box is ELMER's suggestion or a height
+   somebody measured. It matters because a height only means anything as a
+   fraction of a wavelength: 35 ft is half a wave on 20 m and a seventh of one
+   on 80. A suggestion made for one band is meaningless on another and has to
+   follow the frequency; a measured height is a fact about somebody's garden
+   and must not be touched. Guiding a build on a height that belongs to a band
+   nobody is on is how the tool ends up describing an antenna that does not
+   exist. */
+let anHeightSuggested = false;
+
 let anAsClass = null;             // null means "whatever the profile says"
 let anClassFrom = '';             // and where that came from, for the notice
 
@@ -2217,13 +2237,23 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     document.getElementById('an-type').value = d.type;
     document.getElementById('an-f').value = d.mhz;
     const h = document.getElementById('an-h');
-    if (h) h.value = d.height_ft;
+    if (h) { h.value = d.height_ft; anHeightSuggested = true; }
     const nvis = document.getElementById('an-nvis');
     if (nvis) nvis.checked = !!d.nvis;
     const useSel = document.getElementById('an-use');
     if (useSel) useSel.value = d.use;
     antennaFields(d.type);
     calcAnt();
+  } else if (anHeightSuggested && d.height_ft) {
+    /* Quiet means "leave the operator's numbers alone", and this one is not
+       theirs - ELMER put it there for a different band. Leaving it would have
+       the reach, the pattern and the takeoff angle all answering about an
+       antenna nobody has. */
+    const h = document.getElementById('an-h');
+    if (h && String(h.value) !== String(d.height_ft)) {
+      h.value = d.height_ft;
+      calcAnt();
+    }
   }
 
   box.hidden = false;
