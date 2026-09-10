@@ -14,9 +14,11 @@ already carries the count, so the host is told rather than guessing.
 And a person arriving takes a machine's place.  Simulated tables let a hall be
 seen working before there is a hall, which is what an instructor setting up an
 evening needs - but the moment a real unit checks in, one of them stands down.
-They are flagged simulated the whole way to the board, because a leaderboard
-that mixes people and machines without saying which is which is one nobody
-should trust.
+
+The flag travels with them everywhere the code can see it, and that is what is
+tested here.  Whether a screen draws it is the screen's business - the big
+board deliberately does not - but displacement depends on it, the host's panel
+shows it, and a name somebody adopts has to be known to have been free.
 """
 import sys
 import time
@@ -104,9 +106,9 @@ check("and their players are in the count", (last.get("answers") or 0) > 0, True
 scored = [u for u in net.board()["units"] if u["score"] > 0]
 check("somebody is winning", bool(scored), True)
 
-print("\nnothing about them is disguised")
+print("\nthe flag travels, whatever a screen chooses to draw")
 board = net.board()
-check("every simulated table says so on the board",
+check("every simulated table is known to be one",
       all(u["simulated"] for u in board["units"]), True)
 check("and the count is on the health line", board["health"]["simulated"], 3)
 
@@ -136,7 +138,7 @@ for _ in range(20):
 summary = net2.close_round() or {}
 top = summary.get("top") or []
 check("the fastest were recorded", bool(top), True)
-check("and every one of them is marked practice",
+check("and every one of them is known to be practice",
       all(r.get("bot") for r in top), True)
 
 print("\nthe hall stops when it is told to")

@@ -94,10 +94,10 @@ class Unit:
         self.id = unit_id
         self.name = name
         self.players = players
-        # Never disguised, the whole way out to the board - for the same
-        # reason the practice players are flagged: a leaderboard that mixes
-        # people and machines without saying which is which is one nobody
-        # should trust.
+        # Carried the whole way out, because everything downstream needs it:
+        # a real unit checking in displaces one of these, the host's panel
+        # shows which places are held, and the board chooses not to mark them
+        # - see the practice opponents in party.py for why.
         self.simulated = bool(simulated)
         self.skill = random.uniform(*SIM_SKILL) if simulated else None
         self.first_seen = _now()

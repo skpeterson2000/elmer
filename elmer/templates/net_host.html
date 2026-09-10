@@ -121,8 +121,12 @@ async function tick() {
   box.innerHTML = (b.units || []).length
     ? b.units.map(u => {
         const inThisRound = round && u.reported_round === round.number;
-        return `<span class="unit ${u.present ? '' : 'quiet'} ${inThisRound ? 'in' : ''}">
-          ${esc(u.name)} <b>${u.score}</b>
+        // Marked here and nowhere else: the board at the front of the room
+        // shows an evening, and the person running it needs to know which of
+        // those tables is a machine holding a place.
+        return `<span class="unit ${u.present ? '' : 'quiet'} ${inThisRound ? 'in' : ''}"
+                      title="${u.simulated ? 'a practice table - a real unit checking in takes its place' : 'a unit on the network'}">
+          ${esc(u.name)}${u.simulated ? ' <i style="color:var(--dimmer);font-style:normal">&#9723;</i>' : ''} <b>${u.score}</b>
           <span style="color:var(--dim)">${u.players}p</span></span>`;
       }).join('')
     : '<span class="empty">no tables yet</span>';
