@@ -100,9 +100,18 @@ LABELS = {
 # seats back the moment real people want them: a human joining retires a bot,
 # which is the right way round - the machine yields to the person.
 #
-# They are never disguised. Every one is flagged as a bot the whole way out to
-# the screen, because a leaderboard that quietly counts software among the
-# operators is a leaderboard that cannot be trusted at a club night.
+# The flag is carried the whole way out - to the table, to the net, into the
+# round summary - because everything downstream needs it: a person joining
+# displaces one, the host's panel shows which places are being held, and a
+# name somebody takes over has to be known to have been free.
+#
+# What is done with it on a screen is that screen's business, and the big
+# board deliberately does not mark them. A board with a dozen names on it
+# reads as an evening; the same board with eight struck out as software reads
+# as an empty room being flattered, and the room is what the screen at the
+# front is for. Nothing is scored differently either way - a person beats them
+# or loses to them on the same terms - so what is at stake is how a hall looks
+# to the people standing in it, not what the numbers mean.
 BOT_FLOOR = 0.6            # keep a cohort at least this full
 
 # Named for the ladder in ranks.py, so what a bot is meant to represent is
