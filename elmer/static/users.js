@@ -73,7 +73,7 @@ function renderWho(d) {
   const me = d.users.find(u => u.id === d.current) || {};
   const wasOpen = !menu.hidden;
   menu.innerHTML =
-    '<div class="who-head">Who is at the radio?</div>' +
+    '<div class="who-head">Who is at the controls?</div>' +
     d.users.map(u => whoRow(u, d.current)).join('') +
     '<div class="who-sep"></div>' +
     '<form class="who-add" id="who-add">' +
