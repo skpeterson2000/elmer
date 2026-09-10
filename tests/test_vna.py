@@ -143,11 +143,13 @@ def main():
         check(f"{action} is refused unconfirmed",
               refusal.startswith("that one destroys"), True)
         check("  and says what would be lost", len(refusal) > 40, True)
-    # Confirmed, it gets as far as the port - which is the failure that proves
-    # the gate let it through rather than the gate refusing it again.
-    check("confirmed, it is the port that stops it, not the gate",
-          "could not talk to" in nanovna.control(
-              nowhere, "cal-reset", confirmed=True)[1], True)
+    # Confirmed, it gets past the gate. What stops it after that is the
+    # machine - a missing port, or a missing serial library on a build that
+    # has none - and which of those it is must not decide whether this passes.
+    check("confirmed, the gate is no longer what refuses it",
+          nanovna.control(nowhere, "cal-reset",
+                          confirmed=True)[1].startswith("that one destroys"),
+          False)
     check("what is on offer says which ones destroy",
           sorted(o["action"] for o in nanovna.offered() if o["destroys"]),
           ["cal-reset", "save"])
