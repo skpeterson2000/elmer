@@ -2106,6 +2106,97 @@ function refreshAdvice() {
                 document.getElementById('an-type').value, true);
 }
 
+/* Whether the operator may key up where this antenna is being cut for.
+   ELMER holds 97.301 in full and the RF exposure tab already refuses a
+   frequency this licence has no business on - and the antenna calculator, the
+   one place that hands over a length somebody cuts wire to, never asked. A
+   dipole for 3.885 is eleven feet shorter than one for the only part of 80 m
+   a Technician may use, so the silence did not merely fail to warn: it gave
+   out the wrong number with confidence.
+
+   The class comes from the profile, and a profile is a setting, and settings
+   drift. Somebody who upgraded and never went back to change it is at least
+   as likely as somebody who has forgotten the rules, and a program that
+   assumes the second is wrong about half the people it corrects. So the
+   notice names the class it is judging by, and offers to judge by another -
+   which changes this evaluation and not the profile, because guessing at
+   somebody's licence and then writing it down would be worse than either. */
+let anAsClass = null;             // null means "whatever the profile says"
+let anClassFrom = '';             // and where that came from, for the notice
+
+async function antennaPrivilege(mhz) {
+  const box = document.getElementById('an-advice');
+  if (!box || box.hidden) return;
+  const gone = document.getElementById('an-priv');
+  if (gone) gone.remove();
+  let d;
+  try {
+    d = await api('/api/privileges?mhz=' + encodeURIComponent(mhz) +
+                  (anAsClass ? '&class=' + encodeURIComponent(anAsClass) : ''));
+  } catch (err) { return; }
+  // Nothing to say when the licence is unknown, the frequency is outside the
+  // amateur bands entirely, or the answer is simply yes.
+  if (!d.license_class || !d.in_band || d.allowed) return;
+
+  /* Where the class being judged by came from. Getting this wrong is how a
+     warning loses its authority: told "as a Technician" by a page they
+     reached while reading the Extra plan, an operator learns that the
+     program is guessing. */
+  const where = got => {
+    if (anClassFrom === 'bandplan') {
+      return 'Carried over from the band plan, which you were reading as ' +
+             escapeHTML(got.license_class) + '.';
+    }
+    if (anClassFrom === 'here') {
+      return 'You picked this here' +
+             (got.profile_class && got.profile_class !== got.license_class
+               ? '; your profile says ' + escapeHTML(got.profile_class) : '') +
+             '.';
+    }
+    return 'Taken from your profile.';
+  };
+
+  const segs = (d.band_segments || []).map(seg =>
+    '<b>' + seg.low.toFixed(3) + '&ndash;' + seg.high.toFixed(3) + '</b>' +
+    (seg.terms ? ' (' + escapeHTML(seg.terms) + ')' : '')).join(', ');
+  const options = (d.classes || []).map(c =>
+    '<option value="' + escapeHTML(c) + '"' +
+    (c === d.license_class ? ' selected' : '') + '>' + escapeHTML(c) +
+    '</option>').join('');
+
+  box.insertAdjacentHTML('afterbegin',
+    '<div id="an-priv" class="notice" style="margin-bottom:.7rem">' +
+      '<b>' + mhz + ' MHz is not yours to transmit on as a ' +
+      escapeHTML(d.license_class) + '.</b> ' +
+      (segs ? 'On ' + escapeHTML(d.band) + ' that class has ' + segs + '. '
+            : 'That class has nothing on ' + escapeHTML(d.band) + '. ') +
+      (d.suggest_mhz
+        ? '<button class="btn sm" id="an-priv-go">Work it out for ' +
+          d.suggest_mhz + ' instead</button> '
+        : '') +
+      '<label class="tiny" style="margin-left:.4rem">judging as ' +
+        '<select id="an-priv-class" class="mono">' + options + '</select>' +
+      '</label>' +
+      '<div class="tiny muted" style="margin-top:.35rem">' + where(d) +
+        ' Changing it here changes this evaluation and not the profile.</div>' +
+    '</div>');
+
+  const pick = document.getElementById('an-priv-class');
+  if (pick) pick.addEventListener('change', () => {
+    anAsClass = pick.value;
+    anClassFrom = 'here';
+    antennaPrivilege(mhz);
+  });
+  const go = document.getElementById('an-priv-go');
+  if (go) go.addEventListener('click', () => {
+    const f = document.getElementById('an-f');
+    f.value = d.suggest_mhz;
+    f.dispatchEvent(new Event('change', {bubbles: true}));
+    antennaAdvice(d.suggest_mhz, document.getElementById('an-use').value,
+                  document.getElementById('an-type').value, true);
+  });
+}
+
 async function antennaAdvice(mhz, use, kind, quiet) {
   const box = document.getElementById('an-advice');
   if (!box) return;
@@ -2150,6 +2241,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     : '<div class="advice-ctx">' + d.mhz + ' MHz is not in a US amateur band, ' +
       'so this assumes <b>' + escapeHTML(d.use_label.toLowerCase()) + '</b>.</div>';
 
+  antennaPrivilege(d.mhz);
   box.innerHTML =
     '<div class="advice-head">' +
       '<b>' + escapeHTML(d.title) + '</b>' +
@@ -2293,7 +2385,13 @@ const recallAntenna = () => recall('lab.antenna', null);
   const q = new URLSearchParams(location.search);
   const f = q.get('f');
   if (f) {
-    const ctx = {mhz: f, use: q.get('use') || '', kind: q.get('kind') || ''};
+    /* Arriving from the band plan with the class that page was being read
+       as. Without it the answer here would be against the profile, which is
+       a different question from the one on the screen they left. */
+    const asClass = q.get('class');
+    if (asClass) { anAsClass = asClass; anClassFrom = 'bandplan'; }
+    const ctx = {mhz: f, use: q.get('use') || '', kind: q.get('kind') || '',
+                 asClass: asClass || ''};
     rememberAntenna(ctx);
     selectTab('ant');
     history.replaceState(null, '', location.pathname + '#ant');
@@ -2304,7 +2402,10 @@ const recallAntenna = () => recall('lab.antenna', null);
      what was last set up, without stealing the tab - somebody arriving at
      #smith wanted the Smith chart. */
   const ctx = recallAntenna();
-  if (ctx && ctx.mhz) antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+  if (ctx && ctx.mhz) {
+    if (ctx.asClass) { anAsClass = ctx.asClass; anClassFrom = 'bandplan'; }
+    antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+  }
 })();
 
 /* ---------------------------------------------------------- Smith chart ---

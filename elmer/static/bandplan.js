@@ -741,8 +741,14 @@ function segCardHTML(a, band, forPick) {
              looking at the band is how 2 m SSB came out as "you want FM
              repeaters": the band plan already knows, and antenna_advice
              reads it. Send the frequency and let it answer. */
+          /* The class goes with it. This page has its own selector and
+             every figure on it is drawn for whatever that says - so somebody
+             reading the Extra plan and clicking through was being answered
+             against whatever their profile happened to hold, which is a
+             different question from the one they were looking at. */
           '<a class="btn sm primary" href="/lab?f=' + segMiddle(a).toFixed(3) +
             '&kind=' + encodeURIComponent(a.kind) +
+            '&class=' + encodeURIComponent(bpClass()) +
             '#ant">Set up an antenna for this →</a>' +
           '<a class="btn sm ghost" href="/propagation">Full conditions</a>' +
           '<button class="btn sm ghost" id="bp-unpick">close</button>' +
