@@ -66,6 +66,13 @@
          title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}">
       &#9679; {{ profile.streak_days }}d
     </div>
+    {# The things somebody is asked once, on the way in, gathered where they
+       can be found again. Every one of them is still adjustable where it was -
+       the callsign on the Band Plan, the QTH on the map - but somebody who
+       said "later" the first time should not have to remember which page it
+       was on. #}
+    <button type="button" class="gear-btn" id="gear-btn"
+            title="Callsign, name, licence class and QTH">&#9881;</button>
 {% if kiosk_token %}
     <button type="button" class="exit-btn" id="exit-btn"
             data-token="{{ kiosk_token }}"
@@ -77,6 +84,54 @@
 <main class="wrap">
 {% block body %}{% endblock %}
 </main>
+
+<dialog id="setup" class="setup">
+  <form method="dialog">
+    <div class="setup-title">Your station</div>
+    <p class="tiny muted setup-note">
+      Nothing here is required. ELMER works without any of it; each one lets it
+      answer something it otherwise has to ask about or guess at.
+    </p>
+
+    <label class="setup-label" for="setup-name">What ELMER calls you</label>
+    <input id="setup-name" type="text" autocomplete="off" maxlength="40"
+           value="{{ profile.name or profile.display_name or '' }}">
+
+    <label class="setup-label" for="setup-call">Callsign</label>
+    <input id="setup-call" type="text" autocomplete="off" maxlength="16"
+           spellcheck="false" autocapitalize="characters"
+           value="{{ profile.callsign or '' }}">
+    <p class="tiny muted" id="setup-call-hint">Looked up where the FCC has it,
+      which fills in the licence class below.</p>
+
+    <label class="setup-label" for="setup-class">Licence class</label>
+    <select id="setup-class">
+      <option value="">Not licensed yet</option>
+      {% for name in license_classes %}
+        <option value="{{ name }}"
+          {% if (profile.settings.license_class or '') == name %}selected{% endif %}>
+          {{ name }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="setup-label" for="setup-qth">Where you operate from</label>
+    <input id="setup-qth" type="text" autocomplete="off"
+           placeholder="a town, or a grid square">
+    <div class="place-results" id="setup-qth-results" hidden></div>
+    <p class="tiny muted" id="setup-qth-hint">
+      {%- set here = profile.settings.location or {} -%}
+      {%- if here.grid %}<b>{{ here.short or here.name }}</b> &middot; {{ here.grid }}{% endif -%}
+    </p>
+    <button type="button" class="btn sm ghost" id="setup-here">Use this
+      unit&rsquo;s position</button>
+
+    <div class="setup-row">
+      <button type="button" class="btn primary" id="setup-save">Save</button>
+      <button class="btn ghost" value="cancel">Close</button>
+      <span class="tiny muted" id="setup-said"></span>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="pw-ask" class="pw-ask">
   <form method="dialog">
@@ -108,6 +163,7 @@ window.OFFER_PASSWORD = {{ offer_password|default(false)|tojson }};
 </script>
 <script src="{{ asset('elmer.js') }}"></script>
 <script src="{{ asset('users.js') }}"></script>
+<script src="{{ asset('setup.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

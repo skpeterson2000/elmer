@@ -1742,6 +1742,23 @@ The icon is installed into the hicolor theme at 48, 64, 128, 256 and 512 px
 from `elmer/static/icon.png`, so replacing the icon and re-running the install
 updates the menu too.
 
+### The gear
+
+A gear at the right-hand end of the top bar opens **Your station**: what ELMER
+calls you, your callsign, your licence class, and where you operate from.
+
+None of it is new ground. The callsign is on the Band Plan, the QTH is on the
+map, the name is in the account menu, and all of that stays exactly where it is
+— that is where each one is wanted in the moment it is wanted. What was missing
+was a way back for somebody who said *later* the first time and then could not
+remember which page had asked. A gear in the corner is where people already
+look for that.
+
+Each field saves through the same endpoint the page it came from uses, so there
+is one way of setting a callsign rather than two that can drift apart. Nothing
+in it is required: ELMER works with all of it empty, and each entry only lets it
+answer something it otherwise has to ask about or guess at.
+
 ### Walking into a pool that is not open
 
 The gate refuses with a page rather than the framework's own 403. That page has

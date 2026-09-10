@@ -111,6 +111,31 @@ p { margin: 0 0 .8rem; }
 .title-name.lapsed { color: var(--dim); text-decoration: line-through .5px; }
 .lapse-dot { color: var(--amber); font-size: .72rem; }
 .status-xp { font: .72rem var(--mono); color: var(--dim); }
+/* Quiet until wanted. It sits beside Exit, so it must not read as another
+   button of that weight - what it opens is a drawer, not an action. */
+.gear-btn {
+  background: none; border: 1px solid transparent; color: var(--dimmer);
+  font-size: 1.05rem; line-height: 1; padding: .28rem .45rem;
+  border-radius: 7px; cursor: pointer;
+}
+.gear-btn:hover { color: var(--amber); border-color: var(--line-2);
+                  background: var(--panel); }
+.setup { border: 1px solid var(--line-2); border-radius: var(--radius);
+         background: var(--panel); color: var(--text); padding: 1.1rem 1.2rem;
+         min-width: min(26rem, 92vw); }
+.setup::backdrop { background: rgba(0, 0, 0, .55); }
+.setup-title { font-weight: 700; margin-bottom: .2rem; }
+.setup-note { margin: 0 0 .8rem; }
+.setup-label { display: block; font-size: .74rem; letter-spacing: .06em;
+               text-transform: uppercase; color: var(--dim);
+               margin: .7rem 0 .2rem; }
+.setup input[type=text], .setup select {
+  width: 100%; box-sizing: border-box; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 7px; color: var(--text);
+  padding: .4rem .55rem; font: inherit;
+}
+.setup .tiny { margin: .25rem 0 0; }
+.setup-row { display: flex; align-items: center; gap: .6rem; margin-top: 1rem; }
 .status-streak {
   font: .78rem var(--mono); color: var(--dimmer);
   border: 1px solid var(--line); border-radius: 20px; padding: .18rem .55rem;
