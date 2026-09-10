@@ -32,6 +32,14 @@ log = logging.getLogger("elmer")
 
 PROFILE_DIR = Path(__file__).resolve().parents[1] / "data" / "kiosk-profile"
 
+# Shown before there is a server to show it, and only on a machine that has
+# missed a healthy start - see :func:`launch_when_ready`.
+SPLASH = Path(__file__).resolve().parent / "static" / "splash.html"
+
+# What an ordinary start costs.  A warm Pi is serving well inside this; a cold
+# card is not, and that is the machine the splash is there to point at.
+GRACE_SECONDS = 2.5
+
 # Ordinary windows opened for an off-site link, kept so they can be shut when
 # ELMER stops rather than left orphaned on the screen.
 _windows = []
@@ -367,29 +375,55 @@ def watch(process, quitting):
     return thread
 
 
-def launch_when_ready(url, port, quitting, timeout=20.0):
-    """Wait for the server to answer, then bring the browser up on it.
 
-    Chromium shows its own error page if it arrives before the socket is
-    listening, and on an appliance nobody is there to press reload.
+
+def launch_when_ready(url, port, quitting, timeout=20.0):
+    """Bring the browser up on the program, and on the splash only if it is late.
+
+    Waiting for the socket and only then starting the browser is the safe
+    order - chromium shows its own error page if it arrives first, and on an
+    appliance nobody is there to press reload. The cost is an empty screen for
+    as long as the first render takes, which on a cold card is several seconds
+    while a megabyte of pools comes off it.
+
+    A splash covers that, and covering it is exactly the risk: shown on every
+    machine it makes the one that is struggling look like the one that came up
+    in a quarter of a second, and the difference survives only in a log. So it
+    is held back through :data:`GRACE_SECONDS` of ordinary starting. Under
+    that the browser opens straight on the program and no splash is ever seen;
+    over it the splash appears carrying the seconds it has already waited, and
+    its being on screen at all is the symptom.
     """
     from .diagnostics import port_in_use
 
-    def run():
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            if port_in_use(port):
-                break
-            time.sleep(0.1)
-        else:
-            log.warning("kiosk: server did not come up within %.0fs", timeout)
-            return
-        process = launch(url)
+    def started(process):
         if process is not None:
             holder.append(process)
             watch(process, quitting)
 
+    def wait_then_launch():
+        began = time.monotonic()
+        deadline = began + timeout
+        while time.monotonic() < deadline:
+            if port_in_use(port):
+                started(launch(url))
+                return
+            waited = time.monotonic() - began
+            if waited >= GRACE_SECONDS and SPLASH.is_file():
+                # Said once, here, because this is the machine worth knowing
+                # about and the screen is about to say the same thing.
+                log.info("kiosk: %.1fs and no server yet - showing the splash",
+                         waited)
+                # From the disk rather than through the server: there is no
+                # server yet, which is the whole point.
+                started(launch("%s?port=%d&waited=%.1f"
+                               % (SPLASH.as_uri(), port, waited)))
+                return          # the splash watches the port from here
+            time.sleep(0.1)
+        log.warning("kiosk: server did not come up within %.0fs", timeout)
+
     holder = []
-    thread = threading.Thread(target=run, name="kiosk-launch", daemon=True)
+    thread = threading.Thread(target=wait_then_launch, name="kiosk-launch",
+                              daemon=True)
     thread.start()
     return holder
