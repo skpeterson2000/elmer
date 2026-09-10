@@ -143,14 +143,19 @@ def measure(device, start_mhz, stop_mhz, points=101, timeout=SWEEP_TIMEOUT):
     will not do that - older firmware - the frequencies are asked for
     separately and, failing even that, computed from the span we requested.
     """
-    serial, _ = _serial()
-    if serial is None:
-        return None, "pyserial is not installed on this machine"
+    # What was asked for is checked before what is installed. A sweep that
+    # runs backwards is wrong whether or not pyserial is on this machine, and
+    # answering a typo with "install pyserial" sends somebody to fix the wrong
+    # thing - it also made this depend on which machine the tests ran on,
+    # since a build with no serial library never reached the check at all.
     points = max(11, min(401, int(points)))
     start = int(round(float(start_mhz) * 1e6))
     stop = int(round(float(stop_mhz) * 1e6))
     if stop <= start:
         return None, "the stop frequency has to be above the start"
+    serial, _ = _serial()
+    if serial is None:
+        return None, "pyserial is not installed on this machine"
     try:
         with serial.Serial(device, BAUD, timeout=READ_TIMEOUT) as ser:
             time.sleep(0.2)
