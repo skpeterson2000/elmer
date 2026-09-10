@@ -180,9 +180,20 @@ async function tick() {
   seats(s);
   document.getElementById('close').disabled = !round || round.closed;
 
-  if (!round) { chip.textContent = 'no round';
-    if (painted !== 'none') { painted = 'none';
-      stage.innerHTML = '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>'; }
+  if (!round) {
+    /* A table with somebody sitting at it starts on its own, and the screen
+       says so rather than leaving whoever is here to wonder whether pressing
+       something is expected of them. */
+    const secs = s.starts_in;
+    const soon = secs !== null && secs !== undefined;
+    chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
+    if (painted !== 'none' || soon) {
+      painted = 'none';
+      stage.innerHTML = soon
+        ? `<p class="empty">Somebody has joined. First question in
+           <b>${Math.ceil(secs)}</b> seconds &mdash; or start one now.</p>`
+        : '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>';
+    }
     return;
   }
   chip.textContent = `Q${round.number} · ${(round.question || {}).difficulty || ''}`;

@@ -221,6 +221,13 @@ class Room:
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.bots_wanted = False
         self.open = True
+        # When the first question goes up on its own, or None for a table
+        # waiting on somebody to press something. Somebody who has just
+        # scanned the code is looking at a screen that says "waiting", and a
+        # screen that waits forever is the same as a broken one. Held here as
+        # a time rather than as a timer: this module has no clock in it on
+        # purpose, so what fires it lives where the clocks already are.
+        self.start_at = None
         for i in range(max(1, min(int(cohorts), MAX_COHORTS))):
             cid = i + 1
             self.cohorts[cid] = Cohort(cid, f"Cohort {chr(64 + cid)}")
@@ -615,6 +622,27 @@ class Room:
                      "correct": p.correct, "answered": p.answered}
                     for p in rows[:limit]]
 
+    def arm_start(self, seconds):
+        """Put the first question on a countdown. Returns when it will fire."""
+        with self.lock:
+            self.start_at = _now() + max(0.0, float(seconds))
+            return self.start_at
+
+    def disarm_start(self):
+        """Take the countdown off - somebody started it, or everyone left."""
+        with self.lock:
+            self.start_at = None
+
+    def waiting_to_start(self):
+        """Whether a countdown is armed and has not fired yet."""
+        with self.lock:
+            return self.start_at is not None
+
+    def people_here(self):
+        """How many of the players are people rather than practice ones."""
+        with self.lock:
+            return sum(1 for p in self.players.values() if not p.bot)
+
     def state(self, player_id=None):
         """Everything a connected device needs to draw the screen."""
         with self.lock:
@@ -624,6 +652,11 @@ class Room:
                            key=lambda c: -c["score"])
             out = {
                 "open": self.open,
+                # Seconds until the first question, for both screens to count
+                # down. Negative would mean it is overdue rather than close,
+                # so it floors at zero.
+                "starts_in": (None if self.start_at is None
+                              else max(0.0, round(self.start_at - _now(), 1))),
                 "bots": sum(1 for p in self.players.values() if p.bot),
                 "people": sum(1 for p in self.players.values() if not p.bot),
                 "bots_on": self.bots_wanted,
