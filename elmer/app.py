@@ -2479,12 +2479,17 @@ def _net_or_404():
     return running
 
 
-@app.route("/api/net/open", methods=["POST"])
-def api_net_open():
-    body = request.get_json(silent=True) or {}
-    wanted = str(body.get("difficulty", "technician")).lower()
-    if wanted not in party.DIFFICULTIES:
-        wanted = "technician"
+def _open_net(wanted, name=None, section=None, seconds=None):
+    """Open a net here, whichever way somebody asked for one.
+
+    There are two ways in - the button, and simply arriving at the host screen
+    - and they used to build different nets.  Arriving at /net made one
+    straight out of netcontrol with no conductor, no table for the people at
+    this machine, and nothing said in the log, so a hall opened that way sat
+    at nought tables until somebody pressed for every question by hand.  A
+    second way of doing a thing is a second thing to keep working; there is
+    one now.
+    """
     connection = conn()
     hall.halt()                       # the old net's conductor goes with it
     netcontrol.close_net()
@@ -2493,8 +2498,7 @@ def api_net_open():
     # a net says which of the two this machine is.
     cohort.disconnect(connection)
     running = netcontrol.net(create=True, difficulty=wanted,
-                             name=str(body.get("name")
-                                      or _net_name_for(wanted))[:60])
+                             name=str(name or _net_name_for(wanted))[:60])
     log.info("net control opened: %s", running.name)
 
     # The people sitting at the host are in the hall like anybody else.  It
@@ -2512,9 +2516,18 @@ def api_net_open():
     # anything is a net that sits at nought tables all evening, which is what
     # was on the board.  Rounds still wait for somebody to be seated - see
     # hall.py - so opening one early costs nothing.
-    section = body.get("section")
-    seconds = body.get("seconds")
     hall.start(running, lambda: _ask_net(running, wanted, section, seconds))
+    return running
+
+
+@app.route("/api/net/open", methods=["POST"])
+def api_net_open():
+    body = request.get_json(silent=True) or {}
+    wanted = str(body.get("difficulty", "technician")).lower()
+    if wanted not in party.DIFFICULTIES:
+        wanted = "technician"
+    running = _open_net(wanted, body.get("name"), body.get("section"),
+                        body.get("seconds"))
     return jsonify(running.board())
 
 
@@ -2725,8 +2738,7 @@ def net_host():
         wanted = "technician"
     running = netcontrol.net()
     if running is None:
-        running = netcontrol.net(create=True, difficulty=wanted,
-                                 name=_net_name_for(wanted))
+        running = _open_net(wanted)
     where = _here()
     amateur, commercial = _tournament_choices()
     return render_template("net_host.html", where=where,
