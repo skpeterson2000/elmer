@@ -11,7 +11,9 @@
 {% endif %}
 </head>
 <body{% if kiosk_token %} data-kiosk="1"{% endif %}>
-<header class="topbar">
+{# The corner is wider when there is an Exit button in it, and only a kiosk
+   has one - so the room the bar sets aside knows which it is. #}
+<header class="topbar{% if kiosk_token %} has-exit{% endif %}">
   <a class="brand" href="/">
 {% if icon_file %}    <img class="brand-icon" alt=""
          src="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
@@ -71,6 +73,12 @@
        the callsign on the Band Plan, the QTH on the map - but somebody who
        said "later" the first time should not have to remember which page it
        was on. #}
+  </div>
+  {# Out of the wrapping flow and pinned to the corner. The bar wraps to two,
+     three or four rows depending on the screen, and these two are the ones
+     that have to be in the same place on all of them: the way to the settings,
+     and the way to stop the program. Everything else can ride the wrap. #}
+  <div class="corner">
     <button type="button" class="gear-btn" id="gear-btn"
             title="Callsign, name, licence class and QTH">
       <span class="gear-cog">&#9881;</span><span class="gear-word">Station</span>
