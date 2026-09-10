@@ -22,10 +22,13 @@ loses the network mid-round finishes its round locally and reports late; the
 net notices it is quiet and carries on without it, rather than stopping the
 hall because one Pi in the corner went off the air.
 """
+import logging
 import random
 import threading
 import time
 from collections import deque
+
+log = logging.getLogger("elmer")
 
 # Measured on a Raspberry Pi 5 acting as net control: 100 units checked in at
 # 1 Hz with a p95 of 46 ms, 200 at 100 ms, and 400 was the knee at 1067 ms.
@@ -55,6 +58,31 @@ HEALTH_WINDOW = 60
 ROUND_GRACE = 90.0
 
 
+# Tables that are not there.  A net with nothing checked in shows an empty
+# board, which is the least useful thing a screen at the front of a room can
+# do, and an instructor setting an evening up cannot tell whether any of it
+# works until eight people have arrived and sat down.  So a hall can be filled
+# with tables that play, and a real unit arriving takes one of their places.
+#
+# Named for wireless stations rather than for people, because a table on a
+# board is a place with an operator at it - and because nobody reading Poldhu
+# off a screen will take it for the Pi in front of them.
+SIMULATED_NAMES = ["Poldhu", "Clifden", "Glace Bay", "Signal Hill", "Nauen",
+                   "Arlington", "Sayville", "Tuckerton", "Rugby", "Malabar",
+                   "Bolinas", "Kahuku", "Marion", "Cape Cod"]
+
+# A simulated table is consistently as good as it is, rather than rolling
+# fresh every round: a board is worth watching because one table is having a
+# good evening and another is not, and randomness with no memory gives neither.
+SIM_SKILL = (0.45, 0.9)
+
+# Where a simulated table's answers land inside the round.  Never at the
+# instant it opens - a hall where the machines all answer in the first second
+# looks like a fault, not a game.
+SIM_EARLIEST = 2.5
+SIM_LATEST_SHARE = 0.85
+
+
 def _now():
     return time.monotonic()
 
@@ -62,10 +90,16 @@ def _now():
 class Unit:
     """One cohort Pi, checked in to the net."""
 
-    def __init__(self, unit_id, name, players=0):
+    def __init__(self, unit_id, name, players=0, simulated=False):
         self.id = unit_id
         self.name = name
         self.players = players
+        # Never disguised, the whole way out to the board - for the same
+        # reason the practice players are flagged: a leaderboard that mixes
+        # people and machines without saying which is which is one nobody
+        # should trust.
+        self.simulated = bool(simulated)
+        self.skill = random.uniform(*SIM_SKILL) if simulated else None
         self.first_seen = _now()
         self.last_seen = self.first_seen
         self.score = 0
@@ -84,7 +118,8 @@ class Unit:
         return {"id": self.id, "name": self.name, "players": self.players,
                 "score": self.score, "rounds_won": self.rounds_won,
                 "present": self.present, "quiet_for": round(self.quiet_for, 1),
-                "reported_round": self.reported_round}
+                "reported_round": self.reported_round,
+                "simulated": self.simulated}
 
 
 class Net:
@@ -108,6 +143,7 @@ class Net:
         self.results = {}          # unit_id -> list of player results
         self.history = []
         self.picker_unit = None
+        self._sim_plan = {}        # unit_id -> (when it answers, what it says)
 
     # ------------------------------------------------------------- check-in
 
@@ -133,9 +169,14 @@ class Net:
             elif p95 > SLOW_MS:
                 cap = max(1, int(self.cap * 0.75))
             known = len(self.units)
+            ready = [u for u in self.units.values() if u.present and u.players]
             return {"units": known, "cap": cap, "hard_cap": self.cap,
                     "p95_ms": round(p95, 1), "seats": max(0, cap - known),
-                    "players": known * 8, "healthy": p95 <= SLOW_MS}
+                    "players": known * 8, "healthy": p95 <= SLOW_MS,
+                    "ready": len(ready),
+                    "seated": sum(u.players for u in ready),
+                    "simulated": sum(1 for u in self.units.values()
+                                     if u.simulated)}
 
     def check_in(self, unit_id, name=None, players=0):
         """A unit says it is here, and how many people are sitting at it.
@@ -147,6 +188,10 @@ class Net:
         with self.lock:
             unit = self.units.get(unit_id)
             if unit is None:
+                # A person arriving takes a machine's place rather than being
+                # turned away by one, and rather than making the hall bigger
+                # than the room it is in.
+                self.retire_simulated()
                 state = self.health()
                 if state["seats"] <= 0:
                     if state["cap"] < state["hard_cap"]:
@@ -162,6 +207,59 @@ class Net:
                 unit.name = name
             unit.players = int(players or 0)
             return unit, None
+
+    def ready_units(self):
+        """Tables with somebody actually sitting at them.
+
+        A table checks in the moment it is switched on, which is not the same
+        as being ready to play - an empty table in the corner should not start
+        the hall, and should not hold it up either.  Check-in already carries
+        the count, so readiness is a report rather than a guess: the table
+        knows who is at it and says so, and the host starts when the hall has
+        somebody in it.
+        """
+        with self.lock:
+            return [u for u in self.units.values() if u.present and u.players]
+
+    def simulated_units(self):
+        with self.lock:
+            return [u for u in self.units.values() if u.simulated]
+
+    def add_simulated(self, count=1, players=None):
+        """Put tables in the hall that are not there.  Returns what was added."""
+        with self.lock:
+            taken = {u.name for u in self.units.values()}
+            free = [n for n in SIMULATED_NAMES if n not in taken]
+            random.shuffle(free)
+            made = []
+            for name in free[:max(0, int(count))]:
+                unit_id = "sim-" + name.lower().replace(" ", "-")
+                seats = players if players else random.randint(3, 8)
+                unit = Unit(unit_id, name, seats, simulated=True)
+                self.units[unit_id] = unit
+                made.append(unit)
+            if made:
+                log.info("net: %d simulated table(s) joined - %s",
+                         len(made), ", ".join(u.name for u in made))
+            return made
+
+    def retire_simulated(self):
+        """Give a simulated table's place up, weakest first.
+
+        Weakest rather than newest, so what a real unit displaces is the
+        table nobody was watching - the evening's story survives somebody
+        walking in halfway through it.
+        """
+        with self.lock:
+            sims = self.simulated_units()
+            if not sims:
+                return None
+            going = min(sims, key=lambda u: (u.score, u.rounds_won))
+            self.units.pop(going.id, None)
+            self._sim_plan.pop(going.id, None)
+            self.results.pop(going.id, None)
+            log.info("net: simulated table %s stood down", going.name)
+            return going
 
     def present_units(self):
         with self.lock:
@@ -195,7 +293,65 @@ class Net:
                 "question_id": question_id, "answer_index": answer_index,
                 "question": payload, "seconds": seconds,
             }
+            self._plan_simulated(seconds)
             return self.round
+
+    # ------------------------------------------------------- tables that
+    # ------------------------------------------------------- are not there
+
+    def _plan_simulated(self, seconds):
+        """Decide now what the simulated tables will do, and when.
+
+        Decided at the top of the round and handed in as the moments arrive,
+        the way the practice players are: a hall where every machine answers
+        in the same instant reads as a fault rather than a game, and a board
+        that fills gradually is the one somebody will watch.
+        """
+        from .party import BOT_NAMES
+
+        self._sim_plan = {}
+        latest = max(SIM_EARLIEST + 1.0, seconds * SIM_LATEST_SHARE)
+        for unit in self.units.values():
+            if not unit.simulated:
+                continue
+            names = random.sample(BOT_NAMES, min(unit.players, len(BOT_NAMES)))
+            rows, slowest = [], 0.0
+            for name in names:
+                took = random.uniform(SIM_EARLIEST, latest)
+                slowest = max(slowest, took)
+                rows.append({"name": name,
+                             "correct": random.random() < unit.skill,
+                             "ms": round(took * 1000.0, 1)})
+            # A table reports when its cohort is done, not when its first
+            # player is - which is what puts the fast tables up the board
+            # first and gives the thing its shape.
+            self._sim_plan[unit.id] = (_now() + slowest + 0.4, rows)
+
+    def tick_simulated(self):
+        """Hand in the simulated tables' answers as their moments arrive.
+
+        Also keeps them present.  A table that is there says so every few
+        seconds; one that never spoke would go quiet after
+        `QUIET_AFTER` and drop off the board it is meant to be filling.
+        """
+        with self.lock:
+            now = _now()
+            handed = 0
+            for unit in self.units.values():
+                if unit.simulated:
+                    unit.last_seen = now
+            if not self.round:
+                return 0
+            for unit_id, (at, rows) in list(self._sim_plan.items()):
+                if unit_id not in self.units:
+                    self._sim_plan.pop(unit_id, None)
+                    continue
+                if now < at or unit_id in self.results:
+                    continue
+                self._sim_plan.pop(unit_id, None)
+                self.report(unit_id, self.round_number, rows)
+                handed += 1
+            return handed
 
     def current(self, include_key=False):
         """What a unit needs to run the round in front of it.

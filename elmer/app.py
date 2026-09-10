@@ -27,7 +27,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               activations, discovery, fieldkit, gating, host,
+               activations, discovery, fieldkit, gating, hall, host,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
@@ -2313,6 +2313,9 @@ def api_party_end():
 @app.route("/api/net/end", methods=["POST"])
 def api_net_end():
     """Close the net. Tables will find it gone and carry on by themselves."""
+    # Whatever was conducting it stops with it - a conductor ticking a net
+    # that is gone would keep asking questions into an empty room.
+    hall.halt()
     netcontrol.close_net()
     log.info("net control: closed")
     return jsonify({"open": False})
@@ -2419,6 +2422,7 @@ def api_net_open():
     wanted = str(body.get("difficulty", "technician")).lower()
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
+    hall.halt()                       # the old net's conductor goes with it
     netcontrol.close_net()
     running = netcontrol.net(create=True, difficulty=wanted,
                              name=str(body.get("name")
@@ -2450,17 +2454,20 @@ def api_net_checkin():
                     "round": running.current(include_key=True)})
 
 
-@app.route("/api/net/round", methods=["POST"])
-def api_net_round():
-    """Put one question to the whole hall."""
-    running = _net_or_404()
-    body = request.get_json(silent=True) or {}
-    wanted = str(body.get("difficulty", "technician")).lower()
+def _ask_net(running, difficulty="technician", section=None, seconds=None):
+    """Put one question to the whole hall.  Shared by the button and the hall.
+
+    Lifted out of the route it used to live in so that something other than a
+    person pressing a key can call it - see :mod:`elmer.hall`.  It raises the
+    way a route does, because that is what the route still wants; the
+    conductor calls it from a thread where an exception is caught, logged and
+    turned into a fault the board can show.
+    """
+    wanted = str(difficulty or "technician").lower()
     pool_id = party.DIFFICULTIES.get(wanted)
     if not pool_id:
         abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
     pool = _pool_or_404(pool_id)
-    section = body.get("section")
     ids = [q["id"] for q in pool.by_id.values()
            if not section or q["section"] == section]
     if not ids:
@@ -2470,8 +2477,7 @@ def api_net_round():
     # A net that moves from Technician to General is a General net now, and
     # the hall's screens say so - unless somebody named it by hand, in which
     # case the name they chose is theirs and stays.
-    was = running.difficulty
-    if running.name == _net_name_for(was):
+    if running.name == _net_name_for(running.difficulty):
         running.name = _net_name_for(wanted)
     running.start_round(
         pool_id, question["id"], shown["answer"],
@@ -2479,11 +2485,79 @@ def api_net_round():
          "section": question["section"],
          "section_title": pool.section_title(question["section"]),
          "figure": pool.figure_url(question), "difficulty": wanted},
-        seconds=float(body.get("seconds", party.DEFAULT_ROUND_SECONDS)))
+        seconds=float(seconds or party.DEFAULT_ROUND_SECONDS))
     log.info("net round %d: %s %s across %d units",
              running.round_number, pool_id, question["id"],
              len(running.present_units()))
+    return running
+
+
+@app.route("/api/net/round", methods=["POST"])
+def api_net_round():
+    """Put one question to the whole hall."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    _ask_net(running, body.get("difficulty", "technician"),
+             body.get("section"), body.get("seconds"))
     return jsonify(running.board())
+
+
+@app.route("/api/net/simulate", methods=["POST"])
+def api_net_simulate():
+    """Fill the hall with tables that are not there, or send them home.
+
+    For an instructor setting an evening up, a demonstration on a bench, or a
+    club screen with two Pis in front of it.  They play, they are flagged
+    simulated the whole way to the board, and a real unit checking in takes
+    one of their places - see netcontrol.add_simulated.
+    """
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        count = int(body.get("count", 4))
+    except (TypeError, ValueError):
+        abort(400, "count must be a number")
+    if count > 0:
+        made = running.add_simulated(min(count, len(netcontrol.SIMULATED_NAMES)))
+        added = [u.name for u in made]
+    else:
+        added = []
+        for _ in range(-count):
+            gone = running.retire_simulated()
+            if gone is None:
+                break
+            added.append(gone.name)
+    return jsonify({"added" if count > 0 else "retired": added,
+                    "simulated": len(running.simulated_units()),
+                    "board": running.board()})
+
+
+@app.route("/api/net/conduct", methods=["POST"])
+def api_net_conduct():
+    """Let the hall run itself: start when a table reports it has people.
+
+    The trigger is a report rather than a clock.  A table says how many are
+    sitting at it every time it checks in, so the host knows when there is a
+    game to start without guessing at it, and a table that fills up late
+    joins the next round rather than being waited for.
+    """
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    if str(body.get("run", True)).lower() in ("false", "0"):
+        return jsonify({"conducting": False, "stopped": hall.halt()})
+    wanted = str(body.get("difficulty") or running.difficulty).lower()
+    if wanted not in party.DIFFICULTIES:
+        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    section = body.get("section")
+    seconds = body.get("seconds")
+    rounds = body.get("rounds")
+    conductor = hall.start(
+        running,
+        lambda: _ask_net(running, wanted, section, seconds),
+        ready_tables=max(1, int(body.get("tables", hall.READY_TABLES))),
+        rounds=int(rounds) if rounds else None)
+    return jsonify({"conducting": True, "hall": conductor.as_dict(),
+                    "board": running.board()})
 
 
 @app.route("/api/net/report", methods=["POST"])
@@ -2612,7 +2686,13 @@ def api_board():
 @app.route("/api/net/board")
 def api_net_board():
     """The hall's big screen, and what a late unit polls to catch up."""
-    return jsonify(_net_or_404().board())
+    running = _net_or_404()
+    out = running.board()
+    # What the hall is doing between questions, so a screen can say "waiting
+    # for a table" rather than sitting on a stale leaderboard looking broken.
+    conductor = hall.conductor()
+    out["hall"] = conductor.as_dict() if conductor else None
+    return jsonify(out)
 
 
 def _board_here():
