@@ -15,6 +15,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .card { background: var(--panel); border: 1px solid var(--line);
         border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.qrhint { font-size: .72rem; color: var(--dimmer); text-align: center;
+           margin-top: .35rem; }
 .units { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
 .practice { margin-top: .7rem; display: flex; align-items: center;
             flex-wrap: wrap; gap: .4rem; }
@@ -50,13 +52,18 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
   </div>
 
   <div class="card netaddr">
-    <div class="qrbox">{{ qr_svg|safe }}</div>
+    <div class="qrbox">
+      {{ qr_svg|safe }}
+      <div class="qrhint">Scan to play at this table</div>
+    </div>
     <div>
       <b>Tables point themselves here</b>
       <p class="joinline" id="where">{{ where }}</p>
       <p style="color:var(--dim);font-size:.85rem;margin:.2rem 0 0">
-        On each table's Pi open <code>/party</code>, put this address in the
-        Net control box and press Join &mdash; or let it find this net by
+        The code is for people: it puts a phone straight into the round on
+        screen, at this machine's own table. The address is for Pis &mdash;
+        on each table's Pi open <code>/party</code>, put it in the
+        Net control box and press Join, or let it find this net by
         itself, from the panel at the foot of its dashboard. Eight players per
         table; the players never talk to this machine, and a table remembers
         the address across a reboot. A network can hold several nets at once,

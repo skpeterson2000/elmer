@@ -2740,12 +2740,20 @@ def net_host():
     if running is None:
         running = _open_net(wanted)
     where = _here()
+    # The code goes where a phone is useful, which is into the game.  It used
+    # to carry this machine's bare address, so somebody holding a phone up to
+    # a screen with a round on it landed on the dashboard and had to go
+    # looking - and the address it carried was for other Pis to point
+    # themselves at, which is a thing nobody points a phone at and which
+    # tables now find on their own anyway.  The address stays in writing
+    # beside it for whoever still wants to type it.
+    join_url = _join_url("1")
     amateur, commercial = _tournament_choices()
-    return render_template("net_host.html", where=where,
+    return render_template("net_host.html", where=where, join_url=join_url,
                            net_name=running.name,
                            difficulty=running.difficulty,
                            amateur=amateur, commercial=commercial,
-                           qr_svg=qr.as_svg(where, module=6, quiet=3))
+                           qr_svg=qr.as_svg(join_url, module=6, quiet=3))
 
 
 @app.route("/net/board")

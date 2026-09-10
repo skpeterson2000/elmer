@@ -192,6 +192,21 @@ try:
     check("waiting on somebody to sit down",
           running.waiting_for() if running else None,
           "waiting for a table with somebody at it")
+
+    # The code on the host screen is the one somebody holds a phone up to
+    # while a round is on it, and it used to carry this machine's bare
+    # address - which lands on the dashboard and leaves them looking for the
+    # game they can see from where they are standing.
+    print("\nthe code on the host screen puts a phone in the game")
+    with appmod.app.test_client() as client:
+        page = client.get("/net").get_data(as_text=True)
+        check("it says what it is for", "Scan to play at this table" in page,
+              True)
+        landing = client.get("/j/1")
+        check("and where it lands is a table, not the dashboard",
+              landing.status_code, 200)
+        check("with the player's screen on it",
+              "Table 1" in landing.get_data(as_text=True), True)
 finally:
     hall.halt()
     netcontrol.close_net()
