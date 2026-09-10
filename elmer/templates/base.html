@@ -72,7 +72,9 @@
        said "later" the first time should not have to remember which page it
        was on. #}
     <button type="button" class="gear-btn" id="gear-btn"
-            title="Callsign, name, licence class and QTH">&#9881;</button>
+            title="Callsign, name, licence class and QTH">
+      <span class="gear-cog">&#9881;</span><span class="gear-word">Station</span>
+    </button>
 {% if kiosk_token %}
     <button type="button" class="exit-btn" id="exit-btn"
             data-token="{{ kiosk_token }}"
