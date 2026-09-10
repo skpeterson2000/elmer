@@ -177,6 +177,21 @@ try:
         client.post("/api/net/end", json={})
     check("ending the net lets its own table go", cohort.bridge(), None)
     check("and stops the conducting", hall.conductor(), None)
+
+    # Arriving at the host screen opens a net too, and it used to open a
+    # different one: no conductor, no table for the people at this machine,
+    # nothing in the log.  A hall opened that way sat at nought tables while
+    # somebody pressed for every question by hand.
+    print("\narriving at the host screen builds the same net as the button")
+    with appmod.app.test_client() as client:
+        check("the screen answers", client.get("/net").status_code, 200)
+    check("a net is running", netcontrol.net() is not None, True)
+    check("with the host as a table in it", cohort.bridge() is not None, True)
+    running = hall.conductor()
+    check("and conducting", running is not None, True)
+    check("waiting on somebody to sit down",
+          running.waiting_for() if running else None,
+          "waiting for a table with somebody at it")
 finally:
     hall.halt()
     netcontrol.close_net()
