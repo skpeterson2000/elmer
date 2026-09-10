@@ -54,7 +54,11 @@ p { margin: 0 0 .8rem; }
 /* ---------- top bar ---------- */
 .topbar {
   display: flex; align-items: center; gap: 1.4rem;
-  padding: .7rem 1.2rem;
+  /* The right side is the corner's, so the wrapping content stops short of it.
+     Only as much as the corner actually holds: reserving for an Exit button
+     that is not there leaves a hole in the bar on every machine that is not
+     a kiosk. */
+  padding: .7rem 9rem .7rem 1.2rem;
   background: linear-gradient(180deg, #131a23, #0f151d);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 40;
@@ -95,11 +99,24 @@ p { margin: 0 0 .8rem; }
   .nav a.going, .nav a.on.going { animation: none; }
 }
 
-/* Hard against the right edge, on whichever row it lands on. The bar wraps to
-   three rows on the 1024x600 screen these Pis actually use, and without this
-   the status group starts at the left of row three - which puts the settings
-   chip in the middle of the header, where nobody looks for it. */
 .status { display: flex; align-items: center; gap: .85rem; margin-left: auto; }
+
+/* The corner, and it is a corner on every screen.
+ *
+ * Measured rather than guessed: this bar wraps to one row at 1920, two from
+ * about 1180, three from 900 and four below 800 - so anything left in the flow
+ * rides down the page as the screen narrows. At 1024x600, which is the
+ * touchscreen these are built for, the settings chip ended up on row three,
+ * a third of the way down a 600px screen, which is not a corner by any
+ * reading. Taken out of the flow it is in the same place at every width.
+ *
+ * The bar reserves room for it rather than letting the two overlap, and the
+ * reservation shrinks with the word - see the narrow rule below. */
+.topbar.has-exit { padding-right: 13rem; }
+.corner {
+  position: absolute; top: .6rem; right: 1.1rem;
+  display: flex; align-items: center; gap: .5rem;
+}
 .titles { display: flex; flex-direction: column; gap: 1px; }
 .title-line {
   display: flex; align-items: baseline; gap: .45rem;
@@ -132,9 +149,27 @@ p { margin: 0 0 .8rem; }
 .gear-cog { font-size: 1.15rem; line-height: 1; }
 .gear-btn:hover { color: var(--amber); border-color: var(--amber-dim);
                   background: var(--panel); }
-/* On a narrow bar the word is the first thing that can go: the cog alone is
-   still a target, and the row wrapping twice is worse than a bare icon. */
-@media (max-width: 900px) { .gear-word { display: none; } }
+/* Giving a 600px-tall screen its height back.
+ *
+ * The bar is the same bar at every width, and on the 1024x600 touchscreen
+ * these are built for it was taking a third of the screen before a single
+ * question appeared. What it spends that on is a tagline nobody navigates by
+ * and generous padding on nine nav items, so those are what get trimmed -
+ * ahead of anything anybody came here to read. */
+@media (max-width: 1280px) {
+  .topbar { gap: 1rem; }
+  .brand-sub { display: none; }
+  .nav { gap: .2rem; }
+  .nav a { padding: .3rem .52rem; font-size: .84rem; }
+  .status { gap: .6rem; }
+}
+/* Narrower still, the word goes and the corner hands back the room it held.
+   The cog on its own is still a target, and a target in the same corner. */
+@media (max-width: 900px) {
+  .gear-word { display: none; }
+  .topbar { padding-right: 4.5rem; }
+  .topbar.has-exit { padding-right: 8.5rem; }
+}
 .setup { border: 1px solid var(--line-2); border-radius: var(--radius);
          background: var(--panel); color: var(--text); padding: 1.1rem 1.2rem;
          min-width: min(26rem, 92vw); }
