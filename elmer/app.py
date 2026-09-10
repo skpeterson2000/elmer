@@ -141,6 +141,16 @@ def _is_local(address):
 
 
 @app.context_processor
+def _classes():
+    """The licence classes, for the settings the gear opens.
+
+    From bandplan rather than written out again in a template: a list that
+    exists twice is a list that disagrees with itself eventually.
+    """
+    return {"license_classes": bandplan.CLASSES}
+
+
+@app.context_processor
 def _kiosk():
     """The Exit button, and only on the screen the server is running on.
 
