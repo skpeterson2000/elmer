@@ -43,7 +43,8 @@ def _styles():
 CHART_WIDTH = landscape(LETTER)[0] - inch
 
 
-def build(bands, license_class, regional=None, station=None, interop=False):
+def build(bands, license_class, regional=None, station=None, interop=False,
+          own=True):
     station = station or {}
     s = _styles()
     buf = io.BytesIO()
@@ -52,6 +53,11 @@ def build(bands, license_class, regional=None, station=None, interop=False):
                             topMargin=0.45 * inch, bottomMargin=0.45 * inch,
                             title="Band plan")
     flow = [Paragraph("US Amateur Band Plan", s["title"])]
+    # Same rule as the card. This one carries no callsign, but a sheet headed
+    # with a class is still read as a claim to hold it by anybody who does not
+    # look closely, and saying so costs a line.
+    if not own:
+        flow.append(Paragraph(NOT_HELD % license_class.upper(), s["sub"]))
     line = (f"Privileges shown for <b>{license_class}</b> class, per 47 CFR 97.301 "
             f"and 97.305. Activity segments are convention, not law. Each band "
             f"is drawn to scale below its heading in the colours above, with "
@@ -480,12 +486,25 @@ def _colophon(group, x, y, width, license_class, station):
                      fillColor=colors.HexColor("#888888")))
 
 
-def build_card(license_class, station=None):
+# What a sheet says when it is not a picture of the operator's own licence.
+# The band plan will draw any class for anybody, which is how somebody decides
+# whether an upgrade is worth sitting for - and the moment that leaves the
+# screen on paper it has to say what it is, because a chart headed with a
+# class is read as a claim to hold it.
+NOT_HELD = ("Drawn for %s privileges as a study sheet. It is not a licence "
+            "and not a statement of what any station holds.")
+
+
+def build_card(license_class, station=None, own=True):
     """A single-page picture of the bands this class may use.
 
     Everything on it is drawn from the allocations themselves: what may be
     transmitted where is a fact of 47 CFR, and this is ELMER's own way of
     showing it rather than anybody else's.
+
+    `own` says whether this is the operator's own class. A callsign belongs on
+    a chart of that station's own privileges and nowhere else; the caller
+    withholds it, and this says out loud what the sheet is instead.
     """
     from .bandplan import BANDS
 
@@ -498,7 +517,10 @@ def build_card(license_class, station=None):
                             title=f"US amateur bands - {license_class}")
 
     who = f" &mdash; {station['callsign']}" if station.get("callsign") else ""
-    flow = [Paragraph(f"US Amateur Bands &mdash; {license_class}{who}", s["title"]),
+    flow = [Paragraph(f"US Amateur Bands &mdash; {license_class}{who}", s["title"])]
+    if not own:
+        flow.append(Paragraph(NOT_HELD % license_class.upper(), s["sub"]))
+    flow += [
             Paragraph(
                 "Privileges per 47 CFR 97.301 and 97.305, drawn to scale within "
                 "each band. Grey is spectrum this license may not transmit on. "
