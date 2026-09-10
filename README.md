@@ -1742,6 +1742,22 @@ The icon is installed into the hicolor theme at 48, 64, 128, 256 and 512 px
 from `elmer/static/icon.png`, so replacing the icon and re-running the install
 updates the menu too.
 
+### Walking into a pool that is not open
+
+The gate refuses with a page rather than the framework's own 403. That page has
+the reason on it, **Open every pool anyway** next to the reason, **Esc** bound
+to go back, and a clock that goes back on its own after eight seconds.
+
+The word *Forbidden* on a bare error page is a dead end on a kiosk: a
+full-screen browser has no back button, and nobody is standing there to type a
+URL. Escape is bound because that is what a person presses when something
+appears that they did not want; the clock is there for somebody who does not
+know that. Any press stops the clock — anything pressed is somebody deciding
+for themselves, and the clock exists for when nobody does.
+
+An API asking the same question still gets JSON. Handing a page back to
+something fetching `/api` turns a working refusal into a parse error.
+
 ## Kiosk mode
 
 On a Pi with a monitor, ELMER is more appliance than website:
@@ -1880,13 +1896,20 @@ ELMER is already installed here
 
     1) Update    fetch the latest ELMER and apply it
     2) Repair    put back anything missing or changed, and re-check
-    3) Remove    take away the menu entry and the virtualenv
-    4) Check     run the self-check and change nothing
-    5) Quit
+    3) Change    where the icons go: menu, desktop, or neither
+    4) Remove    take away the menu entry and the virtualenv
+    5) Check     run the self-check and change nothing
+    6) Quit
 ```
 
-The same four are flags for a scripted run — `--update`, `--repair`, `--check`,
-`--remove` (`--uninstall` still means the same). A run with `--yes`, or one with
+**Change** is third because it is the one you come back for. Update and repair
+are things that have gone wrong; changing your mind about an icon has not, and
+having to run a whole reinstall to be asked again is how somebody ends up
+sitting there hunting for the way to do it.
+
+The same five are flags for a scripted run — `--update`, `--repair`, `--change`
+(`--icons` means the same), `--check`, `--remove` (`--uninstall` still means the
+same). A run with `--yes`, or one with
 no terminal attached, behaves exactly as it always did and installs what is
 missing, since a script that expected an install should get one.
 

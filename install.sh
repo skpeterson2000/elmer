@@ -22,6 +22,8 @@ ELMER installer
   ./install.sh --update        fetch and apply the latest ELMER
   ./install.sh --repair        put back what is missing or changed, and re-check
   ./install.sh --check         run the self-check and change nothing
+  ./install.sh --change        change an install that is already here: where
+                               the icons go, menu or desktop or neither
   ./install.sh --connect       give a downloaded copy the link it needs to
                                update itself from now on
   ./install.sh --remove        take away the menu entry and the virtualenv
@@ -43,7 +45,7 @@ ASSUME_YES=0
 FORCE_VENV=0
 WANT_LAUNCHER=1
 DISCARD=0
-MODE=""                       # update | repair | check | connect | remove | install
+MODE=""                       # update | repair | check | change | connect | remove | install
 
 for arg in "$@"; do
     case "$arg" in
@@ -53,6 +55,7 @@ for arg in "$@"; do
         --update)      MODE=update ;;
         --repair)      MODE=repair ;;
         --check)       MODE=check ;;
+        --change|--icons) MODE=change ;;
         --connect)     MODE=connect ;;
         --remove|--uninstall) MODE=remove ;;
         --discard-local-changes) DISCARD=1 ;;
@@ -95,6 +98,64 @@ choose3() {
     local reply
     read -r -p "  [1] " reply >&2 || { echo 1; return; }
     case "${reply:-1}" in 2) echo 2 ;; 3) echo 3 ;; *) echo 1 ;; esac
+}
+
+# The icons, asked the same way wherever it is reached from - the install
+# walk, a repair, or "Change" on a machine that already has ELMER. Somebody
+# who wants to move an icon should not have to reinstall to be asked again.
+choose_icons() {
+    head2 "Icons"
+    HAVE_ENTRY=0
+    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed_here() else 1)' \
+        2>/dev/null && HAVE_ENTRY=1
+    # An entry holds an absolute path, so a folder that has been moved leaves
+    # an icon that quietly does nothing. Worth naming, because the advice to
+    # move a copy out of the downloads folder is what causes it.
+    STALE=0
+    if [ "$HAVE_ENTRY" = 0 ]; then
+        "$PY" -c 'from elmer import launcher
+gone = launcher.owner()
+raise SystemExit(0 if launcher.installed() and gone and not gone.exists() else 1)' \
+            2>/dev/null && STALE=1
+    fi
+    if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+        warn "no desktop session here, so no menu entry was added"
+        printf '  %sRun ./install.sh again from the desktop to add one.%s\n' "$DIM" "$OFF"
+    elif [ "$MODE" = repair ] && [ "$HAVE_ENTRY" = 1 ]; then
+        # A repair puts the entry back as it should be without asking: it is
+        # already there, and rewriting it is the repair.
+        "$PY" ./elmer.py --log-level WARNING --install-launcher
+    elif [ "$STALE" = 1 ]; then
+        warn "the menu entry points at a folder that is no longer there"
+        printf '  %sThat happens when ELMER is moved: the icon keeps the old path.%s\n' \
+            "$DIM" "$OFF"
+        if ask "Point it at this copy instead?"; then
+            "$PY" ./elmer.py --log-level WARNING --install-launcher
+        else
+            printf '  %sleft alone — the icon will keep doing nothing%s\n' "$DIM" "$OFF"
+        fi
+    else
+        # The menu entry is not part of the question. It is how somebody who
+        # does not use a terminal finds this again tomorrow, it is invisible
+        # until looked for, and one line takes it away. The desktop is a
+        # surface people keep deliberately, so that part is asked.
+        WANT=$(choose3 "ELMER goes in the applications menu. And on the desktop?" \
+                       "Menu and desktop" \
+                       "Menu only" \
+                       "Neither — I will start it from the terminal")
+        # --log-level WARNING keeps the launcher's own log line out of the
+        # installer's output; a new user should not be reading log formatting.
+        case "$WANT" in
+            1) "$PY" ./elmer.py --log-level WARNING --install-launcher
+               ok "in the menu, and on the desktop" ;;
+            2) "$PY" ./elmer.py --log-level WARNING --install-launcher --no-desktop-icon
+               ok "in the menu" ;;
+            3) printf '  %sno icons — start it with ./elmer.py --kiosk%s\n' \
+                   "$DIM" "$OFF"
+               printf '  %sadd them later with ./elmer.py --install-launcher%s\n' \
+                   "$DIM" "$OFF" ;;
+        esac
+    fi
 }
 
 # A question whose answer throws something away. Deliberately not routed
@@ -332,18 +393,24 @@ if [ -z "$MODE" ] && [ -n "$SIGNS" ] && [ -t 0 ] && [ "$ASSUME_YES" = 0 ]; then
         printf '    1) Update    connect this downloaded copy, then bring it up to date\n'
     fi
     printf '    2) Repair    put back anything missing or changed, and re-check\n'
-    printf '    3) Remove    take away the menu entry and the virtualenv\n'
-    printf '    4) Check     run the self-check and change nothing\n'
-    printf '    5) Quit\n\n'
+    # Third because it is the one somebody comes back for. Update and repair
+    # are things that go wrong; changing your mind about an icon is not, and
+    # having to reinstall to be asked again is why somebody sits looking for
+    # the way to do it.
+    printf '    3) Change    where the icons go: menu, desktop, or neither\n'
+    printf '    4) Remove    take away the menu entry and the virtualenv\n'
+    printf '    5) Check     run the self-check and change nothing\n'
+    printf '    6) Quit\n\n'
     printf '  %sYour study data in data/ is left alone by all of these.%s\n\n' \
         "$DIM" "$OFF"
-    read -r -p "  Which? [1-5, default 4] " choice || choice=5
-    case "${choice:-4}" in
+    read -r -p "  Which? [1-6, default 5] " choice || choice=6
+    case "${choice:-5}" in
         1) MODE=update ;;
         2) MODE=repair ;;
-        3) MODE=remove ;;
-        4) MODE=check ;;
-        5|q|Q) printf '\n  Nothing done.\n\n'; exit 0 ;;
+        3) MODE=change ;;
+        4) MODE=remove ;;
+        5) MODE=check ;;
+        6|q|Q) printf '\n  Nothing done.\n\n'; exit 0 ;;
         *) printf '\n  Not one of the options, so nothing done.\n\n'; exit 2 ;;
     esac
 fi
@@ -354,6 +421,11 @@ case "$MODE" in
     remove) do_remove; exit 0 ;;
     update) do_update; exit $? ;;
     check)  head2 "Checking the install"; "$PY" ./elmer.py --doctor; exit $? ;;
+    change)
+        choose_icons
+        printf '\n%sDone.%s  Start it with %s./elmer.py --kiosk%s\n\n' \
+            "$BOLD" "$OFF" "$BOLD" "$OFF"
+        exit 0 ;;
     connect)
         if is_checkout; then
             ok "this install is already connected - nothing to do"
@@ -492,58 +564,7 @@ fi
 
 # ------------------------------------------------------------------ launcher
 if [ "$WANT_LAUNCHER" = 1 ]; then
-    head2 "Menu entry"
-    HAVE_ENTRY=0
-    "$PY" -c 'from elmer import launcher; raise SystemExit(0 if launcher.installed_here() else 1)' \
-        2>/dev/null && HAVE_ENTRY=1
-    # An entry holds an absolute path, so a folder that has been moved leaves
-    # an icon that quietly does nothing. Worth naming, because the advice to
-    # move a copy out of the downloads folder is what causes it.
-    STALE=0
-    if [ "$HAVE_ENTRY" = 0 ]; then
-        "$PY" -c 'from elmer import launcher
-gone = launcher.owner()
-raise SystemExit(0 if launcher.installed() and gone and not gone.exists() else 1)' \
-            2>/dev/null && STALE=1
-    fi
-    if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
-        warn "no desktop session here, so no menu entry was added"
-        printf '  %sRun ./install.sh again from the desktop to add one.%s\n' "$DIM" "$OFF"
-    elif [ "$MODE" = repair ] && [ "$HAVE_ENTRY" = 1 ]; then
-        # A repair puts the entry back as it should be without asking: it is
-        # already there, and rewriting it is the repair.
-        "$PY" ./elmer.py --log-level WARNING --install-launcher
-    elif [ "$STALE" = 1 ]; then
-        warn "the menu entry points at a folder that is no longer there"
-        printf '  %sThat happens when ELMER is moved: the icon keeps the old path.%s\n' \
-            "$DIM" "$OFF"
-        if ask "Point it at this copy instead?"; then
-            "$PY" ./elmer.py --log-level WARNING --install-launcher
-        else
-            printf '  %sleft alone — the icon will keep doing nothing%s\n' "$DIM" "$OFF"
-        fi
-    else
-        # The menu entry is not part of the question. It is how somebody who
-        # does not use a terminal finds this again tomorrow, it is invisible
-        # until looked for, and one line takes it away. The desktop is a
-        # surface people keep deliberately, so that part is asked.
-        WANT=$(choose3 "ELMER goes in the applications menu. And on the desktop?" \
-                       "Menu and desktop" \
-                       "Menu only" \
-                       "Neither — I will start it from the terminal")
-        # --log-level WARNING keeps the launcher's own log line out of the
-        # installer's output; a new user should not be reading log formatting.
-        case "$WANT" in
-            1) "$PY" ./elmer.py --log-level WARNING --install-launcher
-               ok "in the menu, and on the desktop" ;;
-            2) "$PY" ./elmer.py --log-level WARNING --install-launcher --no-desktop-icon
-               ok "in the menu" ;;
-            3) printf '  %sno icons — start it with ./elmer.py --kiosk%s\n' \
-                   "$DIM" "$OFF"
-               printf '  %sadd them later with ./elmer.py --install-launcher%s\n' \
-                   "$DIM" "$OFF" ;;
-        esac
-    fi
+    choose_icons
 fi
 
 # -------------------------------------------------------------------- finish

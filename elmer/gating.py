@@ -132,6 +132,10 @@ def why_closed(pool_id, state):
     needed = AMATEUR_LADDER[max(0, rung - 1)]
     names = {"tech2026": "Technician", "gen2023": "General",
              "extra2024": "Amateur Extra"}
+    # Not "open it from Settings": there is no Settings page, and a sentence
+    # naming a place that does not exist is what has somebody hunting through
+    # the program instead of reading the button beside these words. Everywhere
+    # this sentence is shown - the dashboard, and the wall you hit by walking
+    # into a closed pool - "Open every pool anyway" is next to it.
     return (f"{names.get(pool_id, pool_id)} opens when you hold a license that "
-            f"reaches it, or take {names.get(needed, needed)} to Elmer. "
-            f"You can also open everything from Settings.")
+            f"reaches it, or take {names.get(needed, needed)} to Elmer.")

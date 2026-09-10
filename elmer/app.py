@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from markupsafe import escape
 from urllib.parse import urlsplit
 
 from flask import (Flask, Response, abort, g, jsonify, render_template,
@@ -1440,6 +1441,45 @@ def _open_pools(connection):
     settings = db.get_profile(connection)["settings"]
     standings = all_standings(connection)
     return gating.open_pools(settings, standings, list(load_pools()))
+
+
+# How long a wall stands before it takes itself down. Long enough to read the
+# sentence on it twice, short enough that nobody is stuck looking at it.
+FORBIDDEN_SECONDS = 8
+
+
+@app.errorhandler(403)
+def _forbidden(exc):
+    """A closed door with the way out written on it.
+
+    The framework's own 403 is the word Forbidden and nothing else, which on a
+    kiosk is a dead end: a full-screen browser has no back button and nobody
+    is standing there to type a URL. So a page, with the reason the gate gave,
+    Escape bound to leave, and a clock that leaves on its own.
+
+    An API keeps its JSON. Something fetching /api and handed a page back
+    would report a parse error instead of the refusal, which is a worse
+    message about a working refusal.
+    """
+    why = getattr(exc, "description", "") or "That is not open yet."
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({"ok": False, "error": why}), 403
+    referrer = request.referrer or ""
+    here = request.host_url.rstrip("/")
+    back = referrer if referrer.startswith(here) and referrer != request.url \
+        else url_for("home")
+    # The top bar is part of the way out, so this page is a page like any
+    # other and needs what every page is given.  A handler that cannot build
+    # that - no database, no user yet - must still answer, because the one
+    # thing a dead end must not do is become a second dead end.
+    try:
+        block = profile_block(conn())
+    except Exception:
+        log.exception("could not build the page around a 403")
+        return (f"<h1>Not open yet</h1><p>{escape(why)}</p>"
+                f"<p><a href=\"{escape(back)}\">Back</a></p>"), 403
+    return render_template("forbidden.html", why=why, back=back,
+                           seconds=FORBIDDEN_SECONDS, **block), 403
 
 
 def _studyable_or_403(connection, pool_id):
