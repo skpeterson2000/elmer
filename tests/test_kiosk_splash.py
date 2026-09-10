@@ -108,7 +108,12 @@ held = re.search(r"HOLD_MS = (\d+)", kiosk.SPLASH.read_text())
 check("the page states one", bool(held), True)
 check("and it matches kiosk.HOLD_SECONDS",
       int(held.group(1)) if held else None, int(kiosk.HOLD_SECONDS * 1000))
-check("which is a moment, not a wait", 0.5 <= kiosk.HOLD_SECONDS <= 3.0, True)
+# Bounded at both ends, because both ends are mistakes: under a second the
+# fast board flashes the splash and the slow one dwells on it, which is the
+# seam this exists to hide, and past the slowest real start it is no longer
+# covering a wait but adding one.
+check("long enough to read as a start, short enough not to be a wait",
+      1.0 <= kiosk.HOLD_SECONDS <= 8.0, True)
 
 print("\nevery machine opens on it - the quick one included")
 quick, said = run(comes_up_after=0.05)

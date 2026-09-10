@@ -1661,12 +1661,12 @@ the existing window instead of going full screen.
 Starting takes a moment on a cold card — a megabyte of pools comes off it before
 the first page renders. The browser opens straight away on a splash screen held
 on disk — the owl tile out of `artwork/Mixed.jpg` — which watches the port and
-goes to the program once the server answers,
-and never sooner than about a second and a half. That hold is deliberate: a fast
-machine would otherwise flash the splash and be gone while a slow one sat on it,
-and every board should open the same way. How long the server actually took is
-written to `data/elmer.log` instead, where it is worth something to whoever goes
-looking and costs nothing to whoever doesn't.
+goes to the program once the server answers, and never sooner than four seconds.
+That hold is deliberate, and it is set to about the median start rather than to
+the slowest board: a fast machine would otherwise flash the splash and be gone
+while a slow one sat on it, and every board should open the same way. How long
+the server actually took is written to `data/elmer.log` instead, where it is
+worth something to whoever goes looking and costs nothing to whoever doesn't.
 
 The Exit button is deliberately narrow. ELMER binds every interface so a phone
 can reach it, and nobody on the network should be able to switch the study
