@@ -1,7 +1,8 @@
 """Desktop launcher - the menu entry, its icon and the desktop shortcut.
 
 `./elmer.py --install-launcher` puts ELMER in the applications menu with its
-own icon, so it can be started by clicking it rather than from a terminal.
+own icon, so it can be started by clicking it rather than from a terminal, and
+adds a shortcut to the desktop unless told not to with `--no-desktop-icon`.
 
 The layout is the one the freedesktop spec expects and that the desktop here
 already uses: the icon goes into the hicolor theme at several sizes under a
@@ -91,8 +92,15 @@ def _refresh(share):
                        capture_output=True, check=False)
 
 
-def install():
-    """Install the menu entry, icon and desktop shortcut.  Returns the paths."""
+def install(desktop=True):
+    """Install the menu entry and icon, and the desktop shortcut if wanted.
+
+    The menu entry is not optional and is not asked about.  It is how somebody
+    who does not use a terminal finds this program again tomorrow, it costs
+    nothing, it is invisible until looked for, and one line removes it.  The
+    desktop is different: it is a surface people keep deliberately, and an icon
+    put there without asking is a thing done to somebody's desk.
+    """
     from PIL import Image
 
     source = ROOT / "elmer" / "static" / "icon.png"
@@ -116,10 +124,14 @@ def install():
     entry.chmod(0o755)
     written.append(entry)
 
-    if paths["shortcut"] is not None:
+    if desktop and paths["shortcut"] is not None:
         paths["shortcut"].write_text(_shortcut_text(entry))
         paths["shortcut"].chmod(0o755)
         written.append(paths["shortcut"])
+    elif not desktop and paths["shortcut"] is not None:
+        # Asked for menu-only having had one before: the answer is about now,
+        # not about what was chosen last time.
+        paths["shortcut"].unlink(missing_ok=True)
 
     _refresh(_home_share())
     log.info("launcher installed: %s", entry)

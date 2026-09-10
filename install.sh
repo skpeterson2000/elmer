@@ -29,7 +29,7 @@ ELMER installer
 
   ./install.sh --yes           no questions; assume yes to all of them
   ./install.sh --venv          use a virtual environment instead of apt
-  ./install.sh --no-launcher   skip the desktop and menu entry
+  ./install.sh --no-launcher   do not ask about icons, and add none
   ./install.sh --discard-local-changes
                                with --repair, put modified tracked files back
                                as the repository has them. This throws those
@@ -80,6 +80,21 @@ ask() {
     local reply
     read -r -p "  $1 [Y/n] " reply || return 1
     case "${reply:-y}" in [Yy]*) return 0 ;; *) return 1 ;; esac
+}
+
+# One question with three answers, for the cases where "no" is not the
+# opposite of "yes" but a third thing.  Echoes the choice back, because a
+# single keypress with no confirmation leaves somebody unsure what they picked.
+choose3() {
+    # choose3 "question" "1st" "2nd" "3rd" -> 1, 2 or 3 on stdout
+    if [ "$ASSUME_YES" = 1 ] || [ ! -t 0 ]; then echo 1; return; fi
+    printf '  %s\n' "$1" >&2
+    printf '    %s1%s  %s\n' "$BOLD" "$OFF" "$2" >&2
+    printf '    %s2%s  %s\n' "$BOLD" "$OFF" "$3" >&2
+    printf '    %s3%s  %s\n' "$BOLD" "$OFF" "$4" >&2
+    local reply
+    read -r -p "  [1] " reply >&2 || { echo 1; return; }
+    case "${reply:-1}" in 2) echo 2 ;; 3) echo 3 ;; *) echo 1 ;; esac
 }
 
 # A question whose answer throws something away. Deliberately not routed
@@ -507,13 +522,27 @@ raise SystemExit(0 if launcher.installed() and gone and not gone.exists() else 1
         else
             printf '  %sleft alone — the icon will keep doing nothing%s\n' "$DIM" "$OFF"
         fi
-    elif ask "Add ELMER to the applications menu and the desktop?"; then
+    else
+        # The menu entry is not part of the question. It is how somebody who
+        # does not use a terminal finds this again tomorrow, it is invisible
+        # until looked for, and one line takes it away. The desktop is a
+        # surface people keep deliberately, so that part is asked.
+        WANT=$(choose3 "ELMER goes in the applications menu. And on the desktop?" \
+                       "Menu and desktop" \
+                       "Menu only" \
+                       "Neither — I will start it from the terminal")
         # --log-level WARNING keeps the launcher's own log line out of the
         # installer's output; a new user should not be reading log formatting.
-        "$PY" ./elmer.py --log-level WARNING --install-launcher
-    else
-        printf '  %sskipped — add it later with ./elmer.py --install-launcher%s\n' \
-            "$DIM" "$OFF"
+        case "$WANT" in
+            1) "$PY" ./elmer.py --log-level WARNING --install-launcher
+               ok "in the menu, and on the desktop" ;;
+            2) "$PY" ./elmer.py --log-level WARNING --install-launcher --no-desktop-icon
+               ok "in the menu" ;;
+            3) printf '  %sno icons — start it with ./elmer.py --kiosk%s\n' \
+                   "$DIM" "$OFF"
+               printf '  %sadd them later with ./elmer.py --install-launcher%s\n' \
+                   "$DIM" "$OFF" ;;
+        esac
     fi
 fi
 
