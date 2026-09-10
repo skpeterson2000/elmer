@@ -28,6 +28,7 @@
     <a href="/lab" {% if request.path.startswith('/lab') %}class="on"{% endif %}>Lab</a>
     <a href="/tools" {% if request.path.startswith('/tools') %}class="on"{% endif %}>Tools</a>
     <a href="/out" {% if request.path.startswith('/out') %}class="on"{% endif %}>Make Contact</a>
+    <a href="/activations" {% if request.path.startswith('/activations') %}class="on"{% endif %}>POTA / SOTA</a>
     {# The one page that has to be reachable an hour later rather than only in
        the moment: a chart printed this morning is looked for from wherever the
        operator happens to be, and in a full-screen browser the nav is the only

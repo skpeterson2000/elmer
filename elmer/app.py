@@ -27,7 +27,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks, waves,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               discovery, fieldkit, gating, host, netwatch, sweeps,
+               activations, discovery, fieldkit, gating, host,
+               netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
                reachout, repeaters,
@@ -569,6 +570,99 @@ def api_ways_out():
     answer["qth_source"] = place.get("source") or "saved"
     answer["located"] = True
     return jsonify(answer)
+
+
+@app.route("/activations")
+def activations_page():
+    """Parks and summits: what is near, what counts, and what you have.
+
+    The two programmes are the reason most people carry a radio somewhere, and
+    almost every wasted trip is a planning failure rather than a radio one -
+    the wrong kit, or the wrong side of a contour. That is fixable at a table
+    days early, which is what this page is for.
+    """
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    return render_template("activations.html", gear=reachout.GEAR,
+                           # None means nobody has been asked yet, which is a
+                           # different state from having said no.
+                           pota_asked=settings.get("pota"),
+                           **profile_block(connection))
+
+
+@app.route("/api/activations")
+def api_activations():
+    """Everything the page needs, without touching the network.
+
+    Held references only. Fetching is a press, because it is thirty-odd
+    requests and the better part of a minute, and because a page that reaches
+    out the moment it is opened is a page nobody can open quietly.
+    """
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    lat, lon = place.get("lat"), place.get("lon")
+    # Each kind counted and listed on its own. Taking the nearest forty of
+    # everything and sorting them afterwards reported "no summits" whenever
+    # forty parks were closer than the first hill, which is most places -
+    # the wrong answer to "is there anything up there", and it looked
+    # authoritative.
+    parks, summits = [], []
+    cover = {"known": False, "reason": "nowhere", "areas": 0}
+    if lat is not None:
+        parks = references.nearby(lat, lon, kind="park", limit=None)
+        summits = references.nearby(lat, lon, kind="summit", limit=None)
+        cover = references.coverage(lat, lon)
+    return jsonify({
+        "qth": place.get("short") or place.get("grid") or "",
+        "located": lat is not None,
+        "coverage": cover,
+        "radius_km": references.DEFAULT_RADIUS_KM,
+        "parks": parks[:12], "summits": summits[:12],
+        "held": {"parks": len(parks), "summits": len(summits)},
+        "programs": [activations.POTA, activations.SOTA],
+        "gear": activations.GEAR_VERDICTS,
+    })
+
+
+@app.route("/api/activations/prepare", methods=["POST"])
+def api_activations_prepare():
+    """Fetch the parks and summits within a day's drive, and hold them.
+
+    Local only, and a press rather than a page load: this is the one thing
+    here that costs somebody else's bandwidth, and it is the operator's
+    decision when to spend it.
+    """
+    _local_json_or_403()
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    if place.get("lat") is None:
+        return jsonify({"ok": False,
+                        "error": "ELMER does not know where you are yet - "
+                                 "set a QTH on the propagation page"}), 409
+    area = references.fetch(place["lat"], place["lon"],
+                            label=place.get("short") or "here")
+    return jsonify({"ok": True, "area": {
+        "label": area["label"], "radius_km": area["radius_km"],
+        "parks": len(area["parks"] or []),
+        "summits": len(area["summits"] or []),
+        "missing": area["missing"]}})
+
+
+@app.route("/api/pota/<call>")
+def api_pota(call):
+    """One operator's POTA record, once somebody has asked for it.
+
+    A callsign leaving this unit for somebody else's server is the operator's
+    decision and not a detail of how a page is built, so the panel says what
+    it would send before it sends anything and this only answers when asked.
+    """
+    settings = db.get_profile(conn())["settings"]
+    if settings.get("pota") is not True:
+        return jsonify({"ok": False, "asked": False,
+                        "error": "not asked for"}), 403
+    return jsonify(pota.lookup(call, refresh=bool(request.args.get("refresh"))))
 
 
 @app.route("/api/conductors")
