@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Not open yet{% endblock %}
+{% block body %}
+
+<div class="panel mt">
+  <div class="panel-title">Not open yet</div>
+
+  <p class="small">{{ why }}</p>
+
+  <div class="row mt">
+    <a class="btn primary" href="{{ back }}" id="fb-back">&larr; Back</a>
+    {# The one action that takes this wall down, on the wall - rather than a
+       sentence telling somebody to go and look for it. users.js handles it
+       on every page. #}
+    <button class="btn" data-open-pools>Open every pool anyway</button>
+  </div>
+
+  <p class="tiny muted" style="margin-top:.7rem">
+    <b>Esc</b> goes back too &mdash; or wait <span id="fb-count">{{ seconds }}</span>s
+    and it will.
+  </p>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* A wall somebody walked into, so the way out is on it.
+ *
+ * This used to be the framework's own 403 page: the word Forbidden, no
+ * explanation, and no way off it - which on a kiosk is a dead end, because a
+ * full-screen browser has no back button and nobody is there to type a URL.
+ * Escape is bound because that is what a person presses when a thing appears
+ * that they did not want, and the timer is there because somebody who does
+ * not know that should not have to find out.
+ */
+(function () {
+  var back = document.getElementById('fb-back').getAttribute('href');
+  var left = parseInt(document.getElementById('fb-count').textContent, 10) || 8;
+  var going = false;
+
+  function leave() {
+    if (going) return;
+    going = true;
+    location.href = back;
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); leave(); }
+  });
+
+  // Anything pressed here is somebody deciding for themselves, and the clock
+  // exists for the case where nobody does. It stands down at the first sign
+  // of a person.
+  ['click', 'pointerdown'].forEach(function (ev) {
+    document.addEventListener(ev, function () { clearInterval(tick); });
+  });
+
+  var tick = setInterval(function () {
+    left -= 1;
+    var cell = document.getElementById('fb-count');
+    if (cell) cell.textContent = Math.max(0, left);
+    if (left <= 0) { clearInterval(tick); leave(); }
+  }, 1000);
+})();
+</script>
+{% endblock %}
