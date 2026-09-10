@@ -11,6 +11,8 @@ import logging.handlers
 import os
 import time
 import traceback
+
+from . import db, startup
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,6 +86,15 @@ def install_request_logging(app):
                 request.remote_addr, request.method, request.full_path.rstrip("?"),
                 response.status_code, elapsed,
                 (request.user_agent.string or "-")[:60])
+        # The first page out the door is when this unit became usable, and
+        # this is the one place that already knows a page was served.  A
+        # static file is not a page - see elmer.startup.
+        if startup.waiting() and request.endpoint not in (None, "static") \
+                and response.status_code < 400:
+            try:
+                startup.note_first_page(db.connect(), elapsed / 1000.0)
+            except Exception:               # never break a response over it
+                pass
         return response
 
     @app.errorhandler(Exception)
