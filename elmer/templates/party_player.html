@@ -119,13 +119,36 @@ function showJoin(reason) {
 }
 
 /* ----------------------------------------------------------------- rounds */
+/* Waiting used to be all this screen could say, and on a table nobody was
+   running it said it for ever. Now it says what it is waiting for: a
+   countdown that is already going to fire, or - for somebody sitting here on
+   their own - a press. The server checks that permission again when the press
+   arrives; this only decides whether to offer it. */
 function paintWaiting(state) {
   const n = (state.cohorts || []).reduce((a, c) => a + c.players, 0);
+  const secs = state.starts_in;
+  const soon = secs !== null && secs !== undefined;
   view.innerHTML = `<div class="state">
       <h2>You're in.</h2>
-      <p>Waiting for the next question.</p>
+      ${soon
+        ? `<p>Starting in <b>${Math.ceil(secs)}</b>&hellip;</p>`
+        : (state.may_start
+            ? `<p>Nobody else is here, so it is yours to begin.</p>
+               <button class="btn primary" id="startnow">Start</button>`
+            : `<p>Waiting for the next question.</p>`)}
       <p class="clock">${n} player${n === 1 ? '' : 's'} at this table</p>
     </div>`;
+  const go = document.getElementById('startnow');
+  if (go) go.addEventListener('click', async () => {
+    go.disabled = true;
+    go.textContent = 'Starting\u2026';
+    try {
+      await api('/api/party/start-now', {});
+    } catch (err) {
+      go.disabled = false;
+      go.textContent = 'Start';
+    }
+  });
 }
 
 function paintQuestion(round) {

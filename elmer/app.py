@@ -1940,6 +1940,10 @@ def api_party_join():
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
+    # Somebody is here now, so the table stops waiting to be told. A person
+    # who scanned the code and got a screen that says "waiting" with nothing
+    # behind it has been handed a broken program, whatever the code does.
+    _party_arm_start(room)
     return jsonify({"joined": True, "player": player.as_dict(),
                     "state": room.state(player.id)})
 
@@ -1954,6 +1958,12 @@ def api_party_state():
     except ValueError:
         who = None
     state = room.state(who)
+    # Whether the device polling this may start the game itself. One person
+    # alone on an idle table gets the press; in a hall with others already in,
+    # the table screen keeps it, so one phone cannot start a round while the
+    # instructor is still talking.
+    state["may_start"] = bool(room.people_here() == 1
+                              and _party_may_begin(room))
     # Feed the moving cap with what this unit is really delivering.
     room.note_service((time.perf_counter() - started) * 1000.0)
     return jsonify(state)
@@ -1999,6 +2009,80 @@ def api_party_answer():
     # round closes, so nobody learns the answer by watching a neighbour.
     return jsonify({"accepted": True, "ms": entry["ms"],
                     "everyone_in": room.everyone_answered()})
+
+
+# How long a table waits after somebody arrives before it starts by itself.
+# Long enough for a second and a third person to get in behind the first,
+# short enough that one operator with a phone is not left reading a countdown.
+AUTO_START_SECONDS = 15.0
+
+
+def _party_under_net():
+    """Whether this table takes its rounds from somebody else.
+
+    A table in a hall answers the question net control put up. One that
+    started its own would have its players answering something nobody else in
+    the room was looking at, so nothing here fires while a net has it.
+    """
+    return cohort.bridge() is not None
+
+
+def _party_playing(room):
+    """Whether a game is already under way, by whatever route.
+
+    A round whose clock has run out and that nothing is driving is not a game
+    in progress, it is the wreckage of one - and counting it as live is how a
+    table stopped mid-question stays unstartable for ever, which is the same
+    dead end this exists to remove, one step further in.
+    """
+    director = autoplay.director()
+    if director and (director.as_dict() or {}).get("running"):
+        return True
+    rnd = room.round
+    return rnd is not None and not rnd.closed and not rnd.expired()
+
+
+def _party_may_begin(room):
+    """Whether this table is free to start a game on its own account."""
+    return (not _party_under_net() and not _party_playing(room)
+            and room.people_here() > 0)
+
+
+def _party_class():
+    """What to ask when nobody has said: the class the operator is studying.
+
+    Needs a request to read the profile, so it is worked out while one is in
+    hand and carried into the timer rather than looked up from inside it.
+    """
+    settings = db.get_profile(conn())["settings"]
+    named = (settings.get("license_class")
+             or (settings.get("license") or {}).get("license_class") or "")
+    named = str(named).strip().lower()
+    return named if named in party.DIFFICULTIES else "technician"
+
+
+def _party_begin(room, difficulty, armed_only=False):
+    """Put the first question up and let the director carry it from there."""
+    if armed_only and not room.waiting_to_start():
+        return False                     # somebody started it, or all left
+    room.disarm_start()
+    if not _party_may_begin(room):
+        return False
+    room.fill_bots(None)
+    seconds = party.DEFAULT_ROUND_SECONDS
+    autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
+    log.info("party: started on its own (%s)", difficulty)
+    return True
+
+
+def _party_arm_start(room):
+    """Start the countdown, if this is a table that may start itself."""
+    if room.waiting_to_start() or not _party_may_begin(room):
+        return
+    difficulty = _party_class()
+    room.arm_start(AUTO_START_SECONDS)
+    threading.Timer(AUTO_START_SECONDS + 0.25,
+                    lambda: _party_begin(room, difficulty, True)).start()
 
 
 def _ask_party(difficulty="technician", section=None, seconds=None):
@@ -2051,6 +2135,7 @@ def api_party_auto():
         autoplay.stop()
         return jsonify({"auto": autoplay.director().as_dict()
                         if autoplay.director() else None, "running": False})
+    room.disarm_start()          # a press beats a countdown
     difficulty = str(body.get("difficulty", "technician")).lower()
     seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
     section = body.get("section")
@@ -2105,6 +2190,22 @@ def api_party_close():
     return jsonify({"summary": summary, "state": room.state()})
 
 
+@app.route("/api/party/start-now", methods=["POST"])
+def api_party_start_now():
+    """Begin, at the request of the one person sitting here.
+
+    The rule is checked here rather than trusted from the screen that offered
+    it: a phone may start a game it is alone in, and may not start one in a
+    room that has other people in it or that is taking its rounds from a net.
+    """
+    room = _party_or_404()
+    if room.people_here() != 1 or not _party_may_begin(room):
+        return jsonify({"started": False,
+                        "reason": "this table is not yours to start"}), 409
+    started = _party_begin(room, _party_class())
+    return jsonify({"started": started, "state": room.state()})
+
+
 @app.route("/api/party/leave", methods=["POST"])
 def api_party_leave():
     room = _party_or_404()
@@ -2113,6 +2214,9 @@ def api_party_leave():
         room.leave(int(body.get("player")))
     except (TypeError, ValueError):
         abort(400, "need a player id")
+    # A countdown for an empty room is a Pi talking to itself.
+    if room.people_here() == 0:
+        room.disarm_start()
     return jsonify(room.state())
 
 
