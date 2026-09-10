@@ -1719,6 +1719,25 @@ starts with a click rather than from a terminal. The entry launches it full
 screen; right-click it and choose **Open in a window** for an ordinary window
 instead. `./elmer.py --remove-launcher` takes it all back out.
 
+**The menu entry is not a question the installer asks.** It is how somebody who
+does not use a terminal finds the program again tomorrow, it is invisible until
+looked for, and one line removes it. The desktop is a different matter — a desk
+is a surface people keep deliberately, and an icon put there unasked is a thing
+done to somebody's desk. So `./install.sh` asks about that part only:
+
+```
+  ELMER goes in the applications menu. And on the desktop?
+    1  Menu and desktop
+    2  Menu only
+    3  Neither — I will start it from the terminal
+```
+
+The third is there for a headless box or a tidy desktop, and it says the
+command to start it so nobody who picks it is left stranded. Menu-only is
+`./elmer.py --install-launcher --no-desktop-icon`, and choosing it having had a
+desktop icon before removes the one that is there — the answer is about now,
+not about what was picked last time.
+
 The icon is installed into the hicolor theme at 48, 64, 128, 256 and 512 px
 from `elmer/static/icon.png`, so replacing the icon and re-running the install
 updates the menu too.

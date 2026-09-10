@@ -107,6 +107,9 @@ def main():
     ap.add_argument("--kiosk", action="store_true",
                     help="open a full-screen browser on this machine and show "
                          "an Exit button that stops the server")
+    ap.add_argument("--no-desktop-icon", action="store_true",
+                    help="with --install-launcher: menu entry only, "
+                         "nothing on the desktop")
     ap.add_argument("--install-launcher", action="store_true",
                     help="add ELMER to the applications menu and the desktop, "
                          "with its icon")
@@ -203,7 +206,7 @@ def main():
             print()
             return
         try:
-            written = launcher.install()
+            written = launcher.install(desktop=not args.no_desktop_icon)
         except (OSError, FileNotFoundError) as exc:
             print(f"\n  Could not install the launcher: {exc}\n")
             sys.exit(1)
