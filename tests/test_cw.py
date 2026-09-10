@@ -115,6 +115,29 @@ def main():
     check("  and asking for faster spacing than the characters does nothing",
           cw.timing(20, 30)["farnsworth"], False)
 
+    print("\n-- the Q signals, as three letters and not as one --")
+    chart = {section["title"]: section for section in cw.chart()}
+    check("they are on the chart", "Q signals" in chart, True)
+    q = chart["Q signals"]
+    check("all of them", len(q["items"]), len(cw.Q_SIGNALS))
+    check("  laid out with the code under the name", q.get("stacked"), True)
+    qcode = {item["char"]: item["code"] for item in q["items"]}
+    check("QRM is Q, R and M with the gaps between them",
+          qcode["QRM"], "--.- .-. --")
+    check("  which is not what a prosign looks like",
+          " " in cw.PROSIGNS["AR"][0], False)
+    # The distinction the whole section is about: run together, --.- .-. --
+    # would be a single symbol and a different sound entirely.
+    check("a Q signal has two gaps in it, one between each pair",
+          qcode["QTH"].count(" "), 2)
+    check("every one of them carries its meaning",
+          all(item["meaning"] for item in q["items"]), True)
+    check("  and it is the one the module already had",
+          q["items"][0]["meaning"],
+          cw.Q_SIGNALS[q["items"][0]["char"]])
+    check("the section says how to ask one rather than state it",
+          "QRL?" in q["note"], True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

@@ -247,6 +247,16 @@ def chart():
         return [{"char": c, "code": MORSE[c], "meaning": MEANINGS.get(c, "")}
                 for c in chars if c in MORSE]
 
+    def run_together(text):
+        """The code for a string of letters, with the gaps between them.
+
+        A space here means an inter-letter gap rather than a silence of its
+        own: it is what the page draws and what it sounds, and it is the whole
+        difference between the Q signal QRM and a prosign, which has no gaps
+        inside it at all.
+        """
+        return " ".join(MORSE[c] for c in text if c in MORSE)
+
     return [
         {"title": "Letters", "note": "in Koch order - hardest and most "
          "distinctive first, which is the order the lessons add them",
@@ -255,6 +265,14 @@ def chart():
          "the left as the digit rises", "items": rows("1234567890")},
         {"title": "Punctuation", "note": "the ones that actually get sent",
          "items": rows(PUNCTUATION)},
+        {"title": "Q signals", "stacked": True,
+         "note": "three letters sent as three letters, gaps and all - which "
+         "is what tells QRM from a prosign. A question mark after one asks "
+         "it: QRL? is \u201cis this frequency busy?\u201d and QRL on its own "
+         "answers \u201cit is\u201d.",
+         "items": [{"char": name, "code": run_together(name),
+                    "meaning": meaning, "stacked": True}
+                   for name, meaning in sorted(Q_SIGNALS.items())]},
         {"title": "Prosigns", "wide": True,
          "note": "run together with no gap inside - that "
          "is what makes them one sound rather than two letters",

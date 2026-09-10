@@ -530,6 +530,10 @@ table.data tr.denied td { opacity: .45; }
 .cw-code i.dit { width: .42rem; }
 .cw-code i.dah { width: 1.26rem; }
 .cw-code i.lit { background: var(--amber); box-shadow: 0 0 .5rem rgba(255,180,84,.7); }
+/* The gap between two letters, drawn as the silence it is. Three dit units
+   wide, less the element gaps either side of it that are already there. */
+.cw-code i.gap { background: none; box-shadow: none; width: .84rem; }
+.cw-code.big i.gap { width: 1.6rem; }
 .cw-code.big i { height: .8rem; border-radius: .4rem; }
 .cw-code.big i.dit { width: .8rem; }
 .cw-code.big i.dah { width: 2.4rem; }
@@ -584,6 +588,30 @@ table.data tr.denied td { opacity: .45; }
 .cw-chart-grid.wide .cw-chart-cell .m {
   flex-basis: 100%; margin-left: 0; text-align: left; max-width: none;
   white-space: normal; overflow: visible;
+}
+/* A Q signal is a name, three letters of code, and a sentence. The name sits
+   over its own code because three letters of dits and dahs will not share a
+   line with a definition and leave either of them readable, and the meaning
+   goes beside the pair rather than under it - the eye is running down the
+   left-hand column looking for QRS, not reading the page. */
+.cw-chart-grid.stacked {
+  grid-template-columns: repeat(auto-fill, minmax(27rem, 1fr));
+}
+.cw-chart-grid.stacked .cw-chart-cell { align-items: flex-start; gap: .8rem; }
+/* Fixed rather than fitted, so every definition starts at the same place and
+   the column can be run down with the eye. Wide enough for the widest of them
+   - QRQ, which is three letters of mostly dahs - because a flex item will not
+   go below the width of its own contents whatever basis it is given, so one
+   code too wide for this drags its own definition out of line and only that
+   one looks wrong. */
+.cw-chart-grid.stacked .k {
+  display: flex; flex-direction: column; align-items: flex-start;
+  gap: .32rem; flex: 0 0 15.5rem;
+}
+.cw-chart-grid.stacked .cw-chart-cell .m {
+  margin-left: 0; text-align: left; max-width: none; padding-top: .12rem;
+  white-space: normal; overflow: visible; text-overflow: clip;
+  line-height: 1.35;
 }
 
 /* ---------- CW: paddle ---------- */
