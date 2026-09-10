@@ -2220,8 +2220,65 @@ def _party_begin(room, difficulty, armed_only=False):
     return True
 
 
+def _party_pick_net(nets, mine):
+    """Which of the nets out there this table should report to.
+
+    The table chooses, not the player.  A General sitting down at a table in a
+    Technician net answers Technician questions, which is material they have
+    already passed and are therefore being asked to recall at speed - which is
+    practice, and cheap practice at that.  Splitting a table's players onto
+    different material would mean four people at one table racing four
+    different questions, and that is not a race.
+
+    So: the net studying what this unit studies, if there is one, and the
+    busiest net otherwise.  `nets` arrives sorted with the fullest first.
+    """
+    for net in nets:
+        if (net.get("difficulty") or "").lower() == mine:
+            return net
+    return nets[0] if nets else None
+
+
+def _party_auto_join(room):
+    """Attach this table to a net it can hear, before it starts one of its own.
+
+    This is the difference between a room of Pis playing together and a room
+    of Pis each running its own quiz.  Everything needed for the first has
+    been here all along - net control serves one question to every table, the
+    tables run their own rounds and time on the player's own clock - but the
+    only way to wire a table in was for somebody to type an address into it,
+    and the auto-start then committed the unit to playing alone fifteen
+    seconds after anybody sat down.
+
+    Returns True if this table is now somebody's table.
+    """
+    if cohort.bridge() is not None:
+        return True                       # already reporting to somebody
+    if netcontrol.net() is not None:
+        return False                      # this unit is the one running it
+    connection = conn()
+    if not cohort.auto_join_wanted(connection):
+        return False
+    live = discovery.neighbourhood()
+    if live is None:
+        return False
+    try:
+        heard = live.nets()
+    except Exception:                     # a roster is never worth a 500
+        return False
+    chosen = _party_pick_net(heard, _party_class())
+    if not chosen:
+        return False
+    party.room(create=True, cohorts=1)
+    link = cohort.connect(chosen["url"], None, None, conn=connection)
+    log.info("cohort: heard %s at %s and joined it", chosen["name"], link.url)
+    return True
+
+
 def _party_arm_start(room):
-    """Start the countdown, if this is a table that may start itself."""
+    """Join a net if one can be heard, and otherwise start on our own account."""
+    if _party_auto_join(room):
+        return                            # the hall's rounds arrive by wire
     if room.waiting_to_start() or not _party_may_begin(room):
         return
     difficulty = _party_class()
@@ -2591,15 +2648,20 @@ def api_party_net():
     url = str(body.get("url", "")).strip()
     connection = conn()
     if not url or str(body.get("join", True)).lower() in ("false", "0"):
+        # By hand, so it stays that way: a table that walks straight back into
+        # the net it was just taken out of has not offered a choice.
+        cohort.set_auto_join(connection, False)
         cohort.disconnect(connection)
-        return jsonify({"connected": False})
+        return jsonify({"connected": False, "auto_join": False})
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
     party.room(create=True, cohorts=1)
+    cohort.set_auto_join(connection, True)
     link = cohort.connect(url, body.get("unit"), body.get("name"),
                           conn=connection)
     log.info("cohort: reporting to net control at %s as %s", link.url, link.unit_id)
-    return jsonify({"connected": True, "bridge": link.as_dict()})
+    return jsonify({"connected": True, "auto_join": True,
+                    "bridge": link.as_dict()})
 
 
 @app.route("/api/party/net")

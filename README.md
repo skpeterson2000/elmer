@@ -824,8 +824,22 @@ those three:
 Two things come of it. **Position**: a unit with a receiver announces its fix
 and a unit without one takes it, so a second Pi never needs a second antenna.
 **Company**: a tournament can be suggested rather than remembered, and joined
-in one press. The suggestion is all it is — a unit never starts a round on
-another unit's say-so, and *not now* makes the panel go away.
+in one press.
+
+**A table with people at it joins a net it can hear.** That used to be the
+press above and nothing else, which meant a room of Pis each ran its own quiz
+unless somebody walked round typing addresses into them — and the fifteen-second
+auto-start then committed each one to playing alone before anybody could. So
+the order is now the other way round: look for a net, and start one of your own
+only when there is nothing to join. The table picks the net studying what this
+unit studies, or the busiest one if none matches, and the table picks for
+everyone sitting at it — four people at one table racing four different
+questions is not a race. A General answering Technician questions is being
+asked to recall material they have already passed, at speed, which is practice.
+
+Cutting a table loose by hand keeps it loose. A table that walks straight back
+into the net it was just taken out of has not been offered a choice, so
+disconnecting turns the joining off until somebody wires it in again.
 
 **One network, several tournaments.** Technician in this corner, General in
 that one, Extra in the next room. A net is named for what it is studying,

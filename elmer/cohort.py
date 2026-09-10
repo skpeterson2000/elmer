@@ -260,6 +260,32 @@ URL_SETTING = "net_url"
 UNIT_SETTING = "net_unit"
 NAME_SETTING = "net_name"
 
+# Whether this table will attach itself to a net it hears.  On, because the
+# alternative is what every fresh Pi did until now: sit by itself running its
+# own questions in a room where a hall was already going, because nobody had
+# typed an address into it.
+#
+# It goes off when somebody cuts the table loose by hand, and only then.  An
+# operator who has just taken a table out of a net and watches it walk
+# straight back in has not been given a choice, they have been overruled.
+AUTO_SETTING = "net_auto"
+
+
+def auto_join_wanted(conn):
+    try:
+        from . import db
+        return db.unit_get(conn, AUTO_SETTING, "on") != "off"
+    except Exception:                     # pragma: no cover
+        return True
+
+
+def set_auto_join(conn, wanted):
+    try:
+        from . import db
+        db.unit_set(conn, AUTO_SETTING, "on" if wanted else "off")
+    except Exception:                     # pragma: no cover
+        pass
+
 
 def connect(url, unit_id=None, name=None, conn=None):
     """Point this table at a net control and start reporting to it."""
