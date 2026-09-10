@@ -1658,6 +1658,14 @@ Either one gets a throwaway profile under `data/kiosk-profile/`, because pointed
 at your normal profile a browser that is already open would just add a tab to
 the existing window instead of going full screen.
 
+Starting takes a moment on a cold card, and the browser waits for the server
+rather than arriving first to its own error page. If the wait runs past a couple
+of seconds a splash appears — the ELMER icon and a count of the seconds — and it
+goes to the program the moment the server answers. It is held back on purpose: a
+splash on every machine would make the unit that is struggling look exactly like
+the one that came up in a quarter of a second. Seeing it means this machine was
+slow, and the number says how slow.
+
 The Exit button is deliberately narrow. ELMER binds every interface so a phone
 can reach it, and nobody on the network should be able to switch the study
 session off, so the button appears only on the machine the server is running on:

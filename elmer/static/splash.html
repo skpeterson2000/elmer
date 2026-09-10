@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ELMER</title>
+<style>
+  html, body {
+    height: 100%; margin: 0;
+    background: #0d1117; color: #8b98a5;
+    font: 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark { text-align: center; }
+  img { width: 30vmin; height: 30vmin; max-width: 260px; max-height: 260px;
+        border-radius: 22%; display: block; margin: 0 auto 1.6rem; }
+  p { margin: 0; font-size: .82rem; }
+  .clock { margin-top: .45rem; font-size: 1.35rem; color: #ffb454;
+           font-variant-numeric: tabular-nums; }
+  .bar { width: 12rem; height: 3px; margin: 1.4rem auto 0; border-radius: 2px;
+         background: #1b2430; overflow: hidden; }
+  .bar i { display: block; width: 40%; height: 100%; background: #ffb454;
+           animation: sweep 1.4s ease-in-out infinite; }
+  @keyframes sweep { 0% { transform: translateX(-110%); }
+                     100% { transform: translateX(360%); } }
+  @media (prefers-reduced-motion: reduce) { .bar i { animation: none; } }
+</style>
+</head>
+<body>
+<div class="mark">
+  <img id="icon" alt="ELMER">
+  <p id="say">slow to start</p>
+  <p class="clock"><span id="secs">0</span>s</p>
+  <div class="bar"><i></i></div>
+</div>
+<script>
+/* Shown from the disk, before there is a server to show anything - and only
+   on a machine that has already missed a healthy start, which is the whole
+   reason it carries a clock.  A splash on every machine would hide the one
+   that is struggling behind the same picture as the one that came up in a
+   quarter of a second; the fleet would look uniform and the slow card would
+   only be findable in a log.  So the kiosk holds this back through a grace
+   period and shows it late, where its presence is already the symptom and
+   the seconds say how bad.
+
+   The probe is an image rather than a fetch because this page is a file:// and
+   a fetch to http://localhost is another origin; an <img> reports load and
+   error either way, which is the whole question being asked. */
+var params = new URLSearchParams(location.search);
+var port = params.get('port') || '5000';
+var base = 'http://127.0.0.1:' + port;
+var say = document.getElementById('say');
+var secs = document.getElementById('secs');
+
+// Seeded with what the kiosk had already spent waiting, so the count is the
+// time since the program was asked to start rather than since this appeared.
+var began = Date.now() - (parseFloat(params.get('waited')) || 0) * 1000;
+
+// The icon is beside this file, so it is on screen without waiting for
+// anything - the probe below is a second, cache-busted request.
+document.getElementById('icon').src = 'icon.png';
+
+function tick() {
+  var waited = Math.floor((Date.now() - began) / 1000);
+  secs.textContent = waited;
+  if (waited >= 90) {
+    say.innerHTML = 'the server has not come up. There may be something on '
+      + 'the log: <span style="color:#e6edf3">data/elmer.log</span>';
+  } else if (waited >= 30) {
+    say.textContent = 'still starting - a cold card is slow';
+  }
+}
+setInterval(tick, 250);
+tick();
+
+function probe() {
+  var test = new Image();
+  test.onload = function () { location.href = base + '/'; };
+  test.onerror = function () { setTimeout(probe, 500); };
+  test.src = base + '/static/icon.png?probe=' + Date.now();
+}
+probe();
+</script>
+</body>
+</html>
