@@ -1201,9 +1201,6 @@ on no exam paper.
   last thing it measured.
 - **Sextant** — a sun sight reduced to a position line, for when nothing else
   knows where you are. On no exam and useful anyway.
-- **Waves you can hear** — the analogy under the arithmetic, at audio, where a
-  long wavelength bending round an obstacle is something you listen to rather
-  than take on trust.
 
 ### Game layer
 

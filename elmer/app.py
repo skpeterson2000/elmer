@@ -24,7 +24,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                db, exams,
                celestial, explain, game, geocode, groundwave,
                ionosonde, logs,
-               propagation, ranks, waves,
+               propagation, ranks,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
                activations, discovery, fieldkit, gating, hall, host,
@@ -959,20 +959,6 @@ def api_vna_s1p():
     log.info("touchstone export: %d points, %.3f-%.3f MHz", len(rows), low, high)
     return Response(text, mimetype="application/octet-stream", headers={
         "Content-Disposition": f'attachment; filename="{name}"'})
-
-
-@app.route("/api/waves")
-def api_waves():
-    """A radio frequency put into the sound of the same size."""
-    try:
-        mhz = max(0.03, min(3000.0, float(request.args.get("mhz", 14.2))))
-        obstacle = float(request.args.get("obstacle_m", 8.0))
-    except (TypeError, ValueError):
-        abort(400, "check the numbers")
-    out = waves.describe(mhz, obstacle_m=max(0.05, min(2000.0, obstacle)))
-    out["parallels"] = [{"title": t, "text": x} for t, x in waves.PARALLELS]
-    out["mismatches"] = [{"title": t, "text": x} for t, x in waves.MISMATCHES]
-    return jsonify(out)
 
 
 @app.route("/api/antenna-advice")
