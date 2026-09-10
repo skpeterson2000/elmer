@@ -1658,13 +1658,15 @@ Either one gets a throwaway profile under `data/kiosk-profile/`, because pointed
 at your normal profile a browser that is already open would just add a tab to
 the existing window instead of going full screen.
 
-Starting takes a moment on a cold card, and the browser waits for the server
-rather than arriving first to its own error page. If the wait runs past a couple
-of seconds a splash appears — the ELMER icon and a count of the seconds — and it
-goes to the program the moment the server answers. It is held back on purpose: a
-splash on every machine would make the unit that is struggling look exactly like
-the one that came up in a quarter of a second. Seeing it means this machine was
-slow, and the number says how slow.
+Starting takes a moment on a cold card — a megabyte of pools comes off it before
+the first page renders. The browser opens straight away on a splash screen held
+on disk — the owl tile out of `artwork/Mixed.jpg` — which watches the port and
+goes to the program once the server answers,
+and never sooner than about a second and a half. That hold is deliberate: a fast
+machine would otherwise flash the splash and be gone while a slow one sat on it,
+and every board should open the same way. How long the server actually took is
+written to `data/elmer.log` instead, where it is worth something to whoever goes
+looking and costs nothing to whoever doesn't.
 
 The Exit button is deliberately narrow. ELMER binds every interface so a phone
 can reach it, and nobody on the network should be able to switch the study

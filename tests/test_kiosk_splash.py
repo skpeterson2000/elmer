@@ -3,17 +3,18 @@
 
     python3 tests/test_kiosk_splash.py
 
-The splash exists to fill the empty screen on a cold card, and the danger in
-it is that it fills the screen on a warm one too: shown on every machine it
-makes the struggling unit indistinguishable from the healthy one, and the
-difference then lives only in a log nobody opens.  So the rule under test is
-not "a splash appears" but "a splash appears late": under the grace period the
-browser goes straight to the program and the splash is never seen at all.
+Every machine opens the same way: the splash, a short hold, then the program.
+The fast board waits out the hold it did not need and the slow board is
+covered by it, and neither of them shows the operator the difference - a start
+that looks identical every time is what a solid one looks like.
 
-Time is forced rather than waited on - the real grace is two and a half
-seconds and no test should spend them.
+The difference is still worth having, so it is taken and written to the log
+instead of the screen, and that is the half of this most easily lost: a later
+change that quietly drops the timing line would leave nothing anywhere saying
+which card is slow.  So it is checked here.
 """
 import logging
+import re
 import sys
 import threading
 import time
@@ -22,10 +23,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from elmer import diagnostics, kiosk  # noqa: E402
-
-# The last case deliberately lets the wait run out, which the module warns
-# about.  That warning is the expected answer here, not news.
-logging.getLogger("elmer").setLevel(logging.CRITICAL)
 
 FAILS = []
 
@@ -38,10 +35,21 @@ def check(label, got, want):
         FAILS.append(label)
 
 
-def run(comes_up_after, grace=0.3, timeout=2.0):
+class Heard(logging.Handler):
+    """Everything the module said, so the log line can be asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.lines = []
+
+    def emit(self, record):
+        self.lines.append(record.getMessage())
+
+
+def run(comes_up_after, timeout=2.0):
     """Start the launcher against a port that answers after so many seconds.
 
-    Returns the URL the browser was opened on, or None if it was never opened.
+    Returns the URL the browser was opened on - or None - and the log.
     """
     began = time.monotonic()
     opened = []
@@ -53,52 +61,83 @@ def run(comes_up_after, grace=0.3, timeout=2.0):
         opened.append(url)
         return None                       # nothing to watch or shut down
 
-    was_probe, was_launch, was_grace = (diagnostics.port_in_use,
-                                        kiosk.launch, kiosk.GRACE_SECONDS)
+    heard = Heard()
+    log = logging.getLogger("elmer")
+    was_probe, was_launch = diagnostics.port_in_use, kiosk.launch
     diagnostics.port_in_use = port_in_use
     kiosk.launch = launch
-    kiosk.GRACE_SECONDS = grace
+    log.addHandler(heard)
+    was_level = log.level
+    log.setLevel(logging.INFO)
     try:
         kiosk.launch_when_ready("http://localhost:5000", 5000,
                                 threading.Event(), timeout=timeout)
-        deadline = time.monotonic() + timeout + 1.0
-        while not opened and time.monotonic() < deadline:
+        # Long enough for the watching thread to finish whatever it will do.
+        deadline = time.monotonic() + min(comes_up_after, timeout) + 1.0
+        while time.monotonic() < deadline:
             time.sleep(0.02)
     finally:
         diagnostics.port_in_use = was_probe
         kiosk.launch = was_launch
-        kiosk.GRACE_SECONDS = was_grace
-    return opened[0] if opened else None
+        log.removeHandler(heard)
+        log.setLevel(was_level)
+    return (opened[0] if opened else None), heard.lines
+
+
+def timed(lines):
+    """The seconds out of the log line, or None if nobody wrote one."""
+    for line in lines:
+        found = re.search(r"answered after ([\d.]+)s", line)
+        if found:
+            return float(found.group(1))
+    return None
 
 
 print("\nthe splash is on disk, because there is no server to serve it")
 check("the file is there", kiosk.SPLASH.is_file(), True)
-check("beside the icon it shows", (kiosk.SPLASH.parent / "icon.png").is_file(),
-      True)
-check("a healthy start is measured in seconds, not minutes",
-      0 < kiosk.GRACE_SECONDS <= 5, True)
+# Named rather than assumed: the page paints from the disk, so whatever it
+# asks for has to be sitting beside it or the first thing anybody sees on a
+# cold start is a broken image.
+shows = re.search(r"icon'\)\.src = '([^']+)'", kiosk.SPLASH.read_text())
+check("it names a picture", bool(shows), True)
+check("which is beside it",
+      (kiosk.SPLASH.parent / shows.group(1)).is_file() if shows else None, True)
 
-print("\na machine that starts normally never shows it")
-quick = run(comes_up_after=0.05)
-check("goes straight to the program", quick, "http://localhost:5000")
+print("\nthe hold is the same number in both places it is written")
+held = re.search(r"HOLD_MS = (\d+)", kiosk.SPLASH.read_text())
+check("the page states one", bool(held), True)
+check("and it matches kiosk.HOLD_SECONDS",
+      int(held.group(1)) if held else None, int(kiosk.HOLD_SECONDS * 1000))
+check("which is a moment, not a wait", 0.5 <= kiosk.HOLD_SECONDS <= 3.0, True)
 
-print("\na machine that is late shows it, and says how late")
-slow = run(comes_up_after=5.0, grace=0.3)
-check("the splash, not the program", (slow or "").startswith("file://"), True)
-check("named the splash", "splash.html" in (slow or ""), True)
-check("told which port to watch", "port=5000" in (slow or ""), True)
-check("carrying the seconds already spent",
-      float((slow or "").split("waited=")[-1]) >= 0.3, True)
+print("\nevery machine opens on it - the quick one included")
+quick, said = run(comes_up_after=0.05)
+check("the splash", "splash.html" in (quick or ""), True)
+check("from the disk", (quick or "").startswith("file://"), True)
+check("told which port to watch", "port=5000" in (quick or ""), True)
+check("and the wait it did not need is in the log, not on the screen",
+      timed(said) is not None and timed(said) < 1.0, True)
+
+print("\nso does the slow one, and the log carries what the screen does not")
+slow, said = run(comes_up_after=1.2)
+check("the same splash", "splash.html" in (slow or ""), True)
+check("the log knows this board was slower", (timed(said) or 0) >= 1.0, True)
+
+print("\na server that never comes up is said out loud")
+never, said = run(comes_up_after=99, timeout=0.4)
+check("still opened on the splash", "splash.html" in (never or ""), True)
+check("and warned", any("did not come up" in line for line in said), True)
 
 print("\nwithout the splash file it waits, as it did before there was one")
 was = kiosk.SPLASH
 kiosk.SPLASH = Path(__file__).resolve().parent / "no-such-splash.html"
 try:
-    late = run(comes_up_after=0.6, grace=0.3)
+    late, said = run(comes_up_after=0.5)
     check("waited for the program rather than opening on nothing", late,
           "http://localhost:5000")
-    check("and opens nothing at all if it never comes",
-          run(comes_up_after=99, grace=0.3, timeout=0.5), None)
+    check("and timed it just the same", (timed(said) or 0) >= 0.4, True)
+    gone, _ = run(comes_up_after=99, timeout=0.4)
+    check("opens nothing at all if it never comes", gone, None)
 finally:
     kiosk.SPLASH = was
 
