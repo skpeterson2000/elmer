@@ -124,6 +124,22 @@ check("the weakest stood down, not the leader",
       or board["units"][0]["score"] == 0, True)
 hall.halt()
 
+print("\nthe hall's patience follows the clock the tables are showing")
+# A fixed grace has to be wrong at one end or the other: shorter than the
+# round it closes under the people still answering, and much longer it leaves
+# a hall of short rounds stalled on one table that went off the air.
+for seconds in (10.0, 30.0, 60.0):
+    net3 = netcontrol.Net()
+    net3.check_in("gone", "Gone", players=4)     # checks in, never reports
+    net3.start_round("technician", "T001", 0,
+                     {"text": "q", "choices": ["a", "b"]}, seconds=seconds)
+    net3.opened_at -= seconds - 1.0
+    check(f"{seconds:.0f}s round: not overdue with a second left",
+          net3.overdue(), False)
+    net3.opened_at -= (netcontrol.GRACE_AFTER_TIME + 2.0)
+    check(f"{seconds:.0f}s round: overdue once the grace is gone",
+          net3.overdue(), True)
+
 print("\nnobody is disguised in the round summary either")
 net2 = netcontrol.Net()
 net2.add_simulated(2)
