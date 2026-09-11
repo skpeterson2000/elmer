@@ -94,6 +94,20 @@ class Conductor:
             self.state = "waiting"
             return
 
+        # A tournament that has run out of questions is finished, and the net
+        # is the thing that knows. This asks the net rather than reading what
+        # ask() returned: None is what any function returns when it simply did
+        # its job and had nothing to say, so treating it as "played out" would
+        # stop the hall for every caller that did not think to return
+        # something - which is how it was written first, and what the tests
+        # caught.
+        plan = self.net.plan_state()
+        if plan and plan.get("done"):
+            log.info("hall: tournament played out after %d rounds", self.played)
+            self.state = "finished"
+            self.stop.set()
+            return
+
         self.state = "asking"
         self.ask()
         self.next_at = time.monotonic() + BETWEEN_MIN

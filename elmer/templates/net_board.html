@@ -169,6 +169,14 @@ tr.gold td { color: #ffd479; }
    real one is the honest way to show a hall that is half made up. */
 i.sim { font-style: italic; color: var(--dimmer); font-size: .78em; }
 
+/* A block result is the biggest thing on the screen for ten seconds, because
+   it is the only moment in twelve questions when somebody has won something. */
+.block-won { margin-top: 1vh; padding: .8vh 1.2vw; border-radius: 10px;
+             background: var(--panel-2); border: 1px solid var(--amber-dim);
+             display: flex; align-items: baseline; gap: 1vw; }
+.block-won b { color: var(--amber); font-size: clamp(.9rem, 1.6vw, 1.5rem); }
+.block-won span { font-size: clamp(.85rem, 1.5vw, 1.4rem); }
+
 .practicehint { position: fixed; left: .8vw; bottom: .6vh; color: var(--dimmer);
                 font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
                 opacity: .55; cursor: pointer; }
@@ -198,6 +206,28 @@ let paintedRound = null, paintedPhase = null;
 
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+/* Drop the rows that do not fit, rather than showing half of one.
+
+   How much room the panels get changes: a long question takes three lines
+   where a short one takes two, and every twelfth question a block result
+   appears above them and pushes everything down. Picking a row count by hand
+   means guessing the worst case and showing too little the rest of the time,
+   or guessing the usual case and slicing somebody's name in half when a block
+   closes. So the rows are measured once they are on the screen and the ones
+   hanging off the bottom are taken out.
+
+   Measured before anything is hidden, in one pass: hiding a row only moves
+   the rows below it, which are the ones already going. */
+function trimToFit() {
+  document.querySelectorAll('.panelbox').forEach(box => {
+    const rows = [...box.querySelectorAll('tr')];
+    rows.forEach(row => { row.hidden = false; });
+    const floor = box.getBoundingClientRect().bottom;
+    const over = rows.filter(row => row.getBoundingClientRect().bottom > floor);
+    over.forEach(row => { row.hidden = true; });
+  });
+}
 
 /* Practice tables and practice players count, and the board says so, because
    a board with them edited out is not the game that was played. But a club
@@ -490,10 +520,23 @@ function reveal(round, last) {
   const q = (round && round.question) || {};
   const text = q.text || (last && last.question) || '';
   const number = (round && round.number) || (last && last.number) || '';
+  /* Every twelfth question closes a block and declares somebody. It goes
+     here, with the answer, because this is the moment the room is already
+     looking at the screen - and it names the player as well as the table,
+     since the table result is the hall's and the player result is the one
+     somebody at a table came for. */
+  const won = last && last.block_won;
+  const player = won && won.player;
   return `<div class="reveal">
       <div class="tag">Round ${number} · the answer</div>
       ${text ? `<p class="q">${esc(text)}</p>` : ''}
       <div class="a"><b>Answer</b><span>${esc(answer)}</span></div>
+      ${won ? `<div class="block-won">
+          <b>Block ${won.block}</b>
+          <span>${won.name ? esc(won.name) + ' takes it' : 'nobody scored'}${
+            player && player.points ? ` · best player ${esc(player.name)}${
+              player.unit_name ? ' of ' + esc(player.unit_name) : ''}` : ''}</span>
+        </div>` : ''}
     </div>`;
 }
 
@@ -558,11 +601,20 @@ async function tick() {
 
   document.getElementById('title').textContent = board.name || 'ELMER';
   const h = board.health || {};
-  document.getElementById('sub').textContent = board.kind === 'hall'
+  /* A tournament has a length, so the room can be told where it is in it -
+     "question 18 of 36, block 2 of 3" answers both "how much longer" and
+     "when is somebody declared next", which are the two things a spectator
+     standing at the back actually wants. */
+  const plan = board.plan;
+  const through = plan && plan.length
+    ? ` · Q${Math.max(1, plan.asked)} of ${plan.length}` +
+      (plan.blocks > 1 ? ` · block ${plan.block} of ${plan.blocks}` : '')
+    : '';
+  document.getElementById('sub').textContent = (board.kind === 'hall'
     ? `${board.units_present} table${board.units_present === 1 ? '' : 's'} · ` +
       `${board.players} player${board.players === 1 ? '' : 's'}`
     : `${board.people} player${board.people === 1 ? '' : 's'}` +
-      (board.bots ? ` · ${board.bots} practice` : '');
+      (board.bots ? ` · ${board.bots} practice` : '')) + through;
 
   const hall = board.kind === 'hall';
   const round = board.round;
@@ -604,6 +656,7 @@ async function tick() {
     if (cols) cols.innerHTML = left(board) + right(board);
   }
 
+  trimToFit();
   foot(all);
 
   const tag = stage.querySelector('.question .tag');

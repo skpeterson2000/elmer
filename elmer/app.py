@@ -37,7 +37,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               terrain, touchstone, update, vna)
+               terrain, touchstone, tournament, update, vna)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -2833,11 +2833,32 @@ def _ask_net(running, difficulty="technician", section=None, seconds=None):
     if not pool_id:
         abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
     pool = _pool_or_404(pool_id)
-    ids = [q["id"] for q in pool.by_id.values()
-           if not section or q["section"] == section]
-    if not ids:
-        abort(400, "no questions in that section")
-    question = pool.by_id[random.choice(ids)]
+
+    if section:
+        # A section asked for by name is somebody drilling one subject on
+        # purpose - an instructor working a room through antennas - and it is
+        # not a tournament, so it does not spend the tournament's draw.
+        ids = [q["id"] for q in pool.by_id.values()
+               if q["section"] == section]
+        if not ids:
+            abort(400, "no questions in that section")
+        question = pool.by_id[random.choice(ids)]
+    else:
+        # The tournament is drawn once, in the proportions of the examination
+        # for this licence class, and walked one question at a time. It used
+        # to be random.choice over the whole pool every round: every section
+        # equally likely whatever its weight on the paper, the same question
+        # possible twice in an evening, and no end to it.
+        state = running.plan_state()
+        if state is None or state.get("difficulty") != wanted:
+            running.set_plan(tournament.plan(pool_id, wanted))
+        question = running.next_question()
+        if question is None:
+            # Played out. The caller decides what that means: a route says so
+            # to whoever pressed the button, the conductor stops the hall.
+            log.info("net: tournament played out after %d rounds",
+                     running.round_number)
+            return None
     shown = presentation(question)
     # A net that moves from Technician to General is a General net now, and
     # the hall's screens say so - unless somebody named it by hand, in which
@@ -2862,8 +2883,15 @@ def api_net_round():
     """Put one question to the whole hall."""
     running = _net_or_404()
     body = request.get_json(silent=True) or {}
-    _ask_net(running, body.get("difficulty", "technician"),
-             body.get("section"), body.get("seconds"))
+    asked = _ask_net(running, body.get("difficulty", "technician"),
+                     body.get("section"), body.get("seconds"))
+    if asked is None:
+        # A finished tournament is an answer, not a fault, and it is said in
+        # a sentence so the screen shows the reason rather than a number.
+        return jsonify({"ok": False,
+                        "message": "this tournament is played out - "
+                                   "start another to keep going",
+                        "board": running.board()}), 409
     return jsonify(running.board())
 
 
@@ -2920,7 +2948,9 @@ def api_net_conduct():
         running,
         lambda: _ask_net(running, wanted, section, seconds),
         ready_tables=max(1, int(body.get("tables", hall.READY_TABLES))),
-        rounds=int(rounds) if rounds else None)
+        # Left unsaid, a hall runs the tournament's own length - three blocks
+        # of twelve, or four for Extra - rather than until somebody stops it.
+        rounds=int(rounds) if rounds else tournament.length_for(wanted))
     return jsonify({"conducting": True, "hall": conductor.as_dict(),
                     "board": running.board()})
 

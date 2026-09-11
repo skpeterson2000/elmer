@@ -28,6 +28,8 @@ import threading
 import time
 from collections import deque
 
+from . import tournament
+
 log = logging.getLogger("elmer")
 
 # Measured on a Raspberry Pi 5 acting as net control: 100 units checked in at
@@ -159,6 +161,20 @@ class Net:
         # kept in with a flag rather than dropped, because a board with the
         # practice tables edited out of it is not the game that was played.
         self.people = {}           # (unit_id, name) -> running total
+        # The tournament itself: its questions drawn up front in the shape of
+        # the examination, and how far through them the hall has got. Drawing
+        # the whole thing at the start rather than a question at a time is
+        # what lets it be twelve, thirty-six or forty-eight questions of known
+        # proportions instead of an unbounded string of random ones.
+        self.plan = None
+        self.plan_at = 0
+        # A winner is declared every twelve questions rather than once at the
+        # end. A table that started badly gets another chance to be the table
+        # that won something, and a room gets a result while it is still
+        # watching. These are the ones declared so far.
+        self.blocks = []
+        self._block_units = {}     # points this block, by table
+        self._block_people = {}    # points this block, by (table, name)
 
     # ------------------------------------------------------------- check-in
 
@@ -454,6 +470,10 @@ class Net:
             for uid, points in per_unit.items():
                 if uid in self.units:
                     self.units[uid].score += points
+                # The block runs alongside the tournament total rather than
+                # replacing it: the hall keeps a whole-evening score and also
+                # declares somebody every twelve questions.
+                self._block_units[uid] = self._block_units.get(uid, 0) + points
 
             # Every answer counts towards a person's total, not just the ones
             # that scored: "3 of 7" is the number somebody is actually playing
@@ -470,6 +490,13 @@ class Net:
                 who["score"] += row.get("points", 0)
                 # A table can be renamed mid-hall; the person is the same one.
                 who["unit_name"] = row["unit_name"]
+
+                block = self._block_people.setdefault(
+                    (row["unit"], row["name"]),
+                    {"name": row["name"], "unit_name": row["unit_name"],
+                     "points": 0, "correct": 0, "bot": bool(row.get("bot"))})
+                block["points"] += row.get("points", 0)
+                block["correct"] += 1 if row["correct"] else 0
 
             winner = None
             if per_unit:
@@ -515,9 +542,102 @@ class Net:
                 "unit_points": per_unit,
                 "top": right[:10],
             }
+            # A block closes on the twelfth question, the twenty-fourth and so
+            # on, and the summary carries the declaration so the screen that
+            # is already showing the round result shows the block result with
+            # it rather than needing a second poll to find out.
+            if self.plan and tournament.ends_a_block(self.round_number):
+                summary["block_won"] = self._declare_block(
+                    tournament.block_of(self.round_number))
             self.history.append(summary)
             self.round = None
             return summary
+
+    # ----------------------------------------------------------- the plan
+
+    def set_plan(self, plan):
+        """Lay out a whole tournament, replacing anything half played.
+
+        Called when a hall starts, and again when net control moves it to
+        another licence class: a Technician tournament that becomes a General
+        one is a different examination and the draw has to be redrawn for it.
+        """
+        with self.lock:
+            self.plan = plan
+            self.plan_at = 0
+            self.blocks = []
+            self._block_units = {}
+            self._block_people = {}
+
+    def next_question(self):
+        """The next question of the tournament, or None when it is played out.
+
+        None is not a failure. It is the tournament finishing, which is a
+        thing a tournament is supposed to do.
+        """
+        with self.lock:
+            questions = (self.plan or {}).get("questions") or []
+            if self.plan_at >= len(questions):
+                return None
+            question = questions[self.plan_at]
+            self.plan_at += 1
+            return question
+
+    def plan_state(self):
+        """How far through, in the terms a screen says it in."""
+        with self.lock:
+            if not self.plan:
+                return None
+            length = len(self.plan.get("questions") or [])
+            asked = min(self.plan_at, length)
+            return {
+                "asked": asked,
+                "length": length,
+                "block": tournament.block_of(max(1, asked)),
+                "blocks": self.plan.get("blocks"),
+                "block_size": self.plan.get("block", tournament.BLOCK),
+                "difficulty": self.plan.get("difficulty"),
+                # Whether the draw was actually ordered easiest-first. False
+                # means blueprint order, which is the truth on a unit with no
+                # answer history to measure difficulty from - and a screen
+                # should be able to say so rather than implying a warm-up.
+                "ramped": bool(self.plan.get("ramped")),
+                "done": asked >= length and length > 0,
+            }
+
+    def _declare_block(self, number):
+        """Who won the last twelve questions - the table, and the player."""
+        unit_id, unit_points = None, 0
+        if self._block_units:
+            best = max(self._block_units.values())
+            tied = [u for u, p in self._block_units.items() if p == best]
+            # Level on the block is broken by who is behind overall, for the
+            # same reason the round tie is: a table already running away with
+            # the hall should not also collect the consolation.
+            floor = min(self.units[u].score for u in tied if u in self.units
+                        ) if any(u in self.units for u in tied) else 0
+            level = [u for u in tied
+                     if u in self.units and self.units[u].score == floor]
+            unit_id = random.choice(level or tied)
+            unit_points = best
+        top = sorted(self._block_people.values(),
+                     key=lambda p: (-p["points"], p["name"]))
+        row = {
+            "block": number,
+            "through": self.round_number,
+            "unit": unit_id,
+            "name": (self.units[unit_id].name if unit_id in self.units
+                     else None),
+            "points": unit_points,
+            # The block's best player as well as its best table, because the
+            # table result is the hall's and the player result is the one
+            # somebody at a table came for.
+            "player": top[0] if top else None,
+        }
+        self.blocks.append(row)
+        self._block_units = {}
+        self._block_people = {}
+        return row
 
     def standings(self, limit=8):
         """Which tables are ahead, and which just gained.
@@ -560,6 +680,8 @@ class Net:
                                 if self.picker_unit in self.units else None),
                 "last": self.history[-1] if self.history else None,
                 "people": self.people_board(),
+                "plan": self.plan_state(),
+                "blocks": list(self.blocks),
             }
 
     def people_board(self, limit=40):
