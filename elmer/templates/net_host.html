@@ -100,8 +100,11 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
              style="width:5rem" title="seconds per round">
       <button class="btn primary" id="ask">Put a question to the hall</button>
       <button class="btn" id="close" disabled>Close the round</button>
+      <button class="btn" id="shootout" title="The picking table chooses the subject on its own screen; a table that misses what the picker's table made takes a letter. E-L-M-E-R and it is out.">&#127919; Shootout</button>
+      <button class="btn ghost" id="endshoot" hidden>End the shootout</button>
       <span class="big" id="clock"></span>
     </div>
+    <div id="shootstate" class="small" style="margin-top:.6rem" hidden></div>
     <div id="stage" style="margin-top:.8rem"><p class="empty">No round yet.</p></div>
   </div>
 </div>
@@ -114,10 +117,6 @@ async function api(path, body) {
   return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
 }
 
-  certsBtn.disabled = false;
-  if (r.ok && r.data.view) { location.href = r.data.view; return; }
-  alert(r.data.message || r.data.error || 'Could not build the certificates.');
-});
 
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
@@ -126,6 +125,18 @@ document.getElementById('ask').addEventListener('click', async () => {
   await api('/api/net/round', {
     difficulty: document.getElementById('difficulty').value,
     seconds: parseFloat(document.getElementById('seconds').value) || 45});
+  tick();
+});
+document.getElementById('shootout').addEventListener('click', async () => {
+  const r = await api('/api/net/mode', {
+    mode: 'shootout',
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 45});
+  if (!r.ok) alert(r.data.message || r.data.error || 'Could not start a shootout.');
+  tick();
+});
+document.getElementById('endshoot').addEventListener('click', async () => {
+  await api('/api/net/mode', {mode: 'tournament'});
   tick();
 });
 document.getElementById('close').addEventListener('click', async () => {
@@ -158,6 +169,23 @@ async function tick() {
     : '<span class="empty">no tables yet</span>';
 
   document.getElementById('close').disabled = !round;
+  // The shootout, if the hall is in one: who holds the pick, and the tables'
+  // letters in the unit chips rather than points.
+  const sh = b.shootout;
+  document.getElementById('shootout').hidden = !!sh;
+  document.getElementById('endshoot').hidden = !sh;
+  const shbox = document.getElementById('shootstate');
+  if (sh) {
+    shbox.hidden = false;
+    shbox.innerHTML = sh.over
+      ? (sh.drawn ? 'Shootout over: out of subjects with nobody ahead - <b>a draw</b>.'
+                  : `Shootout over: <b>${esc(sh.winner_name || 'somebody')}</b> is the last table standing.`)
+      : (sh.pick ? `${esc(sh.picker_name)} chose <b>${esc(sh.pick_title || sh.pick)}</b> - next question coming.`
+                 : `<b>${esc(sh.picker_name || 'A table')}</b>${sh.picker_is_simulated ? ' (practice)' : ''} is choosing the subject on its own screen` +
+                   (sh.pick_remaining !== null && sh.pick_remaining !== undefined ? ` - ${Math.ceil(sh.pick_remaining)}s` : '') + '.') +
+        ` <span style="color:var(--dim)">${(sh.available || []).length} subjects left · ` +
+        (sh.standing || []).map(r => `${esc(r.name)} <span style="font-family:var(--mono);letter-spacing:.15em;${r.out ? 'color:var(--red)' : ''}">${esc(r.word) || '-'}</span>`).join(' · ') + '</span>';
+  } else { shbox.hidden = true; }
   const sims = (b.units || []).filter(u => u.simulated).length;
   document.getElementById('dropsim').disabled = !sims;
   const clock = document.getElementById('clock');

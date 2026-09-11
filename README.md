@@ -1485,6 +1485,25 @@ the people at the table are bad at, and it has no basis for one. Between
 questions the table says whose pick it is and the phone that holds it shows the
 subjects; everyone else's phone says who it is waiting for.
 
+**Across a hall**, the tables are the players. **Shootout** on net control
+starts one: the picking table chooses the subject on its own screen — big
+targets, grouped by subelement, for a table of people to confer over and one
+of them to tap — and its choice goes back to the hall through the table's own
+server, since the screen cannot reach the hall itself. Every phone in the hall
+answers as usual. A table makes its shot if any *person* at it got the
+question right; its practice players do not count towards that, or a table
+full of bots that "made it" would be the program handing itself the pick. A
+table with nobody right when the picker's table made it takes a letter. The
+pick stays with a table that keeps making them, passes to the quickest *real*
+table that got it when the picker misses — a right answer from a person beats
+a quicker one from furniture, at a table as in a hall — and goes round the
+hall when nobody did. Sixty seconds to choose, then it moves on for no letter.
+Practice tables never keep the pick; real tables seat first so the opening
+pick is the room's; a table that leaves the hall, or is stood down to make
+room for a real one, leaves the game with it, or the pick would be handed to
+an empty chair. The big board shows the tables' letters in place of points,
+and the shot in place of the round winner.
+
 ### Certificates for the wall
 
 A club that runs a tournament night had nothing to hand the winner: the score

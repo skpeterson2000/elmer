@@ -30,6 +30,11 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .seat .letters { font-family: var(--mono); letter-spacing: .18em; font-weight: 700; }
 .seat .letters i { font-style: normal; color: var(--line-2); }
 .seat .letters.out { color: var(--red); }
+.hallpick .hp-group { font: .7rem var(--mono); letter-spacing: .06em; text-transform: uppercase;
+                      color: var(--dimmer); margin: .6rem 0 .25rem; width: 100%; }
+.hallpick .hp-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.hallpick .hp-chip { text-align: left; padding: .55rem .8rem; font-size: .95rem; }
+.hallpick .hp-chip .k { color: var(--dim); font-family: var(--mono); margin-right: .5rem; }
 .seat.c1 { border-color: var(--amber); }
 .seat.c2 { border-color: var(--cyan); }
 .seat.c3 { border-color: var(--violet); }
@@ -132,6 +137,7 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
         <button class="btn sm ghost" id="close" disabled>Close the round</button>
       </div>
   <div id="certs-panel" data-scope="table" hidden></div>
+      <div class="card hallpick" id="hallpick" hidden></div>
       <div class="card" id="stage">
         <p class="empty">No round yet. Pick a difficulty and ask a question.</p>
       </div>
@@ -164,10 +170,6 @@ function paintPickClock(shoot) {
 }
 
 
-  certsBtn.disabled = false;
-  if (r.ok && r.data.view) { location.href = r.data.view; return; }
-  alert(r.data.message || r.data.error || 'Could not build the certificates.');
-});
 
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
@@ -362,9 +364,60 @@ const netState = document.getElementById('netstate');
 const netJoin = document.getElementById('netjoin');
 const netLeave = document.getElementById('netleave');
 
+/* The hall's shootout, on this table's screen. When the pick is this
+   table's, the subjects go up here, big enough for a table of people to
+   confer over and one of them to tap; the rest of the time it says whose
+   pick it is and where the tables stand. The phones just answer. */
+let hallPainted = '';
+function paintHallShootout(b) {
+  const box = document.getElementById('hallpick');
+  const sh = b && b.shootout;
+  if (!sh || !sh.on) { box.hidden = true; box.innerHTML = ''; hallPainted = ''; return; }
+  const key = [sh.picker, sh.pick, sh.over, sh.your_pick, sh.played, (sh.available || []).length].join('|');
+  box.hidden = false;
+  if (key !== hallPainted) {
+    hallPainted = key;
+    const standing = (sh.standing || []).map(r =>
+      `<span class="seat${r.picking && !sh.over ? ' c1' : ''}">${esc(r.name)}${r.simulated ? ' <i style="color:var(--dimmer)">practice</i>' : ''} ` +
+      `<span class="letters${r.out ? ' out' : ''}">${esc(r.word)}<i>${'ELMER'.slice((r.word || '').length)}</i></span></span>`).join('');
+    let body;
+    if (sh.over) {
+      body = `<p class="hint">${sh.drawn ? 'Out of subjects with nobody ahead: <b>a draw</b>.' : `<b>${esc(sh.winner_name || 'Somebody')}</b> wins the shootout.`}</p>`;
+    } else if (sh.your_pick) {
+      let group = null, chips = '';
+      (sh.available || []).forEach(a => {
+        if (a.group !== group) { group = a.group; chips += `<div class="hp-group">${esc(a.group)} · ${esc(a.group_title)}</div>`; }
+        chips += `<button class="btn hp-chip" data-hall-pick="${esc(a.section)}"><span class="k">${esc(a.section)}</span>${esc(a.title)}</button>`;
+      });
+      body = `<p class="hint"><b>${sh.pick_reason === 'kept' ? 'Made it - this table picks again.' : sh.pick_reason === 'first' ? 'This table picks first.' : 'This table has the pick.'}</b> Choose the subject for the whole hall. <span id="hp-left" style="font-family:var(--mono)"></span></p><div class="hp-chips">${chips}</div>`;
+    } else if (sh.pick) {
+      body = `<p class="hint">${esc(sh.picker_name || 'The picking table')} chose <b>${esc(sh.pick_title || sh.pick)}</b>. Next question coming.</p>`;
+    } else {
+      body = `<p class="hint">${esc(sh.picker_name || 'Another table')}${sh.picker_is_simulated ? ' (practice)' : ''} is choosing the subject&hellip; <span id="hp-left" style="font-family:var(--mono)"></span></p>`;
+    }
+    box.innerHTML = `<div class="spread"><b>Shootout across the hall</b><span class="chip">${(sh.available || []).length} subjects left</span></div>
+      <div class="seats" style="margin:.5rem 0">${standing}</div>${body}`;
+  }
+  const left = document.getElementById('hp-left');
+  if (left) left.textContent = (sh.pick_remaining === null || sh.pick_remaining === undefined) ? '' : Math.ceil(sh.pick_remaining) + 's';
+}
+
+document.addEventListener('click', async e => {
+  const chip = e.target.closest('[data-hall-pick]');
+  if (!chip) return;
+  document.querySelectorAll('[data-hall-pick]').forEach(c => { c.disabled = true; });
+  const r = await api('/api/party/net/pick', {section: chip.dataset.hallPick});
+  if (!r.ok) {
+    document.querySelectorAll('[data-hall-pick]').forEach(c => { c.disabled = false; });
+    alert(r.data.message || 'The hall did not take the pick.');
+  }
+  netTick();
+});
+
 function paintNet(info) {
   const on = info && info.connected;
   netLeave.hidden = !on;
+  paintHallShootout(info && info.connected ? info.bridge : null);
   netJoin.textContent = on ? 'Rejoin' : 'Join the net';
   if (!on) {
     netState.innerHTML = '<span class="dot idle"></span>Running on its own';

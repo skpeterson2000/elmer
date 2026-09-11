@@ -2992,8 +2992,13 @@ def api_net_checkin():
     # what keeps eight players' worth of traffic off this machine.
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
                     "net": {"name": running.name,
-                            "difficulty": running.difficulty},
-                    "round": running.current(include_key=True)})
+                            "difficulty": running.difficulty,
+                            "mode": running.mode},
+                    "round": running.current(include_key=True),
+                    # The hall's shootout as this table sees it - whether the
+                    # pick is this table's, what is left to pick, the clock.
+                    "shootout": (running.shootout_view(unit.id)
+                                 if running.shootout is not None else None)})
 
 
 def _ask_net(running, difficulty="technician", section=None, seconds=None):
@@ -3011,6 +3016,15 @@ def _ask_net(running, difficulty="technician", section=None, seconds=None):
         abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
     pool = _pool_or_404(pool_id)
 
+    if not section and running.mode == netcontrol.SHOOTOUT:
+        # In a shootout the subject is the picking table's. A practice table
+        # holding the pick chooses now; a real table's choice is waited for.
+        if running.shootout_over():
+            return None
+        running.choose_for_simulated()
+        section = running.take_pick()
+        if not section:
+            return None
     if section:
         # A section asked for by name is somebody drilling one subject on
         # purpose - an instructor working a room through antennas - and it is
@@ -3132,6 +3146,68 @@ def api_net_conduct():
                     "board": running.board()})
 
 
+@app.route("/api/net/mode", methods=["POST"])
+def api_net_mode():
+    """Which game the hall is playing: a tournament, or a shootout.
+
+    A shootout across a hall is a shootout between tables: the picking table
+    chooses the subject on its own screen, everybody's phones answer, and a
+    table takes a letter when nobody at it got what the picker's table made.
+    Starting one starts the hall conducting, waiting on the first pick.
+    """
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    wanted = str(body.get("mode") or netcontrol.TOURNAMENT).lower()
+    if wanted not in (netcontrol.TOURNAMENT, netcontrol.SHOOTOUT):
+        abort(400, "mode must be tournament or shootout")
+    if running.round is not None:
+        abort(409, "a question is still open")
+    if wanted == netcontrol.SHOOTOUT:
+        difficulty = str(body.get("difficulty") or running.difficulty).lower()
+        pool_id = party.DIFFICULTIES.get(difficulty)
+        if not pool_id:
+            abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+        pool = _pool_or_404(pool_id)
+        titles = {code: _subject_name(pool.section_title(code))
+                  for code in pool.section_order}
+        groups = {}
+        for code in pool.section_order:
+            sub = pool.subelement_of(code)
+            meta = pool.subelement_meta.get(sub) or {}
+            groups[code] = (sub, _headline(meta.get("title") or sub))
+        hall.halt()
+        started, why = running.begin_shootout(list(pool.section_order), titles,
+                                              groups, body.get("pick_seconds"))
+        if started is None:
+            abort(409, why)
+        seconds = body.get("seconds")
+        hall.start(running, lambda: _ask_net(running, difficulty, None, seconds),
+                   ready_tables=max(1, int(body.get("tables", hall.READY_TABLES))),
+                   rounds=None)
+        log.info("net: shootout started (%s, %d tables)", difficulty,
+                 len(running.units))
+    else:
+        hall.halt()
+        running.end_shootout()
+        log.info("net: back to a tournament")
+    return jsonify(running.board())
+
+
+@app.route("/api/net/pick", methods=["POST"])
+def api_net_pick():
+    """The picking table names the subject of the next question."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    unit_id = str(body.get("unit") or "").strip()
+    section = str(body.get("section") or "").strip()
+    chosen, why = running.choose(unit_id, section)
+    if chosen is None:
+        return jsonify({"ok": False, "message": why}), 409
+    log.info("net: %s picked %s", unit_id, chosen)
+    return jsonify({"ok": True, "section": chosen,
+                    "shootout": running.shootout_view(unit_id)})
+
+
 @app.route("/api/net/report", methods=["POST"])
 def api_net_report():
     """A unit hands in its cohort's results for the round."""
@@ -3177,6 +3253,25 @@ def api_party_net():
     log.info("cohort: reporting to net control at %s as %s", link.url, link.unit_id)
     return jsonify({"connected": True, "auto_join": True,
                     "bridge": link.as_dict()})
+
+
+@app.route("/api/party/net/pick", methods=["POST"])
+def api_party_net_pick():
+    """This table's choice of subject, relayed to the hall it reports to.
+
+    The table screen cannot reach the hall itself - another origin - so its
+    own server carries the choice across, under this table's unit id.
+    """
+    link = cohort.bridge()
+    if link is None:
+        return jsonify({"ok": False, "message": "this table is not in a net"}), 409
+    body = request.get_json(silent=True) or {}
+    reply = link.pick(str(body.get("section") or "").strip())
+    if not reply.get("ok"):
+        return jsonify({"ok": False,
+                        "message": reply.get("message") or reply.get("error")
+                        or "the hall did not take the pick"}), 409
+    return jsonify(reply)
 
 
 @app.route("/api/party/net")

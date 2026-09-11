@@ -29,6 +29,17 @@ import time
 from collections import deque
 
 from . import tournament
+from .shootout import Shootout
+
+# The games a hall can be playing. A tournament asks the blueprint's questions
+# and every table answers the same ones; a shootout hands one table the choice
+# of subject, and the rest of the hall has to keep up.
+TOURNAMENT = "tournament"
+SHOOTOUT = "shootout"
+
+# How long the picking table gets. Longer than a table on its own, because a
+# table at a hamfest is several people conferring over a screen.
+HALL_PICK_SECONDS = 60.0
 
 log = logging.getLogger("elmer")
 
@@ -175,6 +186,17 @@ class Net:
         self.blocks = []
         self._block_units = {}     # points this block, by table
         self._block_people = {}    # points this block, by (table, name)
+        # A shootout across the hall. The rules object is the same one a
+        # single table uses; here the players are the tables. A table makes
+        # its shot if any person at it got the question right, and a table
+        # that had nobody right when the picker made it takes a letter.
+        self.mode = TOURNAMENT
+        self.shootout = None
+        self.pick = None            # the subject chosen, waiting to be asked
+        self.pick_seconds = HALL_PICK_SECONDS
+        self._pick_since = None
+        self.titles = {}
+        self.groups = {}
 
     # ------------------------------------------------------------- check-in
 
@@ -233,6 +255,8 @@ class Net:
                                   f"second net")
                 unit = Unit(unit_id, name or unit_id, players)
                 self.units[unit_id] = unit
+                if self.shootout is not None and not self.shootout.over():
+                    self.shootout.admit(unit_id)
             unit.last_seen = _now()
             if name:
                 unit.name = name
@@ -268,6 +292,10 @@ class Net:
                 seats = players if players else random.randint(3, 8)
                 unit = Unit(unit_id, name, seats, simulated=True)
                 self.units[unit_id] = unit
+                if self.shootout is not None and not self.shootout.over():
+                    # Seated, and never allowed to keep the pick.
+                    self.shootout.admit(unit_id)
+                    self.shootout.passers.add(unit_id)
                 made.append(unit)
             if made:
                 log.info("net: %d simulated table(s) joined - %s",
@@ -286,11 +314,25 @@ class Net:
             if not sims:
                 return None
             going = min(sims, key=lambda u: (u.score, u.rounds_won))
-            self.units.pop(going.id, None)
-            self._sim_plan.pop(going.id, None)
-            self.results.pop(going.id, None)
+            self._forget_unit(going.id)
             log.info("net: simulated table %s stood down", going.name)
             return going
+
+    def _forget_unit(self, uid):
+        """A table leaves the hall, and every game it was in.
+
+        A shootout still seating a table that has gone would hand it the pick
+        and wait for a choice that never comes. Found by a test in which a
+        real table checking in stood a practice table down, mid-game.
+        """
+        self.units.pop(uid, None)
+        self._sim_plan.pop(uid, None)
+        self.results.pop(uid, None)
+        if self.shootout is not None:
+            self.shootout.withdraw(uid)
+            if self.shootout.picker is None and not self.shootout.over():
+                self.shootout.picker = self.shootout.next_picker(uid)
+            self._pick_since = None
 
     def present_units(self):
         with self.lock:
@@ -302,7 +344,7 @@ class Net:
             dead = [uid for uid, u in self.units.items()
                     if u.quiet_for > DROP_AFTER]
             for uid in dead:
-                self.units.pop(uid, None)
+                self._forget_unit(uid)
             return len(dead)
 
     # --------------------------------------------------------------- rounds
@@ -548,6 +590,40 @@ class Net:
                 "unit_points": per_unit,
                 "top": right[:10],
             }
+            # In a shootout the round is also a shot, table by table: a table
+            # made it if any person at it was right, and its time is its
+            # quickest right answer. Practice players do not make a table's
+            # shot - a table full of bots that "made it" would be the program
+            # handing itself the pick.
+            if self.shootout is not None:
+                section = (self.round.get("question") or {}).get("section")
+                if section:
+                    by_unit = {}
+                    for row in everyone:
+                        if row.get("bot"):
+                            continue
+                        slot = by_unit.setdefault(row["unit"], {"correct": False, "ms": None})
+                        if row["correct"]:
+                            slot["correct"] = True
+                            slot["ms"] = (row["ms"] if slot["ms"] is None
+                                          else min(slot["ms"], row["ms"]))
+                    # A practice table's shot is its own simulated answers.
+                    for row in everyone:
+                        uid = row["unit"]
+                        if uid in self.units and self.units[uid].simulated:
+                            slot = by_unit.setdefault(uid, {"correct": False, "ms": None})
+                            if row["correct"]:
+                                slot["correct"] = True
+                                slot["ms"] = (row["ms"] if slot["ms"] is None
+                                              else min(slot["ms"], row["ms"]))
+                    shot = self.shootout.play(section, by_unit)
+                    # Names for the screens: the rules speak in unit ids.
+                    shot["took_names"] = [self.units[u].name for u in shot.get("took", [])
+                                          if u in self.units]
+                    shot["picker_name"] = (self.units[shot["picker"]].name
+                                           if shot.get("picker") in self.units else None)
+                    summary["shootout"] = shot
+
             # A block closes on the twelfth question, the twenty-fourth and so
             # on, and the summary carries the declaration so the screen that
             # is already showing the round result shows the block result with
@@ -558,6 +634,166 @@ class Net:
             self.history.append(summary)
             self.round = None
             return summary
+
+    # ------------------------------------------------------------ shootout
+
+    def begin_shootout(self, sections, titles=None, groups=None,
+                       pick_seconds=None):
+        """A shootout across the tables checked in, real tables first.
+
+        Real tables seat first in the order they arrived and the practice
+        tables after, so the opening pick is a room's, not the program's; and
+        the practice tables never keep the pick, for the same reason a
+        practice player never does.
+        """
+        with self.lock:
+            real = [uid for uid, u in self.units.items() if not u.simulated]
+            fake = [uid for uid, u in self.units.items() if u.simulated]
+            if len(real) + len(fake) < 2:
+                return None, "a shootout needs two tables"
+            self.shootout = Shootout(real + fake, sections, passers=fake)
+            self.titles = dict(titles or {})
+            self.groups = dict(groups or {})
+            self.mode = SHOOTOUT
+            self.pick = None
+            self.pick_seconds = float(pick_seconds or HALL_PICK_SECONDS)
+            self._pick_since = None
+            self.plan = None
+            return self.shootout, None
+
+    def end_shootout(self):
+        with self.lock:
+            self.shootout = None
+            self.mode = TOURNAMENT
+            self.pick = None
+            self._pick_since = None
+
+    def choose(self, unit_id, section):
+        """The picking table names the subject. Refused in words otherwise."""
+        with self.lock:
+            s = self.shootout
+            if s is None:
+                return None, "this net is not running a shootout"
+            if s.over():
+                return None, "the shootout is over"
+            if self.round is not None:
+                return None, "a question is still open"
+            if s.picker != unit_id:
+                holder = self.units.get(s.picker)
+                return None, ("it is not your table's pick" +
+                              (f" - it is {holder.name}'s" if holder else ""))
+            ok, why = s.may_pick(section)
+            if not ok:
+                return None, why
+            self.pick = section
+            return section, None
+
+    def choose_for_simulated(self):
+        """A practice table holding the pick chooses at random from what is left."""
+        with self.lock:
+            s = self.shootout
+            if s is None or s.over() or self.pick is not None or self.round is not None:
+                return None
+            holder = self.units.get(s.picker)
+            if holder is None or not holder.simulated:
+                return None
+            left = s.available()
+            if not left:
+                return None
+            self.pick = random.choice(left)
+            return self.pick
+
+    def waiting_for_pick(self):
+        """True while the next question is a real table's to choose."""
+        with self.lock:
+            s = self.shootout
+            waiting = False
+            if s is not None and not s.over() and self.pick is None and self.round is None:
+                holder = self.units.get(s.picker)
+                waiting = holder is not None and not holder.simulated
+            if not waiting:
+                self._pick_since = None
+            elif self._pick_since is None or self._pick_since[1] != s.picker:
+                self._pick_since = (_now(), s.picker)
+            return waiting
+
+    def pick_remaining(self):
+        with self.lock:
+            if not self.waiting_for_pick():
+                return None
+            return max(0.0, self.pick_seconds - (_now() - self._pick_since[0]))
+
+    def pick_overdue(self):
+        with self.lock:
+            left = self.pick_remaining()
+            return left is not None and left <= 0.0
+
+    def pass_pick(self):
+        """The picking table did not choose in time: round the hall, no letter."""
+        with self.lock:
+            s = self.shootout
+            if s is None or s.over():
+                return None
+            was = s.picker
+            s.picker = s.next_picker(was)
+            s.pick_reason = "timeout"
+            self._pick_since = None
+            s.history.append({"section": None, "picker": was, "made": False,
+                              "took": [], "next_picker": s.picker,
+                              "passed": True, "out": [], "winner": None,
+                              "over": False})
+            return s.picker
+
+    def take_pick(self):
+        with self.lock:
+            section, self.pick = self.pick, None
+            return section
+
+    def shootout_over(self):
+        with self.lock:
+            return self.shootout is not None and self.shootout.over()
+
+    def shootout_view(self, unit_id=None):
+        """The hall's shootout with table names on it, for screens."""
+        with self.lock:
+            s = self.shootout
+            if s is None:
+                return None
+            standing = []
+            for row in s.standing():
+                unit = self.units.get(row["player"])
+                standing.append({**row,
+                                 "name": unit.name if unit else "(gone)",
+                                 "simulated": bool(unit.simulated) if unit else False,
+                                 "present": bool(unit.present) if unit else False})
+            holder = self.units.get(s.picker) if s.picker else None
+            winner = self.units.get(s.winner()) if s.winner() else None
+            left = self.pick_remaining()
+            return {
+                "on": True, "word": "ELMER",
+                "standing": standing,
+                "picker": s.picker, "pick_reason": s.pick_reason,
+                "picker_name": holder.name if holder else None,
+                "picker_is_simulated": bool(holder.simulated) if holder else False,
+                "your_pick": bool(unit_id is not None and s.picker == unit_id
+                                  and self.pick is None and self.round is None
+                                  and not s.over()),
+                "pick": self.pick,
+                "pick_title": self.titles.get(self.pick, self.pick),
+                "pick_remaining": None if left is None else round(left, 1),
+                "available": [{"section": c, "title": self.titles.get(c, c),
+                               "group": self.groups.get(c, ("", ""))[0],
+                               "group_title": self.groups.get(c, ("", ""))[1]}
+                              for c in s.available()],
+                "spent": list(s.spent),
+                "over": s.over(), "drawn": s.drawn(),
+                "winner": s.winner(),
+                "winner_name": winner.name if winner else None,
+                "played": len(s.history),
+                "last": s.history[-1] if s.history else None,
+                "last_shot": next((h for h in reversed(s.history)
+                                   if h.get("section")), None),
+            }
 
     # ----------------------------------------------------------- the plan
 
@@ -688,6 +924,8 @@ class Net:
                 "people": self.people_board(),
                 "plan": self.plan_state(),
                 "blocks": list(self.blocks),
+                "mode": self.mode,
+                "shootout": self.shootout_view(),
             }
 
     def people_board(self, limit=40):
