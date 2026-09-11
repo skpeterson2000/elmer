@@ -164,6 +164,47 @@ def main():
     check("  and the new picker gets a fresh clock",
           room4.pick_remaining() is not None and room4.pick_remaining() > 0.0, True)
 
+    print("\n-- the pick is for the people --")
+    # Reported from a real table: the pick never arrived. Two causes, both
+    # here. Seated by id, a table that had filled with practice players
+    # earlier gave the opening pick to one of them; and a practice player
+    # that makes nine shots in ten kept it for ten questions.
+    from elmer import party as P2
+    r = P2.Room(); r.fill_bots("Elmer")
+    ann = r.join("Ann")[0].id
+    r.begin_shootout(["T1A", "T1B", "T1C"])
+    check("the first pick is a person's, whoever sat down first",
+          r.players[r.shootout.picker].name, "Ann")
+    check("  and says so", r.shootout.pick_reason, "first")
+    bot = next(pid for pid, pl in r.players.items() if pl.bot)
+    r.shootout.picker = bot
+    out = r.shootout.play("T1A", {bot: right(900), ann: right(1500)})
+    check("a practice player's made shot still counts", out["made"], True)
+    check("  but it does not keep the pick", out["next_picker"] == bot, False)
+    check("  which goes to the quickest person", out["next_picker"], ann)
+    check("  and the greeting knows why", r.shootout.pick_reason, "quickest")
+
+    print("\n-- arriving late is being dealt in --")
+    r.shootout.letters[ann] = 2
+    bob = r.join("Bob")[0].id
+    check("the newcomer is in the game", bob in r.shootout.letters, True)
+    check("  seated last", r.shootout.order[-1], bob)
+    check("  level with the best-placed player still in",
+          r.shootout.letters[bob],
+          min(r.shootout.letters[p] for p in r.shootout.live() if p != bob))
+
+    print("\n-- why the pick arrived --")
+    g = Shootout(["ann", "bob", "cat"], sections=["S1", "S2", "S3", "S4"])
+    check("at the start: first", g.pick_reason, "first")
+    g.play("S1", {"ann": right(100), "bob": wrong(), "cat": wrong()})
+    check("made your shot: kept", g.pick_reason, "kept")
+    g.play("S2", {"ann": wrong(), "bob": right(700), "cat": right(400)})
+    check("picker missed, cat quickest: quickest", [g.picker, g.pick_reason],
+          ["cat", "quickest"])
+    g.play("S3", {"ann": wrong(), "bob": wrong(), "cat": wrong()})
+    check("nobody got it: round the table", [g.picker, g.pick_reason],
+          ["ann", "round"])
+
     print("\n-- one player is not a game --")
     solo = Shootout(["ann"], sections=["T0A"])
     check("a lone player has not won by default", solo.over(), False)

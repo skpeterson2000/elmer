@@ -350,9 +350,19 @@ class Room:
                             or f"Player {self._next_id}", cid, bot=bot)
             self.players[player.id] = player
             self._next_id += 1
+            self._admit_late(player)
             if not bot:
                 self.rebalance_bots()
             return player, None
+
+    def _admit_late(self, player):
+        """Somebody sat down during a shootout: they are in it."""
+        s = self.shootout
+        if s is None or s.over():
+            return
+        s.admit(player.id)
+        if player.bot:
+            s.passers.add(player.id)
 
     def leave(self, player_id):
         with self.lock:
@@ -660,10 +670,17 @@ class Room:
         somebody can decide they are good at.
         """
         with self.lock:
-            order = sorted(self.players)
+            # People first, in the order they sat down, then the practice
+            # players - so the first pick is always a person's. Seated by id
+            # alone, a table that had filled with bots earlier in the evening
+            # handed the opening pick to one of them.
+            order = (sorted(p for p, pl in self.players.items() if not pl.bot)
+                     + sorted(p for p, pl in self.players.items() if pl.bot))
             if len(order) < 2:
                 return None, "a shootout needs two players"
-            self.shootout = Shootout(order, sections)
+            self.shootout = Shootout(
+                order, sections,
+                passers=[p for p, pl in self.players.items() if pl.bot])
             self.titles = dict(titles or {})
             self.groups = dict(groups or {})      # code -> (sub, sub title)
             self.mode = SHOOTOUT
@@ -770,6 +787,7 @@ class Room:
                 return None
             was = s.picker
             s.picker = s.next_picker(was)
+            s.pick_reason = "timeout"
             self._pick_since = None
             s.history.append({"section": None, "picker": was, "made": False,
                               "took": [], "next_picker": s.picker,
@@ -810,6 +828,7 @@ class Room:
                 "word": s.as_dict()["word"],
                 "standing": standing,
                 "picker": s.picker,
+                "pick_reason": s.pick_reason,
                 "picker_name": holder.name if holder else None,
                 "picker_is_bot": bool(holder.bot) if holder else False,
                 "your_pick": bool(player_id is not None

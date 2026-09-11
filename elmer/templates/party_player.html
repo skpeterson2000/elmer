@@ -347,8 +347,23 @@ function paintPick(shoot) {
     out += `<button class="choice" data-section="${escapeHTML(a.section)}">
       <span class="k">${escapeHTML(a.section)}</span>${escapeHTML(a.title)}</button>`;
   });
-  return `<div class="pick"><h3>Your pick. Choose the subject.
-      <span class="clock" id="pickleft"></span></h3>${out}</div>`;
+  return `<div class="pick"><h3>${pickGreeting(shoot)}
+      <span class="clock" id="pickleft"></span></h3>
+      <p class="tiny muted" style="margin:0 0 .5rem">Choose the subject. The board picks the question.</p>${out}</div>`;
+}
+
+/* How the pick arrived is worth a different first line: one that was earned
+   is a small moment and should be met as one; one that came round because
+   nobody got the question is just a turn. */
+function pickGreeting(shoot) {
+  switch (shoot.pick_reason) {
+    case 'kept':     return 'Nice one \u2014 you made it. Your pick again.';
+    case 'quickest': return 'Quickest right answer. Your pick.';
+    case 'first':    return 'You\u2019re up first. Your pick.';
+    case 'admitted': return 'You\u2019re in, and it\u2019s your pick.';
+    case 'timeout':  return 'Time ran out over there. Your pick.';
+    default:         return 'It comes round to you. Your pick.';
+  }
 }
 
 function wirePick() {
