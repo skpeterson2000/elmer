@@ -60,6 +60,11 @@ MAX_COHORTS = 4
 # night, but not up to three minutes any more - nothing was using that except
 # the wait.
 DEFAULT_ROUND_SECONDS = 30.0
+
+# The games a table can be playing.
+TOURNAMENT = "tournament"
+SHOOTOUT = "shootout"
+MODES = (TOURNAMENT, SHOOTOUT)
 REVEAL_SECONDS = 8.0
 
 # Admission stops before the room is unpleasant, not after. These are the
@@ -243,6 +248,12 @@ class Room:
         # a time rather than as a timer: this module has no clock in it on
         # purpose, so what fires it lives where the clocks already are.
         self.start_at = None
+        # Which game this table is playing. A tournament asks the blueprint's
+        # questions in order and everybody answers the same ones; a shootout
+        # hands one player the choice of subject and the rest have to keep up.
+        self.mode = TOURNAMENT
+        self.shootout = None
+        self.pick = None           # the subject chosen, waiting to be asked
         for i in range(max(1, min(int(cohorts), MAX_COHORTS))):
             cid = i + 1
             self.cohorts[cid] = Cohort(cid, f"Cohort {chr(64 + cid)}")

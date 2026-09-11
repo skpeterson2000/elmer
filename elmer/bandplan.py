@@ -410,6 +410,52 @@ def segment_at(mhz):
     return best
 
 
+# How a voice calling frequency announces itself in the plan, in the order
+# somebody would want one: a voice net is where most people listening on a band
+# they have just chosen will actually hear something, FT8 is where the band is
+# busiest whether or not anybody is talking, and CW is the fallback because
+# every band has one even when nothing else is named.
+_CALLING_RANK = (
+    ("ssb", 0), ("fm", 0), ("phone", 0), ("am", 0),
+    ("ft8", 1), ("ft4", 1),
+    ("cw", 2),
+)
+
+
+def _calling_rank(label):
+    low = label.lower()
+    for word, rank in _CALLING_RANK:
+        if word in low:
+            return rank
+    return 3
+
+
+def calling_frequency(band_name):
+    """Where to put somebody who has just chosen this band, and what it is.
+
+    Returns ``(mhz, label)``, or None for a band with nothing named in it.
+
+    A tool that asks for a band and then leaves the dial wherever it was is
+    asking a question it then ignores. The answer wanted here is a real
+    frequency people actually call on - not the middle of the band, which is a
+    number no operator has ever tuned to on purpose.
+
+    60 m has no calling frequency because it has no band: it is five channels
+    with nothing legal in between, so the answer there is the first channel,
+    given as the dial setting an operator types rather than the centre the
+    rules name.
+    """
+    if band_name == "60 m":
+        ch = CHANNELS_60M[0]
+        return ch["dial"], f"{ch['name']}, dial setting"
+    calls = [(low, label) for low, high, kind, label
+             in activity_for(band_name) if kind == "calling"]
+    if not calls:
+        return None
+    low, label = min(calls, key=lambda c: (_calling_rank(c[1]), c[0]))
+    return low, label
+
+
 def classes_permitting(band_name, low, high, emission):
     """Which classes may send this emission anywhere in this range, weakest first.
 
