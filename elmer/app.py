@@ -1,9 +1,12 @@
-"""ELMER - the web application.
+"""ELMER - the program: its screens, and the API behind them.
 
-Pages are server-rendered; the quiz and exam screens talk to a small JSON API so
-answering never reloads the page.  The correct answer is never sent to the
-browser before the user commits to a choice: the server hands out a shuffled
-presentation plus its permutation, and resolves the real answer on submit.
+The browser is how ELMER draws, not what ELMER is.  The program runs on the
+machine in front of the operator; nothing is hosted and there is nowhere to
+visit.  Pages are server-rendered; the quiz and exam screens talk to a small
+JSON API so answering never reloads the page.  The correct answer is never
+sent to the browser before the user commits to a choice: the server hands
+out a shuffled presentation plus its permutation, and resolves the real
+answer on submit.
 """
 import hmac
 import ipaddress

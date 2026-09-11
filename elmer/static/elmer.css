@@ -235,7 +235,7 @@ p { margin: 0 0 .8rem; }
    hover: none, and these Pis have one, so the guard would switch mouse-over
    off on the very machine it was meant to help the moment somebody plugged a
    mouse in. The cost of not guarding is that a tapped button keeps its hover
-   until the next tap, which is what every other site on the machine does
+   until the next tap, which is how a browser behaves everywhere else
    too. :active is the honest press, and it works either way. */
 .btn:hover { background: #2c3a49; text-decoration: none;
              border-color: var(--amber-dim); color: #fff; }
