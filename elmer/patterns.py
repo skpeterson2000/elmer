@@ -405,6 +405,62 @@ def nvis_reach(mhz, fof2=None, hmf2=None, day=True):
                     "watch." % (fof2, mhz, headroom, _miles(radius), where)}
 
 
+# What a horizontal wire does about its own ground, which is the answer to
+# "can the antenna help inside the skip zone" - and the answer is usually yes.
+#
+# A horizontal antenna over ground is a two element array: the wire, and its
+# image below the surface. The reflection arrives phase-reversed, so at about
+# a quarter wave up it comes back in step straight overhead and the pattern
+# points at the sky. Take it toward half a wave and the same reflection
+# cancels overhead and splits the lobe, which is where a skip zone comes from.
+# It is tuned the way a loudspeaker is tuned against a wall: the boundary is
+# part of the instrument, and the distance to it decides what reinforces and
+# what cancels.
+#
+# So an operator inside a skip zone with the band still under foF2 is not
+# stuck. They are too high.
+NVIS_FILL_WAVES = 0.20          # where the overhead lobe is strongest
+NVIS_SPLIT_WAVES = 0.45         # past here the lobe has split and the gap opens
+
+
+def fill_the_gap(mhz, height_ft, fof2=None):
+    """Whether lowering this antenna would close the hole in the middle.
+
+    None when it would not - which is a real case, and the only one the old
+    wording was right about: above the critical frequency nothing comes back
+    from overhead however the wire is hung.
+    """
+    if not fof2 or mhz > fof2:
+        return None
+    lam_ft = 983.571 / mhz
+    if max(0.0, height_ft) / lam_ft <= NVIS_SPLIT_WAVES:
+        return None                       # already low enough to be filling it
+    return {"to_ft": round(NVIS_FILL_WAVES * lam_ft),
+            "from_ft": round(height_ft), "fof2": round(fof2, 1)}
+
+
+def _gap_note(mhz, height_ft, fof2):
+    """What to do about the hole, which depends on whether the sky is shut."""
+    fill = fill_the_gap(mhz, height_ft, fof2)
+    if fill:
+        return (" It is not out of reach, though: %.3f MHz is under the %.1f "
+                "MHz critical frequency, so bringing this wire down from about "
+                "%d feet to about %d - a fifth of a wavelength - turns it into "
+                "an NVIS antenna and fills the middle in. The ground reflection "
+                "does it: at that height it returns in step straight overhead "
+                "instead of cancelling there."
+                % (mhz, fill["fof2"], fill["from_ft"], fill["to_ft"]))
+    if fof2 and mhz > fof2:
+        return (" Nothing comes back from overhead at %.3f MHz while the "
+                "critical frequency is %.1f, so no height will fill it - that "
+                "is what a lower band is for." % (mhz, fof2))
+    return (" Whether lowering the antenna fills it depends on the critical "
+            "frequency, which is not in hand here: under it, a wire down "
+            "around a fifth of a wavelength radiates straight up and there is "
+            "no hole at all. Above it, only a lower band will do.")
+
+
+
 def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
           day=True, fof2=None, hmf2=None):
     """How far this antenna actually works, and what to compare it against.
@@ -457,8 +513,8 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
         "note": (f"One hop off the F2 layer at about {ring['layer_km']:.0f} km, "
                  f"leaving at {ring['takeoff_deg']}\u00b0: that lands roughly "
                  f"{ring['near_km']}-{ring['far_km']} km out, typically around "
-                 f"{ring['typical_km']}. Inside the near edge is the skip zone "
-                 f"and the antenna cannot help you there - a lower band can."),
+                 f"{ring['typical_km']}. Inside the near edge is the skip "
+                 f"zone." + _gap_note(mhz, height_ft, fof2)),
     }
 
 
