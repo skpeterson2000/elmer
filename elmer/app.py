@@ -13,6 +13,7 @@ import ipaddress
 import json
 import logging
 import random
+import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -2478,6 +2479,7 @@ def _party_begin(room, difficulty, armed_only=False):
     room.disarm_start()
     if not _party_may_begin(room):
         return False
+    room.end_shootout()               # what starts on its own is a tournament
     room.fill_bots(None)
     seconds = party.DEFAULT_ROUND_SECONDS
     autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
@@ -2561,13 +2563,25 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
     if not pool_id:
         raise ValueError(f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
     pool = _pool_or_404(pool_id)
+    room = _party_or_404()
+    if room.mode == party.SHOOTOUT and not section:
+        # In a shootout the subject is the picker's, not the button's. A
+        # practice player holding the pick chooses now; a person's choice is
+        # waited for, and pressing the button before they have made it is
+        # told so rather than handed a question from nowhere.
+        if room.shootout_over():
+            raise ValueError("the shootout is over")
+        room.choose_for_bot()
+        section = room.take_pick()
+        if not section:
+            who = (room.shootout_view() or {}).get("picker_name") or "the picker"
+            raise ValueError(f"waiting for {who} to choose the subject")
     ids = [q["id"] for q in pool.by_id.values()
            if not section or q["section"] == section]
     if not ids:
         raise ValueError("no questions in that section")
     question = pool.by_id[random.choice(ids)]
     shown = presentation(question)
-    room = _party_or_404()
     return room.start_round(
         pool_id, question["id"], shown["answer"],
         seconds=float(seconds or party.DEFAULT_ROUND_SECONDS),
@@ -2576,6 +2590,94 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
                  "section_title": pool.section_title(question["section"]),
                  "figure": pool.figure_url(question),
                  "difficulty": str(difficulty).lower()})
+
+
+def _headline(shouted):
+    """COMMISSION'S RULES, as a heading: str.title() gives Commission'S."""
+    return " ".join(w[:1].upper() + w[1:].lower() for w in str(shouted).split())
+
+
+def _subject_name(long_title, limit=48):
+    """The first clause of a section title, which is what the section is."""
+    head = re.split(r"[;:]", str(long_title or ""), 1)[0].strip()
+    if len(head) > limit:
+        cut = head[:limit].rsplit(" ", 1)[0].rstrip(" ,")
+        return cut + "\u2026"
+    return head
+
+
+@app.route("/api/party/mode", methods=["POST"])
+def api_party_mode():
+    """Which game this table is playing: a tournament, or a shootout.
+
+    A shootout needs the subjects of the pool being played, with their titles,
+    because "T5C" is a filing reference and "Electrical principles" is a thing
+    somebody can decide they are good at. The class comes from the body or
+    from what this operator is studying, the same way the tournament's does.
+    """
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    wanted = str(body.get("mode") or party.TOURNAMENT).lower()
+    if wanted not in party.MODES:
+        abort(400, f"mode must be one of {list(party.MODES)}")
+    if room.round is not None and not room.round.closed:
+        abort(409, "a question is still open")
+    if wanted == party.SHOOTOUT:
+        difficulty = str(body.get("difficulty") or _party_class()).lower()
+        pool_id = party.DIFFICULTIES.get(difficulty)
+        if not pool_id:
+            abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+        pool = _pool_or_404(pool_id)
+        # The pool's section titles are whole sentences - "Current and
+        # voltage: terminology and units, conductors and insulators,
+        # alternating and direct current" - and thirty-three of them on a
+        # phone with a clock running is a wall. The first clause is the
+        # subject; the subelement it sits in is the heading.
+        titles = {code: _subject_name(pool.section_title(code))
+                  for code in pool.section_order}
+        groups = {}
+        for code in pool.section_order:
+            sub = pool.subelement_of(code)
+            meta = pool.subelement_meta.get(sub) or {}
+            groups[code] = (sub, _headline(meta.get("title") or sub))
+        # Practice players sit down first, because the shootout fixes its
+        # seating order the moment it starts: a bot that arrived afterwards
+        # would answer every question and never be able to take a letter.
+        room.fill_bots(body.get("level"))
+        started, why = room.begin_shootout(list(pool.section_order), titles,
+                                           groups, body.get("pick_seconds"))
+        if started is None:
+            abort(409, why)
+        # The director carries it from here, waiting on the pick between
+        # questions.
+        seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
+        autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
+        log.info("party: shootout started (%s, %d players)", difficulty,
+                 len(room.players))
+    else:
+        room.end_shootout()
+        log.info("party: back to a tournament")
+    return jsonify(room.state())
+
+
+@app.route("/api/party/pick", methods=["POST"])
+def api_party_pick():
+    """The picker names the subject of the next question."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        who = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    section = str(body.get("section") or "").strip()
+    chosen, why = room.choose(who, section)
+    if chosen is None:
+        # Refused in words, because "it is not your pick" is the thing the
+        # person who pressed the button needs to be told.
+        return jsonify({"ok": False, "message": why}), 409
+    log.info("party: %s picked %s", who, chosen)
+    return jsonify({"ok": True, "section": chosen,
+                    "shootout": room.shootout_view(who)})
 
 
 @app.route("/api/party/bots", methods=["POST"])
@@ -2610,6 +2712,10 @@ def api_party_auto():
     seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
     section = body.get("section")
     rounds = body.get("rounds")
+    # A tournament is not a shootout. Left in shootout mode after one had
+    # finished, the table would take the draw as "the shootout is over" and
+    # the tournament button would start a director that stopped at once.
+    room.end_shootout()
     if body.get("bots", True):
         room.fill_bots(body.get("level"))
     driver = autoplay.start(

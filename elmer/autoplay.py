@@ -68,7 +68,25 @@ class Director:
             self.stop.set()
             return
 
-        # Time for the next question.
+        # Time for the next question - unless it is somebody's to choose.
+        # A shootout has no fixed length: it ends when one player is left,
+        # and between questions it waits on whoever holds the pick, which is
+        # a state of its own so the screens can say so rather than "asking".
+        if room.shootout_over():
+            self.state = "finished"
+            self.stop.set()
+            return
+        room.choose_for_bot()
+        if room.waiting_for_pick():
+            if room.pick_overdue():
+                # Time's up: round the table, no letter, and the new picker's
+                # own clock starts from here. A practice player who gets it
+                # this way chooses on the very next tick.
+                room.pass_pick()
+                return
+            self.state = "picking"
+            return
+
         self.state = "asking"
         self.ask()
         self.next_at = time.monotonic() + BETWEEN_MIN

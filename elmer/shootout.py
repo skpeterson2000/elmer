@@ -39,6 +39,14 @@ picked well.
 **Last one standing wins.** With everybody else out there is nothing left to
 decide, so the game ends the moment one player is left rather than playing out
 a fixed length.
+
+**Or the subjects run out.** Thirty-five subjects is thirty-five questions,
+and a table of careful players can get through all of them with several still
+standing. Then the game is over too, and whoever has the fewest letters wins
+it - or nobody does, if they are level, which is a draw and is said to be one.
+Without this ending a game where nobody ever made a shot went round the table
+for ever, which is what happened on the bench with a round too short for
+anybody to answer in.
 """
 
 WORD = "ELMER"
@@ -77,12 +85,30 @@ class Shootout:
         return [p for p in self.order if not is_out(self.letters.get(p, 0))]
 
     def over(self):
-        return len(self.live()) <= 1 and len(self.order) > 1
+        if len(self.order) <= 1:
+            return False                 # one player is not a game
+        if len(self.live()) <= 1:
+            return True
+        return bool(self.sections) and not self.available()
 
     def winner(self):
-        """The last player standing, or None while the game is still on."""
+        """Who won, or None while the game is on - or when it is drawn."""
+        if not self.over():
+            return None
         standing = self.live()
-        return standing[0] if self.over() and standing else None
+        if len(standing) == 1:
+            return standing[0]
+        # Out of subjects with several still in: fewest letters takes it, and
+        # level on that is a draw rather than a coin toss nobody asked for.
+        if not standing:
+            return None
+        fewest = min(self.letters[p] for p in standing)
+        best = [p for p in standing if self.letters[p] == fewest]
+        return best[0] if len(best) == 1 else None
+
+    def drawn(self):
+        """Over with nobody able to be called the winner."""
+        return self.over() and self.winner() is None and len(self.live()) > 1
 
     def standing(self):
         return [{"player": p, "letters": self.letters.get(p, 0),
@@ -190,4 +216,5 @@ class Shootout:
         return {"word": WORD, "picker": self.picker,
                 "standing": self.standing(), "available": self.available(),
                 "spent": list(self.spent), "over": self.over(),
-                "winner": self.winner(), "played": len(self.history)}
+                "winner": self.winner(), "drawn": self.drawn(),
+                "played": len(self.history)}

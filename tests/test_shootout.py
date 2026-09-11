@@ -82,7 +82,10 @@ def main():
         g.play(f"T{n}A", {"ann": wrong(), "bob": wrong(), "cat": wrong()})
     check("eight bad picks later, nobody has a letter",
           [g.letters["bob"], g.letters["cat"]], [0, 0])
-    check("  and the game is not over", g.over(), False)
+    # Eight subjects, eight bad picks: the subjects are gone, and what that
+    # strategy has to show for a whole game is a draw. Not a win.
+    check("  the subjects are spent and it is over", g.over(), True)
+    check("  and nobody won it", [g.winner(), g.drawn()], [None, True])
 
     print("\n-- the pick passes on a miss, to the quickest who got it --")
     g = game()
@@ -129,9 +132,116 @@ def main():
     check("  and ann won it", g.winner(), "ann")
     check("  with nobody left picking", g.picker, None)
 
+    print("\n-- the subjects run out --")
+    # Played out on the bench first: a round too short for anybody to answer
+    # in meant no shot was ever made, no letter ever taken, and after all
+    # thirty-five subjects were spent the game went round the table for ever.
+    g = Shootout(["ann", "bob", "cat"], sections=["S1", "S2"])
+    g.play("S1", {"ann": wrong(), "bob": wrong(), "cat": wrong()})
+    check("one subject left: still on", g.over(), False)
+    g.play("S2", {"ann": wrong(), "bob": wrong(), "cat": wrong()})
+    check("none left: over", g.over(), True)
+    check("  nobody ahead, so nobody won", g.winner(), None)
+    check("  and it says it is a draw", g.drawn(), True)
+    h = Shootout(["ann", "bob"], sections=["S1"])
+    h.play("S1", {"ann": right(100), "bob": wrong()})
+    check("fewest letters takes it when the subjects run out", h.winner(), "ann")
+    check("  which is not a draw", h.drawn(), False)
+
+    print("\n-- the pick has a clock --")
+    from elmer import party as P
+    room4 = P.Room()
+    p1 = room4.join("Ann")[0].id
+    p2 = room4.join("Bob")[0].id
+    room4.begin_shootout(["S1", "S2"], pick_seconds=0.05)
+    check("a person holding the pick is waited on", room4.waiting_for_pick(), True)
+    check("  with time on the clock", room4.pick_remaining() is not None, True)
+    import time as _t; _t.sleep(0.08)
+    check("  until it runs out", room4.pick_overdue(), True)
+    passed_to = room4.pass_pick()
+    check("then it goes round the table", passed_to, p2)
+    check("  for no letter", [room4.shootout.letters[p1], room4.shootout.letters[p2]], [0, 0])
+    check("  and the new picker gets a fresh clock",
+          room4.pick_remaining() is not None and room4.pick_remaining() > 0.0, True)
+
     print("\n-- one player is not a game --")
     solo = Shootout(["ann"], sections=["T0A"])
     check("a lone player has not won by default", solo.over(), False)
+
+    print("\n-- at a table: the round is the shot --")
+    # The rules module knows nothing about tables; this is the join. A room
+    # with two people and a practice player, played through the same round
+    # machinery a tournament uses, with the shootout reading each round as a
+    # shot the moment it closes.
+    from elmer import party
+    room = party.Room()
+    ann = room.join("Ann")[0].id
+    bob = room.join("Bob")[0].id
+    bot = room.join("Rig", bot="Listener")[0].id
+    started, why = room.begin_shootout(["T1A", "T2B", "T3C"],
+                                       {"T1A": "Rules", "T2B": "Operating"})
+    check("a shootout starts over the table", why, None)
+    check("  and the table says which game it is playing", room.mode, "shootout")
+    view = room.shootout_view(ann)
+    check("  the first to sit down holds the pick", view["picker"], ann)
+    check("  and is told so", view["your_pick"], True)
+    first = view["available"][0]
+    check("  a subject has its title on it",
+          [first["section"], first["title"]], ["T1A", "Rules"])
+    check("  and one without a title keeps its code",
+          view["available"][2]["title"], "T3C")
+
+    got, why = room.choose(bob, "T1A")
+    check("somebody else cannot pick", why, "it is not your pick")
+    got, why = room.choose(ann, "G9Z")
+    check("nor can the picker pick outside the pool", got, None)
+    got, why = room.choose(ann, "T1A")
+    check("the picker picks", got, "T1A")
+    check("  and it is waiting to be asked", room.take_pick(), "T1A")
+    check("  once", room.take_pick(), None)
+
+    room.start_round("tech2026", "T1A01", 0, seconds=30,
+                     payload={"text": "?", "choices": ["a", "b"], "section": "T1A"})
+    room.submit(ann, 0, 1000)         # right, and she picked it
+    room.submit(bob, 1, 2000)         # wrong
+    # the bot never answers: not answering is a miss
+    summary = room.close_round()
+    shot = summary.get("shootout") or {}
+    check("the round was scored as a shot", shot.get("made"), True)
+    check("  bob and the silent bot took a letter",
+          sorted(shot.get("took", [])), sorted([bob, bot]))
+    check("  ann keeps the pick", room.shootout.picker, ann)
+    view = room.shootout_view(bob)
+    check("  the view spells it", [r["word"] for r in view["standing"]],
+          ["", "E", "E"])
+    check("  and bob is told it is not his pick", view["your_pick"], False)
+
+    print("\n-- a practice player holding the pick picks for itself --")
+    room2 = party.Room()
+    a = room2.join("Ann")[0].id
+    r = room2.join("Rig", bot="Listener")[0].id
+    room2.begin_shootout(["T1A", "T2B"])
+    room2.shootout.picker = r                 # hand it to the bot
+    check("nothing chosen yet", room2.pick, None)
+    chosen = room2.choose_for_bot()
+    check("the bot chose something on the list", chosen in ("T1A", "T2B"), True)
+    check("  and it is waiting to be asked", room2.pick, chosen)
+    check("  a person holding it is left alone",
+          (setattr(room2.shootout, "picker", a), room2.choose_for_bot())[1], None)
+
+    print("\n-- leaving the table is being out --")
+    room3 = party.Room()
+    x = room3.join("Xan")[0].id
+    y = room3.join("Yves")[0].id
+    z = room3.join("Zed")[0].id
+    room3.begin_shootout(["T1A"])
+    check("xan holds the pick", room3.shootout.picker, x)
+    room3.leave(x)
+    check("xan is out", room3.shootout.letters[x], 5)
+    check("  the pick moved to the next seat", room3.shootout.picker, y)
+    check("  and the view says who left",
+          [r["name"] for r in room3.shootout_view()["standing"]],
+          ["(left)", "Yves", "Zed"])
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

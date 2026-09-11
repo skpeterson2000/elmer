@@ -38,6 +38,25 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .clock { font-variant-numeric: tabular-nums; font-family: var(--mono);
          color: var(--dim); }
 .clock.urgent { color: var(--amber); }
+/* Shootout. The word is the score: five letters and you are out, so it is
+   written big where a points total would go, and the letters not yet taken
+   are shown faint so E L _ _ _ reads as two of five rather than as "EL". */
+.word { font-family: var(--mono); letter-spacing: .35em; font-size: 1.6rem;
+        font-weight: 700; }
+.word i { font-style: normal; color: var(--line-2); }
+.word.out { color: var(--red); }
+.shoot { margin: .6rem 0 0; }
+.shoot table { width: 100%; border-collapse: collapse; }
+.shoot td { padding: .3rem .2rem; border-bottom: 1px solid var(--line); }
+.shoot td.w { text-align: right; font-family: var(--mono); letter-spacing: .2em; }
+.shoot tr.me td { color: var(--amber); }
+.shoot tr.gone td { opacity: .45; }
+.shoot .took { color: var(--red); font-size: .85rem; }
+.pick h3 { margin: .8rem 0 .4rem; }
+.pick h4 { margin: .9rem 0 .35rem; color: var(--dim); font-weight: 600;
+           font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.pick .choice { padding: .6rem .8rem; font-size: .95rem; }
+.pick .choice .k { min-width: 3.2rem; color: var(--dim); font-weight: 400; }
 .state { text-align: center; padding: 3rem 1rem; color: var(--dim); }
 .state h2 { color: var(--text); margin: 0 0 .5rem; }
 .verdict { text-align: center; padding: 1.4rem 1rem; border-radius: 12px;
@@ -128,6 +147,17 @@ function paintWaiting(state) {
   const n = (state.cohorts || []).reduce((a, c) => a + c.players, 0);
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
+  const shoot = state.shootout;
+  if (shoot) {
+    // A shootout between questions: the word so far, and either the pick
+    // or who is being waited on for it.
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem">
+        <h2>Shootout</h2>${paintShootout(shoot)}
+        ${shoot.your_pick ? paintPick(shoot)
+          : `<p style="padding:1rem 0">${waitingLine(shoot)}</p>`}</div>`;
+    wirePick();
+    return;
+  }
   view.innerHTML = `<div class="state">
       <h2>You're in.</h2>
       ${soon
@@ -188,7 +218,7 @@ async function send(index, button) {
   }
 }
 
-function paintResults(round) {
+function paintResults(round, shoot) {
   const rows = (round.results || []);
   const mine = rows.find(r => r.player_id === me.id);
   const top = rows.slice(0, 8).map((r, i) => `
@@ -209,7 +239,102 @@ function paintResults(round) {
       : `<div class="verdict wrong"><div class="h">No answer</div>
          <div class="t">You did not get one in before time</div></div>`}
     <table class="board">${top}</table>
-    <p class="state" style="padding:1.4rem 0">Waiting for the next question…</p>`;
+    ${paintShootout(shoot)}
+    ${shoot && shoot.your_pick ? paintPick(shoot)
+      : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`}`;
+  wirePick();
+}
+
+/* ------------------------------------------------------------- shootout */
+function wordHTML(row) {
+  const have = row.word || '', all = 'ELMER';
+  return `<span class="word ${row.out ? 'out' : ''}">${escapeHTML(have)}<i>${
+    all.slice(have.length).split('').join('')}</i></span>`;
+}
+
+function paintShootout(shoot) {
+  if (!shoot) return '';
+  const last = shoot.last || {};
+  const took = (last.took || []);
+  const rows = (shoot.standing || []).map(r => `
+    <tr class="${r.player === me.id ? 'me' : ''} ${r.gone ? 'gone' : ''}">
+      <td>${escapeHTML(r.name)}${r.picking && !shoot.over ? ' · picking' : ''}${
+        r.bot ? ' <span class="took" style="color:var(--dim)">practice</span>' : ''}</td>
+      <td class="w">${wordHTML(r)}</td>
+    </tr>`).join('');
+  let note = '';
+  if (shoot.over) {
+    note = shoot.drawn ? 'Out of subjects with nobody ahead: a draw.'
+         : shoot.winner === me.id ? 'You win it.'
+         : `${escapeHTML(shoot.winner_name || 'Somebody')} wins it.`;
+  } else if (last.section) {
+    note = last.made
+      ? (took.includes(me.id) ? 'The picker made it and you missed: a letter for you.'
+                              : took.length ? `${took.length} took a letter.` : 'Everybody made it.')
+      : 'The picker missed, so nobody takes a letter.';
+  }
+  return `<div class="shoot">${note ? `<p class="took">${note}</p>` : ''}
+            <table>${rows}</table></div>`;
+}
+
+/* The picker's screen: the subjects left, as buttons. The judgement being
+   made is "what do I know that they do not", which is a subject-level one,
+   so it is subjects rather than questions - and the ones already spent are
+   simply not offered, because the rule is that a subject is played once. */
+function paintPick(shoot) {
+  // Grouped under the subelement - "T5 · Electrical Principles" - so a
+  // picker who knows they are good at electrical principles finds all six of
+  // those subjects together rather than hunting a list of thirty-three.
+  let group = null, out = '';
+  (shoot.available || []).forEach(a => {
+    if (a.group !== group) {
+      group = a.group;
+      out += `<h4>${escapeHTML(a.group)}${a.group_title ? ' · ' + escapeHTML(a.group_title) : ''}</h4>`;
+    }
+    out += `<button class="choice" data-section="${escapeHTML(a.section)}">
+      <span class="k">${escapeHTML(a.section)}</span>${escapeHTML(a.title)}</button>`;
+  });
+  return `<div class="pick"><h3>Your pick. Choose the subject.
+      <span class="clock" id="pickleft"></span></h3>${out}</div>`;
+}
+
+function wirePick() {
+  document.querySelectorAll('.pick .choice').forEach(b =>
+    b.addEventListener('click', async () => {
+      document.querySelectorAll('.pick .choice').forEach(x => { x.disabled = true; });
+      b.classList.add('picked');
+      try {
+        const r = await api('/api/party/pick', {player: me.id, section: b.dataset.section});
+        if (r.status !== 200) {
+          document.querySelectorAll('.pick .choice').forEach(x => { x.disabled = false; });
+          b.classList.remove('picked');
+        }
+      } catch (e) {
+        document.querySelectorAll('.pick .choice').forEach(x => { x.disabled = false; });
+        b.classList.remove('picked');
+      }
+    }));
+}
+
+function waitingLine(shoot) {
+  if (!shoot) return 'Waiting for the next question…';
+  // A finished game is not waiting for anything, and saying it is would
+  // leave everybody at the table watching for a question that never comes.
+  if (shoot.over) return 'The shootout is over. The table can start another.';
+  if (shoot.pick) return `${escapeHTML(shoot.picker_name || 'The picker')} chose ${
+    escapeHTML(shoot.pick_title || shoot.pick)}. Next question coming…`;
+  return `Waiting for ${escapeHTML(shoot.picker_name || 'the picker')} to choose the subject… ` +
+         `<span class="clock" id="pickleft"></span>`;
+}
+
+/* The pick's clock, refreshed each poll the way the question's is - without
+   repainting the list, which would pull the buttons out from under a thumb. */
+function paintPickClock(shoot) {
+  const el = document.getElementById('pickleft');
+  if (!el) return;
+  const left = shoot && shoot.pick_remaining;
+  el.textContent = (left === null || left === undefined) ? '' : Math.ceil(left) + 's';
+  el.classList.toggle('urgent', left !== null && left !== undefined && left <= 10);
 }
 
 function ordinal(n) {
@@ -231,15 +356,23 @@ async function tick() {
     r = await api('/api/party/state?player=' + me.id);
   } catch (e) { return; }
   if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
-  const s = r.data, round = s.round;
+  const s = r.data, round = s.round, shoot = s.shootout;
+  // The pick is part of what is on screen, so a change in whose it is - or
+  // in whether it has been made - repaints, even with no new round.
+  const pickKey = shoot ? ('|' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '')) : '';
 
-  if (!round) { if (shownRound !== null) { shownRound = null; paintWaiting(s); } return; }
+  if (!round) {
+    if (shownRound !== 'none' + pickKey) { shownRound = 'none' + pickKey; paintWaiting(s); }
+    paintPickClock(shoot);
+    return;
+  }
 
   if (round.closed) {
-    if (shownRound !== 'closed-' + round.number) {
-      shownRound = 'closed-' + round.number;
-      paintResults(round);
+    if (shownRound !== 'closed-' + round.number + pickKey) {
+      shownRound = 'closed-' + round.number + pickKey;
+      paintResults(round, shoot);
     }
+    paintPickClock(shoot);
     return;
   }
   if (shownRound !== round.number) {

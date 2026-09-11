@@ -41,6 +41,8 @@ import threading
 import time
 from collections import deque
 
+from .shootout import Shootout
+
 # Measured on a Raspberry Pi 5: 30 players answering simultaneously were all
 # served in 642 ms, 60 took 5068 ms. The knee is between the two, and 24 keeps
 # a margin under it rather than sitting on it.
@@ -65,6 +67,13 @@ DEFAULT_ROUND_SECONDS = 30.0
 TOURNAMENT = "tournament"
 SHOOTOUT = "shootout"
 MODES = (TOURNAMENT, SHOOTOUT)
+
+# How long the picker gets to choose a subject before it goes round the
+# table. A question has a clock and so must the pick, or a phone put down on
+# the table with the pick on it holds everybody else there indefinitely.
+# Longer than a question because there are thirty subjects to read, not four
+# answers. Passing costs no letter: nobody shot, so nobody missed.
+PICK_SECONDS = 45.0
 REVEAL_SECONDS = 8.0
 
 # Admission stops before the room is unpleasant, not after. These are the
@@ -254,6 +263,8 @@ class Room:
         self.mode = TOURNAMENT
         self.shootout = None
         self.pick = None           # the subject chosen, waiting to be asked
+        self.pick_seconds = PICK_SECONDS
+        self._pick_since = None    # (when the wait began, on whom)
         for i in range(max(1, min(int(cohorts), MAX_COHORTS))):
             cid = i + 1
             self.cohorts[cid] = Cohort(cid, f"Cohort {chr(64 + cid)}")
@@ -346,6 +357,12 @@ class Room:
     def leave(self, player_id):
         with self.lock:
             gone = self.players.pop(player_id, None)
+            if gone is not None and self.shootout is not None:
+                # Out is out. The order is not rewritten, so nobody else's
+                # turn moves; the pick moves on if they were holding it.
+                self.shootout.withdraw(player_id)
+                if self.pick is not None and self.shootout.picker is None:
+                    self.pick = None
             if gone is not None and not gone.bot:
                 # Somebody left; top the table back up so the room does not
                 # thin out under the people still playing.
@@ -618,8 +635,204 @@ class Room:
                                   key=lambda a: (not a["correct"], a["ms"])),
                 "cohort_points": per_cohort,
             }
+            # In a shootout the round is also a shot. The rules get every
+            # answer, keyed by player, and somebody who never pressed anything
+            # is simply not in it - which the rules read as a miss, because
+            # that is what not answering is.
+            if self.shootout is not None:
+                section = (rnd.payload or {}).get("section")
+                if section:
+                    summary["shootout"] = self.shootout.play(section, {
+                        a["player_id"]: {"correct": a["correct"], "ms": a["ms"]}
+                        for a in rnd.answers.values()})
             self.history.append(summary)
             return summary
+
+    # -------------------------------------------------------------- shootout
+
+    def begin_shootout(self, sections, titles=None, groups=None,
+                       pick_seconds=None):
+        """Start a shootout over everybody at the table, in seating order.
+
+        `sections` are the subjects that can be picked - the pool's section
+        codes - and `titles` what to call them on a phone, because "T5C" is a
+        filing reference and "Electrical principles: capacitance" is a subject
+        somebody can decide they are good at.
+        """
+        with self.lock:
+            order = sorted(self.players)
+            if len(order) < 2:
+                return None, "a shootout needs two players"
+            self.shootout = Shootout(order, sections)
+            self.titles = dict(titles or {})
+            self.groups = dict(groups or {})      # code -> (sub, sub title)
+            self.mode = SHOOTOUT
+            self.pick = None
+            self.pick_seconds = float(pick_seconds or PICK_SECONDS)
+            self._pick_since = None
+            return self.shootout, None
+
+    def end_shootout(self):
+        with self.lock:
+            self.shootout = None
+            self.mode = TOURNAMENT
+            self.pick = None
+
+    def choose(self, player_id, section):
+        """The picker names the subject for the next question.
+
+        Refused in words rather than silently, because "it is not your pick"
+        is the thing a player who pressed the button needs to be told.
+        """
+        with self.lock:
+            s = self.shootout
+            if s is None:
+                return None, "this table is not playing a shootout"
+            if s.over():
+                return None, "the shootout is over"
+            if self.round is not None and not self.round.closed:
+                return None, "a question is still open"
+            if s.picker != player_id:
+                return None, "it is not your pick"
+            ok, why = s.may_pick(section)
+            if not ok:
+                return None, why
+            self.pick = section
+            return section, None
+
+    def choose_for_bot(self):
+        """A practice player holding the pick chooses for itself.
+
+        At random among what is left: a bot with a strategy would be a bot
+        with an opinion about what the people at the table are bad at, and
+        it has no basis for one.
+        """
+        with self.lock:
+            s = self.shootout
+            if s is None or s.over() or self.pick is not None:
+                return None
+            if self.round is not None and not self.round.closed:
+                return None
+            holder = self.players.get(s.picker)
+            if holder is None or not holder.bot:
+                return None
+            left = s.available()
+            if not left:
+                return None
+            self.pick = random.choice(left)
+            return self.pick
+
+    def waiting_for_pick(self):
+        """True while the next question is a person's to choose.
+
+        The director asks this rather than reading what the draw returned,
+        for the reason the hall's conductor learned the hard way: a function
+        that returns nothing is not a signal, it is a function that returned
+        nothing.
+        """
+        with self.lock:
+            s = self.shootout
+            waiting = False
+            if s is not None and not s.over() and self.pick is None:
+                if self.round is None or self.round.closed:
+                    holder = self.players.get(s.picker)
+                    waiting = holder is not None and not holder.bot
+            # The clock on the pick starts the first time the wait is seen
+            # and belongs to whoever is being waited on: a new picker gets a
+            # fresh one, and a pick made or a question opened stops it.
+            if not waiting:
+                self._pick_since = None
+            elif self._pick_since is None or self._pick_since[1] != s.picker:
+                self._pick_since = (_now(), s.picker)
+            return waiting
+
+    def pick_remaining(self):
+        """Seconds the picker has left, or None when nobody is being waited on."""
+        with self.lock:
+            if not self.waiting_for_pick():
+                return None
+            return max(0.0, self.pick_seconds - (_now() - self._pick_since[0]))
+
+    def pick_overdue(self):
+        with self.lock:
+            left = self.pick_remaining()
+            return left is not None and left <= 0.0
+
+    def pass_pick(self):
+        """The picker did not choose in time: it goes round the table.
+
+        No letter for anybody. A letter is for missing a shot the picker
+        made, and nobody shot.
+        """
+        with self.lock:
+            s = self.shootout
+            if s is None or s.over():
+                return None
+            was = s.picker
+            s.picker = s.next_picker(was)
+            self._pick_since = None
+            s.history.append({"section": None, "picker": was, "made": False,
+                              "took": [], "next_picker": s.picker,
+                              "passed": True, "out": [], "winner": None,
+                              "over": False})
+            return s.picker
+
+    def shootout_over(self):
+        with self.lock:
+            return self.shootout is not None and self.shootout.over()
+
+    def take_pick(self):
+        """The subject waiting to be asked, cleared as it is taken."""
+        with self.lock:
+            section, self.pick = self.pick, None
+            return section
+
+    def shootout_view(self, player_id=None):
+        """What the screens need, with names on it rather than ids."""
+        with self.lock:
+            s = self.shootout
+            if s is None:
+                return None
+            standing = []
+            for row in s.standing():
+                player = self.players.get(row["player"])
+                standing.append({
+                    **row,
+                    "name": player.name if player else "(left)",
+                    "bot": bool(player.bot) if player else False,
+                    "gone": player is None,
+                })
+            holder = self.players.get(s.picker) if s.picker else None
+            winner = self.players.get(s.winner()) if s.winner() else None
+            titles = getattr(self, "titles", {}) or {}
+            groups = getattr(self, "groups", {}) or {}
+            return {
+                "word": s.as_dict()["word"],
+                "standing": standing,
+                "picker": s.picker,
+                "picker_name": holder.name if holder else None,
+                "picker_is_bot": bool(holder.bot) if holder else False,
+                "your_pick": bool(player_id is not None
+                                  and s.picker == player_id
+                                  and self.pick is None
+                                  and not s.over()),
+                "pick": self.pick,
+                "pick_title": titles.get(self.pick, self.pick),
+                "pick_remaining": (None if self.pick_remaining() is None
+                                   else round(self.pick_remaining(), 1)),
+                "available": [{"section": code,
+                               "title": titles.get(code, code),
+                               "group": groups.get(code, ("", ""))[0],
+                               "group_title": groups.get(code, ("", ""))[1]}
+                              for code in s.available()],
+                "spent": list(s.spent),
+                "over": s.over(),
+                "winner": s.winner(),
+                "winner_name": winner.name if winner else None,
+                "drawn": s.drawn(),
+                "played": len(s.history),
+                "last": s.history[-1] if s.history else None,
+            }
 
     def picker(self):
         """Which cohort chooses the next question, and what it may choose."""
@@ -690,6 +903,8 @@ class Room:
                 "cohorts": board,
                 "round": None,
                 "picker": self.picker(),
+                "mode": self.mode,
+                "shootout": self.shootout_view(player_id),
             }
             if rnd:
                 out["round"] = {
