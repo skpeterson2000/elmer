@@ -31,8 +31,15 @@
   <div class="panel-title">Ionospheric hop &mdash; why a band "opens" and where the skip zone falls</div>
   <div class="grid" style="grid-template-columns: 300px 1fr; gap:1.2rem; align-items:start">
     <div>
+      <div class="field"><label>Band</label>
+        {# One chip per HF band. Pressing one puts the slider on that band's
+           calling frequency - or on the last antenna you designed for it -
+           because a slider that runs 1.8 to 30 MHz spends most of its travel
+           between bands, and "14.2" is a number nobody has tuned to on
+           purpose. The chip for whichever band the slider is in stays lit. #}
+        <div class="bandchips" id="s-bands"></div></div>
       <div class="field"><label>Operating frequency (MHz)</label>
-        <input type="range" id="s-f" min="1.8" max="30" step="0.1" value="14.2"><span class="sim-out" id="s-f-v"></span></div>
+        <input type="range" id="s-f" min="1.8" max="30" step="0.001" value="14.074"><span class="sim-out" id="s-f-v"></span></div>
       <div class="field"><label>foF2 &mdash; critical frequency (MHz)</label>
         <input type="range" id="s-fof2" min="2" max="16" step="0.1" value="8"><span class="sim-out" id="s-fof2-v"></span></div>
       <div class="field"><label>F2 peak height (km)</label>

@@ -974,6 +974,20 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   measurement** pulls the nearest reporting station's current foF2 and hmF2 in,
   and says how far away and how old they are, so the simulator runs on
   observation rather than on a guess.
+
+  The slider runs 1.8 to 30 MHz and spends most of that travel between bands,
+  so a row of **band chips** sits above it: press 40 m and it lands on 7.074,
+  the FT8 calling frequency — or on the last antenna you designed for 40 m, if
+  there is one, because the point of checking an antenna against the sky is to
+  check *that* frequency. The lit chip follows the slider; drag it through
+  12 MHz and nothing is lit.
+- **Where in the bands** — every frequency input in the Lab, the hop slider
+  included, has a meter under it: **● 20 m · FT8** when the number is in a
+  band and what is at that spot, or **○ not an amateur band — 30 m ends at
+  10.150, 20 m starts at 14.000** when it is not. In a band, the name is a
+  link to the band plan opened on that band. Whether *you* may transmit there
+  is deliberately not answered here; the band plan does that properly, with a
+  class.
 - **Ohm and power** — fill in any two of E, I, R, P
 - **Reactance and resonance** — X_L, X_C and the resonance point, plotted
 - **SWR and feed line** — SWR, reflection coefficient, return loss, reflected

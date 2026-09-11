@@ -126,7 +126,7 @@ function heightSays(h) {
 
 function drawSkip() {
   const f = num('s-f'), fof2 = num('s-fof2'), h = num('s-h');
-  document.getElementById('s-f-v').textContent = f.toFixed(1) + ' MHz';
+  document.getElementById('s-f-v').textContent = f.toFixed(3) + ' MHz';
   document.getElementById('s-fof2-v').textContent = fof2.toFixed(1) + ' MHz';
   document.getElementById('s-h-v').textContent = h + ' km' + heightSays(h);
 
@@ -283,6 +283,139 @@ if (sondeBtn) sondeBtn.addEventListener('click', async () => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', drawSkip);
 });
+
+/* ------------------------------------------------- where in the bands */
+/* The Lab has five places to type a frequency and until now no way of saying
+   whether the number typed was in a band at all. The hop slider runs 1.8 to
+   30 MHz and spends most of that travel between bands; it would model 12.0
+   MHz as cheerfully as 14.074, and only one of those is a frequency anybody
+   can use. So every frequency input gets a meter under it: which band it is
+   in and what is at that spot, or - just as useful - that it is between bands
+   and where the nearest edges are. In a band, the name is a link to the band
+   plan opened on that band, so the two tools stop being strangers.
+
+   Privileges are deliberately not here. Whether *you* may transmit there is
+   the band plan's question and it answers it properly, with a class. */
+let BANDS = [];
+const bandMeters = [];
+
+api('/api/bands').then(d => {
+  BANDS = d.bands || [];
+  bandMeters.forEach(m => m());
+  paintBandChips();
+}).catch(() => {});
+
+function bandAt(mhz) {
+  return BANDS.find(b => mhz >= b.low && mhz <= b.high) || null;
+}
+
+/* The narrowest activity segment covering a frequency: the plan overlaps
+   on purpose - a calling frequency sits inside a wider segment - and the
+   narrow one is the more useful answer. Mirrors bandplan.segment_at. */
+function segmentAt(mhz, band) {
+  let best = null;
+  (band ? band.activity : []).forEach(([lo, hi, kind, label]) => {
+    if (mhz >= lo - 1e-6 && mhz <= hi + 1e-6) {
+      const width = hi - lo;
+      if (!best || width < best.width) best = {lo, hi, kind, label, width};
+    }
+  });
+  return best;
+}
+
+function edgesAround(mhz) {
+  let below = null, above = null;
+  BANDS.forEach(b => {
+    if (b.high < mhz && (!below || b.high > below.high)) below = b;
+    if (b.low > mhz && (!above || b.low < above.low)) above = b;
+  });
+  return {below, above};
+}
+
+function bandMeterHTML(mhz) {
+  if (!BANDS.length || !(mhz > 0)) return '';
+  const band = bandAt(mhz);
+  if (band) {
+    const seg = segmentAt(mhz, band);
+    return '<i class="dot in"></i><a href="/bandplan#' + band.key + '" ' +
+      'title="open the band plan on ' + escapeHTML(band.name) + '">' +
+      escapeHTML(band.name) + '</a>' +
+      (seg ? ' &middot; ' + escapeHTML(seg.label) : '') +
+      (band.channelised ? ' &middot; channels only' : '');
+  }
+  const {below, above} = edgesAround(mhz);
+  const parts = [];
+  if (below) parts.push(escapeHTML(below.name) + ' ends at ' + below.high.toFixed(3));
+  if (above) parts.push(escapeHTML(above.name) + ' starts at ' + above.low.toFixed(3));
+  return '<i class="dot out"></i>not an amateur band' +
+    (parts.length ? ' &mdash; ' + parts.join(', ') : '');
+}
+
+/* Fit a meter under an input. `scale` turns what is typed into MHz: the
+   reactance pane works in kHz, everything else in MHz. */
+function attachBandMeter(id, scale) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const meter = document.createElement('div');
+  meter.className = 'bandmeter';
+  const field = el.closest('.field') || el.parentElement;
+  field.appendChild(meter);
+  const paint = () => {
+    const mhz = parseFloat(el.value) * (scale || 1);
+    meter.innerHTML = bandMeterHTML(mhz);
+  };
+  el.addEventListener('input', paint);
+  el.addEventListener('change', paint);
+  bandMeters.push(paint);
+  paint();
+}
+
+attachBandMeter('s-f');
+attachBandMeter('an-f');
+attachBandMeter('sm-f');
+attachBandMeter('p-f');
+attachBandMeter('r-f', 0.001);          // kHz on that pane
+
+/* ------------------------------------------------- the chips on the hop */
+/* One chip per HF band. Pressing one puts the slider where that band opens:
+   the last antenna you designed for it if there is one, because the point of
+   the hand-off from the antenna page is to check *that* frequency against
+   the sky, and otherwise the band's calling frequency, which is a place
+   people actually are. The lit chip follows the slider, so dragging it
+   through 12 MHz shows no chip lit - which is the meter saying the same thing
+   a second way. */
+function bandKeyOf(mhz) {
+  const b = bandAt(mhz);
+  return b ? b.key : null;
+}
+
+function paintBandChips() {
+  const box = document.getElementById('s-bands');
+  if (!box) return;
+  const here = bandKeyOf(num('s-f'));
+  box.innerHTML = BANDS.filter(b => b.group === 'HF').map(b =>
+    '<button type="button" class="chip' + (b.key === here ? ' on' : '') +
+    '" data-band="' + b.key + '" title="' +
+    (recall('lab.antenna.' + b.key) ? 'your last antenna for this band'
+      : b.calling ? escapeHTML(b.calling_label || '') + ' - ' + b.calling.toFixed(3) : '') +
+    '">' + escapeHTML(b.name) + '</button>').join('');
+}
+
+document.addEventListener('click', e => {
+  const chip = e.target.closest('#s-bands [data-band]');
+  if (!chip) return;
+  const band = BANDS.find(b => b.key === chip.dataset.band);
+  if (!band) return;
+  const remembered = recall('lab.antenna.' + band.key);
+  const to = (remembered && remembered >= band.low && remembered <= band.high)
+    ? remembered : (band.calling || (band.low + band.high) / 2);
+  const slider = document.getElementById('s-f');
+  slider.value = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), to));
+  slider.dispatchEvent(new Event('input', {bubbles: true}));
+});
+
+const hopSlider = document.getElementById('s-f');
+if (hopSlider) hopSlider.addEventListener('input', paintBandChips);
 
 /* Sending an antenna to the hop simulator.
 
@@ -823,6 +956,12 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
 function calcAnt() {
   const type = document.getElementById('an-type').value;
   const f = num('an-f');
+  // Remembered per band, so the hop simulator's chip for this band opens
+  // on the frequency you actually built for rather than a calling frequency.
+  if (f > 0 && typeof bandKeyOf === 'function') {
+    const key = bandKeyOf(f);
+    if (key) remember('lab.antenna.' + key, f);
+  }
   /* The velocity factor is now mostly the conductor's business: a fat element
      resonates shorter than a thin one. The manual picker stays for anybody
      who has measured their own, and whichever moved last wins. */
