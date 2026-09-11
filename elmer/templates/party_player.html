@@ -58,6 +58,16 @@ body { margin: 0; background: var(--bg); color: var(--text);
            font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
 .pick .choice { padding: .6rem .8rem; font-size: .95rem; }
 .pick .choice .k { min-width: 3.2rem; color: var(--dim); font-weight: 400; }
+/* The card while the table catches up, and the beat before the placings. */
+.card-wait { padding: .6rem .2rem; }
+.card-wait .in { font-size: 1.25rem; font-weight: 700; display: flex;
+                 justify-content: space-between; align-items: baseline; }
+.trivia { margin: 0; padding: 1rem 1.1rem; border-left: 3px solid var(--amber);
+          background: var(--panel); border-radius: 0 10px 10px 0;
+          font-size: 1.05rem; line-height: 1.5; }
+.trivia cite { display: block; margin-top: .6rem; font-style: normal;
+               color: var(--dim); font-size: .85rem; font-family: var(--mono); }
+.scoring h2 { font-size: 2rem; letter-spacing: .04em; }
 .state { text-align: center; padding: 3rem 1rem; color: var(--dim); }
 .state h2 { color: var(--text); margin: 0 0 .5rem; }
 .verdict { text-align: center; padding: 1.4rem 1rem; border-radius: 12px;
@@ -216,7 +226,40 @@ async function send(index, button) {
     answered = false;
     document.querySelectorAll('.choice').forEach(b => { b.disabled = false; });
     button.classList.remove('picked');
+    return;
   }
+  // In: the question is done with, so the screen has something else to say
+  // while the rest of the table catches up.
+  paintCard(currentRound);
+}
+
+/* ----------------------------------------------------- the wait, filled */
+/* Somebody who has answered used to sit looking at their greyed-out choices
+   until the round closed. That is dead time, and it is the one moment in the
+   evening a person is holding a screen with nothing to do but read it - so
+   they get a card: a little of the history of the art, which the exam never
+   asks and which is why most people who stay in the hobby stayed. Not exam
+   material, on purpose: the exam is what the game is already made of. */
+let currentRound = null;
+let closedSeenAt = null;
+const SCORING_MS = 3000;
+
+function paintCard(round) {
+  const card = (round && round.card) || {};
+  view.innerHTML = `<div class="card-wait">
+      <div class="in">You\u2019re in <span class="clock" id="left"></span></div>
+      <p class="tiny muted" style="margin:.2rem 0 1rem">Waiting on the rest of the table.</p>
+      <blockquote class="trivia">${escapeHTML(card.text || '')}
+        <cite>${escapeHTML(card.about || '')}</cite></blockquote>
+    </div>`;
+}
+
+/* Three seconds of "Scoring" before the placings come up. It gives the
+   result a beat to land on, and it means the reveal arrives the same way
+   whether the round closed on the clock or because everybody was quick. */
+function paintScoring() {
+  view.innerHTML = `<div class="state scoring"><h2>Scoring\u2026</h2>
+      <p>Placing everyone at this table.</p></div>`;
 }
 
 /* In a shootout the verdict is about letters, not points: whether the shot
@@ -435,7 +478,21 @@ async function tick() {
     return;
   }
 
+  currentRound = round;
   if (round.closed) {
+    // The beat before the placings, timed from when this phone first saw
+    // the round closed - not from a server clock, which is the tournament's
+    // business and not the phone's.
+    if (closedSeenAt === null || closedSeenAt.round !== round.number) {
+      closedSeenAt = {round: round.number, at: performance.now()};
+    }
+    if (performance.now() - closedSeenAt.at < SCORING_MS) {
+      if (shownRound !== 'scoring-' + round.number) {
+        shownRound = 'scoring-' + round.number;
+        paintScoring();
+      }
+      return;
+    }
     if (shownRound !== 'closed-' + round.number + pickKey) {
       shownRound = 'closed-' + round.number + pickKey;
       paintResults(round, shoot);
@@ -446,6 +503,15 @@ async function tick() {
   if (shownRound !== round.number) {
     shownRound = round.number;
     paintQuestion(round);
+  }
+  // Answered, and the clock is nearly out: the scoring beat starts early so
+  // it does not cut into the reveal, and the card gives way to it.
+  if (answered && round.remaining <= SCORING_MS / 1000) {
+    if (shownRound !== 'scoring-' + round.number) {
+      shownRound = 'scoring-' + round.number;
+      paintScoring();
+    }
+    return;
   }
   const left = document.getElementById('left');
   if (left) {

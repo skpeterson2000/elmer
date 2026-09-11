@@ -303,7 +303,7 @@ function standings(board) {
 function overall(board) {
   const people = realOnly(board.people || [], p => p.bot);
   const mark = practiceNote(people, p => p.bot);
-  const rows = people.slice(0, 7).map((p, i) => `
+  const rows = people.slice(0, 5).map((p, i) => `
     <tr class="${i === 0 && p.score > 0 ? 'gold' : ''}">
       <td class="pos">${i + 1}</td>
       <td>${esc(p.name)}${mark.each && p.bot ? ' <i class="sim">practice</i>' : ''}</td>
@@ -311,7 +311,7 @@ function overall(board) {
       <td class="ms">${p.correct}/${p.answered}</td>
       <td class="pts">${p.score}</td>
     </tr>`).join('');
-  return `<div class="panelbox"><h2>Players &mdash; overall` +
+  return `<div class="panelbox"><h2>Players &mdash; top 5 overall` +
     (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
     (rows ? `<table>${rows}</table>`
           : `<div class="waiting">${(board.people || []).length
@@ -328,7 +328,9 @@ function lastRound(board) {
   const last = board.last;
   if (!last) return `<div class="panelbox"><h2>Last round</h2>
       <div class="waiting">No rounds yet</div></div>`;
-  const top = (last.top || []).slice(0, 8).map((r, i) => `
+  // Five, not eight. Five is a podium with room on it; eight is a list, and
+  // the whole point of a board is that a name on it means something.
+  const top = (last.top || []).slice(0, 5).map((r, i) => `
     <tr class="${i === 0 ? 'lead' : ''}">
       <td class="pos">${r.place}</td>
       <td>${esc(r.name)}</td>
@@ -336,7 +338,7 @@ function lastRound(board) {
       <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
     </tr>`).join('');
   return `<div class="panelbox">
-      <h2>Round ${last.number} &mdash; fastest correct</h2>
+      <h2>Round ${last.number} &mdash; top 5</h2>
       <div class="tally">
         <div><b>${last.correct}</b><span>correct</span></div>
         <div><b>${last.answers}</b><span>answers</span></div>
