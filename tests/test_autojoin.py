@@ -110,16 +110,32 @@ try:
     cohort.disconnect(connection)
     cohort.set_auto_join(connection, True)      # disconnect() forgets the url
     discovery.neighbourhood = lambda: Heard([TECH, GENERAL])
+    # What this unit studies is forced rather than read off the operator's
+    # profile. The rule under test is "join the net studying what this table
+    # studies"; asking the real profile tests the profile instead, and this
+    # file passed on a machine set to Technician and began failing the day its
+    # owner switched to General - which says nothing about auto-join.
+    was_class = appmod._party_class
+    appmod._party_class = lambda: "technician"
     check("nothing attached to start with", cohort.bridge(), None)
     with appmod.app.test_request_context():
         joined = appmod._party_auto_join(appmod.party.room(create=True))
     check("it joined by itself", joined, True)
     link = cohort.bridge()
     check("and it is now somebody's table", link is not None, True)
-    check("reporting to the net it heard", link.url if link else None,
-          TECH["url"])
+    check("reporting to the net studying what it studies",
+          link.url if link else None, TECH["url"])
     check("under this unit's own id",
           (link.unit_id if link else None), cohort.default_unit_id())
+
+    # The same rule the other way up, so both branches are proved rather than
+    # whichever one this machine happens to take.
+    check("a General table joins the General net",
+          appmod._party_pick_net([TECH, GENERAL], "general")["url"],
+          GENERAL["url"])
+    check("  and a table studying neither takes the fullest",
+          appmod._party_pick_net([TECH, GENERAL], "extra")["url"],
+          TECH["url"])
 
     print("\nand having joined, it does not start a game of its own")
     with appmod.app.test_request_context():
@@ -129,6 +145,7 @@ try:
               appmod._party_may_begin(room), False)
 finally:
     discovery.neighbourhood = was_hood
+    appmod._party_class = was_class
     cohort.disconnect(connection)
     db.unit_set(connection, cohort.AUTO_SETTING, was_auto)
 

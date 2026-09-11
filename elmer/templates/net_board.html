@@ -10,7 +10,10 @@
    here is sized for distance: few things on screen, all of them large. */
 body { margin: 0; background: var(--bg); color: var(--text);
        font-family: var(--sans); overflow: hidden; }
-.board { height: 100dvh; display: flex; flex-direction: column; padding: 1.4vh 1.6vw; }
+.board { height: 100dvh; display: flex; flex-direction: column;
+         /* The foot leaves room for the two corner hints, which are fixed and
+            would otherwise sit on the last row of whatever is beneath them. */
+         padding: 1.4vh 1.6vw 2.6vh; }
 /* The stage takes what the head leaves, so the panels inside it - and the
    wall of tournaments - fill the screen rather than huddling at the top. */
 #stage { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -155,6 +158,22 @@ tr.gold td { color: #ffd479; }
                font-size: clamp(.65rem, 1vw, .95rem); }
 .foot li.bot { color: var(--dim); }
 .foot li.lead .pts { color: var(--amber); }
+/* The left column of a hall carries two answers - which table is winning and
+   which person is - so it stacks. The tables box is given its content and the
+   players box takes the rest, because there are always fewer tables. */
+.stack { display: flex; flex-direction: column; gap: 1.2vh; min-height: 0; }
+.stack .panelbox:first-child { flex: 0 0 auto; }
+.stack .panelbox:last-child { flex: 1 1 auto; }
+
+/* Practice is marked, never hidden by default: a name in italics beside a
+   real one is the honest way to show a hall that is half made up. */
+i.sim { font-style: italic; color: var(--dimmer); font-size: .78em; }
+
+.practicehint { position: fixed; left: .8vw; bottom: .6vh; color: var(--dimmer);
+                font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
+                opacity: .55; cursor: pointer; }
+.practicehint.off { color: var(--amber); opacity: .9; }
+
 .closehint { position: fixed; right: .8vw; bottom: .6vh; color: var(--dimmer);
              font-size: clamp(.6rem, 1vw, .9rem); font-family: var(--mono);
              opacity: .55; }
@@ -180,15 +199,80 @@ let paintedRound = null, paintedPhase = null;
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
 
+/* Practice tables and practice players count, and the board says so, because
+   a board with them edited out is not the game that was played. But a club
+   night with three real tables among six wants to see the three, so it is a
+   switch on the screen rather than a decision taken for the room - and it is
+   a switch on the *view*: net control's "send one home" takes a practice
+   table out of the game, which is a different thing entirely. */
+let countPractice = recallFlag('board.practice', true);
+
+function recallFlag(key, fallback) {
+  try {
+    const got = localStorage.getItem(key);
+    return got === null ? fallback : got === '1';
+  } catch (e) { return fallback; }   // private window, or storage refused
+}
+
+function realOnly(rows, isBot) {
+  return countPractice ? rows : rows.filter(r => !isBot(r));
+}
+
+/* Practice is marked row by row only when there is a real one to tell it
+   apart from. A hall that is all practice - a bench, a demonstration, an
+   instructor setting up before anybody arrives - says so once in the heading
+   instead of stamping every line, which at ten feet is just noise. */
+function practiceNote(rows, isBot) {
+  if (!countPractice || !rows.length) return {each: false, all: false};
+  const bots = rows.filter(isBot).length;
+  return {each: bots > 0 && bots < rows.length, all: bots === rows.length};
+}
+
 function standings(board) {
-  const rows = (board.units || []).slice(0, 10).map((u, i) => `
+  const units = realOnly(board.units || [], u => u.simulated);
+  const mark = practiceNote(units, u => u.simulated);
+  const rows = units.slice(0, 5).map((u, i) => `
     <tr class="${i === 0 && u.score > 0 ? 'gold' : ''}">
       <td class="pos">${i + 1}</td>
-      <td>${esc(u.name)}${u.present ? '' : ' <span style="color:var(--dimmer)">(quiet)</span>'}</td>
+      <td>${esc(u.name)}${mark.each && u.simulated ? ' <i class="sim">practice</i>' : ''}${
+        u.present ? '' : ' <span style="color:var(--dimmer)">(quiet)</span>'}</td>
       <td class="ms">${u.players}</td>
       <td class="pts">${u.score}</td>
     </tr>`).join('');
-  return `<div class="panelbox"><h2>Tables</h2><table>${rows}</table></div>`;
+  return `<div class="panelbox"><h2>Tables &mdash; overall` +
+    (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
+    (rows ? `<table>${rows}</table>`
+          : `<div class="waiting">No tables but the practice ones</div>`) +
+    `</div>`;
+}
+
+/* The hall's running total by person, which is the number somebody sitting at
+   a table is actually playing for. The tables' own totals answer a different
+   question - which table is winning - and a round board answers a third, which
+   is who was quickest just now. All three were worth a panel; only two of them
+   were on the screen. */
+function overall(board) {
+  const people = realOnly(board.people || [], p => p.bot);
+  const mark = practiceNote(people, p => p.bot);
+  const rows = people.slice(0, 7).map((p, i) => `
+    <tr class="${i === 0 && p.score > 0 ? 'gold' : ''}">
+      <td class="pos">${i + 1}</td>
+      <td>${esc(p.name)}${mark.each && p.bot ? ' <i class="sim">practice</i>' : ''}</td>
+      <td class="ms">${esc(p.unit_name || '')}</td>
+      <td class="ms">${p.correct}/${p.answered}</td>
+      <td class="pts">${p.score}</td>
+    </tr>`).join('');
+  return `<div class="panelbox"><h2>Players &mdash; overall` +
+    (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
+    (rows ? `<table>${rows}</table>`
+          : `<div class="waiting">${(board.people || []).length
+               ? 'Only practice players so far'
+               : 'Nobody has answered yet'}</div>`) +
+    `</div>`;
+}
+
+function hallLeft(board) {
+  return `<div class="stack">${standings(board)}${overall(board)}</div>`;
 }
 
 function lastRound(board) {
@@ -210,7 +294,7 @@ function lastRound(board) {
         <div><b>${last.units_reported}</b><span>tables in</span></div>
       </div>
       <table>${top}</table>
-      ${last.winner_unit ? `<div class="picker">${esc(last.winner_name || last.winner_unit)} chooses the next question</div>` : ''}
+      ${last.winner_unit ? `<div class="picker">${esc(last.winner_name || last.winner_unit)} takes the round</div>` : ''}
     </div>`;
 }
 
@@ -219,15 +303,20 @@ function players(board) {
      hall, so somebody's family can watch them climb it. */
   const all = [];
   (board.cohorts || []).forEach(c => (c.members || []).forEach(m => all.push(m)));
-  all.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-  const rows = all.slice(0, 12).map((m, i) => `
+  const shown = realOnly(all, m => m.bot);
+  shown.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const rows = shown.slice(0, 12).map((m, i) => `
     <tr class="${i === 0 && m.score > 0 ? 'gold' : ''}">
       <td class="pos">${i + 1}</td>
-      <td>${esc(m.name)}</td>
+      <td>${esc(m.name)}${m.bot ? ' <i class="sim">practice</i>' : ''}</td>
       <td class="ms">${m.correct}/${m.answered}</td>
       <td class="pts">${m.score}</td>
     </tr>`).join('');
-  return `<div class="panelbox"><h2>Players</h2><table>${rows}</table></div>`;
+  return `<div class="panelbox"><h2>Players &mdash; overall</h2>` +
+    (rows ? `<table>${rows}</table>`
+          : `<div class="waiting">${all.length ? 'Only practice players so far'
+                                              : 'Nobody has answered yet'}</div>`) +
+    `</div>`;
 }
 
 function tableRound(board) {
@@ -492,7 +581,7 @@ async function tick() {
     clock.classList.add('done');
   }
 
-  const left = hall ? standings : players;
+  const left = hall ? hallLeft : players;
   const right = hall ? lastRound : tableRound;
 
   // The phase includes whether the round is closed, so a table flips from the
@@ -540,6 +629,34 @@ async function tick() {
    to join by, the controls. A board opened as a window of its own - which is
    how this used to work, and still is if somebody has a shortcut to it -
    closes instead, and only walks back if the browser refuses to close it. */
+/* Counting the practice tables or not. It sits opposite the way out, is
+   tappable because these are touchscreens, and answers to P as well for a
+   board being driven from a keyboard at the back of a room. The choice is
+   this screen's and it is remembered here: two boards watching one net may
+   legitimately want different views of it, and neither is the net's business.
+*/
+const practiceHint = document.createElement('div');
+practiceHint.className = 'practicehint';
+practiceHint.addEventListener('click', () => togglePractice());
+document.body.appendChild(practiceHint);
+
+function sayPractice() {
+  practiceHint.textContent = countPractice
+    ? 'P or tap: counting practice tables'
+    : 'P or tap: practice tables not counted';
+  practiceHint.classList.toggle('off', !countPractice);
+}
+
+function togglePractice() {
+  countPractice = !countPractice;
+  try { localStorage.setItem('board.practice', countPractice ? '1' : '0'); }
+  catch (e) { /* the view still changes; it just will not be remembered */ }
+  sayPractice();
+  paintedPhase = null;            // the panels are filtered, so repaint them
+  tick();
+}
+sayPractice();
+
 const BACK = '/net';
 const popped = !!window.opener;   // a window of its own, not a page we walked to
 
@@ -586,6 +703,7 @@ function closeBoard() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePractice(); return; }
   if (e.key === 'Escape' || e.key === 'q' || e.key === 'Q'
       || (e.ctrlKey && (e.key === 'c' || e.key === 'C'))) {
     // Ctrl+C is copy when there is a selection; only take it when there
