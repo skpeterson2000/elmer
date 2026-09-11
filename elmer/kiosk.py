@@ -1,6 +1,6 @@
 """Kiosk mode - a full-screen browser on the machine running the server.
 
-ELMER on a Pi with a monitor is an appliance rather than a website, so --kiosk
+ELMER on a Pi with a monitor is an appliance, so --kiosk
 brings up a full-screen browser pointed at the local server and puts an Exit
 button in the top bar.  The whole thing can then be started and stopped without
 touching a terminal.

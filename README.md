@@ -10,8 +10,9 @@ against practice opponents, for a table of eight joining by QR code from their
 own phones, or for a hall of up to a hundred tables scored against each other
 from one additional Raspberry Pi.
 
-Runs as a small local web app. Open it on the Pi itself, or from a phone or
-laptop on the same network.
+The browser is the display, not the destination: ELMER is a program running on
+the Pi, drawing its screens there. Open it on the Pi itself, or reach the same
+running program from a phone or laptop on the same network.
 
 ```
 git clone https://github.com/skpeterson2000/elmer.git
@@ -1824,7 +1825,7 @@ something fetching `/api` turns a working refusal into a parse error.
 
 ## Kiosk mode
 
-On a Pi with a monitor, ELMER is more appliance than website:
+On a Pi with a monitor, ELMER is an appliance:
 
 ```
 ./elmer.py --kiosk
@@ -1875,7 +1876,7 @@ frequency coordinator's own band plan — get a stop on the way out. A full-scre
 browser has no back button, so following one straight out would leave you on the
 FCC site with no way back to the study session and no way to reach the Exit
 button. Instead you land on ELMER's own page saying where the link goes, with
-**Back to ELMER** and an option to open the site in an ordinary window that has a
+**Back to ELMER** and an option to open the link in an ordinary window that has a
 close button; the kiosk window stays on ELMER underneath, and windows opened this
 way are closed when ELMER stops. Off a kiosk — a laptop, a phone on the LAN —
 links open in a new tab as they always did.

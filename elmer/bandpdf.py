@@ -184,7 +184,7 @@ HATCH_STEP = 3.4               # points between the diagonals, on the page
 
 
 def _hatch(group, x, y, width, height, step=HATCH_STEP):
-    """Diagonals across a box, clipped to it - "not yours" on the web page.
+    """Diagonals across a box, clipped to it - "not yours" on screen.
 
     reportlab's shapes have no clipping path, so each line is cut to the
     rectangle by hand: on a 45 degree line X - Y is constant, so walking that
