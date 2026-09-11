@@ -209,13 +209,20 @@ document.addEventListener('click', async e => {
        the shelf is inside ELMER - see prints.py. */
     const what = document.getElementById('ac-print-what').value;
     const say = document.getElementById('ac-fetch-say');
+    const inner = document.getElementById('ac-inner').value;
+    const outer = document.getElementById('ac-outer').value;
+    /* Empty means here. Anything typed is resolved on the server, which
+       already accepts a town, a grid square or coordinates and does the first
+       two without touching the network. */
+    const from = document.getElementById('ac-from').value.trim();
     sheet.disabled = true;
     const was = sheet.textContent;
     sheet.textContent = 'Printing…';
     try {
       const res = await fetch('/api/activations/print', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({want: what})});
+        body: JSON.stringify({want: what, inner: inner,
+                              outer: outer, from: from})});
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
         say.innerHTML = '<span style="color:var(--amber)">' +
