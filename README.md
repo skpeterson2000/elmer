@@ -1004,7 +1004,25 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   of the way out along each leg, so an inverted-V behaves lower than its apex
   suggests. Above about 10 MHz it says plainly that NVIS will not work, since a
   near-vertical signal only returns below foF2.
-- **Antennas** — twelve configurations across wire (dipole, inverted-V,
+- **Antennas** — it asks before it tells. What you have to work with comes
+  first — a tower, a house, a short garden, an attic, a flat, a vehicle, or
+  nothing at home — then what you want to do, then the frequency, and only
+  then an antenna, *offered* rather than presumed. It used to open on a
+  half-wave dipole at 14.2 MHz, 35 feet up, and asked what you had fourth: a
+  person in a flat was shown 69 feet of wire before being asked about the
+  balcony. Now the site rules antennas out before the intention rules one in.
+  A flat on 20 m is offered an end-fed out of the window, sloping to wherever
+  it can be tied; on 80 m, where even that is too long, a loaded vertical
+  clamped to the rail with the rail as counterpoise; an attic gets an
+  inverted-V bent to the roof line where it fits and an end-fed folded through
+  the space where it does not; a short garden on the low bands gets the end-fed
+  as a sloper, tuned to its own ground reflection. A house or a tower leaves
+  the choice to what the antenna is for, as before. The suggestion follows the
+  questions — change what you have and it changes — until you pick an antenna
+  yourself, and then it is yours and stays put. The textbook dipole is one
+  click away for anybody who wants it.
+
+  Twelve configurations across wire (dipole, inverted-V,
   end-fed half wave, bowtie, full-wave loop), vertical (quarter wave, 5/8 wave,
   J-pole, ground plane), the Yagi, and mobile: a loaded whip, and a screwdriver
   whose coil is driven in and out by a motor. That last one is the only antenna

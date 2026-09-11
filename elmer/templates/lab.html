@@ -127,10 +127,41 @@
   <div id="an-advice" class="advice" hidden></div>
   <div class="grid" style="grid-template-columns: 330px 1fr; gap:1.2rem; align-items:start">
     <div>
+      {# The order is the point. It used to open on a half-wave dipole at
+         14.2 MHz, 35 feet up, and asked what the person had to work with
+         fourth - so somebody in a flat was shown what they could not have
+         before being asked what they had. Now: what you have, what you
+         want, where, and only then an antenna, offered rather than presumed.
+         The textbook dipole is one click away for anybody who wants it. #}
+      <div class="field"><label>What have you got to work with?</label>
+        <select id="an-site">
+          <option value="" selected>&mdash; start here &mdash;</option>
+          <option value="textbook">Nothing in particular &mdash; the textbook answer</option>
+          <option value="tower">A mast or tower, and room for it</option>
+          <option value="house">A house, a garden, some trees</option>
+          <option value="small">A small lot or a short garden</option>
+          <option value="attic">Indoors &mdash; the attic or roof space</option>
+          <option value="apartment">A flat &mdash; a balcony, or a window</option>
+          <option value="mobile">In the vehicle &mdash; on the car or truck</option>
+          <option value="portable">Nothing at home &mdash; I go out</option>
+        </select></div>
+      <div class="field"><label>What do you want to do with it?</label>
+        <select id="an-use">
+          <option value="">whatever the frequency is good for</option>
+          <option value="local">Local FM &mdash; repeaters, simplex, packet</option>
+          <option value="weaksignal">Weak signal &mdash; SSB, CW, EME on VHF+</option>
+          <option value="satellite">Satellites</option>
+          <option value="regional">Regional &mdash; a few hundred miles</option>
+          <option value="dx">DX &mdash; as far as the band will carry</option>
+          <option value="digital">Digital modes &mdash; FT8, PSK</option>
+          <option value="portable">Portable, or limited space</option>
+        </select></div>
+      <div class="field"><label>Frequency (MHz)</label><input id="an-f" value="14.200"></div>
       <div class="field"><label>Antenna</label>
         <select id="an-type">
+          <option value="" selected>let ELMER suggest one from the above</option>
           <optgroup label="Wire">
-            <option value="dipole" selected>Half-wave dipole</option>
+            <option value="dipole">Half-wave dipole</option>
             <option value="invertedv">Inverted-V dipole</option>
             <option value="efhw">End-fed half wave</option>
             <option value="bowtie">Bowtie dipole (wideband)</option>
@@ -149,32 +180,8 @@
             <option value="whip">Loaded mobile whip &mdash; mag-mount or bumper</option>
             <option value="screwdriver">Screwdriver &mdash; motor-tuned mobile vertical</option>
           </optgroup>
-        </select></div>
-
-      <div class="field"><label>Frequency (MHz)</label><input id="an-f" value="14.200"></div>
-
-      <div class="field"><label>What do you want to do with it?</label>
-        <select id="an-use">
-          <option value="">let ELMER choose from the frequency</option>
-          <option value="local">Local FM &mdash; repeaters, simplex, packet</option>
-          <option value="weaksignal">Weak signal &mdash; SSB, CW, EME on VHF+</option>
-          <option value="satellite">Satellites</option>
-          <option value="regional">Regional &mdash; a few hundred miles</option>
-          <option value="dx">DX &mdash; as far as the band will carry</option>
-          <option value="digital">Digital modes &mdash; FT8, PSK</option>
-          <option value="portable">Portable, or limited space</option>
-        </select></div>
-      <div class="field"><label>What have you actually got?</label>
-        <select id="an-site">
-          <option value="">not saying &mdash; give me the textbook answer</option>
-          <option value="tower">A mast or tower, and room for it</option>
-          <option value="house">A house, a garden, some trees</option>
-          <option value="small">A small lot or a short garden</option>
-          <option value="attic">Indoors &mdash; the attic or roof space</option>
-          <option value="apartment">A flat &mdash; a balcony, or a window</option>
-          <option value="mobile">In the vehicle &mdash; on the car or truck</option>
-          <option value="portable">Nothing at home &mdash; I go out</option>
-        </select></div>
+        </select>
+        <div class="tiny muted" id="an-type-note" hidden></div></div>
       <div class="row" style="gap:.5rem;flex-wrap:wrap">
         <button class="btn sm primary" id="an-advise">Evaluate this setup &rarr;</button>
         <button class="btn sm ghost" id="an-suggest">Not sure &mdash; suggest one</button>

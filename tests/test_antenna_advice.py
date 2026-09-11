@@ -321,6 +321,41 @@ def main():
         check(f"  the {kind} second choice opens with the condition",
               first and first.group(), "?")
 
+    print("\n-- what you have to work with speaks before what you want --")
+    # It used to be asked fourth, and only a vehicle changed the answer: a
+    # flat, an attic and a short garden all got "a half-wave dipole, as high
+    # as you can manage" - 69 feet of wire offered to a balcony - while the
+    # site's own notes a few lines down said a wire out of the window. The
+    # program knew and did not act on it.
+    flat = A.recommend(14.2, site="apartment")
+    check("a flat on 20 m is not offered a dipole", flat["type"], "efhw")
+    check("  and the title says what to do with it there",
+          "out of the window" in flat["title"], True)
+    check("  and says the site chose it", flat.get("steered"), True)
+    check("a flat on 80 m, where even the end-fed is too long, gets the rail",
+          A.recommend(3.8, site="apartment")["type"], "whip")
+    check("  and it is not called mobile",
+          "mobile" in A.recommend(3.8, site="apartment")["title"].lower(), False)
+    check("a flat on 2 m gets a vertical on the balcony",
+          A.recommend(146.52, site="apartment")["type"], "jpole")
+    check("an attic on 20 m fits an inverted-V, which the site's notes say",
+          A.recommend(14.2, site="attic")["type"], "invertedv")
+    check("  and on 40 m it does not, so the end-fed folds",
+          A.recommend(7.1, site="attic")["type"], "efhw")
+    check("a short garden on 40 m gets the end-fed as a sloper",
+          A.recommend(7.1, site="small")["type"], "efhw")
+    check("  tuned to its own ground reflection, in so many words",
+          "ground reflection" in A.recommend(7.1, site="small")["title"], True)
+    check("nothing at home gets what people carry to a park",
+          A.recommend(14.2, site="portable")["type"], "efhw")
+    check("a house leaves it to the intention, as before",
+          A.recommend(14.2, site="house")["type"], "dipole")
+    check("  and so does a tower", A.recommend(14.2, site="tower")["type"], "dipole")
+    check("  and so does not saying", A.recommend(14.2)["type"], "dipole")
+    # Naming an antenna still means being taught that antenna.
+    check("somebody who named a loop in a flat is taught the loop",
+          A.recommend(14.2, kind="loop", site="apartment")["type"], "loop")
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
