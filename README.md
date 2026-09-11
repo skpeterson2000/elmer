@@ -1765,14 +1765,11 @@ four hundred and eighty-five are held must not be mistaken for the whole of
 what is within reach.
 
 The search is a **band**, not a radius: *between 0 and 50 miles*, or 30 and 40,
-or 0 and 10. The trips people take are bands — nought to ten miles is an
+or 0 and 10 — in whatever units you read distances in, set once behind the gear
+and used by the filter, the table and the sheet alike. The trips people take are bands — nought to ten miles is an
 evening after work, thirty to forty is somewhere worth the drive with nothing
 already worked in between — and a list that always starts at the doorstep
-buries the second kind under the first. It is set in miles because it is set by
-somebody deciding how far they will drive; everything inside ELMER is
-kilometres and converts once.
-
-And it can be centred somewhere else — **from where I am now**, or from where
+buries the second kind under the first. And it can be centred somewhere else — **from where I am now**, or from where
 you are going. Type a town, a grid square or coordinates; the last two resolve
 without touching the network. Asking about somewhere nothing has been fetched
 for says so, and says that rather than "nothing is near there", because those
@@ -1783,6 +1780,16 @@ separate press because it is thirty-odd requests and the better part of a
 minute, which is not a thing to start by accident from a button marked print.
 
 ### The gear
+
+It also holds **Distances in** — metric, imperial or nautical. That preference
+is deliberately narrow: it governs how far away a *thing* is, and nothing else.
+Nobody calls it the forty yard band. Wavelength stays in metres because the
+bands are named in metres, wire stays in feet because that is how wire is sold
+and how every handbook table prints it, and hmF2 and skip distance stay in
+kilometres because that is what ionosondes report. An operator choosing
+imperial is saying how they think about a drive to a park, not asking for 40 m
+to be renamed.
+
 
 A gear at the right-hand end of the top bar opens **Your station**: what ELMER
 calls you, your callsign, your licence class, and where you operate from.

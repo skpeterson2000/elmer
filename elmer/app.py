@@ -33,7 +33,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               monitoring, reachout, repeaters,
+               monitoring, reachout, repeaters, units,
                terrain, touchstone, update, vna)
 from .content import get_pool, load_pools, presentation
 
@@ -139,6 +139,16 @@ def _is_local(address):
         return ipaddress.ip_address(address or "").is_loopback
     except ValueError:
         return False
+
+
+@app.context_processor
+def _units():
+    """The operator's distance units, for any page that shows a distance."""
+    try:
+        chosen = db.get_profile(conn())["settings"].get("units")
+    except Exception:
+        chosen = None
+    return {"units": units.system(chosen), "unit_systems": units.SYSTEMS}
 
 
 @app.context_processor
@@ -654,27 +664,29 @@ def api_activations():
     })
 
 
-# The band is set in miles, because it is set by somebody deciding how far
-# they will drive. Everything inside ELMER is kilometres, so it converts once,
-# here, rather than in four places that can disagree.
-MI_PER_KM = 0.621371
-MAX_BAND_MI = 400.0
+# As far as anybody sensibly drives to a park, in whatever they count in.
+MAX_BAND = 400.0
 
 
-def _print_band(body):
-    """The inner and outer edge of the search, in kilometres."""
-    def miles(key, fallback):
+def _print_band(body, system):
+    """The inner and outer edge of the search, in kilometres.
+
+    Typed in the operator's own units and converted once, here, rather than in
+    the four places that would otherwise each have to agree about it.
+    """
+    def asked(key, fallback):
         try:
             value = float(body.get(key, fallback))
         except (TypeError, ValueError):
-            abort(400, "%s must be a number of miles" % key)
-        return max(0.0, min(MAX_BAND_MI, value))
+            abort(400, "%s must be a number of %s"
+                       % (key, units.long_name(system)))
+        return max(0.0, min(MAX_BAND, value))
 
-    inner = miles("inner", 0)
-    outer = miles("outer", 50)
+    inner = asked("inner", 0)
+    outer = asked("outer", 50)
     if outer <= inner:
         abort(400, "the outer distance has to be past the inner one")
-    return inner / MI_PER_KM, outer / MI_PER_KM
+    return units.to_km(inner, system), units.to_km(outer, system)
 
 
 def _in_band(rows, inner_km, outer_km):
@@ -696,9 +708,10 @@ def api_activations_print():
     want = str(body.get("want") or "both").lower()
     if want not in ("parks", "summits", "both"):
         abort(400, "want must be parks, summits or both")
-    inner_km, outer_km = _print_band(body)
     connection = conn()
     profile = db.get_profile(connection)
+    system = units.system(profile["settings"].get("units"))["key"]
+    inner_km, outer_km = _print_band(body, system)
 
     # From here, or from where you are going. A band around the destination is
     # the question somebody actually has the night before a trip, and the QTH
@@ -739,7 +752,7 @@ def api_activations_print():
 
     pdf = activationspdf.build(
         parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM,
-        inner_km=inner_km, outer_km=outer_km,
+        inner_km=inner_km, outer_km=outer_km, system=system,
         station={"grid": place.get("grid") or "",
                  "place": place.get("short") or place.get("name") or "",
                  "callsign": profile_callsign() or ""})
@@ -3607,6 +3620,10 @@ def api_settings():
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         settings = _adopt_license(connection, body["callsign"] or "", settings)
+    if "units" in body:
+        # Narrow on purpose - see elmer/units.py. This is how far away a thing
+        # is, not a request to rename the 40 m band.
+        settings["units"] = units.system(body["units"])["key"]
     for key in ("license_class", "state"):
         if key in body:
             settings[key] = body[key]

@@ -94,16 +94,30 @@ banded = activationspdf.build(PARKS, SUMMITS, want="both", station=STATION,
                               inner_km=48.3, outer_km=64.4)
 check("still a PDF", banded[:4], b"%PDF")
 check("0-50 miles reads as a ceiling",
-      activationspdf._band(0, 80.5), "Out to 50 miles.")
+      activationspdf._band(0, 80.5, "imperial"), "Out to 50 miles.")
 check("30-40 reads as a band",
-      activationspdf._band(48.3, 64.4), "Between 30 and 40 miles out.")
-check("no band, nothing said", activationspdf._band(0, None), "")
+      activationspdf._band(48.3, 64.4, "imperial"),
+      "Between 30 and 40 miles out.")
+check("the same band in metric",
+      activationspdf._band(48.3, 64.4, "metric"),
+      "Between 48 and 64 kilometres out.")
+check("and in nautical miles",
+      activationspdf._band(48.3, 64.4, "nautical"),
+      "Between 26 and 35 nautical miles out.")
+check("no band, nothing said", activationspdf._band(0, None, "metric"), "")
 # Both units against every distance. The screen counts in kilometres, and a
 # sheet that quietly switched would have somebody comparing two numbers that
 # are not the same number.
-check("distances carry both units", activationspdf._away({"km": 21}),
-      "21 mi \u00b7 21 km".replace("21 mi", "13 mi"))
-check("and a missing one is not invented", activationspdf._away({}), "\u2014")
+# One unit, the operator's, on the page and in the filter both. Asking for a
+# range in miles and answering in kilometres is the mismatch that makes a
+# reader distrust every other number on the sheet.
+check("a distance is in the operator's units",
+      activationspdf._away({"km": 21}, "imperial"), "13")
+check("and the same one in metric",
+      activationspdf._away({"km": 21}, "metric"), "21")
+check("nautical too", activationspdf._away({"km": 21}, "nautical"), "11")
+check("and a missing one is not invented",
+      activationspdf._away({}, "metric"), "\u2014")
 
 print("\nnothing held is a sheet that says so, not a crash")
 empty = activationspdf.build([], [], want="both", station=STATION)

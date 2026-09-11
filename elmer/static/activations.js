@@ -8,6 +8,21 @@
 
 let acData = null;
 
+/* The page and the filter have to count in the same thing. Asking somebody for
+   a range in miles and answering in kilometres is the sort of mismatch that
+   makes a reader distrust every other number on the page, and rightly. The
+   server sends kilometres - it is what everything is computed in - and the
+   unit is the operator's, from the gear. */
+const AC_UNITS = (window.UNITS || {short: 'km', per_km: 1});
+
+function acAway(km) {
+  /* Just the number. The unit is on the column heading, the way it is on
+     the printed sheet - in a column this narrow "13 mi" wraps onto two lines
+     and the table turns into a thicket. */
+  if (km === null || km === undefined) return '\u2014';
+  return Math.round(km * AC_UNITS.per_km);
+}
+
 function acPlace(row) {
   const summit = row.kind === 'summit';
   /* The reference carries the colour because the reference is the thing that
@@ -19,7 +34,7 @@ function acPlace(row) {
     '<td class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' +
       escapeHTML(row.ref) + '</td>' +
     '<td>' + escapeHTML(row.name) + '</td>' +
-    '<td class="mono">' + row.km + ' km</td>' +
+    '<td class="mono">' + acAway(row.km) + '</td>' +
     '<td class="mono">' + row.bearing + '&deg;</td>' +
     '<td class="tiny muted">' + (summit
       ? (row.alt_m ? row.alt_m + ' m' : '') +
@@ -61,11 +76,13 @@ function acNear(d) {
   }
   note.innerHTML = '<b>' + held.parks + ' park' + (held.parks === 1 ? '' : 's') +
     '</b> and <b>' + held.summits + ' summit' + (held.summits === 1 ? '' : 's') +
-    '</b> held within ' + d.radius_km + ' km. The nearest of each are below, ' +
+    '</b> held within ' + acAway(d.radius_km) + ' ' + AC_UNITS.short +
+    '. The nearest of each are below, ' +
     'and the distances are straight lines, which a road is not: reckon on more.';
 
   const table = (rows, total) => rows.length
-    ? '<table class="data"><tr><th>Reference</th><th>Name</th><th>Away</th>' +
+    ? '<table class="data"><tr><th>Reference</th><th>Name</th>' +
+        '<th>Away (' + AC_UNITS.short + ')</th>' +
       '<th>Bearing</th><th></th></tr>' + rows.map(acPlace).join('') + '</table>' +
       (total > rows.length
         ? '<p class="tiny muted">and ' + (total - rows.length) + ' more.</p>'

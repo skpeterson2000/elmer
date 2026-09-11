@@ -43,7 +43,7 @@
     <span class="tiny muted">and</span>
     <input class="btn sm num" id="ac-outer" type="number" min="1" max="400"
            step="1" value="50">
-    <span class="tiny muted">miles of</span>
+    <span class="tiny muted">{{ units.long }} of</span>
     <input class="btn sm" id="ac-from" type="text" style="min-width:12rem"
            placeholder="where I am now" autocomplete="off">
     <span class="tiny muted" id="ac-from-hint"></span>
@@ -87,6 +87,7 @@
 
 {% endblock %}
 {% block scripts %}
+<script>window.UNITS = {{ units|tojson }};</script>
 <script>window.POTA_ASKED = {{ pota_asked|tojson }};
 window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
 <script src="{{ asset('activations.js') }}"></script>

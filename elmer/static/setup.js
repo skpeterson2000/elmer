@@ -21,6 +21,7 @@
   const callBox = document.getElementById('setup-call');
   const classBox = document.getElementById('setup-class');
   const qthBox = document.getElementById('setup-qth');
+  const unitBox = document.getElementById('setup-units');
 
   let picked = null;                      // a QTH chosen in this sitting
   let place = null;
@@ -99,6 +100,7 @@
       const body = {};
       body.callsign = callBox.value.trim().toUpperCase();
       body.license_class = classBox.value;
+      if (unitBox) body.units = unitBox.value;
       if (picked) body.location = picked;
       await postJSON('/api/settings', body);
 
