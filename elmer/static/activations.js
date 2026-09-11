@@ -10,8 +10,14 @@ let acData = null;
 
 function acPlace(row) {
   const summit = row.kind === 'summit';
+  /* The reference carries the colour because the reference is the thing that
+     says which programme a row belongs to - K-1234 is a park, W0M/xx-123 is a
+     summit, and the two lists sit side by side where a glance can cross
+     between them. Colouring the identifier means a row read out of the wrong
+     column is visible as one. */
   return '<tr>' +
-    '<td class="mono">' + escapeHTML(row.ref) + '</td>' +
+    '<td class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' +
+      escapeHTML(row.ref) + '</td>' +
     '<td>' + escapeHTML(row.name) + '</td>' +
     '<td class="mono">' + row.km + ' km</td>' +
     '<td class="mono">' + row.bearing + '&deg;</td>' +
@@ -67,9 +73,11 @@ function acNear(d) {
     : '<p class="tiny muted">None held within the radius.</p>';
   box.innerHTML =
     '<div class="grid cols-2" style="gap:1.2rem">' +
-      '<div><div class="panel-title">Parks</div>' +
+      '<div class="prog prog-park">' +
+        '<div class="panel-title">Parks</div>' +
         table(parks, held.parks) + '</div>' +
-      '<div><div class="panel-title">Summits</div>' +
+      '<div class="prog prog-summit">' +
+        '<div class="panel-title">Summits</div>' +
         table(summits, held.summits) + '</div>' +
     '</div>';
 }

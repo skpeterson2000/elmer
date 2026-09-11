@@ -309,6 +309,20 @@ p { margin: 0 0 .8rem; }
   font: .62rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
   padding: .1rem .4rem; border-radius: 4px;
 }
+/* Parks and summits, told apart by colour.
+   The two lists sit side by side and hold the same shape of row - a
+   reference, a name, a distance and a bearing - so at a glance there is
+   nothing to say which is which, and a park and a summit are answerable to
+   very different rules. Green for parks and blue for summits; cyan and violet
+   are already spoken for by the two rank tracks below. */
+.prog { border-left: 2px solid transparent; padding-left: .7rem; }
+.prog-park { border-left-color: var(--green); }
+.prog-summit { border-left-color: var(--blue); }
+.prog-park .panel-title { color: var(--green); }
+.prog-summit .panel-title { color: var(--blue); }
+td.ref-park { color: var(--green); }
+td.ref-summit { color: var(--blue); }
+
 .track-amateur   { color: var(--cyan);   background: rgba(57,211,216,.1); }
 .track-commercial{ color: var(--violet); background: rgba(188,140,255,.1); }
 .pool-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
