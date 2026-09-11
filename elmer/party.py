@@ -832,6 +832,12 @@ class Room:
                 "drawn": s.drawn(),
                 "played": len(s.history),
                 "last": s.history[-1] if s.history else None,
+                # The last *shot*, as distinct from the last thing that
+                # happened: a pick timing out is in the history too, and a
+                # screen reading that as "the picker missed" beside the
+                # results of a shot the picker made was telling two stories.
+                "last_shot": next((h for h in reversed(s.history)
+                                   if h.get("section")), None),
             }
 
     def picker(self):

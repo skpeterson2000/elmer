@@ -45,7 +45,8 @@ body { margin: 0; background: var(--bg); color: var(--text);
         font-weight: 700; }
 .word i { font-style: normal; color: var(--line-2); }
 .word.out { color: var(--red); }
-.shoot { margin: .6rem 0 0; }
+.shoot { margin: .6rem 0 0; text-align: left; }
+.state .pick, .state .pick h3, .state .pick h4 { text-align: left; }
 .shoot table { width: 100%; border-collapse: collapse; }
 .shoot td { padding: .3rem .2rem; border-bottom: 1px solid var(--line); }
 .shoot td.w { text-align: right; font-family: var(--mono); letter-spacing: .2em; }
@@ -218,6 +219,36 @@ async function send(index, button) {
   }
 }
 
+/* In a shootout the verdict is about letters, not points: whether the shot
+   was made, and whether you are paying for it. The tournament's card -
+   "1st on this table, 10 points" - is true and beside the point. */
+function shootVerdict(mine, shoot) {
+  const last = shoot.last_shot || {};     // the shot this round was, not a pass since
+  const iPicked = last.picker === me.id;
+  const took = (last.took || []).includes(me.id);
+  const ms = mine ? `<div class="mine">${(mine.ms / 1000).toFixed(2)}s</div>` : '';
+  if (iPicked) {
+    return last.made
+      ? `<div class="verdict right"><div class="h">You made it</div>${ms}
+           <div class="t">${(last.took || []).length
+             ? escapeHTML(whoTook(shoot, last.took)) + ' took a letter · you keep the pick'
+             : 'Everybody matched it · you keep the pick'}</div></div>`
+      : `<div class="verdict wrong"><div class="h">Missed</div>${ms}
+           <div class="t">Your shot, so nobody takes a letter · the pick moves on</div></div>`;
+  }
+  if (mine && mine.correct) {
+    return `<div class="verdict right"><div class="h">Safe</div>${ms}
+      <div class="t">${last.made ? 'You matched the picker' : 'Right, and the picker missed'}</div></div>`;
+  }
+  const word = ((shoot.standing || []).find(r => r.player === me.id) || {}).word || '';
+  if (took) {
+    return `<div class="verdict wrong"><div class="h">A letter for you</div>${ms}
+      <div class="t">The picker made it and you did not · ${escapeHTML(word)}</div></div>`;
+  }
+  return `<div class="verdict wrong"><div class="h">${mine ? 'Not this time' : 'No answer'}</div>${ms}
+    <div class="t">But the picker missed too, so no letter</div></div>`;
+}
+
 function paintResults(round, shoot) {
   const rows = (round.results || []);
   const mine = rows.find(r => r.player_id === me.id);
@@ -226,10 +257,11 @@ function paintResults(round, shoot) {
       <td class="n">${r.place || '–'}</td>
       <td>${escapeHTML(r.name)} ${r.correct ? '✓' : '✗'}</td>
       <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
-      <td class="ms">${r.points || 0}</td>
+      ${shoot ? '' : `<td class="ms">${r.points || 0}</td>`}
     </tr>`).join('');
   view.innerHTML = `
-    ${mine ? `<div class="verdict ${mine.correct ? 'right' : 'wrong'}">
+    ${shoot ? shootVerdict(mine, shoot)
+     : mine ? `<div class="verdict ${mine.correct ? 'right' : 'wrong'}">
         <div class="h">${mine.correct ? 'Correct' : 'Not this time'}</div>
         <div class="mine">${(mine.ms / 1000).toFixed(2)}s</div>
         <div class="t">${mine.correct
@@ -239,7 +271,7 @@ function paintResults(round, shoot) {
       : `<div class="verdict wrong"><div class="h">No answer</div>
          <div class="t">You did not get one in before time</div></div>`}
     <table class="board">${top}</table>
-    ${paintShootout(shoot)}
+    ${paintShootout(shoot, false)}
     ${shoot && shoot.your_pick ? paintPick(shoot)
       : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`}`;
   wirePick();
@@ -252,7 +284,23 @@ function wordHTML(row) {
     all.slice(have.length).split('').join('')}</i></span>`;
 }
 
-function paintShootout(shoot) {
+function nameOf(shoot, id) {
+  const row = (shoot.standing || []).find(r => r.player === id);
+  return row ? (row.player === me.id ? 'you' : row.name) : 'somebody';
+}
+
+/* "Bob, Hertz and you took a letter" rather than "3 took a letter": at a
+   table of five the names are the news. Past four it counts the rest. */
+function whoTook(shoot, took) {
+  const names = took.slice(0, 4).map(id => nameOf(shoot, id));
+  const more = took.length - names.length;
+  let list = names.length <= 1 ? names.join('')
+           : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  if (more > 0) list += ` and ${more} more`;
+  return list;
+}
+
+function paintShootout(shoot, withNote) {
   if (!shoot) return '';
   const last = shoot.last || {};
   const took = (last.took || []);
@@ -267,13 +315,18 @@ function paintShootout(shoot) {
     note = shoot.drawn ? 'Out of subjects with nobody ahead: a draw.'
          : shoot.winner === me.id ? 'You win it.'
          : `${escapeHTML(shoot.winner_name || 'Somebody')} wins it.`;
+  } else if (last.passed) {
+    note = `${escapeHTML(nameOf(shoot, last.picker))} ran out of time, so the pick moved on. No letters.`;
   } else if (last.section) {
+    const picker = escapeHTML(nameOf(shoot, last.picker));
     note = last.made
-      ? (took.includes(me.id) ? 'The picker made it and you missed: a letter for you.'
-                              : took.length ? `${took.length} took a letter.` : 'Everybody made it.')
-      : 'The picker missed, so nobody takes a letter.';
+      ? (took.length ? `${picker === 'you' ? 'You' : picker} made it. ${escapeHTML(whoTook(shoot, took))} took a letter.`
+                     : `${picker === 'you' ? 'You' : picker} made it, and so did everybody else.`)
+      : `${picker === 'you' ? 'You' : picker} missed, so nobody takes a letter.`;
   }
-  return `<div class="shoot">${note ? `<p class="took">${note}</p>` : ''}
+  // The note is the table's summary; under a verdict card it would say the
+  // same thing twice, so the results screen leaves it out.
+  return `<div class="shoot">${note && withNote !== false ? `<p class="took">${note}</p>` : ''}
             <table>${rows}</table></div>`;
 }
 
