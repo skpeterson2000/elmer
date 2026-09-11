@@ -200,8 +200,14 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
             "key": "nvis", "title": f"Regional HF - {band}, straight up",
             "odds": "good" if rank >= bandplan.CLASS_RANK["General"] else "no",
             "needs": "HF phone privileges - General or above",
-            "do": (f"Get the wire low and flat - eight to twelve feet is right, "
-                   f"not high - and work {band}. Signal goes up, comes back "
+            "do": (f"Get the wire low and flat and work {band}. Low is what "
+                   f"aims it upward: a fifth of a wavelength is the peak - "
+                   f"about 50 ft on 80 m, 27 on 40 - but anything from head "
+                   f"height up still goes straight up, because height buys "
+                   f"signal here, not direction. Do not hoist it to half a "
+                   f"wave: that is where the ground reflection cancels "
+                   f"overhead and opens the very hole you are trying to "
+                   f"cover. Signal goes up, comes back "
                    f"down over the whole area, and there is no skip zone in the "
                    f"middle. Call on the calling frequencies, then tune slowly "
                    f"and answer somebody."),
