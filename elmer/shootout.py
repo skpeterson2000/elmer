@@ -40,6 +40,18 @@ picked well.
 decide, so the game ends the moment one player is left rather than playing out
 a fixed length.
 
+**Practice players never keep the pick.** The rule above is right for people
+and wrong for furniture: a practice player that makes ninety percent of its
+shots would hold the pick for ten questions while the table watched. So a
+practice player's shot counts like anybody's - miss what it made and you take
+a letter - but the pick moves on afterwards whatever happened, to the quickest
+correct answer or round the table. The pick is the fun part, and it is for
+the people.
+
+**Somebody arriving late sits at the end** of the order with the same number
+of letters as the best-placed player still in - so nobody is punished for
+turning up, and nobody arrives ahead of the person who has been winning.
+
 **Or the subjects run out.** Thirty-five subjects is thirty-five questions,
 and a table of careful players can get through all of them with several still
 standing. Then the game is over too, and whoever has the fewest letters wins
@@ -70,13 +82,30 @@ class Shootout:
     the same answer.
     """
 
-    def __init__(self, players, sections=()):
+    def __init__(self, players, sections=(), passers=()):
         self.order = list(players)
         self.letters = {p: 0 for p in self.order}
         self.sections = list(sections)
         self.spent = []                  # subjects already played, in order
+        self.passers = set(passers)      # who never keeps the pick
         self.picker = self.order[0] if self.order else None
+        # Why the current picker has it: first, kept, quickest, round,
+        # timeout, or admitted. A screen greets a pick that was earned
+        # differently from one that came round because nobody got it.
+        self.pick_reason = "first" if self.picker is not None else None
         self.history = []                # one entry per question played
+
+    def admit(self, player):
+        """Somebody sat down mid-game. Seated last, level with the leader."""
+        if player in self.letters:
+            return False
+        standing = self.live()
+        self.order.append(player)
+        self.letters[player] = (min(self.letters[p] for p in standing)
+                                if standing else 0)
+        if self.picker is None and not self.over():
+            self.picker, self.pick_reason = player, "admitted"
+        return True
 
     # ------------------------------------------------------------- standing
 
@@ -179,17 +208,21 @@ class Shootout:
 
         self.spent.append(section)
 
-        # Who picks next. The picker keeps it while they keep making them;
-        # a miss hands it to the quickest correct answer, and a question
-        # nobody got goes round the table.
-        if made and not is_out(self.letters.get(picker, 0)):
-            following = picker
+        # Who picks next. The picker keeps it while they keep making them -
+        # unless they are furniture; a miss hands it to the quickest correct
+        # answer, and a question nobody got goes round the table.
+        if (made and not is_out(self.letters.get(picker, 0))
+                and picker not in self.passers):
+            following, why = picker, "kept"
         else:
             right = [(a.get("ms") or 0, p) for p, a in said.items()
                      if a.get("correct") and p in self.live() and p != picker]
-            following = (sorted(right)[0][1] if right
-                         else self.next_picker(picker))
+            if right:
+                following, why = sorted(right)[0][1], "quickest"
+            else:
+                following, why = self.next_picker(picker), "round"
         self.picker = None if self.over() else following
+        self.pick_reason = None if self.over() else why
 
         played = {"section": section, "picker": picker, "made": made,
                   "took": took, "next_picker": self.picker,
@@ -210,10 +243,12 @@ class Shootout:
         self.letters[player] = OUT_AT
         if self.picker == player:
             self.picker = None if self.over() else self.next_picker(player)
+            self.pick_reason = None if self.over() else "round"
         return True
 
     def as_dict(self):
         return {"word": WORD, "picker": self.picker,
+                "pick_reason": self.pick_reason,
                 "standing": self.standing(), "available": self.available(),
                 "spent": list(self.spent), "over": self.over(),
                 "winner": self.winner(), "drawn": self.drawn(),
