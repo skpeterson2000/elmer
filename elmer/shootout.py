@@ -1,0 +1,193 @@
+"""Shootout - the game where choosing the question is the move.
+
+A tournament asks everybody the same questions in the examination's own
+proportions, and the skill is knowing the material. Shootout asks a different
+question: what do you know that the person across the table does not? One
+player holds the pick, chooses the subject, and everybody answers it - the
+picker included.
+
+That last part is the whole game. It is taken from HORSE, where the shooter
+has to make the shot before anybody has to match it. Without it the winning
+move is to pick the most obscure corner of the pool every time and wait for
+the room to fail, which is a test of who owns the strangest question rather
+than of who knows the most - and is no fun to play against. Making the picker
+answer their own pick turns it back into "something I know and you do not",
+which is the game that was asked for.
+
+**The pick is a subject, not a question.** You cannot read four hundred
+questions on a phone with a clock running, and the judgement being made is a
+subject-level one anyway: I am good at feed lines, they went blank on feed
+lines during the last net. So the picker chooses a section of the pool and a
+question is drawn from it.
+
+**A subject can only be spent once.** Otherwise the strongest player picks
+their best section until everybody else is out, which takes four questions and
+teaches nothing. Spending it means the run has a natural end: a player who
+holds the pick for a long time is working through their good subjects, and
+when they are gone they start missing.
+
+**Letters.** Miss a question the picker got right and you take a letter.
+E, L, M, E, R - five of them, and you are out. Miss a question the picker also
+missed and you take nothing: the shot was not made.
+
+**The pick passes when the picker misses**, and it passes to whoever answered
+that question fastest among those who got it right. If nobody got it right it
+goes round the table in order, because somebody has to have it. A picker who
+keeps answering their own picks keeps picking, which is the reward for having
+picked well.
+
+**Last one standing wins.** With everybody else out there is nothing left to
+decide, so the game ends the moment one player is left rather than playing out
+a fixed length.
+"""
+
+WORD = "ELMER"
+OUT_AT = len(WORD)          # five letters and you are done
+
+
+def letters(count):
+    """The letters somebody has taken, as a word in progress."""
+    return WORD[:max(0, min(int(count), OUT_AT))]
+
+
+def is_out(count):
+    return int(count) >= OUT_AT
+
+
+class Shootout:
+    """One game, as a rules object: no questions, no network, no clock.
+
+    `players` is a list of ids in seating order. Everything here is decided
+    from what has been played, so a table and a hall can both run it and get
+    the same answer.
+    """
+
+    def __init__(self, players, sections=()):
+        self.order = list(players)
+        self.letters = {p: 0 for p in self.order}
+        self.sections = list(sections)
+        self.spent = []                  # subjects already played, in order
+        self.picker = self.order[0] if self.order else None
+        self.history = []                # one entry per question played
+
+    # ------------------------------------------------------------- standing
+
+    def live(self):
+        """Everybody still in, in seating order."""
+        return [p for p in self.order if not is_out(self.letters.get(p, 0))]
+
+    def over(self):
+        return len(self.live()) <= 1 and len(self.order) > 1
+
+    def winner(self):
+        """The last player standing, or None while the game is still on."""
+        standing = self.live()
+        return standing[0] if self.over() and standing else None
+
+    def standing(self):
+        return [{"player": p, "letters": self.letters.get(p, 0),
+                 "word": letters(self.letters.get(p, 0)),
+                 "out": is_out(self.letters.get(p, 0)),
+                 "picking": p == self.picker} for p in self.order]
+
+    # ---------------------------------------------------------- the picking
+
+    def available(self):
+        """The subjects still to be spent."""
+        spent = set(self.spent)
+        return [s for s in self.sections if s not in spent]
+
+    def may_pick(self, section):
+        """Whether this subject can be played, and why not if it cannot."""
+        if section not in self.sections:
+            return False, "that is not a subject in this pool"
+        if section in self.spent:
+            return False, "that subject has already been played"
+        return True, None
+
+    def next_picker(self, after):
+        """Whose turn it is when the pick has to move on.
+
+        Round the table from whoever had it, skipping anybody already out.
+        Used when a question nobody answered correctly leaves no obvious
+        claimant - somebody has to hold it, and going round in order is the
+        one rule nobody can argue was unfair to them.
+        """
+        standing = self.live()
+        if not standing:
+            return None
+        if after not in self.order:
+            return standing[0]
+        start = self.order.index(after)
+        for step in range(1, len(self.order) + 1):
+            candidate = self.order[(start + step) % len(self.order)]
+            if candidate in standing:
+                return candidate
+        return None
+
+    # ---------------------------------------------------------- the scoring
+
+    def play(self, section, answers):
+        """Score one question. `answers` is {player: {correct, ms}}.
+
+        Returns what happened, in the terms a screen says it in.
+        """
+        ok, why = self.may_pick(section)
+        if not ok:
+            return {"error": why}
+
+        picker = self.picker
+        said = dict(answers or {})
+        made = bool((said.get(picker) or {}).get("correct"))
+
+        took = []
+        if made:
+            # Only a made shot costs anybody anything, and only the players
+            # still in can take a letter - somebody already out is out.
+            for player in self.live():
+                if player == picker:
+                    continue
+                if not (said.get(player) or {}).get("correct"):
+                    self.letters[player] = self.letters.get(player, 0) + 1
+                    took.append(player)
+
+        self.spent.append(section)
+
+        # Who picks next. The picker keeps it while they keep making them;
+        # a miss hands it to the quickest correct answer, and a question
+        # nobody got goes round the table.
+        if made and not is_out(self.letters.get(picker, 0)):
+            following = picker
+        else:
+            right = [(a.get("ms") or 0, p) for p, a in said.items()
+                     if a.get("correct") and p in self.live() and p != picker]
+            following = (sorted(right)[0][1] if right
+                         else self.next_picker(picker))
+        self.picker = None if self.over() else following
+
+        played = {"section": section, "picker": picker, "made": made,
+                  "took": took, "next_picker": self.picker,
+                  "out": [p for p in self.order if is_out(self.letters[p])],
+                  "winner": self.winner(), "over": self.over()}
+        self.history.append(played)
+        return played
+
+    def withdraw(self, player):
+        """Somebody left the table. Treat it as being out.
+
+        Not removed from the order, because the order is how the pick goes
+        round and rewriting it mid-game would move everybody's turn. Out is
+        out, and the pick moves on if they were holding it.
+        """
+        if player not in self.letters:
+            return False
+        self.letters[player] = OUT_AT
+        if self.picker == player:
+            self.picker = None if self.over() else self.next_picker(player)
+        return True
+
+    def as_dict(self):
+        return {"word": WORD, "picker": self.picker,
+                "standing": self.standing(), "available": self.available(),
+                "spent": list(self.spent), "over": self.over(),
+                "winner": self.winner(), "played": len(self.history)}
