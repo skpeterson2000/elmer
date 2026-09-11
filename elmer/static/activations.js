@@ -202,6 +202,36 @@ document.addEventListener('click', async e => {
       '<p class="small muted">Left alone. Nothing has been sent anywhere.</p>';
     return;
   }
+  const sheet = e.target.closest('#ac-print');
+  if (sheet) {
+    /* Straight to the PDF, in the page. A full-screen browser has no
+       downloads folder anybody can reach, so the shelf is where it goes and
+       the shelf is inside ELMER - see prints.py. */
+    const what = document.getElementById('ac-print-what').value;
+    const say = document.getElementById('ac-fetch-say');
+    sheet.disabled = true;
+    const was = sheet.textContent;
+    sheet.textContent = 'Printing…';
+    try {
+      const res = await fetch('/api/activations/print', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({want: what})});
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        say.innerHTML = '<span style="color:var(--amber)">' +
+          escapeHTML(d.error || 'nothing to print yet') + '</span>';
+        sheet.disabled = false; sheet.textContent = was;
+        return;
+      }
+      location.href = d.view;
+    } catch (err) {
+      say.innerHTML = '<span style="color:var(--amber)">could not build the ' +
+        'sheet &mdash; see data/elmer.log</span>';
+      sheet.disabled = false; sheet.textContent = was;
+    }
+    return;
+  }
+
   const go = e.target.closest('#ac-fetch');
   if (!go) return;
   const say = document.getElementById('ac-fetch-say');
