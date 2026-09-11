@@ -1505,6 +1505,20 @@ it. Open one and it fills the screen exactly as if it were running here:
     │ 1 Table 1        5p        12 │  │ 1 Table 1        4p         9 │
     └───────────────────────────────┘  └───────────────────────────────┘
 
+The Pi running the hall can put the board on its own monitor: **Big board** on
+net control walks that screen on to it, and **Escape** walks it back. It backs
+out a step at a time — out of one tournament to the wall of them, out of the
+wall to net control — and the corner of the board says which step is next, so
+the label never promises something the key does not do. The corner is tappable
+too, because most of these are touchscreens with no keyboard near them.
+
+Net control is whole again the moment you come back: the tables checked in, the
+code people join by, the controls. That is the reason for the round trip. The
+host Pi does not have to be a table — in a room full of them there is usually
+one easier to sit down at — so its screen is free to show the room, and
+whoever is running the net can step off the board to sign somebody in and step
+back on.
+
 The neighbours' boards are fetched by the unit serving the screen rather than
 by the browser: they are on other origins, a board polls about once a second,
 and several screens on one Pi should not each cost the hall a round of
