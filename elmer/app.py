@@ -32,7 +32,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               reachout, repeaters,
+               monitoring, reachout, repeaters,
                terrain, touchstone, update, vna)
 from .content import get_pool, load_pools, presentation
 
@@ -580,6 +580,23 @@ def api_ways_out():
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
     answer["located"] = True
+    # What the law says about listening, beside the frequencies rather than
+    # on a page of its own - this is where somebody is looking at what they
+    # could tune. Driven off the fix, because the statutes that matter are
+    # about vehicles and a saved QTH is right until somebody drives.
+    try:
+        where = monitoring.where_am_i(place["lat"], place["lon"])
+        answer["monitoring"] = monitoring.advice(
+            where.get("state"),
+            # Either is evidence enough. Somebody who has said which class
+            # they hold but not typed a callsign is still a licensee, and the
+            # condition they need to know about is the licensee's one.
+            licensed=bool(profile.get("licensed") or profile.get("callsign")
+                          or profile["settings"].get("license_class")))
+        answer["monitoring"]["where"] = where
+    except Exception:            # never worth losing the page over
+        log.exception("could not work out the monitoring advice")
+        answer["monitoring"] = None
     return jsonify(answer)
 
 

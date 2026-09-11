@@ -260,6 +260,23 @@ p { margin: 0 0 .8rem; }
   border-radius: 6px;
 }
 
+/* The law panel on Make Contact. Quiet, and the quote set apart from
+   ELMER's reading of it - the two must never be mistaken for each other. */
+.law { border-top: 1px solid var(--line); padding-top: .6rem; margin-top: .7rem; }
+.law-cite { font: .82rem var(--mono); }
+.law-quote {
+  margin: .4rem 0; padding: .45rem .7rem;
+  border-left: 2px solid var(--line-2); background: var(--panel-2);
+  font-size: .84rem; color: var(--text);
+}
+.law-do {
+  margin: .2rem 0 .6rem; padding: .5rem .7rem; border-radius: 8px;
+  background: rgba(255, 180, 84, .1); border: 1px solid var(--amber-dim);
+  font-size: .88rem;
+}
+.law-fed { margin: .4rem 0 .2rem; padding-left: 1.1rem; }
+.law-fed li { margin-bottom: .35rem; }
+
 /* ---------- meters ---------- */
 .meter { height: 8px; background: #0c1116; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 4px; transition: width .5s ease; }

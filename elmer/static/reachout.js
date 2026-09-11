@@ -80,6 +80,8 @@ async function roAsk() {
       : 'ELMER has no repeater list for this area &mdash; TowerWitch can look ' +
         'it up, and ELMER reads what it writes.');
 
+  roLaw(d.monitoring);
+
   if (!d.ways.length) {
     box.innerHTML = '<p class="tiny muted">Tick something you have, and this ' +
       'fills in.</p>';
@@ -87,6 +89,68 @@ async function roAsk() {
   }
   box.innerHTML = d.ways.map(roCard).join('') +
     '<p class="tiny muted">' + escapeHTML(d.note) + '</p>';
+}
+
+/* What the law says about listening, beside the frequencies rather than on a
+   page of its own - this is where somebody is looking at what they could
+   tune, and it is the moment the question is live.
+
+   Every claim shows its citation and links the statute, because the statute
+   is the answer and this is a pointer to it. Where the state was guessed
+   rather than looked up, that is said before anything is read off it: a
+   jurisdiction named wrongly makes every line under it wrong too. */
+function roLaw(m) {
+  const box = document.getElementById('ro-law');
+  if (!box) return;
+  if (!m) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const where = m.where || {};
+  const place = m.known
+    ? '<b>' + escapeHTML(m.name) + '</b>'
+    : 'here';
+  const sure = where.sure
+    ? ''
+    : '<p class="tiny" style="color:var(--amber);margin:.2rem 0 .5rem">' +
+      'ELMER is not certain which state this is &mdash; ' +
+      escapeHTML(where.how || '') + ' If that is wrong, so is everything ' +
+      'below it.</p>';
+
+  const laws = (m.statutes || []).map(law =>
+    '<div class="law">' +
+      '<div class="law-cite"><a href="' + escapeHTML(law.url) + '">' +
+        escapeHTML(law.cite) + '</a>' +
+        (law.checked === 'primary' ? ''
+          : ' <span class="tiny muted">(not yet read against the ' +
+            'official text)</span>') +
+      '</div>' +
+      (law.title ? '<div class="tiny muted">' + escapeHTML(law.title) +
+                   '</div>' : '') +
+      (law.quote ? '<blockquote class="law-quote">' +
+                   escapeHTML(law.quote) + '</blockquote>' : '') +
+      '<p class="tiny">' + escapeHTML(law.reading) + '</p>' +
+    '</div>').join('');
+
+  const federal = (m.federal || []).map(f =>
+    '<li><b>' + escapeHTML(f.point) + '</b> ' + escapeHTML(f.why) +
+    ' <a class="tiny" href="' + escapeHTML(f.url) + '">' +
+    escapeHTML(f.cite) + '</a></li>').join('');
+
+  box.innerHTML =
+    '<div class="panel-title">Before you listen &mdash; ' + place + '</div>' +
+    sure +
+    (m.do_this
+      ? '<p class="law-do">' + escapeHTML(m.do_this) + '</p>' : '') +
+    '<p class="small">' + escapeHTML(m.reading) + '</p>' +
+    (m.look_here
+      ? '<p class="tiny"><a href="' + escapeHTML(m.look_here) + '">Look it ' +
+        'up for this state &rarr;</a></p>' : '') +
+    laws +
+    '<details class="derivation"><summary>Everywhere in the US</summary>' +
+      '<ul class="tiny law-fed">' + federal + '</ul>' +
+      '<p class="tiny muted">ELMER points at the law; it does not state it. ' +
+      'The statute is what governs, and it is linked above.</p>' +
+    '</details>';
 }
 
 document.getElementById('ro-go').addEventListener('click', roAsk);
