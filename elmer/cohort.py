@@ -179,7 +179,10 @@ class Bridge:
             # board that lists a machine among the fastest without saying so
             # is the one thing the practice players were built not to do.
             "players": [{"name": a["name"], "correct": a["correct"],
-                         "ms": a["ms"], "bot": a.get("bot")}
+                         "ms": a["ms"], "bot": a.get("bot"),
+                         # For the certificate only. The hall never puts it
+                         # on a board; it is carried so the host can print it.
+                         "cert_name": room.cert_name_of(a.get("player_id"))}
                         for a in summary["answers"]],
         }
 

@@ -426,7 +426,10 @@ class Net:
                         "ms": float(p.get("ms", 0)) or 0.0,
                         # Carried, not inferred: a table knows which of its
                         # players were practice and the hall does not.
-                        "bot": p.get("bot") or None})
+                        "bot": p.get("bot") or None,
+                        # What they want on a certificate; never on a board.
+                        "cert_name": (str(p.get("cert_name") or "")[:48]
+                                      or None)})
                 except (TypeError, ValueError):
                     continue
             self.results[unit_id] = rows
@@ -484,12 +487,15 @@ class Net:
                     (row["unit"], row["name"]),
                     {"name": row["name"], "unit": row["unit"],
                      "unit_name": row["unit_name"], "score": 0,
-                     "correct": 0, "answered": 0, "bot": bool(row.get("bot"))})
+                     "correct": 0, "answered": 0, "bot": bool(row.get("bot")),
+                     "cert_name": row.get("cert_name")})
                 who["answered"] += 1
                 who["correct"] += 1 if row["correct"] else 0
                 who["score"] += row.get("points", 0)
                 # A table can be renamed mid-hall; the person is the same one.
                 who["unit_name"] = row["unit_name"]
+                if row.get("cert_name"):
+                    who["cert_name"] = row["cert_name"]
 
                 block = self._block_people.setdefault(
                     (row["unit"], row["name"]),
@@ -692,6 +698,18 @@ class Net:
         Deciding that here rather than on the screen would mean two boards
         watching one net could disagree about who is winning.
         """
+        with self.lock:
+            rows = sorted(
+                self.people.values(),
+                key=lambda p: (-p["score"], -p["correct"], p["name"]))
+            # The certificate name is not the board's to hand out: anything
+            # polling the board would otherwise get every player's real name
+            # in the JSON, whether or not a screen drew it.
+            return [{k: v for k, v in p.items() if k != "cert_name"}
+                    for p in rows[:limit]]
+
+    def people_for_awards(self, limit=200):
+        """The same list with the certificate names on - for the host only."""
         with self.lock:
             rows = sorted(
                 self.people.values(),

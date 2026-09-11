@@ -79,11 +79,20 @@ net.check_in("u2", "Clifden", players=2)
 for n in range(1, 4):
     net.start_round("tech2026", f"T1A{n:02d}", 0,
                     {"text": "?", "choices": ["a", "b"], "section": "T1A"}, seconds=5)
-    net.report("u1", n, [{"name": "Ann", "correct": True, "ms": 900},
+    # Ann plays as "Sparks" and wants her callsign on the wall; Bob plays as
+    # himself and said nothing about a certificate.
+    net.report("u1", n, [{"name": "Sparks", "correct": True, "ms": 900, "cert_name": "Ann Example, KX0ANN"},
                          {"name": "Rig", "correct": True, "ms": 700, "bot": "practice"}])
     net.report("u2", n, [{"name": "Bob", "correct": n != 2, "ms": 1500}])
     net.close_round()
 try:
+    print("\nthe play name is the room's; the certificate name is nobody's until printed")
+    check("the board never carries the certificate name",
+          any("cert_name" in p for p in net.board()["people"]), False)
+    check("  nor does the people board", any("cert_name" in p for p in net.people_board()), False)
+    check("  but the host can get it for the awards",
+          next(p for p in net.people_for_awards() if p["name"] == "Sparks")["cert_name"],
+          "Ann Example, KX0ANN")
     reply = client.post("/api/tournament/certificates",
                         json={"scope": "hall", "event": "Lakes Area ARC", "places": 3})
     check("the route answers", reply.status_code, 200)
@@ -92,7 +101,8 @@ try:
     row = prints.one(got["id"])
     check("  the event name the host typed is the title", row["title"], "Certificates - Lakes Area ARC")
     check("  the practice player is not on it", "Rig" in row["meta"]["awarded"], False)
-    check("  the two people are, best first", row["meta"]["awarded"], ["Ann", "Bob"])
+    check("  the two people are, best first, under the names they asked for",
+          row["meta"]["awarded"], ["Ann Example, KX0ANN", "Bob"])
     check("  and the pages match the people", pages(prints.read(got["id"])), 2)
 finally:
     netcontrol.close_net()
@@ -101,7 +111,7 @@ print("\nand a table's from the table's")
 room = party.room(create=True)
 for pid in list(room.players):
     room.leave(pid)
-ann = room.join("Ann")[0]
+ann = room.join("Ann", cert_name="Ann Example")[0]
 bob = room.join("Bob")[0]
 room.fill_bots("Listener")
 room.start_round("tech2026", "T1A01", 0, seconds=30,
@@ -113,7 +123,10 @@ room.close_round()
 reply = client.post("/api/tournament/certificates", json={"scope": "table", "places": 3})
 check("the route answers for a table", reply.status_code, 200)
 row = prints.one(reply.get_json()["id"])
-check("  people only, best first", row["meta"]["awarded"], ["Ann", "Bob"])
+check("  people only, best first, certificate name where one was given",
+      row["meta"]["awarded"], ["Ann Example", "Bob"])
+check("  and the table's state never carried it",
+      any("cert_name" in m for c in room.state()["cohorts"] for m in c["members"]), False)
 check("  a default event name when none was typed", row["title"].startswith("Certificates - ELMER"), True)
 
 print("\nnobody to award is said, not faulted")
