@@ -29,6 +29,7 @@ import time
 from collections import deque
 
 from . import tournament
+from .party import callsign_of as party_callsign
 from .shootout import Shootout
 
 # The games a hall can be playing. A tournament asks the blueprint's questions
@@ -525,8 +526,12 @@ class Net:
             # against, and a leaderboard of points alone cannot tell a player
             # who got two right from one who got two right out of twenty.
             for row in everyone:
+                # A callsign is one person wherever they sat; a name is one
+                # person per table. KC9SP at Poldhu and KC9SP at Clifden are
+                # one row; Bob at Poldhu and Bob at Clifden are two.
+                call = None if row.get("bot") else party_callsign(row["name"])
                 who = self.people.setdefault(
-                    (row["unit"], row["name"]),
+                    ("*", call) if call else (row["unit"], row["name"]),
                     {"name": row["name"], "unit": row["unit"],
                      "unit_name": row["unit_name"], "score": 0,
                      "correct": 0, "answered": 0, "bot": bool(row.get("bot")),
@@ -540,7 +545,7 @@ class Net:
                     who["cert_name"] = row["cert_name"]
 
                 block = self._block_people.setdefault(
-                    (row["unit"], row["name"]),
+                    ("*", call) if call else (row["unit"], row["name"]),
                     {"name": row["name"], "unit_name": row["unit_name"],
                      "points": 0, "correct": 0, "bot": bool(row.get("bot"))})
                 block["points"] += row.get("points", 0)

@@ -1453,6 +1453,31 @@ rather than letting "1 ms" win every round for ever. It does not make the race
 unspoofable, which nothing server-side can, and saying so is better than
 implying otherwise.
 
+### Two at the screen, phones or no phones
+
+A table with no phones at it can still seat two people at the touchscreen —
+which is also how the person running a single-device tournament gets to play
+in it. Under **At this table**, two seats: type a name, sit down. During a
+round the stage becomes two phones side by side, the question across the top
+and each seat with its own column of answers, its own clock and its own
+verdict; the rest of the page steps out of the way while they answer and comes
+back between rounds. A seat holding the pick in a shootout chooses the subject
+in its own column. Under the hood a seat is an ordinary player whose device is
+the table — same id, same letters, same certificate — so nothing else has to
+know. A third seat would make the buttons too small for thumbs; phones can
+still join alongside.
+
+### One callsign, one person
+
+A callsign is an identity and a name is not. Two tables can each have a Bob;
+there is one KC9SP. So a callsign joining a table it is already at — a
+reloaded phone, a second phone, a seat at the screen after starting on a phone
+— is the same player back, with the same score and letters, and the hall
+counts a callsign as one person whichever tables it sat at. A plain name is a
+person per table, as before, and a phone that reloads remembers who it was and
+comes back as that player if the table still has them under that name. Both
+were found on the second Pi, where KC9SP had been counted twice.
+
 ### Joining, by QR
 
 Each table screen shows a code that carries its own join address. Scanning it
@@ -1509,10 +1534,11 @@ questions the table says whose pick it is and the phone that holds it shows the
 subjects; everyone else's phone says who it is waiting for.
 
 **Across a hall**, the tables are the players. **Shootout** on net control
-starts one: the picking table chooses the subject on its own screen — big
-targets, grouped by subelement, for a table of people to confer over and one
-of them to tap — and its choice goes back to the hall through the table's own
-server, since the screen cannot reach the hall itself. Every phone in the hall
+starts one: the picking table chooses the subject — on its own screen, as big
+targets grouped by subelement, and on **every phone at that table**, because
+the table screen is not always what anyone is looking at. Anyone at the table
+may tap; the first tap is the table's choice, and it goes back to the hall
+through the table's own server, since a phone cannot reach the hall itself. Every phone in the hall
 answers as usual. A table makes its shot if any *person* at it got the
 question right; its practice players do not count towards that, or a table
 full of bots that "made it" would be the program handing itself the pick. A
@@ -2131,13 +2157,25 @@ moves the operator's state — the database, the log, the print shelf, every
 cache, the notes — to a fresh temporary directory by setting `ELMER_STATE`,
 so a test that asks the app a question is asking a blank unit rather than
 yours; what ships with the program (the pools, the figures) is still found
-where it ships. It also fingerprints the real `data/` as the test starts and
-compares it as the test ends, and fails the run with **ISOLATION BREACH** if
-anything the program writes has changed — so a test that reaches your files
+where it ships. It also watches, through Python's audit hook, everything the
+test process does to the real `data/` — every file opened for writing, every
+database connected to even to read, every remove or rename — and fails the run
+with **ISOLATION BREACH** if there was any, so a test that reaches your files
 by a path the helper did not know about fails loudly instead of leaving a
 stranger's club name in your settings, which is what happened, four times in
-one day, before this existed. `tests/test_isolation.py` proves the guard
-against a stand-in directory.
+one day, before this existed. An audit hook rather than a fingerprint of the
+directory, because ELMER is usually running on the machine the tests run on
+and writes its log and database every second; a fingerprint blamed the tests
+for the kiosk. `tests/test_isolation.py` proves the guard against a stand-in
+directory, and that another process writing there is not blamed on this one.
+
+`tests/test_pages_run.py` goes further than any of that: it starts a
+throwaway ELMER and loads every page in the Chromium the kiosk already runs,
+and asks each page whether a function its script defines exists. Twice in one
+day a page's inline script had died at parse time and the page ran with no
+script at all — once from a stray `});`, once from a `let` beside a function
+of the same name — and nothing short of a JavaScript engine can catch the
+second. It needs Chromium and fails, not skips, without it.
 
 `ELMER_STATE` is for the tests. Left unset, everything is in `data/` as it
 always was.

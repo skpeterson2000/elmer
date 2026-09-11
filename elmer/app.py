@@ -2452,7 +2452,9 @@ def api_party_join():
     body = request.get_json(silent=True) or {}
     cohort = body.get("cohort")
     player, why = room.join(body.get("name"), int(cohort) if cohort else None,
-                            cert_name=body.get("cert_name"))
+                            cert_name=body.get("cert_name"),
+                            device=body.get("device"),
+                            previous=body.get("previous"))
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
@@ -2464,6 +2466,22 @@ def api_party_join():
                     "state": room.state(player.id)})
 
 
+def _with_hall(state):
+    """The hall's shootout, as this table sees it, on the table's own state.
+
+    The pick in a hall shootout is the table's, and the subjects went up on
+    the table's screen alone - which is not what anybody at the table was
+    looking at. Reported from the second Pi: "the driver said it was my turn
+    to choose, and nothing appeared." So every phone at the picking table
+    gets the subjects too, and any of them may tap.
+    """
+    link = cohort.bridge()
+    if link is not None and getattr(link, "hall_shootout", None):
+        state["hall"] = {"shootout": link.hall_shootout,
+                         "table": link.name, "mode": link.net_mode}
+    return state
+
+
 @app.route("/api/party/state")
 def api_party_state():
     """What every device polls. Cheap on purpose: no database, no exam maths."""
@@ -2473,7 +2491,7 @@ def api_party_state():
         who = int(request.args.get("player", "")) or None
     except ValueError:
         who = None
-    state = room.state(who)
+    state = _with_hall(room.state(who))
     # Whether the device polling this may start the game itself. One person
     # alone on an idle table gets the press; in a hall with others already in,
     # the table screen keeps it, so one phone cannot start a round while the

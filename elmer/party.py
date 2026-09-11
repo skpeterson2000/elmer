@@ -37,6 +37,7 @@ elapsed time, because a number the client supplies is a number the client can
 invent, and somebody in a room full of radio amateurs will try.
 """
 import random
+import re
 import threading
 import time
 from collections import deque
@@ -63,6 +64,22 @@ MAX_COHORTS = 4
 # night, but not up to three minutes any more - nothing was using that except
 # the wait.
 DEFAULT_ROUND_SECONDS = 30.0
+
+# A callsign is an identity; a name is not. Two tables can each have a Bob
+# and nobody is confused, but there is one KC9SP, and a hall that counted a
+# callsign twice - once at each table it sat at, or once on a phone and once
+# at the screen - was counting one person as two. The shape below is the FCC
+# amateur format (one or two letters, a digit, one to three letters), with a
+# portable suffix allowed; it is deliberately not the whole ITU table, because
+# the cost of missing an exotic prefix is a name treated as a name.
+CALLSIGN = re.compile(r"^[A-Z]{1,2}\d[A-Z]{1,3}(?:/[A-Z0-9]{1,3})?$")
+
+
+def callsign_of(name):
+    """The callsign in a play name, normalised, or None if it is not one."""
+    got = str(name or "").strip().upper()
+    return got if CALLSIGN.match(got) else None
+
 
 # The games a table can be playing.
 TOURNAMENT = "tournament"
@@ -156,9 +173,16 @@ def _now():
 class Player:
     """One person in the room, on one device - or a practice opponent."""
 
-    def __init__(self, player_id, name, cohort_id, bot=None, cert_name=None):
+    def __init__(self, player_id, name, cohort_id, bot=None, cert_name=None,
+                 device=None):
         self.id = player_id
         self.name = name
+        # Where this person answers from: a phone, or the table's own screen.
+        # A table with no phones at it can still seat two people at the
+        # touchscreen, side by side - which is also how the person running a
+        # single-device tournament gets to play in it. Nothing downstream
+        # cares: same id, same answers, same letters, same certificate.
+        self.device = device if device in ("phone", "screen") else "phone"
         # What goes on a certificate, if they win one. The play name is what
         # the room sees on every board and phone; this is what they want on
         # the wall, and nobody sees it until it is printed. Somebody can play
@@ -177,7 +201,8 @@ class Player:
     def as_dict(self):
         return {"id": self.id, "name": self.name, "cohort": self.cohort_id,
                 "score": self.score, "answered": self.answered,
-                "correct": self.correct, "bot": self.bot}
+                "correct": self.correct, "bot": self.bot,
+                "device": self.device}
 
 
 class Cohort:
@@ -324,7 +349,38 @@ class Room:
         free = [(n, cid) for cid, n in counts.items() if n < COHORT_SIZE]
         return min(free)[1] if free else None
 
-    def join(self, name, cohort=None, bot=None, cert_name=None):
+    def find_callsign(self, name):
+        """The player already here under this callsign, if any."""
+        call = callsign_of(name)
+        if not call:
+            return None
+        for p in self.players.values():
+            if not p.bot and callsign_of(p.name) == call:
+                return p
+        return None
+
+    def rejoin(self, player_id, name):
+        """The player a phone says it was, if that player is still here.
+
+        A phone reloaded in a new tab used to join as a new person, and the
+        game went on waiting for the old one - whose pick it was, who held
+        the letters. The phone remembers its id; if that id is still at the
+        table under the same name, it is the same person. The name must
+        match, or a phone that remembered a stale id from last week could
+        walk into somebody else's seat.
+        """
+        try:
+            p = self.players.get(int(player_id))
+        except (TypeError, ValueError):
+            return None
+        if p is None or p.bot:
+            return None
+        if str(name or "").strip().lower() != p.name.strip().lower():
+            return None
+        return p
+
+    def join(self, name, cohort=None, bot=None, cert_name=None, device=None,
+             previous=None):
         """Admit a player, or say plainly why not.
 
         Returns (player, None) or (None, reason). A person arriving at a full
@@ -335,6 +391,19 @@ class Room:
             if not self.open:
                 return None, "the room is closed"
             if not bot:
+                # A callsign already at this table is this person, back: a
+                # reloaded phone, a second phone, or a seat at the screen
+                # after starting on a phone. Same player, same score, same
+                # letters - not a second KC9SP.
+                back = self.rejoin(previous, name) if previous else None
+                back = back or self.find_callsign(name)
+                if back is not None:
+                    back.last_seen = _now()
+                    if device in ("phone", "screen"):
+                        back.device = device
+                    if cert_name and not back.cert_name:
+                        back.cert_name = str(cert_name).strip()[:48] or None
+                    return back, None
                 # A person is never turned away while software holds a seat.
                 while (self.health()["seats"] <= 0
                        and any(p.bot for p in self.players.values())):
@@ -358,7 +427,7 @@ class Room:
                 return None, "every cohort is full"
             player = Player(self._next_id, (name or "").strip()[:32]
                             or f"Player {self._next_id}", cid, bot=bot,
-                            cert_name=cert_name)
+                            cert_name=cert_name, device=device)
             self.players[player.id] = player
             self._next_id += 1
             self._admit_late(player)
@@ -945,6 +1014,10 @@ class Room:
                 "picker": self.picker(),
                 "mode": self.mode,
                 "shootout": self.shootout_view(player_id),
+                # Filled in by the route when this table reports to a hall:
+                # the hall's shootout as it concerns this table, so a phone
+                # here can see that its table holds the pick.
+                "hall": None,
             }
             if rnd:
                 out["round"] = {
