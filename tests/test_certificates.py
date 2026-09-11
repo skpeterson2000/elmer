@@ -10,8 +10,9 @@ itself; the facts counted from the game's own history; the event name the
 host typed; and the medal art found where it is kept, with the drawn medal
 standing in when it is not.
 
-The print shelf is redirected to a temporary directory for the run - a test
-that leaves certificates on the operator's own shelf is the same fault as one
+The print shelf and the database are both redirected to temporary places for
+the run - a test that leaves certificates on the operator's own shelf, or
+writes "Test ARC" into their unit's event details, is the same fault as one
 that reads their profile.
 """
 import re
@@ -21,7 +22,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from elmer import certpdf, netcontrol, party, prints  # noqa: E402
+from elmer import certpdf, db, netcontrol, party, prints  # noqa: E402
+
+# A temporary database before the app is imported, because the event details
+# are saved as a unit setting and a test must not write the operator's.
+_spare = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_spare.close()
+db.DB_PATH = _spare.name
+
 from elmer.app import app  # noqa: E402
 
 FAILS = []
@@ -120,14 +128,37 @@ room.start_round("tech2026", "T1A01", 0, seconds=30,
 room.submit(ann.id, 0, 800)
 room.submit(bob.id, 1, 1200)
 room.close_round()
-reply = client.post("/api/tournament/certificates", json={"scope": "table", "places": 3})
+print("\nthe host sees who would be awarded before printing, and can fix a name")
+preview = client.get("/api/tournament/certificates/preview?scope=table").get_json()
+check("the preview names them as they asked", [a["name"] for a in preview["awards"]],
+      ["Ann Example", "Bob"])
+check("  with the details to fill in", sorted(preview["details"])[:4],
+      ["club", "club_signer", "event", "net_control"])
+check("  and today's date as a starting point", bool(preview["details"]["when"]), True)
+
+# Bob typed "Bob" on his phone; the host knows him as Robert Example.
+reply = client.post("/api/tournament/certificates", json={
+    "scope": "table", "places": 3, "event": "Club Night", "club": "Test ARC",
+    "when": "Saturday 17 July 2027", "where": "Brainerd, Minnesota",
+    "net_control": "KX0ANN", "club_signer": "The Secretary",
+    "names": {"2": "Robert Example"}})
 check("the route answers for a table", reply.status_code, 200)
 row = prints.one(reply.get_json()["id"])
-check("  people only, best first, certificate name where one was given",
-      row["meta"]["awarded"], ["Ann Example", "Bob"])
+check("  people only, best first, the certificate name and the fix",
+      row["meta"]["awarded"], ["Ann Example", "Robert Example"])
+check("  titled by the event the host typed", row["title"], "Certificates - Club Night")
+
+print("\nthe event details are kept on the unit for the next print")
+again = client.get("/api/tournament/certificates/preview?scope=table").get_json()["details"]
+check("the event", again["event"], "Club Night")
+check("the club", again["club"], "Test ARC")
+check("the date as worded", again["when"], "Saturday 17 July 2027")
+check("who signs", [again["net_control"], again["club_signer"]], ["KX0ANN", "The Secretary"])
+# ... but not the name fixes, which were about those people and that print.
+third = client.get("/api/tournament/certificates/preview?scope=table").get_json()["awards"]
+check("the name fix was not kept - it was about that print", [a["name"] for a in third][1], "Bob")
 check("  and the table's state never carried it",
       any("cert_name" in m for c in room.state()["cohorts"] for m in c["members"]), False)
-check("  a default event name when none was typed", row["title"].startswith("Certificates - ELMER"), True)
 
 print("\nnobody to award is said, not faulted")
 room2 = party.room(create=True)

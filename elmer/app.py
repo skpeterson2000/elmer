@@ -16,7 +16,7 @@ import random
 import re
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from markupsafe import escape
@@ -3337,26 +3337,101 @@ def _certificate_awards(scope, places):
     return awards, game, "Tournament"
 
 
+CERT_SETTING = "certificates.event"
+
+
+def _certificate_details(connection, body=None):
+    """The event as the host described it, saved on the unit between prints.
+
+    A club sets these once for the day - the event, who is hosting, the date
+    as it should read, where, who signs - and every certificate that evening
+    uses them. Defaults come from the station: the QTH for the place, the
+    profile's callsign for net control, today for the date.
+    """
+    saved = db.unit_get(connection, CERT_SETTING) or {}
+    if not isinstance(saved, dict):
+        saved = {}
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile) or {}
+    licence = profile["settings"].get("license") or {}
+    # A grid square is where the station is, not a place for a certificate:
+    # "EN26uo" on the wall says nothing to anybody. A named town is used;
+    # a bare grid is left blank for the host to fill in.
+    where = str(place.get("short") or "")
+    if re.fullmatch(r"[A-Ra-r]{2}\d{2}([A-Xa-x]{2})?", where.strip()):
+        where = ""
+    defaults = {
+        "event": "", "club": "",
+        "when": date.today().strftime("%-d %B %Y"),
+        "where": where,
+        "net_control": licence.get("callsign") or "",
+        "club_signer": "", "places": 3,
+    }
+    out = dict(defaults)
+    out.update({k: v for k, v in saved.items() if k in defaults})
+    if body:
+        for k in defaults:
+            if k in body:
+                out[k] = body[k]
+    out["places"] = max(1, min(3, int(out.get("places") or 3)))
+    for k in ("event", "club", "when", "where", "net_control", "club_signer"):
+        out[k] = str(out.get(k) or "").strip()[:80]
+    return out
+
+
+@app.route("/api/tournament/certificates/preview")
+def api_tournament_certificates_preview():
+    """Who would be awarded, and what the certificate would say - to edit
+    before printing. The names come back as the players asked for them, and
+    a host who can see a misspelling fixes it here rather than on the wall.
+    """
+    scope = "hall" if request.args.get("scope") == "hall" else "table"
+    try:
+        awards, game, default_event = _certificate_awards(scope, 3)
+    except Exception:
+        awards, game, default_event = [], {}, "tournament"
+    details = _certificate_details(conn())
+    if not details["event"]:
+        details["event"] = f"ELMER {default_event}"
+    return jsonify({"awards": awards, "game": game, "details": details})
+
+
 @app.route("/api/tournament/certificates", methods=["POST"])
 def api_tournament_certificates():
     """Certificates for the wall: one page per placing, on the print shelf.
 
-    The event name is whatever the host types - a club night has a name and
-    the program does not know it - and the place is the station's QTH if one
-    is set. What the certificate says about the game is what the game
-    recorded; what it says about licences is nothing, in so many words.
+    The event is as the host described it and is remembered on the unit.
+    Names may be corrected on the way through - `names` maps a placing to
+    what should be printed - because a player who typed "dana" on a phone
+    should not have that in 44 point type. What the certificate says about
+    the game is what the game recorded; what it says about licences is
+    nothing, in so many words.
     """
     body = request.get_json(silent=True) or {}
     scope = "hall" if str(body.get("scope", "")).lower() == "hall" else "table"
-    awards, game, default_event = _certificate_awards(scope, body.get("places", 3))
+    connection = conn()
+    details = _certificate_details(connection, body)
+    awards, game, default_event = _certificate_awards(scope, details["places"])
     if not awards:
         return jsonify({"ok": False, "message": "nobody to award yet - no person "
                         "has played a round"}), 409
-    event = str(body.get("event") or "").strip()[:80] or f"ELMER {default_event}"
-    connection = conn()
-    place = qth_for(connection, db.get_profile(connection)) or {}
-    where = place.get("short") or ""
-    pdf = certpdf.build(awards, event=event, where=where)
+    fixes = body.get("names") or {}
+    for a in awards:
+        fixed = str(fixes.get(str(a["place"])) or "").strip()[:48]
+        if fixed:
+            a["name"] = fixed
+    event = details["event"] or f"ELMER {default_event}"
+    # Remembered for the next print tonight - not the name fixes, which
+    # belong to these people and this print.
+    db.unit_set(connection, CERT_SETTING, {k: details[k] for k in
+                ("event", "club", "when", "where", "net_control",
+                 "club_signer", "places")})
+    connection.commit()
+    pdf = certpdf.build(
+        awards, event=event, when=details["when"] or None,
+        where=details["where"], club=details["club"],
+        signers={"net_control": details["net_control"],
+                 "club": details["club_signer"]})
     name = "certificates-" + re.sub(r"[^a-z0-9]+", "-", event.lower()).strip("-") + ".pdf"
     row = prints.keep(pdf, name, "certificates", f"Certificates - {event}",
                       {"scope": scope, "awarded": [a["name"] for a in awards],
