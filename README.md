@@ -1505,13 +1505,17 @@ question pools is not an examination, and the foot of every certificate says
 so in as many words, because a sheet with *Technician* in large letters will be
 read that way by somebody unless the paper itself says otherwise.
 
-The medals are KC9SP's artwork, cut from `artwork/*Medal.jpg` into
-`elmer/static/medals/`, set on a drawn ribbon. Where the art is missing a drawn
-medal stands in, so the certificate never waits on a file. **One thing to know
-about the current art: the callsign KC9SP is struck into the face of each
-medal.** For a net KC9SP runs that reads as the issuer's mark; for any other
-club it is somebody else's callsign on the winner's wall, and the art should be
-regenerated without it before that club prints one.
+The medals are KC9SP's artwork, cut from the renders in `artwork/` into
+`elmer/static/medals/` and set on a drawn ribbon; the art's own ribbon is
+discarded, which is why the renders need not agree about its colour. Where the
+art is missing a drawn medal stands in, so the certificate never waits on a
+file. **The bronze is still the first render, with the callsign KC9SP struck
+into its face** — gold and silver were re-made without it. On a net KC9SP runs
+that is the issuer's mark; on any other club's wall it is somebody else's
+callsign, and the bronze should be replaced before that club prints a third
+place. A bronze can be *coloured* from the gold with Pillow — the metal shifts
+to copper and the owl stays green — but it keeps the gold's engraving, and
+"1st PLACE" on a third-place certificate is worse than a drawn medal.
 
 ### Practice opponents
 
