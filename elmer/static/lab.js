@@ -1567,6 +1567,13 @@ function drawAntenna(shape, rows, type) {
         refreshAdvice();
         if (el.value) loadConductors(num('an-f'), el.value);
       }
+      if (id === 'an-site') {
+        // What you have to work with is a fact about you, not about this
+        // visit: it is kept, and put back before any frequency handed in
+        // from elsewhere is answered - or the band plan's "set up an antenna
+        // for this" on 160 m was answered for nobody's garden at all.
+        remember('lab.antenna.site', el.value);
+      }
       if (id === 'an-site' || id === 'an-use') {
         // The questions changed. A suggested antenna follows them; a chosen
         // one stays, and only the advice about it is refreshed.
@@ -2715,6 +2722,15 @@ const rememberAntenna = ctx => remember('lab.antenna', ctx);
 const recallAntenna = () => recall('lab.antenna', null);
 
 (function () {
+  /* Whatever was last said about what you have to work with, before anything
+     is answered. A recommendation made for nobody's site is the textbook
+     one, and the textbook wants a wire half a wavelength up. */
+  const siteSel = document.getElementById('an-site');
+  const knownSite = recall('lab.antenna.site', '');
+  if (siteSel && knownSite && [...siteSel.options].some(o => o.value === knownSite)) {
+    siteSel.value = knownSite;
+  }
+
   const q = new URLSearchParams(location.search);
   const f = q.get('f');
   if (f) {
