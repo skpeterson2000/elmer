@@ -29,12 +29,13 @@ import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from . import paths
 
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLED = ROOT / "data" / "places.json"
-CACHE = ROOT / "data" / "places"
+CACHE = paths.STATE / "places"
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"

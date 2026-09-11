@@ -3300,6 +3300,10 @@ def _certificate_awards(scope, places):
                                    if (b.get("player") or {}).get("name") == p["name"]
                                    and (b.get("player") or {}).get("unit_name") == p.get("unit_name")]
             awards.append({"place": i, "name": p.get("cert_name") or p["name"],
+                           # Whether they said what they wanted on the wall.
+                           # A name they chose is theirs; only a play name
+                           # standing in for one may be corrected.
+                           "chosen": bool(p.get("cert_name")),
                            "lines": certpdf.lines_for(entry, game)})
         return awards, game, running.name
     room = party.room()
@@ -3316,6 +3320,7 @@ def _certificate_awards(scope, places):
         game = {"label": label, "mode": "shootout"}
         awards = [{"place": i,
                    "name": room.cert_name_of(r["player"]) or r["name"],
+                   "chosen": bool(room.cert_name_of(r["player"])),
                    "lines": certpdf.lines_for({"letters": r["letters"]}, game)}
                   for i, r in enumerate(standing[:places], start=1)]
         return awards, game, "Shootout"
@@ -3333,6 +3338,7 @@ def _certificate_awards(scope, places):
         entry = {"answered": pl.answered, "correct": pl.correct, "score": pl.score,
                  "fastest": fastest.get(pl.id, 0)}
         awards.append({"place": i, "name": pl.cert_name or pl.name,
+                       "chosen": bool(pl.cert_name),
                        "lines": certpdf.lines_for(entry, game)})
     return awards, game, "Tournament"
 
@@ -3415,8 +3421,13 @@ def api_tournament_certificates():
     if not awards:
         return jsonify({"ok": False, "message": "nobody to award yet - no person "
                         "has played a round"}), 409
+    # A name the player chose for the wall is theirs and is not corrected,
+    # whatever the form sent: nobody turns a Richard into a Dick but Richard.
+    # Only a play name standing in for a certificate name may be fixed.
     fixes = body.get("names") or {}
     for a in awards:
+        if a.get("chosen"):
+            continue
         fixed = str(fixes.get(str(a["place"])) or "").strip()[:48]
         if fixed:
             a["name"] = fixed

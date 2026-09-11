@@ -20,9 +20,10 @@ import platform
 import re
 import time
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-LOG = ROOT / "data" / "elmer.log"
+LOG = paths.STATE / "elmer.log"
 
 # Where to send one. Left empty on purpose: an address baked into a public
 # repository is an address that gets scraped, and it is not this file's place
@@ -145,7 +146,7 @@ def build(conn=None, lines=400, include_station=False):
 
     for name, path in (("repeaters", ROOT / "data" / "repeaters.json"),
                        ("places", ROOT / "data" / "places.json"),
-                       ("nifog", ROOT / "data" / "nifog")):
+                       ("nifog", paths.STATE / "nifog")):
         add(f"{name:10s} {'present' if path.exists() else 'absent'}")
 
     callsign, places = None, []

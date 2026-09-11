@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 ROOT = Path(__file__).resolve().parents[1]
 STUDY = (ROOT / "elmer" / "static" / "study.js").read_text()
 
+import _isolate  # noqa: E402,F401  - before anything from elmer
 import elmer.app as appmod  # noqa: E402
 from elmer import srs  # noqa: E402
 from elmer.app import app  # noqa: E402

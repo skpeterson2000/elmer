@@ -48,9 +48,9 @@
         </div>
         <div class="cf" style="margin-top:.4rem"><label>Placings to print</label>
           <select id="cf-places" class="btn">${[1, 2, 3].map(n => '<option value="' + n + '"' + (n === (d.places || 3) ? ' selected' : '') + '>' + (n === 1 ? 'First only' : 'First to ' + PLACE[n].toLowerCase()) + '</option>').join('')}</select></div>
-        ${awards.length ? `<div class="certs-names"><div class="tiny muted" style="margin:.6rem 0 .3rem">The names as they will print. These are what the players asked for; fix a spelling here, not on the wall.</div>
-          ${awards.map(a => `<div class="cf cf-name"><label>${PLACE[a.place] || a.place} place</label>
-            <input data-place="${a.place}" value="${esc(a.name)}" maxlength="48">
+        ${awards.length ? `<div class="certs-names"><div class="tiny muted" style="margin:.6rem 0 .3rem">The names as they will print. A name a player gave for the wall is theirs and cannot be changed here. A play name standing in for one can be corrected - a spelling, not a nickname.</div>
+          ${awards.map(a => `<div class="cf cf-name"><label>${PLACE[a.place] || a.place} place${a.chosen ? ' - as they asked for it' : ' - as typed at the table'}</label>
+            <input ${a.chosen ? 'readonly' : 'data-place="' + a.place + '"'} value="${esc(a.name)}" maxlength="48">
             <div class="cf-hint">${esc((a.lines || []).slice(0, 2).join(' · '))}</div></div>`).join('')}</div>` : ''}
         <div class="row" style="gap:.5rem;margin-top:.8rem;align-items:center">
           <button class="btn primary" id="certs-print" ${awards.length ? '' : 'disabled'}>Print certificates</button>

@@ -44,6 +44,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from . import paths
 
 # Close-on-exec is a POSIX idea and so is the /proc that finds the descriptors
 # to apply it to. Windows has neither: handles are not inherited unless a
@@ -59,7 +60,7 @@ except ImportError:                                    # not POSIX
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "update.json"
+CACHE = paths.STATE / "update.json"
 
 # ELMER looks once at startup and then about once a day, which is as often as
 # a study appliance has any reason to care.  The cached answer is what the

@@ -16,9 +16,10 @@ import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "ionosonde"
+CACHE = paths.STATE / "ionosonde"
 API = "https://prop.kc2g.com/api/stations.json"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 CACHE_MINUTES = 15

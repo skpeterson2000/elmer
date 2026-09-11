@@ -28,10 +28,11 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
+from . import paths
 
 log = logging.getLogger("elmer")
 
-PROFILE_DIR = Path(__file__).resolve().parents[1] / "data" / "kiosk-profile"
+PROFILE_DIR = paths.STATE / "kiosk-profile"
 
 # Shown before there is a server to show it, and only on a machine that has
 # missed a healthy start - see :func:`launch_when_ready`.

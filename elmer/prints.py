@@ -20,11 +20,12 @@ import re
 import time
 import uuid
 from pathlib import Path
+from . import paths
 
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
-SHELF = ROOT / "data" / "prints"
+SHELF = paths.STATE / "prints"
 INDEX = SHELF / "index.json"
 
 # Enough to cover an evening of "one more version of that", and small enough

@@ -27,9 +27,10 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "pota"
+CACHE = paths.STATE / "pota"
 API = "https://api.pota.app/profile/{call}"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 

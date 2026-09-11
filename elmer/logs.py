@@ -14,9 +14,10 @@ import traceback
 
 from . import db, startup
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-LOG_PATH = ROOT / "data" / "elmer.log"
+LOG_PATH = paths.STATE / "elmer.log"
 
 FMT = "%(asctime)s %(levelname)-7s %(name)-12s %(message)s"
 DATEFMT = "%Y-%m-%d %H:%M:%S"

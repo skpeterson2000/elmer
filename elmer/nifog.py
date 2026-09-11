@@ -30,11 +30,12 @@ import tempfile
 import urllib.request
 from datetime import date
 from pathlib import Path
+from . import paths
 
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "nifog" / "channels.json"
+CACHE = paths.STATE / "nifog" / "channels.json"
 
 SAFECOM_PAGE = "https://www.cisa.gov/safecom/field-operations-guides"
 NIFOG_PAGE = "https://www.cisa.gov/resources-tools/resources/nifog"
