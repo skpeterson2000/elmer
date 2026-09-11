@@ -950,7 +950,31 @@ function calcAnt() {
         'radiates, the pattern goes where it likes, the SWR moves when you touch ' +
         'the rig, and the noise floor comes up. Most end-fed disappointment is ' +
         'this and not the antenna.');
+        /* The commonest real deployment of this antenna, and the one the Lab
+           said nothing about: the slope slider is on screen for an end-fed and
+           its value went nowhere.
+
+           A sloping dipole's problem is balance. An end-fed has no balance to
+           lose - it is unbalanced on both sides by construction - so what the
+           slope changes is where the return current has to live, and the
+           answer is: on the ground, right under the transformer. */
+        if (num('an-slope') > 0) {
+          notes.push('<b>Sloping it is the normal arrangement, not a ' +
+            'compromise.</b> Transformer low, wire rising to a branch or a mast. ' +
+            'Three things follow and all three are wanted. The high-voltage end ' +
+            'finishes at the top, which is where it belongs and out of reach. The ' +
+            'slope fills in the low angles a flat wire at this height throws ' +
+            'away, which is how the same piece of wire stops being a regional ' +
+            'antenna and starts being a DX one. And the feedpoint is now down on ' +
+            'the ground &mdash; which is exactly where the return current is, so ' +
+            'the counterpoise and the choke buy more here than another ten feet ' +
+            'of height would. Tune it against the ground rather than trying to ' +
+            'get clear of it: you are working against it either way, and the ' +
+            'only question is whether you meant to.');
+        }
     }
+    // feedNote returns nothing for an end-fed - it has the longer
+    // note above, and the slope paragraph now sits in there with it.
     const feeding = feedNote(type, (type === 'dipole') ? num('an-slope') : 0);
     if (feeding) notes.push(feeding);
     if (COND && COND.note) {
@@ -1332,8 +1356,14 @@ function drawAntenna(shape, rows, type) {
   svg.innerHTML = ground + body;
 }
 
+/* an-slope was missing from this list, so the slope slider was inert: it
+   showed for an end-fed and a dipole, its value was read in four places, and
+   nothing ever re-ran to use it. A control that does nothing is worse than no
+   control - it tells somebody the program has considered their arrangement
+   when it has not. */
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site']
+ 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site',
+ 'an-slope']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
