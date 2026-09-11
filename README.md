@@ -1507,6 +1507,19 @@ the first is used. The event name is whatever the host types, because a club nig
 name the program cannot know, and it is remembered for the next one. The place
 is the station's QTH, if one is set.
 
+The button opens a form, not a print dialog, because a certificate carries
+things the program cannot know: the **event** as it should read across the top,
+who is **hosting** it, the **date as it should be worded** — "Saturday 17 July
+2027", or just "July 2027" — the **place**, and who **signs**, printed under the
+signature lines so they only have to sign. Net control starts from the
+station's callsign and the place from its QTH when that is a named town; a
+bare grid square is left blank, because *EN26uo* on a wall says nothing to
+anybody. The details are kept on the unit, so a club sets them once for the
+day. Under them, the **names as they will print**, each with its facts, to fix
+a spelling on the form rather than on the wall — somebody who typed *bob* on a
+phone should not get that in 44-point type. Name fixes are not kept; they were
+about those people and that print.
+
 What it does not say is anything about a licence. A game played on the
 question pools is not an examination, and the foot of every certificate says
 so in as many words, because a sheet with *Technician* in large letters will be

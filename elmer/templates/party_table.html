@@ -131,6 +131,7 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
         <button class="btn sm ghost" id="certs" title="One page per placing, for the wall">&#127942; Certificates</button>
         <button class="btn sm ghost" id="close" disabled>Close the round</button>
       </div>
+  <div id="certs-panel" data-scope="table" hidden></div>
       <div class="card" id="stage">
         <p class="empty">No round yet. Pick a difficulty and ask a question.</p>
       </div>
@@ -163,19 +164,6 @@ function paintPickClock(shoot) {
 }
 
 
-/* Certificates for the wall. The event has a name the program cannot know,
-   so it asks; the rest is what the game recorded. The PDF opens in the
-   print view the way every other sheet does, because on a unit running full
-   screen a downloads folder is out of reach. */
-const certsBtn = document.getElementById('certs');
-if (certsBtn) certsBtn.addEventListener('click', async () => {
-  const event = prompt('Name the event, as it should read on the certificate:',
-                       localStorage.getItem('elmer.certs.event') || '');
-  if (event === null) return;
-  if (event) localStorage.setItem('elmer.certs.event', event);
-  certsBtn.disabled = true;
-  const r = await api('/api/tournament/certificates',
-                      {scope: 'table', event: event, places: 3});
   certsBtn.disabled = false;
   if (r.ok && r.data.view) { location.href = r.data.view; return; }
   alert(r.data.message || r.data.error || 'Could not build the certificates.');
@@ -430,5 +418,6 @@ setInterval(netTick, 3000);
 tick();
 setInterval(tick, 1000);
 </script>
+<script src="{{ asset('certs.js') }}"></script>
 </body>
 </html>

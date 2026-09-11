@@ -111,10 +111,11 @@ def _fit(c, text, font, size, width, floor=14):
     return size
 
 
-def _page(c, award, event, when, where, footer):
+def _page(c, award, event, when, where, footer, club=None, signers=None):
     W, H = landscape(LETTER)
     margin = 0.7 * 72
     place = int(award.get("place") or 1)
+    signers = signers or {}
 
     # Border: a double rule, the outer heavier, in the medal's colour family.
     c.setStrokeColor(RULE)
@@ -137,9 +138,17 @@ def _page(c, award, event, when, where, footer):
     size = _fit(c, event, "Helvetica-Bold", 15, W / 2 - margin)
     c.setFont("Helvetica-Bold", size)
     c.drawRightString(W - margin - 24, top - 18, event)
+    line = top - 33
+    if club:
+        # Who is hosting, under the event: "Hamfest" on its own is any hamfest.
+        size = _fit(c, club, "Helvetica", 10.5, W / 2 - margin)
+        c.setFont("Helvetica", size)
+        c.setFillColor(INK)
+        c.drawRightString(W - margin - 24, line, club)
+        line -= 14
     c.setFont("Helvetica", 10)
     c.setFillColor(DIM)
-    c.drawRightString(W - margin - 24, top - 33, when)
+    c.drawRightString(W - margin - 24, line, when)
 
     # The medal, left of centre; the words, right of it.
     mx, my, mr = margin + 160, H / 2 - 6, 92
@@ -181,13 +190,16 @@ def _page(c, award, event, when, where, footer):
     sy = margin + 62
     c.setStrokeColor(INK)
     c.setLineWidth(0.8)
-    for x0, label in ((margin + 60, "Net control"),
-                      (W / 2 - 90, "Club or event"),
-                      (W - margin - 240, "Date")):
+    for x0, label, key in ((margin + 60, "Net control", "net_control"),
+                           (W / 2 - 90, "Club or event", "club"),
+                           (W - margin - 240, "Date", "date")):
         c.line(x0, sy, x0 + 180, sy)
         c.setFont("Helvetica", 8.5)
         c.setFillColor(DIM)
-        c.drawString(x0, sy - 12, label)
+        # The name under the line, if the host gave one, so the person only
+        # has to sign; the label stays so a blank line still says whose it is.
+        who = str(signers.get(key) or "").strip()
+        c.drawString(x0, sy - 12, label + (f" \u2014 {who}" if who else ""))
 
     # And what this paper is not.
     c.setFont("Helvetica-Oblique", 7.5)
@@ -195,7 +207,8 @@ def _page(c, award, event, when, where, footer):
     c.drawCentredString(W / 2, margin + 22, footer)
 
 
-def build(awards, event="ELMER tournament", when=None, where=None, footer=None):
+def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
+          club=None, signers=None):
     """One page per award. `awards`: [{place, name, lines: [...]}, ...]."""
     when = when or date.today().strftime("%-d %B %Y")
     footer = footer or (
@@ -207,7 +220,7 @@ def build(awards, event="ELMER tournament", when=None, where=None, footer=None):
     c.setTitle(f"{event} - certificates")
     c.setAuthor("ELMER")
     for award in awards:
-        _page(c, award, event, when, where, footer)
+        _page(c, award, event, when, where, footer, club=club, signers=signers)
         c.showPage()
     c.save()
     return buffer.getvalue()
@@ -230,7 +243,7 @@ def lines_for(entry, game):
             out.append(f"finishing on {word}")
     else:
         out.append(f"in the {what} tournament" +
-                   (f" - {length} questions" if length else "") +
+                   (f" - {length} question{'s' if length != 1 else ''}" if length else "") +
                    (f" in {blocks} blocks of twelve" if blocks and blocks > 1 else ""))
         if entry.get("answered"):
             out.append(f"{entry.get('correct', 0)} of {entry['answered']} correct"

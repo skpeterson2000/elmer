@@ -429,6 +429,20 @@ table.data tr:hover td { background: #171f28; }
 }
 .field input:focus, .field select:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
 
+/* The certificates form: what the program cannot know, asked once. */
+.certs-card { margin-bottom: 1rem; }
+.certs-head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: .6rem; }
+.certs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .9rem; }
+@media (max-width: 40rem) { .certs-grid { grid-template-columns: 1fr; } }
+.cf label { display: block; font: .68rem var(--mono); letter-spacing: .08em;
+            text-transform: uppercase; color: var(--dimmer); margin-bottom: .2rem; }
+.cf input { width: 100%; padding: .45rem .6rem; border-radius: 8px;
+            border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); }
+.cf input:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
+.cf-hint { font-size: .72rem; color: var(--dimmer); margin-top: .15rem; }
+.certs-names { border-top: 1px solid var(--line); margin-top: .6rem; padding-top: .2rem; }
+.cf-name input { font-weight: 700; font-size: 1rem; }
+
 /* The heights where a dipole's feed matches: five short columns that must
    not wrap, or "22 ft" becomes two lines and the table is twice as tall. */
 table.heights td { white-space: nowrap; padding: .2rem .55rem .2rem 0; vertical-align: top; }
