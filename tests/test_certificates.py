@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import _isolate  # noqa: E402,F401  - before anything from elmer
 from elmer import certpdf, db, netcontrol, party, prints  # noqa: E402
 
 # A temporary database before the app is imported, because the event details
@@ -136,15 +137,21 @@ check("  with the details to fill in", sorted(preview["details"])[:4],
       ["club", "club_signer", "event", "net_control"])
 check("  and today's date as a starting point", bool(preview["details"]["when"]), True)
 
-# Bob typed "Bob" on his phone; the host knows him as Robert Example.
+check("  and says whose name is whose",
+      [a["chosen"] for a in preview["awards"]], [True, False])
+
+# Bob typed "Bob" on his phone and said nothing about a certificate; the host
+# knows him as Robert Example. Ann said what she wanted on the wall, and the
+# host's attempt to "correct" that is ignored: nobody turns a Richard into a
+# Dick but Richard.
 reply = client.post("/api/tournament/certificates", json={
     "scope": "table", "places": 3, "event": "Club Night", "club": "Test ARC",
     "when": "Saturday 17 July 2027", "where": "Brainerd, Minnesota",
     "net_control": "KX0ANN", "club_signer": "The Secretary",
-    "names": {"2": "Robert Example"}})
+    "names": {"1": "Annie", "2": "Robert Example"}})
 check("the route answers for a table", reply.status_code, 200)
 row = prints.one(reply.get_json()["id"])
-check("  people only, best first, the certificate name and the fix",
+check("  the chosen name stands, the play name is fixed",
       row["meta"]["awarded"], ["Ann Example", "Robert Example"])
 check("  titled by the event the host typed", row["title"], "Certificates - Club Night")
 

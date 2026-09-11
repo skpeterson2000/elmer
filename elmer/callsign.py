@@ -17,9 +17,10 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "callsign"
+CACHE = paths.STATE / "callsign"
 API = "https://callook.info/{call}/json"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 MAX_AGE_DAYS = 7

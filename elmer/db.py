@@ -25,9 +25,10 @@ import json
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = ROOT / "data" / "elmer.db"
+DB_PATH = paths.STATE / "elmer.db"
 
 SCHEMA_VERSION = 3
 

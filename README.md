@@ -1515,10 +1515,13 @@ signature lines so they only have to sign. Net control starts from the
 station's callsign and the place from its QTH when that is a named town; a
 bare grid square is left blank, because *EN26uo* on a wall says nothing to
 anybody. The details are kept on the unit, so a club sets them once for the
-day. Under them, the **names as they will print**, each with its facts, to fix
-a spelling on the form rather than on the wall — somebody who typed *bob* on a
-phone should not get that in 44-point type. Name fixes are not kept; they were
-about those people and that print.
+day. Under them, the **names as they will print**, each with its facts. A name
+a player gave for the wall is theirs and the form will not change it — nobody
+turns a Richard into a Dick but Richard, and the server ignores the attempt
+whatever the form sends. A play name standing in for one, because the player
+left that field blank, may be corrected — a spelling, not a nickname — since
+somebody who typed *bob* on a phone should not get that in 44-point type. Name
+fixes are not kept; they were about those people and that print.
 
 What it does not say is anything about a licence. A game played on the
 question pools is not an examination, and the foot of every certificate says
@@ -2083,6 +2086,24 @@ for themselves, and the clock exists for when nobody does.
 
 An API asking the same question still gets JSON. Handing a page back to
 something fetching `/api` turns a working refusal into a parse error.
+
+## The tests cannot reach your data
+
+Every test imports `tests/_isolate.py` before anything from the program. It
+moves the operator's state — the database, the log, the print shelf, every
+cache, the notes — to a fresh temporary directory by setting `ELMER_STATE`,
+so a test that asks the app a question is asking a blank unit rather than
+yours; what ships with the program (the pools, the figures) is still found
+where it ships. It also fingerprints the real `data/` as the test starts and
+compares it as the test ends, and fails the run with **ISOLATION BREACH** if
+anything the program writes has changed — so a test that reaches your files
+by a path the helper did not know about fails loudly instead of leaving a
+stranger's club name in your settings, which is what happened, four times in
+one day, before this existed. `tests/test_isolation.py` proves the guard
+against a stand-in directory.
+
+`ELMER_STATE` is for the tests. Left unset, everything is in `data/` as it
+always was.
 
 ## Kiosk mode
 

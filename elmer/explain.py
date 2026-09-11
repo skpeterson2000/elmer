@@ -19,10 +19,11 @@ without touching code.
 import json
 from functools import lru_cache
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-NOTES_DIR = ROOT / "data" / "notes"
-RATIONALE_DIR = ROOT / "data" / "explanations"
+NOTES_DIR = paths.STATE / "notes"
+RATIONALE_DIR = paths.STATE / "explanations"
 RULES_DIR = ROOT / "data" / "rules"
 
 # Concept notes may point at a Lab tab that makes the idea interactive.

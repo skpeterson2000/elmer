@@ -16,9 +16,10 @@ import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "geocode"
+CACHE = paths.STATE / "geocode"
 SEARCH = "https://nominatim.openstreetmap.org/search"
 REVERSE = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"

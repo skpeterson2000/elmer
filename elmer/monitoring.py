@@ -31,11 +31,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from . import paths
 
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "statutes"
+CACHE = paths.STATE / "statutes"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 
 # Statutes are amended, not live-updated. A month old is current enough, and a
