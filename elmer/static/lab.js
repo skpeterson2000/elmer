@@ -1541,7 +1541,7 @@ function drawAntenna(shape, rows, type) {
    when it has not. */
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site',
- 'an-slope', 'an-use']
+ 'an-slope', 'an-use', 'an-pw']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -1574,6 +1574,7 @@ function drawAntenna(shape, rows, type) {
         // for this" on 160 m was answered for nobody's garden at all.
         remember('lab.antenna.site', el.value);
       }
+      if (id === 'an-pw') { refreshAdvice(); calcAnt(); return; }
       if (id === 'an-site' || id === 'an-use') {
         // The questions changed. A suggested antenna follows them; a chosen
         // one stays, and only the advice about it is refreshed.
@@ -1660,12 +1661,15 @@ function exposurePrefill(a) {
 }
 
 const toRf = document.getElementById('an-torf');
-if (toRf) toRf.addEventListener('click', () => {
+function sendToRf() {
   const a = window.LAB_ANTENNA;
   if (!a) return;
   const near = exposurePrefill(a);
   const row = rfDefaultRow();
   row.frequency_mhz = a.f;
+  // The watts typed on this page go with it. The exposure evaluation used to
+  // open at its own default of 100 W whatever had been said here.
+  if (num('an-pw') > 0) row.pep_watts = num('an-pw');
   /* Rounded up, not to nearest. Gain is the largest single lever on an
      exposure result, and the estimate carries about a dB either way - so the
      half dB goes to the side that puts the person further from the antenna,
@@ -1701,6 +1705,13 @@ if (toRf) toRf.addEventListener('click', () => {
   toast('Sent to RF exposure',
         a.description + ' at ' + a.f + ' MHz — ' + near.why + '.');
   if (near.warn) setTimeout(() => toast('Worth knowing', near.warn, 9000), 600);
+}
+if (toRf) toRf.addEventListener('click', sendToRf);
+document.addEventListener('click', e => {
+  const link = e.target.closest('[data-rf-handoff]');
+  if (!link) return;
+  e.preventDefault();
+  sendToRf();
 });
 
 const toPath = document.getElementById('an-topath');
@@ -2409,6 +2420,42 @@ if (document.getElementById('pane-rf')) initRf();
 /* Re-ask about the antenna now selected, but only if advice is already on
    screen: somebody who has not asked for it should not have it appear because
    they browsed the list. */
+/* Where the feed matches, by height. A dipole is 73 ohms in free space and
+   something else at every height over the ground - 22 ohms at a tenth of a
+   wave, 50 near 0.16, a 98 ohm high point at 0.35, back through 73 at half a
+   wave. The ideal height is worth knowing; so are the heights the garden can
+   actually reach where the match happens to be good, which is what this
+   lists. Perfect-ground figures: real ground damps the swings. */
+function matchingHeightsHTML(d) {
+  const rows = d.heights || [];
+  if (!rows.length) return '';
+  const WORD = {match: '50 \u03a9 match', natural: 'natural 73 \u03a9',
+                peak: 'high point', dip: 'dip'};
+  const near = rows.filter(r => r.reachable), far = rows.filter(r => !r.reachable);
+  const line = r => '<tr class="' + (r.reachable ? '' : 'far') + '">' +
+    '<td class="mono">' + r.ft + ' ft</td><td class="mono">' + r.wavelengths.toFixed(2) + ' \u03bb</td>' +
+    '<td class="mono">' + r.ohms + ' \u03a9</td><td class="mono">SWR ' + r.swr.toFixed(1) + '</td>' +
+    '<td>' + WORD[r.what] + (r.what === 'match' ? ' \u2014 coax matches it with nothing in between' : '') + '</td></tr>';
+  return '<div class="panel-title" style="margin-top:.9rem">Heights where the feed matches</div>' +
+    '<table class="facts small heights">' + near.map(line).join('') +
+    (far.length && near.length ? '<tr class="far sep"><td colspan="5">beyond what the site allows</td></tr>' : '') +
+    far.slice(0, 3).map(line).join('') + '</table>' +
+    '<p class="tiny muted">The feedpoint swings with height because the wire sees its own ' +
+    'reflection in the ground; the period is half a wavelength. Perfect-ground figures - real ' +
+    'ground damps the swings and shifts them a little, so start looking at these heights ' +
+    'rather than stop at them. The pattern changes with height too; that is drawn below.</p>';
+}
+
+/* What the power asks of the parts. Led with the thing people get wrong,
+   because they do: a thicker element does not need more power. */
+function powerHTML(d) {
+  const p = d.power;
+  if (!p || !p.items || !p.items.length) return '';
+  return '<div class="panel-title" style="margin-top:.9rem">What ' + p.watts + ' W asks of it</div>' +
+    '<ul class="facts small">' + p.items.map(t => '<li>' + escapeHTML(t) + '</li>').join('') +
+    '<li>The people nearby: <a href="#" data-rf-handoff>check the RF exposure at ' + p.watts + ' W</a>.</li></ul>';
+}
+
 function refreshAdvice() {
   const box = document.getElementById('an-advice');
   if (!box || box.hidden) return;
@@ -2524,7 +2571,9 @@ async function antennaAdvice(mhz, use, kind, quiet) {
   try {
     d = await api('/api/antenna-advice?' + new URLSearchParams(
       Object.entries({mhz: mhz, use: use || '', kind: kind || '',
-                      site: anSiteValue()})
+                      site: anSiteValue(),
+                      watts: num('an-pw') > 0 ? num('an-pw') : '',
+                      conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));
   } catch (e) { return; }
 
@@ -2589,7 +2638,8 @@ async function antennaAdvice(mhz, use, kind, quiet) {
             : d.reality && d.reality.site === 'mobile'
               ? 'Height: the roof of the vehicle.'
               : 'Height to aim for: ' + d.height_ft + ' ft.') + '</b> ' +
-        escapeHTML(d.feedline) + '</p></div>' +
+        escapeHTML(d.feedline) + '</p>' +
+        matchingHeightsHTML(d) + powerHTML(d) + '</div>' +
       '<div><div class="panel-title">What usually goes wrong</div>' +
         '<ul class="facts small">' +
         d.watch.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>' +

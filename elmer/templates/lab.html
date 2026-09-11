@@ -157,6 +157,13 @@
           <option value="portable">Portable, or limited space</option>
         </select></div>
       <div class="field"><label>Frequency (MHz)</label><input id="an-f" value="14.200"></div>
+      <div class="field"><label>Power you will run (W)</label>
+        <input id="an-pw" value="100">
+        {# Not because the antenna needs it - a thicker element does not take
+           more power to drive, whatever the folklore says - but because the
+           power decides what has to survive: the end of an end-fed, the core
+           in the transformer, the coil in a whip, the coax, and the people
+           nearby. #}</div>
       <div class="field"><label>Antenna</label>
         <select id="an-type">
           <option value="" selected>let ELMER suggest one from the above</option>
