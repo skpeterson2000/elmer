@@ -267,6 +267,95 @@ def search_url(state):
     return "https://www.google.com/search?q=" + urllib.parse.quote(query)
 
 
+# Every state, so a reverse lookup's "Trenton, Mercer County, New Jersey,
+# United States" can be turned into the code the table above is keyed on.
+# Names only - nothing here is a claim about any of them.
+STATE_CODES = {
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
+    "california": "CA", "colorado": "CO", "connecticut": "CT",
+    "delaware": "DE", "district of columbia": "DC", "florida": "FL",
+    "georgia": "GA", "hawaii": "HI", "idaho": "ID", "illinois": "IL",
+    "indiana": "IN", "iowa": "IA", "kansas": "KS", "kentucky": "KY",
+    "louisiana": "LA", "maine": "ME", "maryland": "MD",
+    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN",
+    "mississippi": "MS", "missouri": "MO", "montana": "MT",
+    "nebraska": "NE", "nevada": "NV", "new hampshire": "NH",
+    "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+    "north carolina": "NC", "north dakota": "ND", "ohio": "OH",
+    "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA",
+    "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
+    "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
+    "virginia": "VA", "washington": "WA", "west virginia": "WV",
+    "wisconsin": "WI", "wyoming": "WY",
+}
+
+
+def _state_in(text):
+    """The state named in a reverse lookup's address line, if one is."""
+    low = (text or "").lower()
+    # Longest first, so "west virginia" is not read as "virginia".
+    for name in sorted(STATE_CODES, key=len, reverse=True):
+        if name in low:
+            return STATE_CODES[name]
+    return None
+
+
+def where_am_i(lat, lon, allow_lookup=True):
+    """Which state a fix is in, and how well ELMER actually knows that.
+
+    The fix is the driver rather than the saved QTH, because the statutes that
+    matter here are about vehicles and a vehicle is the thing that crosses a
+    state line. A saved QTH is right until somebody drives, which is exactly
+    when it stops being right and nobody thinks to change it.
+
+    Worked out from the places already on disk, because the moment this
+    question is worth asking is the moment somebody is somewhere new with no
+    signal. That is coarse - a few towns a state - so what comes back says how
+    sure it is rather than only what it thinks:
+
+    * far from anything known, it is a guess and says so;
+    * where the two nearest towns are in different states, a line is somewhere
+      between them and this fix is near it, which is precisely when naming one
+      state confidently would be worst.
+    """
+    from . import geocode, places
+
+    if allow_lookup:
+        try:
+            found = geocode.reverse(lat, lon)
+        except Exception:
+            found = None
+        code = _state_in((found or {}).get("name"))
+        if code:
+            return {"state": code, "sure": True,
+                    "town": (found or {}).get("short"),
+                    "how": "looked up from your position"}
+
+    # No lookup, or it did not name a state. What is left is the bundled town
+    # list, and it is never certain enough to say so.
+    #
+    # It has a few towns a state, which is fine for naming what an antenna can
+    # reach and not fine for naming a jurisdiction. Asked where New Jersey is
+    # it answers Pennsylvania, because it holds no New Jersey town at all and
+    # Philadelphia is 45 km from Trenton; near the St Croix it answers
+    # Minnesota with Wisconsin on the other bank. Neither is a bug in the data
+    # - it is the wrong instrument for this question, and the honest thing is
+    # to offer what it says and refuse to call it settled.
+    rows = places.nearest(lat, lon, limit=3)
+    rows = rows[0] if isinstance(rows, tuple) else rows
+    rows = [r for r in (rows or []) if r.get("region")]
+    if not rows:
+        return {"state": None, "sure": False,
+                "how": "no position, and nowhere known nearby"}
+    near = rows[0]
+    return {"state": near["region"], "town": near["name"],
+            "km": near.get("km"), "sure": False,
+            "how": "guessed from the nearest town ELMER knows - %s, %.0f km "
+                   "away. It has only a few towns a state, so a state line "
+                   "nearer than that is one it cannot see."
+                   % (near["name"], near.get("km", 0))}
+
+
 def advice(state, licensed=True):
     """What to put in front of an operator here, and what to admit.
 
