@@ -8,6 +8,13 @@ data/elmer.log.*
 data/server-console.log
 data/explanations/
 
+# Statute text fetched from the legislature that publishes it. The citation
+# and the link are in elmer/monitoring.py and travel with the program; this is
+# the text itself, kept for the campsite with no signal. It is the state's to
+# amend, so ELMER holds a copy rather than a fork of it - and a copy that
+# fell behind must not be able to masquerade as the law in a checkout.
+data/statutes/
+
 # Read out of the current NIFOG on demand. It is a public document and freely
 # reproducible, but it is CISA's to revise, so ELMER keeps a copy rather than
 # a fork of it.
