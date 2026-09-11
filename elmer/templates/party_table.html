@@ -27,6 +27,9 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .seats { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .8rem; }
 .seat { padding: .3rem .6rem; border-radius: 999px; font-size: .85rem;
         border: 1px solid var(--line-2); background: var(--panel-2); }
+.seat .letters { font-family: var(--mono); letter-spacing: .18em; font-weight: 700; }
+.seat .letters i { font-style: normal; color: var(--line-2); }
+.seat .letters.out { color: var(--red); }
 .seat.c1 { border-color: var(--amber); }
 .seat.c2 { border-color: var(--cyan); }
 .seat.c3 { border-color: var(--violet); }
@@ -117,6 +120,7 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
         <input class="btn" id="seconds" type="number" min="10" max="60" value="30"
                style="width:4.6rem" title="seconds per question">
         <button class="btn primary" id="tourney">&#9873; Start tournament</button>
+        <button class="btn" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">&#127919; Shootout</button>
         <button class="btn" id="stopt" hidden>Stop</button>
         <span class="chip" id="autostate"></span>
       </div>
@@ -140,6 +144,23 @@ async function api(path, body) {
   const r = await fetch(path, opt);
   return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
 }
+/* What a shootout is waiting on, in a sentence the room can read. */
+function shootLine(shoot) {
+  if (shoot.over) return shoot.drawn
+    ? 'Out of subjects with nobody ahead: <b>a draw</b>.'
+    : `<b>${esc(shoot.winner_name || 'Somebody')}</b> wins it.`;
+  if (shoot.pick) return `${esc(shoot.picker_name || 'The picker')} chose <b>${
+    esc(shoot.pick_title || shoot.pick)}</b>. Next question coming.`;
+  return `${esc(shoot.picker_name || 'The picker')}${shoot.picker_is_bot ? ' (practice)' : ''} is choosing the subject&hellip; <span id="pickleft" style="font-family:var(--mono)"></span>`;
+}
+
+function paintPickClock(shoot) {
+  const el = document.getElementById('pickleft');
+  if (!el) return;
+  const left = shoot && shoot.pick_remaining;
+  el.textContent = (left === null || left === undefined) ? '' : Math.ceil(left) + 's';
+}
+
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
 
@@ -164,9 +185,20 @@ function seats(state) {
   (state.cohorts || []).forEach(c =>
     (c.members || []).forEach(m => all.push({...m, cohort: c.id})));
   const box = document.getElementById('seats');
+  // In a shootout the word is the score, so it goes where the points went.
+  const shoot = state.shootout;
+  const word = {};
+  (shoot ? shoot.standing : []).forEach(r => { word[r.player] = r; });
   box.innerHTML = all.length
-    ? all.map(m => `<span class="seat c${m.cohort}">${esc(m.name)}
-        <span style="color:var(--dim)">${m.score}</span></span>`).join('')
+    ? all.map(m => {
+        const w = word[m.id];
+        const tail = w
+          ? `<span class="letters ${w.out ? 'out' : ''}">${esc(w.word)}<i>${
+               'ELMER'.slice((w.word || '').length)}</i></span>${
+               w.picking && !shoot.over ? ' <span class="chip">picking</span>' : ''}`
+          : `<span style="color:var(--dim)">${m.score}</span>`;
+        return `<span class="seat c${m.cohort}">${esc(m.name)} ${tail}</span>`;
+      }).join('')
     : '<span class="empty">nobody yet</span>';
   const h = state.health || {};
   document.getElementById('cap').textContent =
@@ -186,6 +218,17 @@ async function tick() {
        something is expected of them. */
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
+    const shoot = s.shootout;
+    if (shoot) {
+      const key = 'shoot' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '');
+      chip.textContent = shoot.over ? 'shootout over' : 'shootout';
+      if (painted !== key) {
+        painted = key;
+        stage.innerHTML = `<p class="empty">${shootLine(shoot)}</p>`;
+      }
+      paintPickClock(shoot);
+      return;
+    }
     chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
     if (painted !== 'none' || soon) {
       painted = 'none';
@@ -199,21 +242,30 @@ async function tick() {
   chip.textContent = `Q${round.number} · ${(round.question || {}).difficulty || ''}`;
 
   if (round.closed) {
-    if (painted === 'closed' + round.number) return;
-    painted = 'closed' + round.number;
+    const shoot = s.shootout;
+    const key = 'closed' + round.number + (shoot ? (shoot.picker || '') + (shoot.pick || '') : '');
+    if (painted === key) { paintPickClock(shoot); return; }
+    painted = key;
     const rows = (round.results || []).map(a => `
       <tr><td class="n">${a.place || '–'}</td>
           <td>${esc(a.name)} ${a.correct ? '✓' : '✗'}</td>
           <td class="ms">${(a.ms / 1000).toFixed(2)}s</td>
           <td class="ms">${a.points || 0}</td></tr>`).join('');
     const correct = (round.results || []).filter(a => a.correct).length;
+    const last = shoot && shoot.last;
     stage.innerHTML = `
       <div class="tally">
         <div><b>${correct}/${(round.results || []).length}</b><span>correct</span></div>
-        <div><b>${round.winner_cohort ? 'Cohort ' + round.winner_cohort : '—'}</b>
-             <span>takes the round</span></div>
+        ${shoot
+          ? `<div><b>${last ? (last.made ? 'made' : 'missed') : '—'}</b>
+               <span>${last && last.made
+                 ? (last.took.length ? last.took.length + ' took a letter' : 'nobody missed it')
+                 : 'nobody takes a letter'}</span></div>`
+          : `<div><b>${round.winner_cohort ? 'Cohort ' + round.winner_cohort : '—'}</b>
+               <span>takes the round</span></div>`}
       </div>
-      <table class="res" style="margin-top:1rem">${rows}</table>`;
+      <table class="res" style="margin-top:1rem">${rows}</table>
+      ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}`;
     return;
   }
 
@@ -257,9 +309,22 @@ tourney.addEventListener('click', async () => {
   tourney.disabled = false;
   autoTick();
 });
+const shootBtn = document.getElementById('shootout');
+shootBtn.addEventListener('click', async () => {
+  shootBtn.disabled = true;
+  await api('/api/party/mode', {
+    mode: 'shootout',
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 30});
+  shootBtn.disabled = false;
+  autoTick(); tick();
+});
 stopt.addEventListener('click', async () => {
   await api('/api/party/auto', {on: false});
-  autoTick();
+  // Stopping a shootout is ending it: the table goes back to being a
+  // tournament table, which is what it was before the button was pressed.
+  await api('/api/party/mode', {mode: 'tournament'});
+  autoTick(); tick();
 });
 document.getElementById('botson').addEventListener('change', async e => {
   await api('/api/party/bots', {on: e.target.checked});
@@ -272,6 +337,8 @@ async function autoTick() {
   const on = !!(a && a.running);
   stopt.hidden = !on;
   tourney.hidden = on;
+  shootBtn.hidden = on;
+  autostate.hidden = !on;
   autostate.textContent = on
     ? `${a.state} · ${a.played} round${a.played === 1 ? '' : 's'}` : '';
 }

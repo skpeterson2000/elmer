@@ -1355,6 +1355,47 @@ dependency ELMER cannot promise or in eight hundred people hand-typing a URL.
 So the encoder is written here from ISO/IEC 18004: byte mode, error correction
 level M, versions 1 to 10, which covers any join address a table will need.
 
+### Shootout
+
+A tournament asks everybody the same questions and the skill is knowing the
+material. Shootout asks a different question: **what do you know that the
+person across the table does not?** It is the other game a table can play,
+started from the **Shootout** button beside **Start tournament**.
+
+One player holds the pick and chooses the *subject* — a section of the pool,
+"Feed lines" or "Propagation modes", grouped on the phone under its subelement
+so somebody who knows they are good at electrical principles finds all six of
+those together. A question is drawn from it and everybody answers, **the
+picker included**.
+
+That last part is the whole game, and it is taken from HORSE: the shooter has
+to make the shot before anybody has to match it. Miss a question the picker got
+right and you take a letter — **E, L, M, E, R**, five and you are out. Miss one
+the picker also missed and you take nothing, because the shot was not made.
+Without that rule the winning move is to pick the strangest corner of the pool
+every time and wait for the room to fail, which is a test of who owns the most
+obscure question rather than of who knows the most. The test suite plays eight
+bad picks in a row and confirms nobody takes a letter for any of them.
+
+**A subject can only be spent once.** Otherwise the strongest player picks
+their best section until everybody else is out, which takes four questions and
+teaches nothing. Spending it means a long run of the pick has a natural end:
+the picker is working through their good subjects, and when those are gone they
+start missing.
+
+The pick stays with a picker who keeps making them. When they miss it passes to
+whoever answered that question fastest among those who got it right; if nobody
+got it, it goes round the table in order. Somebody who leaves mid-game is out
+and the pick moves on without anybody else's turn shifting. Last one standing
+wins — there is no fixed length, because with one player left there is nothing
+to decide.
+
+Practice players play it too. One holding the pick chooses at random among
+what is left: a bot with a strategy would be a bot with an opinion about what
+the people at the table are bad at, and it has no basis for one. Between
+questions the table says whose pick it is and the phone that holds it shows the
+subjects; everyone else's phone says who it is waiting for.
+
 ### Practice opponents
 
 A table of one is not a race. Practice opponents fill each cohort to sixty per
