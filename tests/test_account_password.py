@@ -100,6 +100,38 @@ def main():
     check("the moderator key opens any of them, for a forgotten password",
           db.may_alter(conn, carol, "club-key"), True)
 
+    print("\n-- what the dialog promises is what the server does --")
+    # The dialog says "any length, anything you like", and then says the
+    # password crosses the network in clear - which is the honest threat
+    # model: it is a name tag, not a vault. The endpoint used to refuse
+    # anything under four characters anyway, so somebody who believed the
+    # sentence in front of them got a bare 400 back. Asked of the route,
+    # because the promise is the route's to keep.
+    import elmer.db as dbmod
+    spare = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    spare.close()
+    dbmod.DB_PATH = spare.name
+    from elmer.app import app
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    r = client.post("/api/users/password", json={"password": "ab"})
+    check("two characters is a password", r.status_code, 200)
+    check("  and the account is locked with it", r.get_json()["locked"], True)
+
+    # The shape the browser now depends on: a considered refusal says so in a
+    # sentence. Without the sentence the page has nothing to show but the
+    # status code, which is how "400 for /api/users/password" reached a
+    # person who had only mistyped something.
+    r = client.post("/api/users/password", json={"password": "later"})
+    check("changing it without the old one is refused", r.status_code, 403)
+    check("  in words, not just a status",
+          bool((r.get_json() or {}).get("message")), True)
+
+    r = client.post("/api/users/password", json={"password": "", "current": "ab"})
+    check("an empty password takes the lock off", r.status_code, 200)
+    check("  and the account is open again", r.get_json()["locked"], False)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

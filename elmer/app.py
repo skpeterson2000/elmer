@@ -3218,10 +3218,14 @@ def api_users_password():
     if not db.may_alter(connection, target, body.get("current") or ""):
         return jsonify({"ok": False, "locked": True,
                         "message": "that account already has a password"}), 403
+    # Any length. There used to be a four character floor here, which the
+    # dialog asking for the password flatly contradicted - it says "any
+    # length, anything you like" and then says the password travels in clear,
+    # which is the honest threat model: this is a name tag, not a vault.
+    # A floor buys nothing against anybody who can already read the wire, and
+    # it refuses the nine year old at a club night who wants to be "ab".
+    # An empty password is not a short one - it means take the lock off.
     wanted = body.get("password") or ""
-    if wanted and len(wanted) < 4:
-        return jsonify({"ok": False,
-                        "message": "four characters at least"}), 400
     db.set_password(connection, target, wanted)
     log.info("account %s: password %s", target, "set" if wanted else "cleared")
     return jsonify({"ok": True, "locked": bool(wanted),
