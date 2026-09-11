@@ -1324,6 +1324,25 @@ screen. Nobody installs anything.
 **A hall.** One Pi per table, one running net control, and up to a hundred
 tables on a single master.
 
+### While the table catches up
+
+Somebody who has answered used to sit looking at their greyed-out choices until
+the round closed. That is the one moment in an evening a person is holding a
+screen with nothing to do but read it, so they get a **card** — a little of the
+history of the art: Hertz saying his waves were no use to anyone, the 92 Code
+that gave us 73, Rod Newkirk coining "Elmer" in QST in 1971. Not exam material,
+on purpose; the exam is what the game is already made of. Every card is
+checkable and says where it comes from, and where the record is disputed the
+card says so — Marconi's S "reported", Fessenden's broadcast "by his own
+account" — because a program whose numbers are measured does not start
+handing out folklore the moment it changes the subject. The deck is
+`elmer/trivia.py`; add a card only if you could point somebody at where it is
+written down.
+
+Then three seconds of **Scoring…** before the placings come up. It gives the
+result a beat to land on, and it means the reveal arrives the same way whether
+the round closed on the clock or because everybody was quick.
+
 ### The race is timed by the player's own clock
 
 The browser reports the interval between painting the question and the button
@@ -1552,8 +1571,10 @@ Net control's own screen does not get the second half — the hall standings are
 already the thing it is showing, and the same list twice is not a scoreboard.
 
 **Three answers, not one.** A hall board carries the tables' running total, the
-players' running total, and the round that just closed, because those are three
-different questions. Which table is winning is the hall's. Who was quickest just
+players' **top 5** overall, and the **top 5** of the round that just closed,
+because those are three different questions. Five, not eight: five is a podium
+with room on it, eight is a list, and the point of a board is that a name on it
+means something. Which table is winning is the hall's. Who was quickest just
 now is the moment's. Which *person* is having a good evening is the one somebody
 sitting at a table came for, and it was the one the board could not answer.
 Every answer counts towards a player's total, not only the ones that scored:

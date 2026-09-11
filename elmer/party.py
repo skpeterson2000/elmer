@@ -41,6 +41,7 @@ import threading
 import time
 from collections import deque
 
+from . import trivia
 from .shootout import Shootout
 
 # Measured on a Raspberry Pi 5: 30 players answering simultaneously were all
@@ -212,6 +213,9 @@ class Round:
         self.bot_plan = {}         # player_id -> what a practice player will do
         self.closed = False
         self.winner_cohort = None
+        # One card for the whole table this round, drawn here so everybody
+        # who has answered is reading the same thing while they wait.
+        self.card = trivia.draw()
 
     @property
     def remaining(self):
@@ -947,6 +951,7 @@ class Room:
                     "waiting_on_all": sum(1 for p in self.players.values()
                                           if p.id not in rnd.answers),
                     "winner_cohort": rnd.winner_cohort,
+                    "card": rnd.card,
                 }
                 if rnd.closed:
                     out["round"]["results"] = sorted(
