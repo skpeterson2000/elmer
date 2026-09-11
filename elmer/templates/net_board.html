@@ -25,6 +25,20 @@ body { margin: 0; background: var(--bg); color: var(--text);
                font-variant-numeric: tabular-nums; line-height: 1; }
 .head .clock.done { color: var(--dim); }
 
+/* The question and the result share one reserved area, and it keeps its
+   height whether or not there is anything in it. A short question then leaves
+   dead space rather than letting the scoreboards below grow into it - because
+   the moment a block result appears they would have to give it back, and a
+   leaderboard that loses a row every twelfth question, and gains it again ten
+   seconds later, reads as a screen that cannot make its mind up.
+
+   Sized to the tallest thing that goes here: the tag, a two line question
+   (the reveal clamps it at two), the answer, and a block declaration under
+   it. Anything taller than that still grows - a question with a figure - and
+   the panels give way for it, which is the right way round for the rare case.
+*/
+.question, .reveal { min-height: 22vh; box-sizing: border-box; }
+
 .question { background: var(--panel); border: 1px solid var(--line);
             border-radius: 14px; padding: 1.6vh 1.6vw; margin-bottom: 1.4vh; }
 .question .tag { color: var(--dim); font-family: var(--mono);
