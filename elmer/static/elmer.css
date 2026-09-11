@@ -1015,6 +1015,13 @@ option.not-permitted { color: var(--amber); }
   font: .6rem var(--mono); color: var(--dimmer);
 }
 .fcsay { margin-top: 1.15rem; }
+/* The strip with nothing in it: the same 24 cells, faint and hatched, so the
+   absence has the shape of the thing rather than the shape of a footnote. */
+.fcstrip.fcempty .fc { background: repeating-linear-gradient(135deg,
+    var(--line) 0 3px, transparent 3px 7px); opacity: .55; }
+.fcwhy { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+         margin: .55rem 0 .2rem; color: var(--dim); }
+.fcwhy b { color: var(--text); }
 .fcnote { margin-top: .5rem; font-style: italic; }
 .advice-ctx { font-size: .84rem; color: var(--dim); margin: .35rem 0 .2rem;
               padding-left: .6rem; border-left: 2px solid var(--line-2); }

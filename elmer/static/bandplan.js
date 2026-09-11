@@ -374,6 +374,14 @@ api('/api/nifog').then(d => {
 
 let bpProp = null;
 
+/* "Set your QTH" opens the station panel here rather than sending anybody to
+   another page for it: the gear is on every page, so its button can be. */
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-open-station]')) return;
+  const gear = document.getElementById('gear-btn');
+  if (gear) gear.click();
+});
+
 /* The outlook, not the snapshot: the same space weather, asked band by band
    and hour by hour. It costs no network of its own - the unit works it out
    from the reading the dashboard already fetched. */
@@ -438,10 +446,18 @@ function greyWindow() {
 function forecastStrip(cond) {
   const rows = cond.hours || [];
   if (!rows.length) {
-    return '<div class="tiny muted">Set a QTH on the ' +
-      '<a href="/propagation">propagation page</a> and this becomes an ' +
-      'hour-by-hour outlook for where you are &mdash; the sun\'s angle at your ' +
-      'own location is most of what decides it.</div>';
+    /* No QTH, so no outlook. This used to be one line of footnote type under
+       a full-size heading, which read as a caption to something rather than
+       as the something itself being absent - and was missed. The strip is
+       drawn anyway, empty, so the space is the same shape it will be once
+       filled, and the sentence that fills it is body size with the button
+       that fixes it in it. The station panel is on every page, so the fix
+       is here, not a link away. */
+    const blanks = Array.from({length: 24}, () => '<i class="fc"></i>').join('');
+    return '<div class="fcstrip fcempty">' + blanks + '</div>' +
+      '<div class="fcwhy"><b>Set your QTH</b> and this becomes the next 24 hours ' +
+      'on this band, hour by hour \u2014 the sun\'s angle where you are decides most of it. ' +
+      '<button type="button" class="btn sm" data-open-station>Station&hellip;</button></div>';
   }
   /* The best window, worked out before the cells so they can be marked with
      it. A peak is nearly always a plateau and the strip already draws that -

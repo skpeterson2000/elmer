@@ -250,9 +250,11 @@ async function tick() {
       <tr><td class="n">${a.place || '–'}</td>
           <td>${esc(a.name)} ${a.correct ? '✓' : '✗'}</td>
           <td class="ms">${(a.ms / 1000).toFixed(2)}s</td>
-          <td class="ms">${a.points || 0}</td></tr>`).join('');
+          ${shoot ? '' : `<td class="ms">${a.points || 0}</td>`}</tr>`).join('');
     const correct = (round.results || []).filter(a => a.correct).length;
-    const last = shoot && shoot.last;
+    // The shot this round was - not the last thing that happened, which may
+    // be a pick timing out since, and is not what these results are of.
+    const last = shoot && shoot.last_shot;
     stage.innerHTML = `
       <div class="tally">
         <div><b>${correct}/${(round.results || []).length}</b><span>correct</span></div>
