@@ -356,6 +356,51 @@ def main():
     check("somebody who named a loop in a flat is taught the loop",
           A.recommend(14.2, kind="loop", site="apartment")["type"], "loop")
 
+    print("\n-- nothing is ever told to go up 266 feet --")
+    # The band plan handed 160 m to a Lab that knew nothing about the site,
+    # and the textbook answer was a dipole half a wavelength up - 266 ft,
+    # with the physics of why that works explained underneath. Above 200 ft
+    # the FAA has to be told (14 CFR 77.9) and the structure registered
+    # (47 CFR Part 17); a hundred is a tall tower. Nothing here says more.
+    tallest = 0
+    for mhz in (1.85, 3.6, 7.1, 14.2, 28.4, 50.1, 146.52):
+        for kw in ({}, {"use": "dx"}, {"use": "regional"}, {"use": "digital"},
+                   {"kind": "dipole"}, {"kind": "invertedv"}, {"kind": "efhw"},
+                   {"kind": "loop"}, {"kind": "yagi"}, {"site": "tower"},
+                   {"kind": "dipole", "site": "tower", "use": "dx"}):
+            tallest = max(tallest, A.recommend(mhz, **kw)["height_ft"])
+    check("the tallest height recommended anywhere is a tall tower",
+          tallest <= A.TALL_TOWER_FT, True)
+    check("  which is below the FAA line with room to spare",
+          A.TALL_TOWER_FT < A.FAA_NOTICE_FT, True)
+
+    print("\n-- on the low bands, distance is a vertical --")
+    # Half a wave up is 133 ft on 80 m and 266 on 160. Nobody has that, and
+    # at the heights people do have a dipole there is an NVIS antenna. The
+    # people who work DX on those bands use verticals, because a vertical
+    # wants ground rather than height.
+    for mhz in (1.85, 3.6):
+        r = A.recommend(mhz, use="dx")
+        check(f"{mhz} MHz for DX is a quarter-wave vertical", r["type"], "quarter")
+        check("  and it says why the dipole is not",
+              "Nobody has that" in " ".join(r["why"]), True)
+        check("  and names the FAA line",
+              "14 CFR 77.9" in " ".join(r["why"]), True)
+    check("40 m for DX is still the dipole - 69 ft is a tall tree, not a tower",
+          A.recommend(7.1, use="dx")["type"], "dipole")
+    check("160 m named the inverted-L as the usual shape",
+          "inverted-L" in " ".join(A.recommend(1.85, use="dx")["watch"]), True)
+
+    print("\n-- NVIS is forgiving, and the number knows it --")
+    # A fifth of a wave on 160 m is 106 ft. The lobe is overhead at 40 ft too;
+    # the ground takes a little more. Sixty is generous.
+    check("a wire hung for NVIS on 160 m stops at what people hang wire from",
+          A.nvis_height_ft(1.85, "dipole") <= A.NVIS_REACH_FT, True)
+    check("  and on 40 m, where the ideal fits, it is the ideal",
+          A.nvis_height_ft(7.1, "dipole") < A.NVIS_REACH_FT, True)
+    check("regional on 160 m is an inverted-V at that height, not 96 ft",
+          A.recommend(1.85, use="regional")["height_ft"] <= A.NVIS_REACH_FT, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

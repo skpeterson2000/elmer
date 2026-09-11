@@ -96,12 +96,40 @@ def default_use(mhz, kind=None):
     return "dx"
 
 
+# What anybody actually builds. A hundred feet is a tall amateur tower - most
+# are half that - and it is the ceiling on every height this module suggests
+# when nothing about the site has been said. Half a wavelength on 160 m is
+# 266 ft, and a program that says "aim for 266 ft" has stopped advising and
+# started reciting. Above 200 ft the FAA has to be notified before anything
+# goes up (14 CFR 77.9) and the structure registered with the FCC (47 CFR
+# Part 17), which is a second reason the number is never that.
+TALL_TOWER_FT = 100
+FAA_NOTICE_FT = 200
+
+# Above this a half-wave dipole is not the answer for distance, whatever the
+# textbook says: a wire that high is not a thing most people have, and at the
+# heights they do have a dipole on 80 or 160 m is a near-vertical NVIS antenna
+# good for a few hundred miles. The people who work DX on those bands use
+# verticals, because a vertical wants radials on the ground rather than height
+# in the air. Seventy feet is the far edge of what tall trees give.
+DIPOLE_REACH_FT = 70
+
+# And the same for a wire hung *for* NVIS: its ideal on 160 m is 106 ft, and
+# it works at 40 because the lobe is overhead either way. Sixty is generous.
+NVIS_REACH_FT = 60
+
+
 def _height(mhz, wavelengths, floor_ft, ceiling_ft=None):
     feet = wavelength_ft(mhz) * wavelengths
     feet = max(feet, floor_ft)
-    if ceiling_ft:
-        feet = min(feet, ceiling_ft)
+    feet = min(feet, ceiling_ft or TALL_TOWER_FT)
     return round(feet)
+
+
+def _too_high_to_build(mhz, wavelengths):
+    """The height the textbook wants, when it is more than anybody builds."""
+    wanted = wavelength_ft(mhz) * wavelengths
+    return round(wanted) if wanted > TALL_TOWER_FT else None
 
 
 def _feedline(mhz):
@@ -602,7 +630,11 @@ def nvis_height_ft(mhz, kind):
         # Half of 468/f, the length each leg actually is.
         leg = 234.0 / float(mhz)
         wanted += V_CENTROID * leg * math.sin(math.radians(DEFAULT_DROOP_DEG))
-    return max(12, round(wanted))
+    # On 160 m a fifth of a wave is 106 ft, which is "deliberately low" only
+    # in the arithmetic. NVIS is forgiving of being lower than its ideal - the
+    # lobe stays overhead, the ground takes a little more - so the number
+    # stops at what people hang wire from, and the site's own cap below it.
+    return max(12, min(NVIS_REACH_FT, round(wanted)))
 
 
 # --- what you have actually got ---------------------------------------------
@@ -1096,7 +1128,7 @@ def recommend(mhz, use=None, kind=None, site=None):
             # mentioned a flat dipole - so the page appeared to be proposing
             # two antennas at once to somebody who has never put up either.
             "title": "An inverted-V, hung deliberately low",
-            "height_ft": _height(mhz, 0.18, 15),
+            "height_ft": _height(mhz, 0.18, 15, NVIS_REACH_FT),
             "why": [
                 f"For a few hundred miles you want the signal going up, not "
                 f"out. At about a fifth of a wavelength up - {_height(mhz, 0.18, 15)} "
@@ -1218,6 +1250,56 @@ def recommend(mhz, use=None, kind=None, site=None):
         out["alternative"] = ("A quarter-wave vertical with radials laid on the "
                               "ground packs smaller and is less fussy about "
                               "what it is hung from.")
+
+    elif wavelength_ft(mhz) / 2.0 > DIPOLE_REACH_FT:   # dx on the low bands
+        # 80 m and 160 m. Half a wave up is 133 and 266 ft; the dipole "as
+        # high as you can manage" was being recommended here for years with
+        # the physics of why 266 ft works explained underneath, to people
+        # with a forty-foot tree. What they actually have room for is the
+        # antenna the low-band DXers actually use.
+        quarter = _height(mhz, 0.25, 20)
+        wanted = round(wavelength_ft(mhz) / 2.0)
+        out.update({
+            "type": "quarter",
+            "title": "A quarter-wave vertical over radials - height is not to "
+                     "be had on this band, so use the ground instead",
+            "height_ft": quarter,
+            "why": [
+                f"For distance a dipole wants to be half a wavelength up, and "
+                f"on this band that is about {wanted} ft. Nobody has that: a "
+                f"hundred feet is a tall tower, and above {FAA_NOTICE_FT} ft "
+                f"the FAA has to be told (14 CFR 77.9) and the structure "
+                f"registered (47 CFR Part 17). At the heights people do have, "
+                f"a dipole here is a near-vertical antenna - good for a few "
+                f"hundred miles and no further.",
+                f"A quarter-wave vertical is {quarter} ft tall, and what it "
+                f"needs is not height but ground: radials laid on it, as many "
+                f"as you can manage. Its low takeoff angle is what the dipole "
+                f"cannot get without the tower, which is why the people who "
+                f"work DX on 80 and 160 use one.",
+                "It is vertically polarised, so it hears more noise than a "
+                "horizontal wire - the usual arrangement is to transmit on the "
+                "vertical and listen on something else.",
+            ],
+            "watch": [
+                "Radials are most of the antenna. Sixteen short ones beat four "
+                "long ones; more beat both.",
+                "The base is a high-current point, so the ground connection and "
+                "radial bond are where losses live. Bond everything.",
+                "A full quarter wave on 160 m is 130 ft of vertical. Most "
+                "people build a shorter one and load it - an inverted-L, with "
+                "the top run out horizontally, is the usual shape.",
+            ],
+            "better": [
+                "An inverted-L: the vertical you can afford, with the rest of "
+                "the quarter wave run out horizontally from the top.",
+            ],
+        })
+        out["alternative"] = (f"Only working out to a few hundred miles? A "
+                              f"dipole at whatever height you have - even 30 ft "
+                              f"- is the better antenna for that, because that "
+                              f"low it fires straight up and comes down "
+                              f"regionally.")
 
     else:                                     # dx, and digital on HF
         half_wave = _height(mhz, 0.5, 20)

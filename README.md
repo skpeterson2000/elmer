@@ -1022,6 +1022,20 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   yourself, and then it is yours and stays put. The textbook dipole is one
   click away for anybody who wants it.
 
+  What you have to work with is remembered, and put back before a frequency
+  handed in from the band plan is answered — otherwise **Set up an antenna for
+  this** on 160 m was answered for nobody's garden at all, and the textbook
+  answer for nobody's garden was a dipole half a wavelength up: 266 ft, with
+  the physics of why that works explained underneath. Nothing here suggests
+  more than a hundred feet now, which is a tall tower; above 200 ft the FAA has
+  to be told (14 CFR 77.9) and the structure registered (47 CFR Part 17). And
+  on 80 and 160 m, where half a wave is 133 and 266 ft, distance is not a
+  dipole at all: it is a **quarter-wave vertical over radials**, which wants
+  ground rather than height and is what the people who work DX on those bands
+  actually use — with the inverted-L named as the usual shape when the full
+  quarter wave is not there either. A wire hung *for* NVIS stops at 60 ft for
+  the same reason: its ideal on 160 m is 106, and the lobe is overhead at 40.
+
   Twelve configurations across wire (dipole, inverted-V,
   end-fed half wave, bowtie, full-wave loop), vertical (quarter wave, 5/8 wave,
   J-pole, ground plane), the Yagi, and mobile: a loaded whip, and a screwdriver
