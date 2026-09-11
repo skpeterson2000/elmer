@@ -1485,6 +1485,34 @@ the people at the table are bad at, and it has no basis for one. Between
 questions the table says whose pick it is and the phone that holds it shows the
 subjects; everyone else's phone says who it is waiting for.
 
+### Certificates for the wall
+
+A club that runs a tournament night had nothing to hand the winner: the score
+was on a screen and the screen moved on. **Certificates** on net control, and
+on the table screen, prints one page per placing — landscape, large type, the
+medal, two signature lines and the date — for the top three *people*. Never a
+practice player; a bot on a certificate would be the program awarding itself.
+
+What it says is what the game recorded: the placing, the name played under,
+the tournament by class and length, correct out of answered, how many times
+the fastest correct answer was theirs, which blocks they won, which table they
+sat at. The event name is whatever the host types, because a club night has a
+name the program cannot know, and it is remembered for the next one. The place
+is the station's QTH, if one is set.
+
+What it does not say is anything about a licence. A game played on the
+question pools is not an examination, and the foot of every certificate says
+so in as many words, because a sheet with *Technician* in large letters will be
+read that way by somebody unless the paper itself says otherwise.
+
+The medals are KC9SP's artwork, cut from `artwork/*Medal.jpg` into
+`elmer/static/medals/`, set on a drawn ribbon. Where the art is missing a drawn
+medal stands in, so the certificate never waits on a file. **One thing to know
+about the current art: the callsign KC9SP is struck into the face of each
+medal.** For a net KC9SP runs that reads as the issuer's mark; for any other
+club it is somebody else's callsign on the winner's wall, and the art should be
+regenerated without it before that club prints one.
+
 ### Practice opponents
 
 A table of one is not a race. Practice opponents fill each cohort to sixty per

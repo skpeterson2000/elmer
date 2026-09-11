@@ -97,6 +97,18 @@ with app.test_client() as client:
     check("  under the same key",
           (reply.get_json() or {}).get("error", ""), "unknown license class")
 
+    # And a 409 - the server declining about state - which had no handler at
+    # all, so abort(409, "no round is open") reached a page as HTML and lost
+    # its one useful word.
+    from werkzeug.exceptions import Conflict
+    with appmod.app.test_request_context("/api/anything"):
+        body, status = appmod._conflict(Conflict("no round is open"))
+    check("a conflict is a refusal too", status, 409)
+    check("  in JSON, under the same key", body.get_json().get("error"), "no round is open")
+    with appmod.app.test_request_context("/net"):
+        page = appmod._conflict(Conflict("no round is open"))
+    check("  and a page, asked as a page, still gets a page", page.code, 409)
+
 print()
 if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
