@@ -1532,13 +1532,8 @@ The medals are KC9SP's artwork, cut from the renders in `artwork/` into
 `elmer/static/medals/` and set on a drawn ribbon; the art's own ribbon is
 discarded, which is why the renders need not agree about its colour. Where the
 art is missing a drawn medal stands in, so the certificate never waits on a
-file. **The bronze is still the first render, with the callsign KC9SP struck
-into its face** — gold and silver were re-made without it. On a net KC9SP runs
-that is the issuer's mark; on any other club's wall it is somebody else's
-callsign, and the bronze should be replaced before that club prints a third
-place. A bronze can be *coloured* from the gold with Pillow — the metal shifts
-to copper and the owl stays green — but it keeps the gold's engraving, and
-"1st PLACE" on a third-place certificate is worse than a drawn medal.
+file. All three were re-made without a callsign on the face — CHAMPION,
+FINALIST, BRONZE MEDALIST — so the set is any club's to print.
 
 ### Practice opponents
 
