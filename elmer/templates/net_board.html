@@ -442,6 +442,7 @@ async function tick() {
     ? games.find(g => g.url === focused) || (games.length === 1 ? games[0] : null)
     : (games.length === 1 ? games[0] : null);
   showAll.hidden = !(chosen && games.length > 1);
+  sayTheWayOut(showAll.hidden);
 
   if (games.length > 1 && !chosen) {
     document.getElementById('title').textContent =
@@ -525,26 +526,62 @@ async function tick() {
   }
 }
 
-/* Closing it. A board is usually the only thing on a screen at the front of a
-   room, often full screen with no visible chrome, so there has to be a way off
-   it from the keyboard of the machine driving it. Ctrl+C is what people reach
-   for; Esc and Q work too. A window opened from a link cannot always close
-   itself, so if it is still here a moment later we go back to net control
-   rather than leaving somebody stuck. */
+/* Getting off the board again.
+
+   The board is usually the only thing on a screen - full screen, no chrome,
+   no back button - so the way off it has to be on the wall. Escape is what a
+   person presses; Q and Ctrl+C work too, and the corner is tappable because
+   the Pi in front of most of these is a touchscreen with no keyboard at all.
+
+   Where it goes depends on how it was opened. Net control now walks the host
+   screen on to the board in its own window, so that the one Pi running the
+   hall can put the room on its monitor without needing a second machine; Esc
+   walks it back, and net control is whole again - the tables list, the code
+   to join by, the controls. A board opened as a window of its own - which is
+   how this used to work, and still is if somebody has a shortcut to it -
+   closes instead, and only walks back if the browser refuses to close it. */
+const BACK = '/net';
+const popped = !!window.opener;   // a window of its own, not a page we walked to
+
 const hint = document.createElement('div');
 hint.className = 'closehint';
-hint.textContent = 'Ctrl+C, Esc or Q to close';
 hint.style.cursor = 'pointer';
-hint.title = 'close the board';
 hint.addEventListener('click', () => closeBoard());
 document.body.appendChild(hint);
 
+/* The corner says where the next step out actually goes, because the step
+   changes: out of one tournament is the wall of them, out of the wall is net
+   control. A label that said "close" while Escape did something else would be
+   the sort of control that looks answered and is not. */
+function sayTheWayOut(atTheTop) {
+  if (hint.classList.contains('armed')) return;   // mid-close; leave it be
+  if (!atTheTop) {
+    hint.textContent = 'Esc, Q or tap here for all tournaments';
+    hint.title = 'back to the wall of tournaments';
+  } else if (popped) {
+    hint.textContent = 'Ctrl+C, Esc or Q to close';
+    hint.title = 'close the board';
+  } else {
+    hint.textContent = 'Esc, Q or tap here for net control';
+    hint.title = 'back to net control';
+  }
+}
+sayTheWayOut(true);
+
 function closeBoard() {
+  // Escape backs out a step at a time. On a network running several
+  // tournaments the board can be opened on to one of them, and the step out
+  // of that is the wall of all of them - not off the board altogether, which
+  // would skip a level nobody asked to leave.
+  const showAll = document.getElementById('showall');
+  if (showAll && !showAll.hidden) { showAll.click(); return; }
+
   hint.classList.add('armed');
+  if (!popped) { location.href = BACK; return; }
   hint.textContent = 'closing…';
-  try { window.close(); } catch (e) { /* not opened by script */ }
+  try { window.close(); } catch (e) { /* refused; the walk back covers it */ }
   setTimeout(() => {
-    if (!window.closed) location.href = '/net';
+    if (!window.closed) location.href = BACK;
   }, 250);
 }
 
