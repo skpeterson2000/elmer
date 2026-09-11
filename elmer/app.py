@@ -566,6 +566,36 @@ def api_bandplan():
     })
 
 
+@app.route("/api/bands")
+def api_bands():
+    """Every amateur band, its edges, where it opens, and what is in it.
+
+    For the Lab, which has five places to type a frequency and until now no
+    way of saying whether the number typed was in a band at all - a slider
+    running 1.8 to 30 MHz spends most of its travel between bands, and the
+    hop simulator would cheerfully model 12.0 MHz as if anybody could use it.
+    Compact on purpose: edges, a calling frequency to open on, and the
+    activity segments so the meter can name what is at a frequency ("CW QRP
+    calling") rather than only which band it is in. Privileges are not here;
+    the band plan page answers that properly, with a class, and the meter
+    links to it.
+    """
+    out = []
+    for band in bandplan.BANDS:
+        call = bandplan.calling_frequency(band["name"])
+        out.append({
+            "name": band["name"], "key": band["name"].replace(" ", ""),
+            "low": band["low"], "high": band["high"],
+            "group": band.get("group"),
+            "channelised": bool(band.get("channelised")),
+            "calling": call[0] if call else None,
+            "calling_label": call[1] if call else None,
+            "activity": [[lo, hi, kind, label] for lo, hi, kind, label
+                         in bandplan.activity_for(band["name"])],
+        })
+    return jsonify({"bands": out})
+
+
 @app.route("/out")
 def reachout_page():
     """What to try, from here, with what is on hand."""

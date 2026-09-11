@@ -429,6 +429,26 @@ table.data tr:hover td { background: #171f28; }
 }
 .field input:focus, .field select:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
 
+/* Under a frequency input: which band this is, and what is at that spot -
+   or that it is between bands, and where the nearest edges are. The dot is
+   the glance-answer, the words are the rest. */
+.bandmeter { font: .78rem var(--mono); color: var(--dim); min-height: 1.1em;
+             display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.bandmeter .dot { display: inline-block; width: .55rem; height: .55rem;
+                  border-radius: 50%; flex: 0 0 auto; }
+.bandmeter .dot.in { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.bandmeter .dot.out { border: 1.5px solid var(--dimmer); }
+.bandmeter a { color: var(--amber); font-weight: 700; text-decoration: none; }
+.bandmeter a:hover { text-decoration: underline; }
+
+/* One chip per band above the hop slider; the lit one is where the slider is. */
+.bandchips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.bandchips .chip { font: .78rem var(--mono); padding: .25rem .55rem; border-radius: 999px;
+                   border: 1px solid var(--line-2); background: var(--panel-2);
+                   color: var(--dim); cursor: pointer; }
+.bandchips .chip:hover { border-color: var(--amber-dim); color: var(--text); }
+.bandchips .chip.on { border-color: var(--amber); background: #2a2216; color: var(--amber); }
+
 .sim-out { font: .9rem var(--mono); color: var(--amber); }
 .sim-out b { color: var(--text); }
 .notice { border-left: 3px solid var(--amber); background: rgba(255,180,84,.06); padding: .6rem .8rem; border-radius: 0 8px 8px 0; font-size: .85rem; }
