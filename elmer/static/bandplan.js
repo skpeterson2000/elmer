@@ -10,6 +10,28 @@ let bpData = null, bpRegional = null, bpBand = null, bpChannels = [];
 
 function bpClass() { return document.getElementById('bp-class').value; }
 
+/* The owl, where it is earned.
+ *
+ * Reading another class's privileges is a good and ordinary thing to do - it
+ * is how somebody decides whether the upgrade is worth sitting for. Printing
+ * one with a callsign on it is not the same act, and the two must never
+ * produce the same document. The sheet already stamps itself when the class
+ * is not held; this says so before the press rather than after it. */
+function bpNotYours(d) {
+  const box = document.getElementById('bp-notyours');
+  if (!box) return;
+  if (!d || !d.above_yours) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML =
+    '<img src="/static/owl-mind.png" alt="" class="lapse-owl">' +
+    '<div>You are reading <b>' + escapeHTML(d.class) + '</b> privileges and ' +
+    'you hold <b>' + escapeHTML(d.own_class) + '</b>. Worth reading &mdash; ' +
+    'it is how you decide whether the upgrade is worth sitting for. Anything ' +
+    'printed from here says on its face that it is a study sheet and not a ' +
+    'licence, because a chart with a callsign on it gets read as a claim ' +
+    'about that station.</div>';
+}
+
 /* Bands in the order somebody would actually reach for them, rather than in
    frequency order. The first one this licence can hold a conversation on is
    the one to open. */
@@ -32,6 +54,7 @@ function bpState() { return document.getElementById('bp-state').value; }
 
 async function bpLoad() {
   bpData = await api('/api/bandplan?class=' + encodeURIComponent(bpClass()));
+  bpNotYours(bpData);
   bpChannels = bpData.channels_60m || [];
   document.getElementById('bp-legend').innerHTML =
     bpData.kinds.map(([k, label]) =>

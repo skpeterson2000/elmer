@@ -281,6 +281,18 @@ p { margin: 0 0 .8rem; }
    the strip - three digits of miles is three digits wide. */
 input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
 
+/* The owl turns up where sternness is earned - a card you had learned and
+   lost, a safety limit, a claim about a licence. Never on an ordinary miss:
+   see lapseNote() in study.js for why. */
+.lapse {
+  display: flex; gap: .7rem; align-items: flex-start;
+  margin: .5rem 0 .6rem; padding: .55rem .7rem;
+  border: 1px solid var(--amber-dim); border-radius: 8px;
+  background: rgba(255, 180, 84, .08); font-size: .86rem;
+}
+.lapse-owl { width: 34px; height: 34px; flex: 0 0 34px; }
+.stern-owl { width: 26px; height: 26px; vertical-align: -7px; margin-right: .45rem; }
+
 /* ---------- meters ---------- */
 .meter { height: 8px; background: #0c1116; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 4px; transition: width .5s ease; }
