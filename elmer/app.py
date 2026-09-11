@@ -38,7 +38,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               terrain, touchstone, tournament, update, vna, whipbuild)
+               certpdf, terrain, touchstone, tournament, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -1690,6 +1690,18 @@ def _bad_request(exc):
     return exc
 
 
+@app.errorhandler(409)
+def _conflict(exc):
+    """The same courtesy for a refusal about state - "no round is open",
+    "no net is running on this unit". A 409 is always the server declining
+    on purpose with a reason, and the reason is the whole point of it.
+    """
+    why = getattr(exc, "description", "") or "That cannot be done right now."
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({"ok": False, "error": why}), 409
+    return exc
+
+
 @app.errorhandler(403)
 def _forbidden(exc):
     """A closed door with the way out written on it.
@@ -3252,6 +3264,102 @@ def api_board():
     return jsonify({"kind": "idle",
                     "net": running is not None,
                     "where": _here()})
+
+
+def _certificate_awards(scope, places):
+    """Who placed, with the facts about it, from the game this unit ran.
+
+    Never a practice player: a bot on a certificate would be the program
+    awarding itself. The facts are counted from the game's own history rather
+    than carried as running totals, so a certificate can be printed for a game
+    that finished an hour ago and still be right.
+    """
+    places = max(1, min(int(places or 3), 3))
+    if scope == "hall":
+        running = netcontrol.net()
+        if running is None:
+            abort(409, "no net is running on this unit")
+        people = [p for p in running.people_board(limit=200) if not p.get("bot")]
+        # Fastest-correct counts per person, from the rounds themselves.
+        fastest = {}
+        for summary in running.history:
+            top = (summary.get("top") or [None])[0]
+            if top:
+                who = (top["unit"], top["name"])
+                fastest[who] = fastest.get(who, 0) + 1
+        state = running.plan_state() or {}
+        game = {"label": party.LABELS.get(running.difficulty, running.difficulty.title()),
+                "length": state.get("length"), "blocks": state.get("blocks"),
+                "mode": "tournament"}
+        awards = []
+        for i, p in enumerate(people[:places], start=1):
+            entry = dict(p)
+            entry["fastest"] = fastest.get((p["unit"], p["name"]), 0)
+            entry["blocks_won"] = [b["block"] for b in running.blocks
+                                   if (b.get("player") or {}).get("name") == p["name"]
+                                   and (b.get("player") or {}).get("unit_name") == p.get("unit_name")]
+            awards.append({"place": i, "name": p["name"],
+                           "lines": certpdf.lines_for(entry, game)})
+        return awards, game, running.name
+    room = party.room()
+    if room is None:
+        abort(409, "no table is running on this unit")
+    diff = (room.round.payload.get("difficulty") if room.round and room.round.payload
+            else None) or _party_class()
+    label = party.LABELS.get(diff, str(diff).title())
+    if room.mode == party.SHOOTOUT and room.shootout is not None:
+        view = room.shootout_view()
+        standing = [r for r in view["standing"] if not r["bot"] and not r["gone"]]
+        # Fewest letters first; the winner, if there is one, leads.
+        standing.sort(key=lambda r: (r["player"] != view.get("winner"), r["letters"], r["name"]))
+        game = {"label": label, "mode": "shootout"}
+        awards = [{"place": i, "name": r["name"],
+                   "lines": certpdf.lines_for({"letters": r["letters"]}, game)}
+                  for i, r in enumerate(standing[:places], start=1)]
+        return awards, game, "Shootout"
+    players = sorted((pl for pl in room.players.values() if not pl.bot),
+                     key=lambda pl: (-pl.score, pl.name))
+    fastest = {}
+    for summary in room.history:
+        answers = summary.get("answers") or []
+        first = next((a for a in answers if a.get("place") == 1), None)
+        if first:
+            fastest[first["player_id"]] = fastest.get(first["player_id"], 0) + 1
+    game = {"label": label, "length": len(room.history), "mode": "tournament"}
+    awards = []
+    for i, pl in enumerate(players[:places], start=1):
+        entry = {"answered": pl.answered, "correct": pl.correct, "score": pl.score,
+                 "fastest": fastest.get(pl.id, 0)}
+        awards.append({"place": i, "name": pl.name, "lines": certpdf.lines_for(entry, game)})
+    return awards, game, "Tournament"
+
+
+@app.route("/api/tournament/certificates", methods=["POST"])
+def api_tournament_certificates():
+    """Certificates for the wall: one page per placing, on the print shelf.
+
+    The event name is whatever the host types - a club night has a name and
+    the program does not know it - and the place is the station's QTH if one
+    is set. What the certificate says about the game is what the game
+    recorded; what it says about licences is nothing, in so many words.
+    """
+    body = request.get_json(silent=True) or {}
+    scope = "hall" if str(body.get("scope", "")).lower() == "hall" else "table"
+    awards, game, default_event = _certificate_awards(scope, body.get("places", 3))
+    if not awards:
+        return jsonify({"ok": False, "message": "nobody to award yet - no person "
+                        "has played a round"}), 409
+    event = str(body.get("event") or "").strip()[:80] or f"ELMER {default_event}"
+    connection = conn()
+    place = qth_for(connection, db.get_profile(connection)) or {}
+    where = place.get("short") or ""
+    pdf = certpdf.build(awards, event=event, where=where)
+    name = "certificates-" + re.sub(r"[^a-z0-9]+", "-", event.lower()).strip("-") + ".pdf"
+    row = prints.keep(pdf, name, "certificates", f"Certificates - {event}",
+                      {"scope": scope, "awarded": [a["name"] for a in awards],
+                       "game": game.get("label")})
+    log.info("certificates: %d for %s (%s)", len(awards), event, scope)
+    return _print_reply(row, _wants_raw(body))
 
 
 @app.route("/api/net/board")

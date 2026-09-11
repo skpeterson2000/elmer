@@ -49,6 +49,7 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
     <span class="cap" id="cap"></span>
     <a class="btn sm" href="/net/board"
        title="Escape, or the corner of the board, comes back here">Big board &rarr;</a>
+    <button class="btn sm" id="certs" title="One page per placing, for the wall">&#127942; Certificates</button>
     <button class="btn sm danger" id="endnet">End the net</button>
   </div>
 
@@ -111,6 +112,25 @@ async function api(path, body) {
   const r = await fetch(path, opt);
   return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
 }
+
+/* Certificates for the wall. The event has a name the program cannot know,
+   so it asks; the rest is what the game recorded. The PDF opens in the
+   print view the way every other sheet does, because on a unit running full
+   screen a downloads folder is out of reach. */
+const certsBtn = document.getElementById('certs');
+if (certsBtn) certsBtn.addEventListener('click', async () => {
+  const event = prompt('Name the event, as it should read on the certificate:',
+                       localStorage.getItem('elmer.certs.event') || '');
+  if (event === null) return;
+  if (event) localStorage.setItem('elmer.certs.event', event);
+  certsBtn.disabled = true;
+  const r = await api('/api/tournament/certificates',
+                      {scope: 'hall', event: event, places: 3});
+  certsBtn.disabled = false;
+  if (r.ok && r.data.view) { location.href = r.data.view; return; }
+  alert(r.data.message || r.data.error || 'Could not build the certificates.');
+});
+
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
 
