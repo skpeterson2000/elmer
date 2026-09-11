@@ -124,6 +124,19 @@
       {% endfor %}
     </select>
 
+    <label class="setup-label" for="setup-units">Distances in</label>
+    <select id="setup-units">
+      {% for key, sys in unit_systems.items() %}
+        <option value="{{ key }}"
+          {% if units.key == key %}selected{% endif %}>{{ sys.label }}
+          &mdash; {{ sys.long }}</option>
+      {% endfor %}
+    </select>
+    {# Narrow on purpose. Nobody calls it the forty yard band. #}
+    <p class="tiny muted">How far away a thing is &mdash; parks, summits,
+      repeaters. Wavelengths stay in metres and wire stays in feet, because
+      that is what the bands are named in and how wire is sold.</p>
+
     <label class="setup-label" for="setup-qth">Where you operate from</label>
     <input id="setup-qth" type="text" autocomplete="off"
            placeholder="a town, or a grid square">

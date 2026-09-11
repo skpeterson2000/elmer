@@ -18,6 +18,8 @@ second scheme here.
 import io
 from datetime import date
 
+from . import units
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -37,11 +39,11 @@ SUMMIT = colors.HexColor("#1f5fbf")
 # is four hundred parks in some places, and nobody carries that to a lake.
 DEFAULT_LIMIT = 30
 
-# Miles, because the filter is set in miles and this sheet is read in a
-# vehicle. Both units are printed against each distance: the screen counts in
-# kilometres and a sheet that quietly switched would have somebody comparing
-# two numbers that are not the same number.
-MI_PER_KM = 0.621371
+# Distances are printed in whatever the operator reads them in - the same
+# thing the screen and the filter use. A sheet that quietly switched units
+# would have somebody comparing two numbers that are not the same number, and
+# asking for a range in miles then answering in kilometres is exactly the sort
+# of mismatch that makes a reader distrust every other figure on the page.
 
 
 def _styles():
@@ -80,22 +82,24 @@ def _table(rows, widths, tint):
     return table
 
 
-def _away(row):
+def _away(row, system=units.DEFAULT):
+    """Just the number - the column heading carries the unit."""
     km = row.get("km")
     if km is None:
-        return "—"
-    return "%d mi \u00b7 %d km" % (round(km * MI_PER_KM), round(km))
+        return "\u2014"
+    return str(round(units.from_km(km, system)))
 
 
-def _band(inner_km, outer_km):
+def _band(inner_km, outer_km, system=units.DEFAULT):
     """The band in the operator's own units, for the line under the title."""
-    inner_mi = round((inner_km or 0) * MI_PER_KM)
-    outer_mi = round((outer_km or 0) * MI_PER_KM)
     if not outer_km:
         return ""
-    if inner_mi:
-        return "Between %d and %d miles out." % (inner_mi, outer_mi)
-    return "Out to %d miles." % outer_mi
+    inner = round(units.from_km(inner_km or 0, system))
+    outer = round(units.from_km(outer_km, system))
+    named = units.long_name(system)
+    if inner:
+        return "Between %d and %d %s out." % (inner, outer, named)
+    return "Out to %d %s." % (outer, named)
 
 
 def _coords(row):
@@ -105,13 +109,14 @@ def _coords(row):
     return "%.4f, %.4f" % (lat, lon)
 
 
-def _parks(rows, s):
-    out = [["Reference", "Name", "Away", "Brg", "Coordinates", "Where"]]
+def _parks(rows, s, system=units.DEFAULT):
+    out = [["Reference", "Name", "Away (%s)" % units.short(system),
+            "Brg", "Coordinates", "Where"]]
     for row in rows:
         out.append([
             row.get("ref", ""),
             Paragraph(row.get("name", ""), s["cell"]),
-            _away(row),
+            _away(row, system),
             "%s°" % row.get("bearing", "—"),
             _coords(row),
             Paragraph(row.get("where") or "", s["cell"]),
@@ -120,13 +125,14 @@ def _parks(rows, s):
                         1.2 * inch, 1.56 * inch], PARK)
 
 
-def _summits(rows, s):
-    out = [["Reference", "Name", "Away", "Brg", "Coordinates", "Alt", "Pts"]]
+def _summits(rows, s, system=units.DEFAULT):
+    out = [["Reference", "Name", "Away (%s)" % units.short(system),
+            "Brg", "Coordinates", "Alt", "Pts"]]
     for row in rows:
         out.append([
             row.get("ref", ""),
             Paragraph(row.get("name", ""), s["cell"]),
-            _away(row),
+            _away(row, system),
             "%s°" % row.get("bearing", "—"),
             _coords(row),
             "%s m" % row["alt_m"] if row.get("alt_m") else "—",
@@ -146,7 +152,8 @@ def _section(title, shown, held, colour, s):
 
 
 def build(parks, summits, want="both", station=None, radius_km=None,
-          limit=DEFAULT_LIMIT, inner_km=0.0, outer_km=None):
+          limit=DEFAULT_LIMIT, inner_km=0.0, outer_km=None,
+          system=units.DEFAULT):
     """The sheet. `want` is 'parks', 'summits' or 'both'.
 
     `inner_km` and `outer_km` are a band rather than a cap, because the trips
@@ -183,14 +190,14 @@ def build(parks, summits, want="both", station=None, radius_km=None,
                station.get("date") or date.today().isoformat()),
             s["sub"]),
     ]
-    band = _band(inner_km, outer_km)
+    band = _band(inner_km, outer_km, system)
     if band:
         flow.append(Paragraph("<b>%s</b>  Nothing nearer or further is on this "
                               "sheet." % band, s["body"]))
     elif radius_km:
         flow.append(Paragraph(
-            "Held within %d km of %s." % (radius_km,
-                                          station.get("grid") or "here"),
+            "Held within %s of %s." % (units.say(radius_km, system),
+                                       station.get("grid") or "here"),
             s["body"]))
 
     # "None in the radius" and "none in the band" are different statements,
@@ -201,12 +208,12 @@ def build(parks, summits, want="both", station=None, radius_km=None,
     if want in ("parks", "both"):
         flow.append(_section("Parks on the Air", len(parks), held["parks"],
                              PARK, s))
-        flow.append(_parks(parks, s) if parks else
+        flow.append(_parks(parks, s, system) if parks else
                     Paragraph(none, s["body"]))
     if want in ("summits", "both"):
         flow.append(_section("Summits on the Air", len(summits),
                              held["summits"], SUMMIT, s))
-        flow.append(_summits(summits, s) if summits else
+        flow.append(_summits(summits, s, system) if summits else
                     Paragraph(none, s["body"]))
 
     flow += [Spacer(1, 12), Paragraph(
