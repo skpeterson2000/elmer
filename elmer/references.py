@@ -53,6 +53,20 @@ TIMEOUT = 45
 
 # Four hours of driving, give or take the roads.
 DEFAULT_RADIUS_KM = 350
+
+# How long a held list stays trustworthy before it is worth fetching again.
+#
+# Not because it rots - a park that was there last month is almost certainly
+# still there - but because the lists move at the edges. POTA adds references
+# continually and retires a few; SOTA associations revise summit lists and
+# change point values at their own pace. A month is about the cadence at which
+# somebody plans another trip, so the reminder lands when it is useful rather
+# than while they are packing.
+#
+# It is a reminder and never a refusal. Stale data in the field beats no data
+# in the field, every time, and a unit with no signal cannot act on this
+# anyway - which is exactly when it is being read.
+STALE_DAYS = 30
 # How far outside the circle a location's centre may sit and still be worth
 # asking. A state is wide, and its centre can be hundreds of kilometres from
 # the corner of it that is close to you.
@@ -230,6 +244,14 @@ def nearby(lat, lon, kind=None, limit=12, radius_km=None):
     return out if limit is None else out[:limit]
 
 
+def age_days(area):
+    """How long ago this area was fetched, in days."""
+    when = area.get("fetched")
+    if not when:
+        return None
+    return max(0.0, (time.time() - float(when)) / 86400.0)
+
+
 def coverage(lat, lon):
     """Whether anything has been prepared for *here*.
 
@@ -246,5 +268,13 @@ def coverage(lat, lon):
 
     nearest = min(away(a) for a in areas)
     inside = any(away(a) <= a["radius_km"] for a in areas)
+    # nearby() draws on every held area at once, so the list in front of
+    # somebody can be a mix of ages. The one worth reporting is the oldest
+    # that is contributing, because that is the one that could mislead.
+    ages = [d for d in (age_days(a) for a in areas) if d is not None]
+    oldest = max(ages) if ages else None
     return {"known": inside, "reason": "here" if inside else "elsewhere",
-            "areas": len(areas), "nearest_km": round(nearest)}
+            "areas": len(areas), "nearest_km": round(nearest),
+            "oldest_days": round(oldest) if oldest is not None else None,
+            "stale": bool(oldest is not None and oldest >= STALE_DAYS),
+            "stale_days": STALE_DAYS}

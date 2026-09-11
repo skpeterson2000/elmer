@@ -22,7 +22,7 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
-               db, exams,
+               db, devreset, exams,
                celestial, explain, game, geocode, groundwave,
                ionosonde, logs,
                propagation, ranks,
@@ -750,9 +750,14 @@ def api_activations_print():
         abort(400, "nothing is held between those distances of %s - widen the "
                    "band" % where)
 
+    # How old the list behind this sheet is. It matters more on paper than on
+    # screen: a printout is read days later, in a valley, by somebody with no
+    # way to check it.
+    cover = references.coverage(lat, lon)
     pdf = activationspdf.build(
         parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM,
         inner_km=inner_km, outer_km=outer_km, system=system,
+        age_days=cover.get("oldest_days"), stale=cover.get("stale", False),
         station={"grid": place.get("grid") or "",
                  "place": place.get("short") or place.get("name") or "",
                  "callsign": profile_callsign() or ""})
@@ -3635,6 +3640,44 @@ def api_settings():
         log.info("QTH set to %s (%s)", place.get("grid"), place.get("short") or "unnamed")
     db.save_settings(connection, settings)
     return jsonify({"ok": True, **db.get_profile(connection)})
+
+
+# --------------------------------------------------------------------------
+# DEVELOPMENT ONLY. Delete this block, elmer/devreset.py, and the Developer
+# panel at the foot of tools.html to take it out. Nothing else refers to it.
+# --------------------------------------------------------------------------
+
+@app.route("/api/dev/reset")
+def api_dev_reset_preview():
+    """What a reset would take. Asked first, always."""
+    if not _is_local(request.remote_addr):
+        abort(403, "a reset can only be asked for from this machine")
+    return jsonify(devreset.would_remove())
+
+
+@app.route("/api/dev/reset", methods=["POST"])
+def api_dev_reset():
+    """Put this unit back to how a fresh clone finds it.
+
+    Told twice on purpose. The caller has to send back the number of things
+    the preview said would go, so a stale page that was opened before somebody
+    fetched a day's worth of parks cannot quietly take them.
+    """
+    _local_json_or_403()
+    body = request.get_json(silent=True) or {}
+    preview = devreset.would_remove()
+    if not preview.get("ok"):
+        return jsonify(preview), 400
+    if body.get("count") != preview.get("count"):
+        return jsonify({"ok": False, "stale": True, "count": preview["count"],
+                        "items": preview["items"],
+                        "error": "what is here has changed since you looked - "
+                                 "read it again before resetting"}), 409
+    log.warning("dev reset asked for from %s", request.remote_addr)
+    return jsonify(devreset.reset())
+
+
+# ------------------------------------------------------ end development only
 
 
 @app.route("/api/quit", methods=["POST"])

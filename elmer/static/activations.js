@@ -15,6 +15,27 @@ let acData = null;
    unit is the operator's, from the gear. */
 const AC_UNITS = (window.UNITS || {short: 'km', per_km: 1});
 
+/* How old the held list is, said only when it is worth saying.
+ *
+ * A park that was there last month is almost certainly still there, so this
+ * is not rot - it is that the lists move at the edges: POTA adds references
+ * continually and retires a few, and SOTA associations revise summit lists at
+ * their own pace. A reminder, never a refusal: stale data in the field beats
+ * no data in the field, and the unit reading this in a valley cannot act on
+ * it anyway. */
+function acAge(cover) {
+  if (!cover || cover.oldest_days === null || cover.oldest_days === undefined) {
+    return '';
+  }
+  const days = cover.oldest_days;
+  if (!cover.stale) {
+    return days < 1 ? ', fetched today'
+         : ', fetched ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
+  }
+  return ', <span style="color:var(--amber)">fetched ' + days + ' days ago ' +
+         '&mdash; worth refreshing when there is a signal</span>';
+}
+
 function acAway(km) {
   /* Just the number. The unit is on the column heading, the way it is on
      the printed sheet - in a column this narrow "13 mi" wraps onto two lines
@@ -77,6 +98,7 @@ function acNear(d) {
   note.innerHTML = '<b>' + held.parks + ' park' + (held.parks === 1 ? '' : 's') +
     '</b> and <b>' + held.summits + ' summit' + (held.summits === 1 ? '' : 's') +
     '</b> held within ' + acAway(d.radius_km) + ' ' + AC_UNITS.short +
+    acAge(d.coverage) +
     '. The nearest of each are below, ' +
     'and the distances are straight lines, which a road is not: reckon on more.';
 

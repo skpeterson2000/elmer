@@ -36,6 +36,24 @@ def check(label, got, want):
 
 app.config["TESTING"] = True
 
+# The gate is forced shut for the duration rather than read off this machine.
+#
+# This test used to ask the real profile, and passed only while the operator
+# running it happened to have a closed gate - so it broke the day somebody
+# opened their pools, which is a thing the program invites them to do. A test
+# that depends on the tester's own data is testing the data.
+import elmer.app as appmod  # noqa: E402
+
+_real_open_pools = appmod._open_pools
+
+
+def _shut(connection):
+    """A newcomer's gate: Technician open, the rest closed."""
+    return {"tech2026"}, {"reason": "start", "rung": 0}
+
+
+appmod._open_pools = _shut
+
 print("\nthe sentence names no place that does not exist")
 # The state a newcomer has: nothing reached, so nothing above Technician.
 why = gating.why_closed("gen2023", {"reason": "start", "rung": 0})
@@ -73,3 +91,5 @@ if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
     sys.exit(1)
 print("all good")
+
+appmod._open_pools = _real_open_pools

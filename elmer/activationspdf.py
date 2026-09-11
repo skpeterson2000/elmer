@@ -153,7 +153,7 @@ def _section(title, shown, held, colour, s):
 
 def build(parks, summits, want="both", station=None, radius_km=None,
           limit=DEFAULT_LIMIT, inner_km=0.0, outer_km=None,
-          system=units.DEFAULT):
+          system=units.DEFAULT, age_days=None, stale=False):
     """The sheet. `want` is 'parks', 'summits' or 'both'.
 
     `inner_km` and `outer_km` are a band rather than a cap, because the trips
@@ -190,6 +190,17 @@ def build(parks, summits, want="both", station=None, radius_km=None,
                station.get("date") or date.today().isoformat()),
             s["sub"]),
     ]
+    if age_days is not None:
+        # On paper this matters more than on screen. A sheet is read in a
+        # valley days after it was printed, by somebody with no way to check
+        # it, and it should say how old the list behind it was.
+        said = ("Fetched today." if age_days < 1 else
+                "Fetched %d day%s ago." % (age_days,
+                                           "" if age_days == 1 else "s"))
+        if stale:
+            said += "  Worth refreshing before the next trip."
+        flow.append(Paragraph(said, s["sub"]))
+
     band = _band(inner_km, outer_km, system)
     if band:
         flow.append(Paragraph("<b>%s</b>  Nothing nearer or further is on this "
