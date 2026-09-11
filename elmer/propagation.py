@@ -376,6 +376,11 @@ def snapshot(lat=None, lon=None, force=False):
         "aurora": num("aurora"), "aurora_lat": num("latdegree"),
         "geomag": ham.get("geomagfield", ""), "noise": ham.get("signalnoise", ""),
         "muf": muf, "fof2": fof2,
+        # The measured layer height, carried here for the same reason foF2 is:
+        # the propagation page, the band plan, the hop tool and the path tool
+        # all read this, so it is corrected once rather than in four views.
+        "hmf2": (cal or {}).get("measured_hmf2") or HMF2_DEFAULT,
+        "hmf2_measured": bool((cal or {}).get("measured_hmf2")),
         "muf_source": cal["source"] if cal else "modelled",
         "calibration": cal,
         "elevation": round(elevation, 1) if elevation is not None else None,
@@ -642,7 +647,13 @@ def _pick(table, score):
     return table[-1][1]
 
 
-def skip_km(mhz, fof2, hmf2=300.0):
+# What to assume when nobody has measured it. The F2 layer is nearer 270 km by
+# day and 330 at night, so a single figure is a compromise either way - it is
+# here to be replaced by a reading, not to be relied on.
+HMF2_DEFAULT = 300.0
+
+
+def skip_km(mhz, fof2, hmf2=HMF2_DEFAULT):
     """The nearest station this band can reach. 0 means it reaches everywhere.
 
     None means nothing comes back at any angle. Below the critical frequency a
@@ -661,7 +672,133 @@ def skip_km(mhz, fof2, hmf2=300.0):
     return patterns._hop_km(steepest, hmf2)
 
 
-def band_score(mhz, muf, elevation, k_index=2.0, fof2=None, hmf2=300.0,
+# The shallowest ray anybody actually gets away, which sets how far one hop
+# reaches. Three degrees is generous for a wire and about right for a beam on a
+# hill; below that the ground in front of the antenna is in the way whatever
+# the ionosphere is doing.
+LOWEST_TAKEOFF_DEG = 3.0
+
+# Past this, a signal that is below the critical frequency is not doing NVIS
+# any more - it is taking an ordinary low-angle hop, and calling it "straight
+# up and back" at fifteen hundred kilometres would be wrong about the geometry
+# even though the band does carry it.
+NVIS_REACH_KM = 600.0
+
+
+def one_hop_limit_km(hmf2=HMF2_DEFAULT):
+    """The furthest a single hop reaches off a layer at this height."""
+    from . import patterns
+    return patterns._hop_km(LOWEST_TAKEOFF_DEG, hmf2)
+
+
+def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
+               k_index=2.0,
+               muf=None, watts=100.0):
+    """Which bands could carry a contact over this distance, right now.
+
+    The line-of-sight tool answers a different question and answers it well:
+    whether two antennas can see each other. When they cannot - and past about
+    fifty miles they never can - the contact is not off, it has moved to the
+    ionosphere, and the operator is owed the second half of the answer rather
+    than a verdict of "no".
+
+    Three ways a band can carry a path, and they are not alternatives so much
+    as different distances:
+
+    * **Ground wave** hugs the surface and dies off fast, faster the higher the
+      frequency. It is the only thing that works inside the skip zone of the
+      band you are on.
+    * **Straight up and back** - NVIS - covers everything out to a few hundred
+      miles with no hole in the middle, and works only below the critical
+      frequency.
+    * **One hop** off the F2 layer lands somewhere between the near edge of the
+      skip zone and the shallowest ray anybody gets away. Inside that near edge
+      the band is deaf however loud you are.
+
+    A band is reported as carrying the path when the distance falls between the
+    nearest it reaches and the furthest, or when ground wave alone covers it.
+    """
+    from . import groundwave
+
+    km = max(0.0, float(km or 0.0))
+    far = one_hop_limit_km(hmf2)
+    out = []
+    # No critical frequency in hand is not the same as a sky that is wide
+    # open, and skip_km() answers 0 for both - "reaches everywhere". Taken at
+    # face value that would have this tool promising an overhead contact on
+    # every low band whenever the ionosonde network was unreachable, which is
+    # exactly when nobody can check it.
+    blind = not fof2
+    for name, mhz, _group in BANDS:
+        skip = None if blind else skip_km(mhz, fof2, hmf2)
+        ground = groundwave.describe(mhz, watts=watts)
+        ground_km = ground.get("km") or 0.0
+        by_ground = ground_km >= km
+        if skip is None:
+            # Nothing comes back at any angle: the sky is shut to this band.
+            sky, how = False, None
+        elif skip <= 0:
+            # Below the critical frequency: it returns at every angle, so the
+            # only question is how far one hop carries.
+            sky = km <= far
+            how = ("straight up and back" if km <= NVIS_REACH_KM else "one hop")
+        else:
+            sky, how = (skip <= km <= far), "one hop"
+        # Beyond one hop is not beyond reach. Two hops is ordinary working,
+        # and saying "nothing gets there" about a path people make every day
+        # would be the tool at its least useful.
+        hops = 1
+        if not sky and skip is not None and km > far:
+            hops = int(math.ceil(km / far))
+            leg = km / hops
+            if (skip <= 0 and leg <= far) or (skip is not None and skip <= leg <= far):
+                sky, how = True, "%d hops" % hops
+        row = {
+            "band": name, "mhz": mhz,
+            "works": bool(sky or by_ground),
+            "how": ("ground wave" if by_ground and not sky else how),
+            "hops": hops if sky and hops > 1 else (1 if sky else None),
+            "skip_km": None if skip is None else round(skip),
+            "ground_km": round(ground_km),
+            "one_hop_km": round(far),
+        }
+        if muf is not None:
+            rated = band_score(mhz, muf, elevation, k_index, fof2=fof2,
+                               hmf2=hmf2)
+            row["score"] = rated.get("score")
+            row["label"] = rated.get("label")
+        if sky and hops > 1:
+            # Geometry says yes; the path still has to be paid for. Each
+            # reflection puts the signal through the D layer twice more and
+            # bounces it off the ground once, and none of that is free - so a
+            # band that closes in four hops is a band to call on, not a band
+            # to count on.
+            row["cost"] = ("%d hops means %d more trips through the absorbing "
+                           "layer and %d ground reflections - possible rather "
+                           "than easy" % (hops, 2 * (hops - 1), hops - 1))
+        if not row["works"]:
+            if blind:
+                row["why"] = ("no critical frequency in hand, so ELMER cannot "
+                              "say what the sky is doing - fetch an ionosonde "
+                              "reading and ask again")
+            elif skip is None:
+                row["why"] = ("nothing comes back from the ionosphere at this "
+                              "frequency just now")
+            elif skip > km:
+                row["why"] = ("the skip zone reaches %d km and the path is "
+                              "%d - too close for this band"
+                              % (round(skip), round(km)))
+            else:
+                row["why"] = ("further than this band reaches, even in hops")
+        out.append(row)
+    return {"km": round(km), "one_hop_km": round(far),
+            "fof2": fof2, "hmf2": hmf2, "blind": blind,
+            "bands": out,
+            "any": [r for r in out if r["works"]]}
+
+
+def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
+               hmf2=HMF2_DEFAULT,
                geomag_lat=None, aurora_lat=None):
     """0-100 for one band at one moment, with the reason in words.
 
@@ -889,6 +1026,12 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
         "nearest": closest["name"],
         "age_minutes": closest["age_minutes"],
         "measured_fof2": closest["fof2"],
+        # The height as well as the frequency. foF2 says whether a band comes
+        # back at all; hmF2 says how far one hop carries it, and everything
+        # downstream was defaulting that to a textbook 300 km while the
+        # network sat on the disk reporting 245. Taken from the same station
+        # and the same fetch as the frequency, so the two cannot disagree.
+        "measured_hmf2": closest.get("hmf2"),
         "source": ("bounded" if abs(raw - factor) > 1e-9
                    else "measured" if nearest <= CALIBRATION_HALF_KM
                    else "regional"),
@@ -1060,7 +1203,7 @@ def reconcile(score, rating, muf_source=None, is_group=True):
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
-            anchor_sun=None):
+            anchor_sun=None, hmf2=HMF2_DEFAULT):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -1098,7 +1241,7 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         muf, fof2 = levels(sfi, elevation, lat, m3000,
                            anchor_at(anchor, anchor_sun, elevation),
                            drive=f2_drive(lat, lon, when))
-        got = band_score(mhz, muf, elevation, k_index, fof2,
+        got = band_score(mhz, muf, elevation, k_index, fof2, hmf2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         state = sun_regime(elevation, lat, when)
         got.update({"at": when.isoformat(), "hour": when.hour,

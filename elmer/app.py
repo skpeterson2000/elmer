@@ -1930,6 +1930,44 @@ def api_propagation():
     return jsonify(snap)
 
 
+@app.route("/api/path-bands")
+def api_path_bands():
+    """Which band could carry a contact this far, when line of sight cannot.
+
+    The path tool answers whether two antennas can see each other, and past
+    about fifty miles they never can. That is not the end of the contact - it
+    has moved to the ionosphere - so this is the other half of the answer,
+    over the same distance the path tool just measured.
+    """
+    try:
+        km = float(request.args.get("km", "0"))
+    except (TypeError, ValueError):
+        abort(400, "km must be a number")
+    if not 0 < km <= 20100:
+        abort(400, "that is not a distance on this planet")
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    snap = propagation.snapshot(lat=place.get("lat"), lon=place.get("lon"))
+    try:
+        watts = max(1.0, min(1500.0, float(request.args.get("watts", "100"))))
+    except (TypeError, ValueError):
+        watts = 100.0
+    # The height comes off the snapshot with everything else. It used to be
+    # looked up separately here, which is a second fetch and a second chance
+    # for this page to disagree with the band conditions page about what the
+    # ionosphere is doing.
+    out = propagation.path_bands(
+        km, fof2=snap.get("fof2"),
+        hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
+        elevation=snap.get("elevation") or 0.0,
+        k_index=snap.get("k_index") or 2.0, muf=snap.get("muf"), watts=watts)
+    out["ok"] = True
+    out["muf"] = snap.get("muf")
+    out["hmf2_measured"] = bool(snap.get("hmf2_measured"))
+    return jsonify(out)
+
+
 @app.route("/api/propagation/outlook")
 def api_propagation_outlook():
     """Band by band: how good it is now, and how the next day looks.
@@ -1979,9 +2017,13 @@ def api_propagation_outlook():
 
     bands = []
     for name, mhz, _group in propagation.BANDS:
+        # The snapshot's height, which is the measured one where a sonde is in
+        # reach. This used to read cal["hmf2"] - a key calibration has never
+        # had - so it fell through to a textbook 300 km every time while
+        # looking for all the world as though it were using the network.
         now = propagation.band_score(mhz, muf, elevation, k_index,
                                      snap.get("fof2"),
-                                     (cal or {}).get("hmf2") or 300.0,
+                                     snap.get("hmf2") or propagation.HMF2_DEFAULT,
                                      geomag_lat=geomag, aurora_lat=aurora_lat)
         # When there is a hole in the middle, say what covers it. Ground wave
         # is the only thing that reaches into a skip zone, and it is the one
@@ -1996,7 +2038,12 @@ def api_propagation_outlook():
                                        # The sky the anchor was measured under.
                                        # Without it a night calibration is
                                        # carried through the following noon.
-                                       anchor_sun=(cal or {}).get("sun_deg"))
+                                       anchor_sun=(cal or {}).get("sun_deg"),
+                                       # Measured where a sonde is in reach, so
+                                       # the 24 hours and the hour agree about
+                                       # how high the layer is.
+                                       hmf2=snap.get("hmf2")
+                                       or propagation.HMF2_DEFAULT)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "regime": row["regime"], "day": row["day"]}
                      for row in when]
