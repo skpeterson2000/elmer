@@ -37,6 +37,12 @@ SUMMIT = colors.HexColor("#1f5fbf")
 # is four hundred parks in some places, and nobody carries that to a lake.
 DEFAULT_LIMIT = 30
 
+# Miles, because the filter is set in miles and this sheet is read in a
+# vehicle. Both units are printed against each distance: the screen counts in
+# kilometres and a sheet that quietly switched would have somebody comparing
+# two numbers that are not the same number.
+MI_PER_KM = 0.621371
+
 
 def _styles():
     base = getSampleStyleSheet()
@@ -74,6 +80,24 @@ def _table(rows, widths, tint):
     return table
 
 
+def _away(row):
+    km = row.get("km")
+    if km is None:
+        return "—"
+    return "%d mi \u00b7 %d km" % (round(km * MI_PER_KM), round(km))
+
+
+def _band(inner_km, outer_km):
+    """The band in the operator's own units, for the line under the title."""
+    inner_mi = round((inner_km or 0) * MI_PER_KM)
+    outer_mi = round((outer_km or 0) * MI_PER_KM)
+    if not outer_km:
+        return ""
+    if inner_mi:
+        return "Between %d and %d miles out." % (inner_mi, outer_mi)
+    return "Out to %d miles." % outer_mi
+
+
 def _coords(row):
     lat, lon = row.get("lat"), row.get("lon")
     if lat is None or lon is None:
@@ -87,13 +111,13 @@ def _parks(rows, s):
         out.append([
             row.get("ref", ""),
             Paragraph(row.get("name", ""), s["cell"]),
-            "%s km" % row.get("km", "—"),
+            _away(row),
             "%s°" % row.get("bearing", "—"),
             _coords(row),
             Paragraph(row.get("where") or "", s["cell"]),
         ])
-    return _table(out, [0.82 * inch, 2.25 * inch, 0.55 * inch, 0.45 * inch,
-                        1.25 * inch, 1.75 * inch], PARK)
+    return _table(out, [0.82 * inch, 2.1 * inch, 0.9 * inch, 0.42 * inch,
+                        1.2 * inch, 1.56 * inch], PARK)
 
 
 def _summits(rows, s):
@@ -102,14 +126,14 @@ def _summits(rows, s):
         out.append([
             row.get("ref", ""),
             Paragraph(row.get("name", ""), s["cell"]),
-            "%s km" % row.get("km", "—"),
+            _away(row),
             "%s°" % row.get("bearing", "—"),
             _coords(row),
             "%s m" % row["alt_m"] if row.get("alt_m") else "—",
             str(row.get("points") or "—"),
         ])
-    return _table(out, [1.0 * inch, 2.15 * inch, 0.55 * inch, 0.45 * inch,
-                        1.25 * inch, 0.6 * inch, 0.4 * inch], SUMMIT)
+    return _table(out, [1.0 * inch, 1.93 * inch, 0.9 * inch, 0.42 * inch,
+                        1.2 * inch, 0.55 * inch, 0.35 * inch], SUMMIT)
 
 
 def _section(title, shown, held, colour, s):
@@ -122,8 +146,15 @@ def _section(title, shown, held, colour, s):
 
 
 def build(parks, summits, want="both", station=None, radius_km=None,
-          limit=DEFAULT_LIMIT):
-    """The sheet. `want` is 'parks', 'summits' or 'both'."""
+          limit=DEFAULT_LIMIT, inner_km=0.0, outer_km=None):
+    """The sheet. `want` is 'parks', 'summits' or 'both'.
+
+    `inner_km` and `outer_km` are a band rather than a cap, because the trips
+    people take are bands. Nought to ten miles is an evening after work;
+    thirty to forty is somewhere worth the drive with nothing already worked
+    in between. A list that always starts at the doorstep buries the second
+    kind under the first.
+    """
     station = station or {}
     s = _styles()
     held = {"parks": len(parks), "summits": len(summits)}
@@ -152,22 +183,31 @@ def build(parks, summits, want="both", station=None, radius_km=None,
                station.get("date") or date.today().isoformat()),
             s["sub"]),
     ]
-    if radius_km:
+    band = _band(inner_km, outer_km)
+    if band:
+        flow.append(Paragraph("<b>%s</b>  Nothing nearer or further is on this "
+                              "sheet." % band, s["body"]))
+    elif radius_km:
         flow.append(Paragraph(
             "Held within %d km of %s." % (radius_km,
                                           station.get("grid") or "here"),
             s["body"]))
 
+    # "None in the radius" and "none in the band" are different statements,
+    # and on a sheet asked for between thirty and forty miles the first one is
+    # wrong: there may be a dozen of them at five.
+    none = ("None held in that band." if band else
+            "None held within the radius.")
     if want in ("parks", "both"):
         flow.append(_section("Parks on the Air", len(parks), held["parks"],
                              PARK, s))
         flow.append(_parks(parks, s) if parks else
-                    Paragraph("None held within the radius.", s["body"]))
+                    Paragraph(none, s["body"]))
     if want in ("summits", "both"):
         flow.append(_section("Summits on the Air", len(summits),
                              held["summits"], SUMMIT, s))
         flow.append(_summits(summits, s) if summits else
-                    Paragraph("None held within the radius.", s["body"]))
+                    Paragraph(none, s["body"]))
 
     flow += [Spacer(1, 12), Paragraph(
         "A park contact and a summit contact answer to different rules - a "

@@ -654,6 +654,35 @@ def api_activations():
     })
 
 
+# The band is set in miles, because it is set by somebody deciding how far
+# they will drive. Everything inside ELMER is kilometres, so it converts once,
+# here, rather than in four places that can disagree.
+MI_PER_KM = 0.621371
+MAX_BAND_MI = 400.0
+
+
+def _print_band(body):
+    """The inner and outer edge of the search, in kilometres."""
+    def miles(key, fallback):
+        try:
+            value = float(body.get(key, fallback))
+        except (TypeError, ValueError):
+            abort(400, "%s must be a number of miles" % key)
+        return max(0.0, min(MAX_BAND_MI, value))
+
+    inner = miles("inner", 0)
+    outer = miles("outer", 50)
+    if outer <= inner:
+        abort(400, "the outer distance has to be past the inner one")
+    return inner / MI_PER_KM, outer / MI_PER_KM
+
+
+def _in_band(rows, inner_km, outer_km):
+    """Only what falls between the two edges, nearest first."""
+    return [r for r in rows
+            if inner_km <= (r.get("km") or 0) <= outer_km]
+
+
 @app.route("/api/activations/print", methods=["POST"])
 def api_activations_print():
     """The nearest parks, summits, or both, on a sheet for the vehicle.
@@ -667,23 +696,46 @@ def api_activations_print():
     want = str(body.get("want") or "both").lower()
     if want not in ("parks", "summits", "both"):
         abort(400, "want must be parks, summits or both")
+    inner_km, outer_km = _print_band(body)
     connection = conn()
     profile = db.get_profile(connection)
-    place = qth_for(connection, profile)
+
+    # From here, or from where you are going. A band around the destination is
+    # the question somebody actually has the night before a trip, and the QTH
+    # is the wrong centre for it.
+    asked = str(body.get("from") or "").strip()
+    if asked:
+        place = geocode.resolve(asked)
+        if not place or place.get("lat") is None:
+            abort(400, "could not find %r - try a town, a grid square, or "
+                       "coordinates" % asked[:60])
+    else:
+        place = qth_for(connection, profile)
     lat, lon = place.get("lat"), place.get("lon")
     if lat is None:
         abort(400, "ELMER does not know where you are yet")
-    parks = references.nearby(lat, lon, kind="park", limit=None)
-    summits = references.nearby(lat, lon, kind="summit", limit=None)
-    if want == "parks" and not parks:
-        abort(400, "no parks are held for here yet - fetch what is near first")
-    if want == "summits" and not summits:
-        abort(400, "no summits are held for here yet - fetch what is near first")
-    if not parks and not summits:
-        abort(400, "nothing is held for here yet - fetch what is near first")
+
+    parks = _in_band(references.nearby(lat, lon, kind="park", limit=None),
+                     inner_km, outer_km)
+    summits = _in_band(references.nearby(lat, lon, kind="summit", limit=None),
+                       inner_km, outer_km)
+    wanted = {"parks": parks, "summits": summits,
+              "both": parks + summits}[want]
+    if not wanted:
+        # Three different nothings, and saying the wrong one sends somebody
+        # to fetch data they already have, or to widen a band that was never
+        # the problem.
+        cover = references.coverage(lat, lon)
+        where = place.get("short") or place.get("grid") or "there"
+        if not cover.get("known"):
+            abort(400, "nothing has been fetched for %s yet - fetch what is "
+                       "near first, from a position there" % where)
+        abort(400, "nothing is held between those distances of %s - widen the "
+                   "band" % where)
 
     pdf = activationspdf.build(
         parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM,
+        inner_km=inner_km, outer_km=outer_km,
         station={"grid": place.get("grid") or "",
                  "place": place.get("short") or place.get("name") or "",
                  "callsign": profile_callsign() or ""})

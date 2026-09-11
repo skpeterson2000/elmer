@@ -277,6 +277,10 @@ p { margin: 0 0 .8rem; }
 .law-fed { margin: .4rem 0 .2rem; padding-left: 1.1rem; }
 .law-fed li { margin-bottom: .35rem; }
 
+/* A number typed into a control strip, sized for the number rather than for
+   the strip - three digits of miles is three digits wide. */
+input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
+
 /* ---------- meters ---------- */
 .meter { height: 8px; background: #0c1116; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 4px; transition: width .5s ease; }

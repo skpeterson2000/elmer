@@ -1757,6 +1757,20 @@ count held against the count shown, because a sheet listing thirty parks where
 four hundred and eighty-five are held must not be mistaken for the whole of
 what is within reach.
 
+The search is a **band**, not a radius: *between 0 and 50 miles*, or 30 and 40,
+or 0 and 10. The trips people take are bands — nought to ten miles is an
+evening after work, thirty to forty is somewhere worth the drive with nothing
+already worked in between — and a list that always starts at the doorstep
+buries the second kind under the first. It is set in miles because it is set by
+somebody deciding how far they will drive; everything inside ELMER is
+kilometres and converts once.
+
+And it can be centred somewhere else — **from where I am now**, or from where
+you are going. Type a town, a grid square or coordinates; the last two resolve
+without touching the network. Asking about somewhere nothing has been fetched
+for says so, and says that rather than "nothing is near there", because those
+are different facts and only one of them is about the place.
+
 It prints what is already on the disk and never fetches. Fetching is a
 separate press because it is thirty-odd requests and the better part of a
 minute, which is not a thing to start by accident from a button marked print.

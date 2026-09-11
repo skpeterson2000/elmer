@@ -89,6 +89,22 @@ check("and stays quiet when it is showing everything",
       "Nearest" in said(8, 8), False)
 check("even at the boundary", "Nearest" in said(30, 30), False)
 
+print("\na band is a band, and the sheet says which one")
+banded = activationspdf.build(PARKS, SUMMITS, want="both", station=STATION,
+                              inner_km=48.3, outer_km=64.4)
+check("still a PDF", banded[:4], b"%PDF")
+check("0-50 miles reads as a ceiling",
+      activationspdf._band(0, 80.5), "Out to 50 miles.")
+check("30-40 reads as a band",
+      activationspdf._band(48.3, 64.4), "Between 30 and 40 miles out.")
+check("no band, nothing said", activationspdf._band(0, None), "")
+# Both units against every distance. The screen counts in kilometres, and a
+# sheet that quietly switched would have somebody comparing two numbers that
+# are not the same number.
+check("distances carry both units", activationspdf._away({"km": 21}),
+      "21 mi \u00b7 21 km".replace("21 mi", "13 mi"))
+check("and a missing one is not invented", activationspdf._away({}), "\u2014")
+
 print("\nnothing held is a sheet that says so, not a crash")
 empty = activationspdf.build([], [], want="both", station=STATION)
 check("still a PDF", empty[:4], b"%PDF")
