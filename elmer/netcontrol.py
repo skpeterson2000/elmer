@@ -151,6 +151,14 @@ class Net:
         self.history = []
         self.picker_unit = None
         self._sim_plan = {}        # unit_id -> (when it answers, what it says)
+        # Everyone who has answered anything, by (table, name), kept across
+        # rounds. The tables' own totals are not the whole story: a hall
+        # scores by table so that a big table cannot be beaten by arithmetic,
+        # but the person sitting at one wants to find their own name, and a
+        # round board only ever showed the last question. Practice players are
+        # kept in with a flag rather than dropped, because a board with the
+        # practice tables edited out of it is not the game that was played.
+        self.people = {}           # (unit_id, name) -> running total
 
     # ------------------------------------------------------------- check-in
 
@@ -447,6 +455,22 @@ class Net:
                 if uid in self.units:
                     self.units[uid].score += points
 
+            # Every answer counts towards a person's total, not just the ones
+            # that scored: "3 of 7" is the number somebody is actually playing
+            # against, and a leaderboard of points alone cannot tell a player
+            # who got two right from one who got two right out of twenty.
+            for row in everyone:
+                who = self.people.setdefault(
+                    (row["unit"], row["name"]),
+                    {"name": row["name"], "unit": row["unit"],
+                     "unit_name": row["unit_name"], "score": 0,
+                     "correct": 0, "answered": 0, "bot": bool(row.get("bot"))})
+                who["answered"] += 1
+                who["correct"] += 1 if row["correct"] else 0
+                who["score"] += row.get("points", 0)
+                # A table can be renamed mid-hall; the person is the same one.
+                who["unit_name"] = row["unit_name"]
+
             winner = None
             if per_unit:
                 best = max(per_unit.values())
@@ -535,7 +559,22 @@ class Net:
                 "picker_name": (self.units[self.picker_unit].name
                                 if self.picker_unit in self.units else None),
                 "last": self.history[-1] if self.history else None,
+                "people": self.people_board(),
             }
+
+    def people_board(self, limit=40):
+        """Everyone in the hall by running total, best first.
+
+        Practice players are in the list and flagged, so a screen can show the
+        hall as it is and still be asked to show only the people in the room.
+        Deciding that here rather than on the screen would mean two boards
+        watching one net could disagree about who is winning.
+        """
+        with self.lock:
+            rows = sorted(
+                self.people.values(),
+                key=lambda p: (-p["score"], -p["correct"], p["name"]))
+            return [dict(p) for p in rows[:limit]]
 
 
 _net = None
