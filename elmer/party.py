@@ -156,9 +156,15 @@ def _now():
 class Player:
     """One person in the room, on one device - or a practice opponent."""
 
-    def __init__(self, player_id, name, cohort_id, bot=None):
+    def __init__(self, player_id, name, cohort_id, bot=None, cert_name=None):
         self.id = player_id
         self.name = name
+        # What goes on a certificate, if they win one. The play name is what
+        # the room sees on every board and phone; this is what they want on
+        # the wall, and nobody sees it until it is printed. Somebody can play
+        # a hamfest as "Sparks" and still take home a certificate with their
+        # callsign on it - one never knows who is wandering about.
+        self.cert_name = (cert_name or "").strip()[:48] or None
         self.cohort_id = cohort_id
         # None for a person; the skill level's name for a practice opponent.
         self.bot = bot
@@ -318,7 +324,7 @@ class Room:
         free = [(n, cid) for cid, n in counts.items() if n < COHORT_SIZE]
         return min(free)[1] if free else None
 
-    def join(self, name, cohort=None, bot=None):
+    def join(self, name, cohort=None, bot=None, cert_name=None):
         """Admit a player, or say plainly why not.
 
         Returns (player, None) or (None, reason). A person arriving at a full
@@ -351,7 +357,8 @@ class Room:
             if cid is None:
                 return None, "every cohort is full"
             player = Player(self._next_id, (name or "").strip()[:32]
-                            or f"Player {self._next_id}", cid, bot=bot)
+                            or f"Player {self._next_id}", cid, bot=bot,
+                            cert_name=cert_name)
             self.players[player.id] = player
             self._next_id += 1
             self._admit_late(player)
@@ -521,6 +528,10 @@ class Room:
                 if self.round:
                     self.round.bot_plan.pop(pid, None)
             return len(gone)
+
+    def cert_name_of(self, player_id):
+        player = self.players.get(player_id)
+        return (player.cert_name if player else None) or None
 
     def submit(self, player_id, chosen_index, client_ms, server_ms=None):
         """Take one answer, timed by the player's own clock.

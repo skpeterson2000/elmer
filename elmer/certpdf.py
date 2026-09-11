@@ -243,5 +243,8 @@ def lines_for(entry, game):
             out.append("won block" + ("s " if len(b) > 1 else " ") +
                        ", ".join(str(x) for x in b))
     if entry.get("unit_name"):
-        out.append(f"at the {entry['unit_name']} table")
+        table = str(entry["unit_name"])
+        # "at the Table 4 table" is what a table named "Table 4" would get.
+        out.append(f"at {table}" if table.lower().startswith("table")
+                   else f"at the {table} table")
     return out

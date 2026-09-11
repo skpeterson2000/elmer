@@ -1493,10 +1493,17 @@ on the table screen, prints one page per placing — landscape, large type, the
 medal, two signature lines and the date — for the top three *people*. Never a
 practice player; a bot on a certificate would be the program awarding itself.
 
-What it says is what the game recorded: the placing, the name played under,
-the tournament by class and length, correct out of answered, how many times
-the fastest correct answer was theirs, which blocks they won, which table they
-sat at. The event name is whatever the host types, because a club night has a
+What it says is what the game recorded: the placing, the tournament by class
+and length, correct out of answered, how many times the fastest correct answer
+was theirs, which blocks they won, which table they sat at — and the name they
+asked for. Joining a table asks two things, kept apart: *what should we call
+you*, which is what the room sees on every board and phone and can be an alias,
+because one never knows who is wandering about a hamfest; and *the name or
+callsign you want on any certificate won today*, which is never shown anywhere
+— not on a board, not in the board's JSON, not on another phone — and comes out
+only when a certificate is printed. Somebody can play the day as "Sparks" and
+take home a certificate with their callsign on it. Leave the second blank and
+the first is used. The event name is whatever the host types, because a club night has a
 name the program cannot know, and it is remembered for the next one. The place
 is the station's QTH, if one is set.
 

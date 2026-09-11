@@ -117,26 +117,43 @@ async function api(path, body) {
 }
 
 /* ---------------------------------------------------------------- joining */
+/* Two names, kept apart. The first is what the room sees - on the table
+   screen, on the big board, on everybody else's phone - and it can be
+   anything, because one never knows who is wandering about a hamfest. The
+   second is what goes on a certificate if they win one, and nobody sees it
+   until it is printed. Most people will type the same thing twice or leave
+   the second blank; the ones who want the alias have it. */
 function showJoin(reason) {
   view.innerHTML = `
     <div class="join">
       <p class="big">What should we call you?</p>
       <input id="nm" maxlength="24" autocomplete="off" autocapitalize="words"
-             placeholder="Your name or callsign">
+             placeholder="A name, a callsign, or an alias">
+      <p class="tiny muted" style="margin:.3rem 0 .9rem">This is what the room sees. Play under whatever you like.</p>
+      <p class="small" style="margin:0 0 .3rem">The name or callsign you want on any certificate won today</p>
+      <input id="cert" maxlength="48" autocomplete="off" autocapitalize="words"
+             placeholder="Leave blank to use the name above">
+      <p class="tiny muted" style="margin:.3rem 0 0">Only ever printed, never shown.</p>
       <button class="btn primary wide" id="go" style="margin-top:1rem">Join this table</button>
       ${reason ? `<div class="err">${reason}</div>` : ''}
     </div>`;
   const nm = document.getElementById('nm');
+  const cert = document.getElementById('cert');
   const go = document.getElementById('go');
   const saved = localStorage.getItem('elmer_party_name');
   if (saved) nm.value = saved;
+  const savedCert = localStorage.getItem('elmer_party_cert_name');
+  if (savedCert) cert.value = savedCert;
   nm.focus();
   const join = async () => {
     const name = nm.value.trim();
+    const cert_name = cert.value.trim();
     if (!name) { nm.focus(); return; }
     go.disabled = true; go.textContent = 'Joining…';
     localStorage.setItem('elmer_party_name', name);
-    const r = await api('/api/party/join', {name});
+    if (cert_name) localStorage.setItem('elmer_party_cert_name', cert_name);
+    else localStorage.removeItem('elmer_party_cert_name');
+    const r = await api('/api/party/join', {name, cert_name});
     if (!r.data.joined) { showJoin(r.data.reason || 'Could not join.'); return; }
     me = r.data.player;
     sessionStorage.setItem('elmer_party_player', JSON.stringify(me));
@@ -145,7 +162,8 @@ function showJoin(reason) {
     start();
   };
   go.addEventListener('click', join);
-  nm.addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+  nm.addEventListener('keydown', e => { if (e.key === 'Enter') cert.focus(); });
+  cert.addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
 }
 
 /* ----------------------------------------------------------------- rounds */

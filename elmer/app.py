@@ -2417,7 +2417,8 @@ def api_party_join():
     room = _party_or_404()
     body = request.get_json(silent=True) or {}
     cohort = body.get("cohort")
-    player, why = room.join(body.get("name"), int(cohort) if cohort else None)
+    player, why = room.join(body.get("name"), int(cohort) if cohort else None,
+                            cert_name=body.get("cert_name"))
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
@@ -3279,7 +3280,7 @@ def _certificate_awards(scope, places):
         running = netcontrol.net()
         if running is None:
             abort(409, "no net is running on this unit")
-        people = [p for p in running.people_board(limit=200) if not p.get("bot")]
+        people = [p for p in running.people_for_awards() if not p.get("bot")]
         # Fastest-correct counts per person, from the rounds themselves.
         fastest = {}
         for summary in running.history:
@@ -3298,7 +3299,7 @@ def _certificate_awards(scope, places):
             entry["blocks_won"] = [b["block"] for b in running.blocks
                                    if (b.get("player") or {}).get("name") == p["name"]
                                    and (b.get("player") or {}).get("unit_name") == p.get("unit_name")]
-            awards.append({"place": i, "name": p["name"],
+            awards.append({"place": i, "name": p.get("cert_name") or p["name"],
                            "lines": certpdf.lines_for(entry, game)})
         return awards, game, running.name
     room = party.room()
@@ -3313,7 +3314,8 @@ def _certificate_awards(scope, places):
         # Fewest letters first; the winner, if there is one, leads.
         standing.sort(key=lambda r: (r["player"] != view.get("winner"), r["letters"], r["name"]))
         game = {"label": label, "mode": "shootout"}
-        awards = [{"place": i, "name": r["name"],
+        awards = [{"place": i,
+                   "name": room.cert_name_of(r["player"]) or r["name"],
                    "lines": certpdf.lines_for({"letters": r["letters"]}, game)}
                   for i, r in enumerate(standing[:places], start=1)]
         return awards, game, "Shootout"
@@ -3330,7 +3332,8 @@ def _certificate_awards(scope, places):
     for i, pl in enumerate(players[:places], start=1):
         entry = {"answered": pl.answered, "correct": pl.correct, "score": pl.score,
                  "fastest": fastest.get(pl.id, 0)}
-        awards.append({"place": i, "name": pl.name, "lines": certpdf.lines_for(entry, game)})
+        awards.append({"place": i, "name": pl.cert_name or pl.name,
+                       "lines": certpdf.lines_for(entry, game)})
     return awards, game, "Tournament"
 
 
