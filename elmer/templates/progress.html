@@ -101,6 +101,17 @@
   </div>
 </div>
 
+<div class="panel mt" id="class-report">
+  <div class="panel-title">Where people on this unit get lost</div>
+  {# For the Elmer running a class: the questions this unit's students found
+     hardest, measured from how they went rather than guessed from how they
+     look - how many missed each, and how long it took them against their own
+     pace, first sightings only. It is this room's numbers, so it is honest
+     from a small class and says how much of the pool it has measured. #}
+  <div class="small muted" id="cr-note">Measuring&hellip;</div>
+  <table class="facts small" id="cr-table" hidden></table>
+</div>
+
 <div class="panel mt">
   <div class="panel-title">Full syllabus breakdown</div>
   {% for sub in subs %}
@@ -127,4 +138,28 @@
   {% endfor %}
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+  const note = document.getElementById('cr-note'), table = document.getElementById('cr-table');
+  let d;
+  try { d = await api('/api/difficulty?pool={{ pool.pool_id }}'); } catch (e) { note.textContent = 'Could not measure.'; return; }
+  const pct = Math.round((d.coverage || 0) * 100);
+  if (!d.hardest || !d.hardest.length) {
+    note.innerHTML = `Nothing to say yet: ${d.met} of ${d.questions} questions have been met on this unit, and a question is not ranked until ${d.min_n} people have met it for the first time. It sharpens every time anyone studies.`;
+    return;
+  }
+  note.innerHTML = `${d.measured} of ${d.questions} questions measured (${pct}%), from every player's first sight of each. <b>Miss</b> is how many got it wrong first time; <b>pace</b> is how long it took them against their own speed that day - 1.0 is their usual, 2.0 twice as long. Blueprint order stands until 60% is measured.`;
+  table.hidden = false;
+  table.innerHTML = '<tr><th></th><th>Question</th><th>Met</th><th>Miss</th><th>Pace</th></tr>' +
+    d.hardest.map(h => `<tr>
+      <td class="mono">${escapeHTML(h.question_id)}</td>
+      <td>${escapeHTML(h.text)}</td>
+      <td class="mono">${h.n}</td>
+      <td class="mono">${Math.round(h.miss_rate * 100)}%</td>
+      <td class="mono">${h.median_z === null ? '—' : Math.exp(h.median_z).toFixed(1)}×</td></tr>`).join('');
+})();
+</script>
 {% endblock %}

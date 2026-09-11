@@ -1355,14 +1355,37 @@ accident of pool size. The board says where it has got to — `Q18 of 36 · bloc
 2 of 3` — so the room knows both how much longer and when somebody is declared
 next.
 
-What is deliberately **not** there is ascending difficulty. Ordering the draw
-easiest-first needs a measure of which questions are hard, and this program has
-never recorded one: nothing in it has ever tracked how a question went for the
-population rather than for one person. The honest source is the unit's own
-answer log — every answer is stamped with its question, whether it was right
-and how long it took — normalised per person so a fast reader and a slow one
-can be compared. Until that exists the draw is in blueprint order and says so
-in a flag, rather than implying a warm-up that is not there.
+**Ascending difficulty, where it is measured.** Ordering the draw easiest-first
+needs a measure of which questions are hard, and there is one now — measured,
+not guessed, from the unit's own answer log, the way KC9SP put it: *how long did
+they take, against how long they average across the span of questions they
+answered?* Two things go into it, because either alone lies. **Time,
+normalised per person per sitting** — log(ms) against that person's own median
+that day — so a seventeen-year-old and a seventy-four-year-old are comparable
+in one table and a tired evening washes out. And **whether they got it**,
+because a guess is fast and time alone would rank every question nobody knows
+as easy; the miss rate saturates once everyone has learned a question, which is
+why it is not used alone either. **Only a person's first sight of a question
+counts** — the fourth sighting is fast whatever the question — so every player
+on the unit contributes one measurement per question, which is why showing
+every question at least once is the tournament's quiet objective.
+
+A question fewer than three people have met is **unmeasured, not easy**. The
+draw is ordered easiest-first only when at least 60% of it is measured — a
+ramp built from a quarter of the questions is three quarters of the tournament
+in an order chosen by where the gaps fell — and the board says *easiest first*
+only then. Unmeasured questions sit in the middle of a ramp, claimed neither
+easy nor hard. On a fresh unit that is every question, the draw is in blueprint
+order, and it says so. It sharpens every time anyone studies.
+
+**The Elmer's class report.** The same measure, on the Progress page: *Where
+people on this unit get lost* — the twelve questions this unit's students found
+hardest, each with how many met it, how many missed it first time, and how long
+it took them against their own pace. Honest from a small class because it is
+this room's numbers, not a national claim, and it says how much of the pool it
+has measured at all. Study answers carry a time; exam answers count towards the
+miss rate only; answers on phones at a table are not in this log — a hall's
+reports would be a second source, later.
 
 It works at three sizes, and the same engine runs all of them.
 
