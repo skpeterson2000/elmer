@@ -953,9 +953,48 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
     freqNote + '</div>';
 }
 
+/* Whether the antenna in the selector was ELMER's suggestion or somebody's
+   own choice. A suggestion follows the questions above it - change what you
+   have to work with and the suggestion changes; a choice is a fact about
+   somebody's plans and is left alone, the way a typed height is. */
+let anTypeByHand = false;
+
+function anSiteValue() {
+  const v = (document.getElementById('an-site') || {}).value || '';
+  return v === 'textbook' ? '' : v;      // "nothing in particular" imposes nothing
+}
+
+/* The questions have been answered enough to suggest from: what you have to
+   work with is the one that matters, because it is the one that rules
+   antennas out. "Nothing in particular" is an answer too. */
+function anReadyToSuggest() {
+  return !!(document.getElementById('an-site') || {}).value;
+}
+
+function suggestIfWanted() {
+  if (anTypeByHand || !anReadyToSuggest()) return;
+  antennaAdvice(num('an-f'), document.getElementById('an-use').value, '');
+  const note = document.getElementById('an-type-note');
+  if (note) {
+    note.hidden = false;
+    note.textContent = 'ELMER\u2019s suggestion for what you told it. Change it if you have something else in mind.';
+  }
+}
+
 function calcAnt() {
   const type = document.getElementById('an-type').value;
   const f = num('an-f');
+  if (!type) {
+    // Nothing chosen and nothing suggested yet: say what to do, rather than
+    // computing a dipole nobody asked about.
+    out('an-out', anReadyToSuggest()
+      ? 'Working out what suits that\u2026'
+      : 'Start with what you have to work with. ELMER will suggest an antenna from that, and the numbers follow. Or pick one from the list.');
+    ['an-pattern', 'an-plan', 'an-reach'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.innerHTML = '';
+    });
+    return;
+  }
   // Remembered per band, so the hop simulator's chip for this band opens
   // on the frequency you actually built for rather than a calling frequency.
   if (f > 0 && typeof bandKeyOf === 'function') {
@@ -1502,7 +1541,7 @@ function drawAntenna(shape, rows, type) {
    when it has not. */
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site',
- 'an-slope']
+ 'an-slope', 'an-use']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -1519,10 +1558,20 @@ function drawAntenna(shape, rows, type) {
          while the advice was generic and is wrong now that it follows the
          type. It refreshes itself, and deliberately does not touch the
          numbers you have typed - see antennaAdvice's `quiet`. */
-      if (id === 'an-site') refreshAdvice();
       if (id === 'an-type') {
+        // A hand on the selector makes it a choice. Back to "let ELMER
+        // suggest one" hands it back.
+        anTypeByHand = !!el.value;
+        const note = document.getElementById('an-type-note');
+        if (note && anTypeByHand) note.hidden = true;
         refreshAdvice();
-        loadConductors(num('an-f'), el.value);
+        if (el.value) loadConductors(num('an-f'), el.value);
+      }
+      if (id === 'an-site' || id === 'an-use') {
+        // The questions changed. A suggested antenna follows them; a chosen
+        // one stays, and only the advice about it is refreshed.
+        if (!anTypeByHand && anReadyToSuggest()) { suggestIfWanted(); return; }
+        refreshAdvice();
       }
       calcAnt();
     });
@@ -2468,7 +2517,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
   try {
     d = await api('/api/antenna-advice?' + new URLSearchParams(
       Object.entries({mhz: mhz, use: use || '', kind: kind || '',
-                      site: (document.getElementById('an-site') || {}).value || ''})
+                      site: anSiteValue()})
         .filter(([, v]) => v !== '')));
   } catch (e) { return; }
 
@@ -2525,7 +2574,14 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     '</div>' + said +
     '<div class="grid cols-2" style="gap:.9rem;margin-top:.5rem">' +
       '<div>' + d.why.map(w => '<p class="small">' + escapeHTML(w) + '</p>').join('') +
-        '<p class="small"><b>Height to aim for: ' + d.height_ft + ' ft.</b> ' +
+        /* A flat has no height to aim for - the wire starts at the window and
+           slopes down - and "0 ft" there is a number standing where a sentence
+           belongs. A vehicle likewise: the roof is the height. */
+        '<p class="small"><b>' + (d.reality && d.reality.max_ft === 0
+            ? 'Height: the window or rail you start from, and the slope down from it does the rest.'
+            : d.reality && d.reality.site === 'mobile'
+              ? 'Height: the roof of the vehicle.'
+              : 'Height to aim for: ' + d.height_ft + ' ft.') + '</b> ' +
         escapeHTML(d.feedline) + '</p></div>' +
       '<div><div class="panel-title">What usually goes wrong</div>' +
         '<ul class="facts small">' +
@@ -2596,6 +2652,9 @@ async function antennaAdvice(mhz, use, kind, quiet) {
    and became unreachable when the advice started following the selector. */
 const suggestBtn = document.getElementById('an-suggest');
 if (suggestBtn) suggestBtn.addEventListener('click', () => {
+  anTypeByHand = false;
+  const note = document.getElementById('an-type-note');
+  if (note) { note.hidden = false; note.textContent = 'ELMER\u2019s suggestion. Change it if you have something else in mind.'; }
   const use = document.getElementById('an-use').value;
   rememberAntenna({mhz: num('an-f'), use: use, kind: ''});
   antennaAdvice(num('an-f'), use);        // no kind: let it choose, and set up for it
@@ -2630,7 +2689,7 @@ if (printBtn) printBtn.addEventListener('click', async () => {
       mhz: num('an-f'),
       height: num('an-h'),
       use: document.getElementById('an-use').value,
-      site: document.getElementById('an-site').value,
+      site: anSiteValue(),
       conductor: (document.getElementById('an-cond') || {}).value || ''
     };
     const res = await fetch('/api/antenna/pdf', {

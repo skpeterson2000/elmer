@@ -949,6 +949,83 @@ def for_type(mhz, kind, use=None, site=None):
     }
 
 
+def _site_type(mhz, site, use):
+    """The antenna the site rules in, or None to let the intention decide.
+
+    Only the sites that impose something have a view. A house with trees and
+    a tower with room both leave the choice to what the antenna is for.
+
+    A vehicle: nobody hangs a dipole off a car. Below 30 MHz the quarter wave
+    does not fit and a coil stands in for the missing wire; above it the whole
+    antenna is full size and a five-eighths gets real gain from a roof that is
+    finally a good ground plane.
+
+    A flat: nothing can go up, so on HF the wire goes *out* - an end-fed half
+    wave from the window or balcony, sloping to wherever it can be tied, with
+    the feedpoint indoors where the radio is. Where even that is too long,
+    which is 80 m and below, a loaded vertical clamped to the rail with the
+    rail as counterpoise. On VHF a J-pole on the balcony.
+
+    An attic: a dipole folded to the roof line where the wire is short enough,
+    which is 20 m and up; below that an end-fed, which bends where a dipole's
+    balance would rather it did not.
+
+    A short garden: an inverted-V where the half wave fits, and on the low
+    bands an end-fed run as a sloper, which wants one support and works against
+    its own ground reflection - a thing worth learning to tune rather than
+    fighting for height the garden has not got.
+
+    Nothing at home: the end-fed, which is what most people carry to a park
+    for the same reasons - one support, and the feedpoint at your feet.
+
+    FM on VHF is vertical wherever you are, so a J-pole whatever the site.
+    """
+    if site == "mobile":
+        return "fiveeighth" if mhz > 30.0 else "whip"
+    if mhz > 30.0:
+        if site in ("apartment", "attic"):
+            return "jpole"
+        return None                          # small, portable: the use decides
+    half = wavelength_ft(mhz) / 2.0
+    if site == "apartment":
+        return "efhw" if half <= 40.0 else "whip"
+    if site == "attic":
+        return "invertedv" if half <= 35.0 else "efhw"
+    if site == "small":
+        return "invertedv" if half <= 35.0 else "efhw"
+    if site == "portable":
+        return "efhw"
+    return None
+
+
+# What to call a site-chosen antenna: the type's name says what it is, this
+# says what to do with it where you are, which is the sentence somebody who has
+# just said "a flat" is waiting for.
+_STEERED_TITLES = {
+    ("apartment", "efhw"): "An end-fed half wave out of the window, sloping to "
+                           "wherever it can be tied",
+    ("apartment", "whip"): "A loaded vertical clamped to the balcony rail, with "
+                           "the rail as the counterpoise",
+    ("apartment", "jpole"): "A J-pole on the balcony, as clear of the building "
+                            "as the rail allows",
+    ("attic", "invertedv"): "An inverted-V under the roof line, ends bent to fit",
+    ("attic", "efhw"): "An end-fed half wave zigzagged through the roof space",
+    ("attic", "jpole"): "A J-pole in the roof space, as high under the ridge as "
+                        "it will go",
+    ("small", "invertedv"): "An inverted-V from one pole, legs down to the fence",
+    ("small", "efhw"): "An end-fed half wave as a sloper, tuned to its own ground "
+                       "reflection",
+    ("portable", "efhw"): "An end-fed half wave into a tree or up a pole",
+    ("mobile", "whip"): "A loaded whip on the vehicle - mag-mount or bumper",
+    ("mobile", "fiveeighth"): "A five-eighths wave whip on the roof, which is a "
+                              "good ground plane at last",
+}
+
+
+def _steered_title(kind, site, mhz):
+    return _STEERED_TITLES.get((site, kind)) or TYPES[kind]["title"]
+
+
 def recommend(mhz, use=None, kind=None, site=None):
     """A starting antenna for this frequency and intention, with its reasoning."""
     mhz = float(mhz)
@@ -956,15 +1033,19 @@ def recommend(mhz, use=None, kind=None, site=None):
     # talked back to a dipole.
     if kind in TYPES:
         return for_type(mhz, kind, use, site)
-    # A vehicle settles the question before the intention does. Nobody hangs a
-    # dipole off a car, and the advice used to offer one "as high as you can
-    # manage" to somebody who had just said they were in a truck. What changes
-    # with frequency is only which whip: below 30 MHz the quarter wave does not
-    # fit and a coil stands in for the missing wire, and above it the whole
-    # antenna is full size and a five-eighths gets real gain out of a roof that
-    # is finally a good ground plane.
-    if site == "mobile":
-        return for_type(mhz, "fiveeighth" if mhz > 30.0 else "whip", use, site)
+    # What somebody has to work with settles the question before what they
+    # want to do with it does, because the site is the thing that rules
+    # antennas out. This used to be true only of a vehicle; a flat, an attic
+    # and a short garden all got "a half-wave dipole, as high as you can
+    # manage" - 69 feet of wire offered to a balcony - while the notes for
+    # those very sites, a few lines down, said a wire out of the window or a
+    # short vertical on the rail. The program knew and did not act on it.
+    steered = _site_type(mhz, site, use)
+    if steered:
+        out = for_type(mhz, steered, use, site)
+        out["title"] = _steered_title(steered, site, mhz)
+        out["steered"] = True          # the site chose this, not the intention
+        return out
     use = use if use in USES else default_use(mhz, kind)
     lam = wavelength_ft(mhz)
     out = {
