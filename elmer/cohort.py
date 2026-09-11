@@ -98,6 +98,9 @@ def default_unit_id():
 class Bridge:
     """One table's conversation with net control."""
 
+    net_mode = "tournament"
+    hall_shootout = None
+
     def __init__(self, url, unit_id=None, name=None):
         self.url = url.rstrip("/")
         self.unit_id = (unit_id or default_unit_id())[:40]
@@ -150,7 +153,19 @@ class Bridge:
         if which.get("name"):
             self.net_name = str(which["name"])[:60]
             self.net_difficulty = str(which.get("difficulty") or "")[:20]
+        self.net_mode = str(which.get("mode") or "tournament")
+        # The hall's shootout, as it concerns this table. Kept so the table
+        # screen can show the subjects when the pick is this table's.
+        self.hall_shootout = reply.get("shootout")
         return reply.get("round")
+
+    def pick(self, section):
+        """Relay this table's choice of subject to the hall."""
+        reply = self._call("/api/net/pick", {"unit": self.unit_id,
+                                             "section": section})
+        if reply.get("ok"):
+            self.hall_shootout = reply.get("shootout") or self.hall_shootout
+        return reply
 
     def _start_local(self, room, rnd):
         """Put net control's question on this table's screens."""
@@ -247,6 +262,8 @@ class Bridge:
                 "net_round": self.seen_round,
                 "reported": self.reported_round,
                 "waiting_to_report": bool(self.pending),
+                "mode": self.net_mode,
+                "shootout": self.hall_shootout,
                 "quiet_for": (round(time.time() - self.last_contact, 1)
                               if self.last_contact else None)}
 

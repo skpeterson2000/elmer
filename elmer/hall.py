@@ -108,6 +108,24 @@ class Conductor:
             self.stop.set()
             return
 
+        # A shootout has no fixed length: it ends when one table is left or
+        # the subjects run out, and between questions it waits on whichever
+        # table holds the pick - a state of its own, so the screens can say
+        # whose it is rather than "asking".
+        if net.shootout is not None:
+            if net.shootout_over():
+                log.info("hall: shootout over after %d questions", self.played)
+                self.state = "finished"
+                self.stop.set()
+                return
+            net.choose_for_simulated()
+            if net.waiting_for_pick():
+                if net.pick_overdue():
+                    net.pass_pick()
+                    return
+                self.state = "picking"
+                return
+
         self.state = "asking"
         self.ask()
         self.next_at = time.monotonic() + BETWEEN_MIN

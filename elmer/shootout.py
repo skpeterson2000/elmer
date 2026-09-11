@@ -217,8 +217,12 @@ class Shootout:
         else:
             right = [(a.get("ms") or 0, p) for p, a in said.items()
                      if a.get("correct") and p in self.live() and p != picker]
-            if right:
-                following, why = sorted(right)[0][1], "quickest"
+            # A right answer from a person beats a quicker one from furniture:
+            # the pick is for the people, and a practice player that got it
+            # in 900 ms should not take it off a person who got it in 1100.
+            people = [r for r in right if r[1] not in self.passers]
+            if people or right:
+                following, why = sorted(people or right)[0][1], "quickest"
             else:
                 following, why = self.next_picker(picker), "round"
         self.picker = None if self.over() else following

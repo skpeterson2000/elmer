@@ -187,6 +187,11 @@ tr.gold td { color: #ffd479; }
 /* Practice is marked, never hidden by default: a name in italics beside a
    real one is the honest way to show a hall that is half made up. */
 i.sim { font-style: italic; color: var(--dimmer); font-size: .78em; }
+td.word { font-family: var(--mono); letter-spacing: .18em; font-weight: 700; }
+td.word i { font-style: normal; color: var(--line-2); }
+tr.outrow td { opacity: .5; }
+tr.outrow td.word { color: var(--red); opacity: .8; }
+.pickmark { color: var(--amber); font-size: .7em; font-family: var(--mono); margin-left: .4em; }
 
 /* A block result is the biggest thing on the screen for ten seconds, because
    it is the only moment in twelve questions when somebody has won something. */
@@ -278,6 +283,8 @@ function practiceNote(rows, isBot) {
 }
 
 function standings(board) {
+  const sh = board.shootout;
+  if (sh && sh.on) return shootoutTables(board, sh);
   const units = realOnly(board.units || [], u => u.simulated);
   const mark = practiceNote(units, u => u.simulated);
   const rows = units.slice(0, 5).map((u, i) => `
@@ -320,6 +327,24 @@ function overall(board) {
     `</div>`;
 }
 
+/* A hall shootout: the tables and their letters. Still in, then out, and
+   the table holding the pick marked. The word is the score. */
+function shootoutTables(board, sh) {
+  const rows = realOnly(sh.standing || [], r => r.simulated);
+  const mark = practiceNote(rows, r => r.simulated);
+  const line = rows.slice(0, 8).map((r, i) => `
+    <tr class="${r.picking && !sh.over ? 'lead' : ''} ${r.out ? 'outrow' : ''}">
+      <td class="pos">${i + 1}</td>
+      <td>${esc(r.name)}${mark.each && r.simulated ? ' <i class="sim">practice</i>' : ''}${
+        r.picking && !sh.over ? ' <span class="pickmark">picking</span>' : ''}</td>
+      <td class="pts word">${esc(r.word)}<i>${'ELMER'.slice((r.word || '').length)}</i></td>
+    </tr>`).join('');
+  return `<div class="panelbox"><h2>Tables &mdash; shootout` +
+    (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
+    (line ? `<table>${line}</table>` : `<div class="waiting">No tables but the practice ones</div>`) +
+    `</div>`;
+}
+
 function hallLeft(board) {
   return `<div class="stack">${standings(board)}${overall(board)}</div>`;
 }
@@ -345,7 +370,8 @@ function lastRound(board) {
         <div><b>${last.units_reported}</b><span>tables in</span></div>
       </div>
       <table>${top}</table>
-      ${last.winner_unit ? `<div class="picker">${esc(last.winner_name || last.winner_unit)} takes the round</div>` : ''}
+      ${last.winner_unit && !(board.shootout && board.shootout.on)
+        ? `<div class="picker">${esc(last.winner_name || last.winner_unit)} takes the round</div>` : ''}
     </div>`;
 }
 
@@ -548,10 +574,17 @@ function reveal(round, last) {
      somebody at a table came for. */
   const won = last && last.block_won;
   const player = won && won.player;
+  const shot = last && last.shootout;
+  const shotLine = shot ? (shot.made
+      ? (shot.took && shot.took.length ? `${(shot.took_names || shot.took).length} table${(shot.took_names || shot.took).length === 1 ? '' : 's'} took a letter`
+                                        : 'made, and every table matched it')
+      : 'missed, so no table takes a letter') : '';
   return `<div class="reveal">
       <div class="tag">Round ${number} · the answer</div>
       ${text ? `<p class="q">${esc(text)}</p>` : ''}
       <div class="a"><b>Answer</b><span>${esc(answer)}</span></div>
+      ${shot ? `<div class="block-won"><b>${shot.made ? 'Made' : 'Missed'}</b><span>${esc(shotLine)}${
+          shot.over ? (shot.winner ? ' · the shootout is over' : ' · a draw') : ''}</span></div>` : ''}
       ${won ? `<div class="block-won">
           <b>Block ${won.block}</b>
           <span>${won.name ? esc(won.name) + ' takes it' : 'nobody scored'}${
@@ -627,7 +660,10 @@ async function tick() {
      "when is somebody declared next", which are the two things a spectator
      standing at the back actually wants. */
   const plan = board.plan;
-  const through = plan && plan.length
+  const shootOn = board.shootout && board.shootout.on;
+  const through = shootOn
+    ? ` · shootout · ${(board.shootout.available || []).length} subjects left`
+    : plan && plan.length
     ? ` · Q${Math.max(1, plan.asked)} of ${plan.length}` +
       (plan.blocks > 1 ? ` · block ${plan.block} of ${plan.blocks}` : '')
     : '';
