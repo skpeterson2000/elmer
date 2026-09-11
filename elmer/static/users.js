@@ -245,7 +245,11 @@ async function setPassword(me) {
           wanted ? 'This account now asks for it.'
                  : 'This account is open again.');
   } catch (err) {
-    toast('Not changed', 'That password was not right.');
+    /* A refusal has already been shown, in the server's own words. Adding
+       "that password was not right" on top of "that account already has a
+       password" is two answers to one question, and the vague one is also
+       the wrong one. */
+    if (!err.refusal) toast('Not changed', 'That password was not right.');
   }
 }
 

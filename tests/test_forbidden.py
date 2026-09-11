@@ -86,6 +86,17 @@ with app.test_client() as client:
           "opens when you hold a license" in (reply.get_json() or {}).get("error", ""),
           True)
 
+    # A 400 says it the same way, and under the same key. The page reads that
+    # key to tell a refusal from a fault: a refusal is shown in the server's
+    # own words and files no bug, a fault gets the banner and does. Rename the
+    # key and every considered refusal in the program starts reporting itself
+    # as "The server returned 400" and filing a bug for somebody's typing.
+    reply = client.get("/api/bandplan?class=nonsense")
+    check("a bad request is a refusal too", reply.status_code, 400)
+    check("  in JSON", reply.is_json, True)
+    check("  under the same key",
+          (reply.get_json() or {}).get("error", ""), "unknown license class")
+
 print()
 if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))

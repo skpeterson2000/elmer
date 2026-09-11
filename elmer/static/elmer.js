@@ -51,6 +51,40 @@ async function api(url, options) {
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '');
+    /* Two different things arrive here and they must not be treated alike.
+
+       A 4xx carrying a JSON message is the server refusing on purpose, in a
+       sentence somebody wrote for whoever is standing at the screen: that
+       account already has a password, no round is open, that is not a band.
+       It is an answer, not a fault. Filing it as a bug fills the operator's
+       own report with their own typing, and replacing it with "The server
+       returned 400 for /api/users/password" throws away the only part of the
+       answer that was any use to them.
+
+       Anything else - a 500, a 4xx with an HTML body, something in the way -
+       is a fault, and keeps the banner, which stays until the page is
+       reloaded: a fault does not stop mattering after five seconds.
+       Both keys are read, because the program says it both ways: the two
+       error handlers wrap abort(400, "...") and abort(403, "...") - which is
+       most of the refusals in the program - as `error`, and the handful
+       written out longhand answer with `message`. Reading only one of them
+       would have covered thirteen refusals and missed eighty-six. */
+    let refused = '';
+    if (res.status >= 400 && res.status < 500) {
+      try {
+        const said = JSON.parse(body);
+        const sentence = said && (said.message || said.error);
+        if (typeof sentence === 'string') refused = sentence.trim();
+      } catch (err) { /* not JSON, so not a sentence anybody wrote */ }
+    }
+    if (refused) {
+      if (document.getElementById('toaster')) toast('Not done', refused);
+      else banner(refused);          // no toaster on this page; still say it
+      const err = new Error(refused);
+      err.refusal = true;            // callers: the reason has been given
+      err.status = res.status;
+      throw err;
+    }
     reportError('http', url + ' -> ' + res.status, { stack: body.slice(0, 500) });
     banner('The server returned ' + res.status + ' for ' + url + '.');
     throw new Error(url + ' -> ' + res.status);
