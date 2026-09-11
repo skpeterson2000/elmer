@@ -981,6 +981,201 @@ def for_type(mhz, kind, use=None, site=None):
     }
 
 
+# --- how high, for the feed to match --------------------------------------
+#
+# A horizontal dipole's feedpoint resistance is not 73 ohms. It is 73 ohms in
+# free space; over the ground it swings with height, because the wire sees its
+# own reflection - the image antenna, carrying the opposite current - and the
+# two couple. At a tenth of a wave up it is about 22 ohms; it crosses 50 near
+# 0.16 of a wave, which is the one height where coax matches it with nothing
+# in between; it peaks near 98 ohms at 0.35 of a wave, which is the worst
+# match to 50 ohm coax you can arrange; it comes back through 73 at half a
+# wave, dips to 58 at 0.6, and settles toward 73 as the ground gets further
+# away. The period is half a wavelength. KC9SP called it cyclical, and it is.
+#
+# Worked from the mutual impedance of two parallel half-wave dipoles, which is
+# the standard result (Kraus), with the cosine integral from scipy. It is the
+# perfect-ground curve: over real ground the swings are smaller and shift a
+# little, so these are the heights to start looking, not the height to stop
+# at. The pattern changes with height too, and that is elsewhere on the page.
+try:
+    from scipy.special import sici as _sici
+
+    def _ci(x):
+        return float(_sici(x)[1])
+except Exception:                                # pragma: no cover
+    _ci = None
+
+FREE_SPACE_OHMS = 73.13
+
+
+def _mutual_r(d_wavelengths, half_length=0.5):
+    """Mutual resistance of side-by-side thin half-wave dipoles, ohms."""
+    k = 2.0 * math.pi
+    r = math.hypot(d_wavelengths, half_length)
+    return 30.0 * (2.0 * _ci(k * d_wavelengths)
+                   - _ci(k * (r + half_length)) - _ci(k * (r - half_length)))
+
+
+def feedpoint_resistance(height_wavelengths):
+    """A horizontal half-wave's feedpoint resistance at this height, ohms.
+
+    Over perfect ground. None if the height is too low to mean anything or
+    scipy is not here to do the integral.
+    """
+    if _ci is None or height_wavelengths <= 0.02:
+        return None
+    return FREE_SPACE_OHMS - _mutual_r(2.0 * height_wavelengths)
+
+
+def _swr_into_50(r):
+    return max(r, 50.0) / min(r, 50.0)
+
+
+# Where the curve does something worth knowing, in wavelengths. Found once by
+# scanning the curve rather than typed in, so they cannot drift from it.
+def _landmarks():
+    hs = [i / 1000.0 for i in range(40, 1001)]
+    rs = [feedpoint_resistance(h) for h in hs]
+    marks = []
+    for i in range(1, len(hs) - 1):
+        a, b, c = rs[i - 1], rs[i], rs[i + 1]
+        if (a - 50.0) * (b - 50.0) <= 0 and a != b:
+            marks.append(("match", hs[i], b, "feed near 50 ohms - coax matches it with nothing in between"))
+        if (a - FREE_SPACE_OHMS) * (b - FREE_SPACE_OHMS) <= 0 and a != b:
+            marks.append(("natural", hs[i], b, "back at its free-space 73 ohms"))
+        if b > a and b > c:
+            marks.append(("peak", hs[i], b, "the high point: the worst match to 50 ohm coax on the way up"))
+        if b < a and b < c:
+            marks.append(("dip", hs[i], b, "a shallow dip"))
+    # The first "natural" crossing sits a hair above the match and says nothing
+    # the match does not; keep landmarks that are at least 0.03 wave apart.
+    kept = []
+    for m in marks:
+        if not kept or m[1] - kept[-1][1] >= 0.03:
+            kept.append(m)
+    return kept
+
+
+_LANDMARKS = _landmarks() if _ci is not None else []
+
+
+def matching_heights(mhz, reach_ft=None):
+    """The heights worth knowing about for a horizontal wire on this band.
+
+    Each with the feedpoint resistance there, the SWR that means into 50 ohm
+    coax, and whether it is within what the site allows - because a height
+    the garden cannot reach is worth knowing about and not worth aiming at.
+    """
+    lam = wavelength_ft(mhz)
+    out = []
+    for what, h, r, note in _LANDMARKS:
+        ft = round(h * lam)
+        out.append({
+            "what": what, "wavelengths": round(h, 2), "ft": ft,
+            "ohms": round(r), "swr": round(_swr_into_50(r), 1),
+            "note": note,
+            "reachable": (reach_ft is None) or (ft <= reach_ft),
+        })
+    return out
+
+
+# --- what the power changes -------------------------------------------------
+#
+# Not the antenna. A thicker element does not take more power to drive: the
+# power that leaves an antenna is I squared times its radiation resistance,
+# and the element's diameter barely touches that - a fat element has a little
+# more bandwidth and a little *less* loss, because the RF runs on its skin and
+# a fat wire has more skin. QRP operators use thin wire because it is light
+# and packs small, and because at five watts its loss is nothing to them; not
+# because thin wire needs less power. Say so, because the belief is common.
+#
+# What the power does change is what has to survive it: the heat in the wire
+# (usually nothing, and the number says so), the voltage at the end of an
+# end-fed (hundreds of volts at 100 W, thousands at the legal limit), the core
+# in a 49:1 transformer or a choke, the coil of a loaded whip, which eats the
+# power the short element cannot radiate, the coax, and the people nearby -
+# which is the RF exposure tool's job, and this hands it the watts.
+
+COPPER_RHO = 1.72e-8                # ohm metres
+LEGAL_LIMIT_W = 1500.0
+
+
+def conductor_loss_ohms(mhz, od_mm, sigma_rel, length_m):
+    """Effective series loss of a half-wave of this wire, at the feedpoint.
+
+    RF runs in a skin about delta deep; a wire's RF resistance per metre is
+    rho over (pi d delta). Current on a half wave is sinusoidal, so the loss
+    resistance referred to the feedpoint is half the wire's total.
+    """
+    rho = COPPER_RHO / max(sigma_rel, 1e-3)
+    f = mhz * 1e6
+    delta = math.sqrt(rho / (math.pi * f * 4e-7 * math.pi))
+    d = od_mm / 1000.0
+    r_per_m = rho / (math.pi * d * delta)
+    return r_per_m * length_m / 2.0
+
+
+def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None,
+                whip_r_rad=None):
+    """What this much power asks of this antenna, in numbers and sentences."""
+    watts = float(watts or 0)
+    if watts <= 0:
+        return None
+    out = {"watts": watts, "items": [], "exposure": True}
+    horizontal = kind in ("dipole", "invertedv", "efhw", "bowtie", "loop")
+    if horizontal:
+        length_m = wavelength_ft(mhz) * 0.3048 * (1.0 if kind == "loop" else 0.5)
+        r_loss = conductor_loss_ohms(mhz, od_mm, sigma_rel, length_m)
+        r_rad = FREE_SPACE_OHMS
+        heat = watts * r_loss / (r_rad + r_loss)
+        out["wire_heat_w"] = round(heat, 1)
+        out["wire_loss_ohms"] = round(r_loss, 2)
+        out["items"].append(
+            f"The wire itself turns about {heat:.1f} W of your {watts:.0f} W "
+            f"into heat, spread along its whole length - {r_loss:.1f} ohms of "
+            f"loss against {r_rad:.0f} of radiation. A thicker wire would lose "
+            f"less, not need more: the RF runs on the skin, and a fat wire has "
+            f"more skin.")
+    if kind == "efhw":
+        r_end = 2500.0
+        v_end = math.sqrt(watts * r_end)
+        out["end_volts"] = round(v_end)
+        out["items"].append(
+            f"The far end sits near {r_end:.0f} ohms, so at {watts:.0f} W it "
+            f"swings to about {v_end:.0f} V. Tie it off on an insulator, out of "
+            f"reach, and not through a leaf.")
+        out["items"].append(
+            "The 49:1 transformer is rated in watts and the rating is real: a "
+            "core that saturates heats, the match drifts, and the coax braid "
+            "starts radiating. Buy the rating for the power you will actually "
+            "run" + (", and at this level that is a large core." if watts > 400 else "."))
+    if kind in ("whip", "screwdriver") and coil_loss_ohms and whip_r_rad:
+        coil_w = watts * coil_loss_ohms / (coil_loss_ohms + whip_r_rad)
+        out["coil_heat_w"] = round(coil_w)
+        out["items"].append(
+            f"The coil takes what the short element cannot radiate: about "
+            f"{coil_w:.0f} W of your {watts:.0f} W becomes heat in it. That is "
+            f"the number to size the coil and its former for" +
+            (" - and at this level it is a serious amount of heat in a small "
+             "space." if coil_w > 50 else "."))
+    if watts > 100:
+        out["items"].append(
+            "Coax has a power rating and it falls with SWR. RG-58 is not for "
+            "this; RG-8X is marginal above a few hundred watts; RG-213 or "
+            "LMR-400 is the honest choice, and the connectors matter as much.")
+    if kind in ("dipole", "invertedv", "bowtie", "loop", "yagi"):
+        out["items"].append(
+            "A 1:1 current balun at the feed keeps the coax from becoming part "
+            "of the antenna. Its core is rated too; above a few hundred watts "
+            "use one that says so.")
+    if watts > LEGAL_LIMIT_W:
+        out["items"].append(
+            f"{watts:.0f} W is above the 1500 W PEP the rules allow "
+            f"(47 CFR 97.313).")
+    return out
+
+
 def _site_type(mhz, site, use):
     """The antenna the site rules in, or None to let the intention decide.
 

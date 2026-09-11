@@ -401,6 +401,48 @@ def main():
     check("regional on 160 m is an inverted-V at that height, not 96 ft",
           A.recommend(1.85, use="regional")["height_ft"] <= A.NVIS_REACH_FT, True)
 
+    print("\n-- the feed swings with height, and the swings are where the books say --")
+    # Mutual impedance of the wire and its image (Kraus), against the curve
+    # every antenna book prints: about 22 ohms at a tenth of a wave, 50 near
+    # 0.16, the 98 ohm high point at 0.35, back through 73 at half a wave.
+    r = A.feedpoint_resistance
+    check("a tenth of a wave up: low twenties", round(r(0.10)), 22)
+    check("fifty ohms near 0.16", abs(r(0.16) - 50) < 4, True)
+    check("the high point near 0.35 is about 98", round(r(0.35)), 98)
+    check("back through 73 at half a wave", abs(r(0.5) - 73) < 5, True)
+    check("and it settles toward 73", abs(r(1.0) - 73) < 3, True)
+    marks = A.matching_heights(7.1, 35)
+    kinds = [m["what"] for m in marks]
+    check("the first landmark is the 50 ohm match", kinds[0], "match")
+    check("  at about 23 ft on 40 m", marks[0]["ft"] in (22, 23), True)
+    check("  which a 35 ft garden reaches", marks[0]["reachable"], True)
+    check("  and the 98 ohm high point at 46 ft it does not",
+          next(m for m in marks if m["what"] == "peak")["reachable"], False)
+    check("every landmark carries the SWR into 50 ohm coax",
+          all(m["swr"] >= 1.0 for m in marks), True)
+
+    print("\n-- the power changes what has to survive, not the antenna --")
+    notes = A.power_notes("dipole", 7.1, 100)
+    check("#14 at 100 W on 40 m heats the wire by about two watts",
+          notes["wire_heat_w"] < 3, True)
+    check("  and the note says a thicker wire loses less, not needs more",
+          "not need more" in notes["items"][0], True)
+    thick = A.power_notes("dipole", 7.1, 100, od_mm=4.8)["wire_heat_w"]
+    check("a thicker element loses less", thick < notes["wire_heat_w"], True)
+    steel = A.power_notes("dipole", 7.1, 1500, od_mm=2.5, sigma_rel=0.10)["wire_heat_w"]
+    check("fence wire at the legal limit is real but survivable heat",
+          30 < steel < 100, True)
+    efhw = A.power_notes("efhw", 14.2, 100)
+    check("an end-fed's far end at 100 W is hundreds of volts",
+          400 < efhw["end_volts"] < 600, True)
+    check("  and nearly two thousand at the legal limit",
+          A.power_notes("efhw", 14.2, 1500)["end_volts"] > 1800, True)
+    check("  and the transformer's rating is mentioned",
+          any("49:1" in t for t in efhw["items"]), True)
+    check("above the legal limit it says so",
+          any("97.313" in t for t in A.power_notes("dipole", 7.1, 2000)["items"]), True)
+    check("no power, no notes", A.power_notes("dipole", 7.1, 0), None)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

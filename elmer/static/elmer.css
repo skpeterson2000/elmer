@@ -429,6 +429,13 @@ table.data tr:hover td { background: #171f28; }
 }
 .field input:focus, .field select:focus { outline: 1px solid var(--amber); border-color: var(--amber); }
 
+/* The heights where a dipole's feed matches: five short columns that must
+   not wrap, or "22 ft" becomes two lines and the table is twice as tall. */
+table.heights td { white-space: nowrap; padding: .2rem .55rem .2rem 0; vertical-align: top; }
+table.heights td:last-child { white-space: normal; }
+table.heights tr.far td { color: var(--dimmer); }
+table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
+
 /* Under a frequency input: which band this is, and what is at that spot -
    or that it is between bands, and where the nearest edges are. The dot is
    the glance-answer, the words are the rest. */

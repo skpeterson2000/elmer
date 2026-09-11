@@ -1036,6 +1036,30 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   quarter wave is not there either. A wire hung *for* NVIS stops at 60 ft for
   the same reason: its ideal on 160 m is 106, and the lobe is overhead at 40.
 
+  **Heights where the feed matches.** A dipole is 73 Ω in free space and
+  something else at every height over the ground, because the wire sees its
+  own reflection: about 22 Ω a tenth of a wave up, **50 Ω near 0.16 λ** — the
+  one height where coax matches it with nothing in between — a 98 Ω high point
+  at 0.35 λ, back through 73 at half a wave, a dip to 58 at 0.6, settling
+  toward 73. The period is half a wavelength. The page lists these for the
+  band, in feet, marked by whether the site can reach them — on 40 m with a
+  35-foot garden the match is at 22 ft and the natural 73 Ω at 30, both in
+  reach, and the high point at 46 is not. Worked from the mutual impedance of
+  the wire and its image (Kraus) with scipy's cosine integral, and checked
+  against the published curve. Perfect-ground figures: real ground damps the
+  swings, so these are heights to start looking, not to stop at.
+
+  **What the power asks of it.** Not the antenna — a thicker element does not
+  take more power to drive; the RF runs on its skin and a fat wire has *more*
+  skin and *less* loss, and QRP operators use thin wire because it is light,
+  not because it needs less. What the power decides is what has to survive
+  it, and the page says so in numbers: the heat in the wire (#14 at 100 W on
+  40 m: 1.9 W, spread along 66 feet), the voltage at the far end of an end-fed
+  (500 V at 100 W, nearly 2 kV at the legal limit), the rating of the 49:1
+  transformer and the balun's core, the coax above a few hundred watts, the
+  heat in a whip's loading coil — which is most of the power — and the people
+  nearby, which the RF exposure tool is handed along with the watts.
+
   Twelve configurations across wire (dipole, inverted-V,
   end-fed half wave, bowtie, full-wave loop), vertical (quarter wave, 5/8 wave,
   J-pole, ground plane), the Yagi, and mobile: a loaded whip, and a screwdriver

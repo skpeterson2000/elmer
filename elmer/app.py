@@ -38,7 +38,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               terrain, touchstone, tournament, update, vna)
+               terrain, touchstone, tournament, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -1170,9 +1170,37 @@ def api_antenna_advice():
         abort(400)
     if not 0.1 <= mhz <= 300000:
         abort(400)
-    return jsonify(antenna_advice.recommend(
+    out = antenna_advice.recommend(
         mhz, use=request.args.get("use"), kind=request.args.get("kind"),
-        site=request.args.get("site") or None))
+        site=request.args.get("site") or None)
+    # Where the feed matches, for a horizontal wire: the heights the curve
+    # does something at, marked reachable or not by what the site allows.
+    if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
+        site = request.args.get("site") or ""
+        reach = (antenna_advice.SITES.get(site) or {}).get("max_ft")
+        out["heights"] = antenna_advice.matching_heights(
+            mhz, reach if reach not in (None, 0) else None)
+    # What the power asks of the parts. The conductor's diameter and material
+    # come along so the heat in the wire is this wire's, not the default's.
+    try:
+        watts = float(request.args.get("watts") or 0)
+    except ValueError:
+        watts = 0.0
+    if watts > 0:
+        spec = next((c for c in conductors.CONDUCTORS
+                     if c["key"] == request.args.get("conductor")), None)
+        od = spec["od_mm"] if spec else 1.63
+        sigma = spec.get("sigma", 1.0) if spec else 1.0
+        coil, rrad = None, None
+        if out.get("type") in ("whip", "screwdriver"):
+            try:
+                plan = whipbuild.plan(mhz, float(out.get("height_ft") or 8))
+                coil, rrad = plan.get("loss_ohms"), plan.get("radiation_ohms")
+            except Exception:                    # a whip that cannot be planned
+                coil = rrad = None
+        out["power"] = antenna_advice.power_notes(
+            out.get("type"), mhz, watts, od, sigma, coil, rrad)
+    return jsonify(out)
 
 
 @app.route("/api/antenna/pdf", methods=["POST"])
