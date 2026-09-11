@@ -105,6 +105,34 @@ def main():
     check("  at different tables",
           sorted(p["unit_name"] for p in daves), ["Nauen", "Poldhu"])
 
+    print("\n-- a callsign is one person wherever they sat --")
+    # Reported from the second Pi: KC9SP counted as two distinct people,
+    # because the hall keyed people by table and name and a callsign had
+    # played at two tables. A callsign is an identity; a name is not.
+    net.check_in("u4", "Rugby", players=1)
+    a_round(net, 4, {
+        "u1": [{"name": "KC9SP", "correct": True, "ms": 1000}],
+        "u4": [{"name": "kc9sp", "correct": True, "ms": 1300}],
+    })
+    calls = [p for p in net.people_board() if p["name"].upper() == "KC9SP"]
+    check("KC9SP at two tables is one row", len(calls), 1)
+    check("  with both answers on it", calls[0]["answered"], 2)
+    check("  and Dave at two tables is still two", 
+          len([p for p in net.people_board() if p["name"] == "Dave"]), 2)
+
+    print("\n-- and at a table, a callsign coming back is the same player --")
+    from elmer import party
+    room = party.Room()
+    first = room.join("KC9SP")[0]
+    first.score = 12
+    again = room.join("kc9sp", device="screen")[0]
+    check("the second join is the first player", again.id, first.id)
+    check("  with the score they had", again.score, 12)
+    check("  now answering from the screen", again.device, "screen")
+    check("  and the table has one of them", len(room.players), 1)
+    check("a plain name joining twice is two people",
+          room.join("Bob")[0].id != room.join("Bob")[0].id, True)
+
     print("\n-- the totals do not change when a screen filters them --")
     # The filtering is the board's, on the board. What the net reports is the
     # hall as it was played, so two screens cannot disagree about the score.

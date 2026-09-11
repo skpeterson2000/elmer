@@ -67,6 +67,45 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
 .dot.refused { background: var(--red); }
 .dot.idle    { background: var(--dimmer); }
 .tally span { color: var(--dim); font-size: .8rem; }
+
+/* Two seats at the screen. */
+.hs-row { display: flex; gap: .4rem; align-items: center; margin-bottom: .4rem; }
+.hs-row .hs-name { flex: 1; min-width: 0; padding: .4rem .55rem; border-radius: 8px;
+                   border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); }
+.hs-row .hs-who { flex: 1; font-weight: 700; }
+
+/* A round with people seated at the screen: the stage is two phones side by
+   side, and the rest of the page gets out of the way so thumbs have room.
+   The question runs across the top; each seat has its own column of
+   answers, its own clock, and its own verdict. Only ELMER's own screen is
+   sent here - a phone on the LAN looking at /party stays as it was. */
+body.focus .cols { grid-template-columns: 1fr; }
+body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn, body.focus #hallpick { display: none; }
+.stage-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .8rem; }
+.seatcol { border: 1px solid var(--line-2); border-radius: 12px; padding: .7rem .8rem; background: var(--panel-2); }
+.seatcol.done { opacity: .75; }
+.seatcol .who { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .5rem; }
+.seatcol .who b { font-size: 1.1rem; }
+.seatcol .who .clk { font-family: var(--mono); color: var(--amber); }
+.seatcol .choice { display: block; width: 100%; text-align: left; margin: 0 0 .5rem; padding: .7rem .8rem;
+                   border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel);
+                   color: var(--text); font-size: 1rem; line-height: 1.35; cursor: pointer; }
+.seatcol .choice .k { display: inline-block; min-width: 1.6rem; font-weight: 700; color: var(--amber); }
+.seatcol .choice:disabled { opacity: .5; cursor: default; }
+.seatcol .choice.picked { border-color: var(--amber); background: #2a2216; }
+.seatcol .choice.right { border-color: var(--green); background: #14301b; }
+.seatcol .choice.wrong { border-color: var(--red); background: #331a1a; }
+.seatcol .verdict { text-align: center; padding: .6rem; border-radius: 10px; margin-top: .3rem; font-weight: 700; }
+.seatcol .verdict.right { background: #14301b; color: var(--green); }
+.seatcol .verdict.wrong { background: #331a1a; color: var(--red); }
+.seatcol .verdict.in { background: var(--panel); color: var(--dim); font-weight: 400; }
+.seatcol .subj { display: block; width: 100%; text-align: left; margin: 0 0 .35rem; padding: .45rem .6rem;
+                 border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel);
+                 color: var(--text); font-size: .9rem; cursor: pointer; }
+.seatcol .subj .k { color: var(--dim); font-family: var(--mono); margin-right: .5rem; }
+.seatcol .subjgroup { font: .68rem var(--mono); text-transform: uppercase; letter-spacing: .06em;
+                      color: var(--dimmer); margin: .5rem 0 .2rem; }
+.seatcol .subjlist { max-height: 22rem; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -89,6 +128,25 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
       <div class="card" style="margin-top:1rem">
         <b>At this table</b>
         <div class="seats" id="seats"><span class="empty">nobody yet</span></div>
+        {# Two seats at the screen itself, for a table with no phones at it -
+           or the one running it, who wants to play too. Each seat is an
+           ordinary player whose device is this touchscreen; during a round
+           the stage becomes two phones side by side. #}
+        <div class="hotseat" id="hotseat">
+          <div class="tiny muted" style="margin:.7rem 0 .3rem">Or play at this screen &mdash; two can sit here, side by side, phones or no phones.</div>
+          <div class="hs-row" data-seat="A">
+            <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off">
+            <button class="btn sm" data-sit="A">Sit down</button>
+            <span class="hs-who" hidden></span>
+            <button class="btn sm ghost" data-stand="A" hidden>Stand up</button>
+          </div>
+          <div class="hs-row" data-seat="B">
+            <input class="hs-name" maxlength="24" placeholder="Seat B &mdash; a name" autocomplete="off">
+            <button class="btn sm" data-sit="B">Sit down</button>
+            <span class="hs-who" hidden></span>
+            <button class="btn sm ghost" data-stand="B" hidden>Stand up</button>
+          </div>
+        </div>
       </div>
       <div class="card" style="margin-top:1rem">
         <b>Net control</b>
@@ -152,6 +210,140 @@ async function api(path, body) {
   const r = await fetch(path, opt);
   return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
 }
+/* ------------------------------------------------------------- the screenSeats */
+/* Two people at the screen. A seat is an ordinary player whose device is this
+   touchscreen; the seat remembers its player across a reload, and forgets it
+   if the table no longer has that player. Only ELMER's own screen should
+   seat people - a phone on the LAN looking at this page is not the table -
+   but that is the operator's to judge, and the screenSeats are simply there. */
+const SEATS = ['A', 'B'];
+let screenSeats = {};
+try { screenSeats = JSON.parse(localStorage.getItem('elmer_screen_seats') || '{}'); } catch (e) { screenSeats = {}; }
+function saveSeats() { try { localStorage.setItem('elmer_screen_seats', JSON.stringify(screenSeats)); } catch (e) {} }
+function seated() { return SEATS.filter(s => screenSeats[s]).map(s => screenSeats[s]); }
+
+function paintSeats(state) {
+  const ids = new Set();
+  (state.cohorts || []).forEach(c => (c.members || []).forEach(m => ids.add(m.id)));
+  SEATS.forEach(s => {
+    const row = document.querySelector(`.hs-row[data-seat="${s}"]`);
+    if (screenSeats[s] && !ids.has(screenSeats[s].id)) { delete screenSeats[s]; saveSeats(); }
+    const on = !!screenSeats[s];
+    row.querySelector('.hs-name').hidden = on;
+    row.querySelector('[data-sit]').hidden = on;
+    row.querySelector('.hs-who').hidden = !on;
+    row.querySelector('[data-stand]').hidden = !on;
+    if (on) row.querySelector('.hs-who').textContent = screenSeats[s].name + ' · seat ' + s;
+  });
+}
+
+document.addEventListener('click', async e => {
+  const sit = e.target.closest('[data-sit]');
+  if (sit) {
+    const s = sit.dataset.sit;
+    const row = document.querySelector(`.hs-row[data-seat="${s}"]`);
+    const name = row.querySelector('.hs-name').value.trim();
+    if (!name) { row.querySelector('.hs-name').focus(); return; }
+    sit.disabled = true;
+    const r = await api('/api/party/join', {name, device: 'screen'});
+    sit.disabled = false;
+    if (!r.data.joined) { alert(r.data.reason || 'Could not sit down.'); return; }
+    screenSeats[s] = {id: r.data.player.id, name: r.data.player.name};
+    saveSeats(); tick();
+    return;
+  }
+  const stand = e.target.closest('[data-stand]');
+  if (stand) {
+    const s = stand.dataset.stand;
+    if (screenSeats[s]) { await api('/api/party/leave', {player: screenSeats[s].id}); delete screenSeats[s]; saveSeats(); }
+    tick();
+  }
+});
+
+/* --------------------------------------------- the stage as two phones */
+/* While a round is open and somebody is seated, each seat gets its own
+   column: the choices, its own clock, and - once it has answered - "in".
+   Answers go by the same route a phone's do, timed from when the question
+   was painted here, the way a phone times its own. */
+let seatPaintedAt = 0;
+const seatAnswered = {};        // player id -> chosen index, this round
+
+function seatColumnHTML(seat, round, shoot) {
+  const q = round.question || {};
+  const me = seat.id;
+  const done = seatAnswered[me] !== undefined || (round.answered_ids || []).includes(me);
+  const letters = 'ABCD';
+  return `<div class="seatcol ${done ? 'done' : ''}" data-seatcol="${me}">
+      <div class="who"><b>${esc(seat.name)}</b><span class="clk" data-seatclk="${me}"></span></div>
+      ${(q.choices || []).map((c, i) => `<button class="choice ${seatAnswered[me] === i ? 'picked' : ''}"
+          data-seat-answer="${me}" data-choice="${i}" ${done ? 'disabled' : ''}>
+          <span class="k">${letters[i]}</span>${esc(c)}</button>`).join('')}
+      ${done ? '<div class="verdict in">In. Waiting on the rest of the table.</div>' : ''}
+    </div>`;
+}
+
+function seatVerdictHTML(seat, round, shoot) {
+  const mine = (round.results || []).find(r => r.player_id === seat.id);
+  const letters = 'ABCD';
+  const q = round.question || {};
+  const answer = (q.choices || []).indexOf(round.answer);
+  const chose = seatAnswered[seat.id];
+  return `<div class="seatcol done">
+      <div class="who"><b>${esc(seat.name)}</b><span class="clk">${mine ? (mine.ms / 1000).toFixed(2) + 's' : ''}</span></div>
+      ${(q.choices || []).map((c, i) => `<button class="choice ${i === answer ? 'right' : (chose === i ? 'wrong' : '')}" disabled>
+          <span class="k">${letters[i]}</span>${esc(c)}</button>`).join('')}
+      <div class="verdict ${mine && mine.correct ? 'right' : 'wrong'}">${
+        !mine ? 'No answer' : mine.correct ? (shoot ? 'Right' : `Correct - ${mine.points} points`) : 'Not this time'}</div>
+    </div>`;
+}
+
+/* A seat that holds the pick in a shootout chooses here, on its own column;
+   the other seat waits. The subjects are the same list a phone shows. */
+function seatPickHTML(seat, shoot) {
+  const mine = shoot.picker === seat.id && !shoot.pick && !shoot.over;
+  if (!mine) {
+    return `<div class="seatcol"><div class="who"><b>${esc(seat.name)}</b></div>
+      <div class="verdict in">${shoot.over ? 'The shootout is over.' : shoot.pick ? `${esc(shoot.picker_name)} chose ${esc(shoot.pick_title || shoot.pick)}.` : `Waiting for ${esc(shoot.picker_name || 'the picker')} to choose.`}</div></div>`;
+  }
+  let group = null, list = '';
+  (shoot.available || []).forEach(a => {
+    if (a.group !== group) { group = a.group; list += `<div class="subjgroup">${esc(a.group)} · ${esc(a.group_title)}</div>`; }
+    list += `<button class="subj" data-seat-pick="${seat.id}" data-section="${esc(a.section)}"><span class="k">${esc(a.section)}</span>${esc(a.title)}</button>`;
+  });
+  return `<div class="seatcol"><div class="who"><b>${esc(seat.name)}</b><span class="clk" data-pickclk></span></div>
+      <div class="verdict in">Your pick. Choose the subject.</div><div class="subjlist">${list}</div></div>`;
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-seat-answer]');
+  if (b) {
+    const me = +b.dataset.seatAnswer, i = +b.dataset.choice;
+    if (seatAnswered[me] !== undefined) return;
+    seatAnswered[me] = i;
+    const col = b.closest('.seatcol');
+    col.querySelectorAll('.choice').forEach(x => { x.disabled = true; });
+    b.classList.add('picked');
+    const ms = Math.round(performance.now() - seatPaintedAt);
+    const r = await api('/api/party/answer', {player: me, chosen: i, ms});
+    if (!r.data.accepted) {
+      delete seatAnswered[me];
+      col.querySelectorAll('.choice').forEach(x => { x.disabled = false; });
+      b.classList.remove('picked');
+      return;
+    }
+    col.classList.add('done');
+    col.insertAdjacentHTML('beforeend', '<div class="verdict in">In. Waiting on the rest of the table.</div>');
+    return;
+  }
+  const pk = e.target.closest('[data-seat-pick]');
+  if (pk) {
+    pk.closest('.seatcol').querySelectorAll('.subj').forEach(x => { x.disabled = true; });
+    const r = await api('/api/party/pick', {player: +pk.dataset.seatPick, section: pk.dataset.section});
+    if (!r.ok) { pk.closest('.seatcol').querySelectorAll('.subj').forEach(x => { x.disabled = false; }); alert(r.data.message || 'Not taken.'); }
+    tick();
+  }
+});
+
 /* What a shootout is waiting on, in a sentence the room can read. */
 function shootLine(shoot) {
   if (shoot.over) return shoot.drawn
@@ -220,6 +412,14 @@ async function tick() {
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
   const s = r.data, round = s.round;
   seats(s);
+  paintSeats(s);
+  const atScreen = seated();
+  const seatPicking = s.shootout && !s.shootout.over && !s.shootout.pick &&
+                      atScreen.some(x => x.id === s.shootout.picker);
+  // The page gets out of the way while people at the screen are answering
+  // or choosing; it comes back between rounds.
+  document.body.classList.toggle('focus',
+    atScreen.length > 0 && ((round && !round.closed) || (!round && seatPicking)));
   document.getElementById('close').disabled = !round || round.closed;
 
   if (!round) {
@@ -230,13 +430,16 @@ async function tick() {
     const soon = secs !== null && secs !== undefined;
     const shoot = s.shootout;
     if (shoot) {
-      const key = 'shoot' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '');
+      const key = 'shoot' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '') + atScreen.map(x => x.id).join(',');
       chip.textContent = shoot.over ? 'shootout over' : 'shootout';
       if (painted !== key) {
         painted = key;
-        stage.innerHTML = `<p class="empty">${shootLine(shoot)}</p>`;
+        stage.innerHTML = `<p class="empty">${shootLine(shoot)}</p>` +
+          (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatPickHTML(x, shoot)).join('')}</div>` : '');
       }
       paintPickClock(shoot);
+      const pc = stage.querySelector('[data-pickclk]');
+      if (pc) pc.textContent = (shoot.pick_remaining === null || shoot.pick_remaining === undefined) ? '' : Math.ceil(shoot.pick_remaining) + 's';
       return;
     }
     chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
@@ -277,21 +480,30 @@ async function tick() {
                <span>takes the round</span></div>`}
       </div>
       <table class="res" style="margin-top:1rem">${rows}</table>
-      ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}`;
+      ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}` +
+      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
     return;
   }
 
-  if (painted !== round.number) {
-    painted = round.number;
+  const openKey = round.number + '|' + atScreen.map(x => x.id).join(',');
+  if (painted !== openKey) {
+    if (!String(painted).startsWith(round.number + '|')) {
+      // A new round: nobody at the screen has answered it yet.
+      Object.keys(seatAnswered).forEach(k => delete seatAnswered[k]);
+      seatPaintedAt = performance.now();
+    }
+    painted = openKey;
     const q = round.question || {};
     stage.innerHTML = `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="qtext">${esc(q.text || '')}</p>
       <div class="bigclock" id="clock"></div>
-      <p class="hint" id="waiting"></p>`;
+      <p class="hint" id="waiting"></p>` +
+      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout)).join('')}</div>` : '');
   }
   const clock = document.getElementById('clock');
   if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
+  stage.querySelectorAll('[data-seatclk]').forEach(el => { el.textContent = Math.ceil(round.remaining) + 's'; });
   const waiting = document.getElementById('waiting');
   if (waiting) waiting.textContent = round.waiting_on
     ? `${round.waiting_on} player${round.waiting_on === 1 ? '' : 's'} still thinking`

@@ -33,41 +33,62 @@ REAL = Path(os.environ.get("ELMER_ISOLATE_WATCH") or (ROOT / "data"))
 STATE = Path(tempfile.mkdtemp(prefix="elmer-test-"))
 os.environ["ELMER_STATE"] = str(STATE)
 
-# The operator's files: what the program writes. Names, and whole directories.
-WATCHED_FILES = ["elmer.db", "elmer.db-wal", "elmer.db-shm", "elmer.db-journal",
-                 "elmer.log", "update.json", "server-console.log"]
-WATCHED_DIRS = ["prints", "statutes", "nifog", "places", "pota", "callsign",
-                "geocode", "ionosonde", "notes", "explanations", "kiosk-profile"]
+# The guard. Not a fingerprint of data/ - a live ELMER on the same machine
+# writes its log and its database every second, and a fingerprint blames
+# whoever wrote last. Python's audit hook sees what *this process* does: every
+# file it opens for writing, every database it connects to, every remove,
+# rename or mkdir - and nothing any other process does. That is exactly the
+# question: did the test touch the operator's files.
+#
+# Reading is allowed, because the pools and the figures live under data/ and
+# reading them is the point. Connecting to a database under data/ is not
+# allowed even to read - that is how a test came to depend on the operator's
+# licence class - and neither is any kind of write.
+_touched = []
 
 
-def _fingerprint():
-    seen = {}
-    for name in WATCHED_FILES:
-        p = REAL / name
-        if p.exists():
-            st = p.stat()
-            seen[name] = (st.st_size, st.st_mtime_ns)
-    for name in WATCHED_DIRS:
-        d = REAL / name
-        if d.is_dir():
-            for p in sorted(d.rglob("*")):
-                if p.is_file():
-                    st = p.stat()
-                    seen[str(p.relative_to(REAL))] = (st.st_size, st.st_mtime_ns)
-    return seen
+def _under_real(path):
+    try:
+        p = Path(os.fsdecode(path))
+        if not p.is_absolute():
+            p = Path.cwd() / p
+        return REAL.resolve() in p.resolve().parents or p.resolve() == REAL.resolve()
+    except Exception:
+        return False
 
 
-_before = _fingerprint()
+_WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
+
+
+def _hook(event, args):
+    try:
+        if event == "open":
+            path, mode, flags = args
+            writing = (mode and any(c in mode for c in "wax+")) or (flags and flags & _WRITE_FLAGS)
+            if writing and _under_real(path):
+                _touched.append(f"{event} {os.fsdecode(path)} ({mode or flags})")
+        elif event in ("sqlite3.connect",):
+            if args and _under_real(args[0]):
+                _touched.append(f"{event} {args[0]}")
+        elif event in ("os.remove", "os.unlink", "os.rmdir", "os.mkdir", "os.rename",
+                       "shutil.rmtree", "shutil.move", "os.truncate"):
+            for a in args[:2]:
+                if isinstance(a, (str, bytes, os.PathLike)) and _under_real(a):
+                    _touched.append(f"{event} {os.fsdecode(a)}")
+                    break
+    except Exception:
+        pass                              # the hook must never take the test down
+
+
+sys.addaudithook(_hook)
 
 
 @atexit.register
 def _guard():
-    after = _fingerprint()
-    changed = sorted(k for k in set(_before) | set(after) if _before.get(k) != after.get(k))
-    if changed:
+    if _touched:
         sys.stderr.write("\nISOLATION BREACH: this test touched the operator's data/:\n")
-        for k in changed[:12]:
-            sys.stderr.write(f"    {k}\n")
+        for line in _touched[:12]:
+            sys.stderr.write(f"    {line}\n")
         sys.stderr.write("A test must run against ELMER_STATE, never against data/.\n")
         sys.stderr.flush()
         os._exit(3)

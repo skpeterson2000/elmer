@@ -7,9 +7,12 @@ Four tests in one day wrote a stranger's club name into a unit setting, left
 a certificate on the real print shelf, set a password on a real account, and
 read the operator's licence class - each caught by hand, each patched by
 hand. This holds the wholesale answer: every test imports _isolate first,
-which moves the operator's state to a temporary directory, and a guard that
-compares a fingerprint of the real data/ before and after and fails the run
-if anything the program writes has changed.
+which moves the operator's state to a temporary directory, and a guard on
+Python's audit hook that fails the run if this process opened anything under
+the real data/ for writing, connected to a database there, or removed or
+renamed anything there. An audit hook rather than a fingerprint of the
+directory, because a live ELMER on the same machine writes its log and
+database every second, and a fingerprint blames whoever wrote last.
 
 The guard is proved against a stand-in directory, by a subprocess that
 imports _isolate with the stand-in named as the thing to watch, writes into
@@ -50,6 +53,11 @@ check("every test imports the helper first",
              if "from elmer" in p.read_text() and "import _isolate" not in p.read_text()),
       [])
 
+print("\nreading what ships under data/ is not a breach")
+check("the pools can be read", (paths.CONTENT / "pools").is_dir(), True)
+first = open(next((paths.CONTENT / "pools").glob("*.json"))).read(1)
+check("  and reading one records nothing", (bool(first), _isolate._touched), (True, []))
+
 print("\nthe guard fails a test that touches the watched directory")
 stand_in = Path(tempfile.mkdtemp(prefix="elmer-standin-"))
 (stand_in / "prints").mkdir()
@@ -66,6 +74,26 @@ run = subprocess.run([sys.executable, "-c", script], cwd=ROOT / "tests",
 check("the process was failed by the guard", run.returncode, 3)
 check("  and said why", "ISOLATION BREACH" in run.stderr, True)
 check("  naming the file", "prints/index.json" in run.stderr, True)
+
+# ... and one that only connects to a database there, even to read.
+script = (
+    "import _isolate, sqlite3\n"
+    "sqlite3.connect(str(_isolate.REAL / 'elmer.db')).execute('select 1')\n")
+run = subprocess.run([sys.executable, "-c", script], cwd=ROOT / "tests",
+                     env=env, capture_output=True, text=True)
+check("connecting to a database there is a breach even to read", run.returncode, 3)
+
+# ... while a live server writing the same directory is not this process's
+# doing, and is not blamed on it.
+script = (
+    "import _isolate, subprocess, sys\n"
+    "subprocess.run([sys.executable, '-c', "
+    "'import sys; open(sys.argv[1], \"a\").write(\"x\")', "
+    "str(_isolate.REAL / 'prints' / 'index.json')])\n"
+    "print('another process wrote there')\n")
+run = subprocess.run([sys.executable, "-c", script], cwd=ROOT / "tests",
+                     env=env, capture_output=True, text=True)
+check("another process writing there is not blamed on this one", run.returncode, 0)
 
 print("\nand passes one that leaves it alone")
 script = "import _isolate\nprint('touched nothing')\n"

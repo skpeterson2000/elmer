@@ -153,10 +153,16 @@ function showJoin(reason) {
     localStorage.setItem('elmer_party_name', name);
     if (cert_name) localStorage.setItem('elmer_party_cert_name', cert_name);
     else localStorage.removeItem('elmer_party_cert_name');
-    const r = await api('/api/party/join', {name, cert_name});
+    // Who this phone was last time, if the table still has them: a reload
+    // in a new tab is the same person, not a second one.
+    let previous = null;
+    try { const was = JSON.parse(localStorage.getItem('elmer_party_was') || 'null');
+          if (was && was.name && was.name.toLowerCase() === name.toLowerCase()) previous = was.id; } catch (e) {}
+    const r = await api('/api/party/join', {name, cert_name, previous});
     if (!r.data.joined) { showJoin(r.data.reason || 'Could not join.'); return; }
     me = r.data.player;
     sessionStorage.setItem('elmer_party_player', JSON.stringify(me));
+    try { localStorage.setItem('elmer_party_was', JSON.stringify({id: me.id, name: me.name})); } catch (e) {}
     who.textContent = me.name + ' · Cohort ' + me.cohort;
     leaveBtn.hidden = false;
     start();
@@ -172,10 +178,80 @@ function showJoin(reason) {
    countdown that is already going to fire, or - for somebody sitting here on
    their own - a press. The server checks that permission again when the press
    arrives; this only decides whether to offer it. */
+/* A hall shootout, from a phone at one of its tables. The pick is the
+   table's; when it is this table's, the subjects are here and anyone at the
+   table may tap - the first tap is the table's choice. Otherwise: whose it
+   is, and the tables' letters. */
+function paintHallShootout(state) {
+  const h = state.hall && state.hall.shootout;
+  if (!h || !h.on) return false;
+  const standing = (h.standing || []).map(r => `
+    <tr class="${r.name === (state.hall.table || '') ? 'me' : ''} ${r.out ? 'gone' : ''}">
+      <td>${escapeHTML(r.name)}${r.picking && !h.over ? ' · picking' : ''}${r.simulated ? ' <span class="took" style="color:var(--dim)">practice</span>' : ''}</td>
+      <td class="w">${wordHTML(r)}</td></tr>`).join('');
+  let body;
+  if (h.over) {
+    body = `<p style="padding:1rem 0">${h.drawn ? 'Out of subjects with nobody ahead: a draw.' : escapeHTML(h.winner_name || 'A table') + ' is the last table standing.'}</p>`;
+  } else if (h.your_pick) {
+    let group = null, out = '';
+    (h.available || []).forEach(a => {
+      if (a.group !== group) { group = a.group; out += `<h4>${escapeHTML(a.group)}${a.group_title ? ' · ' + escapeHTML(a.group_title) : ''}</h4>`; }
+      out += `<button class="choice" data-hall-section="${escapeHTML(a.section)}"><span class="k">${escapeHTML(a.section)}</span>${escapeHTML(a.title)}</button>`;
+    });
+    body = `<div class="pick"><h3>Your table has the pick. <span class="clock" id="hallpickleft"></span></h3>
+      <p class="tiny muted" style="margin:0 0 .5rem">Anyone at this table can choose the subject for the whole hall. The first tap is the table's choice.</p>${out}</div>`;
+  } else if (h.pick) {
+    body = `<p style="padding:1rem 0">${escapeHTML(h.picker_name || 'The picking table')} chose ${escapeHTML(h.pick_title || h.pick)}. Next question coming…</p>`;
+  } else {
+    body = `<p style="padding:1rem 0">Waiting for ${escapeHTML(h.picker_name || 'another table')} to choose the subject… <span class="clock" id="hallpickleft"></span></p>`;
+  }
+  view.innerHTML = `<div class="state" style="padding:1rem .2rem"><h2>Shootout across the hall</h2>
+    <div class="shoot"><table>${standing}</table></div>${body}</div>`;
+  wireHallPick();
+  return true;
+}
+
+/* The same pick, under a round's result: the result stays, and the hall's
+   next move sits beneath it. */
+function hallPickHTML(state) {
+  const h = state.hall && state.hall.shootout;
+  if (!h || !h.on) return '';
+  if (h.over) return `<p class="state" style="padding:1rem 0">${h.drawn ? 'Out of subjects with nobody ahead: a draw.' : escapeHTML(h.winner_name || 'A table') + ' is the last table standing.'}</p>`;
+  if (h.your_pick) {
+    let group = null, out = '';
+    (h.available || []).forEach(a => {
+      if (a.group !== group) { group = a.group; out += `<h4>${escapeHTML(a.group)}${a.group_title ? ' · ' + escapeHTML(a.group_title) : ''}</h4>`; }
+      out += `<button class="choice" data-hall-section="${escapeHTML(a.section)}"><span class="k">${escapeHTML(a.section)}</span>${escapeHTML(a.title)}</button>`;
+    });
+    return `<div class="pick"><h3>Your table has the pick. <span class="clock" id="hallpickleft"></span></h3>
+      <p class="tiny muted" style="margin:0 0 .5rem">Anyone at this table can choose the subject for the whole hall. The first tap is the table's choice.</p>${out}</div>`;
+  }
+  if (h.pick) return `<p class="state" style="padding:1rem 0">${escapeHTML(h.picker_name || 'The picking table')} chose ${escapeHTML(h.pick_title || h.pick)}. Next question coming…</p>`;
+  return `<p class="state" style="padding:1rem 0">Waiting for ${escapeHTML(h.picker_name || 'another table')} to choose the subject… <span class="clock" id="hallpickleft"></span></p>`;
+}
+
+function wireHallPick() {
+  document.querySelectorAll('[data-hall-section]').forEach(b => b.addEventListener('click', async () => {
+    document.querySelectorAll('[data-hall-section]').forEach(x => { x.disabled = true; });
+    b.classList.add('picked');
+    const r = await api('/api/party/net/pick', {section: b.dataset.hallSection});
+    if (r.status !== 200) { document.querySelectorAll('[data-hall-section]').forEach(x => { x.disabled = false; }); b.classList.remove('picked'); }
+  }));
+}
+
+function paintHallPickClock(state) {
+  const el = document.getElementById('hallpickleft');
+  const h = state.hall && state.hall.shootout;
+  if (!el || !h) return;
+  const left = h.pick_remaining;
+  el.textContent = (left === null || left === undefined) ? '' : Math.ceil(left) + 's';
+}
+
 function paintWaiting(state) {
   const n = (state.cohorts || []).reduce((a, c) => a + c.players, 0);
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
+  if (paintHallShootout(state)) return;
   const shoot = state.shootout;
   if (shoot) {
     // A shootout between questions: the word so far, and either the pick
@@ -334,9 +410,14 @@ function paintResults(round, shoot) {
     <table class="board">${top}</table>
     ${paintShootout(shoot, false)}
     ${shoot && shoot.your_pick ? paintPick(shoot)
-      : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`}`;
+      : (state_hall_on(s_last) ? hallPickHTML(s_last)
+      : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`)}`;
   wirePick();
+  wireHallPick();
 }
+
+let s_last = null;                       // the last state polled, for the hall
+function state_hall_on(s) { return !!(s && s.hall && s.hall.shootout && s.hall.shootout.on); }
 
 /* ------------------------------------------------------------- shootout */
 function wordHTML(row) {
@@ -486,13 +567,18 @@ async function tick() {
   } catch (e) { return; }
   if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
   const s = r.data, round = s.round, shoot = s.shootout;
+  s_last = s;
+  const hall = s.hall && s.hall.shootout;
   // The pick is part of what is on screen, so a change in whose it is - or
   // in whether it has been made - repaints, even with no new round.
-  const pickKey = shoot ? ('|' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '')) : '';
+  const pickKey = (shoot ? ('|' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '')) : '') +
+                  (hall ? ('|h' + (hall.picker || '') + (hall.pick || '') + (hall.your_pick ? 'mine' : '') + (hall.over ? 'over' : '')) : '');
+
 
   if (!round) {
     if (shownRound !== 'none' + pickKey) { shownRound = 'none' + pickKey; paintWaiting(s); }
     paintPickClock(shoot);
+    paintHallPickClock(s);
     return;
   }
 
@@ -516,6 +602,7 @@ async function tick() {
       paintResults(round, shoot);
     }
     paintPickClock(shoot);
+    paintHallPickClock(s);
     return;
   }
   if (shownRound !== round.number) {
