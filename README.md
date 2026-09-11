@@ -1099,8 +1099,53 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   you. Same antenna on LMR-400 reads a worse 2.6:1 and delivers 84 W instead of
   56 W. Feeds the E9 and Element 3 drills.
 
-- **RF exposure evaluation** — an antenna designed in the Antennas tab can be
-  sent straight here, carrying its frequency, gain and description. The starting
+- **Path and line of sight** — the tool that answers "will this link work".
+  Both ends take whatever you happen to know: a grid square, a lat,lon pair, or
+  a place name such as "Walker, MN" or "Swamp Lake, Cass County, MN", resolved
+  through OpenStreetMap's Nominatim (cached, rate limited, no key).
+  Great circle distance and bearing, radio horizon on the 4/3 earth radius,
+  free-space loss, a full link budget with fade margin, and first Fresnel zone
+  clearance checked against a real terrain profile from OpenTopoData SRTM 30 m.
+  Where a ridge intrudes it costs the obstruction as knife-edge diffraction
+  loss (ITU-R P.526) and reports the margin that survives it — so a blocked path
+  is never quietly reported as comfortable. Terrain is cached, and without a
+  network the smooth-earth maths still runs and says the terrain is unknown.
+  The antenna tab hands its gain figure straight to it.
+
+### Tools
+
+The bench rather than the syllabus. Not "things no exam asks about" — RF
+safety very much is on the exam — but instruments: the things you reach for
+with a radio in front of you rather than a question paper. The Lab next door
+holds the material the exams ask about, and the RF safety questions are still
+in the pools.
+
+- **VNA** — the modelled trace an analyser would show for an antenna you have
+  not built yet, and the real one off an instrument on the bench. It finds the
+  port, asks what is on it, and sweeps. It also *drives* it: the span, hold and
+  resume, the five calibration standards one at a time, done, apply, bypass,
+  and save or recall a slot. What may be sent is one table on the server and
+  nothing types through from a browser to a device that runs what it is given.
+  Two of those commands destroy work — `cal reset` and `save` — and are refused
+  until the caller says it meant it, with the refusal carrying the reason. Most
+  of the rest are accepted in silence, so every result shows the instrument's
+  own words and reads the span back afterwards: a command this firmware has
+  never heard of shows up now rather than three steps later.
+
+  The sweep is held on the unit rather than in the page that took it. It
+  survives a reload, it can be read from a phone while the instrument sits by
+  the Pi, and the Smith chart in the Lab reads it from there — which is what
+  lets those two live on different pages at all. One sweep, not a history:
+  there is one instrument and one antenna, and "what did it measure" means the
+  last thing it measured.
+- **Sextant** — a sun sight reduced to a position line, for when nothing else
+  knows where you are. On no exam and useful anyway.
+- **RF exposure evaluation** — an antenna designed in the Lab's Antennas tab
+  can be sent straight here, carrying its frequency, gain and description.
+  Those are on different pages now, so the antenna is put down where this
+  bench will look for it and picked up once — a row left lying about would
+  turn up in the next evaluation somebody opened, days later, as though they
+  had typed it. The starting
   distances are worked out per antenna type, because how close a person can get
   has little to do with how high the antenna is: a horizontal wire is nearest
   directly beneath it, an inverted-V at its drooping ends rather than its apex,
@@ -1163,44 +1208,6 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   printed and posted in the shack. It opens in the page with Print beside it
   and stays under **Printouts**, so posting it in the shack does not begin with
   hunting through a downloads folder.
-- **Path and line of sight** — the tool that answers "will this link work".
-  Both ends take whatever you happen to know: a grid square, a lat,lon pair, or
-  a place name such as "Walker, MN" or "Swamp Lake, Cass County, MN", resolved
-  through OpenStreetMap's Nominatim (cached, rate limited, no key).
-  Great circle distance and bearing, radio horizon on the 4/3 earth radius,
-  free-space loss, a full link budget with fade margin, and first Fresnel zone
-  clearance checked against a real terrain profile from OpenTopoData SRTM 30 m.
-  Where a ridge intrudes it costs the obstruction as knife-edge diffraction
-  loss (ITU-R P.526) and reports the margin that survives it — so a blocked path
-  is never quietly reported as comfortable. Terrain is cached, and without a
-  network the smooth-earth maths still runs and says the terrain is unknown.
-  The antenna tab hands its gain figure straight to it.
-
-### Tools
-
-The bench rather than the syllabus. Three things that are worth having and are
-on no exam paper.
-
-- **VNA** — the modelled trace an analyser would show for an antenna you have
-  not built yet, and the real one off an instrument on the bench. It finds the
-  port, asks what is on it, and sweeps. It also *drives* it: the span, hold and
-  resume, the five calibration standards one at a time, done, apply, bypass,
-  and save or recall a slot. What may be sent is one table on the server and
-  nothing types through from a browser to a device that runs what it is given.
-  Two of those commands destroy work — `cal reset` and `save` — and are refused
-  until the caller says it meant it, with the refusal carrying the reason. Most
-  of the rest are accepted in silence, so every result shows the instrument's
-  own words and reads the span back afterwards: a command this firmware has
-  never heard of shows up now rather than three steps later.
-
-  The sweep is held on the unit rather than in the page that took it. It
-  survives a reload, it can be read from a phone while the instrument sits by
-  the Pi, and the Smith chart in the Lab reads it from there — which is what
-  lets those two live on different pages at all. One sweep, not a history:
-  there is one instrument and one antenna, and "what did it measure" means the
-  last thing it measured.
-- **Sextant** — a sun sight reduced to a position line, for when nothing else
-  knows where you are. On no exam and useful anyway.
 
 ### Game layer
 

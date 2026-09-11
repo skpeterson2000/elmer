@@ -1421,6 +1421,20 @@ if (toRf) toRf.addEventListener('click', () => {
   if (rfRows.length === 1 &&
       JSON.stringify(rfRows[0]) === JSON.stringify(blank)) rfRows = [];
   rfRows.push(row);
+
+  /* The evaluation lives on Tools and the antennas live here, so the antenna
+     has to survive a page load to reach it. Put down where the other bench
+     will look, and picked up there once - a row left lying about would
+     reappear in every evaluation somebody opened afterwards. */
+  if (!document.getElementById('pane-rf')) {
+    remember('rf.handoff', {row: row, said: {
+      title: 'Sent from the Antennas tab',
+      text: a.description + ' at ' + a.f + ' MHz — ' + near.why + '.',
+      warn: near.warn}});
+    location.href = '/tools#rf';
+    return;
+  }
+
   renderRfRows();
   selectTab('rf');
   history.replaceState(null, '', '#rf');
@@ -2077,6 +2091,7 @@ async function rfDownload() {
 
 function initRf() {
   if (!document.getElementById('rf-rows')) return;
+
   const qth = window.QTH || {};
   const loc = document.getElementById('rf-loc'), grid = document.getElementById('rf-grid');
   if (loc && !loc.value) loc.value = qth.short || qth.name || '';
@@ -2092,6 +2107,23 @@ function initRf() {
   document.getElementById('rf-pdf').addEventListener('click', rfDownload);
   if (call) call.addEventListener('change', () =>
     postJSON('/api/settings', {callsign: call.value}).catch(() => {}));
+
+  /* An antenna handed over from the Lab's Antennas tab, which is on the other
+     bench now. Applied after the pane is wired rather than instead of wiring
+     it, and taken once: a row left lying about would turn up again in the
+     next evaluation somebody opened, days later, as though they had entered
+     it. */
+  const handed = recall('rf.handoff', null);
+  if (handed && handed.row) {
+    remember('rf.handoff', null);
+    rfRows = [handed.row];
+    renderRfRows();
+    selectTab('rf');
+    history.replaceState(null, '', '#rf');
+    const said = handed.said || {};
+    toast(said.title || 'Sent to RF exposure', said.text || '');
+    if (said.warn) setTimeout(() => toast('Worth knowing', said.warn, 9000), 600);
+  }
   rfEvaluate();
 }
 if (document.getElementById('pane-rf')) initRf();
