@@ -1742,6 +1742,25 @@ The icon is installed into the hicolor theme at 48, 64, 128, 256 and 512 px
 from `elmer/static/icon.png`, so replacing the icon and re-running the install
 updates the menu too.
 
+### Printing what is near
+
+**Print nearest** on the Parks and summits page builds a sheet of the closest
+references — parks, summits, or both — and puts it on the printout shelf like
+every other PDF ELMER makes.
+
+The printed one is not the screen one. It goes in the vehicle, so it carries
+coordinates: the next thing anybody does with a reference they have chosen is
+type it into something that wants numbers, and a phone at a trailhead with no
+signal will not look it up. It keeps the screen's colours — green for parks,
+blue for summits — so nobody has to learn a second scheme. And it prints the
+count held against the count shown, because a sheet listing thirty parks where
+four hundred and eighty-five are held must not be mistaken for the whole of
+what is within reach.
+
+It prints what is already on the disk and never fetches. Fetching is a
+separate press because it is thirty-odd requests and the better part of a
+minute, which is not a thing to start by accident from a button marked print.
+
 ### The gear
 
 A gear at the right-hand end of the top bar opens **Your station**: what ELMER

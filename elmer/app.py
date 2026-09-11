@@ -28,7 +28,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                propagation, ranks,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
-               activations, discovery, fieldkit, gating, hall, host,
+               activations, activationspdf, discovery, fieldkit,
+               gating, hall, host,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
@@ -651,6 +652,55 @@ def api_activations():
         "programs": [activations.POTA, activations.SOTA],
         "gear": activations.GEAR_VERDICTS,
     })
+
+
+@app.route("/api/activations/print", methods=["POST"])
+def api_activations_print():
+    """The nearest parks, summits, or both, on a sheet for the vehicle.
+
+    Held references only, like the page. This prints what is already on the
+    disk rather than reaching out, because the press that fetches is a
+    separate press for a reason - a minute of requests is not something to
+    start by accident from a button labelled print.
+    """
+    body = request.get_json(silent=True) or {}
+    want = str(body.get("want") or "both").lower()
+    if want not in ("parks", "summits", "both"):
+        abort(400, "want must be parks, summits or both")
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    lat, lon = place.get("lat"), place.get("lon")
+    if lat is None:
+        abort(400, "ELMER does not know where you are yet")
+    parks = references.nearby(lat, lon, kind="park", limit=None)
+    summits = references.nearby(lat, lon, kind="summit", limit=None)
+    if want == "parks" and not parks:
+        abort(400, "no parks are held for here yet - fetch what is near first")
+    if want == "summits" and not summits:
+        abort(400, "no summits are held for here yet - fetch what is near first")
+    if not parks and not summits:
+        abort(400, "nothing is held for here yet - fetch what is near first")
+
+    pdf = activationspdf.build(
+        parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM,
+        station={"grid": place.get("grid") or "",
+                 "place": place.get("short") or place.get("name") or "",
+                 "callsign": profile_callsign() or ""})
+    named = {"parks": "parks", "summits": "summits",
+             "both": "parks-and-summits"}[want]
+    name = f"{named}-near-{place.get('grid') or 'here'}.pdf"
+    shown = min(activationspdf.DEFAULT_LIMIT,
+                max(len(parks) if want != "summits" else 0,
+                    len(summits) if want != "parks" else 0))
+    log.info("activations sheet: %s near %s (%d parks, %d summits held)",
+             want, place.get("grid"), len(parks), len(summits))
+    row = prints.keep(pdf, name, "activations",
+                      "%s near %s" % (named.replace("-", " ").capitalize(),
+                                      place.get("grid") or "here"),
+                      {"want": want, "parks": len(parks),
+                       "summits": len(summits), "shown": shown})
+    return _print_reply(row, _wants_raw(body))
 
 
 @app.route("/api/activations/prepare", methods=["POST"])
@@ -1473,6 +1523,21 @@ def _open_pools(connection):
 # How long a wall stands before it takes itself down. Long enough to read the
 # sentence on it twice, short enough that nobody is stuck looking at it.
 FORBIDDEN_SECONDS = 8
+
+
+@app.errorhandler(400)
+def _bad_request(exc):
+    """An API refusal reaches the page that asked, in the language it asked in.
+
+    A 400 carrying a sentence worth reading - "nothing is held for here yet,
+    fetch what is near first" - is no use as an HTML error page to something
+    that called fetch() and will try to parse it. The pages then report their
+    own vaguer guess instead of the reason they were given.
+    """
+    why = getattr(exc, "description", "") or "That request was not understood."
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({"ok": False, "error": why}), 400
+    return exc
 
 
 @app.errorhandler(403)

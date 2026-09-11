@@ -18,6 +18,16 @@
   <p class="small muted" id="ac-note" style="margin:.4rem 0 .6rem"></p>
   <div class="row" style="gap:.6rem;align-items:center">
     <button class="btn sm primary" id="ac-fetch">Fetch what is near</button>
+    {# The sheet that goes in the vehicle. Which of the two lists is a choice
+       because they are different trips: a park is a drive and a summit is a
+       walk with everything on your back, and somebody planning one is not
+       planning the other. #}
+    <select class="btn sm" id="ac-print-what" title="what to put on the sheet">
+      <option value="both">Parks and summits</option>
+      <option value="parks">Parks only</option>
+      <option value="summits">Summits only</option>
+    </select>
+    <button class="btn sm" id="ac-print">Print nearest</button>
     <span class="tiny muted" id="ac-fetch-say"></span>
   </div>
   <div id="ac-near" class="mt"></div>
