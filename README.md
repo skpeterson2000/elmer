@@ -1260,6 +1260,40 @@ Tournament mode is the same 2,475 questions run as a race: everybody gets the
 same question at the same moment, and the fastest correct answer takes the
 round.
 
+### How long one is, and where its questions come from
+
+A tournament is modelled on the examination for the class being played. The
+pool is divided into sections, the exam takes one question from each, and the
+number of sections in a subelement **is** its weight on the paper — so drawing
+the same way gets the proportions right without a second table to maintain and
+disagree with the first. The whole draw is made up front and no question is
+asked twice.
+
+It runs in blocks of twelve, and a winner is declared at the end of each rather
+than once at the end. Twelve questions is about ten minutes, which is roughly
+how long a room will hold still, and a table that started badly gets another
+chance to be the table that won something.
+
+| Class | Blocks | Questions | Sections in the pool |
+|---|---|---|---|
+| Technician | 3 | 36 | 35 — every one covered, one asked twice |
+| General | 3 | 36 | 35 — the same |
+| Extra | 4 | 48 | 50 — 48 of them covered |
+
+Extra gets the fourth block as a perk for sitting the harder ticket, not as an
+accident of pool size. The board says where it has got to — `Q18 of 36 · block
+2 of 3` — so the room knows both how much longer and when somebody is declared
+next.
+
+What is deliberately **not** there is ascending difficulty. Ordering the draw
+easiest-first needs a measure of which questions are hard, and this program has
+never recorded one: nothing in it has ever tracked how a question went for the
+population rather than for one person. The honest source is the unit's own
+answer log — every answer is stamped with its question, whether it was right
+and how long it took — normalised per person so a fast reader and a slow one
+can be compared. Until that exists the draw is in blueprint order and says so
+in a flag, rather than implying a warm-up that is not there.
+
 It works at three sizes, and the same engine runs all of them.
 
 **One person.** Open a tournament from any pool card on the dashboard. The
@@ -1355,14 +1389,19 @@ Nothing is scored differently either way.
 The same idea runs one level up, for whole tables rather than players — see
 *Tables that are not there*.
 
-### Cohorts, and who picks next
+### Cohorts, and who takes the round
 
 Players are seated in cohorts of eight and scored as teams, so eight people
 answering steadily beats one answering brilliantly while seven guess. The
-winning cohort chooses the next question — difficulty and topic — and where two
-are level the pick goes to whichever is behind overall, so a runaway leader
-does not also own the question list. Where they are level on that too it is
-drawn, because sorting by name handed the same table every tie all evening.
+winning cohort takes the round, and where two are level it goes to whichever is
+behind overall, so a runaway leader does not also collect the consolation.
+Where they are level on that too it is drawn, because sorting by name handed
+the same table every tie all evening.
+
+The board used to say the winner **chose the next question**, and nothing in
+the program ever did: the round drew at random over the whole pool and the
+picker it computed was never consulted. In a tournament the questions come from
+the blueprint and nobody picks them.
 
 ### Net control
 
@@ -1470,6 +1509,30 @@ right, each with the score and what it gained in the round that just went.
 
 Net control's own screen does not get the second half — the hall standings are
 already the thing it is showing, and the same list twice is not a scoreboard.
+
+**Three answers, not one.** A hall board carries the tables' running total, the
+players' running total, and the round that just closed, because those are three
+different questions. Which table is winning is the hall's. Who was quickest just
+now is the moment's. Which *person* is having a good evening is the one somebody
+sitting at a table came for, and it was the one the board could not answer.
+Every answer counts towards a player's total, not only the ones that scored:
+`3/4` beside the points, because two right out of three and two right out of
+twenty are different evenings.
+
+Practice tables and practice players are counted and marked rather than left
+out — a board with them edited out is not the game that was played — and **P**,
+or a tap in the corner opposite the way out, takes them out of the view for a
+club night with three real tables among six. That is a switch on the *view*;
+net control's "send one home" takes a practice table out of the *game*. The
+totals underneath are the same either way, so two boards watching one net
+cannot disagree about who is winning. A hall that is all practice says so once
+in the heading instead of stamping every row.
+
+Rows that do not fit are dropped whole. How much room the panels get changes —
+a long question takes three lines where a short one takes two, and every
+twelfth question a block result appears above them — so the rows are measured
+once they are on screen and the ones hanging off the bottom are taken out,
+rather than slicing somebody's name in half.
 
 **The answer, when the winner goes up.** The round closes, the fastest correct
 answer is named, and the question is still in everybody's head: that is the one
