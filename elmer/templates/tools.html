@@ -438,6 +438,29 @@
   </div>
 </div>
 
+{# ---------------------------------------------------------------------
+   DEVELOPMENT ONLY. Delete this panel, elmer/devreset.py and the
+   /api/dev/reset routes in app.py to take it out. Nothing else uses it.
+   --------------------------------------------------------------------- #}
+<div class="panel mt" id="dev-panel">
+  <div class="panel-title">Developer &mdash; reset this unit</div>
+  <p class="small muted">
+    Puts this copy back to how a fresh clone finds it: the study database, the
+    logs, the caches and the fetched park and summit lists go; the pools,
+    figures and rules a clone ships with stay. For seeing the first run again,
+    and for photographing an empty dashboard.
+  </p>
+  <p class="tiny muted">
+    Only from this machine, and only after it has told you what it is about to
+    take. <b>It is not undoable.</b>
+  </p>
+  <div class="row mt">
+    <button class="btn sm" id="dev-look">What would go?</button>
+    <span class="tiny muted" id="dev-say"></span>
+  </div>
+  <div id="dev-list" hidden></div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>window.QTH = {{ (qth or {})|tojson }};
@@ -445,4 +468,6 @@ window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
 {# One script serves both benches. Every pane in it is guarded on the elements
    it needs, so the half that is not on this page simply does not start. #}
 <script src="{{ asset('lab.js') }}"></script>
+{# development only - see the panel above #}
+<script src="{{ asset('devreset.js') }}"></script>
 {% endblock %}
