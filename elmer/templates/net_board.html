@@ -161,9 +161,14 @@ tr.gold td { color: #ffd479; }
 /* The left column of a hall carries two answers - which table is winning and
    which person is - so it stacks. The tables box is given its content and the
    players box takes the rest, because there are always fewer tables. */
+/* Both boxes take half the column each, by basis 0 rather than by content.
+   Sized from their content they would depend on how many rows were showing,
+   and the trimming below depends on how tall the box is - which is a loop
+   that eats itself: hide a row, the box shrinks, another row no longer fits.
+   Half and half is predictable, and there are always fewer tables than
+   players so the tables box has room to spare rather than the other way. */
 .stack { display: flex; flex-direction: column; gap: 1.2vh; min-height: 0; }
-.stack .panelbox:first-child { flex: 0 0 auto; }
-.stack .panelbox:last-child { flex: 1 1 auto; }
+.stack .panelbox { flex: 1 1 0; min-height: 0; }
 
 /* Practice is marked, never hidden by default: a name in italics beside a
    real one is the honest way to show a hall that is half made up. */
