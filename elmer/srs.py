@@ -38,6 +38,14 @@ RECOGNITION_FLOOR = 0.60   # multiple choice survives forgetting better than rec
 EVIDENCE_HALF = 30         # answers before inference about unseen questions is half-trusted
 
 
+# What counts as having learned something, for the purpose of noticing that
+# you have forgotten it. A card the scheduler was holding a day or more out
+# had been answered right at least twice with a night in between - it was
+# known. Missing that is a different event from missing a card seen for the
+# first time, and only the first is worth a word.
+LEARNED_DAYS = 1.0
+
+
 def grade(correct, ms):
     """Map an answer onto SM-2's 0-5 quality scale."""
     if not correct:

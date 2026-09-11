@@ -10,6 +10,32 @@ const state = {
   startedAt: Date.now()
 };
 
+/* The owl, and only where it is earned.
+ *
+ * Not on every miss. Spaced repetition works by finding what you get wrong -
+ * missing is the signal the scheduler runs on, and putting a stern face on it
+ * would be disapproving of the mechanism. A miss also happens dozens of times
+ * an evening, and a character that appears dozens of times an evening stops
+ * meaning anything by Thursday.
+ *
+ * What it marks instead is forgetting something you had learned: a card the
+ * scheduler was holding a day or more out, answered right twice with a night
+ * in between, and now gone. That is rare, it is worth a beat, and it says
+ * something useful - which cards are slipping, rather than which are new. */
+function lapseNote(res) {
+  if (!res.lapsed) return '';
+  const held = res.was_interval >= 1
+    ? Math.round(res.was_interval) + ' day' + (res.was_interval >= 1.5 ? 's' : '')
+    : 'a while';
+  return '<div class="lapse">' +
+    '<img src="/static/owl-mind.png" alt="" class="lapse-owl">' +
+    '<div><b>You had this one.</b> It was scheduled ' + escapeHTML(held) +
+    ' out, which means you answered it right twice with a night in between. ' +
+    'It is back in the short pile now &mdash; that is the scheduler doing its ' +
+    'job, not a setback.</div></div>';
+}
+
+
 function hud() {
   document.getElementById('h-count').textContent = state.count;
   document.getElementById('h-acc').textContent =
@@ -88,6 +114,7 @@ async function answer(index) {
         (res.correct ? '<span style="color:var(--green)">&#10003; Correct</span>'
                      : '<span style="color:var(--red)">&#10007; Not quite</span>') +
         '<span class="xp">+' + res.xp + ' XP</span></div>' +
+      lapseNote(res) +
       '<div class="small muted">' + res.explain.map(escapeHTML).join(' &middot; ') + '</div>' +
       '<div class="tiny muted" style="margin-top:.35rem">' + nextDue + '</div>' +
       explanationHTML(res.explanation, { pool: S.pool }) +

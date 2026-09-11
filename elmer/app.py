@@ -533,8 +533,22 @@ def api_bandplan():
     license = request.args.get("class", "Technician")
     if license not in bandplan.CLASSES:
         abort(400, "unknown license class")
+    # Which class is being read, and which one this station actually holds.
+    # The page is free to show any of them - that is how somebody decides
+    # whether the upgrade is worth sitting for - but it should say plainly
+    # when the two differ, before anything with a callsign on it is printed.
+    own = _own_class()
     return jsonify({
         "class": license, "kinds": bandplan.KINDS,
+        "own_class": own or "",
+        "yours": bool(own) and license.lower() == own.lower(),
+        # Only the upward direction is a claim worth a word. An Extra reading
+        # the Technician plan is looking at a subset of what they hold; a
+        # Technician reading Extra is looking at what they do not, and that is
+        # the sheet that must never be mistaken for a licence.
+        "above_yours": bool(
+            own and bandplan.CLASS_RANK.get(license, 0)
+            > bandplan.CLASS_RANK.get(own, 0)),
         "bands": [{
             **band,
             "privileges": bandplan.privileges_for(band["name"], license),
@@ -1797,6 +1811,15 @@ def api_answer():
         "xp": points, "total_xp": prof["xp"], "promoted": promoted,
         "streak_days": streak_days, "run": run,
         "interval_days": fields["interval"],
+        # Forgetting something you had learned is a different event from
+        # missing something new, and only the first is worth remarking on.
+        # srs counts a lapse on any miss - a card seen for the first time and
+        # got wrong lands there too - so the test is what the card was worth
+        # before it slipped: it had graduated past the same-session relearn
+        # and was being held at a real spacing.
+        "lapsed": bool(not correct and card and card["reps"] > 0
+                       and (card["interval"] or 0) >= srs.LEARNED_DAYS),
+        "was_interval": round(card["interval"], 1) if card else 0.0,
         "achievements": fresh,
     })
 

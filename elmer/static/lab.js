@@ -2069,7 +2069,16 @@ async function rfEvaluate() {
     out.innerHTML = '<span class="muted">Check the numbers entered.</span>'; return;
   }
 
-  const overall = (data.compliant
+  /* The owl, where it is earned. This is a limit somebody can exceed with a
+     person standing in the field, and a licence somebody can exceed with a
+     transmitter - the two cases in this tool where a raised eyebrow is the
+     correct response rather than a decoration. It is deliberately not on
+     anything else here. */
+  const stern = (!data.compliant || (data.privilege_warnings || []).length)
+    ? '<img src="/static/owl-mind.png" alt="" class="stern-owl" ' +
+      'title="worth stopping on">' : '';
+
+  const overall = stern + (data.compliant
     ? '<span class="pill good">compliant at the distances entered</span>'
     : '<span class="pill bad">one or more positions exceed the limit</span>') +
     /* A green pill next to an operation the license does not allow would read
