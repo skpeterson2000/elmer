@@ -707,8 +707,12 @@ def api_activations_print():
     if asked:
         place = geocode.resolve(asked)
         if not place or place.get("lat") is None:
-            abort(400, "could not find %r - try a town, a grid square, or "
-                       "coordinates" % asked[:60])
+            # Quoted the same way whatever is in it. Python's %r picks its
+            # own quotes by content, so Coeur d'Alene and O'Brien - both
+            # places somebody would type - come back in double quotes while
+            # everything else comes back in single.
+            abort(400, "could not find \u201c%s\u201d - try a town, a grid "
+                       "square, or coordinates" % asked[:60])
     else:
         place = qth_for(connection, profile)
     lat, lon = place.get("lat"), place.get("lon")
