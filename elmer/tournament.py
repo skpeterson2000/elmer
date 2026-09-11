@@ -120,9 +120,14 @@ def ordered(questions, difficulty_of=None):
     # quarters of the tournament in an order chosen by where the gaps fell.
     if len(known) < max(4, len(scored) * 0.6):
         return list(questions), False
-    floor = min(known)
+    # An unmeasured question is slotted at the median of what is known:
+    # calling it easy would open the tournament with something nobody has
+    # met, calling it hard would hold the warm-up hostage to it, and neither
+    # is a claim the measure can back. The middle claims nothing.
+    known.sort()
+    middle = known[len(known) // 2]
     return [q for _, q in sorted(
-        scored, key=lambda sq: (sq[0] if sq[0] is not None else floor))], True
+        scored, key=lambda sq: (sq[0] if sq[0] is not None else middle))], True
 
 
 def plan(pool_id, difficulty, rng=None, difficulty_of=None):

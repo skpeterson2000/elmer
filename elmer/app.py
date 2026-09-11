@@ -38,7 +38,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               certpdf, terrain, touchstone, tournament, update, vna, whipbuild)
+               certpdf, difficulty, terrain, touchstone, tournament, update, vna,
+               whipbuild)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -563,6 +564,39 @@ def api_bandplan():
                 for a, b, k, l in bandplan.activity_for(band["name"])],
         } for band in bandplan.BANDS],
         "channels_60m": bandplan.CHANNELS_60M,
+    })
+
+
+@app.route("/api/difficulty")
+def api_difficulty():
+    """Where the people on this unit get lost, question by question.
+
+    For the Elmer running a class: the questions this unit's students found
+    hardest, each with how many met it, how many missed, and how long it took
+    them against their own pace. Honest from small numbers because it is
+    this room's numbers, not a national claim - and it says how much of the
+    pool it has measured at all.
+    """
+    pool_id = request.args.get("pool") or "tech2026"
+    pool = _pool_or_404(pool_id)
+    measured = difficulty.measure(difficulty.load(conn(), pool_id))
+    try:
+        limit = max(1, min(50, int(request.args.get("limit") or 12)))
+    except ValueError:
+        limit = 12
+    rows = []
+    for h in difficulty.hardest(measured, limit):
+        q = pool.by_id.get(h["question_id"]) or {}
+        rows.append({**h, "section": q.get("section"),
+                     "text": (q.get("text") or "")[:160]})
+    return jsonify({
+        "pool": pool_id, "pool_name": pool.long_name,
+        "questions": len(pool.by_id),
+        "met": sum(1 for q in pool.by_id if q in measured),
+        "measured": sum(1 for q in pool.by_id if measured.get(q, {}).get("measured")),
+        "coverage": round(difficulty.coverage(measured, pool.by_id), 3),
+        "min_n": difficulty.MIN_N,
+        "hardest": rows,
     })
 
 
@@ -3042,7 +3076,17 @@ def _ask_net(running, difficulty="technician", section=None, seconds=None):
         # possible twice in an evening, and no end to it.
         state = running.plan_state()
         if state is None or state.get("difficulty") != wanted:
-            running.set_plan(tournament.plan(pool_id, wanted))
+            # Easiest first, where this unit has measured enough to say so;
+            # blueprint order, said plainly, where it has not. The conductor
+            # calls this from its own thread, so the database is opened here
+            # rather than taken from the request that is not there.
+            measured = difficulty.measure(difficulty.load(db.connect(), pool_id))
+            running.set_plan(tournament.plan(
+                pool_id, wanted, difficulty_of=difficulty.ranker(measured)))
+            log.info("net: tournament drawn, %d%% of the pool measured, %s",
+                     round(100 * difficulty.coverage(measured, pool.by_id)),
+                     "easiest first" if running.plan_state().get("ramped")
+                     else "blueprint order")
         question = running.next_question()
         if question is None:
             # Played out. The caller decides what that means: a route says so

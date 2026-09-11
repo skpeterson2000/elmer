@@ -665,7 +665,10 @@ async function tick() {
     ? ` · shootout · ${(board.shootout.available || []).length} subjects left`
     : plan && plan.length
     ? ` · Q${Math.max(1, plan.asked)} of ${plan.length}` +
-      (plan.blocks > 1 ? ` · block ${plan.block} of ${plan.blocks}` : '')
+      (plan.blocks > 1 ? ` · block ${plan.block} of ${plan.blocks}` : '') +
+      // Which order the draw is in is a claim, so it is stated: easiest
+      // first only where the unit has measured enough to say so.
+      (plan.ramped ? ' · easiest first' : '')
     : '';
   document.getElementById('sub').textContent = (board.kind === 'hall'
     ? `${board.units_present} table${board.units_present === 1 ? '' : 's'} · ` +
