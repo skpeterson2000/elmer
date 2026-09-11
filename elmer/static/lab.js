@@ -92,14 +92,43 @@ function maxTakeoff(f, fof2, h) {
   return c > 1 ? null : Math.acos(c) * 180 / Math.PI;
 }
 
+/* Where the sonde network was last read, and whether it was day where the
+   operator is. Filled by the "use a real measurement" button; null until then,
+   which is when the slider is a thought experiment rather than tonight. */
+let skipWhen = null;
+
+/* What a layer height means, which depends on the hour.
+ *
+ * The F2 layer sits around 270 km by day and 330 at night, so the same 245 km
+ * is ordinary at noon and distinctly low at eleven in the evening. This used
+ * to read the number alone and call anything under 250 "typical of a daytime
+ * layer" whatever the clock said - which is how a real measurement taken at
+ * half past ten at night came back labelled daytime.
+ *
+ * A measurement that disagrees with the hour is the interesting case rather
+ * than an error, so it is named instead of smoothed over. */
+function heightSays(h) {
+  if (!skipWhen || skipWhen.day === null || skipWhen.day === undefined) {
+    // No idea what time it is where they are: describe the height, and make
+    // no claim about the hour.
+    return h < 250 ? ' — low for an F2 layer'
+         : h > 380 ? ' — high for an F2 layer' : '';
+  }
+  const typical = skipWhen.day ? (skipWhen.typicalDay || 270)
+                               : (skipWhen.typicalNight || 330);
+  const when = skipWhen.day ? 'by day' : 'after dark';
+  const off = h - typical;
+  if (Math.abs(off) <= 35) return ' — about usual ' + when;
+  return (off < 0 ? ' — low for ' : ' — high for ') +
+         (skipWhen.day ? 'a daytime layer' : 'a night layer') +
+         ', which usually sits nearer ' + Math.round(typical) + ' km';
+}
+
 function drawSkip() {
   const f = num('s-f'), fof2 = num('s-fof2'), h = num('s-h');
   document.getElementById('s-f-v').textContent = f.toFixed(1) + ' MHz';
   document.getElementById('s-fof2-v').textContent = fof2.toFixed(1) + ' MHz';
-  document.getElementById('s-h-v').textContent = h + ' km'
-    + (h < 250 ? ' — low, typical of a daytime layer'
-       : h > 380 ? ' — high, typical of a night layer'
-       : '');
+  document.getElementById('s-h-v').textContent = h + ' km' + heightSays(h);
 
   const thetaMax = maxTakeoff(f, fof2, h);
   const nvis = thetaMax === 90;
@@ -207,6 +236,11 @@ if (sondeBtn) sondeBtn.addEventListener('click', async () => {
     sondeBtn.disabled = false;
     return;
   }
+  // Keep what the reply says about the hour, so the height can be read
+  // against what is usual now rather than against a fixed number.
+  skipWhen = {day: data.day, sun: data.sun_deg,
+              typicalDay: (data.typical_hmf2 || {}).day,
+              typicalNight: (data.typical_hmf2 || {}).night};
   const height = Math.round(Math.max(150, Math.min(450, near.hmf2)));
   const critical = Math.max(2, Math.min(16, near.fof2));
   document.getElementById('s-h').value = height;

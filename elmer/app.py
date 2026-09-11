@@ -3453,8 +3453,23 @@ def api_ionosonde():
         return jsonify({"ok": False, "typical": ionosonde.TYPICAL,
                         "error": "no ionosonde data reachable"}), 503
     closest = ionosonde.nearest(lat, lon) if lat is not None else None
+    # Whether it is day where the operator is. A height means nothing on its
+    # own: the F2 layer sits around 270 km by day and 330 at night, so the
+    # same 245 km is ordinary at noon and distinctly low at eleven at night -
+    # and the tool that reads this was calling every low layer a daytime one
+    # whatever the hour.
+    sun = day = None
+    if lat is not None:
+        try:
+            sun = round(propagation.solar_elevation(lat, lon), 1)
+            day = sun > 0
+        except Exception:
+            sun = day = None
     return jsonify({"ok": True, "spread": overview, "nearest": closest,
                     "typical": ionosonde.TYPICAL,
+                    "sun_deg": sun, "day": day,
+                    "typical_hmf2": {"day": patterns.TYPICAL_HMF2[True],
+                                     "night": patterns.TYPICAL_HMF2[False]},
                     "have_qth": lat is not None})
 
 
