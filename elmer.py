@@ -465,19 +465,23 @@ def main():
         build = bugreport.build_stamp().get("commit") or "unknown"
         print(f"  Forecasting every hour from {start:%Y-%m-%d %H}Z to {end:%Y-%m-%d %H}Z, blind, "
               f"for {loc.get('short') or loc.get('grid') or 'the QTH'}...")
-        bare = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build,
-                            progress=lambda when, n: print(f"    {when:%m-%d}", end="", flush=True))
+        from elmer import forecastlog
+        table = forecastlog.calibration()
+        live = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build,
+                            calibration=table, persist=True,
+                            progress=lambda when, n: print(f"    {when:%m-%d}", end="", flush=True)
+                            if n % (24 * 7) == 0 else None)
         print()
-        print(hindcast.report(bare))
-        learn = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build + "+learning", learn=True)
-        sk = learn["skill"]
-        print("\n  the same month with the unit allowed to learn its bias as it went:")
+        print(hindcast.report(live))
+        bare = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build + "+model-only")
+        sk = bare["skill"]
+        print("\n  the same span with the model alone - no record, no calibration - for comparison:")
         print("    by sky:   " + "   ".join(
             f"{k:8s} bias {v['bias']:+5.2f} mae {v['mae']:4.2f}" for k, v in sk["by_regime"].items() if v["n"]))
         print("    by lead:  " + "   ".join(
             f"{l:>2}h mae {sk['by_lead'][l]['mae']:4.2f}" for l in ("1", "6", "12", "24") if l in sk["by_lead"]))
         out = hindcast.CACHE / f"report-{start:%Y%m%d}-{end:%Y%m%d}-{build}.json"
-        out.write_text(json.dumps({"bare": bare, "learning": learn}, indent=1), encoding="utf-8")
+        out.write_text(json.dumps({"live": live, "model_only": bare}, indent=1), encoding="utf-8")
         print(f"\n  Written to {out}\n")
         return
 

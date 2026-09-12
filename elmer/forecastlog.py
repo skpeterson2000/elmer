@@ -336,6 +336,41 @@ def adjustment(days=ADJUST_DAYS, now=None):
     return out
 
 
+# --------------------------------------------------------------- persistence
+#
+# "The same as this hour yesterday" beat the model at 24 hours in every month
+# of the year - 2.0 MHz against 2.7 with the season in, 4.6 without. The
+# ionosphere over a place changes from day to day by less than any climatology
+# knows about that place, and the ledger holds yesterday. So past the anchor's
+# reach the forecast leans on the record: the measured MUF at the same hour
+# on the last few days, the most recent counting most.
+
+PERSIST_DAYS = 3
+PERSIST_WEIGHTS = (0.5, 0.3, 0.2)     # yesterday, the day before, the day before that
+
+
+def persistence(hours, now=None, days=None):
+    """For each hour in `hours` (ISO, UTC), the record's MUF for that hour of
+    day over the last `days` days - a weighted mean, most recent first - or
+    None where the record has nothing. Also how many days each rests on."""
+    now = now or datetime.now(timezone.utc)
+    days = days or PERSIST_DAYS
+    seen = _measured_index(days + 2, now)
+    out = []
+    for h in hours:
+        t = datetime.fromisoformat(h)
+        total, weight, n = 0.0, 0.0, 0
+        for k in range(1, days + 1):
+            got = seen.get(_hour((t - timedelta(hours=24 * k)).isoformat()))
+            if got and got.get("muf"):
+                w = PERSIST_WEIGHTS[k - 1] if k - 1 < len(PERSIST_WEIGHTS) else PERSIST_WEIGHTS[-1]
+                total += w * float(got["muf"])
+                weight += w
+                n += 1
+        out.append({"muf": round(total / weight, 2), "days": n} if weight else None)
+    return out
+
+
 # --------------------------------------------------------------- calibration
 #
 # A calibration is the adjustment's big sibling: a factor rather than an

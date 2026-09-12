@@ -458,6 +458,12 @@ function recordLine() {
       '</b> MHz; the sondes read <b>' + latest.measured + '</b>.');
   }
   const words = {dark: 'at night', lit: 'by day', grey: 'on the grey line', twilight: 'in twilight'};
+  const pers = r.persistence;
+  if (pers && pers.hours) {
+    parts.push('Past the reading, the curve leans on what the sondes measured at each hour over the last ' +
+      (pers.days === 1 ? 'day' : pers.days + ' days') + ' (' + pers.hours + ' of the 25 hours have a record)' +
+      ' \u2014 over a year that beat the model at every lead past six hours.');
+  }
   const cal = r.calibration;
   if (cal && cal.this_month) {
     const on = Object.keys(cal.this_month).filter(k => cal.this_month[k].applied);

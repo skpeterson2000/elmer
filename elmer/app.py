@@ -2367,6 +2367,13 @@ def api_propagation_outlook():
     adj = forecastlog.adjustment()
     bias = forecastlog.applied_bias(adj)
     table = forecastlog.calibration()
+    # The record's own forecast for each of the next 25 hours: the measured
+    # MUF at that hour of day over the last few days, where the ledger has
+    # it. Computed once for every band, since it is about the sky, not the band.
+    start_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    record_hours = [(start_hour + timedelta(hours=i)).isoformat() for i in range(25)]
+    persist = forecastlog.persistence(record_hours) if lat is not None else None
+    persist_days = max((p["days"] for p in (persist or []) if p), default=0)
 
     # With no QTH there is no sun angle, so the snapshot's assumed one is used
     # - the same one it computed its own MUF from, so the two cannot drift.
@@ -2409,7 +2416,8 @@ def api_propagation_outlook():
                                        # how high the layer is.
                                        hmf2=snap.get("hmf2")
                                        or propagation.HMF2_DEFAULT,
-                                       bias=bias, calibration=table)
+                                       bias=bias, calibration=table,
+                                       persist=persist)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "regime": row["regime"], "day": row["day"]}
                      for row in when]
@@ -2473,7 +2481,9 @@ def api_propagation_outlook():
                 bugreport.build_stamp().get("commit"))
             record = {"adjustment": adj, "skill": forecastlog.skill(),
                       "drift": verdict if (verdict and verdict["moved"]) else forecastlog.latest_drift(),
-                      "calibration": _calibration_summary(table)}
+                      "calibration": _calibration_summary(table),
+                      "persistence": {"days": persist_days,
+                                      "hours": sum(1 for p in (persist or []) if p)}}
         except Exception:                          # the ledger must never cost the page
             log.exception("forecast ledger")
 

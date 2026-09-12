@@ -295,7 +295,7 @@ def kp_at(data, when):
 
 def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
         ledger=None, build="hindcast", learn=False, progress=None,
-        calibration=None, stop=None):
+        calibration=None, stop=None, persist=False):
     """Forecast every hour from start to end, blind, into a ledger.
 
     `learn` lets the run apply the adjustment it has learned so far, as the
@@ -339,6 +339,10 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                       "regime": propagation.sun_regime(elevation, lat, when),
                                       "calibration": cal}, now=when)
             bias = forecastlog.applied_bias(forecastlog.adjustment(now=when)) if learn else None
+            record = None
+            if persist:
+                ahead = [(when + timedelta(hours=i)).isoformat() for i in range(25)]
+                record = forecastlog.persistence(ahead, now=when)
             out = []
             for mhz in bands:
                 rows = propagation.outlook(mhz, lat, lon, sfi, k, start=when,
@@ -346,7 +350,8 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                            m3000=cal["m3000"] if cal else None,
                                            anchor_sun=cal.get("sun_deg") if cal else None,
                                            hmf2=(cal or {}).get("measured_hmf2") or propagation.HMF2_DEFAULT,
-                                           bias=bias, calibration=calibration)
+                                           bias=bias, calibration=calibration,
+                                           persist=record)
                 out.append({"band": _band_name(mhz), "hours": [
                     {"at": r["at"], "score": r["score"], "muf": r["muf"],
                      "regime": r["regime"], "day": r["day"]} for r in rows]})
@@ -378,7 +383,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             "ledger": str(ledger_dir),
             "stations": list(data["stations"]), "silent": data.get("silent", []),
             "skill": skill, "adjustment": adjust, "table": table, "build": build,
-            "calibrated": calibration is not None,
+            "calibrated": calibration is not None, "persisted": bool(persist),
             "acknowledgement": ACKNOWLEDGEMENT.format(codes=", ".join(data["stations"]) or "no station")}
 
 
@@ -388,7 +393,9 @@ def report(result):
              f"in reach, {result.get('sondes_voting', 0)} voting on average "
              f"({', '.join(result['stations']) or 'none'}"
              + (f"; silent: {', '.join(result['silent'])}" if result.get("silent") else "") + ")",
-             f"  build {result['build']}", ""]
+             f"  build {result['build']}"
+             + (" - as the live forecast runs, the record blended in past the reading" if result.get("persisted")
+                else " - the model alone, the record kept out"), ""]
     sk = result["skill"]
     lines.append(f"  skill against the sondes, {sk['n']} forecast-hours scored (MHz, forecast minus measured)")
     lines.append("    by sky:   " + "   ".join(
