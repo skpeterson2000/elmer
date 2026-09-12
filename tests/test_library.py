@@ -120,6 +120,37 @@ tm = {t["key"]: t for t in L.topic_map()}
 check("the topic map covers every topic", sorted(tm), sorted(L.TOPICS))
 check("  and says which have pointers", [k for k, t in tm.items() if t["pointers"]], ["antennas", "cw"])
 
+print("\na manual saved with 'copying not allowed' still gives up its chapters")
+# Most radio manuals are saved this way. pdftotext reads the words regardless;
+# pdftohtml refused the whole file, and ELMER said the manual had no
+# bookmarks - which the operator could see was untrue from the working table
+# of contents in front of them.
+from reportlab.lib import pdfencrypt  # noqa: E402
+locked = pdfencrypt.StandardEncryption("", "owner-secret", canPrint=1, canCopy=0,
+                                       canModify=0, canAnnotate=0, strength=128)
+c = canvas.Canvas(str(L.SHELF / "Locked Manual.pdf"), pagesize=LETTER, encrypt=locked)
+c.setTitle("Locked Manual")
+c.bookmarkPage("a"); c.addOutlineEntry("Chapter 1 Locked Door", "a", level=0)
+c.drawString(72, 720, "Chapter 1 Locked Door"); c.drawString(72, 700, "The key is under the mat.")
+c.showPage(); c.save()
+r = L.refresh()
+check("the locked manual is indexed", "Locked Manual.pdf" in r["indexed"], True)
+row = next(b for b in L.catalogue() if b["name"] == "Locked Manual.pdf")
+check("  its words are searchable", L.search("under the mat")["hits"][0]["book"], "Locked Manual.pdf")
+check("  and its bookmarks were read", (row["bookmarks"], row["bookmarks_problem"]), (1, ""))
+check("  so its chapter is a pointer", any(x["book"] == "Locked Manual.pdf" for x in L.pointers("words", words=["door"])), True)
+(L.SHELF / "Locked Manual.pdf").unlink()
+L.refresh()
+
+print("\nan index from an older reader is remade")
+import json as _json
+ip = L._index_path(L.SHELF / "FT-991A Operating Manual.pdf")
+old_meta = _json.load(open(ip)); old_meta["version"] = 1; old_meta["outline"] = []
+_json.dump(old_meta, open(ip, "w"))
+check("the catalogue says so", {b["name"]: b["stale"] for b in L.catalogue()}["FT-991A Operating Manual.pdf"], "made by an older reader")
+check("  and the next pass re-reads it", "FT-991A Operating Manual.pdf" in L.refresh()["indexed"], True)
+check("  with its bookmarks back", {b["name"]: b["bookmarks"] for b in L.catalogue()}["FT-991A Operating Manual.pdf"], 4)
+
 print("\na changed file is read again; a removed one is dropped")
 time.sleep(1.1)
 make_manual(L.SHELF / "FT-991A Operating Manual.pdf",

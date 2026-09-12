@@ -98,7 +98,7 @@
         <div class="meta">
           <b>${escapeHTML(b.title)}</b>
           <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
-          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.bookmarks ? b.bookmarks + ' bookmarks' : 'no bookmarks') + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
+          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.bookmarks ? b.bookmarks + ' bookmarks' : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
           <span style="flex:1"></span>
           <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
           ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
