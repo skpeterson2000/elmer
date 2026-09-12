@@ -511,8 +511,29 @@ function forecastStrip(cond) {
         // have already said it.
         (top.best_hours > 1 ? ' &mdash; ' + top.best_hours +
                               ' hours of it.' : '.');
+  /* "Worth using right through the day" is true of 40 m at a floor of 38 and
+     hides the fact that the middle of it is CW and FT8, not SSB. So the
+     longest stretch inside a window where the band is merely Fair is named,
+     with the modes that stretch is good for - the strip's colours say it,
+     and now the sentence does too. */
+  let dip = '';
+  {
+    let best = null, run = null;
+    rows.forEach(h => {
+      const fair = h.score >= 38 && h.score < 60;
+      if (fair) { run = run || {from: h.at, to: h.at, n: 0}; run.to = h.at; run.n += 1; }
+      else { if (run && (!best || run.n > best.n)) best = run; run = null; }
+    });
+    if (run && (!best || run.n > best.n)) best = run;
+    if (best && best.n >= 2 && top && top.best >= 60) {
+      dip = ' From <b>' + hourLabel(best.from) + ':00</b> to <b>' + hourLabel(best.to) +
+        ':00</b> it is CW and FT8, not SSB' +
+        (rows.some(h => h.at >= best.from && h.at <= best.to && h.day)
+          ? ' &mdash; the D layer is taking its daytime share.' : '.');
+    }
+  }
   const say = wins.length
-    ? 'Worth using ' + wins.join(' and ') + ', local time &mdash; ' + peak
+    ? 'Worth using ' + wins.join(' and ') + ', local time &mdash; ' + peak + dip
     : '<b>No usable window in the next day</b> on these numbers &mdash; the ' +
       'band stays under what a contact needs.';
   return '<div class="fcstrip">' + cells + '</div>' +
