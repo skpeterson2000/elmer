@@ -364,6 +364,103 @@ api('/api/nifog').then(d => {
     '</details>';
 }).catch(() => {});
 
+/* ---------------------------------------------- the other radios in America
+   FRS, GMRS, MURS and CB from /api/personal: one fold per service with its
+   law and its channels, then the honest paragraph about an amateur radio on
+   those channels. Folded like the NIFOG rows, for the same reason - the
+   amateur bands are the page, and this is the rest of the country. */
+function psFreq(mhz) {
+  return mhz.toFixed(4).replace(/0+$/, '').replace(/\.$/, '.0');
+}
+
+function psFacts(svc) {
+  const rows = [
+    ['Who may use it', svc.license], ['Channels', svc.band],
+    ['Power', svc.power], ['Antenna', svc.antenna],
+    ['Identification', svc.id], ['Range', svc.range],
+    ['Equipment', svc.equipment], ['Uses', svc.uses],
+  ];
+  return '<table class="data ps-facts"><tbody>' +
+    rows.map(([k, v]) => '<tr><th>' + k + '</th><td class="small">' +
+      escapeHTML(v) + '</td></tr>').join('') + '</tbody></table>';
+}
+
+function psFrsGmrs(rows) {
+  return '<table class="data"><thead><tr><th>Ch</th><th class="num">MHz</th>' +
+    '<th>FRS</th><th>GMRS</th><th class="num">Repeater in</th><th>Notes</th></tr></thead><tbody>' +
+    rows.map(c => '<tr><td class="mono"><b>' + c.n + '</b></td>' +
+      '<td class="num mono tiny">' + psFreq(c.mhz) + '</td>' +
+      '<td class="tiny nowrap">' + escapeHTML(c.frs) + '</td>' +
+      '<td class="tiny nowrap">' + escapeHTML(c.gmrs) + (c.handheld_only ? '<br>handhelds only' : '') + '</td>' +
+      '<td class="num mono tiny">' + (c.repeater_input ? psFreq(c.repeater_input) : '&mdash;') + '</td>' +
+      '<td class="tiny muted">' + escapeHTML(c.note) + '</td></tr>').join('') +
+    '</tbody></table>';
+}
+
+function psMurs(rows) {
+  return '<table class="data"><thead><tr><th>Ch</th><th class="num">MHz</th>' +
+    '<th class="num">Bandwidth</th><th>Notes</th></tr></thead><tbody>' +
+    rows.map(c => '<tr><td class="mono"><b>' + c.n + '</b></td>' +
+      '<td class="num mono tiny">' + psFreq(c.mhz) + '</td>' +
+      '<td class="num tiny">' + c.bandwidth_khz + ' kHz</td>' +
+      '<td class="tiny muted">' + escapeHTML(c.note) + '</td></tr>').join('') +
+    '</tbody></table>';
+}
+
+function psCb(rows) {
+  /* Two columns of twenty: forty rows one under the other is a scroll, and
+     the channel list is something people read across. */
+  const half = Math.ceil(rows.length / 2);
+  const col = part => '<table class="data"><thead><tr><th>Ch</th>' +
+    '<th class="num">MHz</th><th>Notes</th></tr></thead><tbody>' +
+    part.map(c => '<tr' + (c.law ? ' class="law"' : '') + '><td class="mono"><b>' + c.n + '</b></td>' +
+      '<td class="num mono tiny">' + psFreq(c.mhz) + '</td>' +
+      '<td class="tiny muted">' + escapeHTML(c.note) + '</td></tr>').join('') +
+    '</tbody></table>';
+  return '<div class="grid" style="grid-template-columns:1fr 1fr;gap:.8rem;align-items:start">' +
+    col(rows.slice(0, half)) + col(rows.slice(half)) + '</div>';
+}
+
+api('/api/personal').then(d => {
+  const box = document.getElementById('personal-body');
+  if (!box) return;
+  const tables = {
+    frs: () => psFrsGmrs(d.frs_gmrs), gmrs: () => psFrsGmrs(d.frs_gmrs),
+    murs: () => psMurs(d.murs), cb: () => psCb(d.cb),
+  };
+  const heads = {
+    frs: '22 channels, shared with GMRS &mdash; 47 CFR 95.563',
+    gmrs: 'the same 22 plus 8 repeater inputs &mdash; 47 CFR 95.1763',
+    murs: '5 channels &mdash; 47 CFR 95.2763',
+    cb: '40 channels &mdash; 47 CFR 95.963',
+  };
+  box.innerHTML =
+    d.services.map(svc =>
+      '<details class="nifog-more ps-service"><summary class="small"><b>' +
+        escapeHTML(svc.name) + '</b> &mdash; ' + escapeHTML(svc.long) +
+        ' <span class="muted">(' + heads[svc.key] + ')</span></summary>' +
+      '<div class="grid cols-2 ps-grid">' +
+        '<div>' + psFacts(svc) + '</div>' +
+        '<div class="nifog-band" style="margin-top:0">' + tables[svc.key]() + '</div>' +
+      '</div></details>').join('') +
+    /* Said once, on the page that shows the channels, because this is where
+       somebody with a dual-band handheld is looking at 462.675 and
+       wondering. */
+    '<div class="notice mt">' +
+      '<b>Your amateur radio on these channels.</b> ' + escapeHTML(d.amateur.can) + ' ' +
+      escapeHTML(d.amateur.law) +
+      '<p style="margin:.5rem 0 0">' + escapeHTML(d.amateur.emergency) + '</p>' +
+      '<p style="margin:.5rem 0 0">' + escapeHTML(d.amateur.judgement) + '</p>' +
+    '</div>' +
+    '<div class="small mt"><b>When it is an emergency, in this order:</b>' +
+      '<ol class="ps-ladder">' + d.ladder.map(step =>
+        '<li><b>' + escapeHTML(step.what) + '.</b> <span class="muted">' +
+        escapeHTML(step.how) + '</span></li>').join('') + '</ol></div>';
+}).catch(() => {
+  const box = document.getElementById('personal-body');
+  if (box) box.innerHTML = '<p class="small muted">Could not load the channel tables.</p>';
+});
+
 /* ---------- the bar as a way in ----------
 
    Hovering a segment says what is there and whether the band is open right

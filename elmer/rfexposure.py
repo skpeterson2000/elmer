@@ -161,8 +161,18 @@ def validate(case):
     if not MIN_FREQ <= f <= MAX_FREQ:
         raise InvalidCase(f"frequency {f:g} MHz is outside {MIN_FREQ}-{MAX_FREQ:g} MHz")
     if not any(lo <= f <= hi for lo, hi in AMATEUR_RANGES):
-        warnings.append(f"{f:g} MHz is not in a US amateur band; the limits still "
-                        f"apply but check the frequency")
+        # Name the channel when it is one: a GMRS mobile at 50 W on the roof
+        # is a legitimate exposure question, and "check the frequency" is
+        # the wrong answer to somebody who typed it correctly.
+        from . import personal
+        theirs = personal.service_at(f)
+        if theirs:
+            warnings.append(f"{f:g} MHz is {theirs['label']} ({theirs['cite']}), "
+                            f"not an amateur frequency - {theirs['who']}. The "
+                            f"limits apply there the same way")
+        else:
+            warnings.append(f"{f:g} MHz is not in a US amateur band; the limits "
+                            f"still apply but check the frequency")
 
     pep = _number(case, "pep_watts")
     if pep <= 0:

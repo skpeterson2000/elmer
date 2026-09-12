@@ -28,7 +28,8 @@
   {% if shelf and shelf.sentence %}
     <p class="tiny muted" style="margin:.2rem 0 .6rem;max-width:80ch">
       Ticked from {% if shelf.basis == 'mine' %}the manuals you marked as yours{% else %}the manuals on this unit&rsquo;s
-      <a href="/library">Library</a> shelf{% endif %}: {{ shelf.sentence }}.
+      <a href="/library">Library</a> shelf{% if shelf.marked %} (what you marked as yours &mdash;
+      {{ shelf.marked|join(', ') }} &mdash; names no radio ELMER knows){% endif %}{% endif %}: {{ shelf.sentence }}.
       {% if shelf.unknown %}Also on the shelf, not placed as a radio: {{ shelf.unknown|join(', ') }}.{% endif %}
       Untick what is not with you.
     </p>

@@ -38,9 +38,9 @@ from reportlab.lib.pagesizes import LETTER  # noqa: E402
 from reportlab.pdfgen import canvas  # noqa: E402
 
 
-def make_manual(path, chapters, bookmarks=True):
+def make_manual(path, chapters, bookmarks=True, title="FT-991A Operating Manual"):
     c = canvas.Canvas(str(path), pagesize=LETTER)
-    c.setTitle("FT-991A Operating Manual")
+    c.setTitle(title)
     for i, (title, lines) in enumerate(chapters):
         if bookmarks:
             c.bookmarkPage(f"ch{i}")
@@ -233,6 +233,20 @@ check("marking a book makes it this person's", L.mine(connection), ["FT-991A Ope
 check("  and Make Contact then reads only theirs", L.shelf_gear(connection)["basis"], "mine")
 L.set_mine(connection, "FT-991A Operating Manual.pdf", False)
 check("  unmarked again", L.mine(connection), [])
+# The case that lost the poll: a person marks a book that is not a radio and
+# nothing else. Their mark is kept and said; the radios still come from the
+# shelf rather than vanishing.
+make_manual(L.SHELF / "FT8 Operating Guide.pdf", [("FT8", ["Fifteen-second periods."])], bookmarks=False,
+            title="FT8 Operating Guide")
+L.refresh()
+L.set_mine(connection, "FT8 Operating Guide.pdf", True)
+g = L.shelf_gear(connection)
+check("marking only a non-radio book falls back to the shelf", (g["basis"], g["gear"]),
+      ("shelf", ["hf_wire", "mobile_vhf"]))
+check("  and names what was marked", g["marked"], ["FT8 Operating Guide"])
+L.set_mine(connection, "FT8 Operating Guide.pdf", False)
+(L.SHELF / "FT8 Operating Guide.pdf").unlink()
+L.refresh()
 connection.close()
 r = client.get("/api/library/gear").get_json()
 check("the route answers the same", (r["basis"], r["gear"]), ("shelf", ["hf_wire", "mobile_vhf"]))

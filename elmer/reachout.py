@@ -20,7 +20,7 @@ invented. "Worth trying" means worth trying.
 """
 from datetime import datetime, timezone
 
-from . import bandplan, propagation, repeaters
+from . import bandplan, personal, propagation, repeaters
 
 # How good a bet each avenue is, worst to best. Sorting is by this, then by
 # how little it asks of the operator.
@@ -33,7 +33,13 @@ GEAR = {
     "mobile_vhf": "A mobile VHF/UHF rig",
     "hf_mobile": "HF with a vehicle whip",
     "hf_wire": "HF, and room to string a wire",
-    "gmrs": "GMRS, FRS, MURS or CB",
+    # The radios most of America carries. Kept apart because they are on
+    # different bands, reach different people and answer to different rules
+    # - see personal.py. "gmrs" keeps its old key: the rigs table and saved
+    # plans use it, and a GMRS radio is an FRS radio's big brother.
+    "gmrs": "A GMRS or FRS radio (462/467 MHz)",
+    "murs": "A MURS radio (151/154 MHz)",
+    "cb": "A CB radio (11 m)",
 }
 
 # 47 CFR 97.301: what a license class may actually key up on.
@@ -242,19 +248,85 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
                        "way on very little.",
             })
 
+    # The personal radio services, 47 CFR Part 95: a card for each radio
+    # the operator has, and a different card when what they have is an
+    # amateur radio that happens to tune the channels. A person with no
+    # gear ticked at all gets CB and FRS/GMRS offered anyway, because the
+    # radio in the next car is one of those far more often than it is ours.
     if "gmrs" in gear or not gear:
         out.append({
-            "key": "other-services", "title": "The radios that are not amateur",
+            "key": "frs-gmrs", "title": "FRS / GMRS - channel 20 with the "
+                                        "travel tone, then 1 and 16",
             "odds": "worth trying",
-            "needs": "GMRS, FRS, MURS or CB",
-            "do": "GMRS 462.675 is the traditional travellers' assistance "
-                  "channel and has repeaters on it. CB channel 9 is the "
-                  "emergency channel and 19 is where the trucks are - on a "
-                  "road with any freight on it, 19 is often the busiest "
-                  "frequency for a hundred miles.",
-            "why": "The point is to reach a human being, not to reach one on "
-                   "an amateur band. A trucker on 19 has a working radio and "
-                   "is going somewhere with a telephone.",
+            "needs": "An FRS or GMRS radio. FRS needs no license; GMRS needs "
+                     "the no-exam one (47 CFR 95.1705).",
+            "do": "462.675 MHz - channel 20 - with a 141.3 Hz tone is the "
+                  "travellers' assistance channel by long convention and "
+                  "carries a good many GMRS repeaters, so try it first with "
+                  "the tone on and with it off. Then channel 1, where every "
+                  "blister-pack radio comes out of the box, and 16 where the "
+                  "trail groups are. With a GMRS license and a repeater "
+                  "within reach, the input is 5 MHz up (467.675 for channel "
+                  "20). Say EMERGENCY rather than Mayday on GMRS "
+                  "(95.1733(a)(7)), and give your call at the end.",
+            "why": "There are more of these radios in the country than there "
+                   "are amateurs, and they are in the places people go to be "
+                   "away from telephones - campgrounds, trailheads, hunting "
+                   "camps. Any channel may carry emergency and traveller "
+                   "traffic and must give it priority (95.1731(a)). A GMRS "
+                   "repeater on a hill hears a 2 W handheld a long way.",
+        })
+    if "murs" in gear:
+        out.append({
+            "key": "murs", "title": "MURS - 154.570 and 154.600 first",
+            "odds": "long shot",
+            "needs": "A MURS radio. No license (95.305).",
+            "do": "154.570 and 154.600 - the old Blue Dot and Green Dot "
+                  "business channels, where most MURS radios and every "
+                  "driveway alarm ship - then 151.820, .880 and .940 "
+                  "(narrowband). Two watts and VHF: get high, get clear, and "
+                  "call more than once. Whoever answers is close.",
+            "why": "Few people listen to MURS on purpose, but the ones who "
+                   "do - a farm, a hunting camp, a store - have a base "
+                   "antenna on a pole and a telephone indoors. External "
+                   "antennas are allowed on MURS (95.2741), which is why a "
+                   "2 W base can hear across a county of flat ground.",
+        })
+    if "cb" in gear or not gear:
+        out.append({
+            "key": "cb", "title": "CB - channel 9, then 19",
+            "odds": "worth trying",
+            "needs": "A CB radio. No license, no call sign (95.305).",
+            "do": "Channel 9 (27.065 AM) first: it is reserved by law for "
+                  "emergency and traveller assistance (95.931(a)(2)), so "
+                  "anyone on it is there to hear you. Then 19 (27.185), "
+                  "where the trucks are - call with the road and the "
+                  "mile marker. If the radio has sideband, 38 LSB is the "
+                  "SSB calling channel: 12 W PEP and a quiet band. Plain "
+                  "language; a handle is fine.",
+            "why": "On a road with any freight on it, 19 is the busiest "
+                   "frequency for a hundred miles, and a trucker on it has a "
+                   "working radio, a telephone, and is going somewhere. When "
+                   "10 m is open so is 11, and skip carries 4 W a long way "
+                   "to somebody who can telephone your county from theirs.",
+        })
+    if _vhf(gear) and "gmrs" not in gear:
+        # The awkward truth, said once and plainly rather than left to be
+        # discovered: the handheld will tune these channels, listening to
+        # them is legal and useful, and transmitting on them is 97.403
+        # territory and nothing less. See personal.AMATEUR_ON_THESE.
+        out.append({
+            "key": "ham-on-frs", "title": "Your handheld hears the FRS/GMRS "
+                                          "and MURS channels - listen there",
+            "odds": "worth trying",
+            "needs": "Any amateur VHF/UHF radio, in receive",
+            "do": "Scan 462.550-462.725 and 467.5625-467.7125 (FRS/GMRS, 22 "
+                  "channels), 154.570 and 154.600 (MURS). Voices there mean "
+                  "people within a mile or two - a campground, a work crew, "
+                  "a family on a trail - and knowing that changes what you "
+                  "do next. Listening is legal on every one of them.",
+            "why": personal.AMATEUR_ON_THESE["law"] + " " +
+                   personal.AMATEUR_ON_THESE["judgement"],
         })
 
     out.append({
@@ -264,15 +336,21 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
         "do": "Call for help on whatever will carry - any frequency, any "
               "service, any power, licensed or not. Say MAYDAY or EMERGENCY, "
               "who you are, where you are, and what is wrong. Then stay put "
-              "and keep the radio on.",
+              "and keep the radio on. In this order:",
         "why": "47 CFR 97.403 says an amateur station may use any means of "
                "radiocommunication at its disposal to provide essential "
                "communication when life or property is in immediate danger and "
-               "normal systems are not available. That is the rule that makes "
-               "the box the box: everything above is about being effective, "
-               "and this one is about being allowed. It is not a loophole and "
-               "it is not for convenience - but when it applies, it applies "
-               "completely, and nobody has ever been penalised for it.",
+               "normal systems are not available; 97.405 says the same of a "
+               "station in distress. That is the rule that makes the box the "
+               "box: everything above is about being effective, and this one "
+               "is about being allowed. It is not a loophole and it is not "
+               "for convenience - but when it applies, it applies completely, "
+               "and nobody has ever been penalised for it. The order is not "
+               "in the rule; it is what an Elmer would tell you, and the "
+               "reason for it is the third step: a public-safety channel is "
+               "somebody's working frequency, and the FRS, GMRS and CB "
+               "channels have people on them who can telephone.",
+        "ladder": personal.LADDER,
     })
 
     def sort_key(way):

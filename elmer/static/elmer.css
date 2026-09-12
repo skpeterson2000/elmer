@@ -963,6 +963,14 @@ option.not-permitted { color: var(--amber); }
 .nifog-band .num { text-align: right; }
 .interop-opt { display: flex; align-items: center; gap: .3rem; align-self: flex-end;
                padding-bottom: .45rem; cursor: pointer; }
+.ps-grid { gap: .9rem 1.4rem; margin-top: .6rem; align-items: start; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.ps-grid table.data th, .ps-grid td.mono, .ps-grid td.nowrap { white-space: nowrap; }
+.ps-facts th { text-align: left; white-space: nowrap; vertical-align: top; color: var(--dim); font-weight: 600; padding-right: .8rem; }
+.ps-facts td, .ps-facts th { padding: .28rem .35rem; }
+tr.law td { background: rgba(255,180,84,.08); }
+.ps-ladder { margin: .4rem 0 0; padding-left: 1.3rem; }
+.ps-ladder li { margin-bottom: .35rem; line-height: 1.45; }
+@media (max-width: 720px) { .ps-grid { grid-template-columns: 1fr; } }
 .nifog-more summary { cursor: pointer; color: var(--dim); padding: .3rem 0; }
 .nifog-more summary:hover { color: var(--text); }
 .nifog-more[open] summary { color: var(--text); margin-bottom: .2rem; }

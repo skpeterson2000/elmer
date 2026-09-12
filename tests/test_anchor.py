@@ -142,10 +142,12 @@ def main():
               "flat contradiction" in flat["note"], True)
         check("  and does not claim we are better informed",
               "better informed" in flat["note"], False)
-        check("  it says to doubt this page first",
-              "doubt this page first" in flat["note"], True)
+        check("  it does not take our own side",
+              "does not get to assume it is the other one" in flat["note"], True)
         check("  and to go and listen",
-              "Turn the radio on" in flat["note"], True)
+              "Trust your ears" in flat["note"], True)
+        check("  and carries no confession of an old fault",
+              "before now" in flat["note"], False)
     # One step apart is still allowed to explain which is better founded -
     # that is a real difference of method, not a symptom.
     soft = P.reconcile(45, "Good", "estimated")

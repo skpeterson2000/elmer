@@ -57,10 +57,21 @@ def frequency_context(mhz):
     repeaters" - it is the national FM simplex calling channel, and calling it
     a repeater channel is both wrong and a way to annoy people.
     """
-    from . import bandplan
+    from . import bandplan, personal
     seg = bandplan.segment_at(float(mhz))
     if not seg:
-        return None
+        # Not ours does not mean not anybody's. A J-pole for 462.675 or a
+        # whip for channel 19 is an ordinary antenna question from a GMRS
+        # licensee or a CB owner, and the answer is the same physics; what
+        # changes is the use assumed - these are all local FM or AM
+        # simplex, none of them weak-signal work.
+        theirs = personal.service_at(float(mhz))
+        if not theirs:
+            return None
+        return {"band": theirs["name"], "kind": "simplex",
+                "label": theirs["label"], "point": True,
+                "low": theirs["mhz"], "high": theirs["mhz"],
+                "service": theirs}
     return {"band": seg["band"], "kind": seg["kind"], "label": seg["label"],
             "point": seg["high"] <= seg["low"],
             "low": seg["low"], "high": seg["high"]}
@@ -72,6 +83,9 @@ def default_use(mhz, kind=None):
     seg = frequency_context(mhz)
     kind = (seg or {}).get("kind") or kind
     label = ((seg or {}).get("label") or "").lower()
+
+    if (seg or {}).get("service") and mhz < 50.0:
+        return "regional"       # CB: the next few miles of road, not DX
 
     if mhz >= 50.0:
         # Above 50 MHz the kind alone flattens SSB, CW and FT8 into whatever
