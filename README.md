@@ -2071,11 +2071,17 @@ hall. That is the piece that was not possible before: an instructor who can
 see, while the room is still in front of them, which section it did not
 understand.
 
-**The programme.** The evening as a list — intermission, twelve rounds, ten
+**The programme.** The event as a list — intermission, twelve rounds, ten
 minutes' study on what the room missed, an announcement, a shootout,
 certificates, thanks — walked with one button. Each step does the thing: the
 conductor starts or stops, an open question is scored before the screens
-change, the mode follows. "Fill in a club evening" writes a sensible one.
+change, the mode follows. **Schedule an event** fills the list in one of the
+shapes an event takes — *around the table* for friends and family and one
+unit, *a class* a VE team is teaching (study first, then questions, then
+study on what the room missed, and again), *a club night*, *a hamfest booth*
+(short rounds, the sponsors between, a shootout when the crowd is there) —
+and the host edits from there. It is the same program at every size, and the
+limit is whether a Pi can be powered where the people are.
 
 **No stale screens.** The first rehearsal found a phone that had joined the
 hall from a page its browser had kept since the day before — the QR scanner

@@ -1,0 +1,19 @@
+{
+ "deck": {
+  "history": true,
+  "quotes": true,
+  "hams": true,
+  "technique": true,
+  "equipment": true,
+  "standings": true,
+  "sponsor": true,
+  "notice": true,
+  "join": true,
+  "programme": true
+ },
+ "dwell": 15.0,
+ "sponsors": [],
+ "notices": [],
+ "programme": [],
+ "next_id": 1
+}

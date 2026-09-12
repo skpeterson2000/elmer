@@ -140,6 +140,28 @@ def main():
     s.advance(); s.advance()
     check("past the end is None", s.advance(), None)
 
+    print("\n-- the shapes an event takes --")
+    check("four shapes, from the kitchen table to the hamfest",
+          sorted(S.EVENTS), ["class", "club", "hamfest", "table"])
+    for key, shape in S.EVENTS.items():
+        steps = S.event_steps(key, "general")
+        check(f"{key}: every step is a known kind", all(st["kind"] in S.STEP_KINDS for st in steps), True)
+        check(f"  {key}: the rounds take the net's difficulty",
+              all(st.get("difficulty") == "general" for st in steps if st["kind"] in ("rounds", "shootout")), True)
+    check("a class studies before it plays",
+          [st["kind"] for st in S.event_steps("class")][:3], ["intermission", "study", "rounds"])
+    check("the kitchen table has no sponsors' announcement in it",
+          any(st["kind"] == "announce" for st in S.event_steps("table")), False)
+    check("the hamfest runs its rounds short", all(st.get("seconds") == 20 for st in S.event_steps("hamfest") if st["kind"] == "rounds"), True)
+    try:
+        S.event_steps("gala")
+        check("an unknown shape is refused", False, True)
+    except ValueError:
+        check("an unknown shape is refused", True, True)
+    s = S.Show(random.Random(7))
+    s.set_programme(S.event_steps("table", "technician"))
+    check("and it loads as a programme", s.programme_view()["of"], 5)
+
     print("\n-- the net carries the show --")
     net = netcontrol.Net("Test net")
     net.show = S.Show(random.Random(6))
