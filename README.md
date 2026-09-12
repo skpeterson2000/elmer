@@ -448,7 +448,12 @@ uncomfortable thing plainly: the feedpoint is the radiation resistance plus
 the loss, so a pair that matches 50 Ω coax with nothing in between is telling
 you the loss is most of the feedpoint. The mast-isolation and coax-choke
 recipe from the same sheet is in the notes, the printed sheet carries it, and
-Make Contact offers the pair to anyone who ticks a whip and no wire.
+Make Contact offers the pair to anyone who ticks a whip and no wire. The
+fan-dipole step is there too: four pairs at 45° on one hub and one coax — the
+Octopus, N1GY's QST design of December 2007 as built and documented by KE0CP
+— with the hub wiring (hot elements on shoulder washers, grounded ones to the
+box), why it needs no switching, and the reminder that each pair points its
+own way.
 
 The rest of the program knows these channels too. The Lab's "may I?" and RF
 exposure answers name the channel rather than doubting the number — 462.55

@@ -103,7 +103,10 @@ NOT_CUT = {
                   "non-conductive. Virginia RACES measured a pair at 20 ft "
                   "about 10 dB below a full-size dipole on 40 m, 18 dB on "
                   "75 m and 6 dB below a G5RV on 20 m - and worked Europe "
-                  "with it.",
+                  "with it. Four pairs at 45 degrees on one hub and one coax "
+                  "is the Octopus (N1GY, QST December 2007): only the "
+                  "resonant pair radiates, so no switching, and each pair "
+                  "points its own way.",
 }
 
 
