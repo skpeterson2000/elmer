@@ -1442,6 +1442,24 @@ only then. Unmeasured questions sit in the middle of a ramp, claimed neither
 easy nor hard. On a fresh unit that is every question, the draw is in blueprint
 order, and it says so. It sharpens every time anyone studies.
 
+**The forecast keeps its own score.** Every hour's outlook is written to a
+ledger under `data/forecasts/` with the inputs it was drawn from and the build
+that drew it, and every measured MUF is written down as it arrives. From those
+two the unit answers three questions on its own. *Skill*: "Yesterday at this
+hour ELMER said MUF 12.4; the sondes read 14.2" — kept by lead time and by sky
+(lit, grey, dark), so "the model runs 1.8 MHz low at night" is a measured
+sentence with an n behind it. *Adjustment*: where the record shows a steady
+bias by sky, the unit corrects its own model by that amount — only where no
+fresh reading holds, only after twelve measured hours of that sky agree, never
+by more than 3 MHz (a bigger bias is a broken station or a different sky, and
+is reported rather than applied) — and the strip says so: *the curve is
+corrected by that where no reading holds.* The Pi teaches itself the level;
+the shape stays the model's. *Drift*: when a new outlook differs from the last
+one by more than the inputs moved, the model changed and the sky did not; with
+a new build that is logged as explained, without one it is a WARNING. Nothing
+in the ledger leaves the unit or names anyone; it is the raw material a field
+report would carry home, if the operator ever chose to send one.
+
 **The Elmer's class report.** The same measure, on the Progress page: *Where
 people on this unit get lost* — the twelve questions this unit's students found
 hardest, each with how many met it, how many missed it first time, and how long
