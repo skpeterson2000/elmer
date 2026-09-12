@@ -81,6 +81,16 @@ res = H.run(start, end, 45.5, -84.0, syn, build="test", ledger=H.CACHE / "ledger
 check("every hour was forecast", res["hours"], 49)
 check("  every hour had the station in reach", res["hours_with_reading"], 49)
 check("  and the ledger was written where asked", Path(res["ledger"]).is_dir() and any(Path(res["ledger"]).glob("*.json")), True)
+# A long run must keep every day it forecast: the live unit's sixty-day
+# pruning once graded a year as its last two months.
+far = start - timedelta(days=400)
+old_run = H.run(far, far + timedelta(days=1), 45.5, -84.0,
+                {"stations": {"AL945": [dict(r, time=(datetime.fromisoformat(r["time"].replace("Z", "+00:00")) - timedelta(days=400)).isoformat().replace("+00:00", ".000Z")) for r in made]},
+                 "kp": [[(far + timedelta(hours=3 * i)).isoformat().replace("+00:00", "Z"), 1.3] for i in range(-2, 20)],
+                 "f107": [[(far + timedelta(days=d)).isoformat()[:19], 110.0] for d in range(-1, 4)]},
+                build="test-old", ledger=H.CACHE / "ledger-old")
+check("  a run four hundred days back keeps its days", len(list((H.CACHE / "ledger-old").glob("*.json"))) >= 2, True)
+check("  and the live keep window is back afterwards", (F_KEEP := __import__("elmer.forecastlog", fromlist=["KEEP_DAYS"]).KEEP_DAYS) == 60, True)
 sk = res["skill"]
 check("  forecast-hours were scored", sk["n"] > 200, True)
 check("  by sky and by lead", ("lit" in sk["by_regime"] or "dark" in sk["by_regime"], "24" in sk["by_lead"]), (True, True))
