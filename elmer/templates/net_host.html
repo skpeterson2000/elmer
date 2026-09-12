@@ -39,6 +39,45 @@ td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); font-size: .9re
 td.n { color: var(--dim); width: 2.2rem; }
 td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
 .big { font-family: var(--mono); font-size: 2rem; color: var(--amber); }
+/* the show */
+.showhead { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: .8rem; }
+.showhead .mode { display: inline-flex; gap: .3rem; }
+.showhead .mode .btn.on { border-color: var(--amber); color: var(--amber); }
+.showgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.6rem; }
+@media (max-width: 46rem) { .showgrid { grid-template-columns: 1fr; } }
+.show .sub { font: .72rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dimmer); margin-bottom: .35rem; }
+.show textarea { width: 100%; box-sizing: border-box; padding: .5rem .6rem; border-radius: 8px; border: 1px solid var(--line-2);
+  background: var(--panel-2); color: var(--text); font: 1rem var(--sans); resize: vertical; }
+.show .btn.sm { padding: .3rem .6rem; }
+.show input.btn, .show select.btn { background: var(--panel-2); color: var(--text); }
+.pending { margin-top: .5rem; display: flex; flex-direction: column; gap: .3rem; }
+.pending .ann { display: flex; gap: .6rem; align-items: baseline; padding: .35rem .6rem; border-radius: 8px; font-size: .9rem;
+  border: 1px solid var(--line); background: var(--panel-2); }
+.pending .ann.urgent { border-color: var(--red); }
+.pending .ann.off { opacity: .55; }
+.pending .ann .to { color: var(--dim); font-family: var(--mono); font-size: .75rem; white-space: nowrap; }
+.pending .ann .x { margin-left: auto; cursor: pointer; color: var(--dim); background: none; border: 0; font-size: 1rem; }
+.deck { display: flex; flex-wrap: wrap; gap: .3rem; }
+.deck label { font-size: .85rem; padding: .25rem .55rem; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer; }
+.deck label.on { border-color: var(--amber); }
+.deck label input { display: none; }
+.items { display: flex; flex-direction: column; gap: .3rem; }
+.items .it { display: flex; gap: .6rem; align-items: center; padding: .35rem .6rem; border-radius: 8px; font-size: .9rem; border: 1px solid var(--line); }
+.items .it img { height: 2rem; border-radius: 4px; }
+.items .it .x { margin-left: auto; cursor: pointer; color: var(--dim); background: none; border: 0; font-size: 1rem; }
+.more { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+.more summary { cursor: pointer; color: var(--dim); font-size: .9rem; }
+.more[open] summary { margin-bottom: .6rem; }
+.steps { margin: .6rem 0 0; padding-left: 1.4rem; }
+.steps li { padding: .2rem 0; display: flex; gap: .6rem; align-items: baseline; }
+.steps li.now { color: var(--amber); font-weight: 700; }
+.steps li.done { color: var(--dimmer); text-decoration: line-through; }
+.steps li .x { cursor: pointer; color: var(--dim); background: none; border: 0; }
+.weak .w { display: inline-flex; gap: .4rem; align-items: baseline; margin: .15rem .5rem .15rem 0; padding: .2rem .5rem;
+  border-radius: 999px; border: 1px solid var(--line-2); font-size: .85rem; }
+.weak .w b { color: var(--red); font-family: var(--mono); }
+.weak .w button { background: none; border: 0; color: var(--amber); cursor: pointer; font-size: .85rem; padding: 0; }
+.unit .showing { color: var(--dimmer); font-family: var(--mono); font-size: .72rem; }
 </style>
 </head>
 <body>
@@ -107,6 +146,105 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
     <div id="shootstate" class="small" style="margin-top:.6rem" hidden></div>
     <div id="stage" style="margin-top:.8rem"><p class="empty">No round yet.</p></div>
   </div>
+
+  {# ------------------------------------------------------------ the show
+     The host's hand on every screen in the hall. Everything below rides the
+     check-in the tables already make once a second; see elmer.show. #}
+  <div class="card show" id="show">
+    <div class="showhead">
+      <b>The room</b>
+      <span class="mode" id="sh-modes">
+        <button class="btn sm" data-mode="play">Playing</button>
+        <button class="btn sm" data-mode="study">Studying</button>
+        <button class="btn sm" data-mode="intermission">Intermission</button>
+      </span>
+      <span class="small" id="sh-seeing" style="color:var(--dim)"></span>
+    </div>
+
+    <div class="showgrid">
+      <div>
+        <div class="sub">Say it to the room</div>
+        <textarea id="sh-text" rows="2" placeholder="Lost child waiting for parents at the ARRL booth &middot; Club meets second Tuesdays &middot; You won the round"></textarea>
+        <div class="controls" style="margin-top:.4rem">
+          <select class="btn sm" id="sh-target"><option value="">Everyone</option></select>
+          <select class="btn sm" id="sh-weight">
+            <option value="notice">Notice &middot; 20 s</option>
+            <option value="urgent">Urgent &middot; until cleared</option>
+            <option value="repeat">Urgent &middot; every minute</option>
+          </select>
+          <button class="btn sm primary" id="sh-send">Send</button>
+          <button class="btn sm" id="sh-attention" title="Blank every table to a message while you talk">&#9995; Attention</button>
+        </div>
+        <div id="sh-pending" class="pending"></div>
+      </div>
+
+      <div>
+        <div class="sub">Between rounds &mdash; the deck</div>
+        <div class="deck" id="sh-deck"></div>
+        <div class="controls" style="margin-top:.4rem">
+          <label class="small">a card every
+            <input class="btn sm" id="sh-dwell" type="number" min="5" max="60" style="width:4.2rem"> s</label>
+        </div>
+        <div class="sub" style="margin-top:.9rem">Study focus</div>
+        <div class="controls">
+          <input class="btn sm" id="sh-section" placeholder="T5" style="width:4.5rem" title="a section or subelement">
+          <input class="btn sm" id="sh-minutes" type="number" min="1" max="120" value="10" style="width:4.5rem" title="minutes">
+          <input class="btn sm" id="sh-focus-text" placeholder="what to say about it" style="flex:1 1 10rem">
+          <button class="btn sm" id="sh-focus">Set</button>
+          <button class="btn sm ghost" id="sh-unfocus">Clear</button>
+        </div>
+        <div id="sh-weak" class="small" style="margin-top:.5rem"></div>
+      </div>
+    </div>
+
+    <details class="more">
+      <summary>Sponsors and notices</summary>
+      <div class="showgrid">
+        <div>
+          <div class="sub">Sponsors' cards</div>
+          <div id="sh-sponsors" class="items"></div>
+          <form id="sh-sponsor-form" class="controls" style="margin-top:.5rem">
+            <input class="btn sm" name="name" placeholder="Sponsor" required style="flex:1 1 8rem">
+            <input class="btn sm" name="blurb" placeholder="one line about them" style="flex:2 1 12rem">
+            <input class="btn sm" name="url" placeholder="their site" style="flex:1 1 8rem">
+            <select class="btn sm" name="weight" title="how often the card comes round">
+              <option value="1">once a pass</option><option value="2">twice</option><option value="3">three times</option></select>
+            <label class="btn sm ghost" style="cursor:pointer">Image
+              <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label>
+            <button class="btn sm primary">Add</button>
+          </form>
+          <div class="small" style="color:var(--dimmer);margin-top:.3rem">Kept on this unit between nets; nothing leaves the room.</div>
+        </div>
+        <div>
+          <div class="sub">Club notices</div>
+          <div id="sh-notices" class="items"></div>
+          <form id="sh-notice-form" class="controls" style="margin-top:.5rem">
+            <input class="btn sm" name="title" placeholder="Membership" style="flex:1 1 8rem">
+            <input class="btn sm" name="text" placeholder="Meets second Tuesdays at the fire hall, 7 pm. Visitors welcome." style="flex:3 1 16rem">
+            <input class="btn sm" name="url" placeholder="a link to put up" style="flex:1 1 8rem">
+            <button class="btn sm primary">Add</button>
+          </form>
+        </div>
+      </div>
+    </details>
+
+    <details class="more">
+      <summary>The programme &mdash; the evening as a list</summary>
+      <div class="controls" style="margin-top:.5rem">
+        <select class="btn sm" id="sh-step-kind"></select>
+        <input class="btn sm" id="sh-step-n" type="number" min="1" style="width:5rem" placeholder="n">
+        <input class="btn sm" id="sh-step-text" placeholder="text, or a section for study" style="flex:1 1 12rem">
+        <button class="btn sm" id="sh-step-add">Add a step</button>
+        <button class="btn sm ghost" id="sh-prog-club">Fill in a club evening</button>
+        <button class="btn sm ghost" id="sh-prog-clear">Clear</button>
+      </div>
+      <ol id="sh-steps" class="steps"></ol>
+      <div class="controls" style="margin-top:.5rem">
+        <button class="btn primary" id="sh-next">Next step &rarr;</button>
+        <span class="small" id="sh-prog-now" style="color:var(--dim)"></span>
+      </div>
+    </details>
+  </div>
 </div>
 
 <script>
@@ -164,7 +302,7 @@ async function tick() {
         return `<span class="unit ${u.present ? '' : 'quiet'} ${inThisRound ? 'in' : ''}"
                       title="${u.simulated ? 'a practice table - a real unit checking in takes its place' : 'a unit on the network'}">
           ${esc(u.name)}${u.simulated ? ' <i style="color:var(--dimmer);font-style:normal">&#9723;</i>' : ''} <b>${u.score}</b>
-          <span style="color:var(--dim)">${u.players}p</span></span>`;
+          <span style="color:var(--dim)">${u.players}p</span>${u.showing ? ` <span class="showing">${esc(u.showing)}</span>` : ''}</span>`;
       }).join('')
     : '<span class="empty">no tables yet</span>';
 
@@ -247,5 +385,6 @@ tick();
 setInterval(tick, 1000);
 </script>
 <script src="{{ asset('certs.js') }}"></script>
+<script src="{{ asset('nethost_show.js') }}"></script>
 </body>
 </html>

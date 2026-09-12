@@ -98,6 +98,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   </div>
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
+<script src="{{ asset('hallshow.js') }}"></script>
 <script>
 const TABLE = {{ table|tojson }};
 let me = null;              // {id, name, cohort}
@@ -280,6 +281,9 @@ function paintWaiting(state) {
     wirePick();
     return;
   }
+  /* Between rounds in a hall the phone shows the same card the room is
+     looking at - a person holding a screen with nothing to do but read it
+     is the one moment a sponsor or a fact gets read. */
   view.innerHTML = `<div class="state">
       <h2>You're in.</h2>
       ${soon
@@ -289,6 +293,7 @@ function paintWaiting(state) {
                <button class="btn primary" id="startnow">Start</button>`
             : `<p>Waiting for the next question.</p>`)}
       <p class="clock">${n} player${n === 1 ? '' : 's'} at this table</p>
+      ${!soon ? hallCardHTML(state) : ''}
     </div>`;
   const go = document.getElementById('startnow');
   if (go) go.addEventListener('click', async () => {
@@ -428,9 +433,19 @@ function paintResults(round, shoot) {
     ${paintShootout(shoot, false)}
     ${shoot && shoot.your_pick ? paintPick(shoot)
       : (state_hall_on(s_last) ? hallPickHTML(s_last)
-      : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`)}`;
+      : `<p class="state" style="padding:1.4rem 0">${waitingLine(shoot)}</p>`)}
+    ${hallCardHTML(s_last)}`;
   wirePick();
   wireHallPick();
+}
+
+/* The hall's card, small, wherever the phone is waiting: the tick swaps it
+   as the host's clock turns it over. */
+function hallCardHTML(s) {
+  const card = s && s.hall && s.hall.show && s.hall.show.card;
+  if (!card) return '';
+  return `<div class="hs-small" id="hallcard" data-card="${escapeHTML(card.id)}" style="text-align:left;margin-top:.6rem">${
+    hallShow.cardHTML(card, {master: s.hall.master, small: true})}</div>`;
 }
 
 let s_last = null;                       // the last state polled, for the hall
@@ -586,6 +601,14 @@ async function tick() {
   const s = r.data, round = s.round, shoot = s.shootout;
   s_last = s;
   const hall = s.hall && s.hall.shootout;
+  const show = s.hall && s.hall.show;
+  hallShow.overlay(show);
+  // The card changes on the host's clock, not the round's: swap it in place.
+  const cardBox = document.getElementById('hallcard');
+  if (cardBox && show && show.card && cardBox.dataset.card !== String(show.card.id)) {
+    cardBox.dataset.card = show.card.id;
+    cardBox.innerHTML = hallShow.cardHTML(show.card, {master: s.hall.master, small: true});
+  }
   // The pick is part of what is on screen, so a change in whose it is - or
   // in whether it has been made - repaints, even with no new round.
   const pickKey = (shoot ? ('|' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '')) : '') +

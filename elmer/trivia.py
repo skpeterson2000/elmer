@@ -282,7 +282,139 @@ HAMS = [
      "Cuckoo's Egg' is a ham and a maker of Klein bottles."),
 ]
 
-DECKS = {"history": CARDS, "quotes": QUOTES, "hams": HAMS}
+# How the art is practised - the things an exam never asks and every net
+# control knows. Rules are cited; the rest is the convention of the air and
+# is called that.
+TECHNIQUE = [
+    ("Listen first, then ask: 'Is this frequency in use?' - on CW, 'QRL?'. "
+     "A 'yes', a 'QRL' or a 'C' means it is; find another spot. The silence "
+     "you hear may be the middle of somebody else's contact.",
+     "the first thing said on any frequency"),
+    ("Identify with your callsign at the end of a communication and at least "
+     "every ten minutes during it. That is 47 CFR 97.119, and it is all the "
+     "rule asks; giving the other station's call too is custom.",
+     "47 CFR 97.119"),
+    ("The ITU phonetic alphabet exists because B, D, P, T and V are the same "
+     "sound in noise. Use it for callsigns on phone, and use its words - "
+     "'Bravo', not 'Boston': the far end has learned one list, not yours.",
+     "the phonetic alphabet"),
+    ("Signal reports are RST: readability 1 to 5, strength 1 to 9, and on CW "
+     "a tone 1 to 9. '59' on phone is perfectly readable and extremely strong; "
+     "'599' is the CW form, and '5NN' is the contest shortcut for it.",
+     "the RST system"),
+    ("Q signals were adopted internationally in 1912 for ships' operators "
+     "who shared no language. QTH is location, QSL is 'I acknowledge', QRZ "
+     "is 'who is calling me', QRM is interference from stations and QRN "
+     "from nature, QSY is 'change frequency', QRP is low power.",
+     "the Q code, 1912"),
+    ("73 comes from the telegraphers' numeric codes of the 1850s and means "
+     "'best regards' - already plural, so '73s' says it twice. 88 is love "
+     "and kisses, and is used advisedly.",
+     "the telegraph number codes"),
+    ("In a pile-up the DX station runs the show: send your full call once, "
+     "then listen. Partial calls, doubled calls and calling when the DX has "
+     "asked for another area slow everybody down, including you.",
+     "pile-up manners"),
+    ("A DX station 'listening up 5' transmits on one frequency and listens "
+     "five kilohertz higher. Calling on the DX station's own frequency is the "
+     "commonest pile-up mistake and the most resented, because it covers the "
+     "station everyone is trying to hear.",
+     "split operation"),
+    ("Speak across the microphone, not into it, a few inches away and at a "
+     "steady level. The ALC meter is the one that says you are overdriving; "
+     "louder into the mic does not make you louder at the far end, only wider.",
+     "microphone technique"),
+    ("On a repeater, key up and wait half a second before speaking - the "
+     "repeater has to come up and the far end's squelch has to open - and "
+     "leave a pause between overs so somebody can break in. 'Break' is for "
+     "traffic; an emergency says 'emergency'.",
+     "repeater manners"),
+    ("Checking into a net: give your callsign only when net control asks for "
+     "check-ins, then say what you have - traffic, a comment, or nothing. Net "
+     "control decides the order. A directed net is a conversation with one "
+     "person choosing who speaks.",
+     "net procedure"),
+    ("On CW, send at the speed you can copy: the other station will match "
+     "you. Sending faster than you receive earns a reply you cannot read, "
+     "and a 'QRS' asks them to slow down without embarrassment on either side.",
+     "CW speed"),
+    ("The Maidenhead locator, adopted in 1980, puts the world into grid "
+     "squares: two letters for a 10 by 20 degree field, two digits for a "
+     "1 by 2 degree square, two more letters for a sub-square a few miles "
+     "across. EN26 is a square; EN26uo is a place.",
+     "grid squares, 1980"),
+    ("Say where you are in words anybody would know when it matters - the "
+     "road, the mile marker, the nearest town. A grid square is for the log; "
+     "a stranger with a telephone needs a place they can repeat to a "
+     "dispatcher.",
+     "when it matters"),
+]
+
+# The gear: what the equipment does and does not do, with the numbers that
+# decide it.
+EQUIPMENT = [
+    ("An SWR meter reads the mismatch where the meter is, not at the antenna. "
+     "Lossy coax makes the SWR look better than it is at the far end, because "
+     "the reflected power is being eaten on the way back to you.",
+     "SWR and coax loss"),
+    ("A dummy load is the one antenna it is legal to test into on any "
+     "frequency, because it radiates nothing. It is how a station is tuned up "
+     "without putting a carrier on a frequency somebody else is using.",
+     "the dummy load"),
+    ("Coax loss climbs with frequency and is quoted per hundred feet: RG-58 "
+     "loses about 6 dB at 2 m - three quarters of your power - where RG-213 "
+     "loses about 3 and LMR-400 about 1.5. On HF the same run of RG-58 loses "
+     "a decibel and nobody notices.",
+     "feedline loss, published figures"),
+    ("An antenna tuner matches the transmitter to the feedline. It does not "
+     "make the antenna efficient: a tuner showing the rig a perfect 50 ohms "
+     "can be matching into a coil that is mostly heater.",
+     "what a tuner does"),
+    ("A ferrite choke where the coax meets the antenna stops the braid "
+     "carrying RF back into the shack. RF in the shack shows up as a hot mic, "
+     "distorted audio, or a radio that resets itself on transmit.",
+     "common-mode current"),
+    ("A vehicle's electrical system runs at about 13.8 V with the engine "
+     "going, which is why mobile radios are rated at 13.8 V. Below about 11 V "
+     "most transceivers cut power or refuse to transmit; the radio is not "
+     "broken, the battery is.",
+     "13.8 volts"),
+    ("Fuse both the positive and the negative lead of a mobile installation. "
+     "A corroded ground strap can leave the radio's negative lead as the "
+     "return path for the starter motor, and a single fuse on the positive "
+     "side does nothing about that.",
+     "mobile wiring"),
+    ("Lithium iron phosphate batteries hold about 13.2 V through most of "
+     "their discharge - close to a running vehicle - where lead-acid falls "
+     "from 12.6 toward 11. That flat curve, and a quarter of the weight, is "
+     "why they took over portable HF.",
+     "LiFePO4"),
+    ("The Yagi-Uda antenna was described by Shintaro Uda in 1926 and made "
+     "known in English by his professor Hidetsugu Yagi in 1928. Uda did most "
+     "of the work; his name comes second on his own antenna.",
+     "Yagi and Uda, 1926"),
+    ("A quarter-wave vertical is half an antenna. The radials - or the car "
+     "roof, or the ocean - are the other half, and a vertical with a poor "
+     "ground plane spends its power warming the soil.",
+     "the ground plane"),
+    ("The PL-259 'UHF' connector was named in the 1930s, when UHF meant "
+     "anything above 30 MHz. It is not a constant-impedance connector: fine "
+     "at HF and 2 m, lossy at a gigahertz, where a type N belongs.",
+     "connectors"),
+    ("An antenna analyser reads reactance with its sign, and the sign is the "
+     "instruction: +X at the frequency you want means the element is too "
+     "long, cut; -X means too short, add. A plain SWR meter cannot tell you "
+     "which way to go.",
+     "reactance and its sign"),
+    ("An RTL-SDR dongle covers roughly 24 to 1700 MHz for the price of a "
+     "pizza and began life as a European television tuner; somebody noticed "
+     "in 2012 that its chip would hand over raw samples. Most of the "
+     "spectrum on a laptop screen since then traces to that.",
+     "the RTL-SDR, 2012"),
+]
+
+DECKS = {"history": CARDS, "quotes": QUOTES, "hams": HAMS,
+         "technique": TECHNIQUE, "equipment": EQUIPMENT}
 
 
 def draw(rng=None, avoid=None, deck="history"):

@@ -100,6 +100,8 @@ class Bridge:
 
     net_mode = "tournament"
     hall_shootout = None
+    hall_show = None                 # the host's hand on this table's screens
+    showing = ""                     # what the table screen last said it shows
 
     def __init__(self, url, unit_id=None, name=None):
         self.url = url.rstrip("/")
@@ -137,9 +139,15 @@ class Bridge:
 
     def _checkin(self, room):
         players = len(room.players) if room else 0
+        # The names at this table - display names only, the same ones a
+        # board shows - so the host can say something to one seat before it
+        # has answered anything.
+        names = ([p.name for p in room.players.values() if not p.bot][:16]
+                 if room else [])
         reply = self._call("/api/net/checkin",
                            {"unit": self.unit_id, "name": self.name,
-                            "players": players})
+                            "players": players, "showing": self.showing,
+                            "names": names})
         if not reply.get("checked_in", True):
             # The net is full. Say so plainly and keep trying: a table that
             # arrives late should join when somebody else's table packs up.
@@ -157,6 +165,10 @@ class Bridge:
         # The hall's shootout, as it concerns this table. Kept so the table
         # screen can show the subjects when the pick is this table's.
         self.hall_shootout = reply.get("shootout")
+        # And the show: announcements addressed to this table and its seats,
+        # the card between rounds, the mode. Refreshed every poll, so a
+        # cleared announcement clears here within the second.
+        self.hall_show = reply.get("show")
         return reply.get("round")
 
     def pick(self, section):
@@ -267,6 +279,7 @@ class Bridge:
                 "waiting_to_report": bool(self.pending),
                 "mode": self.net_mode,
                 "shootout": self.hall_shootout,
+                "show": self.hall_show,
                 "quiet_for": (round(time.time() - self.last_contact, 1)
                               if self.last_contact else None)}
 

@@ -46,6 +46,11 @@ body { margin: 0; background: var(--bg); color: var(--text);
 .question p { margin: .4vh 0 0; font-size: clamp(1.1rem, 2.4vw, 2.2rem);
               line-height: 1.35; }
 
+.showstage { display: flex; justify-content: center; padding: 1rem 0 1.4rem; }
+.showstage .hs-card { max-width: 60rem; width: 100%; padding: 1.8rem 2.2rem; }
+.showstage .hs-text { font-size: clamp(1.4rem, 2.6vw, 2.2rem); line-height: 1.45; }
+.showstage .hs-title, .showstage .hs-sponsor-name { font-size: clamp(1.6rem, 3vw, 2.6rem); }
+.showstage .hs-table { font-size: 1.4rem; }
 .cols { flex: 1; display: grid; grid-template-columns: 1.15fr 1fr;
         gap: 1.4vw; min-height: 0; }
 .panelbox { background: var(--panel); border: 1px solid var(--line);
@@ -224,6 +229,7 @@ tr.outrow td.word { color: var(--red); opacity: .8; }
   <div id="foot" class="foot" hidden></div>
 </div>
 
+<script src="{{ asset('hallshow.js') }}"></script>
 <script>
 const stage = document.getElementById('stage');
 let paintedRound = null, paintedPhase = null;
@@ -644,6 +650,32 @@ async function tick() {
   const board = chosen ? chosen.board : {kind: 'idle', where: where};
   if (chosen && chosen.name) board.name = board.name || chosen.name;
 
+  /* The host's show: announcements over everything, and between rounds the
+     same card every table is showing. The board is net control's own screen,
+     so this is where the deck is biggest. */
+  const show = board.show || null;
+  hallShow.overlay(show);
+  const showCard = show && show.card && !(board.round && !board.round.closed)
+    && (!board.last || (board.last_closed_for || 0) > RESULT_STANDS_S);
+  if (showCard) {
+    document.getElementById('title').textContent = board.name || 'ELMER';
+    document.getElementById('sub').textContent = show.mode === 'study' ? 'study' :
+      (show.mode === 'intermission' ? 'intermission' : 'between rounds');
+    document.getElementById('clock').textContent = '—';
+    const key = 'card:' + show.card.id;
+    if (paintedPhase !== key) {
+      paintedPhase = key;
+      stage.innerHTML = `<div class="showstage">${hallShow.cardHTML(show.card, {master: ''})}</div>` +
+        (board.kind === 'hall' ? `<div class="cols">${hallLeft(board)}${lastRound(board)}</div>` : '');
+    } else {
+      const cols = stage.querySelector('.cols');
+      if (cols && board.kind === 'hall') cols.innerHTML = hallLeft(board) + lastRound(board);
+    }
+    trimToFit();
+    foot(all);
+    return;
+  }
+
   if (board.kind === 'idle') {
     document.getElementById('title').textContent = 'ELMER';
     document.getElementById('sub').textContent = '';
@@ -828,6 +860,7 @@ document.addEventListener('keydown', e => {
 });
 
 tick();
+const RESULT_STANDS_S = 20;      // a result is read, then the deck has the screen
 setInterval(tick, 1000);
 </script>
 </body>
