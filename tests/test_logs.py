@@ -74,12 +74,14 @@ http.propagate = False
 client = app.test_client()
 
 print("\npolls are counted, not written")
-logs.SUMMARY_EVERY = 0.2
+# A long window while the fifty go through - a loaded Pi can take longer
+# than a fraction of a second over them - then a window of nothing at all.
+logs.SUMMARY_EVERY = 60
 logs.quiet = logs._Quiet()
 for _ in range(50):
     client.get("/api/party/state", headers={"User-Agent": "ELMER/1.0 (big board)"})
 check("fifty heartbeats wrote nothing", catch.lines, [])
-time.sleep(0.25)
+logs.SUMMARY_EVERY = 0
 client.get("/api/party/state")
 check("  then one summary line", len(catch.lines), 1)
 check("  saying how many, from whom, and the slowest",
