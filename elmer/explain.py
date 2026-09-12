@@ -22,7 +22,7 @@ from pathlib import Path
 from . import paths
 
 ROOT = Path(__file__).resolve().parents[1]
-NOTES_DIR = paths.STATE / "notes"
+NOTES_DIR = paths.CONTENT / "notes"          # shipped with the program, not the operator's
 RATIONALE_DIR = paths.STATE / "explanations"
 RULES_DIR = ROOT / "data" / "rules"
 
