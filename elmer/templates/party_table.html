@@ -73,6 +73,8 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
 .hs-row .hs-name { flex: 1; min-width: 0; padding: .4rem .55rem; border-radius: 8px;
                    border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); }
 .hs-row .hs-who { flex: 1; font-weight: 700; }
+.hs-row .hs-lic { padding: .4rem .3rem; border-radius: 8px; border: 1px solid var(--line-2);
+                  background: var(--panel); color: var(--text); font-size: .85rem; }
 
 /* A round with people seated at the screen: the stage is two phones side by
    side, and the rest of the page gets out of the way so thumbs have room.
@@ -136,12 +138,30 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
           <div class="tiny muted" style="margin:.7rem 0 .3rem">Or play at this screen &mdash; two can sit here, side by side, phones or no phones.</div>
           <div class="hs-row" data-seat="A">
             <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off">
+            <select class="hs-lic" title="License class held, if you care to say - for the class report only, never shown">
+              <option value="">Class?</option>
+              <option value="none">None yet</option>
+              <option value="Technician">Tech</option>
+              <option value="General">General</option>
+              <option value="Extra">Extra</option>
+              <option value="Advanced">Advanced</option>
+              <option value="Novice">Novice</option>
+            </select>
             <button class="btn sm" data-sit="A">Sit down</button>
             <span class="hs-who" hidden></span>
             <button class="btn sm ghost" data-stand="A" hidden>Stand up</button>
           </div>
           <div class="hs-row" data-seat="B">
             <input class="hs-name" maxlength="24" placeholder="Seat B &mdash; a name" autocomplete="off">
+            <select class="hs-lic" title="License class held, if you care to say - for the class report only, never shown">
+              <option value="">Class?</option>
+              <option value="none">None yet</option>
+              <option value="Technician">Tech</option>
+              <option value="General">General</option>
+              <option value="Extra">Extra</option>
+              <option value="Advanced">Advanced</option>
+              <option value="Novice">Novice</option>
+            </select>
             <button class="btn sm" data-sit="B">Sit down</button>
             <span class="hs-who" hidden></span>
             <button class="btn sm ghost" data-stand="B" hidden>Stand up</button>
@@ -230,6 +250,7 @@ function paintSeats(state) {
     if (screenSeats[s] && !ids.has(screenSeats[s].id)) { delete screenSeats[s]; saveSeats(); }
     const on = !!screenSeats[s];
     row.querySelector('.hs-name').hidden = on;
+    row.querySelector('.hs-lic').hidden = on;
     row.querySelector('[data-sit]').hidden = on;
     row.querySelector('.hs-who').hidden = !on;
     row.querySelector('[data-stand]').hidden = !on;
@@ -243,9 +264,10 @@ document.addEventListener('click', async e => {
     const s = sit.dataset.sit;
     const row = document.querySelector(`.hs-row[data-seat="${s}"]`);
     const name = row.querySelector('.hs-name').value.trim();
+    const license = row.querySelector('.hs-lic').value;
     if (!name) { row.querySelector('.hs-name').focus(); return; }
     sit.disabled = true;
-    const r = await api('/api/party/join', {name, device: 'screen'});
+    const r = await api('/api/party/join', {name, device: 'screen', license});
     sit.disabled = false;
     if (!r.data.joined) { alert(r.data.reason || 'Could not sit down.'); return; }
     screenSeats[s] = {id: r.data.player.id, name: r.data.player.name};

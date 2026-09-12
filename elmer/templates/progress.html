@@ -110,6 +110,13 @@
      from a small class and says how much of the pool it has measured. #}
   <div class="small muted" id="cr-note">Measuring&hellip;</div>
   <table class="facts small" id="cr-table" hidden></table>
+  {# By license class, when people said what they hold: how those who passed
+     this material once do on it now, beside those meeting it for the first
+     time. Nobody is named - the hall's log keeps no names - and the time is
+     the raw median, labelled as such, because the comparison here is between
+     classes rather than within a person. #}
+  <div class="small muted mt" id="cr-classes-note" hidden></div>
+  <table class="facts small" id="cr-classes" hidden></table>
 </div>
 
 <div class="panel mt">
@@ -147,11 +154,31 @@
   let d;
   try { d = await api('/api/difficulty?pool={{ pool.pool_id }}'); } catch (e) { note.textContent = 'Could not measure.'; return; }
   const pct = Math.round((d.coverage || 0) * 100);
+  // The class table does not wait for a question to be ranked: it is a
+  // count by the people who said what they hold, and it has something to
+  // say from the first hall evening.
+  const classes = (d.classes || []).filter(c => c.license !== '');
+  const unsaid = (d.classes || []).find(c => c.license === '');
+  if (classes.length) {
+    const cn = document.getElementById('cr-classes-note'), ct = document.getElementById('cr-classes');
+    const label = c => c === 'none' ? 'No license yet' : c;
+    cn.hidden = false; ct.hidden = false;
+    cn.innerHTML = `<b>By license class</b>, as people stated it - how those who passed this material once do on it now, beside those meeting it for the first time. First sightings only; time is the raw median, not against anyone's own pace.${unsaid ? ` ${unsaid.answers} answers from people who did not say are left out of this table.` : ''}`;
+    ct.innerHTML = '<tr><th>Class</th><th>People</th><th>Answers</th><th>Miss</th><th>Median time</th></tr>' +
+      classes.map(c => `<tr>
+        <td>${escapeHTML(label(c.license))}</td>
+        <td class="mono">${c.people}</td>
+        <td class="mono">${c.answers}</td>
+        <td class="mono">${Math.round(c.miss_rate * 100)}%</td>
+        <td class="mono">${c.median_ms === null ? '—' : (c.median_ms / 1000).toFixed(1) + ' s'}</td></tr>`).join('');
+  }
   if (!d.hardest || !d.hardest.length) {
     note.innerHTML = `Nothing to say yet: ${d.met} of ${d.questions} questions have been met on this unit, and a question is not ranked until ${d.min_n} people have met it for the first time. It sharpens every time anyone studies.`;
     return;
   }
-  note.innerHTML = `${d.measured} of ${d.questions} questions measured (${pct}%), from every player's first sight of each. <b>Miss</b> is how many got it wrong first time; <b>pace</b> is how long it took them against their own speed that day - 1.0 is their usual, 2.0 twice as long. Blueprint order stands until 60% is measured.`;
+  const src = d.sources || {};
+  const from = [src.study ? `${src.study} answers from study on this unit` : '', src.hall ? `${src.hall} from the hall this unit ran` : ''].filter(Boolean).join(' and ');
+  note.innerHTML = `${d.measured} of ${d.questions} questions measured (${pct}%), from every player's first sight of each${from ? ' - ' + from : ''}. <b>Miss</b> is how many got it wrong first time; <b>pace</b> is how long it took them against their own speed that day - 1.0 is their usual, 2.0 twice as long. Blueprint order stands until 60% is measured.`;
   table.hidden = false;
   table.innerHTML = '<tr><th></th><th>Question</th><th>Met</th><th>Miss</th><th>Pace</th></tr>' +
     d.hardest.map(h => `<tr>

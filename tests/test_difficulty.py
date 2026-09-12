@@ -102,8 +102,70 @@ for u, q, ok, ms in ((1, "T1A01", 1, 3000), (1, "T1A02", 0, 8000)):
 conn.commit()
 got = D.load(conn, "tech2026")
 check("two rows back", len(got), 2)
-check("  with what the measure needs", sorted(got[0]), ["correct", "day", "ms", "question_id", "ts", "user_id"])
+check("  with what the measure needs", sorted(got[0]), ["correct", "day", "license", "ms", "question_id", "source", "ts", "user_id"])
 check("  and none from another pool", D.load(conn, "gen2023"), [])
+
+print("\nand the hall is a second source, in the same measure")
+# A club night: three tables, each person's answer with its time, and a
+# callsign that sat at two of them counted as one person with one pace.
+from elmer import netcontrol
+net = netcontrol.Net("Test net", 10, "technician")
+for uid, nm in (("u1", "Poldhu"), ("u2", "Clifden"), ("u3", "Nauen")):
+    net.check_in(uid, nm, players=2)
+written = []
+net.on_round_closed.append(lambda summary: written.append(summary))
+net.start_round("tech2026", "T5A01", 0, {"text": "?", "choices": ["a", "b"], "section": "T5A"}, seconds=5)
+net.report("u1", 1, [{"name": "Ann", "correct": True, "ms": 3000, "license": "General",
+                      "cert_name": "Ann Example"},
+                     {"name": "Rig", "correct": True, "ms": 400, "bot": "practice"}])
+net.report("u2", 1, [{"name": "KC9SP", "correct": False, "ms": 9000, "license": "Extra"}])
+net.report("u3", 1, [{"name": "kc9sp", "correct": True, "ms": 2000, "license": "extra"}])
+summary = net.close_round()
+check("the round told its listener", len(written), 1)
+check("  with every answer, misses included", len(written[0]["given"]), 4)
+check("  and the section", written[0]["section"], "T5A")
+check("the board's summary carries no rows", "given" in summary, False)
+check("  and its placings carry neither certificate name nor license",
+      any(k in r for r in summary["top"] for k in ("cert_name", "license")), False)
+check("  nor does the people board",
+      any(k in p for p in net.people_board() for k in ("cert_name", "license")), False)
+
+db.log_hall_round(conn, "tech2026", "T5A01", "T5A", written[0]["given"], net.log_key)
+conn.commit()
+hall = conn.execute("SELECT who, license, correct FROM hall_log ORDER BY id").fetchall()
+check("three people written, no bot", len(hall), 3)
+check("  the callsign is one identity at both tables",
+      len(set(r["who"] for r in hall)), 2)
+check("  and no callsign, name or table is in the table",
+      any(any(s in r["who"] for s in ("KC9SP", "kc9sp", "Ann", "u1", "u3")) for r in hall), False)
+check("  the tag is opaque", all(len(r["who"]) == 16 and all(c in "0123456789abcdef" for c in r["who"]) for r in hall), True)
+check("  the license class rides along, normalised",
+      [r["license"] for r in hall], ["General", "Extra", "Extra"])
+check("  and a different net cannot make the same tag",
+      db.hall_who(netcontrol.Net("Other", 10, "technician").log_key, "u2", "KC9SP")
+      == hall[1]["who"], False)
+check("a class nobody would type is not stored", db.license_of("Wizard"), "")
+check("  'tech' is Technician", db.license_of("tech"), "Technician")
+check("  'none' is a stated answer, not a blank", db.license_of("No license"), "none")
+both = D.load(conn, "tech2026")
+check("the measure reads both logs", D.sources(both), {"study": 2, "hall": 3})
+check("  hall people never collide with study users",
+      all(str(r["user_id"]).startswith("hall:") for r in both if r["source"] == "hall"), True)
+
+print("\nand by license class, for how the knowledge wears")
+conn.user_id = 1
+db.save_settings(conn, {"license_class": "General"})
+by = D.by_license(D.load(conn, "tech2026"))
+as_map = {c["license"]: c for c in by}
+check("the classes people stated are there", sorted(k for k in as_map if k), ["Extra", "General"])
+# KC9SP met this question at two tables; the second sighting is not a first
+# exposure, so it is one person, one answer - the miss.
+check("  Extra: one person at two tables is one first exposure", (as_map["Extra"]["people"], as_map["Extra"]["answers"], as_map["Extra"]["miss_rate"]), (1, 1, 1.0))
+check("  the hall's General and the unit's own General are the one class",
+      as_map["General"]["answers"] >= 1, True)
+check("  a raw median time, in ms", as_map["Extra"]["median_ms"], 9000)
+check("  and people who did not say are counted as unsaid, not dropped",
+      ("" in as_map) == any(not r.get("license") for r in D.load(conn, "tech2026")), True)
 
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)

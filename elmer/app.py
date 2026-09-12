@@ -579,16 +579,17 @@ def api_difficulty():
     """
     pool_id = request.args.get("pool") or "tech2026"
     pool = _pool_or_404(pool_id)
-    measured = difficulty.measure(difficulty.load(conn(), pool_id))
+    rows = difficulty.load(conn(), pool_id)
+    measured = difficulty.measure(rows)
     try:
         limit = max(1, min(50, int(request.args.get("limit") or 12)))
     except ValueError:
         limit = 12
-    rows = []
+    hardest_rows = []
     for h in difficulty.hardest(measured, limit):
         q = pool.by_id.get(h["question_id"]) or {}
-        rows.append({**h, "section": q.get("section"),
-                     "text": (q.get("text") or "")[:160]})
+        hardest_rows.append({**h, "section": q.get("section"),
+                             "text": (q.get("text") or "")[:160]})
     return jsonify({
         "pool": pool_id, "pool_name": pool.long_name,
         "questions": len(pool.by_id),
@@ -596,7 +597,9 @@ def api_difficulty():
         "measured": sum(1 for q in pool.by_id if measured.get(q, {}).get("measured")),
         "coverage": round(difficulty.coverage(measured, pool.by_id), 3),
         "min_n": difficulty.MIN_N,
-        "hardest": rows,
+        "sources": difficulty.sources(rows),
+        "classes": difficulty.by_license(rows),
+        "hardest": hardest_rows,
     })
 
 
@@ -2454,7 +2457,8 @@ def api_party_join():
     player, why = room.join(body.get("name"), int(cohort) if cohort else None,
                             cert_name=body.get("cert_name"),
                             device=body.get("device"),
-                            previous=body.get("previous"))
+                            previous=body.get("previous"),
+                            license=body.get("license"))
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
@@ -2994,6 +2998,27 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     running = netcontrol.net(create=True, difficulty=wanted,
                              name=str(name or _net_name_for(wanted))[:60])
     log.info("net control opened: %s", running.name)
+    # Every round the hall closes is written to this unit's hall log: each
+    # person's answer with its question and its time, which is the difficulty
+    # measure's raw material - twenty tables' worth in an evening, where one
+    # person studying alone contributes one line at a time. Opened here
+    # rather than borrowed from a request, because the conductor closes rounds
+    # from its own thread.
+    def _write_round(summary):
+        rows = summary.get("given") or []
+        if not rows:
+            return
+        connection = db.connect()
+        try:
+            db.log_hall_round(connection, summary.get("pool") or "",
+                              summary.get("question_id") or "",
+                              summary.get("section") or "", rows,
+                              running.log_key)
+            connection.commit()
+        finally:
+            connection.close()
+    if not running.on_round_closed:
+        running.on_round_closed.append(_write_round)
 
     # The people sitting at the host are in the hall like anybody else.  It
     # goes through the same bridge every other table uses rather than a short
@@ -3053,7 +3078,7 @@ def api_net_checkin():
                                  if running.shootout is not None else None)})
 
 
-def _ask_net(running, difficulty="technician", section=None, seconds=None):
+def _ask_net(running, level="technician", section=None, seconds=None):
     """Put one question to the whole hall.  Shared by the button and the hall.
 
     Lifted out of the route it used to live in so that something other than a
@@ -3062,7 +3087,10 @@ def _ask_net(running, difficulty="technician", section=None, seconds=None):
     conductor calls it from a thread where an exception is caught, logged and
     turned into a fault the board can show.
     """
-    wanted = str(difficulty or "technician").lower()
+    # `level`, not `difficulty`: the parameter used to be called that and
+    # shadowed the difficulty module, so the first tournament round of a net
+    # on a fresh plan died with "'str' object has no attribute 'measure'".
+    wanted = str(level or "technician").lower()
     pool_id = party.DIFFICULTIES.get(wanted)
     if not pool_id:
         abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")

@@ -1384,8 +1384,30 @@ hardest, each with how many met it, how many missed it first time, and how long
 it took them against their own pace. Honest from a small class because it is
 this room's numbers, not a national claim, and it says how much of the pool it
 has measured at all. Study answers carry a time; exam answers count towards the
-miss rate only; answers on phones at a table are not in this log — a hall's
-reports would be a second source, later.
+miss rate only.
+
+**The hall is the second source.** When this unit runs net control, every
+answer the room gives is written to its own log — each person's, with the
+question, whether it was right and how long it took — which is twenty tables'
+worth of measurement in an evening where one person studying contributes a
+line at a time. Nobody is named in it. Each person is an opaque tag made under
+a key the net invents when it opens and never writes down, so one evening's
+people can be told apart (which is all the measure needs — it normalises each
+person against their own sitting) and nobody can be turned back into a
+callsign afterwards, by this program or by whoever ends up with the file.
+Practice players are never written: a machine's answer says nothing about how
+hard a question is for a person.
+
+The one thing kept about a person is the license class they said they hold,
+if they cared to say — a phone's join screen and the seats at a table's screen
+ask, and *rather not say* is the default. It is stored beside no name and
+shown on no board; the Progress page reports it as a table by class: how many
+people, how many answers, the miss rate, and the raw median time. That is how
+a room of Generals does on Technician material they passed once, years ago,
+beside people meeting it for the first time — which is how fast the knowledge
+wears, and the reason an Elmer would want to know. Somebody with no license
+plays and competes like anybody else, unless the club's own rules say
+otherwise; their answers are the other end of the same measurement.
 
 It works at three sizes, and the same engine runs all of them.
 

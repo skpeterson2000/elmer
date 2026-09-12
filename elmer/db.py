@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -81,6 +81,38 @@ CREATE TABLE IF NOT EXISTS answer_log (
 );
 CREATE INDEX IF NOT EXISTS log_day ON answer_log (user_id, day);
 CREATE INDEX IF NOT EXISTS log_pool ON answer_log (user_id, pool_id, ts);
+
+-- Every answer the hall saw, when this unit ran a net. The answer_log above
+-- is one person studying on this unit. This is a room full of people at
+-- tables, each answer with its question, whether it was right and how long
+-- it took - which is the difficulty measure's raw material, twenty tables'
+-- worth in an evening. Practice players are never written here: a bot's
+-- answer says nothing about how hard a question is for a person.
+--
+-- Nobody is named in it. `who` is a keyed hash of the person, with a key
+-- the net made up when it opened and never wrote down, so the rows from one
+-- evening can be told apart by person - which is all the measure needs, it
+-- normalises each person against their own sitting - and nothing can be
+-- turned back into a callsign afterwards, not by this program and not by
+-- whoever ends up with the file. `license` is the class they said they
+-- hold, or '' when they did not say: the one demographic worth keeping,
+-- because how a General does on Technician questions ten years on is how
+-- fast the knowledge wears. (No semicolons in this comment - the schema is
+-- split on them.)
+CREATE TABLE IF NOT EXISTS hall_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,
+    day         TEXT NOT NULL,
+    pool_id     TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    section     TEXT NOT NULL DEFAULT '',
+    unit        TEXT NOT NULL,
+    who         TEXT NOT NULL,
+    license     TEXT NOT NULL DEFAULT '',
+    correct     INTEGER NOT NULL,
+    ms          REAL
+);
+CREATE INDEX IF NOT EXISTS hall_pool ON hall_log (pool_id, ts);
 
 CREATE TABLE IF NOT EXISTS exam (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -255,10 +287,19 @@ def migrate(conn):
             if column not in _columns(conn, "profile"):
                 conn.execute(f"ALTER TABLE profile ADD COLUMN {column} "
                              f"TEXT NOT NULL DEFAULT ''")
+        version = 3
+        log.info("database upgraded to version 3 - accounts may now carry "
+                 "a password")
+
+    if version == 3:
+        # Version 4 adds the hall's log. A new table, nothing rebuilt: the
+        # statements are CREATE IF NOT EXISTS and add what is missing.
+        for statement in _statements():
+            conn.execute(statement)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - accounts may now carry "
-                 "a password", SCHEMA_VERSION)
+        log.info("database upgraded to version %s - the hall keeps a log, "
+                 "with nobody's name in it", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -487,6 +528,64 @@ def upsert_card(conn, pool_id, question_id, **fields):
         f"WHERE user_id = ? AND pool_id = ? AND question_id = ?",
         vals + [conn.user_id, pool_id, question_id],
     )
+
+
+# What a person can say they hold. Novice and Advanced are no longer issued
+# but are still held, and somebody who has one is exactly the person whose
+# answers say how knowledge wears. "none" is somebody with no license yet -
+# they play, and their answers are the other end of the same measurement.
+LICENSE_CLASSES = ("none", "Novice", "Technician", "General", "Advanced",
+                   "Extra")
+
+
+def license_of(value):
+    """A stated license class, normalised, or '' for not said."""
+    v = str(value or "").strip()
+    if not v:
+        return ""
+    low = v.lower()
+    if low in ("none", "no", "no license", "no license", "unlicensed"):
+        return "none"
+    for name in LICENSE_CLASSES:
+        if name.lower() == low or (low == "tech" and name == "Technician"):
+            return name
+    return ""
+
+
+def hall_who(key, unit, name):
+    """The opaque person for a hall row: same person, same evening, same tag.
+
+    A callsign is the person wherever they sit, so KC9SP at two tables is one
+    tag; anybody else is the table and the name together. The tag is an HMAC
+    under a key the net made when it opened and holds only in memory - so it
+    can be made again tonight for the same person, and by nobody tomorrow.
+    """
+    import hashlib
+    import hmac
+    from .party import callsign_of
+    call = callsign_of(name)
+    ident = call if call else f"{unit}/{str(name or '').strip().lower()}"
+    return hmac.new(key, ident.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+
+
+def log_hall_round(conn, pool_id, question_id, section, rows, key):
+    """Write a hall round's answers down: one row per person, no bots.
+
+    `key` is the net's own, see hall_who(). No name and no callsign goes
+    into the table - the class they said they hold, whether they were right,
+    and how long they took.
+    """
+    now, day = utcnow().isoformat(), today()
+    for r in rows:
+        if r.get("bot"):
+            continue
+        conn.execute(
+            "INSERT INTO hall_log (ts, day, pool_id, question_id, section, unit, "
+            "who, license, correct, ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (now, day, pool_id, question_id, section or "", str(r.get("unit")),
+             hall_who(key, r.get("unit"), r.get("name")),
+             license_of(r.get("license")), int(bool(r.get("correct"))),
+             float(r["ms"]) if r.get("ms") else None))
 
 
 def log_answer(conn, pool_id, question_id, section, correct, chosen, ms, mode):

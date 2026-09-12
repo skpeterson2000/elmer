@@ -119,8 +119,7 @@ def main():
     raw.close()
     db.DB_PATH = old
     upgraded = db.connect()
-    check("the schema moved to 3",
-          upgraded.execute("PRAGMA user_version").fetchone()[0], 3)
+    check("the schema moved to the current version", upgraded.execute("PRAGMA user_version").fetchone()[0], db.SCHEMA_VERSION)
     kept = upgraded.execute("SELECT name, xp FROM profile WHERE id = 1").fetchone()
     check("the existing account survived", kept["name"], "Old Timer")
     check("  with its progress", kept["xp"], 4242)
