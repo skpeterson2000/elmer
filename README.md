@@ -645,10 +645,14 @@ to begin with), and Make Contact reads only those once anyone has marked any
 — unless the marked books name no radio, in which case it falls back to the
 whole shelf and says so. Nobody's marks are shown to anybody else.
 
-A book with no bookmarks — a one-page fact sheet never has any — still
-points from the Lab: its title, or failing that its file name, is read as its
-one chapter heading, so "Hamstick Dipole Fact Sheet" appears under Antennas at
-page 1, and a sheet whose title and name say nothing appears nowhere. Search
+The Library page opens with the search box, then **ELMER's topics in your
+books** — the door — and the shelf itself below as the deeper look. Each
+topic lists its pointers in columns, whole books first, eight before the rest
+fold. A book with no bookmarks — a one-page fact sheet never has any — still
+points from there and from the Lab: its title, or failing that its file name,
+is read as its one chapter heading, so "Hamstick Dipole Fact Sheet" appears
+under Antennas as a whole book, and a sheet whose title and name say nothing
+appears nowhere. Search
 reaches into every page of every book regardless — except a **scan**. A PDF
 whose pages are pictures with no text under them is marked *a scan — nothing
 for search to read* on the shelf, so an empty result reads as what it is

@@ -27,6 +27,20 @@
   <div id="lib-results" class="mt"></div>
 </div>
 
+{# The door: ELMER's own topics, each pointing into the operator's books.
+   Above the shelf on purpose - a question arrives as a topic, not as a file
+   name, and the shelf itself is the deeper look, further down. #}
+<div class="panel mt">
+  <div class="panel-title">ELMER's topics, in your books</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    Matched from the bookmarks the publisher put in each file &mdash; a
+    chapter is an antenna chapter because its title says so. A book with no
+    bookmarks is placed by its own title or file name, whole. Nothing is
+    inferred beyond that; search reaches into every page regardless.
+  </p>
+  <div id="lib-topics" class="lib-topics"></div>
+</div>
+
 <div class="panel mt">
   <div class="panel-title">On the shelf</div>
   <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
@@ -39,16 +53,6 @@
     Contact starts from that.
   </p>
   <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
-</div>
-
-<div class="panel mt">
-  <div class="panel-title">ELMER's topics, in your books</div>
-  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-    Matched from the bookmarks the publisher put in each file &mdash; a
-    chapter is an antenna chapter because its title says so. A manual with no
-    bookmarks has nothing here; search still reaches into it.
-  </p>
-  <div id="lib-topics"></div>
 </div>
 
 {% endblock %}
@@ -65,8 +69,11 @@
 .lib-outline li { break-inside: avoid; padding: .1rem 0; }
 .lib-outline li.l1 { padding-left: 1rem; }
 .lib-outline li.l2 { padding-left: 2rem; }
-.lib-topic { margin: .5rem 0 .8rem; }
+.lib-topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .5rem 1.6rem; }
+.lib-topic { margin: .2rem 0 .4rem; }
 .lib-topic ul { margin: .2rem 0 0; padding-left: 1.1rem; line-height: 1.5; }
+.lib-topic details summary { cursor: pointer; color: var(--dim); font-size: .8rem; padding: .15rem 0; list-style: none; }
+.lib-topic details summary:hover { color: var(--text); }
 #lib-q { width: 100%; padding: .8rem 1rem; font-size: 1.05rem; border-radius: 12px;
          border: 1px solid var(--line-2); background: var(--panel); color: var(--text); }
 </style>
@@ -127,13 +134,23 @@
       topicsBox.innerHTML = '<p class="small muted">No bookmarked chapters match yet.</p>';
       return;
     }
-    topicsBox.innerHTML = topics.map(t => `
+    /* A pointer is a chapter in a book; a whole book placed by its title is
+       said as the book, not as "Book - Book". Past eight the rest fold: the
+       Antenna Book alone has more antenna chapters than a door needs. */
+    const SHOW = 8;
+    const item = p => `<li>${p.by_title
+        ? `<a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.book_title)}</a> <span class="muted">(the whole book)</span>`
+        : `${escapeHTML(p.book_title)} &mdash; <a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.title)}</a>
+           <span class="muted mono">p. ${p.page}</span>`}</li>`;
+    topicsBox.innerHTML = topics.map(t => {
+      const first = t.pointers.slice(0, SHOW), rest = t.pointers.slice(SHOW);
+      return `
       <div class="lib-topic">
-        <b class="small">${escapeHTML(t.label)}</b>
-        <ul class="tiny">${t.pointers.map(p => `<li>${escapeHTML(p.book_title)} &mdash;
-          <a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.title)}</a>
-          <span class="muted mono">p. ${p.page}</span></li>`).join('')}</ul>
-      </div>`).join('');
+        <b class="small">${escapeHTML(t.label)}</b> <span class="tiny muted">${t.pointers.length}</span>
+        <ul class="tiny">${first.map(item).join('')}</ul>
+        ${rest.length ? `<details><summary>and ${rest.length} more&hellip;</summary><ul class="tiny">${rest.map(item).join('')}</ul></details>` : ''}
+      </div>`;
+    }).join('');
   }
 
   function mark(s) {

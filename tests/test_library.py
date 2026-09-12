@@ -267,6 +267,11 @@ by_title = [x for x in L.pointers("digital") if x["book"] == "FT8 Operating Guid
 check("a book with no bookmarks points by its title", [(x["page"], x["matched"], x.get("by_title")) for x in by_title],
       [(1, "ft8", True)])
 check("  and only where the title carries the word", any(x["book"] == "FT8 Operating Guide.pdf" for x in L.pointers("antennas")), False)
+check("  a whole book sorts ahead of chapters in other books",
+      [p.get("by_title", False) for p in L.pointers("digital")][:1], [True])
+check("'skip' alone is not propagation - the sense needs its noun",
+      L.pointers(words=L.TOPICS["propagation"]["words"]) == L.pointers("propagation")
+      and "skip" not in L.TOPICS["propagation"]["words"], True)
 L.set_mine(connection, "FT8 Operating Guide.pdf", True)
 g = L.shelf_gear(connection)
 check("marking only a non-radio book falls back to the shelf", (g["basis"], g["gear"]),
