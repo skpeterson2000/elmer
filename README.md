@@ -410,9 +410,32 @@ no copyright and can be printed and handed out freely.
 Both halves of ELMER report faults into one place. The server logs unhandled
 exceptions with tracebacks; the browser catches JavaScript errors and unhandled
 promise rejections and beacons them to the same log, so a fault in a page does
-not stay in that page. The log rotates at 2 MB, keeping three. Every start
+not stay in that page. The log rotates at 5 MB, keeping five. Every start
 stamps the build, the python and the platform into it, because a log that does
 not name its version costs whoever reads it the first hour.
+
+Three things keep it readable on a hall night, when twenty tables and their
+phones poll this unit every second or two. **Polls are counted, not written**:
+a quick, successful request to one of the state-polling endpoints is a
+heartbeat, and eighty thousand heartbeats an hour used to rotate the evening's
+real lines away in about forty minutes; they are tallied instead, and one line
+every ten minutes says how many, from how many clients, and how slow the
+slowest was. Anything that failed or took long is still written as itself.
+**Repeats collapse**: a table pointed at a net that is not running is told 404
+every fifteen seconds all night; the first is written and the rest of the
+minute is one line saying how many — and a refusal one of ELMER's own
+components asked for and handles is INFO, not a warning. **A fault gets a
+reference**: an unhandled exception is logged as `UNHANDLED … ref e-3f9a`, and
+the same tag goes on the page and in the JSON, so "it said e-3f9a at about
+nine" finds the traceback in one grep. A thread that dies — the conductor, the
+hall bridge, the GPS listener — is logged by name instead of printing to a
+console nobody is watching.
+
+A kiosk has no terminal, so the dashboard's Software panel has a **Recent
+log** fold: warnings and errors, everything recent, or one fault by its
+reference — served to the local screen only, because the log carries
+addresses. Net control writes one line per table check-in, departure and
+closed round, so the evening is on the record in words as well as numbers.
 
 `./elmer.py --report`, or **Report a problem** on the dashboard, writes a
 single file: versions, what this install holds, every recent error and warning,
@@ -507,7 +530,14 @@ repeaters, power, safety, rules, satellites, menus, test equipment — each
 listing the chapters on the shelf whose bookmark titles use those words, and
 the antenna calculator carries the antenna ones under its advice. `./elmer.py
 --index-library` does the reading from the terminal; `--doctor` says what is
-on the shelf and whether it has been read.
+on the shelf and whether it has been read. Most radio manuals are saved with
+the PDF "copying not allowed" flag set — both Yaesu manuals on the first shelf
+were — and `pdftohtml` honours it by refusing the whole document, bookmarks
+included, while `pdftotext` reads the same file without a murmur. ELMER reads
+the bookmarks anyway: the flag is the publisher's request about copying their
+text, and reading the chapter titles of a book you own, on your own machine,
+to find your own page, is not that. The catalogue tells *no bookmarks in the
+file* from *the bookmarks could not be read*, and says which.
 
 Everything about it is deterministic, on purpose. The text is what
 `pdftotext` read; the chapters are the bookmarks the publisher put in the
