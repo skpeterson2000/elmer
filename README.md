@@ -527,6 +527,22 @@ The shelf and its index are yours: `data/library/` is ignored by git, so
 nothing you own is carried into anybody else's checkout, and an index is
 rebuilt whenever the file changes.
 
+**A manual is evidence of a radio.** Nobody keeps the FT-991A's operating
+manual for the pleasure of it. So each book on the shelf is matched against a
+table of model names (`elmer/rigs.py` — Yaesu, Icom, Kenwood, Elecraft, Xiegu,
+the Chinese handhelds, the GMRS and CB sets, and the books and analysers that
+are not radios), and **Make Contact** starts from what the shelf says you have
+— *"Ticked from the manuals on this unit's Library shelf: a Yaesu FT-991A
+(all-mode set, HF, 6 m, 2 m, 70 cm, 100 W), a Yaesu FT5D (handheld, 2 m and
+70 cm, 5 W) … Untick what is not with you."* A model the table does not know
+is named as unplaced rather than guessed from the maker.
+
+The shelf is one and shared — a manual is useful to everyone at the table —
+but whose radio it is for is a fact about a person, so each person marks the
+books that are **mine** on the Library page (a manual you add is marked yours
+to begin with), and Make Contact reads only those once anyone has marked any.
+Nobody's marks are shown to anybody else.
+
 ## Showing the working
 
 ELMER does not ship antenna plans. There are plenty of those, and a plan

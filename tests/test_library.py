@@ -213,6 +213,37 @@ check("  every link on the Library page goes through the reader, in the same tab
       (False, True))
 check("  and a path outside the shelf does not", client.get("/library/book/..%2Felmer.db").status_code, 404)
 
+print("\nthe shelf says what the operator has")
+from elmer import db, rigs  # noqa: E402
+check("a manual's title names its radio", rigs.identify("FT-991A Operating Manual")["model"], "FT-991A")
+check("  a handheld is a handheld", rigs.identify("FT5DR/FT5DE Operating Manual")["kind"], "ht")
+check("  a suffix letter does not hide the model", rigs.identify("Kenwood TH-D75A")["model"], "TH-D74/D75")
+check("  a book is a book, not a radio", rigs.identify("The ARRL Antenna Book")["kind"], "book")
+check("  and a model the table does not know is None, not a guess", rigs.identify("Some Unknown Thing"), None)
+check("an all-mode set ticks HF and the VHF mobile; a handheld the handheld",
+      rigs.gear_from([rigs.identify("FT-991A"), rigs.identify("FT5DR")]), ["hf_wire", "mobile_vhf", "ht"])
+check("  said as a sentence", rigs.sentence([rigs.identify("FT-991A")]),
+      "a Yaesu FT-991A (all-mode set, HF, 6 m, 2 m, 70 cm, 100 W)")
+connection = db.connect()
+g = L.shelf_gear(connection)
+check("with nothing marked, the whole shelf counts", g["basis"], "shelf")
+check("  the FT-991A on the shelf ticks HF and VHF", g["gear"], ["hf_wire", "mobile_vhf"])
+L.set_mine(connection, "FT-991A Operating Manual.pdf", True)
+check("marking a book makes it this person's", L.mine(connection), ["FT-991A Operating Manual.pdf"])
+check("  and Make Contact then reads only theirs", L.shelf_gear(connection)["basis"], "mine")
+L.set_mine(connection, "FT-991A Operating Manual.pdf", False)
+check("  unmarked again", L.mine(connection), [])
+connection.close()
+r = client.get("/api/library/gear").get_json()
+check("the route answers the same", (r["basis"], r["gear"]), ("shelf", ["hf_wire", "mobile_vhf"]))
+r = client.post("/api/library/mine", json={"name": "FT-991A Operating Manual.pdf", "mine": True}).get_json()
+check("  and marks a book", r["mine"], ["FT-991A Operating Manual.pdf"])
+page = client.get("/out").data.decode()
+import re as _re
+ticked = _re.search(r'value="hf_wire"\s+checked', page) is not None
+check("Make Contact starts from the shelf and says so", ("Ticked from" in page, ticked), (True, True))
+client.post("/api/library/mine", json={"name": "FT-991A Operating Manual.pdf", "mine": False})
+
 buf = io.BytesIO()
 c = canvas.Canvas(buf, pagesize=LETTER)
 c.bookmarkPage("a"); c.addOutlineEntry("Propagation Basics", "a", level=0)
