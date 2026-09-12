@@ -39,6 +39,10 @@ log = logging.getLogger("elmer")
 SHELF = paths.STATE / "library"
 INDEX_DIR = SHELF / ".index"
 REINDEX_DAYS = 30
+# What an index file looks like. An index made by an older reader is remade
+# on the next visit, whatever the file did: version 2 is when the bookmarks
+# of a permission-locked manual started being read at all.
+INDEX_VERSION = 2
 SNIPPET = 90          # characters either side of the first hit
 MAX_PDF_MB = 200      # a scanned manual can be big; a disc image is not a manual
 
@@ -154,6 +158,8 @@ def _stale(pdf, meta):
     """Why this index needs remaking, or None if it is good."""
     if meta is None:
         return "not indexed"
+    if meta.get("version", 1) != INDEX_VERSION:
+        return "made by an older reader"
     try:
         st = pdf.stat()
     except OSError:
@@ -186,20 +192,35 @@ def _pages(pdf):
 
 
 def _outline(pdf):
-    """The publisher's bookmarks as [{title, page, level}], or [] if none.
+    """The publisher's bookmarks as ([{title, page, level}], problem).
 
     pdftohtml prints the outline whatever page range it was asked for, so a
     one-page range gets the chapters without the text of the whole book.
+
+    -nodrm matters. Most radio manuals are saved with "copying not allowed"
+    set - Yaesu's are - and pdftohtml honours that flag by refusing the whole
+    document, bookmarks included, while pdftotext reads the same file
+    without a murmur. ELMER then said the manual had no bookmarks, which was
+    not true, and the operator could see the table of contents working in
+    front of them. The flag is the publisher's request about copying their
+    text; reading the chapter titles of a book you own, on your own
+    machine, to find your own page, is not that.
+
+    `problem` is "" when the tool ran, and says why when it did not, so the
+    catalogue can tell "this file has no bookmarks" from "the bookmarks could
+    not be read".
     """
     try:
-        raw = _run(["pdftohtml", "-xml", "-stdout", "-i", "-f", "1", "-l", "1",
-                    str(pdf)], timeout=120)
-    except (RuntimeError, subprocess.TimeoutExpired):
-        return []
+        raw = _run(["pdftohtml", "-xml", "-stdout", "-i", "-nodrm",
+                    "-f", "1", "-l", "1", str(pdf)], timeout=120)
+    except subprocess.TimeoutExpired:
+        return [], "pdftohtml took too long reading the bookmarks"
+    except RuntimeError as exc:
+        return [], str(exc)[:160]
     try:
         root = ET.fromstring(raw.decode("utf-8", "ignore"))
     except ET.ParseError:
-        return []
+        return [], "pdftohtml's answer could not be read"
     out = []
 
     def walk(node, level):
@@ -218,7 +239,7 @@ def _outline(pdf):
     for top in root.iter("outline"):
         walk(top, 0)
         break                            # iter() would revisit the nested ones
-    return out
+    return out, ""
 
 
 def _title(pdf):
@@ -242,12 +263,15 @@ def index_one(pdf):
                            f"larger than a manual; not indexed")
     started = time.time()
     pages = _pages(pdf)
+    outline, outline_problem = _outline(pdf)
     meta = {
+        "version": INDEX_VERSION,
         "name": pdf.name,
         "title": _title(pdf) or pdf.stem.replace("_", " "),
         "size": st.st_size, "mtime": int(st.st_mtime),
         "indexed_at": time.time(), "pages": len(pages),
-        "outline": _outline(pdf),
+        "outline": outline,
+        "outline_problem": outline_problem,
         "text": pages,
         "took_s": round(time.time() - started, 1),
     }
@@ -320,6 +344,7 @@ def catalogue():
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
             "pages": (meta or {}).get("pages"),
             "bookmarks": len((meta or {}).get("outline") or []),
+            "bookmarks_problem": (meta or {}).get("outline_problem") or "",
             "indexed_at": (meta or {}).get("indexed_at"),
             "indexed": meta is not None,
             "stale": why,
