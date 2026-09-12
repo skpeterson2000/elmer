@@ -230,7 +230,7 @@ def skill(days=7, now=None):
     """
     now = now or datetime.now(timezone.utc)
     seen = _measured_index(days, now)
-    by_lead, by_regime = {}, {}
+    by_lead, by_regime, by_month = {}, {}, {}
     for day in _days_back(days, now):
         for e in _load(day)["forecasts"]:
             for lead in range(1, len(e["hours"])):
@@ -242,6 +242,11 @@ def skill(days=7, now=None):
                 by_lead.setdefault(lead, []).append(err)
                 regime = (e["regimes"][lead] if lead < len(e["regimes"]) else None) or "unknown"
                 by_regime.setdefault(regime, []).append(err)
+                # By the month of the hour forecast, model leads only: a
+                # season shows as a season, and the anchor's hours would
+                # otherwise flatter every month alike.
+                if lead in MODEL_LEADS:
+                    by_month.setdefault(target[:7], {}).setdefault(regime, []).append(err)
 
     def summary(errs):
         n = len(errs)
@@ -254,11 +259,13 @@ def skill(days=7, now=None):
     # forecast has to beat at 24 hours. A model that does not beat it is
     # adding shape and no skill, and the honest thing would be to hand the
     # operator yesterday's measured curve instead.
-    persist = []
+    persist, persist_month = [], {}
     for target, got in seen.items():
         earlier = seen.get(_hour((datetime.fromisoformat(target) - timedelta(hours=24)).isoformat()))
         if earlier and got.get("muf") and earlier.get("muf"):
-            persist.append(float(earlier["muf"]) - float(got["muf"]))
+            err = float(earlier["muf"]) - float(got["muf"])
+            persist.append(err)
+            persist_month.setdefault(target[:7], []).append(err)
 
     this_hour = _hour(now.isoformat())
     yesterday = None
@@ -278,6 +285,10 @@ def skill(days=7, now=None):
             "by_lead": {str(k): summary(v) for k, v in sorted(by_lead.items())},
             "by_regime": {k: summary(v) for k, v in sorted(by_regime.items())},
             "persistence_24h": summary(persist),
+            "by_month": {m: {**{r: summary(v) for r, v in sorted(regs.items())},
+                             "all": summary([x for v in regs.values() for x in v]),
+                             "persistence": summary(persist_month.get(m, []))}
+                         for m, regs in sorted(by_month.items())},
             "latest": latest_line}
 
 
