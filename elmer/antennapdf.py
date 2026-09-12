@@ -381,6 +381,18 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     else:
         flow.append(Paragraph(NOT_CUT.get(kind, "This antenna is not cut to a "
                                                 "single length."), st["body"]))
+        # The one number a bought whip does have: where the maker's chart
+        # says to start the stinger for this frequency.
+        tune = advice.get("tuning")
+        if tune:
+            flow.append(Paragraph(
+                f"<b>Where to start the whip.</b> Lakeview's chart for the "
+                f"{tune['model']} ({tune['band']} Hamstick) puts the exposed "
+                f"stainless whip at about <b>{tune['inches']:.1f} in</b> for "
+                f"{mhz:.3f} MHz, moving about {abs(tune['per_100khz']):.1f} in "
+                f"per 100 kHz - shorter for higher"
+                + (", on both whips of the pair alike" if tune.get("pair") else "")
+                + f". {tune['note']}", st["body"]))
 
     # --- the material -------------------------------------------------------
     flow.append(Paragraph("What it is made of", st["h"]))

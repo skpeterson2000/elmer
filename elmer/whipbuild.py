@@ -134,6 +134,82 @@ BENCH = [
     "and you will be trimming the tip while watching a meter.",
 ]
 
+# --- the maker's own tuning chart -------------------------------------------
+# Lakeview's Hamstick instruction sheet: exposed stainless whip, in inches,
+# against frequency, one chart per model. Read off a scan of the sheet, so
+# these are the sheet's own approximations approximated once more; the sheet
+# says in bold that the lengths are only approximate and depend on the mount,
+# the coax length, other antennas nearby and the matching. Its rule comes
+# first and is repeated wherever this table is shown: DO NOT CUT THE WHIP
+# FIRST - find resonance with the whip fully extended, then shorten. And
+# never let the whip run into the close-wound part of the coil: on some
+# models a wire crosses the hollow rod about 6 inches from the top and the
+# whip shears it, which voids the warranty; where the whip would reach the
+# coil, cut it (score with a file; wire cutters will not take the alloy) so
+# it cannot, or the coil heats badly at that point.
+#
+# (MHz, inches). Each list spans the chart's own axis and nothing beyond it.
+LAKEVIEW_CHARTS = {
+    "6 m":  {"model": "#9106", "points": [(50.0, 14.8), (51.0, 13.8), (52.0, 12.7), (53.0, 11.6), (54.0, 10.5)]},
+    "10 m": {"model": "#9110", "points": [(27.0, 35.0), (27.5, 33.3), (28.0, 31.6), (28.5, 30.0), (29.0, 28.4), (29.5, 27.0)]},
+    "12 m": {"model": "#9112", "points": [(24.80, 39.5), (24.85, 39.0), (24.90, 38.5), (24.95, 38.0), (25.00, 37.5), (25.05, 37.0)]},
+    "15 m": {"model": "#9115", "points": [(21.0, 43.0), (21.1, 42.7), (21.2, 42.3), (21.3, 42.0), (21.4, 41.8), (21.5, 41.4)]},
+    "17 m": {"model": "#9117", "points": [(18.0, 43.4), (18.1, 43.0), (18.2, 42.5), (18.3, 42.1), (18.4, 41.6), (18.5, 41.2)]},
+    "20 m": {"model": "#9120", "points": [(13.9, 36.0), (14.0, 35.0), (14.1, 34.2), (14.2, 33.3), (14.3, 32.5), (14.4, 31.7)]},
+    "30 m": {"model": "#9130", "points": [(10.00, 40.0), (10.05, 38.6), (10.10, 37.2), (10.15, 35.7), (10.20, 34.2), (10.25, 32.6)]},
+    "40 m": {"model": "#9140", "points": [(6.9, 42.3), (7.0, 40.8), (7.1, 39.3), (7.2, 37.8), (7.3, 36.3), (7.4, 34.8)]},
+    "75 m": {"model": "#9175", "points": [(3.5, 50.0), (3.6, 47.0), (3.7, 43.5), (3.8, 40.0), (3.9, 37.0), (4.0, 34.0)]},
+}
+
+# The same sheet's Figure 1: a capacitor from the feedpoint to ground, for a
+# single whip on a vehicle whose SWR will not come under 1.5:1 by tuning. A
+# short vertical's feedpoint is well under 50 ohms, and a shunt capacitance at
+# the base with the whip left a little long (inductive) is an L-network with
+# the whip as the other half. Measured by Lakeview on centre-loaded whips
+# clear of surroundings; the sheet says other mountings change the values,
+# and to recheck resonance afterwards because matching moves it a little.
+# 1000 V rating. Nothing here applies to the two-whip dipole, whose feedpoint
+# is a different animal.
+MATCH_CAPACITANCE_PF = {
+    "75 m": (900, 1200), "40 m": (450, 600), "30 m": (400, 550),
+    "20 m": (200, 300), "15 m": (0, 100), "12 m": (0, 50), "10 m": (0, 25),
+}
+
+CHART_NOTE = ("Lakeview's own rule, in bold on the sheet: do not cut the whip "
+              "first. Find resonance with the whip fully extended, then slide "
+              "it in. The chart is approximate - the mount, the coax length "
+              "and anything else nearby move it - and the whip must never run "
+              "into the close-wound part of the coil: a wire crosses the rod "
+              "about six inches from the top on some models and the whip "
+              "shears it, which voids the warranty. Where the whip would reach "
+              "the coil, score it with a file and break it off; wire cutters "
+              "will not take the alloy.")
+
+
+def stinger_inches(mhz):
+    """What Lakeview's chart says to expose at this frequency, or None.
+
+    Linear between the chart's plotted points and nothing outside them: the
+    sheet drew each chart across one band and the program does not know
+    what the whip does past the edge of the paper.
+    """
+    mhz = float(mhz)
+    for band, chart in LAKEVIEW_CHARTS.items():
+        pts = chart["points"]
+        if not pts[0][0] <= mhz <= pts[-1][0]:
+            continue
+        for (f0, l0), (f1, l1) in zip(pts, pts[1:]):
+            if f0 <= mhz <= f1:
+                frac = 0.0 if f1 == f0 else (mhz - f0) / (f1 - f0)
+                inches = l0 + frac * (l1 - l0)
+                return {"band": band, "model": chart["model"],
+                        "inches": round(inches, 1),
+                        "chart_low": pts[0][0], "chart_high": pts[-1][0],
+                        "per_100khz": round((l1 - l0) / (f1 - f0) * 0.1, 2),
+                        "match_pf": MATCH_CAPACITANCE_PF.get(band)}
+    return None
+
+
 # Free space, near enough for an antenna a few metres long.
 C_M_PER_S = 299_792_458.0
 FT_PER_M = 3.280839895

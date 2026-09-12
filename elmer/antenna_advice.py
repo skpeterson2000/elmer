@@ -515,6 +515,22 @@ TYPES = {
             "exist.",
         ],
         "better": [
+            # Lakeview's instruction sheet, on where the whip goes: the higher
+            # and more central the better; trunk lip on a sedan, mirror or
+            # luggage rack on a van or RV, roof on a pickup with a metal cap;
+            # a bumper is the poorest choice and a van's or pickup's rear
+            # bumper worst of all, since the whip runs alongside the body.
+            "Mount it high and central, and never alongside the body: the "
+            "maker's own sheet puts a trunk-lip mount on a sedan, a mirror or "
+            "rack mount on a van or RV and a roof mount on a pickup with a "
+            "metal cap, and calls the bumper the poorest choice - a rear "
+            "bumper on a van or pickup has the whip running parallel to a "
+            "wall of steel.",
+            "If tuning will not bring it under 1.5:1, the maker's answer is a "
+            "capacitor from the feedpoint to ground - 1000 V, roughly 450-600 "
+            "pF on 40 m, 200-300 on 20 m, 900-1200 on 75 m - then recheck "
+            "resonance, because the match moves it. A tuner at the rig does "
+            "the same and widens the usable span up to three times.",
             "Know which one you are working, because this antenna does both, and they are not the same contact. Close in it is ground wave - vertically polarised, hugging the surface, tens of miles of it, and the one kind of propagation a horizontal wire cannot manage at all. The contacts that surprise people are the other kind: a short vertical launches at a low angle, so what little it radiates leaves flat and comes back off the F layer hundreds or thousands of miles out. Working across the country from a moving car on 20 m is not ground wave - it is the ionosphere, reached by an antenna that is inefficient but aimed right. Being inefficient and being short-ranged are different failures, and this antenna only has the first.",
             "Move the coil up the whip. Centre loading beats base loading by "
             "a decibel or two, because it puts current where the radiating "
@@ -1078,10 +1094,21 @@ def for_type(mhz, kind, use=None, site=None):
     if where:
         height = where["height_ft"]
     fit = suits(kind, use, mhz)
+    # A bought whip has no length to cut, but it does have a whip to slide,
+    # and the maker printed a chart for where to start. Read here for the
+    # single whip and the pair alike - it is the same whip either side.
+    tuning = None
+    if kind in ("whip", "whipdipole"):
+        from . import whipbuild
+        tuning = whipbuild.stinger_inches(mhz)
+        if tuning:
+            tuning = dict(tuning, note=whipbuild.CHART_NOTE,
+                          pair=(kind == "whipdipole"))
     return {
         "mhz": mhz, "use": use, "use_label": USES[use],
         "wavelength_ft": round(wavelength_ft(mhz), 1),
         "type": kind, "chosen": True,
+        "tuning": tuning,
         "title": spec["title"],
         "height_ft": height,
         "polarisation": spec["polarisation"],

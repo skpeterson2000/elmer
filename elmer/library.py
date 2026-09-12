@@ -57,7 +57,8 @@ TOPICS = {
     "antennas": {"label": "Antennas",
                  "words": ["antenna", "dipole", "yagi", "vertical", "beam",
                            "feed line", "feedline", "transmission line",
-                           "coax", "swr", "tuner", "balun", "radial"]},
+                           "coax", "swr", "tuner", "balun", "radial",
+                           "whip", "hamstick"]},
     "propagation": {"label": "Propagation",
                     "words": ["propagation", "ionosphere", "ionospheric",
                               "skip", "sunspot", "solar", "muf", "nvis",
@@ -412,6 +413,11 @@ def catalogue():
             "title": (meta or {}).get("title") or pdf.stem.replace("_", " "),
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
             "pages": (meta or {}).get("pages"),
+            # Pictures of pages, not pages: a scan has nothing for search to
+            # read, and the shelf should say so rather than let "no results"
+            # look like the word was not in the book.
+            "scanned": bool(meta and meta.get("pages")
+                            and not any((t or "").strip() for t in meta.get("text") or [])),
             "bookmarks": len((meta or {}).get("outline") or []),
             "bookmarks_problem": (meta or {}).get("outline_problem") or "",
             "indexed_at": (meta or {}).get("indexed_at"),
@@ -592,7 +598,11 @@ def pointers(topic=None, words=None):
         outline = (meta or {}).get("outline") or []
         book_title = (meta or {}).get("title") or pdf.stem.replace("_", " ")
         if not outline and meta is not None:
-            hit = matched(book_title)
+            # The file's own name counts as well as the title inside it: a
+            # scanned instruction sheet saved as "Lakeview_Hamsticks_HF_
+            # antenna_user.pdf" says "antenna" in the one place its maker's
+            # metadata ("Hamstiks instructions") does not.
+            hit = matched(book_title) or matched(pdf.stem.replace("_", " ").replace("-", " "))
             if hit:
                 out.append({"book": pdf.name, "book_title": book_title,
                             "title": book_title, "page": 1, "level": 0,

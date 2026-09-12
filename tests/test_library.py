@@ -239,6 +239,22 @@ check("  unmarked again", L.mine(connection), [])
 make_manual(L.SHELF / "FT8 Operating Guide.pdf", [("FT8", ["Fifteen-second periods."])], bookmarks=False,
             title="FT8 Operating Guide")
 L.refresh()
+# A scan: pictures of pages, nothing under them. The shelf must say so, and
+# the file's own name still gets it a pointer when the title inside does not.
+from reportlab.lib.pagesizes import LETTER as _LETTER
+_scan = canvas.Canvas(str(L.SHELF / "Lakeview_whip_sheet.pdf"), pagesize=_LETTER)
+_scan.setTitle("Hamstiks instructions")
+_scan.rect(72, 72, 400, 600, stroke=1, fill=0)          # a page with a drawing and no text
+_scan.showPage(); _scan.save()
+L.refresh()
+_cat = {b["name"]: b for b in L.catalogue()}
+check("a page with no text is called a scan", _cat["Lakeview_whip_sheet.pdf"]["scanned"], True)
+check("  and a book with text is not", _cat["FT-991A Operating Manual.pdf"]["scanned"], False)
+check("  its file name earns the pointer its title could not",
+      [(p["matched"], p["page"]) for p in L.pointers("antennas") if p["book"] == "Lakeview_whip_sheet.pdf"],
+      [("whip", 1)])
+(L.SHELF / "Lakeview_whip_sheet.pdf").unlink()
+L.refresh()
 # A one-page sheet never has bookmarks; its title is its chapter heading.
 by_title = [x for x in L.pointers("digital") if x["book"] == "FT8 Operating Guide.pdf"]
 check("a book with no bookmarks points by its title", [(x["page"], x["matched"], x.get("by_title")) for x in by_title],

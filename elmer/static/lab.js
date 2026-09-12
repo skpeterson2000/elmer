@@ -2574,6 +2574,29 @@ function matchingHeightsHTML(d) {
 
 /* What the power asks of the parts. Led with the thing people get wrong,
    because they do: a thicker element does not need more power. */
+/* A bought whip has no length to cut, but it has a stinger to slide, and the
+   maker printed a chart. Shown for the single whip and for the pair - the
+   whip is the same either side of the mount. */
+function tuningHTML(d) {
+  const t = d.tuning;
+  if (!t) return '';
+  return '<div class="panel-title" style="margin-top:.9rem">Where to start the whip</div>' +
+    '<p class="small">Lakeview\'s chart for the <b>' + escapeHTML(t.model) + '</b> (' +
+    escapeHTML(t.band) + ' Hamstick) puts the exposed stainless whip at about <b>' +
+    t.inches.toFixed(1) + '&nbsp;in</b> for ' + d.mhz + '&nbsp;MHz, moving about ' +
+    Math.abs(t.per_100khz).toFixed(1) + '&nbsp;in per 100&nbsp;kHz &mdash; shorter for higher' +
+    (t.pair ? ', on both whips alike' : '') + '. The chart runs ' + t.chart_low + '&ndash;' +
+    t.chart_high + '&nbsp;MHz and ELMER does not read past its edge.</p>' +
+    '<p class="small muted">' + escapeHTML(t.note) + '</p>' +
+    (!t.pair && t.match_pf
+      ? '<p class="small muted">Will not come under 1.5:1 on the vehicle? The same sheet\'s ' +
+        'answer is a 1000&nbsp;V capacitor from feedpoint to ground, about <b>' +
+        t.match_pf[0] + '&ndash;' + t.match_pf[1] + '&nbsp;pF</b> on ' + escapeHTML(t.band) +
+        ', measured on a centre-loaded whip clear of surroundings; recheck resonance after, ' +
+        'because the match moves it.</p>'
+      : '');
+}
+
 function powerHTML(d) {
   const p = d.power;
   if (!p || !p.items || !p.items.length) return '';
@@ -2765,7 +2788,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
               ? 'Height: the roof of the vehicle.'
               : 'Height to aim for: ' + d.height_ft + ' ft.') + '</b> ' +
         escapeHTML(d.feedline) + '</p>' +
-        matchingHeightsHTML(d) + powerHTML(d) + '</div>' +
+        matchingHeightsHTML(d) + tuningHTML(d) + powerHTML(d) + '</div>' +
       '<div><div class="panel-title">What usually goes wrong</div>' +
         '<ul class="facts small">' +
         d.watch.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>' +
