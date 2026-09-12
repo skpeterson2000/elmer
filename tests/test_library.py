@@ -218,6 +218,10 @@ c = canvas.Canvas(buf, pagesize=LETTER)
 c.bookmarkPage("a"); c.addOutlineEntry("Propagation Basics", "a", level=0)
 c.drawString(72, 720, "Propagation Basics"); c.drawString(72, 700, "The MUF rises with the sun.")
 c.showPage(); c.save()
+r = client.post("/api/library/index", json={})
+d = r.get_json()
+check("the index answer carries the tools, so the page cannot mistake a read for a loss",
+      ("tools" in d and bool(d["tools"]["pdftotext"]), d.get("tools_note")), (True, None))
 r = client.post("/api/library/add", data={"file": (io.BytesIO(buf.getvalue()), "ARRL Handbook.pdf")},
                 content_type="multipart/form-data")
 check("a manual handed over from a browser lands on the shelf and is read",
