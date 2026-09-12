@@ -150,6 +150,22 @@ d = client.get("/api/library/outline?name=FT-991A%20Operating%20Manual.pdf").get
 check("  the outline is served", len(d["outline"]), 5)
 r = client.get("/library/book/FT-991A%20Operating%20Manual.pdf")
 check("  the book itself opens", (r.status_code, r.data[:5]), (200, b"%PDF-"))
+
+print("\na book opens inside ELMER, with the way back on it")
+r = client.get("/library/read/FT-991A%20Operating%20Manual.pdf?page=2&q=cw+pitch&back=%2Flab")
+page = r.data.decode()
+check("the reader renders", r.status_code, 200)
+check("  with Back going where the caller came from", 'href="/lab" id="back"' in page, True)
+check("  the chapters down the side", ("Chapter 2 CW Operation" in page, "2.1 Pitch and sidetone" in page), (True, True))
+check("  and the search's hits in this book", ("in this book" in page, "menu 062" in page), (True, True))
+check("  opening at the page asked for", 'value="2"' in page, True)
+r = client.get("/library/read/FT-991A%20Operating%20Manual.pdf?back=//elsewhere.example")
+check("  a Back to somewhere else is refused - the Library instead",
+      'href="/library" id="back"' in r.data.decode(), True)
+check("  a book that is not there is a 404", client.get("/library/read/nothing.pdf").status_code, 404)
+check("  every link on the Library page goes through the reader, in the same tab",
+      ("target=\"_blank\"" in client.get("/library").data.decode(), "/library/read/" in client.get("/library").data.decode()),
+      (False, True))
 check("  and a path outside the shelf does not", client.get("/library/book/..%2Felmer.db").status_code, 404)
 
 buf = io.BytesIO()

@@ -496,7 +496,12 @@ manual* on the Library page) and the next visit to **Library** indexes them:
 `pdftotext` for the words on every page, the publisher's own bookmarks for the
 chapters, `pdfinfo` for the title. The search box finds the pages that carry
 every word you typed — quote a phrase to keep it whole — and shows each with
-its chapter and a snippet, linked to open the PDF at that page. Under it,
+its chapter and a snippet, linked to open the book at that page. The book
+opens *inside ELMER*: the browser's own viewer draws the pages, under an
+ELMER bar with **Back** (and Escape), the publisher's chapters down the side,
+and — when you came from a search — the hits in that book, each a tap away.
+The kiosk's browser has no tab bar, so a PDF opened on its own would be a
+wall with no door. Under it,
 *ELMER's topics in your books*: antennas, propagation, CW, digital modes,
 repeaters, power, safety, rules, satellites, menus, test equipment — each
 listing the chapters on the shelf whose bookmark titles use those words, and

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} &middot; ELMER</title>
+<link rel="stylesheet" href="{{ asset('elmer.css') }}">
+<style>
+/* A manual, inside ELMER. The browser's own PDF viewer draws the pages; this
+   is the frame around it that the kiosk needs, because a full-screen
+   Chromium with no tab bar has no way back from a PDF opened on its own -
+   and a manual that cannot be closed is a manual nobody opens twice. */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+       height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.bar { display: flex; align-items: center; gap: .6rem; padding: .35rem .6rem;
+       background: linear-gradient(180deg, #131a23, #0f151d); border-bottom: 1px solid var(--line);
+       flex: none; }
+.bar .title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+              min-width: 0; flex: 1; }
+.bar .btn { white-space: nowrap; }
+.bar input.pg { width: 4.2rem; padding: .35rem .5rem; border-radius: 7px; text-align: right;
+                border: 1px solid var(--line-2); background: var(--panel); color: var(--text);
+                font-family: var(--mono); }
+.body { display: flex; flex: 1; min-height: 0; }
+.rail { width: 270px; flex: none; overflow-y: auto; border-right: 1px solid var(--line);
+        background: var(--panel); padding: .5rem .6rem; }
+.rail[hidden] { display: none; }
+.rail h4 { margin: .5rem 0 .3rem; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+           color: var(--dim); }
+.rail a { display: block; padding: .28rem .35rem; border-radius: 6px; color: var(--text);
+          text-decoration: none; font-size: .85rem; line-height: 1.3; }
+.rail a:hover { background: var(--panel-2); }
+.rail a.on { color: var(--amber); background: var(--panel-2); }
+.rail a .pg { float: right; color: var(--dim); font-family: var(--mono); font-size: .78rem; margin-left: .5rem; }
+.rail a.l1 { padding-left: 1rem; } .rail a.l2 { padding-left: 1.7rem; }
+.rail .snip { display: block; color: var(--dim); font-size: .75rem; margin-top: .1rem; }
+.rail .snip mark { background: rgba(255,180,84,.28); color: inherit; border-radius: 3px; padding: 0 .1em; }
+.viewer { flex: 1; min-width: 0; background: #1a1f26; }
+.viewer iframe { width: 100%; height: 100%; border: 0; display: block; }
+.esc { position: fixed; right: .7rem; bottom: .5rem; font-size: .72rem; color: var(--dimmer);
+       pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class="btn sm" href="{{ back }}" id="back">&larr; Back</a>
+  <button class="btn sm ghost" id="rail-toggle" title="chapters and search hits">Contents</button>
+  <div class="title" title="{{ name }}">{{ title }}</div>
+  <span class="tiny muted mono" id="pages">{{ pages }} pages</span>
+  <label class="tiny muted" style="display:flex;align-items:center;gap:.3rem">page
+    <input class="pg" id="pg" type="number" min="1" max="{{ pages }}" value="{{ page }}">
+  </label>
+</div>
+<div class="body">
+  <nav class="rail" id="rail">
+    {% if hits %}
+      <h4>&ldquo;{{ query }}&rdquo; in this book</h4>
+      {% for h in hits %}
+        <a href="#" data-page="{{ h.page }}"><span class="pg">{{ h.page }}</span>{{ h.chapter or ('page ' ~ h.page) }}
+          <span class="snip">{{ h.snippet }}</span></a>
+      {% endfor %}
+    {% endif %}
+    {% if outline %}
+      <h4>Chapters</h4>
+      {% for item in outline %}
+        <a href="#" class="l{{ [item.level, 2]|min }}" data-page="{{ item.page }}"><span class="pg">{{ item.page }}</span>{{ item.title }}</a>
+      {% endfor %}
+    {% elif not hits %}
+      <p class="tiny muted">This file has no bookmarks, so there is no chapter list. Search from the Library page reaches into it all the same.</p>
+    {% endif %}
+  </nav>
+  <div class="viewer">
+    <iframe id="pdf" title="{{ title }}"></iframe>
+    {# A phone's browser does not draw a PDF inside a page - it hands the file
+       to a viewer, or downloads it and says nothing. Better to say so and
+       offer the file than to show a grey rectangle. #}
+    <div id="phone" hidden style="padding:1.2rem;max-width:36rem">
+      <p class="small">This browser will not show a PDF inside a page. Open the file itself and your phone's viewer will take it &mdash; page {{ page }} is where the Library pointed.</p>
+      <p><a class="btn primary" href="/library/book/{{ name|urlencode }}#page={{ page }}">Open the file</a></p>
+      <p class="tiny muted">On the unit's own screen, and on a laptop, the book opens right here.</p>
+    </div>
+  </div>
+</div>
+<div class="esc">Esc: back</div>
+<script src="{{ asset('elmer.js') }}"></script>
+<script>
+const NAME = {{ name|tojson }};
+const PAGES = {{ pages|tojson }};
+const frame = document.getElementById('pdf');
+const pg = document.getElementById('pg');
+const rail = document.getElementById('rail');
+let current = 0;
+
+/* The viewer ignores a change to nothing but the hash of the URL it already
+   has, so the page rides in the query too - which the server ignores - and
+   every turn of the page is a fresh URL to it. */
+function show(page) {
+  page = Math.max(1, Math.min(PAGES || 99999, parseInt(page, 10) || 1));
+  if (page === current) return;
+  current = page;
+  if (!PHONE) frame.src = '/library/book/' + encodeURIComponent(NAME) + '?p=' + page + '#page=' + page + '&navpanes=0&view=FitH';
+  pg.value = page;
+  document.querySelectorAll('.rail a').forEach(a => a.classList.toggle('on', +a.dataset.page === page));
+  try { history.replaceState(null, '', location.pathname + '?page=' + page + (QUERY ? '&q=' + encodeURIComponent(QUERY) : '')); } catch (e) {}
+}
+const QUERY = {{ query|tojson }};
+const PHONE = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+if (PHONE) {
+  frame.hidden = true;
+  document.getElementById('phone').hidden = false;
+  rail.addEventListener('click', e => {
+    const a = e.target.closest('a[data-page]');
+    if (a) document.querySelector('#phone a.btn').href =
+      '/library/book/' + encodeURIComponent(NAME) + '#page=' + a.dataset.page;
+  });
+}
+show({{ page|tojson }});
+
+/* The searched-for words, lit in the snippets the way the Library lights them. */
+if (QUERY) {
+  const terms = (QUERY.match(/"([^"]+)"|[^\s"]+/g) || []).map(t => t.replace(/^"|"$/g, '')).filter(t => t.length > 1);
+  document.querySelectorAll('.rail .snip').forEach(el => {
+    let html = escapeHTML(el.textContent);
+    terms.forEach(t => {
+      const re = new RegExp(escapeHTML(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      html = html.replace(re, m => '<mark>' + m + '</mark>');
+    });
+    el.innerHTML = html;
+  });
+}
+
+rail.addEventListener('click', e => {
+  const a = e.target.closest('a[data-page]');
+  if (!a) return;
+  e.preventDefault();
+  show(a.dataset.page);
+});
+pg.addEventListener('change', () => show(pg.value));
+pg.addEventListener('keydown', e => { if (e.key === 'Enter') show(pg.value); });
+
+/* Contents fold, remembered: a 1024-wide screen gives the rail a quarter of
+   itself, which is right while finding the page and wrong while reading it. */
+const toggle = document.getElementById('rail-toggle');
+let railOn = true;
+try { railOn = localStorage.getItem('elmer_library_rail') !== 'off'; } catch (e) {}
+function paintRail() {
+  rail.hidden = !railOn;
+  toggle.classList.toggle('ghost', railOn);
+  try { localStorage.setItem('elmer_library_rail', railOn ? 'on' : 'off'); } catch (e) {}
+}
+toggle.addEventListener('click', () => { railOn = !railOn; paintRail(); });
+paintRail();
+
+/* The way back, as on the Big Board: Escape, or the button. Focus is
+   inside the PDF viewer most of the time, where our key handler cannot hear
+   it - so the bar's button is the one that always works, and the key is
+   for whoever has a keyboard and the habit. */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); location.href = document.getElementById('back').href; }
+});
+</script>
+</body>
+</html>
