@@ -177,8 +177,13 @@ function showJoin(reason) {
     let previous = null;
     try { const was = JSON.parse(localStorage.getItem('elmer_party_was') || 'null');
           if (was && was.name && was.name.toLowerCase() === name.toLowerCase()) previous = was.id; } catch (e) {}
-    const r = await api('/api/party/join', {name, cert_name, previous, license});
-    if (!r.data.joined) { showJoin(r.data.reason || 'Could not join.'); return; }
+    const r = await api('/api/party/join', {name, cert_name, previous, license, build: PAGE_BUILD});
+    if (!r.data.joined) {
+      // Told this page is stale: fetch the current one rather than making
+      // the person read the instruction and do it themselves.
+      if (r.data.stale) { location.reload(); return; }
+      showJoin(r.data.reason || 'Could not join.'); return;
+    }
     me = r.data.player;
     sessionStorage.setItem('elmer_party_player', JSON.stringify(me));
     try { localStorage.setItem('elmer_party_was', JSON.stringify({id: me.id, name: me.name})); } catch (e) {}
