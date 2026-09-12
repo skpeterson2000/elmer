@@ -38,8 +38,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               certpdf, difficulty, forecastlog, terrain, touchstone, tournament,
-               update, vna, whipbuild)
+               calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
+               tournament, trivia, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -2267,6 +2267,66 @@ def api_path_bands():
     return jsonify(out)
 
 
+def _calibration_summary(table):
+    """The table as one sentence's worth of facts: when, on what, and this
+    month's factors - for the strip under the band, not the whole table."""
+    if not table:
+        return None
+    month = datetime.now(timezone.utc).strftime("%m")
+    cells = (table.get("months") or {}).get(month) or {}
+    return {"made": table.get("made"), "days": table.get("days"),
+            "stations": table.get("stations") or [],
+            "months_known": len(table.get("months") or {}),
+            "this_month": {k: {"factor": v["factor"], "n": v["n"], "applied": v["applied"]}
+                           for k, v in cells.items()}}
+
+
+# --------------------------------------------------------------------------
+# calibrate my forecast
+# --------------------------------------------------------------------------
+
+@app.route("/api/calibrate", methods=["POST"])
+def api_calibrate_start():
+    """Begin the year-long blind run for this unit's QTH - about five
+    minutes on a Pi. Local screen only: it is this unit's CPU for five
+    minutes and this unit's table at the end of it."""
+    if not _is_local(request.remote_addr):
+        abort(403)
+    settings = db.get_profile(conn())["settings"]
+    loc = settings.get("location") or {}
+    if loc.get("lat") is None:
+        abort(400, "set a QTH first - the forecast is about a place, and so is its calibration")
+    body = request.get_json(silent=True) or {}
+    try:
+        days = max(30, min(400, int(body.get("days") or 365)))
+    except ValueError:
+        days = 365
+    log.info("calibration: started for %s, %d days", loc.get("short") or loc.get("grid"), days)
+    return jsonify(calibrate.start(loc["lat"], loc["lon"], days=days,
+                                   build=bugreport.build_stamp().get("commit") or "",
+                                   place=loc.get("short") or loc.get("grid") or ""))
+
+
+@app.route("/api/calibrate/status")
+def api_calibrate_status():
+    return jsonify(calibrate.status())
+
+
+@app.route("/api/cards")
+def api_cards():
+    """A card for a screen that is waiting: the history deck, the quotes,
+    or the hams people have heard of. `avoid` is the last one shown."""
+    deck = request.args.get("deck") or "history"
+    return jsonify(trivia.draw(avoid=request.args.get("avoid"), deck=deck))
+
+
+@app.route("/api/calibrate/stop", methods=["POST"])
+def api_calibrate_stop():
+    if not _is_local(request.remote_addr):
+        abort(403)
+    return jsonify({"stopped": calibrate.stop()})
+
+
 @app.route("/api/propagation/outlook")
 def api_propagation_outlook():
     """Band by band: how good it is now, and how the next day looks.
@@ -2306,6 +2366,7 @@ def api_propagation_outlook():
     # by, by sky - applied where the anchor has let go, and said on the page.
     adj = forecastlog.adjustment()
     bias = forecastlog.applied_bias(adj)
+    table = forecastlog.calibration()
 
     # With no QTH there is no sun angle, so the snapshot's assumed one is used
     # - the same one it computed its own MUF from, so the two cannot drift.
@@ -2348,7 +2409,7 @@ def api_propagation_outlook():
                                        # how high the layer is.
                                        hmf2=snap.get("hmf2")
                                        or propagation.HMF2_DEFAULT,
-                                       bias=bias)
+                                       bias=bias, calibration=table)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "regime": row["regime"], "day": row["day"]}
                      for row in when]
@@ -2411,7 +2472,8 @@ def api_propagation_outlook():
                         "adjustment": bias},
                 bugreport.build_stamp().get("commit"))
             record = {"adjustment": adj, "skill": forecastlog.skill(),
-                      "drift": verdict if (verdict and verdict["moved"]) else forecastlog.latest_drift()}
+                      "drift": verdict if (verdict and verdict["moved"]) else forecastlog.latest_drift(),
+                      "calibration": _calibration_summary(table)}
         except Exception:                          # the ledger must never cost the page
             log.exception("forecast ledger")
 

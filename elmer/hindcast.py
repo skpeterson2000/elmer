@@ -294,13 +294,16 @@ def kp_at(data, when):
 
 
 def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
-        ledger=None, build="hindcast", learn=False, progress=None):
+        ledger=None, build="hindcast", learn=False, progress=None,
+        calibration=None, stop=None):
     """Forecast every hour from start to end, blind, into a ledger.
 
     `learn` lets the run apply the adjustment it has learned so far, as the
-    live unit does; off, it measures the bare model. Returns the skill and
-    the adjustment read back from the ledger, plus what was and was not
-    available to it.
+    live unit does; off, it measures the bare model. `calibration` is a
+    month-by-sky factor table to apply as the live unit would - the second
+    pass, after the first has fitted it. `stop` is an Event that ends the
+    run early. Returns the skill and the adjustment read back from the
+    ledger, plus what was and was not available to it.
     """
     ledger_dir = ledger or (CACHE / f"ledger-{start:%Y%m%d}-{end:%Y%m%d}-{build}")
     saved = forecastlog.LEDGER, forecastlog.KEEP_DAYS
@@ -314,7 +317,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             p.unlink()
         when = start.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
         hours, with_reading, votes = 0, 0, []
-        while when <= end:
+        while when <= end and not (stop and stop.is_set()):
             sfi = sfi_at(data, when)
             if sfi is None:
                 break
@@ -324,7 +327,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             elevation = propagation.solar_elevation(lat, lon, when)
             muf, fof2 = propagation.levels(sfi, elevation, lat, cal and cal["m3000"],
                                            cal["factor"] if cal else 1.0,
-                                           drive=propagation.f2_drive(lat, lon, when))
+                                           drive=propagation.f2_drive(lat, lon, when), when=when)
             source = cal["source"] if cal else "modelled"
             if source == "measured":
                 with_reading += 1
@@ -343,7 +346,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                            m3000=cal["m3000"] if cal else None,
                                            anchor_sun=cal.get("sun_deg") if cal else None,
                                            hmf2=(cal or {}).get("measured_hmf2") or propagation.HMF2_DEFAULT,
-                                           bias=bias)
+                                           bias=bias, calibration=calibration)
                 out.append({"band": _band_name(mhz), "hours": [
                     {"at": r["at"], "score": r["score"], "muf": r["muf"],
                      "regime": r["regime"], "day": r["day"]} for r in rows]})
@@ -356,12 +359,17 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                      "lat": lat, "lon": lon, "adjustment": bias or {}},
                                build, now=when)
             hours += 1
-            if progress and hours % (24 * 7) == 0:
+            if progress and hours % 24 == 0:
                 progress(when, hours)
             when += timedelta(hours=step_hours)
         days = max(1, int((end - start).total_seconds() // 86400) + 2)
         skill = forecastlog.skill(days=days, now=end)
         adjust = forecastlog.adjustment(days=days, now=end)
+        # The table this run would teach - meaningful from a bare pass, and
+        # reported from a calibrated one as what is left to learn.
+        table = forecastlog.fit_calibration(
+            days, end, build=build, stations=list(data["stations"]),
+            acknowledgement=ACKNOWLEDGEMENT.format(codes=", ".join(data["stations"]) or "no station"))
     finally:
         forecastlog.LEDGER, forecastlog.KEEP_DAYS = saved
     return {"start": start.isoformat(), "end": end.isoformat(), "hours": hours,
@@ -369,7 +377,8 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             "sondes_voting": round(sum(votes) / len(votes), 1) if votes else 0,
             "ledger": str(ledger_dir),
             "stations": list(data["stations"]), "silent": data.get("silent", []),
-            "skill": skill, "adjustment": adjust, "build": build,
+            "skill": skill, "adjustment": adjust, "table": table, "build": build,
+            "calibrated": calibration is not None,
             "acknowledgement": ACKNOWLEDGEMENT.format(codes=", ".join(data["stations"]) or "no station")}
 
 
@@ -412,6 +421,20 @@ def report(result):
                      + ("  -> applied" if v["applied"] else
                         ("  -> past the cap, not applied" if v["capped"] else
                          "  -> too few hours yet")))
+    table = result.get("table") or {}
+    if table.get("months"):
+        lines.append("")
+        lines.append("  the calibration this run teaches - the sondes' MUF over the model's, by month and sky:")
+        lines.append("    month     dark          grey          lit")
+        for m, regs in table["months"].items():
+            def cell(r):
+                v = regs.get(r)
+                if not v:
+                    return "     -      "
+                mark = "" if v["applied"] else ("=" if v.get("small") else "?")
+                return f"x{v['measured']:.2f} n{v['n']:<4d}{mark}"
+            lines.append(f"    {m}      {cell('dark'):13s} {cell('grey'):13s} {cell('lit'):13s}")
+        lines.append("    (= : within 10% of the model, left alone; ? : too few hours; applied factors are bounded 0.5-2.0)")
     lines.append("")
     lines.append("  " + result["acknowledgement"])
     return "\n".join(lines)

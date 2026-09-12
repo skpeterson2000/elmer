@@ -438,6 +438,56 @@
   </div>
 </div>
 
+<div class="panel mt" id="cal-panel">
+  <div class="panel-title">Calibrate my forecast &mdash; a year of the sky, run blind</div>
+  {# The forecast's level is wrong by season, and by how much depends on where
+     the operator stands. So rather than ship a guess at the winter anomaly for
+     every latitude, the unit measures its own: it fetches a year of readings
+     from the ionosondes nearest it, runs the forecast blind over that year hour
+     by hour, and fits the correction by month and by sky. Five minutes on a Pi,
+     and the operator watches it happen - a finding a month, between cards -
+     because a screen that goes quiet for five minutes reads as broken. #}
+  <p class="small muted" style="max-width:80ch">
+    The forecast knows the sun and the flux; it does not know that the F layer
+    over you runs denser on a winter noon than the sun angle says, or by how
+    much. The sondes nearest you know. This fetches the last year of their
+    readings, runs ELMER&rsquo;s own forecast blind over that year &mdash; each
+    hour given only what it would have known then &mdash; and fits the
+    correction month by month and sky by sky, for this place. Then it runs the
+    year again with the correction on, so you see what it bought.
+  </p>
+  <p class="small" style="max-width:80ch">
+    <b>It takes about five minutes on a Pi</b> and needs the network for the
+    first minute. You are not forgotten while it runs: it tells you what it
+    finds, month by month, with a card or two in between. Nothing leaves this
+    unit. The record it reads is GIRO&rsquo;s and GFZ&rsquo;s, and it says so.
+    The model already carries the season as measured at the sondes between
+    30 and 45&nbsp;N, so a unit in the middle of North America may be told
+    there is little to correct &mdash; which is a measured answer too.
+  </p>
+  <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
+    <button class="btn primary" id="cal-start">Calibrate my forecast</button>
+    <button class="btn sm ghost" id="cal-stop" hidden>Stop</button>
+    <span class="small muted" id="cal-state"></span>
+  </div>
+  <div id="cal-stage" class="mt" hidden>
+    <div class="meter" style="height:10px"><i id="cal-bar" class="fill-high" style="width:0%"></i></div>
+    <div class="tiny muted" style="margin:.3rem 0 .8rem" id="cal-progress"></div>
+    <div class="grid cols-2" style="gap:1rem;align-items:start">
+      <div>
+        <div class="panel-title" style="margin:0 0 .3rem">Found so far</div>
+        <ul class="facts small" id="cal-findings" style="padding-left:1rem;line-height:1.5"></ul>
+      </div>
+      <div class="panel tight" id="cal-card" style="min-height:8rem">
+        <div class="tiny muted" id="cal-card-deck"></div>
+        <div class="small" id="cal-card-text" style="margin:.3rem 0"></div>
+        <div class="tiny muted" id="cal-card-about"></div>
+      </div>
+    </div>
+  </div>
+  <div id="cal-result" class="mt" hidden></div>
+</div>
+
 {# ---------------------------------------------------------------------
    DEVELOPMENT ONLY. Delete this panel, elmer/devreset.py and the
    /api/dev/reset routes in app.py to take it out. Nothing else uses it.
@@ -470,4 +520,5 @@ window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
 <script src="{{ asset('lab.js') }}"></script>
 {# development only - see the panel above #}
 <script src="{{ asset('devreset.js') }}"></script>
+<script src="{{ asset('calibrate.js') }}"></script>
 {% endblock %}

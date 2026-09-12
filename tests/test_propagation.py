@@ -314,7 +314,7 @@ def main():
                 # What the model expects of it now, which includes the layer's
                 # own lag - the same figure calibration will compare against.
                 "fof2": P._fof2(110, elev, lat,
-                                P.f2_drive(lat, lon, when)) * scale,
+                                P.f2_drive(lat, lon, when), when) * scale,
                 "m3000": 2.9, "age_minutes": 5}
 
     for lon in (-93.0, -120.0, -70.0):
@@ -443,8 +443,11 @@ def main():
     night_untold = max(r["muf"] for r in untold if r["regime"] == "dark")
     check("an unrecorded sky is assumed to be this one",
           abs(night_told - night_untold) < 0.05, True)
+    # Noon here is near 35 MHz on a 1.45 anchor; the night, released, is
+    # the model's own - about 15 at SFI 150 in September now the season is
+    # in (the record has September nights 11% above the sun-angle model).
     check("  so the night MUF is the night's, not noon's",
-          night_untold < 15.0, True)
+          night_untold < 20.0 and night_untold < 0.6 * told[0]["muf"], True)
     check("and 80 m gets its night back",
           max(r["score"] for r in untold if r["regime"] == "dark") >= 80, True)
 

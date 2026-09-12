@@ -101,5 +101,24 @@ text = H.report(res)
 check("the report acknowledges the data providers by station", "AL945" in text and "CC-BY-NC-SA" in text, True)
 check("  and names the yardstick", "persistence" in text, True)
 
+print("\nthe calibration job runs the two passes and hands the forecast the table")
+import time as _time
+from elmer import calibrate as C, forecastlog as F
+H.fetch = lambda start, end, codes=None, force=False: dict(syn, answered=["AL945"], silent=[])   # offline
+st = C.start(45.5, -84.0, days=2, build="t", place="Test")
+check("it starts", st["state"] in ("queued", "fetching", "running"), True)
+for _ in range(600):
+    st = C.status()
+    if st["state"] in ("done", "failed", "stopped"):
+        break
+    _time.sleep(0.1)
+check("  and finishes", (st["state"], st["error"]), ("done", None))
+check("  with the year's fraction at one", st["fraction"], 1.0)
+check("  something found to say", len(st["findings"]) >= 2, True)
+check("  a result with before and after", sorted(st["result"]), ["after", "before", "table"])
+check("  and the table saved for the live forecast", F.calibration() is not None and "months" in F.calibration(), True)
+check("a second start while idle is a new job", C.start(45.5, -84.0, days=2, build="t", place="Test")["state"] in ("queued", "fetching", "running"), True)
+check("  stop stops it", C.stop(), True)
+
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)

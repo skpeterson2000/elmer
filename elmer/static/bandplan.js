@@ -457,8 +457,18 @@ function recordLine() {
     parts.push('Yesterday at this hour ELMER said MUF <b>' + latest.forecast +
       '</b> MHz; the sondes read <b>' + latest.measured + '</b>.');
   }
-  const adj = r.adjustment || {};
   const words = {dark: 'at night', lit: 'by day', grey: 'on the grey line', twilight: 'in twilight'};
+  const cal = r.calibration;
+  if (cal && cal.this_month) {
+    const on = Object.keys(cal.this_month).filter(k => cal.this_month[k].applied);
+    if (on.length) {
+      parts.push('Calibrated here against ' + (cal.stations || []).length + ' sonde' + ((cal.stations || []).length === 1 ? '' : 's') +
+        ' over ' + cal.months_known + ' months (' + new Date(cal.made).toLocaleDateString() + '): this month the model runs ' +
+        on.map(k => '\u00d7' + cal.this_month[k].factor.toFixed(2) + ' ' + (words[k] || k)).join(', ') +
+        ', and the curve is corrected by that where no reading holds.');
+    }
+  }
+  const adj = r.adjustment || {};
   const applied = Object.keys(adj).filter(k => adj[k].applied);
   const waiting = Object.keys(adj).filter(k => !adj[k].applied && adj[k].n && !adj[k].capped);
   const capped = Object.keys(adj).filter(k => adj[k].capped);

@@ -230,23 +230,70 @@ def f2_drive(lat, lon, when):
     return total / weight if weight else 0.0
 
 
-def _fof2(sfi, elevation, lat=None, drive=None):
+# The season, as the record shows it. A sun-angle model has no idea that the
+# F layer over the middle latitudes is denser on a winter noon than a summer
+# one - the winter anomaly, a matter of the neutral atmosphere's composition
+# rather than its lighting - nor that summer nights hold more than winter
+# nights. It was 11 MHz low at noon in December, which is 15 m, 12 m and 10 m
+# called shut on days they were open, and nobody saw it because the code was
+# written in August, when the sun angle happens to be about right.
+#
+# So the model carries the season as a factor on foF2 by month and by sky.
+# FITTED, not derived: from 12 September 2025 to 12 September 2026 at the
+# five Digisondes that reported (Alpena, Idaho, Eglin, Millstone Hill,
+# Austin - 30 to 45 N), the median of measured over modelled foF2, one
+# reading an hour, at least a day of hours per cell. One year, one phase of
+# one cycle, one band of latitude; it is the fallback for a unit that has
+# never calibrated, and a unit that has (see forecastlog.calibration)
+# learns its own on top of it. "grey" covers twilight too.
+SEASONAL_FOF2 = {
+    "01": {"dark": 0.78, "grey": 1.16, "lit": 1.59},
+    "02": {"dark": 0.95, "grey": 1.15, "lit": 1.62},
+    "03": {"dark": 1.04, "grey": 1.38, "lit": 1.49},
+    "04": {"dark": 1.11, "grey": 1.09, "lit": 1.23},
+    "05": {"dark": 1.19, "grey": 1.13, "lit": 1.05},
+    "06": {"dark": 1.28, "grey": 1.23, "lit": 1.01},
+    "07": {"dark": 1.13, "grey": 1.07, "lit": 0.97},
+    "08": {"dark": 1.17, "grey": 1.14, "lit": 1.08},
+    "09": {"dark": 1.10, "grey": 1.09, "lit": 1.26},
+    "10": {"dark": 1.05, "grey": 1.39, "lit": 1.63},
+    "11": {"dark": 0.88, "grey": 1.14, "lit": 1.65},
+    "12": {"dark": 0.75, "grey": 1.13, "lit": 1.57},
+}
+SEASONAL_FITTED = "2025-09-12 to 2026-09-12, GIRO stations AL945, IF843, EG931, MHJ45, AU930"
+
+
+def seasonal_factor(when, regime):
+    """The season's factor on foF2 for an hour, or 1.0 with no time to go on."""
+    if when is None:
+        return 1.0
+    cell = SEASONAL_FOF2.get(when.strftime("%m"))
+    if not cell:
+        return 1.0
+    return cell.get("grey" if regime == "twilight" else regime, 1.0)
+
+
+def _fof2(sfi, elevation, lat=None, drive=None, when=None):
     """Critical frequency of the F2 layer, unrounded. See the note above.
 
     `drive` is the layer's own idea of how sunlit it is, from `f2_drive`, for
     callers that know the time and the place and can work it out. Without it
     the layer follows the sun exactly, which is what this did before and is
-    still the right answer when all anybody has is an angle.
+    still the right answer when all anybody has is an angle. `when` lets the
+    season in (SEASONAL_FOF2); without it there is no season, as before.
     """
     base = FOF2_FLUX[0] + FOF2_FLUX[1] * max(0.0, sfi - 60.0)
     if drive is None:
         drive = _drive(elevation)
     solar = FOF2_NIGHT + (1.0 - FOF2_NIGHT) * drive ** FOF2_POWER
     away = max(0.0, abs(ASSUMED_LATITUDE if lat is None else lat) - FOF2_TROPICS)
-    return _bounded(base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0))
+    value = base * solar * max(0.25, 1.0 - FOF2_LATITUDE * away / 70.0)
+    if when is not None:
+        value *= seasonal_factor(when, sun_regime(elevation, lat, when))
+    return _bounded(value)
 
 
-def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0, drive=None):
+def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0, drive=None, when=None):
     """foF2 and MUF for one place and one moment, as they will be shown.
 
     The only place these two numbers are made. Everything that displays either
@@ -262,7 +309,7 @@ def levels(sfi, elevation, lat=None, m3000=None, anchor=1.0, drive=None):
     # Bounded again after the anchor: a measurement can sharpen the model, but
     # a multiplier applied to it must not carry it somewhere the ionosphere has
     # never been.
-    fof2 = round(_bounded(_fof2(sfi, elevation, lat, drive) * anchor), 1)
+    fof2 = round(_bounded(_fof2(sfi, elevation, lat, drive, when) * anchor), 1)
     return round(fof2 * (m3000 or M3000_DEFAULT), 1), fof2
 
 
@@ -363,7 +410,8 @@ def snapshot(lat=None, lon=None, force=False):
     driven = (f2_drive(lat, lon, now)
               if lat is not None and elevation is not None else None)
     muf, fof2 = levels(sfi, assumed, lat, cal and cal["m3000"],
-                       cal["factor"] if cal else 1.0, drive=driven)
+                       cal["factor"] if cal else 1.0, drive=driven,
+                       when=now if lat is not None else None)
 
     data = {
         "ok": True,
@@ -1048,7 +1096,7 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
         # the lag as though it were the station's own error - correcting the
         # model here and then correcting it again by the same amount there.
         modelled = _fof2(sfi, sun, station["lat"],
-                         f2_drive(station["lat"], station["lon"], when))
+                         f2_drive(station["lat"], station["lon"], when), when)
         if modelled <= 0:
             continue
         weight = 1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
@@ -1171,7 +1219,7 @@ def muf_anchor(sfi, lat, lon, measured, when=None, m3000=None):
     # lag moves the layer - which is worst in the morning and the evening,
     # where the anchor is least likely to be checked.
     modelled, _ = levels(sfi, solar_elevation(lat, lon, when), lat, m3000,
-                         drive=f2_drive(lat, lon, when))
+                         drive=f2_drive(lat, lon, when), when=when)
     if not modelled:
         return 1.0
     low, high = ANCHOR_RANGE
@@ -1275,7 +1323,7 @@ def reconcile(score, rating, muf_source=None, is_group=True):
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
-            anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None):
+            anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None, calibration=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -1287,11 +1335,12 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     When a measured MUF is passed in, the modelled curve is scaled to meet it
     at this hour, so the shape is the model's and the level is the ionosphere's.
 
-    `bias` is what this unit's own record says the model runs under or over
-    the sondes by, in MHz by sky - see forecastlog.adjustment. It is applied
-    only where the anchor has let go, because near a reading the reading is
-    the level; and it is applied to the MUF and the critical frequency alike,
-    so the skip distance moves with it.
+    `calibration` is the unit's month-by-sky factor table, fitted from a year
+    of blind forecasts against the sondes nearest it (forecastlog.calibration);
+    `bias` is the smaller additive residual the live ledger learns on top.
+    Both are applied only where the anchor has let go, because near a reading
+    the reading is the level; and both move the critical frequency with the
+    MUF, so the skip distance moves with them.
     """
     start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
                                                           microsecond=0)
@@ -1318,18 +1367,22 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         # released - see `anchor_at`.
         weight = anchor_at(anchor, anchor_sun, elevation, hours_since=step)
         muf, fof2 = levels(sfi, elevation, lat, m3000, weight,
-                           drive=f2_drive(lat, lon, when))
+                           drive=f2_drive(lat, lon, when), when=when)
         state = sun_regime(elevation, lat, when)
-        if bias and muf:
+        if (bias or calibration) and muf:
             # How much of the anchor is still holding at this hour: all of it
-            # at the reading, none once it has faded. The unit's learned bias
-            # fills in as the reading lets go.
+            # at the reading, none once it has faded. The unit's calibration
+            # and its learned bias fill in as the reading lets go.
             held = 0.0
             if anchor not in (None, 1.0):
                 held = max(0.0, min(1.0, (weight - 1.0) / (anchor - 1.0)))
-            add = float(bias.get(state, 0.0) or 0.0) * (1.0 - held)
-            if add:
-                adjusted = max(1.0, muf + add)
+            factor = 1.0
+            if calibration:
+                from .forecastlog import factor_for
+                factor = 1.0 + (factor_for(calibration, when, state) - 1.0) * (1.0 - held)
+            add = float((bias or {}).get(state, 0.0) or 0.0) * (1.0 - held)
+            adjusted = max(1.0, muf * factor + add)
+            if abs(adjusted - muf) > 1e-9:
                 if fof2:
                     fof2 = round(fof2 * adjusted / muf, 2)
                 muf = round(adjusted, 1)

@@ -38,9 +38,23 @@ check("  and none of them a wall", max(len(t) for t, _ in trivia.CARDS) <= 320, 
 
 print("\na draw is a card, and not the one just shown")
 card = trivia.draw(random.Random(1))
-check("a draw has the two parts", sorted(card), ["about", "text"])
+check("a draw has the two parts, and says which deck", sorted(card), ["about", "deck", "text"])
 again = [trivia.draw(random.Random(n), avoid=card["text"])["text"] for n in range(40)]
 check("forty draws avoiding it never hand it back", card["text"] in again, False)
+
+print("\nthree decks, each card with its provenance")
+for deck, cards in trivia.DECKS.items():
+    check(f"{deck}: every card has text and a source", all(t and a for t, a in cards), True)
+    check(f"  none twice", len({t for t, _ in cards}), len(cards))
+check("a quote is drawn from the quotes", trivia.draw(random.Random(3), deck="quotes")["deck"], "quotes")
+check("  a ham from the hams", trivia.draw(random.Random(3), deck="hams")["deck"], "hams")
+check("  an unknown deck falls back to history", trivia.draw(random.Random(3), deck="nope")["deck"], "history")
+check("every ham card carries a callsign",
+      all(any(ch.isdigit() for ch in t.split(" - ")[-1]) for t, _ in trivia.HAMS), True)
+check("  and a dead one is marked SK", any("(SK)" in t for t, _ in trivia.HAMS), True)
+check("the folklore-prone quotes say so",
+      all(any(w in a for w in ("attributed", "story", "varies", "unattributed", "proverb", "reported", "quoted widely"))
+          for t, a in trivia.QUOTES if "Segal" not in a and "Collier" not in a), True)
 
 print("\nthe disputed ones are said to be disputed")
 soft = [t for t, _ in trivia.CARDS if "Fessenden" in t or "Marconi reported" in t]

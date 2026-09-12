@@ -1460,6 +1460,33 @@ a new build that is logged as explained, without one it is a WARNING. Nothing
 in the ledger leaves the unit or names anyone; it is the raw material a field
 report would carry home, if the operator ever chose to send one.
 
+**The season, measured.** The sun-angle model had no idea that the F layer
+over the middle latitudes is denser on a winter noon than a summer one — the
+winter anomaly — or that summer nights hold more than winter ones. Run blind
+over a year it was 11 MHz low at noon in December, which is 15 m, 12 m and
+10 m called shut on days they were open; nobody saw it because the code was
+written in August, when the sun angle happens to be about right. The model
+now carries the season as a factor on foF2 by month and by sky, **fitted, not
+derived**: from a year of readings at the five Digisondes that reported
+between 30 and 45 N (`SEASONAL_FOF2` in `propagation.py`, with its dates and
+stations beside it). Held out — fitted on the first half of each month, graded
+on the second — the model's error at its own leads fell from 5.0 to 3.1 MHz
+over the year, and December from 6.6 to 2.7.
+
+**Calibrate my forecast**, on the Tools page, is the same thing for *this*
+place: a year of the nearest sondes' readings, the forecast run blind over it
+hour by hour, and a correction fitted by month and by sky and applied where no
+fresh reading holds. About five minutes on a Pi, and the operator watches it
+happen — a finding a month ("October: the model ran 1.6 MHz under at the grey
+line") between cards from the history deck, the quotations and the hams people
+have heard of — because a screen that goes quiet for five minutes reads as
+broken. It runs the year again with the correction on and shows what it
+bought, month by month, beside "the same as yesterday". It applies only what
+is worth applying: a cell within ten percent of the model is left alone and
+said to be, because a unit between the stations the season was fitted from
+will mostly find the model already fits — and being told so, with an n, is a
+measured answer too. Nothing leaves the unit.
+
 **A month in a few minutes.** `./elmer.py --hindcast 30` fetches the last
 thirty days from the record — every 15-minute ionosonde reading from the North
 American Digisondes (GIRO/DIDBase), every three-hourly Kp (GFZ), the daily
