@@ -1183,6 +1183,18 @@ function calcAnt() {
       'band. Two bands on one coax: bolt two dipole mounts together, link the centre posts ' +
       'with #12 wire, feed the lower-band mount. The stinger tips are the high-voltage ends ' +
       'and at tripod height they are where people walk &mdash; keep bystanders off them.');
+    /* The fan-dipole step, and the reason the heading slider matters more
+       here than it looks: four pairs at 45 degrees each point their own way,
+       and the one set here is the pair for this band. */
+    notes.push('<b>Four pairs on one hub.</b> The Octopus (N1GY, QST December 2007; built and ' +
+      'documented by KE0CP) is a pair each for 40, 20, 15 and 10&nbsp;m at 45&deg; round a ' +
+      'stacked pair of outdoor junction boxes, one coax &mdash; centre to the four adjacent ' +
+      'hot elements, shield to the four grounded ones. No switching: only the resonant pair ' +
+      'radiates and the others sit in its near field doing little. Fifteen feet across, one ' +
+      'or two S-units of directivity, turned by a TV rotator; 49 countries from 18-20&nbsp;ft. ' +
+      'The heading set here is <b>this band\'s pair</b>; the other three lie 45&deg;, 90&deg; ' +
+      'and 135&deg; round from it, so mark one whip as the pointer and colour the rotator dial ' +
+      'by band.');
   } else {
     const spec = ANTENNAS[type];
     shape = spec.shape;

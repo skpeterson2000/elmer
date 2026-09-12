@@ -592,6 +592,31 @@ TYPES = {
             "In a car park with nothing to tie to: a folding TV tripod bolted "
             "to a triangle of angle iron, a plank across the open end, and a "
             "front tyre parked on the plank. Five minutes with practice.",
+            # The fan-dipole step, built out of the same whips: N1GY's Octopus
+            # (QST, December 2007, pp 36-38), as built and documented by Cliff
+            # Pulis KE0CP - four pairs on a stacked pair of pot-metal junction
+            # boxes, 40/20/15/10, one coax. His slide deck is the source for
+            # the figures here: 15 ft across, 18-20 ft up, 1-2 S-units of
+            # directivity, 49 countries from Belen, New Mexico, about $382 in
+            # 2011 money.
+            "Four pairs on one hub is a fan dipole with no wires - the "
+            "Octopus (Geoff Haines N1GY, QST December 2007; Cliff Pulis KE0CP "
+            "built and documented one). A pair each for 40, 20, 15 and 10 m "
+            "at 45 degrees round a stacked pair of outdoor junction boxes, "
+            "one coax: centre to the four adjacent hot elements, shield to "
+            "the four grounded ones, so the hot half and the grounded half "
+            "are each one sector. No switching - only the resonant pair "
+            "radiates and the rest sit in its near field doing little. Each "
+            "pair tunes to near 1:1 on its own, shows one or two S-units of "
+            "directivity, and the whole thing is 15 ft across and turns on a "
+            "TV rotator. KE0CP worked 49 countries with his at 18-20 ft.",
+            "Building the hub: the hot elements sit on 3/8-24 coupling nuts "
+            "through insulating shoulder washers (3/8 x 3/4) that centre the "
+            "bolt in the conduit hole so it cannot ground to the box; the "
+            "grounded elements bolt straight to the box and its ground lug. "
+            "Mark one element - KE0CP's grey 20 m whip - as the heading "
+            "indicator, and colour the rotator dial by band, because each "
+            "pair is bidirectional and points its own way.",
         ],
     },
     "screwdriver": {

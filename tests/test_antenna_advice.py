@@ -457,6 +457,8 @@ def main():
     check("  and who measured them", "virginia races" in pair, True)
     check("  the choke recipe is in it", "2643102002" in pair and "turns of coax" in pair, True)
     check("  and the mast isolation", "fibreglass or pvc" in pair, True)
+    check("  and the fan-dipole step, with its source", "octopus" in pair and "qst december 2007" in pair, True)
+    check("  which says only the resonant pair radiates", "only the resonant pair" in pair, True)
     check("it is horizontal", A.TYPES["whipdipole"]["polarisation"], "horizontal")
     low = A.for_type(7.2, "whipdipole", use="regional", site="portable")
     check("hung low for the region it is an NVIS antenna", low["nvis"], True)
