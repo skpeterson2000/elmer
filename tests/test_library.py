@@ -220,6 +220,13 @@ check("  a handheld is a handheld", rigs.identify("FT5DR/FT5DE Operating Manual"
 check("  a suffix letter does not hide the model", rigs.identify("Kenwood TH-D75A")["model"], "TH-D74/D75")
 check("  a book is a book, not a radio", rigs.identify("The ARRL Antenna Book")["kind"], "book")
 check("  and a model the table does not know is None, not a guess", rigs.identify("Some Unknown Thing"), None)
+check("a Hamstick sheet is whips, which is gear", rigs.identify("Hamstick Dipole Fact Sheet")["kind"], "whips")
+check("  so is the maker's own misspelling, and the Octopus deck",
+      (rigs.identify("Lakeview - Hamstiks instructions")["kind"], rigs.identify("Octopus Antenna")["kind"]), ("whips", "whips"))
+check("  and whips tick the vehicle whip", rigs.gear_from([rigs.identify("Hamstick Dipole Fact Sheet")]), ["hf_mobile"])
+check("  said once however many sheets there are",
+      rigs.sentence([rigs.identify("Hamstick Dipole Fact Sheet"), rigs.identify("Octopus Antenna")]),
+      "Hamstick whips (mobile whip antennas)")
 check("an all-mode set ticks HF and the VHF mobile; a handheld the handheld",
       rigs.gear_from([rigs.identify("FT-991A"), rigs.identify("FT5DR")]), ["hf_wire", "mobile_vhf", "vhf_ssb", "ht"])
 check("  said as a sentence", rigs.sentence([rigs.identify("FT-991A")]),
