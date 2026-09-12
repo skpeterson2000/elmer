@@ -48,6 +48,17 @@ def main():
           score(3.5, night_muf, -30) > score(3.5, day_muf, 45), True)
     check("40m is better at night than at noon",
           score(7.0, night_muf, -30) > score(7.0, day_muf, 45), True)
+    # Not merely "better": 40 m at noon read Good, 63/100, the same green as
+    # midnight, and every operator knows it is a regional band at midday with
+    # anything further being CW and FT8 work. A full hop through the D layer
+    # at its thickest is Fair at best; 80 m for the same hop is shut.
+    noon40 = P.band_score(7.0, day_muf, 45, 1.0)
+    check("  and at noon 40 m is Fair for a full hop, not Good",
+          (noon40["label"], 35 <= noon40["score"] < 60), ("Fair", True))
+    check("  said as CW and FT8, not SSB", "SSB will be a struggle" in noon40["modes"], True)
+    check("  while 80 m is shut for the same hop", score(3.5, day_muf, 45) < 15, True)
+    check("  30 m - the daytime low band - is Good", P.band_score(10.1, day_muf, 45, 1.0)["label"] in ("Good", "Excellent"), True)
+    check("  and 40 m at midnight is where it was", score(7.0, night_muf, -30) >= 84, True)
     # And the F layer thins after dark, which takes the high bands with it.
     check("20m is better at noon than at night",
           score(14.0, day_muf, 45) > score(14.0, night_muf, -30), True)
@@ -235,8 +246,10 @@ def main():
           len(set(slope)), len(slope))
     check("  running downhill the whole way",
           all(a >= b for a, b in zip(slope, slope[1:])), True)
+    # A couple of points of a hundred at a 30-degree sun: the D layer's bill
+    # falls as 1/f^1.6 and at 28 MHz there is almost nothing left to charge.
     check("high bands barely notice it either way",
-          absorbed(28.0, 30.0) < 3, True)
+          absorbed(28.0, 30.0) < 5, True)
 
     print("\n-- the night is not one number --")
     # The old model's day term was sin(elevation) to a power, which is exactly
@@ -374,7 +387,7 @@ def main():
     bare = 45.0 + 55.0 * max(0.0, 1.0 - abs((3.75 / 12.0) - 0.8) / 0.8)
 
     def charged(elevation):
-        return min(55.0, P.D_ABSORPTION
+        return min(P.D_ABSORPTION_CAP, P.D_ABSORPTION
                    * (max(0.0, math.sin(math.radians(
                        min(90.0, elevation + P.D_LAYER_DIP)))) ** 0.6)
                    * (3.5 / 3.75) ** 1.6)
@@ -394,7 +407,7 @@ def main():
     # draft of the relief, which lifted every band below the MUF.
     high_dark = P.band_score(28.0, 100.0, -90.0, 0)["score"]
     high_lit = P.band_score(28.0, 100.0, 30.0, 0)["score"]
-    check("10 m barely notices the terminator", high_dark - high_lit < 3, True)
+    check("10 m barely notices the terminator", high_dark - high_lit <= 4, True)
     check("  where 80 m notices it a great deal",
           P.band_score(3.5, 100.0, -90.0, 0)["score"]
           - P.band_score(3.5, 100.0, 30.0, 0)["score"] > 25, True)

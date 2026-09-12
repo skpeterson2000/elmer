@@ -607,11 +607,20 @@ def auroral_factor(geomag_lat, boundary=None):
     return min(AURORAL_MAX, 2.0 + 0.5 * (g - edge) / 10.0)
 
 
-# Absorption at the top of the scale. Lowered from 45 to hold midday where it
-# was: shifting the driver by the dip raises it everywhere, and this change is
-# meant to be about the terminator rather than a quiet re-tuning of noon.
-# 41.5 x sin(45 + dip)^0.6 == 45 x sin(45)^0.6.
-D_ABSORPTION = 41.5
+# Absorption at the top of the scale, for the lowest band under a noon sun.
+#
+# It was 41.5, and at 41.5 a 7 MHz signal taking a full hop through the D
+# layer at its thickest lost thirteen points and 40 m read Good, 63/100, at
+# noon - the same green as midnight. Every operator knows better: 40 m at
+# midday is a regional band, and anything further is CW and FT8 work, not
+# SSB. 80 m read Poor at noon when for a long hop it is simply shut. The
+# frequency law is unchanged - the D layer's bill falls as roughly 1/f^1.6
+# here, a shade softer than the textbook square - so the scale is what was
+# wrong, by about a factor of two. At 80: 160 m and 80 m are closed for a
+# full hop at noon, 60 m is Poor, 40 m is Fair, 30 m is Good, 20 m is
+# untouched - which is the day as it is worked.
+D_ABSORPTION = 80.0
+D_ABSORPTION_CAP = 70.0        # the most any band can be charged
 
 # How much of the "far below the MUF" penalty comes off once the D layer has
 # gone. That penalty and `D_ABSORPTION` are two descriptions of the same loss,
@@ -900,7 +909,7 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
     # exponent is the textbook inverse-square softened for the fact that this
     # is a rating and not a link budget.
     absorb = D_ABSORPTION * (sun ** 0.6) * (3.5 / max(mhz, 1.0)) ** 1.6
-    absorb = min(absorb, 55.0)
+    absorb = min(absorb, D_ABSORPTION_CAP)
     if absorb > 6:
         if elevation < 0:
             why += ("; the sun has set here but not on the D layer 80 km up, "
