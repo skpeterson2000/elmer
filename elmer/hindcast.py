@@ -235,27 +235,40 @@ def _t(iso):
     return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
 
 
-def sondes_at(data, when):
-    """The station rows the live feed would have shown at `when` - each
-    station's latest reading at or before the hour, within MAX_AGE_HOURS,
-    at or above the confidence the live feed accepts."""
-    out = []
+def _indexed(data):
+    """Each station's acceptable rows with their times parsed once, sorted -
+    a year of 15-minute readings is 35,000 rows a station, and walking them
+    from the top for every hour of the year was most of the running time."""
+    if "_index" in data:
+        return data["_index"]
+    index = {}
     for code, rows in data["stations"].items():
-        name, lat, lon = STATIONS[code]
-        best = None
+        keep = []
         for r in rows:
-            t = _t(r["time"])
-            if t > when:
-                break
             # The latest reading the live feed would have kept: one the
             # autoscaler graded below MIN_CONFIDENCE is dropped there, so the
             # previous good one is what would still have been showing.
             if r.get("cs") is not None and 0 <= r["cs"] < ionosonde.MIN_CONFIDENCE:
                 continue
-            best = (t, r)
-        if not best:
+            keep.append((_t(r["time"]), r))
+        keep.sort(key=lambda tr: tr[0])
+        index[code] = ([t for t, _ in keep], [r for _, r in keep])
+    data["_index"] = index
+    return index
+
+
+def sondes_at(data, when):
+    """The station rows the live feed would have shown at `when` - each
+    station's latest reading at or before the hour, within MAX_AGE_HOURS,
+    at or above the confidence the live feed accepts."""
+    import bisect
+    out = []
+    for code, (times, rows) in _indexed(data).items():
+        name, lat, lon = STATIONS[code]
+        i = bisect.bisect_right(times, when) - 1
+        if i < 0:
             continue
-        t, r = best
+        t, r = times[i], rows[i]
         age = (when - t).total_seconds() / 3600.0
         if age > ionosonde.MAX_AGE_HOURS:
             continue
