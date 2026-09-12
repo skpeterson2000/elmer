@@ -60,9 +60,12 @@ TOPICS = {
                            "coax", "swr", "tuner", "balun", "radial",
                            "whip", "hamstick"]},
     "propagation": {"label": "Propagation",
+                    # "skip" alone matched "Skip Memory Channels" and "skips
+                    # Tx 1"; the propagation sense always comes with its noun.
                     "words": ["propagation", "ionosphere", "ionospheric",
-                              "skip", "sunspot", "solar", "muf", "nvis",
-                              "grey line", "gray line"]},
+                              "skip zone", "skip distance", "sunspot", "solar",
+                              "muf", "nvis", "grey line", "gray line",
+                              "sporadic"]},
     "cw": {"label": "CW and keying",
            "words": ["cw", "morse", "keyer", "paddle", "sidetone", "pitch",
                      "break-in", "qsk"]},
@@ -614,7 +617,9 @@ def pointers(topic=None, words=None):
                 out.append({"book": pdf.name, "book_title": book_title,
                             "title": item["title"], "page": item["page"],
                             "level": item["level"], "matched": hit})
-    out.sort(key=lambda p: (p["book"], p["page"]))
+    # A whole book on the topic ahead of a chapter in a book about something
+    # else: the Hamstick fact sheet before the FT-991A's antenna page.
+    out.sort(key=lambda p: (not p.get("by_title"), p["book"], p["page"]))
     return out
 
 
