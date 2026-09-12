@@ -39,7 +39,12 @@ USER_AGENT = "ELMER/1.0 (personal amateur radio study tool; hindcast)"
 GIRO = ("https://lgdc.uml.edu/fastchar/getbest?ursiCode={code}"
         "&charName=foF2,hmF2,MUF(D),M(D)&DMUF=3000&fromDate={a}&toDate={b}")
 GFZ_KP = "https://kp.gfz.de/app/json/?start={a}&end={b}&index=Kp"
+# The whole geomagnetic and solar record in one text file: eight Kp a day,
+# Ap, the sunspot number and the observed and adjusted 10.7 cm flux, every
+# day since 1932, kept current to yesterday. One download answers a year.
+GFZ_ARCHIVE = "https://kp.gfz.de/app/files/Kp_ap_Ap_SN_F107_since_1932.txt"
 SWPC_F107 = "https://services.swpc.noaa.gov/json/f107_cm_flux.json"
+ARCHIVE_MAX_AGE_H = 24
 
 # The North American Digisondes that report to GIRO, as the live feed names
 # them. Several are dark for months at a time; the fetch says which answered.
@@ -107,6 +112,51 @@ def _num(text):
     return v if v == v else None
 
 
+def parse_gfz_archive(text):
+    """GFZ's daily lines into (kp rows, flux rows).
+
+    Each line: year month day ... Kp1..Kp8 ap1..ap8 Ap SN F10.7obs F10.7adj D.
+    Kp is three-hourly from 00Z; the flux is the day's observed Penticton
+    value (adjusted to 1 AU is the other column, and is not what the live
+    feed shows). -1 marks a value not yet available.
+    """
+    kp, flux = [], []
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 28:
+            continue
+        try:
+            y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+            day = datetime(y, m, d, tzinfo=timezone.utc)
+            for i in range(8):
+                v = float(parts[7 + i])
+                if v >= 0:
+                    kp.append([(day + timedelta(hours=3 * i)).isoformat().replace("+00:00", "Z"), v])
+            f = float(parts[25])
+            if f > 0:
+                flux.append([day.strftime("%Y-%m-%dT20:00:00"), f])
+        except (ValueError, IndexError):
+            continue
+    return kp, flux
+
+
+def _archive():
+    """The GFZ archive, fetched at most once a day."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    path = CACHE / "gfz-archive.txt"
+    try:
+        age_h = (datetime.now(timezone.utc).timestamp() - path.stat().st_mtime) / 3600.0
+        if age_h < ARCHIVE_MAX_AGE_H:
+            return path.read_text(encoding="utf-8")
+    except OSError:
+        pass
+    text = _get(GFZ_ARCHIVE, timeout=180)
+    path.write_text(text, encoding="utf-8")
+    return text
+
+
 def fetch(start, end, codes=DEFAULT_STATIONS, force=False):
     """Everything a blind run needs for [start, end], cached under data/.
 
@@ -140,17 +190,31 @@ def fetch(start, end, codes=DEFAULT_STATIONS, force=False):
             out["answered"].append(code)
         else:
             out["silent"].append(code)
+    # Kp and flux from the GFZ archive - a year is the same download as a
+    # week - trimmed to the window; the SWPC feed fills the last day or two
+    # the archive has not reached.
+    lo = (start - timedelta(days=2)).isoformat()
+    hi = (end + timedelta(days=2)).isoformat()
     try:
-        kp = json.loads(_get(GFZ_KP.format(
-            a=urllib.parse.quote((start - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")),
-            b=urllib.parse.quote((end + timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")))))
-        out["kp"] = [[t, v] for t, v in zip(kp.get("datetime", []), kp.get("Kp", [])) if v is not None]
+        kp, flux = parse_gfz_archive(_archive())
+        out["kp"] = [r for r in kp if lo <= r[0].replace("Z", "+00:00") <= hi]
+        out["f107"] = [r for r in flux if lo[:10] <= r[0][:10] <= hi[:10]]
     except Exception as exc:
-        log.warning("hindcast: GFZ Kp did not answer: %s", exc)
+        log.warning("hindcast: GFZ archive did not answer: %s", exc)
+        try:
+            kp = json.loads(_get(GFZ_KP.format(
+                a=urllib.parse.quote((start - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")),
+                b=urllib.parse.quote((end + timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")))))
+            out["kp"] = [[t, v] for t, v in zip(kp.get("datetime", []), kp.get("Kp", [])) if v is not None]
+        except Exception as exc2:
+            log.warning("hindcast: GFZ Kp did not answer either: %s", exc2)
     try:
-        flux = json.loads(_get(SWPC_F107))
-        out["f107"] = sorted([[r["time_tag"], float(r["flux"])] for r in flux
-                              if r.get("flux") is not None])
+        recent = json.loads(_get(SWPC_F107))
+        have = {r[0][:10] for r in out["f107"]}
+        out["f107"] += sorted([[r["time_tag"], float(r["flux"])] for r in recent
+                               if r.get("flux") is not None and r["time_tag"][:10] not in have
+                               and lo[:10] <= r["time_tag"][:10] <= hi[:10]])
+        out["f107"].sort()
     except Exception as exc:
         log.warning("hindcast: SWPC flux did not answer: %s", exc)
     path.write_text(json.dumps(out), encoding="utf-8")
@@ -232,7 +296,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
         for p in ledger_dir.glob("*.json"):
             p.unlink()
         when = start.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
-        hours, with_reading = 0, 0
+        hours, with_reading, votes = 0, 0, []
         while when <= end:
             sfi = sfi_at(data, when)
             if sfi is None:
@@ -247,6 +311,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             source = cal["source"] if cal else "modelled"
             if source == "measured":
                 with_reading += 1
+                votes.append(cal["stations"])
                 forecastlog.measured({"muf_source": "measured", "muf": round(muf, 1),
                                       "fof2": round(fof2, 2),
                                       "hmf2": cal.get("measured_hmf2"),
@@ -274,7 +339,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                      "lat": lat, "lon": lon, "adjustment": bias or {}},
                                build, now=when)
             hours += 1
-            if progress and hours % 24 == 0:
+            if progress and hours % (24 * 7) == 0:
                 progress(when, hours)
             when += timedelta(hours=step_hours)
         days = max(1, int((end - start).total_seconds() // 86400) + 2)
@@ -283,7 +348,9 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
     finally:
         forecastlog.LEDGER = saved
     return {"start": start.isoformat(), "end": end.isoformat(), "hours": hours,
-            "hours_with_reading": with_reading, "ledger": str(ledger_dir),
+            "hours_with_reading": with_reading,
+            "sondes_voting": round(sum(votes) / len(votes), 1) if votes else 0,
+            "ledger": str(ledger_dir),
             "stations": list(data["stations"]), "silent": data.get("silent", []),
             "skill": skill, "adjustment": adjust, "build": build,
             "acknowledgement": ACKNOWLEDGEMENT.format(codes=", ".join(data["stations"]) or "no station")}
@@ -292,7 +359,8 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
 def report(result):
     """The run as text: what was said against what was measured."""
     lines = [f"  {result['hours']} hours forecast, {result['hours_with_reading']} with a sonde "
-             f"in reach ({', '.join(result['stations']) or 'none'}"
+             f"in reach, {result.get('sondes_voting', 0)} voting on average "
+             f"({', '.join(result['stations']) or 'none'}"
              + (f"; silent: {', '.join(result['silent'])}" if result.get("silent") else "") + ")",
              f"  build {result['build']}", ""]
     sk = result["skill"]
@@ -308,6 +376,18 @@ def report(result):
     if p.get("n"):
         lines.append(f"    persistence (same hour yesterday) at 24h: mae {p['mae']:4.2f} over {p['n']} hours"
                      f"  - the yardstick the 24h column has to beat")
+    months = sk.get("by_month") or {}
+    if len(months) > 1:
+        lines.append("")
+        lines.append("  month by month (model leads 6-24 h; persistence at 24 h):")
+        lines.append("    month    dark bias/mae     grey bias/mae     lit bias/mae      all mae   persist mae")
+        for m, row in months.items():
+            def cell(r):
+                v = row.get(r) or {}
+                return f"{v['bias']:+5.2f}/{v['mae']:4.2f}" if v.get("n") else "     -     "
+            lines.append(f"    {m}  {cell('dark'):>15s}  {cell('grey'):>15s}  {cell('lit'):>15s}   "
+                         f"{(row.get('all') or {}).get('mae', 0) or 0:5.2f}     "
+                         f"{(row.get('persistence') or {}).get('mae', 0) or 0:5.2f}")
     lines.append("")
     lines.append("  what the unit would have learned to add, by sky (leads 6-24 h):")
     for k, v in result["adjustment"].items():
