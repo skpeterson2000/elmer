@@ -117,6 +117,22 @@ capped = F.adjustment(days=3, now=wild)
 check("six megahertz is a broken station or a different sky",
       (capped["dark"]["capped"], capped["dark"]["applied"], capped["dark"]["measured_bias"]), (True, 0.0, 6.0))
 
+print("\nthe locked strip: the issue made a day ahead, kept")
+hours = [(NOW - timedelta(hours=2) + timedelta(hours=i)).isoformat() for i in range(27)]
+cells = F.locked(hours, "40m", now=NOW)
+check("a cell for every hour asked", len(cells), 27)
+check("  each holding the issue made a day ahead of it",
+      all(c and c["lead"] == 24 for c in cells if c), True)
+check("  with the score and MUF that issue gave it", (cells[5]["score"], cells[5]["muf"]) in ((85, 12.0), (60, 18.0)), True)
+check("  and the hour it was issued", cells[5]["issued"][:13], (NOW + timedelta(hours=3) - timedelta(hours=24)).isoformat()[:13])
+check("  past hours carry the measurement beside the word",
+      cells[0]["measured"] is not None and cells[1]["measured"] is not None, True)
+check("  the hours ahead do not", all(c is None or c.get("measured") is None for c in cells[3:]), True)
+check("  the cell moves left as the clock moves, and does not change",
+      F.locked(hours[1:2], "40m", now=NOW + timedelta(hours=1))[0]["score"], cells[1]["score"])
+check("an hour nothing was ever issued for is None",
+      F.locked([(NOW + timedelta(days=40)).isoformat()], "40m", now=NOW + timedelta(days=40)), [None])
+
 print("\npersistence: the record's own forecast, most recent day counting most")
 hours = [(NOW + timedelta(hours=i)).isoformat() for i in range(25)]
 rec = F.persistence(hours, now=NOW)

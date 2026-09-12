@@ -371,6 +371,59 @@ def persistence(hours, now=None, days=None):
     return out
 
 
+# ------------------------------------------------------------ the locked strip
+#
+# A forecast is issued once and held. The outlook used to be redrawn from the
+# newest inputs every time the page asked, so the cell for tomorrow 14:00 was
+# computed twenty-four times and never the same twice - a rolling nowcast in
+# a forecast's clothes, and the reason the strip moved under the operator.
+# Here each target hour gets the forecast issued for it a day ahead, and
+# keeps it; time carries it leftward. For the hours already past, what the
+# sondes then read sits beside it, so the strip grades itself as the day
+# goes by - yesterday's word and today's fact, hour by hour.
+
+LOCK_LEAD = 24                 # the issue an hour keeps: the one made a day ahead
+
+
+def locked(hours, band, now=None, days=3):
+    """For each target hour, the forecast issued for it LOCK_LEAD hours ahead.
+
+    Falls back to the earliest issue the ledger has for that hour (a unit
+    that has been up eleven hours has no day-old issue for anything yet),
+    and says which lead it is. None where nothing was ever issued. Past
+    hours carry the measured MUF too, where there is one.
+    """
+    now = now or datetime.now(timezone.utc)
+    issues = []
+    for day in _days_back(days, now):
+        issues.extend(_load(day)["forecasts"])
+    seen = _measured_index(days, now)
+    this_hour = _hour(now.isoformat())
+    out = []
+    for h in hours:
+        target = _hour(h)
+        best = None
+        for e in issues:
+            if target not in e["hours"]:
+                continue
+            lead = e["hours"].index(target)
+            if lead < 1:
+                continue
+            scores = (e["bands"] or {}).get(band)
+            if not scores or lead >= len(scores) or e["mufs"][lead] is None:
+                continue
+            # The day-ahead issue if there is one; otherwise the earliest.
+            if best is None or abs(lead - LOCK_LEAD) < abs(best["lead"] - LOCK_LEAD):
+                best = {"at": target, "lead": lead, "score": scores[lead], "muf": e["mufs"][lead],
+                        "regime": e["regimes"][lead] if lead < len(e["regimes"]) else None,
+                        "issued": e["hour"], "build": e.get("build")}
+        if best is not None and target <= this_hour:
+            got = seen.get(target)
+            best["measured"] = got["muf"] if got else None
+        out.append(best)
+    return out
+
+
 # --------------------------------------------------------------- calibration
 #
 # A calibration is the adjustment's big sibling: a factor rather than an
