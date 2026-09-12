@@ -791,7 +791,11 @@ their kind — and with it comes the card the FM boxes never earn: **144.200
 USB**, the 2 m weak-signal calling frequency, with 50.125 and 432.100 beside
 it, read from the band plan so the two pages cannot disagree; lay the antenna
 horizontal, because the people listening there have beams and a vertical
-costs 20 dB against them. Beside the amateur
+costs 20 dB against them. The shelf ticks the *antenna* too: a Hamstick
+tuning sheet, the whip-dipole fact sheet or the Octopus deck on the shelf is
+evidence of mobile whips, so "HF with a vehicle whip" is ticked and the
+sentence says "Hamstick whips (mobile whip antennas)" — once, however many
+sheets there are. Beside the amateur
 kinds are a GMRS or FRS radio, a MURS radio and a CB, each with its own card
 when ticked: FRS/GMRS channel 20 with the 141.3 travel tone then 1 and 16,
 the repeater input 5 MHz up for a licensee, and "say EMERGENCY, not Mayday"

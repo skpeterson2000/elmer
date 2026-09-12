@@ -112,6 +112,11 @@ RIGS = [
     (r"PRO-?5\d+XL|Bearcat ?\d+", "Uniden", "CB", "cb", "CB", 4),
     (r"President ?(?:McKinley|Lincoln|Bill|Randy|Walker|Johnny|Ronald)", "President", "CB", "cb", "CB", 4),
     (r"Galaxy ?DX-?\d+|Stryker ?SR-?\d+", "-", "10 m / 11 m export set", "cb", "CB", 4),
+    # ---- antennas: not radios, but gear all the same ----------------------
+    # A shelf with the Hamstick tuning sheet, the whip-dipole fact sheet or
+    # the Octopus deck on it belongs to somebody with whips, and "HF with a
+    # vehicle whip" is a tick about the antenna, not the radio.
+    (r"Ham-?sticks?|Hamstiks?|Octopus Antenna|mobile whip", "", "Hamstick whips", "whips", "", 0),
     # ---- not radios ------------------------------------------------------
     (r"NanoVNA|RigExpert|MFJ-?2\d\d|antenna analy[sz]er", "-", "antenna analyser", "test", "", 0),
     (r"Antenna Book|ARRL Handbook|Operating Manual for Radio Amateurs|Handbook", "-", "reference book", "book", "", 0),
@@ -120,7 +125,7 @@ RIGS = [
 KIND_WORDS = {
     "ht": "handheld", "mobile": "VHF/UHF mobile", "hf": "HF set", "allmode": "all-mode set",
     "vhf_allmode": "VHF/UHF all-mode set", "gmrs": "GMRS/FRS radio", "murs": "MURS radio",
-    "cb": "CB radio", "test": "test gear",
+    "cb": "CB radio", "whips": "mobile whip antennas", "test": "test gear",
     "book": "reference book",
 }
 
@@ -131,7 +136,7 @@ KIND_WORDS = {
 KIND_GEAR = {
     "ht": ["ht"], "mobile": ["mobile_vhf"], "hf": ["hf_wire"],
     "allmode": ["hf_wire", "mobile_vhf", "vhf_ssb"], "vhf_allmode": ["mobile_vhf", "vhf_ssb"],
-    "gmrs": ["gmrs"], "murs": ["murs"], "cb": ["cb"], "test": [], "book": [],
+    "gmrs": ["gmrs"], "murs": ["murs"], "cb": ["cb"], "whips": ["hf_mobile"], "test": [], "book": [],
 }
 
 
@@ -164,9 +169,21 @@ def sentence(rigs):
     radios = [r for r in rigs if r and r["kind"] not in ("test", "book")]
     if not radios:
         return ""
-    parts = []
+    # Three Hamstick sheets are one set of whips; two FT-991A manuals - the
+    # operating and the advanced - are one radio. Said once each.
+    seen, once = set(), []
     for r in radios:
+        key = (r["make"], r["model"])
+        if key not in seen:
+            seen.add(key)
+            once.append(r)
+    parts = []
+    for r in once:
         detail = r["word"] + (f", {r['bands']}" if r["bands"] else "") + (f", {r['watts']} W" if r["watts"] else "")
+        if not r["make"]:
+            # No maker to name: "Hamstick whips (mobile whip antennas)".
+            parts.append(f"{r['model']} ({detail})")
+            continue
         article = "an" if r["make"][:1].upper() in "AEIOU" else "a"
         parts.append(f"{article} {r['make']} {r['model']} ({detail})")
     if len(parts) == 1:
