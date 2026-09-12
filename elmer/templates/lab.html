@@ -47,7 +47,7 @@
         <span class="sim-out" id="s-h-v"></span></div>
 
       <div class="row" style="margin-top:.4rem">
-        <button class="btn sm" id="s-measure">Use a real measurement</button>
+        <button class="btn sm" id="s-measure" title="ask the ionosonde network again - for a long session">Update data</button>
       </div>
       <div class="tiny muted" id="s-sonde" style="margin-top:.35rem"></div>
 
@@ -62,8 +62,10 @@
         night, and it shifts with season, latitude and solar activity. You do not
         judge it by ear &mdash; it is measured, by ionosondes: a radar pointed
         straight up that sweeps frequency and times the echo, reporting foF2 and
-        the peak height hmF2. "Use a real measurement" pulls the nearest station's
-        current figures in.
+        the peak height hmF2. The sliders open on the nearest station's current
+        figures &mdash; ELMER fetches the sky when it starts &mdash; and
+        <i>Update data</i> asks the network again, for a session that runs on
+        past the reading's quarter-hour.
       </div>
     </div>
     <div>

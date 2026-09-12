@@ -592,7 +592,7 @@ def main():
     # the Terminal=false menu entry as nothing happening at all.
     import threading
 
-    from elmer.app import app, warm
+    from elmer.app import app, warm, prefetch_sky
 
     print("\n  ELMER is starting. Open it at:\n")
     print(f"      http://localhost:{args.port}          (on this machine)")
@@ -749,6 +749,10 @@ def main():
         # Pi that is several seconds of nothing on screen. The browser takes a
         # moment to come up; this fills it.
         threading.Thread(target=warm, daemon=True, name="elmer-warm").start()
+        # And the sky: the ionosonde network and the space-weather feed,
+        # fetched once now so the Lab and the band plan open on a measurement
+        # rather than a textbook layer. Network allowed to be absent.
+        threading.Thread(target=prefetch_sky, daemon=True, name="elmer-sky").start()
         # Windows cannot signal itself awake, so stopping the server there
         # needs one connection to this port to break the accept loop. See
         # elmer.host.stop_main_thread.

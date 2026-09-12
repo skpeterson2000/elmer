@@ -214,13 +214,17 @@ function drawSkip() {
    ionosonde reports both. Offering the real numbers is more use than a slider
    the operator has no way to set honestly. */
 const sondeBtn = document.getElementById('s-measure');
-if (sondeBtn) sondeBtn.addEventListener('click', async () => {
+/* The sliders open on the real measurement, not on a textbook layer: the unit
+   fetched the sky at start and the cache is read here without a network
+   call. The button is for a long session - it asks the network again. */
+async function loadSonde(refresh) {
   const note = document.getElementById('s-sonde');
+  if (!sondeBtn || !note) return;
   sondeBtn.disabled = true;
-  note.textContent = 'asking the ionosonde network…';
+  note.textContent = refresh ? 'asking the ionosonde network…' : 'reading the measurement…';
   let data;
   try {
-    data = await api('/api/ionosonde');
+    data = await api('/api/ionosonde' + (refresh ? '?refresh=1' : ''));
   } catch (e) {
     note.innerHTML = '<span style="color:var(--amber)">No ionosonde data reachable. ' +
       'The slider still works — 300 km by day, 350 at night are fair guesses.</span>';
@@ -277,7 +281,13 @@ if (sondeBtn) sondeBtn.addEventListener('click', async () => {
     (sp.m3000 ? ', and the median M(3000)F2 is ' + sp.m3000.toFixed(2) +
                 ' — the factor that turns foF2 into MUF' : '') + '.';
   sondeBtn.disabled = false;
-});
+}
+if (sondeBtn) {
+  sondeBtn.addEventListener('click', () => loadSonde(true));
+  // On arrival: the cached measurement, no network call - the unit fetched
+  // the sky at start and refreshes it as the pages ask.
+  if (document.getElementById('pane-skip')) loadSonde(false);
+}
 
 ['s-f', 's-fof2', 's-h'].forEach(id => {
   const el = document.getElementById(id);
@@ -440,9 +450,9 @@ document.addEventListener('click', e => {
   history.replaceState(null, '', location.pathname + '#skip');
   drawSkip();
   document.getElementById('pane-skip').scrollIntoView({block: 'start'});
-  // Checking it against a default is not checking it against anything.
-  const measure = document.getElementById('s-measure');
-  if (measure && !measure.disabled) measure.click();
+  // Checking it against a default is not checking it against anything:
+  // make sure the sliders hold the measurement before the band is read off.
+  loadSonde(false);
 });
 
 /* --------------------------------------------------------- ohm and power */

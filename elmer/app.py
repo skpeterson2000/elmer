@@ -373,6 +373,39 @@ def warm(log_it=True):
         log.info("warmed up in %.1fs", time.perf_counter() - started)
 
 
+def prefetch_sky(log_it=True):
+    """Fetch the sky once at start, so the first page that asks has it.
+
+    The ionosonde network and the space-weather feed are the two things a
+    fresh unit knows nothing about until somebody opens a page that asks,
+    and the Lab used to open on a textbook layer - 300 km, foF2 of 8 - with a
+    button to fetch the real one. The measurement is the honest starting
+    point, so it is fetched at start, in the background, and cached where
+    every page reads it. Network is allowed to be absent; a prefetch that
+    fails is a debug line, not a fault, and the pages fall back as before.
+    """
+    started = time.perf_counter()
+    try:
+        connection = db.connect()
+        try:
+            loc = (db.get_profile(connection)["settings"].get("location") or {})
+        finally:
+            connection.close()
+        found = ionosonde.stations()
+        snap = propagation.snapshot(lat=loc.get("lat"), lon=loc.get("lon"))
+        if log_it:
+            near = ionosonde.nearest(loc["lat"], loc["lon"]) if found and loc.get("lat") is not None else None
+            log.info("sky at start: %s sondes reporting%s; %s in %.1fs",
+                     len(found) if found else "no",
+                     (f", nearest {near['name']} {near['distance_km']} km - hmF2 {near['hmf2']} km, "
+                      f"foF2 {near['fof2']} MHz" if near else ""),
+                     (f"MUF {snap.get('muf')} ({snap.get('muf_source')})" if snap.get("ok")
+                      else "space weather not reachable"),
+                     time.perf_counter() - started)
+    except Exception as exc:                          # pragma: no cover
+        log.debug("sky prefetch skipped: %s", exc)
+
+
 @app.route("/")
 def home():
     connection = conn()
