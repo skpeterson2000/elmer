@@ -141,6 +141,24 @@ function acRules(d) {
     '</div>').join('');
 }
 
+/* Whose land it is: what the regulations say, each with its citation, and
+   the edition it was read from - so an operator relying on it can check it
+   and can see how old this copy is. */
+function acLand(d) {
+  const box = document.getElementById('ac-land');
+  const land = d.land || {};
+  if (!box || !(land.rules || []).length) return;
+  box.innerHTML = land.rules.map(r =>
+    '<div style="margin:.5rem 0 .8rem">' +
+      '<div class="small"><b>' + escapeHTML(r.who) + '</b></div>' +
+      '<p class="tiny muted" style="margin:.2rem 0;max-width:80ch;line-height:1.5">' +
+        escapeHTML(r.what) + '</p>' +
+      '<div class="tiny mono muted">' + escapeHTML(r.cite) + '</div>' +
+    '</div>').join('') +
+    '<p class="tiny muted" style="margin:.6rem 0 0">' + escapeHTML(land.source) +
+      ' &middot; read ' + escapeHTML(land.read) + '</p>';
+}
+
 /* Worst news first: the one that stops the trip is the one that changes what
    somebody packs, and there is no point burying it under three that are fine. */
 const AC_RANK = {forbidden: 0, 'no credit': 1, counts: 2};
@@ -305,6 +323,7 @@ async function acLoad() {
   } catch (e) { return; }
   acNear(acData);
   acRules(acData);
+  acLand(acData);
   acVerdicts();
 }
 

@@ -105,6 +105,87 @@ CARDS = [
      "of a century.", "W1AW"),
     ("Jamboree on the Air, which puts Scouts on the radio with amateurs "
      "every October, has run since 1958.", "JOTA, 1958"),
+
+    # --- the valves, and the antennas ---------------------------------------
+    ("John Ambrose Fleming made the first thermionic valve in 1904 - a "
+     "two-element diode, built for the Marconi company as a detector. Every "
+     "tube since starts from it.", "Fleming, 1904"),
+    ("Lee de Forest put a third element into Fleming's valve in 1906 and "
+     "called it the Audion - the first tube that could amplify. By most "
+     "accounts, including his own, he did not understand why it worked; "
+     "Armstrong worked that out.", "the Audion, 1906"),
+    ("Hertz's apparatus of 1887 was a spark gap between two rods with plates "
+     "on the ends - a dipole. The dipole is the oldest antenna there is, and "
+     "still the one every other is compared with.", "the dipole, 1887"),
+    ("The Yagi antenna was designed by Shintaro Uda at Tohoku University in "
+     "1926. His professor, Hidetsugu Yagi, published it in English in 1928, "
+     "and so it carries Yagi's name; the fair name is Yagi-Uda.",
+     "Yagi-Uda, 1926"),
+    ("Grote Reber, W9GFZ, built a 31-foot parabolic dish in his back yard in "
+     "Wheaton, Illinois, in 1937, and for most of a decade was the only radio "
+     "astronomer in the world.", "Reber, 1937"),
+    ("Karl Jansky at Bell Labs found in 1932 that a steady hiss on 20.5 MHz "
+     "rose and set with the stars, not the sun. It was the Milky Way. Radio "
+     "astronomy starts there; the unit of flux density is named for him.",
+     "Jansky, 1932"),
+
+    # --- the bands, and the licence -----------------------------------------
+    ("The Radio Act of 1912 sent amateurs to wavelengths of 200 metres and "
+     "shorter, which the experts of the day thought useless. The ARRL's own "
+     "history of what happened next is titled 'Two Hundred Meters and Down'.",
+     "200 metres and down, 1912"),
+    ("In December 1921 Paul Godley, 2ZE, sat in a tent at Ardrossan in "
+     "Scotland and heard 1BCG in Greenwich, Connecticut - the first amateur "
+     "signal across the Atlantic. Two-way contact took two more years.",
+     "the Transatlantic Tests, 1921"),
+    ("The 1927 Washington radiotelegraph conference gave amateurs the bands "
+     "near 80, 40, 20 and 10 metres - harmonically related on purpose, so a "
+     "transmitter's harmonics fell in another amateur band rather than on "
+     "somebody else.", "the harmonic bands, 1927"),
+    ("The 30, 17 and 12 metre bands came from the World Administrative Radio "
+     "Conference of 1979, which is why they are still called the WARC bands "
+     "- and why, by agreement, there are no contests on them.",
+     "the WARC bands, 1979"),
+    ("The Novice and Technician classes were both created in 1951. The Novice "
+     "stopped being issued in the restructuring of April 2000, which left the "
+     "three classes there are today.", "Novice, 1951-2000"),
+    ("The Morse code test was dropped from every US amateur licence on 23 "
+     "February 2007. Nobody has had to pass one since - and more people send "
+     "CW now than before.", "no more code test, 2007"),
+    ("Vanity callsigns began in 1996. Before that you got what came next in "
+     "the sequence, and kept it.", "vanity callsigns, 1996"),
+    ("K, N, W, and AA through AL are the prefixes the ITU has allotted to the "
+     "United States. Every US callsign starts with one of them, and no other "
+     "country's does.", "the US prefixes"),
+
+    # --- the practice ---------------------------------------------------------
+    ("The RST system - readability 1 to 5, strength and tone 1 to 9 - was "
+     "devised by Arthur Braaten, W2BSR, in 1934 and adopted by the ARRL the "
+     "same year.", "RST, 1934"),
+    ("The Amateur's Code - considerate, loyal, progressive, friendly, "
+     "balanced, patriotic - was written by Paul Segal, W9EEA, in 1928. It "
+     "still opens the Handbook.", "the Amateur's Code, 1928"),
+    ("The Maidenhead locator - the grid square on your QSL card - was worked "
+     "out at a meeting of European VHF managers in Maidenhead, England, in "
+     "April 1980.", "Maidenhead, 1980"),
+    ("The phonetic alphabet - Alfa, Bravo, Charlie - was settled by ICAO in "
+     "1956 after testing words on speakers of many languages, and the ITU "
+     "adopted it after. 'Alfa' and 'Juliett' are spelled that way so that "
+     "French and Spanish speakers say them right.", "the phonetics, 1956"),
+    ("OSCAR 3, launched in March 1965, carried the first amateur transponder "
+     "- a linear translator on 2 metres - and relayed about a thousand "
+     "contacts in its eighteen days.", "OSCAR 3, 1965"),
+    ("Owen Garriott, W5LFL, made the first amateur radio contacts from space "
+     "in December 1983, on 2 metres FM from the shuttle Columbia. The station "
+     "on the ISS descends from it.", "amateur radio in space, 1983"),
+    ("In 1943 the US Supreme Court held that key claims of Marconi's tuning "
+     "patent had been anticipated by earlier work, including Tesla's and "
+     "Lodge's. It is often summarised as 'Tesla invented radio', which is "
+     "more than the court said.", "Marconi v. United States, 1943"),
+    ("WWV, the standard time and frequency station, has been on the air since "
+     "1919 and is one of the oldest callsigns in continuous use in the "
+     "country. It moved from Maryland to Fort Collins, Colorado, in 1966.",
+     "WWV, 1919"),
 ]
 
 

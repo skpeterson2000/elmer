@@ -88,6 +88,24 @@ def main():
               bool(prog["source"].strip()), True)
         check(f"  and the date it was read", bool(prog["read"]), True)
 
+    print("\n-- whose land it is: every caution carries its citation --")
+    check("the land's rules are a list with a source and a date",
+          (bool(A.LAND), bool(A.LAND_SOURCE), bool(A.LAND_READ)), (True, True, True))
+    check("  and the four federal owners and the states are all there",
+          [r["who"].split(" (")[0] for r in A.LAND],
+          ["Any park, any owner", "National Parks", "National Forests",
+           "Corps of Engineers lakes", "National Wildlife Refuges",
+           "State parks, state forests, wildlife areas, county parks"])
+    cites = [r["cite"] for r in A.LAND]
+    # The sections quoted are the ones read from the eCFR on the day named:
+    # a caution that names the wrong section is worse than none.
+    for want in ("36 CFR 1.5(a)", "2.12(a)(1)", "36 CFR 261.10(a)", "36 CFR 327.20",
+                 "327.15(a)", "50 CFR 26.21(a)"):
+        check(f"  cites {want}", any(want in c for c in cites), True)
+    check("  every quotation is closed", all(r["what"].count('"') % 2 == 0 for r in A.LAND), True)
+    check("  and the states are not guessed at",
+          "does not guess" in A.LAND[-1]["what"], True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

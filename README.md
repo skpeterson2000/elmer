@@ -651,6 +651,24 @@ the activation zone — typically 25 vertical metres, though each Association
 sets its own. Neither counts a terrestrial repeater. Both count a satellite,
 which means the ISS digipeater on the Make Contact list earns credit in both.
 
+**Whose land it is.** Neither programme can give anybody permission to be
+somewhere — POTA's own rules put the park's rules first, and the park's rules
+are written by whoever owns the ground. So the page quotes what the
+regulations actually say, section by section, from the eCFR with the edition
+and the day it was read: the Park Service superintendent's power to close a
+park to "a specific use or activity" and the 60 dB(A) rule on radios (36 CFR
+1.5, 2.12); the Forest Service's prohibition on placing "communications
+equipment ... or other improvement" without authorization, written for the
+repeater on the ridge and not for a wire that goes home in your pack, though
+the district's reading governs (36 CFR 261.10); the Corps of Engineers' rule
+on structures, whose one exception — portable stands "not nailed or screwed
+into trees" and gone by the end of the day — is the measure of a portable
+station (36 CFR 327.20); and the refuge rule that a refuge is closed except
+where it has been opened (50 CFR 26.21). The state codes are not carried and
+not guessed at: the property manager is the authority. The pattern through all
+of them is one sentence — ask, nothing driven into a tree, no noise, nothing
+left behind, and a club outing is an event that needs a permit.
+
 **What you would be carrying**, judged against each programme from the same
 gear list Make Contact uses, worst news first. A whip on the car is a park
 antenna and a disqualification on a summit — SOTA rule 3.7.1 forbids the
@@ -1449,10 +1467,12 @@ that gave us 73, Rod Newkirk coining "Elmer" in QST in 1971. Not exam material,
 on purpose; the exam is what the game is already made of. Every card is
 checkable and says where it comes from, and where the record is disputed the
 card says so — Marconi's S "reported", Fessenden's broadcast "by his own
-account" — because a program whose numbers are measured does not start
-handing out folklore the moment it changes the subject. The deck is
-`elmer/trivia.py`; add a card only if you could point somebody at where it is
-written down.
+account", the 1943 Supreme Court ruling that is "often summarised as 'Tesla
+invented radio', which is more than the court said" — because a program whose
+numbers are measured does not start handing out folklore the moment it changes
+the subject. The deck is `elmer/trivia.py`, forty-eight cards from Fleming's
+valve to Garriott on Columbia; add a card only if you could point somebody at
+where it is written down.
 
 Then three seconds of **Scoring…** before the placings come up. It gives the
 result a beat to land on, and it means the reveal arrives the same way whether
