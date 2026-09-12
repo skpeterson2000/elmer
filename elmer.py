@@ -15,6 +15,7 @@ import argparse
 import os
 import secrets
 import signal
+import json
 import sys
 import time
 from pathlib import Path
@@ -168,6 +169,10 @@ def main():
     ap.add_argument("--index-library", nargs="?", const=True, metavar="all",
                     help="index the manuals in data/library/ (new and changed "
                          "ones; say 'all' to redo every one)")
+    ap.add_argument("--hindcast", nargs="?", const=30, type=int, metavar="DAYS",
+                    help="run the propagation forecast blind over the last DAYS "
+                         "days (default 30) against the ionosonde record, and "
+                         "grade it - by sky, by lead, and against persistence")
     ap.add_argument("--adopt", action="store_true",
                     help="give a copied install a link to the repository so it "
                          "can update itself (./install.sh --connect asks first "
@@ -437,6 +442,43 @@ def main():
             print(f"      {group['band']:8s} {len(group['channels']):2d} channels")
         print("\n  None of these is amateur spectrum. Monitor freely; transmit")
         print("  only where you are licensed to.\n")
+        return
+
+    if args.hindcast:
+        from datetime import datetime, timedelta, timezone
+        from elmer import bugreport, db, hindcast
+        connection = db.connect()
+        try:
+            loc = db.get_profile(connection)["settings"].get("location") or {}
+        finally:
+            connection.close()
+        if loc.get("lat") is None:
+            print("\n  Set a QTH first - the forecast is about a place, and so is its grade.\n")
+            sys.exit(1)
+        end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
+        start = end - timedelta(days=int(args.hindcast))
+        print(f"\n  Fetching {args.hindcast} days of ionosonde, Kp and flux history...")
+        data = hindcast.fetch(start, end)
+        if not data["stations"]:
+            print("  No ionosonde station answered for that window - nothing to grade against.\n")
+            sys.exit(1)
+        build = bugreport.build_stamp().get("commit") or "unknown"
+        print(f"  Forecasting every hour from {start:%Y-%m-%d %H}Z to {end:%Y-%m-%d %H}Z, blind, "
+              f"for {loc.get('short') or loc.get('grid') or 'the QTH'}...")
+        bare = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build,
+                            progress=lambda when, n: print(f"    {when:%m-%d}", end="", flush=True))
+        print()
+        print(hindcast.report(bare))
+        learn = hindcast.run(start, end, loc["lat"], loc["lon"], data, build=build + "+learning", learn=True)
+        sk = learn["skill"]
+        print("\n  the same month with the unit allowed to learn its bias as it went:")
+        print("    by sky:   " + "   ".join(
+            f"{k:8s} bias {v['bias']:+5.2f} mae {v['mae']:4.2f}" for k, v in sk["by_regime"].items() if v["n"]))
+        print("    by lead:  " + "   ".join(
+            f"{l:>2}h mae {sk['by_lead'][l]['mae']:4.2f}" for l in ("1", "6", "12", "24") if l in sk["by_lead"]))
+        out = hindcast.CACHE / f"report-{start:%Y%m%d}-{end:%Y%m%d}-{build}.json"
+        out.write_text(json.dumps({"bare": bare, "learning": learn}, indent=1), encoding="utf-8")
+        print(f"\n  Written to {out}\n")
         return
 
     if args.index_library:

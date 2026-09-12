@@ -60,12 +60,21 @@ ADJUST_CAP_MHZ = 3.0
 # Over how many days of record the bias is fitted.
 ADJUST_DAYS = 14
 
-# Drift: a band's score moving by this much at this many matching hours,
-# with the inputs inside the tolerances below, is the model moving.
+# Drift: between two outlooks, at hours both forecast beyond the anchor's
+# reach, the MUF moving by DRIFT_MHZ or the score moving by DRIFT_POINTS at
+# an unchanged MUF, at DRIFT_HOURS or more of those hours, while the inputs
+# sit inside the tolerances below - that is the model moving, not the sky.
+# The score near the MUF is steep by design, so a score that moved because
+# the MUF moved is not drift; a score that moved with the MUF still is.
+DRIFT_MHZ = 1.0
 DRIFT_POINTS = 15
+DRIFT_SAME_MUF = 0.3
 DRIFT_HOURS = 4
-DRIFT_SKIP_FIRST = 3          # the anchor's own hours, where change is by design
-INPUT_TOLERANCE = {"sfi": 8.0, "k_index": 1.5, "muf_now": 1.0}
+DRIFT_SKIP_FIRST = 6          # the anchor's own hours, where change is by design
+# The anchor is an input too: the sondes' factor on the model carries into
+# the first hours of every outlook, so two outlooks an hour apart legitimately
+# differ where the factor did. Ten percent of it is a new reading, not drift.
+INPUT_TOLERANCE = {"sfi": 8.0, "k_index": 1.5, "muf_now": 1.0, "anchor": 0.10}
 
 
 def _day(when):
@@ -125,7 +134,7 @@ def record(bands, inputs, build, now=None):
         "build": build or "unknown",
         "inputs": {k: inputs.get(k) for k in ("sfi", "k_index", "muf_now", "muf_source",
                                               "fof2", "hmf2", "hmf2_measured", "m3000",
-                                              "lat", "lon", "adjustment")},
+                                              "anchor", "lat", "lon", "adjustment")},
         "hours": hours,
         "mufs": [h.get("muf") for h in bands[0]["hours"]],
         "regimes": [h.get("regime") for h in bands[0]["hours"]],
@@ -134,7 +143,7 @@ def record(bands, inputs, build, now=None):
     for key in ("lat", "lon"):
         if entry["inputs"].get(key) is not None:
             entry["inputs"][key] = round(float(entry["inputs"][key]), 1)
-    previous = latest(before=entry["hour"])
+    previous = latest(before=entry["hour"], now=now)
     day = _day(now)
     data = _load(day)
     data["forecasts"] = [e for e in data["forecasts"] if e["hour"] != entry["hour"]]
@@ -143,12 +152,15 @@ def record(bands, inputs, build, now=None):
     _prune(now)
     verdict = drift(previous, entry) if previous else None
     if verdict and verdict["moved"]:
-        if verdict["inputs_moved"]:
-            log.info("forecast: the outlook moved with the sky - %s", verdict["note"])
-        elif verdict["build_changed"]:
-            log.info("forecast: the outlook moved with the build - %s", verdict["note"])
-        else:
-            log.warning("forecast drift: %s", verdict["note"])
+        # INFO, all three. The hindcast showed the model itself is not still
+        # from one issue hour to the next - the anchor's reach moves with the
+        # sondes' sun - so a WARNING every hour would be noise, and noise is
+        # how a real one gets missed. The verdict is on the record and on the
+        # page; the hindcast is where "did the code move" is actually asked.
+        why = ("with the sky" if verdict["inputs_moved"]
+               else "with the build" if verdict["build_changed"]
+               else "with neither the sky nor the build")
+        log.info("forecast: the outlook moved %s - %s", why, verdict["note"])
     return verdict
 
 
@@ -190,10 +202,10 @@ def _prune(now):
 
 # ------------------------------------------------------------------ reading
 
-def latest(before=None, days=3):
+def latest(before=None, days=3, now=None):
     """The most recent forecast entry, optionally strictly before an hour."""
     best = None
-    for day in _days_back(days):
+    for day in _days_back(days, now):
         for e in _load(day)["forecasts"]:
             if before and e["hour"] >= before:
                 continue
@@ -238,6 +250,16 @@ def skill(days=7, now=None):
         return {"n": n, "bias": round(sum(errs) / n, 2),
                 "mae": round(sum(abs(x) for x in errs) / n, 2)}
 
+    # Persistence - "the same as this hour yesterday" - is the yardstick any
+    # forecast has to beat at 24 hours. A model that does not beat it is
+    # adding shape and no skill, and the honest thing would be to hand the
+    # operator yesterday's measured curve instead.
+    persist = []
+    for target, got in seen.items():
+        earlier = seen.get(_hour((datetime.fromisoformat(target) - timedelta(hours=24)).isoformat()))
+        if earlier and got.get("muf") and earlier.get("muf"):
+            persist.append(float(earlier["muf"]) - float(got["muf"]))
+
     this_hour = _hour(now.isoformat())
     yesterday = None
     for day in _days_back(2, now):
@@ -255,6 +277,7 @@ def skill(days=7, now=None):
             "n": sum(len(v) for v in by_lead.values()),
             "by_lead": {str(k): summary(v) for k, v in sorted(by_lead.items())},
             "by_regime": {k: summary(v) for k, v in sorted(by_regime.items())},
+            "persistence_24h": summary(persist),
             "latest": latest_line}
 
 
@@ -312,19 +335,31 @@ def drift(previous, entry):
     if not previous or not entry:
         return None
     prev_idx = {h: i for i, h in enumerate(previous["hours"])}
+    pairs = []                    # (i in entry, j in previous) beyond both anchors
+    for i, hour in enumerate(entry["hours"]):
+        j = prev_idx.get(hour)
+        if i >= DRIFT_SKIP_FIRST and j is not None and j >= DRIFT_SKIP_FIRST:
+            pairs.append((i, j))
     moved = {}
+    # The level: the model's own MUF at the same hour, drawn an hour apart.
+    muf_jumps = [abs(float(entry["mufs"][i]) - float(previous["mufs"][j])) for i, j in pairs
+                 if entry["mufs"][i] is not None and j < len(previous["mufs"])
+                 and previous["mufs"][j] is not None]
+    big = [d for d in muf_jumps if d >= DRIFT_MHZ]
+    if len(big) >= DRIFT_HOURS:
+        moved["MUF"] = round(max(big), 1)
+    # The shape: a score that moved while the MUF under it did not.
     for name, scores in entry["bands"].items():
         before = previous["bands"].get(name)
         if not before:
             continue
         diffs = []
-        for i, hour in enumerate(entry["hours"]):
-            if i < DRIFT_SKIP_FIRST:
+        for i, j in pairs:
+            if j >= len(before) or j >= len(previous["mufs"]) or entry["mufs"][i] is None \
+                    or previous["mufs"][j] is None:
                 continue
-            j = prev_idx.get(hour)
-            if j is None or j < DRIFT_SKIP_FIRST or j >= len(before):
-                continue
-            diffs.append(abs(scores[i] - before[j]))
+            if abs(float(entry["mufs"][i]) - float(previous["mufs"][j])) <= DRIFT_SAME_MUF:
+                diffs.append(abs(scores[i] - before[j]))
         big = [d for d in diffs if d >= DRIFT_POINTS]
         if len(big) >= DRIFT_HOURS:
             moved[name] = max(big)
@@ -340,7 +375,8 @@ def drift(previous, entry):
     build_changed = (previous.get("build") or "") != (entry.get("build") or "")
     if moved:
         worst = max(moved, key=moved.get)
-        note = (f"{worst} moved up to {moved[worst]} points at matching hours "
+        unit = "MHz" if worst == "MUF" else "points"
+        note = (f"{worst} moved up to {moved[worst]} {unit} at matching hours "
                 f"since {previous['hour'][:16]}Z"
                 + (f"; build {previous.get('build')} -> {entry.get('build')}" if build_changed else "")
                 + ("; the inputs moved too" if inputs_moved
