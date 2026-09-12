@@ -785,7 +785,13 @@ guess was the wrong length, and asks nothing of anybody but a spanner.
 copper may recommend solder, and the warnings cannot be quietly trimmed out
 later.
 
-The gear list is the radios America actually carries. Beside the amateur
+The gear list is the radios America actually carries. An all-mode VHF/UHF
+rig has its own tick — the shelf sets it for an FT-991A, IC-705, IC-9700 and
+their kind — and with it comes the card the FM boxes never earn: **144.200
+USB**, the 2 m weak-signal calling frequency, with 50.125 and 432.100 beside
+it, read from the band plan so the two pages cannot disagree; lay the antenna
+horizontal, because the people listening there have beams and a vertical
+costs 20 dB against them. Beside the amateur
 kinds are a GMRS or FRS radio, a MURS radio and a CB, each with its own card
 when ticked: FRS/GMRS channel 20 with the 141.3 travel tone then 1 and 16,
 the repeater input 5 MHz up for a licensee, and "say EMERGENCY, not Mayday"

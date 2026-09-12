@@ -31,6 +31,11 @@ ODDS_RANK = {name: n for n, name in enumerate(ODDS)}
 GEAR = {
     "ht": "A handheld (2 m / 70 cm)",
     "mobile_vhf": "A mobile VHF/UHF rig",
+    # Not the same radio as the FM mobile, though it does that too: an FT-991A
+    # or IC-705 on the shelf means 144.200 USB is on the list, and a page that
+    # knows the operator owns one and still only offers 146.52 has wasted the
+    # very knowledge it was handed.
+    "vhf_ssb": "A VHF/UHF all-mode rig (SSB/CW on 6 m, 2 m, 70 cm)",
     "hf_mobile": "HF with a vehicle whip",
     "hf_wire": "HF, and room to string a wire",
     # The radios most of America carries. Kept apart because they are on
@@ -75,7 +80,19 @@ def _has_hf(gear):
 
 
 def _vhf(gear):
-    return bool({"ht", "mobile_vhf"} & set(gear))
+    return bool({"ht", "mobile_vhf", "vhf_ssb"} & set(gear))
+
+
+def _ssb_calling():
+    """The weak-signal calling frequencies, read from the band plan rather
+    than typed here again: (band, MHz) for every VHF/UHF band that names one."""
+    out = []
+    for band in ("6 m", "2 m", "1.25 m", "70 cm"):
+        for low, high, kind, label in bandplan.activity_for(band):
+            if kind == "calling" and "SSB" in label:
+                out.append((band, low))
+                break
+    return out
 
 
 def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
@@ -131,6 +148,39 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
     state = sun_state(lat, lon, now)
     day = state == "lit"
     rank = _class_rank(license)
+
+    if "vhf_ssb" in gear:
+        # The weak-signal calling frequencies. Not a footnote to FM simplex:
+        # the people on 144.200 have beams and preamps and habits, and SSB
+        # hears a signal 10-15 dB below what FM can detect before anybody
+        # mentions the antenna. The frequencies come from the band plan, so
+        # this card and that page cannot disagree.
+        calls = dict(_ssb_calling())
+        two = calls.get("2 m", 144.2)
+        others = ", ".join(f"{mhz:.3f} on {band}" for band, mhz in calls.items()
+                           if band != "2 m")
+        out.append({
+            "key": "vhf-ssb", "title": f"2 m SSB - {two:.3f}, the weak-signal "
+                                       f"calling frequency",
+            "odds": "worth trying",
+            "needs": "An all-mode VHF/UHF rig - FT-991A, IC-705, FT-818, "
+                     "IC-9700 and their kind - and the antenna horizontal if "
+                     "you can manage it",
+            "do": (f"{two:.3f} MHz USB. Call, then listen a full minute; then "
+                   f"tune 144.200-144.275 slowly, because SSB stations are not "
+                   f"on one channel. Also {others}. Lay the antenna horizontal "
+                   f"- a mobile whip on its side, a dipole, a beam if you have "
+                   f"one - and point toward the nearest city: the weak-signal "
+                   f"crowd is horizontally polarised and a vertical costs "
+                   f"about 20 dB against them."),
+            "why": ("SSB with a beam and a preamp at the far end hears what FM "
+                    "simplex never will - 10 to 15 dB of it before polarisation "
+                    "is counted - and the people on 144.200 scan it out of "
+                    "habit, run nets on it and sit on it in contests. It is "
+                    "also where tropospheric ducting shows up first: 2 m SSB "
+                    "has carried hundreds of miles on evenings when 146.52 "
+                    "reached the next town."),
+        })
 
     if _vhf(gear):
         out.append({

@@ -130,7 +130,7 @@ KIND_WORDS = {
 # if the set lives in the car.
 KIND_GEAR = {
     "ht": ["ht"], "mobile": ["mobile_vhf"], "hf": ["hf_wire"],
-    "allmode": ["hf_wire", "mobile_vhf"], "vhf_allmode": ["mobile_vhf"],
+    "allmode": ["hf_wire", "mobile_vhf", "vhf_ssb"], "vhf_allmode": ["mobile_vhf", "vhf_ssb"],
     "gmrs": ["gmrs"], "murs": ["murs"], "cb": ["cb"], "test": [], "book": [],
 }
 
