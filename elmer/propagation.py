@@ -1323,7 +1323,8 @@ def reconcile(score, rating, muf_source=None, is_group=True):
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
-            anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None, calibration=None):
+            anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None, calibration=None,
+            persist=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -1341,6 +1342,12 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     Both are applied only where the anchor has let go, because near a reading
     the reading is the level; and both move the critical frequency with the
     MUF, so the skip distance moves with them.
+
+    `persist` is the record's own forecast for each hour - the measured MUF
+    at that hour of day over the last few days (forecastlog.persistence) -
+    and where it exists it takes over from the model as the anchor lets go,
+    because over a year it beat the model at every lead past six hours. The
+    model keeps the hours the record cannot speak for, and the shape between.
     """
     start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
                                                           microsecond=0)
@@ -1386,6 +1393,17 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
                 if fof2:
                     fof2 = round(fof2 * adjusted / muf, 2)
                 muf = round(adjusted, 1)
+        if persist and step < len(persist) and persist[step] and muf:
+            # The record for this hour of day, weighted in as the reading lets
+            # go: at the reading, the reading; a day out, the record.
+            held = 0.0
+            if anchor not in (None, 1.0):
+                held = max(0.0, min(1.0, (weight - 1.0) / (anchor - 1.0)))
+            blended = held * muf + (1.0 - held) * float(persist[step]["muf"])
+            if abs(blended - muf) > 1e-9:
+                if fof2:
+                    fof2 = round(fof2 * blended / muf, 2)
+                muf = round(blended, 1)
         got = band_score(mhz, muf, elevation, k_index, fof2, hmf2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         got.update({"at": when.isoformat(), "hour": when.hour,

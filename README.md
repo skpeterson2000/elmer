@@ -1473,6 +1473,19 @@ stations beside it). Held out — fitted on the first half of each month, graded
 on the second — the model's error at its own leads fell from 5.0 to 3.1 MHz
 over the year, and December from 6.6 to 2.7.
 
+**Past the reading, the record speaks.** "The same as this hour yesterday"
+beat the model at 24 hours in every month of the year — 2.0 MHz against 2.7
+with the season in — because the ionosphere over a place changes from day to
+day by less than any climatology knows about that place, and the ledger holds
+yesterday. So as the sonde anchor lets go, the forecast for an hour leans on
+what the sondes measured at that hour of day over the last three days, the
+most recent counting most (0.5 / 0.3 / 0.2). Over the year, blind: the
+24-hour error 2.68 → **1.87 MHz**, better than persistence alone in every
+month; the grey line — the weakest sky — 3.58 → 1.97; night 2.57 → 1.62; day
+3.04 → 2.09. The model keeps the hours the record cannot speak for and the
+shape between, and the strip says when the record is speaking. A unit's first
+day has no record and runs on the model; by the fourth it has all three.
+
 **Calibrate my forecast**, on the Tools page, is the same thing for *this*
 place: a year of the nearest sondes' readings, the forecast run blind over it
 hour by hour, and a correction fitted by month and by sky and applied where no

@@ -117,6 +117,29 @@ capped = F.adjustment(days=3, now=wild)
 check("six megahertz is a broken station or a different sky",
       (capped["dark"]["capped"], capped["dark"]["applied"], capped["dark"]["measured_bias"]), (True, 0.0, 6.0))
 
+print("\npersistence: the record's own forecast, most recent day counting most")
+hours = [(NOW + timedelta(hours=i)).isoformat() for i in range(25)]
+rec = F.persistence(hours, now=NOW)
+check("one answer per hour asked", len(rec), 25)
+check("  resting on the three days behind it", rec[1]["days"], 3)
+# The record at this hour of day was 13.8 (night) every day: the weighted mean is 13.8.
+check("  the same reading three days running is that reading", rec[1]["muf"], 13.8)
+check("  and an hour with no record is None",
+      F.persistence([(NOW + timedelta(days=200)).isoformat()], now=NOW + timedelta(days=200)), [None])
+saved_days = F.PERSIST_DAYS
+F.PERSIST_DAYS = 1
+check("  yesterday alone rests on one day", F.persistence(hours[:1], now=NOW)[0]["days"], 1)
+F.PERSIST_DAYS = saved_days
+p_out = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0,
+                  persist=[{"muf": 16.0, "days": 3}] * 25)
+plain1 = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0)
+check("the anchored hour stays the reading's", p_out[0]["muf"], plain1[0]["muf"])
+check("  and a day out the curve is the record's", abs(p_out[24]["muf"] - 16.0) < 0.05, True)
+check("  with the critical frequency moved to match",
+      abs(p_out[24]["fof2"] / plain1[24]["fof2"] - 16.0 / plain1[24]["muf"]) < 0.02, True)
+check("  where the record is silent the model speaks",
+      P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, persist=[None] * 25)[24]["muf"], plain1[24]["muf"])
+
 print("\nthe calibration: a factor by month and sky, fitted from the bare year")
 table = F.fit_calibration(16, NOW, build="t", stations=["AL945"], acknowledgement="GIRO")
 mon = NOW.strftime("%m")
