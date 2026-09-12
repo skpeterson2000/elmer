@@ -98,6 +98,20 @@ check("the bond comes before the coil, and the rod is last",
 check("every part says why it matters",
       all(p["matters"] and p["do"] for p in w.PARTS), True)
 
+print("\n-- the maker's chart: read off Lakeview's sheet, approximate and said so --")
+t = w.stinger_inches(7.2)
+check("40 m at 7.200: the #9140 at about 37.8 in", (t["model"], t["inches"]), ("#9140", 37.8))
+check("  moving about 1.5 in per 100 kHz, shorter for higher", t["per_100khz"], -1.5)
+check("  with the matching capacitor range beside it", t["match_pf"], (450, 600))
+check("between plotted points it interpolates", w.stinger_inches(7.25)["inches"], 37.0)
+check("75 m at 3.9: about 37 in", w.stinger_inches(3.9)["inches"], 37.0)
+check("20 m at 14.25: about 32.9 in", w.stinger_inches(14.25)["inches"], 32.9)
+check("past the edge of the chart it says nothing", (w.stinger_inches(7.5), w.stinger_inches(146.52)), (None, None))
+check("every chart runs low to high and shortens as it goes",
+      all(all(a[0] < b[0] and a[1] > b[1] for a, b in zip(c["points"], c["points"][1:]))
+          for c in w.LAKEVIEW_CHARTS.values()), True)
+check("the rule comes with it: do not cut the whip first", "do not cut the whip first" in w.CHART_NOTE.lower(), True)
+check("  and the coil warning", "close-wound" in w.CHART_NOTE, True)
 print()
 if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))

@@ -469,6 +469,13 @@ def main():
     check("  and does not heat a wire it has not got", "wire_heat_w" in power, False)
     sites = " ".join(" ".join(v["works"]) for v in A.SITES.values()).lower()
     check("the balcony and the car park both offer it", sites.count("dipole mount"), 2)
+    tune = A.for_type(7.2, "whip", site="mobile")["tuning"]
+    check("a bought whip's advice says where to start the stinger", (tune["model"], tune["inches"], tune["pair"]),
+          ("#9140", 37.8, False))
+    check("  the pair gets the same reading, marked as a pair", A.for_type(7.2, "whipdipole")["tuning"]["pair"], True)
+    check("  and a wire antenna gets none", A.for_type(7.2, "dipole")["tuning"], None)
+    check("the whip's own advice carries the maker's mounting rule",
+          "bumper the poorest choice" in text("whip"), True)
     from elmer import patterns as P
     check("its 2:1 bandwidths come out near the measured 20/40/100 kHz",
           [P.usable_bandwidth("whipdipole", f, q=P.base_q("whipdipole", f))["khz"]

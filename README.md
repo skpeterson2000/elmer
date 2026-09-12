@@ -455,6 +455,19 @@ Octopus, N1GY's QST design of December 2007 as built and documented by KE0CP
 box), why it needs no switching, and the reminder that each pair points its
 own way.
 
+A bought whip has no length to cut, but it has a stinger to slide, and the
+maker printed a chart. `whipbuild.LAKEVIEW_CHARTS` holds Lakeview's exposed-
+whip-length charts for the nine HF Hamstick models, read off their instruction
+sheet, and the Lab's advice panel and the printed sheet say where to start:
+"the #9140 at about 37.8 in for 7.200 MHz, 1.5 in per 100 kHz, shorter for
+higher" — between the plotted points only, never past the edge of the chart,
+and always with the sheet's own rule in front: *do not cut the whip first*;
+find resonance fully extended, then slide it in; never let the whip run into
+the close-wound coil, where it shears the wire through the rod. The same
+sheet's shunt-capacitor matching table (450–600 pF on 40 m, and so on) is
+there for the single whip on a vehicle that will not come under 1.5:1, and its
+mounting rules — high and central, bumper poorest — are in the whip's advice.
+
 The rest of the program knows these channels too. The Lab's "may I?" and RF
 exposure answers name the channel rather than doubting the number — 462.55
 MHz is "FRS/GMRS channel 15, FRS 2 W ERP (no license) / GMRS 50 W (GMRS
@@ -633,10 +646,14 @@ to begin with), and Make Contact reads only those once anyone has marked any
 whole shelf and says so. Nobody's marks are shown to anybody else.
 
 A book with no bookmarks — a one-page fact sheet never has any — still
-points from the Lab: its title is read as its one chapter heading, so
-"Hamstick Dipole Fact Sheet" appears under Antennas at page 1, and a sheet
-whose title says nothing appears nowhere. Search reaches into every page of
-every book regardless.
+points from the Lab: its title, or failing that its file name, is read as its
+one chapter heading, so "Hamstick Dipole Fact Sheet" appears under Antennas at
+page 1, and a sheet whose title and name say nothing appears nowhere. Search
+reaches into every page of every book regardless — except a **scan**. A PDF
+whose pages are pictures with no text under them is marked *a scan — nothing
+for search to read* on the shelf, so an empty result reads as what it is
+rather than as the word not being in the book. It opens and reads like any
+other; ELMER does not OCR it.
 
 ## Showing the working
 
