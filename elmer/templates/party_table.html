@@ -435,6 +435,7 @@ function seats(state) {
    announcements over everything - drawn from what the poll brings back. */
 let showing = 'idle';
 const RESULT_STANDS_S = 20;         // how long a result holds before the deck
+const RESULT_STANDS_HOST_S = 8;     // when the host has called intermission or study
 
 function hallCard(s) {
   const show = s.hall && s.hall.show;
@@ -517,7 +518,8 @@ async function tick() {
     /* The result stands long enough to be read, then the deck has the
        screen until the next question. */
     const card = hallCard(s);
-    if (card && !shoot && (round.closed_for || 0) > RESULT_STANDS_S) {
+    const stands = show && show.mode !== 'play' ? RESULT_STANDS_HOST_S : RESULT_STANDS_S;
+    if (card && !shoot && (round.closed_for || 0) > stands) {
       chip.textContent = `after Q${round.number}`;
       showing = hallShow.showingWord(card);
       paintCard(card, s.hall.master);

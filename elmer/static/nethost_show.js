@@ -82,9 +82,20 @@
   $('sh-modes').addEventListener('click', async e => {
     const b = e.target.closest('[data-mode]');
     if (!b) return;
-    await post('/api/net/show/mode', {mode: b.dataset.mode});
+    // Playing starts the hall conducting on the difficulty and clock the
+    // round controls show; the other two stop it and score an open question.
+    await post('/api/net/show/mode', {mode: b.dataset.mode,
+      difficulty: document.getElementById('difficulty').value,
+      seconds: parseFloat(document.getElementById('seconds').value) || null});
     refresh();
   });
+  function paintConducting(v) {
+    const c = v.conducting;
+    const b = document.querySelector('#sh-modes [data-mode="play"]');
+    b.textContent = c && c.running
+      ? 'Playing \u00b7 ' + (c.state === 'waiting' ? (c.waiting_for || 'waiting') : c.state)
+      : 'Playing';
+  }
 
   /* -------------------------------------------------------------- deck */
   function paintDeck(v) {
@@ -97,7 +108,7 @@
     $('sh-seeing').textContent = v.attention ? 'every table is held on your message'
       : card ? 'the room is seeing: ' + (card.kind === 'trivia' ? (DECK_WORDS[card.deck] || card.deck) + ' - ' + (card.text || '').slice(0, 60) + '…'
                                        : card.kind + (card.name ? ' - ' + card.name : card.title ? ' - ' + card.title : ''))
-      : (v.mode === 'play' ? 'playing' : 'nothing between rounds - turn a deck on');
+      : (v.round_open ? 'a question is up' : v.mode === 'play' ? 'playing' : 'nothing between rounds - turn a deck on');
   }
   $('sh-deck').addEventListener('change', async e => {
     const cb = e.target.closest('[data-deck]');
@@ -253,6 +264,7 @@
     if (!r.ok) return;
     view = await r.json();
     document.querySelectorAll('#sh-modes [data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === view.mode));
+    paintConducting(view);
     paintPending(view);
     paintTargets(view);
     paintDeck(view);
