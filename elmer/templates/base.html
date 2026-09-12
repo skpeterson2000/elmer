@@ -36,6 +36,7 @@
        operator happens to be, and in a full-screen browser the nav is the only
        way there. #}
     <a href="/prints" {% if request.path.startswith('/prints') %}class="on"{% endif %}>Printouts</a>
+    <a href="/library" {% if request.path.startswith('/library') %}class="on"{% endif %}>Library</a>
   </nav>
   <div class="status">
     <div class="who">

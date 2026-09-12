@@ -40,6 +40,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    # The library reads manuals with poppler, as --build reads the pools;
+    # without it the library test skips and says so, which is not a test.
+    - name: Install poppler
+      run: sudo apt-get install -y --no-install-recommends poppler-utils
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names

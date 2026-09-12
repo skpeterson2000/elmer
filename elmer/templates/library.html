@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Library &middot; ELMER{% endblock %}
+{% block body %}
+
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">Library</h1>
+    <div class="quiz-context">
+      Your own manuals, read once and indexed to the page, so a question at
+      a campsite is answered from your copy on this machine &mdash; the file,
+      the page, and the lines around it. Nothing is summarised or guessed:
+      the words are on the page or they are not found.
+    </div>
+  </div>
+  <div class="row" style="flex:none;white-space:nowrap">
+    <label class="btn sm ghost" style="cursor:pointer">Add a manual
+      <input type="file" id="lib-file" accept="application/pdf,.pdf" hidden>
+    </label>
+    <button class="btn sm ghost" id="lib-reindex" title="read again what has changed on the shelf">Index the shelf</button>
+  </div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">Find the page</div>
+  <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
+  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match.</div>
+  <div id="lib-results" class="mt"></div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">On the shelf</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    The shelf is <span class="mono">{{ shelf_path }}</span>. Copy a PDF in
+    &mdash; a radio's manual, the Antenna Book, anything you own &mdash; or
+    hand one over from a phone with <i>Add a manual</i>. The index is rebuilt
+    when a file changes. Page numbers are the file's own, which is not always
+    what the publisher printed in the corner.
+  </p>
+  <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
+</div>
+
+<div class="panel mt">
+  <div class="panel-title">ELMER's topics, in your books</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    Matched from the bookmarks the publisher put in each file &mdash; a
+    chapter is an antenna chapter because its title says so. A manual with no
+    bookmarks has nothing here; search still reaches into it.
+  </p>
+  <div id="lib-topics"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.lib-hit { padding: .55rem 0; border-bottom: 1px solid var(--line); }
+.lib-hit .where { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.lib-hit .snip { margin: .25rem 0 0; line-height: 1.5; max-width: 90ch; }
+.lib-hit mark { background: rgba(255,180,84,.28); color: inherit; padding: 0 .1em; border-radius: 3px; }
+.lib-book { padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.lib-book .meta { display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
+.lib-outline { margin: .4rem 0 0 .2rem; padding-left: 0; list-style: none; columns: 2; column-gap: 2rem; }
+.lib-outline li { break-inside: avoid; padding: .1rem 0; }
+.lib-outline li.l1 { padding-left: 1rem; }
+.lib-outline li.l2 { padding-left: 2rem; }
+.lib-topic { margin: .5rem 0 .8rem; }
+.lib-topic ul { margin: .2rem 0 0; padding-left: 1.1rem; line-height: 1.5; }
+#lib-q { width: 100%; padding: .8rem 1rem; font-size: 1.05rem; border-radius: 12px;
+         border: 1px solid var(--line-2); background: var(--panel); color: var(--text); }
+</style>
+<script>
+(() => {
+  const shelfBox = document.getElementById('lib-shelf');
+  const topicsBox = document.getElementById('lib-topics');
+  const results = document.getElementById('lib-results');
+  const q = document.getElementById('lib-q');
+  let terms = [];
+
+  function when(ts) {
+    if (!ts) return 'not indexed';
+    const d = new Date(ts * 1000);
+    return 'indexed ' + d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+  }
+
+  function paintShelf(d) {
+    const rows = d.shelf || [];
+    const tools = d.tools || {};
+    let head = '';
+    if (!tools.pdftotext) {
+      head = '<div class="warntext small">pdftotext is not installed - <span class="mono">sudo apt install poppler-utils</span> - so nothing can be read.</div>';
+    }
+    if (!rows.length) {
+      shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>';
+      return;
+    }
+    shelfBox.innerHTML = head + rows.map(b => `
+      <div class="lib-book" data-book="${escapeHTML(b.name)}">
+        <div class="meta">
+          <b>${escapeHTML(b.title)}</b>
+          <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
+          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.bookmarks ? b.bookmarks + ' bookmarks' : 'no bookmarks') + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
+          <span style="flex:1"></span>
+          <a class="btn sm ghost" href="/library/book/${encodeURIComponent(b.name)}" target="_blank">Open</a>
+          ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
+          <button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="take it off the shelf">Remove</button>
+        </div>
+        <div class="lib-outline-box" hidden></div>
+      </div>`).join('');
+  }
+
+  function paintTopics(d) {
+    const topics = (d.topics || []).filter(t => t.pointers && t.pointers.length);
+    if (!topics.length) {
+      topicsBox.innerHTML = '<p class="small muted">No bookmarked chapters match yet.</p>';
+      return;
+    }
+    topicsBox.innerHTML = topics.map(t => `
+      <div class="lib-topic">
+        <b class="small">${escapeHTML(t.label)}</b>
+        <ul class="tiny">${t.pointers.map(p => `<li>${escapeHTML(p.book_title)} &mdash;
+          <a href="/library/book/${encodeURIComponent(p.book)}#page=${p.page}" target="_blank">${escapeHTML(p.title)}</a>
+          <span class="muted mono">p. ${p.page}</span></li>`).join('')}</ul>
+      </div>`).join('');
+  }
+
+  function mark(s) {
+    let out = escapeHTML(s);
+    terms.forEach(t => {
+      const re = new RegExp(escapeHTML(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      out = out.replace(re, m => '<mark>' + m + '</mark>');
+    });
+    return out;
+  }
+
+  async function search() {
+    const text = q.value.trim();
+    if (!text) { results.innerHTML = ''; return; }
+    let d;
+    try { d = await api('/api/library/search?q=' + encodeURIComponent(text)); }
+    catch (e) { results.innerHTML = '<div class="warntext small">Could not search.</div>'; return; }
+    terms = d.terms || [];
+    if (!d.books) { results.innerHTML = '<p class="small muted">Nothing indexed to search yet.</p>'; return; }
+    if (!d.hits.length) {
+      results.innerHTML = `<p class="small muted">Not on any page of the ${d.books} book${d.books === 1 ? '' : 's'} on the shelf. Try another word for it - nothing here guesses at synonyms.</p>`;
+      return;
+    }
+    results.innerHTML = `<div class="tiny muted" style="margin-bottom:.3rem">${d.total} page${d.total === 1 ? '' : 's'}${d.total > d.hits.length ? ', best ' + d.hits.length + ' shown' : ''}</div>` +
+      d.hits.map(h => `
+        <div class="lib-hit">
+          <div class="where">
+            <a href="/library/book/${encodeURIComponent(h.book)}#page=${h.page}" target="_blank"><b>${escapeHTML(h.title)}</b></a>
+            <span class="tiny muted mono">page ${h.page} of the file</span>
+            ${h.chapter ? `<span class="tiny muted">${escapeHTML(h.chapter)}</span>` : ''}
+          </div>
+          <p class="small snip">${mark(h.snippet)}</p>
+        </div>`).join('');
+  }
+
+  let timer = null;
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(search, 250); });
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(timer); search(); } });
+
+  async function load() {
+    let d;
+    try { d = await api('/api/library'); } catch (e) { shelfBox.innerHTML = '<div class="warntext small">Could not read the shelf.</div>'; return; }
+    paintShelf(d); paintTopics(d);
+    // Anything new or changed is read now, and the page says so while it
+    // reads: a thousand pages is a little while on a Pi.
+    if ((d.shelf || []).some(b => b.stale) && d.tools && d.tools.pdftotext) await reindex(false);
+  }
+
+  async function reindex(force) {
+    const btn = document.getElementById('lib-reindex');
+    btn.disabled = true; btn.textContent = 'Indexing…';
+    try {
+      const d = await postJSON('/api/library/index', {force: !!force});
+      paintShelf(d); paintTopics(d);
+      const r = d.report || {};
+      const failed = Object.keys(r.failed || {});
+      btn.textContent = failed.length ? 'Some could not be read' : 'Index the shelf';
+      if (failed.length) shelfBox.insertAdjacentHTML('afterbegin', '<div class="warntext small">' + failed.map(n => escapeHTML(n) + ': ' + escapeHTML(r.failed[n])).join('<br>') + '</div>');
+    } catch (e) { btn.textContent = 'Index the shelf'; }
+    btn.disabled = false;
+  }
+  document.getElementById('lib-reindex').addEventListener('click', () => reindex(false));
+
+  document.getElementById('lib-file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const fd = new FormData(); fd.append('file', f);
+    shelfBox.insertAdjacentHTML('afterbegin', '<div class="small muted" id="lib-adding">Adding ' + escapeHTML(f.name) + ' and reading it…</div>');
+    try {
+      const r = await fetch('/api/library/add', {method: 'POST', body: fd});
+      const d = await r.json();
+      if (!r.ok) { alert(d.error || d.message || 'Could not add it.'); }
+    } catch (err) { alert('Could not add it.'); }
+    e.target.value = '';
+    load();
+  });
+
+  shelfBox.addEventListener('click', async e => {
+    const o = e.target.closest('[data-outline]');
+    if (o) {
+      const box = o.closest('.lib-book').querySelector('.lib-outline-box');
+      if (!box.hidden) { box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = '<ul class="lib-outline tiny">' + (await outlineOf(o.dataset.outline)).map(i =>
+        `<li class="l${Math.min(i.level, 2)}"><a href="/library/book/${encodeURIComponent(o.dataset.outline)}#page=${i.page}" target="_blank">${escapeHTML(i.title)}</a> <span class="muted mono">${i.page}</span></li>`).join('') + '</ul>';
+      return;
+    }
+    const r = e.target.closest('[data-remove]');
+    if (r) {
+      if (!confirm('Take ' + r.dataset.remove + ' off the shelf? The file is deleted from this unit.')) return;
+      await postJSON('/api/library/remove', {name: r.dataset.remove});
+      load();
+    }
+  });
+
+  async function outlineOf(name) {
+    const d = await api('/api/library/outline?name=' + encodeURIComponent(name));
+    return d.outline || [];
+  }
+
+  load();
+})();
+</script>
+{% endblock %}

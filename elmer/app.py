@@ -33,7 +33,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
                autoplay, bugreport, cohort, conductors, diagnostics,
                activations, activationspdf, discovery, fieldkit,
-               gating, hall, host,
+               gating, hall, host, library,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
@@ -1435,6 +1435,122 @@ def prints_page():
     """Everything this unit has printed, and a way to print it again."""
     return render_template("prints.html", shelf=prints.shelf(),
                            keep=prints.KEEP, **profile_block(conn()))
+
+
+# --------------------------------------------------------------------------
+# the library: the operator's own manuals, indexed
+# --------------------------------------------------------------------------
+
+@app.route("/library")
+def library_page():
+    """The shelf of manuals this operator owns, searchable to the page."""
+    return render_template("library.html", shelf_path=str(library.SHELF),
+                           topics=library.TOPICS, **profile_block(conn()))
+
+
+@app.route("/api/library")
+def api_library():
+    """What is on the shelf and how current each index is. Reading only:
+    indexing a thousand-page manual takes a while and is asked for."""
+    return jsonify({"path": str(library.SHELF), "tools": library.tools_present(),
+                    "shelf": library.catalogue(), "topics": library.topic_map(),
+                    "reindex_days": library.REINDEX_DAYS})
+
+
+@app.route("/api/library/index", methods=["POST"])
+def api_library_index():
+    """Index what is new or changed - or everything, or one book, if asked.
+
+    Synchronous on purpose: the page that asked shows "indexing" until the
+    answer comes, and the answer says what was read, what was kept and what
+    could not be read, by name.
+    """
+    body = request.get_json(silent=True) or {}
+    report = library.refresh(force=bool(body.get("force")),
+                             only=body.get("only") or None)
+    return jsonify({"report": report, "shelf": library.catalogue(),
+                    "topics": library.topic_map()})
+
+
+@app.route("/api/library/search")
+def api_library_search():
+    q = (request.args.get("q") or "").strip()[:200]
+    try:
+        limit = max(1, min(100, int(request.args.get("limit") or 30)))
+    except ValueError:
+        limit = 30
+    return jsonify(library.search(q, limit))
+
+
+@app.route("/api/library/outline")
+def api_library_outline():
+    """The publisher's bookmarks for one book, as they are in the file."""
+    name = request.args.get("name") or ""
+    if library.book(name) is None:
+        abort(404, "no such book")
+    return jsonify({"name": name, "outline": library.outline(name)})
+
+
+@app.route("/api/library/pointers")
+def api_library_pointers():
+    """Where a topic of ELMER's is in the operator's own books."""
+    topic = request.args.get("topic") or ""
+    if topic not in library.TOPICS:
+        abort(400, "unknown topic")
+    return jsonify({"topic": topic, "label": library.TOPICS[topic]["label"],
+                    "pointers": library.pointers(topic)})
+
+
+@app.route("/api/library/add", methods=["POST"])
+def api_library_add():
+    """Put a PDF on the shelf from the browser - a phone on the LAN can hand
+    the Pi a manual without anybody finding a USB stick. The name is kept,
+    made safe; the file is not read until it is indexed."""
+    from werkzeug.utils import secure_filename
+    up = request.files.get("file")
+    if up is None or not up.filename:
+        abort(400, "no file")
+    name = secure_filename(up.filename)
+    if not name.lower().endswith(".pdf"):
+        abort(400, "only PDF manuals go on the shelf")
+    head = up.stream.read(5)
+    up.stream.seek(0)
+    if head != b"%PDF-":
+        abort(400, "that is not a PDF")
+    library.SHELF.mkdir(parents=True, exist_ok=True)
+    target = library.SHELF / name
+    up.save(target)
+    if target.stat().st_size > library.MAX_PDF_MB * 1024 * 1024:
+        target.unlink()
+        abort(400, f"larger than {library.MAX_PDF_MB} MB - not a manual")
+    log.info("library: %s added to the shelf", name)
+    report = library.refresh(only=name)
+    return jsonify({"added": name, "report": report,
+                    "shelf": library.catalogue()})
+
+
+@app.route("/api/library/remove", methods=["POST"])
+def api_library_remove():
+    """Take a book off the shelf. Its index goes with it."""
+    body = request.get_json(silent=True) or {}
+    pdf = library.book(body.get("name"))
+    if pdf is None:
+        abort(404, "no such book")
+    pdf.unlink()
+    library.refresh()                    # drops the orphaned index
+    log.info("library: %s removed from the shelf", pdf.name)
+    return jsonify({"removed": pdf.name, "shelf": library.catalogue()})
+
+
+@app.route("/library/book/<path:name>")
+def library_book(name):
+    """The PDF itself, for the browser's own viewer - `#page=N` on the end
+    opens it at the page the search found."""
+    pdf = library.book(name)
+    if pdf is None:
+        abort(404, "no such book")
+    return send_from_directory(str(library.SHELF), pdf.name,
+                               mimetype="application/pdf", max_age=0)
 
 
 @app.route("/prints/<print_id>")
