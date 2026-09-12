@@ -207,6 +207,13 @@ GEAR_VERDICTS = {
                 "no part of the station may be connected to it in any way, "
                 "and the station may not even be in its close vicinity.",
     },
+    "vhf_ssb": {
+        "pota": "counts", "sota": "counts",
+        "note": "2 m SSB with a small beam is one of the classic summit "
+                "stations, and a park on 144.200 is a rare enough sight that "
+                "the weak-signal crowd will come looking. Counts in both, "
+                "and horizontal polarisation is the whole trick.",
+    },
     "hf_mobile": {
         "pota": "counts", "sota": "forbidden",
         "note": "A whip on the car is a park antenna, not a summit one. "

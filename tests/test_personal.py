@@ -150,6 +150,18 @@ def main():
                  if w["key"] == "nvis"][0]
     check("  and somebody with a wire is not", "dipole mount" in with_wire["do"], False)
 
+    ssb = [w for w in reachout.ways(46.35, -94.2, gear=["vhf_ssb"], license="Technician", now=1_800_000_000)
+           if w["key"] == "vhf-ssb"]
+    check("an all-mode VHF rig gets the 2 m SSB calling card", len(ssb), 1)
+    check("  at 144.200, read from the band plan", "144.200" in ssb[0]["title"], True)
+    check("  with 6 m and 70 cm beside it", ("50.125" in ssb[0]["do"], "432.100" in ssb[0]["do"]), (True, True))
+    check("  and the FM calling channels too", any(w["key"] == "simplex" for w in
+          reachout.ways(46.35, -94.2, gear=["vhf_ssb"], license="Technician", now=1_800_000_000)), True)
+    check("an FM-only mobile does not", any(w["key"] == "vhf-ssb" for w in
+          reachout.ways(46.35, -94.2, gear=["mobile_vhf"], license="Technician", now=1_800_000_000)), False)
+    check("the shelf ticks it for an all-mode set", "vhf_ssb" in rigs.gear_from([rigs.identify("IC-705")]), True)
+    check("  and for a VHF all-mode set", rigs.gear_from([rigs.identify("IC-9700")]), ["mobile_vhf", "vhf_ssb"])
+
     ctx = antenna_advice.frequency_context(462.675)
     check("the antenna designer knows 462.675 is channel 20",
           (ctx["label"], ctx["band"]), ("FRS/GMRS channel 20", "FRS/GMRS"))
