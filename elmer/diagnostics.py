@@ -251,14 +251,20 @@ def check_templates():
 
 
 def check_tools():
+    from . import library
     want = ("pdftotext", "pdftoppm", "pdfimages", "pdftohtml", "pdfinfo")
-    have = [t for t in want if shutil.which(t)]
-    if len(have) == len(want):
-        _line(OK, "poppler tools", "present (for --build and the library)")
+    found = {t: library.tool(t) for t in want}
+    if all(found.values()):
+        where = {os.path.dirname(p) for p in found.values()}
+        _line(OK, "poppler tools", f"present in {', '.join(sorted(where))} "
+              "(for --build and the library)")
     else:
         _line(WARN, "poppler tools", "missing " +
-              ", ".join(t for t in want if t not in have) +
-              " - rebuilding pools or reading manuals will fail")
+              ", ".join(t for t in want if not found[t]) +
+              f" - looked on PATH ({os.environ.get('PATH') or 'empty'}) and in "
+              f"{', '.join(library.FALLBACK_DIRS)}. sudo apt install poppler-utils; "
+              "if it is installed, ELMER was started with a different PATH from "
+              "your terminal's")
     return True
 
 

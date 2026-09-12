@@ -87,7 +87,7 @@
     const tools = d.tools || {};
     let head = '';
     if (!tools.pdftotext) {
-      head = '<div class="warntext small">pdftotext is not installed - <span class="mono">sudo apt install poppler-utils</span> - so nothing can be read.</div>';
+      head = '<div class="warntext small">Nothing can be read: ' + escapeHTML(d.tools_note || 'pdftotext was not found.') + '</div>';
     }
     if (!rows.length) {
       shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>';
