@@ -15,7 +15,26 @@ import base64, json, os, shutil, socket, struct, subprocess, time, urllib.reques
 
 
 def available():
-    return shutil.which("chromium") or shutil.which("chromium-browser")
+    """A Chromium-family browser that actually runs, or None.
+
+    Raspberry Pi OS has `chromium`. GitHub's Ubuntu runners have Google Chrome
+    under its own name, and an Ubuntu `chromium-browser` that is a stub
+    printing "install the snap" and exiting non-zero - so each candidate is
+    asked for its version before it is trusted.
+    """
+    for name in ("chromium", "google-chrome-stable", "google-chrome", "chrome",
+                 "chromium-browser"):
+        path = shutil.which(name)
+        if not path:
+            continue
+        try:
+            ok = subprocess.run([path, "--version"], capture_output=True,
+                                timeout=20).returncode == 0
+        except Exception:
+            ok = False
+        if ok:
+            return path
+    return None
 
 
 def _free_port():

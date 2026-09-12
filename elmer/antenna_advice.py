@@ -994,17 +994,47 @@ def for_type(mhz, kind, use=None, site=None):
 # away. The period is half a wavelength. KC9SP called it cyclical, and it is.
 #
 # Worked from the mutual impedance of two parallel half-wave dipoles, which is
-# the standard result (Kraus), with the cosine integral from scipy. It is the
+# the standard result (Kraus), with the cosine integral done here in plain
+# Python so that no unit needs scipy for it. It is the
 # perfect-ground curve: over real ground the swings are smaller and shift a
 # little, so these are the heights to start looking, not the height to stop
 # at. The pattern changes with height too, and that is elsewhere on the page.
-try:
-    from scipy.special import sici as _sici
+_EULER_GAMMA = 0.57721566490153286061
 
-    def _ci(x):
-        return float(_sici(x)[1])
-except Exception:                                # pragma: no cover
-    _ci = None
+
+def _ci(x):
+    """The cosine integral Ci(x), in plain Python.
+
+    Ci(x) = gamma + ln x + sum_{k>=1} (-1)^k x^(2k) / (2k (2k)!). The
+    series converges for every x; the question is only whether the terms get
+    large enough on the way to eat the double's precision. The largest
+    argument this module ever asks for is about 17 - a dipole a full
+    wavelength up - where the biggest term is near 10^5 against an answer
+    near 0.1, which double precision carries with ten digits to spare. It
+    used to be scipy's, and scipy is 30 MB that Raspberry Pi OS happens to
+    have and a clean install does not; the fleet should not depend on that
+    for one integral.
+    """
+    if x <= 0:
+        raise ValueError("Ci is defined for x > 0")
+    if x > 40:
+        # Asymptotic, for completeness: nothing here reaches it.
+        f = (1 / x) * (1 - 2 / x**2 + 24 / x**4 - 720 / x**6)
+        g = (1 / x**2) * (1 - 6 / x**2 + 120 / x**4 - 5040 / x**6)
+        return f * math.sin(x) - g * math.cos(x)
+    total, term, k = 0.0, 1.0, 0
+    x2 = x * x
+    while True:
+        k += 1
+        # term_k = (-1)^k x^(2k) / (2k)!, built from term_{k-1}
+        term *= -x2 / ((2 * k - 1) * (2 * k))
+        piece = term / (2 * k)
+        total += piece
+        if k > 4 and abs(piece) < 1e-17 * max(1.0, abs(total)):
+            break
+        if k > 400:                                   # pragma: no cover
+            break
+    return _EULER_GAMMA + math.log(x) + total
 
 FREE_SPACE_OHMS = 73.13
 
@@ -1020,10 +1050,9 @@ def _mutual_r(d_wavelengths, half_length=0.5):
 def feedpoint_resistance(height_wavelengths):
     """A horizontal half-wave's feedpoint resistance at this height, ohms.
 
-    Over perfect ground. None if the height is too low to mean anything or
-    scipy is not here to do the integral.
+    Over perfect ground. None if the height is too low to mean anything.
     """
-    if _ci is None or height_wavelengths <= 0.02:
+    if height_wavelengths <= 0.02:
         return None
     return FREE_SPACE_OHMS - _mutual_r(2.0 * height_wavelengths)
 
@@ -1057,7 +1086,7 @@ def _landmarks():
     return kept
 
 
-_LANDMARKS = _landmarks() if _ci is not None else []
+_LANDMARKS = _landmarks()
 
 
 def matching_heights(mhz, reach_ft=None):
