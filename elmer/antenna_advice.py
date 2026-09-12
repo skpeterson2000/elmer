@@ -524,6 +524,76 @@ TYPES = {
             "change.",
         ],
     },
+    # Two mobile whips back to back on a dipole mount: the "hamstick dipole".
+    # The single whip above needs the vehicle body or a set of radials to
+    # work against, and in a car park, a condo or an attic there is neither;
+    # a second whip is the other half of the antenna, and the ground drops
+    # out of the circuit. The measured figures in the text are Virginia RACES'
+    # (Cuccio NB3O and Harris KE4SKY, 2001-02, "Hamstick Dipole Is A
+    # Practical and Portable Limited-Space HF Antenna"): a pair at 20 ft
+    # against a half-wave dipole, 40 m about 10 dB down, 75 m about 18 dB,
+    # 20 m about 6 dB below a G5RV; 2:1 SWR bandwidth about 100 kHz on 20 m,
+    # 40 on 40 m, 20 on 75 m. Cited rather than derived because a measurement
+    # of the real thing beats the formula, and the formula is in the Lab.
+    "whipdipole": {
+        "title": "Two loaded whips as a dipole - the hamstick dipole",
+        "height": (0.15, 12, 30),
+        "polarisation": "horizontal",
+        "why": [
+            "A mobile whip on its own needs a ground - the car body, radials, "
+            "a rod - and in a car park, a condo or an attic there is not one. "
+            "Two of them back to back on a dipole mount are a dipole, and a "
+            "dipole needs no ground at all. That is the whole idea, and it is "
+            "why the pair goes up where a single whip cannot.",
+            "It is short: sixteen feet tip to tip on a band whose half wave is "
+            "66 or 130 ft, so it gives up signal for size exactly as the "
+            "single whip does. Virginia RACES measured a pair at 20 ft against "
+            "full-size dipoles: 40 m about 10 dB down, 75 m about 18 dB, and "
+            "20 m only about 6 dB below a G5RV - and worked European Russia "
+            "from a condo balcony with it, which is the other half of the "
+            "measurement.",
+        ],
+        "watch": [
+            "Sharp. About 100 kHz between the 2:1 SWR points on 20 m, 40 kHz "
+            "on 40 m, 20 kHz on 75 m; a tuner in the rig roughly doubles the "
+            "usable span without much loss. Moving from the phone to the CW "
+            "end of 40 m means sliding both stingers.",
+            "One band per pair of whips. Band changes are a whip swap, so "
+            "3/8-24 quick-disconnects and a colour code by band turn a job "
+            "with tools into a push and a twist.",
+            "Horizontal and low is an NVIS antenna: at 20 ft on 40 and 75 m "
+            "most of what it radiates goes up and comes back down over your "
+            "own region, which is the shape emergency traffic usually wants. "
+            "On 20 m and up the same pair at that height is a directional "
+            "antenna with broadside lobes, so turn it.",
+            "The stinger tips are the high-voltage ends, and at head height "
+            "on a tripod they are where a bystander walks. Keep people off "
+            "them while transmitting.",
+        ],
+        "better": [
+            "Isolate the mount from the mast. Some RF flows down a metal mast "
+            "through the grounded side of the bracket and unbalances the "
+            "pair - more so on 20 m and up than on 40 and 75, where a 10-20 "
+            "ft mast is a short capacitive stub. A fibreglass or PVC top "
+            "section and a 1:1 current balun at the feed cure it.",
+            "Choke the coax. Without a balun the feedline joins the antenna, "
+            "the tuning moves with its length and RF gets into the rig - the "
+            "\"hot chassis\" that shows up as distorted audio. Half a dozen "
+            "turns of coax a foot across at the mount, or four or five "
+            "Fair-Rite 2643102002 cores over it (about 350 ohms on 75 m), "
+            "is the fix; the cores go in the go-kit and over the DC leads "
+            "too.",
+            "Height buys the low bands most. The pair works at 20 ft; higher "
+            "than 20 ft improves 40 and 75 m, where it is least efficient.",
+            "Two bands on one coax: bolt two dipole mounts together, link "
+            "their centre posts with #12 wire, hang 40 m whips on one and 75 "
+            "on the other, and feed the lower-band mount. The interaction is "
+            "minor.",
+            "In a car park with nothing to tie to: a folding TV tripod bolted "
+            "to a triangle of angle iron, a plank across the open end, and a "
+            "front tyre parked on the plank. Five minutes with practice.",
+        ],
+    },
     "screwdriver": {
         "title": "Screwdriver - motor-tuned mobile vertical",
         "height": [0, 5, 12],
@@ -724,7 +794,11 @@ SITES = {
                   "A wire out of a window, sloping to anywhere it can be tied, "
                   "fed against a counterpoise run along the skirting.",
                   "A short vertical clamped to the balcony rail, with the rail "
-                  "itself as the counterpoise."],
+                  "itself as the counterpoise.",
+                  "Two mobile whips on a dipole mount - a hamstick dipole. It "
+                  "needs no ground and no counterpoise, which is what a "
+                  "balcony has none of, and a pair has worked Europe from a "
+                  "condo on 20 m."],
         "costs": ["No ground and no space, so efficiency is poor and low-angle "
                   "performance is largely out of reach on the low bands.",
                   "The noise floor is usually the real enemy rather than the "
@@ -788,7 +862,11 @@ SITES = {
         "works": ["A wire into a tree, or up a fishing pole. Thirty feet in a "
                   "park is easy and beats anything most people manage at home.",
                   "An end-fed half wave, because the feedpoint ends up where "
-                  "you are standing and it needs one support."],
+                  "you are standing and it needs one support.",
+                  "Two mobile whips on a dipole mount when there is nothing "
+                  "to tie a wire to: sixteen feet on a TV mast, no ground "
+                  "needed, up in five minutes, and a fair NVIS antenna on 40 "
+                  "and 75 m from a paved car park."],
         "costs": ["It has to go up and come down again every time, so "
                   "everything is a compromise with the walk back to the car."],
         "good_at": "having a better antenna than your house allows, which is "
@@ -1193,12 +1271,15 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             "core that saturates heats, the match drifts, and the coax braid "
             "starts radiating. Buy the rating for the power you will actually "
             "run" + (", and at this level that is a large core." if watts > 400 else "."))
-    if kind in ("whip", "screwdriver") and coil_loss_ohms and whip_r_rad:
+    if kind in ("whip", "screwdriver", "whipdipole") and coil_loss_ohms and whip_r_rad:
         coil_w = watts * coil_loss_ohms / (coil_loss_ohms + whip_r_rad)
         out["coil_heat_w"] = round(coil_w)
         out["items"].append(
-            f"The coil takes what the short element cannot radiate: about "
-            f"{coil_w:.0f} W of your {watts:.0f} W becomes heat in it. That is "
+            (f"The two coils take what the short elements cannot radiate: about "
+             if kind == "whipdipole" else
+             f"The coil takes what the short element cannot radiate: about ") +
+            f"{coil_w:.0f} W of your {watts:.0f} W becomes heat in "
+            f"{'them' if kind == 'whipdipole' else 'it'}. That is "
             f"the number to size the coil and its former for" +
             (" - and at this level it is a serious amount of heat in a small "
              "space." if coil_w > 50 else "."))
@@ -1207,7 +1288,7 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             "Coax has a power rating and it falls with SWR. RG-58 is not for "
             "this; RG-8X is marginal above a few hundred watts; RG-213 or "
             "LMR-400 is the honest choice, and the connectors matter as much.")
-    if kind in ("dipole", "invertedv", "bowtie", "loop", "yagi"):
+    if kind in ("dipole", "invertedv", "bowtie", "loop", "yagi", "whipdipole"):
         out["items"].append(
             "A 1:1 current balun at the feed keeps the coax from becoming part "
             "of the antenna. Its core is rated too; above a few hundred watts "

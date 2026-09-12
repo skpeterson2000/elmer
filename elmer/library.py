@@ -568,24 +568,40 @@ def pointers(topic=None, words=None):
 
     For one topic (a key of TOPICS) or an explicit list of words: every
     bookmark on the shelf whose title contains one of the words, with the
-    book and the page. A book with no bookmarks contributes nothing here and
-    says so in the catalogue; search still reaches into it.
+    book and the page. A book with no bookmarks is read by its own title
+    instead - a one-page fact sheet never has an outline, and "Hamstick
+    Dipole Fact Sheet" says what it is as plainly as any chapter heading -
+    so it points at page 1 when the title carries one of the words. Nothing
+    is inferred beyond that; search still reaches into every page.
     """
     if words is None:
         words = (TOPICS.get(topic or "") or {}).get("words") or []
     words = [w.lower() for w in words if w]
     if not words:
         return []
+
+    def matched(title):
+        # A plural is the same word: "Multiband Antennas" is an antenna
+        # chapter. Nothing further than that - no stems, no synonyms.
+        title = title.lower()
+        return next((w for w in words
+                     if re.search(r"\b" + re.escape(w) + r"(?:s|es)?\b", title)), None)
+
     out = []
     for pdf, meta in _indexes():
-        for item in (meta or {}).get("outline") or []:
-            title = item["title"].lower()
-            # A plural is the same word: "Multiband Antennas" is an antenna
-            # chapter. Nothing further than that - no stems, no synonyms.
-            hit = next((w for w in words
-                        if re.search(r"\b" + re.escape(w) + r"(?:s|es)?\b", title)), None)
+        outline = (meta or {}).get("outline") or []
+        book_title = (meta or {}).get("title") or pdf.stem.replace("_", " ")
+        if not outline and meta is not None:
+            hit = matched(book_title)
             if hit:
-                out.append({"book": pdf.name, "book_title": meta.get("title") or pdf.stem,
+                out.append({"book": pdf.name, "book_title": book_title,
+                            "title": book_title, "page": 1, "level": 0,
+                            "matched": hit, "by_title": True})
+            continue
+        for item in outline:
+            hit = matched(item["title"])
+            if hit:
+                out.append({"book": pdf.name, "book_title": book_title,
                             "title": item["title"], "page": item["page"],
                             "level": item["level"], "matched": hit})
     out.sort(key=lambda p: (p["book"], p["page"]))

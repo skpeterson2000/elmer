@@ -434,6 +434,22 @@ telephone without stepping on a response already under way. Carry a radio
 licensed for the service you mean to use it in; extenuating circumstances
 are exactly that.
 
+**Two whips as a dipole.** The Lab's antenna calculator knows the hamstick
+dipole — two mobile whips back to back on a dipole mount, the antenna of the
+paved car park, the condo balcony and the attic, because it needs no ground,
+no radials and no car body. It works the pair's efficiency out from the same
+short-monopole arithmetic the single whip uses (twice the radiation
+resistance, the two coils in series, nothing else) and prints beside it what
+Virginia RACES measured in 2001–02: a pair at 20 ft about 10 dB below a
+full-size dipole on 40 m, 18 dB on 75 m, 6 dB below a G5RV on 20 m, and
+2:1 bandwidths near 100/40/20 kHz — the Q in `patterns.py` is worked back from
+those, so the SWR curve comes out where the air did. It also says the
+uncomfortable thing plainly: the feedpoint is the radiation resistance plus
+the loss, so a pair that matches 50 Ω coax with nothing in between is telling
+you the loss is most of the feedpoint. The mast-isolation and coax-choke
+recipe from the same sheet is in the notes, the printed sheet carries it, and
+Make Contact offers the pair to anyone who ticks a whip and no wire.
+
 The rest of the program knows these channels too. The Lab's "may I?" and RF
 exposure answers name the channel rather than doubting the number — 462.55
 MHz is "FRS/GMRS channel 15, FRS 2 W ERP (no license) / GMRS 50 W (GMRS
@@ -607,8 +623,15 @@ is named as unplaced rather than guessed from the maker.
 The shelf is one and shared — a manual is useful to everyone at the table —
 but whose radio it is for is a fact about a person, so each person marks the
 books that are **mine** on the Library page (a manual you add is marked yours
-to begin with), and Make Contact reads only those once anyone has marked any.
-Nobody's marks are shown to anybody else.
+to begin with), and Make Contact reads only those once anyone has marked any
+— unless the marked books name no radio, in which case it falls back to the
+whole shelf and says so. Nobody's marks are shown to anybody else.
+
+A book with no bookmarks — a one-page fact sheet never has any — still
+points from the Lab: its title is read as its one chapter heading, so
+"Hamstick Dipole Fact Sheet" appears under Antennas at page 1, and a sheet
+whose title says nothing appears nowhere. Search reaches into every page of
+every book regardless.
 
 ## Showing the working
 

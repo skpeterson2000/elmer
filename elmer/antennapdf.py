@@ -90,6 +90,20 @@ NOT_CUT = {
             "and the loading coil is what makes a short antenna resonate; "
             "tuning is done by moving the tap or the tip, following the "
             "instructions that came with it.",
+    "screwdriver": "A screwdriver is bought, not cut: the motor moves the coil "
+                   "and that is the tuning. What there is to build is the "
+                   "mount, the bond to the vehicle and the counterpoise.",
+    "whipdipole": "Two mobile whips, bought by band, on a dipole mount - about "
+                  "sixteen feet tip to tip, and nothing to cut. Tune by "
+                  "sliding both stingers the same amount, phone end to CW "
+                  "end; fit 3/8-24 quick-disconnects and colour-code the "
+                  "whips by band. Put a 1:1 current balun at the mount, "
+                  "choke the coax (six turns a foot across, or four or five "
+                  "Fair-Rite 2643102002 cores) and keep the top mast section "
+                  "non-conductive. Virginia RACES measured a pair at 20 ft "
+                  "about 10 dB below a full-size dipole on 40 m, 18 dB on "
+                  "75 m and 6 dB below a G5RV on 20 m - and worked Europe "
+                  "with it.",
 }
 
 
