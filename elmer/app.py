@@ -2845,6 +2845,22 @@ def api_party_join():
     """
     room = _party_or_404()
     body = request.get_json(silent=True) or {}
+    # A page from before this build asking to join is a page that will not
+    # show what this build shows - and the only thing it can be told is
+    # this, in the one place its old script does display a reason. A phone
+    # sat through a whole intermission on a page its browser had kept since
+    # the day before; the pages now send the build they were served from,
+    # and a browser's page that sends none, or another, is asked to reload.
+    # Scripts and tests do not carry a browser's User-Agent and are let in.
+    page_build = body.get("build")
+    from_browser = "Mozilla/" in (request.headers.get("User-Agent") or "")
+    if from_browser and page_build != _build():
+        log.info("party: a page from build %s asked to join build %s - told to reload",
+                 page_build or "(before builds were sent)", _build())
+        return jsonify({"joined": False, "stale": True,
+                        "reason": "This page is older than ELMER is now - "
+                                  "close it and scan the code again, or reload "
+                                  "the page, and you will be in."}), 409
     cohort = body.get("cohort")
     player, why = room.join(body.get("name"), int(cohort) if cohort else None,
                             cert_name=body.get("cert_name"),

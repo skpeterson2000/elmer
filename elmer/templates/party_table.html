@@ -269,9 +269,12 @@ document.addEventListener('click', async e => {
     const license = row.querySelector('.hs-lic').value;
     if (!name) { row.querySelector('.hs-name').focus(); return; }
     sit.disabled = true;
-    const r = await api('/api/party/join', {name, device: 'screen', license});
+    const r = await api('/api/party/join', {name, device: 'screen', license, build: PAGE_BUILD});
     sit.disabled = false;
-    if (!r.data.joined) { alert(r.data.reason || 'Could not sit down.'); return; }
+    if (!r.data.joined) {
+      if (r.data.stale) { location.reload(); return; }
+      alert(r.data.reason || 'Could not sit down.'); return;
+    }
     screenSeats[s] = {id: r.data.player.id, name: r.data.player.name};
     saveSeats(); tick();
     return;

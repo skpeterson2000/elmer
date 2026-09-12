@@ -2085,7 +2085,12 @@ page and every JSON answer is now sent `Cache-Control: no-store` (the static
 files are versioned by their own change time and may be cached for ever), and
 the table, phone, board and host pages each carry the build they were served
 from and reload themselves when a poll says the unit has moved on — the phone
-keeps its player across the reload, so nobody has to rejoin.
+keeps its player across the reload, so nobody has to rejoin. A page from
+before any of this — one a browser kept from an earlier day — cannot be
+reached by a header it never received, so the one thing it still does is
+used: a browser's page that asks to join without the current build is
+refused with a reason its old script does display, and a page new enough to
+understand the refusal simply reloads itself.
 
 **The host sees the room.** Each table's chip on the host page says what its
 screen is showing — *question*, *result*, *card:trivia*, *attention* — carried
