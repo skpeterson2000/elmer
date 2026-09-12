@@ -233,3 +233,35 @@ def sources(rows):
     for r in rows:
         out[r.get("source", "study")] = out.get(r.get("source", "study"), 0) + 1
     return out
+
+
+def weak_sections(conn, pool_id, since_ts=0.0, min_n=4, limit=6):
+    """Where tonight's room is missing, by section - for the host running it.
+
+    The hall log carries the section beside every answer, so this needs no
+    question table: count the answers to each section since the net opened
+    and rank by the share missed. A section needs `min_n` answers before it
+    is said at all - two people missing one question is not a weak section,
+    it is two people - and the list is what an instructor acts on while the
+    room is still in front of them: "everyone, ten minutes on T5".
+    """
+    try:
+        rows = conn.execute(
+            "SELECT section, correct FROM hall_log WHERE pool_id = ? AND ts >= ?",
+            (pool_id, float(since_ts or 0.0))).fetchall()
+    except Exception:                    # a database from before the hall log
+        return []
+    tally = {}
+    for r in rows:
+        sec = r["section"] or "?"
+        slot = tally.setdefault(sec, {"section": sec, "answers": 0, "correct": 0})
+        slot["answers"] += 1
+        slot["correct"] += 1 if r["correct"] else 0
+    out = []
+    for slot in tally.values():
+        if slot["answers"] < min_n:
+            continue
+        slot["miss"] = round(1.0 - slot["correct"] / slot["answers"], 2)
+        out.append(slot)
+    out.sort(key=lambda x: (-x["miss"], -x["answers"], x["section"]))
+    return out[:limit]

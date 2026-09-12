@@ -29,7 +29,7 @@ import threading
 import time
 from collections import deque
 
-from . import tournament
+from . import show as showmod, tournament
 from .party import callsign_of as party_callsign
 from .shootout import Shootout
 
@@ -127,6 +127,11 @@ class Unit:
         self.score = 0
         self.rounds_won = 0
         self.reported_round = 0
+        # What its table screen said it was showing at the last check-in -
+        # "question", "result", "card:trivia", "attention" - so the host's
+        # page can show the room rather than a list of names.
+        self.showing = ""
+        self.names = []          # who is seated, by display name, for the host
 
     @property
     def quiet_for(self):
@@ -141,7 +146,7 @@ class Unit:
                 "score": self.score, "rounds_won": self.rounds_won,
                 "present": self.present, "quiet_for": round(self.quiet_for, 1),
                 "reported_round": self.reported_round,
-                "simulated": self.simulated}
+                "simulated": self.simulated, "showing": self.showing}
 
 
 class Net:
@@ -161,6 +166,9 @@ class Net:
         # log - see db.hall_who(). Made here, held here, never stored: the
         # log can tell one evening's people apart and nobody can name them.
         self.log_key = secrets.token_bytes(32)
+        # When this net opened: tonight's answers in the hall log are the
+        # ones since, and that is what the host's weak-sections list reads.
+        self.since = _now()
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.units = {}
         self.round_number = 0
@@ -207,6 +215,20 @@ class Net:
         # round to the hall's log from here. This module has no database in
         # it and should not; it is handed a function instead.
         self.on_round_closed = []
+        # What every screen shows when it is not showing a question - the
+        # host's announcements, the deck between rounds, the hall's mode. Its
+        # sponsors and notices are loaded from this unit's state, so an
+        # evening set up in advance is still set up when the net opens.
+        self.show = showmod.Show.load()
+
+    # ---------------------------------------------------------------- show
+
+    def show_for(self, unit_id):
+        """The hall's show as one unit should see it, for its check-in reply."""
+        with self.lock:
+            standings = [{"name": r["name"], "score": r["score"],
+                          "gained": r["gained"]} for r in self.standings(6)]
+        return self.show.for_unit(unit_id, standings=standings, join=True)
 
     # ------------------------------------------------------------- check-in
 
@@ -593,6 +615,7 @@ class Net:
             index = self.round.get("answer_index")
             summary = {
                 "number": self.round_number,
+                "closed_at": _now(),
                 "question_id": self.round["question_id"],
                 "pool": self.round["pool"],
                 "question": payload.get("text", ""),
@@ -977,11 +1000,21 @@ class Net:
                 "picker_name": (self.units[self.picker_unit].name
                                 if self.picker_unit in self.units else None),
                 "last": self.history[-1] if self.history else None,
+                # How long the last result has stood, so the board can let the
+                # deck have the screen once the room has read it.
+                "last_closed_for": (round(_now() - self.history[-1]["closed_at"], 1)
+                                    if self.history and self.history[-1].get("closed_at")
+                                    else None),
                 "people": self.people_board(),
                 "plan": self.plan_state(),
                 "blocks": list(self.blocks),
                 "mode": self.mode,
                 "shootout": self.shootout_view(),
+                # The board is a screen in the hall like any other: it shows
+                # the deck and the announcements, addressed to nobody's seat.
+                "show": self.show.for_unit(None, standings=[
+                    {"name": r["name"], "score": r["score"], "gained": r["gained"]}
+                    for r in self.standings(6)], join=True),
             }
 
     def people_board(self, limit=40):

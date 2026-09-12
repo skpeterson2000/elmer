@@ -40,6 +40,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .seat.c3 { border-color: var(--violet); }
 .seat.c4 { border-color: var(--green); }
 .empty { color: var(--dimmer); font-style: italic; }
+.hs-joincopy { max-width: 22rem; margin: 0 auto; }
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
 .qtext { font-size: 1.15rem; line-height: 1.5; margin: .3rem 0 1rem; }
 .chip { font-family: var(--mono); font-size: .8rem; color: var(--dim);
@@ -122,7 +123,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
 
   <div class="cols">
     <div>
-      <div class="card">
+      <div class="card" id="joinpanel">
         <div class="qr">{{ qr_svg|safe }}</div>
         <div class="joinurl">{{ join_url }}</div>
         <div class="hint">Scan to join this table</div>
@@ -429,12 +430,37 @@ function seats(state) {
     `${h.players || 0}/${h.cap || 0} seats` + (h.healthy === false ? '  ·  busy' : '');
 }
 
+/* What this screen is showing, sent up with the poll so the host's page can
+   see the room; and the hall's show - the deck between rounds and the
+   announcements over everything - drawn from what the poll brings back. */
+let showing = 'idle';
+const RESULT_STANDS_S = 20;         // how long a result holds before the deck
+
+function hallCard(s) {
+  const show = s.hall && s.hall.show;
+  return show && show.card ? show.card : null;
+}
+
+function paintCard(card, master) {
+  const key = 'card:' + card.id;
+  if (painted === key) return;
+  painted = key;
+  const joinPanel = document.getElementById('joinpanel');
+  stage.innerHTML = hallShow.cardHTML(card, {
+    master: master,
+    join: joinPanel ? `<div class="hs-joincopy">${joinPanel.innerHTML}</div>` : null,
+  });
+}
+
 async function tick() {
-  const r = await api('/api/party/state');
+  const r = await api('/api/party/state?showing=' + encodeURIComponent(showing));
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
   const s = r.data, round = s.round;
   seats(s);
   paintSeats(s);
+  const show = s.hall && s.hall.show;
+  hallShow.overlay(show);
+  if (show && show.attention) { showing = 'attention'; }
   const atScreen = seated();
   const seatPicking = s.shootout && !s.shootout.over && !s.shootout.pick &&
                       atScreen.some(x => x.id === s.shootout.picker);
@@ -464,7 +490,17 @@ async function tick() {
       if (pc) pc.textContent = (shoot.pick_remaining === null || shoot.pick_remaining === undefined) ? '' : Math.ceil(shoot.pick_remaining) + 's';
       return;
     }
+    /* Between rounds in a hall, the host's deck: the same card on every
+       screen in the room at the same moment. */
+    const card = hallCard(s);
+    if (card && !soon) {
+      chip.textContent = show.mode === 'study' ? 'study' : 'intermission';
+      showing = hallShow.showingWord(card);
+      paintCard(card, s.hall.master);
+      return;
+    }
     chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
+    showing = 'idle';
     if (painted !== 'none' || soon) {
       painted = 'none';
       stage.innerHTML = soon
@@ -478,6 +514,16 @@ async function tick() {
 
   if (round.closed) {
     const shoot = s.shootout;
+    /* The result stands long enough to be read, then the deck has the
+       screen until the next question. */
+    const card = hallCard(s);
+    if (card && !shoot && (round.closed_for || 0) > RESULT_STANDS_S) {
+      chip.textContent = `after Q${round.number}`;
+      showing = hallShow.showingWord(card);
+      paintCard(card, s.hall.master);
+      return;
+    }
+    showing = 'result';
     const key = 'closed' + round.number + (shoot ? (shoot.picker || '') + (shoot.pick || '') : '');
     if (painted === key) { paintPickClock(shoot); return; }
     painted = key;
@@ -507,6 +553,7 @@ async function tick() {
     return;
   }
 
+  showing = 'question';
   const openKey = round.number + '|' + atScreen.map(x => x.id).join(',');
   if (painted !== openKey) {
     if (!String(painted).startsWith(round.number + '|')) {
@@ -706,5 +753,6 @@ tick();
 setInterval(tick, 1000);
 </script>
 <script src="{{ asset('certs.js') }}"></script>
+<script src="{{ asset('hallshow.js') }}"></script>
 </body>
 </html>

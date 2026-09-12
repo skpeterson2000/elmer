@@ -250,6 +250,7 @@ class Round:
         self.answers = {}          # player_id -> dict
         self.bot_plan = {}         # player_id -> what a practice player will do
         self.closed = False
+        self.closed_at = None
         self.winner_cohort = None
         # One card for the whole table this round, drawn here so everybody
         # who has answered is reading the same thing while they wait.
@@ -708,6 +709,7 @@ class Room:
             if rnd is None or rnd.closed:
                 return None
             rnd.closed = True
+            rnd.closed_at = _now()
 
             right = sorted([a for a in rnd.answers.values() if a["correct"]],
                            key=lambda a: a["ms"])
@@ -1045,6 +1047,10 @@ class Room:
                     "question": rnd.payload,
                     "remaining": round(rnd.remaining, 1),
                     "closed": rnd.closed,
+                    # How long the result has stood, so a screen can let the
+                    # hall's deck take over once the room has read it.
+                    "closed_for": (round(_now() - rnd.closed_at, 1)
+                                   if rnd.closed and rnd.closed_at else None),
                     "answered": len(rnd.answers),
                     "waiting_on": sum(1 for p in self.players.values()
                                       if not p.bot and p.id not in rnd.answers),

@@ -2023,6 +2023,59 @@ net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors
 open.
 
+### The show — what every screen does when it is not asking a question
+
+The host runs the room, and a dead screen at a hamfest is an invitation to
+find something else to do. So net control has a hand on every screen in the
+hall at once — the board at the front, the table screens, the phones — and
+none of it costs the network anything new: it rides the check-in reply each
+table already polls for once a second (`elmer/show.py`, drawn everywhere by
+`static/hallshow.js`).
+
+**Say it to the room.** One box on the host page, three targets — everyone,
+one table, one seat — and two weights. A *notice* stands for twenty seconds;
+an *urgent* one stays until the host clears it, or comes back every minute
+if asked. "Lost child waiting for parents at the ARRL booth" is urgent and for
+everyone. "You won the round" is a notice for one seat and "Skippy won the
+round" the same notice for everybody else; the seat's line reaches that
+phone and no other screen, because net control addresses it by table and
+name and the table hands it to the right device. **Attention** blanks every
+table to a message while the host talks, and stays until released. What was
+said and when is logged; who saw it is not.
+
+**The deck.** Between rounds every screen shows the same card at the same
+moment — net control turns them over, which is what makes it a show rather
+than a screensaver. Trivia from five decks (history, quotations, famous hams,
+operating technique, the gear — every card checkable, sources named), the
+standings, the join code, the programme, and the event's own cards: sponsors
+(a name, a line, their image, added from the host page and served from this
+unit) and club notices (membership, coming events, a link). A trivia card
+sits between every other kind, a sponsor's weight is how often it comes round
+in a pass, and the host ticks decks on and off and sets the dwell. A result
+stands twenty seconds to be read, then the deck has the screen until the next
+question. Sponsors and notices persist under `data/show/` between nets; none
+of it leaves the unit.
+
+**Playing, studying, intermission.** The host declares the hall's mode. In
+*study* the host names a focus — "everyone: T5 for ten minutes" — and the
+focus card leads the deck on every screen; beside the controls the host sees
+**where tonight's room is missing most**, by section, from the hall log since
+the net opened (a section needs four answers before it is called weak), with
+one press to make it the focus and another to put a question from it to the
+hall. That is the piece that was not possible before: an instructor who can
+see, while the room is still in front of them, which section it did not
+understand.
+
+**The programme.** The evening as a list — intermission, twelve rounds, ten
+minutes' study on what the room missed, an announcement, a shootout,
+certificates, thanks — walked with one button. Each step does the thing: the
+conductor starts or stops, an open question is scored before the screens
+change, the mode follows. "Fill in a club evening" writes a sensible one.
+
+**The host sees the room.** Each table's chip on the host page says what its
+screen is showing — *question*, *result*, *card:trivia*, *attention* — carried
+up with its check-in, so the host knows what the room sees without walking it.
+
 ### Opening a net, and what starts a round
 
 There is one way in, whichever way you ask for one: pressing the button and

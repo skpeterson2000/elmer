@@ -37,7 +37,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               monitoring, personal, reachout, repeaters, units,
+               monitoring, personal, reachout, repeaters, show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
@@ -2822,8 +2822,9 @@ def api_party_join():
                     "state": room.state(player.id)})
 
 
-def _with_hall(state):
-    """The hall's shootout, as this table sees it, on the table's own state.
+def _with_hall(state, who_name=None):
+    """The hall's shootout and show, as this table sees them, on the table's
+    own state.
 
     The pick in a hall shootout is the table's, and the subjects went up on
     the table's screen alone - which is not what anybody at the table was
@@ -2832,9 +2833,27 @@ def _with_hall(state):
     gets the subjects too, and any of them may tap.
     """
     link = cohort.bridge()
-    if link is not None and getattr(link, "hall_shootout", None):
+    if link is None:
+        return state
+    if getattr(link, "hall_shootout", None):
         state["hall"] = {"shootout": link.hall_shootout,
                          "table": link.name, "mode": link.net_mode}
+    show_state = getattr(link, "hall_show", None)
+    if show_state:
+        # Announcements for one seat reach that seat's phone and no other
+        # screen: the table screen gets what is for the table and the hall,
+        # a phone gets those and its own. Filtered here, on the unit, because
+        # net control addressed them by name and only this unit knows which
+        # device is asking.
+        mine = [a for a in show_state.get("announcements") or []
+                if not a.get("seat") or (
+                    who_name and a["seat"].lower() == who_name.lower())]
+        if not state.get("hall"):            # the room says None, not absent
+            state["hall"] = {"table": link.name, "mode": link.net_mode}
+        state["hall"]["show"] = dict(show_state, announcements=mine)
+        # Where a sponsor's image lives: on net control, at the address this
+        # unit already talks to.
+        state["hall"]["master"] = link.url
     return state
 
 
@@ -2847,7 +2866,15 @@ def api_party_state():
         who = int(request.args.get("player", "")) or None
     except ValueError:
         who = None
-    state = _with_hall(room.state(who))
+    player = room.players.get(who) if who is not None else None
+    state = _with_hall(room.state(who), player.name if player else None)
+    # The table screen says what it is showing so the host can see the room;
+    # the bridge carries it up with the next check-in.
+    showing = request.args.get("showing")
+    if showing is not None and who is None:
+        link = cohort.bridge()
+        if link is not None:
+            link.showing = str(showing)[:40]
     # Whether the device polling this may start the game itself. One person
     # alone on an idle table gets the press; in a hall with others already in,
     # the table screen keeps it, so one phone cannot start a round while the
@@ -3419,10 +3446,18 @@ def api_net_checkin():
                         "health": running.health()}), 409
     # The key travels to the unit: it scores its own cohort locally, which is
     # what keeps eight players' worth of traffic off this machine.
+    # What the table is showing travels up with the check-in, so the host
+    # can see the room without walking it - see Net.Unit.showing.
+    unit.showing = str(body.get("showing") or "")[:40]
+    unit.names = [str(n)[:60] for n in (body.get("names") or [])
+                  if isinstance(n, str)][:16]
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
                     "net": {"name": running.name,
                             "difficulty": running.difficulty,
                             "mode": running.mode},
+                    # The host's hand on this table's screens: announcements
+                    # for it, the card between rounds, the hall's mode.
+                    "show": running.show_for(unit.id),
                     "round": running.current(include_key=True),
                     # The hall's shootout as this table sees it - whether the
                     # pick is this table's, what is left to pick, the clock.
@@ -3605,34 +3640,293 @@ def api_net_mode():
     if running.round is not None:
         abort(409, "a question is still open")
     if wanted == netcontrol.SHOOTOUT:
-        difficulty = str(body.get("difficulty") or running.difficulty).lower()
-        pool_id = party.DIFFICULTIES.get(difficulty)
-        if not pool_id:
-            abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
-        pool = _pool_or_404(pool_id)
-        titles = {code: _subject_name(pool.section_title(code))
-                  for code in pool.section_order}
-        groups = {}
-        for code in pool.section_order:
-            sub = pool.subelement_of(code)
-            meta = pool.subelement_meta.get(sub) or {}
-            groups[code] = (sub, _headline(meta.get("title") or sub))
-        hall.halt()
-        started, why = running.begin_shootout(list(pool.section_order), titles,
-                                              groups, body.get("pick_seconds"))
-        if started is None:
-            abort(409, why)
-        seconds = body.get("seconds")
-        hall.start(running, lambda: _ask_net(running, difficulty, None, seconds),
-                   ready_tables=max(1, int(body.get("tables", hall.READY_TABLES))),
-                   rounds=None)
-        log.info("net: shootout started (%s, %d tables)", difficulty,
-                 len(running.units))
+        _begin_hall_shootout(running, body.get("difficulty"),
+                             body.get("pick_seconds"), body.get("seconds"),
+                             body.get("tables"))
     else:
         hall.halt()
         running.end_shootout()
         log.info("net: back to a tournament")
     return jsonify(running.board())
+
+
+def _begin_hall_shootout(running, difficulty=None, pick_seconds=None,
+                         seconds=None, tables=None):
+    """Start a shootout across the hall. Shared by the button and the programme."""
+    difficulty = str(difficulty or running.difficulty).lower()
+    pool_id = party.DIFFICULTIES.get(difficulty)
+    if not pool_id:
+        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    pool = _pool_or_404(pool_id)
+    titles = {code: _subject_name(pool.section_title(code))
+              for code in pool.section_order}
+    groups = {}
+    for code in pool.section_order:
+        sub = pool.subelement_of(code)
+        meta = pool.subelement_meta.get(sub) or {}
+        groups[code] = (sub, _headline(meta.get("title") or sub))
+    hall.halt()
+    started, why = running.begin_shootout(list(pool.section_order), titles,
+                                          groups, pick_seconds)
+    if started is None:
+        abort(409, why)
+    hall.start(running, lambda: _ask_net(running, difficulty, None, seconds),
+               ready_tables=max(1, int(tables or hall.READY_TABLES)),
+               rounds=None)
+    log.info("net: shootout started (%s, %d tables)", difficulty,
+             len(running.units))
+
+
+# ------------------------------------------------------------- the show
+# The host's hand on every screen: announcements, the deck between rounds,
+# the hall's mode and focus, the programme. See elmer.show.
+
+@app.route("/api/net/show")
+def api_net_show():
+    """Everything the host page needs to run the show."""
+    running = _net_or_404()
+    view = running.show.host_view()
+    view["units"] = [{"id": u["id"], "name": u["name"], "players": u["players"],
+                      "present": u["present"], "showing": u["showing"],
+                      "simulated": u["simulated"]}
+                     for u in running.board()["units"]]
+    # The seats the host can address by name: every player the tables have
+    # reported, by table. Names only - that is all a board ever carried.
+    seats = {}
+    for u in running.units.values():
+        for name in u.names:
+            seats.setdefault(u.id, []).append(name)
+    for row in running.people.values():
+        if not row.get("bot") and row["name"] not in seats.get(row["unit"], []):
+            seats.setdefault(row["unit"], []).append(row["name"])
+    view["seats"] = seats
+    # Where tonight's room is missing, for the study focus: the hall log's
+    # answers since this net opened, by section, ranked by the share missed.
+    pool_id = party.DIFFICULTIES.get(running.difficulty)
+    weak = difficulty.weak_sections(conn(), pool_id, running.since) if pool_id else []
+    if weak:
+        pool = _pool_or_404(pool_id)
+        for w in weak:
+            w["title"] = pool.section_title(w["section"]) or ""
+    view["weak"] = weak
+    view["difficulty"] = running.difficulty
+    view["since"] = running.since
+    return jsonify(view)
+
+
+@app.route("/api/net/announce", methods=["POST"])
+def api_net_announce():
+    """Say something to everyone, one table, or one seat."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        item = running.show.announce(
+            body.get("text"), body.get("weight") or show.NOTICE,
+            unit=body.get("unit") or None, seat=body.get("seat") or None,
+            seconds=body.get("seconds"), repeat=body.get("repeat"))
+    except ValueError as exc:
+        abort(400, str(exc))
+    return jsonify({"announced": item, "pending": running.show.pending()})
+
+
+@app.route("/api/net/announce/clear", methods=["POST"])
+def api_net_announce_clear():
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    if body.get("all"):
+        running.show.clear_all()
+    elif body.get("id") is not None:
+        running.show.clear(body["id"])
+    return jsonify({"pending": running.show.pending(),
+                    "attention": running.show.attention})
+
+
+@app.route("/api/net/attention", methods=["POST"])
+def api_net_attention():
+    """Blank every table to a message while the host talks; release it after."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    held = running.show.hold_attention(None if body.get("release")
+                                       else (body.get("text") or "One moment - "
+                                             "eyes up front."))
+    return jsonify({"attention": held})
+
+
+@app.route("/api/net/deck", methods=["POST"])
+def api_net_deck():
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    out = running.show.set_deck(body.get("deck") or {}, body.get("dwell"))
+    running.show.save()
+    return jsonify(out)
+
+
+@app.route("/api/net/show/mode", methods=["POST"])
+def api_net_show_mode():
+    """Playing, studying, or between things - the hall's mode, on every screen."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        mode = running.show.set_mode(str(body.get("mode") or show.PLAY).lower())
+    except ValueError as exc:
+        abort(400, str(exc))
+    return jsonify({"mode": mode, "focus": running.show.focus_view()})
+
+
+@app.route("/api/net/focus", methods=["POST"])
+def api_net_focus():
+    """What the room is studying: "everyone - T5 for ten minutes"."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    if body.get("clear"):
+        running.show.set_focus(None)
+        return jsonify({"focus": None, "mode": running.show.mode})
+    section = str(body.get("section") or "").strip().upper() or None
+    title = body.get("title")
+    if section and not title:
+        pool_id = party.DIFFICULTIES.get(
+            str(body.get("difficulty") or running.difficulty).lower())
+        pool = _pool_or_404(pool_id) if pool_id else None
+        if pool is not None:
+            title = pool.section_title(section) or pool.subelement_meta.get(
+                section, {}).get("title") or ""
+    focus = running.show.set_focus(section, title, body.get("text"),
+                                   body.get("minutes"))
+    return jsonify({"focus": focus, "mode": running.show.mode})
+
+
+@app.route("/api/net/notice", methods=["POST"])
+def api_net_notice():
+    """A club notice for the deck: membership, coming events, a QR to the
+    club's own site. Kept on this unit between nets."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    if body.get("remove") is not None:
+        return jsonify({"removed": running.show.remove_notice(body["remove"]),
+                        "notices": running.show.notices})
+    try:
+        item = running.show.add_notice(body.get("title"), body.get("text"),
+                                       body.get("url"))
+    except ValueError as exc:
+        abort(400, str(exc))
+    return jsonify({"added": item, "notices": running.show.notices})
+
+
+@app.route("/api/net/sponsor", methods=["POST"])
+def api_net_sponsor():
+    """A sponsor's card: a name, a line, and optionally their image.
+
+    Multipart when there is a file, JSON when there is not. The image is
+    kept under this unit's state and served to the hall from here; nothing
+    about it leaves the room.
+    """
+    running = _net_or_404()
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+        if body.get("remove") is not None:
+            return jsonify({"removed": running.show.remove_sponsor(body["remove"]),
+                            "sponsors": running.show.sponsors})
+        form, up = body, None
+    else:
+        form, up = request.form, request.files.get("file")
+    filename = None
+    if up is not None and up.filename:
+        filename = show.asset_name(up.filename)
+        if not filename:
+            abort(400, "a sponsor's card is a PNG, JPG, GIF or WebP image")
+        show.ASSETS.mkdir(parents=True, exist_ok=True)
+        target = show.ASSETS / filename
+        up.save(target)
+        if target.stat().st_size > show.MAX_ASSET_MB * 1024 * 1024:
+            target.unlink()
+            abort(400, f"larger than {show.MAX_ASSET_MB} MB")
+    try:
+        item = running.show.add_sponsor(form.get("name"), form.get("blurb"),
+                                        form.get("url"), filename,
+                                        form.get("weight") or 1)
+    except ValueError as exc:
+        if filename:
+            (show.ASSETS / filename).unlink(missing_ok=True)
+        abort(400, str(exc))
+    log.info("show: sponsor added: %s%s", item["name"],
+             f" ({filename})" if filename else "")
+    return jsonify({"added": item, "sponsors": running.show.sponsors})
+
+
+@app.route("/api/net/asset/<path:name>")
+def api_net_asset(name):
+    """A sponsor's image, for every screen in the hall."""
+    safe = show.asset_name(name)
+    if not safe or not (show.ASSETS / safe).is_file():
+        abort(404)
+    return send_from_directory(str(show.ASSETS), safe, max_age=300)
+
+
+@app.route("/api/net/programme", methods=["POST"])
+def api_net_programme():
+    """The evening as a list of steps. Setting it does not start it."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    steps = running.show.set_programme(body.get("steps") or [])
+    running.show.save()
+    return jsonify({"steps": steps, "programme": running.show.programme_view()})
+
+
+@app.route("/api/net/programme/next", methods=["POST"])
+def api_net_programme_next():
+    """One press: the next step happens - the hall's mode, the game, the
+    announcement - and every screen follows."""
+    running = _net_or_404()
+    step = running.show.advance()
+    if step is None:
+        running.show.set_mode(show.INTERMISSION)
+        return jsonify({"step": None, "programme": running.show.programme_view(),
+                        "mode": running.show.mode})
+    _act_on_step(running, step)
+    return jsonify({"step": step, "programme": running.show.programme_view(),
+                    "mode": running.show.mode})
+
+
+def _act_on_step(running, step):
+    """Make a programme step happen. Each kind is one of the host's buttons."""
+    kind = step["kind"]
+    if kind not in ("rounds", "shootout", "announce"):
+        # Leaving the game: the conductor stops and a question still open is
+        # scored now, so the screens are the host's rather than half a round's.
+        hall.halt()
+        if running.round is not None:
+            running.close_round()
+    if kind == "intermission":
+        running.show.set_mode(show.INTERMISSION)
+        if step.get("text"):
+            running.show.announce(step["text"])
+    elif kind == "rounds":
+        running.show.set_mode(show.PLAY)
+        running.end_shootout()
+        wanted = str(step.get("difficulty") or running.difficulty).lower()
+        if wanted not in party.DIFFICULTIES:
+            wanted = running.difficulty
+        seconds = step.get("seconds") or None
+        section = step.get("section") or None
+        rounds = int(step["rounds"]) if step.get("rounds") else tournament.length_for(wanted)
+        hall.start(running, lambda: _ask_net(running, wanted, section, seconds),
+                   rounds=rounds)
+    elif kind == "shootout":
+        running.show.set_mode(show.PLAY)
+        _begin_hall_shootout(running, step.get("difficulty"), None,
+                             step.get("seconds") or None)
+    elif kind == "study":
+        running.show.set_focus(step.get("section"), None, step.get("text"),
+                               step.get("minutes"))
+    elif kind == "announce":
+        running.show.announce(step.get("text") or step["label"],
+                              show.URGENT if step.get("mode") == "urgent" else show.NOTICE)
+    elif kind in ("certificates", "thanks"):
+        running.show.set_mode(show.INTERMISSION)
+        running.show.announce(step.get("text") or (
+            "Certificates are being printed - winners, see the host."
+            if kind == "certificates" else
+            "Thank you for playing - and thank you to our sponsors."))
 
 
 @app.route("/api/net/pick", methods=["POST"])
