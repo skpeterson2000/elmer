@@ -227,6 +227,13 @@ class Bridge:
             self.pending = None
         elif "already reported" in str(reply.get("reason", "")):
             self.pending = None      # net control already has it
+        elif "not the one in progress" in str(reply.get("reason", "")):
+            # The hall closed this round without us - the host called an
+            # intermission, or the grace ran out. Nothing to hand in any
+            # more; the table's own players were scored locally regardless.
+            log.info("cohort: net round %s closed before this table reported",
+                     self.pending["round"])
+            self.pending = None
 
     def _tick(self):
         room = party.room(create=True, cohorts=1)
@@ -238,9 +245,17 @@ class Bridge:
             self._start_local(room, rnd)
             return
         # The local round is over when everybody has answered or time is up;
-        # close it and queue the report.
+        # close it and queue the report. It is also over when the hall has
+        # moved on without it - the host called an intermission and net
+        # control scored the round early - because a table still showing a
+        # question the hall has closed is a table the host's press did not
+        # reach.
         if local and not local.closed and local.tag:
-            if room.everyone_answered() or local.expired():
+            hall_moved_on = rnd is None or (rnd.get("number") or 0) != local.tag
+            if room.everyone_answered() or local.expired() or hall_moved_on:
+                if hall_moved_on:
+                    log.info("cohort: the hall closed round %s - closing it here",
+                             local.tag)
                 self._report(room, local.tag)
                 self._flush()
 

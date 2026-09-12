@@ -2056,7 +2056,12 @@ stands twenty seconds to be read, then the deck has the screen until the next
 question. Sponsors and notices persist under `data/show/` between nets; none
 of it leaves the unit.
 
-**Playing, studying, intermission.** The host declares the hall's mode. In
+**Playing, studying, intermission.** The host declares the hall's mode, and
+the mode is what the hall does, not a label: *Playing* starts the conductor
+on the difficulty and clock the round controls show; *Intermission* and
+*Studying* stop it and score whatever question is open, and every table
+closes that question within the second — a press that the game rolled over
+was the first thing found in the first rehearsal. In
 *study* the host names a focus — "everyone: T5 for ten minutes" — and the
 focus card leads the deck on every screen; beside the controls the host sees
 **where tonight's room is missing most**, by section, from the hall log since

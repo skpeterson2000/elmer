@@ -655,8 +655,9 @@ async function tick() {
      so this is where the deck is biggest. */
   const show = board.show || null;
   hallShow.overlay(show);
+  const stands = show && show.mode !== 'play' ? 8 : RESULT_STANDS_S;
   const showCard = show && show.card && !(board.round && !board.round.closed)
-    && (!board.last || (board.last_closed_for || 0) > RESULT_STANDS_S);
+    && (!board.last || (board.last_closed_for || 0) > stands);
   if (showCard) {
     document.getElementById('title').textContent = board.name || 'ELMER';
     document.getElementById('sub').textContent = show.mode === 'study' ? 'study' :

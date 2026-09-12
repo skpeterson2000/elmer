@@ -3711,6 +3711,8 @@ def api_net_show():
     view["weak"] = weak
     view["difficulty"] = running.difficulty
     view["since"] = running.since
+    view["conducting"] = _conducting()
+    view["round_open"] = running.round is not None
     return jsonify(view)
 
 
@@ -3763,14 +3765,45 @@ def api_net_deck():
 
 @app.route("/api/net/show/mode", methods=["POST"])
 def api_net_show_mode():
-    """Playing, studying, or between things - the hall's mode, on every screen."""
+    """Playing, studying, or between things - the hall's mode, on every screen.
+
+    The mode is not a label on the deck; it is what the hall does. Pressing
+    Intermission while the conductor is asking questions used to change a
+    word on the host page and nothing else - the game rolled on over the
+    host's input - so now Intermission and Studying stop the conductor and
+    score whatever question is open, and Playing starts it again if it is
+    not running. The host's press means the thing it says.
+    """
     running = _net_or_404()
     body = request.get_json(silent=True) or {}
+    wanted = str(body.get("mode") or show.PLAY).lower()
     try:
-        mode = running.show.set_mode(str(body.get("mode") or show.PLAY).lower())
+        mode = running.show.set_mode(wanted)
     except ValueError as exc:
         abort(400, str(exc))
-    return jsonify({"mode": mode, "focus": running.show.focus_view()})
+    if mode == show.PLAY:
+        live = hall.conductor()
+        if live is None or not live.as_dict()["running"]:
+            difficulty = str(body.get("difficulty") or running.difficulty).lower()
+            if difficulty not in party.DIFFICULTIES:
+                difficulty = running.difficulty
+            seconds = body.get("seconds") or None
+            hall.start(running, lambda: _ask_net(running, difficulty, None, seconds))
+            log.info("net: playing - the hall conducts again")
+    else:
+        stopped = hall.halt()
+        if running.round is not None:
+            running.close_round()
+        if stopped:
+            log.info("net: %s - the conductor stands down", mode)
+    return jsonify({"mode": mode, "focus": running.show.focus_view(),
+                    "conducting": _conducting()})
+
+
+def _conducting():
+    """Whether the hall is running itself, and what it is doing, for the host."""
+    live = hall.conductor()
+    return live.as_dict() if live is not None else None
 
 
 @app.route("/api/net/focus", methods=["POST"])
@@ -3792,7 +3825,13 @@ def api_net_focus():
                 section, {}).get("title") or ""
     focus = running.show.set_focus(section, title, body.get("text"),
                                    body.get("minutes"))
-    return jsonify({"focus": focus, "mode": running.show.mode})
+    # A focus is study, and study is not the game running on: the conductor
+    # stands down and an open question is scored, exactly as the mode button.
+    hall.halt()
+    if running.round is not None:
+        running.close_round()
+    return jsonify({"focus": focus, "mode": running.show.mode,
+                    "conducting": _conducting()})
 
 
 @app.route("/api/net/notice", methods=["POST"])
