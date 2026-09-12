@@ -1452,7 +1452,9 @@ def library_page():
 def api_library():
     """What is on the shelf and how current each index is. Reading only:
     indexing a thousand-page manual takes a while and is asked for."""
-    return jsonify({"path": str(library.SHELF), "tools": library.tools_present(),
+    tools = library.tools_present()
+    return jsonify({"path": str(library.SHELF), "tools": tools,
+                    "tools_note": None if tools["pdftotext"] else library.missing_tools_note(),
                     "shelf": library.catalogue(), "topics": library.topic_map(),
                     "reindex_days": library.REINDEX_DAYS})
 

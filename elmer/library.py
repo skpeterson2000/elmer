@@ -26,11 +26,13 @@ the corner - and are labelled as such.
 """
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from . import paths
 
@@ -95,10 +97,57 @@ TOPICS = {
 
 # ------------------------------------------------------------------ the shelf
 
+# Where poppler ends up when it is not on the PATH this process was given.
+# A program started from a desktop icon, a service, or a shortcut does not
+# always inherit the PATH the operator's terminal has - and "the terminal
+# finds it, ELMER does not" is a maddening thing to be told by a screen. So
+# the PATH is tried first and these afterwards, and every call uses the
+# full path that was found rather than asking the shell again.
+FALLBACK_DIRS = ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin", "/opt/local/bin",
+                 "/snap/bin", os.path.expanduser("~/.local/bin")]
+if os.name == "nt":
+    FALLBACK_DIRS += [str(p) for base in (os.environ.get("ProgramFiles", r"C:\Program Files"),
+                                          os.environ.get("LOCALAPPDATA", ""), "C:\\")
+                      for p in (list(Path(base).glob("poppler*/Library/bin")) +
+                                list(Path(base).glob("poppler*/bin")) +
+                                list(Path(base).glob("Programs/poppler*/bin"))) if base]
+
+_tools = {}
+
+
+def tool(name):
+    """The full path of a poppler tool, or None - looked up once."""
+    if name in _tools:
+        return _tools[name]
+    found = shutil.which(name)
+    if not found:
+        exe = name + (".exe" if os.name == "nt" else "")
+        for d in FALLBACK_DIRS:
+            candidate = Path(d) / exe
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                found = str(candidate)
+                break
+    if found:
+        _tools[name] = found       # a miss is not remembered: apt may run next
+    else:
+        log.warning("library: %s not found on PATH (%s) nor in %s", name,
+                    os.environ.get("PATH") or "(empty)", ", ".join(FALLBACK_DIRS))
+    return found
+
+
 def tools_present():
-    """The poppler tools this needs, and which are missing."""
-    want = ("pdftotext", "pdftohtml", "pdfinfo")
-    return {t: bool(shutil.which(t)) for t in want}
+    """The poppler tools this needs: full path where found, None where not."""
+    return {t: tool(t) for t in ("pdftotext", "pdftohtml", "pdfinfo")}
+
+
+def missing_tools_note():
+    """What to tell the operator when the tools are not there - with what
+    was looked at, so 'but my terminal finds it' has somewhere to start."""
+    return (f"pdftotext was not found on this program's PATH "
+            f"({os.environ.get('PATH') or 'empty'}) nor in {', '.join(FALLBACK_DIRS)}. "
+            f"On a Pi: sudo apt install poppler-utils. If it is installed and this "
+            f"still says so, ELMER was started with a different PATH from your "
+            f"terminal's - start it from the terminal once to compare.")
 
 
 def shelf():
@@ -174,7 +223,10 @@ def _stale(pdf, meta):
 # ---------------------------------------------------------------- reading one
 
 def _run(cmd, timeout):
-    done = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    try:
+        done = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    except FileNotFoundError:
+        raise RuntimeError(f"{cmd[0]} is not installed or not where ELMER can see it")
     if done.returncode != 0:
         err = done.stderr.decode("utf-8", "ignore").strip()[:200]
         raise RuntimeError(f"{cmd[0]} failed: {err or done.returncode}")
@@ -183,7 +235,7 @@ def _run(cmd, timeout):
 
 def _pages(pdf):
     """The text of every page, in order. pdftotext puts a form feed between."""
-    raw = _run(["pdftotext", "-enc", "UTF-8", str(pdf), "-"], timeout=600)
+    raw = _run([tool("pdftotext") or "pdftotext", "-enc", "UTF-8", str(pdf), "-"], timeout=600)
     text = raw.decode("utf-8", "ignore")
     pages = text.split("\f")
     if pages and not pages[-1].strip():
@@ -211,7 +263,7 @@ def _outline(pdf):
     not be read".
     """
     try:
-        raw = _run(["pdftohtml", "-xml", "-stdout", "-i", "-nodrm",
+        raw = _run([tool("pdftohtml") or "pdftohtml", "-xml", "-stdout", "-i", "-nodrm",
                     "-f", "1", "-l", "1", str(pdf)], timeout=120)
     except subprocess.TimeoutExpired:
         return [], "pdftohtml took too long reading the bookmarks"
@@ -244,7 +296,7 @@ def _outline(pdf):
 
 def _title(pdf):
     try:
-        raw = _run(["pdfinfo", str(pdf)], timeout=60).decode("utf-8", "ignore")
+        raw = _run([tool("pdfinfo") or "pdfinfo", str(pdf)], timeout=60).decode("utf-8", "ignore")
     except (RuntimeError, subprocess.TimeoutExpired):
         return ""
     m = re.search(r"^Title:\s*(.+)$", raw, re.M)
@@ -294,7 +346,7 @@ def refresh(force=False, only=None):
     report = {"indexed": [], "kept": [], "failed": {}, "dropped": []}
     have = tools_present()
     if not have["pdftotext"]:
-        report["failed"]["*"] = "pdftotext is not installed (poppler-utils)"
+        report["failed"]["*"] = missing_tools_note()
         return report
     books = shelf()
     if only:

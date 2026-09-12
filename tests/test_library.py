@@ -65,6 +65,20 @@ CHAPTERS = [
                                  "SWR above 3:1 stops the tuner."]),
 ]
 
+print("\nthe tools are found by full path, whatever PATH this process was given")
+found = L.tools_present()
+check("each tool is a path, not a yes", all(v and v.startswith(("/", "C:", "c:")) for v in found.values()), True)
+saved, L._tools = os.environ.get("PATH"), {}
+os.environ["PATH"] = "/nowhere"
+try:
+    check("  and is still found with a useless PATH", bool(L.tool("pdftotext")), True)
+    check("  by looking in the usual places", os.path.dirname(L.tool("pdftotext")) in L.FALLBACK_DIRS, True)
+    check("  the note for a missing tool says where it looked",
+          "/nowhere" in L.missing_tools_note() and "/usr/bin" in L.missing_tools_note(), True)
+finally:
+    os.environ["PATH"] = saved
+    L._tools = {}
+
 print("\nthe shelf is the isolated state directory's, not the operator's")
 check("the shelf is under ELMER_STATE", str(L.SHELF).startswith(os.environ["ELMER_STATE"]), True)
 check("  and empty to begin with", L.shelf(), [])
