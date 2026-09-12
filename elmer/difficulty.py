@@ -39,10 +39,16 @@ stays in blueprint order, and the flag that says so is `ramped: False` - the
 same honesty as the monitoring module saying it has not read your state's
 law, or the path tool saying it is blind without a sonde.
 
-Study answers carry a time; exam answers do not and contribute only to the
-miss rate; answers given on phones at a table are not in this log at all.
-A hall's reports would be a second source, later.
+Two sources, one measure. The unit's own answer log is one person studying
+here, a line at a time. The hall log is every answer the room gave when this
+unit ran a net - twenty tables' worth in an evening, each with a time, and
+the reason a club night sharpens the class report faster than a month of
+study. A person in the hall is their callsign if they played under one, so
+KC9SP at two tables is one pace, and otherwise the table and the name. Study
+answers and hall answers carry a time; exam answers do not and contribute
+only to the miss rate.
 """
+import json
 import math
 from statistics import median
 
@@ -142,7 +148,88 @@ def hardest(measured, limit=12):
 
 
 def load(conn, pool_id):
-    """The rows this needs, from the unit's own log, every user."""
-    return [dict(r) for r in conn.execute(
+    """The rows this needs: the unit's own log and the hall's, as one list.
+
+    A hall person is keyed "hall:<who>" so they can never collide with a
+    study user's integer id, and the measure treats them exactly alike - a
+    person, a day, a question, right or not, how long.
+
+    Each row carries the license class the person holds, or "" for not
+    said: the hall's from what they told the table when they sat down, a
+    study user's from their own profile as it stands now - which is the
+    class they hold today, not necessarily the one they held when they
+    answered, and close enough for a report about how knowledge wears.
+    """
+    from .db import _modernise, license_of
+    held = {}
+    for p in conn.execute("SELECT id, settings FROM profile"):
+        try:
+            s = _modernise(json.loads(p["settings"] or "{}"))
+        except ValueError:
+            s = {}
+        held[p["id"]] = license_of(s.get("license_class")
+                                   or (s.get("license") or {}).get("license_class"))
+    rows = [dict(r) for r in conn.execute(
         "SELECT user_id, ts, day, question_id, correct, ms FROM answer_log "
         "WHERE pool_id = ? ORDER BY ts", (pool_id,))]
+    for r in rows:
+        r["source"] = "study"
+        r["license"] = held.get(r["user_id"], "")
+    try:
+        hall = conn.execute(
+            "SELECT who, ts, day, question_id, correct, ms, license FROM hall_log "
+            "WHERE pool_id = ? ORDER BY ts", (pool_id,)).fetchall()
+    except Exception:                    # a database from before the hall log
+        hall = []
+    for h in hall:
+        rows.append({"user_id": "hall:" + h["who"], "ts": h["ts"], "day": h["day"],
+                     "question_id": h["question_id"], "correct": h["correct"],
+                     "ms": h["ms"], "source": "hall", "license": h["license"] or ""})
+    rows.sort(key=lambda r: r["ts"])
+    return rows
+
+
+def by_license(rows):
+    """How each license class did on this pool - the demographic that says
+    how knowledge wears.
+
+    A room of Generals answering Technician questions is people who passed
+    this material once, some of them decades ago; a room of people with no
+    license yet is the same material met for the first time. First exposures
+    only, as the measure itself. The miss rate is the honest number; the
+    median time is raw - not normalised per person, because the question here
+    is precisely how one class compares with another - and is labelled so.
+    Classes nobody stated are under "" and reported as unsaid, not dropped:
+    a report that quietly leaves out the people who did not say would read as
+    if everybody had.
+    """
+    firsts = _first_exposures(sorted(rows, key=lambda r: r["ts"]))
+    per = {}
+    for r in firsts:
+        c = per.setdefault(r.get("license") or "", {"n": 0, "wrong": 0,
+                                                    "people": set(), "ms": []})
+        c["n"] += 1
+        c["people"].add(r["user_id"])
+        if not r["correct"]:
+            c["wrong"] += 1
+        ms = r.get("ms")
+        if ms and ms > 0:
+            c["ms"].append(ms)
+    order = {"none": 0, "Novice": 1, "Technician": 2, "General": 3,
+             "Advanced": 4, "Extra": 5, "": 6}
+    out = []
+    for name in sorted(per, key=lambda k: order.get(k, 6)):
+        c = per[name]
+        out.append({"license": name, "answers": c["n"], "people": len(c["people"]),
+                    "miss_rate": round(c["wrong"] / c["n"], 3),
+                    "median_ms": round(median(c["ms"])) if c["ms"] else None,
+                    "timed": len(c["ms"])})
+    return out
+
+
+def sources(rows):
+    """How many answers came from each place - the report says so."""
+    out = {"study": 0, "hall": 0}
+    for r in rows:
+        out[r.get("source", "study")] = out.get(r.get("source", "study"), 0) + 1
+    return out

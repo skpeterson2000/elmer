@@ -197,7 +197,10 @@ class Bridge:
                          "ms": a["ms"], "bot": a.get("bot"),
                          # For the certificate only. The hall never puts it
                          # on a board; it is carried so the host can print it.
-                         "cert_name": room.cert_name_of(a.get("player_id"))}
+                         "cert_name": room.cert_name_of(a.get("player_id")),
+                         # The class they said they hold, if they did - for
+                         # the hall's log, which keeps no names at all.
+                         "license": room.license_of(a.get("player_id"))}
                         for a in summary["answers"]],
         }
 

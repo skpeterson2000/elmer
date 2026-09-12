@@ -174,9 +174,16 @@ class Player:
     """One person in the room, on one device - or a practice opponent."""
 
     def __init__(self, player_id, name, cohort_id, bot=None, cert_name=None,
-                 device=None):
+                 device=None, license=None):
         self.id = player_id
         self.name = name
+        # The license class they said they hold, or "" for did not say. It
+        # is never shown - not on a phone, a table, a board or a certificate
+        # - and it never sits next to a name anywhere it is written down. It
+        # goes into the hall's log so an Elmer can see how a room of
+        # Generals does on Technician material: how the knowledge wears.
+        from .db import license_of
+        self.license = license_of(license)
         # Where this person answers from: a phone, or the table's own screen.
         # A table with no phones at it can still seat two people at the
         # touchscreen, side by side - which is also how the person running a
@@ -380,7 +387,7 @@ class Room:
         return p
 
     def join(self, name, cohort=None, bot=None, cert_name=None, device=None,
-             previous=None):
+             previous=None, license=None):
         """Admit a player, or say plainly why not.
 
         Returns (player, None) or (None, reason). A person arriving at a full
@@ -403,6 +410,9 @@ class Room:
                         back.device = device
                     if cert_name and not back.cert_name:
                         back.cert_name = str(cert_name).strip()[:48] or None
+                    if license and not back.license:
+                        from .db import license_of
+                        back.license = license_of(license)
                     return back, None
                 # A person is never turned away while software holds a seat.
                 while (self.health()["seats"] <= 0
@@ -427,7 +437,8 @@ class Room:
                 return None, "every cohort is full"
             player = Player(self._next_id, (name or "").strip()[:32]
                             or f"Player {self._next_id}", cid, bot=bot,
-                            cert_name=cert_name, device=device)
+                            cert_name=cert_name, device=device,
+                            license=license)
             self.players[player.id] = player
             self._next_id += 1
             self._admit_late(player)
@@ -597,6 +608,11 @@ class Room:
                 if self.round:
                     self.round.bot_plan.pop(pid, None)
             return len(gone)
+
+    def license_of(self, player_id):
+        """The class a player said they hold, or "" - for the hall log only."""
+        player = self.players.get(player_id)
+        return (player.license if player else "") or ""
 
     def cert_name_of(self, player_id):
         player = self.players.get(player_id)

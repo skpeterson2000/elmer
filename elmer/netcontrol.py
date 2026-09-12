@@ -24,6 +24,7 @@ hall because one Pi in the corner went off the air.
 """
 import logging
 import random
+import secrets
 import threading
 import time
 from collections import deque
@@ -156,6 +157,10 @@ class Net:
         # - and a unit deciding which to report to picks by the material, not
         # by which Pi it happens to be running on. The name follows it.
         self.difficulty = difficulty
+        # The key under which tonight's people are written into the hall
+        # log - see db.hall_who(). Made here, held here, never stored: the
+        # log can tell one evening's people apart and nobody can name them.
+        self.log_key = secrets.token_bytes(32)
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.units = {}
         self.round_number = 0
@@ -198,6 +203,10 @@ class Net:
         self._pick_since = None
         self.titles = {}
         self.groups = {}
+        # Told when a round closes, with its summary - the app writes the
+        # round to the hall's log from here. This module has no database in
+        # it and should not; it is handed a function instead.
+        self.on_round_closed = []
 
     # ------------------------------------------------------------- check-in
 
@@ -472,7 +481,9 @@ class Net:
                         "bot": p.get("bot") or None,
                         # What they want on a certificate; never on a board.
                         "cert_name": (str(p.get("cert_name") or "")[:48]
-                                      or None)})
+                                      or None),
+                        # The class they said they hold, for the log alone.
+                        "license": str(p.get("license") or "")[:12]})
                 except (TypeError, ValueError):
                     continue
             self.results[unit_id] = rows
@@ -593,7 +604,12 @@ class Net:
                 "winner_name": (self.units[winner].name if winner in self.units
                                 else None),
                 "unit_points": per_unit,
-                "top": right[:10],
+                # The placings, without what the placed carry for the log:
+                # a board polls this, and neither a certificate name nor a
+                # license class is the board's to hand out.
+                "top": [{k: v for k, v in r.items()
+                         if k not in ("cert_name", "license")}
+                        for r in right[:10]],
             }
             # In a shootout the round is also a shot, table by table: a table
             # made it if any person at it was right, and its time is its
@@ -636,9 +652,25 @@ class Net:
             if self.plan and tournament.ends_a_block(self.round_number):
                 summary["block_won"] = self._declare_block(
                     tournament.block_of(self.round_number))
+            summary["section"] = (self.round.get("question") or {}).get("section") or ""
             self.history.append(summary)
+            # What the listeners get is the summary plus every answer, not
+            # only the ones that placed: the log wants the misses too, and
+            # so does the difficulty measure. It is a separate dict because
+            # the summary goes to every board that polls, and these rows
+            # carry what a board must never be handed - the certificate
+            # names and the license classes.
+            given = dict(summary)
+            given["given"] = everyone
             self.round = None
-            return summary
+        # Outside the lock: a listener that writes to a database should not
+        # hold the hall still while it does.
+        for listener in list(self.on_round_closed):
+            try:
+                listener(given)
+            except Exception as exc:                  # pragma: no cover
+                log.warning("net: a round listener failed: %r", exc)
+        return summary
 
     # ------------------------------------------------------------ shootout
 

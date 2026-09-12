@@ -83,7 +83,7 @@ table.board td.n { color: var(--dim); width: 2rem; }
 table.board td.ms { text-align: right; font-family: var(--mono);
                     color: var(--dim); }
 table.board tr.me td { color: var(--amber); font-weight: 600; }
-.join input { width: 100%; padding: .9rem 1rem; font-size: 1.1rem;
+.join input, .join select { width: 100%; padding: .9rem 1rem; font-size: 1.1rem;
               border-radius: 12px; border: 1px solid var(--line-2);
               background: var(--panel); color: var(--text); }
 .err { color: var(--red); margin-top: .8rem; }
@@ -134,31 +134,48 @@ function showJoin(reason) {
       <input id="cert" maxlength="48" autocomplete="off" autocapitalize="words"
              placeholder="Leave blank to use the name above">
       <p class="tiny muted" style="margin:.3rem 0 0">Only ever printed, never shown.</p>
+      <p class="small" style="margin:.9rem 0 .3rem">License class you hold, if you care to say</p>
+      <select id="lic">
+        <option value="">Rather not say</option>
+        <option value="none">None yet</option>
+        <option value="Technician">Technician</option>
+        <option value="General">General</option>
+        <option value="Extra">Extra</option>
+        <option value="Advanced">Advanced</option>
+        <option value="Novice">Novice</option>
+      </select>
+      <p class="tiny muted" style="margin:.3rem 0 0">Kept apart from your name, for the class report: how the material holds up across license classes. It changes nothing about how you play.</p>
       <button class="btn primary wide" id="go" style="margin-top:1rem">Join this table</button>
       ${reason ? `<div class="err">${reason}</div>` : ''}
     </div>`;
   const nm = document.getElementById('nm');
   const cert = document.getElementById('cert');
+  const lic = document.getElementById('lic');
   const go = document.getElementById('go');
   const saved = localStorage.getItem('elmer_party_name');
   if (saved) nm.value = saved;
   const savedCert = localStorage.getItem('elmer_party_cert_name');
   if (savedCert) cert.value = savedCert;
+  const savedLic = localStorage.getItem('elmer_party_license');
+  if (savedLic) lic.value = savedLic;
   nm.focus();
   const join = async () => {
     const name = nm.value.trim();
     const cert_name = cert.value.trim();
+    const license = lic.value;
     if (!name) { nm.focus(); return; }
     go.disabled = true; go.textContent = 'Joining…';
     localStorage.setItem('elmer_party_name', name);
     if (cert_name) localStorage.setItem('elmer_party_cert_name', cert_name);
     else localStorage.removeItem('elmer_party_cert_name');
+    if (license) localStorage.setItem('elmer_party_license', license);
+    else localStorage.removeItem('elmer_party_license');
     // Who this phone was last time, if the table still has them: a reload
     // in a new tab is the same person, not a second one.
     let previous = null;
     try { const was = JSON.parse(localStorage.getItem('elmer_party_was') || 'null');
           if (was && was.name && was.name.toLowerCase() === name.toLowerCase()) previous = was.id; } catch (e) {}
-    const r = await api('/api/party/join', {name, cert_name, previous});
+    const r = await api('/api/party/join', {name, cert_name, previous, license});
     if (!r.data.joined) { showJoin(r.data.reason || 'Could not join.'); return; }
     me = r.data.player;
     sessionStorage.setItem('elmer_party_player', JSON.stringify(me));

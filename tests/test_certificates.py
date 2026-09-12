@@ -120,9 +120,21 @@ print("\nand a table's from the table's")
 room = party.room(create=True)
 for pid in list(room.players):
     room.leave(pid)
-ann = room.join("Ann", cert_name="Ann Example")[0]
+ann = room.join("Ann", cert_name="Ann Example", license="tech")[0]
 bob = room.join("Bob")[0]
 room.fill_bots("Listener")
+# The license class is the third thing kept apart from the play name: it is
+# held, normalised, never shown, and travels only towards the hall's log.
+check("a stated license class is held, normalised", ann.license, "Technician")
+check("  and 'did not say' is empty, not None", bob.license, "")
+check("  it is nowhere in what a phone or table is shown",
+      any("license" in m for c in room.state()["cohorts"] for m in c["members"]), False)
+check("  a rejoin keeps it", room.join("Ann", previous=ann.id)[0].license, "Technician")
+check("  and can add it later, but not change it",
+      (room.join("Bob", previous=bob.id, license="General")[0].license,
+       room.join("Ann", previous=ann.id, license="Extra")[0].license), ("General", "Technician"))
+check("  with nobody seated twice for it", len([p for p in room.players.values() if not p.bot]), 2)
+check("  the table hands it in with the round", room.license_of(ann.id), "Technician")
 room.start_round("tech2026", "T1A01", 0, seconds=30,
                  payload={"text": "?", "choices": ["a", "b"], "section": "T1A",
                           "difficulty": "technician"})
