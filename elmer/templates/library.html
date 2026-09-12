@@ -87,7 +87,12 @@
     const tools = d.tools || {};
     let head = '';
     if (!tools.pdftotext) {
-      head = '<div class="warntext small">Nothing can be read: ' + escapeHTML(d.tools_note || 'pdftotext was not found.') + '</div>';
+      /* No note with the verdict means the program behind this page is older
+         than the page - a pull without a restart. Say that rather than
+         inventing a reason. */
+      head = '<div class="warntext small">Nothing can be read: ' + escapeHTML(d.tools_note ||
+        'the ELMER running behind this page is older than the page itself - it was updated on disk ' +
+        'but not restarted. Restart ELMER and look again.') + '</div>';
     }
     if (!rows.length) {
       shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>';
