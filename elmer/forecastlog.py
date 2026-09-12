@@ -336,6 +336,117 @@ def adjustment(days=ADJUST_DAYS, now=None):
     return out
 
 
+# --------------------------------------------------------------- calibration
+#
+# A calibration is the adjustment's big sibling: a factor rather than an
+# offset, by month as well as by sky, fitted from a year of blind forecasts
+# against the sondes nearest this unit. A factor because that is what the
+# error is - the model's level is wrong by a ratio that scales with the
+# flux, and a December noon 12 MHz under the sondes is a factor of 1.9 that
+# no additive cap could reach. By month because the year showed the sign
+# itself turning with the season: the model is high on winter nights and
+# low on summer nights, and low every winter day by half of itself.
+
+CALIBRATION_FILE = "calibration.json"
+CAL_MIN_HOURS = 48            # measured hours of one sky in one month before a factor is believed
+CAL_RANGE = (0.5, 2.0)        # the bounds the anchor already lives within
+# A factor within this of 1.0 is not applied. With the season already in the
+# model, a unit between the stations the season was fitted from measures
+# residuals of a few percent - and a half-month's worth of those is noise,
+# which applied made a held-out March worse, not better. A real anomaly for
+# a place - a different latitude, a different phase of the cycle - shows as
+# tens of percent and passes.
+CAL_MIN_EFFECT = 0.10
+
+
+def fit_calibration(days, now, build="", stations=(), acknowledgement="", keep=None):
+    """Fit the month x sky factor table from a bare run's ledger.
+
+    Per measured hour: the sondes' MUF over what the bare model said for it
+    at a lead where the anchor had let go. Per (month, sky): the median of
+    those ratios, bounded, with the number of hours it stands on. A cell
+    with too few hours carries its number and a factor of 1.0 - unapplied,
+    and said so.
+    """
+    seen = _measured_index(days, now)
+    cells = {}
+    for day in _days_back(days, now):
+        for e in _load(day)["forecasts"]:
+            for lead in MODEL_LEADS:
+                if lead >= len(e["hours"]):
+                    break
+                target = e["hours"][lead]
+                got = seen.get(target)
+                said = e["mufs"][lead]
+                if not got or not said or not got.get("muf"):
+                    continue
+                if keep is not None and not keep(target):
+                    continue           # a held-out hour, for testing the fit on
+                regime = (e["regimes"][lead] if lead < len(e["regimes"]) else None) or "unknown"
+                month = target[5:7]
+                cells.setdefault(month, {}).setdefault(regime, {}).setdefault(target, []).append(
+                    float(got["muf"]) / float(said))
+    months = {}
+    for month, regimes in cells.items():
+        months[month] = {}
+        for regime, per_hour in regimes.items():
+            ratios = sorted(sum(v) / len(v) for v in per_hour.values())
+            n = len(ratios)
+            median = ratios[n // 2] if n % 2 else (ratios[n // 2 - 1] + ratios[n // 2]) / 2
+            enough = n >= CAL_MIN_HOURS
+            worth = enough and abs(median - 1.0) >= CAL_MIN_EFFECT
+            factor = max(CAL_RANGE[0], min(CAL_RANGE[1], median)) if worth else 1.0
+            months[month][regime] = {"factor": round(factor, 3), "measured": round(median, 3),
+                                     "n": n, "applied": worth,
+                                     "small": enough and not worth,
+                                     "bounded": worth and abs(median - factor) > 1e-9}
+    return {"made": now.isoformat(), "build": build, "days": days,
+            "stations": list(stations), "months": dict(sorted(months.items())),
+            "acknowledgement": acknowledgement}
+
+
+def save_calibration(table):
+    LEDGER.mkdir(parents=True, exist_ok=True)
+    path = LEDGER / CALIBRATION_FILE
+    tmp = path.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(table, f, indent=1)
+    tmp.replace(path)
+    return path
+
+
+_cal_cache = {}
+
+
+def calibration():
+    """The unit's calibration table, or None if it has never calibrated."""
+    path = LEDGER / CALIBRATION_FILE
+    try:
+        stamp = path.stat().st_mtime
+    except OSError:
+        return None
+    had = _cal_cache.get(str(path))
+    if had and had[0] == stamp:
+        return had[1]
+    try:
+        with open(path, encoding="utf-8") as f:
+            table = json.load(f)
+    except (OSError, ValueError):
+        return None
+    _cal_cache[str(path)] = (stamp, table)
+    return table
+
+
+def factor_for(table, when, regime):
+    """The calibration factor for an hour, or 1.0 where the table is silent."""
+    if not table:
+        return 1.0
+    cell = ((table.get("months") or {}).get(when.strftime("%m")) or {}).get(regime)
+    if not cell or not cell.get("applied"):
+        return 1.0
+    return float(cell["factor"])
+
+
 def applied_bias(adj):
     """The by-sky offsets to hand the model - only the ones being applied."""
     return {k: v["applied"] for k, v in (adj or {}).items() if v.get("applied")}

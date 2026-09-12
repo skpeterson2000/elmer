@@ -189,13 +189,110 @@ CARDS = [
 ]
 
 
-def draw(rng=None, avoid=None):
+# Words from people who built the art, each with where it is written down.
+# Radio "quotes" are folklore-prone - half of what is attributed to Tesla and
+# Marconi online was said by neither - so a quotation is here only where the
+# source is a document somebody can go and read, and the source is named. A
+# paraphrase is marked as one.
+QUOTES = [
+    ("It's of no use whatsoever ... this is just an experiment that proves "
+     "Maestro Maxwell was right - we just have these mysterious electromagnetic "
+     "waves that we cannot see with the naked eye. But they are there.",
+     "Heinrich Hertz, asked what his waves were for, as recounted by his "
+     "students; the wording varies between accounts"),
+    ("The wireless telegraph is not difficult to understand. The ordinary "
+     "telegraph is like a very long cat. You pull the tail in New York, and it "
+     "meows in Los Angeles. The wireless is the same, only without the cat.",
+     "attributed to Albert Einstein; the earliest print appearances are in "
+     "the 1920s and none quote him directly - a story, told as one"),
+    ("The amateur is considerate ... loyal ... progressive ... friendly ... "
+     "balanced ... patriotic.",
+     "Paul M. Segal, W9EEA, The Amateur's Code, 1928 - printed at the front of "
+     "every ARRL Handbook"),
+    ("Have I done the world good, or have I added a menace?",
+     "attributed to Guglielmo Marconi late in life and repeated in the "
+     "biographies; the occasion is not recorded"),
+    ("The radio craze ... will die out in time.",
+     "Thomas Edison, 1922, as reported in the press that year - one of a set "
+     "of predictions he made about broadcasting, most of them wrong"),
+    ("Radio is the theatre of the mind; television is the theatre of the "
+     "mindless.",
+     "Steve Allen, quoted widely from the 1950s on; the first half is the "
+     "part radio people keep"),
+    ("When wireless is perfectly applied the whole earth will be converted "
+     "into a huge brain ... we shall be able to communicate with one another "
+     "instantly, irrespective of distance.",
+     "Nikola Tesla, interview in Collier's, 30 January 1926 - one of the few "
+     "Tesla predictions that is both his and came true"),
+    ("Amateur radio is the only hobby in which the participant can, on the "
+     "same day, talk to an astronaut and to a farmer in a field.",
+     "a saying of the hobby's, unattributed, and kept because it is true"),
+    ("The best antenna is the one you have up.",
+     "operator's proverb - repeated so often nobody owns it"),
+]
+
+# Hams people have heard of. Callsigns are from the licence records or the
+# person's own account; a licensee who has died is marked SK, silent key,
+# as the hobby does. Nobody is here on a rumour.
+HAMS = [
+    ("Joe Walsh - WB6ACU", "Guitarist of the Eagles and the James Gang; a lifelong active "
+     "ham, benefactor of the ARRL's spectrum defense fund, and a vintage-gear "
+     "collector who works CW."),
+    ("Walter Cronkite - KB2GSD (SK)", "The CBS anchor was licensed late in life and "
+     "narrated the ARRL's film 'Amateur Radio Today' in 2003."),
+    ("Marlon Brando - FO5GJ (SK)", "Held a French Polynesian licence for his atoll, "
+     "Tetiaroa, and an American one as KE6PZH; operated under another name to "
+     "keep the pile-ups honest."),
+    ("Priscilla Presley - N6YOS", "Licensed as a Technician in the 1980s; the "
+     "callsign is in the FCC's records."),
+    ("Chet Atkins - W4CGP (SK)", "The guitarist and record producer was an active "
+     "ham in Nashville."),
+    ("Patty Loveless - KD4WUJ", "Country singer; licensed in the early 1990s."),
+    ("Tim Allen - KK6OTD", "The actor got his licence in 2014 while his character "
+     "on 'Last Man Standing' ran a ham station on screen."),
+    ("King Hussein of Jordan - JY1 (SK)", "Held his country's first callsign, was a "
+     "regular on the air for decades, and gave the hobby a head of state's "
+     "backing at world radio conferences."),
+    ("Juan Carlos I of Spain - EA0JC", "The former king's callsign; EA0 is the "
+     "prefix Spain reserved for it."),
+    ("Rajiv Gandhi - VU2RG (SK)", "Prime Minister of India, 1984-89; his widow Sonia "
+     "also held a licence, VU2SON."),
+    ("General Curtis LeMay - K0GRL (SK)", "Chief of Staff of the US Air Force; he "
+     "pushed single-sideband into the military after using it as a ham, and the "
+     "MARS programme owes much to him."),
+    ("Barry Goldwater - K7UGA (SK)", "Senator and presidential candidate; his "
+     "Arizona station relayed phone patches for servicemen in Vietnam."),
+    ("Arthur Godfrey - K4LIB (SK)", "The radio and television host; also a pilot, "
+     "and an early advocate of the hobby on the air."),
+    ("Garry Shandling - KQ6KA (SK)", "The comedian was an active ham who found "
+     "the hobby a rest from the business."),
+    ("Andy Devine - WB6RER (SK)", "The gravel-voiced Western actor."),
+    ("Ronnie Milsap - WB4KCG", "The country singer, blind from birth, is a "
+     "long-time ham; he has said the radio was his window."),
+    ("Donny Osmond - KA7EVD", "Licensed as a young man; the callsign is his."),
+    ("Dick Rutan - KB6LQS (SK)", "Flew Voyager round the world without refuelling "
+     "in 1986 and kept in touch with hams along the way."),
+    ("Owen Garriott - W5LFL (SK)", "The astronaut who made the first amateur "
+     "contacts from space, from Columbia in 1983."),
+    ("Joe Taylor - K1JT", "Nobel laureate in physics for the binary pulsar; then "
+     "wrote WSJT, WSPR and FT8, and changed weak-signal radio for everybody."),
+    ("Steve Wozniak - ex WA6BND", "Co-founder of Apple; licensed as a boy in "
+     "the 1960s, by his own account in 'iWoz'."),
+    ("Cliff Stoll - K7TA", "The astronomer who caught a KGB hacker in 'The "
+     "Cuckoo's Egg' is a ham and a maker of Klein bottles."),
+]
+
+DECKS = {"history": CARDS, "quotes": QUOTES, "hams": HAMS}
+
+
+def draw(rng=None, avoid=None, deck="history"):
     """One card, not the last one shown if that can be helped."""
     rng = rng or random
-    pool = [c for c in CARDS if c[0] != (avoid or "")] or CARDS
+    cards = DECKS.get(deck) or CARDS
+    pool = [c for c in cards if c[0] != (avoid or "")] or cards
     text, about = rng.choice(pool)
-    return {"text": text, "about": about}
+    return {"text": text, "about": about, "deck": deck if cards is not CARDS or deck == "history" else "history"}
 
 
-def count():
-    return len(CARDS)
+def count(deck="history"):
+    return len(DECKS.get(deck) or CARDS)

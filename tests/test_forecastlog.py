@@ -117,6 +117,33 @@ capped = F.adjustment(days=3, now=wild)
 check("six megahertz is a broken station or a different sky",
       (capped["dark"]["capped"], capped["dark"]["applied"], capped["dark"]["measured_bias"]), (True, 0.0, 6.0))
 
+print("\nthe calibration: a factor by month and sky, fitted from the bare year")
+table = F.fit_calibration(16, NOW, build="t", stations=["AL945"], acknowledgement="GIRO")
+mon = NOW.strftime("%m")
+prev = (NOW.replace(day=1) - timedelta(days=1)).strftime("%m")
+check("the months in the record are there", sorted(table["months"]), sorted({mon, prev}))
+cell = table["months"][mon]["dark"]
+check("  night: the sondes read 13.8 against a 12.0 model - a factor of 1.15",
+      (cell["measured"], cell["factor"], cell["applied"]), (1.15, 1.15, True))
+check("  day: 17.8 against 18.0", table["months"][mon]["lit"]["measured"], round(17.8 / 18.0, 3))
+check("  each cell says how many measured hours it stands on", cell["n"] >= F.CAL_MIN_HOURS, True)
+check("  the table names its build, stations and terms",
+      (table["build"], table["stations"], table["acknowledgement"]), ("t", ["AL945"], "GIRO"))
+check("a factor for an hour comes from its month and sky",
+      F.factor_for(table, NOW, "dark"), 1.15)
+check("  and is 1.0 where the table is silent",
+      (F.factor_for(table, NOW.replace(month=3 if NOW.month != 3 else 4), "dark"), F.factor_for(None, NOW, "dark")), (1.0, 1.0))
+held = F.fit_calibration(16, NOW, keep=lambda target: int(target[8:10]) <= 15)
+check("  a fit can hold days back, to be tested on", all(v["n"] <= cell["n"] for m in held["months"].values() for v in m.values()), True)
+path = F.save_calibration(table)
+check("  saved under the ledger and read back", (path.name, F.calibration()["months"][mon]["dark"]["factor"]), ("calibration.json", 1.15))
+cal_out = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, calibration=table)
+plain0 = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0)
+check("  the model takes the factor where the reading has let go",
+      any(abs(c["muf"] / p["muf"] - 1.15) < 0.03 for c, p in zip(cal_out[12:], plain0[12:]) if p["regime"] == "dark" and p["muf"]), True)
+check("  and leaves the anchored hour to the reading", cal_out[0]["muf"], plain0[0]["muf"])
+(F.LEDGER / F.CALIBRATION_FILE).unlink()
+
 print("\nthe model takes the learned bias where the reading has let go")
 plain = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0)
 lifted = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, bias={"dark": 1.8, "lit": -0.2})
