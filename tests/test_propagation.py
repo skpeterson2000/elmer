@@ -144,6 +144,23 @@ def main():
         key=lambda h: h["score"])["day"], True)
     check("  and the sun is up at local noon", noon["day"], True)
 
+    print("\n-- one line through the MUF, not a cliff --")
+    # 86 at 0.99 of the MUF and 34 at 1.01 is what this used to say, and on a
+    # night with the measured MUF sitting on 20 m the band read Excellent,
+    # Poor, Excellent, Poor from hour to hour as the model breathed round it.
+    steps = [P.band_score(14.0, 14.0 / r, -30.0, 1.0)["score"]
+             for r in (0.80, 0.85, 0.90, 0.95, 0.99, 1.00, 1.01, 1.05, 1.10, 1.20, 1.30, 1.34)]
+    check("the score falls without a jump from the peak to nothing",
+          all(a >= b for a, b in zip(steps, steps[1:])), True)
+    check("  and by nothing like fifty points between neighbours near the MUF",
+          max(abs(a - b) for a, b in zip(steps[3:8], steps[4:9])) <= 12, True)
+    check("  half its peak at the MUF itself - a coin toss for a full hop",
+          P.band_score(14.0, 14.0, -30.0, 1.0)["score"], 50)
+    check("  and shut a third above it", steps[-1], 0)
+    check("  with the words matching",
+          "coin toss" in P.band_score(14.0, 14.0, -30.0, 1.0)["why"], True)
+    check("  a band well under the MUF is where it was", P.band_score(7.0, 14.2, -30.0, 1.0)["score"] >= 84, True)
+
     print("\n-- a measurement beats a model about the level --")
     plain = P.outlook(14.0, 44.98, -93.27, sfi=110, start=start)
     measured = round(plain[0]["muf"] * 1.4, 1)
@@ -151,8 +168,12 @@ def main():
                          muf_now=measured)
     check("the curve is scaled to meet what was measured",
           abs(anchored[0]["muf"] - measured) < 0.6, True)
-    check("  and every hour is scaled with it",
-          abs(anchored[12]["muf"] / plain[12]["muf"] - 1.4) < 0.05, True)
+    check("  and the next hour with it",
+          abs(anchored[1]["muf"] / plain[1]["muf"] - 1.4) < 0.05, True)
+    # Half a day on, the reading is history and the model speaks alone: the
+    # same sun angle on the far side of a night is not the same sky.
+    check("  but not the far side of the day",
+          abs(anchored[12]["muf"] / plain[12]["muf"] - 1.0) < 0.05, True)
     # A reading that disagrees with the model by more than the model could
     # plausibly be wrong by is a different sky, or a broken station.
     check("a wild reading is bounded rather than believed",
