@@ -165,6 +165,9 @@ def main():
     ap.add_argument("--fetch-nifog", action="store_true",
                     help="read the interoperability channels out of the current "
                          "NIFOG and cache them")
+    ap.add_argument("--index-library", nargs="?", const=True, metavar="all",
+                    help="index the manuals in data/library/ (new and changed "
+                         "ones; say 'all' to redo every one)")
     ap.add_argument("--adopt", action="store_true",
                     help="give a copied install a link to the repository so it "
                          "can update itself (./install.sh --connect asks first "
@@ -434,6 +437,32 @@ def main():
             print(f"      {group['band']:8s} {len(group['channels']):2d} channels")
         print("\n  None of these is amateur spectrum. Monitor freely; transmit")
         print("  only where you are licensed to.\n")
+        return
+
+    if args.index_library:
+        from elmer import library
+        force = str(args.index_library).lower() == "all"
+        books = library.shelf()
+        print(f"\n  {len(books)} PDF{'s' if len(books) != 1 else ''} on the "
+              f"shelf at {library.SHELF}")
+        if not books:
+            print("  Copy your manuals in - a radio's, the Antenna Book, "
+                  "anything you own as a PDF - and run this again.\n")
+            return
+        report = library.refresh(force=force)
+        for name in report["indexed"]:
+            print(f"      indexed  {name}")
+        for name in report["kept"]:
+            print(f"      kept     {name}")
+        for name in report["dropped"]:
+            print(f"      dropped  {name} (no longer on the shelf)")
+        for name, why in report["failed"].items():
+            print(f"      FAILED   {name}: {why}")
+        for row in library.catalogue():
+            if row["indexed"]:
+                print(f"  {row['title'][:48]:48s} {row['pages']:5d} pages  "
+                      f"{row['bookmarks']:4d} bookmarks")
+        print()
         return
 
     if args.adopt:

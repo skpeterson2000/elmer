@@ -53,6 +53,11 @@ venv/
 # demand, so a copy landing in the working directory is an artefact, not source.
 /*.pdf
 
+# The operator's own manuals, and the index ELMER built of them. The makers'
+# and the ARRL's to publish, this operator's to own; kept for the campsite
+# with no signal, and never anybody else's to check out.
+data/library/
+
 # The shelf of things this unit has printed. Every one of them is rebuilt by
 # the button that made it, so it is output rather than anybody's data - but it
 # is this operator's output, and it is not the app's.

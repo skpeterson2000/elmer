@@ -481,6 +481,47 @@ covering 800 km serves a question about 300. It used to match the radius
 exactly, which meant a trip prepared before leaving was never found again,
 since ELMER asks with a different radius for every band and antenna.
 
+## The library: your own manuals, to the page
+
+A radio's manual is three hundred pages and the thing you need from it at a
+campsite is one line on one of them — the menu number for the CW pitch, the
+range the tuner will match. ELMER cannot ship anybody's manual and would not
+want to; they are the makers' and the ARRL's. What it does is read the copies
+you already own, once, and afterwards answer *where does it say that?* with
+the file, the page and the lines around it — from your copy, on this machine,
+with or without a signal.
+
+Copy PDFs into `data/library/` (or hand one over from a phone with *Add a
+manual* on the Library page) and the next visit to **Library** indexes them:
+`pdftotext` for the words on every page, the publisher's own bookmarks for the
+chapters, `pdfinfo` for the title. The search box finds the pages that carry
+every word you typed — quote a phrase to keep it whole — and shows each with
+its chapter and a snippet, linked to open the PDF at that page. Under it,
+*ELMER's topics in your books*: antennas, propagation, CW, digital modes,
+repeaters, power, safety, rules, satellites, menus, test equipment — each
+listing the chapters on the shelf whose bookmark titles use those words, and
+the antenna calculator carries the antenna ones under its advice. `./elmer.py
+--index-library` does the reading from the terminal; `--doctor` says what is
+on the shelf and whether it has been read.
+
+Everything about it is deterministic, on purpose. The text is what
+`pdftotext` read; the chapters are the bookmarks the publisher put in the
+file; a search finds the pages that contain the words. Nothing is stemmed —
+*tuner* does not find *tuning* — nothing is summarised, and nothing is
+inferred, because a program whose numbers are measured does not start guessing
+the moment it opens a book. Bundling a language model to "read the manuals"
+was considered and declined for exactly that reason: on a Pi it would be the
+first thing in ELMER that answers confidently past what it knows, and a wrong
+menu number handed over with confidence is worse than none. A manual with no
+bookmarks says so and search still reaches into it; a word that is not in the
+text is not found. Page numbers are the file's own — the 47th page of the PDF,
+which is not always what the publisher printed in the corner — and are
+labelled as such.
+
+The shelf and its index are yours: `data/library/` is ignored by git, so
+nothing you own is carried into anybody else's checkout, and an index is
+rebuilt whenever the file changes.
+
 ## Showing the working
 
 ELMER does not ship antenna plans. There are plenty of those, and a plan
@@ -1933,6 +1974,7 @@ jobs rather than three degrees of one.
 ./elmer.py --update-check     say whether an update is waiting, change nothing
 ./elmer.py --adopt            let a copied install update itself in future
 ./elmer.py --fetch-nifog      read the interoperability channels from the NIFOG
+./elmer.py --index-library    read the manuals in data/library/ (all: redo every one)
 ./elmer.py --gps              ask the GPS where the station is
 ./elmer.py --gpsd 192.168.1.5 read the GPS on another machine (off goes back
                               to the typed QTH)

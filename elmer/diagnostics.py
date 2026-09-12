@@ -252,13 +252,34 @@ def check_templates():
 
 
 def check_tools():
-    have = [t for t in ("pdftotext", "pdftoppm", "pdfimages") if shutil.which(t)]
-    if len(have) == 3:
-        _line(OK, "poppler tools", "present (needed only for --build)")
+    want = ("pdftotext", "pdftoppm", "pdfimages", "pdftohtml", "pdfinfo")
+    have = [t for t in want if shutil.which(t)]
+    if len(have) == len(want):
+        _line(OK, "poppler tools", "present (for --build and the library)")
     else:
         _line(WARN, "poppler tools", "missing " +
-              ", ".join(t for t in ("pdftotext", "pdftoppm", "pdfimages")
-                        if t not in have) + " - rebuilding pools will fail")
+              ", ".join(t for t in want if t not in have) +
+              " - rebuilding pools or reading manuals will fail")
+    return True
+
+
+def check_library():
+    """The operator's manuals, and whether ELMER has read them."""
+    from . import library
+    books = library.shelf()
+    if not books:
+        _line(OK, "library", f"nothing on the shelf at {library.SHELF} - copy "
+              "your manuals in and ELMER will index them")
+        return True
+    rows = library.catalogue()
+    stale = [r["name"] for r in rows if r["stale"]]
+    pages = sum(r["pages"] or 0 for r in rows if r["indexed"])
+    if stale:
+        _line(WARN, "library", f"{len(rows)} on the shelf, {len(stale)} to "
+              f"(re)index - open the Library page or run --index-library")
+    else:
+        _line(OK, "library", f"{len(rows)} book{'s' if len(rows) != 1 else ''}, "
+              f"{pages} pages indexed")
     return True
 
 
@@ -581,7 +602,8 @@ def doctor(port=5000):
 
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
-        check_templates(), check_tools(), check_kiosk(), check_launcher(),
+        check_templates(), check_tools(), check_library(), check_kiosk(),
+        check_launcher(),
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
         check_internet(), check_start(), check_server(port),

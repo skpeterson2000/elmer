@@ -2700,7 +2700,32 @@ async function antennaAdvice(mhz, use, kind, quiet) {
         : 'A starting point, not a rule &mdash; good enough to make contacts ' +
           'with, which is what you need before you have the experience to ' +
           'disagree with it.') +
-      ' The dimensions below are now set to it.</p>';
+      ' The dimensions below are now set to it.</p>' +
+    '<div id="an-library" hidden></div>';
+  libraryPointers('antennas', document.getElementById('an-library'));
+}
+
+/* Where this is in the operator's own books, if any are on the shelf. Matched
+   from the publisher's bookmarks, so it is the chapter's own title and page,
+   not a reading of it - and nothing at all when the shelf is empty, because
+   an empty line is a nag. */
+let libPointerCache = {};
+async function libraryPointers(topic, box) {
+  if (!box) return;
+  try {
+    if (!libPointerCache[topic]) libPointerCache[topic] = await api('/api/library/pointers?topic=' + topic);
+  } catch (e) { return; }
+  const d = libPointerCache[topic];
+  if (!d || !d.pointers || !d.pointers.length) return;
+  const seen = new Set();
+  const rows = d.pointers.filter(p => p.level === 0 || d.pointers.length < 8)
+    .filter(p => { const k = p.book + p.page; if (seen.has(k)) return false; seen.add(k); return true; })
+    .slice(0, 8);
+  box.hidden = false;
+  box.innerHTML = '<p class="tiny muted" style="margin:.5rem 0 0"><b>In your library:</b> ' +
+    rows.map(p => escapeHTML(p.book_title) + ', <a href="/library/book/' + encodeURIComponent(p.book) +
+      '#page=' + p.page + '" target="_blank">' + escapeHTML(p.title) + '</a> (p. ' + p.page + ')').join(' &middot; ') +
+    '. <a href="/library">Search it</a>.</p>';
 }
 
 /* Two different questions, and they had been sharing one button. "Evaluate

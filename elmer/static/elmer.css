@@ -58,7 +58,7 @@ p { margin: 0 0 .8rem; }
      Only as much as the corner actually holds: reserving for an Exit button
      that is not there leaves a hole in the bar on every machine that is not
      a kiosk. */
-  padding: .7rem 9rem .7rem 1.2rem;
+  padding: .7rem 7.6rem .7rem 1.2rem;
   background: linear-gradient(180deg, #131a23, #0f151d);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 40;
@@ -79,10 +79,14 @@ p { margin: 0 0 .8rem; }
 }
 .brand-sub { font-size: .68rem; color: var(--dimmer); letter-spacing: .06em; margin-top: 3px; }
 
-.nav { display: flex; gap: .3rem; margin-right: auto; flex-wrap: wrap; }
+.nav { display: flex; gap: .15rem; margin-right: auto; flex-wrap: wrap; }
+/* Ten tabs at 1024 wide, beside the brand and short of the corner, is a
+   tight row - about 730 px for the lot, with the corner's reservation cut
+   to what the Station chip actually measures. The padding and a hair of
+   the type size are what give, not the words. Library made it ten. */
 .nav a {
-  color: var(--dim); padding: .34rem .7rem; border-radius: 7px;
-  font-size: .88rem; border: 1px solid transparent;
+  color: var(--dim); padding: .34rem .42rem; border-radius: 7px;
+  font-size: .82rem; border: 1px solid transparent; white-space: nowrap;
 }
 .nav a:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
 .nav a.on { color: var(--amber); border-color: var(--line-2); background: var(--panel); }
@@ -154,13 +158,13 @@ p { margin: 0 0 .8rem; }
  * The bar is the same bar at every width, and on the 1024x600 touchscreen
  * these are built for it was taking a third of the screen before a single
  * question appeared. What it spends that on is a tagline nobody navigates by
- * and generous padding on nine nav items, so those are what get trimmed -
+ * and generous padding on ten nav items, so those are what get trimmed -
  * ahead of anything anybody came here to read. */
 @media (max-width: 1280px) {
   .topbar { gap: 1rem; }
   .brand-sub { display: none; }
-  .nav { gap: .2rem; }
-  .nav a { padding: .3rem .52rem; font-size: .84rem; }
+  .nav { gap: .15rem; }
+  .nav a { padding: .3rem .42rem; font-size: .82rem; }
   .status { gap: .6rem; }
 }
 /* Narrower still, the word goes and the corner hands back the room it held.
