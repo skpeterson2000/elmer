@@ -151,11 +151,16 @@ def analyse(r, x, line, mhz, feet, tx_watts=100.0):
                  "gamma_deg": round(math.degrees(cmath.phase(g_load)), 1),
                  "return_loss_db": (round(return_loss_db(g_load), 2)
                                     if abs(g_load) else None),
-                 "x": round(g_load.real, 5), "y": round(g_load.imag, 5)},
+                 # The reflection coefficient's parts, for the dot on the
+                 # chart. Named apart from the impedance's: this used to be
+                 # "x" too, and the second "x" silently overwrote the
+                 # reactance, so the notes read "73.0 + j0.2 ohms" for an
+                 # antenna that was +j40, and the match test always passed.
+                 "gx": round(g_load.real, 5), "gy": round(g_load.imag, 5)},
         "shack": {"r": round(z_in.real, 2), "x": round(z_in.imag, 2),
                   "swr": round(swr_shack, 3) if swr_shack != float("inf") else None,
                   "gamma_mag": round(abs(g_in), 4),
-                  "x": round(g_in.real, 5), "y": round(g_in.imag, 5)},
+                  "gx": round(g_in.real, 5), "gy": round(g_in.imag, 5)},
         "loss": {
             "matched_db": round(matched, 3),
             "total_db": round(total, 3),

@@ -82,6 +82,24 @@ try:
         got = _browser.evaluate(f"http://127.0.0.1:{PORT}{path}", f"typeof {name}",
                                 settle=1.5, port=9341)
         check(f"{path} defines {name}()", got, "function")
+
+    # Every choice in the antenna selector, through the calculator. The
+    # screwdriver was in the selector and the advice and nowhere else, and
+    # died reading .shape of undefined the first time anybody picked it -
+    # which the kiosk's log recorded twice before anyone read the log.
+    print("\nevery antenna type calculates")
+    got = _browser.evaluate(
+        f"http://127.0.0.1:{PORT}/lab",
+        "(() => { const out = {}; const sel = document.getElementById('an-type');"
+        " for (const o of [...sel.options].map(o => o.value)) { sel.value = o;"
+        "  try { antennaFields(o); calcAnt(); out[o] = 'ok'; }"
+        "  catch (e) { out[o] = String(e).slice(0, 80); } } return JSON.stringify(out); })()",
+        settle=1.5, port=9341)
+    import json as _json
+    results = _json.loads(got or "{}")
+    check("the selector has its antennas", len(results) >= 12, True)
+    for kind, verdict in sorted(results.items()):
+        check(f"  {kind or '(suggest)'}", verdict, "ok")
 finally:
     server.terminate()
     try:

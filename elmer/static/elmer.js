@@ -86,8 +86,13 @@ async function api(url, options) {
       throw err;
     }
     reportError('http', url + ' -> ' + res.status, { stack: body.slice(0, 500) });
-    banner('The server returned ' + res.status + ' for ' + url + '.');
-    throw new Error(url + ' -> ' + res.status);
+    /* A 500 carries a reference the log line has too, so the operator can
+       say "e-3f9a" and somebody can find the traceback in one grep. */
+    let ref = '';
+    try { ref = (JSON.parse(body) || {}).ref || ''; } catch (err) { /* not JSON */ }
+    banner('The server returned ' + res.status + ' for ' + url + '.' +
+           (ref ? ' Reference ' + ref + ' - it is in the log under that.' : ''));
+    throw new Error(url + ' -> ' + res.status + (ref ? ' (' + ref + ')' : ''));
   }
   return res.json();
 }

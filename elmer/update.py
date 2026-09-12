@@ -483,7 +483,7 @@ def offer_at_startup(status=None, seconds=20, ask=None):
 
     print(f"\n  An ELMER update is waiting: {n} commit{'' if n == 1 else 's'}"
           + (f', latest "{newest}"' if newest else ""))
-    print(f"  Install it now? It takes a moment and ELMER restarts into it.")
+    print("  Install it now? It takes a moment and ELMER restarts into it.")
     sys.stdout.write(f"  [Y/n, or nothing for no in {seconds}s] ")
     sys.stdout.flush()
 

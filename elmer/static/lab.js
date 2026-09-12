@@ -858,6 +858,12 @@ function feedNote(type, slopeDeg) {
   return html;
 }
 
+/* A screwdriver is a loaded whip whose coil moves: the same short radiator,
+   the same radiation resistance, the same maths. It has its own entry in the
+   selector and in the advice, and used to fall through to the wire table -
+   which has no such row - and die reading .shape of undefined. */
+function isWhip(type) { return type === 'whip' || type === 'screwdriver'; }
+
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
@@ -865,12 +871,12 @@ function antennaFields(type) {
   /* A vertical is the same in every direction, so asking which way it is laid
      would be a question with no answer - which is exactly why we call it
      omnidirectional. */
-  show('.an-when-heading', (ANTENNAS[type] || {}).shape !== 'vert' && type !== 'whip');
+  show('.an-when-heading', (ANTENNAS[type] || {}).shape !== 'vert' && !isWhip(type));
   /* A straight wire on one support can be slung at an angle; a V already has
      its own droop and a beam has a boom. */
   show('.an-when-slope', type === 'efhw' || type === 'dipole');
-  show('.an-when-whip', type === 'whip');
-  show('.an-when-height', type !== 'whip');
+  show('.an-when-whip', isWhip(type));
+  show('.an-when-height', !isWhip(type));
   show('.an-when-v', type === 'invertedv');
   show('.an-when-radials', type === 'groundplane');
   show('.an-when-nvis', NVIS_TYPES.indexOf(type) >= 0);
@@ -1047,7 +1053,7 @@ function calcAnt() {
     notes.push('A Yagi pulls the driven element impedance down to around ' + z +
       '&nbsp;&Omega;, so it needs a gamma, hairpin or beta match to reach 50&nbsp;&Omega;.');
     notes.push(feedNote('yagi', 0));
-  } else if (type === 'whip') {
+  } else if (isWhip(type)) {
     shape = 'vert';
     gainRef = 'over the vehicle body';
     const hFt = num('an-wh'), loss = num('an-loss'), hat = num('an-hat');
@@ -1069,7 +1075,11 @@ function calcAnt() {
       '&nbsp;dB</b> before the signal ever leaves.');
     notes.push('Resonating it needs roughly <b>' + L.toFixed(1) + '&nbsp;&micro;H</b> of ' +
       'loading. A coil at the centre or top of the whip works better than one at the ' +
-      'base, because it sits where the current still is.');
+      'base, because it sits where the current still is.' +
+      (type === 'screwdriver'
+        ? ' On a screwdriver that is the coil the motor winds in and out: it finds this ' +
+          'value for you on every band, and the efficiency above is what it finds it at.'
+        : ''));
     if (hat > 1) notes.push('The capacity hat raises the effective height, which is why ' +
       'it buys efficiency for no extra length &mdash; it is the cheapest improvement here.');
     notes.push('This is why mobile HF is hard: at ' + f.toFixed(3) + '&nbsp;MHz the whip is only ' +
@@ -1201,7 +1211,7 @@ function calcAnt() {
 
   /* Height above ground sets the takeoff angle for anything horizontal. */
   let takeoff = null;
-  if (type !== 'whip') {
+  if (!isWhip(type)) {
     const hFt = num('an-h');
     if (hFt > 0 && shape === 'wire') {
       // An inverted-V radiates from a current-weighted mean height below its
@@ -1316,7 +1326,7 @@ function calcAnt() {
       'measured against, and where, is worth nothing at all.</p>' +
       '</div>');
 
-  const heightFt = type === 'whip' ? null : num('an-h');
+  const heightFt = isWhip(type) ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
                 rows['Radiator'] || 0;
   const slope = (type === 'efhw' || type === 'dipole') ? num('an-slope') : 0;
@@ -1345,11 +1355,11 @@ function calcAnt() {
     label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
     legFt: legFt, droop: type === 'invertedv' ? num('an-droop') : 0,
-    whipFt: type === 'whip' ? num('an-wh') : null,
+    whipFt: isWhip(type) ? num('an-wh') : null,
     description: ((ANTENNAS[type] || {}).label ||
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
                                    : 'loaded mobile whip')) +
-                 (type === 'whip' ? ' on a vehicle'
+                 (isWhip(type) ? ' on a vehicle'
                   : heightFt > 0 ? ' at ' + heightFt.toFixed(0) + ' ft' : ''),
   };
   drawAntenna(shape, rows, type);
@@ -1508,7 +1518,7 @@ function drawAntenna(shape, rows, type) {
         '<circle cx="310" cy="' + base + '" r="4" fill="#58a6ff"/>' +
         lbl(300, base - 8, 'feed', 'end') +
         lbl(310 + dx + 12, base + dy, dr.toFixed(0) + '\u00b0 radials', 'start');
-    } else if (type !== 'whip') {
+    } else if (!isWhip(type)) {
       body += '<line x1="180" y1="' + (g + 4) + '" x2="440" y2="' + (g + 4) +
         '" stroke="#39d3d8" stroke-width="2"/>' + lbl(460, g + 8, 'radials', 'start');
     } else {
@@ -1617,7 +1627,7 @@ function exposurePrefill(a) {
   const horizontalWire = ['dipole', 'loop', 'efhw'];
   const vertical = ['quarter', 'fiveeighth', 'jpole', 'groundplane'];
 
-  if (a.type === 'whip') {
+  if (isWhip(a.type)) {
     return {controlled: 3, uncontrolled: 6,
             why: 'a vehicle whip sits within a few feet of the people in the car, ' +
                  'so the distances start at 3 ft for occupants and 6 ft for someone ' +
@@ -2912,8 +2922,8 @@ function smithPlot(d, measured) {
   const pts = d.path.map(p => smXY(p.x, p.y).map(n => n.toFixed(1)).join(',')).join(' ');
   g.push('<polyline points="' + pts + '" fill="none" stroke="#58a6ff" ' +
          'stroke-width="2" opacity="0.9"/>');
-  const [lx, ly] = smXY(d.load.x, d.load.y);
-  const [sx, sy] = smXY(d.shack.x, d.shack.y);
+  const [lx, ly] = smXY(d.load.gx, d.load.gy);
+  const [sx, sy] = smXY(d.shack.gx, d.shack.gy);
   g.push('<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) +
          '" r="5.5" fill="#f85149" stroke="#0d1117" stroke-width="1.5"/>');
   g.push('<text x="' + (lx + 9).toFixed(1) + '" y="' + (ly - 7).toFixed(1) +

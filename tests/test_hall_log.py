@@ -98,6 +98,14 @@ try:
     check("  the unlicensed player's miss", classes["none"]["miss_rate"], 1.0)
     check("  the Extra's time, raw", classes["Extra"]["median_ms"], 2100)
     conn.close()
+
+    print("\nand the log can be read from the screen in front of the unit")
+    r = client.get("/api/log?level=WARNING&lines=100")
+    check("the local screen may read the tail", (r.status_code, r.get_json()["level"]), (200, "WARNING"))
+    check("  only warnings and errors come back",
+          all((" WARNING " in ln or " ERROR " in ln or "UNHANDLED" in ln) for ln in r.get_json()["lines"]), True)
+    r = client.get("/api/log", environ_overrides={"REMOTE_ADDR": "192.168.1.77"})
+    check("  a phone on the LAN may not", r.status_code, 403)
 finally:
     netcontrol.close_net()
 

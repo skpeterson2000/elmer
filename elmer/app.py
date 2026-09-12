@@ -3864,10 +3864,10 @@ def _party_standings(games, link, running):
     """
     if link is None:
         return None
-    for game in games:
-        if game.get("url") == link.url and game.get("board"):
-            board = game["board"]
-            return {"name": board.get("name") or game.get("name") or "The hall",
+    for entry in games:            # not `game`: that is a module here
+        if entry.get("url") == link.url and entry.get("board"):
+            board = entry["board"]
+            return {"name": board.get("name") or entry.get("name") or "The hall",
                     "standings": board.get("standings") or [],
                     "units": board.get("units_present", 0),
                     "players": board.get("players", 0)}
@@ -4724,6 +4724,46 @@ def api_report():
              "redacted" if redacted else "with station detail")
     return jsonify({"path": str(path), "redacted": redacted, "text": text,
                     "contact": bugreport.CONTACT})
+
+
+@app.route("/api/log")
+def api_log():
+    """The tail of this unit's log, for the screen in front of it.
+
+    A kiosk has no terminal. When something has gone wrong the page says
+    "the details are in data/elmer.log", and this is how the person at the
+    screen reads them without one. Local requests only, like the report,
+    because the log carries addresses and callsigns; `level` narrows it to
+    the lines worth reading - warnings and errors - and `ref` finds one
+    fault by its reference.
+    """
+    if not _is_local(request.remote_addr):
+        abort(403)
+    try:
+        lines = max(20, min(2000, int(request.args.get("lines") or 300)))
+    except ValueError:
+        lines = 300
+    level = (request.args.get("level") or "").upper()
+    ref = (request.args.get("ref") or "").strip()[:12]
+    tail = bugreport._tail(bugreport.LOG, lines)
+    if ref:
+        # The traceback follows its header line without a timestamp, so
+        # take the header and everything up to the next stamped line.
+        out, taking = [], False
+        for ln in tail:
+            stamped = len(ln) > 19 and ln[4] == "-" and ln[10] == " "
+            if ref in ln:
+                taking = True
+            elif stamped and taking:
+                taking = False
+            if taking:
+                out.append(ln)
+        tail = out
+    elif level in ("WARNING", "ERROR"):
+        want = (" WARNING ", " ERROR ") if level == "WARNING" else (" ERROR ",)
+        tail = [ln for ln in tail if any(w in ln for w in want) or "UNHANDLED" in ln]
+    return jsonify({"path": str(bugreport.LOG), "lines": tail,
+                    "level": level or "ALL", "ref": ref})
 
 
 @app.route("/api/update")

@@ -265,6 +265,9 @@ class Net:
                                   f"second net")
                 unit = Unit(unit_id, name or unit_id, players)
                 self.units[unit_id] = unit
+                log.info("net: table %s (%s) checked in with %d player%s - %d table%s now",
+                         unit.name, unit_id, players, "" if players == 1 else "s",
+                         len(self.units), "" if len(self.units) == 1 else "s")
                 if self.shootout is not None and not self.shootout.over():
                     self.shootout.admit(unit_id)
             unit.last_seen = _now()
@@ -354,6 +357,8 @@ class Net:
             dead = [uid for uid, u in self.units.items()
                     if u.quiet_for > DROP_AFTER]
             for uid in dead:
+                log.info("net: table %s (%s) has been silent %d s - forgotten",
+                         self.units[uid].name, uid, int(self.units[uid].quiet_for))
                 self._forget_unit(uid)
             return len(dead)
 
@@ -654,6 +659,20 @@ class Net:
                     tournament.block_of(self.round_number))
             summary["section"] = (self.round.get("question") or {}).get("section") or ""
             self.history.append(summary)
+            # The evening's record, one line a round: what the organiser
+            # asks for afterwards and the only place it is written in words.
+            people = [r for r in everyone if not r.get("bot")]
+            log.info("net round %d closed: %s, %d of %d tables reported, %d people "
+                     "answered, %d right, first %s%s%s",
+                     summary["number"], self.round.get("question_id"),
+                     summary.get("units_reported", len(self.results)),
+                     len(self.present_units()), len(people),
+                     sum(1 for r in people if r["correct"]),
+                     (right[0]["name"] + " at " + right[0].get("unit_name", "?")) if right else "nobody",
+                     (", table win " + summary["winner_name"]) if summary.get("winner_name") else "",
+                     (", block %d to %s" % (summary["block_won"]["block"],
+                                            summary["block_won"].get("name") or "a tie"))
+                     if summary.get("block_won") else "")
             # What the listeners get is the summary plus every answer, not
             # only the ones that placed: the log wants the misses too, and
             # so does the difficulty measure. It is a separate dict because

@@ -183,7 +183,6 @@ def check_pools():
 
 def check_figures():
     directory = ROOT / "data" / "figures"
-    count = sum(1 for _ in directory.rglob("*")) if directory.is_dir() else 0
     files = [p for p in directory.rglob("*") if p.is_file()] if directory.is_dir() else []
     if not files:
         _line(WARN, "diagrams", "none extracted - figure questions will show no image")
