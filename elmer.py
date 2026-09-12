@@ -753,6 +753,10 @@ def main():
         # fetched once now so the Lab and the band plan open on a measurement
         # rather than a textbook layer. Network allowed to be absent.
         threading.Thread(target=prefetch_sky, daemon=True, name="elmer-sky").start()
+        # The weekly field report, if the operator has switched it on. The
+        # thread looks at the clock once an hour and does nothing otherwise.
+        from elmer import db as _fdb, fieldreport
+        fieldreport.watch(_fdb.connect)
         # Windows cannot signal itself awake, so stopping the server there
         # needs one connection to this port to break the accept loop. See
         # elmer.host.stop_main_thread.

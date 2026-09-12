@@ -50,8 +50,15 @@ function renderUpdate(d) {
         '<button class="btn sm" data-report="1">Report a problem</button>' +
         '<span class="tiny muted">Writes a file with the versions, the recent ' +
         'errors and the tail of the log &mdash; with your callsign, QTH and ' +
-        'network addresses taken out. Nothing is sent anywhere.</span>' +
+        'network addresses taken out. Nothing is sent until you press send.</span>' +
       '</div><div id="report-out"></div>' +
+      /* Mail home: the unit's own outgoing-mail settings, and the weekly
+         field report, which is off until switched on and says what it
+         carries. Both local-only, like the report. */
+      '<details class="derivation" id="mail-fold"><summary class="tiny muted" ' +
+        'style="cursor:pointer">Mail home &mdash; reports to the project</summary>' +
+        '<div id="mail-out" class="tiny muted" style="margin:.4rem 0">Loading&hellip;</div>' +
+      '</details>' +
       /* The log itself, for a screen with no terminal behind it. Loaded when
          opened, warnings and errors first, because that is what somebody
          standing at a kiosk that just said "reference e-3f9a" wants. */
@@ -228,8 +235,12 @@ document.addEventListener('click', async e => {
       '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
         escapeHTML(d.path) + '</span>' +
         (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.' : '') +
-        (d.contact ? ' Send it to <span class="mono">' + escapeHTML(d.contact) +
-                     '</span> if you would like somebody to look at it.' : '') +
+        (d.contact ? (d.mail
+            ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>'
+            : ' Send it to <span class="mono">' + escapeHTML(d.contact) +
+              '</span> if you would like somebody to look at it &mdash; or set up ' +
+              'mail below and the button appears here.') : '') +
+        '<span id="report-sent"></span>' +
       '</p>' +
       '<details><summary class="tiny muted" style="cursor:pointer">' +
         'Read it before you send it</summary>' +
@@ -240,6 +251,120 @@ document.addEventListener('click', async e => {
   }
   btn.disabled = false;
 });
+
+/* The press that sends: writes the report again (so what goes is what was
+   just read) and mails it through the unit's own settings. */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-report-send]');
+  if (!btn) return;
+  btn.disabled = true;
+  const said = document.getElementById('report-sent');
+  try {
+    const d = await api('/api/report', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({station: false, send: true}),
+    });
+    if (said) said.innerHTML = d.sent
+      ? ' <span style="color:var(--green)">Sent.</span>'
+      : ' <span class="warntext">Not sent: ' + escapeHTML(d.detail || '') + '</span>';
+  } catch (err) {
+    if (said) said.innerHTML = ' <span class="warntext">Could not send.</span>';
+  }
+  btn.disabled = false;
+});
+
+/* ---- mail home: the outgoing-mail settings and the weekly field report */
+async function renderMail() {
+  const box = document.getElementById('mail-out');
+  if (!box) return;
+  let m, f;
+  try {
+    [m, f] = await Promise.all([api('/api/mail'), api('/api/fieldreport')]);
+  } catch (err) { box.textContent = 'Could not read the mail settings.'; return; }
+  const s = f.settings || {};
+  const last = s.last_result;
+  box.innerHTML =
+    '<p class="tiny" style="margin:.2rem 0 .5rem;color:var(--text)">Reports go to <span class="mono">' +
+      escapeHTML(m.contact) + '</span>, through your own outgoing mail server &mdash; the ' +
+      'host, port and login you would give any mail program. ELMER carries no mail account; ' +
+      'these are kept in <span class="mono">data/mail.json</span> on this unit only.</p>' +
+    '<div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center">' +
+      '<input class="mono" id="mail-host" placeholder="smtp.example.com" value="' + escapeHTML(m.host || '') + '" style="width:12rem">' +
+      '<input class="mono" id="mail-port" placeholder="587" value="' + escapeHTML(m.port || '') + '" style="width:4.5rem">' +
+      '<select id="mail-sec">' + ['starttls', 'ssl', 'none'].map(x =>
+        '<option value="' + x + '"' + ((m.security || 'starttls') === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
+      '<input class="mono" id="mail-user" placeholder="login" value="' + escapeHTML(m.user || '') + '" style="width:12rem">' +
+      '<input class="mono" id="mail-pass" type="password" placeholder="' + (m.has_password ? 'password (kept)' : 'password') + '" style="width:10rem">' +
+      '<input class="mono" id="mail-from" placeholder="from: you@example.com" value="' + escapeHTML(m.sender || '') + '" style="width:14rem">' +
+      '<button class="btn sm" id="mail-save">Save</button>' +
+      '<button class="btn sm ghost" id="mail-test"' + (m.configured ? '' : ' disabled') + '>Send a test</button>' +
+      (m.configured ? '<button class="btn sm ghost" id="mail-forget">Forget</button>' : '') +
+      '<span id="mail-said"></span>' +
+    '</div>' +
+    '<div style="margin-top:.8rem;border-top:1px solid var(--line);padding-top:.6rem">' +
+      '<label class="tiny" style="display:flex;gap:.5rem;align-items:flex-start;cursor:pointer;color:var(--text)">' +
+        '<input type="checkbox" id="fr-optin"' + (s.opt_in ? ' checked' : '') + ' style="margin-top:.2rem">' +
+        '<span><b>Send a weekly field report.</b> ' + escapeHTML(f.what) + '</span></label>' +
+      '<div class="row" style="gap:.5rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">' +
+        '<button class="btn sm ghost" id="fr-preview">Read what it would send</button>' +
+        '<button class="btn sm ghost" id="fr-send"' + (m.configured ? '' : ' disabled') + '>Send one now</button>' +
+        '<span class="tiny muted">' +
+          (s.last_sent ? 'last sent ' + new Date(s.last_sent * 1000).toLocaleString() : 'none sent yet') +
+          (last && !last.sent ? ' &middot; <span class="warntext">last attempt: ' + escapeHTML(last.detail || '') + '</span>' : '') +
+        '</span>' +
+      '</div>' +
+      '<div id="fr-out"></div>' +
+    '</div>';
+
+  const said = document.getElementById('mail-said');
+  document.getElementById('mail-save').onclick = async () => {
+    await api('/api/mail', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({host: document.getElementById('mail-host').value,
+                            port: document.getElementById('mail-port').value,
+                            security: document.getElementById('mail-sec').value,
+                            user: document.getElementById('mail-user').value,
+                            password: document.getElementById('mail-pass').value,
+                            sender: document.getElementById('mail-from').value})});
+    renderMail();
+  };
+  document.getElementById('mail-test').onclick = async () => {
+    said.textContent = 'sending…';
+    const r = await api('/api/mail/test', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    said.innerHTML = r.sent ? '<span style="color:var(--green)">sent to ' + escapeHTML(r.to) + '</span>'
+                            : '<span class="warntext">' + escapeHTML(r.detail || 'not sent') + '</span>';
+  };
+  const forget = document.getElementById('mail-forget');
+  if (forget) forget.onclick = async () => {
+    if (!confirm('Forget the mail settings on this unit?')) return;
+    await api('/api/mail', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({forget: true})});
+    renderMail();
+  };
+  document.getElementById('fr-optin').onchange = async e => {
+    await api('/api/fieldreport', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                   body: JSON.stringify({opt_in: e.target.checked})});
+    renderMail();
+  };
+  const show = r => {
+    const out = document.getElementById('fr-out');
+    const text = (r.result && r.result.text) || (r.latest && r.latest.text) || '';
+    out.innerHTML = (r.result ? '<p class="tiny" style="margin:.4rem 0 0">' +
+        (r.result.sent ? '<span style="color:var(--green)">Sent.</span>'
+                       : '<span class="warntext">Not sent: ' + escapeHTML(r.result.detail || '') + '</span>') +
+        ' Written to <span class="mono">' + escapeHTML(r.result.path) + '</span></p>' : '') +
+      '<pre class="tiny" style="max-height:18rem;overflow:auto;white-space:pre-wrap;margin-top:.4rem">' +
+        escapeHTML(text.slice(0, 20000)) + '</pre>';
+  };
+  document.getElementById('fr-preview').onclick = async () => {
+    show(await api('/api/fieldreport', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({preview: true})}));
+  };
+  document.getElementById('fr-send').onclick = async () => {
+    show(await api('/api/fieldreport', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({send: true})}));
+    renderMail();
+  };
+}
+document.addEventListener('toggle', e => {
+  if (e.target && e.target.id === 'mail-fold' && e.target.open) renderMail();
+}, true);
 
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-log]');
