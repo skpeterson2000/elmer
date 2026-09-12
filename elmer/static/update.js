@@ -51,7 +51,20 @@ function renderUpdate(d) {
         '<span class="tiny muted">Writes a file with the versions, the recent ' +
         'errors and the tail of the log &mdash; with your callsign, QTH and ' +
         'network addresses taken out. Nothing is sent anywhere.</span>' +
-      '</div><div id="report-out"></div>' : '') +
+      '</div><div id="report-out"></div>' +
+      /* The log itself, for a screen with no terminal behind it. Loaded when
+         opened, warnings and errors first, because that is what somebody
+         standing at a kiosk that just said "reference e-3f9a" wants. */
+      '<details class="derivation" id="log-fold"><summary class="tiny muted" ' +
+        'style="cursor:pointer">Recent log</summary>' +
+        '<div class="row" style="gap:.5rem;margin:.4rem 0;align-items:center">' +
+          '<button class="btn sm ghost" data-log="WARNING">Warnings and errors</button>' +
+          '<button class="btn sm ghost" data-log="ALL">Everything recent</button>' +
+          '<input id="log-ref" class="mono" placeholder="reference, e.g. e-3f9a" ' +
+            'style="width:12rem;padding:.3rem .5rem;border-radius:7px;border:1px solid var(--line-2);background:var(--panel);color:var(--text)">' +
+          '<button class="btn sm ghost" data-log="REF">Find it</button>' +
+        '</div><pre id="log-out" class="tiny" style="max-height:18rem;overflow:auto;white-space:pre-wrap;margin:0"></pre>' +
+      '</details>' : '') +
     '<p class="tiny muted" style="margin:.7rem 0 0">' +
       'ELMER checks the repository it was installed from and tells you what it ' +
       'finds. It never applies an update on its own &mdash; that is always your ' +
@@ -226,6 +239,28 @@ document.addEventListener('click', async e => {
     if (out) out.innerHTML = '<p class="tiny warntext">Could not write a report.</p>';
   }
   btn.disabled = false;
+});
+
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-log]');
+  if (!btn) return;
+  const out = document.getElementById('log-out');
+  const mode = btn.dataset.log;
+  let q = '/api/log?lines=400';
+  if (mode === 'WARNING') q += '&level=WARNING';
+  if (mode === 'REF') {
+    const ref = (document.getElementById('log-ref').value || '').trim();
+    if (!ref) { out.textContent = 'Type the reference the page showed.'; return; }
+    q += '&ref=' + encodeURIComponent(ref);
+  }
+  out.textContent = 'Reading…';
+  try {
+    const d = await api(q);
+    out.textContent = d.lines.length ? d.lines.join('\n')
+      : (mode === 'REF' ? 'Nothing under that reference in the last 400 lines.'
+                        : 'Nothing at that level in the last 400 lines.');
+    out.scrollTop = out.scrollHeight;
+  } catch (err) { out.textContent = 'Could not read the log from here - it is at data/elmer.log.'; }
 });
 
 /* ------------------------------------------------------------ self-check */

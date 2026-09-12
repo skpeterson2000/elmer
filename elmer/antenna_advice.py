@@ -1519,11 +1519,11 @@ def recommend(mhz, use=None, kind=None, site=None):
                 "the quarter wave run out horizontally from the top.",
             ],
         })
-        out["alternative"] = (f"Only working out to a few hundred miles? A "
-                              f"dipole at whatever height you have - even 30 ft "
-                              f"- is the better antenna for that, because that "
-                              f"low it fires straight up and comes down "
-                              f"regionally.")
+        out["alternative"] = ("Only working out to a few hundred miles? A "
+                              "dipole at whatever height you have - even 30 ft "
+                              "- is the better antenna for that, because that "
+                              "low it fires straight up and comes down "
+                              "regionally.")
 
     else:                                     # dx, and digital on HF
         half_wave = _height(mhz, 0.5, 20)
