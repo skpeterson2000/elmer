@@ -1242,6 +1242,12 @@ def api_vna_s1p():
         "Content-Disposition": f'attachment; filename="{name}"'})
 
 
+# Two eight-foot loaded whips end to end, no ground path between them: the
+# measured 10 dB on 40 m (Virginia RACES, 2001-02) works back to about 24 ohms
+# of loss in the pair, and the Lab's calculator starts from the same figure.
+PAIR_COIL_OHMS = 24.0
+
+
 @app.route("/api/antenna-advice")
 def api_antenna_advice():
     """What to put up here, and why - for a licensee who has not built one yet."""
@@ -1273,10 +1279,17 @@ def api_antenna_advice():
         od = spec["od_mm"] if spec else 1.63
         sigma = spec.get("sigma", 1.0) if spec else 1.0
         coil, rrad = None, None
-        if out.get("type") in ("whip", "screwdriver"):
+        if out.get("type") in ("whip", "screwdriver", "whipdipole"):
             try:
-                plan = whipbuild.plan(mhz, float(out.get("height_ft") or 8))
-                coil, rrad = plan.get("loss_ohms"), plan.get("radiation_ohms")
+                # A pair is two of these in series, and the dipole's
+                # radiation resistance is twice the monopole's; the ground
+                # loss the single whip carries is not in the pair at all.
+                if out["type"] == "whipdipole":
+                    plan = whipbuild.plan(mhz, 8.0, loss_ohms=PAIR_COIL_OHMS)
+                    coil, rrad = plan["loss_ohms"], 2 * plan["radiation_ohms"]
+                else:
+                    plan = whipbuild.plan(mhz, float(out.get("height_ft") or 8))
+                    coil, rrad = plan.get("loss_ohms"), plan.get("radiation_ohms")
             except Exception:                    # a whip that cannot be planned
                 coil = rrad = None
         out["power"] = antenna_advice.power_notes(

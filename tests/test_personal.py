@@ -143,6 +143,13 @@ def main():
     check("no gear at all still offers FRS/GMRS and CB",
           {"frs-gmrs", "cb"} <= set(w["key"] for w in reachout.ways(46.35, -94.2, gear=[], now=1_800_000_000)), True)
 
+    whip_only = [w for w in reachout.ways(46.35, -94.2, gear=["hf_mobile"], license="General", now=1_800_000_000)
+                 if w["key"] == "nvis"][0]
+    check("a whip-only HF operator is told two whips make a dipole", "dipole mount" in whip_only["do"], True)
+    with_wire = [w for w in reachout.ways(46.35, -94.2, gear=["hf_wire"], license="General", now=1_800_000_000)
+                 if w["key"] == "nvis"][0]
+    check("  and somebody with a wire is not", "dipole mount" in with_wire["do"], False)
+
     ctx = antenna_advice.frequency_context(462.675)
     check("the antenna designer knows 462.675 is channel 20",
           (ctx["label"], ctx["band"]), ("FRS/GMRS channel 20", "FRS/GMRS"))

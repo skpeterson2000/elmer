@@ -185,8 +185,9 @@
           <optgroup label="Directional">
             <option value="yagi">Yagi-Uda beam</option>
           </optgroup>
-          <optgroup label="Loaded vertical &mdash; on a vehicle">
+          <optgroup label="Loaded whips &mdash; on a vehicle, or a pair with none">
             <option value="whip">Loaded mobile whip &mdash; mag-mount or bumper</option>
+            <option value="whipdipole">Two loaded whips as a dipole &mdash; the hamstick dipole</option>
             <option value="screwdriver">Screwdriver &mdash; motor-tuned mobile vertical</option>
           </optgroup>
         </select>
@@ -233,9 +234,9 @@
         <input type="range" id="an-sp" min="0.10" max="0.35" step="0.01" value="0.20">
         <span class="sim-out" id="an-sp-v"></span></div>
 
-      <div class="field an-when-whip"><label>Physical whip height (ft)</label>
+      <div class="field an-when-whip"><label id="an-wh-label">Physical whip height (ft)</label>
         <input id="an-wh" value="8"></div>
-      <div class="field an-when-whip"><label>Ground + coil loss resistance (&Omega;)</label>
+      <div class="field an-when-whip"><label id="an-loss-label">Ground + coil loss resistance (&Omega;)</label>
         <input id="an-loss" value="12"></div>
       <div class="field an-when-whip"><label>Capacity hat</label>
         <select id="an-hat">

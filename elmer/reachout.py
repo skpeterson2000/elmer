@@ -202,11 +202,23 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
                         "real grey line and 80 stays lossy, so 40 is still the "
                         "better bet even though it is dark; ",
         }[state]
+        # A whip and no wire is the commonest HF kit in a vehicle, and the
+        # trick that turns it into a regional antenna is two of them: a pair
+        # of loaded whips on a dipole mount is a dipole with no ground in it,
+        # which is exactly what a paved car park has none of. Measured about
+        # 10 dB down on 40 m at 20 ft (Virginia RACES, 2001-02) - and heard.
+        whips = ("If what you have is whips and no wire: two of them back to "
+                 "back on a dipole mount, sixteen feet on any mast, is a "
+                 "dipole - it needs no ground, no radials and no car body, and "
+                 "at 20 ft on 40 or 75 m it fires straight up like the wire "
+                 "would. Ten decibels down on a full-size dipole and still "
+                 "heard across the state. "
+                 if "hf_mobile" in gear and "hf_wire" not in gear else "")
         out.append({
             "key": "nvis", "title": f"Regional HF - {band}, straight up",
             "odds": "good" if rank >= bandplan.CLASS_RANK["General"] else "no",
             "needs": "HF phone privileges - General or above",
-            "do": (f"Get the wire low and flat and work {band}. Low is what "
+            "do": (whips + f"Get the wire low and flat and work {band}. Low is what "
                    f"aims it upward: a fifth of a wavelength is the peak - "
                    f"about 50 ft on 80 m, 27 on 40 - but anything from head "
                    f"height up still goes straight up, because height buys "

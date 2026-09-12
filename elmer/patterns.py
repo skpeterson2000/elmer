@@ -65,6 +65,15 @@ ANTENNA_Q = {
                     "fed": "through its matching network - and the Q is brutal"},
     "screwdriver": {"q": 100.0, "r": 50.0, "shape": "vertical",
                     "fed": "at the base, and the motor is what keeps it there"},
+    # Two loaded whips end to end. The Q is worked back from Virginia RACES'
+    # measured 2:1 bandwidths (about 100 kHz on 20 m, 40 on 40 m, 20 on
+    # 75 m, 2001-02), which is roughly 95 at 14 MHz rising toward 130 at
+    # 3.9 - so it scales with band below, gently. The feedpoint is the tiny
+    # radiation resistance plus the two coils' loss, which is what brings it
+    # anywhere near coax: about 27 ohms on 40 m by the Lab's arithmetic.
+    "whipdipole":  {"q": 110.0, "r": 35.0, "shape": "horizontal",
+                    "fed": "straight off coax through a 1:1 choke - the loss in "
+                           "the two coils is most of what brings it toward 50 ohms"},
 }
 
 # A screwdriver is not one antenna but the same antenna at every frequency it
@@ -88,6 +97,7 @@ ANTENNA_Q = {
 # exactly why it cannot have one number.
 Q_SCALES_WITH_BAND = {
     "screwdriver": {"ref_mhz": 7.15, "power": 1.0, "floor": 14.0},
+    "whipdipole": {"ref_mhz": 7.15, "power": 0.25, "floor": 60.0},
 }
 
 

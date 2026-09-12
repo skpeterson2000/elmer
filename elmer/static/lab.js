@@ -775,6 +775,11 @@ const ANTENNAS = {
   groundplane: {shape: 'vert', label: 'Ground plane, drooping radials', gain: 0, z: 50,
     ref: OVER_GROUND,
     build: f => ({'Radiator': 234 / f, 'Each of 4 radials': 246 / f})},
+  // Two mobile whips back to back: a dipole with no ground in the circuit.
+  // Nothing here is cut to length - the whips are bought by band - so the
+  // branch in calcAnt works its efficiency out instead of a build table.
+  whipdipole: {shape: 'wire', label: 'Two loaded whips as a dipole', gain: null, z: 50,
+    ref: FREE_SPACE},
 };
 
 /* Feedpoint resistance of a quarter wave against its radials, as they are
@@ -828,13 +833,13 @@ function showConductor() {
         : '<b>' + (1 / wider).toFixed(2) + '&times; narrower</b> than #14 wire');
 }
 
-const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie'];
+const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie', 'whipdipole'];
 
 /* Which antennas are balanced, because that and nothing else decides what goes
    at the feedpoint. A balun crosses between balanced and unbalanced; an unun
    stays on the unbalanced side; and a choke stops common-mode current whatever
    else is fitted. The three get used as though they were interchangeable. */
-const BALANCED = ['dipole', 'invertedv', 'bowtie', 'loop', 'yagi'];
+const BALANCED = ['dipole', 'invertedv', 'bowtie', 'loop', 'yagi', 'whipdipole'];
 
 function feedNote(type, slopeDeg) {
   if (type === 'efhw') return '';           /* it has its own, longer, note */
@@ -873,6 +878,8 @@ function feedNote(type, slopeDeg) {
    selector and in the advice, and used to fall through to the wire table -
    which has no such row - and die reading .shape of undefined. */
 function isWhip(type) { return type === 'whip' || type === 'screwdriver'; }
+const WHIP_LOSS_DEFAULT = 12;    // ground path and coil, one whip on a vehicle
+const PAIR_LOSS_DEFAULT = 24;    // two coils, no ground - what -10 dB on 40 m implies
 
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
@@ -885,8 +892,25 @@ function antennaFields(type) {
   /* A straight wire on one support can be slung at an angle; a V already has
      its own droop and a beam has a boom. */
   show('.an-when-slope', type === 'efhw' || type === 'dipole');
-  show('.an-when-whip', isWhip(type));
+  /* The pair asks the whip's questions - how long, how lossy a coil - and
+     the wire's: how high it hangs. */
+  show('.an-when-whip', isWhip(type) || type === 'whipdipole');
   show('.an-when-height', !isWhip(type));
+  const pair = type === 'whipdipole';
+  const whLabel = document.getElementById('an-wh-label');
+  if (whLabel) whLabel.textContent = pair ? 'Length of one whip (ft)' : 'Physical whip height (ft)';
+  const lossLabel = document.getElementById('an-loss-label');
+  if (lossLabel) lossLabel.textContent = pair ? 'Coil loss, both whips together (\u03a9)'
+                                              : 'Ground + coil loss resistance (\u03a9)';
+  /* The defaults are different animals: 12 ohms is a mobile whip's ground
+     path and coil together; two commercial whips end to end measure about
+     10 dB down on 40 m, which works back to some 24 ohms in the pair. Only
+     the untouched default is swapped - a typed figure is a measurement. */
+  const lossEl = document.getElementById('an-loss');
+  if (lossEl) {
+    if (pair && lossEl.value === String(WHIP_LOSS_DEFAULT)) lossEl.value = PAIR_LOSS_DEFAULT;
+    if (!pair && lossEl.value === String(PAIR_LOSS_DEFAULT)) lossEl.value = WHIP_LOSS_DEFAULT;
+  }
   show('.an-when-v', type === 'invertedv');
   show('.an-when-radials', type === 'groundplane');
   show('.an-when-nvis', NVIS_TYPES.indexOf(type) >= 0);
@@ -1094,6 +1118,71 @@ function calcAnt() {
       'it buys efficiency for no extra length &mdash; it is the cheapest improvement here.');
     notes.push('This is why mobile HF is hard: at ' + f.toFixed(3) + '&nbsp;MHz the whip is only ' +
       (ratio * 100).toFixed(1) + '% of a wavelength tall.');
+  } else if (type === 'whipdipole') {
+    /* Two loaded whips end to end. Each is the short monopole above; the
+       pair is a short dipole, so its radiation resistance is twice one
+       whip's - and the ground path that eats a mobile whip's power is not
+       in this circuit at all. What is left in series with it is the two
+       coils, which is what the loss figure is read as here. */
+    shape = 'wire';
+    gainRef = 'against a half-wave dipole at the same height';
+    const wFt = num('an-wh'), loss = num('an-loss'), hat = num('an-hat');
+    if (!(wFt > 0)) { out('an-out', 'Enter the length of one whip.'); return; }
+    const ratio = (wFt * hat) / lamFt;
+    const Rr = 2 * 395 * ratio * ratio;               // short dipole = 2 x monopole
+    const eff = Rr / (Rr + loss);
+    const lossDb = 10 * Math.log10(eff);
+    const Za = 300;
+    const theta = 2 * Math.PI * (wFt / lamFt);
+    const Xc = Za / Math.tan(Math.min(theta, Math.PI / 2 - 1e-3));
+    const L = Xc / (2 * Math.PI * f * 1e6) * 1e6;      // microhenries, per whip
+    rows['Each whip'] = wFt;
+    rows['Tip to tip, mount included'] = 2 * wFt + 0.5;
+    gain = lossDb;
+    z = Math.round(Rr + loss);
+    notes.push('Radiation resistance <b>' + Rr.toFixed(1) + '&nbsp;&Omega;</b> for the pair, ' +
+      'against ' + loss + '&nbsp;&Omega; of coil loss in the two whips together and <b>no ' +
+      'ground loss at all</b> &mdash; that is what the second whip buys. Efficiency <b>' +
+      (eff * 100).toFixed(0) + '%</b>, a loss of <b>' + Math.abs(lossDb).toFixed(1) +
+      '&nbsp;dB</b> against a full-size dipole hung at the same height. Each whip carries ' +
+      'about <b>' + L.toFixed(1) + '&nbsp;&micro;H</b> of loading, which is why one is ' +
+      'bought per band rather than cut.');
+    /* The uncomfortable arithmetic, said plainly: the feedpoint is the
+       radiation resistance plus the loss, so the closer the pair comes to
+       50 ohms without a transformer, the more of that 50 is heater. */
+    notes.push('<b>Why it matches so easily.</b> The feedpoint is ' + Rr.toFixed(1) + ' + ' +
+      loss + ' = <b>' + z + '&nbsp;&Omega;</b>, and every ohm of that above ' + Rr.toFixed(1) +
+      ' is loss. A pair that sits near 1:1 on 50&nbsp;&Omega; coax with no matching is ' +
+      'telling you the loss is most of the feedpoint; a low SWR here is a symptom, not a ' +
+      'result. Lossier coils match better and radiate less, which is the same lesson the ' +
+      'single whip teaches.');
+    /* Measured, not modelled: the figures the formula above should be read
+       beside. A model that omits the ground under a low horizontal antenna
+       comes out kinder than the air did. */
+    notes.push('<b>Measured.</b> Virginia RACES (Cuccio NB3O and Harris KE4SKY, 2001-02) ' +
+      'put a pair at 20&nbsp;ft beside full-size dipoles: on 40&nbsp;m about ' +
+      '<b>10&nbsp;dB</b> down, on 75&nbsp;m about <b>18&nbsp;dB</b>, and on 20&nbsp;m only ' +
+      'about <b>6&nbsp;dB</b> below a G5RV &mdash; and worked European Russia from a condo ' +
+      'and Puerto Rico from a car park with it. Where the figure above is kinder than ' +
+      'theirs, the difference is the ground under a low wire, which the formula leaves out. ' +
+      'Their 2:1 SWR bandwidths: about <b>100&nbsp;kHz on 20&nbsp;m, 40 on 40&nbsp;m, 20 on ' +
+      '75&nbsp;m</b>; a tuner in the rig roughly doubles each without much loss.');
+    if (f < 10) notes.push('Horizontal and this low on ' + (f < 5 ? '75' : '40') + '&nbsp;m ' +
+      'it fires nearly straight up: an NVIS antenna for your own region, which is the ' +
+      'shape emergency traffic usually wants. Height above 20&nbsp;ft is where the low ' +
+      'bands improve most.');
+    notes.push('<b>Keep the mast out of it.</b> RF flows down a metal mast through the ' +
+      'grounded side of the mount and unbalances the pair &mdash; more on 20&nbsp;m and up ' +
+      'than on 40 and 75, where a 10-20&nbsp;ft mast is a short capacitive stub. A ' +
+      'fibreglass or PVC top section and a 1:1 current balun cure it. Choke the coax as ' +
+      'well: half a dozen turns a foot across at the mount, or four or five Fair-Rite ' +
+      '2643102002 cores over it (about 350&nbsp;&Omega; on 75&nbsp;m) &mdash; without that ' +
+      'the feedline joins the antenna, the tuning moves with its length, and RF in the mic ' +
+      'preamp shows up as distorted audio.');
+    notes.push('Band changes are a whip swap: 3/8-24 quick-disconnects, whips colour-coded by ' +
+      'band. Two bands on one coax: bolt two dipole mounts together, link the centre posts ' +
+      'with #12 wire, feed the lower-band mount. The stinger tips are the high-voltage ends ' +
+      'and at tripod height they are where people walk &mdash; keep bystanders off them.');
   } else {
     const spec = ANTENNAS[type];
     shape = spec.shape;
@@ -1365,7 +1454,7 @@ function calcAnt() {
     label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
     legFt: legFt, droop: type === 'invertedv' ? num('an-droop') : 0,
-    whipFt: isWhip(type) ? num('an-wh') : null,
+    whipFt: (isWhip(type) || type === 'whipdipole') ? num('an-wh') : null,
     description: ((ANTENNAS[type] || {}).label ||
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
                                    : 'loaded mobile whip')) +

@@ -128,7 +128,7 @@ check("the tuner chapter is an antenna chapter because its title says so",
       [(x["title"], x["page"], x["matched"]) for x in p], [("Chapter 3 Antenna Tuner", 3, "antenna")])
 check("  CW finds the chapter and the section under it",
       [x["title"] for x in L.pointers("cw")], ["Chapter 2 CW Operation", "2.1 Pitch and sidetone"])
-check("  the book without bookmarks contributes none", any(x["book"] == "old-notes.pdf" for x in L.pointers("antennas")), False)
+check("  a book without bookmarks whose title says nothing contributes none", any(x["book"] == "old-notes.pdf" for x in L.pointers("antennas")), False)
 check("  an unknown topic is nothing, not an error", L.pointers("wizardry"), [])
 tm = {t["key"]: t for t in L.topic_map()}
 check("the topic map covers every topic", sorted(tm), sorted(L.TOPICS))
@@ -239,6 +239,11 @@ check("  unmarked again", L.mine(connection), [])
 make_manual(L.SHELF / "FT8 Operating Guide.pdf", [("FT8", ["Fifteen-second periods."])], bookmarks=False,
             title="FT8 Operating Guide")
 L.refresh()
+# A one-page sheet never has bookmarks; its title is its chapter heading.
+by_title = [x for x in L.pointers("digital") if x["book"] == "FT8 Operating Guide.pdf"]
+check("a book with no bookmarks points by its title", [(x["page"], x["matched"], x.get("by_title")) for x in by_title],
+      [(1, "ft8", True)])
+check("  and only where the title carries the word", any(x["book"] == "FT8 Operating Guide.pdf" for x in L.pointers("antennas")), False)
 L.set_mine(connection, "FT8 Operating Guide.pdf", True)
 g = L.shelf_gear(connection)
 check("marking only a non-radio book falls back to the shelf", (g["basis"], g["gear"]),

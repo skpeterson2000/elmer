@@ -27,7 +27,8 @@ FAILS = []
 
 # Every option in the calculator's type selector.
 CALCULATOR_TYPES = ["dipole", "invertedv", "efhw", "bowtie", "loop", "quarter",
-                    "fiveeighth", "jpole", "groundplane", "yagi", "whip"]
+                    "fiveeighth", "jpole", "groundplane", "yagi", "whip",
+                    "screwdriver", "whipdipole"]
 
 
 def check(label, got, want):
@@ -443,6 +444,33 @@ def main():
     check("above the legal limit it says so",
           any("97.313" in t for t in A.power_notes("dipole", 7.1, 2000)["items"]), True)
     check("no power, no notes", A.power_notes("dipole", 7.1, 0), None)
+
+    print("\n-- two whips as a dipole: the fact sheet's numbers, not invented ones --")
+    # Virginia RACES, 2001-02: a pair at 20 ft, 40 m ~10 dB down on a
+    # half-wave dipole, 75 m ~18 dB, 20 m ~6 dB below a G5RV; 2:1 SWR
+    # bandwidths ~100/40/20 kHz on 20/40/75 m. What ELMER says must be what
+    # was measured, and say who measured it.
+    pair = text("whipdipole")
+    check("it says the pair needs no ground", "no ground" in pair, True)
+    check("  carries the measured losses", all(x in pair for x in ("10 db", "18 db", "6 db")), True)
+    check("  and the measured bandwidths", all(x in pair for x in ("100 khz", "40 khz", "20 khz")), True)
+    check("  and who measured them", "virginia races" in pair, True)
+    check("  the choke recipe is in it", "2643102002" in pair and "turns of coax" in pair, True)
+    check("  and the mast isolation", "fibreglass or pvc" in pair, True)
+    check("it is horizontal", A.TYPES["whipdipole"]["polarisation"], "horizontal")
+    low = A.for_type(7.2, "whipdipole", use="regional", site="portable")
+    check("hung low for the region it is an NVIS antenna", low["nvis"], True)
+    check("  at a height a TV mast reaches", 8 <= low["height_ft"] <= 30, True)
+    power = A.power_notes("whipdipole", 7.2, 100, coil_loss_ohms=8.0, whip_r_rad=2.7)
+    check("the power note heats two coils", "two coils" in power["items"][0], True)
+    check("  and wants a balun", any("balun" in i for i in power["items"]), True)
+    check("  and does not heat a wire it has not got", "wire_heat_w" in power, False)
+    sites = " ".join(" ".join(v["works"]) for v in A.SITES.values()).lower()
+    check("the balcony and the car park both offer it", sites.count("dipole mount"), 2)
+    from elmer import patterns as P
+    check("its 2:1 bandwidths come out near the measured 20/40/100 kHz",
+          [P.usable_bandwidth("whipdipole", f, q=P.base_q("whipdipole", f))["khz"]
+           for f in (3.9, 7.2, 14.2)], [19, 43, 99])
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
