@@ -54,8 +54,8 @@ class Job:
             data = hindcast.fetch(start, end)
             self.stations, self.silent = data.get("answered", []), data.get("silent", [])
             if not data["stations"]:
-                raise RuntimeError("no ionosonde station answered for the year - nothing to calibrate against")
-            self.say(f"{len(self.stations)} sonde{'s' if len(self.stations) != 1 else ''} answered for the year: "
+                raise RuntimeError("no ionosonde station answered for the span - nothing to calibrate against")
+            self.say(f"{len(self.stations)} sonde{'s' if len(self.stations) != 1 else ''} answered for the span: "
                      f"{', '.join(self.stations)}"
                      + (f"; {', '.join(self.silent)} silent" if self.silent else "") + ".")
             if self.stop.is_set():
@@ -69,8 +69,8 @@ class Job:
                 self.state = "stopped"
                 return
             table = bare["table"]
-            applied = sum(1 for m in table["months"].values() for c in m.values() if c["applied"])
-            small = sum(1 for m in table["months"].values() for c in m.values() if c.get("small"))
+            applied = sum(1 for m in table["months"].values() for c in forecastlog.month_cells(m).values() if c["applied"])
+            small = sum(1 for m in table["months"].values() for c in forecastlog.month_cells(m).values() if c.get("small"))
             if applied:
                 self.say(f"Fitted: {applied} month-and-sky corrections worth applying, "
                          f"{small} within ten percent of the model and left alone, from "
@@ -92,7 +92,7 @@ class Job:
             a24 = after["skill"]["by_lead"].get("24", {}).get("mae")
             p24 = bare["skill"].get("persistence_24h", {}).get("mae")
             if b24 and a24:
-                self.say(f"Over the year, the 24-hour forecast's error went from {b24:.1f} to {a24:.1f} MHz"
+                self.say(f"Over the span, the 24-hour forecast's error went from {b24:.1f} to {a24:.1f} MHz"
                          + (f"; 'same as yesterday' manages {p24:.1f}." if p24 else "."))
             forecastlog.save_calibration(table)
             forecastlog._cal_cache.clear()

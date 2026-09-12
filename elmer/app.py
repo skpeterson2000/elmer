@@ -2273,10 +2273,12 @@ def _calibration_summary(table):
     if not table:
         return None
     month = datetime.now(timezone.utc).strftime("%m")
-    cells = (table.get("months") or {}).get(month) or {}
-    return {"made": table.get("made"), "days": table.get("days"),
-            "stations": table.get("stations") or [],
+    entry = (table.get("months") or {}).get(month) or {}
+    cells = forecastlog.month_cells(entry)
+    return {"made": entry.get("_made") or table.get("made"), "days": entry.get("_days") or table.get("days"),
+            "stations": entry.get("_stations") or table.get("stations") or [],
             "months_known": len(table.get("months") or {}),
+            "coverage": forecastlog.coverage(table),
             "this_month": {k: {"factor": v["factor"], "n": v["n"], "applied": v["applied"]}
                            for k, v in cells.items()}}
 

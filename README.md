@@ -1487,9 +1487,15 @@ shape between, and the strip says when the record is speaking. A unit's first
 day has no record and runs on the model; by the fourth it has all three.
 
 **Calibrate my forecast**, on the Tools page, is the same thing for *this*
-place: a year of the nearest sondes' readings, the forecast run blind over it
-hour by hour, and a correction fitted by month and by sky and applied where no
-fresh reading holds. About five minutes on a Pi, and the operator watches it
+place: the nearest sondes' readings, the forecast run blind over them hour by
+hour, and a correction fitted by month and by sky and applied where no fresh
+reading holds. Three depths — **Quick**, the last quarter, about a minute and
+a half; **Normal**, half a year, about two and a half; **Comprehensive**, the
+full year, about five — and each refreshes the months it covers while leaving
+the rest as the last run that saw them, so a quick run in September keeps the
+December a year run measured; the card says which months came from which run.
+A season is the unit of variation, which is why the quickest is a quarter and
+not a month. The operator watches it
 happen — a finding a month ("October: the model ran 1.6 MHz under at the grey
 line") between cards from the history deck, the quotations and the hams people
 have heard of — because a screen that goes quiet for five minutes reads as

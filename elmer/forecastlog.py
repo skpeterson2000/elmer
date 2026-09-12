@@ -440,13 +440,34 @@ def fit_calibration(days, now, build="", stations=(), acknowledgement="", keep=N
             "acknowledgement": acknowledgement}
 
 
-def save_calibration(table):
+def save_calibration(table, merge=True):
+    """Save the table - merged over the one held, month by month.
+
+    A quick run covers a month or two; it must refresh those months and
+    leave the others as the last run that saw them left them, or a
+    thirty-day alignment in September would throw away the December a year
+    run had measured. Every month carries the date and span of the run it
+    came from, so the page can say which is which.
+    """
     LEDGER.mkdir(parents=True, exist_ok=True)
     path = LEDGER / CALIBRATION_FILE
+    fresh = dict(table)
+    months = {}
+    for m, cells in (table.get("months") or {}).items():
+        months[m] = dict(cells, _made=table.get("made"), _days=table.get("days"),
+                         _stations=table.get("stations"))
+    if merge:
+        held = calibration() or {}
+        for m, cells in (held.get("months") or {}).items():
+            if m not in months:
+                months[m] = cells
+    fresh["months"] = dict(sorted(months.items()))
+    fresh["refreshed"] = sorted(table.get("months") or {})
     tmp = path.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(table, f, indent=1)
+        json.dump(fresh, f, indent=1)
     tmp.replace(path)
+    _cal_cache.clear()
     return path
 
 
@@ -472,12 +493,32 @@ def calibration():
     return table
 
 
+def month_cells(month_entry):
+    """The regime cells of a month, without the provenance keys beside them."""
+    return {k: v for k, v in (month_entry or {}).items() if isinstance(v, dict)}
+
+
+def coverage(table):
+    """Which months a table knows, and from which run each came - for the
+    line under the button: 'this month from a quick run today, the rest from
+    a year run in September'."""
+    out = []
+    for m, entry in sorted((table or {}).get("months", {}).items()):
+        cells = month_cells(entry)
+        out.append({"month": m, "made": entry.get("_made") or table.get("made"),
+                    "days": entry.get("_days") or table.get("days"),
+                    "applied": sum(1 for c in cells.values() if c.get("applied")),
+                    "small": sum(1 for c in cells.values() if c.get("small")),
+                    "cells": len(cells)})
+    return out
+
+
 def factor_for(table, when, regime):
     """The calibration factor for an hour, or 1.0 where the table is silent."""
     if not table:
         return 1.0
     cell = ((table.get("months") or {}).get(when.strftime("%m")) or {}).get(regime)
-    if not cell or not cell.get("applied"):
+    if not isinstance(cell, dict) or not cell.get("applied"):
         return 1.0
     return float(cell["factor"])
 

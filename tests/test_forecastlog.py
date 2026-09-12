@@ -160,6 +160,22 @@ held = F.fit_calibration(16, NOW, keep=lambda target: int(target[8:10]) <= 15)
 check("  a fit can hold days back, to be tested on", all(v["n"] <= cell["n"] for m in held["months"].values() for v in m.values()), True)
 path = F.save_calibration(table)
 check("  saved under the ledger and read back", (path.name, F.calibration()["months"][mon]["dark"]["factor"]), ("calibration.json", 1.15))
+# A quick run refreshes its own months and leaves the others as the last
+# run that saw them left them: a thirty-day alignment in September must not
+# throw away the December a year run measured.
+year_table = {"made": "2026-01-01T00:00:00+00:00", "days": 365, "stations": ["AL945"],
+              "months": {"12": {"lit": {"factor": 1.7, "measured": 1.7, "n": 300, "applied": True},
+                                "dark": {"factor": 0.75, "measured": 0.75, "n": 400, "applied": True}}}}
+F.save_calibration(year_table, merge=False)
+F.save_calibration(table)                       # the quick one, this month and last
+held = F.calibration()
+check("a quick run keeps the year's December", held["months"]["12"]["lit"]["factor"], 1.7)
+check("  and refreshes this month", held["months"][mon]["dark"]["factor"], 1.15)
+check("  each month naming the run it came from",
+      (held["months"]["12"]["_made"][:4], held["months"][mon]["_days"]), ("2026", 16))
+check("  the factor lookup ignores the provenance beside the cells", F.factor_for(held, NOW.replace(month=12), "lit"), 1.7)
+cov = {c["month"]: c for c in F.coverage(held)}
+check("  and the coverage says which months, from which run", (cov["12"]["days"], cov[mon]["days"], cov["12"]["applied"]), (365, 16, 2))
 cal_out = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, calibration=table)
 plain0 = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0)
 check("  the model takes the factor where the reading has let go",
