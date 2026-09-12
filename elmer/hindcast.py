@@ -303,8 +303,12 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
     available to it.
     """
     ledger_dir = ledger or (CACHE / f"ledger-{start:%Y%m%d}-{end:%Y%m%d}-{build}")
-    saved = forecastlog.LEDGER
+    saved = forecastlog.LEDGER, forecastlog.KEEP_DAYS
     forecastlog.LEDGER = ledger_dir
+    # A hindcast ledger is never pruned: the live unit keeps sixty days, and
+    # a year run under that rule quietly graded only its last two months -
+    # the same numbers as the quarter, which is how it was noticed.
+    forecastlog.KEEP_DAYS = 100000
     try:
         for p in ledger_dir.glob("*.json"):
             p.unlink()
@@ -359,7 +363,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
         skill = forecastlog.skill(days=days, now=end)
         adjust = forecastlog.adjustment(days=days, now=end)
     finally:
-        forecastlog.LEDGER = saved
+        forecastlog.LEDGER, forecastlog.KEEP_DAYS = saved
     return {"start": start.isoformat(), "end": end.isoformat(), "hours": hours,
             "hours_with_reading": with_reading,
             "sondes_voting": round(sum(votes) / len(votes), 1) if votes else 0,
