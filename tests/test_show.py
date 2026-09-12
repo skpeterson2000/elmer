@@ -87,16 +87,55 @@ def main():
             decks_seen.add(c["deck"])
     check("every trivia deck gets a turn", decks_seen, set(trivia.DECKS))
     s.set_deck({"history": False, "quotes": False, "hams": False, "technique": False, "equipment": False,
-                "standings": False, "join": False, "programme": False})
+                "standings": False, "join": False, "programme": False}, house=0)
     check("with everything off there is no card", s.card(8000, standings=[{"name": "x", "score": 1}]), None)
     s.set_deck({"history": True}, dwell=3)
     check("the dwell has a floor", s.dwell, S.MIN_DWELL)
     s.set_deck(dwell=90)
     check("  and a ceiling", s.dwell, S.MAX_DWELL)
 
+    print("\n-- presence: how often a card comes round --")
+    s = S.Show(random.Random(8))
+    s.add_sponsor("Full", "", "", None, 1)
+    s.add_sponsor("Half", "", "", None, 0.5)
+    s.add_sponsor("Quarter", "", "", None, 0.25)
+    s.add_notice("Club", "meets")
+    by_pass = {}
+    for t in range(0, 12 * 80, 12):
+        c = s.card(20_000 + t, standings=[{"name": "x", "score": 1}], join=True)
+        by_pass.setdefault(c["pass"], []).append(c.get("name") if c["kind"] == "sponsor" else c["kind"])
+    passes = [by_pass[i] for i in sorted(by_pass)][:8]
+    check("eight passes were walked", len(passes), 8)
+    check("the full sponsor is in every pass", all("Full" in p for p in passes), True)
+    halves = [("Half" in p) for p in passes]
+    check("the half sponsor sits out every other pass",
+          (sum(halves), all(halves[i] != halves[i + 1] for i in range(7))), (4, True))
+    check("the quarter sponsor appears once in four", sum("Quarter" in p for p in passes), 2)
+    check("ELMER's own card comes round every third pass by default",
+          [("house" in p) for p in passes][:6], [True, False, False, True, False, False])
+    check("  and a trivia card still sits between every other kind",
+          all(p[i] == "trivia" or p[i + 1] == "trivia" for p in passes for i in range(len(p) - 1)), True)
+    check("a presence is snapped to one the deck offers", S._presence(0.3), 1 / 3)
+    check("  and cannot be off for a sponsor", S._presence(0), 0.25)
+    check("  but ELMER's own card can be turned off", S._presence(0, allow_off=True), 0.0)
+    s.set_deck(house=0)
+    kinds = [s.card(30_000 + t, join=True)["kind"] for t in range(0, 12 * 40, 12)]
+    check("with the house card off it never comes round", "house" in kinds, False)
+    s.set_presence(s.sponsors[2]["id"], 3)
+    check("a sponsor's presence can be changed after the fact", s.sponsors[2]["presence"], 3.0)
+    house = S.Show(random.Random(9)).card(40_000)
+    seen = set()
+    hs = S.Show(random.Random(9)); hs.set_deck({d: False for d in S.TRIVIA_DECKS}, house=1)
+    for t in range(0, 12 * 8, 12):
+        c = hs.card(50_000 + t)
+        if c and c["kind"] == "house":
+            seen.add(c["image"])
+    check("the house card rotates through the icons", len(seen), 4)
+
     print("\n-- sponsors and notices persist --")
     s = S.Show(random.Random(4))
     sp = s.add_sponsor("Ham Radio Outlet", "the candy store", "hro.com", None, 2)
+    check("the sponsor carries a presence", sp["presence"], 2.0)
     s.add_notice("Club meets", "Second Tuesdays, 7 pm", "")
     again = S.Show.load()
     check("a sponsor survives a reload", [x["name"] for x in again.sponsors], ["Ham Radio Outlet"])

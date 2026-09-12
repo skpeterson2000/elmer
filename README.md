@@ -2050,8 +2050,14 @@ operating technique, the gear — every card checkable, sources named), the
 standings, the join code, the programme, and the event's own cards: sponsors
 (a name, a line, their image, added from the host page and served from this
 unit) and club notices (membership, coming events, a link). A trivia card
-sits between every other kind, a sponsor's weight is how often it comes round
-in a pass, and the host ticks decks on and off and sets the dwell. A result
+sits between every other kind; the host ticks decks on and off and sets the
+dwell. Every card has a **presence** — how often it comes round, from three
+times a pass down to once every fourth pass, so a partial sponsor can be
+sold a quarter of the rotation and get exactly that; sponsors on the same
+fraction are staggered so they do not all land on one pass and sit out the
+next three. ELMER's own card is in the rotation too — one of the four icons
+and one line, every third pass by default, down to off — a little tasteful
+self-promotion in the intermission the program itself is providing. A result
 stands twenty seconds to be read, then the deck has the screen until the next
 question. Sponsors and notices persist under `data/show/` between nets; none
 of it leaves the unit.

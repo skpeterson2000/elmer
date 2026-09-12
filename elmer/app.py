@@ -3817,7 +3817,8 @@ def api_net_attention():
 def api_net_deck():
     running = _net_or_404()
     body = request.get_json(silent=True) or {}
-    out = running.show.set_deck(body.get("deck") or {}, body.get("dwell"))
+    out = running.show.set_deck(body.get("deck") or {}, body.get("dwell"),
+                                body.get("house"))
     running.show.save()
     return jsonify(out)
 
@@ -3924,6 +3925,11 @@ def api_net_sponsor():
         if body.get("remove") is not None:
             return jsonify({"removed": running.show.remove_sponsor(body["remove"]),
                             "sponsors": running.show.sponsors})
+        if body.get("presence") is not None and body.get("id") is not None:
+            # How often the card comes round, changed after the fact - a
+            # sponsor who bought a quarter of the rotation, or all of it.
+            return jsonify({"changed": running.show.set_presence(body["id"], body["presence"]),
+                            "sponsors": running.show.sponsors})
         form, up = body, None
     else:
         form, up = request.form, request.files.get("file")
@@ -3941,7 +3947,7 @@ def api_net_sponsor():
     try:
         item = running.show.add_sponsor(form.get("name"), form.get("blurb"),
                                         form.get("url"), filename,
-                                        form.get("weight") or 1)
+                                        form.get("presence") or form.get("weight") or 1)
     except ValueError as exc:
         if filename:
             (show.ASSETS / filename).unlink(missing_ok=True)
