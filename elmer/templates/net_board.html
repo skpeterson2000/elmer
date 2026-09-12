@@ -231,6 +231,7 @@ tr.outrow td.word { color: var(--red); opacity: .8; }
 
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
+const PAGE_BUILD = "{{ build }}";
 const stage = document.getElementById('stage');
 let paintedRound = null, paintedPhase = null;
 
@@ -606,6 +607,7 @@ async function tick() {
     const r = await fetch('/api/boards');
     if (!r.ok) { document.getElementById('clock').textContent = '—'; return; }
     all = await r.json();
+    if (all.build && all.build !== PAGE_BUILD) { location.reload(); return; }
     known = (all.games || []).length;
     games = (all.games || []).filter(g => g.board);
     where = all.where || '';

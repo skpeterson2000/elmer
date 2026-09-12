@@ -2077,6 +2077,16 @@ certificates, thanks — walked with one button. Each step does the thing: the
 conductor starts or stops, an open question is scored before the screens
 change, the mode follows. "Fill in a club evening" writes a sensible one.
 
+**No stale screens.** The first rehearsal found a phone that had joined the
+hall from a page its browser had kept since the day before — the QR scanner
+handed Firefox the address, Firefox never asked the unit for the page, and
+the person sat through an intermission on a screen that predated it. Every
+page and every JSON answer is now sent `Cache-Control: no-store` (the static
+files are versioned by their own change time and may be cached for ever), and
+the table, phone, board and host pages each carry the build they were served
+from and reload themselves when a poll says the unit has moved on — the phone
+keeps its player across the reload, so nobody has to rejoin.
+
 **The host sees the room.** Each table's chip on the host page says what its
 screen is showing — *question*, *result*, *card:trivia*, *attention* — carried
 up with its check-in, so the host knows what the room sees without walking it.

@@ -225,6 +225,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
 </div>
 
 <script>
+const PAGE_BUILD = "{{ build }}";
 async function api(path, body) {
   const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
                       body: JSON.stringify(body)} : {};
@@ -457,6 +458,7 @@ async function tick() {
   const r = await api('/api/party/state?showing=' + encodeURIComponent(showing));
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
   const s = r.data, round = s.round;
+  if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   seats(s);
   paintSeats(s);
   const show = s.hall && s.hall.show;

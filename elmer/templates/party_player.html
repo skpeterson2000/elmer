@@ -100,6 +100,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
 </div>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
+const PAGE_BUILD = "{{ build }}";
 const TABLE = {{ table|tojson }};
 let me = null;              // {id, name, cohort}
 let shownRound = null;      // round number currently painted
@@ -599,6 +600,9 @@ async function tick() {
   } catch (e) { return; }
   if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
   const s = r.data, round = s.round, shoot = s.shootout;
+  // The unit has been updated underneath this page: fetch the new one. The
+  // player is kept in sessionStorage, so the reload lands back in the game.
+  if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   s_last = s;
   const hall = s.hall && s.hall.shootout;
   const show = s.hall && s.hall.show;
@@ -616,7 +620,12 @@ async function tick() {
 
 
   if (!round) {
-    if (shownRound !== 'none' + pickKey) { shownRound = 'none' + pickKey; paintWaiting(s); }
+    // A card that arrived after the waiting screen was painted - the host
+    // turned the deck on, or this phone joined a beat before the show
+    // reached its table - gets the screen repainted, once.
+    const soon = s.starts_in !== null && s.starts_in !== undefined;
+    const needCard = show && show.card && !soon && !document.getElementById('hallcard');
+    if (shownRound !== 'none' + pickKey || needCard) { shownRound = 'none' + pickKey; paintWaiting(s); }
     paintPickClock(shoot);
     paintHallPickClock(s);
     return;

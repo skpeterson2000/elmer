@@ -248,6 +248,7 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
 </div>
 
 <script>
+const PAGE_BUILD = "{{ build }}";
 async function api(path, body) {
   const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
                       body: JSON.stringify(body)} : {};
@@ -286,6 +287,7 @@ async function tick() {
   const r = await api('/api/net/board');
   if (!r.ok) return;
   const b = r.data, h = b.health || {}, round = b.round;
+  if (b.build && b.build !== PAGE_BUILD) { location.reload(); return; }
 
   if (b.name) document.getElementById('netname').textContent = b.name;
   document.getElementById('cap').textContent =
