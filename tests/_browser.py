@@ -44,7 +44,7 @@ def _run(chromium, url, out, w, h, js, settle, port):
        f"--window-size={w},{h}", "about:blank"],
       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   try:
-      for _ in range(100):
+      for _ in range(200):          # a cold Chromium on a Pi can take 30 s to answer
           try:
               targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
               page = next(t for t in targets if t["type"] == "page")
