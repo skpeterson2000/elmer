@@ -746,6 +746,8 @@ def api_activations():
         "held": {"parks": len(parks), "summits": len(summits)},
         "programs": [activations.POTA, activations.SOTA],
         "gear": activations.GEAR_VERDICTS,
+        "land": {"read": activations.LAND_READ, "source": activations.LAND_SOURCE,
+                 "rules": activations.LAND},
     })
 
 

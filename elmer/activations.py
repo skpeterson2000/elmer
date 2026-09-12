@@ -93,6 +93,101 @@ SOTA = {
 
 PROGRAMS = {p["key"]: p for p in (POTA, SOTA)}
 
+# Whose land it is. Neither programme can give anybody permission to be
+# somewhere: POTA's own rules say the park's rules come first, and the
+# park's rules are written by the body that owns the ground - four different
+# federal ones, and every state's own. Nothing here is a programme rule. It
+# is what the land's regulations actually say, quoted from the eCFR with the
+# section, the edition and the day it was read, because "the ranger said"
+# is not a citation and a caution that cannot be checked is folklore.
+#
+# The pattern across all four is the same, and it is worth seeing whole:
+# ask; nothing driven into a tree; no noise; nothing left; a club outing is
+# an event and an event needs a permit. An operator who does those five
+# things has never had a bad afternoon on public land.
+LAND_READ = "2026-09-11"
+LAND_SOURCE = "ecfr.gov, Title 36 current through 2026-08-24 and Title 50 " \
+              "through 2026-09-01, up to date as of 2026-09-10"
+LAND = [
+    {
+        "who": "Any park, any owner",
+        "what": "Ask at the office or the gate, and say what it is: one "
+                "person, a small radio, a wire over a branch for a few "
+                "hours, no generator, gone by evening. Most parks are glad "
+                "to have you and a few have a rule that covers exactly this. "
+                "Neither programme can give you permission to be there; the "
+                "land manager can, and a spot on a map is not it.",
+        "cite": "POTA rules: activators must follow the park's own rules",
+    },
+    {
+        "who": "National Parks (National Park Service)",
+        "what": "The superintendent may \"close all or a portion of a park "
+                "area to all public use or to a specific use or activity\" "
+                "or \"impose conditions or restrictions on a use or "
+                "activity\" - which is written down in that park's "
+                "compendium, and the visitor centre has it. Plants may not "
+                "be injured: a line thrown over a branch is fine, a nail or "
+                "a screw or a broken limb is not. An \"audio device, such "
+                "as a radio\" may not exceed 60 dB(A) at 50 feet, nor make "
+                "noise that is \"unreasonable\" below that - use "
+                "headphones - and outside developed areas a portable "
+                "engine needs a permit, so no generator. A club outing is a "
+                "special event: it needs a permit, applied for at least 72 "
+                "hours ahead.",
+        "cite": "36 CFR 1.5(a), 2.1(a)(1)(ii), 2.12(a)(1) and (a)(3), 2.50(a)-(b)",
+    },
+    {
+        "who": "National Forests (Forest Service)",
+        "what": "It is prohibited to be \"constructing, placing, or "
+                "maintaining any kind of ... structure ... communications "
+                "equipment ... or other improvement\" without a special "
+                "use authorization \"when that written authorization is "
+                "required\". That is written for the repeater left on the "
+                "ridge, not a wire that goes home in your pack - but the "
+                "district's reading governs, and a mast left standing "
+                "overnight starts to look like an improvement. Personal "
+                "property may not be left unattended more than 72 hours. "
+                "Near a campsite, a radio used \"so as to unreasonably "
+                "disturb any person\" is prohibited.",
+        "cite": "36 CFR 261.10(a), (e), (i)",
+    },
+    {
+        "who": "Corps of Engineers lakes (Army Corps of Engineers)",
+        "what": "Any structure \"under, upon, in or over the project "
+                "lands\" needs written authorization from the District "
+                "Commander - and the one exception the rule gives is the "
+                "measure of a portable station: hunting stands \"not "
+                "nailed or screwed into trees and ... removed at the end of "
+                "a day's hunt\" may be used. Portable, nothing driven "
+                "into a tree, gone by dark. Anything unattended for 24 "
+                "hours is presumed abandoned and may be impounded. Quiet "
+                "from 10 p.m. to 6 a.m. Special events need written "
+                "permission.",
+        "cite": "36 CFR 327.20, 327.15(a), 327.12(b), 327.21(a)",
+    },
+    {
+        "who": "National Wildlife Refuges (Fish and Wildlife Service)",
+        "what": "A refuge is closed except where it has been opened: \"no "
+                "person shall trespass, including but not limited to "
+                "entering, occupying, using, or being upon, any national "
+                "wildlife refuge, except as specifically authorized\". "
+                "Many refuges are on the POTA map and welcome it in their "
+                "open areas and hours; the refuge office is the only "
+                "place to learn which those are.",
+        "cite": "50 CFR 26.21(a)",
+    },
+    {
+        "who": "State parks, state forests, wildlife areas, county parks",
+        "what": "Each state writes its own, in its administrative code, "
+                "and they differ more than the federal ones do - on hours, "
+                "on what may be tied to a tree, on whether a permit is a "
+                "form at the gate or a letter a month ahead. The property "
+                "manager is the authority. ELMER does not carry the "
+                "fifty codes, and does not guess at them.",
+        "cite": "the state's own code - ask",
+    },
+]
+
 # What each thing on the Make Contact gear list is worth on an activation.
 # `pota` and `sota` are the verdicts; the reason is written once and shared,
 # because the operator is owed the rule rather than a yes or a no.
