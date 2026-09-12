@@ -7,8 +7,9 @@
    of - every twelve seconds. Neither costs anything: the run is a thread on
    the server and this page polls a status line every two seconds. */
 (() => {
-  const start = document.getElementById('cal-start');
-  if (!start) return;
+  const choices = document.getElementById('cal-choices');
+  if (!choices) return;
+  const starts = Array.from(choices.querySelectorAll('[data-cal-days]'));
   const stop = document.getElementById('cal-stop');
   const state = document.getElementById('cal-state');
   const stage = document.getElementById('cal-stage');
@@ -36,15 +37,16 @@
 
   function paint(s) {
     const running = ['queued', 'fetching', 'running', 'checking'].includes(s.state);
-    start.disabled = running;
+    starts.forEach(b => { b.disabled = running; });
     stop.hidden = !running;
     stage.hidden = !running && s.state !== 'done' && s.state !== 'failed' && s.state !== 'stopped';
     const pct = Math.round((s.fraction || 0) * 100);
     bar.style.width = pct + '%';
     const mins = Math.round((s.elapsed_s || 0) / 60);
-    const phase = s.state === 'fetching' ? 'Fetching the year from the sondes, GFZ and SWPC…'
-      : s.state === 'running' ? 'Forecasting the year blind, hour by hour (pass 1 of 2)'
-      : s.state === 'checking' ? 'Running the year again with the correction on (pass 2 of 2)'
+    const span = s.days >= 300 ? 'the year' : s.days >= 150 ? 'the half-year' : s.days >= 60 ? 'the quarter' : 'the last ' + s.days + ' days';
+    const phase = s.state === 'fetching' ? 'Fetching ' + span + ' from the sondes, GFZ and SWPC…'
+      : s.state === 'running' ? 'Forecasting ' + span + ' blind, hour by hour (pass 1 of 2)'
+      : s.state === 'checking' ? 'Running ' + span + ' again with the correction on (pass 2 of 2)'
       : s.state === 'done' ? 'Done.' : s.state === 'failed' ? 'Could not finish.' : s.state === 'stopped' ? 'Stopped.' : 'Starting…';
     progress.textContent = phase + (running && s.hours_total ? ' — ' + s.hours_done + ' of ' + s.hours_total + ' hours' : '') +
       (mins ? ' — ' + mins + ' min' : '');
@@ -65,6 +67,28 @@
     }
   }
 
+  /* Which months the held table knows and from which run each came - the
+     honest reading of a table built up from runs of different depths. */
+  function coverageLine(table) {
+    const byRun = {};
+    Object.entries(table.months || {}).forEach(([m, entry]) => {
+      const key = (entry._made || table.made || '').slice(0, 10) + '|' + (entry._days || table.days || '');
+      (byRun[key] = byRun[key] || []).push(m);
+    });
+    const names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const runs = Object.entries(byRun).map(([key, months]) => {
+      const [made, days] = key.split('|');
+      const depth = days >= 300 ? 'comprehensive' : days >= 150 ? 'normal' : days >= 60 ? 'quick' : days + '-day';
+      return months.map(m => names[parseInt(m, 10)]).join(', ') + ' from a ' + depth + ' run on ' +
+        new Date(made).toLocaleDateString();
+    });
+    const applied = Object.values(table.months || {}).reduce((n, m) =>
+      n + Object.values(m).filter(c => c && typeof c === 'object' && c.applied).length, 0);
+    return 'Calibrated against ' + (table.stations || []).join(', ') + ': ' + runs.join('; ') + '. ' +
+      (applied ? applied + ' month-and-sky corrections in use.' : 'Nothing found worth correcting - the model fits this sky.') +
+      ' Run it again any time.';
+  }
+
   function paintResult(r) {
     const b = r.before || {}, a = r.after || {};
     const l = k => ((b.by_lead || {})[k] || {}).mae, la = k => ((a.by_lead || {})[k] || {}).mae;
@@ -79,7 +103,7 @@
     result.hidden = false;
     result.innerHTML =
       '<div class="panel-title" style="margin:0 0 .3rem">What the calibration bought</div>' +
-      '<p class="small">Over the year, the 24-hour forecast’s error against the sondes went from <b>' +
+      '<p class="small">Over the span, the 24-hour forecast’s error against the sondes went from <b>' +
       (l('24') != null ? l('24').toFixed(2) : '?') + '</b> to <b>' + (la('24') != null ? la('24').toFixed(2) : '?') +
       ' MHz</b>' + (p != null ? '; “the same as this hour yesterday” manages ' + p.toFixed(2) + '.' : '.') +
       ' The band plan’s 24-hour strips use the correction from now on, and say so.</p>' +
@@ -93,17 +117,19 @@
     try { paint(await api('/api/calibrate/status')); } catch (e) { /* try again next tick */ }
   }
 
-  start.addEventListener('click', async () => {
-    start.disabled = true;
+  choices.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-cal-days]');
+    if (!btn) return;
+    starts.forEach(b => { b.disabled = true; });
     findings.innerHTML = ''; shownFindings = 0; result.hidden = true;
     try {
-      const s = await postJSON('/api/calibrate', {days: 365});
+      const s = await postJSON('/api/calibrate', {days: parseInt(btn.dataset.calDays, 10)});
       stage.hidden = false;
       paint(s);
       if (!poll) poll = setInterval(tick, 2000);
       nextCard();
       if (!cardTimer) cardTimer = setInterval(nextCard, 12000);
-    } catch (e) { start.disabled = false; }
+    } catch (err) { starts.forEach(b => { b.disabled = false; }); }
   });
   stop.addEventListener('click', async () => { try { await postJSON('/api/calibrate/stop', {}); } catch (e) {} });
 
@@ -113,9 +139,7 @@
       stage.hidden = false; paint(s);
       poll = setInterval(tick, 2000); nextCard(); cardTimer = setInterval(nextCard, 12000);
     } else if (s.table && s.table.months) {
-      const cells = Object.values(s.table.months).reduce((n, m) => n + Object.values(m).filter(c => c.applied).length, 0);
-      state.textContent = 'Calibrated ' + new Date(s.table.made).toLocaleDateString() + ' against ' +
-        (s.table.stations || []).join(', ') + ' — ' + cells + ' month-and-sky corrections in use. Run it again any time.';
+      state.innerHTML = coverageLine(s.table);
     }
   }).catch(() => {});
 })();

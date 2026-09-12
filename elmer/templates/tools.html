@@ -457,19 +457,26 @@
     year again with the correction on, so you see what it bought.
   </p>
   <p class="small" style="max-width:80ch">
-    <b>It takes about five minutes on a Pi</b> and needs the network for the
-    first minute. You are not forgotten while it runs: it tells you what it
+    Three depths. Each one refreshes the months it covers and leaves the rest
+    as the last run that saw them &mdash; so a quick run in September keeps
+    the December a full year measured. <b>It needs the network for the first
+    minute</b>, and you are not forgotten while it runs: it tells you what it
     finds, month by month, with a card or two in between. Nothing leaves this
     unit. The record it reads is GIRO&rsquo;s and GFZ&rsquo;s, and it says so.
     The model already carries the season as measured at the sondes between
     30 and 45&nbsp;N, so a unit in the middle of North America may be told
     there is little to correct &mdash; which is a measured answer too.
   </p>
-  <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
-    <button class="btn primary" id="cal-start">Calibrate my forecast</button>
+  <div class="row" style="gap:.6rem;align-items:stretch;flex-wrap:wrap" id="cal-choices">
+    <button class="btn" data-cal-days="92" style="text-align:left;line-height:1.3">
+      <b>Quick</b> &mdash; the last quarter<br><span class="tiny muted">92 days &middot; about a minute and a half</span></button>
+    <button class="btn primary" data-cal-days="183" style="text-align:left;line-height:1.3">
+      <b>Normal</b> &mdash; half a year<br><span class="tiny muted">183 days &middot; about two and a half minutes</span></button>
+    <button class="btn" data-cal-days="365" style="text-align:left;line-height:1.3">
+      <b>Comprehensive</b> &mdash; the full year<br><span class="tiny muted">365 days &middot; about five minutes</span></button>
     <button class="btn sm ghost" id="cal-stop" hidden>Stop</button>
-    <span class="small muted" id="cal-state"></span>
   </div>
+  <div class="small muted" id="cal-state" style="margin-top:.5rem"></div>
   <div id="cal-stage" class="mt" hidden>
     <div class="meter" style="height:10px"><i id="cal-bar" class="fill-high" style="width:0%"></i></div>
     <div class="tiny muted" style="margin:.3rem 0 .8rem" id="cal-progress"></div>

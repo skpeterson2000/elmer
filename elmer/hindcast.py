@@ -434,6 +434,8 @@ def report(result):
         lines.append("  the calibration this run teaches - the sondes' MUF over the model's, by month and sky:")
         lines.append("    month     dark          grey          lit")
         for m, regs in table["months"].items():
+            regs = forecastlog.month_cells(regs)
+
             def cell(r):
                 v = regs.get(r)
                 if not v:
