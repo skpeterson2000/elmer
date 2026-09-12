@@ -1080,10 +1080,13 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   The height is adjustable because the layer genuinely moves — the F2 peak runs
   roughly 250 to 400 km, lower and denser by day, higher and thinner at night —
   and you do not judge that by ear. It is measured, by ionosondes: a radar
-  pointed straight up that sweeps frequency and times the echo. **Use a real
-  measurement** pulls the nearest reporting station's current foF2 and hmF2 in,
-  and says how far away and how old they are, so the simulator runs on
-  observation rather than on a guess.
+  pointed straight up that sweeps frequency and times the echo. ELMER fetches
+  the sky when it starts — the sonde network and the space-weather feed, in
+  the background, cached where every page reads them — so the sliders open on
+  the nearest reporting station's current foF2 and hmF2, saying how far away
+  and how old they are, rather than on a textbook layer. **Update data** asks
+  the network again, for a session that runs on past the reading's
+  quarter-hour. The simulator runs on observation from the first second.
 
   The slider runs 1.8 to 30 MHz and spends most of that travel between bands,
   so a row of **band chips** sits above it: press 40 m and it lands on 7.074,
