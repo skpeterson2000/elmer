@@ -164,7 +164,12 @@ def main():
     check("the score falls without a jump from the peak to nothing",
           all(a >= b for a, b in zip(steps, steps[1:])), True)
     check("  and by nothing like fifty points between neighbours near the MUF",
-          max(abs(a - b) for a, b in zip(steps[3:8], steps[4:9])) <= 12, True)
+          max(abs(a - b) for a, b in zip(steps[3:8], steps[4:9])) <= 20, True)
+    # The knee is soft on the near side: leaving the peak the band is still
+    # nearly at its best, and 30 m at 0.85 of the MUF is as good as it gets.
+    check("  a soft knee: 0.85 of the MUF is still in the nineties",
+          P.band_score(14.0, 14.0 / 0.85, -30.0, 1.0)["score"] >= 95, True)
+    check("  and 0.9 is still Excellent", P.band_score(14.0, 14.0 / 0.9, -30.0, 1.0)["score"] >= 85, True)
     check("  half its peak at the MUF itself - a coin toss for a full hop",
           P.band_score(14.0, 14.0, -30.0, 1.0)["score"], 50)
     check("  and shut a third above it", steps[-1], 0)
