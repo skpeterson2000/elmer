@@ -18,12 +18,23 @@ def available():
     return shutil.which("chromium") or shutil.which("chromium-browser")
 
 
-def evaluate(url, js, width=1024, height=600, settle=2.0, port=9341):
-    """Load `url` in a headless Chromium, wait `settle` seconds, return `js`."""
+def _free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def evaluate(url, js, width=1024, height=600, settle=2.0, port=None):
+    """Load `url` in a headless Chromium, wait `settle` seconds, return `js`.
+
+    A fresh debugging port each time: the last Chromium is still letting go
+    of its port when the next one starts, and a fixed port made every second
+    launch wait on a browser that was not coming.
+    """
     chromium = available()
     if not chromium:
         raise RuntimeError("no chromium on this machine")
-    return _run(chromium, url, None, width, height, js, settle, port)
+    return _run(chromium, url, None, width, height, js, settle, port or _free_port())
 
 
 def _run(chromium, url, out, w, h, js, settle, port):
@@ -100,3 +111,7 @@ def _run(chromium, url, out, w, h, js, settle, port):
       return value
   finally:
       proc.terminate()
+      try:
+          proc.wait(timeout=5)
+      except subprocess.TimeoutExpired:
+          proc.kill()

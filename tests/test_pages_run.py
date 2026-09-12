@@ -45,8 +45,10 @@ if not _browser.available():
     print("\nFAILED: this test needs chromium")
     sys.exit(1)
 
-# A throwaway server, on the isolated state directory _isolate already set.
-PORT = 5097
+# A throwaway server, on the isolated state directory _isolate already set,
+# on whatever port is free - a fixed one is still held by the last run's
+# server for a moment after it is told to stop.
+PORT = _browser._free_port()
 server = subprocess.Popen(
     [sys.executable, "-c",
      "import sys; sys.path.insert(0, %r)\n"
@@ -82,6 +84,10 @@ try:
         check(f"{path} defines {name}()", got, "function")
 finally:
     server.terminate()
+    try:
+        server.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        server.kill()
 
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)
