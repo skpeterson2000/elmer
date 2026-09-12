@@ -142,12 +142,23 @@ def tools_present():
 
 def missing_tools_note():
     """What to tell the operator when the tools are not there - with what
-    was looked at, so 'but my terminal finds it' has somewhere to start."""
-    return (f"pdftotext was not found on this program's PATH "
-            f"({os.environ.get('PATH') or 'empty'}) nor in {', '.join(FALLBACK_DIRS)}. "
-            f"On a Pi: sudo apt install poppler-utils. If it is installed and this "
-            f"still says so, ELMER was started with a different PATH from your "
-            f"terminal's - start it from the terminal once to compare.")
+    was looked at and on which machine, so 'but my terminal finds it' has
+    somewhere to start. Two Pis on one bench is the ordinary case here, and
+    a terminal on one answering for a screen on the other is the ordinary
+    confusion."""
+    import getpass
+    import socket
+    try:
+        who = f"{getpass.getuser()}@{socket.gethostname()}"
+    except Exception:                                    # pragma: no cover
+        who = "this unit"
+    return (f"pdftotext was not found by the ELMER running as {who}: not on its "
+            f"PATH ({os.environ.get('PATH') or 'empty'}) and not in "
+            f"{', '.join(FALLBACK_DIRS)}. On that machine, in a terminal, "
+            f"'pdftotext -v' should print a version; if it does not, "
+            f"'sudo apt install poppler-utils' (the Python package called "
+            f"pdftotext is a library, not the tool). No restart is needed - "
+            f"ELMER looks again on the next visit.")
 
 
 def shelf():
