@@ -398,10 +398,16 @@ def _indexes():
 
 def catalogue():
     """The shelf as the page shows it: each book, indexed or not, and why."""
+    from . import rigs
     rows = []
     for pdf, meta in _indexes():
         why = _stale(pdf, meta)
+        rig = rigs.identify((meta or {}).get("title"), pdf.name)
         rows.append({
+            # What radio the manual is for, if the table knows the model -
+            # so the shelf can say what the operator owns.
+            "rig": ({"make": rig["make"], "model": rig["model"], "kind": rig["kind"],
+                     "word": rig["word"]} if rig else None),
             "name": pdf.name,
             "title": (meta or {}).get("title") or pdf.stem.replace("_", " "),
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
@@ -413,6 +419,54 @@ def catalogue():
             "stale": why,
         })
     return rows
+
+
+MINE_KEY = "library.mine"
+
+
+def mine(conn):
+    """The books this user has marked as theirs. One shelf, shared - a
+    manual is useful to everyone at the table - but whose radio it is for
+    is a fact about a person, and it is kept per person."""
+    from . import db
+    return [n for n in (db.kv_get(conn, MINE_KEY, []) or []) if isinstance(n, str)]
+
+
+def set_mine(conn, name, flag):
+    from . import db
+    have = mine(conn)
+    if flag and name not in have:
+        have.append(name)
+    if not flag:
+        have = [n for n in have if n != name]
+    db.kv_set(conn, MINE_KEY, have)
+    return have
+
+
+def shelf_gear(conn):
+    """What Make Contact should assume the operator has, from the shelf.
+
+    The books this person marked as theirs, if any; otherwise every book on
+    the shelf, which is the right reading of a one-person unit. Returns the
+    radios recognised, the gear keys they tick, the basis, and the manuals
+    the table could not place - said, not guessed at.
+    """
+    from . import rigs
+    own = set(mine(conn))
+    rows = catalogue()
+    basis = "mine" if own else "shelf"
+    picked = [b for b in rows if (b["name"] in own)] if own else rows
+    found, unknown = [], []
+    for b in picked:
+        rig = rigs.identify(b.get("title"), b["name"])
+        if rig:
+            found.append(dict(rig, book=b["name"]))
+        else:
+            unknown.append(b.get("title") or b["name"])
+    radios = [r for r in found if r["kind"] not in ("test", "book")]
+    return {"basis": basis if rows else "none", "rigs": found,
+            "gear": rigs.gear_from(radios), "sentence": rigs.sentence(radios),
+            "unknown": unknown, "books": len(picked)}
 
 
 def outline(name):

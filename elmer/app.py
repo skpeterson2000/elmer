@@ -639,6 +639,7 @@ def reachout_page():
     connection = conn()
     profile = db.get_profile(connection)
     settings = profile["settings"]
+    shelf = library.shelf_gear(connection)
     return render_template(
         "reachout.html", gear=reachout.GEAR, classes=bandplan.CLASSES,
         license_class=settings.get("license_class")
@@ -650,7 +651,10 @@ def reachout_page():
         # catalogues. `conductors.improvised` and `fieldkit` say why.
         made_of=conductors.improvised(), tools=fieldkit.ladder(),
         arc=fieldkit.ARC,
-        assumed=["ht"], **profile_block(connection))
+        # What the shelf says this person has: the radios their manuals are
+        # for, ticked, and said so they can be unticked. A shelf with no
+        # radios on it leaves the old assumption - a handheld - in place.
+        assumed=shelf["gear"] or ["ht"], shelf=shelf, **profile_block(connection))
 
 
 @app.route("/api/ways-out")
@@ -1456,6 +1460,7 @@ def api_library():
     return jsonify({"path": str(library.SHELF), "tools": tools,
                     "tools_note": None if tools["pdftotext"] else library.missing_tools_note(),
                     "shelf": library.catalogue(), "topics": library.topic_map(),
+                    "mine": library.mine(conn()),
                     "reindex_days": library.REINDEX_DAYS})
 
 
@@ -1532,8 +1537,27 @@ def api_library_add():
         abort(400, f"larger than {library.MAX_PDF_MB} MB - not a manual")
     log.info("library: %s added to the shelf", name)
     report = library.refresh(only=name)
+    # Whoever brought the manual has the radio, until they say otherwise.
+    library.set_mine(conn(), name, True)
     return jsonify({"added": name, "report": report,
-                    "shelf": library.catalogue()})
+                    "shelf": library.catalogue(), "mine": library.mine(conn())})
+
+
+@app.route("/api/library/mine", methods=["POST"])
+def api_library_mine():
+    """Mark a book as this person's, or not. The shelf stays shared."""
+    body = request.get_json(silent=True) or {}
+    pdf = library.book(body.get("name"))
+    if pdf is None:
+        abort(404, "no such book")
+    have = library.set_mine(conn(), pdf.name, bool(body.get("mine", True)))
+    return jsonify({"mine": have})
+
+
+@app.route("/api/library/gear")
+def api_library_gear():
+    """What the shelf says this person has, for Make Contact."""
+    return jsonify(library.shelf_gear(conn()))
 
 
 @app.route("/api/library/remove", methods=["POST"])

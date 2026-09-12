@@ -22,6 +22,22 @@
       </label>
     {% endfor %}
   </div>
+  {# The shelf as evidence: nobody keeps the FT-991A's manual for pleasure.
+     Ticked from the manuals this person owns, said so they can untick it,
+     and the manuals ELMER could not place named rather than guessed at. #}
+  {% if shelf and shelf.sentence %}
+    <p class="tiny muted" style="margin:.2rem 0 .6rem;max-width:80ch">
+      Ticked from {% if shelf.basis == 'mine' %}the manuals you marked as yours{% else %}the manuals on this unit&rsquo;s
+      <a href="/library">Library</a> shelf{% endif %}: {{ shelf.sentence }}.
+      {% if shelf.unknown %}Also on the shelf, not placed as a radio: {{ shelf.unknown|join(', ') }}.{% endif %}
+      Untick what is not with you.
+    </p>
+  {% elif shelf and shelf.books and shelf.unknown %}
+    <p class="tiny muted" style="margin:.2rem 0 .6rem;max-width:80ch">
+      Nothing on the <a href="/library">Library</a> shelf names a radio ELMER knows
+      ({{ shelf.unknown|join(', ') }}), so this starts from a handheld. Tick what you have.
+    </p>
+  {% endif %}
   <div class="row" style="gap:1rem;align-items:flex-end">
     <div class="field" style="margin-bottom:0">
       <label>License class</label>
