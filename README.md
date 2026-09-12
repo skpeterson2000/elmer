@@ -1765,16 +1765,19 @@ question pools is not an examination, and the foot of every certificate says
 so in as many words, because a sheet with *Technician* in large letters will be
 read that way by somebody unless the paper itself says otherwise.
 
-The medals are KC9SP's artwork, cut from the renders in `artwork/` into
-`elmer/static/medals/` and set on a drawn ribbon; the art's own ribbon is
-discarded, which is why the renders need not agree about its colour. Where the
-art is missing a drawn medal stands in, so the certificate never waits on a
-file. All three were re-made without a callsign on the face — CHAMPION,
-FINALIST, BRONZE MEDALIST — so the set is any club's to print.
+The medal renders in `artwork/` were generated with Google Gemini at KC9SP's
+direction — they are not hand-drawn, and the README says so because a
+certificate is the one page of this program that leaves the building. They
+are cut into `elmer/static/medals/` and set on a drawn ribbon; the art's own
+ribbon is discarded, which is why the renders need not agree about its colour.
+Where the art is missing a drawn medal stands in, so the certificate never
+waits on a file. All three were re-made without a callsign on the face —
+CHAMPION, FINALIST, BRONZE MEDALIST — so the set is any club's to print.
 
-A shootout has medals of its own: ELMER SHOOTOUT, a bolt through a crosshair,
-CHAMPION / RUNNER-UP / THIRD PLACE struck into the gold, silver and bronze —
-cut from `artwork/ShootOutBlanks.jpg` into `elmer/static/medals/shootout-*.png`.
+A shootout has medals of its own, generated the same way: ELMER SHOOTOUT, a
+bolt through a crosshair, CHAMPION / RUNNER-UP / THIRD PLACE struck into the
+gold, silver and bronze — cut from `artwork/ShootOutBlanks.jpg` into
+`elmer/static/medals/shootout-*.png`.
 A shootout certificate uses them, and its words match the disc: *Champion is
 awarded to … in the Technician shootout, finishing on ELMER*. A game with no
 medals of its own falls back to the tournament's.
