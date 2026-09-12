@@ -450,23 +450,39 @@ def shelf_gear(conn):
     the shelf, which is the right reading of a one-person unit. Returns the
     radios recognised, the gear keys they tick, the basis, and the manuals
     the table could not place - said, not guessed at.
+
+    A person who has marked only a book that is not a radio - the FT8 guide,
+    the Antenna Book - has told ELMER what they read, not that they own no
+    radio. Their marks are kept, but the radios come from the whole shelf
+    and the answer says so (basis "shelf", `marked` naming what they own),
+    rather than the poll of the shelf quietly vanishing the first time a
+    book is marked.
     """
     from . import rigs
     own = set(mine(conn))
     rows = catalogue()
-    basis = "mine" if own else "shelf"
-    picked = [b for b in rows if (b["name"] in own)] if own else rows
-    found, unknown = [], []
-    for b in picked:
-        rig = rigs.identify(b.get("title"), b["name"])
-        if rig:
-            found.append(dict(rig, book=b["name"]))
-        else:
-            unknown.append(b.get("title") or b["name"])
-    radios = [r for r in found if r["kind"] not in ("test", "book")]
+
+    def read(books):
+        found, unknown = [], []
+        for b in books:
+            rig = rigs.identify(b.get("title"), b["name"])
+            if rig:
+                found.append(dict(rig, book=b["name"]))
+            else:
+                unknown.append(b.get("title") or b["name"])
+        radios = [r for r in found if r["kind"] not in ("test", "book")]
+        return found, radios, unknown
+
+    marked = [b for b in rows if b["name"] in own]
+    found, radios, unknown = read(marked) if own else ([], [], [])
+    basis, picked = "mine", marked
+    if not radios:
+        basis, picked = "shelf", rows
+        found, radios, unknown = read(rows)
     return {"basis": basis if rows else "none", "rigs": found,
             "gear": rigs.gear_from(radios), "sentence": rigs.sentence(radios),
-            "unknown": unknown, "books": len(picked)}
+            "unknown": unknown, "books": len(picked),
+            "marked": sorted(b.get("title") or b["name"] for b in marked)}
 
 
 def outline(name):

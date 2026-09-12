@@ -1275,33 +1275,37 @@ def reconcile(score, rating, muf_source=None, is_group=True):
         out["note"] = ""
         return out
 
-    # Why they can differ at all, said once and plainly.
-    why = ("The wall chart rates a group of bands twice a day from the flux "
-           "and the field. This rates one band for this hour, against the "
-           "critical frequency measured nearest you and the sun's angle where "
-           "you are standing. Two bands in one group can be on opposite sides "
-           "of the MUF, and then one word cannot be right about both."
-           if is_group else
-           "The wall chart is twice a day from the flux and the field; this "
-           "is this hour, at your latitude.")
-    # Good against Poor is not a shade of difference and must not be answered
-    # as one. It has been a fault here rather than a subtlety, and the fault
-    # was ours: a sonde anchor measured at night was carried through the
-    # following noon, which held 20 m shut for a whole day at a flux of 110
-    # while the wall chart called it Good. Worse, the version of this note
-    # that shipped that morning would have said ours was "the better informed
-    # of the two", because it had a measured anchor - the code was most
-    # confident exactly where it was most wrong.
+    # Why they can differ at all, said once and plainly. Two honest reasons
+    # and no confession: geography (their national flux against the sonde
+    # nearest this station) and timing (their word is a fair average for the
+    # band's day; ours is this hour, which sees the bumps in the day that an
+    # average smooths flat). Good against Poor is more than either of those
+    # and is said to be - one of the two methods is reading the sky wrong
+    # just now, and the page does not get to assume it is the other one.
     #
-    # So a flat contradiction claims nothing for either side. Having a
-    # measurement did not make the forecast right; misapplying the measurement
-    # is what made it wrong, and no amount of provenance protects against that.
+    # The history behind that last rule belongs here and not on the page: a
+    # sonde anchor measured at night was once carried through the following
+    # noon, holding 20 m shut all day at a flux of 110 while the wall chart
+    # said Good - and the note of the day would have claimed ours was "the
+    # better informed" because it had a measurement. Having a measurement did
+    # not make the forecast right; misapplying it made it wrong. So a flat
+    # contradiction claims nothing for either side, ever.
+    why = ("The wall chart rates a group of bands twice a day from the flux "
+           "and the field - a fair average for the band's day. This rates "
+           "one band for this hour, from the critical frequency measured "
+           "nearest you and the sun's angle where you stand, so it sees the "
+           "bumps in a band's day that an average smooths out. Two bands in "
+           "one group can also sit on opposite sides of the MUF, and then "
+           "one word cannot be right about both."
+           if is_group else
+           "The wall chart is twice a day from the flux and the field - a "
+           "day's average. This is this hour, at your latitude.")
     if gap >= 2:
-        trust = ("Treat a gap this wide as a reason to doubt this page first. "
-                 "Two answers one word apart is the two methods disagreeing; "
-                 "Good against Poor usually means one of them is broken, and "
-                 "it has been this one before now. Turn the radio on and "
-                 "believe what you hear over either of us.")
+        trust = ("A gap this wide is more than timing and geography: one of "
+                 "the two is reading the sky wrong just now, and this page "
+                 "does not get to assume it is the other one. Turn the radio "
+                 "on. Trust your ears over any computer's picture of a best "
+                 "guess.")
     elif muf_source == "measured":
         trust = ("Ours is anchored to a sonde reading taken near you within "
                  "the hour, so it knows something about your sky that a "

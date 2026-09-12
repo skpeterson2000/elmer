@@ -224,6 +224,17 @@ GEAR_VERDICTS = {
                 "will still reach somebody, which is a different and "
                 "sometimes more important question.",
     },
+    "murs": {
+        "pota": "no credit", "sota": "no credit",
+        "note": "Not amateur radio; no credit. Handy for the party on the "
+                "hill talking to the party at the car, which is what it is "
+                "for.",
+    },
+    "cb": {
+        "pota": "no credit", "sota": "no credit",
+        "note": "Not amateur radio; no credit. Channel 19 still knows where "
+                "the road is closed.",
+    },
 }
 
 VERDICT_RANK = {"forbidden": 0, "no credit": 1, "counts": 2}

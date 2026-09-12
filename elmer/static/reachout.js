@@ -26,6 +26,11 @@ function roCard(w) {
     '<p class="tiny muted" style="margin:.2rem 0 .5rem">Needs: ' +
       escapeHTML(w.needs) + '</p>' +
     '<p style="margin:.3rem 0">' + escapeHTML(w.do) + '</p>' +
+    /* The emergency card carries the order to try things in - an Elmer's
+       order, not the rule's, which permits any means and ranks none. */
+    (w.ladder ? '<ol class="ps-ladder small">' + w.ladder.map(step =>
+        '<li><b>' + escapeHTML(step.what) + '.</b> <span class="muted">' +
+        escapeHTML(step.how) + '</span></li>').join('') + '</ol>' : '') +
     '<p class="tiny muted" style="margin:.4rem 0 0">' + escapeHTML(w.why) + '</p>';
   if (w.rows && w.rows.length > 1) {
     html += '<table class="data rep-table" style="margin-top:.6rem"><tr>' +

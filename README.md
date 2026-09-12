@@ -404,6 +404,43 @@ transmitting on those channels needs an authorisation a license does not give
 you, and owning the book is not it. Being a work of the US government it carries
 no copyright and can be printed and handed out freely.
 
+**The other radios in America.** Most two-way radios in the country are not
+amateur radios, and below the amateur bands the page gives FRS, GMRS, MURS
+and CB the same treatment: the channels exactly (the 22 shared FRS/GMRS
+channels with each service's power on each, the eight GMRS repeater inputs,
+the five MURS channels, all forty CB channels with 23-25 in their historical
+order), who may use them and under what — no license at all for FRS, MURS
+and CB, authorised by rule under 47 CFR 95.305; GMRS's $35 no-exam license
+that covers the whole immediate family and asks for a call sign every
+fifteen minutes — and the conventions marked as conventions (channel 19,
+462.675 with the travel tone) apart from the one that is law (CB channel 9,
+95.931). Every figure is copied from the section of Part 95 cited beside it
+and `tests/test_personal.py` pins them to the rule, not to the module.
+
+Below the tables is the paragraph an amateur with a dual-band handheld is
+owed and rarely given. The radio will tune 462.675; the rules say it may
+not transmit there — Part 95 is equipment-certified (95.335), no radio that
+can also do amateur frequencies will be certified for GMRS (95.1761(c)),
+and 95.935 names amateur transmitters on CB as a violation in so many
+words. Listening is legal and always was. In an emergency, 97.403 and 97.405
+apply completely, and the services meet you halfway: every FRS, GMRS and CB
+channel must give emergency traffic priority. Then the order to try things
+in, which the rules permit but do not give: your own bands with your own
+license; then the personal-radio channels where the humans are — channel 9
+and 19, 462.675, FRS 1; and a public-safety frequency last, for immediate
+danger to life when nothing else has answered, because a dispatch channel is
+somebody's working frequency and a call on channel 19 reaches a person with a
+telephone without stepping on a response already under way. Carry a radio
+licensed for the service you mean to use it in; extenuating circumstances
+are exactly that.
+
+The rest of the program knows these channels too. The Lab's "may I?" and RF
+exposure answers name the channel rather than doubting the number — 462.55
+MHz is "FRS/GMRS channel 15, FRS 2 W ERP (no license) / GMRS 50 W (GMRS
+license)", not "check the frequency" — and the antenna designer will cut a
+J-pole for channel 20 or a whip for channel 19, assuming local FM or a few
+miles of road rather than DX.
+
 
 ## When it goes wrong
 
@@ -703,13 +740,31 @@ guess was the wrong length, and asks nothing of anybody but a spanner.
 copper may recommend solder, and the warnings cannot be quietly trimmed out
 later.
 
+The gear list is the radios America actually carries. Beside the amateur
+kinds are a GMRS or FRS radio, a MURS radio and a CB, each with its own card
+when ticked: FRS/GMRS channel 20 with the 141.3 travel tone then 1 and 16,
+the repeater input 5 MHz up for a licensee, and "say EMERGENCY, not Mayday"
+because 95.1733 reserves the word; MURS 154.570 and 154.600 first, where the
+farm base with the antenna on a pole is listening; CB channel 9 then 19, and
+38 LSB if the set has sideband. With no gear ticked at all the FRS/GMRS and
+CB cards are still offered, because the radio in the next car is one of
+those far more often than it is ours. A handheld with no GMRS radio beside
+it gets a different card: your radio hears those channels, listening there
+is legal and tells you who is within a mile, and transmitting there is
+97.403 territory and nothing less. The library shelf ticks these too — a CB
+manual ticks CB — and if the books a person marked as theirs name no radio,
+the poll falls back to the whole shelf and says so rather than vanishing.
+
 The odds are words rather than numbers, because numbers there would be
 invented. And the last entry is 47 CFR 97.403: when life or property is in
 immediate danger and normal systems are not available, an amateur station may
 use any means of radiocommunication at its disposal. It is pinned to the
 bottom on purpose - answering "how do I get a message out" with "declare an
 emergency" is wrong for a flat tire, and the entry has to keep its force for
-the day it is needed.
+the day it is needed. It now carries the order to try things in — own bands,
+then the personal-radio channels, then a public-safety frequency for
+immediate danger to life and nothing else — which the rule permits and does
+not state.
 
 ## Parks and summits
 

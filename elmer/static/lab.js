@@ -2234,6 +2234,11 @@ async function showPrivilege(i) {
   let html = '';
   if (!d.in_band) {
     html = '<span class="warntext">' + mhz + ' MHz is not in a US amateur band.</span> ' +
+           (d.service
+             ? 'It is <b>' + escapeHTML(d.service.label) + '</b> &mdash; ' +
+               escapeHTML(d.service.who) + ' (' + escapeHTML(d.service.cite) +
+               '). An amateur transmitter is not certified for it (47 CFR 95.335). '
+             : '') +
            'The exposure limits still apply, and are still evaluated.';
   } else if (!d.known_class) {
     html = '<b>' + escapeHTML(d.band) + '</b> &mdash; add your callsign on the ' +

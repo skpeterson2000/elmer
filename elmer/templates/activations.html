@@ -86,10 +86,16 @@
     {% for key, label in gear.items() %}
       <label class="tiny" style="display:flex;align-items:center;gap:.35rem">
         <input type="checkbox" value="{{ key }}"
-               {% if key == 'hf_wire' %}checked{% endif %}> {{ label }}
+               {% if key in assumed %}checked{% endif %}> {{ label }}
       </label>
     {% endfor %}
   </div>
+  {% if shelf and shelf.sentence %}
+    <p class="tiny muted" style="margin:.2rem 0 .6rem;max-width:80ch">
+      Ticked from the manuals on the <a href="/library">Library</a> shelf:
+      {{ shelf.sentence }}. Untick what stays home.
+    </p>
+  {% endif %}
   <div id="ac-verdicts"></div>
 </div>
 

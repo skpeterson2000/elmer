@@ -106,8 +106,12 @@ RIGS = [
     (r"MXT-?\d+", "Midland", "MXT GMRS mobile", "gmrs", "GMRS", 40),
     (r"GXT-?\d+|T\d\d?[A-Z]? ?(?:two-way|frs|radio)", "Midland", "FRS/GMRS handheld", "gmrs", "GMRS / FRS", 2),
     (r"RT-?\d+", "Retevis", "RT series", "gmrs", "GMRS / FRS", 5),
-    (r"29 ?LTD|29 ?LX|Cobra ?\d+", "Cobra", "CB", "gmrs", "CB", 4),
-    (r"PRO-?5\d+XL|Bearcat ?\d+", "Uniden", "CB", "gmrs", "CB", 4),
+    (r"MURS-?V[12]", "BTECH", "MURS-V1/V2", "murs", "MURS", 2),
+    (r"Dakota Alert|M538|MURS Alert", "Dakota Alert", "MURS handheld", "murs", "MURS", 2),
+    (r"29 ?LTD|29 ?LX|Cobra ?\d+", "Cobra", "CB", "cb", "CB", 4),
+    (r"PRO-?5\d+XL|Bearcat ?\d+", "Uniden", "CB", "cb", "CB", 4),
+    (r"President ?(?:McKinley|Lincoln|Bill|Randy|Walker|Johnny|Ronald)", "President", "CB", "cb", "CB", 4),
+    (r"Galaxy ?DX-?\d+|Stryker ?SR-?\d+", "-", "10 m / 11 m export set", "cb", "CB", 4),
     # ---- not radios ------------------------------------------------------
     (r"NanoVNA|RigExpert|MFJ-?2\d\d|antenna analy[sz]er", "-", "antenna analyser", "test", "", 0),
     (r"Antenna Book|ARRL Handbook|Operating Manual for Radio Amateurs|Handbook", "-", "reference book", "book", "", 0),
@@ -115,7 +119,8 @@ RIGS = [
 
 KIND_WORDS = {
     "ht": "handheld", "mobile": "VHF/UHF mobile", "hf": "HF set", "allmode": "all-mode set",
-    "vhf_allmode": "VHF/UHF all-mode set", "gmrs": "GMRS/FRS/CB radio", "test": "test gear",
+    "vhf_allmode": "VHF/UHF all-mode set", "gmrs": "GMRS/FRS radio", "murs": "MURS radio",
+    "cb": "CB radio", "test": "test gear",
     "book": "reference book",
 }
 
@@ -126,7 +131,7 @@ KIND_WORDS = {
 KIND_GEAR = {
     "ht": ["ht"], "mobile": ["mobile_vhf"], "hf": ["hf_wire"],
     "allmode": ["hf_wire", "mobile_vhf"], "vhf_allmode": ["mobile_vhf"],
-    "gmrs": ["gmrs"], "test": [], "book": [],
+    "gmrs": ["gmrs"], "murs": ["murs"], "cb": ["cb"], "test": [], "book": [],
 }
 
 

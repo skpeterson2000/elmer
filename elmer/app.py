@@ -37,7 +37,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               monitoring, reachout, repeaters, units,
+               monitoring, personal, reachout, repeaters, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
@@ -744,7 +744,12 @@ def activations_page():
     """
     connection = conn()
     settings = db.get_profile(connection)["settings"]
+    # The same shelf Make Contact reads: the manuals name the radios. A wire
+    # HF station is the classic activation and stays the assumption when the
+    # shelf names nothing.
+    shelf = library.shelf_gear(connection)
     return render_template("activations.html", gear=reachout.GEAR,
+                           assumed=shelf["gear"] or ["hf_wire"], shelf=shelf,
                            # None means nobody has been asked yet, which is a
                            # different state from having said no.
                            pota_asked=settings.get("pota"),
@@ -1329,6 +1334,13 @@ def api_antenna_pdf():
     return _print_reply(row, _wants_raw(body))
 
 
+@app.route("/api/personal")
+def api_personal():
+    """FRS, GMRS, MURS and CB: channels, law and conventions, for the band
+    plan page and anything else that meets a frequency it does not own."""
+    return jsonify(personal.for_bandplan())
+
+
 @app.route("/api/nifog")
 def api_nifog():
     """The cached interoperability channels. Never fetches on a page load."""
@@ -1377,6 +1389,11 @@ def api_privileges():
     result["band_segments"] = segments
     result["suggest_mhz"] = suggest
     result["classes"] = list(bandplan.CLASSES)
+    # Outside the amateur bands the honest answer is still an answer: the
+    # frequency is very often somebody else's channel, and saying whose is
+    # what stops "not in a US amateur band" reading as "not a frequency".
+    result["service"] = (None if result["in_band"]
+                         else personal.service_at(mhz))
     # What the profile holds, as well as what this answer was worked out for.
     # A page that has been handed a class - from the band plan, or by somebody
     # choosing one - should be able to say so rather than implying the profile
