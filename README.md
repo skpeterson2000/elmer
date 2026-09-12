@@ -1460,6 +1460,23 @@ a new build that is logged as explained, without one it is a WARNING. Nothing
 in the ledger leaves the unit or names anyone; it is the raw material a field
 report would carry home, if the operator ever chose to send one.
 
+**A month in a few minutes.** `./elmer.py --hindcast 30` fetches the last
+thirty days from the record — every 15-minute ionosonde reading from the North
+American Digisondes (GIRO/DIDBase), every three-hourly Kp (GFZ), the daily
+flux (SWPC) — and runs the forecast blind over it: at each hour the model is
+handed only what it would have known then, draws its 24 hours, and is graded
+against what the sondes went on to read. Seven hundred hours take twenty
+seconds on the Pi. The report is the same skill table the live ledger keeps,
+plus the yardstick any forecast has to beat: **persistence**, "the same as
+this hour yesterday". The first run of it, for Brainerd, 12 August to 11
+September 2026: the model ran 2.2 MHz low by day and 3.3 MHz low at the
+terminator; its 24-hour MAE was 3.0 MHz; persistence managed 1.8. That is a
+measured statement about the model, and from here on a change to
+`propagation.py` is judged that way — "August's MAE went from 3.0 to 2.4" —
+rather than by whether a curve looks plausible. Sources carry their terms:
+GIRO data is CC-BY-NC-SA 4.0 and the report acknowledges each station's data
+provider; Kp is CC BY 4.0.
+
 **The Elmer's class report.** The same measure, on the Progress page: *Where
 people on this unit get lost* — the twelve questions this unit's students found
 hardest, each with how many met it, how many missed it first time, and how long
@@ -1998,6 +2015,7 @@ jobs rather than three degrees of one.
 ./elmer.py --adopt            let a copied install update itself in future
 ./elmer.py --fetch-nifog      read the interoperability channels from the NIFOG
 ./elmer.py --index-library    read the manuals in data/library/ (all: redo every one)
+./elmer.py --hindcast 30      run the forecast blind over the last 30 days and grade it
 ./elmer.py --gps              ask the GPS where the station is
 ./elmer.py --gpsd 192.168.1.5 read the GPS on another machine (off goes back
                               to the typed QTH)

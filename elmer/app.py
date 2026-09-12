@@ -2407,7 +2407,8 @@ def api_propagation_outlook():
                 bands, {"sfi": snap["sfi"], "k_index": k_index, "muf_now": muf,
                         "muf_source": snap["muf_source"], "fof2": snap.get("fof2"),
                         "hmf2": snap.get("hmf2"), "hmf2_measured": snap.get("hmf2_measured"),
-                        "m3000": m3000, "lat": lat, "lon": lon, "adjustment": bias},
+                        "m3000": m3000, "anchor": anchor, "lat": lat, "lon": lon,
+                        "adjustment": bias},
                 bugreport.build_stamp().get("commit"))
             record = {"adjustment": adj, "skill": forecastlog.skill(),
                       "drift": verdict if (verdict and verdict["moved"]) else forecastlog.latest_drift()}

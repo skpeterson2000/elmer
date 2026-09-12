@@ -130,23 +130,33 @@ check("  and its critical frequency moved with it",
 
 print("\ndrift: the shape moving without the sky moving")
 a = F.record(bands_for(NOW), INPUTS, "aaaaaaa", now=NOW)
-same = F.drift(F.latest(before=F._hour((NOW + timedelta(hours=1)).isoformat())),
-               {"hour": "x", "hours": [h["at"] for h in bands_for(NOW + timedelta(hours=1))[0]["hours"]],
-                "inputs": INPUTS, "build": "aaaaaaa",
-                "bands": {b["band"]: [h["score"] for h in b["hours"]] for b in bands_for(NOW + timedelta(hours=1))}})
+prev = F.latest(before=F._hour((NOW + timedelta(hours=1)).isoformat()), now=NOW + timedelta(hours=1))
+
+
+def entry_for(bands, build="aaaaaaa", inputs=INPUTS, muf_shift=0.0):
+    return {"hour": "x", "hours": [F._hour(h["at"]) for h in bands[0]["hours"]], "inputs": inputs,
+            "build": build, "mufs": [h["muf"] + muf_shift for h in bands[0]["hours"]],
+            "regimes": [h["regime"] for h in bands[0]["hours"]],
+            "bands": {b["band"]: [h["score"] for h in b["hours"]] for b in bands}}
+
+
+same = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1))))
 check("the same model an hour on has not moved", same["moved"], False)
-shifted = bands_for(NOW + timedelta(hours=1), shape=20)
-entry = {"hour": "x", "hours": [F._hour(h["at"]) for h in shifted[0]["hours"]], "inputs": INPUTS,
-         "build": "aaaaaaa", "bands": {b["band"]: [h["score"] for h in b["hours"]] for b in shifted}}
-v = F.drift(F.latest(before=F._hour((NOW + timedelta(hours=1)).isoformat())), entry)
-check("twenty points at every hour with the sky still is drift", (v["moved"], v["inputs_moved"], v["build_changed"]), (True, False, False))
+v = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1), shape=20)))
+check("twenty points at every hour with the MUF and the sky still is drift",
+      (v["moved"], v["inputs_moved"], v["build_changed"]), (True, False, False))
 check("  and the note says the model moved", "the model did" in v["note"], True)
-entry["build"] = "bbbbbbb"
-v2 = F.drift(F.latest(before=F._hour((NOW + timedelta(hours=1)).isoformat())), entry)
+v2 = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1), shape=20), build="bbbbbbb"))
 check("  the same movement with a new build is explained by the build", (v2["moved"], v2["build_changed"]), (True, True))
-entry["inputs"] = dict(INPUTS, sfi=140)
-v3 = F.drift(F.latest(before=F._hour((NOW + timedelta(hours=1)).isoformat())), entry)
+v3 = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1), shape=20), inputs=dict(INPUTS, sfi=140)))
 check("  and with the flux up thirty it moved with the sky", v3["inputs_moved"], True)
+v4 = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1)), muf_shift=1.5))
+check("the MUF itself moving by a megahertz and a half at matching hours is drift",
+      (v4["moved"], "MUF" in v4["bands"], "MHz" in v4["note"]), (True, True, True))
+# A score that moved because the MUF under it moved is the knee doing its
+# job, not the model changing: shape is only judged where the MUF held.
+v5 = F.drift(prev, entry_for(bands_for(NOW + timedelta(hours=1), shape=20), muf_shift=0.9))
+check("  a score moving with a moved MUF is not counted as shape drift", "40m" in v5["bands"], False)
 
 print("\nthe ledger is pruned")
 check("nothing older than the keep window survives",
