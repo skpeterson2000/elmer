@@ -625,6 +625,15 @@ D_ABSORPTION = 41.5
 # the difference between Good and Excellent, which is where it belongs.
 NIGHT_RELIEF = 0.7
 
+# The shape of a band's score against the MUF, as fractions of it. The peak is
+# where the optimum working frequency sits - the FOT, about 0.85 of MUF(3000)
+# in the textbooks; 0.8 here, where this scale has always put it. At the MUF
+# itself a full hop works about half the time, so the score is half its peak
+# there rather than either side of a cliff; a third above, nothing works.
+MUF_PEAK = 0.8
+MUF_AT_LINE = 50.0            # the score at the MUF itself: half the peak
+MUF_OVER_LIMIT = 4.0 / 3.0    # ratio past which the band is simply shut
+
 QUALITY = [(80, "Excellent"), (60, "Good"), (35, "Fair"), (15, "Poor"),
            (0, "Closed")]
 
@@ -822,45 +831,70 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
 
     muf = max(1.0, float(muf or 1.0))
     ratio = mhz / muf
-    if ratio <= 1.0:
-        # Best just under the MUF, tailing off as the band drops away from it.
-        near = max(0.0, 1.0 - abs(ratio - 0.8) / 0.8)
-        # What that tail actually charges for is absorption on the way
-        # through, and absorption is the D layer's business - which is why it
-        # is also charged for below, in `absorb`. In daylight that is one
-        # thing said twice and roughly right. After dark it is a bill for a
-        # layer that has gone home: `absorb` correctly falls to nothing while
-        # this tail does not, and 80 m sits at "Good" through the hours it is
-        # at its best. So the shape relaxes as the D layer goes.
+    if ratio <= MUF_OVER_LIMIT:
+        # Best just under the MUF, tailing off as the band drops away from it
+        # - and, past the peak, falling through the MUF rather than off it.
         #
-        # By exactly as much as that band was being absorbed, and no more. The
-        # frequency term is `absorb`'s own, so the relief is the complement of
-        # the bill: 80 m gets nearly all of it back, 40 m a third, and 10 m
-        # essentially nothing - which is right, because 10 m sitting well
-        # under a 100 MHz MUF is not being held down by the D layer and does
-        # not improve at nightfall. It relaxes rather than vanishing because
-        # being far under the MUF still is not the sweet spot: below the LUF
-        # nothing works at any hour, and the low bands stay noisy after dark
-        # whatever the ionosphere is doing.
-        d_layers_share = min(1.0, (3.5 / max(mhz, 1.0)) ** 1.6)
-        near += ((1.0 - near) * NIGHT_RELIEF * d_layers_share
-                 * (1.0 - sun ** 0.6))
-        score = 45.0 + 55.0 * near
-        why = (f"{mhz:g} MHz is {ratio:.2f} of the {muf:g} MHz MUF"
-               + (" - about where the band works best" if 0.6 <= ratio <= 0.95
-                  else ""))
+        # MUF(3000) is a median: at the MUF itself a full hop works about
+        # half the time, and the shorter paths, sporadic E and a good day at
+        # the far end live just over the line. The score used to say 86 at
+        # 0.99 of the MUF and 34 at 1.01 - a fifty-point cliff at a number
+        # that is itself uncertain by ten percent - so on a night with the
+        # measured MUF sitting at 14 MHz, 20 m read Excellent, Poor,
+        # Excellent, Poor from one hour to the next as the model's MUF
+        # breathed around it. Now it is one line: 100 at the peak, half that
+        # at the MUF, nothing a third above it.
+        if ratio <= MUF_PEAK:
+            near = max(0.0, 1.0 - (MUF_PEAK - ratio) / MUF_PEAK)
+            # What the tail under the peak actually charges for is absorption
+            # on the way through, and absorption is the D layer's business -
+            # which is why it is also charged for below, in `absorb`. In
+            # daylight that is one thing said twice and roughly right. After
+            # dark it is a bill for a layer that has gone home: `absorb`
+            # correctly falls to nothing while this tail does not, and 80 m
+            # sits at "Good" through the hours it is at its best. So the
+            # shape relaxes as the D layer goes.
+            #
+            # By exactly as much as that band was being absorbed, and no
+            # more. The frequency term is `absorb`'s own, so the relief is
+            # the complement of the bill: 80 m gets nearly all of it back,
+            # 40 m a third, and 10 m essentially nothing - which is right,
+            # because 10 m sitting well under a 100 MHz MUF is not being held
+            # down by the D layer and does not improve at nightfall. It
+            # relaxes rather than vanishing because being far under the MUF
+            # still is not the sweet spot: below the LUF nothing works at any
+            # hour, and the low bands stay noisy after dark whatever the
+            # ionosphere is doing.
+            d_layers_share = min(1.0, (3.5 / max(mhz, 1.0)) ** 1.6)
+            near += ((1.0 - near) * NIGHT_RELIEF * d_layers_share
+                     * (1.0 - sun ** 0.6))
+            score = 45.0 + 55.0 * near
+        elif ratio <= 1.0:
+            score = 100.0 - (100.0 - MUF_AT_LINE) * (ratio - MUF_PEAK) / (1.0 - MUF_PEAK)
+            d_layers_share = 0.0
+        else:
+            score = MUF_AT_LINE * (1.0 - (ratio - 1.0) / (MUF_OVER_LIMIT - 1.0))
+            d_layers_share = 0.0
+        if ratio > 1.0:
+            why = (f"{mhz:g} MHz is above the {muf:g} MHz MUF - a full hop "
+                   "mostly goes through the F layer; shorter paths, sporadic "
+                   "E and a good day at the far end are what is left")
+        elif ratio > 0.95:
+            why = (f"{mhz:g} MHz is at the {muf:g} MHz MUF - a coin toss for a "
+                   "full hop, and the shorter paths still work")
+        else:
+            why = (f"{mhz:g} MHz is {ratio:.2f} of the {muf:g} MHz MUF"
+                   + (" - about where the band works best" if 0.6 <= ratio <= 0.95
+                      else ""))
         if sun < 0.2 and ratio < 0.6 and d_layers_share > 0.25:
             why += ("; well under it, which costs nothing after dark - the "
                     "absorption that penalises a low band is the D layer's, "
                     "and it is not there")
     else:
-        # Over the top: it does not fade out, it stops.
-        # Not a cliff edge: MUF(3000) is a median for a long hop, and shorter
-        # paths, sporadic E and a good day at the far end all live just over
-        # the line. Past about a third above it, nothing does.
-        score = max(0.0, 34.0 - 100.0 * (ratio - 1.0))
-        why = (f"{mhz:g} MHz is above the {muf:g} MHz MUF - signals go through "
-               "the F layer instead of coming back")
+        # A third above the MUF and more: it does not fade, it stops.
+        score = 0.0
+        why = (f"{mhz:g} MHz is well above the {muf:g} MHz MUF - signals go "
+               "through the F layer instead of coming back")
 
     # Absorption is heaviest on the lowest bands and gone by about 10 MHz. The
     # exponent is the textbook inverse-square softened for the fact that this
@@ -1060,13 +1094,24 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
 ANCHOR_PLATEAU_DEG = 12.0
 ANCHOR_FADE_DEG = 40.0
 
+# The same sun angle comes round twice a day, and the sky under it is not the
+# same sky. An anchor measured at eleven at night, with the F layer still
+# carrying the afternoon, was being applied in full at six the next morning
+# because the sun was back at the same angle - after seven hours of
+# recombination had taken the layer to its lowest of the day. So the hold is
+# also a matter of time: full for a few hours either side of the reading, gone
+# by the time the other side of the night is reached.
+ANCHOR_HOLD_HOURS = 3.0
+ANCHOR_FADE_HOURS = 9.0
 
-def anchor_at(anchor, measured_sun, sun):
+
+def anchor_at(anchor, measured_sun, sun, hours_since=None):
     """The anchor's weight at one sun angle, given where it was measured.
 
     Full strength where the sun is where it was when the sondes were read, so
     the current hour is unchanged; fading to 1.0 - the model alone - as the sky
-    moves away from that.
+    moves away from that, or as the hours put the reading behind. Whichever
+    has let go further decides.
     """
     if anchor is None:
         return 1.0
@@ -1074,10 +1119,20 @@ def anchor_at(anchor, measured_sun, sun):
         return float(anchor)
     gap = abs(float(sun) - float(measured_sun))
     if gap <= ANCHOR_PLATEAU_DEG:
-        return float(anchor)
-    if gap >= ANCHOR_FADE_DEG:
-        return 1.0
-    held = 1.0 - (gap - ANCHOR_PLATEAU_DEG) / (ANCHOR_FADE_DEG - ANCHOR_PLATEAU_DEG)
+        held = 1.0
+    elif gap >= ANCHOR_FADE_DEG:
+        held = 0.0
+    else:
+        held = 1.0 - (gap - ANCHOR_PLATEAU_DEG) / (ANCHOR_FADE_DEG - ANCHOR_PLATEAU_DEG)
+    if hours_since is not None:
+        age = abs(float(hours_since))
+        if age <= ANCHOR_HOLD_HOURS:
+            by_time = 1.0
+        elif age >= ANCHOR_FADE_HOURS:
+            by_time = 0.0
+        else:
+            by_time = 1.0 - (age - ANCHOR_HOLD_HOURS) / (ANCHOR_FADE_HOURS - ANCHOR_HOLD_HOURS)
+        held = min(held, by_time)
     return 1.0 + (float(anchor) - 1.0) * held
 
 
@@ -1239,7 +1294,7 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         # full strength while the sun is near where the sondes saw it, then
         # released - see `anchor_at`.
         muf, fof2 = levels(sfi, elevation, lat, m3000,
-                           anchor_at(anchor, anchor_sun, elevation),
+                           anchor_at(anchor, anchor_sun, elevation, hours_since=step),
                            drive=f2_drive(lat, lon, when))
         got = band_score(mhz, muf, elevation, k_index, fof2, hmf2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)

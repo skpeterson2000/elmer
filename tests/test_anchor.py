@@ -82,6 +82,15 @@ def main():
     check("no anchor at all is simply the model", P.anchor_at(None, 0.0, 0.0), 1.0)
     check("  and an anchor with no sky attached is used as it stands",
           P.anchor_at(0.9, None, 40.0), 0.9)
+    # The same sun angle comes round twice a day and the sky under it is not
+    # the same sky: a reading from eleven at night must not be applied in full
+    # at six the next morning because the sun is back at -27.
+    check("held in full three hours on", P.anchor_at(0.738, -27.0, -27.0, hours_since=3), 0.738)
+    check("  letting go across the night", 0.738 < P.anchor_at(0.738, -27.0, -27.0, hours_since=6) < 1.0, True)
+    check("  and gone by the other side of it, same sun angle or not",
+          P.anchor_at(0.738, -27.0, -27.0, hours_since=9), 1.0)
+    check("  whichever has let go further decides",
+          P.anchor_at(0.738, -27.0, 44.0, hours_since=1), 1.0)
 
     print("\n-- the failure itself: night must not close the next day --")
     # The numbers from the morning it went wrong.
@@ -94,8 +103,10 @@ def main():
     check("  released, it is above it", muf_noon_faded > 14.0, True)
     naive = P.band_score(14.0, muf_noon_naive, 44.0, 2, 3.9, 300.0)["score"]
     faded = P.band_score(14.0, muf_noon_faded, 44.0, 2, 5.8, 300.0)["score"]
-    check("  and 20 m goes from shut to open at midday",
-          (naive < 20, faded > 70), (True, True))
+    # Poor rather than shut, since the score stopped falling off a cliff at
+    # the MUF: at 1.16 of it a full hop mostly fails and shorter ones do not.
+    check("  and 20 m goes from poor to open at midday",
+          (naive < 30, faded > 70), (True, True))
     # The hour it was measured for is untouched by all of this.
     a = P.levels(sfi, night_sun, 46.6, m3000, night_anchor)[0]
     b = P.levels(sfi, night_sun, 46.6, m3000,
