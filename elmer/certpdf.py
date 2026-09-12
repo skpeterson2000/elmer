@@ -34,6 +34,11 @@ MEDALS = ROOT / "elmer" / "static" / "medals"
 
 PLACE_WORD = {1: "First place", 2: "Second place", 3: "Third place"}
 PLACE_FILE = {1: "gold", 2: "silver", 3: "bronze"}
+# A shootout has its own medals - ELMER SHOOTOUT, a bolt through a
+# crosshair, CHAMPION / RUNNER-UP / THIRD PLACE struck into the metal - so
+# the words on the page match the words on the disc.
+MODE_WORD = {"shootout": {1: "Champion", 2: "Runner-up", 3: "Third place"}}
+MODE_FILE = {"shootout": "shootout-"}
 MEDAL_TINT = {1: ("#d4a017", "#f5d47a"), 2: ("#9aa3ad", "#dfe4e8"),
               3: ("#a0622d", "#d69a66")}
 
@@ -42,15 +47,21 @@ DIM = colors.HexColor("#5a6572")
 RULE = colors.HexColor("#c8a24a")
 
 
-def medal_image(place):
-    """The art for this placing, if the artwork has been put where it goes."""
+def medal_image(place, mode=None):
+    """The art for this placing, if the artwork has been put where it goes.
+
+    A game with medals of its own gets them; without them, the tournament's.
+    """
     name = PLACE_FILE.get(place)
     if not name:
         return None
-    for ext in ("png", "jpg", "jpeg"):
-        candidate = MEDALS / f"{name}.{ext}"
-        if candidate.is_file():
-            return candidate
+    prefixes = [MODE_FILE[mode]] if mode in MODE_FILE else []
+    prefixes.append("")
+    for prefix in prefixes:
+        for ext in ("png", "jpg", "jpeg"):
+            candidate = MEDALS / f"{prefix}{name}.{ext}"
+            if candidate.is_file():
+                return candidate
     return None
 
 
@@ -94,9 +105,9 @@ def _rosette(c, cx, cy, r, place):
     c.restoreState()
 
 
-def _medal(c, cx, cy, r, place):
+def _medal(c, cx, cy, r, place, mode=None):
     _ribbon(c, cx, cy, r)
-    art = medal_image(place)
+    art = medal_image(place, mode)
     if art is not None:
         c.drawImage(str(art), cx - r, cy - r, r * 2, r * 2,
                     mask="auto", preserveAspectRatio=True, anchor="c")
@@ -111,7 +122,7 @@ def _fit(c, text, font, size, width, floor=14):
     return size
 
 
-def _page(c, award, event, when, where, footer, club=None, signers=None):
+def _page(c, award, event, when, where, footer, club=None, signers=None, mode=None):
     W, H = landscape(LETTER)
     margin = 0.7 * 72
     place = int(award.get("place") or 1)
@@ -152,12 +163,12 @@ def _page(c, award, event, when, where, footer, club=None, signers=None):
 
     # The medal, left of centre; the words, right of it.
     mx, my, mr = margin + 160, H / 2 - 6, 92
-    _medal(c, mx, my, mr, place)
+    _medal(c, mx, my, mr, place, mode)
 
     tx = mx + mr + 60
     tw = W - margin - 24 - tx
     c.setFillColor(INK)
-    word = PLACE_WORD.get(place, f"{place}th place")
+    word = (MODE_WORD.get(mode) or PLACE_WORD).get(place, f"{place}th place")
     c.setFont("Helvetica-Bold", 40)
     c.drawString(tx, my + 78, word)
 
@@ -208,19 +219,20 @@ def _page(c, award, event, when, where, footer, club=None, signers=None):
 
 
 def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
-          club=None, signers=None):
-    """One page per award. `awards`: [{place, name, lines: [...]}, ...]."""
+          club=None, signers=None, mode=None):
+    """One page per award. `awards`: [{place, name, lines: [...]}, ...].
+    `mode` is the game played - "shootout" brings its own medals and words."""
     when = when or date.today().strftime("%-d %B %Y")
     footer = footer or (
-        "A tournament result, recorded by ELMER. It is a game played on the "
-        "licence question pools; it is not an examination, a licence, or a "
-        "claim of either.")
+        f"A {mode if mode in MODE_WORD else 'tournament'} result, recorded by ELMER. "
+        "It is a game played on the licence question pools; it is not an "
+        "examination, a licence, or a claim of either.")
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(LETTER))
     c.setTitle(f"{event} - certificates")
     c.setAuthor("ELMER")
     for award in awards:
-        _page(c, award, event, when, where, footer, club=club, signers=signers)
+        _page(c, award, event, when, where, footer, club=club, signers=signers, mode=mode)
         c.showPage()
     c.save()
     return buffer.getvalue()
@@ -237,7 +249,9 @@ def lines_for(entry, game):
     length = game.get("length")
     blocks = game.get("blocks")
     if game.get("mode") == "shootout":
-        out.append(f"Last one standing in the {what} shootout")
+        # The placing word - Champion, Runner-up - is the medal's and the
+        # page's; this line says what game it was in.
+        out.append(f"in the {what} shootout")
         if entry.get("letters") is not None:
             word = "ELMER"[:int(entry["letters"])] or "no letters"
             out.append(f"finishing on {word}")

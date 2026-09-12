@@ -3741,7 +3741,7 @@ def _certificate_awards(scope, places):
         state = running.plan_state() or {}
         game = {"label": party.LABELS.get(running.difficulty, running.difficulty.title()),
                 "length": state.get("length"), "blocks": state.get("blocks"),
-                "mode": "tournament"}
+                "mode": "shootout" if running.mode == netcontrol.SHOOTOUT else "tournament"}
         awards = []
         for i, p in enumerate(people[:places], start=1):
             entry = dict(p)
@@ -3892,7 +3892,8 @@ def api_tournament_certificates():
         awards, event=event, when=details["when"] or None,
         where=details["where"], club=details["club"],
         signers={"net_control": details["net_control"],
-                 "club": details["club_signer"]})
+                 "club": details["club_signer"]},
+        mode=game.get("mode"))
     name = "certificates-" + re.sub(r"[^a-z0-9]+", "-", event.lower()).strip("-") + ".pdf"
     row = prints.keep(pdf, name, "certificates", f"Certificates - {event}",
                       {"scope": scope, "awarded": [a["name"] for a in awards],

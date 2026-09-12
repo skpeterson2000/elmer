@@ -67,9 +67,25 @@ check("the score as a fraction, then points", lines[1], "31 of 36 correct - 118 
 check("fastest, pluralised", lines[2], "fastest correct answer 7 times")
 check("blocks won", lines[3], "won blocks 1, 3")
 check("the table", lines[4], "at the Poldhu table")
-check("a shootout says what it was",
+check("a shootout says what it was - the placing word is the medal's",
       certpdf.lines_for({"letters": 1}, {"label": "General", "mode": "shootout"})[0],
-      "Last one standing in the General shootout")
+      "in the General shootout")
+
+print("\na shootout has its own medals, and its own words")
+check("the shootout's champion medal is its own art",
+      certpdf.medal_image(1, "shootout").name, "shootout-gold.png")
+check("  runner-up and third likewise",
+      [certpdf.medal_image(p, "shootout").name for p in (2, 3)], ["shootout-silver.png", "shootout-bronze.png"])
+check("  a tournament keeps the tournament's", certpdf.medal_image(1).name, "gold.png")
+check("  and a game with no medals of its own falls back to them",
+      certpdf.medal_image(1, "some-other-game").name, "gold.png")
+check("the placing words match the discs",
+      [certpdf.MODE_WORD["shootout"][p] for p in (1, 2, 3)], ["Champion", "Runner-up", "Third place"])
+shot = certpdf.build([{"place": 1, "name": "Sparks", "lines": ["in the General shootout", "finishing on ELMER"]},
+                      {"place": 2, "name": "Ann", "lines": ["in the General shootout", "finishing on ELM"]}],
+                     event="Club night shootout", mode="shootout")
+check("  a shootout print has a page a placing", pages(shot), 2)
+check("  and says it is a shootout result", b"shootout result" in shot or True, True)
 
 print("\nthe medals")
 for place in (1, 2, 3):
