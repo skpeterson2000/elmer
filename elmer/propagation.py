@@ -851,8 +851,8 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
         # that is itself uncertain by ten percent - so on a night with the
         # measured MUF sitting at 14 MHz, 20 m read Excellent, Poor,
         # Excellent, Poor from one hour to the next as the model's MUF
-        # breathed around it. Now it is one line: 100 at the peak, half that
-        # at the MUF, nothing a third above it.
+        # breathed around it. Now it is one curve: 100 at the peak, a soft
+        # knee falling to half that at the MUF, nothing a third above it.
         if ratio <= MUF_PEAK:
             near = max(0.0, 1.0 - (MUF_PEAK - ratio) / MUF_PEAK)
             # What the tail under the peak actually charges for is absorption
@@ -879,7 +879,15 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
                      * (1.0 - sun ** 0.6))
             score = 45.0 + 55.0 * near
         elif ratio <= 1.0:
-            score = 100.0 - (100.0 - MUF_AT_LINE) * (ratio - MUF_PEAK) / (1.0 - MUF_PEAK)
+            # A soft knee, not a spike: flat leaving the peak - 30 m at 0.85
+            # of the MUF is as good as 30 m gets - and steepening into the
+            # MUF, where a full hop becomes a coin toss. The first cut of
+            # this was a straight line from the peak and turned the broad
+            # plateau every band used to show into a point, taking 30 m
+            # before dawn from the nineties to the seventies for no reason
+            # the ionosphere knew about.
+            frac = (ratio - MUF_PEAK) / (1.0 - MUF_PEAK)
+            score = 100.0 - (100.0 - MUF_AT_LINE) * frac * frac
             d_layers_share = 0.0
         else:
             score = MUF_AT_LINE * (1.0 - (ratio - 1.0) / (MUF_OVER_LIMIT - 1.0))
