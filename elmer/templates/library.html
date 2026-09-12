@@ -84,9 +84,12 @@
 
   function paintShelf(d) {
     const rows = d.shelf || [];
-    const tools = d.tools || {};
+    const tools = d.tools;
     let head = '';
-    if (!tools.pdftotext) {
+    /* Only an answer that carries the tools gets to say they are missing. The
+       index answer used not to carry them, and the page took their absence
+       for their loss - "nothing can be read" over three books just read. */
+    if (tools && !tools.pdftotext) {
       /* No note with the verdict means the program behind this page is older
          than the page - a pull without a restart. Say that rather than
          inventing a reason. */

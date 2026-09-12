@@ -1470,8 +1470,13 @@ def api_library_index():
     body = request.get_json(silent=True) or {}
     report = library.refresh(force=bool(body.get("force")),
                              only=body.get("only") or None)
+    # The same shape as /api/library, tools included: the page repaints the
+    # shelf from this answer, and an answer without the tools in it had the
+    # page announce "nothing can be read" over three books it had just read.
+    tools = library.tools_present()
     return jsonify({"report": report, "shelf": library.catalogue(),
-                    "topics": library.topic_map()})
+                    "topics": library.topic_map(), "tools": tools,
+                    "tools_note": None if tools["pdftotext"] else library.missing_tools_note()})
 
 
 @app.route("/api/library/search")
