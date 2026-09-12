@@ -38,8 +38,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                gps, netcontrol,
                party, phonegps, prints, qr,
                monitoring, reachout, repeaters, units,
-               certpdf, difficulty, terrain, touchstone, tournament, update, vna,
-               whipbuild)
+               certpdf, difficulty, forecastlog, terrain, touchstone, tournament,
+               update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -2218,6 +2218,14 @@ def api_propagation():
         # Earned by actually seeing conditions, not by the page rendering.
         if game.award(connection, ["propagation"]):
             connection.commit()
+        # A measured MUF is worth writing down whenever one comes in, not only
+        # when somebody opens the band plan: the skill record is built from
+        # these, and the dashboard is the page that is always open.
+        try:
+            if loc.get("lat") is not None:
+                forecastlog.measured(snap)
+        except Exception:                          # never at the page's expense
+            log.exception("forecast ledger")
     return jsonify(snap)
 
 
@@ -2294,6 +2302,11 @@ def api_propagation_outlook():
                "measured": cal["measured_fof2"],
                "stations": cal["stations"]} if cal else None
 
+    # What this unit's own record says the model runs over or under the sondes
+    # by, by sky - applied where the anchor has let go, and said on the page.
+    adj = forecastlog.adjustment()
+    bias = forecastlog.applied_bias(adj)
+
     # With no QTH there is no sun angle, so the snapshot's assumed one is used
     # - the same one it computed its own MUF from, so the two cannot drift.
     elevation = snap["elevation_used"]
@@ -2334,7 +2347,8 @@ def api_propagation_outlook():
                                        # the 24 hours and the hour agree about
                                        # how high the layer is.
                                        hmf2=snap.get("hmf2")
-                                       or propagation.HMF2_DEFAULT)
+                                       or propagation.HMF2_DEFAULT,
+                                       bias=bias)
             hours = [{"at": row["at"], "score": row["score"], "muf": row["muf"],
                       "regime": row["regime"], "day": row["day"]}
                      for row in when]
@@ -2382,7 +2396,26 @@ def api_propagation_outlook():
             "d_layer_dip": round(propagation.D_LAYER_DIP, 2),
         }
 
+    # The ledger: this hour's outlook written down with what it was drawn
+    # from, the measured MUF written down if there is one, and the verdict
+    # on whether the outlook moved more than the sky did since last time.
+    record = None
+    if lat is not None:
+        try:
+            forecastlog.measured(snap)
+            verdict = forecastlog.record(
+                bands, {"sfi": snap["sfi"], "k_index": k_index, "muf_now": muf,
+                        "muf_source": snap["muf_source"], "fof2": snap.get("fof2"),
+                        "hmf2": snap.get("hmf2"), "hmf2_measured": snap.get("hmf2_measured"),
+                        "m3000": m3000, "lat": lat, "lon": lon, "adjustment": bias},
+                bugreport.build_stamp().get("commit"))
+            record = {"adjustment": adj, "skill": forecastlog.skill(),
+                      "drift": verdict if (verdict and verdict["moved"]) else forecastlog.latest_drift()}
+        except Exception:                          # the ledger must never cost the page
+            log.exception("forecast ledger")
+
     return jsonify({"ok": True, "located": lat is not None,
+                    "record": record,
                     "muf": muf, "muf_source": snap["muf_source"],
                     "fof2": snap["fof2"], "station": station,
                     "sfi": snap["sfi"], "k_index": k_index,

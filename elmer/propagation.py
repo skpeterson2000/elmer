@@ -1275,7 +1275,7 @@ def reconcile(score, rating, muf_source=None, is_group=True):
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
-            anchor_sun=None, hmf2=HMF2_DEFAULT):
+            anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None):
     """The next 24 hours on one band, hour by hour.
 
     The sun's position is the one thing about tomorrow that is known exactly,
@@ -1286,6 +1286,12 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
 
     When a measured MUF is passed in, the modelled curve is scaled to meet it
     at this hour, so the shape is the model's and the level is the ionosphere's.
+
+    `bias` is what this unit's own record says the model runs under or over
+    the sondes by, in MHz by sky - see forecastlog.adjustment. It is applied
+    only where the anchor has let go, because near a reading the reading is
+    the level; and it is applied to the MUF and the critical frequency alike,
+    so the skip distance moves with it.
     """
     start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
                                                           microsecond=0)
@@ -1310,12 +1316,25 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         # The anchor is worth what it was measured under, and no more. Held at
         # full strength while the sun is near where the sondes saw it, then
         # released - see `anchor_at`.
-        muf, fof2 = levels(sfi, elevation, lat, m3000,
-                           anchor_at(anchor, anchor_sun, elevation, hours_since=step),
+        weight = anchor_at(anchor, anchor_sun, elevation, hours_since=step)
+        muf, fof2 = levels(sfi, elevation, lat, m3000, weight,
                            drive=f2_drive(lat, lon, when))
+        state = sun_regime(elevation, lat, when)
+        if bias and muf:
+            # How much of the anchor is still holding at this hour: all of it
+            # at the reading, none once it has faded. The unit's learned bias
+            # fills in as the reading lets go.
+            held = 0.0
+            if anchor not in (None, 1.0):
+                held = max(0.0, min(1.0, (weight - 1.0) / (anchor - 1.0)))
+            add = float(bias.get(state, 0.0) or 0.0) * (1.0 - held)
+            if add:
+                adjusted = max(1.0, muf + add)
+                if fof2:
+                    fof2 = round(fof2 * adjusted / muf, 2)
+                muf = round(adjusted, 1)
         got = band_score(mhz, muf, elevation, k_index, fof2, hmf2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
-        state = sun_regime(elevation, lat, when)
         got.update({"at": when.isoformat(), "hour": when.hour,
                     "elevation": round(elevation, 1), "fof2": fof2,
                     "regime": state, "day": state == "lit"})

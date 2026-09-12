@@ -443,6 +443,47 @@ function greyWindow() {
     '</b>.';
 }
 
+/* What the unit's own ledger says about its forecasting: yesterday's word
+   for this hour against what the sondes then read, the correction the unit
+   has learned from that record and is applying, and whether the outlook
+   moved since last time with the sky still. All measured on this machine;
+   none of it leaves it. */
+function recordLine() {
+  const r = bpProp && bpProp.record;
+  if (!r) return '';
+  const parts = [];
+  const latest = r.skill && r.skill.latest;
+  if (latest && latest.forecast != null && latest.measured != null) {
+    parts.push('Yesterday at this hour ELMER said MUF <b>' + latest.forecast +
+      '</b> MHz; the sondes read <b>' + latest.measured + '</b>.');
+  }
+  const adj = r.adjustment || {};
+  const words = {dark: 'at night', lit: 'by day', grey: 'on the grey line', twilight: 'in twilight'};
+  const applied = Object.keys(adj).filter(k => adj[k].applied);
+  const waiting = Object.keys(adj).filter(k => !adj[k].applied && adj[k].n && !adj[k].capped);
+  const capped = Object.keys(adj).filter(k => adj[k].capped);
+  if (applied.length) {
+    parts.push('This unit\u2019s own record has the model running ' + applied.map(k =>
+      Math.abs(adj[k].measured_bias).toFixed(1) + ' MHz ' + (adj[k].measured_bias > 0 ? 'under' : 'over') +
+      ' the sondes ' + (words[k] || k) + ' (' + adj[k].n + ' measured hours)').join(', ') +
+      '; the curve is corrected by that where no reading holds.');
+  } else if (waiting.length) {
+    const k = waiting[0];
+    parts.push('This unit is keeping score against the sondes: ' + adj[k].n + ' measured hour' +
+      (adj[k].n === 1 ? '' : 's') + ' ' + (words[k] || k) + ' so far; a correction waits for twelve.');
+  }
+  if (capped.length) {
+    parts.push('The record ' + (words[capped[0]] || capped[0]) + ' is off by more than ELMER will correct for on its own (' +
+      adj[capped[0]].measured_bias.toFixed(1) + ' MHz) \u2014 a station or a sky worth a look, not a model to nudge.');
+  }
+  const d = r.drift;
+  if (d && d.moved && !d.inputs_moved) {
+    parts.push('<span class="warntext">The outlook moved since ' + hourLabel(d.since) + ':00 with the sky unchanged' +
+      (d.build_changed ? ' \u2014 the build changed.' : ' \u2014 the model did; it is in the log.') + '</span>');
+  }
+  return parts.length ? ' ' + parts.join(' ') : '';
+}
+
 function forecastStrip(cond) {
   const rows = cond.hours || [];
   if (!rows.length) {
@@ -546,7 +587,7 @@ function forecastStrip(cond) {
        and the D layer 80 km up at another, and the gap is the whole event.
        Naming both makes the amber cell a thing somebody can be ready for
        rather than a colour they notice afterwards. */
-    greyWindow() + '</div>';
+    greyWindow() + recordLine() + '</div>';
 }
 
 /* Above about 30 MHz none of this applies, and pretending otherwise would put

@@ -88,3 +88,7 @@ data/references.json
 # The last sweep off the VNA. A measurement of this operator's antenna, taken
 # on this bench - output, and theirs.
 data/sweep.json
+
+# The forecast's own ledger: what this unit said, what the sondes then read,
+# what it learned from the difference. Measured on this unit, about this sky.
+data/forecasts/
