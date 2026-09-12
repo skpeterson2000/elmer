@@ -78,9 +78,16 @@ try:
         ("/", "api"),
     ]
     print("\nevery page's script runs")
+    # Waited for, not sampled: a Pi with something else running took longer
+    # than a fixed settle to finish a page's scripts, and the test called a
+    # slow load a dead script. Up to eight seconds, checked every fifth.
     for path, name in PAGES:
-        got = _browser.evaluate(f"http://127.0.0.1:{PORT}{path}", f"typeof {name}",
-                                settle=1.5, port=9341)
+        got = _browser.evaluate(
+            f"http://127.0.0.1:{PORT}{path}",
+            "new Promise(r => { const t0 = Date.now(); const f = () => {"
+            f" if (typeof {name} === 'function' || Date.now() - t0 > 8000) r(typeof {name});"
+            " else setTimeout(f, 200); }; f(); })",
+            settle=0.5, port=9341)
         check(f"{path} defines {name}()", got, "function")
 
     # Every choice in the antenna selector, through the calculator. The

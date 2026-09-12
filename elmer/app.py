@@ -130,6 +130,46 @@ def asset(filename):
     return f"{url}?v={stamp}"
 
 
+def _build():
+    """Which build this process is running - a page compares it with the
+    server's on every poll and reloads itself when they differ."""
+    if not app.config.get("BUILD"):
+        try:
+            from . import bugreport
+            stamp = bugreport.build_stamp().get("commit") or ""
+        except Exception:
+            stamp = ""
+        # A checkout with no git still gets a token that changes per start.
+        app.config["BUILD"] = stamp if stamp and stamp != "unknown" else str(int(time.time()))
+    return app.config["BUILD"]
+
+
+@app.context_processor
+def _build_for_pages():
+    return {"build": _build()}
+
+
+@app.after_request
+def _no_stale_pages(response):
+    """Pages and answers are never to be served from a browser's cache.
+
+    A phone joined a hall from a page Firefox had kept since the day before:
+    the QR scanner handed it the address, the browser did not ask this unit
+    for the page, and the person sat through an intermission on a screen
+    that predated the intermission. The static files are versioned by their
+    own change time and may be cached for ever; the pages that name them, and
+    every JSON answer, may not be kept at all.
+    """
+    if request.path.startswith("/static/"):
+        return response
+    kind = (response.mimetype or "")
+    if kind in ("text/html", "application/json"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 # Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.
 app.config["KIOSK"] = False
 app.config["KIOSK_TOKEN"] = None
@@ -2881,6 +2921,9 @@ def api_party_state():
     # instructor is still talking.
     state["may_start"] = bool(room.people_here() == 1
                               and _party_may_begin(room))
+    # The page compares this with its own and reloads when the unit has
+    # moved on underneath it - see _no_stale_pages.
+    state["build"] = _build()
     # Feed the moving cap with what this unit is really delivering.
     room.note_service((time.perf_counter() - started) * 1000.0)
     return jsonify(state)
@@ -4327,6 +4370,7 @@ def api_net_board():
     """The hall's big screen, and what a late unit polls to catch up."""
     running = _net_or_404()
     out = running.board()
+    out["build"] = _build()
     # What the hall is doing between questions, so a screen can say "waiting
     # for a table" rather than sitting on a stale leaderboard looking broken.
     conductor = hall.conductor()
@@ -4401,6 +4445,7 @@ def api_boards():
         # rival to the table's own screen would count these players twice.
         out = [g for g in out if g["url"] != link.url]
     return jsonify({"games": out, "count": len(out), "where": _here(),
+                    "build": _build(),
                     "local": _local_standings(), "party": party_now})
 
 
