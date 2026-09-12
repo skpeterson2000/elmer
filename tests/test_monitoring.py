@@ -48,6 +48,24 @@ for code, entry in sorted(monitoring.STATES.items()):
               bool(law["quote"]) if law["checked"] == monitoring.PRIMARY else True,
               True)
 
+print("\nevery state written down has been read against the legislature's own text")
+# Indiana and Kentucky were taken from a code aggregator at first and said
+# so; they were read against iga.in.gov and apps.legislature.ky.gov on
+# 2026-09-11. Nothing in the table is second-hand any more, and a new entry
+# that is must still say so - the check above allows it - but not these.
+for code, host in (("IN", "iga.in.gov"), ("KY", "apps.legislature.ky.gov"),
+                   ("FL", "flsenate.gov"), ("NY", "nysenate.gov")):
+    law = monitoring.STATES[code]["statutes"][0]
+    check(f"{code} is read against the primary text", law["checked"], monitoring.PRIMARY)
+    check(f"  and links to the legislature, not an aggregator", host in law["url"], True)
+check("no state is left on second-hand reading",
+      [c for c, e in monitoring.STATES.items()
+       if any(l["checked"] != monitoring.PRIMARY for l in e["statutes"])], [])
+check("Indiana's reading says what the amateur exemption does not cover",
+      "not the third" in monitoring.STATES["IN"]["statutes"][0]["reading"], True)
+check("Kentucky's quote carries the proviso with the exemption",
+      "avoid apprehension" in monitoring.STATES["KY"]["statutes"][0]["quote"], True)
+
 print("\nthe federal part is true everywhere, so it is always given")
 for state in ("MN", "Iowa", "", None):
     check(f"{state!r}: federal points present",

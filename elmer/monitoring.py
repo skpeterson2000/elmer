@@ -37,7 +37,10 @@ log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = paths.STATE / "statutes"
-USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
+# Names the program, and carries the browser token in front of it because
+# the Indiana General Assembly's server hands anything without one the
+# JavaScript shell of its site instead of the document asked for.
+USER_AGENT = "Mozilla/5.0 (X11; Linux) ELMER/1.0 (personal amateur radio study tool)"
 
 # Statutes are amended, not live-updated. A month old is current enough, and a
 # unit in a field should show what it fetched rather than nothing at all.
@@ -196,45 +199,74 @@ STATES = {
     },
     "IN": {
         "name": "Indiana",
-        "reading": "A use restriction with a list of exemptions, one of which "
-                   "is an amateur licence.",
+        "reading": "A possession-and-use restriction with ten exemptions, one "
+                   "of which is an amateur licence - for possessing the radio, "
+                   "not for misusing it.",
         "statutes": [
             {
                 "cite": "Ind. Code 35-44.1-2-7",
                 "title": "Unlawful use of a police radio",
-                "url": "https://law.justia.com/codes/indiana/title-35/"
-                       "article-44-1/chapter-2/section-35-44-1-2-7/",
-                "checked": SECONDARY,
-                "quote": "",
-                "reading": "Exemptions reported include an amateur licensee "
-                           "not transmitting on police emergency frequencies, "
-                           "written permission from a law enforcement agency's "
-                           "chief executive, use confined to a dwelling or "
-                           "place of business, journalists, and dealers. Read "
-                           "the section itself before relying on any of them.",
+                # The General Assembly publishes the code as PDFs by chapter;
+                # this is the current edition's, read 2026-09-11 (as amended
+                # by P.L.66-2019). The JavaScript site at iga.in.gov/laws is
+                # the same text behind a viewer.
+                "url": "https://iga.in.gov/ic/2025/Title_35/Article_44.1/"
+                       "Chapter_2.pdf",
+                "checked": PRIMARY,
+                "quote": "(b) Subsection (a)(1) and (a)(2) do not apply to: ... "
+                         "(6) a person who holds an amateur radio license "
+                         "issued by the Federal Communications Commission if "
+                         "the person is not transmitting over a frequency "
+                         "assigned for police emergency purposes; (7) a person "
+                         "who uses a police radio only in the person's dwelling "
+                         "or place of business;",
+                "reading": "The offence has three limbs: possessing a police "
+                           "radio, transmitting on a police emergency "
+                           "frequency, and possessing or using one - or a "
+                           "scanner app on a phone - while committing a crime, "
+                           "to further one, or to avoid detection. The amateur "
+                           "exemption covers the first two and not the third; "
+                           "nothing exempts the third. A 'police radio' is one "
+                           "that can be operated in a vehicle or carried, so a "
+                           "base scanner that only works at home is outside "
+                           "the section altogether. Class B misdemeanor.",
             },
         ],
     },
     "KY": {
         "name": "Kentucky",
-        "reading": "A possession and use restriction with a long exemption "
-                   "list, including an amateur licence.",
+        "reading": "A possession restriction aimed at vehicles, with a long "
+                   "exemption list that includes a valid amateur licence - "
+                   "and a proviso that using the radio to help a crime or "
+                   "avoid arrest is an offence in its own right.",
         "statutes": [
             {
                 "cite": "KRS 432.570",
                 "title": "Restrictions on possession or use of radio capable "
                          "of sending or receiving police messages",
-                "url": "https://law.justia.com/codes/kentucky/"
-                       "chapter-432/section-432-570/",
-                "checked": SECONDARY,
-                "quote": "",
-                "reading": "Exemptions reported include a valid FCC amateur "
-                           "licence, journalists, retailers and wholesalers, "
-                           "licensed broadcast stations at their premises, a "
-                           "receive-only set at a residence, licensed tow "
-                           "trucks, and emergency management personnel "
-                           "authorised in writing. Read the section itself "
-                           "before relying on any of them.",
+                # The Legislative Research Commission serves each section as
+                # a PDF by its own id; read 2026-09-11, effective July 14,
+                # 2000 (2000 Ky. Acts ch. 176).
+                "url": "https://apps.legislature.ky.gov/law/statutes/"
+                       "statute.aspx?id=18715",
+                "checked": PRIMARY,
+                "quote": "(4) Nothing contained in this section shall prohibit "
+                         "the possession of a radio by: ... (c) ... a person "
+                         "holding a valid license issued by the Federal "
+                         "Communications Commission in the amateur radio "
+                         "service; ... except that it shall be unlawful to use "
+                         "such radio to facilitate any criminal activity or to "
+                         "avoid apprehension by law enforcement officers.",
+                "reading": "Subsection (1) forbids having, in a vehicle or on "
+                           "the person, a mobile set that can receive or "
+                           "transmit on police channels. Subsection (4)(c) "
+                           "lifts that for a holder of a valid FCC amateur "
+                           "licence, alongside a receive-only set kept at "
+                           "home, journalists, tow trucks, and emergency "
+                           "management staff with written authority - with the "
+                           "proviso quoted, and forfeiture of the radio on top "
+                           "of the penalty for breaking it. Misdemeanor: $50 to "
+                           "$500, up to twelve months, or both.",
             },
         ],
     },
@@ -393,6 +425,20 @@ def advice(state, licensed=True):
 
 # --------------------------------------------------------------- the text
 
+def _pdf_text(raw):
+    """The words of a PDF, or "" if poppler is not here to read them."""
+    import shutil
+    import subprocess
+    if not shutil.which("pdftotext"):
+        return ""
+    try:
+        done = subprocess.run(["pdftotext", "-layout", "-", "-"], input=raw,
+                              capture_output=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return done.stdout.decode("utf-8", "replace") if done.returncode == 0 else ""
+
+
 def _path(cite):
     return CACHE / (cite.replace(" ", "_").replace("/", "-") + ".json")
 
@@ -416,7 +462,8 @@ def fetch(url, cite, refresh=False):
     try:
         request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(request, timeout=20) as response:
-            body = response.read().decode("utf-8", "replace")
+            raw = response.read()
+        body = raw.decode("utf-8", "replace")
     except Exception as exc:
         if path.exists():
             try:
@@ -426,8 +473,19 @@ def fetch(url, cite, refresh=False):
             except (OSError, ValueError):
                 pass
         return {"ok": False, "cite": cite, "url": url, "error": str(exc)}
+    if url.lower().endswith(".pdf") and raw[:5] != b"%PDF-":
+        # Asked for the document and handed a page - a sign-in wall, a
+        # viewer, an outage notice. Not the statute, and not kept as one.
+        return {"ok": False, "cite": cite, "url": url,
+                "error": "the site answered with a page instead of the document"}
     out = {"ok": True, "cite": cite, "url": url, "html": body,
            "fetched_at": time.time()}
+    if raw[:5] == b"%PDF-":
+        # Indiana and Kentucky publish the section as a PDF. The words are
+        # what is wanted, so they are read out with the same tool that reads
+        # the question pools; the bytes are not a page and are not kept.
+        out["html"] = ""
+        out["text"] = _pdf_text(raw)
     try:
         CACHE.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(out))
