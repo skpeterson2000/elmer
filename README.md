@@ -1139,6 +1139,13 @@ A receiver wired to the machine still wins wherever there is one; this sits
 between that and a phone. `--doctor` names which answered, so "no GPS on this
 unit" and "the GPS is on the other Pi" stop looking alike.
 
+Whichever machine has the receiver, run its gpsd read-only:
+`GPSD_OPTIONS="-G -b"` in `/etc/default/gpsd`. The gpsd on Raspberry Pi OS
+Bookworm (3.22) otherwise switches a u-blox 7 into binary mode and stops
+getting positions from it, re-stamping its last NMEA fix every second — a fix
+that looks valid and never moves. `-b` leaves the receiver in NMEA mode, where
+it tracks.
+
 ### The GPS already in your pocket
 
 A receiver on a USB lead is one more item on a list nobody reads before they
