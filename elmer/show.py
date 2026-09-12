@@ -502,6 +502,8 @@ class Show:
                 "programme": self.programme_view(now),
                 "steps": [dict(s) for s in self.programme],
                 "step_kinds": dict(STEP_KINDS),
+                "events": [{"key": k, "label": v["label"], "blurb": v["blurb"]}
+                           for k, v in EVENTS.items()],
                 "card": self._card,
             }
 
@@ -555,6 +557,104 @@ STEP_KINDS = {
     "certificates": "Certificates",
     "thanks": "Thanks",
 }
+
+
+# The shapes an event takes. The same program runs a kitchen table, a class
+# a VE team is teaching, a club night and a hamfest booth, and the only limit
+# is whether a Pi can be powered there - so the schedule is offered in those
+# shapes and not as one club's evening. Each is a starting point the host
+# edits; a rounds step with no difficulty takes the net's.
+EVENTS = {
+    "table": {
+        "label": "Around the table",
+        "blurb": "Friends or family and one unit: a short welcome, a dozen "
+                 "questions, ten minutes on what they missed, a dozen more.",
+        "steps": [
+            {"kind": "intermission", "minutes": 3,
+             "text": "Scan the code on the screen and you are in."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "study", "minutes": 10,
+             "text": "Ten minutes on what the table missed."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "thanks", "text": "That is the game. The questions are "
+                                        "the exam's own, and the Study pages "
+                                        "hold all of them."},
+        ],
+    },
+    "class": {
+        "label": "A class",
+        "blurb": "A licence class being taught: study first, then questions, "
+                 "then study on what the room missed, and again - with the "
+                 "weak sections on the host's screen the whole time.",
+        "steps": [
+            {"kind": "intermission", "minutes": 5,
+             "text": "Find a table and scan its code."},
+            {"kind": "study", "minutes": 15,
+             "text": "Today's material - your instructor has the section."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "study", "minutes": 10,
+             "text": "Ten minutes on what the room missed."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "study", "minutes": 10,
+             "text": "Once more on the sections that are still soft."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "certificates"},
+            {"kind": "thanks"},
+        ],
+    },
+    "club": {
+        "label": "A club night",
+        "blurb": "A tournament in blocks, a break for the club's notices, a "
+                 "shootout, certificates.",
+        "steps": [
+            {"kind": "intermission", "minutes": 5,
+             "text": "Welcome - find a table and scan its code."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "study", "minutes": 10,
+             "text": "Ten minutes on what the room missed."},
+            {"kind": "rounds", "rounds": 12},
+            {"kind": "announce",
+             "text": "Club membership and coming events - see the notices on screen."},
+            {"kind": "shootout"},
+            {"kind": "certificates"},
+            {"kind": "thanks"},
+        ],
+    },
+    "hamfest": {
+        "label": "A hamfest booth",
+        "blurb": "Walk-up play through the day: short tournaments, the "
+                 "sponsors' cards between, a shootout when the crowd is "
+                 "there, and the deck running whenever nobody is.",
+        "steps": [
+            {"kind": "intermission", "minutes": 10,
+             "text": "Walk up, scan a table's code, and play a round."},
+            {"kind": "rounds", "rounds": 12, "seconds": 20},
+            {"kind": "intermission", "minutes": 10},
+            {"kind": "rounds", "rounds": 12, "seconds": 20},
+            {"kind": "announce",
+             "text": "Shootout at the ELMER booth in a few minutes - last table standing."},
+            {"kind": "shootout"},
+            {"kind": "certificates"},
+            {"kind": "intermission", "minutes": 10},
+            {"kind": "rounds", "rounds": 12, "seconds": 20},
+            {"kind": "thanks"},
+        ],
+    },
+}
+
+
+def event_steps(event, difficulty=None):
+    """The steps for one event shape, with the net's difficulty on the rounds."""
+    shape = EVENTS.get(event)
+    if shape is None:
+        raise ValueError(f"event must be one of {sorted(EVENTS)}")
+    out = []
+    for step in shape["steps"]:
+        step = dict(step)
+        if step["kind"] in ("rounds", "shootout") and difficulty and "difficulty" not in step:
+            step["difficulty"] = difficulty
+        out.append(step)
+    return out
 
 
 def asset_name(filename):

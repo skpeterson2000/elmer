@@ -68,11 +68,11 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
 .more { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .6rem; }
 .more summary { cursor: pointer; color: var(--dim); font-size: .9rem; }
 .more[open] summary { margin-bottom: .6rem; }
-.steps { margin: .6rem 0 0; padding-left: 1.4rem; }
-.steps li { padding: .2rem 0; display: flex; gap: .6rem; align-items: baseline; }
-.steps li.now { color: var(--amber); font-weight: 700; }
-.steps li.done { color: var(--dimmer); text-decoration: line-through; }
-.steps li .x { cursor: pointer; color: var(--dim); background: none; border: 0; }
+.prog-steps { margin: .6rem 0 0; padding-left: 1.4rem; display: block; }
+.prog-steps li { padding: .2rem 0; display: flex; gap: .6rem; align-items: baseline; }
+.prog-steps li.now { color: var(--amber); font-weight: 700; }
+.prog-steps li.done { color: var(--dimmer); text-decoration: line-through; }
+.prog-steps li .x { cursor: pointer; color: var(--dim); background: none; border: 0; }
 .weak .w { display: inline-flex; gap: .4rem; align-items: baseline; margin: .15rem .5rem .15rem 0; padding: .2rem .5rem;
   border-radius: 999px; border: 1px solid var(--line-2); font-size: .85rem; }
 .weak .w b { color: var(--red); font-family: var(--mono); }
@@ -229,16 +229,22 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
     </details>
 
     <details class="more">
-      <summary>The programme &mdash; the evening as a list</summary>
+      <summary>The programme &mdash; the event as a list</summary>
       <div class="controls" style="margin-top:.5rem">
         <select class="btn sm" id="sh-step-kind"></select>
         <input class="btn sm" id="sh-step-n" type="number" min="1" style="width:5rem" placeholder="n">
         <input class="btn sm" id="sh-step-text" placeholder="text, or a section for study" style="flex:1 1 12rem">
         <button class="btn sm" id="sh-step-add">Add a step</button>
-        <button class="btn sm ghost" id="sh-prog-club">Fill in a club evening</button>
         <button class="btn sm ghost" id="sh-prog-clear">Clear</button>
       </div>
-      <ol id="sh-steps" class="steps"></ol>
+      {# One program, every size of room: the shapes an event takes, from a
+         kitchen table to a hamfest booth. The limit is powering a Pi there. #}
+      <div class="controls" style="margin-top:.5rem">
+        <select class="btn sm" id="sh-event"></select>
+        <button class="btn sm" id="sh-schedule">Schedule an event</button>
+        <span class="small" id="sh-event-blurb" style="color:var(--dim);flex:1 1 16rem"></span>
+      </div>
+      <ol id="sh-steps" class="prog-steps"></ol>
       <div class="controls" style="margin-top:.5rem">
         <button class="btn primary" id="sh-next">Next step &rarr;</button>
         <span class="small" id="sh-prog-now" style="color:var(--dim)"></span>

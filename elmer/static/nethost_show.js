@@ -236,19 +236,24 @@
     steps.splice(+b.dataset.step, 1);
     saveProgramme();
   });
-  $('sh-prog-club').addEventListener('click', () => {
-    const d = document.getElementById('difficulty').value;
-    steps = [
-      {kind: 'intermission', minutes: 5, text: 'Welcome - find a table and scan its code.'},
-      {kind: 'rounds', rounds: 12, difficulty: d},
-      {kind: 'study', section: '', minutes: 10, text: 'Ten minutes on what the room missed.'},
-      {kind: 'rounds', rounds: 12, difficulty: d},
-      {kind: 'announce', text: 'Club membership and coming events - see the notices on screen.'},
-      {kind: 'shootout', difficulty: d},
-      {kind: 'certificates'},
-      {kind: 'thanks'},
-    ];
-    saveProgramme();
+  /* Schedule an event: the programme in one of the shapes an event takes -
+     the same program for a kitchen table, a class, a club night or a
+     hamfest booth. The shapes come from the server; the host edits after. */
+  function paintEvents(v) {
+    const sel = $('sh-event');
+    const events = v.events || [];
+    if (!sel.options.length && events.length) {
+      sel.innerHTML = events.map(e => `<option value="${e.key}">${esc(e.label)}</option>`).join('');
+    }
+    const chosen = events.find(e => e.key === sel.value) || events[0];
+    if (chosen) $('sh-event-blurb').textContent = chosen.blurb;
+  }
+  $('sh-event').addEventListener('change', () => view && paintEvents(view));
+  $('sh-schedule').addEventListener('click', async () => {
+    if (steps && steps.length && !confirm('Replace the programme with this event?')) return;
+    const r = await post('/api/net/programme/event', {event: $('sh-event').value,
+                                                       difficulty: document.getElementById('difficulty').value});
+    if (r.ok) { steps = null; refresh(); }
   });
   $('sh-prog-clear').addEventListener('click', () => { steps = []; saveProgramme(); });
   $('sh-next').addEventListener('click', async () => {
@@ -271,6 +276,7 @@
     paintWeak(view);
     paintItems(view);
     paintProgramme(view);
+    paintEvents(view);
   }
   refresh();
   setInterval(refresh, 1000);

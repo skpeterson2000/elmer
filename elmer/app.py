@@ -3970,6 +3970,27 @@ def api_net_programme():
     return jsonify({"steps": steps, "programme": running.show.programme_view()})
 
 
+@app.route("/api/net/programme/event", methods=["POST"])
+def api_net_programme_event():
+    """Schedule an event: the programme filled in one of the shapes an event
+    takes - the kitchen table, a class, a club night, a hamfest booth. The
+    host edits from there."""
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    difficulty = str(body.get("difficulty") or running.difficulty).lower()
+    if difficulty not in party.DIFFICULTIES:
+        difficulty = running.difficulty
+    try:
+        steps = show.event_steps(str(body.get("event") or "table"), difficulty)
+    except ValueError as exc:
+        abort(400, str(exc))
+    running.show.set_programme(steps)
+    running.show.save()
+    log.info("show: event scheduled - %s, %d steps", body.get("event"), len(steps))
+    return jsonify({"steps": running.show.programme,
+                    "programme": running.show.programme_view()})
+
+
 @app.route("/api/net/programme/next", methods=["POST"])
 def api_net_programme_next():
     """One press: the next step happens - the hall's mode, the game, the
