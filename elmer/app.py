@@ -37,7 +37,8 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               monitoring, personal, reachout, repeaters, show, units,
+               fieldreport, mail, monitoring, personal, reachout, repeaters,
+               show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild)
 from .content import get_pool, load_pools, presentation
@@ -5374,12 +5375,68 @@ def api_report():
     if not _is_local(request.remote_addr):
         log.warning("report refused: request from %s", request.remote_addr)
         abort(403)
-    include = request.json.get("station") is True if request.is_json else False
+    body = request.get_json(silent=True) or {}
+    include = body.get("station") is True
     path, redacted, text = bugreport.write(conn(), include_station=include)
     log.info("problem report written to %s (%s)", path.name,
              "redacted" if redacted else "with station detail")
-    return jsonify({"path": str(path), "redacted": redacted, "text": text,
-                    "contact": bugreport.CONTACT})
+    out = {"path": str(path), "redacted": redacted, "text": text,
+           "contact": mail.CONTACT, "mail": mail.configured()}
+    # Sent only when asked, after it was written - the file is the thing
+    # the operator can read, and the press is the operator's decision.
+    if body.get("send"):
+        stamp = bugreport.build_stamp().get("commit") or "unknown"
+        ok, detail = mail.send(f"ELMER problem report - build {stamp} - "
+                               f"{time.strftime('%Y-%m-%d')}", text)
+        out["sent"], out["detail"] = ok, detail
+    return jsonify(out)
+
+
+# ------------------------------------------------------------ mail home
+# The unit's outgoing mail, and the weekly field report. Local screen only,
+# like the report: a password is typed here and the switch is the operator's.
+
+@app.route("/api/mail", methods=["GET", "POST"])
+def api_mail():
+    if not _is_local(request.remote_addr):
+        abort(403)
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        if body.get("forget"):
+            return jsonify(mail.forget())
+        return jsonify(mail.save(**{k: body.get(k) for k in mail.FIELDS if k in body}))
+    return jsonify(mail.public_settings())
+
+
+@app.route("/api/mail/test", methods=["POST"])
+def api_mail_test():
+    if not _is_local(request.remote_addr):
+        abort(403)
+    ok, detail = mail.test()
+    return jsonify({"sent": ok, "detail": detail, "to": mail.CONTACT})
+
+
+@app.route("/api/fieldreport", methods=["GET", "POST"])
+def api_fieldreport():
+    """The weekly card home: the switch, the last one written, or one now."""
+    if not _is_local(request.remote_addr):
+        abort(403)
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        if "opt_in" in body:
+            fieldreport.set_opt_in(body["opt_in"])
+        if body.get("preview"):
+            path, text = fieldreport.write(conn())
+            return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
+                            "latest": {"path": str(path), "text": text}, "mail": mail.configured()})
+        if body.get("send"):
+            result = fieldreport.send_now(conn(), reason="pressed")
+            return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
+                            "result": result, "latest": fieldreport.latest(),
+                            "mail": mail.configured()})
+    return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
+                    "latest": fieldreport.latest(), "mail": mail.configured(),
+                    "contact": mail.CONTACT})
 
 
 @app.route("/api/log")

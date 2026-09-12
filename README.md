@@ -476,6 +476,36 @@ J-pole for channel 20 or a whip for channel 19, assuming local FM or a few
 miles of road rather than DX.
 
 
+## Mail home
+
+Reports go to **KC9SP@ARRL.NET** — an arrl.net forwarder, chosen for exactly
+this: it forwards to its owner's inbox and is filtered on the way. ELMER
+carries no mail account. A unit sends through its operator's own outgoing
+mail server — the SMTP host, port and login you would give any mail program —
+kept in `data/mail.json` on that unit alone, readable by nobody else; with
+nothing set, a report is written where you can find it and the page says
+where to mail it by hand. The settings, a test message and both reports live
+under **Mail home** on the dashboard's update panel, local screen only.
+
+Two things can go:
+
+- **A problem report**, when you press for it — versions, the recent errors
+  and the tail of the log, with your callsign, QTH and network addresses taken
+  out. It is written to a file first, shown so you can read it, and sent only
+  by a second press.
+- **The field report**, once a week, if you switch it on — and it is off until
+  you do. The switch says exactly what it carries: which build and machine;
+  how the forecast did against the sondes this week, by lead and by sky, with
+  persistence beside it as the yardstick; the correction this unit has
+  learned and whether it is applying it; how many hall rounds and study
+  answers there were, as counts; the errors and warnings, counted, with the
+  last few in full — all redacted the same way. Every report is saved under
+  `data/reports/` before it goes, *Read what it would send* shows the next one
+  now, and *Send one now* does not wait for the week. This is the "report its
+  adjustment factor back to us" that the forecast work was built around, done
+  the only way it should be: by the operator's hand, with the contents on the
+  table first.
+
 ## When it goes wrong
 
 Both halves of ELMER report faults into one place. The server logs unhandled

@@ -25,11 +25,11 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 LOG = paths.STATE / "elmer.log"
 
-# Where to send one. Left empty on purpose: an address baked into a public
-# repository is an address that gets scraped, and it is not this file's place
-# to decide whose inbox fills up. Set it, or leave it and ELMER simply says
-# where the file is.
-CONTACT = ""
+# Where to send one: KC9SP's arrl.net forwarder, chosen by him for exactly
+# this - it forwards to his inbox and is filtered on the way. The address
+# and the sending path live in mail.py; this is the name the report page
+# shows beside the file it wrote.
+from .mail import CONTACT  # noqa: E402
 
 RE_GRID = re.compile(r"\b([A-R]{2}[0-9]{2})[a-x]{2}\b")
 RE_LATLON = re.compile(r"-?\b\d{1,3}\.\d{4,}\b")
