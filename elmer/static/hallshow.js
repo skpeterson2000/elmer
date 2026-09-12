@@ -42,6 +42,19 @@
         ${card.url ? `<div class="hs-about">${esc(card.url)}</div>` : ''}
       </div>`;
     }
+    if (k === 'house') {
+      /* ELMER's own card: the icon, one line, where to find it. */
+      const img = card.image
+        ? `<img class="hs-house-img" src="${esc((opts.master || '') + card.image)}" alt="ELMER">` : '';
+      return `<div class="hs-card hs-house">
+        <div class="hs-kicker">This is</div>
+        <div class="hs-house-row">${img}<div>
+          <div class="hs-sponsor-name" style="text-align:left">${esc(card.name)}</div>
+          <p class="hs-text">${esc(card.text)}</p>
+          ${card.url ? `<div class="hs-about">${esc(card.url)} &middot; free for noncommercial use</div>` : ''}
+        </div></div>
+      </div>`;
+    }
     if (k === 'notice') {
       return `<div class="hs-card hs-notice">
         <div class="hs-kicker">Notice</div>

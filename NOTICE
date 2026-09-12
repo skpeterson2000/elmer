@@ -12,7 +12,9 @@ Under the PolyForm Noncommercial License 1.0.0 (see LICENSE)
     elmer.py                launcher
     data/notes/             concept notes written for this project
     data/explanations/      per-question rationales written for this project
-    artwork/, elmer/static/icon.png     the ELMER icon
+    artwork/, elmer/static/icon.png,
+    elmer/static/house/                 the ELMER icon, and the four small
+                                        copies the hall's show rotates
 
     Copyright 2026 Scott Peterson (KC9SP)
 

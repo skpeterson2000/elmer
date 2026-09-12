@@ -184,6 +184,8 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
         <div class="controls" style="margin-top:.4rem">
           <label class="small">a card every
             <input class="btn sm" id="sh-dwell" type="number" min="5" max="60" style="width:4.2rem"> s</label>
+          <label class="small" title="ELMER's own card - the icon and a line - in the rotation">ELMER&rsquo;s own card
+            <select class="btn sm" id="sh-house"></select></label>
         </div>
         <div class="sub" style="margin-top:.9rem">Study focus</div>
         <div class="controls">
@@ -207,8 +209,7 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
             <input class="btn sm" name="name" placeholder="Sponsor" required style="flex:1 1 8rem">
             <input class="btn sm" name="blurb" placeholder="one line about them" style="flex:2 1 12rem">
             <input class="btn sm" name="url" placeholder="their site" style="flex:1 1 8rem">
-            <select class="btn sm" name="weight" title="how often the card comes round">
-              <option value="1">once a pass</option><option value="2">twice</option><option value="3">three times</option></select>
+            <select class="btn sm" name="presence" id="sh-presence-new" title="how often the card comes round"></select>
             <label class="btn sm ghost" style="cursor:pointer">Image
               <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label>
             <button class="btn sm primary">Add</button>

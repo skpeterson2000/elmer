@@ -104,6 +104,7 @@
     const html = keys.map(k => `<label class="${v.deck[k] ? 'on' : ''}"><input type="checkbox" data-deck="${k}" ${v.deck[k] ? 'checked' : ''}>${esc(DECK_WORDS[k] || k)}</label>`).join('');
     if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
     if (document.activeElement !== $('sh-dwell')) $('sh-dwell').value = Math.round(v.dwell || 12);
+    paintPresence(v);
     const card = v.card;
     $('sh-seeing').textContent = v.attention ? 'every table is held on your message'
       : card ? 'the room is seeing: ' + (card.kind === 'trivia' ? (DECK_WORDS[card.deck] || card.deck) + ' - ' + (card.text || '').slice(0, 60) + '…'
@@ -114,6 +115,25 @@
     const cb = e.target.closest('[data-deck]');
     if (!cb) return;
     await post('/api/net/deck', {deck: {[cb.dataset.deck]: cb.checked}});
+    refresh();
+  });
+  /* Presence: how often a card comes round, from three times a pass down to
+     every fourth pass. The same list serves a new sponsor, an existing one,
+     and ELMER's own card (which can also be off). */
+  function presenceOptions(v, chosen, withOff) {
+    const opts = (v.presences || []).map(p =>
+      `<option value="${p.value}" ${Math.abs(p.value - chosen) < 0.01 ? 'selected' : ''}>${esc(p.label)}</option>`);
+    if (withOff) opts.push(`<option value="0" ${!chosen ? 'selected' : ''}>off</option>`);
+    return opts.join('');
+  }
+  function paintPresence(v) {
+    const house = $('sh-house');
+    if (document.activeElement !== house) house.innerHTML = presenceOptions(v, v.house || 0, true);
+    const fresh = $('sh-presence-new');
+    if (!fresh.options.length) fresh.innerHTML = presenceOptions(v, 1, false);
+  }
+  $('sh-house').addEventListener('change', async () => {
+    await post('/api/net/deck', {house: parseFloat($('sh-house').value) || 0});
     refresh();
   });
   $('sh-dwell').addEventListener('change', async () => {
@@ -159,7 +179,7 @@
     $('sh-sponsors').innerHTML = (v.sponsors || []).length
       ? v.sponsors.map(s => `<div class="it">${s.file ? `<img src="/api/net/asset/${encodeURIComponent(s.file)}" alt="">` : ''}
           <b>${esc(s.name)}</b> <span style="color:var(--dim)">${esc(s.blurb || '')}</span>
-          ${s.weight > 1 ? `<span class="small" style="color:var(--dimmer)">×${s.weight}</span>` : ''}
+          <select class="btn sm" data-presence="${s.id}" title="how often the card comes round">${presenceOptions(v, s.presence == null ? 1 : s.presence, false)}</select>
           <button class="x" data-sponsor="${s.id}" title="remove">&times;</button></div>`).join('')
       : '<div class="empty">none yet</div>';
     $('sh-notices').innerHTML = (v.notices || []).length
@@ -170,6 +190,12 @@
   $('sh-sponsors').addEventListener('click', async e => {
     const b = e.target.closest('[data-sponsor]');
     if (b && confirm('Remove this sponsor’s card?')) { await post('/api/net/sponsor', {remove: +b.dataset.sponsor}); refresh(); }
+  });
+  $('sh-sponsors').addEventListener('change', async e => {
+    const sel = e.target.closest('[data-presence]');
+    if (!sel) return;
+    await post('/api/net/sponsor', {id: +sel.dataset.presence, presence: parseFloat(sel.value)});
+    refresh();
   });
   $('sh-notices').addEventListener('click', async e => {
     const b = e.target.closest('[data-notice]');

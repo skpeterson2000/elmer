@@ -65,6 +65,33 @@ CARD_KINDS = ["standings", "sponsor", "notice", "join", "programme"]
 DEFAULT_DECK = {**{d: True for d in TRIVIA_DECKS},
                 **{k: True for k in CARD_KINDS}}
 
+# How often a card comes round, in appearances per pass through the deck.
+# Above one it repeats within a pass; below one it sits passes out - a
+# quarter is once every fourth pass, which is the least a sponsor's card can
+# be shown and still be said to be in the rotation.
+PRESENCES = [
+    (3.0, "three times a pass"), (2.0, "twice a pass"), (1.0, "once a pass"),
+    (0.5, "every 2nd pass"), (1 / 3, "every 3rd pass"), (0.25, "every 4th pass"),
+]
+PRESENCE_VALUES = [p for p, _ in PRESENCES]
+
+# ELMER's own card - a little tasteful self-promotion in the rotation, every
+# third pass by default. The icon rotates through the four the project has,
+# and the line rotates too, so the card is never quite the same twice.
+HOUSE_ICONS = ["icon-blue.jpg", "icon-pine.jpg", "icon-red.jpg", "icon-purple.jpg"]
+HOUSE_LINES = [
+    "The exam's own questions - every one of them - as a game at this table, "
+    "and as a course on your own screen.",
+    "Study, the band plan, propagation, antennas, and a Library of your own "
+    "manuals read to the page. A program for the bench, not a site.",
+    "Runs on a Raspberry Pi with no network at all, and runs a hall of them "
+    "when there is one.",
+    "Built by a ham to pass on what gets used more than a book would.",
+]
+HOUSE_WHO = "ELMER, by KC9SP"
+HOUSE_WHERE = "github.com/skpeterson2000/elmer"
+HOUSE_DEFAULT = 1 / 3
+
 MAX_TEXT = 400
 MAX_TITLE = 80
 HOME = STATE / "show"
@@ -80,6 +107,17 @@ def _now():
 
 def _clean(text, limit=MAX_TEXT):
     return re.sub(r"\s+", " ", str(text or "")).strip()[:limit]
+
+
+def _presence(value, allow_off=False):
+    """Snap a presence to one the deck offers; off only where off is allowed."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        value = 1.0
+    if allow_off and value <= 0:
+        return 0.0
+    return min(PRESENCE_VALUES, key=lambda p: abs(p - value))
 
 
 class Show:
@@ -99,8 +137,12 @@ class Show:
         self._cycle_at = 0               # position in the card cycle
         self._trivia_at = 0              # which trivia deck is next
         self._last_trivia = {}           # deck -> last text shown
-        self._sponsor_at = 0
         self._notice_at = 0
+        self._house_at = 0
+        self._pass = 0                   # passes through the deck so far
+        self._cycle = []                 # this pass's cards, (kind, payload)
+        self._pos = 0
+        self.house = HOUSE_DEFAULT       # ELMER's own card; 0 turns it off
         # -- the event's own content
         self.sponsors = []               # {"id","name","blurb","url","file","weight"}
         self.notices = []                # {"id","title","text","url"}
@@ -217,57 +259,81 @@ class Show:
 
     # ---------------------------------------------------------------- deck
 
-    def set_deck(self, flags=None, dwell=None):
+    def set_deck(self, flags=None, dwell=None, house=None):
         with self.lock:
             for key, on in (flags or {}).items():
                 if key in self.deck:
                     self.deck[key] = bool(on)
             if dwell is not None:
                 self.dwell = min(MAX_DWELL, max(MIN_DWELL, float(dwell)))
+            if house is not None:
+                self.house = _presence(house, allow_off=True)
             self._card = None            # start the cycle over with the new deck
-            return {"deck": dict(self.deck), "dwell": self.dwell}
+            self._cycle = []
+            return {"deck": dict(self.deck), "dwell": self.dwell, "house": self.house}
 
-    def _cycle(self, standings, join):
-        """The order cards come in: a trivia card between every other kind,
-        so a sponsor's card never follows a sponsor's card and the room is
-        never three standings in a row."""
+    @staticmethod
+    def _due(presence, pass_no, stagger=0):
+        """How many times a card with this presence appears in this pass.
+
+        Above one it repeats; below one it appears once every 1/presence
+        passes, staggered by its place in the list so two quarter-presence
+        sponsors do not both land on the same pass and then both sit out
+        three.
+        """
+        presence = float(presence or 0)
+        if presence <= 0:
+            return 0
+        if presence >= 1:
+            return int(round(presence))
+        period = max(2, int(round(1.0 / presence)))
+        return 1 if (pass_no + stagger) % period == 0 else 0
+
+    def _build_cycle(self, standings, join, pass_no):
+        """One pass through the deck: a trivia card between every other
+        kind, so a sponsor's card never follows a sponsor's card and the room
+        is never three standings in a row. Sponsors due more than once are
+        spread through the pass rather than bunched."""
         trivia_on = [d for d in TRIVIA_DECKS if self.deck.get(d)]
         others = []
-        if self.deck.get("sponsor") and self.sponsors:
-            others.append("sponsor")
         if self.deck.get("standings") and standings:
-            others.append("standings")
+            others.append(("standings", None))
         if self.deck.get("notice") and self.notices:
-            others.append("notice")
+            others.append(("notice", None))
         if self.deck.get("join") and join:
-            others.append("join")
+            others.append(("join", None))
         if self.deck.get("programme") and self.programme:
-            others.append("programme")
-        if self.mode == STUDY and self.focus:
-            others.insert(0, "focus")
+            others.append(("programme", None))
+        if self.house and self._due(self.house, pass_no):
+            others.append(("house", None))
+        # Sponsors, each as often as its presence says, spread evenly.
+        due = []
+        if self.deck.get("sponsor"):
+            for i, sp in enumerate(self.sponsors):
+                due.extend([("sponsor", sp)] * self._due(
+                    sp.get("presence", sp.get("weight", 1)), pass_no, i))
+        if due:
+            slots = len(others) + 1
+            for i, entry in enumerate(due):
+                at = min(len(others), round(i * slots / len(due)) + i)
+                others.insert(at, entry)
         cycle = []
-        for kind in others:
+        for entry in others:
             if trivia_on:
-                cycle.append("trivia")
-            cycle.append(kind)
+                cycle.append(("trivia", None))
+            cycle.append(entry)
         if not cycle:
-            cycle = ["trivia"] if trivia_on else []
-        # Sponsors twice as often as the rest of the hall's own cards: they
-        # paid for the room, and a card every few minutes is what they were
-        # promised.
-        if "sponsor" in cycle and len(self.sponsors) > 1 and len(cycle) > 4:
-            cycle.insert(len(cycle) // 2, "sponsor")
+            cycle = [("trivia", None)] if trivia_on else []
         # In study the focus leads and comes back mid-pass: it is what the
         # room is meant to be doing, and a card that says so every minute
         # or two is the instructor's voice while they are at a table.
-        if "focus" in cycle:
-            cycle.remove("focus")
-            cycle.insert(0, "focus")
+        if self.mode == STUDY and self.focus:
+            cycle.insert(0, ("focus", None))
             if len(cycle) > 4:
-                cycle.insert(len(cycle) // 2 + 1, "focus")
+                cycle.insert(len(cycle) // 2 + 1, ("focus", None))
         return cycle
 
-    def _make(self, kind, standings, join, now):
+    def _make(self, kind, payload, standings, join, now):
         card = {"kind": kind, "since": now, "dwell": self.dwell}
         if kind == "trivia":
             decks = [d for d in TRIVIA_DECKS if self.deck.get(d)]
@@ -278,12 +344,15 @@ class Show:
             card.update({"deck": deck, "text": drawn["text"],
                          "about": drawn["about"]})
         elif kind == "sponsor":
-            # Weight is repetition: a weight-2 sponsor appears twice per pass.
-            order = [s for s in self.sponsors for _ in range(max(1, int(s.get("weight") or 1)))]
-            s = order[self._sponsor_at % len(order)]
-            self._sponsor_at += 1
-            card.update({"name": s["name"], "blurb": s.get("blurb", ""),
-                         "url": s.get("url", ""), "file": s.get("file")})
+            sp = payload
+            card.update({"name": sp["name"], "blurb": sp.get("blurb", ""),
+                         "url": sp.get("url", ""), "file": sp.get("file")})
+        elif kind == "house":
+            icon = HOUSE_ICONS[self._house_at % len(HOUSE_ICONS)]
+            line = HOUSE_LINES[self._house_at % len(HOUSE_LINES)]
+            self._house_at += 1
+            card.update({"name": HOUSE_WHO, "text": line, "url": HOUSE_WHERE,
+                         "image": f"/static/house/{icon}"})
         elif kind == "notice":
             n = self.notices[self._notice_at % len(self.notices)]
             self._notice_at += 1
@@ -309,37 +378,60 @@ class Show:
                 if live["kind"] == "standings" and standings is not None:
                     live["rows"] = standings[:6]
                 return live
-            cycle = self._cycle(standings, join)
-            if not cycle:
+            key = self._cycle_key(standings, join)
+            if not self._cycle or self._pos >= len(self._cycle) or (
+                    live and live.get("cycle_key") != key):
+                # The end of a pass, or the deck changed under us: the next
+                # pass is built now. A new pass counts; a rebuild does not.
+                if self._cycle and self._pos >= len(self._cycle):
+                    self._pass += 1
+                self._cycle = self._build_cycle(standings, join, self._pass)
+                self._pos = 0
+            if not self._cycle:
                 self._card = None
                 return None
-            kind = cycle[self._cycle_at % len(cycle)]
+            kind, payload = self._cycle[self._pos]
+            self._pos += 1
             self._cycle_at += 1
-            card = self._make(kind, standings or [], join, now)
+            card = self._make(kind, payload, standings or [], join, now)
             card["id"] = f"{int(now)}-{self._cycle_at}"
-            card["cycle_key"] = self._cycle_key(standings, join)
+            card["cycle_key"] = key
+            card["pass"] = self._pass
             self._card = card
             return card
 
     def _cycle_key(self, standings, join):
         return (bool(standings), bool(join), self.mode, len(self.sponsors),
-                len(self.notices), len(self.programme))
+                len(self.notices), len(self.programme), self.house)
 
     # ---------------------------------------------- sponsors and notices
 
     def add_sponsor(self, name, blurb="", url="", file=None, weight=1):
+        """`weight` is the card's presence: appearances per pass, from three
+        down to a quarter - once every fourth pass, for a partial sponsor."""
         name = _clean(name, MAX_TITLE)
         if not name:
             raise ValueError("a sponsor needs a name")
         with self.lock:
             item = {"id": self._next_id, "name": name,
                     "blurb": _clean(blurb), "url": _clean(url, 200),
-                    "file": file, "weight": max(1, min(3, int(weight or 1)))}
+                    "file": file, "presence": _presence(weight)}
             self._next_id += 1
             self.sponsors.append(item)
             self._card = None
             self.save()
             return dict(item)
+
+    def set_presence(self, sponsor_id, presence):
+        with self.lock:
+            for sp in self.sponsors:
+                if sp["id"] == int(sponsor_id):
+                    sp["presence"] = _presence(presence)
+                    sp.pop("weight", None)
+                    self._card = None
+                    self.save()
+                    return dict(sp)
+            return None
 
     def remove_sponsor(self, sponsor_id):
         with self.lock:
@@ -496,6 +588,8 @@ class Show:
                 "attention": dict(self.attention) if self.attention else None,
                 "announcements": self.pending(now),
                 "deck": dict(self.deck), "dwell": self.dwell,
+                "house": self.house,
+                "presences": [{"value": v, "label": l} for v, l in PRESENCES],
                 "decks": TRIVIA_DECKS, "kinds": CARD_KINDS,
                 "sponsors": [dict(s) for s in self.sponsors],
                 "notices": [dict(n) for n in self.notices],
@@ -512,7 +606,7 @@ class Show:
     def save(self):
         """The event's own content, kept between nets and across restarts."""
         with self.lock:
-            data = {"deck": self.deck, "dwell": self.dwell,
+            data = {"deck": self.deck, "dwell": self.dwell, "house": self.house,
                     "sponsors": self.sponsors, "notices": self.notices,
                     "programme": self.programme, "next_id": self._next_id}
         try:
@@ -536,8 +630,18 @@ class Show:
                 show.dwell = min(MAX_DWELL, max(MIN_DWELL, float(data.get("dwell") or DEFAULT_DWELL)))
             except (TypeError, ValueError):
                 pass
+            if "house" in data:
+                try:
+                    show.house = _presence(data["house"], allow_off=True)
+                except (TypeError, ValueError):
+                    pass
             show.sponsors = [s for s in data.get("sponsors") or []
                              if isinstance(s, dict) and s.get("name")]
+            for sp in show.sponsors:
+                # Older files carried "weight", 1-3 repeats a pass; the
+                # same numbers mean the same thing as a presence.
+                if "presence" not in sp:
+                    sp["presence"] = _presence(sp.pop("weight", 1))
             show.notices = [n for n in data.get("notices") or []
                             if isinstance(n, dict) and (n.get("title") or n.get("text"))]
             show.programme = [s for s in data.get("programme") or []

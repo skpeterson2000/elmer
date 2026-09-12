@@ -1218,6 +1218,11 @@ table.data.printouts td { vertical-align: middle; }
 .hs-sponsor-img { display: block; max-width: 100%; max-height: 40vh; margin: .4rem auto .8rem; border-radius: 8px; }
 .hs-sponsor-name { font-size: 1.6rem; font-weight: 700; text-align: center; }
 .hs-blurb { text-align: center; color: var(--dim); font-size: 1.05rem; margin-top: .4rem; }
+.hs-house-row { display: flex; gap: 1.2rem; align-items: center; }
+.hs-house-img { width: clamp(6rem, 18vw, 11rem); height: auto; border-radius: 18%; flex: none;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+.hs-small .hs-house-img { width: 5rem; }
+.showstage .hs-house-img { width: clamp(8rem, 16vw, 14rem); }
 .hs-table { width: 100%; border-collapse: collapse; font-size: 1.15rem; }
 .hs-table td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); }
 .hs-table .hs-n { color: var(--dim); width: 2rem; font-family: var(--mono); }
