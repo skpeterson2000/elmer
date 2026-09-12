@@ -2733,8 +2733,8 @@ async function libraryPointers(topic, box) {
     .slice(0, 8);
   box.hidden = false;
   box.innerHTML = '<p class="tiny muted" style="margin:.5rem 0 0"><b>In your library:</b> ' +
-    rows.map(p => escapeHTML(p.book_title) + ', <a href="/library/book/' + encodeURIComponent(p.book) +
-      '#page=' + p.page + '" target="_blank">' + escapeHTML(p.title) + '</a> (p. ' + p.page + ')').join(' &middot; ') +
+    rows.map(p => escapeHTML(p.book_title) + ', <a href="/library/read/' + encodeURIComponent(p.book) +
+      '?page=' + p.page + '&back=%2Flab">' + escapeHTML(p.title) + '</a> (p. ' + p.page + ')').join(' &middot; ') +
     '. <a href="/library">Search it</a>.</p>';
 }
 

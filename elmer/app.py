@@ -1542,6 +1542,38 @@ def api_library_remove():
     return jsonify({"removed": pdf.name, "shelf": library.catalogue()})
 
 
+@app.route("/library/read/<path:name>")
+def library_read(name):
+    """A manual, inside ELMER: the way back, the chapters, and the page.
+
+    The kiosk's browser has no tab bar, so a PDF opened on its own is a wall
+    with no door. This page keeps ELMER's bar above the browser's viewer,
+    with Back and Escape, the publisher's chapters down the side, and - when
+    it was reached from a search - the hits in this book, each a tap away.
+    """
+    pdf = library.book(name)
+    if pdf is None:
+        abort(404, "no such book")
+    meta = next((b for b in library.catalogue() if b["name"] == pdf.name), {})
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    query = (request.args.get("q") or "").strip()[:200]
+    hits = []
+    if query:
+        hits = [h for h in library.search(query, limit=200)["hits"] if h["book"] == pdf.name][:40]
+    # Where Back goes: the Library unless the caller said otherwise, and
+    # only ever a page of this program's own.
+    back = request.args.get("back") or "/library"
+    if not back.startswith("/") or back.startswith("//"):
+        back = "/library"
+    return render_template("library_read.html", name=pdf.name,
+                           title=meta.get("title") or pdf.stem, pages=meta.get("pages") or 0,
+                           page=page, query=query, hits=hits,
+                           outline=library.outline(pdf.name), back=back)
+
+
 @app.route("/library/book/<path:name>")
 def library_book(name):
     """The PDF itself, for the browser's own viewer - `#page=N` on the end
