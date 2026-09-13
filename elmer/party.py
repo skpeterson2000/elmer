@@ -348,14 +348,27 @@ class Room:
 
     def _seat_cohort(self, wanted=None):
         """Which cohort a joiner lands in: the one asked for if it has room,
-        else the emptiest, so teams fill evenly rather than first-come."""
+        else the emptiest, so teams fill evenly rather than first-come.
+
+        And a new one when every cohort is full. The table screen opens the
+        room with a single cohort, and cohorts did not grow, so the ninth
+        person at a table was told "every cohort is full" while the unit's
+        cap sat at twenty-four, measured and never reached. A class is a
+        room, not a team; the teams are made as the room fills.
+        """
         counts = {cid: 0 for cid in self.cohorts}
         for p in self.players.values():
             counts[p.cohort_id] = counts.get(p.cohort_id, 0) + 1
         if wanted in self.cohorts and counts.get(wanted, 0) < COHORT_SIZE:
             return wanted
         free = [(n, cid) for cid, n in counts.items() if n < COHORT_SIZE]
-        return min(free)[1] if free else None
+        if free:
+            return min(free)[1]
+        if len(self.cohorts) < MAX_COHORTS:
+            cid = max(self.cohorts) + 1
+            self.cohorts[cid] = Cohort(cid, f"Cohort {chr(64 + cid)}")
+            return cid
+        return None
 
     def find_callsign(self, name):
         """The player already here under this callsign, if any."""

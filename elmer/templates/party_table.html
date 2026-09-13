@@ -545,16 +545,20 @@ async function tick() {
     }
     chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
     showing = 'idle';
-    const idleKey = 'none' + (netInfo.connected ? ':node' : (netInfo.heard || []).length ? ':offer' : '');
+    const idleKey = 'none' + (netInfo.connected ? (netInfo.ready ? ':node' : ':linked') : (netInfo.heard || []).length ? ':offer' : '');
     if (painted !== idleKey || soon) {
       painted = idleKey;
       const nb = netInfo.bridge || {};
       stage.innerHTML = soon
         ? `<p class="empty">Somebody has joined. First question in
            <b>${Math.ceil(secs)}</b> seconds &mdash; or start one now.</p>`
-        : netInfo.connected
+        : netInfo.connected && netInfo.ready
           ? `<p class="empty">Waiting on net control &mdash; the next question comes from
              <b>${esc(nb.net_name || 'the net')}</b> when the host starts it.</p>`
+          : netInfo.connected
+            ? `<p class="empty">No round yet. Pick a difficulty and ask a question here &mdash;
+               or check in as ready above, and this table plays
+               <b>${esc(nb.net_name || 'the net')}</b>&rsquo;s questions instead.</p>`
           : (netInfo.heard || []).length && !netInfo.hosting && !offerBox.hidden
             ? '<p class="empty">No round yet. Check in above, and the hall\'s questions arrive here.</p>'
             : '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>';
@@ -812,7 +816,9 @@ function paintNode(info) {
   nodePainted = key;
   nodeBox.innerHTML =
     `<div><b>A table in ${esc(b.net_name || 'the net')}</b>${b.difficulty ? ` <span class="count" style="color:var(--dim)">· ${esc(b.difficulty)}</span>` : ''}
-       <span class="hint" style="display:inline">The host runs the game from net control; the questions, the intermissions and the host's announcements arrive here by themselves.</span></div>
+       <span class="hint" style="display:inline">${info.ready
+         ? 'The host runs the game from net control; the questions, the intermissions and the host&rsquo;s announcements arrive here by themselves.'
+         : 'This table is on the hall&rsquo;s roster but playing on its own. Check in as ready and the hall&rsquo;s questions arrive here instead of this table&rsquo;s.'}</span></div>
      <div class="standing">
        <span><span class="k">as</span>${esc(b.name || b.unit || '')}</span>
        ${b.net_round ? `<span><span class="k">round</span>${b.net_round}</span>` : ''}
@@ -827,18 +833,24 @@ function paintNode(info) {
 
 function paintNet(info) {
   netInfo = info || netInfo;
-  const on = !!netInfo.connected;
+  /* A node on the person's word. Auto-join checks the table in the moment
+     it hears a net, and a table that only checked in has nobody at it who
+     chose the hall's game: it keeps its own buttons, with the net's card
+     and Check in as ready beside them. Ready - a press - is what hands the
+     table to the hall and takes the host's buttons off this screen. */
+  const linked = !!netInfo.connected;
+  const on = linked && !!netInfo.ready;
   // Hearing a net and not being in it is an offer; being in one is a node;
   // hosting is neither - the host's own table has the host's own page.
   const asked = netInfo.auto_join !== false || (lookedAt > 0 && (performance.now() - lookedAt) < LOOK_HOLDS_MS);
-  const offered = !on && !netInfo.hosting && asked && (netInfo.heard || []).length > 0;
+  const offered = !linked && !netInfo.hosting && asked && (netInfo.heard || []).length > 0;
   paintHallShootout(on ? netInfo.bridge : null);
-  nodeBox.hidden = !on;
+  nodeBox.hidden = !linked;
   offerBox.hidden = !offered;
   ownControls.hidden = on || offered;
-  byAddress.hidden = on || offered || netInfo.hosting;
+  byAddress.hidden = linked || offered || netInfo.hosting;
   endTable.hidden = on;
-  if (on) paintNode(netInfo); else nodePainted = '';
+  if (linked) paintNode(netInfo); else nodePainted = '';
   if (offered) paintOffer(netInfo); else offerPainted = '';
 }
 

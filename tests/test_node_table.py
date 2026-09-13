@@ -249,7 +249,7 @@ try:
         check("on its own, the table may start", r.status_code, 200)
         client.post("/api/party/auto", json={"on": False})
 
-    print("\na table's own game stands down when the hall takes it")
+    print("\na table that only checked in keeps its own game, and its buttons")
     cohort.set_auto_join(connection, True)
     room = party.room(create=True, cohorts=1)
     room.join("KC9SP")
@@ -258,11 +258,43 @@ try:
           autoplay.director().as_dict()["running"], True)
     with appmod.app.test_request_context():
         joined = appmod._party_auto_join(room)
-    check("it joined the hall", joined, True)
+    check("it checked in with the hall by itself", joined, True)
     time.sleep(0.05)
-    check("  and its own director stopped",
+    with appmod.app.test_client() as client:
+        view = client.get("/api/party/net").get_json()
+    check("  linked", view["connected"], True)
+    check("  but nobody here said ready", view["ready"], False)
+    check("  so its own game runs on",
+          bool(autoplay.director() and autoplay.director().as_dict()["running"]),
+          True)
+    autoplay.stop()
+    with appmod.app.test_client() as client:
+        r = client.post("/api/party/round", json={"difficulty": "technician"})
+        check("  and it may ask its own question", r.status_code, 200)
+        client.post("/api/party/close", json={})
+    # The hall's round does not land on a table that has not said ready:
+    # the bridge is told net control has a round up, and leaves the screen.
+    link = cohort.bridge()
+    hall_round = {"number": 99, "pool": "technician", "question_id": "x",
+                  "answer_index": 0, "question": {"text": "?"}, "seconds": 30}
+    link._checkin = lambda room: hall_round
+    link._tick()
+    check("  the hall's question stays off its screen",
+          bool(room.round and not room.round.closed and room.round.tag == 99), False)
+
+    print("\nready is the press that hands the table to the hall")
+    autoplay.start(room, lambda: None)
+    with appmod.app.test_client() as client:
+        r = client.post("/api/party/net", json={"ready": True})
+    check("taken", r.status_code, 200)
+    time.sleep(0.05)
+    check("  and now its own director stopped",
           bool(autoplay.director() and autoplay.director().as_dict()["running"]),
           False)
+    link._tick()
+    check("  and the hall's question lands",
+          bool(room.round and room.round.tag == 99), True)
+    room.close_round()
     cohort.disconnect(connection)
 
     print("\nwith nothing to hear, ready has nowhere to go")

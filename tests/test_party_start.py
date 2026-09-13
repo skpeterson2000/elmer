@@ -75,6 +75,25 @@ def main():
     check("  which is what a countdown for an empty room would turn on",
           room.state()["people"], 1)
 
+    print("\n-- a class at one table: the teams are made as the room fills --")
+    # The table screen opens the room with one cohort, and the ninth person
+    # used to be told "every cohort is full" with the unit's cap at
+    # twenty-four, measured and never reached.
+    room = party.Room(cohorts=1)
+    seated, refused = [], []
+    for n in range(party.CAP_PER_UNIT + 2):
+        player, why = room.join(f"Student {n + 1}")
+        (seated if player else refused).append(player or why)
+    check("the ninth is seated", len(seated) >= 9, True)
+    check("  a second cohort was opened for them", len(room.cohorts) >= 2, True)
+    check("  up to the unit's cap", len(seated), party.CAP_PER_UNIT)
+    check("  in teams of eight", max(
+        sum(1 for p in room.players.values() if p.cohort_id == cid)
+        for cid in room.cohorts), party.COHORT_SIZE)
+    check("  and the cap is the cap", len(refused), 2)
+    check("    said as the cap, not as a full team",
+          all("full at" in str(w) for w in refused), True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

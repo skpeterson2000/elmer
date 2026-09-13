@@ -3035,9 +3035,16 @@ def _not_this_tables_part():
     games on one table. The screen no longer offers them while the table is
     a node, and this is the same rule on the server, where it holds against a
     stale page too.
+
+    A node on the person's word, not the machine's. Auto-join checks a table
+    in the moment it hears a net, and a table that only checked in has
+    nobody at it who chose the hall's game - so it keeps its own buttons,
+    and the offer to check in as ready sits beside them. Ready is the press
+    that hands the table to the hall. Until then a class at one unit plays
+    that unit's own questions, net or no net.
     """
     link = cohort.bridge()
-    if link is None:
+    if link is None or not link.ready:
         return
     whose = link.net_name or "net control"
     abort(409, f"this table takes its rounds from {whose} - "
@@ -3160,8 +3167,9 @@ def _party_auto_join(room):
     chosen = _party_pick_net(_nets_heard(), _party_class())
     if not chosen:
         return False
-    room = party.room(create=True, cohorts=1)
-    _table_yields_to_hall(room)
+    # Checked in, not handed over: the table's own game, if one is running,
+    # runs on. It stands down when somebody here presses ready.
+    party.room(create=True, cohorts=1)
     _quiet_op25("this table is joining a net")
     link = cohort.connect(chosen["url"], None, None, conn=connection,
                           token=chosen.get("token"))
@@ -4329,10 +4337,9 @@ def api_party_net():
     if url:
         if not url.startswith(("http://", "https://")):
             url = "http://" + url
-        room = party.room(create=True, cohorts=1)
+        party.room(create=True, cohorts=1)
         cohort.set_auto_join(connection, True)
         if link is None or link.url != url.rstrip("/"):
-            _table_yields_to_hall(room)
             _quiet_op25("this table is joining a net")
             known = next((n for n in heard
                           if n["url"].rstrip("/") == url.rstrip("/")), None)
@@ -4346,6 +4353,10 @@ def api_party_net():
             link.name = str(body["name"])[:60]
             cohort.remember(connection, link)
     if ready and link is not None:
+        # Ready is the press that hands the table to the hall: whatever it
+        # was playing on its own stands down here, and not before.
+        if not link.ready:
+            _table_yields_to_hall(party.room(create=True, cohorts=1))
         link.ready = True
         log.info("cohort: this table checked in as ready")
     return jsonify(_party_net_view())

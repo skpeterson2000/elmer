@@ -348,7 +348,11 @@ class Bridge:
         # on this table, or the run-up on its way; quiet otherwise.
         lead = (self.hall_show or {}).get("lead_in")
         self._active = bool(rnd) or bool(local and not local.closed) or bool(lead)
-        if rnd and (rnd.get("number") or 0) > self.seen_round:
+        # The hall's round lands here only once somebody at this table said
+        # ready. A table that merely checked in - auto-join does that by
+        # itself - may be playing its own game, and two rounds arriving at
+        # once was the fault the node rule was written to end.
+        if rnd and (rnd.get("number") or 0) > self.seen_round and self.ready:
             self._start_local(room, rnd)
             return
         # The local round is over when everybody has answered or time is up;
