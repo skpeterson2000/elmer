@@ -222,7 +222,7 @@ def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
           club=None, signers=None, mode=None):
     """One page per award. `awards`: [{place, name, lines: [...]}, ...].
     `mode` is the game played - "shootout" brings its own medals and words."""
-    when = when or date.today().strftime("%-d %B %Y")
+    when = when or f"{date.today().day} {date.today():%B %Y}"
     footer = footer or (
         f"A {mode if mode in MODE_WORD else 'tournament'} result, recorded by ELMER. "
         "It is a game played on the licence question pools; it is not an "

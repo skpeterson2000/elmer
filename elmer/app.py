@@ -4568,7 +4568,7 @@ def _certificate_details(connection, body=None):
         where = ""
     defaults = {
         "event": "", "club": "",
-        "when": date.today().strftime("%-d %B %Y"),
+        "when": f"{date.today().day} {date.today():%B %Y}",
         "where": where,
         "net_control": licence.get("callsign") or "",
         "club_signer": "", "places": 3,
