@@ -478,7 +478,7 @@ miles of road rather than DX.
 
 ## Mail home
 
-Reports go to **KC9SP@ARRL.NET** — an arrl.net forwarder, chosen for exactly
+Reports go to **KC9SP@arrl.net** — an arrl.net forwarder, chosen for exactly
 this: it forwards to its owner's inbox and is filtered on the way. Every
 subject a unit sends begins **[ELMER]**, put on by the sending path rather
 than left to each caller, so one filter at the far end catches all of them —

@@ -35,7 +35,7 @@ from .paths import STATE
 
 log = logging.getLogger("elmer")
 
-CONTACT = "KC9SP@ARRL.NET"
+CONTACT = "KC9SP@arrl.net"
 SETTINGS = STATE / "mail.json"
 TAG = "[ELMER]"
 SECURITIES = ("starttls", "ssl", "none")
