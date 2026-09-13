@@ -44,8 +44,8 @@ def collect(port=5000):
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
                       check_towerwitch_service, check_neighbours_known,
-                      check_net_role, check_mail, check_internet,
-                      check_start):
+                      check_net_role, check_hall, check_node, check_mail,
+                      check_internet, check_start):
             try:
                 check()
             except Exception as exc:
@@ -616,6 +616,81 @@ def check_mail():
     else:
         _line(OK, "mail home", detail + f" - reports go to {mail.CONTACT} with [ELMER] "
               "in the subject; Send a test on the dashboard proves the path")
+    # What actually happened last time is worth more than what is configured.
+    # A unit whose settings look right but whose last send was refused is the
+    # exact case a report is written to catch, so it is said here in words.
+    last = mail.last_result()
+    if last:
+        when = time.strftime("%d %b %H:%M", time.localtime(last.get("at", 0)))
+        if last.get("ok"):
+            _line(OK, "last mail", f"sent {when} - {last.get('detail', '')}")
+        else:
+            _line(WARN, "last mail", f"FAILED {when} - {last.get('detail', '')}")
+    return True
+
+
+def check_hall():
+    """When this unit runs a net, what the hall actually looks like.
+
+    A net that has collapsed - three units checked in but one table on the
+    board because a fleet shares an identity - is invisible on a dashboard
+    that only shows the score. Said here so a report carries it.
+    """
+    from . import netcontrol, hall
+    net = netcontrol.net()
+    if net is None:
+        return True
+    board = net.board()
+    units = board.get("units") or []
+    real = [u for u in units if not u.get("simulated")]
+    cloned = [u for u in real if u.get("cloned")]
+    present = board.get("units_present", 0)
+    detail = (f"{board.get('name')} - {len(real)} unit(s) checked in, "
+              f"{present} present, {board.get('players', 0)} players")
+    if cloned:
+        _line(WARN, "net control", detail + f"; {len(cloned)} share an identity "
+              "with another (a cloned SD card) - give the units their own hostnames")
+    else:
+        _line(OK, "net control", detail)
+    live = hall.conductor()
+    if live is not None:
+        d = live.as_dict()
+        if d.get("state") == "faulted":
+            _line(BAD, "conductor", f"faulted - {d.get('error')}")
+        else:
+            _line(OK, "conductor", f"{d.get('state')}"
+                  + (f", {d['played']} rounds" if d.get("played") else "")
+                  + (f" ({d['waiting_for']})" if d.get("waiting_for") else ""))
+    tk = hall.timekeeper()
+    if tk is not None and getattr(tk, "error", None):
+        _line(BAD, "programme clock", tk.error)
+    return True
+
+
+def check_node():
+    """When this unit is a table in somebody else's net, whether it is getting
+    through - a bridge stuck offline or a report that cannot be handed in is a
+    table playing to nobody, and nothing on its own screen says so plainly."""
+    from . import cohort, netcontrol
+    if netcontrol.net() is not None:
+        return True                       # hosting, not a node
+    link = cohort.bridge()
+    if link is None:
+        return True                       # on its own; check_net_role said so
+    d = link.as_dict()
+    state = d.get("state")
+    detail = (f"reporting to {d.get('net_name') or d.get('url')} as "
+              f"{d.get('name')}, round {d.get('net_round', 0)}")
+    if state == "offline":
+        _line(WARN, "this table", f"net control is not answering - {detail} "
+              f"({d.get('error') or 'offline'}); the table keeps playing and "
+              "reports when it is back")
+    elif state in ("refused", "faulted"):
+        _line(WARN, "this table", f"{state}: {d.get('error')} - {detail}")
+    elif d.get("waiting_to_report"):
+        _line(WARN, "this table", f"a report is waiting to go - {detail}")
+    else:
+        _line(OK, "this table", detail)
     return True
 
 
@@ -771,7 +846,8 @@ def doctor(port=5000):
         check_launcher(),
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
-        check_neighbours(), check_net_role(), check_mail(),
+        check_neighbours(), check_net_role(), check_hall(), check_node(),
+        check_mail(),
         check_internet(), check_start(), check_server(port),
     ]
 

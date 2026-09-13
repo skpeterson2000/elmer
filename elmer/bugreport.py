@@ -160,6 +160,42 @@ def build(conn=None, lines=400, include_station=False):
         except Exception:
             callsign, places = None, []
 
+    # The self-check, embedded. A report that made somebody read four hundred
+    # log lines to find what one line of the doctor already knew was a report
+    # that buried its own answer. The doctor speaks in plain sentences and
+    # knows the things the log does not say out loud - a hall collapsed to one
+    # table, a mail send refused, a bridge offline - so it goes at the top.
+    add("")
+    add("self-check")
+    add("-" * 60)
+    try:
+        from . import diagnostics
+        results = diagnostics.collect()
+        worst = {"FAIL": 0, "warn": 0, "ok": 0}
+        for c in results:
+            worst[c["state"]] = worst.get(c["state"], 0) + 1
+            mark = {"FAIL": "FAIL", "warn": "warn", "ok": " ok "}.get(c["state"], c["state"])
+            add(f"  [{mark}] {c['label']}: {c['detail']}")
+        add(f"  -> {worst.get('FAIL', 0)} failing, {worst.get('warn', 0)} warnings, "
+            f"{worst.get('ok', 0)} ok")
+    except Exception as exc:
+        add(f"  (self-check could not run: {type(exc).__name__}: {exc})")
+
+    # The last time this unit tried to mail anything, and how it went - the
+    # one fact a report about mail failing most needs, and the one that used
+    # to scroll out of the log tail before anyone read it.
+    try:
+        from . import mail
+        last = mail.last_result()
+        if last:
+            import datetime
+            when = datetime.datetime.fromtimestamp(last.get("at", 0)).strftime("%Y-%m-%d %H:%M")
+            add("")
+            add(f"last mail: {'sent' if last.get('ok') else 'FAILED'} at {when} - "
+                f"{last.get('detail', '')}")
+    except Exception:
+        pass
+
     body = _tail(LOG, lines)
     errors = [ln for ln in body if " ERROR " in ln or "UNHANDLED" in ln
               or " WARNING " in ln]

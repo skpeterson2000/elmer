@@ -37,6 +37,12 @@ log = logging.getLogger("elmer")
 
 CONTACT = "KC9SP@arrl.net"
 SETTINGS = STATE / "mail.json"
+# The outcome of the last send, kept apart from the settings so the self-check
+# and the problem report can say "the last send failed, and why" without ever
+# touching the password. This is the line that was missing the night three
+# Pis could not mail home: the failure was in the log and scrolled past the
+# report's tail, and the mail panel still said "configured".
+LAST = STATE / "mail_last.json"
 TAG = "[ELMER]"
 SECURITIES = ("starttls", "ssl", "none")
 DEFAULT_PORT = {"starttls": 587, "ssl": 465, "none": 25}
@@ -137,6 +143,25 @@ def subject_line(subject):
     return subject if subject.startswith(TAG) else f"{TAG} {subject}".strip()
 
 
+def _remember(ok, detail, subject, to):
+    """Keep the last send outcome where the report and the doctor can read it."""
+    try:
+        LAST.parent.mkdir(parents=True, exist_ok=True)
+        LAST.write_text(json.dumps({"at": time.time(), "ok": bool(ok),
+                                    "detail": detail, "subject": subject[:80],
+                                    "to": to}))
+    except OSError:                       # pragma: no cover
+        pass
+
+
+def last_result():
+    """The last send this unit attempted, or None."""
+    try:
+        return json.loads(LAST.read_text())
+    except (OSError, ValueError):
+        return None
+
+
 def send(subject, body, to=CONTACT, attachments=(), s=None):
     """Send one message. Returns (sent, detail); never raises.
 
@@ -175,6 +200,7 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
                 client.login(s["user"], s.get("password") or "")
             client.send_message(msg)
         log.info("mail: sent '%s' to %s via %s", subject[:60], to, s["host"])
+        _remember(True, f"sent to {to} via {s['host']}", subject, to)
         return True, f"sent to {to} via {s['host']}"
     except smtplib.SMTPAuthenticationError:
         known = provider(s["host"])
@@ -218,6 +244,7 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
             detail += (" - with this provider try port 465 and ssl, which is "
                        "the door they keep open for mail programs")
     log.warning("mail: could not send '%s': %s", subject[:60], detail)
+    _remember(False, detail, subject, to)
     return False, detail
 
 
