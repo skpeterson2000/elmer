@@ -37,6 +37,33 @@ DEFAULT_PORT = {"starttls": 587, "ssl": 465, "none": 25}
 TIMEOUT = 30
 FIELDS = ("host", "port", "user", "password", "sender", "security")
 
+# The big providers stopped taking an account's own password from a mail
+# program years ago; each hands out an "app password" instead, from the
+# account's security page, and refuses the login otherwise - with a 535 that
+# reads exactly like a typo. Named here so the refusal can say so. Yahoo is
+# the one that also insists on 465/ssl in practice, and all of them send
+# only as the account's own address.
+APP_PASSWORD_HOSTS = {
+    "yahoo": "Yahoo (Account Security - Generate app password)",
+    "gmail": "Gmail (Google Account - Security - App passwords)",
+    "googlemail": "Gmail (Google Account - Security - App passwords)",
+    "outlook": "Outlook (Microsoft account - Security - App passwords)",
+    "office365": "Outlook (Microsoft account - Security - App passwords)",
+    "hotmail": "Outlook (Microsoft account - Security - App passwords)",
+    "live": "Outlook (Microsoft account - Security - App passwords)",
+    "icloud": "iCloud (Apple ID - Sign-In and Security - App-Specific Passwords)",
+    "me": "iCloud (Apple ID - Sign-In and Security - App-Specific Passwords)",
+    "aol": "AOL (Account Security - Generate app password)",
+}
+
+
+def provider(host):
+    """Which of the app-password providers this host belongs to, or None."""
+    for part in str(host or "").lower().split("."):
+        if part in APP_PASSWORD_HOSTS:
+            return APP_PASSWORD_HOSTS[part]
+    return None
+
 
 def settings():
     """The outgoing-mail settings on this unit, or an empty dict."""
@@ -137,11 +164,26 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
         log.info("mail: sent '%s' to %s via %s", subject[:60], to, s["host"])
         return True, f"sent to {to} via {s['host']}"
     except smtplib.SMTPAuthenticationError:
-        detail = "the mail server refused the login - check the user name and password"
+        known = provider(s["host"])
+        if known:
+            detail = (f"the mail server refused the login. {known.split(' (')[0]} "
+                      "does not take the account's own password from a program "
+                      f"- it wants an app password, made under {known.split(' (')[1][:-1]}, "
+                      "with the full address as the user name")
+        else:
+            detail = "the mail server refused the login - check the user name and password"
+    except smtplib.SMTPSenderRefused:
+        detail = (f"the mail server refused to send as {s['sender']}"
+                  + (" - the big providers only send as the account's own "
+                     "address, so From has to be the mailbox you log in to"
+                     if provider(s["host"]) else ""))
     except smtplib.SMTPRecipientsRefused:
         detail = f"the mail server refused the address {to}"
     except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
         detail = f"{type(exc).__name__}: {exc}"
+        if provider(s["host"]) and security != "ssl":
+            detail += (" - with this provider try port 465 and ssl, which is "
+                       "the door they keep open for mail programs")
     log.warning("mail: could not send '%s': %s", subject[:60], detail)
     return False, detail
 

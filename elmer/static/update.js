@@ -287,7 +287,11 @@ async function renderMail() {
     '<p class="tiny" style="margin:.2rem 0 .5rem;color:var(--text)">Reports go to <span class="mono">' +
       escapeHTML(m.contact) + '</span>, through your own outgoing mail server &mdash; the ' +
       'host, port and login you would give any mail program. ELMER carries no mail account; ' +
-      'these are kept in <span class="mono">data/mail.json</span> on this unit only.</p>' +
+      'these are kept in <span class="mono">data/mail.json</span> on this unit only. ' +
+      'Gmail, Yahoo, Outlook and iCloud all want an <b>app password</b> here, made on the ' +
+      'account\u2019s security page, not the password you sign in with; the user name is the ' +
+      'full address, and From has to be that same address. Yahoo: ' +
+      '<span class="mono">smtp.mail.yahoo.com</span>, 465, ssl.</p>' +
     '<div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center">' +
       '<input class="mono" id="mail-host" placeholder="smtp.example.com" value="' + escapeHTML(m.host || '') + '" style="width:12rem">' +
       '<input class="mono" id="mail-port" placeholder="587" value="' + escapeHTML(m.port || '') + '" style="width:4.5rem">' +
