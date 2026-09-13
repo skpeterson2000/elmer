@@ -1784,6 +1784,37 @@ screen. Nobody installs anything.
 **A hall.** One Pi per table, one running net control, and up to a hundred
 tables on a single master.
 
+**A second Pi is a node, not a second host.** A unit that can hear a net it is
+not in offers it by name — *Technician net · 3 tables* — with one button,
+**Check in as ready**, and a smaller way to run the table on its own instead.
+Once it is in, the table screen has none of the host's buttons: no start, no
+shootout, no asking a question, no closing a round. Those belong to net
+control, and the server refuses them from a node in a sentence saying so, so a
+stale page cannot start a second game underneath the hall's. What the node
+screen has is its standing — which net, as which table, which round — and the
+hall arrives on it by itself: the question, the intermission cards, the host's
+announcements to the whole table or to one seat by name. A table that was
+running its own game when the hall took it stands that game down, scoring the
+open round so nobody is left holding a question.
+
+*Ready* is a word apart from *checked in*. Check-in is the machine's doing —
+a table hears a net and joins it, or rejoins at 04:00 after the overnight
+update with nobody in the room — so it says the Pi is up, not that the people
+are. Ready is pressed by somebody at the table and travels up with every
+check-in after, and net control's panel shows the two apart: a tick on the
+table's chip, and *4 tables · 2 ready* in the corner. Rounds still start on
+people actually seated, as before; the host holds the room with Intermission.
+
+A net is known by a **token**, not by its name. The name is only what it is
+called tonight — it follows the material when the hall drifts from Technician
+to General, and the host can type over it — so the table shows it and never
+keys on it. The token is made when the net opens, goes out in the announcement
+and comes back with every check-in, and it is what the table remembers. A
+different token at the same address is a new net, and the table starts afresh
+in it rather than sitting on round twelve of a net that no longer exists; the
+same token heard on a different address is the net it was in, back from a
+reboot on a new lease, and the table follows it there without anybody typing.
+
 ### While the table catches up
 
 Somebody who has answered used to sit looking at their greyed-out choices until

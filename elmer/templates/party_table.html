@@ -109,6 +109,15 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
 .seatcol .subjgroup { font: .68rem var(--mono); text-transform: uppercase; letter-spacing: .06em;
                       color: var(--dimmer); margin: .5rem 0 .2rem; }
 .seatcol .subjlist { max-height: 22rem; overflow-y: auto; }
+/* the offer, and the node */
+.offer, .node { margin-bottom: 1rem; }
+.offer .netrow, .node .netrow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .7rem; }
+.offer .btn.primary, .node .btn.primary { font-size: 1.05rem; padding: .7rem 1.2rem; }
+.offer .count { color: var(--dim); font-weight: 400; }
+.node .standing { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: baseline; margin-top: .4rem; }
+.node .standing .k { font: .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dimmer); margin-right: .3rem; }
+.node .ready { color: var(--green); font-weight: 700; }
+.node .netstate { margin-top: .6rem; }
 </style>
 </head>
 <body>
@@ -169,25 +178,38 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
           </div>
         </div>
       </div>
-      <div class="card" style="margin-top:1rem">
-        <b>Net control</b>
+      {# A net this table cannot hear - the master on another subnet, or
+         behind a firewall that eats the broadcast - is joined by address.
+         Only offered while the table is on its own: a node has a net, and a
+         table that can hear one has a button for it. #}
+      <div class="card" id="netbyaddress" style="margin-top:1rem" hidden>
+        <b>Net control by address</b>
         <p class="hint" style="text-align:left;margin:.2rem 0 .6rem">
-          Join a hall competition &mdash; there may be more than one running,
-          one per licence class. Leave empty to run this table on its own; the
-          panel at the foot of the dashboard lists the nets it can hear.</p>
+          A net this table cannot hear can be joined by its address. Nets
+          on this network are offered by name, without this.</p>
         <input id="neturl" placeholder="http://192.168.1.50:5000"
                autocomplete="off" spellcheck="false">
         <input id="netname" placeholder="Name for this table" autocomplete="off"
                style="margin-top:.4rem">
         <div style="display:flex;gap:.4rem;margin-top:.6rem">
-          <button class="btn primary sm" id="netjoin">Join the net</button>
-          <button class="btn sm ghost" id="netleave" hidden>Leave</button>
+          <button class="btn primary sm" id="netjoin">Check in with this net</button>
         </div>
-        <div class="netstate" id="netstate"></div>
       </div>
     </div>
 
     <div>
+      {# What this table can hear and is not in. One press makes it a node;
+         a table that would rather play alone says so and gets its own
+         controls back. Auto-join does the same thing the moment somebody
+         sits down, so this is the same choice offered a little earlier. #}
+      <div class="card offer" id="offer" hidden></div>
+
+      {# The node: a table in somebody else's hall. The hall's question,
+         cards and announcements arrive on the stage below by themselves;
+         what is left to press here is the check-in, and leaving. #}
+      <div class="card node" id="node" hidden></div>
+
+      <div id="owncontrols">
       <div class="controls">
         <select class="btn" id="difficulty">
           <optgroup label="Amateur">
@@ -214,6 +236,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
         <button class="btn sm ghost" id="ask">Ask one question</button>
         <button class="btn sm ghost" id="certs" title="One page per placing, for the wall">&#127942; Certificates</button>
         <button class="btn sm ghost" id="close" disabled>Close the round</button>
+      </div>
       </div>
   <div id="certs-panel" data-scope="table" hidden></div>
       <div class="card hallpick" id="hallpick" hidden></div>
@@ -507,12 +530,19 @@ async function tick() {
     }
     chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
     showing = 'idle';
-    if (painted !== 'none' || soon) {
-      painted = 'none';
+    const idleKey = 'none' + (netInfo.connected ? ':node' : (netInfo.heard || []).length ? ':offer' : '');
+    if (painted !== idleKey || soon) {
+      painted = idleKey;
+      const nb = netInfo.bridge || {};
       stage.innerHTML = soon
         ? `<p class="empty">Somebody has joined. First question in
            <b>${Math.ceil(secs)}</b> seconds &mdash; or start one now.</p>`
-        : '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>';
+        : netInfo.connected
+          ? `<p class="empty">Waiting on net control &mdash; the next question comes from
+             <b>${esc(nb.net_name || 'the net')}</b> when the host starts it.</p>`
+          : (netInfo.heard || []).length && !netInfo.hosting && netInfo.auto_join !== false
+            ? '<p class="empty">No round yet. Check in above, and the hall\'s questions arrive here.</p>'
+            : '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>';
     }
     return;
   }
@@ -646,11 +676,21 @@ autoTick();
 setInterval(autoTick, 2000);
 
 /* ---------------------------------------------------------- net control */
+/* Which of three things this screen is. A table on its own has the host's
+   controls, because it is its own host. A table that can hear a net it is
+   not in is offered the net by name, one press. A node of a net has none of
+   the host's buttons - the question, the cards between rounds and the
+   announcements arrive on the stage by themselves - and what it has instead
+   is its standing in the hall, the check-in, and the way out. */
 const netUrl = document.getElementById('neturl');
 const netName = document.getElementById('netname');
-const netState = document.getElementById('netstate');
 const netJoin = document.getElementById('netjoin');
-const netLeave = document.getElementById('netleave');
+const offerBox = document.getElementById('offer');
+const nodeBox = document.getElementById('node');
+const ownControls = document.getElementById('owncontrols');
+const endTable = document.getElementById('endtable');
+const byAddress = document.getElementById('netbyaddress');
+let netInfo = {connected: false, heard: [], hosting: false, auto_join: true};
 
 /* The hall's shootout, on this table's screen. When the pick is this
    table's, the subjects go up here, big enough for a table of people to
@@ -702,56 +742,114 @@ document.addEventListener('click', async e => {
   netTick();
 });
 
-function paintNet(info) {
-  const on = info && info.connected;
-  netLeave.hidden = !on;
-  paintHallShootout(info && info.connected ? info.bridge : null);
-  netJoin.textContent = on ? 'Rejoin' : 'Join the net';
-  if (!on) {
-    netState.innerHTML = '<span class="dot idle"></span>Running on its own';
-    return;
-  }
+function netLabel(n) {
+  const tables = n.units ? ` <span class="count">· ${n.units} table${n.units === 1 ? '' : 's'}</span>` : '';
+  return `<b>${esc(n.name)}</b>${n.difficulty ? ` <span class="count">· ${esc(n.difficulty)}</span>` : ''}${tables}`;
+}
+
+let offerPainted = '', nodePainted = '';
+
+function paintOffer(info) {
+  const nets = info.heard || [];
+  const key = nets.map(n => n.url + n.name + n.units).join('|');
+  if (key === offerPainted) return;
+  offerPainted = key;
+  const one = nets.length === 1;
+  offerBox.innerHTML =
+    `<div><b>${one ? esc(nets[0].name) : nets.length + ' nets are'} ${one ? 'is' : ''} running on this network.</b>
+       <span class="hint" style="display:inline">${one
+         ? 'Check this table in and it plays the same questions as every other table in the hall, with the host running the game from net control.'
+         : 'A table can be in one of them. Choose the one studying what this table is studying.'}</span></div>
+     <div class="netrow">${nets.map(n =>
+       `<button class="btn primary" data-checkin="${esc(n.url)}">&#10003; Check in as ready${one ? '' : ' with ' + esc(n.name)}</button>`).join('')}
+       <button class="btn sm ghost" data-standalone>Run this table on its own</button>
+     </div>`;
+}
+
+function paintNode(info) {
   const b = info.bridge || {};
   const words = {
-    joined:  'Reporting to ' + (b.net_name || 'net control'),
-    offline: 'Net control is not answering — this table keeps playing',
+    joined:  'Checked in with ' + (b.net_name || 'net control'),
+    offline: 'Net control is not answering — this table keeps playing and reports when it is back',
     refused: b.error || 'The net is full',
     starting: 'Connecting…',
     faulted: 'Something went wrong — see data/elmer.log',
     stopped: 'Stopped',
   };
   const cls = ({joined: 'joined', offline: 'offline', refused: 'refused'})[b.state] || 'idle';
-  netState.innerHTML =
-    `<span class="dot ${cls}"></span>${esc(words[b.state] || b.state)}` +
-    `<br><span style="color:var(--dimmer)">as ${esc(b.name || b.unit)}` +
-    (b.net_round ? ` · round ${b.net_round}` : '') +
-    (b.waiting_to_report ? ' · a report is waiting to go' : '') + '</span>';
+  const key = [b.state, b.net_name, b.difficulty, b.name, b.net_round, b.waiting_to_report, info.ready, b.error].join('|');
+  if (key === nodePainted) return;
+  nodePainted = key;
+  nodeBox.innerHTML =
+    `<div><b>A table in ${esc(b.net_name || 'the net')}</b>${b.difficulty ? ` <span class="count" style="color:var(--dim)">· ${esc(b.difficulty)}</span>` : ''}
+       <span class="hint" style="display:inline">The host runs the game from net control; the questions, the intermissions and the host's announcements arrive here by themselves.</span></div>
+     <div class="standing">
+       <span><span class="k">as</span>${esc(b.name || b.unit || '')}</span>
+       ${b.net_round ? `<span><span class="k">round</span>${b.net_round}</span>` : ''}
+       ${info.ready ? '<span class="ready">&#10003; ready</span>' : '<span style="color:var(--dim)">not yet checked in as ready</span>'}
+     </div>
+     <div class="netstate"><span class="dot ${cls}"></span>${esc(words[b.state] || b.state || '')}${b.waiting_to_report ? ' · a report is waiting to go' : ''}</div>
+     <div class="netrow">
+       ${info.ready ? '' : '<button class="btn primary" data-checkin="">&#10003; Check in as ready</button>'}
+       <button class="btn sm ghost" data-standalone>Leave the net</button>
+     </div>`;
 }
+
+function paintNet(info) {
+  netInfo = info || netInfo;
+  const on = !!netInfo.connected;
+  // Hearing a net and not being in it is an offer; being in one is a node;
+  // hosting is neither - the host's own table has the host's own page.
+  const offered = !on && !netInfo.hosting && netInfo.auto_join !== false && (netInfo.heard || []).length > 0;
+  paintHallShootout(on ? netInfo.bridge : null);
+  nodeBox.hidden = !on;
+  offerBox.hidden = !offered;
+  ownControls.hidden = on || offered;
+  byAddress.hidden = on || offered || netInfo.hosting;
+  endTable.hidden = on;
+  if (on) paintNode(netInfo); else nodePainted = '';
+  if (offered) paintOffer(netInfo); else offerPainted = '';
+}
+
+async function checkIn(url) {
+  const body = {ready: true};
+  if (url) body.url = url;
+  document.querySelectorAll('[data-checkin]').forEach(b => { b.disabled = true; });
+  const r = await api('/api/party/net', body);
+  if (!r.ok) {
+    document.querySelectorAll('[data-checkin]').forEach(b => { b.disabled = false; });
+    alert(r.data.message || r.data.error || 'Could not check in.');
+    return;
+  }
+  painted = null;                 // the stage says something else now
+  paintNet(r.data);
+}
+
+document.addEventListener('click', async e => {
+  const c = e.target.closest('[data-checkin]');
+  if (c) { checkIn(c.dataset.checkin); return; }
+  if (e.target.closest('[data-standalone]')) {
+    const r = await api('/api/party/net', {join: false});
+    painted = null;
+    paintNet(r.ok ? r.data : {connected: false, heard: [], auto_join: false});
+  }
+});
 
 netJoin.addEventListener('click', async () => {
   const url = netUrl.value.trim();
   if (!url) { netUrl.focus(); return; }
   netJoin.disabled = true;
   const r = await api('/api/party/net',
-                      {url, name: netName.value.trim() || undefined});
+                      {url, ready: true, name: netName.value.trim() || undefined});
   netJoin.disabled = false;
+  if (!r.ok) { alert(r.data.message || r.data.error || 'Could not check in.'); return; }
+  painted = null;
   paintNet(r.data);
-});
-netLeave.addEventListener('click', async () => {
-  await api('/api/party/net', {url: '', join: false});
-  paintNet({connected: false});
 });
 
 async function netTick() {
   const r = await api('/api/party/net');
-  if (r.ok) {
-    paintNet(r.data);
-    const b = r.data.bridge;
-    if (b && document.activeElement !== netUrl) {
-      if (!netUrl.value) netUrl.value = b.url || '';
-      if (!netName.value) netName.value = b.name || '';
-    }
-  }
+  if (r.ok) paintNet(r.data);
 }
 netTick();
 setInterval(netTick, 3000);

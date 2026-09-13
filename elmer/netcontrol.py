@@ -132,6 +132,14 @@ class Unit:
         # page can show the room rather than a list of names.
         self.showing = ""
         self.names = []          # who is seated, by display name, for the host
+        # Whether somebody at the table has said it is ready. Check-in is
+        # automatic - a table rejoins its net at 04:00 with nobody near it -
+        # so being checked in says the machine is up, not that the people
+        # are. This is the operator's word, pressed on the table screen and
+        # carried up with every check-in after; the host's panel shows the
+        # two apart. Rounds still start on people actually seated: a table
+        # that said ready with nobody at it has nobody to answer.
+        self.ready = False
 
     @property
     def quiet_for(self):
@@ -146,7 +154,8 @@ class Unit:
                 "score": self.score, "rounds_won": self.rounds_won,
                 "present": self.present, "quiet_for": round(self.quiet_for, 1),
                 "reported_round": self.reported_round,
-                "simulated": self.simulated, "showing": self.showing}
+                "simulated": self.simulated, "showing": self.showing,
+                "ready": self.ready}
 
 
 class Net:
@@ -162,6 +171,14 @@ class Net:
         # - and a unit deciding which to report to picks by the material, not
         # by which Pi it happens to be running on. The name follows it.
         self.difficulty = difficulty
+        # What this net *is*, as against what it is called. The name changes
+        # - it follows the material when the hall drifts from Technician to
+        # General, and the host can type over it - so nothing keys on it. A
+        # table keys on this: it is announced over the air and sent back with
+        # every check-in, so a table can tell the net it is in has been
+        # renamed from the net at this address being a new one, and can find
+        # a net again that came back on a different address.
+        self.token = secrets.token_urlsafe(9)
         # The key under which tonight's people are written into the hall
         # log - see db.hall_who(). Made here, held here, never stored: the
         # log can tell one evening's people apart and nobody can name them.
@@ -260,15 +277,23 @@ class Net:
                     "players": known * 8, "healthy": p95 <= SLOW_MS,
                     "ready": len(ready),
                     "seated": sum(u.players for u in ready),
+                    # Tables whose operator pressed the button, as against
+                    # tables that merely have people at them.
+                    "said_ready": sum(1 for u in self.units.values()
+                                      if u.present and u.ready),
                     "simulated": sum(1 for u in self.units.values()
                                      if u.simulated)}
 
-    def check_in(self, unit_id, name=None, players=0):
+    def check_in(self, unit_id, name=None, players=0, ready=None):
         """A unit says it is here, and how many people are sitting at it.
 
         Returns (unit, None) or (None, reason). A unit already known is always
         readmitted - the cap is about how large the hall grows, not about
         throwing out a table that briefly lost the network.
+
+        `ready` is the table's own word, when it gives one - see Unit.ready.
+        None leaves what the unit last said, so a caller that does not carry
+        the word does not take it away.
         """
         with self.lock:
             unit = self.units.get(unit_id)
@@ -296,6 +321,10 @@ class Net:
             if name:
                 unit.name = name
             unit.players = int(players or 0)
+            if ready is not None and bool(ready) != unit.ready:
+                unit.ready = bool(ready)
+                log.info("net: table %s (%s) says it is %s", unit.name, unit_id,
+                         "ready" if unit.ready else "not ready")
             return unit, None
 
     def ready_units(self):
@@ -987,6 +1016,7 @@ class Net:
             present = [u for u in units if u["present"]]
             return {
                 "name": self.name,
+                "token": self.token,
                 "difficulty": self.difficulty,
                 "health": self.health(),
                 "units": units,

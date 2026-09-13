@@ -26,6 +26,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .unit.quiet { opacity: .5; border-style: dashed; }
 .unit.in { border-color: var(--green); }
 .unit b { color: var(--amber); }
+.unit .ready { color: var(--green); font-style: normal; }
 .empty { color: var(--dimmer); font-style: italic; }
 .netaddr { display: flex; gap: 1rem; align-items: flex-start; }
 .netaddr .qrbox { background: #fff; padding: .5rem; border-radius: 10px;
@@ -297,8 +298,13 @@ async function tick() {
   if (b.build && b.build !== PAGE_BUILD) { location.reload(); return; }
 
   if (b.name) document.getElementById('netname').textContent = b.name;
+  // Tables checked in, and of those how many have said they are ready:
+  // check-in is the machine's doing, ready is a person's, and a host
+  // looking down a hall wants to know which tables have somebody at them
+  // who has pressed the button.
   document.getElementById('cap').textContent =
     `${h.units || 0}/${h.cap || 0} tables · ${b.players || 0} players` +
+    (h.said_ready ? ` · ${h.said_ready} ready` : '') +
     (h.healthy === false ? ' · busy' : '');
 
   const box = document.getElementById('units');
@@ -309,8 +315,8 @@ async function tick() {
         // shows an evening, and the person running it needs to know which of
         // those tables is a machine holding a place.
         return `<span class="unit ${u.present ? '' : 'quiet'} ${inThisRound ? 'in' : ''}"
-                      title="${u.simulated ? 'a practice table - a real unit checking in takes its place' : 'a unit on the network'}">
-          ${esc(u.name)}${u.simulated ? ' <i style="color:var(--dimmer);font-style:normal">&#9723;</i>' : ''} <b>${u.score}</b>
+                      title="${u.simulated ? 'a practice table - a real unit checking in takes its place' : u.ready ? 'a unit on the network - its table has checked in as ready' : 'a unit on the network'}">
+          ${esc(u.name)}${u.simulated ? ' <i style="color:var(--dimmer);font-style:normal">&#9723;</i>' : ''}${u.ready ? ' <i class="ready" title="checked in as ready">&#10003;</i>' : ''} <b>${u.score}</b>
           <span style="color:var(--dim)">${u.players}p</span>${u.showing ? ` <span class="showing">${esc(u.showing)}</span>` : ''}</span>`;
       }).join('')
     : '<span class="empty">no tables yet</span>';

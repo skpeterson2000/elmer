@@ -102,8 +102,15 @@ class Bridge:
     hall_shootout = None
     hall_show = None                 # the host's hand on this table's screens
     showing = ""                     # what the table screen last said it shows
+    # Whether somebody at this table has pressed "check in as ready". The
+    # link itself is made without anybody's hand - a table hears a net and
+    # joins it, or rejoins after the 04:00 restart - so the link says the
+    # machine is up and this says the people are. Not remembered across a
+    # restart: it is a person's word about tonight, and a table that came
+    # back from a reboot has a person to press it again.
+    ready = False
 
-    def __init__(self, url, unit_id=None, name=None):
+    def __init__(self, url, unit_id=None, name=None, token=None):
         self.url = url.rstrip("/")
         self.unit_id = (unit_id or default_unit_id())[:40]
         # The id is for machines to tell apart; the name is for people to read
@@ -123,6 +130,19 @@ class Bridge:
         # tournament it is actually in.
         self.net_name = ""
         self.net_difficulty = ""
+        # And which net it is, apart from what it is called. The name is a
+        # label the net can change under us - it follows the material, the
+        # host can type over it - so it is shown and never keyed on. The
+        # token is the identity: a different one at the same address is a
+        # new net, and this table's count of the rounds it has seen belongs
+        # to the old one; the same one at a different address is the net we
+        # were in, come back after a reboot on a new lease, and worth
+        # following there.
+        self.net_token = (token or "")[:24]
+        # How to find the net again by its token when the address stops
+        # answering - the app supplies it from discovery; the bridge itself
+        # knows nothing about the roster.
+        self.locate = locator
 
     # ------------------------------------------------------------- transport
 
@@ -138,7 +158,10 @@ class Bridge:
     # ------------------------------------------------------------------ work
 
     def _checkin(self, room):
-        players = len(room.players) if room else 0
+        # People, not seats: the count is what net control starts the hall
+        # on - see hall.py - and it used to include the practice players, so
+        # a table with nobody at it and four machines could open the room.
+        players = room.people_here() if room else 0
         # The names at this table - display names only, the same ones a
         # board shows - so the host can say something to one seat before it
         # has answered anything.
@@ -147,7 +170,7 @@ class Bridge:
         reply = self._call("/api/net/checkin",
                            {"unit": self.unit_id, "name": self.name,
                             "players": players, "showing": self.showing,
-                            "names": names})
+                            "names": names, "ready": self.ready})
         if not reply.get("checked_in", True):
             # The net is full. Say so plainly and keep trying: a table that
             # arrives late should join when somebody else's table packs up.
@@ -158,6 +181,20 @@ class Bridge:
         self.last_error = None
         self.last_contact = time.time()
         which = reply.get("net") or {}
+        token = str(which.get("token") or "")[:24]
+        if token and self.net_token and token != self.net_token:
+            # Not the net this table was in: the host closed it and opened
+            # another, or a different unit has the address now. The rounds
+            # this table has seen were the old net's; counted against the
+            # new one they would keep it from ever starting round one.
+            log.info("cohort: the net at %s is a new one - this table starts "
+                     "afresh in it", self.url)
+            self.seen_round = 0
+            self.reported_round = 0
+            self.pending = None
+        if token and token != self.net_token:
+            self.net_token = token
+            self._remember_self()
         if which.get("name"):
             self.net_name = str(which["name"])[:60]
             self.net_difficulty = str(which.get("difficulty") or "")[:20]
@@ -259,6 +296,42 @@ class Bridge:
                 self._report(room, local.tag)
                 self._flush()
 
+    def _follow(self):
+        """The net is not answering here; ask whether it is heard elsewhere.
+
+        A host that rebooted overnight can come back on a different address,
+        and a table that only remembered where the net *was* would sit
+        offline beside a hall that is running. The token says it is the same
+        net; the roster says where.
+        """
+        if not self.net_token or self.locate is None:
+            return False
+        try:
+            found = self.locate(self.net_token)
+        except Exception:                             # pragma: no cover
+            return False
+        url = str((found or {}).get("url") or "").rstrip("/")
+        if not url or url == self.url:
+            return False
+        log.info("cohort: %s has moved from %s to %s - following it",
+                 self.net_name or "the net", self.url, url)
+        self.url = url
+        self._remember_self()
+        return True
+
+    def _remember_self(self):
+        """Keep the wiring from the bridge's own thread, which has no request."""
+        try:
+            from . import db
+            connection = db.connect()
+            try:
+                remember(connection, self)
+                connection.commit()
+            finally:
+                connection.close()
+        except Exception:                             # pragma: no cover
+            log.debug("cohort: could not save the net's address")
+
     def run(self):
         wait = POLL_SECONDS
         while not self.stop.is_set():
@@ -267,10 +340,11 @@ class Bridge:
                 wait = POLL_SECONDS
             except (urllib.error.URLError, OSError, ValueError) as exc:
                 # Net control is off, busy, or unreachable. Not an error worth
-                # stopping for - back off and keep the table running.
+                # stopping for - back off and keep the table running - and
+                # worth asking whether the net is heard somewhere else now.
                 self.state = "offline"
                 self.last_error = f"{type(exc).__name__}: {exc}"
-                wait = min(BACKOFF_MAX, wait * 1.8)
+                wait = POLL_SECONDS if self._follow() else min(BACKOFF_MAX, wait * 1.8)
             except Exception as exc:                      # pragma: no cover
                 self.state = "faulted"
                 self.last_error = repr(exc)
@@ -287,12 +361,14 @@ class Bridge:
 
     def as_dict(self):
         return {"url": self.url, "unit": self.unit_id, "name": self.name,
-                "net_name": self.net_name, "difficulty": self.net_difficulty,
+                "net_name": self.net_name, "net_token": self.net_token,
+                "difficulty": self.net_difficulty,
                 "state": self.state, "error": self.last_error,
                 "net_round": self.seen_round,
                 "reported": self.reported_round,
                 "waiting_to_report": bool(self.pending),
                 "mode": self.net_mode,
+                "ready": self.ready,
                 "shootout": self.hall_shootout,
                 "show": self.hall_show,
                 "quiet_for": (round(time.time() - self.last_contact, 1)
@@ -304,12 +380,19 @@ def bridge():
         return _bridge
 
 
+# callable(token) -> {"url": ...} or None: where a net with this token is
+# heard now. Set by the app from discovery; a bridge made before it is set,
+# or in a test, simply has nowhere to ask.
+locator = None
+
+
 # Where a table remembers its net control, so a hall does not have to be
 # re-wired by hand every morning - these Pis reboot at 04:00 for updates, and
 # an operator should not arrive to find every table orphaned.
 URL_SETTING = "net_url"
 UNIT_SETTING = "net_unit"
 NAME_SETTING = "net_name"
+TOKEN_SETTING = "net_token"
 
 # Whether this table will attach itself to a net it hears.  On, because the
 # alternative is what every fresh Pi did until now: sit by itself running its
@@ -338,13 +421,13 @@ def set_auto_join(conn, wanted):
         pass
 
 
-def connect(url, unit_id=None, name=None, conn=None):
+def connect(url, unit_id=None, name=None, conn=None, token=None):
     """Point this table at a net control and start reporting to it."""
     global _bridge
     with _lock:
         if _bridge is not None:
             _bridge.stop.set()
-        _bridge = Bridge(url, unit_id, name).start()
+        _bridge = Bridge(url, unit_id, name, token).start()
     if conn is not None:
         remember(conn, _bridge)
     return _bridge
@@ -357,6 +440,7 @@ def remember(conn, link):
         db.unit_set(conn, URL_SETTING, link.url)
         db.unit_set(conn, UNIT_SETTING, link.unit_id)
         db.unit_set(conn, NAME_SETTING, link.name)
+        db.unit_set(conn, TOKEN_SETTING, link.net_token or "")
     except Exception:                     # pragma: no cover
         log.debug("cohort: could not save the net control address")
 
@@ -385,8 +469,9 @@ def resume(conn):
         return None
     unit_id = db.unit_get(conn, UNIT_SETTING) or None
     name = db.unit_get(conn, NAME_SETTING) or None
+    token = db.unit_get(conn, TOKEN_SETTING) or None
     log.info("cohort: rejoining the net at %s as %s", url, unit_id or "this table")
-    return connect(url, unit_id, name)
+    return connect(url, unit_id, name, token=token)
 
 
 def disconnect(conn=None):

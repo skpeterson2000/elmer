@@ -34,7 +34,10 @@ them: Technician in this corner, General in that one, Extra in the next room.
 A unit choosing between them is choosing on the material, so that is what a
 net announces about itself, and a unit that is only a table passes on the
 address of the net it reports to - which is how a late arrival finds a master
-it cannot hear directly.
+it cannot hear directly. Each net also carries a token, which is what it *is*
+as against what it is called: names change under the tables in them, and
+addresses change across a reboot, and the token is how a table tells a
+renamed net from a new one and finds the one it was in at wherever it is now.
 
 What is announced is what a neighbour needs to be useful - who this is, where
 to reach it, whether it has a position, whether a game is on, and whether it is
@@ -227,19 +230,36 @@ class Neighbourhood:
                 found[peer["url"]] = {
                     "url": peer["url"],
                     "name": str(net.get("name") or "a net")[:60],
+                    # The net's identity, apart from its name: the name is
+                    # what it is called tonight and can change under a table
+                    # that is in it; the token cannot.
+                    "token": str(net.get("token") or "")[:24],
                     "difficulty": str(net.get("difficulty") or "")[:20],
                     "units": int(net.get("units") or 0)}
+        hosted = {n["token"] for n in found.values() if n["token"]}
         for peer in live:
             net = peer.get("net") or {}
             url = net.get("table_of")
+            token = str(net.get("table_token") or "")[:24]
             # A table may report to a net this unit cannot hear itself - a
             # master on another subnet, or one wired in. It is still joinable,
-            # and the table knows what it is called.
-            if url and url not in found:
+            # and the table knows what it is called. A table still pointing
+            # at the old address of a net heard directly on a new one is not
+            # a second net, and is left out.
+            if url and url not in found and token not in hosted:
                 found[url] = {"url": str(url)[:120],
                               "name": str(net.get("table_in") or "a net")[:60],
-                              "difficulty": "", "units": 0}
+                              "token": token, "difficulty": "", "units": 0}
         return sorted(found.values(), key=lambda n: (-n["units"], n["name"]))
+
+    def net_by_token(self, token):
+        """Where the net with this token is now, or None if it is not heard."""
+        if not token:
+            return None
+        for net in self.nets():
+            if net.get("token") == token:
+                return net
+        return None
 
     def games(self):
         """Every tournament out there worth putting on a board.

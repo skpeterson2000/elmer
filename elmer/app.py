@@ -2955,6 +2955,7 @@ def api_party_round():
     question in different orders are not racing the same question.
     """
     room = _party_or_404()
+    _not_this_tables_part()
     body = request.get_json(silent=True) or {}
     try:
         rnd = _ask_party(body.get("difficulty", "technician"),
@@ -3002,6 +3003,47 @@ def _party_under_net():
     the room was looking at, so nothing here fires while a net has it.
     """
     return cohort.bridge() is not None
+
+
+def _not_this_tables_part():
+    """Refuse, in a sentence, a press that belongs to net control.
+
+    A table in a hall answers the question the hall put up. Its screen used
+    to keep the host's buttons - start a tournament, a shootout, ask one
+    question, close the round - and none of them checked, so a press on the
+    second Pi started a director asking its own questions underneath the
+    hall's, with the bridge still starting the hall's rounds on top: two
+    games on one table. The screen no longer offers them while the table is
+    a node, and this is the same rule on the server, where it holds against a
+    stale page too.
+    """
+    link = cohort.bridge()
+    if link is None:
+        return
+    whose = link.net_name or "net control"
+    abort(409, f"this table takes its rounds from {whose} - "
+               "the host runs the game from there")
+
+
+def _table_yields_to_hall(room):
+    """Whatever this table was running on its own stops, because the hall
+    has it now.
+
+    Joining is not the end of a game in progress by itself: the director kept
+    asking its own questions after the bridge was made, so the table's
+    players had two rounds arriving at once. One game per table; the hall's
+    is the one, and the round that was open is scored so the people in it
+    are not left holding a question nobody will close.
+    """
+    director = autoplay.director()
+    was_running = bool(director and (director.as_dict() or {}).get("running"))
+    autoplay.stop()
+    room.disarm_start()
+    if room.round is not None and not room.round.closed:
+        room.close_round()
+    room.end_shootout()
+    if was_running:
+        log.info("party: this table's own game stands down for the hall")
 
 
 def _party_playing(room):
@@ -3095,20 +3137,43 @@ def _party_auto_join(room):
     connection = conn()
     if not cohort.auto_join_wanted(connection):
         return False
-    live = discovery.neighbourhood()
-    if live is None:
-        return False
-    try:
-        heard = live.nets()
-    except Exception:                     # a roster is never worth a 500
-        return False
-    chosen = _party_pick_net(heard, _party_class())
+    chosen = _party_pick_net(_nets_heard(), _party_class())
     if not chosen:
         return False
-    party.room(create=True, cohorts=1)
-    link = cohort.connect(chosen["url"], None, None, conn=connection)
+    room = party.room(create=True, cohorts=1)
+    _table_yields_to_hall(room)
+    link = cohort.connect(chosen["url"], None, None, conn=connection,
+                          token=chosen.get("token"))
+    _seed_from_heard(link, chosen)
     log.info("cohort: heard %s at %s and joined it", chosen["name"], link.url)
     return True
+
+
+def _seed_from_heard(link, heard):
+    """What the air already said about the net, on the bridge before its
+    first check-in answers: the name, so the table screen can say which net
+    it is in without waiting a poll, and the token, so the first reply is
+    checked against the net that was joined rather than taken on trust.
+    Nothing here is authoritative - the reply overwrites all of it with what
+    the net says of itself, and the name in particular is expected to
+    change under us."""
+    if not heard:
+        return
+    if not link.net_name:
+        link.net_name = str(heard.get("name") or "")[:60]
+        link.net_difficulty = str(heard.get("difficulty") or "")[:20]
+    if not link.net_token:
+        link.net_token = str(heard.get("token") or "")[:24]
+
+
+def _locate_net(token):
+    """Where the net with this token is heard now - the bridge asks this when
+    its address stops answering, and follows the answer."""
+    live = discovery.neighbourhood()
+    return live.net_by_token(token) if live is not None else None
+
+
+cohort.locator = _locate_net
 
 
 def _party_arm_start(room):
@@ -3189,6 +3254,7 @@ def api_party_mode():
     if room.round is not None and not room.round.closed:
         abort(409, "a question is still open")
     if wanted == party.SHOOTOUT:
+        _not_this_tables_part()      # the hall's shootout is the hall's
         difficulty = str(body.get("difficulty") or _party_class()).lower()
         pool_id = party.DIFFICULTIES.get(difficulty)
         if not pool_id:
@@ -3273,6 +3339,7 @@ def api_party_auto():
         autoplay.stop()
         return jsonify({"auto": autoplay.director().as_dict()
                         if autoplay.director() else None, "running": False})
+    _not_this_tables_part()
     room.disarm_start()          # a press beats a countdown
     difficulty = str(body.get("difficulty", "technician")).lower()
     seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
@@ -3332,6 +3399,7 @@ def api_party_auto_state():
 def api_party_close():
     """Score the round and say who picks next."""
     room = _party_or_404()
+    _not_this_tables_part()          # the hall closes the hall's rounds
     summary = room.close_round()
     if summary is None:
         abort(409, "no round is open")
@@ -3499,7 +3567,8 @@ def api_net_checkin():
         abort(400, "need a unit id")
     started = time.perf_counter()
     unit, why = running.check_in(unit_id, body.get("name"),
-                                 body.get("players", 0))
+                                 body.get("players", 0),
+                                 ready=body.get("ready"))
     running.note_service((time.perf_counter() - started) * 1000.0)
     if unit is None:
         return jsonify({"checked_in": False, "reason": why,
@@ -3512,7 +3581,9 @@ def api_net_checkin():
     unit.names = [str(n)[:60] for n in (body.get("names") or [])
                   if isinstance(n, str)][:16]
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
-                    "net": {"name": running.name,
+                    # The name is what the net is called tonight; the token
+                    # is which net it is - see Net.token and Bridge.net_token.
+                    "net": {"name": running.name, "token": running.token,
                             "difficulty": running.difficulty,
                             "mode": running.mode},
                     # The host's hand on this table's screens: announcements
@@ -4094,27 +4165,96 @@ def api_net_close():
     return jsonify({"summary": summary, "board": running.board()})
 
 
+def _nets_heard():
+    """The nets on the network this table could report to, fullest first."""
+    live = discovery.neighbourhood()
+    if live is None:
+        return []
+    try:
+        return live.nets()
+    except Exception:                     # a roster is never worth a 500
+        return []
+
+
+def _party_net_view():
+    """This table's part in a hall, for the table screen to draw itself by.
+
+    The screen is one of three things - a table on its own, a table that can
+    hear a net it is not in, or a node of a net - and the buttons it offers
+    follow from which. That is decided here, once, rather than by the page
+    piecing it together from three polls.
+    """
+    link = cohort.bridge()
+    hosting = netcontrol.net() is not None
+    heard = [] if hosting else _nets_heard()
+    return {"connected": link is not None,
+            "bridge": link.as_dict() if link else None,
+            "ready": bool(link and link.ready),
+            "hosting": hosting,
+            "heard": heard,
+            "auto_join": cohort.auto_join_wanted(conn())}
+
+
 @app.route("/api/party/net", methods=["POST"])
 def api_party_net():
-    """Point this table at a net control, or cut it loose."""
+    """Point this table at a net control, say it is ready, or cut it loose.
+
+    Three presses land here. An address, typed or picked from the nets the
+    unit can hear, joins that net. `ready` is the check-in button on a
+    table screen: it joins the net it can hear if it is not in one yet, and
+    marks the table ready either way, which is a word the host's panel shows
+    beside the table from the next check-in on. `join: false` cuts the table
+    loose, by hand, so it stays that way.
+    """
     body = request.get_json(silent=True) or {}
     url = str(body.get("url", "")).strip()
+    ready = str(body.get("ready", "")).lower() in ("true", "1", "yes")
     connection = conn()
-    if not url or str(body.get("join", True)).lower() in ("false", "0"):
+    if str(body.get("join", True)).lower() in ("false", "0") or (
+            not url and not ready):
         # By hand, so it stays that way: a table that walks straight back into
         # the net it was just taken out of has not offered a choice.
         cohort.set_auto_join(connection, False)
         cohort.disconnect(connection)
-        return jsonify({"connected": False, "auto_join": False})
-    if not url.startswith(("http://", "https://")):
-        url = "http://" + url
-    party.room(create=True, cohorts=1)
-    cohort.set_auto_join(connection, True)
-    link = cohort.connect(url, body.get("unit"), body.get("name"),
-                          conn=connection)
-    log.info("cohort: reporting to net control at %s as %s", link.url, link.unit_id)
-    return jsonify({"connected": True, "auto_join": True,
-                    "bridge": link.as_dict()})
+        log.info("cohort: this table runs on its own")
+        return jsonify(_party_net_view())
+    if netcontrol.net() is not None:
+        # The host's own table is in the host's own net already, and a host
+        # cannot be a node of somebody else's hall at the same time.
+        abort(409, "this unit is running a net - its table is already in it")
+    link = cohort.bridge()
+    heard = _nets_heard()
+    if not url and link is None:
+        # Ready, with no address: the net this table can hear, chosen the way
+        # auto-join chooses - by the material, then by size.
+        chosen = _party_pick_net(heard, _party_class())
+        if not chosen:
+            return jsonify(dict(_party_net_view(),
+                                message="no net to check in with - none can "
+                                        "be heard on this network")), 409
+        url = chosen["url"]
+    if url:
+        if not url.startswith(("http://", "https://")):
+            url = "http://" + url
+        room = party.room(create=True, cohorts=1)
+        cohort.set_auto_join(connection, True)
+        if link is None or link.url != url.rstrip("/"):
+            _table_yields_to_hall(room)
+            known = next((n for n in heard
+                          if n["url"].rstrip("/") == url.rstrip("/")), None)
+            link = cohort.connect(url, body.get("unit"), body.get("name"),
+                                  conn=connection,
+                                  token=(known or {}).get("token"))
+            _seed_from_heard(link, known)
+            log.info("cohort: reporting to net control at %s as %s",
+                     link.url, link.unit_id)
+        elif body.get("name") and body["name"] != link.name:
+            link.name = str(body["name"])[:60]
+            cohort.remember(connection, link)
+    if ready and link is not None:
+        link.ready = True
+        log.info("cohort: this table checked in as ready")
+    return jsonify(_party_net_view())
 
 
 @app.route("/api/party/net/pick", methods=["POST"])
@@ -4138,9 +4278,7 @@ def api_party_net_pick():
 
 @app.route("/api/party/net")
 def api_party_net_state():
-    link = cohort.bridge()
-    return jsonify({"connected": link is not None,
-                    "bridge": link.as_dict() if link else None})
+    return jsonify(_party_net_view())
 
 
 def _here():
@@ -4707,6 +4845,7 @@ def _net_role():
         if running is not None:
             role["hosting"] = True
             role["name"] = running.name
+            role["token"] = running.token
             role["difficulty"] = running.difficulty
             role["units"] = len(running.present_units())
             role["round"] = running.round_number
@@ -4718,6 +4857,8 @@ def _net_role():
             role["table_of"] = link.url
             if link.net_name:
                 role["table_in"] = link.net_name
+            if link.net_token:
+                role["table_token"] = link.net_token
     except Exception:
         pass
     return role
