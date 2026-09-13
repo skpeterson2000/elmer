@@ -55,7 +55,8 @@ def main():
         return b"%PDF-1.4 stub"
 
     def fake_keep(pdf, name, kind, title, meta=None):
-        # Nothing goes on the operator's shelf for a test.
+        # Nothing goes on the operator's shelf for a test - so nothing is
+        # asked back off it either: the request below does not say raw.
         return {"id": "test", "name": name, "kind": kind, "title": title,
                 "bytes": len(pdf), "made_at": 0, "meta": meta or {}}
 
@@ -72,7 +73,7 @@ def main():
 
     def ask(cls, layout="card"):
         client.post("/api/bandplan/pdf",
-                    json={"class": cls, "layout": layout, "raw": True})
+                    json={"class": cls, "layout": layout})
         return dict(seen)
 
     held = "Extra"

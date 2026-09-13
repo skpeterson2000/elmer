@@ -311,14 +311,18 @@ ROOT = Path(__file__).resolve().parents[1]
 PORT = _browser._free_port()
 # A throwaway unit that can hear a net it is not in. The roster is stood in
 # for inside the server, because two ELMERs on one machine share a unit id
-# and filter each other out by design.
+# and filter each other out by design. It is a real Neighbourhood, never
+# started, with only what it hears made up: the pages ask it for a borrowed
+# fix and the board for its games too, and a stand-in with one method
+# answered every page with a 500 - which the wait below read as no server.
 server = subprocess.Popen(
     [sys.executable, "-c",
      "import sys; sys.path.insert(0, %r)\n"
      "from elmer import discovery\n"
-     "class Heard:\n"
+     "class Heard(discovery.Neighbourhood):\n"
      "    def nets(self): return [%r]\n"
-     "discovery.neighbourhood = lambda: Heard()\n"
+     "heard = Heard(port=0)\n"
+     "discovery.neighbourhood = lambda: heard\n"
      "from elmer.app import app\n"
      "app.run(host='127.0.0.1', port=%d, threaded=True, use_reloader=False)"
      % (str(ROOT), TECH, PORT)],
