@@ -585,6 +585,12 @@ before it goes. The settings, a test message down whichever door is open,
 and both reports live under **Mail home** on the dashboard's update panel,
 local screen only.
 
+`data/mail.json` and `data/drop.json` are ignored by git and must stay that
+way: one holds a mail password, the other a club's own address. If you fork
+this and commit from a unit, check `git status` shows neither. A password
+that reaches a public repository is public from that moment, whatever is
+done to the history afterwards — revoke it and make another.
+
 Two things can go:
 
 - **A problem report**, when you press for it. The press opens a place to

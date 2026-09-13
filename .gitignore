@@ -97,7 +97,13 @@ data/forecasts/
 # GIRO's data is CC-BY-NC-SA and acknowledged where it is shown; a copy of
 # it is this unit's to grade against, not the repository's to carry.
 data/hindcast/
+
+# The way home, and what went by it. mail.json holds the operator's mail
+# password and was committed once, by accident, to a public repository -
+# the password had to be revoked. drop.json is the same shape of file: a
+# club's own address, nobody else's business. The reports are the unit's.
 data/mail.json
 data/mail_last.json
+data/drop.json
 data/reports/
 data/elmer-report-*.txt
