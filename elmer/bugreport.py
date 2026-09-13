@@ -99,8 +99,30 @@ def _tail(path, lines):
     return text[-lines:]
 
 
-def build(conn=None, lines=400, include_station=False):
-    """The report, as text, ready to be read before it is sent."""
+# What the operator typed is the one thing the log cannot say. It is kept
+# to a few paragraphs and put first, because whoever reads the report wants
+# "the band plan tab went blank when I pressed print" before the load average.
+SAID_MOST = 2000
+
+
+def headline(said):
+    """The first line of what was said, short enough for a subject."""
+    for line in str(said or "").splitlines():
+        line = " ".join(line.split())
+        if line:
+            return line if len(line) <= 60 else line[:57].rstrip() + "..."
+    return ""
+
+
+def build(conn=None, lines=400, include_station=False, said=""):
+    """The report, as text, ready to be read before it is sent.
+
+    `said` is the operator's own account of what happened, if they gave
+    one. `include_station` puts the callsign on the report and leaves the
+    text unredacted - their choice, made so a reply can reach them; without
+    it nothing on the report says whose it is, the operator's words
+    included, since a callsign typed into them is still a callsign.
+    """
     stamp = build_stamp()
     out = []
     add = out.append
@@ -108,6 +130,13 @@ def build(conn=None, lines=400, include_station=False):
     add("ELMER problem report")
     add("=" * 60)
     add(f"written    {time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    if include_station and conn is not None:
+        try:
+            from . import db
+            call = (db.get_profile(conn).get("callsign") or "").strip().upper()
+        except Exception:
+            call = ""
+        add(f"from       {call or '(no callsign on this unit)'} - included so a reply can reach them")
     add(f"build      {stamp['commit']} on {stamp['branch']}, dated {stamp['dated']}")
     if stamp["subject"]:
         add(f"           \"{stamp['subject']}\"")
@@ -163,6 +192,13 @@ def build(conn=None, lines=400, include_station=False):
                        ("places", ROOT / "data" / "places.json"),
                        ("nifog", paths.STATE / "nifog")):
         add(f"{name:10s} {'present' if path.exists() else 'absent'}")
+
+    said = str(said or "").strip()[:SAID_MOST]
+    if said:
+        add("")
+        add("what happened, in the operator's words")
+        add("-" * 60)
+        out.extend(said.splitlines())
 
     callsign, places = None, []
     if conn is not None and not include_station:
@@ -231,10 +267,12 @@ def build(conn=None, lines=400, include_station=False):
     return redact(text, callsign, places), True
 
 
-def write(conn=None, lines=400, include_station=False):
+def write(conn=None, lines=400, include_station=False, said=""):
     """Save the report where somebody can find it. Returns (path, redacted)."""
-    text, redacted = build(conn, lines, include_station)
-    folder = ROOT / "data"
+    text, redacted = build(conn, lines, include_station, said)
+    # Beside the log it was cut from: the state directory, which is data/
+    # on a unit and somewhere else only when a test moved it.
+    folder = paths.STATE
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / time.strftime("elmer-report-%Y%m%d-%H%M%S.txt")
     path.write_text(text)

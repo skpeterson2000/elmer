@@ -5613,18 +5613,23 @@ def api_report():
         abort(403)
     body = request.get_json(silent=True) or {}
     include = body.get("station") is True
-    path, redacted, text = bugreport.write(conn(), include_station=include)
-    log.info("problem report written to %s (%s)", path.name,
-             "redacted" if redacted else "with station detail")
+    said = str(body.get("said") or "")[:bugreport.SAID_MOST]
+    path, redacted, text = bugreport.write(conn(), include_station=include, said=said)
+    log.info("problem report written to %s (%s%s)", path.name,
+             "redacted" if redacted else "with station detail",
+             ", with the operator's account" if said.strip() else "")
     out = {"path": str(path), "redacted": redacted, "text": text,
            "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way()}
     # Sent only when asked, after it was written - the file is the thing
-    # the operator can read, and the press is the operator's decision.
+    # the operator can read, and the press is the operator's decision. The
+    # subject leads with their words, so an inbox reads "the band plan tab
+    # went blank" rather than a build hash.
     if body.get("send"):
         stamp = bugreport.build_stamp().get("commit") or "unknown"
-        ok, detail = wayhome.deliver(f"problem report - build {stamp} - "
-                                  f"{time.strftime('%Y-%m-%d')}", text,
-                                  kind="problem")
+        head = bugreport.headline(said)
+        subject = (f"problem report - {head} - build {stamp}" if head
+                   else f"problem report - build {stamp} - {time.strftime('%Y-%m-%d')}")
+        ok, detail = wayhome.deliver(subject, text, kind="problem")
         out["sent"], out["detail"] = ok, detail
     return jsonify(out)
 

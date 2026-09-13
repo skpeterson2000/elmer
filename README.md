@@ -584,10 +584,14 @@ local screen only.
 
 Two things can go:
 
-- **A problem report**, when you press for it — versions, the recent errors
+- **A problem report**, when you press for it. The press opens a place to
+  say what happened — the one thing the log cannot — and a box to put your
+  callsign on it so a reply can reach you; both optional. Then the report is
+  written: your words first, then versions, the self-check, the recent errors
   and the tail of the log, with your callsign, QTH and network addresses taken
-  out. It is written to a file first, shown so you can read it, and sent only
-  by a second press.
+  out unless you ticked the box — a callsign typed into your own words
+  included. It is shown so you can read it, and sent only by a further press,
+  with the first line of what you said as its subject.
 - **The field report**, once a week, if you switch it on — and it is off until
   you do. The switch says exactly what it carries: which build and machine;
   how the forecast did against the sondes this week, by lead and by sky, with

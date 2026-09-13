@@ -220,21 +220,56 @@ api('/api/update').then(renderUpdate).catch(() => {});
 /* Writing a report is a local action with a file as its only result. It is
    deliberately not a "send" button: what leaves this machine is the
    operator's decision, made after reading the thing. */
-document.addEventListener('click', async e => {
+/* Report a problem, in three presses. The first opens a place to say what
+   happened - the one thing the log cannot - and a box to put the callsign
+   on it so a reply can reach them. The second writes the file and shows it.
+   The third sends what was just read. Nothing leaves on the first two. */
+function reportForm() {
+  return '<div style="margin:.5rem 0">' +
+    '<textarea id="report-said" rows="3" placeholder="What happened? What were you doing when it went wrong? (optional, but it is the one thing the log cannot say)" ' +
+      'style="width:100%;max-width:44rem;box-sizing:border-box;padding:.4rem .5rem;border-radius:7px;border:1px solid var(--line-2);background:var(--panel);color:var(--text);font:inherit;font-size:.85em"></textarea>' +
+    '<div class="row" style="gap:.7rem;align-items:center;flex-wrap:wrap;margin-top:.4rem">' +
+      '<label class="tiny" style="display:flex;gap:.4rem;align-items:center;cursor:pointer;color:var(--text)">' +
+        '<input type="checkbox" id="report-station"> Put my callsign on it, so a reply can reach me</label>' +
+      '<button class="btn sm" data-report-write="1">Write the report</button>' +
+      '<span class="tiny muted">Written to a file first and shown here. Nothing is sent until you press send.</span>' +
+    '</div>' +
+    '<div id="report-result"></div>' +
+  '</div>';
+}
+
+function reportBody(send) {
+  const said = document.getElementById('report-said');
+  const station = document.getElementById('report-station');
+  return JSON.stringify({said: said ? said.value : '',
+                         station: !!(station && station.checked), send: !!send});
+}
+
+document.addEventListener('click', e => {
   const btn = e.target.closest('[data-report]');
   if (!btn) return;
   const out = document.getElementById('report-out');
+  if (out) out.innerHTML = reportForm();
+  const said = document.getElementById('report-said');
+  if (said) said.focus();
+});
+
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-report-write]');
+  if (!btn) return;
+  const out = document.getElementById('report-result');
   btn.disabled = true;
   if (out) out.innerHTML = '<p class="tiny muted">Writing...</p>';
   try {
     const d = await api('/api/report', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({station: false}),
+      body: reportBody(false),
     });
     if (out) out.innerHTML =
       '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
         escapeHTML(d.path) + '</span>' +
-        (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.' : '') +
+        (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.'
+                    : ' &mdash; <b>with your callsign on it</b>, as you asked.') +
         (d.contact ? (d.way
             ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>' +
               ' <span class="muted">' + escapeHTML(d.way.detail) + '</span>'
@@ -253,9 +288,10 @@ document.addEventListener('click', async e => {
   btn.disabled = false;
 });
 
-/* The press that sends: writes the report again (so what goes is what was
-   just read) and sends it by whichever door is open - the drop, or the
-   unit's own mail settings. */
+/* The press that sends: writes the report again with the same words and the
+   same choice about the callsign (so what goes is what was just read) and
+   sends it by whichever door is open - the drop, or the unit's own mail
+   settings. */
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-report-send]');
   if (!btn) return;
@@ -264,7 +300,7 @@ document.addEventListener('click', async e => {
   try {
     const d = await api('/api/report', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({station: false, send: true}),
+      body: reportBody(true),
     });
     if (said) said.innerHTML = d.sent
       ? ' <span style="color:var(--green)">Sent.</span>'
