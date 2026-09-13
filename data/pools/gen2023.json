@@ -10,7 +10,7 @@
  "pass_mark": 26,
  "valid_from": "2023-07-01",
  "valid_to": "2027-06-30",
- "edition": "2023-2027 pool, 6th errata of 4 Feb 2026",
+ "edition": "2023-2027 pool, current to the NCVEC 6th revision of 4 Feb 2026",
  "source": {
   "url": "https://www.ncvec.org/",
   "file": "gen2023.docx",

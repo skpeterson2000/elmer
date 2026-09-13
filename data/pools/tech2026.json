@@ -10,7 +10,7 @@
  "pass_mark": 26,
  "valid_from": "2026-07-01",
  "valid_to": "2030-06-30",
- "edition": "2026-2030 pool, errata of 19 Feb 2026",
+ "edition": "2026-2030 pool, current to the NCVEC revision of 19 Feb 2026",
  "source": {
   "url": "https://www.ncvec.org/",
   "file": "tech2026.docx",

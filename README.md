@@ -1,9 +1,18 @@
 # ELMER
 
-A study assistant, progress tracker and game for radio theory, built around the
-current US license question pools — amateur (NCVEC) and commercial (FCC) — with
-a live propagation dashboard and a lab of the calculators the exams actually
-test.
+A study assistant, progress tracker and game for the radio operator
+examinations of the United States — built for the amateur radio community
+first, and serving the commercial operator community with the same program.
+
+For the amateur: the current NCVEC pools for **Technician, General and Amateur
+Extra**, every question and every figure, with the FCC's own rule quoted
+wherever a question turns on one. For the commercial operator: the FCC's
+**Element 1** (Marine Radio Operator Permit), **Element 3** (General
+Radiotelephone Operator License) and **Element 8** (Ship Radar Endorsement)
+pools, complete and on the same footing — the same study engine, the same mock
+exams built to the real blueprint, the same explanations, the same game and
+the same hall. Alongside both, a live propagation dashboard and a lab of the
+calculators the exams actually test.
 
 It also runs a **tournament**: the same questions as a race, for one person
 against practice opponents, for a table of eight joining by QR code from their
@@ -27,6 +36,55 @@ The pools ship built, so it runs straight from a clone — no build step. The
 only dependencies are Flask, Pillow and reportlab; everything else, including
 the QR encoder, is the standard library.
 
+## Fidelity
+
+The word carries different weights in different places. Here it means three
+things, and each is checked rather than promised.
+
+**Accuracy.** The pools are the released documents, reproduced verbatim — the
+NCVEC's `.docx` and the FCC's `.pdf`, parsed by the program and validated on
+every build: the question counts must match the published syllabus, every
+question must have four choices and exactly one keyed answer, every section
+must be populated and every referenced figure must exist, or the build stops
+rather than ship a pool with a hole in it. The amateur pools carry every
+correction the Question Pool Committee has issued since release, because that
+is what is on the test. Where a question cites a rule, the rule is quoted from
+47 CFR, not paraphrased. Every explanation is written by hand or quoted from
+the regulation; nothing is machine-generated, and where no explanation exists
+the program says so and invites your own rather than inventing one. What the
+program measures — your mastery, your exam odds, a question's difficulty, the
+propagation forecast's own error against the ionosondes — it reports with the
+sample size beside it, and says when it does not yet know.
+
+**Thoroughness.** All 2,475 questions across the six pools; all 43 diagrams; a
+concept note for every one of the 294 syllabus sections; the rule text for
+every citation; the band plan in full; the calculators the exams test; a
+library of your own manuals, indexed to the page; the repeaters, parks and
+summits of a region packed for somewhere the internet is not — on one
+Raspberry Pi, with no network needed once it is installed. Both communities
+get the whole of it. The commercial pools are not a bolt-on: they are the same
+program pointed at a different examination, gated by nothing an amateur
+licence says, because an Extra ticket says nothing about readiness for a GROL.
+
+**Usability.** It runs from a clone with no build step and no configuration,
+opens the same way on every board whatever the hardware is doing underneath,
+and puts a phone in the game by pointing it at a screen. A club evening needs
+one Pi and nobody to set anything up; a hall needs one more, and the tables
+find it by themselves. What the program has to say about its own working goes
+to the log, not the screen.
+
+**What leaves a unit.** Your progress lives in `data/elmer.db` on the unit and
+nowhere else. The program reaches out for what it needs to stay current — space
+weather, the ionosonde record, the rule text, the pools, its own updates — and
+for what you ask it to look up, a callsign or a place; nothing about you
+travels with those requests beyond the thing asked. Two things can be sent
+*from* a unit, and both are entirely voluntary: a **problem report**, when you
+press for it, and a **weekly field report**, when you switch it on — each
+written to disk and shown to you before it goes, each redacted of callsign,
+QTH and addresses, each to KC9SP@arrl.net through your own outgoing-mail
+settings. Nothing is sent that you have not either pressed for or switched on
+and been shown the contents of. See *Mail home*, below.
+
 
 ---
 
@@ -34,18 +92,30 @@ the QR encoder, is the standard library.
 
 ### The question pools — 2,475 questions, all of them
 
-| Pool | Element | Questions | Exam | Pass | Edition |
+| Pool | Element | Questions | Exam | Pass | Release |
 |---|---|---|---|---|---|
-| Technician | 2 | 409 | 35 | 26 | 2026–2030, errata of 19 Feb 2026 |
-| General | 3 | 423 | 35 | 26 | 2023–2027, 6th errata of 4 Feb 2026 |
-| Amateur Extra | 4 | 599 | 50 | 37 | 2024–2028, 4th errata of 4 Feb 2026 |
-| Marine Radio Operator Permit | 1 | 144 | 24 | 18 | 2009 pool |
-| **GROL** — General Radiotelephone | 3 | 600 | 100 | 75 | 2009 pool |
-| Ship Radar Endorsement | 8 | 300 | 50 | 38 | 2009 pool, updated 6 Mar 2024 |
+| Technician | 2 | 409 | 35 | 26 | 2026–2030 pool, current to the NCVEC's revision of 19 Feb 2026 |
+| General | 3 | 423 | 35 | 26 | 2023–2027 pool, current to the NCVEC's 6th revision, 4 Feb 2026 |
+| Amateur Extra | 4 | 599 | 50 | 37 | 2024–2028 pool, current to the NCVEC's 4th revision, 4 Feb 2026 |
+| Marine Radio Operator Permit | 1 | 144 | 24 | 18 | FCC pool of 2009, the one in use |
+| **GROL** — General Radiotelephone | 3 | 600 | 100 | 75 | FCC pool of 2009, the one in use |
+| Ship Radar Endorsement | 8 | 300 | 50 | 38 | FCC pool of 2009, as revised 6 Mar 2024 |
 
 All 43 diagrams are included and pinned to the questions that reference them —
 the Technician and General schematics, the Extra figures as vector SVG, and the
 FCC circuit and radar drawings extracted from the official PDFs.
+
+The amateur examinations are given under **47 CFR Part 97**, and the pools
+cite it question by question. The commercial ones are given under **47 CFR
+Part 13**, *Commercial Radio Operators* — which licence is needed for what, and
+what each examination element covers — with the subject matter drawn from
+**Part 80**, *Stations in the Maritime Services* (the ship stations an MROP
+operates and a GROL maintains, watchkeeping, distress, the radar of Element 8)
+and **Part 87**, *Aviation Services* (the aeronautical stations the GROL is
+also the licence for). The FCC's commercial pools carry no citations of their
+own, so where a commercial question turns on a rule the concept note for its
+section names the part, rather than a paragraph being quoted beside the
+question as it is for the amateur pools.
 
 The pools are parsed straight from the released NCVEC `.docx` and FCC `.pdf`
 files and validated on every build: question counts must match the published
@@ -149,7 +219,10 @@ from four sources, in descending order of authority:
    shows the actual text of 47 CFR Part 97, pulled from eCFR and narrowed to the
    cited paragraph &mdash; including the band-privilege tables, which are the
    substance of rules like &sect;97.301(d). Not a paraphrase, so there is nothing
-   to mistrust, and each one links through to the full section.
+   to mistrust, and each one links through to the full section. The citations
+   are the NCVEC's own, printed in the amateur pools; the FCC prints none in
+   the commercial pools, so for those the rule lives in the section's concept
+   note (Parts 13, 80 and 87) rather than beside the question.
 3. **A concept note per syllabus section.** All 294 sections across the six
    pools have one: a short explanation of the underlying idea plus the key facts
    and formulas, written by hand. Sections whose concept is interactive link
@@ -482,8 +555,9 @@ Reports go to **KC9SP@arrl.net** — an arrl.net forwarder, chosen for exactly
 this: it forwards to its owner's inbox and is filtered on the way. Every
 subject a unit sends begins **[ELMER]**, put on by the sending path rather
 than left to each caller, so one filter at the far end catches all of them —
-the first ones landed in a spam folder. ELMER carries no mail account. A unit sends through its operator's own outgoing
-mail server — the SMTP host, port and login you would give any mail program —
+the first ones landed in a spam folder. ELMER carries no mail account. A unit
+sends through its operator's own outgoing mail server — the SMTP host, port and
+login you would give any mail program —
 kept in `data/mail.json` on that unit alone, readable by nobody else; with
 nothing set, a report is written where you can find it and the page says
 where to mail it by hand. The settings, a test message and both reports live
@@ -2478,7 +2552,7 @@ which the page reports back to the server so a browser-side failure does not
 vanish into a console nobody has open. When that happens the page also shows a
 red banner rather than sitting silently on "Loading…".
 
-Run `--fetch` when a pool is reissued or a new errata lands; it re-downloads
+Run `--fetch` when a pool is reissued or the committee issues a correction; it re-downloads
 from NCVEC and the FCC, rebuilds, and revalidates. If a download fails, the
 existing copy in `data/raw` is left untouched.
 
@@ -3033,12 +3107,14 @@ out exactly which files fall under which terms.
 The amateur pools are public releases from the NCVEC Question Pool Committee.
 The commercial pools are published by the FCC and are US government works. Both
 are freely redistributable. ELMER reproduces them verbatim — the wording of a
-question and its keyed answer is exactly what the released document says,
-including the errata, because that is what you will see on the test.
+question and its keyed answer is exactly what the released document says, with
+every correction the committee has issued since release applied, because that
+is what you will see on the test.
 
 The GROL and Element 8 pools date from 2009 and the FCC has not reissued them;
 they remain the current pools in use. Some formulas in Element 3 lost their
 superscripts when the FCC typeset the PDF (`R2+X2` for √(R²+X²)); those are
 reproduced as published.
 
-Progress is stored locally in `data/elmer.db` and never leaves the machine.
+Progress is stored locally in `data/elmer.db` on the unit. What can leave a
+unit, and only by your hand, is set out under *Fidelity* and *Mail home*.

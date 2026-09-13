@@ -10,7 +10,7 @@
  "pass_mark": 37,
  "valid_from": "2024-07-01",
  "valid_to": "2028-06-30",
- "edition": "2024-2028 pool, 4th errata of 4 Feb 2026",
+ "edition": "2024-2028 pool, current to the NCVEC 4th revision of 4 Feb 2026",
  "source": {
   "url": "https://www.ncvec.org/",
   "file": "extra2024.docx",
