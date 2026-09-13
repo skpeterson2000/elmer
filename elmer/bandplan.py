@@ -341,9 +341,9 @@ def may_transmit(band_name, license_class, mhz):
 
 
 # An activity segment names a mode as well as a place, and the mode is half the
-# question: 47 CFR 97.305 permits no phone below 14.150 whoever you are. The
-# kinds that are a use rather than an emission - a calling frequency, a
-# repeater output - are judged only on whether you may transmit there at all.
+# question: a General may transmit at 14.200 but not phone. The kinds that are
+# a use rather than an emission - a calling frequency, a repeater output - are
+# judged only on whether you may transmit there at all.
 KIND_EMISSION = {"cw": "cw", "digital": "data", "phone": "phone",
                  "image": "image", "beacon": "cw"}
 
@@ -356,13 +356,11 @@ MID_SENTENCE = {"cw": "CW", "data": "RTTY/data", "phone": "phone",
 def usable_part(low, high, allowed, kind=None):
     """How much of an activity segment this class may actually use.
 
-    Convention and law do not share their boundaries. The IARU Region 2 plan
-    puts SSB on 20 m from 14.112, while 97.305 permits no phone below 14.150 -
-    so the segment straddles the edge, and the honest answer is neither "yes"
-    nor "no" but "this part of it, in this mode".
+    Convention and the license do not share their boundaries. SSB on 20 m
+    runs from 14.150, while a General's phone starts at 14.225 - so the
+    segment straddles the edge, and the honest answer is neither "yes" nor
+    "no" but "this part of it, in this mode".
 
-    Answering that with a boolean said "no" to an Extra against the largest
-    phone segment on the band, which is the one class that holds all of it.
     Returns ("yes"|"part"|"no", low, high) where the pair is the usable piece.
     """
     emission = KIND_EMISSION.get(kind)
@@ -485,23 +483,14 @@ def usable_answer(band_name, license_class, low, high, kind=None):
     """What this class may do with an activity segment, and why, in words.
 
     A range on its own is a puzzle: the reader sees that something is different
-    about the row without being told what. And "phone is not permitted below
-    14.150" hides the more useful distinction, because two quite different
-    rules produce the same shape.
-
-    Below 14.150 on 20 m *no* license may use phone: that is the emission
-    sub-band, and upgrading changes nothing. Between 14.150 and 14.225 phone is
-    perfectly legal and it is the license that is the limit. One of those is
-    worth studying for and the other is not, so they are said differently.
+    about the row without being told what. The activity chart is drawn from
+    the legal edges, so the only thing that ever trims a row is the license -
+    and that is worth saying, because it is what studying would change.
     """
     allowed = privileges_for(band_name, license_class)
     state, a, b = usable_part(low, high, allowed, kind)
     emission = KIND_EMISSION.get(kind)
     label = EMISSION_LABELS.get(emission, "Transmitting")
-
-    # Where the most permissive class's edge sits: below that, nobody may.
-    top = privileges_for(band_name, CLASSES[-1])
-    _, top_a, top_b = usable_part(low, high, top, kind)
 
     note = None
     if state == "no":
@@ -510,30 +499,13 @@ def usable_answer(band_name, license_class, low, high, kind=None):
         note = (f"{label} here needs {needs}" if needs
                 else f"{label} is not permitted here on any license")
     elif state == "part":
-        # Two different rules make the same shape, and only one of them is a
-        # reason to study: below the emission sub-band nobody may transmit that
-        # mode, however far they upgrade, while above it the license is the
-        # only thing in the way. Said separately, and only when each applies.
-        mid = MID_SENTENCE.get(emission, "transmitting")
         parts = []
         if a > low:
-            edge = top_a if (top_a is not None and top_a > low) else None
-            if edge:
-                parts.append(f"no license may use {mid} below {_edge(edge)} MHz")
-            if a > (edge or low):
-                who = _needs(classes_permitting(
-                    band_name, edge or low, a, emission)) or "a higher class"
-                parts.append(f"from there to {_edge(a)} it needs {who}"
-                             if edge else
-                             f"below {_edge(a)} MHz it needs {who}")
+            who = _needs(classes_permitting(band_name, low, a, emission))                 or "a higher class"
+            parts.append(f"below {_edge(a)} MHz it needs {who}")
         if b < high:
-            edge = top_b if (top_b is not None and top_b < high) else None
-            if edge:
-                parts.append(f"no license may use {mid} above {_edge(edge)} MHz")
-            if b < (edge or high):
-                who = _needs(classes_permitting(
-                    band_name, b, edge or high, emission)) or "a higher class"
-                parts.append(f"above {_edge(b)} MHz it needs {who}")
+            who = _needs(classes_permitting(band_name, b, high, emission))                 or "a higher class"
+            parts.append(f"above {_edge(b)} MHz it needs {who}")
         joined = "; ".join(parts)
         note = (joined[:1].upper() + joined[1:]) if joined else None
     return {"state": state, "low": a, "high": b, "note": note}
@@ -614,7 +586,8 @@ ACTIVITY = {
         (14.095, 14.0995, "digital", "Unattended digital"),
         (14.100, 14.100, "beacon", "NCDXF/IARU international beacons"),
         (14.1005, 14.112, "digital", "Unattended digital"),
-        (14.112, 14.230, "phone", "SSB"),
+        (14.112, 14.150, "cw", "CW"),
+        (14.150, 14.230, "phone", "SSB"),
         (14.230, 14.230, "image", "SSTV"),
         (14.230, 14.286, "phone", "SSB"),
         (14.286, 14.286, "phone", "AM calling"),
@@ -637,7 +610,8 @@ ACTIVITY = {
         (21.074, 21.074, "calling", "FT8"),
         (21.110, 21.150, "digital", "Unattended digital"),
         (21.150, 21.150, "beacon", "IBP beacons"),
-        (21.151, 21.340, "phone", "SSB"),
+        (21.151, 21.200, "cw", "CW"),
+        (21.200, 21.340, "phone", "SSB"),
         (21.340, 21.340, "image", "SSTV"),
         (21.340, 21.450, "phone", "SSB"),
         (21.385, 21.385, "calling", "SSB QRP calling"),
