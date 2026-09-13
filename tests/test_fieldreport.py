@@ -31,7 +31,7 @@ def check(label, got, want):
 
 def main():
     print("-- the address --")
-    check("reports go to the arrl.net forwarder", mail.CONTACT, "KC9SP@ARRL.NET")
+    check("reports go straight to KC9SP's inbox", mail.CONTACT, "skptrsn@gmail.com")
     check("  and the problem report page shows the same one", bugreport.CONTACT, mail.CONTACT)
 
     print("\n-- outgoing mail on this unit --")

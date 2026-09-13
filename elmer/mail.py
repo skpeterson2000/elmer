@@ -1,10 +1,11 @@
 """Mail from a unit to the project: a problem report, a field report.
 
-The address is KC9SP's arrl.net forwarder. An arrl.net address is made for
-exactly this - it forwards to whatever inbox its owner points it at and is
-filtered on the way - and its owner chose to put it here, so the earlier
-worry about baking an address into a public repository is his to have
-weighed, and he did.
+The address is KC9SP's own Gmail. It was the arrl.net forwarder first, which
+is made for exactly this - but a forwarder is one more hop that can drop or
+delay a message and its owner does not trust it, and a report that may not
+arrive is not worth the settings screen it took. He chose to put a direct
+address here, so the worry about baking an address into a public repository
+is his to have weighed, and he did.
 
 What ELMER does not carry is a mail account. A unit sends through its
 operator's own outgoing mail server - the SMTP submission host, port and
@@ -30,7 +31,7 @@ from .paths import STATE
 
 log = logging.getLogger("elmer")
 
-CONTACT = "KC9SP@ARRL.NET"
+CONTACT = "skptrsn@gmail.com"
 SETTINGS = STATE / "mail.json"
 SECURITIES = ("starttls", "ssl", "none")
 DEFAULT_PORT = {"starttls": 587, "ssl": 465, "none": 25}
