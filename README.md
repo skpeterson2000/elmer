@@ -3124,6 +3124,9 @@ as platform tests dropped into whichever file needed one - which is how a
 program ends up half-ported with nobody able to say what the Windows path
 actually does.
 
+Open PowerShell in the ELMER folder - right-click the folder, *Open in
+Terminal* - and:
+
 ```
 powershell -ExecutionPolicy Bypass -File install.ps1
 .\elmer.cmd
@@ -3131,9 +3134,24 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 The execution policy on a Windows client defaults to Restricted, which is why
 the first part is not optional; it applies to that one command and changes
-nothing about the machine. The installer builds a virtual environment in
-`.venv` and puts Flask, Pillow and reportlab in it. `-Shortcut` adds a Start
-Menu entry, `-Serial` adds pyserial so the Lab can talk to a NanoVNA.
+nothing about the machine. There is no path in the script to edit: it runs
+from wherever the folder is.
+
+The installer looks for Python, git and poppler. Each one that is missing is
+named, with what it is for, and offered - and installed with `winget`, which
+every Windows 10 and 11 machine has, only when you answer yes. Python is what
+ELMER is written in; git is how it updates itself; poppler reads the NIFOG
+channel PDF and the manuals on the shelf, and everything else works without
+it. `-Yes` answers for you, for a machine you are setting up in one go;
+`-NoInstall` only reports, for one somebody else looks after. Then it builds
+a virtual environment in `.venv` and puts Flask, Pillow and reportlab in it.
+`-Shortcut` adds a Start Menu entry, `-Serial` adds pyserial so the Lab can
+talk to a NanoVNA.
+
+WSL is not the way in. It works, but it wants administrator rights, a reboot
+and virtualization turned on in firmware, and the COM ports for a NanoVNA or
+a GPS do not reach it - a wall in front of exactly the person the installer
+is for. ELMER runs on Windows itself.
 
 Three differences are real, and are named rather than papered over.
 
@@ -3158,8 +3176,10 @@ touchscreen bolted to a bench, not a portability gap to be papered over.
 `--kiosk` on Windows says which of those it is and serves normally.
 
 Poppler is not on a Windows machine by default, so the NIFOG channel reader
-cannot read its PDF until `pdftotext` is on PATH. The installer checks and
-says so; everything else works without it.
+cannot read its PDF until poppler is here. The installer checks, says so and
+offers it; a winget install lands under `%LOCALAPPDATA%\Microsoft\WinGet`
+and ELMER looks there, so a shortcut-started ELMER finds it without PATH
+having been told.
 
 `tests/test_host.py` passes on both, and forces each machine's rules on the
 other - a rule only ever run where it was written is a habit rather than a
@@ -3169,7 +3189,7 @@ rule.
 
 Python 3.11 with Flask and Pillow, plus `pdftotext`, `pdftoppm` and `pdfimages`
 from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS;
-on Windows `install.ps1` fetches the Python side and names what is missing.
+on Windows `install.ps1` fetches the Python side and offers what is missing.
 Serving needs no network; only the propagation dashboard reaches out.
 
 ## License

@@ -115,6 +115,14 @@ if os.name == "nt":
                       for p in (list(Path(base).glob("poppler*/Library/bin")) +
                                 list(Path(base).glob("poppler*/bin")) +
                                 list(Path(base).glob("Programs/poppler*/bin"))) if base]
+    # Where winget puts a portable package - which is what install.ps1
+    # fetches poppler as - and the folder of aliases it puts on the PATH of
+    # windows opened afterwards, not of the one ELMER was started from.
+    _local = os.environ.get("LOCALAPPDATA", "")
+    if _local:
+        _winget = Path(_local) / "Microsoft" / "WinGet"
+        FALLBACK_DIRS += [str(p) for p in _winget.glob("Packages/*Poppler*/poppler*/Library/bin")]
+        FALLBACK_DIRS += [str(_winget / "Links")]
 
 _tools = {}
 

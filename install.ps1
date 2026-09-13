@@ -11,16 +11,26 @@
 # that needs it says so rather than failing later. Both are printed at the end
 # rather than left to be discovered.
 #
+# What it will do is fetch what is missing, if asked. Python, git and poppler
+# are each looked for; each one that is not here is named, with what it is
+# for, and offered - and Windows has winget for exactly this, so the offer
+# is one keypress rather than a website, a download and a wizard with a box
+# to tick. Nothing is installed without the answer. -Yes answers for you;
+# -NoInstall only reports, for a machine somebody else looks after.
+#
 #     powershell -ExecutionPolicy Bypass -File install.ps1
 #
 # The execution policy on a Windows client defaults to Restricted, which is
 # why that first part is not optional. It applies to this one command and
-# changes nothing about the machine.
+# changes nothing about the machine. It runs from wherever this folder is -
+# there is no path in it to edit.
 
 [CmdletBinding()]
 param(
     [switch]$Shortcut,      # put ELMER on the Start Menu
     [switch]$Serial,        # add pyserial, for the NanoVNA in the Lab
+    [switch]$Yes,           # install whatever is missing without asking
+    [switch]$NoInstall,     # only say what is missing; install nothing
     [switch]$Help
 )
 
@@ -40,8 +50,12 @@ if ($Help) {
     powershell -ExecutionPolicy Bypass -File install.ps1
     ... -Shortcut     also put ELMER on the Start Menu
     ... -Serial       also install pyserial, for the NanoVNA in the Lab
+    ... -Yes          install anything missing (Python, git, poppler) without asking
+    ... -NoInstall    only say what is missing; install nothing
 
-  Afterwards, start it with elmer.cmd - or with .venv\Scripts\python.exe elmer.py
+  Python, git and poppler are looked for. Each one missing is offered, and
+  installed with winget only if you say so. Afterwards, start ELMER with
+  elmer.cmd - or with .venv\Scripts\python.exe elmer.py
 
 "@
     exit 0
@@ -52,24 +66,82 @@ Write-Host "  ELMER - Windows install" -ForegroundColor Cyan
 Write-Host "  $root"
 Write-Host ""
 
+# ------------------------------------------------ fetching what is missing
+# winget is on every Windows 10 (21H2 and later) and Windows 11 machine. It is
+# asked per package, and only ever after the person said yes - or said -Yes
+# on the command line, which is the same thing said once.
+$winget = Get-Command winget -ErrorAction SilentlyContinue
+$interactive = -not [Console]::IsInputRedirected
+
+function Update-SessionPath {
+    # A fresh install writes PATH for new windows; this one is not new.
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
+function Request-Install ($what, $why, $id, $url) {
+    # Say what is missing and what it is for; offer; install if told to.
+    # Returns $true if it was installed.
+    Miss "$what is not installed - $why"
+    if ($NoInstall) {
+        Write-Host "          (-NoInstall: not offered. Get it from $url)"
+        return $false
+    }
+    if (-not $winget) {
+        Write-Host "          winget is not on this machine, so it cannot be fetched from here."
+        Write-Host "          Get it from $url and run this again."
+        return $false
+    }
+    if (-not $Yes) {
+        if (-not $interactive) {
+            Write-Host "          (not asked - no keyboard here. Run with -Yes to install it.)"
+            return $false
+        }
+        $answer = Read-Host "          Install $what now with winget? [Y/n]"
+        if ($answer -and $answer.Trim().ToLower().StartsWith('n')) {
+            Write-Host "          Left out. Get it from $url whenever you like."
+            return $false
+        }
+    }
+    Write-Host "          Installing $what ..."
+    & $winget.Source install --id $id --exact --silent --accept-source-agreements --accept-package-agreements | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Warn "winget could not install $what (exit $LASTEXITCODE). Get it from $url"
+        return $false
+    }
+    Update-SessionPath
+    Ok "$what installed"
+    return $true
+}
+
 # ---------------------------------------------------------------- python
 # The py launcher is the reliable way to find a real Python on Windows:
 # "python" on PATH is often the Microsoft Store stub, which is not one.
-$py = $null
-foreach ($try in @(@('py', '-3'), @('python'), @('python3'))) {
-    $exe = Get-Command $try[0] -ErrorAction SilentlyContinue
-    if (-not $exe) { continue }
-    $args = @()
-    if ($try.Count -gt 1) { $args = $try[1..($try.Count - 1)] }
-    try {
-        $v = & $exe.Source @args -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
-    } catch { continue }
-    if ($LASTEXITCODE -eq 0 -and $v) {
-        $py = @{ Exe = $exe.Source; Args = $args; Version = $v.Trim() }
-        break
+function Find-Python {
+    foreach ($try in @(@('py', '-3'), @('python'), @('python3'))) {
+        $exe = Get-Command $try[0] -ErrorAction SilentlyContinue
+        if (-not $exe) { continue }
+        $extra = @()
+        if ($try.Count -gt 1) { $extra = $try[1..($try.Count - 1)] }
+        try {
+            $v = & $exe.Source @extra -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+        } catch { continue }
+        if ($LASTEXITCODE -eq 0 -and $v) {
+            return @{ Exe = $exe.Source; Args = $extra; Version = $v.Trim() }
+        }
     }
+    return $null
 }
 
+$py = Find-Python
+if (-not $py) {
+    # python.org's build, with the py launcher that this script and elmer.cmd
+    # both find it by. The Store's Python is real too, but its stub of the
+    # same name is what "python" on a fresh machine usually is.
+    if (Request-Install 'Python' 'ELMER is written in it' 'Python.Python.3.12' 'https://www.python.org/downloads/windows/') {
+        $py = Find-Python
+    }
+}
 if (-not $py) {
     Bad "no Python found. Install it from python.org or the Microsoft Store,"
     Write-Host "          tick 'Add python.exe to PATH', and run this again."
@@ -127,13 +199,24 @@ if ($Shortcut) {
 }
 
 # ------------------------------------------------- what is not here, said
+# And offered. git is how ELMER updates itself; poppler is what reads the
+# NIFOG channel PDF and the manuals on the shelf. Everything else works
+# without either, so a "no" here is a working install with two things it
+# will say are missing when they are asked for.
 Write-Host ""
-if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
-    Ok "poppler found - the NIFOG reader will work"
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    Ok "git found - ELMER can update itself"
 } else {
-    Miss "poppler is not installed, so the NIFOG channel reader cannot read"
-    Write-Host "          its PDF. Everything else works. Install poppler and"
-    Write-Host "          put pdftotext on PATH if you want that page."
+    Request-Install 'git' 'ELMER updates itself with it' 'Git.Git' 'https://git-scm.com/download/win' | Out-Null
+}
+if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
+    Ok "poppler found - the NIFOG reader and the library will work"
+} else {
+    $got = Request-Install 'poppler' 'it reads the NIFOG channel PDF and the manuals on the shelf' 'oschwartz10612.Poppler' 'https://github.com/oschwartz10612/poppler-windows/releases'
+    if (-not $got) {
+        Write-Host "          Everything else works. The NIFOG page and the library will say"
+        Write-Host "          it is missing until it is here."
+    }
 }
 Miss "the full-screen kiosk is Linux-only and is not installed here"
 
