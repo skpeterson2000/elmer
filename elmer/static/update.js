@@ -235,8 +235,9 @@ document.addEventListener('click', async e => {
       '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
         escapeHTML(d.path) + '</span>' +
         (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.' : '') +
-        (d.contact ? (d.mail
-            ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>'
+        (d.contact ? (d.way
+            ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>' +
+              ' <span class="muted">' + escapeHTML(d.way.detail) + '</span>'
             : ' Send it to <span class="mono">' + escapeHTML(d.contact) +
               '</span> if you would like somebody to look at it &mdash; or set up ' +
               'mail below and the button appears here.') : '') +
@@ -253,7 +254,8 @@ document.addEventListener('click', async e => {
 });
 
 /* The press that sends: writes the report again (so what goes is what was
-   just read) and mails it through the unit's own settings. */
+   just read) and sends it by whichever door is open - the drop, or the
+   unit's own mail settings. */
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-report-send]');
   if (!btn) return;
@@ -283,9 +285,17 @@ async function renderMail() {
   } catch (err) { box.textContent = 'Could not read the mail settings.'; return; }
   const s = f.settings || {};
   const last = s.last_result;
+  const way = m.way;   // which door reports leave by now, or null
+  const door = !way ? 'Nothing is set to send with: a report is written here and the page says where to mail it.'
+    : way.via === 'drop' ? 'They go <b>by the drop</b> &mdash; a public address that only takes reports in, ' +
+        'with nothing of yours on them and nothing to set up. Fill in the mail settings below ' +
+        'only if you would rather they went through your own account.'
+    : 'They go <b>through your own mail server</b>, ' + escapeHTML(m.host || '') +
+        '. Press Forget and they go by the drop instead, with nothing of yours on them.';
   box.innerHTML =
     '<p class="tiny" style="margin:.2rem 0 .5rem;color:var(--text)">Reports go to <span class="mono">' +
-      escapeHTML(m.contact) + '</span>, through your own outgoing mail server &mdash; the ' +
+      escapeHTML(m.contact) + '</span>. ' + door + '</p>' +
+    '<p class="tiny muted" style="margin:.2rem 0 .5rem">Your own outgoing mail server is the ' +
       'host, port and login you would give any mail program. ELMER carries no mail account; ' +
       'these are kept in <span class="mono">data/mail.json</span> on this unit only. ' +
       'Gmail, Yahoo, Outlook and iCloud all want an <b>app password</b> here, made on the ' +
@@ -301,7 +311,7 @@ async function renderMail() {
       '<input class="mono" id="mail-pass" type="password" placeholder="' + (m.has_password ? 'password (kept)' : 'password') + '" style="width:10rem">' +
       '<input class="mono" id="mail-from" placeholder="from: you@example.com" value="' + escapeHTML(m.sender || '') + '" style="width:14rem">' +
       '<button class="btn sm" id="mail-save">Save</button>' +
-      '<button class="btn sm ghost" id="mail-test"' + (m.configured ? '' : ' disabled') + '>Send a test</button>' +
+      '<button class="btn sm ghost" id="mail-test"' + (way ? '' : ' disabled') + '>Send a test</button>' +
       (m.configured ? '<button class="btn sm ghost" id="mail-forget">Forget</button>' : '') +
       '<span id="mail-said"></span>' +
     '</div>' +
@@ -311,7 +321,7 @@ async function renderMail() {
         '<span><b>Send a weekly field report.</b> ' + escapeHTML(f.what) + '</span></label>' +
       '<div class="row" style="gap:.5rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">' +
         '<button class="btn sm ghost" id="fr-preview">Read what it would send</button>' +
-        '<button class="btn sm ghost" id="fr-send"' + (m.configured ? '' : ' disabled') + '>Send one now</button>' +
+        '<button class="btn sm ghost" id="fr-send"' + (way ? '' : ' disabled') + '>Send one now</button>' +
         '<span class="tiny muted">' +
           (s.last_sent ? 'last sent ' + new Date(s.last_sent * 1000).toLocaleString() : 'none sent yet') +
           (last && !last.sent ? ' &middot; <span class="warntext">last attempt: ' + escapeHTML(last.detail || '') + '</span>' : '') +

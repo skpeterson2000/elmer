@@ -143,19 +143,23 @@ def subject_line(subject):
     return subject if subject.startswith(TAG) else f"{TAG} {subject}".strip()
 
 
-def _remember(ok, detail, subject, to):
-    """Keep the last send outcome where the report and the doctor can read it."""
+def remember(ok, detail, subject, to, via="mail"):
+    """Keep the last send outcome where the report and the doctor can read it.
+
+    Whichever door it went by - this is the unit's last attempt to send
+    anything home, and drop.py records here too, so one line can say it.
+    """
     try:
         LAST.parent.mkdir(parents=True, exist_ok=True)
         LAST.write_text(json.dumps({"at": time.time(), "ok": bool(ok),
                                     "detail": detail, "subject": subject[:80],
-                                    "to": to}))
+                                    "to": to, "via": via}))
     except OSError:                       # pragma: no cover
         pass
 
 
 def last_result():
-    """The last send this unit attempted, or None."""
+    """The last send this unit attempted, by any door, or None."""
     try:
         return json.loads(LAST.read_text())
     except (OSError, ValueError):
@@ -200,7 +204,7 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
                 client.login(s["user"], s.get("password") or "")
             client.send_message(msg)
         log.info("mail: sent '%s' to %s via %s", subject[:60], to, s["host"])
-        _remember(True, f"sent to {to} via {s['host']}", subject, to)
+        remember(True, f"sent to {to} via {s['host']}", subject, to)
         return True, f"sent to {to} via {s['host']}"
     except smtplib.SMTPAuthenticationError:
         known = provider(s["host"])
@@ -244,7 +248,7 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
             detail += (" - with this provider try port 465 and ssl, which is "
                        "the door they keep open for mail programs")
     log.warning("mail: could not send '%s': %s", subject[:60], detail)
-    _remember(False, detail, subject, to)
+    remember(False, detail, subject, to)
     return False, detail
 
 

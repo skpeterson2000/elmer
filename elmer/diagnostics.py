@@ -698,11 +698,17 @@ def check_mail():
     account's own password, what they will want - the same words the refusal
     would use, said before the first refusal instead of after it.
     """
-    from . import mail
+    from . import drop, mail
     s = mail.settings()
     if not mail.configured(s):
-        _line(OK, "mail home", "no outgoing mail server set - reports are written to "
-              f"data/ and the page says where to send them ({mail.CONTACT})")
+        if drop.configured():
+            _line(OK, "mail home", f"reports go to {mail.CONTACT} by the drop - "
+                  "nothing of the operator's on them; set an outgoing mail "
+                  "server on the dashboard to send through your own account instead")
+        else:
+            _line(OK, "mail home", "no drop and no outgoing mail server set - reports "
+                  f"are written to data/ and the page says where to send them ({mail.CONTACT})")
+        _last_send(mail)
         return True
     known = mail.provider(s.get("host"))
     detail = (f"{s.get('sender')} via {s.get('host')}:{s.get('port') or '?'} "
@@ -716,17 +722,22 @@ def check_mail():
     else:
         _line(OK, "mail home", detail + f" - reports go to {mail.CONTACT} with [ELMER] "
               "in the subject; Send a test on the dashboard proves the path")
+    _last_send(mail)
+    return True
+
+
+def _last_send(mail):
     # What actually happened last time is worth more than what is configured.
     # A unit whose settings look right but whose last send was refused is the
     # exact case a report is written to catch, so it is said here in words.
     last = mail.last_result()
     if last:
         when = time.strftime("%d %b %H:%M", time.localtime(last.get("at", 0)))
+        door = " by the drop" if last.get("via") == "drop" else ""
         if last.get("ok"):
-            _line(OK, "last mail", f"sent {when} - {last.get('detail', '')}")
+            _line(OK, "last send", f"sent{door} {when} - {last.get('detail', '')}")
         else:
-            _line(WARN, "last mail", f"FAILED {when} - {last.get('detail', '')}")
-    return True
+            _line(WARN, "last send", f"FAILED{door} {when} - {last.get('detail', '')}")
 
 
 def check_hall():

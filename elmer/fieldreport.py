@@ -19,8 +19,8 @@ names a station:
 It is **off** until the operator turns it on, the switch says exactly what
 the report contains, every report is written to the state directory before
 it is sent so it can be read, and the last one written is a click away. It
-goes through the operator's own outgoing-mail settings (mail.py) to the
-project's address, and nowhere else.
+goes by whichever door is open - the drop, or the operator's own outgoing-
+mail settings; see home.py - to the project's address, and nowhere else.
 """
 import json
 import logging
@@ -29,7 +29,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from . import bugreport, forecastlog, mail
+from . import bugreport, forecastlog, home, mail
 from .paths import STATE
 
 log = logging.getLogger("elmer")
@@ -52,8 +52,9 @@ WHAT_IT_SENDS = (
     "warnings, counted, with the last few in full. Your callsign, grid "
     "square, coordinates, network addresses and home directory are taken "
     "out before it is written. Every report is saved here first so you can "
-    "read it, and it goes to " + mail.CONTACT + " through the outgoing-mail "
-    "settings on this unit. It is off until you turn it on."
+    "read it, and it goes to " + mail.CONTACT + " by the drop, or through "
+    "your own outgoing-mail settings if you have set them. It is off until "
+    "you turn it on."
 )
 
 
@@ -254,7 +255,7 @@ def send_now(conn=None, reason="weekly"):
     path, text = write(conn)
     stamp = bugreport.build_stamp().get("commit") or "unknown"
     subject = f"field report - build {stamp} - {time.strftime('%Y-%m-%d')}"
-    ok, detail = mail.send(subject, text)
+    ok, detail = home.deliver(subject, text, kind="field")
     data = settings()
     data["last_result"] = {"at": time.time(), "sent": ok, "detail": detail,
                            "path": str(path), "reason": reason}

@@ -206,7 +206,8 @@ def build(conn=None, lines=400, include_station=False):
             import datetime
             when = datetime.datetime.fromtimestamp(last.get("at", 0)).strftime("%Y-%m-%d %H:%M")
             add("")
-            add(f"last mail: {'sent' if last.get('ok') else 'FAILED'} at {when} - "
+            add(f"last send{' (by the drop)' if last.get('via') == 'drop' else ''}: "
+                f"{'sent' if last.get('ok') else 'FAILED'} at {when} - "
                 f"{last.get('detail', '')}")
     except Exception:
         pass

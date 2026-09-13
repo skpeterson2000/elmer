@@ -81,9 +81,10 @@ travels with those requests beyond the thing asked. Two things can be sent
 *from* a unit, and both are entirely voluntary: a **problem report**, when you
 press for it, and a **weekly field report**, when you switch it on — each
 written to disk and shown to you before it goes, each redacted of callsign,
-QTH and addresses, each to KC9SP@arrl.net through your own outgoing-mail
-settings. Nothing is sent that you have not either pressed for or switched on
-and been shown the contents of. See *Mail home*, below.
+QTH and addresses, each to KC9SP@arrl.net — by the drop, with nothing of
+yours on it, or through your own outgoing-mail settings if you would rather.
+Nothing is sent that you have not either pressed for or switched on and been
+shown the contents of. See *Mail home*, below.
 
 
 ---
@@ -555,13 +556,31 @@ Reports go to **KC9SP@arrl.net** — an arrl.net forwarder, chosen for exactly
 this: it forwards to its owner's inbox and is filtered on the way. Every
 subject a unit sends begins **[ELMER]**, put on by the sending path rather
 than left to each caller, so one filter at the far end catches all of them —
-the first ones landed in a spam folder. ELMER carries no mail account. A unit
-sends through its operator's own outgoing mail server — the SMTP host, port and
-login you would give any mail program —
-kept in `data/mail.json` on that unit alone, readable by nobody else; with
-nothing set, a report is written where you can find it and the page says
-where to mail it by hand. The settings, a test message and both reports live
-under **Mail home** on the dashboard's update panel, local screen only.
+the first ones landed in a spam folder. ELMER carries no mail account.
+
+A report leaves a unit by one of three doors, and which one is expressed by
+what you set up rather than by a switch beside it:
+
+- **The drop.** With nothing set, a report goes to one public address — a
+  Google Apps Script the project's owner deployed from their own account —
+  and the script mails it on, or files it in a GitHub folder, or both. Every
+  credential for that lives on the script's side; the units know only the
+  URL, and the URL can only put things in, which is why it can be public. A
+  Pi in a club hall, with nobody to type an app password into it, goes home
+  this way. The script and its five-minute setup are in
+  [`tools/report_drop.gs`](tools/report_drop.gs); a club running its own
+  points its units at it with `data/drop.json`.
+- **Your own outgoing mail server** — the SMTP host, port and login you
+  would give any mail program — kept in `data/mail.json` on that unit
+  alone, readable by nobody else. Filling it in is the choice: reports then
+  go through your account and not by the drop, and *Forget* goes back.
+- **By hand.** With neither, a report is written where you can find it and
+  the page says where to mail it.
+
+Whichever door, the report is the same text, written to disk first and shown
+before it goes. The settings, a test message down whichever door is open,
+and both reports live under **Mail home** on the dashboard's update panel,
+local screen only.
 
 Two things can go:
 

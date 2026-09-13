@@ -42,6 +42,9 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild, op25)
 from .content import get_pool, load_pools, presentation
+# The way home - which door a report leaves by. Under its own name here
+# because home() is the front page a few thousand lines down.
+from . import home as wayhome
 
 log = logging.getLogger("elmer")
 
@@ -5614,13 +5617,14 @@ def api_report():
     log.info("problem report written to %s (%s)", path.name,
              "redacted" if redacted else "with station detail")
     out = {"path": str(path), "redacted": redacted, "text": text,
-           "contact": mail.CONTACT, "mail": mail.configured()}
+           "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way()}
     # Sent only when asked, after it was written - the file is the thing
     # the operator can read, and the press is the operator's decision.
     if body.get("send"):
         stamp = bugreport.build_stamp().get("commit") or "unknown"
-        ok, detail = mail.send(f"problem report - build {stamp} - "
-                               f"{time.strftime('%Y-%m-%d')}", text)
+        ok, detail = wayhome.deliver(f"problem report - build {stamp} - "
+                                  f"{time.strftime('%Y-%m-%d')}", text,
+                                  kind="problem")
         out["sent"], out["detail"] = ok, detail
     return jsonify(out)
 
@@ -5628,6 +5632,8 @@ def api_report():
 # ------------------------------------------------------------ mail home
 # The unit's outgoing mail, and the weekly field report. Local screen only,
 # like the report: a password is typed here and the switch is the operator's.
+# The settings are the mail door's; the page is told which door is open
+# (wayhome.way()), because with the drop deployed most units never set these.
 
 @app.route("/api/mail", methods=["GET", "POST"])
 def api_mail():
@@ -5637,15 +5643,17 @@ def api_mail():
         body = request.get_json(silent=True) or {}
         if body.get("forget"):
             return jsonify(mail.forget())
-        return jsonify(mail.save(**{k: body.get(k) for k in mail.FIELDS if k in body}))
-    return jsonify(mail.public_settings())
+        return jsonify(dict(mail.save(**{k: body.get(k) for k in mail.FIELDS if k in body}),
+                            way=wayhome.way()))
+    return jsonify(dict(mail.public_settings(), way=wayhome.way()))
 
 
 @app.route("/api/mail/test", methods=["POST"])
 def api_mail_test():
     if not _is_local(request.remote_addr):
         abort(403)
-    ok, detail = mail.test()
+    # Tests the door reports actually leave by, whichever it is.
+    ok, detail = wayhome.test()
     return jsonify({"sent": ok, "detail": detail, "to": mail.CONTACT})
 
 
@@ -5661,15 +5669,16 @@ def api_fieldreport():
         if body.get("preview"):
             path, text = fieldreport.write(conn())
             return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
-                            "latest": {"path": str(path), "text": text}, "mail": mail.configured()})
+                            "latest": {"path": str(path), "text": text}, "mail": mail.configured(),
+                            "way": wayhome.way()})
         if body.get("send"):
             result = fieldreport.send_now(conn(), reason="pressed")
             return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
                             "result": result, "latest": fieldreport.latest(),
-                            "mail": mail.configured()})
+                            "mail": mail.configured(), "way": wayhome.way()})
     return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
                     "latest": fieldreport.latest(), "mail": mail.configured(),
-                    "contact": mail.CONTACT})
+                    "way": wayhome.way(), "contact": mail.CONTACT})
 
 
 @app.route("/api/log")

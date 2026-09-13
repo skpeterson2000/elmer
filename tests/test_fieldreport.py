@@ -108,8 +108,8 @@ def main():
     F.set_opt_in(True)
     check("switched on, it is due at once", F.due(), True)
     result = F.send_now(conn, reason="test")
-    check("with no mail settings it is written and not sent",
-          (result["sent"], Path(result["path"]).exists(), "no outgoing mail server" in result["detail"]),
+    check("with no door open it is written and not sent",
+          (result["sent"], Path(result["path"]).exists(), "no way home" in result["detail"]),
           (False, True, True))
     check("  the failure is remembered for the page", F.settings()["last_result"]["sent"], False)
     check("  and it stays due, so the clock tries again", F.due(), True)
