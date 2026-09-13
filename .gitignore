@@ -97,3 +97,7 @@ data/forecasts/
 # GIRO's data is CC-BY-NC-SA and acknowledged where it is shown; a copy of
 # it is this unit's to grade against, not the repository's to carry.
 data/hindcast/
+data/mail.json
+data/mail_last.json
+data/reports/
+data/elmer-report-*.txt
