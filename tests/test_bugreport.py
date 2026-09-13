@@ -29,6 +29,12 @@ def check(label, got, want):
         FAILS.append(label)
 
 
+# The heading as a line of its own. The report's header quotes the latest
+# commit subject, and a commit about this very feature put the words "in the
+# operator's words" there too - so the phrase alone proves nothing.
+WORDS = "\nwhat happened, in the operator's words\n"
+
+
 def section_order(text, *names):
     """Where each heading falls in the report, so 'first' can be checked."""
     return [text.find(n) for n in names]
@@ -42,7 +48,7 @@ def run():
     print("\n-- with nothing said --")
     text, redacted = bugreport.build(conn, lines=20)
     check("the report opens as before", text.startswith("ELMER problem report"), True)
-    check("  no words section", "in the operator's words" in text, False)
+    check("  no words section", WORDS in text, False)
     check("  no from line", "\nfrom " in text, False)
     check("  redacted", redacted, True)
     check("  no headline", bugreport.headline(""), "")
@@ -51,7 +57,7 @@ def run():
     said = "The band plan tab went blank\nwhen I pressed print.\n\nSecond try was fine."
     text, redacted = bugreport.build(conn, lines=20, said=said)
     words, selfcheck, log_tail = section_order(
-        text, "in the operator's words", "self-check", "log lines")
+        text, WORDS, "\nself-check\n", "log lines")
     check("the words are in", "The band plan tab went blank" in text, True)
     check("  ahead of the self-check", 0 < words < selfcheck, True)
     check("  and the self-check ahead of the log", selfcheck < log_tail, True)
