@@ -20,4 +20,14 @@ if exist "python\python.exe" (
 ) else (
     py -3 elmer.py --open %*
 )
+rem A double-clicked window closes the instant the program ends, taking the
+rem error with it - so when ELMER stops with one, the window stays until a
+rem key is pressed and the message above it can be read, or photographed.
+if errorlevel 1 (
+    echo.
+    echo   ELMER stopped with an error. The message above says why.
+    echo   If it says Python is missing, run install.ps1 in this folder first.
+    echo.
+    pause
+)
 endlocal
