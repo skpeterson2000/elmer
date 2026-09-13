@@ -39,6 +39,14 @@ from . import party
 log = logging.getLogger("elmer")
 
 POLL_SECONDS = 1.0
+# Between rounds - an intermission, the deck, waiting to begin - nothing on
+# this table is timing anything, so the check-in eases to this. Net control
+# counts a table quiet only after 25 s, and the run-up before a question is
+# long enough that a table polling this slowly still catches it and speeds up
+# before the round opens - so the room sees no difference and the wifi carries
+# a third of the check-ins. The busy second is spent where it earns its keep:
+# a round in progress.
+WAITING_SECONDS = 3.0
 TIMEOUT = 4.0
 BACKOFF_MAX = 15.0
 
@@ -131,6 +139,10 @@ class Bridge:
         # tournament it is actually in.
         self.net_name = ""
         self.net_difficulty = ""
+        # Whether anything on this table is timing right now - a round open
+        # here, a round up at the master, or the run-up before one. The poll
+        # runs fast while this holds and eases off between rounds.
+        self._active = True
         # The round trip to net control, measured on this unit's own clock:
         # the time from sending a check-in to getting the reply, which is the
         # wifi between this Pi and the master and nothing else. Kept as a
@@ -332,6 +344,10 @@ class Bridge:
         self._flush()
 
         local = room.round
+        # Fast while anything is timing: a live round at the master, one open
+        # on this table, or the run-up on its way; quiet otherwise.
+        lead = (self.hall_show or {}).get("lead_in")
+        self._active = bool(rnd) or bool(local and not local.closed) or bool(lead)
         if rnd and (rnd.get("number") or 0) > self.seen_round:
             self._start_local(room, rnd)
             return
@@ -391,7 +407,7 @@ class Bridge:
         while not self.stop.is_set():
             try:
                 self._tick()
-                wait = POLL_SECONDS
+                wait = POLL_SECONDS if self._active else WAITING_SECONDS
             except (urllib.error.URLError, OSError, ValueError) as exc:
                 # Net control is off, busy, or unreachable. Not an error worth
                 # stopping for - back off and keep the table running - and

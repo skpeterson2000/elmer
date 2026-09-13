@@ -611,6 +611,10 @@ async function tick() {
   s_last = s;
   const hall = s.hall && s.hall.shootout;
   const show = s.hall && s.hall.show;
+  // Cadence: fast while a round is up or its run-up is counting, easy in the
+  // waiting room. A shootout waiting on a pick is still the game, so stay fast.
+  pollMs = ((round && !round.closed) || (show && show.lead_in)
+            || (shoot && !shoot.over)) ? POLL_FAST : POLL_WAIT;
   hallShow.overlay(show);
   // The card changes on the host's clock, not the round's: swap it in place.
   const cardBox = document.getElementById('hallcard');
@@ -679,10 +683,20 @@ async function tick() {
   }
 }
 
+/* Fast while a question or its run-up is on the screen, easy between rounds.
+   Nobody watching an intermission board that turns every 15 s notices a 5 s
+   refresh, and it takes seven in eight of a phone's requests off the wifi -
+   which is what a room full of phones actually strains, not the pipe. */
+const POLL_FAST = 1000, POLL_WAIT = 5000;
+let pollMs = POLL_FAST;
+function schedulePoll() {
+  if (poll) clearTimeout(poll);
+  poll = setTimeout(async () => { await tick(); schedulePoll(); }, pollMs);
+}
 function start() {
-  if (poll) clearInterval(poll);
+  if (poll) clearTimeout(poll);
   tick();
-  poll = setInterval(tick, 1000);
+  schedulePoll();
 }
 
 /* A phone that locks and comes back should not sit on a stale question. */

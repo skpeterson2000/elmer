@@ -299,6 +299,9 @@
     try { r = await fetch('/api/net/show'); } catch (e) { return; }
     if (!r.ok) return;
     view = await r.json();
+    const conducting = view.conducting && view.conducting.running
+                       && view.conducting.state !== 'waiting';
+    showMs = (view.round_open || conducting || view.mode === 'play') ? 1000 : 3000;
     document.querySelectorAll('#sh-modes [data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === view.mode));
     paintConducting(view);
     paintPending(view);
@@ -309,6 +312,14 @@
     paintProgramme(view);
     paintEvents(view);
   }
+  /* The host's own screen: quick while the hall is playing, easy when it is
+     between rounds or in intermission - the one screen the host is driving,
+     but no busier than the moment needs. */
+  let showMs = 1000, showTimer = null;
+  function scheduleShow() {
+    if (showTimer) clearTimeout(showTimer);
+    showTimer = setTimeout(async () => { await refresh(); scheduleShow(); }, showMs);
+  }
   refresh();
-  setInterval(refresh, 1000);
+  scheduleShow();
 })();

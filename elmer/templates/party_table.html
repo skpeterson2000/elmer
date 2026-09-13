@@ -486,11 +486,20 @@ function paintCard(card, master) {
   });
 }
 
+function waitingToStart(s) {
+  const secs = s.starts_in;
+  return secs !== null && secs !== undefined;   // the auto-start countdown is live
+}
+
 async function tick() {
   const r = await api('/api/party/state?showing=' + encodeURIComponent(showing));
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
   const s = r.data, round = s.round;
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
+  const shootOpen = s.shootout && !s.shootout.over;
+  const leadIn = s.hall && s.hall.show && s.hall.show.lead_in;
+  tableMs = ((round && !round.closed) || leadIn || shootOpen
+             || waitingToStart(s)) ? TABLE_FAST : TABLE_WAIT;
   seats(s);
   paintSeats(s);
   const show = s.hall && s.hall.show;
@@ -895,10 +904,19 @@ async function netTick() {
   if (r.ok) paintNet(r.data);
 }
 netTick();
-setInterval(netTick, 3000);
+setInterval(netTick, 5000);
 
+/* Fast while a round or its run-up is on the table, easy between rounds - a
+   table screen watching the same 15-second deck as the room need not poll
+   every second to do it. */
+const TABLE_FAST = 1000, TABLE_WAIT = 5000;
+let tableMs = TABLE_FAST, tableTimer = null;
+function scheduleTable() {
+  if (tableTimer) clearTimeout(tableTimer);
+  tableTimer = setTimeout(async () => { await tick(); scheduleTable(); }, tableMs);
+}
 tick();
-setInterval(tick, 1000);
+scheduleTable();
 </script>
 <script src="{{ asset('certs.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>

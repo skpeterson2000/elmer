@@ -610,6 +610,10 @@ async function tick() {
     if (all.build && all.build !== PAGE_BUILD) { location.reload(); return; }
     known = (all.games || []).length;
     games = (all.games || []).filter(g => g.board);
+    // Fast if any net on the wall has a round open or a run-up counting.
+    boardMs = games.some(g => (g.board.round && !g.board.round.closed)
+                              || ((g.board.show || {}).lead_in))
+              ? BOARD_FAST : BOARD_WAIT;
     where = all.where || '';
   } catch (e) {
     document.getElementById('sub').textContent = 'lost contact with the server';
@@ -862,9 +866,19 @@ document.addEventListener('keydown', e => {
   }
 });
 
-tick();
 const RESULT_STANDS_S = 20;      // a result is read, then the deck has the screen
-setInterval(tick, 1000);
+/* The board watches the intermission deck between rounds, which turns a card
+   about every fifteen seconds - so a five-second refresh there misses
+   nothing a viewer could catch, and spares the wifi four polls in five. A
+   live round, or its run-up, pulls it back to the second. */
+const BOARD_FAST = 1000, BOARD_WAIT = 5000;
+let boardMs = BOARD_FAST, boardTimer = null;
+function scheduleBoard() {
+  if (boardTimer) clearTimeout(boardTimer);
+  boardTimer = setTimeout(async () => { await tick(); scheduleBoard(); }, boardMs);
+}
+tick();
+scheduleBoard();
 </script>
 </body>
 </html>
