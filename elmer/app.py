@@ -177,6 +177,7 @@ def _no_stale_pages(response):
 # Set by ./elmer.py --kiosk.  Off means /api/quit does not exist at all.
 app.config["KIOSK"] = False
 app.config["KIOSK_TOKEN"] = None
+app.config["WINDOW"] = False          # a window of ELMER's own, on Windows
 # Raised by the updater: ./elmer.py reads it on the way out and re-execs
 # instead of stopping.
 app.config["RESTART"] = False
@@ -218,9 +219,21 @@ def _kiosk():
     loopback request.  A phone or laptop browsing in over the network gets a
     page with no button and no token in it, and cannot stop the server.
     """
-    if not app.config["KIOSK"] or not _is_local(request.remote_addr):
-        return {"kiosk_token": None}
-    return {"kiosk_token": app.config["KIOSK_TOKEN"]}
+    # The window of ELMER's own on Windows (elmer/window.py) gets the same
+    # button: it is the screen the server is running on just as the kiosk
+    # is, and closing the window is not a button anybody can find.
+    if not (app.config["KIOSK"] or app.config.get("WINDOW")) or not _is_local(request.remote_addr):
+        return {"kiosk_token": None, "own_window": False}
+    return {"kiosk_token": app.config["KIOSK_TOKEN"],
+            "own_window": bool(app.config.get("WINDOW"))}
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """The icon by the name every browser asks for on its own, and the
+    Windows icon file the Start Menu shortcut points at."""
+    return send_from_directory(app.static_folder, "elmer.ico",
+                               mimetype="image/vnd.microsoft.icon", max_age=86400)
 
 
 # --------------------------------------------------------------------------
@@ -5440,7 +5453,7 @@ def api_quit():
     server binds every interface by default, so without those checks anyone on
     the network could turn the study session off.
     """
-    if not app.config["KIOSK"]:
+    if not (app.config["KIOSK"] or app.config.get("WINDOW")):
         abort(404)
     if not _is_local(request.remote_addr):
         log.warning("quit refused: request from %s", request.remote_addr)
@@ -5451,7 +5464,7 @@ def api_quit():
         log.warning("quit refused: bad token")
         abort(403)
 
-    log.info("quit requested from the kiosk browser")
+    log.info("quit requested from the %s", "kiosk browser" if app.config["KIOSK"] else "ELMER window")
     # Answer first, then interrupt the main thread: ./elmer.py closes the
     # browser and exits from there, so the shutdown path is the same one
     # Ctrl+C already takes.

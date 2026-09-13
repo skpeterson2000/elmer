@@ -12,6 +12,7 @@ rem --open puts ELMER in this machine's browser once it is serving, so a
 rem double-click ends in a window and not in a console saying where to go.
 rem Anything else on the command line goes through as it is.
 setlocal
+title ELMER
 cd /d "%~dp0"
 if exist "python\python.exe" (
     "python\python.exe" elmer.py --open %*

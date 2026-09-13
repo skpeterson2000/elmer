@@ -208,16 +208,28 @@ if ($Serial) {
 }   # not portable
 
 # --------------------------------------------------------------- shortcut
-if ($Shortcut) {
+# ELMER on the Start Menu, with its own icon: the way a Windows program is
+# found and started. Offered, like everything else; -Shortcut says yes
+# without asking, and a shortcut already there is refreshed - it points at
+# this folder, and a copy that moved would otherwise leave one pointing at
+# nothing.
+$lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'ELMER.lnk'
+$wantShortcut = $Shortcut -or $Yes -or (Test-Path $lnk)
+if (-not $wantShortcut -and -not $NoInstall -and $interactive) {
+    $answer = Read-Host "  Put ELMER on the Start Menu, with its icon? [Y/n]"
+    $wantShortcut = -not ($answer -and $answer.Trim().ToLower().StartsWith('n'))
+}
+if ($wantShortcut) {
     try {
-        $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'ELMER.lnk'
         $sh = New-Object -ComObject WScript.Shell
         $s = $sh.CreateShortcut($lnk)
         $s.TargetPath = Join-Path $root 'elmer.cmd'
         $s.WorkingDirectory = $root
         $s.Description = 'ELMER - radio study and propagation'
+        $s.IconLocation = (Join-Path $root 'elmer\static\elmer.ico') + ',0'
+        $s.WindowStyle = 7                 # the console minimised; the window is ELMER's
         $s.Save()
-        Ok "Start Menu shortcut written"
+        Ok "ELMER is on the Start Menu, with its icon"
     } catch {
         Warn "could not write the Start Menu shortcut: $($_.Exception.Message)"
     }

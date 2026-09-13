@@ -3175,6 +3175,13 @@ leave-page question at close. With nobody on it, it closes like any other.
 Where neither browser is found the page opens as a tab in the default
 browser instead, and the console says the tab will not stop the server.
 
+**The Start Menu, and Exit.** The installer offers to put ELMER on the
+Start Menu with its own icon, and a shortcut already there is refreshed to
+point at the folder it ran from. The window has an **Exit** button in its
+top bar, as the kiosk does - and, as the kiosk's does now too, it asks
+first, naming who it would stop: *"3 people at 1 other table of the net
+are playing on this unit. Stop ELMER anyway?"*
+
 **The other copies.** A Windows machine collects them - a zip unzipped
 twice, a clone, OneDrive's Desktop - and a double-click lands on whichever
 one Explorer was showing, usually the one that was never installed. So a

@@ -838,6 +838,13 @@ def main():
     own_window = [None]
     window_quitting = threading.Event()
     if args.open and not app.config["KIOSK"]:
+        # Decided before the first page is served, so that page can carry
+        # the Exit button: a window of ELMER's own gets one, like the kiosk,
+        # with a token minted per run and handed only to loopback requests.
+        from elmer import window as _window
+        if _window.find_browser()[0]:
+            app.config["WINDOW"] = True
+            app.config["KIOSK_TOKEN"] = secrets.token_urlsafe(32)
         def _open_when_ready(url=f"http://localhost:{args.port}/"):
             import urllib.request
             import webbrowser

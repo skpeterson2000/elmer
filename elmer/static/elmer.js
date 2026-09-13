@@ -330,16 +330,41 @@ async function quitElmer(button) {
   }
   const veil = document.createElement('div');
   veil.className = 'exit-veil';
+  const again = document.body.dataset.window
+    ? 'Start it again from the Start Menu, or with <code>elmer.cmd</code>'
+    : 'Start it again with <code>./elmer.py --kiosk</code>';
   veil.innerHTML = '<div class="mark">ELMER</div>' +
                    '<p>Stopped. You can close this window.</p>' +
-                   '<p>Start it again with <code>./elmer.py --kiosk</code></p>';
+                   '<p>' + again + '</p>';
   document.body.appendChild(veil);
 }
 
-document.addEventListener('click', e => {
+/* The question before stopping names who it would stop. A unit with a
+   table of people at it, or running a net with people at other tables, is
+   not one to switch off on a reflex - so the count is fetched first and
+   put in the question, and the question is the same whether the button is
+   the kiosk's or the Windows window's. */
+async function confirmQuit() {
+  let people = null;
+  try {
+    const r = await fetch('/api/people', {cache: 'no-store'});
+    if (r.ok) people = await r.json();
+  } catch (err) { /* the server answers or it does not; the question stands either way */ }
+  if (people && people.total > 0) {
+    const bits = [];
+    if (people.here) bits.push(people.here + (people.here === 1 ? ' person' : ' people') + ' at this table');
+    if (people.others) bits.push(people.others + (people.others === 1 ? ' person' : ' people') + ' at ' +
+                                 people.tables + (people.tables === 1 ? ' other table' : ' other tables') + ' of the net');
+    return confirm(bits.join(' and ') + ' are playing on this unit.\n\n' +
+                   'Stop ELMER anyway? Their game ends with it.');
+  }
+  return confirm('Stop ELMER and close this window?');
+}
+
+document.addEventListener('click', async e => {
   const button = e.target.closest('#exit-btn');
   if (!button) return;
-  if (confirm('Stop ELMER and close this window?')) quitElmer(button);
+  if (await confirmQuit()) quitElmer(button);
 });
 
 /* ---------- off-site links ----------
