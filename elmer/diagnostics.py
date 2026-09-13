@@ -18,6 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 OK, WARN, BAD = "  ok  ", " warn ", " FAIL "
 
+# A round trip longer than this is fine in a waiting room and dear in a game:
+# at a 30-second round it is a fiftieth of the clock, gone before the question
+# is read. The wifi, not the master, is what spends it.
+RTT_SLOW_MS = 600.0
+
 
 # When a caller wants the results rather than the printout - the dashboard
 # asking the same questions the terminal does - checks are collected here as
@@ -652,6 +657,22 @@ def check_hall():
               "with another (a cloned SD card) - give the units their own hostnames")
     else:
         _line(OK, "net control", detail)
+    # The wire to each table, which the master's own p95 never sees. A hall
+    # can look healthy here and still feel slow at one table in the corner
+    # whose link is bad; this is the line that finds it.
+    linked = [u for u in real if u.get("rtt_ms") is not None]
+    if linked:
+        worst = max(linked, key=lambda u: u["rtt_ms"])
+        summary = ", ".join(f"{u['name']} {u['rtt_ms']:.0f}ms"
+                            + ("*" if u.get("rtt_room") == "game" else "")
+                            for u in sorted(linked, key=lambda u: -u["rtt_ms"])[:6])
+        if worst["rtt_ms"] > RTT_SLOW_MS:
+            _line(WARN, "table links", f"slowest {worst['name']} at "
+                  f"{worst['rtt_ms']:.0f}ms to master - that table's wifi is "
+                  f"the delay, not this machine. {summary} (* = measured in a round)")
+        else:
+            _line(OK, "table links", f"{summary} to master"
+                  + ("  (* = in a round)" if any(u.get("rtt_room") == "game" for u in linked) else ""))
     live = hall.conductor()
     if live is not None:
         d = live.as_dict()
@@ -691,6 +712,15 @@ def check_node():
         _line(WARN, "this table", f"a report is waiting to go - {detail}")
     else:
         _line(OK, "this table", detail)
+    rtt = d.get("rtt_ms")
+    p95 = d.get("rtt_p95")
+    if rtt is not None:
+        line = f"{rtt:.0f}ms to net control" + (f", p95 {p95:.0f}ms" if p95 else "")
+        if (p95 or rtt) > RTT_SLOW_MS:
+            _line(WARN, "link to master", line + " - this unit's wifi is adding "
+                  "the delay; move it closer to the access point or wire it")
+        else:
+            _line(OK, "link to master", line)
     return True
 
 

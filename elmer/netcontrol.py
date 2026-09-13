@@ -151,6 +151,15 @@ class Unit:
         # two apart. Rounds still start on people actually seated: a table
         # that said ready with nobody at it has nobody to answer.
         self.ready = False
+        # The round-trip time this table measured to net control over the
+        # network, and whether it was measured with a round open ("game") or
+        # not ("waiting"). This is the wire, not the master's processing -
+        # the p95 in health() is what this machine did after a request
+        # arrived; this is how long the request took to get here and back.
+        # A hall stays smooth on the master's numbers and still feels slow if
+        # the wifi to one table is bad, and only this catches that.
+        self.rtt_ms = None
+        self.rtt_room = ""
 
     @property
     def quiet_for(self):
@@ -166,7 +175,8 @@ class Unit:
                 "present": self.present, "quiet_for": round(self.quiet_for, 1),
                 "reported_round": self.reported_round,
                 "simulated": self.simulated, "showing": self.showing,
-                "ready": self.ready, "cloned": self.cloned}
+                "ready": self.ready, "cloned": self.cloned,
+                "rtt_ms": self.rtt_ms, "rtt_room": self.rtt_room}
 
 
 class Net:
@@ -374,7 +384,7 @@ class Net:
         return f"{claimed}#{n}", True
 
     def check_in(self, unit_id, name=None, players=0, ready=None,
-                 instance=None, address=None):
+                 instance=None, address=None, rtt=None, room=None):
         """A unit says it is here, and how many people are sitting at it.
 
         Returns (unit, None) or (None, reason). A unit already known is always
@@ -436,6 +446,12 @@ class Net:
                 unit.ready = bool(ready)
                 log.info("net: table %s (%s) says it is %s", unit.name, unit_id,
                          "ready" if unit.ready else "not ready")
+            if rtt is not None:
+                try:
+                    unit.rtt_ms = round(float(rtt), 1)
+                    unit.rtt_room = str(room or "")[:8]
+                except (TypeError, ValueError):
+                    pass
             return unit, None
 
     def ready_units(self):

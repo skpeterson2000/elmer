@@ -3577,6 +3577,23 @@ def api_net_open():
     return jsonify(running.board())
 
 
+@app.route("/api/ping")
+def api_ping():
+    """The cheapest possible answer, for measuring the wire and nothing else.
+
+    Every other timing in ELMER is the *processing* time on a unit - what the
+    server did after the request arrived. That never sees the part of the
+    evening that actually breaks: the wifi between a phone and its Pi, and
+    between a Pi and net control. A caller that records the clock before and
+    after a call to this learns the round trip, which is the latency nobody
+    was measuring. No lock, no database, no work - so what it times is the
+    network, not ELMER. `t0` is echoed back untouched so the caller can pair
+    the reply with its own stopwatch.
+    """
+    return jsonify({"pong": True, "t0": request.args.get("t0", ""),
+                    "at": round(time.time() * 1000)})
+
+
 @app.route("/api/net/checkin", methods=["POST"])
 def api_net_checkin():
     """A cohort unit reports for duty, and learns what to put on its screens."""
@@ -3590,7 +3607,8 @@ def api_net_checkin():
                                  body.get("players", 0),
                                  ready=body.get("ready"),
                                  instance=body.get("instance"),
-                                 address=request.remote_addr)
+                                 address=request.remote_addr,
+                                 rtt=body.get("rtt"), room=body.get("room"))
     running.note_service((time.perf_counter() - started) * 1000.0)
     if unit is None:
         return jsonify({"checked_in": False, "reason": why,

@@ -131,6 +131,15 @@ class Bridge:
         # tournament it is actually in.
         self.net_name = ""
         self.net_difficulty = ""
+        # The round trip to net control, measured on this unit's own clock:
+        # the time from sending a check-in to getting the reply, which is the
+        # wifi between this Pi and the master and nothing else. Kept as a
+        # small window so a single hiccup does not read as a bad link. Kept
+        # apart by room, because a slow poll in the waiting room is nothing
+        # and a slow one mid-round is somebody's lost seconds.
+        self.rtt_ms = None
+        self.rtt_room = ""
+        self._rtt = __import__("collections").deque(maxlen=20)
         # A token for this running unit, made fresh each start and sent with
         # every check-in. Net control tells units apart by it, so a fleet
         # imaged from one SD card - every Pi sharing a hostname and a
@@ -174,11 +183,21 @@ class Bridge:
         # has answered anything.
         names = ([p.name for p in room.players.values() if not p.bot][:16]
                  if room else [])
+        # The room this measurement belongs to: a round open on this table
+        # is "game", anything else "waiting". The last RTT is sent up so the
+        # host sees this table's link; this call is itself the measurement.
+        room = "game" if (room_open := (self.showing == "question")) else "waiting"
+        started = time.monotonic()
         reply = self._call("/api/net/checkin",
                            {"unit": self.unit_id, "name": self.name,
                             "players": players, "showing": self.showing,
                             "names": names, "ready": self.ready,
-                            "instance": self.instance})
+                            "instance": self.instance,
+                            "rtt": self.rtt_ms, "room": self.rtt_room})
+        rtt = (time.monotonic() - started) * 1000.0
+        self._rtt.append(rtt)
+        self.rtt_ms = round(rtt, 1)
+        self.rtt_room = room
         if not reply.get("checked_in", True):
             # The net is full. Say so plainly and keep trying: a table that
             # arrives late should join when somebody else's table packs up.
@@ -377,6 +396,10 @@ class Bridge:
                 "waiting_to_report": bool(self.pending),
                 "mode": self.net_mode,
                 "ready": self.ready,
+                "rtt_ms": self.rtt_ms,
+                "rtt_p95": (round(sorted(self._rtt)[min(len(self._rtt) - 1,
+                            int(len(self._rtt) * 0.95))], 1)
+                            if len(self._rtt) >= 4 else None),
                 "shootout": self.hall_shootout,
                 "show": self.hall_show,
                 "quiet_for": (round(time.time() - self.last_contact, 1)
