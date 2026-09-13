@@ -192,6 +192,26 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
                      if provider(s["host"]) else ""))
     except smtplib.SMTPRecipientsRefused:
         detail = f"the mail server refused the address {to}"
+    except smtplib.SMTPServerDisconnected as exc:
+        # The big providers do not always refuse a bad login with a clean 535;
+        # Yahoo in particular drops the socket mid-login, which smtplib reports
+        # as "Connection unexpectedly closed" - a message that sends an
+        # operator looking at the network when the answer is the password. If
+        # the connection got as far as the login it is almost never the wire.
+        known = provider(s["host"])
+        if known and s.get("user"):
+            detail = (f"{known.split(' (')[0]} closed the connection during "
+                      "login. That is how it refuses a wrong or not-yet-active "
+                      "app password, and how it answers once there have been "
+                      "too many tries in a row. Wait about fifteen minutes for "
+                      "the lockout to clear, then re-enter the 16-character app "
+                      f"password with no spaces, made under "
+                      f"{known.split(' (')[1][:-1]}, with the full address "
+                      f"({s.get('user')}) as the user name")
+        else:
+            detail = (f"the mail server closed the connection ({exc}) - if this "
+                      "keeps happening the login was refused rather than the "
+                      "network lost")
     except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
         detail = f"{type(exc).__name__}: {exc}"
         if provider(s["host"]) and security != "ssl":

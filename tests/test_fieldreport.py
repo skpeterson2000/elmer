@@ -42,6 +42,34 @@ def main():
     check("  once", mail.subject_line("[ELMER] test"), "[ELMER] test")
     check("  and an empty one is the tag alone", mail.subject_line(""), "[ELMER]")
 
+    print("\n-- a big provider's refusal is named, not left cryptic --")
+    # Yahoo drops the socket mid-login rather than returning a clean 535, and
+    # smtplib reports "Connection unexpectedly closed" - which sends an
+    # operator looking at the network when the answer is the app password.
+    import smtplib
+
+    class Drop:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def login(self, u, p): raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
+        def send_message(self, m): pass
+
+    was = smtplib.SMTP_SSL
+    smtplib.SMTP_SSL = Drop
+    try:
+        y = {"host": "smtp.mail.yahoo.com", "port": 465, "security": "ssl",
+             "user": "someone@yahoo.com", "password": "x" * 16,
+             "sender": "someone@yahoo.com"}
+        ok, why = mail.send("test", "body", s=y)
+        check("Yahoo's mid-login drop is not sent", ok, False)
+        check("  and is read as a login refusal, not a lost network",
+              "app password" in why and "Yahoo" in why, True)
+        check("  naming the address to use", "someone@yahoo.com" in why, True)
+    finally:
+        smtplib.SMTP_SSL = was
+
     print("\n-- outgoing mail on this unit --")
     check("nothing is set to begin with", mail.configured(), False)
     ok, why = mail.send("test", "body")
