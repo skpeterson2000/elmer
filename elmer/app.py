@@ -2917,6 +2917,29 @@ def _with_hall(state, who_name=None):
     return state
 
 
+@app.route("/api/people")
+def api_people():
+    """How many real people this unit is serving right now, and where.
+
+    For the window that stops the server when it closes (owner.js): the
+    people at this unit's own table, and the people at the other tables of a
+    net this unit is running. Practice players are not people. This is what
+    "closing this window ends their game" is counted from.
+    """
+    room = party.room()
+    here = room.people_here() if room is not None else 0
+    others, tables = 0, 0
+    net = netcontrol.net()
+    if net is not None:
+        mine = cohort.default_unit_id()
+        for u in net.board().get("units", []):
+            if u.get("present") and u.get("id") != mine and u.get("players"):
+                others += int(u["players"])
+                tables += 1
+    return jsonify({"here": here, "others": others, "tables": tables,
+                    "total": here + others})
+
+
 @app.route("/api/party/state")
 def api_party_state():
     """What every device polls. Cheap on purpose: no database, no exam maths."""

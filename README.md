@@ -3163,6 +3163,18 @@ a virtual environment in `.venv` and puts Flask, Pillow and reportlab in it.
 `-Shortcut` adds a Start Menu entry, `-Serial` adds pyserial so the Lab can
 talk to a NanoVNA.
 
+**The window, and closing it.** On Windows ELMER opens in a window of its
+own - Edge or Chrome as an *app window*, in a profile of ELMER's own, so it
+is a process of ELMER's own - and closing that window stops ELMER, the way
+the kiosk's Exit button does on a Pi. By the time it has closed nothing can
+be said, so the saying is done ahead of time: the window knows it is the
+window, asks every few seconds how many real people are on the unit - at
+its own table, and at the other tables of a net it is running - and while
+there are any, says so across the top and arms the browser's own
+leave-page question at close. With nobody on it, it closes like any other.
+Where neither browser is found the page opens as a tab in the default
+browser instead, and the console says the tab will not stop the server.
+
 **The other copies.** A Windows machine collects them - a zip unzipped
 twice, a clone, OneDrive's Desktop - and a double-click lands on whichever
 one Explorer was showing, usually the one that was never installed. So a

@@ -830,6 +830,13 @@ def main():
     # once the port answers, so it never lands on "connection refused" and a
     # reload; and it is the machine's own default browser, an ordinary tab,
     # not the kiosk - which is a Linux appliance and says so above.
+    # On Windows the window is ELMER's own - Edge or Chrome as an app window,
+    # in a profile of ELMER's own, so it is a process of ELMER's own - and
+    # when it closes the server stops, the way the kiosk stops. Anywhere
+    # else, or with neither browser, the URL goes to the default browser as
+    # a tab, and the console says the tab will not stop the server.
+    own_window = [None]
+    window_quitting = threading.Event()
     if args.open and not app.config["KIOSK"]:
         def _open_when_ready(url=f"http://localhost:{args.port}/"):
             import urllib.request
@@ -842,7 +849,16 @@ def main():
                     time.sleep(0.2)
             else:
                 return
-            print(f"\n  Opening {url} in your browser.\n", flush=True)
+            from elmer import window
+            process, name = window.launch(url)
+            if process is not None:
+                own_window[0] = process
+                window.watch(process, window_quitting, args.port)
+                print(f"\n  Opened ELMER in a window of its own ({name}). "
+                      "Closing that window stops ELMER.\n", flush=True)
+                return
+            print(f"\n  Opening {url} in your browser. Closing the tab will not "
+                  "stop ELMER - Ctrl+C here does.\n", flush=True)
             webbrowser.open(url)
         threading.Thread(target=_open_when_ready, daemon=True,
                          name="elmer-open").start()
@@ -919,6 +935,13 @@ def main():
         sys.exit(1)
     finally:
         restarting = bool(app.config.get("RESTART"))
+        # The window of ELMER's own, if there is one: told the server is
+        # going so its watcher does not fire too, and closed, so it does
+        # not stand empty over a stopped server.
+        if own_window[0] is not None:
+            window_quitting.set()
+            from elmer import window
+            window.close(own_window[0])
         if quitting is not None:
             quitting.set()
             from elmer import kiosk
