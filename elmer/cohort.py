@@ -23,6 +23,7 @@ net control meanwhile counts the table as quiet and carries on without it. A
 hall does not stop because one Pi in the corner lost its wifi.
 """
 import hashlib
+import secrets
 import json
 import logging
 import socket
@@ -130,6 +131,12 @@ class Bridge:
         # tournament it is actually in.
         self.net_name = ""
         self.net_difficulty = ""
+        # A token for this running unit, made fresh each start and sent with
+        # every check-in. Net control tells units apart by it, so a fleet
+        # imaged from one SD card - every Pi sharing a hostname and a
+        # machine-id, and therefore a unit id - still shows as many tables
+        # rather than collapsing into one. See netcontrol.Net._slot_for.
+        self.instance = secrets.token_hex(4)
         # And which net it is, apart from what it is called. The name is a
         # label the net can change under us - it follows the material, the
         # host can type over it - so it is shown and never keyed on. The
@@ -170,7 +177,8 @@ class Bridge:
         reply = self._call("/api/net/checkin",
                            {"unit": self.unit_id, "name": self.name,
                             "players": players, "showing": self.showing,
-                            "names": names, "ready": self.ready})
+                            "names": names, "ready": self.ready,
+                            "instance": self.instance})
         if not reply.get("checked_in", True):
             # The net is full. Say so plainly and keep trying: a table that
             # arrives late should join when somebody else's table packs up.
@@ -238,7 +246,7 @@ class Bridge:
         if summary is None:
             return
         self.pending = {
-            "unit": self.unit_id, "round": tag,
+            "unit": self.unit_id, "round": tag, "instance": self.instance,
             # Which of these were practice players travels with them. A hall
             # board that lists a machine among the fastest without saying so
             # is the one thing the practice players were built not to do.

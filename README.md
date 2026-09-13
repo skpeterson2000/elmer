@@ -2185,7 +2185,9 @@ evening that will not be what breaks.
 
 A table that loses the network keeps working. The round in front of it finishes
 on its own clock, the report is held and sent when the master comes back, and
-net control counts the table as quiet and carries on without it. The hall does
+net control counts the table as quiet and carries on without it.
+
+**A fleet imaged from one SD card still shows as many tables.** Every unit works out an id from its hostname and machine-id, and Pis flashed from one card share both — so they all compute the *same* id, and net control, which keys its tables by id, used to let the second overwrite the first: three units playing, one table on the board, and the game failing for everyone but the host. Each running unit now sends a token made fresh at start, net control gives colliding ids their own slots — *raspberrypi*, *raspberrypi (2)*, *raspberrypi (3)* — and the log says a card was cloned. The board is readable and the scores are each table's own; giving the units their own hostnames makes the names on the board yours rather than a numbered *raspberrypi*. The hall does
 not stop because one Pi in the corner lost its wifi. A table also remembers its
 net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors

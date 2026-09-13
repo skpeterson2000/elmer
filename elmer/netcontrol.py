@@ -116,6 +116,17 @@ class Unit:
         self.id = unit_id
         self.name = name
         self.players = players
+        # What the unit called itself, before net control disambiguated it.
+        # A fleet imaged from one SD card shares a hostname and a machine-id,
+        # so every unit computes the *same* id - and net control keys tables
+        # by id, so the second to check in used to overwrite the first and a
+        # hall silently collapsed to one table. So the claimed id is kept
+        # apart from the slot id, and two units that claim the same one are
+        # told apart by the instance token each running unit sends.
+        self.claimed_id = unit_id
+        self.instance = ""
+        self.address = ""
+        self.cloned = False       # true when its id had to be disambiguated
         # Carried the whole way out, because everything downstream needs it:
         # a real unit checking in displaces one of these, the host's panel
         # shows which places are held, and the board chooses not to mark them
@@ -155,7 +166,7 @@ class Unit:
                 "present": self.present, "quiet_for": round(self.quiet_for, 1),
                 "reported_round": self.reported_round,
                 "simulated": self.simulated, "showing": self.showing,
-                "ready": self.ready}
+                "ready": self.ready, "cloned": self.cloned}
 
 
 class Net:
@@ -327,7 +338,43 @@ class Net:
                     "simulated": sum(1 for u in self.units.values()
                                      if u.simulated)}
 
-    def check_in(self, unit_id, name=None, players=0, ready=None):
+    def _slot_for(self, claimed, instance, address, create):
+        """The key in self.units for the unit checking in.
+
+        Normally the claimed id itself. But a fleet imaged from one card
+        shares hostname and machine-id, so several units claim the same id;
+        they are told apart by the instance token a running unit sends (and,
+        failing that, by the address the request came from). A newcomer that
+        collides with a *different* running unit gets its own slot,
+        ``id#2``, ``id#3``, and keeps it for as long as it keeps checking in.
+
+        Called inside self.lock.
+        """
+        # A unit already seated under this exact origin keeps its slot.
+        # Simulated tables count: their reports come through here as well, and
+        # their ids never collide with a real unit's (they are "sim-*").
+        for uid, u in self.units.items():
+            if u.claimed_id != claimed:
+                continue
+            if instance and u.instance:
+                if u.instance == instance:
+                    return uid, False
+            elif address and u.address == address:
+                return uid, False
+            elif not instance and not u.instance and not address:
+                return uid, False           # nothing to tell them apart by
+        if not create:
+            return None, False
+        if claimed not in self.units:
+            return claimed, False           # the id is free; take it
+        # Held by a different running unit: mint a fresh slot beside it.
+        n = 2
+        while f"{claimed}#{n}" in self.units:
+            n += 1
+        return f"{claimed}#{n}", True
+
+    def check_in(self, unit_id, name=None, players=0, ready=None,
+                 instance=None, address=None):
         """A unit says it is here, and how many people are sitting at it.
 
         Returns (unit, None) or (None, reason). A unit already known is always
@@ -338,13 +385,17 @@ class Net:
         None leaves what the unit last said, so a caller that does not carry
         the word does not take it away.
         """
+        instance = str(instance or "")[:24]
+        address = str(address or "")[:64]
         with self.lock:
-            unit = self.units.get(unit_id)
+            slot, minted = self._slot_for(unit_id, instance, address, create=True)
+            unit = self.units.get(slot)
             if unit is None:
                 # A person arriving takes a machine's place rather than being
                 # turned away by one, and rather than making the hall bigger
                 # than the room it is in.
                 self.retire_simulated()
+                slot, minted = self._slot_for(unit_id, instance, address, create=True)
                 state = self.health()
                 if state["seats"] <= 0:
                     if state["cap"] < state["hard_cap"]:
@@ -353,15 +404,32 @@ class Net:
                     return None, (f"this net is full at {state['cap']} units "
                                   f"({state['cap'] * 8} seats) - start a "
                                   f"second net")
-                unit = Unit(unit_id, name or unit_id, players)
-                self.units[unit_id] = unit
+                display = name or unit_id
+                if minted:
+                    # Two units of one name is a board nobody can read, so the
+                    # copy is marked - and the operator is told, because the
+                    # real fix is to give the units their own hostnames.
+                    seen = sum(1 for u in self.units.values()
+                               if not u.simulated and u.claimed_id == unit_id) + 1
+                    display = f"{display} ({seen})"
+                    log.warning("net: a second unit is calling itself %r - two "
+                                "machines imaged from one card share an identity. "
+                                "Seating it as %s; give the units their own "
+                                "hostnames to tell them apart on the board.",
+                                unit_id, slot)
+                unit = Unit(slot, display, players)
+                unit.claimed_id = unit_id
+                unit.cloned = minted
+                self.units[slot] = unit
                 log.info("net: table %s (%s) checked in with %d player%s - %d table%s now",
-                         unit.name, unit_id, players, "" if players == 1 else "s",
+                         unit.name, slot, players, "" if players == 1 else "s",
                          len(self.units), "" if len(self.units) == 1 else "s")
                 if self.shootout is not None and not self.shootout.over():
-                    self.shootout.admit(unit_id)
+                    self.shootout.admit(slot)
             unit.last_seen = _now()
-            if name:
+            unit.instance = instance or unit.instance
+            unit.address = address or unit.address
+            if name and not unit.cloned:
                 unit.name = name
             unit.players = int(players or 0)
             if ready is not None and bool(ready) != unit.ready:
@@ -554,25 +622,30 @@ class Net:
             out["awaiting"] = max(0, len(self.present_units()) - len(self.results))
             return out
 
-    def report(self, unit_id, round_number, players):
+    def report(self, unit_id, round_number, players, instance=None, address=None):
         """A unit hands in its cohort's answers for the round.
 
         `players` is a list of {name, correct, ms}. Scoring happened on the
-        unit; the net ranks the hall.
+        unit; the net ranks the hall. The instance and address resolve the
+        same slot the unit checked in under, so a disambiguated clone reports
+        to its own table rather than the first that took the shared id.
         """
+        instance = str(instance or "")[:24]
+        address = str(address or "")[:64]
         with self.lock:
             if not self.round or round_number != self.round_number:
                 return None, "that round is not the one in progress"
-            unit = self.units.get(unit_id)
+            slot, _ = self._slot_for(unit_id, instance, address, create=False)
+            unit = self.units.get(slot) if slot else None
             if unit is None:
                 return None, "check in first"
-            if unit_id in self.results:
+            if unit.id in self.results:
                 return None, "already reported this round"
             rows = []
             for p in players or []:
                 try:
                     rows.append({
-                        "unit": unit_id, "unit_name": unit.name,
+                        "unit": unit.id, "unit_name": unit.name,
                         "name": str(p.get("name", ""))[:32],
                         "correct": bool(p.get("correct")),
                         "ms": float(p.get("ms", 0)) or 0.0,
@@ -586,7 +659,7 @@ class Net:
                         "license": str(p.get("license") or "")[:12]})
                 except (TypeError, ValueError):
                     continue
-            self.results[unit_id] = rows
+            self.results[unit.id] = rows
             unit.last_seen = _now()
             unit.reported_round = round_number
             return {"accepted": len(rows)}, None

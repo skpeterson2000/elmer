@@ -3588,7 +3588,9 @@ def api_net_checkin():
     started = time.perf_counter()
     unit, why = running.check_in(unit_id, body.get("name"),
                                  body.get("players", 0),
-                                 ready=body.get("ready"))
+                                 ready=body.get("ready"),
+                                 instance=body.get("instance"),
+                                 address=request.remote_addr)
     running.note_service((time.perf_counter() - started) * 1000.0)
     if unit is None:
         return jsonify({"checked_in": False, "reason": why,
@@ -4169,7 +4171,9 @@ def api_net_report():
     body = request.get_json(silent=True) or {}
     got, why = running.report(str(body.get("unit", "")),
                               int(body.get("round", 0) or 0),
-                              body.get("players") or [])
+                              body.get("players") or [],
+                              instance=body.get("instance"),
+                              address=request.remote_addr)
     if got is None:
         return jsonify({"accepted": False, "reason": why}), 409
     return jsonify({"accepted": True, "counted": got["accepted"],
