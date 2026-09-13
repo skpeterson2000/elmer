@@ -244,7 +244,7 @@ def latest():
         return None
     path = found[-1]
     try:
-        return {"path": str(path), "text": path.read_text(),
+        return {"path": str(path), "name": path.name, "text": path.read_text(),
                 "written": path.stat().st_mtime}
     except OSError:
         return None
@@ -263,7 +263,8 @@ def send_now(conn=None, reason="weekly"):
         data["last_sent"] = time.time()
     _save(data)
     log.info("field report %s: %s (%s)", "sent" if ok else "not sent", detail, path.name)
-    return {"sent": ok, "detail": detail, "path": str(path), "text": text}
+    return {"sent": ok, "detail": detail, "path": str(path), "name": path.name,
+            "text": text}
 
 
 # ------------------------------------------------------------------ clock

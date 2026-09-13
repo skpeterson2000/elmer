@@ -267,6 +267,21 @@ def build(conn=None, lines=400, include_station=False, said=""):
     return redact(text, callsign, places), True
 
 
+# The name a report file has, and the only names the page may ask for by
+# name: what this module writes and what fieldreport.py writes, nothing else
+# - the route that serves one is the line between a browser and the disk.
+RE_NAME = re.compile(r"(elmer|field)-report-\d{8}-\d{6}\.txt")
+
+
+def locate(name):
+    """The file for a report name, or None if it is not one of ours."""
+    if not RE_NAME.fullmatch(str(name or "")):
+        return None
+    folder = paths.STATE / "reports" if name.startswith("field") else paths.STATE
+    path = folder / name
+    return path if path.is_file() else None
+
+
 def write(conn=None, lines=400, include_station=False, said=""):
     """Save the report where somebody can find it. Returns (path, redacted)."""
     text, redacted = build(conn, lines, include_station, said)

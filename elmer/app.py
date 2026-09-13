@@ -5619,7 +5619,11 @@ def api_report():
              "redacted" if redacted else "with station detail",
              ", with the operator's account" if said.strip() else "")
     out = {"path": str(path), "redacted": redacted, "text": text,
-           "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way()}
+           "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way(),
+           # Where to open it and where to save it from - a path on a kiosk
+           # with no file manager is a fact, not a thing anybody can press.
+           "view": url_for("report_file", name=path.name),
+           "download": url_for("report_file", name=path.name, save=1)}
     # Sent only when asked, after it was written - the file is the thing
     # the operator can read, and the press is the operator's decision. The
     # subject leads with their words, so an inbox reads "the band plan tab
@@ -5632,6 +5636,27 @@ def api_report():
         ok, detail = wayhome.deliver(subject, text, kind="problem")
         out["sent"], out["detail"] = ok, detail
     return jsonify(out)
+
+
+@app.route("/report/<name>")
+def report_file(name):
+    """One report, in the browser: readable, printable, savable by hand.
+
+    For the person whose unit has no way home, or whose way home just
+    refused - the page says "written to data/elmer-report-....txt" and on a
+    kiosk with no terminal and no file manager that sentence is the end of
+    the road. This is the link beside it. Local screen only, like writing
+    one, and only by the names this program gives its own reports.
+    """
+    if not _is_local(request.remote_addr):
+        abort(403)
+    path = bugreport.locate(name)
+    if path is None:
+        abort(404, "no such report")
+    how = "attachment" if request.args.get("save") == "1" else "inline"
+    return Response(path.read_text(errors="replace"),
+                    mimetype="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'{how}; filename="{name}"'})
 
 
 # ------------------------------------------------------------ mail home

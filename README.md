@@ -574,8 +574,11 @@ what you set up rather than by a switch beside it:
   would give any mail program — kept in `data/mail.json` on that unit
   alone, readable by nobody else. Filling it in is the choice: reports then
   go through your account and not by the drop, and *Forget* goes back.
-- **By hand.** With neither, a report is written where you can find it and
-  the page says where to mail it.
+- **By hand.** With neither — or when the door that is set refuses — the
+  report is still written, and the page gives you *Open it* and *Save it*
+  beside the file's name and the address as a mail link, so it can be read,
+  copied or attached from the screen it was written on. A path on a kiosk
+  with no file manager is a fact; these are things a person can press.
 
 Whichever door, the report is the same text, written to disk first and shown
 before it goes. The settings, a test message down whichever door is open,

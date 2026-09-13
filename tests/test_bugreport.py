@@ -89,10 +89,27 @@ def run():
     text, _ = bugreport.build(conn, lines=20, said="y" * (bugreport.SAID_MOST + 500))
     check("cut to the most", text.count("y" * 100) * 100 <= bugreport.SAID_MOST, True)
 
-    print("\n-- and it is written --")
+    print("\n-- and it is written, where the page can open it --")
     path, redacted, text = bugreport.write(conn, lines=20, said="it went blank")
     check("written", path.exists(), True)
     check("  with the words", "it went blank" in path.read_text(), True)
+    check("  found by its name", bugreport.locate(path.name), path)
+    check("  and by no other", bugreport.locate("../" + path.name), None)
+    check("  nor a name shaped like one that is not there",
+          bugreport.locate("elmer-report-20000101-000000.txt"), None)
+    check("  nor the log", bugreport.locate("elmer.log"), None)
+    from elmer import app as elmer_app
+    client = elmer_app.app.test_client()
+    local = {"REMOTE_ADDR": "127.0.0.1"}
+    r = client.get(f"/report/{path.name}", environ_base=local)
+    check("the page opens it", (r.status_code, b"it went blank" in r.data), (200, True))
+    check("  inline", r.headers["Content-Disposition"].startswith("inline"), True)
+    r = client.get(f"/report/{path.name}?save=1", environ_base=local)
+    check("  or saves it", r.headers["Content-Disposition"].startswith("attachment"), True)
+    r = client.get(f"/report/{path.name}", environ_base={"REMOTE_ADDR": "10.0.0.5"})
+    check("  from this screen only", r.status_code, 403)
+    r = client.get("/report/elmer.log", environ_base=local)
+    check("  and only reports", r.status_code, 404)
     path.unlink()
     conn.close()
 

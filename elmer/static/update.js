@@ -254,6 +254,30 @@ document.addEventListener('click', e => {
   if (said) said.focus();
 });
 
+/* The file, as things to press. A path on a kiosk with no file manager is
+   a fact; "Open it" and "Save it" are what somebody can do with it. And the
+   address to mail it to is a mailto link with the subject filled in, for a
+   machine that has a mail program - on one that does not it is still the
+   address, spelled out. */
+function reportLinks(d) {
+  return ' <a class="btn sm ghost" href="' + d.view + '" target="_blank">Open it</a>' +
+         ' <a class="btn sm ghost" href="' + d.download + '">Save it</a>';
+}
+function mailtoContact(contact, subject) {
+  return '<a class="mono" href="mailto:' + encodeURIComponent(contact) +
+         '?subject=' + encodeURIComponent('[ELMER] ' + subject) + '">' + escapeHTML(contact) + '</a>';
+}
+/* What to do when the report cannot go from here: the same three things,
+   said plainly, for the person who most needs them said plainly. */
+function byHand(d, why, subject) {
+  return '<div class="tiny" style="margin:.4rem 0;padding:.5rem .7rem;border:1px solid var(--line-2);border-radius:7px;color:var(--text)">' +
+    (why ? '<span class="warntext">' + escapeHTML(why) + '</span> ' : '') +
+    'You can still get it there by hand: <b>Open it</b> and copy the text into a message, or ' +
+    '<b>Save it</b> and attach the file, to ' + mailtoContact(d.contact, subject || 'problem report') + '.' +
+    reportLinks(d) +
+  '</div>';
+}
+
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-report-write]');
   if (!btn) return;
@@ -270,14 +294,15 @@ document.addEventListener('click', async e => {
         escapeHTML(d.path) + '</span>' +
         (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.'
                     : ' &mdash; <b>with your callsign on it</b>, as you asked.') +
-        (d.contact ? (d.way
+        reportLinks(d) +
+        (d.way
             ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>' +
               ' <span class="muted">' + escapeHTML(d.way.detail) + '</span>'
-            : ' Send it to <span class="mono">' + escapeHTML(d.contact) +
-              '</span> if you would like somebody to look at it &mdash; or set up ' +
-              'mail below and the button appears here.') : '') +
+            : '') +
         '<span id="report-sent"></span>' +
       '</p>' +
+      (d.way ? '' : byHand(d, 'Nothing on this unit is set to send it.')) +
+      '<div id="report-byhand"></div>' +
       '<details><summary class="tiny muted" style="cursor:pointer">' +
         'Read it before you send it</summary>' +
         '<pre class="tiny" style="max-height:16rem;overflow:auto;white-space:pre-wrap">' +
@@ -291,12 +316,14 @@ document.addEventListener('click', async e => {
 /* The press that sends: writes the report again with the same words and the
    same choice about the callsign (so what goes is what was just read) and
    sends it by whichever door is open - the drop, or the unit's own mail
-   settings. */
+   settings. If the door does not open, the by-hand way appears with the
+   reason, and the report it wrote is the one the links point at. */
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-report-send]');
   if (!btn) return;
   btn.disabled = true;
   const said = document.getElementById('report-sent');
+  const hand = document.getElementById('report-byhand');
   try {
     const d = await api('/api/report', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -304,7 +331,8 @@ document.addEventListener('click', async e => {
     });
     if (said) said.innerHTML = d.sent
       ? ' <span style="color:var(--green)">Sent.</span>'
-      : ' <span class="warntext">Not sent: ' + escapeHTML(d.detail || '') + '</span>';
+      : ' <span class="warntext">Not sent.</span>';
+    if (hand) hand.innerHTML = d.sent ? '' : byHand(d, 'Not sent: ' + (d.detail || '') + '.');
   } catch (err) {
     if (said) said.innerHTML = ' <span class="warntext">Could not send.</span>';
   }
@@ -397,10 +425,17 @@ async function renderMail() {
   const show = r => {
     const out = document.getElementById('fr-out');
     const text = (r.result && r.result.text) || (r.latest && r.latest.text) || '';
+    const file = r.result || r.latest;
+    const links = file && file.name ? reportLinks({view: '/report/' + file.name,
+                                                   download: '/report/' + file.name + '?save=1'}) : '';
     out.innerHTML = (r.result ? '<p class="tiny" style="margin:.4rem 0 0">' +
         (r.result.sent ? '<span style="color:var(--green)">Sent.</span>'
                        : '<span class="warntext">Not sent: ' + escapeHTML(r.result.detail || '') + '</span>') +
-        ' Written to <span class="mono">' + escapeHTML(r.result.path) + '</span></p>' : '') +
+        ' Written to <span class="mono">' + escapeHTML(r.result.path) + '</span>' + links + '</p>' +
+        (r.result.sent ? '' : byHand({contact: m.contact, view: '/report/' + r.result.name,
+                                      download: '/report/' + r.result.name + '?save=1'}, '', 'field report'))
+      : (file ? '<p class="tiny" style="margin:.4rem 0 0">Written to <span class="mono">' +
+                escapeHTML(file.path) + '</span>' + links + '</p>' : '')) +
       '<pre class="tiny" style="max-height:18rem;overflow:auto;white-space:pre-wrap;margin-top:.4rem">' +
         escapeHTML(text.slice(0, 20000)) + '</pre>';
   };
