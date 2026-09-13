@@ -583,6 +583,24 @@ def main():
                           "kiosk with its Exit button.\n")
                     return
 
+        if not took_over and args.open:
+            # A double-click on elmer.cmd while ELMER is already up: the
+            # person wanted a window, and there is a server to put one on.
+            # Refusing here left a console that closed before it could be
+            # read, and no window - which looks like nothing happening.
+            import urllib.request
+            import webbrowser
+            url = f"http://localhost:{args.port}/"
+            try:
+                urllib.request.urlopen(url, timeout=3).close()
+                serving = True
+            except Exception:
+                serving = False
+            if serving and webbrowser.open(url):
+                print(f"\n  ELMER is already running on port {args.port} - "
+                      f"opened {url} in your browser instead.\n")
+                return
+
         if not took_over:
             print(f"\n  Port {args.port} is already in use - ELMER may already be "
                   f"running.\n  Try http://localhost:{args.port} first, or start "
