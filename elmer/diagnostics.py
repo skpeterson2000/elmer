@@ -43,7 +43,8 @@ def collect(port=5000):
                       check_database, check_templates, check_tools,
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
-                      check_towerwitch_service, check_internet,
+                      check_towerwitch_service, check_neighbours_known,
+                      check_net_role, check_mail, check_internet,
                       check_start):
             try:
                 check()
@@ -459,6 +460,165 @@ def check_towerwitch_service():
     return True
 
 
+def _neighbour_words(peers):
+    """One clause per unit heard: who, where, and what it says it is doing."""
+    parts = []
+    for peer in peers:
+        net = peer.get("net") or {}
+        # A table that names its net has heard back from it; one that only
+        # has an address is pointed at a net that has not answered it yet.
+        role = ("running " + (net.get("name") or "a net") if net.get("hosting")
+                else ("a table in " + net.get("table_in")) if net.get("table_in")
+                else ("reporting to " + str(net.get("table_of")) + ", which has not "
+                      "answered it") if net.get("table_of")
+                else "on its own")
+        parts.append(f"{peer['name']} at {peer['address']} ({role})")
+    return "; ".join(parts)
+
+
+def check_neighbours(listen=True, seconds=None):
+    """Whether other ELMERs can be heard on this network, and what they are doing.
+
+    The one thing most likely to go wrong on an evening with two Pis is that
+    they cannot hear each other - a router that drops broadcast, a guest
+    network that isolates clients, a firewall on the port - and nothing on
+    either screen says so; each just plays alone.
+
+    Inside a running ELMER the answer is the program's own roster, which is
+    what it acts on and costs nothing to read. From the terminal, with no
+    server running, the doctor listens on the discovery port itself, for a
+    whole announce interval and a margin - or a live neighbour is missed half
+    the time and the line says "none" when the answer is "one". Bound with
+    SO_REUSEADDR so it can share the port with an ELMER already running here.
+    """
+    from . import cohort, discovery
+    live = discovery.neighbourhood()
+    if live is not None:
+        peers = live.current()
+        if peers:
+            _line(OK, "other ELMERs", f"{len(peers)} heard in the last "
+                  f"{discovery.GONE_AFTER:.0f} s - " + _neighbour_words(peers))
+        else:
+            _line(OK, "other ELMERs", f"none heard in the last {discovery.GONE_AFTER:.0f} s "
+                  "- alone, or the only one switched on; a second unit on this "
+                  f"network announces itself every {discovery.ANNOUNCE_EVERY:.0f} s")
+        return True
+    if not listen:
+        _line(OK, "other ELMERs", "discovery is not running in this process - "
+              "./elmer.py --doctor listens for itself")
+        return True
+    seconds = discovery.ANNOUNCE_EVERY + 2.0 if seconds is None else seconds
+    me = cohort.default_unit_id()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except (AttributeError, OSError):
+            pass
+        sock.settimeout(0.5)
+        try:
+            sock.bind(("", discovery.DEFAULT_PORT))
+        except OSError as exc:
+            _line(WARN, "other ELMERs", f"could not listen on udp/{discovery.DEFAULT_PORT} "
+                  f"({exc}) - units here will not find each other until that port is free")
+            return True
+        heard = {}
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            try:
+                data, sender = sock.recvfrom(65535)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            peer = discovery.parse(data, sender[0])
+            if peer and peer["unit"] != me:      # not this unit's own voice
+                heard[peer["unit"]] = peer
+    finally:
+        sock.close()
+    if not heard:
+        _line(OK, "other ELMERs", f"none heard in {seconds:.0f} s on udp/{discovery.DEFAULT_PORT} "
+              "- alone, or the only one switched on; a second unit on this network "
+              f"announces itself every {discovery.ANNOUNCE_EVERY:.0f} s")
+        return True
+    _line(OK, "other ELMERs", f"{len(heard)} heard - " + _neighbour_words(heard.values()))
+    return True
+
+
+def check_neighbours_known():
+    """The roster as this process knows it, never a listen: for collect()."""
+    return check_neighbours(listen=False)
+
+
+def check_net_role():
+    """Which hall this unit remembers, and whether it is still there.
+
+    A table keeps the address and token of the net it was last in so that it
+    rejoins after the overnight restart. When that net is gone - the host
+    Pi is off, or opened a new net - the table sits reporting to nobody, and
+    the reason is on this line rather than in a log.
+    """
+    from . import cohort, db
+    try:
+        conn = db.connect()
+        url = (db.unit_get(conn, cohort.URL_SETTING) or "").strip()
+        token = db.unit_get(conn, cohort.TOKEN_SETTING) or ""
+        auto = cohort.auto_join_wanted(conn)
+    except Exception as exc:
+        _line(WARN, "hall", f"could not read the unit settings ({exc})")
+        return True
+    if not url:
+        _line(OK, "hall", "not in a net" + (
+              "; will join one it hears" if auto else
+              "; auto-join is off - it will not join one it hears until told to"))
+        return True
+    try:
+        request = urllib.request.Request(url.rstrip("/") + "/api/net/board",
+                                         headers={"User-Agent": "ELMER/1.0 (doctor)"})
+        with urllib.request.urlopen(request, timeout=4) as response:
+            board = json.loads(response.read())
+        same = (not token) or board.get("token") == token
+        _line(OK if same else WARN, "hall",
+              f"remembers {url}, which is running {board.get('name') or 'a net'} "
+              f"({board.get('units_present', 0)} tables present)"
+              + ("" if same else " - a different net from the one this table was "
+                 "in; the table starts afresh in it when it rejoins"))
+    except Exception as exc:
+        _line(WARN, "hall", f"remembers {url} but it is not answering ({type(exc).__name__}) "
+              "- the table rejoins when it comes back, or follows the same net "
+              "to a new address if it hears it there")
+    return True
+
+
+def check_mail():
+    """Whether reports can leave this unit, and by which door.
+
+    Never sends. It says what is set and, for the providers that refuse an
+    account's own password, what they will want - the same words the refusal
+    would use, said before the first refusal instead of after it.
+    """
+    from . import mail
+    s = mail.settings()
+    if not mail.configured(s):
+        _line(OK, "mail home", "no outgoing mail server set - reports are written to "
+              f"data/ and the page says where to send them ({mail.CONTACT})")
+        return True
+    known = mail.provider(s.get("host"))
+    detail = (f"{s.get('sender')} via {s.get('host')}:{s.get('port') or '?'} "
+              f"({s.get('security') or 'starttls'})"
+              + (", login set" if s.get("user") else ", no login"))
+    if known and not s.get("password"):
+        _line(WARN, "mail home", detail + f" - {known.split(' (')[0]} will want an app "
+              "password, and none is set")
+    elif known and "yahoo" in (s.get("host") or "").lower() and (s.get("security") or "") != "ssl":
+        _line(WARN, "mail home", detail + " - Yahoo wants port 465 and ssl")
+    else:
+        _line(OK, "mail home", detail + f" - reports go to {mail.CONTACT} with [ELMER] "
+              "in the subject; Send a test on the dashboard proves the path")
+    return True
+
+
 def check_kiosk():
     """What ./elmer.py --kiosk would do if it were run right now."""
     from . import kiosk
@@ -611,6 +771,7 @@ def doctor(port=5000):
         check_launcher(),
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
+        check_neighbours(), check_net_role(), check_mail(),
         check_internet(), check_start(), check_server(port),
     ]
 

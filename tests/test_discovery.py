@@ -203,6 +203,26 @@ def main():
         sock.close()
         discovery.stop_listening()
 
+    print("\n-- where an announcement goes --")
+    # The limited broadcast leaves by the default route's interface only. A
+    # unit with two interfaces up announced down the wrong one and was never
+    # heard while it heard everybody, so every interface's own broadcast is
+    # sent as well, the limited one last, nothing twice, and nothing to a
+    # loopback or a point-to-point link that has no segment to broadcast on.
+    sample = ("lo               UNKNOWN        127.0.0.1/8\n"
+              "eth0             UP             192.168.1.31/24 metric 100\n"
+              "wlan0            UP             10.42.0.7/24\n"
+              "wlan1            UP             10.42.0.9/24\n"
+              "usb0             DOWN           169.254.3.3/16\n"
+              "tun0             UP             10.8.0.2/32\n")
+    check("each segment once, the limited broadcast last",
+          discovery.targets_from(sample),
+          ["192.168.1.255", "10.42.0.255", "255.255.255.255"])
+    check("with no `ip` at all, the limited broadcast alone",
+          discovery.targets_from(""), ["255.255.255.255"])
+    check("and this machine's list ends the same way",
+          discovery.broadcast_targets()[-1], "255.255.255.255")
+
     print("\n-- what this unit says it is doing --")
     payload = json.loads(discovery._payload(
         "u", "n", "http://x", "v", None, {}, True,

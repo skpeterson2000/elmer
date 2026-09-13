@@ -1138,6 +1138,16 @@ Nothing is configured at either end, and a unit that goes quiet drops off the
 list by itself. The dashboard grows a panel at its foot when there is company,
 and none when there is not.
 
+The hello goes to every network the unit is on, not just one. The plain
+broadcast address leaves by whichever interface holds the default route that
+minute, and a Pi with Ethernet and wifi both up — or a phone tethered beside
+the wifi — announced itself down the wrong one and was never heard, while it
+heard everybody: `--doctor` found one on the bench with its counter climbing by
+one every eight seconds and the unit beside it receiving nothing in forty. So
+each interface's own broadcast is sent as well, and a table sends a copy by
+name to the host it already knows, for the access points that will not carry
+broadcast between their clients at all.
+
 The panel says how many and not who. A hall with nine units in it would put
 nine names, nine addresses and nine version strings on the screen, and none of
 them answer the only question the operator actually has — which is what *this*
@@ -2510,8 +2520,10 @@ Start here:
 ./elmer.py --doctor
 ```
 
-It checks the pools, diagrams, database, templates, network and port, then
-prints every address the server can be reached on.
+It checks the pools, diagrams, database, templates, network, the neighbours
+it can hear, the hall it remembers, the mail path and the port, then prints
+every address the server can be reached on. The dashboard's **Self-check**
+runs the same checks and shows the same lines.
 
 It also reports on the two things that decide every answer ELMER gives about a
 place, because both could be dead while the rest of the self-check printed
@@ -2532,6 +2544,28 @@ appears only when this unit has been pointed at one over the network, since a
 single-Pi station should not be told about a thing it does not use. None of
 them is fatal: a GPS that is off, silent or not locked yet is an ordinary
 Tuesday, and the typed QTH still works. The point is that the screen says so.
+
+And three lines for an evening with more than one Pi, because the thing most
+likely to go wrong in a room is two units that cannot hear each other, and
+nothing on either screen says so — each just plays alone:
+
+```
+[  ok  ] other ELMERs  -  2 heard - Bench at 192.168.1.119 (running Technician net);
+                          Duluth at 192.168.1.31 (reporting to http://192.168.1.119:5000, which has not answered it)
+[  ok  ] hall          -  remembers http://192.168.1.119:5000, which is running Technician net (3 tables present)
+[  ok  ] mail home     -  kc9sp@yahoo.com via smtp.mail.yahoo.com:465 (ssl), login set - reports go to KC9SP@arrl.net
+```
+
+The doctor listens on the discovery port for a whole announce interval — ten
+seconds, not four, or a live neighbour is missed half the time — and names
+each unit it heard with what that unit says it is doing. A table that names
+its net has heard back from it; one that only has an address is pointed at a
+net that has not answered, which is how a Pi left pointing at last week's
+host shows up. The **hall** line says which net this unit remembers and asks
+it whether it is still there — and whether it is still the *same* net, by
+token, or a new one at the old address. The **mail home** line says which
+door reports would leave by, and, for the providers that refuse an account's
+own password, what they will want, before the first refusal rather than after.
 
 Then watch the log while you try to load the page:
 

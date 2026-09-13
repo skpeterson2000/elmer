@@ -45,11 +45,14 @@ running or reporting to a net. Not the operator's name, not their progress, not
 their callsign. It goes to the local broadcast address and nowhere else, and
 position sharing can be switched off without switching off discovery.
 """
+import ipaddress
 import json
 import logging
 import socket
+import subprocess
 import threading
 import time
+from urllib.parse import urlsplit
 
 log = logging.getLogger("elmer")
 
@@ -61,6 +64,57 @@ ANNOUNCE_EVERY = 8.0
 # air. Long enough that a busy Pi missing one does not vanish from the list.
 GONE_AFTER = 30.0
 MAGIC = "elmer-unit"
+LIMITED = "255.255.255.255"
+# How long a list of where to announce is trusted before the interfaces are
+# asked again. They change when a cable goes in or the wifi comes back, which
+# is minutes apart at the least; asking every announcement would be a
+# subprocess every eight seconds for nothing.
+TARGETS_FOR = 60.0
+
+
+def targets_from(ip_output):
+    """The subnet broadcast of every interface that is up, from `ip -4 -br addr`.
+
+    The limited broadcast, 255.255.255.255, leaves by one interface only -
+    whichever holds the default route this minute. A Pi with Ethernet and
+    wifi both up, or a tether beside the wifi, announces itself down the
+    wrong one and is never heard, while it hears everybody: found on the
+    bench, where one unit's counter climbed by one every eight seconds and
+    the unit beside it received nothing in forty. The directed broadcast of
+    each interface goes to that interface's own segment regardless of where
+    the default route points, so every segment this unit is on hears it.
+    """
+    out = []
+    for row in str(ip_output or "").splitlines():
+        parts = row.split()
+        if len(parts) < 3 or parts[1] != "UP":
+            continue
+        for cidr in parts[2:]:
+            try:
+                iface = ipaddress.IPv4Interface(cidr)
+            except ValueError:
+                continue
+            if iface.ip.is_loopback or iface.network.prefixlen >= 31:
+                continue
+            addr = str(iface.network.broadcast_address)
+            if addr not in out:
+                out.append(addr)
+    out.append(LIMITED)
+    return out
+
+
+def broadcast_targets():
+    """Where an announcement goes on this machine, the limited broadcast last.
+
+    Without `ip` - Windows, a stripped container - the limited broadcast is
+    the whole list, which is what every unit did before.
+    """
+    try:
+        out = subprocess.run(["ip", "-4", "-br", "addr"], capture_output=True,
+                             text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    return targets_from(out)
 
 
 def _payload(unit, name, url, version, fix, party, share_position=True,
@@ -137,6 +191,8 @@ class Neighbourhood:
         self.sent = 0
         self.heard = 0
         self.error = None
+        self._targets = []
+        self._targets_at = 0.0
 
     # ------------------------------------------------------------- listening
 
@@ -173,15 +229,38 @@ class Neighbourhood:
 
     # ----------------------------------------------------------- announcing
 
+    def targets(self, now=None):
+        now = time.monotonic() if now is None else now
+        if not self._targets or now - self._targets_at > TARGETS_FOR:
+            self._targets = broadcast_targets()
+            self._targets_at = now
+        return list(self._targets)
+
     def _announce_once(self):
         if not self.describe:
             return
         mine = self.describe()
+        net = mine.get("net") or {}
         data = _payload(mine.get("unit", ""), mine.get("name", ""),
                         mine.get("url", ""), mine.get("version", ""),
                         mine.get("fix"), mine.get("party"),
-                        mine.get("share_position", True), mine.get("net"))
-        self.sock.sendto(data, ("255.255.255.255", self.port))
+                        mine.get("share_position", True), net)
+        where = self.targets()
+        # A table already knows one address for certain: the net it reports
+        # to. A copy goes there by name as well, so a network that will not
+        # carry broadcast between its clients - some access points are set
+        # up that way - still lets a table and its host find each other.
+        host = urlsplit(str(net.get("table_of") or "")).hostname
+        if host and host not in where and not host.startswith("127."):
+            where.append(host)
+        failed = None
+        for target in where:
+            try:
+                self.sock.sendto(data, (target, self.port))
+            except OSError as exc:
+                failed = exc                     # one bad target is not all of them
+        if failed is not None and len(where) == 1:
+            raise failed
         self.sent += 1
 
     def _announce(self):
