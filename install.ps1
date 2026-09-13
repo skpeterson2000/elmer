@@ -266,6 +266,14 @@ if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
 }
 Miss "the full-screen kiosk is Linux-only and is not installed here"
 
+# The other copies. A machine collects them - a zip here, a clone there,
+# OneDrive's Desktop - and a double-click lands on whichever one Explorer
+# was showing. Listed, and the empty ones offered for removal, one question
+# each; a copy with study or settings in it is named and left alone.
+if ($interactive -and -not $NoInstall) {
+    & $vpy (Join-Path $root 'elmer.py') --tidy
+}
+
 Write-Host ""
 Write-Host "  Start ELMER with:" -ForegroundColor Cyan
 Write-Host "      .\elmer.cmd"

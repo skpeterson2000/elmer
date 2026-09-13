@@ -92,6 +92,95 @@ def _wrap(text, width):
     return out
 
 
+def _not_installed_here():
+    """True when this copy cannot run: Flask is not where this Python looks."""
+    import importlib.util
+    return importlib.util.find_spec("flask") is None
+
+
+def _ask(question, default_yes=True):
+    """A yes or no at the keyboard. With no keyboard the answer is no,
+    whatever the default: nothing here starts or removes anything on the
+    strength of a pipe."""
+    if not sys.stdin or not sys.stdin.isatty():
+        return False
+    try:
+        answer = input(question).strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return not answer.startswith("n") if default_yes else answer.startswith("y")
+
+
+def _hand_off():
+    """This copy is not installed. If another on this machine is, offer to
+    start that one; otherwise say what to do, in the words that fit.
+
+    This is the double-click on the wrong folder: the zip that was never
+    installed, beside the clone that was. "No module named flask" is true
+    and no help. Returns the exit code.
+    """
+    from elmer import copies
+    rows = copies.survey()
+    other = copies.best_other(rows)
+    print("\n  This copy of ELMER is not installed - Flask is not here.")
+    if other:
+        print(f"\n  There is an installed ELMER at\n      {other['path']}")
+        detail = []
+        if other["commit"]:
+            detail.append(f"build {other['commit']}")
+        if other["answers"]:
+            detail.append(f"{other['answers']} answers logged")
+        if other["connected"]:
+            detail.append("connected to the repository")
+        if detail:
+            print("      " + ", ".join(detail))
+        if _ask("\n  Start that one instead? [Y/n] "):
+            import subprocess
+            subprocess.Popen(copies.launcher(other["path"]), cwd=other["path"],
+                             creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+            print("  Started. This window can be closed.\n")
+            return 0
+    print("\n  To install this copy, open PowerShell in this folder and run\n"
+          "      powershell -ExecutionPolicy Bypass -File install.ps1\n"
+          "  (on a Pi: ./install.sh). It fetches what is missing and asks first.\n")
+    if len(rows) > 1:
+        print("  Every ELMER on this machine:\n")
+        for r in rows:
+            print("    " + copies.line(r) + "\n")
+    return 1
+
+
+def _copies_command(tidy=False):
+    """List the copies; with tidy, offer to remove the empty ones."""
+    from elmer import copies
+    rows = copies.survey()
+    print(f"\n  {len(rows)} cop{'y' if len(rows) == 1 else 'ies'} of ELMER on this machine:\n")
+    for r in rows:
+        print("    " + copies.line(r) + "\n")
+    if not tidy:
+        return 0
+    empties = [r for r in rows if not r["this"] and not r["progress"]]
+    kept = [r for r in rows if not r["this"] and r["progress"]]
+    if kept:
+        print("  Left alone, because they hold study, settings or reports:")
+        for r in kept:
+            print(f"      {r['path']}")
+        print()
+    if not empties:
+        print("  Nothing to remove.\n")
+        return 0
+    if not sys.stdin or not sys.stdin.isatty():
+        print("  Removing needs a keyboard to say yes at; nothing was removed.\n")
+        return 0
+    for r in empties:
+        if _ask(f"  Remove {r['path']} - nothing of yours is in it? [y/N] ", default_yes=False):
+            ok, why = copies.remove(r["path"])
+            print(f"      {'removed' if ok else 'not removed: ' + why}\n")
+        else:
+            print("      left where it is\n")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -182,7 +271,22 @@ def main():
                          "and explains what it is doing)")
     ap.add_argument("--yes", "-y", action="store_true",
                     help="with --update, do not ask before applying it")
+    ap.add_argument("--copies", action="store_true",
+                    help="list every copy of ELMER on this machine - installed "
+                         "or not, which build, how much study in it")
+    ap.add_argument("--tidy", action="store_true",
+                    help="the same list, then offer to remove the copies that "
+                         "hold nothing - one question each, never this one, "
+                         "never one with study or settings in it")
     args = ap.parse_args()
+
+    # The other copies, before anything that needs Flask. A machine collects
+    # them - a zip here, a clone there, OneDrive's Desktop - and the one that
+    # was double-clicked is usually the one that was never installed.
+    if args.copies or args.tidy:
+        sys.exit(_copies_command(tidy=args.tidy))
+    if _not_installed_here():
+        sys.exit(_hand_off())
 
     from elmer import logs
     log_path = logs.setup(args.log_level, to_file=not args.no_log_file)

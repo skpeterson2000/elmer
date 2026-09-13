@@ -3163,6 +3163,17 @@ a virtual environment in `.venv` and puts Flask, Pillow and reportlab in it.
 `-Shortcut` adds a Start Menu entry, `-Serial` adds pyserial so the Lab can
 talk to a NanoVNA.
 
+**The other copies.** A Windows machine collects them - a zip unzipped
+twice, a clone, OneDrive's Desktop - and a double-click lands on whichever
+one Explorer was showing, usually the one that was never installed. So a
+copy that cannot run looks for the others: if an installed ELMER is on the
+machine it says where, with its build and how much study is in it, and
+offers to start that one instead. `elmer.py --copies` lists every copy the
+same way; `--tidy` offers to remove the ones with nothing in them, one
+question each, and the installer does that at its end. A copy with study,
+settings or reports in it is named and never removed - that is somebody's
+progress, and moving it is their decision.
+
 WSL is not the way in. It works, but it wants administrator rights, a reboot
 and virtualization turned on in firmware, and the COM ports for a NanoVNA or
 a GPS do not reach it - a wall in front of exactly the person the installer
