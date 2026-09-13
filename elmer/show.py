@@ -551,6 +551,52 @@ class Show:
                      len(self.programme), step["label"])
             return step
 
+    def advance_from(self, index, now=None):
+        """Advance, but only if the programme is still on step `index`.
+
+        For the timekeeper, which decides a step is due and then acts on it
+        a moment later: if the host pressed Next in between, the step it
+        found due is already gone, and advancing again would skip one.
+        Returns the new step, or None - past the end, or not on `index`.
+        """
+        with self.lock:
+            if self.step != index:
+                return None
+            return self.advance(now)
+
+    def current_step(self):
+        with self.lock:
+            if 0 <= self.step < len(self.programme):
+                return dict(self.programme[self.step])
+            return None
+
+    def next_step(self):
+        with self.lock:
+            if 0 <= self.step + 1 < len(self.programme):
+                return dict(self.programme[self.step + 1])
+            return None
+
+    def step_remaining(self, now=None):
+        """Seconds left on a timed step, or None when the step has no clock."""
+        now = _now() if now is None else now
+        with self.lock:
+            cur = self.current_step()
+            if not cur or not cur.get("minutes"):
+                return None
+            return max(0.0, self._step_at + 60.0 * float(cur["minutes"]) - now)
+
+    def step_due(self, now=None, lead=0.0):
+        """Whether a timed step has run its time - less `lead`, so a step
+        that hands over to a game can start the game's run-up inside its own
+        last seconds and the screens' clock reaches nought as the question
+        goes up, rather than nought and then a countdown."""
+        remaining = self.step_remaining(now)
+        if remaining is None:
+            return False
+        nxt = self.next_step()
+        early = lead if nxt and nxt.get("kind") in ("rounds", "shootout") else 0.0
+        return remaining <= early
+
     def programme_view(self, now=None):
         now = _now() if now is None else now
         with self.lock:
@@ -560,7 +606,13 @@ class Show:
                    if self.step + 1 < len(self.programme) else None)
             return {"step": self.step + 1, "of": len(self.programme),
                     "now": cur and cur["label"], "next": nxt and nxt["label"],
+                    "kind": cur and cur["kind"],
                     "since": (now - self._step_at) if cur else None,
+                    # The clock a timed step is on, for the corner of every
+                    # screen - and None where the step has no clock, which
+                    # is a step the host ends.
+                    "remaining": (round(self.step_remaining(now), 1)
+                                  if cur and cur.get("minutes") else None),
                     "steps": [s["label"] for s in self.programme]}
 
     # ------------------------------------------------------------ for units

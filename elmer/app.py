@@ -3382,6 +3382,7 @@ def api_net_end():
     # host's own table is let go with it, or it would sit reporting to a net
     # that has closed instead of playing for the people in front of it.
     hall.halt()
+    hall.release_time()
     cohort.disconnect(conn())
     netcontrol.close_net()
     log.info("net control: closed")
@@ -3497,6 +3498,7 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     """
     connection = conn()
     hall.halt()                       # the old net's conductor goes with it
+    hall.release_time()               # and its timekeeper
     netcontrol.close_net()
     # A unit cannot be its own net and somebody else's table at once - it
     # would be taking questions from one hall while serving another.  Opening
@@ -3543,7 +3545,25 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     # was on the board.  Rounds still wait for somebody to be seated - see
     # hall.py - so opening one early costs nothing.
     hall.start(running, lambda: _ask_net(running, wanted, section, seconds))
+    # And the programme keeps time: a timed step moves on when its clock is
+    # up, a game step when its rounds are played. Nothing happens until the
+    # host has put a programme in and started it.
+    hall.keep_time(running, lambda index: _programme_advance(running, index))
     return running
+
+
+def _programme_advance(running, index):
+    """The timekeeper's Next: from step `index`, if the programme is still
+    on it, on to the next and make it happen. Called from the timekeeper's
+    thread, so no request is in hand; the step's own actions open what they
+    need."""
+    step = running.show.advance_from(index)
+    if step is None:
+        if running.show.step >= len(running.show.programme):
+            # Past the end: the same landing the host's Next gives.
+            running.show.set_mode(show.INTERMISSION)
+        return
+    _act_on_step(running, step)
 
 
 @app.route("/api/net/open", methods=["POST"])
@@ -3831,6 +3851,7 @@ def api_net_show():
         if not row.get("bot") and row["name"] not in seats.get(row["unit"], []):
             seats.setdefault(row["unit"], []).append(row["name"])
     view["seats"] = seats
+    view["lead_in"] = running.lead_in_view()
     # Where tonight's room is missing, for the study focus: the hall log's
     # answers since this net opened, by section, ranked by the share missed.
     pool_id = party.DIFFICULTIES.get(running.difficulty)

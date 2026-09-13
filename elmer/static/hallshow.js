@@ -103,10 +103,101 @@
      room: what this screen is showing right now. */
   function showingWord(card) { return card ? 'card:' + card.kind : 'idle'; }
 
+  /* The clocks: the programme step's, small in the corner, and the run-up
+     to a question, over everything.
+
+     Both arrive as seconds remaining, read on the master and carried to
+     this screen a poll or two later - so a reading is always a little
+     stale, and by an amount that varies. Each reading is turned into a
+     deadline on this screen's own clock and the earliest deadline seen for
+     the same countdown is kept, because staleness only ever makes a reading
+     read long. Then the words are drawn from the local clock every tenth of
+     a second, so three, two, one land on the second and not on the poll.
+
+     The run-up is the same five seconds on every screen in the room, and it
+     is why they are there: a question that appears from nowhere after ten
+     minutes of intermission has gone to whoever happened to be looking, and
+     "my time was taken" is a fair complaint. "Get ready" until three seconds
+     are left, then three, two, one. */
+  const clocks = {stepKey: null, stepAt: 0, leadKey: null, leadAt: 0, timer: null};
+
+  function mmss(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function take(show) {
+    const p = show && show.programme;
+    if (p && p.remaining != null && show.mode !== 'play') {
+      const key = 'step' + p.step;
+      const at = performance.now() + p.remaining * 1000;
+      if (clocks.stepKey !== key || at < clocks.stepAt) { clocks.stepKey = key; clocks.stepAt = at; }
+      clocks.stepWord = p.kind === 'study' ? 'Study' : (p.now || 'Intermission');
+    } else {
+      clocks.stepKey = null;
+    }
+    const li = show && show.lead_in;
+    if (li && li.remaining != null) {
+      const key = 'lead' + li.at;
+      const at = performance.now() + li.remaining * 1000;
+      if (clocks.leadKey !== key || at < clocks.leadAt) { clocks.leadKey = key; clocks.leadAt = at; }
+    } else {
+      clocks.leadKey = null;
+    }
+    const want = !!(clocks.stepKey || clocks.leadKey);
+    if (want && !clocks.timer) clocks.timer = setInterval(drawClocks, 100);
+    if (!want && clocks.timer) { clearInterval(clocks.timer); clocks.timer = null; }
+    drawClocks();
+  }
+
+  function drawClocks() {
+    let clock = document.getElementById('hs-clock');
+    if (!clock) {
+      clock = document.createElement('div');
+      clock.id = 'hs-clock';
+      document.body.appendChild(clock);
+    }
+    let lead = document.getElementById('hs-leadin');
+    if (!lead) {
+      lead = document.createElement('div');
+      lead.id = 'hs-leadin';
+      document.body.appendChild(lead);
+    }
+    const now = performance.now();
+    // The corner clock steps out of the way while the run-up has the
+    // screen: it would read 0:04 beside a three, which is two clocks.
+    if (clocks.stepKey && !clocks.leadKey) {
+      const left = (clocks.stepAt - now) / 1000;
+      const html = `<span class="k">${esc(clocks.stepWord)}</span>${mmss(left)}`;
+      if (clock.innerHTML !== html) clock.innerHTML = html;
+      clock.classList.toggle('soon', left <= 60);
+      clock.hidden = false;
+    } else {
+      clock.hidden = true;
+    }
+    if (clocks.leadKey) {
+      const left = (clocks.leadAt - now) / 1000;
+      const word = left > 3 ? 'Get ready!' : left > 0 ? String(Math.ceil(left)) : 'Go!';
+      const cls = left > 3 ? 'hs-word' : 'hs-word hs-num';
+      if (lead.dataset.word !== word) {
+        lead.dataset.word = word;
+        lead.innerHTML = `<div class="${cls}">${word}</div>`;
+      }
+      lead.hidden = false;
+      document.body.classList.add('hs-leadin-on');
+    } else {
+      lead.hidden = true;
+      lead.dataset.word = '';
+      document.body.classList.remove('hs-leadin-on');
+    }
+  }
+
   /* Announcements and attention, laid over whatever the screen is doing.
      Urgent ones are red and stay; notices are amber and time out by
      themselves on the server side, so this draws what it is given. */
   function overlay(show) {
+    take(show);
     let box = document.getElementById('hs-overlay');
     if (!box) {
       box = document.createElement('div');
@@ -126,5 +217,5 @@
           <span class="hs-ann-t">${esc(a.text)}</span></div>`).join('');
   }
 
-  window.hallShow = {cardHTML, overlay, showingWord};
+  window.hallShow = {cardHTML, overlay, showingWord, mmss};
 })();

@@ -2091,6 +2091,31 @@ net control across a reboot — these Pis update and restart in the small hours,
 and nobody should have to walk twenty tables through a form before the doors
 open.
 
+### The run-up, and the programme keeping time
+
+The first question after a pause does not appear from nowhere. A hall that
+has been in intermission for ten minutes and then has a question on every
+screen in the same instant has handed the round to whoever happened to be
+looking, and the rest will say, rightly, that their time was taken. So the
+conductor puts five seconds on every screen first — **Get ready!** until three
+seconds are left, then **3**, **2**, **1** — and asks on nought. The same five
+seconds whether the host pressed Play or the programme's clock ran out, on the
+table screens, the phones and the board together, because the people in the
+room cannot tell which it was and should not have to. The seconds are counted
+on net control and each screen keeps the earliest reading it has had, so a
+slow poll never pushes a three back to a four.
+
+A programme step with minutes on it used to be a note for the host, who
+pressed Next when it felt like ten minutes. Now it keeps time: a small clock
+sits in the corner of every screen — *Intermission · 4:32* — and when it runs
+out the programme moves on by itself. Where a game follows, the hand-over
+comes five seconds early so the run-up *is* the intermission's last five
+seconds and the clock reaches 0:00 as the question goes up. A rounds step
+hands over when its rounds are played, a shootout when it is won; steps with
+no natural end — an announcement, the certificates, thanks — still wait for
+the host, whose own buttons work throughout. Intermission pressed during a
+run-up cancels it, and the screens stop counting.
+
 ### The show — what every screen does when it is not asking a question
 
 The host runs the room, and a dead screen at a hamfest is an invitation to

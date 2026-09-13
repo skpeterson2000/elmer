@@ -191,6 +191,14 @@ class Net:
         self.round_number = 0
         self.round = None          # dict: the question every unit is showing
         self.opened_at = 0.0
+        # The run-up to a question after a pause: "Get ready" and three, two,
+        # one on every screen before the first question of a game or the
+        # first after an intermission. Held here rather than in the conductor
+        # because the screens read the net, and a table screen, a phone and
+        # the board must all be counting the same seconds. See hall.LEAD_IN.
+        self.lead_in_until = 0.0
+        self.lead_in_at = 0.0
+        self.lead_in_seconds = 0.0
         self.results = {}          # unit_id -> list of player results
         self.history = []
         self.picker_unit = None
@@ -238,6 +246,39 @@ class Net:
         # evening set up in advance is still set up when the net opens.
         self.show = showmod.Show.load()
 
+    # ------------------------------------------------------------- lead-in
+
+    def begin_lead_in(self, seconds):
+        """Start the run-up: the next question comes when it has run out."""
+        with self.lock:
+            now = _now()
+            self.lead_in_at = now
+            self.lead_in_seconds = float(seconds)
+            self.lead_in_until = now + float(seconds)
+
+    def cancel_lead_in(self):
+        with self.lock:
+            self.lead_in_until = 0.0
+
+    def lead_in_remaining(self):
+        """Seconds still to run, 0.0 when it has run out, None when none is on."""
+        with self.lock:
+            if not self.lead_in_until:
+                return None
+            return max(0.0, self.lead_in_until - _now())
+
+    def lead_in_view(self):
+        """The run-up as a screen counts it: what is left, of how much, and
+        which run-up this is - a screen that gets a stale reading a second
+        late needs to know a fresh one is the same countdown, not a new one."""
+        remaining = self.lead_in_remaining()
+        if remaining is None:
+            return None
+        with self.lock:
+            return {"remaining": round(remaining, 2),
+                    "seconds": self.lead_in_seconds,
+                    "at": round(self.lead_in_at, 2)}
+
     # ---------------------------------------------------------------- show
 
     def show_for(self, unit_id):
@@ -245,7 +286,9 @@ class Net:
         with self.lock:
             standings = [{"name": r["name"], "score": r["score"],
                           "gained": r["gained"]} for r in self.standings(6)]
-        return self.show.for_unit(unit_id, standings=standings, join=True)
+        view = self.show.for_unit(unit_id, standings=standings, join=True)
+        view["lead_in"] = self.lead_in_view()
+        return view
 
     # ------------------------------------------------------------- check-in
 
@@ -422,6 +465,7 @@ class Net:
             self.round_number += 1
             self.opened_at = _now()
             self.results = {}
+            self.lead_in_until = 0.0        # the question is the end of it
             if payload.get("difficulty"):
                 # A net that spent the evening drifting from Technician to
                 # General should say so on the network; the label is what the
@@ -1010,6 +1054,7 @@ class Net:
 
     def board(self):
         """The big screen: who is winning, and how big the hall is."""
+        lead_in = self.lead_in_view()
         with self.lock:
             units = sorted((u.as_dict() for u in self.units.values()),
                            key=lambda u: (-u["score"], u["name"]))
@@ -1042,9 +1087,9 @@ class Net:
                 "shootout": self.shootout_view(),
                 # The board is a screen in the hall like any other: it shows
                 # the deck and the announcements, addressed to nobody's seat.
-                "show": self.show.for_unit(None, standings=[
+                "show": dict(self.show.for_unit(None, standings=[
                     {"name": r["name"], "score": r["score"], "gained": r["gained"]}
-                    for r in self.standings(6)], join=True),
+                    for r in self.standings(6)], join=True), lead_in=lead_in),
             }
 
     def people_board(self, limit=40):

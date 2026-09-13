@@ -19,6 +19,23 @@ working before there is a hall - an instructor setting up an evening, a
 demonstration on a bench, a screen at a club meeting with two Pis on it - and
 they stand down as real units arrive, one for one.  They are flagged the whole
 way to the board and nothing here hides them.
+
+The first question after a pause gets a run-up.  A hall that has been in
+intermission for ten minutes and then has a question on every screen in the
+same instant has handed the round to whoever happened to be looking, and the
+rest will say, rightly, that their time was taken from them.  So the
+conductor puts five seconds on every screen first - "Get ready", then three,
+two, one - and asks on nought.  The same five seconds whether the host
+pressed Play or the programme's clock ran out, because the people in the
+room cannot tell which it was and should not have to.
+
+The programme keeps its own time too.  A step with minutes on it used to be
+a note for the host, who pressed Next when it felt like ten minutes; with a
+clock counting down in the corner of every screen it has to mean what it
+says, so the timekeeper here moves the programme on when a timed step is
+up, and hands over from a game step when its rounds are played.  Steps with
+no natural end - an announcement, the certificates, thanks - still wait for
+the host, and the host's own buttons work throughout.
 """
 import logging
 import threading
@@ -29,6 +46,10 @@ log = logging.getLogger("elmer")
 TICK = 0.25                # how often the hall is looked at
 REVEAL_SECONDS = 10.0      # how long a closed round stands before the next
 BETWEEN_MIN = 2.0          # a breath after the reveal, so it does not snap
+# The run-up before the first question of a conducting: "Get ready" until
+# three seconds are left, then three, two, one.  The screens draw the words
+# from what is left; this is only how long it is.
+LEAD_IN = 5.0
 
 # A hall with nobody in it is not waiting, it is empty.  One table with one
 # person at it is a game, which is the answer to somebody sitting alone in
@@ -40,18 +61,24 @@ class Conductor:
     """Starts the hall when it is ready, and keeps it going."""
 
     def __init__(self, net, ask, ready_tables=READY_TABLES, rounds=None,
-                 reveal=REVEAL_SECONDS):
+                 reveal=REVEAL_SECONDS, lead_in=LEAD_IN):
         self.net = net
         self.ask = ask                 # callable() -> puts the next question up
         self.ready_tables = ready_tables
         self.rounds = rounds           # None means keep going
         self.reveal = reveal
+        self.lead_in = float(lead_in or 0.0)
         self.stop = threading.Event()
         self.thread = None
         self.played = 0
         self.state = "waiting"
         self.next_at = 0.0
         self.error = None
+        # The run-up happens once, before this conducting's first question.
+        # Every Play press and every programme step makes a new conductor,
+        # so "first" is the first after whatever pause there was.
+        self._led_in = self.lead_in <= 0
+        self._starting = False
 
     def waiting_for(self):
         """What the hall is short of, in words a screen can use."""
@@ -126,6 +153,20 @@ class Conductor:
                 self.state = "picking"
                 return
 
+        if not self._led_in:
+            # Everything that could hold the question up has cleared - the
+            # tables are seated, the pick is made - so the run-up starts now
+            # and the question follows it. Started from the net so that all
+            # three kinds of screen count the same seconds.
+            if not self._starting:
+                self._starting = True
+                self.state = "starting"
+                net.begin_lead_in(self.lead_in)
+                return
+            if (net.lead_in_remaining() or 0.0) > 0:
+                return
+            self._led_in = True
+
         self.state = "asking"
         self.ask()
         self.next_at = time.monotonic() + BETWEEN_MIN
@@ -141,6 +182,11 @@ class Conductor:
                 self.stop.set()
                 break
             self.stop.wait(TICK)
+        if self._starting and not self._led_in:
+            # Stopped in the run-up - the host called an intermission - so the
+            # screens are not left counting down to a question that will not
+            # come.
+            self.net.cancel_lead_in()
         if self.state != "faulted":
             self.state = "finished" if self.stop.is_set() else "stopped"
 
@@ -154,10 +200,82 @@ class Conductor:
         return {"running": bool(self.thread and self.thread.is_alive()),
                 "state": self.state, "played": self.played,
                 "rounds": self.rounds, "waiting_for": self.waiting_for(),
+                "lead_in": (self.net.lead_in_remaining()
+                            if self.state == "starting" else None),
                 "error": self.error}
 
 
+class Timekeeper:
+    """Walks the programme's timed steps, and hands over from finished games.
+
+    `advance(index)` is the application's: it moves the programme on from
+    step `index` and makes the new step happen - the same thing the host's
+    Next button does.  Given the index so that a press and a tick landing
+    together cannot skip a step between them.
+    """
+
+    def __init__(self, net, advance, lead_in=LEAD_IN, tick=0.5):
+        self.net = net
+        self.advance = advance
+        self.lead_in = float(lead_in or 0.0)
+        self.tick = tick
+        self.stop = threading.Event()
+        self.thread = None
+        self._handed = None            # the finished conductor already handed over
+        self.error = None
+
+    def due(self, now=None):
+        """The index of the step to move on from, or None."""
+        show = self.net.show
+        cur = show.current_step()
+        if cur is None:
+            return None
+        index = show.step
+        # A timed step - an intermission or a study spell with minutes on it
+        # - is up when its clock is, less the run-up where a game follows.
+        if show.step_due(now, lead=self.lead_in):
+            return index
+        # A game step is over when the rounds are played or the shootout is
+        # won; the conductor says so and then sits there.  Once per
+        # conductor: a finished one stays finished, and the same programme
+        # walked twice in an evening makes a new one each time.
+        if cur.get("kind") in ("rounds", "shootout"):
+            live = conductor()
+            if (live is not None and live.state == "finished"
+                    and live is not self._handed):
+                return index
+        return None
+
+    def _tick(self, now=None):
+        index = self.due(now)
+        if index is None:
+            return False
+        cur = self.net.show.current_step() or {}
+        if cur.get("kind") in ("rounds", "shootout"):
+            self._handed = conductor()
+        log.info("programme: step %d (%s) is up - moving on", index + 1,
+                 cur.get("label") or cur.get("kind") or "?")
+        self.advance(index)
+        return True
+
+    def run(self):
+        while not self.stop.is_set():
+            try:
+                self._tick()
+            except Exception as exc:            # pragma: no cover
+                self.error = repr(exc)
+                log.exception("programme: %s", exc)
+            self.stop.wait(self.tick)
+
+    def start(self):
+        self.thread = threading.Thread(target=self.run, daemon=True,
+                                       name="programme")
+        self.thread.start()
+        return self
+
+
 _conductor = None
+_timekeeper = None
 _lock = threading.Lock()
 
 
@@ -167,12 +285,13 @@ def conductor():
 
 
 def start(net, ask, ready_tables=READY_TABLES, rounds=None,
-          reveal=REVEAL_SECONDS):
+          reveal=REVEAL_SECONDS, lead_in=LEAD_IN):
     global _conductor
     with _lock:
         if _conductor is not None:
             _conductor.stop.set()
-        _conductor = Conductor(net, ask, ready_tables, rounds, reveal).start()
+        _conductor = Conductor(net, ask, ready_tables, rounds, reveal,
+                               lead_in).start()
         log.info("hall: conducting (%s rounds, %d table(s) wanted)",
                  rounds or "open-ended", ready_tables)
         return _conductor
@@ -185,5 +304,30 @@ def halt():
             _conductor.stop.set()
             _conductor = None
             log.info("hall: stopped conducting")
+            return True
+        return False
+
+
+def timekeeper():
+    with _lock:
+        return _timekeeper
+
+
+def keep_time(net, advance, lead_in=LEAD_IN):
+    """Start walking this net's programme by the clock."""
+    global _timekeeper
+    with _lock:
+        if _timekeeper is not None:
+            _timekeeper.stop.set()
+        _timekeeper = Timekeeper(net, advance, lead_in).start()
+        return _timekeeper
+
+
+def release_time():
+    global _timekeeper
+    with _lock:
+        if _timekeeper is not None:
+            _timekeeper.stop.set()
+            _timekeeper = None
             return True
         return False

@@ -78,10 +78,39 @@ time.sleep(0.8)
 check("still nothing asked", len(ask.asked), 0)
 check("though the table is counted", net.health()["units"], 1)
 
-print("\nsomebody sits down, and that is what starts it")
+print("\nsomebody sits down, and that is what starts it - after a run-up")
 net.check_in("bench-1", "Bench", players=3)
-check("a round went up", wait_until(lambda: len(ask.asked) >= 1, 5.0), True)
+# Not in the same instant: the first question after a pause has five seconds
+# of "get ready" in front of it on every screen, counted on the net so the
+# screens agree, and the question goes up when they have run out.
+check("the run-up starts", wait_until(lambda: conductor.state == "starting", 3.0),
+      True)
+check("  and every screen can count it",
+      (net.lead_in_view() or {}).get("remaining", 0) > 3.0, True)
+check("  no question yet", len(ask.asked), 0)
+check("a round went up when it ran out",
+      wait_until(lambda: len(ask.asked) >= 1, hall.LEAD_IN + 3.0), True)
+check("  and the run-up is off the screens", net.lead_in_view(), None)
 check("the hall knows it is under way", conductor.waiting_for(), None)
+hall.halt()
+
+print("\na run-up cut short by the host does not leave the screens counting")
+net = netcontrol.Net()
+net.check_in("bench-1", "Bench", players=3)
+ask = asker(net)
+conductor = hall.start(net, ask, reveal=0.5)
+check("counting", wait_until(lambda: net.lead_in_view() is not None, 3.0), True)
+hall.halt()
+check("cleared when the conductor stood down",
+      wait_until(lambda: net.lead_in_view() is None, 2.0), True)
+check("  and no question was asked", len(ask.asked), 0)
+
+print("\nwith no run-up asked for, the question is immediate")
+net = netcontrol.Net()
+net.check_in("bench-1", "Bench", players=3)
+ask = asker(net)
+conductor = hall.start(net, ask, reveal=0.5, lead_in=0)
+check("asked at once", wait_until(lambda: len(ask.asked) >= 1, 2.0), True)
 hall.halt()
 
 print("\nsimulated tables fill a hall that has none, and play")
@@ -94,8 +123,8 @@ check("and they are seated", net.health()["ready"], 3)
 
 ask = asker(net)
 conductor = hall.start(net, ask, reveal=0.3)
-check("the hall started itself", wait_until(lambda: len(ask.asked) >= 1, 5.0),
-      True)
+check("the hall started itself",
+      wait_until(lambda: len(ask.asked) >= 1, hall.LEAD_IN + 3.0), True)
 check("a round closed and was scored",
       wait_until(lambda: conductor.played >= 1, 12.0), True)
 # everyone_reported() is only true while the round is still open, and the

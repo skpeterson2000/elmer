@@ -1250,3 +1250,20 @@ table.data.printouts td { vertical-align: middle; }
   align-items: center; justify-content: center; text-align: center; padding: 2rem; pointer-events: auto; }
 .hs-attention p { font-size: clamp(1.6rem, 4vw, 3rem); line-height: 1.3; max-width: 30ch; margin: .5rem 0 0; }
 body.hs-held { overflow: hidden; }
+/* the programme step's clock - in the corner, readable from the back, not
+   the thing the screen is about */
+#hs-clock { position: fixed; top: 3.6rem; right: .8rem; z-index: 2900; pointer-events: none;
+  font: 1rem var(--mono); color: var(--amber); background: rgba(11,14,19,.86);
+  border: 1px solid var(--line-2); border-radius: 999px; padding: .35rem .85rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,.4); }
+#hs-clock .k { font: .68rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dim); margin-right: .55rem; }
+#hs-clock.soon { border-color: var(--amber); }
+/* the run-up to a question - over everything, on every screen at once */
+#hs-leadin { position: fixed; inset: 0; z-index: 3100; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: rgba(11,14,19,.78); }
+#hs-leadin .hs-word { font: 700 clamp(2.6rem, 12vw, 8rem)/1.05 var(--sans); color: var(--amber);
+  letter-spacing: 0; text-shadow: 0 8px 40px rgba(0,0,0,.7); animation: hs-pop .45s ease-out; padding: 0 1rem; }
+#hs-leadin .hs-word.hs-num { font-size: clamp(6rem, 30vw, 20rem); font-family: var(--mono); }
+@keyframes hs-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }

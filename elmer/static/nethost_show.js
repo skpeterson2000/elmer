@@ -93,7 +93,9 @@
     const c = v.conducting;
     const b = document.querySelector('#sh-modes [data-mode="play"]');
     b.textContent = c && c.running
-      ? 'Playing \u00b7 ' + (c.state === 'waiting' ? (c.waiting_for || 'waiting') : c.state)
+      ? 'Playing \u00b7 ' + (c.state === 'waiting' ? (c.waiting_for || 'waiting')
+                             : c.state === 'starting' ? 'get ready \u00b7 ' + Math.ceil(c.lead_in || 0) + 's'
+                             : c.state)
       : 'Playing';
   }
 
@@ -234,8 +236,11 @@
       return `<li class="${cls}"><span>${esc(s.label)}${detail ? ` <span style="color:var(--dim)">${esc(detail)}</span>` : ''}</span>
         <button class="x" data-step="${i}" title="remove">&times;</button></li>`;
     }).join('') || '<li class="empty" style="list-style:none;margin-left:-1.4rem">No programme yet - add steps, or fill in a club evening.</li>';
+    // A timed step says how long it has left: the same clock the room's
+    // screens are showing, so the host is not surprised by the hand-over.
+    const left = p.remaining != null ? ` · ${hallShow.mmss(p.remaining)} left` : '';
     $('sh-prog-now').textContent = p.of
-      ? (p.now ? `Now: ${p.now}` + (p.next ? ` · next: ${p.next}` : ' · last step') : `${p.of} steps, not started`)
+      ? (p.now ? `Now: ${p.now}${left}` + (p.next ? ` · next: ${p.next}` : ' · last step') : `${p.of} steps, not started`)
       : '';
     $('sh-next').disabled = !steps.length;
   }
