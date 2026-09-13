@@ -44,6 +44,25 @@ jobs:
     # without it the library test skips and says so, which is not a test.
     - name: Install poppler
       run: sudo apt-get install -y --no-install-recommends poppler-utils
+    # Several tests load a page in a real browser, because a page's inline
+    # script either runs or it does not and nothing short of a JavaScript
+    # engine can say which (see tests/_browser.py). They fail - not skip -
+    # without one, on purpose: a test that skips when its tool is missing is
+    # a test that never runs where it matters. The runner used to ship Google
+    # Chrome and the tests leaned on that; when the image dropped it the build
+    # went red on green code. So the browser is installed here rather than
+    # assumed, the same way poppler is.
+    - name: Install Chromium for the browser tests
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends chromium-browser || true
+        # Ubuntu's apt "chromium-browser" is a snap stub that tests reject, so
+        # fall back to Google Chrome's own package, which puts a real browser
+        # on PATH as google-chrome-stable.
+        if ! chromium --version >/dev/null 2>&1 && ! chromium-browser --version >/dev/null 2>&1; then
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+        fi
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
