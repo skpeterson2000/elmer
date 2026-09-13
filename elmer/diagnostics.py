@@ -145,7 +145,7 @@ def collect(port=5000):
                       check_location, check_gps, check_repeaters,
                       check_towerwitch_service, check_neighbours_known,
                       check_net_role, check_hall, check_node, check_mail,
-                      check_load, check_internet, check_start):
+                      check_load, check_op25, check_internet, check_start):
             try:
                 check()
             except Exception as exc:
@@ -826,6 +826,38 @@ def check_node():
     return True
 
 
+def check_op25():
+    """Whether OP25 is on this machine eating it, and what ELMER will do.
+
+    OP25 takes most of a Pi when it runs; a game on the same machine then
+    serves everything from behind it. ELMER can stop it when a game starts -
+    this says whether it is running, and whether that is armed - so the
+    choke is named before the evening rather than guessed at during it.
+    """
+    from . import op25, db
+    try:
+        conn = db.connect()
+    except Exception:
+        conn = None
+    procs = op25.running(conn)
+    armed = op25.wanted(conn)
+    if not procs:
+        if armed:
+            _line(OK, "OP25", "not running; it would be stopped when a game starts")
+        else:
+            _line(OK, "OP25", "not running (and stopping it is switched off)")
+        return True
+    pids = ", ".join(f"pid {p}" for p, _ in procs)
+    if armed:
+        _line(WARN, "OP25", f"running ({pids}) - it takes most of a Pi; ELMER "
+              "will stop it when a net opens or a tournament starts")
+    else:
+        _line(WARN, "OP25", f"running ({pids}) and stopping it is switched off "
+              "- on a Pi 3 it will make a game feel slow; set stop_op25 on, or "
+              "stop it by hand before playing")
+    return True
+
+
 def check_kiosk():
     """What ./elmer.py --kiosk would do if it were run right now."""
     from . import kiosk
@@ -979,7 +1011,7 @@ def doctor(port=5000):
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
         check_neighbours(), check_net_role(), check_hall(), check_node(),
-        check_mail(), check_load(),
+        check_mail(), check_load(), check_op25(),
         check_internet(), check_start(), check_server(port),
     ]
 

@@ -125,6 +125,14 @@ def build(conn=None, lines=400, include_station=False):
     except Exception:
         pass
     try:
+        from . import op25
+        procs = op25.running()
+        if procs:
+            add(f"op25       running ({len(procs)} process) - a heavy neighbour "
+                "on this Pi")
+    except Exception:
+        pass
+    try:
         import flask
         add(f"flask      {flask.__version__}")
     except Exception:

@@ -40,7 +40,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                fieldreport, mail, monitoring, personal, reachout, repeaters,
                show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
-               tournament, trivia, update, vna, whipbuild)
+               tournament, trivia, update, vna, whipbuild, op25)
 from .content import get_pool, load_pools, presentation
 
 log = logging.getLogger("elmer")
@@ -2995,6 +2995,22 @@ def api_party_answer():
 AUTO_START_SECONDS = 15.0
 
 
+def _quiet_op25(reason):
+    """Stop OP25 if the operator left it on, so a game has the Pi to itself.
+
+    Called at the discrete moments a unit takes up a game - opening a net,
+    starting a tournament, joining one - never on a poll. Cheap and silent
+    when OP25 is not running or the setting is off. See elmer.op25.
+    """
+    try:
+        stopped = op25.stop_if_wanted(conn(), reason=reason)
+        if stopped:
+            log.info("op25: freed the Pi for %s (%d process(es))",
+                     reason, len(stopped))
+    except Exception:                     # never let this hold up a game
+        pass
+
+
 def _party_under_net():
     """Whether this table takes its rounds from somebody else.
 
@@ -3089,6 +3105,7 @@ def _party_begin(room, difficulty, armed_only=False):
         return False
     room.end_shootout()               # what starts on its own is a tournament
     room.fill_bots(None)
+    _quiet_op25("a tournament is starting")
     seconds = party.DEFAULT_ROUND_SECONDS
     autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
     log.info("party: started on its own (%s)", difficulty)
@@ -3142,6 +3159,7 @@ def _party_auto_join(room):
         return False
     room = party.room(create=True, cohorts=1)
     _table_yields_to_hall(room)
+    _quiet_op25("this table is joining a net")
     link = cohort.connect(chosen["url"], None, None, conn=connection,
                           token=chosen.get("token"))
     _seed_from_heard(link, chosen)
@@ -3351,6 +3369,7 @@ def api_party_auto():
     room.end_shootout()
     if body.get("bots", True):
         room.fill_bots(body.get("level"))
+    _quiet_op25("a tournament is starting")
     driver = autoplay.start(
         room, lambda: _ask_party(difficulty, section, seconds),
         rounds=int(rounds) if rounds else None,
@@ -3497,6 +3516,8 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     one now.
     """
     connection = conn()
+    # A hall wants the Pi to itself; OP25 is the loudest neighbour on it.
+    _quiet_op25("net control is opening")
     hall.halt()                       # the old net's conductor goes with it
     hall.release_time()               # and its timekeeper
     netcontrol.close_net()
@@ -4309,6 +4330,7 @@ def api_party_net():
         cohort.set_auto_join(connection, True)
         if link is None or link.url != url.rstrip("/"):
             _table_yields_to_hall(room)
+            _quiet_op25("this table is joining a net")
             known = next((n for n in heard
                           if n["url"].rstrip("/") == url.rstrip("/")), None)
             link = cohort.connect(url, body.get("unit"), body.get("name"),
