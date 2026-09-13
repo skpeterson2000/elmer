@@ -66,6 +66,17 @@ Write-Host "  ELMER - Windows install" -ForegroundColor Cyan
 Write-Host "  $root"
 Write-Host ""
 
+# Windows puts Desktop and Documents on OneDrive by default, so this is
+# where a zip gets unzipped. Said once, not blocked: it works, but a venv is
+# thousands of files for OneDrive to sync, and "files on demand" can later
+# turn one of them into a cloud placeholder that Python cannot import. A
+# folder off the sync - C:\ELMER, say - has neither problem.
+if ($root -like '*OneDrive*') {
+    Warn "this folder is inside OneDrive, so everything installed here is synced too."
+    Write-Host "          It works, but a copy in a folder OneDrive does not sync - C:\ELMER, say -"
+    Write-Host "          is faster to install and cannot be broken by a file going online-only."
+}
+
 # ------------------------------------------------ fetching what is missing
 # winget is on every Windows 10 (21H2 and later) and Windows 11 machine. It is
 # asked per package, and only ever after the person said yes - or said -Yes

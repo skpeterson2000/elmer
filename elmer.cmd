@@ -26,7 +26,11 @@ rem key is pressed and the message above it can be read, or photographed.
 if errorlevel 1 (
     echo.
     echo   ELMER stopped with an error. The message above says why.
-    echo   If it says Python is missing, run install.ps1 in this folder first.
+    echo   If it says "No module named" something, or that Python is not
+    echo   recognized, this copy has not been installed yet: open PowerShell
+    echo   in this folder and run
+    echo       powershell -ExecutionPolicy Bypass -File install.ps1
+    echo   then double-click this again.
     echo.
     pause
 )
