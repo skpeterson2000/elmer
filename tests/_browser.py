@@ -53,7 +53,24 @@ def evaluate(url, js, width=1024, height=600, settle=2.0, port=None):
     chromium = available()
     if not chromium:
         raise RuntimeError("no chromium on this machine")
-    return _run(chromium, url, None, width, height, js, settle, port or _free_port())
+    # A cold Chromium sometimes dies at launch and never binds its debug port
+    # - a race that has nothing to do with the page under test. Retrying the
+    # whole launch turns that flake into a pass rather than a red build; a
+    # genuine failure (no browser, a real page fault) still fails, because it
+    # fails the same way every attempt.
+    last = None
+    for attempt in range(3):
+        try:
+            return _run(chromium, url, None, width, height, js, settle,
+                        port or _free_port())
+        except _LaunchFlake as exc:
+            last = exc
+            time.sleep(0.5)
+    raise SystemExit(str(last) if last else "chromium never launched")
+
+
+class _LaunchFlake(Exception):
+    """Chromium did not come up this time; the launch is worth retrying."""
 
 
 def _run(chromium, url, out, w, h, js, settle, port):
@@ -71,7 +88,7 @@ def _run(chromium, url, out, w, h, js, settle, port):
           except Exception:
               time.sleep(0.2)
       else:
-          raise SystemExit("chromium never answered on the debugging port")
+          raise _LaunchFlake("chromium never answered on the debugging port")
       ws = page["webSocketDebuggerUrl"]           # ws://127.0.0.1:9333/devtools/page/ID
       path = ws.split(f":{port}", 1)[1]
       s = socket.create_connection(("127.0.0.1", port))
