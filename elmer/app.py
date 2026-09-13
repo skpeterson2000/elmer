@@ -5548,7 +5548,7 @@ def api_report():
     # the operator can read, and the press is the operator's decision.
     if body.get("send"):
         stamp = bugreport.build_stamp().get("commit") or "unknown"
-        ok, detail = mail.send(f"ELMER problem report - build {stamp} - "
+        ok, detail = mail.send(f"problem report - build {stamp} - "
                                f"{time.strftime('%Y-%m-%d')}", text)
         out["sent"], out["detail"] = ok, detail
     return jsonify(out)

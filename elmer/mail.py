@@ -1,11 +1,15 @@
 """Mail from a unit to the project: a problem report, a field report.
 
-The address is KC9SP's own Gmail. It was the arrl.net forwarder first, which
-is made for exactly this - but a forwarder is one more hop that can drop or
-delay a message and its owner does not trust it, and a report that may not
-arrive is not worth the settings screen it took. He chose to put a direct
-address here, so the worry about baking an address into a public repository
-is his to have weighed, and he did.
+The address is KC9SP's arrl.net forwarder. An arrl.net address is made for
+exactly this - it forwards to whatever inbox its owner points it at and is
+filtered on the way - and its owner chose to put it here, so the earlier
+worry about baking an address into a public repository is his to have
+weighed, and he did.
+
+Every subject a unit sends is tagged [ELMER], put on here rather than left
+to each caller, so that one mail filter at the far end catches all of them
+- the first reports arrived in a spam folder, and a filter needs a token
+that cannot be mistaken for a word in somebody else's subject.
 
 What ELMER does not carry is a mail account. A unit sends through its
 operator's own outgoing mail server - the SMTP submission host, port and
@@ -31,8 +35,9 @@ from .paths import STATE
 
 log = logging.getLogger("elmer")
 
-CONTACT = "skptrsn@gmail.com"
+CONTACT = "KC9SP@ARRL.NET"
 SETTINGS = STATE / "mail.json"
+TAG = "[ELMER]"
 SECURITIES = ("starttls", "ssl", "none")
 DEFAULT_PORT = {"starttls": 587, "ssl": 465, "none": 25}
 TIMEOUT = 30
@@ -126,6 +131,12 @@ def forget():
     return public_settings()
 
 
+def subject_line(subject):
+    """The subject as sent: tagged, once, whatever the caller wrote."""
+    subject = str(subject or "").strip()
+    return subject if subject.startswith(TAG) else f"{TAG} {subject}".strip()
+
+
 def send(subject, body, to=CONTACT, attachments=(), s=None):
     """Send one message. Returns (sent, detail); never raises.
 
@@ -135,6 +146,7 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
     s = settings() if s is None else s
     if not configured(s):
         return False, "no outgoing mail server is set on this unit"
+    subject = subject_line(subject)
     msg = EmailMessage()
     msg["From"] = s["sender"]
     msg["To"] = to
@@ -192,6 +204,6 @@ def send(subject, body, to=CONTACT, attachments=(), s=None):
 def test():
     """One line to the contact, so the operator knows the path works."""
     stamp = time.strftime("%Y-%m-%d %H:%M %Z")
-    return send(f"ELMER test message {stamp}",
+    return send(f"test message {stamp}",
                 "This is a test from an ELMER unit's outgoing-mail settings. "
                 "If you are reading it, the path works.\n")

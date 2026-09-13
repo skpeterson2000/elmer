@@ -478,10 +478,11 @@ miles of road rather than DX.
 
 ## Mail home
 
-Reports go to **skptrsn@gmail.com** — KC9SP's own inbox, chosen over the
-arrl.net forwarder because a forwarder is one more hop that can drop or delay
-a message, and a report that may not arrive is not worth its settings screen.
-ELMER carries no mail account. A unit sends through its operator's own outgoing
+Reports go to **KC9SP@ARRL.NET** — an arrl.net forwarder, chosen for exactly
+this: it forwards to its owner's inbox and is filtered on the way. Every
+subject a unit sends begins **[ELMER]**, put on by the sending path rather
+than left to each caller, so one filter at the far end catches all of them —
+the first ones landed in a spam folder. ELMER carries no mail account. A unit sends through its operator's own outgoing
 mail server — the SMTP host, port and login you would give any mail program —
 kept in `data/mail.json` on that unit alone, readable by nobody else; with
 nothing set, a report is written where you can find it and the page says

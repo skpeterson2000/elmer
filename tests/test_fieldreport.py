@@ -31,8 +31,16 @@ def check(label, got, want):
 
 def main():
     print("-- the address --")
-    check("reports go straight to KC9SP's inbox", mail.CONTACT, "skptrsn@gmail.com")
+    check("reports go to the arrl.net forwarder", mail.CONTACT, "KC9SP@ARRL.NET")
     check("  and the problem report page shows the same one", bugreport.CONTACT, mail.CONTACT)
+
+    print("\n-- the subject --")
+    # Tagged on the way out, whatever a caller wrote, so one filter at the
+    # far end catches every message a unit sends.
+    check("a subject is tagged", mail.subject_line("field report - build abc"),
+          "[ELMER] field report - build abc")
+    check("  once", mail.subject_line("[ELMER] test"), "[ELMER] test")
+    check("  and an empty one is the tag alone", mail.subject_line(""), "[ELMER]")
 
     print("\n-- outgoing mail on this unit --")
     check("nothing is set to begin with", mail.configured(), False)

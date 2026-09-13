@@ -253,7 +253,7 @@ def send_now(conn=None, reason="weekly"):
     """Write and send. Returns a dict the page can show; never raises."""
     path, text = write(conn)
     stamp = bugreport.build_stamp().get("commit") or "unknown"
-    subject = f"ELMER field report - build {stamp} - {time.strftime('%Y-%m-%d')}"
+    subject = f"field report - build {stamp} - {time.strftime('%Y-%m-%d')}"
     ok, detail = mail.send(subject, text)
     data = settings()
     data["last_result"] = {"at": time.time(), "sent": ok, "detail": detail,
