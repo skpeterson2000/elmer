@@ -4187,14 +4187,14 @@ def api_net_close():
 
 
 def _nets_heard():
-    """The nets on the network this table could report to, fullest first."""
+    """The nets on the network this table could report to, fullest first:
+    what has been heard, and what the last sweep found."""
     live = discovery.neighbourhood()
-    if live is None:
-        return []
     try:
-        return live.nets()
+        heard = live.nets() if live is not None else []
     except Exception:                     # a roster is never worth a 500
-        return []
+        heard = []
+    return discovery.merge_nets(heard, discovery.found_nets())
 
 
 def _party_net_view():
@@ -4214,6 +4214,31 @@ def _party_net_view():
             "hosting": hosting,
             "heard": heard,
             "auto_join": cohort.auto_join_wanted(conn())}
+
+
+@app.route("/api/nets/scan", methods=["POST"])
+def api_nets_scan():
+    """Look for games to join, rather than waiting to overhear one.
+
+    The offer to join a net appears when a net is heard, and hearing can
+    fail quietly - an access point that will not carry broadcast, a unit
+    announcing down its other interface - or the person was simply not
+    looking when it came up. In kiosk mode there is no terminal to go and
+    look from, so this is the button: every address on this unit's own
+    subnets is asked, on ELMER's port, and what answers is remembered for a
+    minute so the offer, the dashboard's panel and auto-join all see it.
+    """
+    if netcontrol.net() is not None:
+        # A host has its own game; the sweep still runs, so the host can
+        # see what else is out there, but there is nothing here to join.
+        pass
+    connection = conn()
+    remembered = (db.unit_get(connection, cohort.URL_SETTING) or "").strip()
+    result = discovery.sweep(port=int(app.config.get("PORT", 5000)),
+                             extra_urls=[remembered] if remembered else ())
+    return jsonify(dict(result, nets=_nets_heard(),
+                        hosting=netcontrol.net() is not None,
+                        connected=cohort.bridge() is not None))
 
 
 @app.route("/api/party/net", methods=["POST"])
@@ -4870,6 +4895,7 @@ def _net_role():
             role["difficulty"] = running.difficulty
             role["units"] = len(running.present_units())
             role["round"] = running.round_number
+            role["mode"] = running.show.mode
     except Exception:
         pass
     try:
@@ -4910,8 +4936,8 @@ def api_peers():
     live = discovery.neighbourhood()
     if live is None:
         return jsonify({"running": False, "peers": [], "count": 0,
-                        "summary": {"count": 0, "nets": []}, "me": mine,
-                        "difficulties": choices})
+                        "summary": {"count": 0, "nets": discovery.found_nets()},
+                        "me": mine, "difficulties": choices})
     return jsonify(dict(live.as_dict(), me=mine, difficulties=choices))
 
 

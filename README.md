@@ -1148,6 +1148,20 @@ each interface's own broadcast is sent as well, and a table sends a copy by
 name to the host it already knows, for the access points that will not carry
 broadcast between their clients at all.
 
+**And there is a button that looks.** Hearing is passive, and the offer to
+join appears when a net is heard — so a person who was not looking at that
+moment, or whose unit heard nothing, had no way back to it in kiosk mode.
+**Look for a game** — on the dashboard's game panel, and on the table screen
+— asks every address on the unit's own subnets, on ELMER's port, whether an
+ELMER is there and what it is doing: one port, one small request to each
+answering host, a second or two in all. What it finds is remembered for a
+minute and treated as heard, so the same offer comes up, the dashboard's
+panel comes back even after *Not now*, and auto-join sees it too. Each net
+is shown with what it is doing — *waiting for players*, *in round 4*,
+*intermission* — so a waiting room can be told from a game under way. A table
+that was cut loose by hand and then goes looking is shown what it finds; the
+press is the person changing their mind.
+
 The panel says how many and not who. A hall with nine units in it would put
 nine names, nine addresses and nine version strings on the screen, and none of
 them answer the only question the operator actually has — which is what *this*

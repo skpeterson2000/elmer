@@ -45,6 +45,7 @@ running or reporting to a net. Not the operator's name, not their progress, not
 their callsign. It goes to the local broadcast address and nowhere else, and
 position sharing can be switched off without switching off discovery.
 """
+import concurrent.futures
 import ipaddress
 import json
 import logging
@@ -52,6 +53,7 @@ import socket
 import subprocess
 import threading
 import time
+import urllib.request
 from urllib.parse import urlsplit
 
 log = logging.getLogger("elmer")
@@ -72,6 +74,31 @@ LIMITED = "255.255.255.255"
 TARGETS_FOR = 60.0
 
 
+def interfaces_from(ip_output):
+    """Every IPv4 interface that is up, from `ip -4 -br addr`, loopback left out."""
+    out = []
+    for row in str(ip_output or "").splitlines():
+        parts = row.split()
+        if len(parts) < 3 or parts[1] != "UP":
+            continue
+        for cidr in parts[2:]:
+            try:
+                iface = ipaddress.IPv4Interface(cidr)
+            except ValueError:
+                continue
+            if not iface.ip.is_loopback:
+                out.append(iface)
+    return out
+
+
+def _ip_addr():
+    try:
+        return subprocess.run(["ip", "-4", "-br", "addr"], capture_output=True,
+                              text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def targets_from(ip_output):
     """The subnet broadcast of every interface that is up, from `ip -4 -br addr`.
 
@@ -85,20 +112,12 @@ def targets_from(ip_output):
     the default route points, so every segment this unit is on hears it.
     """
     out = []
-    for row in str(ip_output or "").splitlines():
-        parts = row.split()
-        if len(parts) < 3 or parts[1] != "UP":
+    for iface in interfaces_from(ip_output):
+        if iface.network.prefixlen >= 31:
             continue
-        for cidr in parts[2:]:
-            try:
-                iface = ipaddress.IPv4Interface(cidr)
-            except ValueError:
-                continue
-            if iface.ip.is_loopback or iface.network.prefixlen >= 31:
-                continue
-            addr = str(iface.network.broadcast_address)
-            if addr not in out:
-                out.append(addr)
+        addr = str(iface.network.broadcast_address)
+        if addr not in out:
+            out.append(addr)
     out.append(LIMITED)
     return out
 
@@ -109,12 +128,166 @@ def broadcast_targets():
     Without `ip` - Windows, a stripped container - the limited broadcast is
     the whole list, which is what every unit did before.
     """
+    return targets_from(_ip_addr())
+
+
+# ------------------------------------------------------------------ the sweep
+# Hearing is passive and can fail quietly - an access point that will not
+# carry broadcast, a unit announcing down its other interface - and a person
+# who missed the one moment the offer was on the screen has, in kiosk mode,
+# no terminal to go looking from. So there is a button that looks: every
+# address on this unit's own subnets is asked, on ELMER's port, whether an
+# ELMER is there and what it is doing. One port, one small request per
+# answering host, a few seconds in all, and only when somebody presses.
+
+SWEEP_PORT = 5000
+SWEEP_CONNECT = 0.35          # seconds to wait on one address
+SWEEP_WORKERS = 64
+SWEEP_LARGEST = 24            # a /16 is 65,000 addresses; the /24 around us will do
+SWEEP_KEEP = 90.0             # how long what a sweep found stays in the roster
+
+_found = {}                   # url -> (net record, when found)
+_found_lock = threading.Lock()
+
+
+def hosts_to_sweep(interfaces, largest=SWEEP_LARGEST):
+    """The addresses worth asking: each up interface's subnet, no bigger than
+    a /24 around the unit's own address, the unit's own addresses left out."""
+    mine = {iface.ip for iface in interfaces}
+    seen, out = set(), []
+    for iface in interfaces:
+        net = iface.network
+        if net.prefixlen < largest:
+            net = ipaddress.IPv4Network(f"{iface.ip}/{largest}", strict=False)
+        for host in net.hosts():
+            addr = str(host)
+            if host in mine or addr in seen:
+                continue
+            seen.add(addr)
+            out.append(addr)
+    return out
+
+
+def _net_record(url, me):
+    """What a unit's /api/peers `me` says about the net it is in, as a roster
+    entry - the same shape nets() builds from an announcement."""
+    if me.get("hosting"):
+        return {"url": url, "name": str(me.get("name") or "a net")[:60],
+                "token": str(me.get("token") or "")[:24],
+                "difficulty": str(me.get("difficulty") or "")[:20],
+                "units": int(me.get("units") or 0),
+                "round": int(me.get("round") or 0),
+                "mode": str(me.get("mode") or "")[:16]}
+    if me.get("table_of"):
+        # A table points at its host; the host is asked directly below.
+        return {"url": str(me["table_of"])[:120],
+                "name": str(me.get("table_in") or "a net")[:60],
+                "token": str(me.get("table_token") or "")[:24],
+                "difficulty": "", "units": 0, "round": 0, "mode": "",
+                "via": url}
+    return None
+
+
+def _ask(url, path="/api/peers", timeout=3.0):
+    request = urllib.request.Request(url.rstrip("/") + path,
+                                     headers={"User-Agent": "ELMER/1.0 (sweep)"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read())
+
+
+def _open(addr, port, timeout):
     try:
-        out = subprocess.run(["ip", "-4", "-br", "addr"], capture_output=True,
-                             text=True, timeout=5).stdout
-    except (OSError, subprocess.SubprocessError):
-        out = ""
-    return targets_from(out)
+        with socket.create_connection((addr, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def sweep(port=SWEEP_PORT, extra_urls=(), interfaces=None):
+    """Look for nets on this unit's own subnets, and at the addresses given.
+
+    Returns {"nets": [...], "asked": n, "answered": n, "seconds": s}. Every
+    net found is remembered for SWEEP_KEEP seconds so that the roster, the
+    offer on the table screen and auto-join all see it as if it had been
+    heard - which is the point: the person pressed the button because the
+    hearing did not happen.
+    """
+    started = time.monotonic()
+    interfaces = interfaces_from(_ip_addr()) if interfaces is None else interfaces
+    mine = {str(i.ip) for i in interfaces}
+    hosts = hosts_to_sweep(interfaces)
+    with concurrent.futures.ThreadPoolExecutor(SWEEP_WORKERS) as pool:
+        open_hosts = [h for h, ok in zip(hosts, pool.map(
+            lambda a: _open(a, port, SWEEP_CONNECT), hosts)) if ok]
+    urls = [f"http://{h}:{port}" for h in open_hosts]
+    for url in extra_urls:
+        url = str(url or "").rstrip("/")
+        if url and url not in urls and urlsplit(url).hostname not in mine:
+            urls.append(url)
+    found, answered = {}, 0
+    with concurrent.futures.ThreadPoolExecutor(min(SWEEP_WORKERS, max(1, len(urls)))) as pool:
+        def look(url):
+            try:
+                return url, _ask(url)
+            except Exception:
+                return url, None
+        for url, reply in pool.map(look, urls):
+            if not isinstance(reply, dict):
+                continue
+            answered += 1
+            record = _net_record(url, reply.get("me") or {})
+            if record and record["url"] not in found:
+                found[record["url"]] = record
+    # A host known only through one of its tables is asked itself, so the
+    # entry carries the net's name, token and size rather than a table's
+    # second-hand word - and drops out if the table's host is gone.
+    for url, record in list(found.items()):
+        if "via" not in record:
+            continue
+        try:
+            board = _ask(url, "/api/net/board", timeout=3.0)
+        except Exception:
+            found.pop(url, None)
+            continue
+        found[url] = {"url": url, "name": str(board.get("name") or record["name"])[:60],
+                      "token": str(board.get("token") or record["token"])[:24],
+                      "difficulty": str(board.get("difficulty") or "")[:20],
+                      "units": int(board.get("units_present") or 0),
+                      "round": int((board.get("round") or {}).get("number") or 0),
+                      "mode": str((board.get("show") or {}).get("mode") or "")[:16]}
+    now = time.time()
+    with _found_lock:
+        for url, record in found.items():
+            _found[url] = (record, now)
+    nets = sorted(found.values(), key=lambda n: (-n["units"], n["name"]))
+    log.info("sweep: %d addresses asked, %d ELMERs answered, %d net(s) found in %.1fs",
+             len(hosts), answered, len(nets), time.monotonic() - started)
+    return {"nets": nets, "asked": len(hosts), "answered": answered,
+            "seconds": round(time.monotonic() - started, 1)}
+
+
+def found_nets(now=None):
+    """What the last sweep found and is still fresh, fullest first."""
+    now = time.time() if now is None else now
+    with _found_lock:
+        stale = [u for u, (_, at) in _found.items() if now - at > SWEEP_KEEP]
+        for u in stale:
+            _found.pop(u, None)
+        rows = [dict(r) for r, _ in _found.values()]
+    return sorted(rows, key=lambda n: (-n["units"], n["name"]))
+
+
+def merge_nets(heard, found):
+    """Heard first, then what a sweep found that was not heard - by token
+    where there is one, by address where there is not."""
+    out = list(heard)
+    have_tokens = {n.get("token") for n in out if n.get("token")}
+    have_urls = {n["url"].rstrip("/") for n in out}
+    for net in found:
+        if (net.get("token") and net["token"] in have_tokens) or net["url"].rstrip("/") in have_urls:
+            continue
+        out.append(net)
+    return sorted(out, key=lambda n: (-n.get("units", 0), n["name"]))
 
 
 def _payload(unit, name, url, version, fix, party, share_position=True,
@@ -314,7 +487,11 @@ class Neighbourhood:
                     # that is in it; the token cannot.
                     "token": str(net.get("token") or "")[:24],
                     "difficulty": str(net.get("difficulty") or "")[:20],
-                    "units": int(net.get("units") or 0)}
+                    "units": int(net.get("units") or 0),
+                    # Waiting, in a round, or in intermission - so a person
+                    # choosing can tell a game to join from one to watch.
+                    "round": int(net.get("round") or 0),
+                    "mode": str(net.get("mode") or "")[:16]}
         hosted = {n["token"] for n in found.values() if n["token"]}
         for peer in live:
             net = peer.get("net") or {}
@@ -328,8 +505,12 @@ class Neighbourhood:
             if url and url not in found and token not in hosted:
                 found[url] = {"url": str(url)[:120],
                               "name": str(net.get("table_in") or "a net")[:60],
-                              "token": token, "difficulty": "", "units": 0}
-        return sorted(found.values(), key=lambda n: (-n["units"], n["name"]))
+                              "token": token, "difficulty": "", "units": 0,
+                              "round": 0, "mode": ""}
+        heard = sorted(found.values(), key=lambda n: (-n["units"], n["name"]))
+        # And what the last sweep found: a net that could not be heard is
+        # still a net, and the button was pressed because it could not be.
+        return merge_nets(heard, found_nets())
 
     def net_by_token(self, token):
         """Where the net with this token is now, or None if it is not heard."""

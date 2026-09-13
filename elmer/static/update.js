@@ -472,9 +472,20 @@ document.addEventListener('click', e => {
 let peersQuiet = false;          // "not now" lasts until the page is reloaded
 let peerState = {};
 
-function peerHeadline(n) {
+function peerHeadline(n, nets) {
+  if (!n) return (nets || []).length === 1 ? 'A game was found on the network.'
+                                           : 'Games were found on the network.';
   return n === 1 ? 'Another ELMER is on the network.'
                  : n + ' other ELMERs are on the network.';
+}
+
+/* What a net is doing, so a person can tell a waiting room from a game
+   under way from a break between. */
+function netState(n) {
+  if (n.mode === 'intermission') return 'intermission';
+  if (n.mode === 'study') return 'studying';
+  if (n.round) return 'round ' + n.round;
+  return 'waiting for players';
 }
 
 /* What is going on out there, in one line. */
@@ -507,7 +518,8 @@ function netButton(n) {
     ? ' <span class="count">&middot; ' + n.units + ' table' +
       (n.units === 1 ? '' : 's') + '</span>' : '';
   return '<button class="btn sm" data-role="table" data-net="' +
-    escapeHTML(n.url) + '">Join ' + escapeHTML(n.name) + tables + '</button>';
+    escapeHTML(n.url) + '">Join ' + escapeHTML(n.name) + tables +
+    ' <span class="count">&middot; ' + escapeHTML(netState(n)) + '</span></button>';
 }
 
 /* The picker that names a net before it is opened. Three tournaments on one
@@ -539,7 +551,8 @@ function renderPeers(d) {
   // the operator had just picked is worse than no redraw at all.
   const picked = (document.getElementById('host-difficulty') || {}).value;
   const s = d.summary || {}, me = d.me || {}, nets = s.nets || [];
-  if (peersQuiet || !s.count) { box.innerHTML = ''; return; }
+  // Company heard, or a game found by looking: either is worth the panel.
+  if (peersQuiet || (!s.count && !nets.length)) { box.innerHTML = ''; return; }
   // Nothing is "current" on a unit with no tournament running on it.
   const now = me.hosting ? 'host'
             : me.table_of ? 'table'
@@ -571,7 +584,7 @@ function renderPeers(d) {
   ];
 
   box.innerHTML =
-    '<div class="panel"><div class="panel-title">' + peerHeadline(s.count) + '</div>' +
+    '<div class="panel"><div class="panel-title">' + peerHeadline(s.count, nets) + '</div>' +
     '<p class="tiny">' + peerStanding(d) +
       (s.with_fix ? ' One of them has a GPS fix, which this unit will use if it ' +
                     'has none of its own.' : '') +
@@ -621,7 +634,38 @@ async function pollPeers() {
   } catch (e) { /* quiet */ }
 }
 
+/* Look for a game: the sweep asks every address on this unit's subnets on
+   ELMER's port and the server remembers what answered for a minute, so the
+   ordinary panel shows it - the same panel, whether heard or found. It
+   also un-hides a panel that "Not now" put away, because the press is the
+   person changing their mind. */
+async function scanForGames(button) {
+  const said = document.getElementById('scan-said');
+  button.disabled = true;
+  if (said) said.textContent = 'looking…';
+  let d;
+  try {
+    d = await api('/api/nets/scan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+  } catch (e) {
+    button.disabled = false;
+    if (said) said.textContent = 'could not look - see data/elmer.log';
+    return;
+  }
+  button.disabled = false;
+  const n = (d.nets || []).length;
+  if (said) said.textContent = n
+    ? n + ' net' + (n === 1 ? '' : 's') + ' found - shown at the top of the page'
+    : 'no game found - ' + d.asked + ' addresses asked, ' + d.answered + ' ELMER' +
+      (d.answered === 1 ? '' : 's') + ' answered, none running a net';
+  peersQuiet = false;
+  await pollPeers();
+  const box = document.getElementById('peers');
+  if (n && box && box.firstElementChild) box.firstElementChild.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
 document.addEventListener('click', e => {
+  const sc = e.target.closest('[data-scan-games]');
+  if (sc) { scanForGames(sc); return; }
   if (e.target.closest('[data-peers="hide"]')) {
     peersQuiet = true;
     const box = document.getElementById('peers');

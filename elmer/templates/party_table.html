@@ -183,10 +183,16 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
          Only offered while the table is on its own: a node has a net, and a
          table that can hear one has a button for it. #}
       <div class="card" id="netbyaddress" style="margin-top:1rem" hidden>
-        <b>Net control by address</b>
+        <b>Join a game</b>
         <p class="hint" style="text-align:left;margin:.2rem 0 .6rem">
-          A net this table cannot hear can be joined by its address. Nets
-          on this network are offered by name, without this.</p>
+          A net on this network is offered above by name the moment it is
+          heard. If the moment was missed, or nothing was heard, look for one:</p>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+          <button class="btn sm" data-scan>&#8635; Look for a game</button>
+          <span class="tiny muted" id="scansaid"></span>
+        </div>
+        <p class="hint" style="text-align:left;margin:.8rem 0 .4rem">
+          Or a net this table cannot see, by its address:</p>
         <input id="neturl" placeholder="http://192.168.1.50:5000"
                autocomplete="off" spellcheck="false">
         <input id="netname" placeholder="Name for this table" autocomplete="off"
@@ -540,7 +546,7 @@ async function tick() {
         : netInfo.connected
           ? `<p class="empty">Waiting on net control &mdash; the next question comes from
              <b>${esc(nb.net_name || 'the net')}</b> when the host starts it.</p>`
-          : (netInfo.heard || []).length && !netInfo.hosting && netInfo.auto_join !== false
+          : (netInfo.heard || []).length && !netInfo.hosting && !offerBox.hidden
             ? '<p class="empty">No round yet. Check in above, and the hall\'s questions arrive here.</p>'
             : '<p class="empty">No round yet. Pick a difficulty and ask a question.</p>';
     }
@@ -691,6 +697,11 @@ const ownControls = document.getElementById('owncontrols');
 const endTable = document.getElementById('endtable');
 const byAddress = document.getElementById('netbyaddress');
 let netInfo = {connected: false, heard: [], hosting: false, auto_join: true};
+// When somebody last pressed Look for a game. A table taken out of a net
+// by hand is not offered nets it overhears - that would be overruling the
+// press - but a person who then goes looking has asked, and is shown.
+let lookedAt = 0;
+const LOOK_HOLDS_MS = 90000;
 
 /* The hall's shootout, on this table's screen. When the pick is this
    table's, the subjects go up here, big enough for a table of people to
@@ -742,9 +753,17 @@ document.addEventListener('click', async e => {
   netTick();
 });
 
+/* What a net is doing, in a word a person choosing can use: a waiting
+   room to walk into, a game under way, or a break between. */
+function netState(n) {
+  if (n.mode === 'intermission') return 'intermission';
+  if (n.mode === 'study') return 'studying';
+  if (n.round) return 'in round ' + n.round;
+  return 'waiting for players';
+}
 function netLabel(n) {
   const tables = n.units ? ` <span class="count">· ${n.units} table${n.units === 1 ? '' : 's'}</span>` : '';
-  return `<b>${esc(n.name)}</b>${n.difficulty ? ` <span class="count">· ${esc(n.difficulty)}</span>` : ''}${tables}`;
+  return `<b>${esc(n.name)}</b>${n.difficulty ? ` <span class="count">· ${esc(n.difficulty)}</span>` : ''}${tables} <span class="count">· ${netState(n)}</span>`;
 }
 
 let offerPainted = '', nodePainted = '';
@@ -760,8 +779,10 @@ function paintOffer(info) {
        <span class="hint" style="display:inline">${one
          ? 'Check this table in and it plays the same questions as every other table in the hall, with the host running the game from net control.'
          : 'A table can be in one of them. Choose the one studying what this table is studying.'}</span></div>
+     <div class="seats" style="margin:.5rem 0 0">${nets.map(n => `<span class="seat">${netLabel(n)}</span>`).join('')}</div>
      <div class="netrow">${nets.map(n =>
        `<button class="btn primary" data-checkin="${esc(n.url)}">&#10003; Check in as ready${one ? '' : ' with ' + esc(n.name)}</button>`).join('')}
+       <button class="btn sm ghost" data-scan title="ask every address on this network">&#8635; Look again</button>
        <button class="btn sm ghost" data-standalone>Run this table on its own</button>
      </div>`;
 }
@@ -800,7 +821,8 @@ function paintNet(info) {
   const on = !!netInfo.connected;
   // Hearing a net and not being in it is an offer; being in one is a node;
   // hosting is neither - the host's own table has the host's own page.
-  const offered = !on && !netInfo.hosting && netInfo.auto_join !== false && (netInfo.heard || []).length > 0;
+  const asked = netInfo.auto_join !== false || (lookedAt > 0 && (performance.now() - lookedAt) < LOOK_HOLDS_MS);
+  const offered = !on && !netInfo.hosting && asked && (netInfo.heard || []).length > 0;
   paintHallShootout(on ? netInfo.bridge : null);
   nodeBox.hidden = !on;
   offerBox.hidden = !offered;
@@ -825,7 +847,28 @@ async function checkIn(url) {
   paintNet(r.data);
 }
 
+/* Look for a game: the sweep asks every address on this unit's subnets and
+   the server remembers what answered, so the ordinary poll paints the offer
+   a moment later - the same offer, whether the net was heard or found. */
+async function scanForGames(button) {
+  const said = document.getElementById('scansaid');
+  document.querySelectorAll('[data-scan]').forEach(b => { b.disabled = true; });
+  if (said) said.textContent = 'looking…';
+  const r = await api('/api/nets/scan', {});
+  document.querySelectorAll('[data-scan]').forEach(b => { b.disabled = false; });
+  if (!r.ok) { if (said) said.textContent = 'could not look - see data/elmer.log'; return; }
+  const d = r.data, n = (d.nets || []).length;
+  lookedAt = performance.now();
+  if (said) said.textContent = n
+    ? `${n} net${n === 1 ? '' : 's'} found`
+    : `no game found - ${d.asked} addresses asked, ${d.answered} ELMER${d.answered === 1 ? '' : 's'} answered, none running a net`;
+  offerPainted = '';
+  paintNet(Object.assign({}, netInfo, {heard: d.nets || []}));
+}
+
 document.addEventListener('click', async e => {
+  const sc = e.target.closest('[data-scan]');
+  if (sc) { scanForGames(sc); return; }
   const c = e.target.closest('[data-checkin]');
   if (c) { checkIn(c.dataset.checkin); return; }
   if (e.target.closest('[data-standalone]')) {

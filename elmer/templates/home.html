@@ -239,6 +239,12 @@
     <a class="btn primary" href="/net">Open net control</a>
     <a class="btn" href="/net/board">Big board</a>
     <a class="btn ghost" href="/party/1">This table only</a>
+    {# A game somebody else is running is offered above the moment it is
+       heard; this is for when the moment was missed or nothing was heard.
+       It asks every address on this unit's network rather than waiting to
+       overhear - the one way back to the offer when there is no terminal. #}
+    <button class="btn ghost" data-scan-games>&#8635; Look for a game to join</button>
+    <span class="tiny muted" id="scan-said"></span>
   </div>
 </div>
 
