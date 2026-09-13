@@ -84,9 +84,13 @@
     if (!b) return;
     // Playing starts the hall conducting on the difficulty and clock the
     // round controls show; the other two stop it and score an open question.
+    // The run-up goes with Playing: "in 30 s" is remembered on the unit and
+    // is what every screen counts before the question.
+    const leadIn = parseFloat(($('sh-leadin') || {}).value);
     await post('/api/net/show/mode', {mode: b.dataset.mode,
       difficulty: document.getElementById('difficulty').value,
-      seconds: parseFloat(document.getElementById('seconds').value) || null});
+      seconds: parseFloat(document.getElementById('seconds').value) || null,
+      lead_in: b.dataset.mode === 'play' && leadIn > 0 ? leadIn : undefined});
     refresh();
   });
   function paintConducting(v) {
@@ -94,9 +98,15 @@
     const b = document.querySelector('#sh-modes [data-mode="play"]');
     b.textContent = c && c.running
       ? 'Playing \u00b7 ' + (c.state === 'waiting' ? (c.waiting_for || 'waiting')
-                             : c.state === 'starting' ? 'get ready \u00b7 ' + Math.ceil(c.lead_in || 0) + 's'
+                             : c.state === 'starting' ? 'starts in ' + Math.ceil(c.lead_in || 0) + ' s'
                              : c.state)
       : 'Playing';
+    // The box shows the unit's setting until the host is typing in it.
+    const box = $('sh-leadin');
+    if (box && v.lead_in_setting != null && document.activeElement !== box
+        && String(box.value) !== String(v.lead_in_setting)) {
+      box.value = v.lead_in_setting;
+    }
   }
 
   /* -------------------------------------------------------------- deck */

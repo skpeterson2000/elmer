@@ -142,6 +142,7 @@
       const key = 'lead' + li.at;
       const at = performance.now() + li.remaining * 1000;
       if (clocks.leadKey !== key || at < clocks.leadAt) { clocks.leadKey = key; clocks.leadAt = at; }
+      clocks.leadWord = li.first ? 'Game starts in' : 'Next round in';
     } else {
       clocks.leadKey = null;
     }
@@ -178,8 +179,12 @@
     }
     if (clocks.leadKey) {
       const left = (clocks.leadAt - now) / 1000;
-      const word = left > 3 ? 'Get ready!' : left > 0 ? String(Math.ceil(left)) : 'Go!';
-      const cls = left > 3 ? 'hs-word' : 'hs-word hs-num';
+      /* A long run-up - the host said "Playing in 60 s" - gets a clock with
+         words on it, so a room in intermission can see the game coming.
+         The last ten seconds are the run-up as it always was. */
+      const word = left > 10 ? (clocks.leadWord || 'Starts in') + ' ' + mmss(left)
+                 : left > 3 ? 'Get ready!' : left > 0 ? String(Math.ceil(left)) : 'Go!';
+      const cls = left > 10 ? 'hs-word hs-clock' : left > 3 ? 'hs-word' : 'hs-word hs-num';
       if (lead.dataset.word !== word) {
         lead.dataset.word = word;
         lead.innerHTML = `<div class="${cls}">${word}</div>`;

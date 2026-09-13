@@ -50,6 +50,22 @@ BETWEEN_MIN = 2.0          # a breath after the reveal, so it does not snap
 # three seconds are left, then three, two, one.  The screens draw the words
 # from what is left; this is only how long it is.
 LEAD_IN = 5.0
+# What the host has set it to on this unit, if they have: "Playing in 30 s"
+# is the same run-up made longer, so the room gets a clock on every screen
+# instead of a question from nowhere. Set from the application, which is
+# where the setting is kept; this module keeps no database of its own.
+_default_lead_in = LEAD_IN
+
+
+def set_default_lead_in(seconds):
+    """The run-up every conducting gets unless told otherwise; 3 s to 10 min."""
+    global _default_lead_in
+    _default_lead_in = max(3.0, min(600.0, float(seconds)))
+    return _default_lead_in
+
+
+def default_lead_in():
+    return _default_lead_in
 
 # A hall with nobody in it is not waiting, it is empty.  One table with one
 # person at it is a game, which is the answer to somebody sitting alone in
@@ -285,8 +301,10 @@ def conductor():
 
 
 def start(net, ask, ready_tables=READY_TABLES, rounds=None,
-          reveal=REVEAL_SECONDS, lead_in=LEAD_IN):
+          reveal=REVEAL_SECONDS, lead_in=None):
     global _conductor
+    if lead_in is None:
+        lead_in = _default_lead_in
     with _lock:
         if _conductor is not None:
             _conductor.stop.set()
@@ -313,13 +331,13 @@ def timekeeper():
         return _timekeeper
 
 
-def keep_time(net, advance, lead_in=LEAD_IN):
+def keep_time(net, advance, lead_in=None):
     """Start walking this net's programme by the clock."""
     global _timekeeper
     with _lock:
         if _timekeeper is not None:
             _timekeeper.stop.set()
-        _timekeeper = Timekeeper(net, advance, lead_in).start()
+        _timekeeper = Timekeeper(net, advance, lead_in if lead_in is not None else _default_lead_in).start()
         return _timekeeper
 
 

@@ -3538,6 +3538,36 @@ def _net_or_404():
     return running
 
 
+# The run-up the host has chosen on this unit: how many seconds every screen
+# counts before a question, after Playing is pressed or an intermission's
+# clock runs out. Kept with the unit's other settings; the hall is told.
+LEAD_IN_KEY = "lead_in"
+
+
+def _lead_in_from(body, connection=None):
+    """Take a run-up off a request if one is on it, remember it, and answer
+    the run-up in force either way."""
+    if body and body.get("lead_in") not in (None, ""):
+        try:
+            seconds = hall.set_default_lead_in(float(body["lead_in"]))
+        except (TypeError, ValueError):
+            abort(400, "lead_in must be seconds")
+        connection = connection or conn()
+        db.unit_set(connection, LEAD_IN_KEY, str(seconds))
+        return seconds
+    return hall.default_lead_in()
+
+
+def _lead_in_restore(connection):
+    """At net open: the unit's remembered run-up, if it has one."""
+    try:
+        kept = db.unit_get(connection, LEAD_IN_KEY, "")
+        if kept:
+            hall.set_default_lead_in(float(kept))
+    except (TypeError, ValueError):
+        pass
+
+
 def _open_net(wanted, name=None, section=None, seconds=None):
     """Open a net here, whichever way somebody asked for one.
 
@@ -3599,6 +3629,7 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     # anything is a net that sits at nought tables all evening, which is what
     # was on the board.  Rounds still wait for somebody to be seated - see
     # hall.py - so opening one early costs nothing.
+    _lead_in_restore(conn())
     hall.start(running, lambda: _ask_net(running, wanted, section, seconds))
     # And the programme keeps time: a timed step moves on when its clock is
     # up, a game step when its rounds are played. Nothing happens until the
@@ -3839,10 +3870,12 @@ def api_net_conduct():
     section = body.get("section")
     seconds = body.get("seconds")
     rounds = body.get("rounds")
+    lead_in = _lead_in_from(body)
     conductor = hall.start(
         running,
         lambda: _ask_net(running, wanted, section, seconds),
         ready_tables=max(1, int(body.get("tables", hall.READY_TABLES))),
+        lead_in=lead_in,
         # Left unsaid, a hall runs the tournament's own length - three blocks
         # of twelve, or four for Extra - rather than until somebody stops it.
         rounds=int(rounds) if rounds else tournament.length_for(wanted))
@@ -3941,6 +3974,7 @@ def api_net_show():
     view["since"] = running.since
     view["conducting"] = _conducting()
     view["round_open"] = running.round is not None
+    view["lead_in_setting"] = hall.default_lead_in()
     return jsonify(view)
 
 
@@ -4011,14 +4045,18 @@ def api_net_show_mode():
     except ValueError as exc:
         abort(400, str(exc))
     if mode == show.PLAY:
+        # "Playing in 30 s": the run-up, if the host set one on the press,
+        # is remembered and is what every screen counts.
+        lead_in = _lead_in_from(body)
         live = hall.conductor()
         if live is None or not live.as_dict()["running"]:
             difficulty = str(body.get("difficulty") or running.difficulty).lower()
             if difficulty not in party.DIFFICULTIES:
                 difficulty = running.difficulty
             seconds = body.get("seconds") or None
-            hall.start(running, lambda: _ask_net(running, difficulty, None, seconds))
-            log.info("net: playing - the hall conducts again")
+            hall.start(running, lambda: _ask_net(running, difficulty, None, seconds),
+                       lead_in=lead_in)
+            log.info("net: playing - the hall conducts again, %.0f s run-up", lead_in)
     else:
         stopped = hall.halt()
         if running.round is not None:

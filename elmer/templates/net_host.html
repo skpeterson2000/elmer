@@ -156,6 +156,10 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
       <b>The room</b>
       <span class="mode" id="sh-modes">
         <button class="btn sm" data-mode="play">Playing</button>
+        <label class="small" title="how long every screen counts down before the question, after Playing or when an intermission's clock runs out"
+               style="color:var(--dim);display:inline-flex;align-items:center;gap:.25rem">in
+          <input type="number" id="sh-leadin" min="3" max="600" step="1" value="5"
+                 style="width:3.6rem;padding:.2rem .3rem;border-radius:6px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--text);font-family:var(--mono)"> s</label>
         <button class="btn sm" data-mode="study">Studying</button>
         <button class="btn sm" data-mode="intermission">Intermission</button>
       </span>

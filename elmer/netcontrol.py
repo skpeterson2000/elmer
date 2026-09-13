@@ -303,7 +303,10 @@ class Net:
         with self.lock:
             return {"remaining": round(remaining, 2),
                     "seconds": self.lead_in_seconds,
-                    "at": round(self.lead_in_at, 2)}
+                    "at": round(self.lead_in_at, 2),
+                    # Whether this run-up is to the first question of the
+                    # evening or to the next one, so a screen can say which.
+                    "first": not self.history}
 
     # ---------------------------------------------------------------- show
 

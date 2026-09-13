@@ -1266,4 +1266,5 @@ body.hs-held { overflow: hidden; }
 #hs-leadin .hs-word { font: 700 clamp(2.6rem, 12vw, 8rem)/1.05 var(--sans); color: var(--amber);
   letter-spacing: 0; text-shadow: 0 8px 40px rgba(0,0,0,.7); animation: hs-pop .45s ease-out; padding: 0 1rem; }
 #hs-leadin .hs-word.hs-num { font-size: clamp(6rem, 30vw, 20rem); font-family: var(--mono); }
+#hs-leadin .hs-word.hs-clock { font-size: clamp(2rem, 8vw, 5.5rem); animation: none; }   /* "Next round in 0:42" - a clock, so it does not pop every second */
 @keyframes hs-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
