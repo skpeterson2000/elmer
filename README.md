@@ -3124,7 +3124,22 @@ as platform tests dropped into whichever file needed one - which is how a
 program ends up half-ported with nobody able to say what the Windows path
 actually does.
 
-Open PowerShell in the ELMER folder - right-click the folder, *Open in
+**The short way: the portable zip.** On the repository's *Releases* page
+there is `ELMER-windows-<build>.zip`. Unzip it anywhere, double-click
+`elmer.cmd`, and ELMER opens in your browser. Nothing is installed: the zip
+carries its own Python (the official embeddable one from python.org, signed
+by the Python Software Foundation, which is why Windows does not put up its
+"unrecognized app" screen the way it would for a home-made `.exe`), with
+Flask, Pillow, reportlab and pyserial already inside. No administrator
+rights, no execution policy, nothing to answer. It cannot update itself -
+there is no git in it - and the dashboard says so; to give it that, run
+`install.ps1` in the folder once, as below, and say yes when it offers git
+and the connect step. From then on it is an ordinary checkout that updates
+like every other. `tools/build_windows_zip.ps1` is what makes the zip, on a
+Windows runner, for every tag that starts with `v`.
+
+**The other way: from a clone or a download of the source.** Open
+PowerShell in the ELMER folder - right-click the folder, *Open in
 Terminal* - and:
 
 ```

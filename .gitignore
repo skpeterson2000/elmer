@@ -107,3 +107,11 @@ data/mail_last.json
 data/drop.json
 data/reports/
 data/elmer-report-*.txt
+
+# The portable Windows build: what tools/build_windows_zip.ps1 makes, and
+# what an unzipped copy carries beside the program once it has been
+# connected to the repository - its own Python, and the stamp of its build.
+build/
+dist/
+python/
+BUILD.json

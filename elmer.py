@@ -108,6 +108,9 @@ def main():
     ap.add_argument("--kiosk", action="store_true",
                     help="open a full-screen browser on this machine and show "
                          "an Exit button that stops the server")
+    ap.add_argument("--open", action="store_true",
+                    help="open ELMER in this machine's own browser once it is "
+                         "serving - an ordinary window, not the kiosk")
     ap.add_argument("--no-desktop-icon", action="store_true",
                     help="with --install-launcher: menu entry only, "
                          "nothing on the desktop")
@@ -700,6 +703,27 @@ def main():
         print(f"\n  {message}\n", flush=True)
 
     update.watch(_policy, on_found=_later)
+
+    # A window, for the person who double-clicked. The browser is opened only
+    # once the port answers, so it never lands on "connection refused" and a
+    # reload; and it is the machine's own default browser, an ordinary tab,
+    # not the kiosk - which is a Linux appliance and says so above.
+    if args.open and not app.config["KIOSK"]:
+        def _open_when_ready(url=f"http://localhost:{args.port}/"):
+            import urllib.request
+            import webbrowser
+            for _ in range(150):
+                try:
+                    urllib.request.urlopen(url, timeout=1).close()
+                    break
+                except Exception:
+                    time.sleep(0.2)
+            else:
+                return
+            print(f"\n  Opening {url} in your browser.\n", flush=True)
+            webbrowser.open(url)
+        threading.Thread(target=_open_when_ready, daemon=True,
+                         name="elmer-open").start()
 
     print("\n  Press Ctrl+C to stop.\n" if not app.config["KIOSK"] else "")
 

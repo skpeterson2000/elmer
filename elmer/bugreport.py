@@ -78,6 +78,8 @@ def build_stamp():
         "subject": state.get("subject") or "",
         "modified": bool(state.get("dirty")),
         "checkout": bool(state.get("checkout")),
+        # A portable build names the commit it was made from and when.
+        "built": state.get("built") or "",
     }
 
 
@@ -140,7 +142,9 @@ def build(conn=None, lines=400, include_station=False, said=""):
     add(f"build      {stamp['commit']} on {stamp['branch']}, dated {stamp['dated']}")
     if stamp["subject"]:
         add(f"           \"{stamp['subject']}\"")
-    if not stamp["checkout"]:
+    if not stamp["checkout"] and stamp["built"]:
+        add(f"           (a portable build, made {stamp['built']})")
+    elif not stamp["checkout"]:
         add("           (a downloaded copy, so there is no commit to name)")
     if stamp["modified"]:
         add("           NOTE: tracked files differ from the repository")

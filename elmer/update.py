@@ -135,8 +135,20 @@ def is_checkout():
 def state():
     """What this install is, right now, without touching the network."""
     if not is_checkout():
-        return {"checkout": False, "branch": None, "head": None, "subject": None,
-                "date": None, "dirty": False, "remote": None}
+        # A portable copy carries the commit it was built from in BUILD.json,
+        # written by tools/build_windows_zip.ps1 - so its reports and its
+        # log still name a build, even though nothing here can update it.
+        built = {}
+        try:
+            built = json.loads((ROOT / "BUILD.json").read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            pass
+        return {"checkout": False, "branch": None,
+                "head": built.get("commit") or None,
+                "subject": built.get("subject") or None,
+                "date": built.get("date") or None,
+                "dirty": False, "remote": None,
+                "built": built.get("built") or None}
     _, branch = _git("rev-parse", "--abbrev-ref", "HEAD")
     _, head = _git("rev-parse", "--short", "HEAD")
     _, subject = _git("log", "-1", "--format=%s")

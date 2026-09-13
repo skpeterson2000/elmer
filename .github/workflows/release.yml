@@ -1,0 +1,78 @@
+# The portable ELMER for Windows, built on a Windows runner and attached to
+# a release - or, run by hand, kept as an artifact to look at.
+#
+# A tag that starts with v makes a release: the zip is built from that
+# commit and attached to it, so "download the latest release" is one link
+# on the repository's page that always points at something that was built
+# by this and not by somebody's laptop. Run by hand (Actions -> Release ->
+# Run workflow) it builds the same zip from whatever branch was chosen and
+# leaves it as an artifact for a week, and makes no release.
+#
+# The build itself is tools/build_windows_zip.ps1, the same script anybody
+# can run on a Windows machine with git and a Python.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  portable-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build the portable zip
+        run: powershell -ExecutionPolicy Bypass -File tools\build_windows_zip.ps1 -Out dist
+
+      # Proved before it is handed to anybody: the zip is unpacked somewhere
+      # else, started the way a person starts it, and asked for a page.
+      - name: Start the unpacked copy and ask it for a page
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist\*.zip | Select-Object -First 1
+          $t = Join-Path $env:RUNNER_TEMP 'elmer-portable'
+          Expand-Archive $zip.FullName -DestinationPath $t
+          $p = Start-Process -FilePath "$t\python\python.exe" -ArgumentList "elmer.py", "--port", "5077", "--no-log-file" -WorkingDirectory $t -PassThru -RedirectStandardOutput "$t\out.txt"
+          $ok = $false
+          foreach ($i in 1..90) {
+            Start-Sleep -Milliseconds 500
+            try { if ((Invoke-WebRequest http://localhost:5077/ -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Get-Content "$t\out.txt"
+          if (-not $ok) { throw "the portable copy never served a page" }
+          "served after $($i * 0.5)s"
+
+      - name: Keep the zip as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ELMER-windows
+          path: dist/*.zip
+          retention-days: 7
+
+      - name: Attach it to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          body: |
+            **ELMER for Windows, portable.** Unzip anywhere, double-click `elmer.cmd`,
+            and ELMER opens in your browser. Nothing to install. Python, Flask and the
+            rest are inside the zip.
+
+            To let this copy update itself later, run `install.ps1` in the folder once
+            (right-click the folder, *Open in Terminal*, then
+            `powershell -ExecutionPolicy Bypass -File install.ps1`) and say yes
+            when it offers git and the connect step.

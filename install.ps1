@@ -133,6 +133,18 @@ function Find-Python {
     return $null
 }
 
+# A portable copy - the zip from a release - brings its own Python with the
+# packages already in it, and pyserial too. There is nothing to build for
+# it; what this script still does for one is git, poppler, and the connect
+# step below that turns it into a copy that updates itself.
+$portable = Join-Path $root 'python\python.exe'
+if (Test-Path $portable) {
+    $vpy = $portable
+    $v = (& $vpy -c "import sys; print('%d.%d' % sys.version_info[:2])").Trim()
+    Ok "portable copy - python $v and the packages are bundled with it"
+    if ($Serial) { Ok "pyserial is bundled too - the Lab can talk to a NanoVNA" }
+} else {
+
 $py = Find-Python
 if (-not $py) {
     # python.org's build, with the py launcher that this script and elmer.cmd
@@ -182,6 +194,8 @@ if ($Serial) {
     else { Warn "pyserial would not install; the VNA panel will say so" }
 }
 
+}   # not portable
+
 # --------------------------------------------------------------- shortcut
 if ($Shortcut) {
     try {
@@ -204,10 +218,31 @@ if ($Shortcut) {
 # without either, so a "no" here is a working install with two things it
 # will say are missing when they are asked for.
 Write-Host ""
-if (Get-Command git -ErrorAction SilentlyContinue) {
+$haveGit = [bool](Get-Command git -ErrorAction SilentlyContinue)
+if ($haveGit) {
     Ok "git found - ELMER can update itself"
 } else {
-    Request-Install 'git' 'ELMER updates itself with it' 'Git.Git' 'https://git-scm.com/download/win' | Out-Null
+    $haveGit = Request-Install 'git' 'ELMER updates itself with it' 'Git.Git' 'https://git-scm.com/download/win'
+}
+
+# The connect step. A copy that was unzipped or downloaded has no link back
+# to where ELMER comes from, so it cannot update. With git here, one press
+# gives it that link - the history is fetched alongside and nothing in the
+# folder is overwritten - and from then on it updates like every other.
+if ($haveGit -and -not (Test-Path (Join-Path $root '.git'))) {
+    Miss "this copy is not connected to the repository, so it cannot update itself"
+    $connect = $Yes
+    if (-not $Yes -and -not $NoInstall -and $interactive) {
+        $answer = Read-Host "          Connect it now? Nothing here is overwritten. [Y/n]"
+        $connect = -not ($answer -and $answer.Trim().ToLower().StartsWith('n'))
+    }
+    if ($connect) {
+        & $vpy (Join-Path $root 'elmer.py') --adopt
+        if ($LASTEXITCODE -eq 0) { Ok "connected - Update now on the dashboard works from here on" }
+        else { Warn "could not connect this copy; run .\elmer.cmd --adopt later to try again" }
+    } else {
+        Write-Host "          (run this again and say yes, or .\elmer.cmd --adopt, whenever you like)"
+    }
 }
 if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
     Ok "poppler found - the NIFOG reader and the library will work"

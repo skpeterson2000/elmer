@@ -10,8 +10,10 @@ function updateStatusLine(d) {
   if (!st.checkout) {
     return ['warn', 'This copy was downloaded rather than cloned, so it has ' +
                     'no link back to where ELMER comes from and cannot update ' +
-                    'itself. Run <span class="mono">./install.sh --connect</span> ' +
-                    'to give it one - it asks first and overwrites nothing.'];
+                    'itself. To give it one - it asks first and overwrites nothing - ' +
+                    'run <span class="mono">install.ps1</span> on Windows, which ' +
+                    'fetches git if it is missing and offers the connect step, or ' +
+                    '<span class="mono">./install.sh --connect</span> on a Pi.'];
   }
   if (s.error) return ['warn', escapeHTML(s.error)];
   if (!s.checked_at) return ['', 'Not checked yet.'];

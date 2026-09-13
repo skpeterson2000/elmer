@@ -1,15 +1,23 @@
 @echo off
-rem Start ELMER on Windows, from wherever this file is.
+rem Start ELMER on Windows, from wherever this file is - and open it.
 rem
-rem Prefers the virtual environment install.ps1 builds, and falls back to a
-rem system Python so a copy that has never been installed still runs - it will
-rem complain about a missing Flask rather than about a missing launcher, which
-rem is the more useful complaint.
+rem Three Pythons, in the order that needs the least of the machine: the one
+rem bundled in a portable ELMER (python\ beside this file - nothing to install
+rem at all), the virtual environment install.ps1 builds, and finally a system
+rem Python, so a copy that has never been installed still runs - it will
+rem complain about a missing Flask rather than about a missing launcher,
+rem which is the more useful complaint.
+rem
+rem --open puts ELMER in this machine's browser once it is serving, so a
+rem double-click ends in a window and not in a console saying where to go.
+rem Anything else on the command line goes through as it is.
 setlocal
 cd /d "%~dp0"
-if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" elmer.py %*
+if exist "python\python.exe" (
+    "python\python.exe" elmer.py --open %*
+) else if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" elmer.py --open %*
 ) else (
-    py -3 elmer.py %*
+    py -3 elmer.py --open %*
 )
 endlocal
