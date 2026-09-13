@@ -15,7 +15,15 @@ button or a command typed on purpose.
 Three rules hold for the applying, whenever it is asked for:
 
 * **Fast-forward only.**  A merge is never attempted and a rebase never
-  considered.  If history has diverged, ELMER says so and stops.
+  considered.  If history has diverged, ELMER says so and stops - with one
+  exception it can prove.  Every check that finds this install exactly on the
+  repository's history writes down that commit as *known to be the
+  repository's*.  If a later check finds the install "ahead" while its HEAD
+  is still that same known commit and nothing is edited, then nobody here
+  committed anything: the repository rewrote its history underneath - a
+  password purged from it, say - and following it loses nothing.  That, and
+  only that shape, is followed.  A HEAD the updater did not itself put here
+  is somebody's work and is left alone.
 * **No update over local edits.**  Changes to tracked files are somebody's
   work in progress; an update that discards them is a bug, not a feature.  On
   the machine ELMER is actually written on, this is what keeps the updater
@@ -238,8 +246,17 @@ def check(max_age=0):
     result["behind"] = int(behind) if behind.isdigit() else 0
     result["ahead"] = int(ahead) if ahead.isdigit() else 0
     result["commits"] = _commits("HEAD..FETCH_HEAD")
-    log.info("update check: %s behind, %s ahead%s", result["behind"],
-             result["ahead"], " (local changes)" if st["dirty"] else "")
+    # The commit last seen on the repository's own history, carried from
+    # check to check. Not "ahead" means HEAD is on that history now, so it
+    # is written down; "ahead" with HEAD still the commit written down means
+    # the repository moved and this install did not.
+    was = cached() or {}
+    result["known"] = st["head"] if not result["ahead"] else was.get("known")
+    result["moved"] = bool(result["ahead"] and result["known"] == st["head"]
+                           and not st["dirty"])
+    log.info("update check: %s behind, %s ahead%s%s", result["behind"],
+             result["ahead"], " (local changes)" if st["dirty"] else "",
+             " - the repository's history moved" if result["moved"] else "")
     return _cache(result)
 
 
@@ -254,7 +271,7 @@ def blocked(status=None):
     if st["dirty"]:
         return ("there are local changes here - commit or put them aside "
                 "first, and ELMER will leave them alone until you do")
-    if status.get("ahead"):
+    if status.get("ahead") and not status.get("moved"):
         return (f"this install is {status['ahead']} commit(s) ahead of the "
                 "repository, so history has diverged")
     return None
@@ -272,9 +289,16 @@ def apply():
         return True, "already up to date", status
 
     before = status["head"]
-    ok, out = _git("merge", "--ff-only", "FETCH_HEAD")
+    if status.get("moved"):
+        # Provably nothing of this install's own on it (see check), so the
+        # branch is set to where the repository now is. Untracked files are
+        # untouched: reset --hard moves tracked ones only.
+        log.info("update: the repository's history moved - following it from %s", before)
+        ok, out = _git("reset", "--hard", "FETCH_HEAD")
+    else:
+        ok, out = _git("merge", "--ff-only", "FETCH_HEAD")
     if not ok:
-        log.warning("update: fast-forward refused - %s", out)
+        log.warning("update: refused - %s", out)
         return False, out.splitlines()[-1] if out else "git refused to update", status
 
     after = state()
@@ -289,7 +313,7 @@ def apply():
         "rerun_install": any(f in ("requirements.txt", "install.sh") for f in files),
     }
     _cache(dict(after, checked_at=time.time(), behind=0, ahead=0,
-                commits=[], error=None))
+                commits=[], error=None, known=after["head"], moved=False))
     log.info("updated %s -> %s (%d files)", before, after["head"], len(files))
     return True, f"updated to {after['head']}", detail
 

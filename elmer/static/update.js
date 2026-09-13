@@ -18,7 +18,15 @@ function updateStatusLine(d) {
   const when = new Date(s.checked_at * 1000).toLocaleString();
   if (s.behind) {
     return ['warn', '<b>' + s.behind + ' update' + (s.behind === 1 ? '' : 's') +
-            ' waiting.</b> Checked ' + escapeHTML(when) + '.'];
+            ' waiting.</b> ' +
+            /* A rewritten history is followed only when the updater can prove
+               this unit has nothing of its own on it - and then it says so,
+               because the press deserves to know it is not the usual one. */
+            (s.moved ? 'The repository&rsquo;s history was rewritten &mdash; the usual ' +
+                       'reason is something purged from it, a password say &mdash; and ' +
+                       'this update follows it. Nothing on this unit changes but the program. '
+                     : '') +
+            'Checked ' + escapeHTML(when) + '.'];
   }
   return ['good', 'Up to date as of ' + escapeHTML(when) + '.'];
 }
