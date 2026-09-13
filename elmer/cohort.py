@@ -140,6 +140,13 @@ class Bridge:
         self.rtt_ms = None
         self.rtt_room = ""
         self._rtt = __import__("collections").deque(maxlen=20)
+        # This unit's own load, sampled now and then and sent up so the host
+        # sees a table that is choking rather than only a table that is slow -
+        # the two look the same from the far end and are fixed differently.
+        # Sampled every few seconds, not every poll, because the SoC's
+        # throttle word costs a subprocess and the answer does not move fast.
+        self._host = {}
+        self._host_at = 0.0
         # A token for this running unit, made fresh each start and sent with
         # every check-in. Net control tells units apart by it, so a fleet
         # imaged from one SD card - every Pi sharing a hostname and a
@@ -193,7 +200,8 @@ class Bridge:
                             "players": players, "showing": self.showing,
                             "names": names, "ready": self.ready,
                             "instance": self.instance,
-                            "rtt": self.rtt_ms, "room": self.rtt_room})
+                            "rtt": self.rtt_ms, "room": self.rtt_room,
+                            "host": self._host_load()})
         rtt = (time.monotonic() - started) * 1000.0
         self._rtt.append(rtt)
         self.rtt_ms = round(rtt, 1)
@@ -234,6 +242,25 @@ class Bridge:
         # cleared announcement clears here within the second.
         self.hall_show = reply.get("show")
         return reply.get("round")
+
+    def _host_load(self):
+        """A small snapshot of this unit's load, refreshed every few seconds."""
+        now = time.monotonic()
+        if now - self._host_at < 5.0:
+            return self._host
+        self._host_at = now
+        try:
+            from . import diagnostics
+            h = diagnostics.host_load()
+            self._host = {"per_core": h.get("per_core"),
+                          "mem_used_pct": h.get("mem_used_pct"),
+                          "temp_c": h.get("temp_c"),
+                          "hot": diagnostics.load_is_hot(h),
+                          "undervolt": bool(h.get("undervolt_now")
+                                            or h.get("undervolt_ever"))}
+        except Exception:                 # a snapshot is never worth a poll
+            self._host = {}
+        return self._host
 
     def pick(self, section):
         """Relay this table's choice of subject to the hall."""

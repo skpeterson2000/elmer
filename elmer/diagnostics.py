@@ -22,6 +22,101 @@ OK, WARN, BAD = "  ok  ", " warn ", " FAIL "
 # at a 30-second round it is a fiftieth of the clock, gone before the question
 # is read. The wifi, not the master, is what spends it.
 RTT_SLOW_MS = 600.0
+# Load per core above this and the machine is doing more than it has hands
+# for: work queues, and everything it serves waits behind the queue. That is
+# latency too, but hidden inside the process rather than out on the wire, so
+# it wears the same face and is fixed a different way.
+LOAD_HOT = 1.5
+
+
+def host_load():
+    """What this machine is carrying: cores, load, memory, heat, throttling.
+
+    All from the kernel and the SoC, no dependency added. A Pi fed more than
+    it can chew serves everything slowly, which reads as latency and is not
+    the network; only this tells the two apart. Each signal is taken on its
+    own, because a machine that cannot report its temperature can still
+    report its load.
+    """
+    out = {}
+    try:
+        out["cores"] = os.cpu_count() or 1
+        out["load1"], out["load5"], out["load15"] = os.getloadavg()
+        out["per_core"] = round(out["load1"] / out["cores"], 2)
+    except (OSError, AttributeError):
+        pass
+    try:
+        info = {}
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            k, _, v = line.partition(":")
+            info[k] = int(v.strip().split()[0])   # kB
+        total, avail = info.get("MemTotal"), info.get("MemAvailable")
+        if total:
+            out["mem_total_mb"] = round(total / 1024)
+            out["mem_avail_mb"] = round((avail or 0) / 1024)
+            out["mem_used_pct"] = round(100 * (1 - (avail or 0) / total))
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        milli = int(Path("/sys/class/thermal/thermal_zone0/temp").read_text().strip())
+        out["temp_c"] = round(milli / 1000.0, 1)
+    except (OSError, ValueError):
+        pass
+    # The SoC's own word on whether it is throttling, and whether it has since
+    # boot. Under-voltage is the classic Raspberry Pi mystery-slowness - a
+    # thin power supply - and nothing else in the program would ever catch it.
+    try:
+        raw = subprocess.run(["vcgencmd", "get_throttled"], capture_output=True,
+                             text=True, timeout=4).stdout.strip()
+        val = int(raw.split("=", 1)[1], 16) if "=" in raw else 0
+        out["throttled_now"] = bool(val & 0xF)
+        out["undervolt_now"] = bool(val & 0x1)
+        out["throttled_ever"] = bool(val & 0xF0000)
+        out["undervolt_ever"] = bool(val & 0x10000)
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        pass
+    return out
+
+
+def load_words(h):
+    """One line describing a host_load() dict, or '' if it is empty."""
+    if not h:
+        return ""
+    bits = []
+    if "per_core" in h:
+        bits.append(f"load {h['load1']:.1f} on {h['cores']} cores "
+                    f"({h['per_core']:.1f}/core)")
+    if "mem_used_pct" in h:
+        bits.append(f"memory {h['mem_used_pct']}% of {h['mem_total_mb']} MB")
+    if "temp_c" in h:
+        bits.append(f"{h['temp_c']:.0f}°C")
+    if h.get("undervolt_now"):
+        bits.append("UNDER-VOLTAGE now (check the power supply)")
+    elif h.get("throttled_now"):
+        bits.append("throttling now")
+    elif h.get("undervolt_ever"):
+        bits.append("under-voltage since boot")
+    return "; ".join(bits)
+
+
+def load_is_hot(h):
+    """Whether a host_load() dict is a machine in trouble."""
+    return bool(h and (h.get("per_core", 0) > LOAD_HOT
+                       or h.get("mem_used_pct", 0) >= 92
+                       or h.get("temp_c", 0) >= 80
+                       or h.get("throttled_now") or h.get("undervolt_now")))
+
+
+def check_load():
+    """This machine's own load - the latency that hides inside the process."""
+    h = host_load()
+    words = load_words(h)
+    if not words:
+        return True                       # not a machine that can say
+    _line(WARN if load_is_hot(h) else OK, "machine load", words
+          + (" - it is fed more than it can serve; everything it does waits "
+             "behind the queue" if load_is_hot(h) else ""))
+    return True
 
 
 # When a caller wants the results rather than the printout - the dashboard
@@ -50,7 +145,7 @@ def collect(port=5000):
                       check_location, check_gps, check_repeaters,
                       check_towerwitch_service, check_neighbours_known,
                       check_net_role, check_hall, check_node, check_mail,
-                      check_internet, check_start):
+                      check_load, check_internet, check_start):
             try:
                 check()
             except Exception as exc:
@@ -673,6 +768,13 @@ def check_hall():
         else:
             _line(OK, "table links", f"{summary} to master"
                   + ("  (* = in a round)" if any(u.get("rtt_room") == "game" for u in linked) else ""))
+    choking = [u for u in real if (u.get("host") or {}).get("hot")]
+    if choking:
+        names = ", ".join(f"{u['name']} ({(u['host'].get('per_core') or 0):.1f}/core"
+                          + (", under-voltage" if u["host"].get("undervolt") else "")
+                          + ")" for u in choking)
+        _line(WARN, "table load", f"{len(choking)} table(s) overfed - {names}. "
+              "That is not the wire; those Pis are doing more than they can serve")
     live = hall.conductor()
     if live is not None:
         d = live.as_dict()
@@ -877,7 +979,7 @@ def doctor(port=5000):
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(),
         check_neighbours(), check_net_role(), check_hall(), check_node(),
-        check_mail(),
+        check_mail(), check_load(),
         check_internet(), check_start(), check_server(port),
     ]
 

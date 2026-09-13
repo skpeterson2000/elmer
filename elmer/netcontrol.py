@@ -160,6 +160,10 @@ class Unit:
         # the wifi to one table is bad, and only this catches that.
         self.rtt_ms = None
         self.rtt_room = ""
+        # A compact snapshot of the table's own load, as it reported it, so
+        # the host can tell a table that is choking (its Pi overfed) from one
+        # that is merely far (its wifi slow) - the same slowness, two cures.
+        self.host = {}
 
     @property
     def quiet_for(self):
@@ -176,7 +180,8 @@ class Unit:
                 "reported_round": self.reported_round,
                 "simulated": self.simulated, "showing": self.showing,
                 "ready": self.ready, "cloned": self.cloned,
-                "rtt_ms": self.rtt_ms, "rtt_room": self.rtt_room}
+                "rtt_ms": self.rtt_ms, "rtt_room": self.rtt_room,
+                "host": self.host}
 
 
 class Net:
@@ -384,7 +389,7 @@ class Net:
         return f"{claimed}#{n}", True
 
     def check_in(self, unit_id, name=None, players=0, ready=None,
-                 instance=None, address=None, rtt=None, room=None):
+                 instance=None, address=None, rtt=None, room=None, host=None):
         """A unit says it is here, and how many people are sitting at it.
 
         Returns (unit, None) or (None, reason). A unit already known is always
@@ -452,6 +457,9 @@ class Net:
                     unit.rtt_room = str(room or "")[:8]
                 except (TypeError, ValueError):
                     pass
+            if isinstance(host, dict):
+                unit.host = {k: host.get(k) for k in
+                             ("per_core", "mem_used_pct", "temp_c", "hot", "undervolt")}
             return unit, None
 
     def ready_units(self):

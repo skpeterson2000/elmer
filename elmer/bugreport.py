@@ -118,6 +118,13 @@ def build(conn=None, lines=400, include_station=False):
     add(f"python     {platform.python_version()}")
     add(f"system     {platform.system()} {platform.release()} {platform.machine()}")
     try:
+        from .diagnostics import host_load, load_words
+        words = load_words(host_load())
+        if words:
+            add(f"load       {words}")
+    except Exception:
+        pass
+    try:
         import flask
         add(f"flask      {flask.__version__}")
     except Exception:

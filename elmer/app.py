@@ -3608,7 +3608,8 @@ def api_net_checkin():
                                  ready=body.get("ready"),
                                  instance=body.get("instance"),
                                  address=request.remote_addr,
-                                 rtt=body.get("rtt"), room=body.get("room"))
+                                 rtt=body.get("rtt"), room=body.get("room"),
+                                 host=body.get("host"))
     running.note_service((time.perf_counter() - started) * 1000.0)
     if unit is None:
         return jsonify({"checked_in": False, "reason": why,
