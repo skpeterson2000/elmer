@@ -752,11 +752,18 @@ manual* on the Library page) and the next visit to **Library** indexes them:
 chapters, `pdfinfo` for the title. The search box finds the pages that carry
 every word you typed — quote a phrase to keep it whole — and shows each with
 its chapter and a snippet, linked to open the book at that page. The book
-opens *inside ELMER*: the browser's own viewer draws the pages, under an
-ELMER bar with **Back** (and Escape), the publisher's chapters down the side,
-and — when you came from a search — the hits in that book, each a tap away.
-The kiosk's browser has no tab bar, so a PDF opened on its own would be a
-wall with no door. Under it,
+opens *inside ELMER*, and ELMER draws the page itself — poppler renders it
+on the unit, once, and keeps it — under an ELMER bar with **Back** (and
+Escape), the page number, arrow keys and the edges of the page to turn it,
+the publisher's chapters down the side, and — when you came from a search —
+the hits in that book, each a tap away. It used to hand the browser's own
+PDF viewer the file with `#page=N` on the end and trust it to open there:
+Chromium on the Pi did, the Edge window on Windows loaded the file and
+ignored the page, and a phone showed nothing at all. The browser's viewer
+is still a button away (*Browser viewer*) for selecting text or searching
+inside the file, and is what the reader falls back to on a unit without
+poppler. The kiosk's browser has no tab bar, so a PDF opened on its own
+would be a wall with no door. Under it,
 *ELMER's topics in your books*: antennas, propagation, CW, digital modes,
 repeaters, power, safety, rules, satellites, menus, test equipment — each
 listing the chapters on the shelf whose bookmark titles use those words, and

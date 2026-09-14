@@ -119,3 +119,6 @@ BUILD.json
 # The browser profile of the window of ELMER's own on Windows (window.py):
 # Edge's or Chrome's state for that one window, nobody's business.
 data/window-profile/
+
+# The reader draws pages with poppler and keeps them here, one PNG a page.
+data/library-pages/

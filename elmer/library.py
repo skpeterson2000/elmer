@@ -502,6 +502,57 @@ def shelf_gear(conn):
             "marked": sorted(b.get("title") or b["name"] for b in marked)}
 
 
+# ------------------------------------------------------------- the pages
+# The reader used to hand the browser's own PDF viewer the file with #page=N
+# on the end and trust it to open there. Chromium on the Pi did; the Edge
+# window on Windows loads the file and ignores the page, and a phone hands
+# the file to some other app and shows nothing. So the reader draws the page
+# itself: poppler renders one page to a PNG, kept here so a page is rendered
+# once, and the browser's viewer is still offered for anyone who wants to
+# select text or search inside the file.
+PAGES = paths.STATE / "library-pages"
+PAGE_DPI = 110
+
+
+def page_image(name, n, dpi=PAGE_DPI):
+    """The PNG of page `n` of a book on the shelf, rendered once and kept;
+    None if the book is not there, the page is not, or poppler is not."""
+    pdf = book(name)
+    if pdf is None or n < 1:
+        return None
+    render = tool("pdftoppm")
+    if not render:
+        return None
+    out_dir = PAGES / pdf.stem
+    out = out_dir / f"{n}-{dpi}.png"
+    if out.is_file() and out.stat().st_mtime >= pdf.stat().st_mtime:
+        return out
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = out_dir / f"render-{n}-{dpi}"
+    try:
+        subprocess.run([render, "-f", str(n), "-l", str(n), "-r", str(int(dpi)), "-png",
+                        "-singlefile", str(pdf), str(stem)],
+                       capture_output=True, timeout=60, check=True)
+    except subprocess.CalledProcessError as exc:
+        # Usually a page past the end - a stale link, an old index - which
+        # is an ordinary ask and not a fault of the unit's.
+        log.debug("library: pdftoppm would not render page %d of %s (exit %s)", n, pdf.name, exc.returncode)
+        return None
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("library: could not render page %d of %s: %s", n, pdf.name, exc)
+        return None
+    made = stem.with_suffix(".png")
+    if not made.is_file():
+        return None
+    made.replace(out)
+    return out
+
+
+def can_draw_pages():
+    """Whether the reader can draw pages itself - poppler is here."""
+    return bool(tool("pdftoppm"))
+
+
 def outline(name):
     pdf = book(name)
     meta = _load_index(pdf) if pdf else None

@@ -1805,7 +1805,20 @@ def library_read(name):
     return render_template("library_read.html", name=pdf.name,
                            title=meta.get("title") or pdf.stem, pages=meta.get("pages") or 0,
                            page=page, query=query, hits=hits,
-                           outline=library.outline(pdf.name), back=back)
+                           outline=library.outline(pdf.name), back=back,
+                           # Whether the reader can draw the page itself (poppler
+                           # is here) rather than trust the browser's viewer to
+                           # open at it, which the Edge window does not.
+                           draws=library.can_draw_pages())
+
+
+@app.route("/library/page/<path:name>/<int:n>.png")
+def library_page_image(name, n):
+    """One page of a book, drawn by poppler - what the reader shows."""
+    made = library.page_image(name, n)
+    if made is None:
+        abort(404, "no such page, or poppler is not on this unit")
+    return send_from_directory(str(made.parent), made.name, mimetype="image/png", max_age=86400)
 
 
 @app.route("/library/book/<path:name>")
