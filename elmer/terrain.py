@@ -16,8 +16,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "terrain"
+from . import paths
+
+CACHE = paths.STATE / "terrain"       # with the unit's other caches, not the checkout's
 API = "https://api.opentopodata.org/v1/srtm30m"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 MAX_POINTS = 100          # the service's per-request ceiling

@@ -40,7 +40,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               fieldreport, golf, mail, monitoring, personal, reachout, repeaters,
+               fieldreport, golf, mail, monitoring, pathto, personal, reachout, repeaters,
                show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild, op25)
@@ -768,6 +768,42 @@ def reachout_page():
         # for, ticked, and said so they can be unticked. A shelf with no
         # radios on it leaves the old assumption - a handheld - in place.
         assumed=shelf["gear"] or ["ht"], shelf=shelf, **profile_block(connection))
+
+
+@app.route("/api/path-to")
+def api_path_to():
+    """Reaching a particular place from here: the path, and the approach.
+
+    The far end is a callsign, a grid, a lat,lon or a place name. The
+    ionosphere is read at the path's midpoint - where a hop is reflected -
+    and the ground between only when the path is short enough for the
+    ground to matter.
+    """
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    if place.get("lat") is None:
+        return jsonify({"ok": False, "located": False,
+                        "note": "ELMER does not know where you are yet. Set a QTH on the "
+                                "propagation page - a grid square is enough."})
+    text = (request.args.get("to") or "").strip()
+    if not text:
+        abort(400, "where to?")
+    there = pathto.resolve_to(text)
+    if not there or there.get("lat") is None:
+        return jsonify({"ok": False, "located": True,
+                        "note": (there or {}).get("error")
+                        or f"ELMER could not place \"{text}\" - try a callsign, a grid square, or a town and state"})
+    gear = [g for g in (request.args.get("gear") or "").split(",") if g in reachout.GEAR]
+    license = request.args.get("license") or profile["settings"].get("license_class") or "Technician"
+    try:
+        watts = max(1.0, min(1500.0, float(request.args.get("watts") or 100)))
+    except ValueError:
+        watts = 100.0
+    out = pathto.predict(place, there, gear, license, watts)
+    out["ok"] = True
+    out["located"] = True
+    return jsonify(out)
 
 
 @app.route("/api/ways-out")

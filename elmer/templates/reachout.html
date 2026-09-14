@@ -12,6 +12,26 @@
   </div>
 </div>
 
+{# Reaching somewhere in particular. Optional: blank, the page is what it
+   always was - everything worth trying from here. Filled, a card says how
+   far, which way, what is between, which bands carry it now, and the
+   approach an Elmer would suggest. #}
+<div class="panel" style="margin-top:1rem">
+  <div class="panel-title">Reaching somewhere in particular?</div>
+  <div class="row" style="gap:.5rem;align-items:center;flex-wrap:wrap;margin:.5rem 0 .2rem">
+    <input id="ro-to" placeholder="a callsign, a grid square, or a town and state"
+           autocomplete="off" spellcheck="false" style="flex:1 1 18rem;min-width:12rem">
+    <button class="btn sm primary" id="ro-to-go">Work out the path</button>
+    <button class="btn sm ghost" id="ro-to-clear" hidden>Clear</button>
+  </div>
+  <p class="tiny muted" style="margin:.2rem 0 0">
+    Optional. Leave it blank and everything below is about reaching <i>anybody</i> from here.
+    Give it a place and it says how far, which way, what is in between, which bands carry
+    it right now, and how an Elmer would go about it.
+  </p>
+  <div id="ro-path" style="margin-top:.6rem"></div>
+</div>
+
 <div class="panel" style="margin-top:1rem">
   <div class="panel-title">What have you got?</div>
   <div id="ro-gear" class="row" style="flex-wrap:wrap;gap:.9rem;margin:.6rem 0">

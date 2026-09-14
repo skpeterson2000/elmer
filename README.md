@@ -891,6 +891,30 @@ the calling channels, APRS, the ISS digipeater passing overhead twice a day,
 NVIS on a wire eight feet off the ground, ten metres if you are a Technician
 who has been told they have no HF.
 
+**Reaching somewhere in particular.** Most real needs have a destination -
+a relative's town, the net's location, the club across the state - so the
+page opens with one optional field: a callsign (the FCC record has its
+grid), a grid square, or a town and state. Blank, the page is what it
+always was. Filled, a card above the list says how far and which way (and
+the back bearing), whether each end is in daylight or the dark, and what is
+between: within fifty miles or so it asks the ground - the terrain profile
+the path tool uses - whether two head-high antennas can see each other, and
+names the hill if not; beyond that the path is the ionosphere's, read at
+the midpoint where a hop is reflected, and the card says which bands carry
+it *right now* and why the others do not ("the skip zone reaches 585 km and
+the path is 255 - too close for this band"). Then **the approach**, in the
+order an Elmer would try: line of sight or a repeater across town; on HF
+the bands that carry it that the license class may key up, fewest hops
+first, each with its mode and which way to hang the wire - broadside to the
+bearing for a hop, low for straight up and back; a handheld alone across
+the state is told so, pointed at a linked system, and shown which HF band
+would do it if one can be borrowed. And when, if not now: both ends in the
+dark is 80 m and 40 m's hour, both lit is 20 m and up's, one of each is the
+awkward case. The words stay measured: what the numbers say is said as
+such, and the card ends by noting that the band that carries it is the
+science and working it is the art. `elmer/pathto.py`; `tests/test_pathto.py`
+stands the ionosphere and the ground in and reads the answers.
+
 Under the list is the other half of that inventory. The tick boxes are radios,
 and a radio somebody did not bring is not going to appear - but the antenna is
 the part of the station that can still be built out of what is standing
