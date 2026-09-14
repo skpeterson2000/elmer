@@ -199,6 +199,16 @@ Write-Host "  Installing Flask, Pillow and reportlab into .venv ..."
 if ($LASTEXITCODE -ne 0) { Bad "pip could not install the dependencies"; exit 1 }
 Ok "python packages installed"
 
+# TowerWitch beside ELMER: its Qt build is what the dashboard's TowerWitch
+# button starts on Windows, and that wants PyQt5 in the same Python.
+$tw = @((Join-Path $HOME 'TowerWitch'), (Join-Path (Split-Path $root -Parent) 'TowerWitch')) |
+      Where-Object { Test-Path (Join-Path $_ 'TowerWitch-P.py') } | Select-Object -First 1
+if ($tw) {
+    & $vpy -m pip install --quiet PyQt5
+    if ($LASTEXITCODE -eq 0) { Ok "PyQt5 installed - the dashboard's TowerWitch button can start $tw" }
+    else { Warn "PyQt5 would not install; the self-check offers a Fix for it" }
+}
+
 if ($Serial) {
     & $vpy -m pip install --quiet pyserial
     if ($LASTEXITCODE -eq 0) { Ok "pyserial installed - the Lab can talk to a NanoVNA" }

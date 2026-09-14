@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from markupsafe import escape
@@ -5321,6 +5322,15 @@ def _remedy_connect():
     return ok, message
 
 
+def _remedy_pyqt5():
+    done = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "PyQt5"],
+                          capture_output=True, text=True, timeout=600)
+    if done.returncode:
+        tail = (done.stderr or done.stdout or "").strip().splitlines()[-1:]
+        return False, "pip could not install PyQt5" + (f": {tail[0]}" if tail else "")
+    return True, "PyQt5 installed - the TowerWitch button can start it now"
+
+
 def _remedy_poppler():
     winget = shutil.which("winget")
     if not winget:
@@ -5344,6 +5354,7 @@ REMEDIES = {
     "forget-net": ("forget the net this table remembers", _remedy_forget_net),
     "leave-net": ("cut this table loose from the net it is reporting to", _remedy_leave_net),
     "connect": ("connect this copy to the repository, so it can update itself", _remedy_connect),
+    "pyqt5": ("install PyQt5 into ELMER's Python, for TowerWitch's Qt build", _remedy_pyqt5),
     "poppler": ("install poppler with winget", _remedy_poppler),
     "stop-op25": ("stop OP25", _remedy_stop_op25),
 }

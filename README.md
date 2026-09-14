@@ -1092,6 +1092,12 @@ otherwise the browser opens on the dashboard, with ELMER started first if it
 was not running (`elmer_link.py` in the TowerWitch repository; it looks at
 `~/elmer`, `~/elmer-main`, beside TowerWitch, or `ELMER_HOME`).
 
+On Windows the button starts TowerWitch's Qt build, which wants PyQt5 in
+ELMER's own Python: `install.ps1` installs it when a TowerWitch is found
+beside ELMER, and the self-check has a **TowerWitch** line that says whether
+the button could start it, with a Fix that installs PyQt5 when it could not.
+On a Pi the Tk build wants `python3-tk`, and the line says so.
+
 ### Asking a TowerWitch over the network
 
 Two Pis in one vehicle: only one has TowerWitch and the credentials. Point the

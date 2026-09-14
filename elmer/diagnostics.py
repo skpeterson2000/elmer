@@ -147,7 +147,8 @@ def collect(port=5000):
                       check_database, check_templates, check_tools,
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
-                      check_towerwitch_service, check_neighbours_known,
+                      check_towerwitch_service, check_towerwitch_beside,
+                      check_neighbours_known,
                       check_net_role, check_hall, check_node, check_mail,
                       check_load, check_op25, check_internet, check_start):
             try:
@@ -565,6 +566,31 @@ def check_towerwitch_service():
     else:
         _line(WARN, "TowerWitch service", f"{url} did not answer - ELMER uses "
                                           f"what is on disk until it does")
+    return True
+
+
+def check_towerwitch_beside():
+    """TowerWitch installed beside ELMER, and whether the dashboard's button
+    to it could start it: the Qt build on Windows wants PyQt5 in ELMER's
+    own Python, the Tk build on a Pi wants tkinter. Silent when there is no
+    TowerWitch: a unit without one is the normal case."""
+    from . import towerwitch
+    path = towerwitch.find()
+    if path is None:
+        return True
+    import importlib.util
+    if os.name == "nt":
+        if importlib.util.find_spec("PyQt5") is None:
+            _line(WARN, "TowerWitch", f"at {path}, but PyQt5 is not in ELMER's Python - the "
+                                      f"dashboard's button cannot start it", fix="pyqt5")
+        else:
+            _line(OK, "TowerWitch", f"at {path}; PyQt5 is here, so the dashboard's button can start it")
+    else:
+        if importlib.util.find_spec("tkinter") is None:
+            _line(WARN, "TowerWitch", f"at {path}, but tkinter is missing - "
+                                      f"sudo apt install python3-tk, then the button can start it")
+        else:
+            _line(OK, "TowerWitch", f"at {path}; the dashboard's button can start it")
     return True
 
 
@@ -1084,7 +1110,7 @@ def doctor(port=5000):
         check_templates(), check_tools(), check_library(), check_kiosk(),
         check_launcher(),
         check_updates(), check_location(),
-        check_gps(), check_repeaters(), check_towerwitch_service(),
+        check_gps(), check_repeaters(), check_towerwitch_service(), check_towerwitch_beside(),
         check_neighbours(), check_net_role(), check_hall(), check_node(),
         check_mail(), check_load(), check_op25(),
         check_internet(), check_start(), check_server(port),
