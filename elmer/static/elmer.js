@@ -361,7 +361,7 @@ async function confirmQuit() {
     if (people.here) bits.push(people.here + (people.here === 1 ? ' person' : ' people') + ' at this table');
     if (people.others) bits.push(people.others + (people.others === 1 ? ' person' : ' people') + ' at ' +
                                  people.tables + (people.tables === 1 ? ' other table' : ' other tables') + ' of the net');
-    return confirm(bits.join(' and ') + ' are playing on this unit.\n\n' +
+    return confirm(bits.join(' and ') + (people.total === 1 ? ' is' : ' are') + ' playing on this unit from another device.\n\n' +
                    'Stop ELMER anyway? Their game ends with it.');
   }
   return confirm('Stop ELMER and close this window?');

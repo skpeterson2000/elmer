@@ -3054,11 +3054,15 @@ def api_people():
 
     For the window that stops the server when it closes (owner.js): the
     people at this unit's own table, and the people at the other tables of a
-    net this unit is running. Practice players are not people. This is what
-    "closing this window ends their game" is counted from.
+    net this unit is running. Practice players are not people, and neither -
+    for this count - is anybody seated at the screen itself: they are looking
+    at the window, and closing it is their own doing. This is what "closing
+    this window ends their game" is counted from.
     """
     room = party.room()
-    here = room.people_here() if room is not None else 0
+    # Only the people the closing would surprise: on phones, not at the
+    # screen whose window this is.
+    here = room.people_elsewhere() if room is not None else 0
     others, tables = 0, 0
     net = netcontrol.net()
     if net is not None:

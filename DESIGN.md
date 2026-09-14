@@ -3670,6 +3670,11 @@ window, asks every few seconds how many real people are on the unit - at
 its own table, and at the other tables of a net it is running - and while
 there are any, says so across the top and arms the browser's own
 leave-page question at close. With nobody on it, it closes like any other.
+"Anybody" means people on other devices - phones at the table, other
+tables of the net. Somebody seated at the screen itself is looking at the
+window, and closing it is their own act; counting them had the banner
+warning the one person in the room about themselves, all through a round
+of golf played alone.
 Where neither browser is found the page opens as a tab in the default
 browser instead, and the console says the tab will not stop the server.
 

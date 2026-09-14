@@ -1422,6 +1422,15 @@ class Room:
         with self.lock:
             return sum(1 for p in self.players.values() if not p.bot)
 
+    def people_elsewhere(self):
+        """The people at this table who are not at its screen: the ones on
+        phones, whom closing the screen's window would cut off without a
+        word. Somebody seated at the screen is looking at the window - closing
+        it is their own act, and warning them about themselves was the banner
+        crying wolf at the one person in the room."""
+        with self.lock:
+            return sum(1 for p in self.players.values() if not p.bot and p.device != "screen")
+
     def state(self, player_id=None):
         """Everything a connected device needs to draw the screen."""
         with self.lock:
