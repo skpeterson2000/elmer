@@ -330,7 +330,7 @@ class Golf:
             ball.lie = "green"
             feet = max(3, abs(left) * 3)
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards - on the green, {feet} feet",
-                    "carry": carry, "wind": wind}
+                    "carry": carry, "wind": wind, "feet": feet}
         if left < -edge:
             # Over the back: rough beyond, or whatever is there.
             ball.at = h["yards"]
@@ -348,7 +348,7 @@ class Golf:
                     "carry": carry, "wind": wind, "hazard": hz["name"]}
         ball.lie = "fairway"
         return {"kind": "fairway", "words": f"{club}, {carry} yards, fairway - {left} to go",
-                "carry": carry, "wind": wind}
+                "carry": carry, "wind": wind, "left": left}
 
     def _foul(self, h, ball, club):
         """A wrong answer: the ball finds the nearest trouble the club could
@@ -417,8 +417,10 @@ class Golf:
             ball.picked_up = True
             ball.strokes = h["par"] + PICK_UP_OVER
             shot["words"] += f" - picked up, {score_name(ball.strokes, h['par'])}"
+            shot["score"] = score_name(ball.strokes, h["par"])
         elif ball.holed:
             shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
+            shot["score"] = score_name(ball.strokes, h["par"])
         shot.update(strokes=ball.strokes, at=ball.at, lie=ball.lie, club=club,
                     done=ball.done(), holed=ball.holed)
         ball.log.append(shot["words"])

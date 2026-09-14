@@ -564,6 +564,7 @@ function paintResults(round, shoot) {
       revealBeat[round.number] = true;
       const mine = gf.last.find(s => s.player === me.id);
       view.innerHTML = `${golfHeadHTML(gf)}<div class="verdict in"><div class="h">${escapeHTML(mine.call || '')}</div><div class="t">${escapeHTML(mine.words)}</div></div>`;
+      if (window.Voice) { Voice.setHave(gf.voice_have); Voice.say(mine.tokens); }
       setTimeout(() => { shownRound = null; }, 4000);
       return;
     }
@@ -890,5 +891,6 @@ if (remembered) {
 </script>
 <script src="{{ asset('owner.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>
+<script src="{{ asset('voice.js') }}"></script>
 </body>
 </html>

@@ -121,6 +121,19 @@ GOLF_PRELUDE = 4.0
 PERSON_REVEAL = 90.0
 
 
+def _voice_address(who, ball):
+    from . import voice
+    return voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"))
+
+
+def _voice_hole(d, g):
+    from . import voice
+    if d.get("hole") is None:
+        return []
+    h = g.hole() or {}
+    return voice.hole(d["hole"], d.get("par"), d.get("yards"), h.get("wind"), d.get("wind_mph"), d.get("course"))
+
+
 def bot_swing_seconds(payload, pace=None):
     """How long a practice player takes over a stroke: the question's
     reading time, within the floor and the table's pace."""
@@ -934,6 +947,13 @@ class Room:
                 self.golf_clips = sorted(p.stem for p in clips_dir.glob("*.gif"))
             except OSError:
                 self.golf_clips = []
+            # And which of the narrator's snippets are recorded - the shelf
+            # the screens play from, read once a round.
+            voice_dir = Path(__file__).resolve().parent / "static" / "golf" / "voice"
+            try:
+                self.golf_voice = sorted(p.stem for p in voice_dir.glob("*.mp3"))
+            except OSError:
+                self.golf_voice = []
             self.mode = GOLF
             self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
@@ -1012,7 +1032,11 @@ class Room:
             last = g.history[-1] if g.history else None
             shots = []
             if last:
-                shots = [{"player": p, "name": name(p), **s} for p, s in last["shots"].items()]
+                from . import voice
+                shots = [{"player": p, "name": name(p), **s,
+                          # the stroke and the call as the narrator's tokens
+                          "tokens": [voice.name_token(name(p))] + voice.call(s.get("call")) + voice.shot(s)}
+                         for p, s in last["shots"].items()]
             board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
             mine = balls.get(player_id) if player_id is not None else None
             away = d.get("away")
@@ -1030,6 +1054,9 @@ class Room:
                     # hole - and whether this player is one of them.
                     "tee_times": [name(p) for p in d.get("tee_times", [])],
                     "clips": list(getattr(self, "golf_clips", []) or []),
+                    "voice_have": list(getattr(self, "golf_voice", []) or []),
+                    "address_tokens": (_voice_address(name(away), away_ball) if away_ball else []),
+                    "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),
                     "next_hole": (self.golf.holes[self.golf.hole_index + 1]
                                   if self.golf.hole_index + 1 < len(self.golf.holes) else None),

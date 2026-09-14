@@ -2387,8 +2387,22 @@ answers, theirs and the right one at once, two colours side by side, which
 people read fine as long as it is one car of the train at a time. The tee
 shot gets the hole read out; every stroke after it gets the narrator alone,
 since we were all there for the start of the hole. What is said goes on the
-screen; a voice or a sound hangs on `window.golfCue(text)`, a stub on
-purpose until there is a voice worth having.
+screen - and, when the unit has the recordings, is said aloud.
+
+**The voice is pieced together from snippets**, the way an ATIS reads the
+weather from a shelf of recorded words. The game composes every line as a
+list of tokens - the stems of sound files in `elmer/static/golf/voice/`:
+*name-scott · addresses-the-ball · the-driver · in-hand · three · hundred ·
+and · seventy · seven · to-go · from-the-tee* - and the screen plays them in
+order, silent for any the unit has not got, so the voice is built up one
+snippet at a time and a unit with none says nothing. Numbers are reused
+for yards, feet, strokes and the wind; the holes, the clubs, the lies, the
+calls and the scores are fixed phrases; a regular's name is one file,
+`name-<slug>.mp3`, and a name not on the shelf is said as *the player*. The
+composition is `elmer/voice.py`, tested without a speaker in the room; the
+script to record - one line a snippet, ready for a voice service - is
+`python3 tools/voice_script.py`, and `docs/narration/voice-script.md` is
+its printout.
 
 **A hole in one** is real on a par 3 - about one in twelve thousand for an
 amateur, which nobody would ever see here - so a right answer from the tee

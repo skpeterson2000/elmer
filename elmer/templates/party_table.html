@@ -791,7 +791,8 @@ async function tick() {
         stage.innerHTML = (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
           golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '');
-        if (address) narrate(`${gf.away_name} addresses the ball`);
+        if (window.Voice) Voice.setHave(gf.voice_have);
+        if (address) narrate(`${gf.away_name} addresses the ball`, (onTheTee ? gf.hole_tokens : []).concat(gf.address_tokens || []));
       }
       return;
     }
@@ -894,7 +895,7 @@ async function tick() {
         stage.innerHTML = golfHead(s.golf) + (shot
           ? `<p class="narrator"><b>${esc(shot.name)}</b>&hellip; ${esc(shot.call || '')}</p><p class="qtext">${esc(shot.words)}</p>`
           : '<p class="narrator">The ball is away&hellip;</p>');
-        if (shot) narrate(`${shot.name}: ${shot.call || shot.words}`);
+        if (shot) narrate(`${shot.name}: ${shot.call || shot.words}`, shot.tokens);
         painted = key + ':beat';
         setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS);
         return;
@@ -1004,8 +1005,8 @@ document.getElementById('endtable').addEventListener('click', async () => {
    sound can be hung on golfCue later - a stub for now, on purpose. */
 const SHOT_BEAT_MS = 4000;
 const revealBeat = {};
-function narrate(text) {
-  try { if (typeof window.golfCue === 'function') window.golfCue(text); } catch (e) {}
+function narrate(text, tokens) {
+  try { if (typeof window.golfCue === 'function') window.golfCue(text, tokens); } catch (e) {}
 }
 
 /* The people who have played at this table, offered back to the name
@@ -1404,5 +1405,6 @@ scheduleTable();
 <script src="{{ asset('hallshow.js') }}"></script>
 <script src="{{ asset('owner.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>
+<script src="{{ asset('voice.js') }}"></script>
 </body>
 </html>
