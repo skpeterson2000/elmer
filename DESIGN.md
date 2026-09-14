@@ -2448,7 +2448,15 @@ is on the tee, so *Scott addresses the ball* is said over the view Scott
 would be looking at. The picture
 is meant to become a place: spots in it to press - the desk to check in,
 the door to the lounge, the pro shop for the record board - each opening
-its own panel. That is the next step, once the rooms behind the doors exist.
+its own panel. The rooms, as planned: the *desk* is check-in - the tee
+sheet; the *pro shop* holds the record board, the dignified list; the
+*lounge* is the personal trophy room, where somebody on the pro shop's list
+sits down and sees their own best - the best time on the questions of the
+players who hold a place on that list. The picture is served as the
+screens need it, not as it was made: the originals stay in artwork/ and the
+served copies are resized and recompressed to a few hundred kilobytes,
+because a Pi hands them to every phone at the table and the budget is a
+Pi's. That is the next step, once the rooms behind the doors exist.
 
 **A round is joined by tee time.** Once a round is on, the table screen is
 golf's: the Gaming Center and the round controls stand down, the QR stays
