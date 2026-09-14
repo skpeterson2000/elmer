@@ -109,6 +109,8 @@ class Bridge:
 
     net_mode = "tournament"
     hall_shootout = None
+    hall_cutthroat = None
+    hall_golf = None
     hall_show = None                 # the host's hand on this table's screens
     showing = ""                     # what the table screen last said it shows
     # Whether somebody at this table has pressed "check in as ready". The
@@ -249,6 +251,8 @@ class Bridge:
         # The hall's shootout, as it concerns this table. Kept so the table
         # screen can show the subjects when the pick is this table's.
         self.hall_shootout = reply.get("shootout")
+        self.hall_cutthroat = reply.get("cutthroat")
+        self.hall_golf = reply.get("golf")
         # And the show: announcements addressed to this table and its seats,
         # the card between rounds, the mode. Refreshed every poll, so a
         # cleared announcement clears here within the second.
@@ -448,6 +452,8 @@ class Bridge:
                             int(len(self._rtt) * 0.95))], 1)
                             if len(self._rtt) >= 4 else None),
                 "shootout": self.hall_shootout,
+                "cutthroat": self.hall_cutthroat,
+                "golf": self.hall_golf,
                 "show": self.hall_show,
                 "quiet_for": (round(time.time() - self.last_contact, 1)
                               if self.last_contact else None)}

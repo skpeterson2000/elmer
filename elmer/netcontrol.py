@@ -30,14 +30,24 @@ import time
 from collections import deque
 
 from . import show as showmod, tournament
+from .cutthroat import CutThroat
+from .golf import Golf
 from .party import callsign_of as party_callsign
 from .shootout import Shootout
 
 # The games a hall can be playing. A tournament asks the blueprint's questions
 # and every table answers the same ones; a shootout hands one table the choice
-# of subject, and the rest of the hall has to keep up.
+# of subject, and the rest of the hall has to keep up. A CutThroat and a
+# round of golf are the table games played with tables for players: a table
+# is right when anybody at it was right, and it keeps its chair or its ball
+# goes by that. The hall's golf is a scramble - every table hits at once,
+# the sensible club, one ball a table - because a hall of twenty tables
+# waiting on one player is not a hall, and a scramble is how a crowd plays.
 TOURNAMENT = "tournament"
 SHOOTOUT = "shootout"
+CUTTHROAT = "cutthroat"
+GOLF = "golf"
+MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF)
 
 # How long the picking table gets. Longer than a table on its own, because a
 # table at a hamfest is several people conferring over a screen.
@@ -257,6 +267,8 @@ class Net:
         # that had nobody right when the picker made it takes a letter.
         self.mode = TOURNAMENT
         self.shootout = None
+        self.cutthroat = None       # musical chairs, tables for players
+        self.golf = None            # a round on a course, one ball a table
         self.pick = None            # the subject chosen, waiting to be asked
         self.pick_seconds = HALL_PICK_SECONDS
         self._pick_since = None
@@ -444,6 +456,10 @@ class Net:
                          len(self.units), "" if len(self.units) == 1 else "s")
                 if self.shootout is not None and not self.shootout.over():
                     self.shootout.admit(slot)
+                if self.cutthroat is not None and not self.cutthroat.over():
+                    self.cutthroat.seat(slot)
+                if self.golf is not None and not self.golf.over():
+                    self.golf.add_player(slot)
             unit.last_seen = _now()
             unit.instance = instance or unit.instance
             unit.address = address or unit.address
@@ -535,6 +551,10 @@ class Net:
             if self.shootout.picker is None and not self.shootout.over():
                 self.shootout.picker = self.shootout.next_picker(uid)
             self._pick_since = None
+        if self.cutthroat is not None:
+            self.cutthroat.withdraw(uid)            # leaving is losing
+        if self.golf is not None:
+            self.golf.drop(uid)                     # the ball is picked up
 
     def present_units(self):
         with self.lock:
@@ -820,24 +840,7 @@ class Net:
             if self.shootout is not None:
                 section = (self.round.get("question") or {}).get("section")
                 if section:
-                    by_unit = {}
-                    for row in everyone:
-                        if row.get("bot"):
-                            continue
-                        slot = by_unit.setdefault(row["unit"], {"correct": False, "ms": None})
-                        if row["correct"]:
-                            slot["correct"] = True
-                            slot["ms"] = (row["ms"] if slot["ms"] is None
-                                          else min(slot["ms"], row["ms"]))
-                    # A practice table's shot is its own simulated answers.
-                    for row in everyone:
-                        uid = row["unit"]
-                        if uid in self.units and self.units[uid].simulated:
-                            slot = by_unit.setdefault(uid, {"correct": False, "ms": None})
-                            if row["correct"]:
-                                slot["correct"] = True
-                                slot["ms"] = (row["ms"] if slot["ms"] is None
-                                              else min(slot["ms"], row["ms"]))
+                    by_unit = self._table_shots(everyone)
                     shot = self.shootout.play(section, by_unit)
                     # Names for the screens: the rules speak in unit ids.
                     shot["took_names"] = [self.units[u].name for u in shot.get("took", [])
@@ -845,6 +848,33 @@ class Net:
                     shot["picker_name"] = (self.units[shot["picker"]].name
                                            if shot.get("picker") in self.units else None)
                     summary["shootout"] = shot
+
+            # In a CutThroat the round is a chair, table by table: a table
+            # that was not right - nobody at it - is out. Every table is in
+            # the answers, so a table that did not report is one that missed.
+            if self.cutthroat is not None and not self.cutthroat.over():
+                by_unit = self._table_shots(everyone)
+                for uid in self.units:
+                    by_unit.setdefault(uid, {"correct": False, "ms": None})
+                row = self.cutthroat.play(by_unit)
+                row["out_names"] = [self.units[u].name for u in row.get("out", []) if u in self.units]
+                row["winner_name"] = (self.units[row["winner"]].name
+                                      if row.get("winner") in self.units else None)
+                summary["cutthroat"] = row
+            # In a round of golf the round is a stroke for every table's ball
+            # - a scramble: right if anybody at the table was right, the
+            # sensible club. A table that did not report plays a foul ball.
+            if self.golf is not None and not self.golf.over():
+                by_unit = self._table_shots(everyone)
+                row = self.golf.play({uid: {"correct": v["correct"],
+                                            "question_id": self.round.get("question_id")}
+                                      for uid, v in by_unit.items()})
+                row["shots"] = {uid: {**shot, "name": self.units[uid].name if uid in self.units else "(gone)"}
+                                for uid, shot in row.get("shots", {}).items()}
+                if row.get("winner") is not None:
+                    row["winner_name"] = (self.units[row["winner"]].name
+                                          if row["winner"] in self.units else None)
+                summary["golf"] = row
 
             # A block closes on the twelfth question, the twenty-fourth and so
             # on, and the summary carries the declaration so the screen that
@@ -886,6 +916,118 @@ class Net:
             except Exception as exc:                  # pragma: no cover
                 log.warning("net: a round listener failed: %r", exc)
         return summary
+
+    def _table_shots(self, everyone):
+        """Every table's shot this round: right if any person at it was
+        right, and its time the quickest right answer. Practice players do
+        not make a real table's shot; a practice table's shot is its own."""
+        by_unit = {}
+        for row in everyone:
+            uid = row["unit"]
+            simulated = uid in self.units and self.units[uid].simulated
+            if row.get("bot") and not simulated:
+                continue
+            slot = by_unit.setdefault(uid, {"correct": False, "ms": None})
+            if row["correct"]:
+                slot["correct"] = True
+                slot["ms"] = (row["ms"] if slot["ms"] is None
+                              else min(slot["ms"], row["ms"]))
+        return by_unit
+
+    # ----------------------------------------------------------- cutthroat
+
+    def begin_cutthroat(self):
+        """Musical chairs across the tables checked in, real tables first."""
+        with self.lock:
+            real = [uid for uid, u in self.units.items() if not u.simulated]
+            fake = [uid for uid, u in self.units.items() if u.simulated]
+            if len(real) + len(fake) < 2:
+                return None, "a CutThroat needs two tables"
+            self.cutthroat = CutThroat(real + fake, passers=fake)
+            self.mode = CUTTHROAT
+            self.plan = None
+            return self.cutthroat, None
+
+    def end_cutthroat(self):
+        with self.lock:
+            self.cutthroat = None
+            if self.mode == CUTTHROAT:
+                self.mode = TOURNAMENT
+
+    def cutthroat_over(self):
+        with self.lock:
+            return self.cutthroat is not None and self.cutthroat.over()
+
+    def cutthroat_view(self, unit_id=None):
+        """The hall's CutThroat with table names on it, for screens."""
+        with self.lock:
+            c = self.cutthroat
+            if c is None:
+                return None
+            d = c.as_dict()
+            standing = []
+            for row in d["standing"]:
+                unit = self.units.get(row["player"])
+                standing.append({**row, "name": unit.name if unit else "(gone)",
+                                 "simulated": bool(unit.simulated) if unit else False})
+            winner = self.units.get(c.winner()) if c.winner() else None
+            last = c.history[-1] if c.history else None
+            if last:
+                last = {**last, "out_names": [self.units[u].name for u in last.get("out", []) if u in self.units]}
+            return {**d, "on": True, "standing": standing,
+                    "winner_name": winner.name if winner else None,
+                    "you_in": (unit_id in c.alive()) if unit_id is not None else None,
+                    "last": last}
+
+    # ---------------------------------------------------------------- golf
+
+    def begin_golf(self, course, holes=None):
+        """A scramble on a course across the tables checked in, one ball a
+        table, real tables first."""
+        with self.lock:
+            real = [uid for uid, u in self.units.items() if not u.simulated]
+            fake = [uid for uid, u in self.units.items() if u.simulated]
+            if not real and not fake:
+                return None, "a round of golf needs a table"
+            self.golf = Golf(real + fake, course, holes=holes)
+            self.mode = GOLF
+            self.plan = None
+            return self.golf, None
+
+    def end_golf(self):
+        with self.lock:
+            self.golf = None
+            if self.mode == GOLF:
+                self.mode = TOURNAMENT
+
+    def golf_over(self):
+        with self.lock:
+            return self.golf is not None and self.golf.over()
+
+    def golf_view(self, unit_id=None):
+        """The hall's round with table names on it, for screens."""
+        with self.lock:
+            g = self.golf
+            if g is None:
+                return None
+            d = g.as_dict()
+            name = lambda u: self.units[u].name if u in self.units else "(gone)"  # noqa: E731
+            sim = lambda u: bool(self.units[u].simulated) if u in self.units else False  # noqa: E731
+            balls = {u: {**b, "name": name(u), "simulated": sim(u)} for u, b in d["balls"].items()}
+            board = [{**r, "name": name(r["player"]), "simulated": sim(r["player"])} for r in d["leaderboard"]]
+            last = g.history[-1] if g.history else None
+            shots = ([{"player": u, "name": name(u), **sh} for u, sh in last["shots"].items()]
+                     if last else [])
+            return {**d, "on": True, "balls": balls, "leaderboard": board, "last": shots,
+                    "last_hole_done": bool(last and last.get("hole_done")),
+                    "last_card": ({name(u): n for u, n in last["card"].items()}
+                                  if last and last.get("card") else None),
+                    "you": balls.get(unit_id) if unit_id is not None else None,
+                    "winner_name": name(g.winner()) if g.winner() else None}
+
+    def game_over(self):
+        """Whether the table game the hall is in has ended - for the conductor."""
+        return self.shootout_over() or self.cutthroat_over() or self.golf_over()
 
     # ------------------------------------------------------------ shootout
 
@@ -1185,6 +1327,8 @@ class Net:
                 "blocks": list(self.blocks),
                 "mode": self.mode,
                 "shootout": self.shootout_view(),
+                "cutthroat": self.cutthroat_view(),
+                "golf": self.golf_view(),
                 # The board is a screen in the hall like any other: it shows
                 # the deck and the announcements, addressed to nobody's seat.
                 "show": dict(self.show.for_unit(None, standings=[

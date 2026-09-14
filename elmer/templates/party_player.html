@@ -207,6 +207,26 @@ function showJoin(reason) {
    table's; when it is this table's, the subjects are here and anyone at the
    table may tap - the first tap is the table's choice. Otherwise: whose it
    is, and the tables' letters. */
+/* The hall's CutThroat or golf, as it concerns this table, in a line. */
+function hallGameLine(hall, esc_) {
+  const e = esc_ || escapeHTML;
+  if (!hall) return '';
+  const ct = hall.cutthroat, gf = hall.golf;
+  if (ct && ct.on) {
+    if (ct.over) return `CutThroat across the hall: <b>${e(ct.winner_name || 'a table')}</b> is the last table standing.`;
+    const you = ct.you_in === false ? 'this table is out - watching' : ct.you_in ? 'this table is in' : '';
+    const where = ct.phase === 'final' ? `the final, question ${(ct.final_round || 0) + 1} of ${ct.final_length}`
+      : ct.phase === 'sudden' ? 'sudden death' : `${ct.remaining} of ${ct.players} tables in`;
+    return `CutThroat across the hall: ${where}${you ? ' · ' + you : ''}. A table is right when anybody at it is.`;
+  }
+  if (gf && gf.on) {
+    if (gf.over) return `Golf across the hall: <b>${e(gf.winner_name || 'a table')}</b> wins the round.`;
+    const you = gf.you ? ` · this table's ball: ${gf.you.holed ? 'holed in ' + gf.you.strokes : gf.you.picked_up ? 'picked up' : gf.you.left + ' to go, ' + e(gf.you.lie)}` : '';
+    return `Golf across the hall at ${e(gf.course_name)}: hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes}, par ${gf.par}${you}. A scramble - one ball a table, right if anybody at it is.`;
+  }
+  return '';
+}
+
 function paintHallShootout(state) {
   const h = state.hall && state.hall.shootout;
   if (!h || !h.on) return false;
@@ -277,6 +297,12 @@ function paintWaiting(state) {
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
   if (paintHallShootout(state)) return;
+  const hallGame = hallGameLine(state.hall);
+  if (hallGame) {
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem"><h2>${state.hall.cutthroat && state.hall.cutthroat.on ? 'CutThroat' : 'Golf'} across the hall</h2>
+      <p>${hallGame}</p><p style="padding:1rem 0;color:var(--dim)">Waiting for the hall's next question.</p></div>`;
+    return;
+  }
   const gf = state.golf;
   if (gf) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">

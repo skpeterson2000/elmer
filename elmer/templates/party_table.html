@@ -74,6 +74,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .gc-tile > span:last-child, .gc-tilebtn > span:last-child { color: var(--dim); font-size: .78rem; line-height: 1.35; }
 .gc-tile b, .gc-tilebtn b { font-family: var(--mono); letter-spacing: .12em; text-transform: uppercase; font-size: .82rem; }
 .gc-glyph { font-size: 1.3rem; line-height: 1; }
+.gc-glyph .yagi { display: inline-block; vertical-align: -.1em; color: var(--gco); }
 button.gc-tile:hover, .gc-tilebtn:hover { border-color: var(--gco); box-shadow: inset 0 0 0 1px var(--gco), 0 0 12px rgba(255,122,26,.25);
       transform: translateY(-1px); }
 button.gc-tile:disabled, .gc-tilebtn:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; border-color: var(--line-2); }
@@ -320,7 +321,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .gc, body.f
             <span>Rounds of questions, points for speed, a leaderboard. The classic.</span>
           </button>
           <button class="gc-tile" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">
-            <span class="gc-glyph">&#127919;</span>
+            <span class="gc-glyph"><svg class="yagi" viewBox="0 0 40 24" width="1.9em" height="1.15em" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="37" y2="12"/><line x1="6" y1="1" x2="6" y2="23"/><line x1="13" y1="2.5" x2="13" y2="21.5"/><line x1="20" y1="4" x2="20" y2="20"/><line x1="27" y1="5.5" x2="27" y2="18.5"/><line x1="34" y1="7" x2="34" y2="17"/><line x1="17" y1="12" x2="17" y2="23" stroke-width="1.5"/></svg></span>
             <b>Shootout</b>
             <span>One picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.</span>
           </button>
@@ -1094,6 +1095,26 @@ function paintOffer(info) {
      </div>`;
 }
 
+/* The hall's CutThroat or golf, as it concerns this table, in a line. */
+function hallGameLine(hall, esc_) {
+  const e = esc_ || esc;
+  if (!hall) return '';
+  const ct = hall.cutthroat, gf = hall.golf;
+  if (ct && ct.on) {
+    if (ct.over) return `CutThroat across the hall: <b>${e(ct.winner_name || 'a table')}</b> is the last table standing.`;
+    const you = ct.you_in === false ? 'this table is out - watching' : ct.you_in ? 'this table is in' : '';
+    const where = ct.phase === 'final' ? `the final, question ${(ct.final_round || 0) + 1} of ${ct.final_length}`
+      : ct.phase === 'sudden' ? 'sudden death' : `${ct.remaining} of ${ct.players} tables in`;
+    return `CutThroat across the hall: ${where}${you ? ' · ' + you : ''}. A table is right when anybody at it is.`;
+  }
+  if (gf && gf.on) {
+    if (gf.over) return `Golf across the hall: <b>${e(gf.winner_name || 'a table')}</b> wins the round.`;
+    const you = gf.you ? ` · this table's ball: ${gf.you.holed ? 'holed in ' + gf.you.strokes : gf.you.picked_up ? 'picked up' : gf.you.left + ' to go, ' + e(gf.you.lie)}` : '';
+    return `Golf across the hall at ${e(gf.course_name)}: hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes}, par ${gf.par}${you}. A scramble - one ball a table, right if anybody at it is.`;
+  }
+  return '';
+}
+
 function paintNode(info) {
   const b = info.bridge || {};
   const words = {
@@ -1105,7 +1126,8 @@ function paintNode(info) {
     stopped: 'Stopped',
   };
   const cls = ({joined: 'joined', offline: 'offline', refused: 'refused'})[b.state] || 'idle';
-  const key = [b.state, b.net_name, b.difficulty, b.name, b.net_round, b.waiting_to_report, info.ready, b.error].join('|');
+  const game = hallGameLine({cutthroat: b.cutthroat, golf: b.golf});
+  const key = [b.state, b.net_name, b.difficulty, b.name, b.net_round, b.waiting_to_report, info.ready, b.error, game].join('|');
   if (key === nodePainted) return;
   nodePainted = key;
   nodeBox.innerHTML =
@@ -1119,6 +1141,7 @@ function paintNode(info) {
        ${info.ready ? '<span class="ready">&#10003; ready</span>' : '<span style="color:var(--dim)">not yet checked in as ready</span>'}
      </div>
      <div class="netstate"><span class="dot ${cls}"></span>${esc(words[b.state] || b.state || '')}${b.waiting_to_report ? ' · a report is waiting to go' : ''}</div>
+     ${game ? `<div class="netstate" style="color:var(--text)">${game}</div>` : ''}
      <div class="netrow">
        ${info.ready ? '' : '<button class="btn primary" data-checkin="">&#10003; Check in as ready</button>'}
        <button class="btn sm ghost" data-standalone>Leave the net</button>

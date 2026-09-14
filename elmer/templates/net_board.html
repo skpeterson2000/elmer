@@ -293,6 +293,8 @@ function practiceNote(rows, isBot) {
 function standings(board) {
   const sh = board.shootout;
   if (sh && sh.on) return shootoutTables(board, sh);
+  if (board.cutthroat && board.cutthroat.on) return cutthroatTables(board, board.cutthroat);
+  if (board.golf && board.golf.on) return golfTables(board, board.golf);
   const units = realOnly(board.units || [], u => u.simulated);
   const mark = practiceNote(units, u => u.simulated);
   const rows = units.slice(0, 5).map((u, i) => `
@@ -351,6 +353,40 @@ function shootoutTables(board, sh) {
     (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
     (line ? `<table>${line}</table>` : `<div class="waiting">No tables but the practice ones</div>`) +
     `</div>`;
+}
+
+/* A hall CutThroat: the tables and their chairs - in, or out and when. */
+function cutthroatTables(board, ct) {
+  const rows = realOnly(ct.standing || [], r => r.simulated);
+  const mark = practiceNote(rows, r => r.simulated);
+  const line = rows.slice(0, 8).map((r, i) => `
+    <tr class="${r.in && !ct.over ? 'lead' : ''} ${r.in ? '' : 'outrow'}">
+      <td class="pos">${i + 1}</td>
+      <td>${esc(r.name)}${mark.each && r.simulated ? ' <i class="sim">practice</i>' : ''}</td>
+      <td class="pts">${r.in ? (ct.phase === 'final' || ct.phase === 'sudden' ? (r.final_correct || 0) + ' right' : 'in') : 'out · r' + r.out_round}</td>
+    </tr>`).join('');
+  const where = ct.over ? (ct.winner_name ? esc(ct.winner_name) + ' stands' : 'over')
+    : ct.phase === 'final' ? `final · Q${(ct.final_round || 0) + 1} of ${ct.final_length}`
+    : ct.phase === 'sudden' ? 'sudden death' : `${ct.remaining} of ${ct.players} in`;
+  return `<div class="panelbox"><h2>Tables &mdash; CutThroat <i class="sim">${where}</i>` +
+    (mark.all ? ' <i class="sim">all practice</i>' : '') + `</h2>` +
+    (line ? `<table>${line}</table>` : `<div class="waiting">No tables but the practice ones</div>`) +
+    `</div>`;
+}
+
+/* A hall round of golf: the card by table - holes, gross, to par. */
+function golfTables(board, gf) {
+  const rows = realOnly(gf.leaderboard || [], r => r.simulated);
+  const line = rows.slice(0, 8).map((r, i) => `
+    <tr class="${i === 0 && r.holes > 0 ? 'gold' : ''}">
+      <td class="pos">${r.place}</td>
+      <td>${esc(r.name)}</td>
+      <td class="pts">${r.holes} h · ${r.gross} · ${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td>
+    </tr>`).join('');
+  const where = gf.over ? (gf.winner_name ? esc(gf.winner_name) + ' wins' : 'over')
+    : `${esc(gf.course_name)} · hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes} · par ${gf.par}`;
+  return `<div class="panelbox"><h2>Tables &mdash; golf <i class="sim">${where}</i></h2>` +
+    (line ? `<table>${line}</table>` : `<div class="waiting">No tables yet</div>`) + `</div>`;
 }
 
 function hallLeft(board) {
@@ -593,6 +629,12 @@ function reveal(round, last) {
       <div class="a"><b>Answer</b><span>${esc(answer)}</span></div>
       ${shot ? `<div class="block-won"><b>${shot.made ? 'Made' : 'Missed'}</b><span>${esc(shotLine)}${
           shot.over ? (shot.winner ? ' · the shootout is over' : ' · a draw') : ''}</span></div>` : ''}
+      ${last && last.cutthroat ? `<div class="block-won"><b>${last.cutthroat.out_names && last.cutthroat.out_names.length ? 'Out' : 'Chairs'}</b><span>${
+          last.cutthroat.out_names && last.cutthroat.out_names.length ? esc(last.cutthroat.out_names.join(', ')) + (last.cutthroat.out_names.length === 1 ? ' is out' : ' are out')
+          : esc(last.cutthroat.note || 'every table kept its chair')}${last.cutthroat.over ? ' · ' + esc(last.cutthroat.winner_name || 'a table') + ' is the last table standing' : ''}</span></div>` : ''}
+      ${last && last.golf ? `<div class="block-won"><b>Strokes</b><span>${
+          Object.values(last.golf.shots || []).slice(0, 6).map(s => esc(s.name) + ': ' + esc(s.words)).join(' · ')}${
+          last.golf.hole_done ? ' · hole done' : ''}${last.golf.round_over ? ' · ' + esc(last.golf.winner_name || 'a table') + ' wins the round' : ''}</span></div>` : ''}
       ${won ? `<div class="block-won">
           <b>Block ${won.block}</b>
           <span>${won.name ? esc(won.name) + ' takes it' : 'nobody scored'}${
@@ -701,8 +743,11 @@ async function tick() {
      standing at the back actually wants. */
   const plan = board.plan;
   const shootOn = board.shootout && board.shootout.on;
+  const ctOn = board.cutthroat && board.cutthroat.on, gfOn = board.golf && board.golf.on;
   const through = shootOn
     ? ` · shootout · ${(board.shootout.available || []).length} subjects left`
+    : ctOn ? ` · CutThroat · ${board.cutthroat.remaining} of ${board.cutthroat.players} tables in`
+    : gfOn ? ` · golf · hole ${Math.min(board.golf.holes_played + 1, board.golf.holes)} of ${board.golf.holes}`
     : plan && plan.length
     ? ` · Q${Math.max(1, plan.asked)} of ${plan.length}` +
       (plan.blocks > 1 ? ` · block ${plan.block} of ${plan.blocks}` : '') +

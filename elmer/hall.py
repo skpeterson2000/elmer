@@ -155,6 +155,12 @@ class Conductor:
         # the subjects run out, and between questions it waits on whichever
         # table holds the pick - a state of its own, so the screens can say
         # whose it is rather than "asking".
+        if net.cutthroat is not None or net.golf is not None:
+            if net.game_over():
+                log.info("hall: %s over after %d questions", net.mode, self.played)
+                self.state = "finished"
+                self.stop.set()
+                return
         if net.shootout is not None:
             if net.shootout_over():
                 log.info("hall: shootout over after %d questions", self.played)

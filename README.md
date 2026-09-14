@@ -2230,6 +2230,40 @@ from that moment, and if that leaves one, that one has won.
 The rules are `elmer/cutthroat.py`, with no clock or question in them;
 `tests/test_cutthroat.py` plays every part of the game through them.
 
+### The whole Gaming Center, across a hall
+
+Net control has every game a table has, with tables for players. Beside
+**Shootout** on the host page are **CutThroat** and **Golf** (with the holes
+to play), and *End the game* puts the hall back to a tournament. The rule
+that makes it work is the shootout's: **a table is right when anybody at it
+was right** - its practice players do not make a real table's shot, a
+practice table's shot is its own simulated answers - and a table that did
+not report in time was not right.
+
+**CutThroat across the hall**: a table where nobody was right is out;
+nobody out when no table was right; two tables left get the fifteen-question
+final, level after that is sudden death; a table checking in late during the
+field takes a chair, one that leaves has lost. **Golf across the hall** is a
+*scramble*: one ball a table, every table hits at once with the sensible
+club, right if anybody at the table was right, wrong is a foul ball, the
+card is by table and lowest wins. A scramble rather than one-at-a-time,
+because a hall of twenty tables waiting on one player is not a hall, and a
+scramble is how a crowd plays a course. The hall's golf draws its questions
+the way a table's does - one area a hole, every question once, the misses
+again, then by hardness. A table checking in mid-round gets a ball on the
+current tee; one that leaves picks up.
+
+The big board's table panel becomes the chairs (in, or out and when) or the
+card (holes, gross, to par), and the round result carries who went out or
+where every ball went. Each node table's card says where the hall's game
+stands and where *this* table is in it - in or out, its ball's lie - and
+every phone in the hall says the same between questions. The conductor ends
+the hall when the game ends. `tests/test_net_games.py`.
+
+A different game to each table at once is not built: a round is one
+question to every table, which is what keeps the master's load a matter of
+tables rather than players. It could be; it waits on a club night wanting it.
+
 ### Golf
 
 KC9SP's fourth game, modelled on the real one, on real courses. A stroke is

@@ -141,11 +141,22 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
              style="width:5rem" title="seconds per round">
       <button class="btn primary" id="ask">Put a question to the hall</button>
       <button class="btn" id="close" disabled>Close the round</button>
-      <button class="btn" id="shootout" title="The picking table chooses the subject on its own screen; a table that misses what the picker's table made takes a letter. E-L-M-E-R and it is out.">&#127919; Shootout</button>
-      <button class="btn ghost" id="endshoot" hidden>End the shootout</button>
+      {# The Gaming Center, hosted: every game a table can play, across the
+         hall with tables for players. A table is right when anybody at it
+         was right; the hall's golf is a scramble, one ball a table. #}
+      <button class="btn" id="shootout" title="The picking table chooses the subject on its own screen; a table that misses what the picker's table made takes a letter. E-L-M-E-R and it is out."><svg class="yagi" viewBox="0 0 40 24" width="1.9em" height="1.15em" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="37" y2="12"/><line x1="6" y1="1" x2="6" y2="23"/><line x1="13" y1="2.5" x2="13" y2="21.5"/><line x1="20" y1="4" x2="20" y2="20"/><line x1="27" y1="5.5" x2="27" y2="18.5"/><line x1="34" y1="7" x2="34" y2="17"/><line x1="17" y1="12" x2="17" y2="23" stroke-width="1.5"/></svg> Shootout</button>
+      <button class="btn" id="cutthroat" title="Musical chairs between tables: a table where nobody was right is out. Two left get fifteen questions; level after that, sudden death.">&#128481; CutThroat</button>
+      <span style="display:inline-flex;gap:.3rem;align-items:center">
+        <button class="btn" id="golf" title="A scramble on the course that goes with the class: one ball a table, a stroke a question, right if anybody at the table was right. Lowest card wins.">&#9971; Golf</button>
+        <select class="btn sm" id="golf-holes" title="which holes">
+          <option value="front">front 9</option><option value="back">back 9</option><option value="all">all 18</option>
+        </select>
+      </span>
+      <button class="btn ghost" id="endshoot" hidden>End the game</button>
       <span class="big" id="clock"></span>
     </div>
     <div id="shootstate" class="small" style="margin-top:.6rem" hidden></div>
+    <div id="gamestate" class="small" style="margin-top:.6rem" hidden></div>
     <div id="stage" style="margin-top:.8rem"><p class="empty">No round yet.</p></div>
   </div>
 
@@ -287,6 +298,23 @@ document.getElementById('shootout').addEventListener('click', async () => {
   if (!r.ok) alert(r.data.message || r.data.error || 'Could not start a shootout.');
   tick();
 });
+document.getElementById('cutthroat').addEventListener('click', async () => {
+  const r = await api('/api/net/mode', {
+    mode: 'cutthroat',
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 45});
+  if (!r.ok) alert(r.data.message || r.data.error || 'Could not start a CutThroat.');
+  tick();
+});
+document.getElementById('golf').addEventListener('click', async () => {
+  const r = await api('/api/net/mode', {
+    mode: 'golf',
+    difficulty: document.getElementById('difficulty').value,
+    holes: document.getElementById('golf-holes').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 45});
+  if (!r.ok) alert(r.data.message || r.data.error || 'Could not start a round of golf.');
+  tick();
+});
 document.getElementById('endshoot').addEventListener('click', async () => {
   await api('/api/net/mode', {mode: 'tournament'});
   tick();
@@ -330,8 +358,29 @@ async function tick() {
   // The shootout, if the hall is in one: who holds the pick, and the tables'
   // letters in the unit chips rather than points.
   const sh = b.shootout;
-  document.getElementById('shootout').hidden = !!sh;
-  document.getElementById('endshoot').hidden = !sh;
+  const ct = b.cutthroat, gf = b.golf;
+  const gameOn = !!(sh || ct || gf);
+  document.getElementById('shootout').hidden = gameOn;
+  document.getElementById('cutthroat').hidden = gameOn;
+  document.getElementById('golf').parentElement.hidden = gameOn;
+  document.getElementById('endshoot').hidden = !gameOn;
+  document.getElementById('endshoot').textContent = sh ? 'End the shootout' : ct ? 'End the CutThroat' : gf ? 'End the round' : 'End the game';
+  // The hall's CutThroat or golf, in a line: where it is and who is where.
+  const gbox = document.getElementById('gamestate');
+  if (ct) {
+    gbox.hidden = false;
+    const chairs = (ct.standing || []).map(r => `${esc(r.name)} <span style="font-family:var(--mono);${r.in ? 'color:var(--green)' : 'color:var(--red)'}">${r.in ? (ct.phase === 'final' || ct.phase === 'sudden' ? (r.final_correct || 0) + ' right' : 'in') : 'out r' + r.out_round}</span>`).join(' · ');
+    gbox.innerHTML = (ct.over ? `CutThroat over: <b>${esc(ct.winner_name || 'a table')}</b> is the last table standing.`
+      : ct.phase === 'final' ? `CutThroat final: two tables, question ${(ct.final_round || 0) + 1} of ${ct.final_length}.`
+      : ct.phase === 'sudden' ? 'CutThroat sudden death: one right wins; both right, the faster.'
+      : `CutThroat: ${ct.remaining} of ${ct.players} tables still in.`) + ` <span style="color:var(--dim)">${chairs}</span>`;
+  } else if (gf) {
+    gbox.hidden = false;
+    const card = (gf.leaderboard || []).slice(0, 8).map(r => `${esc(r.name)} <span style="font-family:var(--mono)">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</span>`).join(' · ');
+    gbox.innerHTML = (gf.over ? `Round over: <b>${esc(gf.winner_name || 'a table')}</b> wins.`
+      : `Golf at ${esc(gf.course_name)}: hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes}, par ${gf.par}, ${gf.yards} yards - a scramble, one ball a table.`)
+      + ` <span style="color:var(--dim)">${card}</span>`;
+  } else { gbox.hidden = true; }
   const shbox = document.getElementById('shootstate');
   if (sh) {
     shbox.hidden = false;

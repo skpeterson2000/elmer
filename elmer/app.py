@@ -2992,8 +2992,11 @@ def _with_hall(state, who_name=None):
     link = cohort.bridge()
     if link is None:
         return state
-    if getattr(link, "hall_shootout", None):
+    if getattr(link, "hall_shootout", None) or getattr(link, "hall_cutthroat", None) \
+            or getattr(link, "hall_golf", None):
         state["hall"] = {"shootout": link.hall_shootout,
+                         "cutthroat": getattr(link, "hall_cutthroat", None),
+                         "golf": getattr(link, "hall_golf", None),
                          "table": link.name, "mode": link.net_mode}
     show_state = getattr(link, "hall_show", None)
     if show_state:
@@ -4050,7 +4053,13 @@ def api_net_checkin():
                     # The hall's shootout as this table sees it - whether the
                     # pick is this table's, what is left to pick, the clock.
                     "shootout": (running.shootout_view(unit.id)
-                                 if running.shootout is not None else None)})
+                                 if running.shootout is not None else None),
+                    # And the hall's other table games, as this table stands
+                    # in them: its chair, its ball.
+                    "cutthroat": (running.cutthroat_view(unit.id)
+                                  if running.cutthroat is not None else None),
+                    "golf": (running.golf_view(unit.id)
+                             if running.golf is not None else None)})
 
 
 def _ask_net(running, level="technician", section=None, seconds=None):
@@ -4080,7 +4089,19 @@ def _ask_net(running, level="technician", section=None, seconds=None):
         section = running.take_pick()
         if not section:
             return None
-    if section:
+    if not section and running.mode == netcontrol.GOLF and running.golf is not None:
+        # The hall's golf draws the way a table's does: one area a hole,
+        # every question once, the misses again, then by hardness - see
+        # golf.Golf.draw. Nobody is away in a scramble, so the lie has no say.
+        if running.golf_over():
+            return None
+        by_section = {}
+        for q in pool.by_id.values():
+            by_section.setdefault(q["section"], []).append(q["id"])
+        drawn, _ = running.golf.draw(by_section, list(pool.by_id), None)
+        running.golf.note_asked(drawn)
+        question = pool.by_id[drawn]
+    elif section:
         # A section asked for by name is somebody drilling one subject on
         # purpose - an instructor working a room through antennas - and it is
         # not a tournament, so it does not spend the tournament's draw.
@@ -4090,6 +4111,8 @@ def _ask_net(running, level="technician", section=None, seconds=None):
             abort(400, "no questions in that section")
         question = pool.by_id[random.choice(ids)]
     else:
+        if running.mode == netcontrol.CUTTHROAT and running.cutthroat_over():
+            return None
         # The tournament is drawn once, in the proportions of the examination
         # for this licence class, and walked one question at a time. It used
         # to be random.choice over the whole pool every round: every section
@@ -4226,19 +4249,64 @@ def api_net_mode():
     running = _net_or_404()
     body = request.get_json(silent=True) or {}
     wanted = str(body.get("mode") or netcontrol.TOURNAMENT).lower()
-    if wanted not in (netcontrol.TOURNAMENT, netcontrol.SHOOTOUT):
-        abort(400, "mode must be tournament or shootout")
+    if wanted not in netcontrol.MODES:
+        abort(400, f"mode must be one of {', '.join(netcontrol.MODES)}")
     if running.round is not None:
         abort(409, "a question is still open")
     if wanted == netcontrol.SHOOTOUT:
         _begin_hall_shootout(running, body.get("difficulty"),
                              body.get("pick_seconds"), body.get("seconds"),
                              body.get("tables"))
+    elif wanted in (netcontrol.CUTTHROAT, netcontrol.GOLF):
+        _begin_hall_game(running, wanted, body.get("difficulty"), body.get("seconds"),
+                         body.get("tables"), body.get("holes"))
     else:
         hall.halt()
         running.end_shootout()
+        running.end_cutthroat()
+        running.end_golf()
         log.info("net: back to a tournament")
     return jsonify(running.board())
+
+
+def _begin_hall_game(running, wanted, difficulty=None, seconds=None, tables=None, holes=None):
+    """A CutThroat or a round of golf across the hall, tables for players.
+    Shared by the button and the programme."""
+    difficulty = str(difficulty or running.difficulty).lower()
+    if difficulty not in party.DIFFICULTIES:
+        abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    hall.halt()
+    running.end_shootout()
+    running.end_cutthroat()
+    running.end_golf()
+    if wanted == netcontrol.CUTTHROAT:
+        started, why = running.begin_cutthroat()
+    else:
+        course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+        which = str(holes or "front").lower()
+        played = {"front": list(range(1, 10)), "back": list(range(10, 19)),
+                  "all": list(range(1, 19))}.get(which, list(range(1, 10)))
+        started, why = running.begin_golf(course, played)
+        if started is not None:
+            try:
+                measured = difficulty_module_measure(party.DIFFICULTIES[difficulty])
+                started.hardness = measured
+            except Exception as exc:                          # pragma: no cover
+                log.debug("net golf: no hardness to draw by: %s", exc)
+    if started is None:
+        abort(409, why)
+    hall.start(running, lambda: _ask_net(running, difficulty, None, seconds),
+               ready_tables=max(1, int(tables or hall.READY_TABLES)),
+               rounds=None)
+    log.info("net: %s started (%s, %d tables)", wanted, difficulty, len(running.units))
+
+
+def difficulty_module_measure(pool_id):
+    """How hard the pool's questions have measured on this unit, for a
+    draw to go by - opened on a connection of its own, since the hall's
+    conductor and the mode button both come here."""
+    measured = difficulty.measure(difficulty.load(db.connect(), pool_id))
+    return {q: m["hardness"] for q, m in measured.items() if m.get("measured")}
 
 
 def _begin_hall_shootout(running, difficulty=None, pick_seconds=None,
