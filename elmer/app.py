@@ -3273,6 +3273,40 @@ def _party_arm_start(room):
                     lambda: _party_begin(room, difficulty, True)).start()
 
 
+def _table_writes_its_rounds(room):
+    """A table's own rounds go into the log a hall's do, once per room.
+
+    Every game at a table - the tournament, the shootout, CutThroat, golf -
+    is people meeting questions under a clock, which is the measurement the
+    difficulty measure is made from and the count the field report gives.
+    Only the table's own rounds: a hall's are written by net control, with
+    everybody's in them, and a node writing its share again would count
+    them twice across the fleet. Nobody's name goes in; see db.hall_who.
+    """
+    if getattr(room, "_writes_rounds", False):
+        return
+    room._writes_rounds = True
+
+    def _write(summary):
+        if summary.get("tag") is not None:            # the hall's round, not ours
+            return
+        rows = [r for r in (summary.get("given") or []) if not r.get("bot")]
+        if not rows:
+            return
+        for r in rows:
+            r["unit"] = cohort.default_unit_id()
+        connection = db.connect()
+        try:
+            db.log_hall_round(connection, summary.get("pool") or "",
+                              summary.get("question_id") or "",
+                              summary.get("section") or "", rows,
+                              room.log_key, mode=summary.get("mode") or "tournament")
+            connection.commit()
+        finally:
+            connection.close()
+    room.on_round_closed.append(_write)
+
+
 def _ask_party(difficulty="technician", section=None, seconds=None):
     """Put one question to the table. Shared by the button and the director."""
     pool_id = party.DIFFICULTIES.get(str(difficulty).lower())
@@ -3280,6 +3314,7 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
         raise ValueError(f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
     pool = _pool_or_404(pool_id)
     room = _party_or_404()
+    _table_writes_its_rounds(room)
     if room.mode == party.SHOOTOUT and not section:
         # In a shootout the subject is the picker's, not the button's. A
         # practice player holding the pick chooses now; a person's choice is
@@ -3296,7 +3331,22 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
            if not section or q["section"] == section]
     if not ids:
         raise ValueError("no questions in that section")
-    question = pool.by_id[random.choice(ids)]
+    # New questions first. A question nobody on this unit has met is the
+    # clean measurement of its difficulty - first exposures only, see
+    # difficulty.py - and the one a class has not been asked yet, so the
+    # draw is from those while there are any, and from all of them after.
+    # A connection of its own: the director asks from its own thread,
+    # where there is no request to borrow one from.
+    try:
+        _c = db.connect()
+        try:
+            seen = db.seen_questions(_c, pool_id)
+        finally:
+            _c.close()
+    except Exception:
+        seen = set()
+    fresh = [i for i in ids if i not in seen]
+    question = pool.by_id[random.choice(fresh or ids)]
     shown = presentation(question)
     return room.start_round(
         pool_id, question["id"], shown["answer"],

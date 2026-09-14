@@ -36,8 +36,10 @@ interval is the only honest answer. It is bounded against the server's own
 elapsed time, because a number the client supplies is a number the client can
 invent, and somebody in a room full of radio amateurs will try.
 """
+import logging
 import random
 import re
+import secrets
 import threading
 import time
 from collections import deque
@@ -46,6 +48,8 @@ from . import trivia
 from .cutthroat import CutThroat
 from .golf import Golf
 from .shootout import Shootout
+
+log = logging.getLogger("elmer")
 
 # Measured on a Raspberry Pi 5: 30 players answering simultaneously were all
 # served in 642 ms, 60 took 5068 ms. The knee is between the two, and 24 keeps
@@ -314,6 +318,12 @@ class Room:
         self.mode = TOURNAMENT
         self.shootout = None
         self.cutthroat = None      # musical chairs with questions; see cutthroat.py
+        # The table's own rounds go into the same log as a hall's, with
+        # nobody's name in them: the key makes the same person the same tag
+        # all evening and nobody tomorrow (see db.hall_who), and the hooks
+        # are the application's writers, called after a round closes.
+        self.log_key = secrets.token_bytes(32)
+        self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
         self.clubs = {}            # player -> the club chosen for the next stroke
         self._clubs_since = None   # when the choosing began, for the clock on it
@@ -738,6 +748,17 @@ class Room:
         people each answering steadily beats one person answering brilliantly
         while seven guess - which is the behaviour a study party wants.
         """
+        summary = self._close_round()
+        if summary is not None:
+            # Outside the lock: a writer opens a database of its own.
+            for hook in list(self.on_round_closed):
+                try:
+                    hook(summary)
+                except Exception as exc:              # pragma: no cover
+                    log.warning("party: round hook: %s: %s", type(exc).__name__, exc)
+        return summary
+
+    def _close_round(self):
         with self.lock:
             rnd = self.round
             if rnd is None or rnd.closed:
@@ -780,6 +801,14 @@ class Room:
                 "answers": sorted(rnd.answers.values(),
                                   key=lambda a: (not a["correct"], a["ms"])),
                 "cohort_points": per_cohort,
+                # Whose round this was: a hall's (tagged with its number) or
+                # this table's own, and which game - for the log.
+                "tag": rnd.tag, "mode": self.mode,
+                "section": (rnd.payload or {}).get("section") or "",
+                "given": [{"name": a["name"], "correct": a["correct"], "ms": a["ms"],
+                           "bot": bool(self.players[a["player_id"]].bot) if a["player_id"] in self.players else False,
+                           "license": self.license_of(a.get("player_id"))}
+                          for a in rnd.answers.values()],
             }
             # In a shootout the round is also a shot. The rules get every
             # answer, keyed by player, and somebody who never pressed anything

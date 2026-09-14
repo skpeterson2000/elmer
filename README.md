@@ -605,9 +605,14 @@ Two things can go:
   you do. The switch says exactly what it carries: which build and machine;
   how the forecast did against the sondes this week, by lead and by sky, with
   persistence beside it as the yardstick; the correction this unit has
-  learned and whether it is applying it; how many hall rounds and study
-  answers there were, as counts; the errors and warnings, counted, with the
-  last few in full — all redacted the same way. Every report is saved under
+  learned and whether it is applying it; how many rounds of each game —
+  hall, tournament, shootout, CutThroat, golf — and study answers there
+  were, as counts, so the project can see which parts of the program are in
+  use; how each question went for the people who met it for the first time
+  (its id, how many, the miss rate and a time index — the numbers the
+  difficulty measure is made from, so difficulty can be rated across every
+  unit rather than one; no names); the errors and warnings, counted, with
+  the last few in full — all redacted the same way. Every report is saved under
   `data/reports/` before it goes, *Read what it would send* shows the next one
   now, and *Send one now* does not wait for the week. This is the "report its
   adjustment factor back to us" that the forecast work was built around, done

@@ -47,8 +47,10 @@ WHAT_IT_SENDS = (
     "Once a week ELMER sends the project a field report: which build and "
     "machine, how the forecast did against the sondes this week (error by "
     "lead and by sky, with persistence as the yardstick), the correction "
-    "this unit has learned and whether it is applying it, how many hall "
-    "rounds and study answers there were - as counts - and the errors and "
+    "this unit has learned and whether it is applying it, how many rounds "
+    "of each game and study answers there were - as counts - how each "
+    "question went for the people who met it for the first time (its id, "
+    "how many, the miss rate and a time index; no names), and the errors and "
     "warnings, counted, with the last few in full. Your callsign, grid "
     "square, coordinates, network addresses and home directory are taken "
     "out before it is written. Every report is saved here first so you can "
@@ -56,6 +58,12 @@ WHAT_IT_SENDS = (
     "your own outgoing-mail settings if you have set them. It is off until "
     "you turn it on."
 )
+
+
+def party_pools():
+    """The pools a table plays, by difficulty name, for the measurements."""
+    from .party import DIFFICULTIES
+    return dict(DIFFICULTIES)
 
 
 def settings():
@@ -174,15 +182,23 @@ def build(conn=None, now=None):
     add("-" * 60)
     if conn is not None:
         since = time.time() - 7 * 86400
+        # Which parts of the program were in use: every game by name, from
+        # the same log, so the project can see what a unit is used for.
         try:
-            rounds = conn.execute(
-                "SELECT COUNT(DISTINCT ts) c, COUNT(*) a, "
-                "SUM(CASE WHEN correct THEN 1 ELSE 0 END) r "
-                "FROM hall_log WHERE ts >= ?", (since,)).fetchone()
-            add(f"  hall: {rounds['c'] or 0} round(s), {rounds['a'] or 0} answers, "
-                f"{rounds['r'] or 0} correct")
+            from . import db as _db
+            import datetime as _dt
+            since_iso = _dt.datetime.fromtimestamp(since, _dt.timezone.utc).isoformat()
+            by_mode = _db.rounds_by_mode(conn, since_iso)
+            if not by_mode:
+                add("  games: none this week")
+            for mode in ("hall", "tournament", "shootout", "cutthroat", "golf"):
+                if mode in by_mode:
+                    m = by_mode.pop(mode)
+                    add(f"  {mode}: {m['rounds']} round(s), {m['answers']} answers, {m['right']} correct")
+            for mode, m in sorted(by_mode.items()):
+                add(f"  {mode}: {m['rounds']} round(s), {m['answers']} answers, {m['right']} correct")
         except Exception:
-            add("  hall: no log")
+            add("  games: no log")
         try:
             study = conn.execute(
                 "SELECT COUNT(*) a, SUM(CASE WHEN correct THEN 1 ELSE 0 END) r "
@@ -192,6 +208,32 @@ def build(conn=None, now=None):
             add("  study: no log")
     else:
         add("  (no database open)")
+
+    # -- how the questions went, for the project to rate difficulty across
+    # every unit. First exposures only, the way difficulty.py measures: the
+    # question's id, how many people met it for the first time, how many
+    # missed it, the median time index, and the hardness that makes. No
+    # names, no unit - the id of a question is a public fact.
+    if conn is not None:
+        add("")
+        add("how the questions went, first exposures (id n miss z hardness)")
+        add("-" * 60)
+        try:
+            from . import difficulty
+            for difficulty_name, pool_id in sorted(party_pools().items()):
+                rows = difficulty.load(conn, pool_id)
+                measured = difficulty.measure(rows) if rows else {}
+                if not measured:
+                    continue
+                solid = {q: m for q, m in measured.items() if m["measured"]}
+                add(f"  {pool_id}: {len(measured)} questions met, {len(solid)} measured "
+                    f"({difficulty.MIN_N}+ people)")
+                for qid in sorted(solid):
+                    m = solid[qid]
+                    add(f"    {qid} {m['n']} {m['miss_rate']:.2f} "
+                        f"{m['median_z'] if m['median_z'] is not None else '-'} {m['hardness']:.2f}")
+        except Exception as exc:
+            add(f"  (could not be measured: {type(exc).__name__}: {exc})")
 
     # -- the log's complaints
     add("")

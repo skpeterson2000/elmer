@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS hall_log (
     who         TEXT NOT NULL,
     license     TEXT NOT NULL DEFAULT '',
     correct     INTEGER NOT NULL,
-    ms          REAL
+    ms          REAL,
+    mode        TEXT NOT NULL DEFAULT 'hall'
 );
 CREATE INDEX IF NOT EXISTS hall_pool ON hall_log (pool_id, ts);
 
@@ -298,8 +299,20 @@ def migrate(conn):
             conn.execute(statement)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the hall keeps a log, "
-                 "with nobody's name in it", SCHEMA_VERSION)
+        log.info("database upgraded to version 5 - the hall keeps a log, "
+                 "with nobody's name in it")
+        version = 4
+
+    if version == 4:
+        # Version 5: the hall's log says which game a round was - a hall's,
+        # or a table's own tournament, shootout, CutThroat or round of golf
+        # - so the field report can say which parts of the program are in
+        # use and the difficulty measure can read every game alike.
+        if "mode" not in _columns(conn, "hall_log"):
+            conn.execute("ALTER TABLE hall_log ADD COLUMN mode TEXT NOT NULL DEFAULT 'hall'")
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+        log.info("database upgraded to version %s - the log says which game", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -568,12 +581,13 @@ def hall_who(key, unit, name):
     return hmac.new(key, ident.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
-def log_hall_round(conn, pool_id, question_id, section, rows, key):
-    """Write a hall round's answers down: one row per person, no bots.
+def log_hall_round(conn, pool_id, question_id, section, rows, key, mode="hall"):
+    """Write a round's answers down: one row per person, no bots.
 
-    `key` is the net's own, see hall_who(). No name and no callsign goes
-    into the table - the class they said they hold, whether they were right,
-    and how long they took.
+    `key` is the net's own - or the table's, for a table's own game - see
+    hall_who(). No name and no callsign goes into the table: the class they
+    said they hold, whether they were right, how long they took, and which
+    game it was.
     """
     now, day = utcnow().isoformat(), today()
     for r in rows:
@@ -581,11 +595,40 @@ def log_hall_round(conn, pool_id, question_id, section, rows, key):
             continue
         conn.execute(
             "INSERT INTO hall_log (ts, day, pool_id, question_id, section, unit, "
-            "who, license, correct, ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "who, license, correct, ms, mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (now, day, pool_id, question_id, section or "", str(r.get("unit")),
              hall_who(key, r.get("unit"), r.get("name")),
              license_of(r.get("license")), int(bool(r.get("correct"))),
-             float(r["ms"]) if r.get("ms") else None))
+             float(r["ms"]) if r.get("ms") else None, str(mode or "hall")[:20]))
+
+
+def seen_questions(conn, pool_id):
+    """Every question of a pool anybody on this unit has met - in study, in
+    a hall, or at this table - so a draw can put the new ones first."""
+    seen = {r[0] for r in conn.execute(
+        "SELECT DISTINCT question_id FROM answer_log WHERE pool_id = ?", (pool_id,))}
+    try:
+        seen |= {r[0] for r in conn.execute(
+            "SELECT DISTINCT question_id FROM hall_log WHERE pool_id = ?", (pool_id,))}
+    except Exception:                        # a database from before the hall log
+        pass
+    return seen
+
+
+def rounds_by_mode(conn, since_ts_iso):
+    """How much of each game there was: rounds, answers and right answers,
+    by mode, since a moment - for the field report's week in counts."""
+    out = {}
+    try:
+        for r in conn.execute(
+                "SELECT mode, COUNT(DISTINCT ts || '/' || question_id) c, COUNT(*) a, "
+                "SUM(CASE WHEN correct THEN 1 ELSE 0 END) r "
+                "FROM hall_log WHERE ts >= ? GROUP BY mode", (since_ts_iso,)):
+            out[r["mode"] or "hall"] = {"rounds": r["c"] or 0, "answers": r["a"] or 0,
+                                        "right": r["r"] or 0}
+    except Exception:
+        pass
+    return out
 
 
 def log_answer(conn, pool_id, question_id, section, correct, chosen, ms, mode):
