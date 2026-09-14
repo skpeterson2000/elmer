@@ -668,10 +668,12 @@ def check_net_role():
     except Exception as exc:
         _line(WARN, "hall", f"could not read the unit settings ({exc})")
         return True
-    if not url:
+    if not url or cohort.is_own_address(url):
         _line(OK, "hall", "not in a net" + (
               "; will join one it hears" if auto else
-              "; auto-join is off - it will not join one it hears until told to"))
+              "; auto-join is off - it will not join one it hears until told to")
+              + (" (the address remembered was this unit's own, from hosting - "
+                 "forgotten at the next start)" if url else ""))
         return True
     try:
         request = urllib.request.Request(url.rstrip("/") + "/api/net/board",
@@ -812,6 +814,11 @@ def check_node():
     if link is None:
         return True                       # on its own; check_net_role said so
     d = link.as_dict()
+    if cohort.is_own_address(d.get("url")):
+        _line(WARN, "this table", "reporting to this unit's own address, with no net "
+              "running here - a leftover of hosting; Leave the net on the table "
+              "screen cuts it loose, and it is not remembered again")
+        return True
     state = d.get("state")
     detail = (f"reporting to {d.get('net_name') or d.get('url')} as "
               f"{d.get('name')}, round {d.get('net_round', 0)}")
@@ -946,7 +953,36 @@ def check_launcher():
     exactly that. Saying "installed" for a dead icon would be the wrong kind
     of true.
     """
-    from . import launcher
+    from . import host, launcher
+    if host.WINDOWS:
+        # The Pi's .desktop entry has no meaning here; the Start Menu
+        # shortcut install.ps1 writes is the menu entry on Windows, and it
+        # carries the folder it points at the same way.
+        import os
+        lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "ELMER.lnk"
+        if not lnk.is_file():
+            _line(WARN, "Start Menu", "ELMER is not on the Start Menu - install.ps1 offers to "
+                                      "put it there, with its icon")
+            return True
+        try:
+            import subprocess
+            target = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 f"(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}').TargetPath"],
+                capture_output=True, text=True, timeout=15).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            target = ""
+        here = Path(__file__).resolve().parents[1]
+        if target and Path(target).resolve().parent == here:
+            _line(OK, "Start Menu", "ELMER is on the Start Menu, and points at this copy")
+        elif target and Path(target).exists():
+            _line(WARN, "Start Menu", f"the entry points at another copy: {Path(target).parent}")
+        elif target:
+            _line(BAD, "Start Menu", "the entry points at a folder that is no longer there - "
+                                     "install.ps1 here repoints it")
+        else:
+            _line(OK, "Start Menu", "ELMER is on the Start Menu")
+        return True
     if not launcher.installed():
         _line(WARN, "menu entry", "not installed - add it with "
                                   "./elmer.py --install-launcher")

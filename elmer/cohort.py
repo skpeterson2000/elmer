@@ -511,10 +511,27 @@ def connect(url, unit_id=None, name=None, conn=None, token=None):
     return _bridge
 
 
+def is_own_address(url):
+    """Whether a net address is this unit itself: the host's own table joins
+    its own net over loopback, and that is not a net to find again."""
+    host = (url or "").split("//")[-1].split("/")[0].split(":")[0].lower()
+    return host in ("127.0.0.1", "localhost", "::1", "0.0.0.0")
+
+
 def remember(conn, link):
-    """Keep the wiring, so the table finds its way back after a reboot."""
+    """Keep the wiring, so the table finds its way back after a reboot.
+
+    Not the host's own table, though. A unit that hosts a net joins it over
+    loopback, and remembering that address had a unit rejoining itself on
+    the next start - checking in with a net it was not running, 404 after
+    404, and the doctor saying "net control is not answering" of a machine
+    talking to itself. A host makes its own table again when it opens a net.
+    """
     try:
         from . import db
+        if is_own_address(link.url):
+            db.unit_set(conn, URL_SETTING, "")
+            return
         db.unit_set(conn, URL_SETTING, link.url)
         db.unit_set(conn, UNIT_SETTING, link.unit_id)
         db.unit_set(conn, NAME_SETTING, link.name)
@@ -544,6 +561,10 @@ def resume(conn):
     except Exception:                     # pragma: no cover
         return None
     if not url:
+        return None
+    if is_own_address(url):
+        # Remembered by an earlier build; this unit is not a net to rejoin.
+        forget(conn)
         return None
     unit_id = db.unit_get(conn, UNIT_SETTING) or None
     name = db.unit_get(conn, NAME_SETTING) or None
