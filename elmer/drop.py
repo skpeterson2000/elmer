@@ -34,7 +34,7 @@ log = logging.getLogger("elmer")
 # The project's drop, once the script is deployed: the web-app URL from
 # script.google.com, ending in /exec. Empty until then, and with it empty a
 # unit with no mail settings keeps its reports and says where to send them.
-URL = ""
+URL = "https://script.google.com/macros/s/AKfycbze82Hhh1Yk_EbwXJnvh8go557K8nh01y6gklkX5bwWwSJ7XkL6q-GwiPGOwqGyhjZ6/exec"
 
 # A club running its own script points its units at it here, without
 # editing the program: {"url": "https://script.google.com/.../exec"}.
