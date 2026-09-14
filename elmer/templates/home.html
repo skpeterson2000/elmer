@@ -74,6 +74,15 @@
   <div class="row">
     <a class="btn ghost sm" href="/propagation">Band conditions</a>
     <a class="btn ghost sm" href="/lab">Lab</a>
+    {# The other dashboard. Greyed rather than hidden when TowerWitch is not
+       here, so the button says what it would do and why it cannot. #}
+    <button class="btn ghost sm" id="towerwitch-open"
+      {% if not towerwitch.installed %}disabled title="TowerWitch is not on this unit - ELMER looks for it at ~/TowerWitch or beside its own folder"
+      {% elif not local %}disabled title="TowerWitch is on this unit ({{ towerwitch.path }}); it opens from the unit's own screen"
+      {% elif towerwitch.running %}title="TowerWitch is running on this unit ({{ towerwitch.path }})"
+      {% else %}title="Start TowerWitch on this screen ({{ towerwitch.path }})"{% endif %}>
+      &#128508; TowerWitch{% if towerwitch.running %} <span class="tiny">&middot; running</span>{% endif %}</button>
+    <span class="tiny muted" id="towerwitch-said"></span>
   </div>
 </div>
 
@@ -282,6 +291,16 @@
 {% block scripts %}
 <script src="{{ asset('update.js') }}"></script>
 <script>
+document.getElementById('towerwitch-open').addEventListener('click', async e => {
+  const b = e.currentTarget, said = document.getElementById('towerwitch-said');
+  b.disabled = true; said.textContent = 'starting…';
+  let r;
+  try { r = await api('/api/towerwitch/open', {method: 'POST', body: '{}'}); }
+  catch (err) { r = {ok: false, said: 'no answer from the unit'}; }
+  said.textContent = r.said || 'no answer';
+  said.style.color = r.ok ? '' : 'var(--red)';
+  b.disabled = false;
+});
 api('/api/propagation').then(d => {
   const box = document.getElementById('propstrip');
   if (!d.ok) { box.querySelector('.muted').textContent = d.error; return; }

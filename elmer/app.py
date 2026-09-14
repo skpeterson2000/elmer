@@ -43,7 +43,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                fieldreport, golf, mail, monitoring, pathto, personal, reachout, repeaters,
                show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
-               tournament, trivia, update, vna, whipbuild, op25)
+               tournament, towerwitch, trivia, update, vna, whipbuild, op25)
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
 # because home() is the front page a few thousand lines down.
@@ -517,7 +517,28 @@ def home():
     }
     return render_template("home.html", summary=summary, greeting=greeting(),
                            first_run=first_run,
+                           # The button to the other dashboard: greyed when
+                           # TowerWitch is not on this unit, or this is not
+                           # the unit's own screen - a desktop program is
+                           # not started from across the network.
+                           towerwitch=towerwitch.status(),
+                           local=_is_local(request.remote_addr),
                            **profile_block(connection))
+
+
+@app.route("/api/towerwitch/open", methods=["POST"])
+def api_towerwitch_open():
+    """Start TowerWitch on this unit's screen, when pressed there."""
+    if not _is_local(request.remote_addr):
+        abort(403)
+    state = towerwitch.status()
+    if not state["installed"]:
+        return jsonify({"ok": False, "said": "TowerWitch is not on this unit"}), 404
+    if state["running"]:
+        return jsonify({"ok": True, "said": "TowerWitch is already running on this unit"})
+    ok, said = towerwitch.launch(state["path"])
+    log.info("towerwitch: %s - %s", "started" if ok else "not started", said)
+    return jsonify({"ok": ok, "said": said})
 
 
 @app.route("/study/<pool_id>")

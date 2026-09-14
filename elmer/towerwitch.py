@@ -31,6 +31,7 @@ still wins wherever there is one.
 import json
 import logging
 import socket
+from pathlib import Path
 import threading
 import time
 
@@ -179,3 +180,91 @@ def current():
     """The position TowerWitch last announced, if it is still current."""
     live = listener()
     return live.current() if live else None
+
+
+# ------------------------------------------------------- the other dashboard
+# ELMER and TowerWitch are two programs on one bench, and each has a button
+# to the other - greyed when the other is not installed, the way TowerWitch
+# greys its OP25 button. This side finds TowerWitch beside ELMER, says
+# whether it is running (it announces itself on the network, and a
+# broadcast from this machine is it), and starts it when pressed on the
+# unit's own screen. Nothing over the network can start a desktop program.
+
+def find():
+    """Where TowerWitch is installed, or None: the same places the repeater
+    reader looks, since it is the same program."""
+    from .repeaters import find_towerwitch
+    return find_towerwitch()
+
+
+def running_here():
+    """Whether a TowerWitch on this machine has announced itself lately."""
+    live = listener()
+    if not live or not live.current():
+        return False
+    return (live.last_from or "") in ("127.0.0.1", "::1", "localhost") or _is_own(live.last_from)
+
+
+def _is_own(addr):
+    try:
+        own = {info[4][0] for info in socket.getaddrinfo(socket.gethostname(), None)}
+    except OSError:
+        own = set()
+    return addr in own
+
+
+def status():
+    """For the button: installed where, running or not."""
+    path = find()
+    return {"installed": path is not None, "path": str(path) if path else None,
+            "running": running_here() if path else False}
+
+
+def launch(path):
+    """Start TowerWitch from its folder. Returns (ok, said). Its own
+    launcher where it has one; on Windows the PyQt build, since the Tk
+    build wants fcntl."""
+    import os
+    import subprocess
+    import sys
+    path = Path(path)
+    if os.name == "nt":
+        script = path / "TowerWitch-P.py"
+        if not script.is_file():
+            return False, "TowerWitch-P.py is not in that folder"
+        cmd = [sys.executable, str(script)]
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        try:
+            proc = subprocess.Popen(cmd, cwd=str(path), creationflags=flags,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except OSError as exc:
+            return False, f"could not start it: {exc}"
+    else:
+        for name in ("run_towerwitch.sh", "towerwitch.sh"):
+            if (path / name).is_file():
+                cmd = ["bash", str(path / name)]
+                break
+        else:
+            script = path / "TowerWitch_Tkinter.py"
+            if not script.is_file():
+                return False, "no launcher and no TowerWitch_Tkinter.py in that folder"
+            cmd = [sys.executable, str(script)]
+        env = dict(os.environ)
+        env.setdefault("DISPLAY", ":0")
+        try:
+            proc = subprocess.Popen(cmd, cwd=str(path), env=env, start_new_session=True,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except OSError as exc:
+            return False, f"could not start it: {exc}"
+    # A program that dies in its first seconds has something to say.
+    try:
+        proc.wait(timeout=3.0)
+    except subprocess.TimeoutExpired:
+        return True, "TowerWitch is starting on this unit's screen"
+    err = ""
+    try:
+        err = (proc.stderr.read() or b"").decode("utf-8", "replace").strip().splitlines()[-1:]
+        err = err[0] if err else ""
+    except Exception:
+        pass
+    return False, f"TowerWitch stopped as soon as it started (exit {proc.returncode})" + (f": {err}" if err else "")
