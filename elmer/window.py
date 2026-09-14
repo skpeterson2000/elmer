@@ -57,13 +57,20 @@ def find_browser():
 
 
 def command(browser, url):
-    """The browser as an app window on ELMER, in a profile of ELMER's own."""
+    """The browser as an app window on ELMER, in a profile of ELMER's own.
+
+    No size or position is given. The profile remembers the window's last
+    bounds - which screen, how big - and the zoom the person set with
+    Ctrl and the wheel, and restores both; a size on the command line
+    overrode the first of those on every launch, so the window came back
+    where ELMER put it rather than where the person had left it.
+    """
     PROFILE.mkdir(parents=True, exist_ok=True)
     joiner = "&" if "?" in url else "?"
     return [browser, f"--app={url}{joiner}{OWNER_FLAG}",
             f"--user-data-dir={PROFILE}",
             "--no-first-run", "--no-default-browser-check",
-            "--disable-features=Translate", "--window-size=1280,860"]
+            "--disable-features=Translate"]
 
 
 def launch(url):
