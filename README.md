@@ -1077,20 +1077,19 @@ anywhere work.
 kinds of empty apart: no repeaters near you is a fact, no repeater data for
 where you are is an errand, and it says which one it is looking at.
 
-### The button to the other dashboard
+### The button to TowerWitch
 
-ELMER and TowerWitch are two programs on one bench, and each has a button
-to the other. ELMER's dashboard has **TowerWitch** beside *Band conditions*
+ELMER and TowerWitch are two programs on one bench. ELMER's dashboard has
+**TowerWitch** beside *Band conditions*
 and *Lab*: greyed, with the reason in the tooltip, when TowerWitch is not on
 the unit (or the page is being read from another machine - a desktop program
 is not started from across the network); live when it is, saying *running*
 when TowerWitch has announced itself from this machine, and starting it on
 the unit's own screen otherwise (`run_towerwitch.sh` where there is one, the
-Qt build on Windows). TowerWitch has **ELMER** in its button bar, the same
-way round: greyed when no ELMER is installed or answering on the machine,
-otherwise the browser opens on the dashboard, with ELMER started first if it
-was not running (`elmer_link.py` in the TowerWitch repository; it looks at
-`~/elmer`, `~/elmer-main`, beside TowerWitch, or `ELMER_HOME`).
+Qt build on Windows). There is no button the other way. One was tried: it
+opened a second copy of ELMER's page beside the window already on the
+screen, which is worse than no button. Getting back to ELMER is closing
+TowerWitch's window.
 
 On Windows the button starts TowerWitch's Qt build, which wants its packages
 (PyQt5 and a few small ones, TowerWitch's `requirements.txt`) in ELMER's own
