@@ -141,6 +141,12 @@ def run():
     rnd2 = appmod._ask_party("technician", None, 30)
     check("  the next stroke asks that very question, and it is used up",
           (rnd2.question_id, room.golf_next), (nxt["id"], None))
+    r = client.get("/golf/map/pebble-beach/1.svg", environ_base=local)
+    check("the hole map is served, and kept a day", (r.status_code, r.mimetype, r.headers.get("Cache-Control")),
+          (200, "image/svg+xml", "public, max-age=86400"))
+    r = client.get(f"/api/party/golf/map.svg?player={ann}", environ_base=local)
+    check("  and the live one has the balls on it", (r.status_code, "<circle cx=" in r.get_data(as_text=True)), (200, True))
+    check("  a hole nobody has", client.get("/golf/map/pebble-beach/99.svg", environ_base=local).status_code, 404)
     r = client.get("/api/party/golf-assets", environ_base=local).get_json()
     check("the round's assets, for warming: the clubhouse and the tees this unit has",
           ("/static/golf/clubhouse/pebble-beach.jpg" in r["urls"], "/static/golf/tee/pebble-beach/1.jpg" in r["urls"]),

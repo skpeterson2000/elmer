@@ -274,6 +274,19 @@ def run():
         row = g.play_one("a", {"correct": True, "question_id": f"Q{i}"})
     check("the third right answer in a row is adept without any measure", row["shots"]["a"].get("flair") is not None, True)
 
+    print("\n-- the hole, drawn from the card --")
+    from elmer import golfmap
+    pb = golf.course("pebble-beach")
+    h1 = pb["holes"][0]
+    svg = golfmap.hole_svg(h1, "with", 12, [{"name": "Scott", "at": 250, "lie": "fairway", "you": True},
+                                            {"name": "Beacon", "at": 0, "lie": "tee"}])
+    check("an SVG of the first", svg.startswith("<svg") and svg.endswith("</svg>"), True)
+    check("  headed with hole, par and yards", "1 \u00b7 par 4 \u00b7 377 yd" in svg, True)
+    check("  every hazard on it, by name", all(hz["name"] in svg for hz in h1["hazards"]), True)
+    check("  the wind on it", "with 12 mph" in svg, True)
+    check("  two balls, and yours ringed in amber", (svg.count("<circle cx=") >= 3, "#ffb454" in svg), (True, True))
+    check("a hole with no balls draws too", "<svg" in golfmap.hole_svg(pb["holes"][6]), True)
+
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)
     had = golf.ACE_ODDS

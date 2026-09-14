@@ -385,8 +385,10 @@ function paintWaiting(state) {
 function golfHeadHTML(gf) {
   const you = gf.you;
   const onTheTee = Object.values(gf.balls || {}).every(b => b.strokes === 0);
+  const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at).join(',');
   return (onTheTee && gf.tee_pic && !gf.over
       ? `<img src="${escapeHTML(gf.tee_pic)}" alt="" style="width:100%;border-radius:10px;display:block;margin-bottom:.5rem">` : '') +
+    (!gf.over ? `<img src="/api/party/golf/map.svg?player=${me.id}&k=${encodeURIComponent(mapKey)}" alt="the hole" style="float:right;width:6.5rem;height:auto;border-radius:8px;margin:0 0 .4rem .6rem">` : '') +
     `<p class="clock" style="margin:0 0 .3rem">${escapeHTML(gf.course_name)} &middot; ${ordinal(gf.hole)}${gf.hole_name ? ' ' + escapeHTML(gf.hole_name) : ''}
     &middot; par ${gf.par} &middot; ${gf.yards} yd &middot; ${gf.wind_mph} mph ${escapeHTML(gf.hole_wind || '')}</p>` +
     (you ? `<p style="margin:0 0 .6rem"><b>${you.holed ? 'Holed in ' + you.strokes : you.picked_up ? 'Picked up' : you.left + ' to go'}</b>

@@ -2361,6 +2361,17 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**The hole, drawn.** Beside the words, every screen shows the hole as a
+yardage-book strip - the tee at the foot, the green at the head, every
+hazard as a band at the yards it covers and on the side it sits, the wind
+as an arrow, and every ball where it lies, yours ringed. It is drawn from
+the card the game plays (`elmer/golfmap.py`), not from a map of the real
+course - the club's routing is the club's, and the game does not have it
+- which makes it the honest picture: what it draws is exactly what the
+ball obeys, so a golfer reading it is reading the game. Anyone who knows
+a hole better than the card does is welcome to move a bunker in
+`data/golf/*.json`, and the strip follows.
+
 **Prepared while they read.** Nothing is fetched at the moment it is
 wanted. When a stroke closes, the next stroke's question is drawn at once
 - the rules already know who is away next and where their ball lies, which

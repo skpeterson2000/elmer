@@ -41,7 +41,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               fieldreport, golf, mail, monitoring, pathto, personal, reachout, repeaters,
+               fieldreport, golf, golfmap, mail, monitoring, pathto, personal, reachout, repeaters,
                show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, towerwitch, trivia, update, vna, whipbuild, op25)
@@ -3859,6 +3859,46 @@ def _golf_depart(room, armed_only=False):
     if spec is None:
         return False
     return _start_golf(room, spec)
+
+
+@app.route("/golf/map/<course_id>/<int:n>.svg")
+def golf_hole_map(course_id, n):
+    """The hole as a yardage-book strip, from the card the game plays -
+    hazards at their yards, the green, the tee. Static: cached a day."""
+    try:
+        course = golf.course(course_id)
+    except KeyError:
+        abort(404)
+    h = next((x for x in course["holes"] if x["n"] == n), None)
+    if h is None:
+        abort(404)
+    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), None, None, course["name"]),
+                              mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/api/party/golf/map.svg")
+def api_party_golf_map():
+    """The hole the table is on, with every ball where it lies - and the
+    asking player's ball ringed when the phone says who it is."""
+    room = _party_or_404()
+    g = room.golf
+    if g is None or g.hole() is None:
+        abort(404, "no hole is being played")
+    try:
+        who = int(request.args.get("player") or 0) or None
+    except ValueError:
+        who = None
+    view = room.golf_view(who) or {}
+    balls = [{"name": b["name"], "at": b["at"], "lie": b["lie"], "holed": b["holed"],
+              "picked_up": b["picked_up"], "you": (who is not None and str(who) == str(pid))}
+             for pid, b in (view.get("balls") or {}).items()]
+    h = g.hole()
+    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name")),
+                              mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @app.route("/api/party/golf-assets")

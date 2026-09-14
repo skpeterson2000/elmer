@@ -165,6 +165,10 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfstage .figwrap-large .figfull img { max-height: 30vh; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
+/* The hole, drawn: a yardage-book strip beside the words. */
+.golfstage-map { grid-template-columns: minmax(0, 1fr) 11rem; }
+.holemap { width: 11rem; height: auto; display: block; border-radius: 12px; justify-self: end; }
+@media (max-width: 60rem) { .golfstage-map { grid-template-columns: 1fr; } .holemap { width: 9rem; justify-self: center; } }
 /* The clubhouse's picture, when the unit has one - static/golf/clubhouse.jpg. */
 .clubhouse-pic.teepic { aspect-ratio: 16 / 6; max-height: 34vh; background-position: center 55%; }
 .clubhouse-pic { width: 100%; aspect-ratio: 16 / 7; max-height: 40vh; border-radius: 12px; margin-bottom: .8rem;
@@ -827,9 +831,15 @@ async function tick() {
         // is spoken over it while the group is on the tee.
         const teePic = onTheTee && gf.tee_pic && !gf.over
           ? `<div class="clubhouse-pic teepic" style="background-image:url(${esc(gf.tee_pic)})"></div>` : '';
-        stage.innerHTML = teePic + (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
+        // The hole, drawn from the card, with every ball where it lies -
+        // beside the words, so the yards mean something.
+        const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at).join(',');
+        const holeMap = gf.over ? '' : `<img class="holemap" src="/api/party/golf/map.svg?k=${encodeURIComponent(mapKey)}" alt="the hole">`;
+        stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` +
+          (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
-          golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '');
+          golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '') +
+          `</div>${holeMap}</div>`;
         if (window.Voice) Voice.setHave(gf.voice_have);
         if (address) narrate(`${gf.away_name} addresses the ball`, (onTheTee ? gf.hole_tokens : []).concat(gf.address_tokens || []));
       }
