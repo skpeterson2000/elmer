@@ -1,0 +1,94 @@
+PEBBLE BEACH GOLF LINKS - THE FIRST - narration for a voice
+(Technician course. Read plainly, at a walking pace. Full stops are pauses.
+The figures are the game's card, which is the real card; nothing here is
+in the game that is not in this text, and nothing here is invented.)
+
+--- THE HOLE (read once, at the tee, before the first player is addressed) ---
+
+The first at Pebble Beach.
+Par four. Three hundred and seventy-seven yards.
+
+A gentle opener. The fairway bends a little to the right, and the sea breeze
+is behind you here - the ocean holes come later. A good drive rides it.
+
+Two things to know. A fairway bunker sits on the right, two hundred and
+thirty yards out, and it catches the drive that drifts. And the green is
+guarded on the left, close in, by sand - so the second shot favours the
+right half.
+
+The green is small. Twenty-eight yards deep. Take enough club, and no more.
+
+A four here is a good start. Nobody wins the round on the first.
+
+--- THE ADDRESS (read before each stroke; the game fills in the name, the club and the lie) ---
+
+[Name] addresses the ball. The [club] in hand. [Yards] to go, from the [lie].
+
+    Examples, the way the game says them:
+    Scott addresses the ball. The driver in hand. Three hundred and seventy-seven to go, from the tee.
+    Halyard addresses the ball. The iron in hand. One hundred and twenty-two to go, from the fairway.
+    Scott addresses the ball. The putter in hand. On the green.
+
+--- THE CUE (a short sound, or one word, when the question comes up) ---
+
+Your shot.
+
+--- THE CALLS (read one, after the answer, before the answers are shown) ---
+
+On the fairway:
+    Pured it.
+    Right down the middle.
+    That'll play.
+
+On the green:
+    On the dance floor.
+    Stuck it.
+    That's looking at it.
+
+Through the green:
+    Flew the green.
+    Too much club.
+    Airmailed it.
+
+Holed:
+    In the hole!
+    Drained it.
+    Bottom of the cup.
+
+A hole in one:
+    A hole in one!
+
+Short, into the rough:
+    Topped it.
+    Fat. Chunked it.
+    Skied that one.
+
+Into the sand:
+    Sliced it into the sand.
+    Pulled it into the bunker.
+    Beach.
+
+Into the water:
+    Hooked it into the water.
+    Wet.
+    That's a splash. What was the wind?
+
+A missed putt:
+    Lipped out.
+    Left it short.
+    Burned the edge.
+
+--- THE STROKE, IN WORDS (the game composes these; examples for the voice's cadence) ---
+
+Driver. Two hundred and fifty-five yards. Fairway. One hundred and twenty-two to go.
+Driver. A foul ball. Into the fairway bunker.
+Iron. One hundred and twenty-two yards. On the green. Nine feet.
+Putt holed. Three, for a birdie.
+Wedge, from the sand. A foul ball. Short, and into the rough.
+
+--- THE CARD (read when the hole is done) ---
+
+That's the first. [Name], [score]; [Name], [score].
+    Scores, as the game names them: an eagle, a birdie, par, a bogey, a double bogey, a triple bogey.
+
+On to the second.
