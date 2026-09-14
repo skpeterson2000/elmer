@@ -26,15 +26,23 @@ running program from a phone or laptop on the same network.
 ```
 git clone https://github.com/skpeterson2000/elmer.git
 cd elmer
-pip install -r requirements.txt
+./install.sh           # installs what is missing and nothing that is not
 ./elmer.py             # serve; open it from anywhere on the network
 ./elmer.py --kiosk     # serve, and open full screen on this machine
 #   ELMER is on http://192.168.1.5:5000
 ```
 
-The pools ship built, so it runs straight from a clone — no build step. The
-only dependencies are Flask, Pillow and reportlab; everything else, including
-the QR encoder, is the standard library.
+(`install.sh` uses apt on Raspberry Pi OS, which refuses `pip install` under
+PEP 668, and a virtual environment elsewhere. On Windows, see *ELMER on
+Windows* below.) The pools ship built, so it runs straight from a clone — no
+build step. The dependencies are Flask, Pillow and reportlab; everything
+else, including the QR encoder, is the standard library. poppler-utils is
+wanted only to rebuild the pools or read PDFs on the library shelf, pyserial
+only to talk to a NanoVNA, and the self-check says which is missing.
+
+**License:** [PolyForm Noncommercial 1.0.0](LICENSE) — free for personal
+study, clubs, schools and other noncommercial use; not for commercial use;
+deliberately not an OSI open-source license. Details at the foot of the page.
 
 ## Fidelity
 
@@ -50,7 +58,7 @@ rather than ship a pool with a hole in it. The amateur pools carry every
 correction the Question Pool Committee has issued since release, because that
 is what is on the test. Where a question cites a rule, the rule is quoted from
 47 CFR, not paraphrased. Every explanation is written by hand or quoted from
-the regulation; nothing is machine-generated, and where no explanation exists
+the regulation; no explanation is machine-generated, and where none exists
 the program says so and invites your own rather than inventing one. What the
 program measures — your mastery, your exam odds, a question's difficulty, the
 propagation forecast's own error against the ionosondes — it reports with the
@@ -71,7 +79,7 @@ opens the same way on every board whatever the hardware is doing underneath,
 and puts a phone in the game by pointing it at a screen. A club evening needs
 one Pi and nobody to set anything up; a hall needs one more, and the tables
 find it by themselves. What the program has to say about its own working goes
-to the log, not the screen.
+to the log — the dashboard shows the tail of it — not onto the study screens.
 
 **What leaves a unit.** Your progress lives in `data/elmer.db` on the unit and
 nowhere else. The program reaches out for what it needs to stay current — space
@@ -231,7 +239,7 @@ from four sources, in descending order of authority:
 4. **The syllabus context**, always &mdash; which section and subelement the
    question belongs to.
 
-Nothing here is machine-generated. A subtly wrong explanation teaches the wrong
+No explanation is machine-generated. A subtly wrong explanation teaches the wrong
 thing, so the content is either quoted from the regulation or written
 deliberately; where neither exists, ELMER says so and invites your own note
 rather than inventing one.
@@ -273,7 +281,8 @@ because they carry very different authority:
   Convention and law do not share their edges, so each segment is answered with
   three states rather than two, and the reason is written beside the row. The
   IARU Region 2 plan puts SSB on 20 m from 14.112 while 97.305 permits no phone
-  below 14.150, so an Extra is told **14.150–14.230** and, in words, *"no license
+  below 14.150, so an Extra is told **14.150–14.230** - the part of that SSB
+segment that lies inside Extra phone privileges - and, in words, *"no license
   may use phone below 14.150 MHz"*.
 
   That last distinction is the one worth having. Two quite different rules
@@ -812,16 +821,19 @@ and inside it the arithmetic is done in front of you:
 ```
 983.6 / 14.200 MHz     69.27 ft   one wavelength; 983.6 is c in feet per microsecond
 69.27 / 2              34.63 ft   a dipole is half a wave, fed in the middle
-x 0.949                32.85 ft   velocity factor - a wire is not free space
-468 / 14.200 x 0.998   32.91 ft   what the table prints, and why it differs
+x 0.9485               32.85 ft   velocity factor - a wire is not free space
+468 / 14.200 x 0.9984  32.91 ft   what the table prints, and why it differs
 ```
 
 Three steps produce every wire length in amateur radio, on any band. The last
 row exists because being caught out by your own program is worse than not
 being taught: 468 is 983.6 / 2 x 0.95 rounded up, it lands 0.7 in from the
 line above it, and saying so is worth more than hiding it. Every figure shown
-can be checked on a pocket calculator - the constants displayed are the
-constants used.
+can be checked on a pocket calculator - the constants are displayed to the
+places that reproduce the figures beside them, which was not always so: a
+reader who checked the working found the factor shown to three places and
+the result computed from four, and the page's own demonstration of rigour
+off by a hundredth. It is shown to four now.
 
 The aim is the operator who is up a hill with a tape measure and no Pi, and
 still has an antenna.
@@ -836,7 +848,7 @@ changes the antenna.
 The rule runs opposite to most people's intuition, so it is shown rather than
 asserted: **a fatter conductor has a *lower* Q, and a lower Q is a *wider*
 band.** A thin wire is the high-Q, narrow case. On 20 m a #18 wire dipole
-holds 2:1 across about 504 kHz; the same dipole in 1 in copper pipe holds it
+holds 2:1 across about 504 kHz (#14, the default, 532); the same dipole in 1 in copper pipe holds it
 across 767 - and on 2 m the difference is nearly 1.7 to 1. It is the same
 reason a bowtie or a cage dipole covers a whole band where thin wire covers
 part of one, and why commercial VHF antennas are tube rather than wire.
@@ -1523,8 +1535,9 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   band, in feet, marked by whether the site can reach them — on 40 m with a
   35-foot garden the match is at 22 ft and the natural 73 Ω at 30, both in
   reach, and the high point at 46 is not. Worked from the mutual impedance of
-  the wire and its image (Kraus) with scipy's cosine integral, and checked
-  against the published curve. Perfect-ground figures: real ground damps the
+  the wire and its image (Kraus) with a cosine integral written out in pure
+  Python — it used to be scipy's, and scipy is 30 MB a Pi should not have to
+  carry for one function — and checked against the published curve. Perfect-ground figures: real ground damps the
   swings, so these are heights to start looking, not to stop at.
 
   **And why the height to aim for is not the height where the coax matches**
@@ -1631,7 +1644,7 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   The bandwidth plot is where the **bowtie** earns its place. Two triangles
   instead of two wires is a lower Q, and Q is what sets how fast the SWR climbs
   as you tune away: on 20 m the bowtie holds under 2:1 across **1960 kHz** where
-  a thin-wire dipole manages 532, a monoband Yagi 447 and a loaded mobile whip
+  a #14 wire dipole manages 532, a monoband Yagi 447 and a loaded mobile whip
   170. Same gain to within a rounding error — the width is the whole point.
 
   A straight wire can be **slung as a sloper**, which is where the arguing
@@ -2040,8 +2053,8 @@ running its own game when the hall took it stands that game down, scoring the
 open round so nobody is left holding a question.
 
 *Ready* is a word apart from *checked in*. Check-in is the machine's doing —
-a table hears a net and joins it, or rejoins at 04:00 after the overnight
-update with nobody in the room — so it says the Pi is up, not that the people
+a table hears a net and joins it, or rejoins after a reboot the operator
+scheduled for the small hours, with nobody in the room — so it says the Pi is up, not that the people
 are. Ready is pressed by somebody at the table and travels up with every
 check-in after, and net control's panel shows the two apart: a tick on the
 table's chip, and *4 tables · 2 ready* in the corner. Rounds still start on
@@ -2473,13 +2486,9 @@ one, the host's panel shows which places are being held, and a name somebody
 takes over has to be known to have been free.
 
 What a screen does with it is that screen's business, and the big board
-deliberately does not mark them. A board with a dozen names on it reads as an
-evening; the same board with eight struck through as software reads as an empty
-room being flattered, and the room is what the screen at the front is for.
-Nothing is scored differently either way.
-
-The same idea runs one level up, for whole tables rather than players — see
-*Tables that are not there*.
+deliberately does not mark them, for the reason given under *Tables that are
+not there* — which is the same idea one level up, for whole tables rather
+than players. Nothing is scored differently either way.
 
 ### Cohorts, and who takes the round
 
@@ -2525,9 +2534,9 @@ net control counts the table as quiet and carries on without it.
 
 **A fleet imaged from one SD card still shows as many tables.** Every unit works out an id from its hostname and machine-id, and Pis flashed from one card share both — so they all compute the *same* id, and net control, which keys its tables by id, used to let the second overwrite the first: three units playing, one table on the board, and the game failing for everyone but the host. Each running unit now sends a token made fresh at start, net control gives colliding ids their own slots — *raspberrypi*, *raspberrypi (2)*, *raspberrypi (3)* — and the log says a card was cloned. The board is readable and the scores are each table's own; giving the units their own hostnames makes the names on the board yours rather than a numbered *raspberrypi*. The hall does
 not stop because one Pi in the corner lost its wifi. A table also remembers its
-net control across a reboot — these Pis update and restart in the small hours,
-and nobody should have to walk twenty tables through a form before the doors
-open.
+net control across a reboot — an operator who reboots the Pis in the small
+hours (ELMER never restarts or updates itself; see *Keeping it up to date*) should not have
+to walk twenty tables through a form before the doors open.
 
 ### The run-up, and the programme keeping time
 
@@ -2943,7 +2952,7 @@ tail -f data/elmer.log
   not an ELMER problem: check the device is on the same network as the Pi, that
   you used `http://` and not `https://`, and that you included the `:5000`.
 
-Everything is logged to `data/elmer.log` (rotated at 2 MB, three kept) as well
+Everything is logged to `data/elmer.log` (rotated at 5 MB, five kept) as well
 as to the console: every request with its client address, status, duration and
 browser; every unhandled exception with a traceback; and JavaScript errors,
 which the page reports back to the server so a browser-side failure does not
@@ -3286,14 +3295,6 @@ by side, their standing in each track, questions answered this week, accuracy,
 streak and XP. It sorts by what was answered this week, because that is the
 figure anybody can do something about today.
 
-There are no passwords. Switching user is a choice, not a sign-in: anyone who
-can reach ELMER can be anyone on it. That is a deliberate trade for a family
-appliance that holds nothing but how many radio questions somebody got right —
-rather less than the FCC already publishes about every licensee by name and
-address. Worth knowing before putting one on a network shared with people you
-would not hand the radio to. The one exception is removing somebody, since that
-destroys their work: that can only be done from a browser on the unit itself.
-
 `--stats` prints whoever is first on the unit, plus a roster of everybody;
 `--stats --user NAME` prints somebody in particular.
 
@@ -3438,9 +3439,13 @@ as platform tests dropped into whichever file needed one - which is how a
 program ends up half-ported with nobody able to say what the Windows path
 actually does.
 
-**The short way: the portable zip.** On the repository's *Releases* page
-there is `ELMER-windows-<build>.zip`. Unzip it anywhere, double-click
-`elmer.cmd`, and ELMER opens in your browser. Nothing is installed: the zip
+**The short way: the portable zip.** `tools/build_windows_zip.ps1` builds
+`ELMER-windows-<build>.zip` on a Windows runner, through
+`.github/workflows/release.yml`, for every tag that starts with `v` — and
+the first such tag has not been cut yet, so until it appears on the
+repository's *Releases* page the way in is the clone below. When it is
+there: unzip it anywhere, double-click `elmer.cmd`, and ELMER opens in your
+browser. Nothing is installed: the zip
 carries its own Python (the official embeddable one from python.org, signed
 by the Python Software Foundation, which is why Windows does not put up its
 "unrecognized app" screen the way it would for a home-made `.exe`), with
@@ -3449,8 +3454,7 @@ rights, no execution policy, nothing to answer. It cannot update itself -
 there is no git in it - and the dashboard says so; to give it that, run
 `install.ps1` in the folder once, as below, and say yes when it offers git
 and the connect step. From then on it is an ordinary checkout that updates
-like every other. `tools/build_windows_zip.ps1` is what makes the zip, on a
-Windows runner, for every tag that starts with `v`.
+like every other.
 
 **The other way: from a clone or a download of the source.** Open
 PowerShell in the ELMER folder - right-click the folder, *Open in
@@ -3546,10 +3550,14 @@ rule.
 
 ## Requirements
 
-Python 3.11 with Flask and Pillow, plus `pdftotext`, `pdftoppm` and `pdfimages`
-from poppler-utils for rebuilding the pools. All present on Raspberry Pi OS;
-on Windows `install.ps1` fetches the Python side and offers what is missing.
-Serving needs no network; only the propagation dashboard reaches out.
+Python 3.11 or later with Flask, Pillow and reportlab (`requirements.txt`).
+Optional: `pdftotext`, `pdftoppm` and `pdfimages` from poppler-utils, to
+rebuild the pools and read PDFs on the library shelf; pyserial, to talk to a
+NanoVNA; TowerWitch's own packages, only if it sits beside ELMER. All present
+or one apt line away on Raspberry Pi OS; on Windows `install.ps1` fetches the
+Python side and offers what is missing, and the self-check names the rest.
+Serving needs no network; what reaches out is listed under *What leaves a
+unit*.
 
 ## License
 

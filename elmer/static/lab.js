@@ -608,7 +608,7 @@ function derivation(type, f, k, rows) {
   if (kind) {
     steps += step(lam.toFixed(2) + ' ' + kind[0], (lam / kind[1]).toFixed(2) + ' ft', kind[2]);
     const vf = (lam / kind[1]) * k;
-    steps += step('&times; ' + k.toFixed(3), vf.toFixed(2) + ' ft',
+    steps += step('&times; ' + k.toFixed(4), vf.toFixed(2) + ' ft',
       'The velocity factor. A wire is not free space: the ends couple to ' +
       'everything around them, so it behaves electrically longer than it ' +
       'measures and has to be cut short. About 0.95 for ordinary wire, less ' +
@@ -630,8 +630,10 @@ function derivation(type, f, k, rows) {
   if (kind && Math.abs(kind[1] - 2) < 0.01) {
     const derived = lam / 2 * k, printed = (468 / f) * (k / 0.95);
     const gapIn = Math.abs(printed - derived) * 12;
+    // Four places, not three: three reproduced the figure beside it only to
+    // within a hundredth, and this fold's whole promise is that it reproduces.
     steps += step('468 &divide; ' + f.toFixed(3) + ' &times; ' +
-        (k / 0.95).toFixed(3),
+        (k / 0.95).toFixed(4),
       printed.toFixed(2) + ' ft',
       'What the table above prints. 468 is the constant the books and the ' +
       'question pools use, and it is 983.6 &divide; 2 &times; 0.95 = 467.2 ' +
