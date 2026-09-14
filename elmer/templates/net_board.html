@@ -221,6 +221,7 @@ tr.outrow td.word { color: var(--red); opacity: .8; }
 <div class="board">
   <div class="head">
     <h1 id="title">ELMER</h1>
+    <span class="roommark" id="roommark" data-class=""><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
     <span class="sub" id="sub"></span>
     <button class="btn" id="showall" hidden>&larr; All tournaments</button>
     <span class="clock" id="clock">—</span>
@@ -717,6 +718,7 @@ async function tick() {
 
   const hall = board.kind === 'hall';
   const round = board.round;
+  if (board.difficulty) document.getElementById('roommark').dataset.class = board.difficulty;
   const clock = document.getElementById('clock');
   if (round && !round.closed) {
     // A hall reports how long the round has been open; a table counts down.

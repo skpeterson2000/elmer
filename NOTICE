@@ -114,3 +114,11 @@ and ELMER reproduces the questions and keyed answers exactly as released,
 because that is what appears on the test. Redistributing them is intended and
 permitted; relicensing them is not, which is why the LICENSE is scoped and
 this file exists.
+
+Made with Claude Code
+
+    Much of this program was written with Claude Code, Anthropic's
+    agentic coding tool, at KC9SP's direction and to his design; the
+    commit history says which parts, and the room pages carry the credit
+    in words. "Claude" and "Anthropic" are Anthropic's marks and appear
+    here as a statement of fact, not as an endorsement of this project.

@@ -1268,3 +1268,22 @@ body.hs-held { overflow: hidden; }
 #hs-leadin .hs-word.hs-num { font-size: clamp(6rem, 30vw, 20rem); font-family: var(--mono); }
 #hs-leadin .hs-word.hs-clock { font-size: clamp(2rem, 8vw, 5.5rem); animation: none; }   /* "Next round in 0:42" - a clock, so it does not pop every second */
 @keyframes hs-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* The room's mark: ELMER's own icon, ringed in the colour of the pool the
+   room is playing - green for Technician, amber for General, violet for
+   Extra, cyan for the commercial pools - and beside it the
+   credit, in words: this program was made with Claude Code. Words rather
+   than a borrowed logo, because the logo is Anthropic's and a mark in a
+   header reads as an endorsement nobody was asked for. */
+.roommark { display: inline-flex; align-items: center; gap: .55rem; margin-left: auto; }
+.roommark img { width: 30px; height: 30px; border-radius: 50%; padding: 2px; background: var(--panel);
+                border: 2px solid var(--dimmer); box-sizing: content-box; transition: border-color .4s; }
+.roommark[data-class="technician"] img { border-color: var(--green); }
+.roommark[data-class="general"] img { border-color: var(--amber); }
+.roommark[data-class="extra"] img { border-color: var(--violet); }
+.roommark[data-class="mrop"] img, .roommark[data-class="grol"] img,
+.roommark[data-class="radar"] img { border-color: var(--cyan); }
+.roommark .credit { font: .68rem var(--mono); letter-spacing: .05em; text-transform: uppercase;
+                    color: var(--dimmer); white-space: nowrap; }
+.roommark .credit b { font-weight: 600; color: var(--dim); }
+@media (max-width: 40rem) { .roommark .credit { display: none; } }

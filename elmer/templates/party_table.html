@@ -146,6 +146,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
     <h1>{{ name }}</h1>
     <span class="chip" id="round-chip">no round</span>
     <span class="cap" id="cap"></span>
+    <span class="roommark" id="roommark" data-class="{{ difficulty }}"><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
     <button class="btn sm danger" id="endtable">End tournament</button>
   </div>
 
@@ -792,6 +793,10 @@ tourney.addEventListener('click', async () => {
     bots: document.getElementById('botson').checked});
   tourney.disabled = false;
   autoTick();
+});
+/* The mark in the head follows the class this table is playing. */
+document.getElementById('difficulty').addEventListener('change', e => {
+  document.getElementById('roommark').dataset.class = e.target.value;
 });
 const golfBtn = document.getElementById('golf');
 golfBtn.addEventListener('click', async () => {

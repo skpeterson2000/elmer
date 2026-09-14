@@ -712,6 +712,7 @@ class Room:
             rnd.answers[player_id] = {
                 "player_id": player_id, "name": player.name,
                 "cohort": player.cohort_id, "correct": correct,
+                "chosen": chosen_index,
                 "ms": round(ms, 1), "order": len(rnd.answers) + 1}
             return rnd.answers[player_id], None
 
@@ -806,6 +807,7 @@ class Room:
                 "tag": rnd.tag, "mode": self.mode,
                 "section": (rnd.payload or {}).get("section") or "",
                 "given": [{"name": a["name"], "correct": a["correct"], "ms": a["ms"],
+                           "chosen": a.get("chosen"),
                            "bot": bool(self.players[a["player_id"]].bot) if a["player_id"] in self.players else False,
                            "license": self.license_of(a.get("player_id"))}
                           for a in rnd.answers.values()],

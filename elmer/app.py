@@ -3288,8 +3288,6 @@ def _table_writes_its_rounds(room):
     room._writes_rounds = True
 
     def _write(summary):
-        if summary.get("tag") is not None:            # the hall's round, not ours
-            return
         rows = [r for r in (summary.get("given") or []) if not r.get("bot")]
         if not rows:
             return
@@ -3297,14 +3295,48 @@ def _table_writes_its_rounds(room):
             r["unit"] = cohort.default_unit_id()
         connection = db.connect()
         try:
-            db.log_hall_round(connection, summary.get("pool") or "",
-                              summary.get("question_id") or "",
-                              summary.get("section") or "", rows,
-                              room.log_key, mode=summary.get("mode") or "tournament")
+            if summary.get("tag") is None:            # our own round; a hall's is net control's to log
+                db.log_hall_round(connection, summary.get("pool") or "",
+                                  summary.get("question_id") or "",
+                                  summary.get("section") or "", rows,
+                                  room.log_key, mode=summary.get("mode") or "tournament")
+            _credit_players(connection, summary, rows)
             connection.commit()
         finally:
             connection.close()
     room.on_round_closed.append(_write)
+
+
+def _credit_players(connection, summary, rows):
+    """A person who sat down under their callsign gets the answer in their
+    own study record, on the machine they sat at.
+
+    KC9SP: the player should get credit for their questions on that
+    machine too - towards carrying their questions and awards home. So a
+    table's round, or a hall's landing on this table, is also a study
+    answer for every player here whose name is a callsign with a profile
+    on this unit: the same row study writes, marked with the game. A name
+    that is not a callsign, or a callsign nobody here holds, is credited
+    nowhere - the record belongs to the person, and only a callsign says
+    who that is.
+    """
+    by_call = {}
+    for prof in db.users(connection):
+        call = (prof.get("callsign") or "").strip().upper()
+        if call:
+            by_call[call] = prof["id"]
+    if not by_call:
+        return
+    mode = f"table:{summary.get('mode') or 'tournament'}" if summary.get("tag") is None else "hall"
+    for r in rows:
+        call = party.callsign_of(r.get("name"))
+        user_id = by_call.get(call) if call else None
+        if user_id is None:
+            continue
+        connection.user_id = user_id
+        db.log_answer(connection, summary.get("pool") or "", summary.get("question_id") or "",
+                      summary.get("section") or "", bool(r.get("correct")), r.get("chosen"),
+                      int(r["ms"]) if r.get("ms") else None, mode)
 
 
 def _ask_party(difficulty="technician", section=None, seconds=None):

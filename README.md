@@ -2184,6 +2184,25 @@ The rules are `elmer/golf.py`, with no clock or question in them;
 the playoff through them, and `tests/test_golf_table.py` the table around
 them.
 
+### The room's mark, and the credit
+
+Every room page - the table, a phone at it, net control, the big board -
+carries ELMER's own mark in its head, ringed in the colour of the pool the
+room is playing: green for Technician, amber for General, violet for Extra,
+cyan for the commercial pools. Beside it, in words, the credit: *made with
+Claude Code*. Words rather than a borrowed logo, because the logo is
+Anthropic's and a mark in a header reads as an endorsement nobody was asked
+for; the NOTICE says the same.
+
+**Credit for the questions, too.** A player who sits down at a table under
+their callsign, on a unit where that callsign is a profile, gets every
+answer they give there in their own study record - a table's round or a
+hall's landing on that table - marked with the game it was. A name that is
+not a callsign, or a callsign nobody on the unit holds, is credited nowhere:
+the record belongs to the person, and only a callsign says who that is. It
+does not touch their spaced-repetition cards. This is the first step towards
+carrying a player's questions and awards home to their own machine.
+
 ### Certificates for the wall
 
 A club that runs a tournament night had nothing to hand the winner: the score

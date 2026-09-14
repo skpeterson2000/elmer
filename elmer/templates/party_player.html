@@ -95,6 +95,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
     <b>{{ name }}</b>
     <span class="who" id="who"></span>
     <button class="leave" id="leave" hidden>leave</button>
+    <span class="roommark" id="roommark" data-class=""><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
   </div>
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
@@ -736,6 +737,9 @@ async function tick() {
   }
 
   currentRound = round;
+  if (round.question && round.question.difficulty) {
+    document.getElementById('roommark').dataset.class = round.question.difficulty;
+  }
   if (round.closed) {
     // The beat before the placings, timed from when this phone first saw
     // the round closed - not from a server clock, which is the tournament's
