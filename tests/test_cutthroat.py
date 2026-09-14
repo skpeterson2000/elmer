@@ -106,6 +106,25 @@ def run():
     check("one left: the winner", (g.winner(), g.over()), ("a", True))
     check("as a dict, for the screens", g.as_dict()["phase"], "over")
 
+    print("\n-- at a table: a person at the screen is in it, and their answer counts --")
+    from elmer import party
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    me = room.join("KC9SP", device="screen")[0].id
+    room.fill_bots("Listener")
+    started, why = room.begin_cutthroat()
+    check("the person and the practice players take chairs", (started is not None, me in room.cutthroat.order), (True, True))
+    room.start_round("tech2026", "T1A01", 0, seconds=30, payload={"text": "?", "choices": ["a", "b", "c", "d"], "section": "T1A"})
+    got, why = room.submit(me, 0, 1500)
+    check("the person's answer is taken", (got is not None, why), (True, None))
+    for b in [p for p in room.players.values() if p.bot]:
+        room.submit(b.id, 1, 2000)                    # every practice player misses
+    row = room.close_round()["cutthroat"]
+    check("  and counts: the person is right, and in", (me in row["right"], me in row["remaining"]), (True, True))
+    check("  the practice players that missed are out", all(b.id in row["out"] for b in room.players.values() if b.bot), True)
+    check("  which makes the person the winner", (row["winner"], row["over"]), (me, True))
+    party.close_room()
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

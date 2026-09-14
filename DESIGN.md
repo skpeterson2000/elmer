@@ -1858,7 +1858,10 @@ opens the table screen with that class chosen and every game the table can
 run in one panel: **Tournament**, **Shootout**, **CutThroat** and **Golf**,
 and an open slot for the next one. Pick the class and the pace at the top,
 then a game; while one is in play the tiles stand down and the readout says
-which. Each game is described in its own section below; what they share is
+which. A game pressed with nobody at the table asks first - sit down at a
+seat, or scan the code, or start anyway and watch - because a game started
+for the practice players alone leaves the person who pressed it outside it
+with no way in, which is what happened the first time. Each game is described in its own section below; what they share is
 that every question answered at the table counts for the player who
 answered it, on that unit, the same as study does.
 

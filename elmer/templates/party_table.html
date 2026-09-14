@@ -350,6 +350,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .gc, body.f
             <span>Room for the next game.</span>
           </div>
         </div>
+        <div class="hint" id="gc-sit" hidden style="text-align:left;margin-top:.6rem;color:var(--amber)"></div>
       </div>
       <div class="controls" style="margin-top:.5rem">
         <label class="chip" style="cursor:pointer">
@@ -702,6 +703,7 @@ async function tick() {
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
   const s = r.data, round = s.round;
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
+  lastTableState = s;
   const shootOpen = s.shootout && !s.shootout.over;
   const leadIn = s.hall && s.hall.show && s.hall.show.lead_in;
   tableMs = ((round && !round.closed) || leadIn || shootOpen
@@ -912,8 +914,35 @@ document.getElementById('endtable').addEventListener('click', async () => {
 const tourney = document.getElementById('tourney');
 const stopt = document.getElementById('stopt');
 const autostate = document.getElementById('autostate');
+let lastTableState = null;
+
+/* A game pressed with nobody at the table is the practice players' game,
+   and the person who pressed it watches from the outside with no way in -
+   which is what happened: CutThroat started with five practice players,
+   and the one person on the unit had no seat and no buttons. So the press
+   asks first: sit down, or scan the code, or start anyway to watch. */
+let startAnyway = null;
+function somebodyHere() {
+  if (startAnyway === 'go') { startAnyway = null; return true; }   // the press after "start anyway"
+  const people = lastTableState ? (lastTableState.people || 0) : 0;
+  return people > 0 || seated().length > 0;
+}
+function askToSit(start, what) {
+  const box = document.getElementById('gc-sit');
+  box.hidden = false;
+  box.innerHTML = `<b>Nobody is at this table yet.</b> ${esc(what)} would start for the practice players alone, and you would be watching with no way in. ` +
+    `Sit down at a seat below, or scan the code, and press again &mdash; or ` +
+    `<button class="btn sm ghost" id="gc-anyway">start anyway and watch</button>`;
+  startAnyway = start;
+  document.getElementById('gc-anyway').addEventListener('click', () => { box.hidden = true; const go = startAnyway; startAnyway = 'go'; if (go) go(); });
+  const name = document.querySelector('.hs-row[data-seat="A"] .hs-name');
+  if (name) name.focus();
+}
+function clearAsk() { const box = document.getElementById('gc-sit'); if (box) { box.hidden = true; } startAnyway = null; }
 
 tourney.addEventListener('click', async () => {
+  if (!somebodyHere()) { askToSit(() => tourney.click(), 'A tournament'); return; }
+  clearAsk();
   tourney.disabled = true;
   await api('/api/party/auto', {
     on: true,
@@ -929,6 +958,8 @@ document.getElementById('difficulty').addEventListener('change', e => {
 });
 const golfBtn = document.getElementById('golf');
 golfBtn.addEventListener('click', async () => {
+  if (!somebodyHere()) { askToSit(() => golfBtn.click(), 'A round of golf'); return; }
+  clearAsk();
   golfBtn.disabled = true;
   await api('/api/party/mode', {
     mode: 'golf',
@@ -941,6 +972,8 @@ golfBtn.addEventListener('click', async () => {
 });
 const cutBtn = document.getElementById('cutthroat');
 cutBtn.addEventListener('click', async () => {
+  if (!somebodyHere()) { askToSit(() => cutBtn.click(), 'A CutThroat'); return; }
+  clearAsk();
   cutBtn.disabled = true;
   await api('/api/party/mode', {
     mode: 'cutthroat',
@@ -951,6 +984,8 @@ cutBtn.addEventListener('click', async () => {
 });
 const shootBtn = document.getElementById('shootout');
 shootBtn.addEventListener('click', async () => {
+  if (!somebodyHere()) { askToSit(() => shootBtn.click(), 'A shootout'); return; }
+  clearAsk();
   shootBtn.disabled = true;
   await api('/api/party/mode', {
     mode: 'shootout',
