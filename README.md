@@ -1086,7 +1086,12 @@ the unit (or the page is being read from another machine - a desktop program
 is not started from across the network); live when it is, saying *running*
 when TowerWitch has announced itself from this machine, and starting it on
 the unit's own screen otherwise (`run_towerwitch.sh` where there is one, the
-Qt build on Windows). There is no button the other way. One was tried: it
+Qt build on Windows). *Running* is read from the process table, not from
+the broadcast: TowerWitch announces itself every few seconds and the
+listener keeps the last announcement for ninety seconds, so the broadcast
+alone would call it running for a minute and a half after it was closed,
+and the button would refuse to start it. When the two disagree the log says
+so and the process table wins. There is no button the other way. One was tried: it
 opened a second copy of ELMER's page beside the window already on the
 screen, which is worse than no button. Getting back to ELMER is closing
 TowerWitch's window.

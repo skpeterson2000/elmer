@@ -197,12 +197,80 @@ def find():
     return find_towerwitch()
 
 
+# The TowerWitch this ELMER started, if it did: the surest answer to
+# "is it running" is the process itself.
+_started = {"proc": None, "at": 0.0}
+
+
+def processes():
+    """Every TowerWitch process on this machine, as (pid, command line):
+    a Python running one of its scripts - not a shell that names it, and
+    never this program."""
+    import os
+    import subprocess
+    mine = {os.getpid(), os.getppid()}
+    out = []
+    try:
+        if os.name == "nt":
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*TowerWitch*' } "
+                 "| ForEach-Object { \"$($_.ProcessId) $($_.CommandLine)\" }"],
+                capture_output=True, text=True, timeout=15)
+        else:
+            res = subprocess.run(["pgrep", "-af", "TowerWitch"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return out
+    for line in res.stdout.splitlines():
+        pid_s, _, cmd = line.strip().partition(" ")
+        try:
+            pid = int(pid_s)
+        except ValueError:
+            continue
+        if pid in mine:
+            continue
+        tokens = cmd.split()
+        if not tokens:
+            continue
+        first = os.path.basename(tokens[0]).strip('"').lower()
+        if first in ("bash", "sh", "dash", "zsh", "powershell", "powershell.exe", "pwsh", "pwsh.exe", "cmd.exe"):
+            continue
+        if "pgrep" in cmd or "Get-CimInstance" in cmd:
+            continue
+        if not (first.startswith("python") or first.endswith(".py")):
+            continue
+        if not any(t.lower().endswith(".py") and "towerwitch" in t.lower() for t in tokens):
+            continue
+        out.append((pid, cmd.strip()))
+    return out
+
+
 def running_here():
-    """Whether a TowerWitch on this machine has announced itself lately."""
+    """Whether TowerWitch is running on this machine.
+
+    The process table is the answer; the broadcast is a second opinion.
+    TowerWitch announces itself every few seconds while it runs, and the
+    listener keeps the last announcement for ninety seconds - so for a
+    minute and a half after somebody closes it the broadcast alone would
+    still say "running", and the button would refuse to start it. So: the
+    process ELMER started, if it is alive; else any TowerWitch process;
+    and when the broadcast says otherwise, a line in the log says which
+    was believed and why.
+    """
+    proc = _started["proc"]
+    if proc is not None and proc.poll() is None:
+        return True
+    found = processes()
     live = listener()
-    if not live or not live.current():
-        return False
-    return (live.last_from or "") in ("127.0.0.1", "::1", "localhost") or _is_own(live.last_from)
+    heard = bool(live and live.current()
+                 and ((live.last_from or "") in ("127.0.0.1", "::1", "localhost") or _is_own(live.last_from)))
+    if found:
+        return True
+    if heard:
+        age = round(time.time() - live.current()["read_at"], 1)
+        log.info("towerwitch: broadcast %.0fs old from this machine but no TowerWitch process - "
+                 "closed since; the button will start it", age)
+    return False
 
 
 def _is_own(addr):
@@ -260,6 +328,7 @@ def launch(path):
     try:
         proc.wait(timeout=3.0)
     except subprocess.TimeoutExpired:
+        _started["proc"], _started["at"] = proc, time.time()
         return True, "TowerWitch is starting on this unit's screen"
     err = ""
     try:
