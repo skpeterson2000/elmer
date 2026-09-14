@@ -123,6 +123,14 @@ class Director:
         if self.state != "faulted":
             self.state = "finished" if self.stop.is_set() else "stopped"
 
+    def hurry(self):
+        """The room has read the result: end the reveal now. A person at a
+        table says so with a press; nothing else shortens a person's time."""
+        if self.state in ("revealing", "addressing"):
+            self.next_at = time.monotonic()
+            return True
+        return False
+
     def start(self):
         self.thread = threading.Thread(target=self.run, daemon=True,
                                        name="autoplay")

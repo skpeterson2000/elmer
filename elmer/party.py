@@ -115,6 +115,10 @@ BOT_REVEAL = 9.0
 # which club - alone on the screen for this long, so the room knows whose
 # shot it is before it has to read anything.
 GOLF_PRELUDE = 4.0
+# A person's own stroke stands until they say they have read it - Next
+# stroke, on their seat or their phone - or this long, for a person who has
+# walked off. Nobody reading a result should have it taken away on a clock.
+PERSON_REVEAL = 90.0
 
 
 def bot_swing_seconds(payload, pace=None):
@@ -946,7 +950,7 @@ class Room:
                 return default            # the card, worth the look
             if all(p in self.players and self.players[p].bot for p in shots):
                 return max(default, BOT_REVEAL)
-            return default
+            return PERSON_REVEAL          # a person's: until they have read it
 
     def golf_prelude(self):
         """How long the address stands before the next stroke's question -

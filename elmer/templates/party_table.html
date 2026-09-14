@@ -150,7 +150,21 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .gc, body.f
    stand down, the tee sheet (the QR) and the seats stay - a round is joined
    by tee time, not dropped into. */
 body.golfing .gc, body.golfing .controls { display: none; }
-body.golfing .cols { grid-template-columns: minmax(14rem, 18rem) 1fr; }
+/* Between strokes the tee sheet keeps a narrow column; while a seat is
+   playing (focus) the left column is gone and the stage takes the width -
+   with both rules on, the stage was landing in the narrow track. */
+body.golfing:not(.focus) .cols { grid-template-columns: minmax(11rem, 13rem) 1fr; }
+body.golfing .qr { padding: .4rem; max-width: 9rem; margin: 0 auto; }
+body.golfing .joinurl { font-size: .7rem; }
+/* One thing to look at: the question on the left, this seat's choices on the
+   right, nothing below the fold. A person reading a question should not
+   have to scroll to the answers and back up to the play - see the note on
+   split attention in DESIGN.md. */
+.golfstage { display: grid; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); gap: 1rem; align-items: start; }
+.golfstage .stage-seats { grid-template-columns: 1fr; margin-top: 0; }
+.golfstage .figwrap-large .figfull img { max-height: 30vh; }
+@media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
+.nextstroke { margin-top: .6rem; }
 .shotcall { font-size: 1.15rem; font-weight: 700; color: var(--amber); }
 .shotclip { max-width: 100%; max-height: 8rem; display: block; margin: .3rem 0; border-radius: 8px; }
 .seatcol .clubrow { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .5rem; }
@@ -523,6 +537,8 @@ document.addEventListener('click', async e => {
     col.insertAdjacentHTML('beforeend', '<div class="verdict in">In. Waiting on the rest of the table.</div>');
     return;
   }
+  const nx = e.target.closest('[data-next-stroke]');
+  if (nx) { nx.disabled = true; await api('/api/party/next', {}); tick(); return; }
   const cb = e.target.closest('[data-seat-club]');
   if (cb) {
     const me = +cb.dataset.seatClub;
@@ -852,11 +868,21 @@ async function tick() {
     if (s.golf) {
       // A stroke, not a race: the answer, then where the ball went, and
       // the group's balls. No seconds, no points, no placings.
+      const mineHere = atScreen.filter(x => round.to == null || x.id === round.to);
+      const next = mineHere.length
+        ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button><span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
+        : '';
+      if (mineHere.length) {
+        stage.innerHTML = golfHead(s.golf) + `<div class="golfstage"><div>
+          <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` + boardHTML(q, round.answer, true) + `</div>
+          <div><div class="stage-seats">${mineHere.map(x => seatVerdictHTML(x, round, shoot, true)).join('')}</div>${golfPlayback(s.golf)}${next}</div></div>` +
+          golfBalls(s.golf);
+      } else {
       stage.innerHTML = `
         <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` +
         boardHTML(q, round.answer, true) +
-        `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>` +
-        (atScreen.length ? `<div class="stage-seats">${atScreen.filter(x => round.to == null || x.id === round.to).map(x => seatVerdictHTML(x, round, shoot, true)).join('')}</div>` : '');
+        `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>`;
+      }
       return;
     }
     const rows = (round.results || []).map(a => `
@@ -905,6 +931,16 @@ async function tick() {
     // sitting at this screen.
     const gf = s.golf;
     const awayHere = gf && atScreen.some(x => x.id === round.to);
+    if (gf && awayHere) {
+      // A stroke at this screen: the question and the figure on the left,
+      // the seat that is away on the right, and nothing else to look at.
+      const seat = atScreen.find(x => x.id === round.to);
+      stage.innerHTML = golfHead(gf) + golfAwayLine(gf) + `<div class="golfstage"><div>
+        <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
+        <p class="qtext">${esc(q.text || '')}</p>` + figureBlock(q, {size: 'large'}) + `
+        <p class="hint" id="waiting" style="text-align:left"></p></div>
+        <div class="stage-seats">${seatColumnHTML(seat, round, s.shootout, gf)}</div></div>`;
+    } else {
     stage.innerHTML = (gf ? golfHead(gf) + golfAwayLine(gf) : '') + `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="qtext">${esc(q.text || '')}</p>` +
@@ -913,6 +949,7 @@ async function tick() {
       (gf ? '' : '<div class="bigclock" id="clock"></div>') + `
       <p class="hint" id="waiting"></p>` +
       (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout, gf)).join('')}</div>` : '');
+    }
   }
   const clock = document.getElementById('clock');
   if (clock) clock.textContent = Math.ceil(round.remaining) + 's';

@@ -84,7 +84,9 @@ def run():
     check("the stroke was the person's alone, with the wedge", (list(shots), shots[ann]["club"]), ([ann], "wedge"))
     check("  a right answer flew it, however long it took", shots[ann]["kind"] in ("fairway", "green", "sand", "water", "long"), True)
     check("  and the club is cleared for the next", ann in room.clubs, False)
-    check("  a stroke by a person stands the usual time", room.reveal_seconds(summary, 8.0), 8.0)
+    check("  a stroke by a person stands until they have read it", room.reveal_seconds(summary, 8.0), party.PERSON_REVEAL)
+    r = client.post("/api/party/next", json={}, environ_base=local)
+    check("  and Next stroke is a press the table can make", r.status_code, 200)
     v = client.get(f"/api/party/state?player={ann}", environ_base=local).get_json()["golf"]
     check("the phone reads the playback", any(s["player"] == ann and "wedge" in s["words"] for s in v["last"]), True)
     check("  and the card", [r["name"] for r in v["leaderboard"]][:1] != [], True)

@@ -3791,6 +3791,17 @@ def api_net_end():
     return jsonify({"open": False})
 
 
+@app.route("/api/party/next", methods=["POST"])
+def api_party_next():
+    """The table has read the result: on to the next stroke. A press from a
+    seat or a phone at this table; the reveal after a person's stroke
+    otherwise stands until they have read it."""
+    _party_or_404()
+    driver = autoplay.director()
+    hurried = bool(driver and driver.hurry())
+    return jsonify({"ok": True, "hurried": hurried})
+
+
 @app.route("/api/party/auto-state")
 def api_party_auto_state():
     """Whether a tournament is running on this table."""

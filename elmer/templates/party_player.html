@@ -554,9 +554,14 @@ function paintResults(round, shoot) {
     </tr>`).join('');
   const gf = s_last && s_last.golf;
   if (gf && gf.last && gf.last.length) {
+    const wasMine = gf.last.some(s => s.player === me.id);
     view.innerHTML = `${golfHeadHTML(gf)}${golfPlaybackHTML(gf)}
+      ${wasMine && !gf.over ? `<p style="padding:.6rem 0 0"><button class="choice" id="next-stroke" style="text-align:center"><b>Next stroke &rsaquo;</b></button>
+        <span class="tiny muted" style="display:block;margin-top:.3rem">Read it first; the round waits for you.</span></p>` : ''}
       <p class="state" style="padding:1rem 0">${gf.over ? `<b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.`
         : gf.your_turn ? 'Your stroke next.' : gf.away_name ? `${escapeHTML(gf.away_name)} is away next.` : 'Next stroke coming.'}</p>`;
+    const nb = document.getElementById('next-stroke');
+    if (nb) nb.addEventListener('click', async () => { nb.disabled = true; await api('/api/party/next', {}); });
     return;
   }
   view.innerHTML = `

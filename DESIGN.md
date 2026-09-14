@@ -2361,6 +2361,22 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**One thing to look at.** A stroke at the table screen is laid out for a
+person with one focal point: the question and its figure on the left, this
+seat's choices on the right, nothing below the fold - and the result the
+same way, the answer beside the verdict and the stroke. The tee sheet (the
+QR) shrinks to a corner while a round is on. Nothing about a person's
+stroke is on a clock, and now neither is its result: after a person's
+stroke the reveal stands until they press *Next stroke* on their seat or
+their phone (ninety seconds for somebody who has walked off); a practice
+player's stroke still stands nine seconds. The reasoning is the
+split-attention effect: a learner made to integrate a question above the
+fold with answers below it, or a result on one screen with a play-through
+on another, spends attention on the integrating rather than the content -
+and attention is one spotlight, not several. Clips of the swing, when they
+come, will go in the gap between the answer and the next address, not over
+the question.
+
 **A round is joined by tee time.** Once a round is on, the table screen is
 golf's: the Gaming Center and the round controls stand down, the QR stays
 and reads *scan to arrange a tee time*. Somebody arriving while the group
