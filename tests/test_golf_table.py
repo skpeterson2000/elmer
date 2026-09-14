@@ -174,11 +174,17 @@ def run():
     party.close_room()
     room = party.room(create=True, cohorts=1)
     room.join("KC9SP")
+    room.arm_start(15)                    # sitting down armed the table's own countdown
     r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
                                              "tee_in": 300, "level": "Elmer"}, environ_base=local)
     st = r.get_json() if r.status_code == 200 else {}
     st = client.get("/api/party/state", environ_base=local).get_json()
     check("a tee time is booked, and no round is on yet", (st["clubhouse"] is not None, st["golf"]), (True, None))
+    check("  booking it took the seat's countdown off", room.waiting_to_start(), False)
+    room.arm_start(15)                    # and were it still armed, firing does not put a tournament over the booking
+    check("  a countdown firing into the clubhouse does nothing",
+          (appmod._party_begin(room, "technician", True), room.clubhouse is not None, room.waiting_to_start()),
+          (False, True, False))
     check("  five minutes, one in the group of four", (290 < st["clubhouse"]["tee_in"] <= 300, st["clubhouse"]["people"]),
           (True, ["KC9SP"]))
     check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),

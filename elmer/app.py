@@ -3264,6 +3264,9 @@ def _party_begin(room, difficulty, armed_only=False):
     """Put the first question up and let the director carry it from there."""
     if armed_only and (not room.waiting_to_start() or party.room() is not room):
         return False                     # somebody started it, all left, or the table closed
+    if armed_only and (room.clubhouse is not None or room.golf is not None):
+        room.disarm_start()
+        return False                     # the group is in the clubhouse, or out on the course
     room.disarm_start()
     if not _party_may_begin(room):
         return False
@@ -3698,6 +3701,11 @@ def api_party_mode():
         abort(400, f"mode must be one of {list(party.MODES)}")
     if room.round is not None and not room.round.closed:
         abort(409, "a question is still open")
+    # A game somebody chose beats the countdown a seat armed: left armed, it
+    # fired fifteen seconds after the first person sat and put a tournament
+    # over the top of the tee time they had just booked.
+    if wanted != party.TOURNAMENT:
+        room.disarm_start()
     if wanted == party.SHOOTOUT:
         _not_this_tables_part()      # the hall's shootout is the hall's
         difficulty = str(body.get("difficulty") or _party_class()).lower()
