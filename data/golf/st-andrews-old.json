@@ -1,0 +1,412 @@
+{
+ "id": "st-andrews-old",
+ "name": "The Old Course at St Andrews",
+ "where": "St Andrews, Fife, Scotland",
+ "pool": "general",
+ "par": 72,
+ "wind": {
+  "typical_mph": 16,
+  "from": "the south-west, helping out and against coming home",
+  "note": "links wind; out with it, back into it, and the double greens are enormous"
+ },
+ "notes": "Card from the medal tees. Pot bunkers are the named ones; the Swilcan Burn and the road are where they are.",
+ "holes": [
+  {
+   "n": 1,
+   "par": 4,
+   "yards": 376,
+   "name": "Burn",
+   "wind": "with",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 340,
+     "to": 360,
+     "side": "across",
+     "name": "the Swilcan Burn"
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "par": 4,
+   "yards": 453,
+   "name": "Dyke",
+   "wind": "with",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 240,
+     "to": 260,
+     "side": "left",
+     "name": "Cheape's bunker"
+    },
+    {
+     "kind": "rough",
+     "from": 0,
+     "to": 453,
+     "side": "right",
+     "name": "gorse"
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "par": 4,
+   "yards": 397,
+   "name": "Cartgate (out)",
+   "wind": "with",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 370,
+     "to": 397,
+     "side": "left",
+     "name": "Cartgate bunker"
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "par": 4,
+   "yards": 480,
+   "name": "Ginger Beer",
+   "wind": "with",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 250,
+     "to": 270,
+     "side": "left",
+     "name": "Cottage bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 430,
+     "to": 450,
+     "side": "left",
+     "name": "Ginger Beer bunkers"
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "par": 5,
+   "yards": 568,
+   "name": "Hole O'Cross (out)",
+   "wind": "with",
+   "green": 50,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 220,
+     "to": 250,
+     "side": "left",
+     "name": "the Seven Sisters"
+    },
+    {
+     "kind": "bunker",
+     "from": 470,
+     "to": 490,
+     "side": "front",
+     "name": "the Spectacles"
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "par": 4,
+   "yards": 412,
+   "name": "Heathery (out)",
+   "wind": "across",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 255,
+     "side": "left",
+     "name": "Coffin bunkers"
+    },
+    {
+     "kind": "rough",
+     "from": 0,
+     "to": 412,
+     "side": "right",
+     "name": "heather and gorse"
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "par": 4,
+   "yards": 371,
+   "name": "High (out)",
+   "wind": "across",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 340,
+     "to": 371,
+     "side": "front",
+     "name": "Shell bunker"
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "par": 3,
+   "yards": 175,
+   "name": "Short",
+   "wind": "across",
+   "green": 36,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 150,
+     "to": 175,
+     "side": "front",
+     "name": "Short Hole bunker"
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "par": 4,
+   "yards": 352,
+   "name": "End",
+   "wind": "with",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 210,
+     "to": 235,
+     "side": "left",
+     "name": "Boase's and End Hole bunkers"
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "par": 4,
+   "yards": 386,
+   "name": "Bobby Jones",
+   "wind": "into",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 220,
+     "to": 245,
+     "side": "left",
+     "name": "Kruger bunkers"
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "par": 3,
+   "yards": 174,
+   "name": "High (in)",
+   "wind": "into",
+   "green": 36,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 150,
+     "to": 174,
+     "side": "left",
+     "name": "Hill bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 155,
+     "to": 174,
+     "side": "right",
+     "name": "Strath bunker"
+    },
+    {
+     "kind": "water",
+     "from": 174,
+     "to": 200,
+     "side": "beyond",
+     "name": "the Eden estuary"
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "par": 4,
+   "yards": 348,
+   "name": "Heathery (in)",
+   "wind": "into",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 200,
+     "to": 260,
+     "side": "centre",
+     "name": "the hidden bunkers"
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "par": 4,
+   "yards": 465,
+   "name": "Hole O'Cross (in)",
+   "wind": "into",
+   "green": 50,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 250,
+     "to": 275,
+     "side": "left",
+     "name": "the Coffins"
+    },
+    {
+     "kind": "bunker",
+     "from": 420,
+     "to": 445,
+     "side": "front",
+     "name": "Walkinshaw's"
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "par": 5,
+   "yards": 618,
+   "name": "Long",
+   "wind": "into",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 260,
+     "side": "left",
+     "name": "the Beardies"
+    },
+    {
+     "kind": "bunker",
+     "from": 430,
+     "to": 470,
+     "side": "centre",
+     "name": "Hell bunker"
+    },
+    {
+     "kind": "rough",
+     "from": 0,
+     "to": 618,
+     "side": "right",
+     "name": "the wall and out of bounds"
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "par": 4,
+   "yards": 455,
+   "name": "Cartgate (in)",
+   "wind": "into",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 235,
+     "to": 260,
+     "side": "centre",
+     "name": "Sutherland bunker"
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "par": 4,
+   "yards": 423,
+   "name": "Corner of the Dyke",
+   "wind": "into",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 260,
+     "side": "centre",
+     "name": "the Principal's Nose"
+    },
+    {
+     "kind": "rough",
+     "from": 0,
+     "to": 423,
+     "side": "right",
+     "name": "the railway, out of bounds"
+    }
+   ]
+  },
+  {
+   "n": 17,
+   "par": 4,
+   "yards": 495,
+   "name": "Road",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "rough",
+     "from": 0,
+     "to": 260,
+     "side": "right",
+     "name": "the hotel grounds, out of bounds"
+    },
+    {
+     "kind": "bunker",
+     "from": 470,
+     "to": 495,
+     "side": "left",
+     "name": "the Road Hole bunker"
+    },
+    {
+     "kind": "water",
+     "from": 495,
+     "to": 520,
+     "side": "beyond",
+     "name": "the road and the wall"
+    }
+   ]
+  },
+  {
+   "n": 18,
+   "par": 4,
+   "yards": 357,
+   "name": "Tom Morris",
+   "wind": "into",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 60,
+     "to": 80,
+     "side": "across",
+     "name": "the Swilcan Burn"
+    },
+    {
+     "kind": "rough",
+     "from": 330,
+     "to": 357,
+     "side": "front",
+     "name": "the Valley of Sin"
+    }
+   ]
+  }
+ ]
+}

@@ -2120,6 +2120,52 @@ from that moment, and if that leaves one, that one has won.
 The rules are `elmer/cutthroat.py`, with no clock or question in them;
 `tests/test_cutthroat.py` plays every part of the game through them.
 
+### Golf
+
+KC9SP's fourth game, modelled on the real one, on real courses. A stroke is
+a question. Answer it right and the ball flies - the faster the answer, the
+better the shot; answer it wrong and it is a foul ball, into the rough, the
+sand, the water, or over the cliff for a drop and a stroke.
+
+The courses are three, from their real cards, one to a pool: **Pebble Beach**
+for Technician, **the Old Course at St Andrews** for General, **Augusta
+National** for Extra - friendliest to hardest, which is roughly how golf
+ranks them too. Each hole has its par and yardage from the card, the famous
+hazards along the line placed approximately (`data/golf/*.json`, written by
+`tools/build_golf_courses.py`; anyone who knows a hole better is welcome to
+move a bunker), and the wind it usually has, drawn afresh each round so no
+two play the same. The 12th at Augusta swirls, which means it is drawn for
+every shot. Nothing is taken from a video game: real yardages, real hazards
+and the real names of real places are facts.
+
+Before each question the player chooses a club - driver, wood, iron, wedge;
+the putter alone on the green - and the club sets the most the ball can go.
+A club that can reach the pin is *aimed* at it, and the answer's speed is the
+precision: a fast answer lands within a few yards, one at the bell within
+twenty-five. A club that cannot reach is a full swing, and the speed is the
+length. The wind adds or takes; the lie costs (rough a fifth, sand more, and
+only a wedge). Where the ball lands is checked against the course: a fast,
+correct driver that carries into Rae's Creek is golf, and the player chose
+the driver. A foul ball finds the nearest trouble the club could have
+reached - water most often a drop and a penalty stroke - and trouble out of
+the club's reach is out of the foul ball's too.
+
+On the green, putting is about being right, not fast: a correct answer holes
+it, a wrong one is a missed putt. Pick up at par plus three, the way casual
+golfers do, so a hole has a bounded number of questions. Scoring is real
+golf - eagle, birdie, par, bogey - lowest total wins; a tie for the lead is a
+playoff hole, sudden death. A **handicap** is a switch: off, everybody plays
+scratch; on, strokes are given from each player's share of right answers in
+their study history - nine in ten plays scratch, one in two gets a stroke a
+hole - and come off at the end, so a poor player and a fair one can play the
+same card. Every stroke is written as a line of **playback** - *"wedge, 27
+yards - on the green, 6 feet"*, *"driver, a foul ball - into the Swilcan
+Burn; drop, and a penalty stroke"* - which is what the reveal becomes.
+
+The rules are `elmer/golf.py`, with no clock or question in them;
+`tests/test_golf.py` plays the shot, the course, the green, the card and
+the playoff through them.
+
 ### Certificates for the wall
 
 A club that runs a tournament night had nothing to hand the winner: the score

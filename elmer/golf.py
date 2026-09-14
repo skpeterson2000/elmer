@@ -1,0 +1,440 @@
+"""Golf - a round on a real course, a question a stroke.
+
+KC9SP's game, modelled on the real one. The course is a real one - Pebble
+Beach, the Old Course, Augusta - from its card: each hole's par and yards,
+the hazards along the line, the wind it usually has. A stroke is a
+question. Answer it right and the ball flies: the faster the answer, the
+better the shot. Answer it wrong and it is a foul ball - into the rough,
+the sand, the water, over the cliff for a drop and a stroke.
+
+**The shot.** Before the question the player chooses a club - driver,
+wood, iron, wedge; on the green it is the putter and nothing else - and
+the club sets the most the ball can go. The clock sets how much of that
+it gets: answered in the first quarter of the time, all of it; at the
+bell, sixty percent. The wind adds or takes yards, and the lie the ball
+was in takes some too: rough costs a fifth, sand allows only a wedge and
+costs more. Where the ball lands is checked against the course. A fast,
+correct driver that carries into Rae's Creek is golf, and the player
+chose the driver.
+
+**Foul balls.** A wrong answer finds the nearest trouble the club could
+have reached: water most often means a drop where you were and a penalty
+stroke; sand means you are in it; rough means a short one that did go
+forward. Trouble that was not in reach of the club is not in reach of the
+foul ball either - a wedge from the fairway cannot find a bunker two
+hundred yards on.
+
+**The green.** On it, the game is putting, and putting is about being
+right, not fast: a correct answer holes it, a wrong one is a missed putt
+and another stroke. A player who has not holed after par plus three
+picks up and takes that, the way casual golfers do, so a hole has a
+bounded number of questions and the table moves on together.
+
+**Scoring** is real golf: strokes against the card - eagle, birdie, par,
+bogey and the rest - lowest total over the round wins. A handicap, if the
+table switched it on, is strokes given, taken off at the end: a poor
+player and a fair one can play the same card. A tie for the lead at the
+end is a playoff, hole by hole, sudden death.
+
+**The wind is drawn each round** around the hole's typical, so no two
+rounds play the same; the 12th at Augusta swirls, which means it is drawn
+for every shot.
+
+Nothing here has a clock or a question in it. The room says which club
+each player chose and how each answered; this says where every ball went,
+in yards and in words - the playback - and who is winning.
+"""
+import json
+import random
+from pathlib import Path
+
+COURSES_DIR = Path(__file__).resolve().parents[1] / "data" / "golf"
+
+# The most a club can carry, in yards, from a good lie with a fast answer.
+CLUBS = {"driver": 250, "wood": 210, "iron": 165, "wedge": 105}
+CLUB_ORDER = ("driver", "wood", "iron", "wedge")
+# What the lie costs: a factor on the carry, and the longest club allowed.
+LIES = {
+    "tee": (1.0, "driver"), "fairway": (1.0, "driver"),
+    "rough": (0.8, "wood"), "sand": (0.6, "wedge"),
+}
+# The clock's share of the shot: all of the club's length inside the first
+# quarter of the time, falling to sixty percent at the bell.
+QUICK = 0.25
+SLOWEST = 0.6
+# A shot the club can reach the pin with is aimed at it, and the clock sets
+# how close it lands: within this many yards for a fast answer, and this
+# many for one at the bell. Full swings are for when the club cannot reach.
+AIM_QUICK = 5
+AIM_SLOW = 25
+# Yards per mile an hour, by how the wind sits on the line.
+WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
+# Where a hole ends: picked up at par plus this many.
+PICK_UP_OVER = 3
+NAMES = {-3: "albatross", -2: "eagle", -1: "birdie", 0: "par", 1: "bogey",
+         2: "double bogey", 3: "triple bogey"}
+
+
+def courses():
+    """Every course shipped, by id, friendliest first."""
+    out = {}
+    for path in sorted(COURSES_DIR.glob("*.json")):
+        c = json.loads(path.read_text(encoding="utf-8"))
+        out[c["id"]] = c
+    order = {"technician": 0, "general": 1, "extra": 2}
+    return dict(sorted(out.items(), key=lambda kv: order.get(kv[1].get("pool"), 9)))
+
+
+def course(course_id):
+    return courses()[course_id]
+
+
+def course_for_pool(pool):
+    """The course that goes with a pool - Pebble Beach for Technician, the
+    Old Course for General, Augusta for Extra."""
+    for c in courses().values():
+        if c.get("pool") == pool:
+            return c
+    return None
+
+
+def score_name(strokes, par):
+    d = strokes - par
+    if d in NAMES:
+        return NAMES[d]
+    return f"{d:+d}"
+
+
+def handicap_from_accuracy(accuracy, holes=18):
+    """Strokes given over `holes` holes, from a player's share of right
+    answers. Nine in ten and better plays scratch; one in two gets a
+    stroke a hole. A round of nine gets half."""
+    if accuracy is None:
+        return 0
+    acc = max(0.0, min(1.0, float(accuracy)))
+    full = 0 if acc >= 0.9 else round((0.9 - acc) / 0.4 * 18)
+    return max(0, min(18, full)) * holes // 18
+
+
+class Ball:
+    """One player's ball on one hole."""
+
+    def __init__(self):
+        self.at = 0            # yards from the tee, along the line
+        self.lie = "tee"
+        self.strokes = 0
+        self.holed = False
+        self.picked_up = False
+        self.log = []          # the playback, a line per stroke
+
+    def done(self):
+        return self.holed or self.picked_up
+
+
+class Golf:
+
+    def __init__(self, players, course, holes=None, handicaps=None, seed=None, seconds=30.0):
+        """`players` in seating order; `course` a course dict; `holes` the
+        hole numbers to play (default the front nine); `handicaps` strokes
+        given per player over the round, or None for none."""
+        self.players = list(players)
+        self.course = course
+        # The front nine unless told otherwise - the course's first nine,
+        # which on a course with fewer holes is what it has.
+        self.holes = list(holes) if holes else [h["n"] for h in course["holes"]][:9]
+        self.handicaps = dict(handicaps or {})
+        self.seconds = float(seconds)
+        self.rng = random.Random(seed)
+        self.cards = {p: {} for p in self.players}      # player -> hole n -> strokes
+        self.hole_index = 0
+        self.balls = {}
+        self.wind_mph = 0
+        self.playoff = []          # players still in a playoff, if one
+        self.playoff_holes = 0
+        self._winner = None
+        self.history = []
+        self._tee_off()
+
+    # ---------------------------------------------------------------- holes
+
+    def hole(self):
+        n = self.holes[self.hole_index] if self.hole_index < len(self.holes) else None
+        if n is None:
+            return None
+        return next(h for h in self.course["holes"] if h["n"] == n)
+
+    def _tee_off(self):
+        h = self.hole()
+        if h is None:
+            return
+        typical = self.course.get("wind", {}).get("typical_mph", 10)
+        self.wind_mph = max(0, round(typical * self.rng.uniform(0.6, 1.4)))
+        playing = self.playoff or self.players
+        self.balls = {p: Ball() for p in playing}
+
+    def wind_on(self, h):
+        """How the wind sits on this hole for this shot: swirling is drawn
+        every time, which is what swirling means."""
+        w = h.get("wind", "across")
+        if w == "swirling":
+            w = self.rng.choice(("with", "into", "across"))
+        return w
+
+    def over(self):
+        return self._winner is not None or (self.hole() is None and not self.playoff)
+
+    def winner(self):
+        return self._winner
+
+    # ---------------------------------------------------------------- clubs
+
+    def clubs_for(self, player):
+        """What this player may choose now, longest first; the putter alone
+        on the green."""
+        ball = self.balls.get(player)
+        if ball is None or ball.done():
+            return []
+        if ball.lie == "green":
+            return ["putter"]
+        longest = LIES[ball.lie][1]
+        return list(CLUB_ORDER[CLUB_ORDER.index(longest):])
+
+    def default_club(self, player):
+        """The sensible club: the shortest allowed that can reach the pin,
+        since a club that reaches is aimed; the longest if none can."""
+        allowed = self.clubs_for(player)
+        if not allowed:
+            return None
+        if allowed == ["putter"]:
+            return "putter"
+        h = self.hole()
+        ball = self.balls[player]
+        left = abs(h["yards"] - ball.at)
+        for club in reversed(allowed):
+            if CLUBS[club] * LIES[ball.lie][0] >= left:
+                return club
+        return allowed[0]
+
+    # ---------------------------------------------------------------- shots
+
+    def _share(self, ms):
+        if ms is None or self.seconds <= 0:
+            return 1.0
+        f = max(0.0, min(1.0, (ms / 1000.0) / self.seconds))
+        return 1.0 if f <= QUICK else 1.0 - (1.0 - SLOWEST) * (f - QUICK) / (1.0 - QUICK)
+
+    def _carry(self, ball, club, ms, wind, left):
+        """How far the ball goes. A club that can reach the pin is hit at
+        it, and the answer's speed is the precision; one that cannot is a
+        full swing, and the speed is the length. The wind has its say on
+        both."""
+        share = self._share(ms)
+        most = CLUBS[club] * LIES[ball.lie][0]
+        wind_yards = WIND_EFFECT.get(wind, 0.0) * self.wind_mph
+        if most + wind_yards >= abs(left):
+            # Aimed - at the pin, from either side of it. The error grows as
+            # the answer slows, either way.
+            spread = AIM_QUICK + (AIM_SLOW - AIM_QUICK) * (1.0 - share) / (1.0 - SLOWEST)
+            return round(left + self.rng.uniform(-spread, spread) + wind_yards * 0.25)
+        return max(10, round(most * share + wind_yards))
+
+    def _in_band(self, h, at, kinds=("water", "bunker", "rough"), sides=None):
+        """The hazard a ball at `at` yards is in, if any, of these kinds and
+        on these sides of the line - None means any side."""
+        for hz in h.get("hazards", []):
+            if hz["kind"] not in kinds:
+                continue
+            if sides is not None and hz.get("side", "") not in sides:
+                continue
+            if hz["from"] <= at <= hz["to"]:
+                return hz
+        return None
+
+    def _fair(self, h, ball, club, ms):
+        """A correct answer: the ball flies, and the course has its say."""
+        wind = self.wind_on(h)
+        if club == "putter" or ball.lie == "green":
+            ball.strokes += 1
+            ball.holed = True
+            return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
+        carry = self._carry(ball, club, ms, wind, h["yards"] - ball.at)
+        landed = ball.at + carry
+        ball.strokes += 1
+        left = h["yards"] - landed
+        edge = h["green"] / 2 + 5                # the green's depth either side of the pin
+        # On the green is on the green, whatever bunkers ring it. Off it, in
+        # the line of play only: a fair ball down the middle avoids the
+        # trouble off to the sides, but not a creek across the fairway, a
+        # bunker in front of the green, or the ocean beyond it.
+        hz = None if abs(left) <= edge else             self._in_band(h, landed, sides=("across", "front", "centre", "around", "beyond", ""))
+        if hz and hz["kind"] == "water":
+            ball.strokes += 1                        # the penalty
+            return {"kind": "water", "words": f"{club}, {carry} yards - into {hz['name'] or 'the water'}; "
+                                              f"drop, and a penalty stroke", "carry": carry, "wind": wind,
+                    "hazard": hz["name"]}
+        if abs(left) <= edge:
+            ball.at = landed
+            ball.lie = "green"
+            feet = max(3, abs(left) * 3)
+            return {"kind": "green", "words": f"{club}, {abs(carry)} yards - on the green, {feet} feet",
+                    "carry": carry, "wind": wind}
+        if left < -edge:
+            # Over the back: rough beyond, or whatever is there.
+            ball.at = h["yards"]
+            ball.lie = "rough"
+            return {"kind": "long", "words": f"{club}, {carry} yards - through the green, into the rough behind",
+                    "carry": carry, "wind": wind}
+        ball.at = landed
+        if hz and hz["kind"] == "bunker":
+            ball.lie = "sand"
+            return {"kind": "sand", "words": f"{club}, {carry} yards - into {hz['name'] or 'the sand'}",
+                    "carry": carry, "wind": wind, "hazard": hz["name"]}
+        if hz and hz["kind"] == "rough":
+            ball.lie = "rough"
+            return {"kind": "rough", "words": f"{club}, {carry} yards - into {hz['name'] or 'the rough'}",
+                    "carry": carry, "wind": wind, "hazard": hz["name"]}
+        ball.lie = "fairway"
+        return {"kind": "fairway", "words": f"{club}, {carry} yards, fairway - {left} to go",
+                "carry": carry, "wind": wind}
+
+    def _foul(self, h, ball, club):
+        """A wrong answer: the ball finds the nearest trouble the club could
+        have reached. Nothing in reach means a short one into the rough."""
+        ball.strokes += 1
+        if club == "putter" or ball.lie == "green":
+            return {"kind": "missed", "words": "putt missed", "carry": 0}
+        reach = ball.at + CLUBS[club] * LIES[ball.lie][0]
+        ahead = [hz for hz in h.get("hazards", [])
+                 if hz["to"] > ball.at and hz["from"] <= reach and hz["kind"] in ("water", "bunker", "rough")]
+        if not ahead:
+            ball.at += max(20, round(CLUBS[club] * 0.4))
+            ball.lie = "rough"
+            return {"kind": "rough", "words": f"{club}, a foul ball - short and into the rough", "carry": 0}
+        weights = {"water": 2, "bunker": 3, "rough": 3}
+        hz = self.rng.choices(ahead, weights=[weights[x["kind"]] for x in ahead])[0]
+        name = hz["name"] or hz["kind"]
+        if hz["kind"] == "water":
+            ball.strokes += 1
+            return {"kind": "water", "words": f"{club}, a foul ball - into {name}; drop, and a penalty stroke",
+                    "carry": 0, "hazard": name}
+        ball.at = max(ball.at + 10, hz["from"])
+        ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
+        return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name}
+
+    def play(self, answers):
+        """One question: `answers` is {player: {"correct", "ms", "club"}}.
+        Returns every shot in words, and the hole's state after it."""
+        h = self.hole()
+        if h is None or self.over():
+            return {"error": "the round is over"}
+        shots = {}
+        for p, ball in self.balls.items():
+            if ball.done():
+                continue
+            a = answers.get(p) or {}
+            club = a.get("club") or self.default_club(p)
+            if club not in self.clubs_for(p):
+                club = self.default_club(p)
+            if a.get("correct"):
+                shot = self._fair(h, ball, club, a.get("ms"))
+            else:
+                shot = self._foul(h, ball, club)
+            if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
+                ball.picked_up = True
+                ball.strokes = h["par"] + PICK_UP_OVER
+                shot["words"] += f" - picked up, {score_name(ball.strokes, h['par'])}"
+            elif ball.holed:
+                shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
+            shot.update(strokes=ball.strokes, at=ball.at, lie=ball.lie, club=club,
+                        done=ball.done(), holed=ball.holed)
+            ball.log.append(shot["words"])
+            shots[p] = shot
+        hole_done = all(b.done() for b in self.balls.values())
+        row = {"hole": h["n"], "par": h["par"], "shots": shots, "hole_done": hole_done,
+               "wind_mph": self.wind_mph}
+        if hole_done:
+            for p, b in self.balls.items():
+                self.cards[p][h["n"]] = b.strokes
+            row["card"] = {p: b.strokes for p, b in self.balls.items()}
+            self._next_hole()
+            row["round_over"] = self.over()
+            row["winner"] = self._winner
+        self.history.append(row)
+        return row
+
+    def _next_hole(self):
+        if self.playoff:
+            # Sudden death: a hole that separates them ends it.
+            scores = {p: self.balls[p].strokes for p in self.playoff}
+            best = min(scores.values())
+            still = [p for p in self.playoff if scores[p] == best]
+            self.playoff_holes += 1
+            if len(still) == 1:
+                self._winner = still[0]
+                self.playoff = []
+                return
+            self.playoff = still
+            self._tee_off_playoff()
+            return
+        self.hole_index += 1
+        if self.hole() is None:
+            board = self.leaderboard()
+            if not board:
+                return
+            top = board[0]["net"]
+            tied = [r["player"] for r in board if r["net"] == top]
+            if len(tied) == 1:
+                self._winner = tied[0]
+            else:
+                self.playoff = tied
+                self._tee_off_playoff()
+        else:
+            self._tee_off()
+
+    def _tee_off_playoff(self):
+        """A playoff plays on from the next hole of the course, round again."""
+        played = set(self.holes)
+        candidates = [h["n"] for h in self.course["holes"] if h["n"] not in played] or \
+                     [h["n"] for h in self.course["holes"]]
+        n = candidates[(self.playoff_holes) % len(candidates)]
+        self.holes.append(n)
+        self.hole_index = len(self.holes) - 1
+        self._tee_off()
+
+    # ---------------------------------------------------------------- views
+
+    def par_so_far(self, player):
+        return sum(next(h["par"] for h in self.course["holes"] if h["n"] == n)
+                   for n in self.cards[player])
+
+    def leaderboard(self):
+        """Everybody, best first: gross, strokes given, net, and to par."""
+        rows = []
+        for p in self.players:
+            gross = sum(self.cards[p].values())
+            given = int(self.handicaps.get(p, 0))
+            played = len(self.cards[p])
+            rows.append({"player": p, "gross": gross, "given": given, "net": gross - given,
+                         "holes": played, "to_par": gross - given - self.par_so_far(p)})
+        rows.sort(key=lambda r: (r["net"], r["gross"]))
+        for i, r in enumerate(rows, start=1):
+            r["place"] = i
+        return rows
+
+    def as_dict(self):
+        h = self.hole()
+        return {
+            "course": self.course["id"], "course_name": self.course["name"],
+            "hole": h["n"] if h else None, "par": h["par"] if h else None,
+            "yards": h["yards"] if h else None, "hole_name": (h.get("name") or "") if h else "",
+            "hole_wind": h.get("wind") if h else None, "wind_mph": self.wind_mph,
+            "holes_played": self.hole_index, "holes": len(self.holes),
+            "balls": {p: {"at": b.at, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
+                          "picked_up": b.picked_up, "left": (h["yards"] - b.at) if h else 0,
+                          "clubs": self.clubs_for(p), "default_club": self.default_club(p),
+                          "log": list(b.log)}
+                      for p, b in self.balls.items()},
+            "leaderboard": self.leaderboard(),
+            "playoff": list(self.playoff), "handicaps": bool(self.handicaps),
+            "winner": self._winner, "over": self.over(),
+        }

@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Golf: a round on a real course, a question a stroke.
+
+    python3 tests/test_golf.py
+
+The courses are read from their cards and checked to add up. Then the
+shot: a fast right answer flies the club's length, a slow one less, the
+wind adds or takes, the lie costs; a fair ball down the middle avoids the
+bunker off to the right but not the creek across the fairway; a foul ball
+finds the nearest trouble in reach; on the green a right answer holes it.
+Then the round: pick-up at par plus three, the card, the leaderboard with
+strokes given, and a tie that goes to a playoff hole.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import _isolate  # noqa: E402,F401  - before anything from elmer
+from elmer import golf  # noqa: E402
+
+FAILS = []
+
+
+def check(label, got, want):
+    ok = got == want
+    print(f"  {'ok  ' if ok else 'FAIL'}  {label}: {got!r}"
+          + ("" if ok else f"  (wanted {want!r})"))
+    if not ok:
+        FAILS.append(label)
+
+
+def flat_course(par=4, yards=400, hazards=(), wind="across", green=30, n=1):
+    """A hole to reason about, on a course with no wind."""
+    return {"id": "flat", "name": "Flat", "pool": "technician", "par": par,
+            "wind": {"typical_mph": 0},
+            "holes": [{"n": n, "par": par, "yards": yards, "name": "", "wind": wind,
+                       "green": green, "hazards": list(hazards)}]}
+
+
+def R(correct, ms=2000, club=None):
+    a = {"correct": correct, "ms": ms}
+    if club:
+        a["club"] = club
+    return a
+
+
+def run():
+    print("\n-- the courses, from their cards --")
+    cs = golf.courses()
+    check("three of them, friendliest first", list(cs), ["pebble-beach", "st-andrews-old", "augusta-national"])
+    for c in cs.values():
+        check(f"  {c['id']}: eighteen holes adding to par {c['par']}",
+              (len(c["holes"]), sum(h["par"] for h in c["holes"])), (18, c["par"]))
+    check("the Old Course goes with General", golf.course_for_pool("general")["id"], "st-andrews-old")
+    a12 = next(h for h in cs["augusta-national"]["holes"] if h["n"] == 12)
+    check("Golden Bell swirls", a12["wind"], "swirling")
+
+    print("\n-- the shot --")
+    g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
+    check("from the tee, every club", g.clubs_for("a"), ["driver", "wood", "iron", "wedge"])
+    check("  the sensible one on a 400-yard hole is the driver", g.default_club("a"), "driver")
+    row = g.play({"a": R(True, ms=2000, club="driver")})
+    s = row["shots"]["a"]
+    check("a fast right answer flies the driver's length", (s["kind"], s["carry"]), ("fairway", 250))
+    check("  and the ball is there, on the fairway", (g.balls["a"].at, g.balls["a"].lie), (250, "fairway"))
+    g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
+    row = g.play({"a": R(True, ms=30000, club="driver")})
+    check("at the bell, sixty percent of it", row["shots"]["a"]["carry"], 150)
+    g = golf.Golf(["a"], flat_course(wind="into"), seed=1, seconds=30)
+    g.wind_mph = 10
+    row = g.play({"a": R(True, ms=1000, club="driver")})
+    check("ten into the wind takes eight yards", row["shots"]["a"]["carry"], 242)
+    g = golf.Golf(["a"], flat_course(wind="with"), seed=1, seconds=30)
+    g.wind_mph = 10
+    row = g.play({"a": R(True, ms=1000, club="wood")})
+    check("ten behind gives six", row["shots"]["a"]["carry"], 216)
+
+    print("\n-- the course has its say --")
+    creek = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 240, "to": 260,
+                                                     "side": "across", "name": "the creek"}]), seed=1)
+    row = creek.play({"a": R(True, ms=1000, club="driver")})
+    check("a fast driver into a creek across the fairway is in the creek", row["shots"]["a"]["kind"], "water")
+    check("  a drop where you were, and a penalty: two strokes, still on the tee",
+          (creek.balls["a"].strokes, creek.balls["a"].at, creek.balls["a"].lie), (2, 0, "tee"))
+    side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
+                                                    "side": "right", "name": "a bunker"}]), seed=1)
+    row = side.play({"a": R(True, ms=1000, club="driver")})
+    check("a bunker off to the right does not catch a fair ball down the middle", row["shots"]["a"]["kind"], "fairway")
+    side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
+                                                    "side": "right", "name": "a bunker"}]), seed=1)
+    row = side.play({"a": R(False, club="wood")})
+    check("a foul wood cannot reach a bunker at 240", row["shots"]["a"]["kind"], "rough")
+    side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
+                                                    "side": "right", "name": "a bunker"}]), seed=1)
+    row = side.play({"a": R(False, club="driver")})
+    check("but a foul driver finds it", (row["shots"]["a"]["kind"], side.balls["a"].lie), ("sand", "sand"))
+    check("  from where only a wedge is allowed", side.clubs_for("a"), ["wedge"])
+    row = side.play({"a": R(True, ms=1000, club="wedge")})
+    check("  and a wedge from sand is sixty percent of one", row["shots"]["a"]["carry"], 63)
+    far = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 300, "to": 320,
+                                                   "side": "across", "name": "a pond"}]), seed=1)
+    row = far.play({"a": R(False, club="wedge")})
+    check("a foul wedge cannot find a pond two hundred yards on", row["shots"]["a"]["kind"], "rough")
+    check("  it went forward a little", far.balls["a"].at > 0, True)
+
+    print("\n-- the green, and holing out --")
+    g = golf.Golf(["a"], flat_course(par=3, yards=150, green=30), seed=1)
+    row = g.play({"a": R(True, ms=1000, club="iron")})
+    check("an iron to a 150-yard hole is on the green", (row["shots"]["a"]["kind"], g.balls["a"].lie), ("green", "green"))
+    check("  where the only club is the putter", g.clubs_for("a"), ["putter"])
+    row = g.play({"a": R(False)})
+    check("a wrong answer is a missed putt", (row["shots"]["a"]["kind"], g.balls["a"].strokes), ("missed", 2))
+    row = g.play({"a": R(True, ms=25000)})
+    check("a right answer holes it, however slow", (row["shots"]["a"]["holed"], g.balls["a"].strokes), (True, 3))
+    check("  three on a par three: par", row["shots"]["a"]["words"].endswith("3 for par"), True)
+    check("  the hole is done, and the card has it", (row["hole_done"], row["card"]), (True, {"a": 3}))
+
+    print("\n-- picking up --")
+    g = golf.Golf(["a"], flat_course(par=3, yards=150), seed=1)
+    row = None
+    for _ in range(6):
+        if g.over():
+            break
+        row = g.play({"a": R(False, club="wedge")})
+    check("fouls on a par three: picked up at six", row["card"]["a"], 6)
+    check("  which is a triple bogey", golf.score_name(6, 3), "triple bogey")
+    check("  and a two under is an eagle", golf.score_name(3, 5), "eagle")
+
+    print("\n-- the round: the card, the leaderboard --")
+    c = golf.course("pebble-beach")
+    g = golf.Golf(["ann", "bob"], c, holes=range(1, 4), handicaps={"bob": 2}, seed=7, seconds=30)
+    check("three holes to play", g.as_dict()["holes"], 3)
+    played = 0
+    while not g.over() and played < 60:
+        g.play({p: R(True, ms=1500) for p in ("ann", "bob")})
+        played += 1
+    check("ann and bob, both quick and right on every question, hole out", g.over(), True)
+    board = g.leaderboard()
+    check("  both have three holes on the card", [r["holes"] for r in board], [3, 3])
+    check("  the strokes given to bob come off", next(r["given"] for r in board if r["player"] == "bob"), 2)
+    ann = next(r for r in board if r["player"] == "ann")
+    bob = next(r for r in board if r["player"] == "bob")
+    check("  gross is the same, so the net leads", (ann["gross"] == bob["gross"], board[0]["player"]), (True, "bob"))
+    check("  and bob wins it", g.winner(), "bob")
+
+    print("\n-- a tie goes to a playoff hole --")
+    g = golf.Golf(["ann", "bob"], c, holes=[7], seed=3, seconds=30)
+    while not g.playoff and not g.over():
+        g.play({p: R(True, ms=1500) for p in ("ann", "bob")})
+    check("level after the round: a playoff", (g.playoff, g.over()), (["ann", "bob"], False))
+    check("  on a hole not yet played", g.hole()["n"] != 7, True)
+    played = 0
+    while g.playoff and played < 20:
+        g.play({"ann": R(True, ms=1500), "bob": R(False)})
+        played += 1
+    check("the hole that separates them ends it", (g.winner(), g.over()), ("ann", True))
+
+    print("\n-- strokes given, from how somebody has been doing --")
+    check("nine in ten plays scratch", golf.handicap_from_accuracy(0.9), 0)
+    check("one in two gets a stroke a hole", golf.handicap_from_accuracy(0.5), 18)
+    check("  half that over nine holes", golf.handicap_from_accuracy(0.5, holes=9), 9)
+    check("seven in ten, nine holes", golf.handicap_from_accuracy(0.7, holes=9), 4)
+    check("no history: none given", golf.handicap_from_accuracy(None), 0)
+
+    print("\n-- the playback --")
+    g = golf.Golf(["a"], flat_course(par=4, yards=370), seed=1, seconds=30)
+    g.play({"a": R(True, ms=1000, club="driver")})            # 250, fairway, 120 to go
+    row = g.play({"a": R(True, ms=3000, club="iron")})        # the iron can reach: aimed at the pin
+    check("a fast iron from 120 out is aimed, and on the green", row["shots"]["a"]["kind"], "green")
+    check("  a few feet from the hole", int(row["shots"]["a"]["words"].split(", ")[-1].split()[0]) <= 15, True)
+    row = g.play({"a": R(True, ms=5000)})
+    check("three strokes on the card", g.cards["a"], {1: 3})
+    check("  the last one says the score", "3 for birdie" in row["shots"]["a"]["words"], True)
+
+    print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
+    return 1 if FAILS else 0
+
+
+if __name__ == "__main__":
+    sys.exit(run())

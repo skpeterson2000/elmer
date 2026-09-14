@@ -1,0 +1,440 @@
+{
+ "id": "pebble-beach",
+ "name": "Pebble Beach Golf Links",
+ "where": "Pebble Beach, California",
+ "pool": "technician",
+ "par": 72,
+ "wind": {
+  "typical_mph": 12,
+  "from": "the Pacific, off the left on the ocean holes",
+  "note": "steady afternoon sea breeze; the 6th to the 10th and the 17th and 18th feel it most"
+ },
+ "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately.",
+ "holes": [
+  {
+   "n": 1,
+   "par": 4,
+   "yards": 377,
+   "name": "",
+   "wind": "with",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 250,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 355,
+     "to": 377,
+     "side": "left",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "par": 5,
+   "yards": 502,
+   "name": "",
+   "wind": "with",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 235,
+     "to": 260,
+     "side": "left",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "water",
+     "from": 400,
+     "to": 420,
+     "side": "across",
+     "name": "the barranca"
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "par": 4,
+   "yards": 390,
+   "name": "",
+   "wind": "across",
+   "green": 26,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 250,
+     "to": 275,
+     "side": "left",
+     "name": "fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 370,
+     "to": 390,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "par": 4,
+   "yards": 331,
+   "name": "",
+   "wind": "across",
+   "green": 24,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 220,
+     "to": 250,
+     "side": "right",
+     "name": "fairway bunkers"
+    },
+    {
+     "kind": "water",
+     "from": 240,
+     "to": 331,
+     "side": "right",
+     "name": "Stillwater Cove"
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "par": 3,
+   "yards": 195,
+   "name": "",
+   "wind": "into",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 170,
+     "to": 195,
+     "side": "left",
+     "name": "front bunkers"
+    },
+    {
+     "kind": "water",
+     "from": 195,
+     "to": 230,
+     "side": "beyond",
+     "name": "the cove beyond"
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "par": 5,
+   "yards": 513,
+   "name": "",
+   "wind": "into",
+   "green": 32,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 240,
+     "to": 270,
+     "side": "left",
+     "name": "fairway bunkers"
+    },
+    {
+     "kind": "water",
+     "from": 250,
+     "to": 513,
+     "side": "right",
+     "name": "the cliff and the ocean"
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "par": 3,
+   "yards": 106,
+   "name": "",
+   "wind": "into",
+   "green": 22,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 85,
+     "to": 106,
+     "side": "around",
+     "name": "the ring of bunkers"
+    },
+    {
+     "kind": "water",
+     "from": 106,
+     "to": 140,
+     "side": "beyond",
+     "name": "the Pacific"
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "par": 4,
+   "yards": 428,
+   "name": "",
+   "wind": "across",
+   "green": 26,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 255,
+     "to": 330,
+     "side": "across",
+     "name": "the chasm"
+    },
+    {
+     "kind": "bunker",
+     "from": 400,
+     "to": 428,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "par": 4,
+   "yards": 481,
+   "name": "",
+   "wind": "with",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 200,
+     "to": 481,
+     "side": "right",
+     "name": "the beach and the ocean"
+    },
+    {
+     "kind": "bunker",
+     "from": 440,
+     "to": 470,
+     "side": "left",
+     "name": "fairway bunker"
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "par": 4,
+   "yards": 446,
+   "name": "",
+   "wind": "with",
+   "green": 26,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 220,
+     "to": 446,
+     "side": "right",
+     "name": "the cliff"
+    },
+    {
+     "kind": "bunker",
+     "from": 260,
+     "to": 285,
+     "side": "left",
+     "name": "fairway bunker"
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "par": 4,
+   "yards": 380,
+   "name": "",
+   "wind": "into",
+   "green": 24,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 240,
+     "to": 265,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 355,
+     "to": 380,
+     "side": "left",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "par": 3,
+   "yards": 202,
+   "name": "",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 175,
+     "to": 202,
+     "side": "front",
+     "name": "front bunker"
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "par": 4,
+   "yards": 401,
+   "name": "",
+   "wind": "across",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 245,
+     "to": 270,
+     "side": "left",
+     "name": "fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 380,
+     "to": 401,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "par": 5,
+   "yards": 573,
+   "name": "",
+   "wind": "into",
+   "green": 22,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 250,
+     "to": 280,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 545,
+     "to": 573,
+     "side": "left",
+     "name": "the deep greenside bunker"
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "par": 4,
+   "yards": 397,
+   "name": "",
+   "wind": "with",
+   "green": 26,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 235,
+     "to": 260,
+     "side": "left",
+     "name": "fairway bunkers"
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "par": 4,
+   "yards": 403,
+   "name": "",
+   "wind": "with",
+   "green": 24,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 250,
+     "to": 275,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "water",
+     "from": 300,
+     "to": 330,
+     "side": "across",
+     "name": "the barranca"
+    }
+   ]
+  },
+  {
+   "n": 17,
+   "par": 3,
+   "yards": 178,
+   "name": "",
+   "wind": "into",
+   "green": 40,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 150,
+     "to": 178,
+     "side": "front",
+     "name": "the front bunkers"
+    },
+    {
+     "kind": "water",
+     "from": 178,
+     "to": 220,
+     "side": "beyond",
+     "name": "the ocean"
+    }
+   ]
+  },
+  {
+   "n": 18,
+   "par": 5,
+   "yards": 543,
+   "name": "",
+   "wind": "into",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 0,
+     "to": 543,
+     "side": "left",
+     "name": "Carmel Bay, the whole way"
+    },
+    {
+     "kind": "bunker",
+     "from": 260,
+     "to": 290,
+     "side": "right",
+     "name": "fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 515,
+     "to": 543,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  }
+ ]
+}

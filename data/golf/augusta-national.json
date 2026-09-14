@@ -1,0 +1,412 @@
+{
+ "id": "augusta-national",
+ "name": "Augusta National Golf Club",
+ "where": "Augusta, Georgia",
+ "pool": "extra",
+ "par": 72,
+ "wind": {
+  "typical_mph": 9,
+  "from": "swirling in the pines; unreadable at the 12th",
+  "note": "light, but it turns in Amen Corner and the greens punish anything slow"
+ },
+ "notes": "Card from the tournament tees. Rae's Creek and the ponds are where they are; bunkers are the ones that decide holes.",
+ "holes": [
+  {
+   "n": 1,
+   "par": 4,
+   "yards": 445,
+   "name": "Tea Olive",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 270,
+     "to": 300,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 420,
+     "to": 445,
+     "side": "left",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "par": 5,
+   "yards": 575,
+   "name": "Pink Dogwood",
+   "wind": "with",
+   "green": 34,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 280,
+     "to": 310,
+     "side": "right",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 540,
+     "to": 575,
+     "side": "front",
+     "name": "the two greenside bunkers"
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "par": 4,
+   "yards": 350,
+   "name": "Flowering Peach",
+   "wind": "into",
+   "green": 22,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 270,
+     "side": "left",
+     "name": "the cluster of fairway bunkers"
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "par": 3,
+   "yards": 240,
+   "name": "Flowering Crab Apple",
+   "wind": "into",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 210,
+     "to": 240,
+     "side": "front",
+     "name": "the front bunkers"
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "par": 4,
+   "yards": 495,
+   "name": "Magnolia",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 280,
+     "to": 320,
+     "side": "left",
+     "name": "the deep fairway bunkers"
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "par": 3,
+   "yards": 180,
+   "name": "Juniper",
+   "wind": "across",
+   "green": 32,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 150,
+     "to": 180,
+     "side": "front",
+     "name": "front bunker"
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "par": 4,
+   "yards": 450,
+   "name": "Pampas",
+   "wind": "with",
+   "green": 22,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 415,
+     "to": 450,
+     "side": "around",
+     "name": "five greenside bunkers"
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "par": 5,
+   "yards": 570,
+   "name": "Yellow Jasmine",
+   "wind": "with",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 290,
+     "to": 320,
+     "side": "right",
+     "name": "fairway bunker"
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "par": 4,
+   "yards": 460,
+   "name": "Carolina Cherry",
+   "wind": "across",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 425,
+     "to": 460,
+     "side": "left",
+     "name": "greenside bunkers"
+    },
+    {
+     "kind": "rough",
+     "from": 430,
+     "to": 460,
+     "side": "front",
+     "name": "the false front"
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "par": 4,
+   "yards": 495,
+   "name": "Camellia",
+   "wind": "with",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 300,
+     "to": 340,
+     "side": "right",
+     "name": "the fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 460,
+     "to": 495,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "par": 4,
+   "yards": 520,
+   "name": "White Dogwood",
+   "wind": "across",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 470,
+     "to": 520,
+     "side": "left",
+     "name": "the pond"
+    },
+    {
+     "kind": "bunker",
+     "from": 490,
+     "to": 520,
+     "side": "right",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "par": 3,
+   "yards": 155,
+   "name": "Golden Bell",
+   "wind": "swirling",
+   "green": 14,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 130,
+     "to": 150,
+     "side": "across",
+     "name": "Rae's Creek"
+    },
+    {
+     "kind": "bunker",
+     "from": 145,
+     "to": 155,
+     "side": "front",
+     "name": "the front bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 155,
+     "to": 175,
+     "side": "beyond",
+     "name": "the back bunkers"
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "par": 5,
+   "yards": 545,
+   "name": "Azalea",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 0,
+     "to": 545,
+     "side": "left",
+     "name": "Rae's Creek along the left"
+    },
+    {
+     "kind": "water",
+     "from": 500,
+     "to": 520,
+     "side": "across",
+     "name": "the tributary at the green"
+    },
+    {
+     "kind": "bunker",
+     "from": 520,
+     "to": 545,
+     "side": "beyond",
+     "name": "the back bunkers"
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "par": 4,
+   "yards": 440,
+   "name": "Chinese Fir",
+   "wind": "into",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "rough",
+     "from": 400,
+     "to": 440,
+     "side": "front",
+     "name": "the false front and the swale"
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "par": 5,
+   "yards": 550,
+   "name": "Firethorn",
+   "wind": "with",
+   "green": 24,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 500,
+     "to": 525,
+     "side": "across",
+     "name": "the pond in front"
+    },
+    {
+     "kind": "water",
+     "from": 550,
+     "to": 575,
+     "side": "beyond",
+     "name": "the pond at the 16th"
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "par": 3,
+   "yards": 170,
+   "name": "Redbud",
+   "wind": "across",
+   "green": 30,
+   "hazards": [
+    {
+     "kind": "water",
+     "from": 0,
+     "to": 150,
+     "side": "left",
+     "name": "the pond, all the way"
+    },
+    {
+     "kind": "bunker",
+     "from": 150,
+     "to": 170,
+     "side": "right",
+     "name": "the bunkers"
+    }
+   ]
+  },
+  {
+   "n": 17,
+   "par": 4,
+   "yards": 440,
+   "name": "Nandina",
+   "wind": "into",
+   "green": 26,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 270,
+     "to": 300,
+     "side": "left",
+     "name": "fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 410,
+     "to": 440,
+     "side": "front",
+     "name": "greenside"
+    }
+   ]
+  },
+  {
+   "n": 18,
+   "par": 4,
+   "yards": 465,
+   "name": "Holly",
+   "wind": "into",
+   "green": 28,
+   "hazards": [
+    {
+     "kind": "bunker",
+     "from": 280,
+     "to": 320,
+     "side": "left",
+     "name": "the fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 435,
+     "to": 465,
+     "side": "front",
+     "name": "the greenside bunkers"
+    }
+   ]
+  }
+ ]
+}
