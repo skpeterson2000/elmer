@@ -1,0 +1,415 @@
+# Changelog
+
+One line a commit, by day, newest first - the subject line of each commit,
+which in this repository is written as a sentence about what changed for
+the person using it. `git log` has the rest. The build a unit runs is the
+short commit id on its dashboard and in every problem report.
+
+## 2026-09-14
+
+- README: the punch list's checkable errors, corrected
+- The whole Gaming Center across a hall: CutThroat and golf from net control
+- The GPS says where it comes from, and which antenna to move when it goes
+- "Running" for TowerWitch is the process, not the broadcast
+- README: the button runs one way
+- ELMER lends TowerWitch its position, and installs the Qt build's packages
+- The self-check says whether the TowerWitch button could start it
+- A button to TowerWitch on the dashboard, greyed when it is not here
+- Make Contact reaches somewhere in particular: the path, and the approach
+
+## 2026-09-13
+
+- The dipole advice says why height beats the match, and draws it
+- Golf is the slow game: one stroke at a time, nobody on a clock
+- The Gaming Center: every game a table can run, in one panel
+- The doctor offers a press for what it can fix
+- A unit never remembers itself as a net, and the doctor on Windows knows the Start Menu
+- The doctor on Windows speaks of the window, not the Pi's kiosk
+- The figure on every screen, and the part a question names cut out beside it
+- A question missed at the table comes up in Review; one answered right counts toward readiness
+- Credit for a player's questions at the table, and the room's mark in the head
+- Every game measures: a table's rounds are logged, new questions come first, the report says what went on
+- Golf at the table: the club before the question, the playback after, the card between
+- Golf: a round on a real course, a question a stroke - the engine
+- No test can reach the project's drop
+- The drop is deployed: every unit has a way home with nothing to set up
+- Shootout: out-swum - a made shot beaten by a clear second loses the pick
+- CutThroat: musical chairs with questions
+- How the window opens is the person's to choose, and a first launch offers it maximised
+- The window comes back where it was left, at the zoom it was left at
+- The table's board: every choice up for the room, the reveal, then the stand
+- ELMER on the Start Menu with its icon, and an Exit button in its window
+- "Playing in 30 s": the run-up is the host's to set, and the screens say what it is to
+- On Windows, a window of ELMER's own - and closing it stops ELMER
+- The other ELMERs on the machine: found, handed the press, tidied by consent
+- The launcher names "No module named" as not-yet-installed, and the installer names OneDrive
+- A double-click while ELMER is already running opens a window on it
+- elmer.cmd keeps the window open when ELMER stops with an error
+- Release: ask the unpacked copy for its page at 127.0.0.1, and keep its stderr
+- ELMER for Windows, portable: unzip, double-click, and it opens
+- install.ps1 offers what is missing, and fetches it with winget when told
+- Certificates date themselves on Windows too
+- A class at one unit plays that unit's questions, net or no net
+- The updater follows a rewritten history, when it can prove nothing here is lost
+- Ignore data/drop.json with mail.json, and say why in the README
+- Stop tracking data/mail.json - it holds the operator's mail password
+- A report you can press: Open it, Save it, and the address as a link
+- tests: the words heading is matched as a line, not a phrase
+- Report a problem: what happened, in the operator's words, and whose it is by choice
+- The drop: a report goes home with nothing of the operator's on it
+- tests: the throwaway unit hears a net through a real Neighbourhood
+- Draw phone from the legal edge, and drop the warning that covered for it
+- Quiet OP25 when a game starts, so the Pi is the game's
+- Room-aware poll cadence: the waiting room breathes, the game stays sharp
+- Poll the machine too: load, memory and the SoC, per table
+- Measure the wire, not just the work: a ping-back and per-table RTT
+- Diagnostics: put the failure in the report, not just in the log
+- tests: retry a Chromium launch that never binds its debug port
+- CI: install a browser instead of assuming the runner ships one
+- Mail: read Yahoo's mid-login disconnect as a refused password, not a lost wire
+- Net control: a fleet imaged from one SD card no longer collapses to one table
+
+## 2026-09-12
+
+- Look for a game: a sweep of the unit's own subnets, remembered as heard
+- The doctor listens for the neighbours, and the hello reaches every segment
+- README: who it is for, what fidelity means here, and what leaves a unit
+- The address as KC9SP sees it: KC9SP@arrl.net
+- Mail: KC9SP@ARRL.NET stays, and every subject is tagged [ELMER]
+- Reports go straight to KC9SP's Gmail, not through the arrl.net forwarder
+- Mail: say why Yahoo, Gmail and the rest refuse a login
+- The run-up to a question, and the programme keeping its own time
+- A second Pi is a node of the hall, not a second host
+- Say to run gpsd read-only on whichever machine has the receiver
+- Mail home: reports to KC9SP@ARRL.NET through the unit's own mail settings
+- Presence: how often a card comes round, and ELMER's own card in the rotation
+- Schedule an event: the programme in the shapes an event takes
+- A stale page asking to join is told to reload
+- No stale screens: pages are never cached, and reload when the build moves
+- The mode buttons mean what they say
+- The show: net control's hand on every screen in the hall
+- Library: the topics are the door, the shelf the deeper look
+- The shelf ticks the antenna too: Hamstick sheets mean whips
+- Make Contact: an all-mode VHF rig earns the 2 m SSB calling card
+- Lakeview's Hamstick chart: where to start the whip, and scans named as scans
+- The Octopus: four whip pairs on one hub, from KE0CP's build of N1GY's design
+- Two loaded whips as a dipole, and books without bookmarks point by title
+- The other radios in America: FRS, GMRS, MURS and CB, like the amateur bands
+- Fetch the sky at start; the Lab opens on the measurement, and Update data refreshes it
+- README: the log as it now keeps, and the locked manuals
+- The locked strip, first piece: for each hour, the forecast issued a day ahead
+- Make Contact starts from the shelf, and each person marks which books are theirs
+- The medals were generated with Google Gemini, and the notices say so
+- Shootout medals on shootout certificates
+- Add files via upload
+- Delete artwork/NavyIcon.jpg
+- Delete artwork/SilverMedal.jpg
+- Delete artwork/BronzeMedal.jpg
+- Delete artwork/GoldMedal.jpg
+- Calibrate at three depths, and keep what earlier runs measured
+- Past the reading, the record speaks: persistence blended into the outlook
+- The season in the model, and Calibrate My Forecast
+- A hindcast ledger is never pruned
+- The hindcast finds each hour's readings by bisection
+- The poll-summary test does not race a loaded Pi
+- A year in ten minutes: the hindcast reads the whole record, month by month
+- A month in a few minutes: the forecast run blind over the record, and graded
+- The forecast keeps its own score, and learns its level from it
+- The soft knee back on the near side of the MUF
+- The D layer's midday bill, at the size operators know it to be
+
+## 2026-09-11
+
+- The index answer carries the tools, so the page cannot mistake a read for a loss
+- Say which machine could not find pdftotext, and whether the program is stale
+- One line through the MUF, and an anchor that lets go with the hours
+- Find poppler by full path, whatever PATH ELMER was started with
+- Read the bookmarks of a manual saved with "copying not allowed"
+- A book opens inside ELMER, with the way back on it
+- Two visible bugs from the kiosk's own log, and a log that keeps the evening
+- Indiana and Kentucky, read against the legislatures' own text
+- The library: the operator's own manuals, to the page
+- Whose land it is, and twenty-two more cards
+- The hall feeds the measure, with nobody's name in it
+- Green on a machine that is not this Pi
+- Give a cold Chromium forty seconds to answer
+- The browser test picks free ports and waits for what it stops
+- The commercial pools' notes ship with the program
+- Two at the screen, one callsign one person, and the pick on every phone
+- Difficulty, measured from how questions went
+- Shootout across a hall, and two pages that had lost their script
+- The bronze, without the callsign
+- Add files via upload
+- The tests cannot reach the operator's data, and a chosen name is theirs
+- The host fills in what the program cannot know
+- Two names at the table, kept apart
+- Gold and silver medals without the callsign
+- Add files via upload
+- Certificates for the wall
+- Add files via upload
+- Heights where the feed matches, and what the power asks of the parts
+- Nothing is told to go up 266 feet
+- The antenna page asks before it tells
+- The Lab knows where the bands are
+- The wait has something in it, the reveal has a beat, the board has a podium
+- The pick is for the people
+- The shootout screens speak the game, and a missing outlook says so out loud
+- Shootout, wired: a table can play the other game
+- Shootout: the rules, and a table that knows which game it is playing
+- Reserve the room, so the scoreboards hold still
+- Panel heights that do not depend on what is in them
+- A tournament has a shape: the exam's proportions, twelve at a time
+- The big board shows the running total, and stops promising a pick
+- A refusal is not a fault, and the password rule is not the promise
+- The host Pi can show the room, and Escape comes back
+- ELMER is a program, not a site
+
+## 2026-09-10
+
+- The owl, in the three places it is earned
+- Take the icon from DigitalAssistant.jpg instead
+- Add files via upload
+- Which band carries this path - and one measured layer height for everybody
+- The EFHW sloper, and the slider that was doing nothing
+- A layer height means nothing without the hour
+- A dev reset button, an age on the held park lists, and a test that was reading the tester
+- The antenna can reach into its own skip zone, and it was told it could not
+- One unit, chosen once - and end the miles-in-kilometres-out mismatch
+- The loaded vertical for a vehicle: the bought one, and building one
+- Name the mobile antennas what somebody looks for them under
+- Send the links where the panes actually went
+- Move RF exposure to Tools, and carry the antenna across with it
+- Quote a place the same way whatever is in its name
+- A band to search in, and somewhere else to search from
+- Print the nearest parks and summits, for the trip out
+- Tell parks and summits apart by colour
+- Put the law beside the frequencies, and drive it off the fix
+- What the law says about listening, pointed at rather than paraphrased
+- "Who is at the controls?" - this does not run a radio
+- Pin the corner to the corner, at any screen size
+- Put the settings chip in the corner it was meant to be in, and make hover visible
+- Make the gear findable, which was the whole point of it
+- A gear in the corner for the things you are asked once
+- Change an install without reinstalling it, and a way off the wall
+- The menu entry is not a question; the desktop icon is
+- Pull "Waves you can hear"
+- Bring the README back in step with the hall
+- Half a minute a round, and a grace that follows it
+- Point the host screen's code at the game, not at the dashboard
+- Give the practice tables a button, and one way to open a net
+- Opening a net makes the host a table in it, and starts it conducting
+- A table that can hear a net joins it, instead of starting its own
+- Let the practice tables read as players on the big board
+- Say which lines on the board are machines, at both levels
+- Let the host run the hall, and fill it with tables that are not there
+
+## 2026-09-09
+
+- Time the first page, not the socket, and let the doctor carry it
+- Hold the splash four seconds, near the median start
+- Show the splash on every start, and put the timing in the log
+- Show a splash on a slow start, and only on a slow start
+- Bring the README back in step
+- Check what was asked before checking what is installed
+- Give POTA and SOTA a page, and the awards somewhere to stand
+- Make the height follow the band, unless somebody measured it
+- Tell the truth about when a DX ring is open, which depends on the band
+- Stop a test asking the machine whose licence it is
+- Keep the game out of the operating documents
+- Carry the licence class from the band plan, and say which one answered
+- Put the Q signals on the code chart, name over code
+- Start the game when somebody arrives, instead of waiting to be told
+- Add files via upload
+- Keep the artwork sheet, icon beside the screens it stands for
+- Move the instruments out of the Lab and onto a bench of their own
+- Say how wide a peak is, not the hour it starts
+- Decide how long a match is, and what ends one
+- Let the F2 layer lag the sun, because it does
+- Stop charging the low bands twice for a D layer that has gone home
+- Draw the band bar at the size it already was
+- Add the screwdriver, and put the band at the top of every antenna sheet
+- Show the measurement on the Smith chart, and say why the SWR trace was empty
+- Let the chart follow the instrument, not the model
+- Let the Lab drive the VNA, not only read it
+- Run on Windows, and say where the two machines differ
+- Say that a tab was pressed, before the page arrives
+- Hold the parks and summits within a day's drive
+- Cut it by fatigue, and say where the crack starts
+- Say that the update started, on both buttons that start it
+- Say whether the day out will count, before anybody leaves
+- Count the whole inventory, not only the radios
+- Revert "Show an operator their POTA awards, once they say so"
+- Show an operator their POTA awards, once they say so
+- Recommend one antenna, and say which one it is
+- Do not claim the upper hand in the argument we lost
+- Stop a night's calibration from closing the next day's bands
+- Put frequencies on the drawn bands, as many as fit and no more
+- Draw each band on the full chart, and let the tables breathe
+- Stop one POSIX import from deciding what ELMER runs on
+- Add files via upload
+- Say what would fill the coordinator list, instead of "none"
+- Add files via upload
+- Answer for the car, and stop calling VHF a ground wave
+- Let a measured sweep leave the machine it was taken on
+- The antenna sheet, for the end of the garden where the screen is not
+- Solve the sun for a time, not only for a height
+- Two dawns on VHF, and say which one you mean
+
+## 2026-09-08
+
+- Every state gets a coordinator, and Texas gets its plan read
+- Stop showing the password to the room while it is being set
+- Answer for where somebody actually lives, not where the book assumes
+- Give 6m the forecast it already had the data for
+- Stop telling somebody to raise an antenna hung deliberately low
+- Hang it at the height the job needs, and say which job the button does
+- Stop the advice going stale, and stop offering to build a bought antenna
+- Offer a password when the unit stops being one person's
+- Waves you can hear: the sound analogy, drawn and played
+- Teach the antenna somebody picked, not the one we would have picked
+- Say when a band peaks, not only how high it peaks
+- A VNA trace in the Lab, and a driver for a real one
+- Draw the sextant, because the skill has perished
+- Do not declare COMPASS twice, which killed the whole Lab page
+- Show the sextant working, and say what a fix is actually for
+- Say how to use a sextant, for the people who have never seen one
+- Four states of sky, and a K index that knows where the oval is
+- Ground wave: the part of the signal that never leaves the ground
+- Name the band that would work, because the antenna will not
+- Say who a band is good for, not just how good it is
+- Stop calling the wall chart "right now", because it is not
+- Remember where somebody was, and open somewhere worth being
+- Stop the MUF asserting an ionosphere that has never existed
+- Where am I, by hand: a sextant tool, and one accurate sun
+- Move the workflow onto actions that target Node 24
+- Send the antenna to the hop simulator, and stop CI failing on green tests
+- Keep the antenna the band plan handed over, and model what it reaches
+
+## 2026-09-07
+
+- Load the server before printing where to reach it
+- discovery: do not call describe() while holding the roster lock
+- Let the operator say which keys the paddles are
+- Draw the code, and give the sending page a paddle
+- Put the absorbing layer where it actually is
+- Carry the sonde reading as an error, not as a level
+- Start again: the port was recorded before there was anything to record it on
+- Put both scoreboards on the big board, and the answer with the winner
+- Tell the network the port this unit is on, and give it a name of its own
+- Say the same thing in the README as the buttons now say
+- Keep what this unit prints, where it was printed
+- Say how good a band is now, when it will be better, and that 60 m is channels
+- Name the tournaments, not the Pis, and show the whole hall on one board
+- Let one ELMER notice another, and offer it a game
+- Spell it the American way, and keep everyone's saved class
+- Broadcast the station's GPS from whatever has the receiver
+- Listen for the position TowerWitch already broadcasts
+- Add GitHub Actions workflow for Python application
+- A write time is not a position's age
+- Report what gpsd actually says, so a disagreement about it can be settled
+- Ask TowerWitch where it is, when nothing else knows
+- Ask gpsd what it already knows, instead of waiting for the receiver
+- Say why a position could not be found, instead of only that it could not
+- Stamp the static assets, so a fix reaches the screen that is open
+- Let an account be locked, so a study record belongs to somebody
+- Put the self-check on the dashboard, where it will actually get run
+- Let the GPS in somebody's pocket be the station's GPS
+
+## 2026-09-06
+
+- Update README to specify use of an additional Raspberry Pi
+- Give every tournament screen a way out
+- A board that always says what is happening, and can be closed
+- Never close a round out from under a person
+- Write down what this release actually does
+- Let the commercial elements host a tournament too
+- Tournament mode: practice opponents, and a match that runs itself
+- Fix the QR format information, which no reader could recover
+- Join the tables to net control, and give the hall a board to look at
+- Start a newcomer on Technician, and open the ladder as there is reason to
+- Give the day a bottom, and the week a day of rest
+- Graduate the repetition, and stop the day's load being a copy of yesterday's
+- Stop opening the Technician path on the same question every time
+- Run a study party: cohorts race the same question, timed by their own clocks
+- Fix typo in README regarding emergency declaration
+- Let "Locate me" ask the GPS that is actually plugged in
+- Say whether the GPS and the repeaters are actually there
+- Show the working, instead of shipping plans
+- Ask what the antenna is made of, and let the answer change the numbers
+- Pack for somewhere the internet is not
+- Work out how far an antenna actually reaches, and toward whom
+- Notice when the menu icon points at a folder that has been moved
+- Hide the account name, and refuse to install into the wastebasket
+- A problem report somebody can read before they send it
+- Draw the ground plane's radials at the angle the text is about, and tie off today's loose ends
+- Make Contact: every way out of here, ranked, for what is in the vehicle
+- Take the position from the GPS, because these Pis travel
+- Name the repeaters, and stop guessing what a VHF frequency is for
+- Connect a downloaded copy from the installer, not the terminal
+- Adopt a downloaded copy onto the branch the repository actually has
+- Keep the generator that built the bundled place list
+- Offer the update at startup, where somebody will actually say yes
+
+## 2026-09-05
+
+- Answer the end-fed on ladder line, which is a Zepp
+- Say what to feed each antenna with, and let balance decide it
+- Hold the line on unun against balun, and say why
+- Draw the angle the slider is set to
+- Let a wire be slung as a sloper, and say what that really buys
+- Ask what is really around this station, and keep a list for when nobody can
+- Say in the README that the compass follows the reach
+- Point the compass at places the antenna can actually reach
+- Draw the plan view, with real bearings from the operator's own grid
+- Ask the band plan what a frequency is before advising on it
+- Add the bowtie, and draw what a gain figure cannot say
+- Teach the Smith chart by moving the point
+- Document the band-plan hand-off and the antenna coaching
+- Make the band bar a way in, and coach the antenna at the other end
+- Say which rule is stopping you, and whether upgrading would help
+- Answer "which part of it" where convention crosses a privilege edge
+- Give the one-page chart its corner back
+- Draw the bands on one page
+- Keep the NIFOG in its place: acknowledged, not printed by default
+- Read the interoperability channels out of the current NIFOG
+- Point at the NIFOG, and say what may not be done with it
+- Print the operator's own privileges behind the exposure sheet
+- Say what may be transmitted where the row is tuned
+- Set Yagi gain by boom length, and say what every figure means
+- Stop a second copy taking away the menu entry
+- Ask what you came for when ELMER is already installed
+- Tell about an update; never apply one uninvited
+
+## 2026-09-04
+
+- Keep the user menu on the screen
+- Hold more than one person, and call them what they earned
+- Let an install keep itself current with the repository it came from
+- Call an unearned standing Un-rated, not Unlicensed
+- Leave a way back from a link that leaves ELMER
+- Add an installer, and give a new user somewhere to start
+- Measure the F2 layer instead of asking the operator to guess it
+- Offer to take over the port instead of silently opening a window
+- Add CW: learn it, copy it, send it, decode it
+- Stop the dashboard and exam submit dying on a passed exam
+- Document the RF exposure input checks
+- Refuse to sign off a station made of numbers nobody checked
+- Work out how close a person can actually get, per antenna type
+- Send an antenna from the Antennas tab to the RF exposure calculator
+- Do not commit generated PDFs
+- Work out the height NVIS actually needs
+- Read the licence instead of asking for it
+- Add a band plan reference: law, convention and your coordinator
+- Earn titles in the class they name, and add the station tools
+- Do not open a full-screen window on a server we cannot stop
+- Add a desktop launcher
+- Ignore the detached server's console log
+- Rebuild the icon from the reduced-border artwork
+- fresh icon image
+- Show the app icon in the top bar
+- Use the full copyright name in LICENSE and NOTICE
+- Licence under PolyForm Noncommercial 1.0.0, scoped to our own work
+- Bust the favicon cache when the icon changes
+- Add kiosk mode and an Exit button
+- Add the ELMER app icon
+- Initial commit: ELMER radio study assistant
