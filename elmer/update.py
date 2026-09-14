@@ -481,6 +481,44 @@ def announce(status):
                         "./elmer.py --update, whenever it suits you.")
 
 
+def _read_line_within(seconds):
+    """A line from the console within `seconds`, or None if none came.
+
+    select() on stdin is how Unix does this; on Windows select() knows
+    only sockets and raised WinError 10038 - so every start with an update
+    waiting died at the question. There, the console is polled a key at a
+    time with msvcrt, which is the Windows way to ask without blocking.
+    """
+    if os.name == "nt":
+        import msvcrt
+        deadline = time.monotonic() + seconds
+        typed = ""
+        while time.monotonic() < deadline:
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch in ("\r", "\n"):
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                    return typed + "\n"
+                if ch == "\x03":                  # Ctrl-C
+                    raise KeyboardInterrupt
+                if ch == "\x08":                  # backspace
+                    typed = typed[:-1]
+                    sys.stdout.write("\b \b")
+                else:
+                    typed += ch
+                    sys.stdout.write(ch)
+                sys.stdout.flush()
+            else:
+                time.sleep(0.05)
+        return None
+    import select
+    ready, _, _ = select.select([sys.stdin], [], [], seconds)
+    if not ready:
+        return None
+    return sys.stdin.readline()
+
+
 def offer_at_startup(status=None, seconds=20, ask=None):
     """Offer to install a waiting update, before the session has begun.
 
@@ -497,7 +535,6 @@ def offer_at_startup(status=None, seconds=20, ask=None):
 
     Returns True if the update was applied and the caller should restart.
     """
-    import select
     import sys
 
     status = status or cached()
@@ -525,12 +562,11 @@ def offer_at_startup(status=None, seconds=20, ask=None):
 
     # Never block a start that nobody is watching: an appliance that hangs at
     # boot waiting for an answer is worse than one that is a version behind.
-    ready, _, _ = select.select([sys.stdin], [], [], seconds)
-    if not ready:
+    line = _read_line_within(seconds)
+    if line is None:
         print("\n  Left for later. Apply it whenever you like from the "
               "dashboard, or with ./elmer.py --update.\n")
         return False
-    line = sys.stdin.readline()
     if line == "":
         # End of input, not a keypress. A closed stdin behind an allocated
         # terminal reads as ready and returns nothing, and treating that as a
