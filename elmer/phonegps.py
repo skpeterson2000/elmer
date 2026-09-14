@@ -128,6 +128,10 @@ def parse(sentence):
             out["sats"] = int(parts[7]) if parts[7] else None
         except ValueError:
             pass
+        try:
+            out["hdop"] = float(parts[8]) if parts[8] else None
+        except (IndexError, ValueError):
+            pass
         return out
 
     return None

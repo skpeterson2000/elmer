@@ -452,10 +452,16 @@ def check_gps():
         phone = phonegps.current()
         if phone:
             from .geocode import to_grid
-            _line(OK, "GPS", f"{phone.get('mode', 2)}D fix from a phone at "
-                             f"{phone.get('from')} - "
-                             f"{to_grid(phone['lat'], phone['lon'])} "
-                             f"({phone['lat']:.4f}, {phone['lon']:.4f})")
+            verdict = gps.sleuth(phone)
+            quality = f", {verdict['quality']}" if verdict.get("quality") else ""
+            if verdict.get("advice"):
+                _line(WARN, "GPS", f"{phone.get('mode', 2)}D fix from a phone at {phone.get('from')}{quality} "
+                                   f"- {to_grid(phone['lat'], phone['lon'])}; {verdict['advice']}")
+            else:
+                _line(OK, "GPS", f"{phone.get('mode', 2)}D fix from a phone at "
+                                 f"{phone.get('from')}{quality} - "
+                                 f"{to_grid(phone['lat'], phone['lon'])} "
+                                 f"({phone['lat']:.4f}, {phone['lon']:.4f})")
             return True
         # And what TowerWitch last knew, which on a unit where it holds the
         # GPS is the only position there is - reported with its age, so a
@@ -491,9 +497,15 @@ def check_gps():
                                f"elsewhere){also}")
         return True
     from .geocode import to_grid
-    _line(OK, "GPS", f"{found['mode']}D fix from {where} - "
-                     f"{to_grid(found['lat'], found['lon'])} "
-                     f"({found['lat']:.4f}, {found['lon']:.4f})")
+    verdict = gps.sleuth(found)
+    quality = f", {verdict['quality']}" if verdict.get("quality") else ""
+    if verdict.get("advice"):
+        _line(WARN, "GPS", f"{found['mode']}D fix from {where}{quality} - "
+                           f"{to_grid(found['lat'], found['lon'])}; {verdict['advice']}")
+    else:
+        _line(OK, "GPS", f"{found['mode']}D fix from {where}{quality} - "
+                         f"{to_grid(found['lat'], found['lon'])} "
+                         f"({found['lat']:.4f}, {found['lon']:.4f})")
     return True
 
 

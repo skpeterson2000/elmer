@@ -1111,6 +1111,25 @@ QTH typed into ELMER, offered as such. TowerWitch takes the fix as it
 comes and the QTH once, and says in its log which it was. One program owns
 the position; the other borrows it, on either OS.
 
+**And the two of them sleuth the GPS together.** Every fix says where it
+came from - a receiver on the unit, TowerWitch's receiver over the network,
+a phone streaming to the unit, another ELMER's receiver - and how good it
+is: satellites used and seen, HDOP (gpsd's SKY, or the phone's GGA). ELMER
+watches it steadily, a sample every twenty seconds, and reads the last
+quarter hour: `/api/gps` carries a `sleuth` - the source in words, the
+quality in numbers, how many times the fix has dropped, and advice only
+when there is something to do. A phone that keeps dropping is told it is
+not seeing enough sky where it sits: the dash or a window first, and if
+that does not hold, that a phone is not going to be enough here and a USB
+receiver on the dash is the move. A receiver short of satellites is told to
+move the puck - roof, away from the metal and the heated glass. A fix that
+has gone says whose it was and what will have done it. One weak look is not
+a verdict. The self-check's GPS line carries the same words, and TowerWitch
+shows them on its Location tab - the source on the status row, the quality
+on the fix row, the advice under the table - whether it is reading its own
+gpsd or borrowing through ELMER. So when the position goes, either screen
+says which antenna to move.
+
 ### Asking a TowerWitch over the network
 
 Two Pis in one vehicle: only one has TowerWitch and the credentials. Point the

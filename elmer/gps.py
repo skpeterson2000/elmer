@@ -75,6 +75,18 @@ def usable(tpv, host="", port=0):
         return None
 
 
+def sky_summary(sky):
+    """A gpsd SKY report as the three numbers that say how good the fix is:
+    satellites used, satellites seen, and HDOP - the geometry."""
+    if not isinstance(sky, dict):
+        return None
+    sats = sky.get("satellites") or []
+    out = {"sats": sum(1 for x in sats if x.get("used")), "seen": len(sats)}
+    if sky.get("hdop") is not None:
+        out["hdop"] = sky.get("hdop")
+    return out
+
+
 def read_fix(host=None, port=None, timeout=TIMEOUT):
     """One position from gpsd, or None. Never raises, never waits long.
 
@@ -95,6 +107,13 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
         sock = socket.create_connection((host, port), timeout=timeout)
     except OSError:
         return None
+    sky = None                    # the last SKY seen: satellites and geometry
+
+    def with_sky(found):
+        if found and sky:
+            found.update(sky)
+        return found
+
     try:
         sock.sendall(b'?WATCH={"enable":true,"json":true};\n?POLL;\n')
         buffer = b""
@@ -114,16 +133,21 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
                 except ValueError:
                     continue
                 kind = message.get("class")
-                if kind == "TPV":
+                if kind == "SKY":
+                    sky = sky_summary(message)
+                elif kind == "TPV":
                     found = usable(message, host, port)
                     if found:
-                        return found
+                        return with_sky(found)
                 elif kind == "POLL":
                     # The cached answer: a list of reports, newest first.
+                    for one in message.get("sky") or []:
+                        sky = sky_summary(one) or sky
+                        break
                     for tpv in message.get("tpv") or []:
                         found = usable(tpv, host, port)
                         if found:
-                            return found
+                            return with_sky(found)
     except OSError:
         return None
     finally:
@@ -274,6 +298,126 @@ def fix(conn=None, max_age=FRESH_FOR):
     return None
 
 
+# ------------------------------------------------------------- the sleuth
+# Where the position comes from, and what to do when it goes. A phone in a
+# pocket loses the sky; a puck under the dash sees half of it; a receiver
+# that is fine on the bench is not fine behind a windscreen with a heated
+# element in it. The fix says where it came from; this watches how it has
+# been going and says which antenna to move, or when a phone is not going
+# to be enough and a receiver on a lead is the move.
+
+WATCH_EVERY = 20.0          # seconds between samples
+HISTORY_S = 900.0           # how much of the recent past the verdict reads
+_history = []               # samples, oldest first: {t, located, source, mode, sats, hdop}
+_watch = {"thread": None, "stop": None}
+
+
+def _sample(conn=None):
+    found = fix(conn, max_age=0.0)
+    now = time.time()
+    _history.append({"t": now, "located": bool(found),
+                     "source": (found or {}).get("source"), "mode": (found or {}).get("mode"),
+                     "sats": (found or {}).get("sats"), "hdop": (found or {}).get("hdop"),
+                     "stale": bool(found and now - found["read_at"] > FRESH_FOR * 2)})
+    while _history and now - _history[0]["t"] > HISTORY_S:
+        _history.pop(0)
+
+
+def start_watch(every=WATCH_EVERY):
+    """Sample the position steadily in the background, so the verdict is
+    read from how the fix has actually been going and not from one look."""
+    import threading
+    if _watch["thread"] and _watch["thread"].is_alive():
+        return _watch["thread"]
+    stop = threading.Event()
+
+    def run():
+        while not stop.is_set():
+            try:
+                _sample()
+            except Exception:                    # pragma: no cover
+                pass
+            stop.wait(every)
+    t = threading.Thread(target=run, daemon=True, name="gps-watch")
+    t.start()
+    _watch["thread"], _watch["stop"] = t, stop
+    return t
+
+
+def stop_watch():
+    if _watch["stop"]:
+        _watch["stop"].set()
+
+
+SOURCE_WORDS = {
+    "gps": "a receiver on this unit (gpsd)",
+    "towerwitch": "TowerWitch's receiver, over the network",
+    "phone": "a phone streaming to this unit",
+    "elmer": "another ELMER's receiver, over the network",
+}
+
+
+def sleuth(found, history=None):
+    """The source in words, how it has been going, and what to do about it.
+
+    Returns {"source", "words", "quality", "drops", "advice"}; `advice` is
+    None when there is nothing to say - a receiver with a good fix that has
+    held is a receiver to leave alone.
+    """
+    hist = _history if history is None else history
+    now = time.time()
+    recent = [h for h in hist if now - h["t"] <= HISTORY_S]
+    drops = sum(1 for a, b in zip(recent, recent[1:]) if a["located"] and not b["located"])
+    weak = sum(1 for h in recent if h["located"] and (
+        (h.get("sats") is not None and h["sats"] < 5) or (h.get("hdop") is not None and h["hdop"] > 5)))
+    out = {"source": None, "words": "no position from anywhere", "quality": None,
+           "drops": drops, "samples": len(recent), "advice": None}
+    if not found:
+        from . import phonegps
+        phone = phonegps.listener()
+        if recent and any(h["located"] for h in recent):
+            last = next(h for h in reversed(recent) if h["located"])
+            out["words"] = f"the fix from {SOURCE_WORDS.get(last['source'], last['source'] or 'somewhere')} has gone"
+            if last["source"] == "phone":
+                out["advice"] = ("the phone has lost the sky - a pocket, a footwell or a metal roof will do it. "
+                                 "Put it on the dash or by a window; if it keeps going, a phone is not going to "
+                                 "be enough here and a USB receiver on the dash (a u-blox puck, about $15) is the move")
+            elif last["source"] in ("gps", "towerwitch"):
+                out["advice"] = ("the receiver has lost its fix - move the puck: the dash, the roof, away from the "
+                                 "metal and any heated glass; a magnet mount on the roof sees the whole sky")
+        elif phone and phone.sentences == 0:
+            out["advice"] = (f"a phone app is expected on udp/{phone.port} but nothing has arrived - check the app "
+                             f"is sending to this unit's address, not the phone's own")
+        return out
+    src = found.get("source") or "gps"
+    out["source"] = src
+    out["words"] = SOURCE_WORDS.get(src, found.get("from") or src)
+    bits = []
+    if found.get("mode"):
+        bits.append(f"{found['mode']}D")
+    if found.get("sats") is not None:
+        bits.append(f"{found['sats']} satellites" + (f" of {found['seen']} seen" if found.get("seen") else ""))
+    if found.get("hdop") is not None:
+        bits.append(f"HDOP {found['hdop']}")
+    out["quality"] = ", ".join(bits) if bits else None
+    if src == "phone":
+        if drops >= 2 or weak >= 3:
+            out["advice"] = (f"the phone's fix has dropped {drops} time{'s' if drops != 1 else ''} in the last "
+                             f"{HISTORY_S / 60:.0f} minutes - it is not seeing enough sky where it sits. On the "
+                             f"dash or by a window it may hold; if not, a phone is not going to be enough here and "
+                             f"a USB receiver on the dash (a u-blox puck, about $15) is the move")
+    elif src in ("gps", "towerwitch"):
+        poor = (found.get("mode") == 2 or (found.get("sats") is not None and found["sats"] < 5)
+                or (found.get("hdop") is not None and found["hdop"] > 5))
+        if poor or drops >= 2:
+            out["advice"] = ("the receiver is short of satellites" +
+                             (f" - {found['sats']} in use" if found.get("sats") is not None else "") +
+                             (f", dropped {drops} times lately" if drops else "") +
+                             " - move the puck: the dash, the roof, away from the metal and any heated glass; "
+                             "a magnet mount on the roof sees the whole sky")
+    return out
+
+
 def place(conn=None):
     """The fix as a location, shaped the way a saved QTH is shaped."""
     found = fix(conn)
@@ -291,6 +435,7 @@ def place(conn=None):
             # off a receiver on the roof are both positions, but an operator
             # deciding whether to trust a bearing deserves to know which.
             "source": found.get("source", "gps"), "from": found.get("from"),
+            "sats": found.get("sats"), "seen": found.get("seen"), "hdop": found.get("hdop"),
             "age_s": round(max(0.0, time.time() - found["read_at"]), 1)}
 
 

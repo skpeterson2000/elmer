@@ -5581,7 +5581,8 @@ def api_gps():
                if saved.get("lat") is not None else None)
         return jsonify({"located": False, "reason": "no fix", "detail": detail,
                         "gpsd": f"{host}:{port}", "gpsd_listening": listening,
-                        "phone_listening": bool(phone), "qth": qth})
+                        "phone_listening": bool(phone), "qth": qth,
+                        "sleuth": gps.sleuth(None)})
     place = geocode.reverse(live["lat"], live["lon"]) or {}
     return jsonify({
         "located": True,
@@ -5590,6 +5591,11 @@ def api_gps():
         "kind": "gps", "lat": live["lat"], "lon": live["lon"],
         "grid": live["grid"], "mode": live.get("mode"),
         "age_s": live.get("age_s"), "from": live.get("from"),
+        "source": live.get("source"), "sats": live.get("sats"),
+        "seen": live.get("seen"), "hdop": live.get("hdop"),
+        # Where it comes from in words, how it has been going, and what to
+        # move if it goes - for TowerWitch's screen as much as this one.
+        "sleuth": gps.sleuth(live),
     })
 
 

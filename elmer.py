@@ -893,6 +893,12 @@ def main():
             if _port:
                 from elmer import phonegps
                 phonegps.start(int(_port))
+            # And watch how the fix goes, whatever it comes from, so the
+            # verdict on it - move the phone, move the puck, get a receiver
+            # - is read from the last quarter hour and not from one look.
+            from elmer import gps as _gps
+            if _gps.enabled(_conn):
+                _gps.start_watch()
             # Listening for TowerWitch costs nothing and needs no setting up
             # at either end, so it is on unless somebody has turned it off.
             # A station that has to be told twice about the GPS it already
