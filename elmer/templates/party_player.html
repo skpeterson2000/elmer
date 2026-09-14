@@ -379,6 +379,7 @@ function golfHeadHTML(gf) {
    is on a clock. */
 function golfTurnHTML(gf) {
   if (gf.over) return '';
+  if (gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>You have a tee time.</b> The group picks you up ${gf.next_hole ? 'at the ' + gf.next_hole + ordinal(gf.next_hole) : 'at the next hole'}; watch this one with them - the questions are worth reading.</p>`;
   if (gf.your_turn) return '<p style="margin:0 0 .5rem"><b>Your stroke.</b> Take your time.</p>';
   if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${escapeHTML(gf.away_lie || '')}${gf.away_club ? ' &middot; the ' + escapeHTML(gf.away_club) : ''}.<br>Read the question with them; the next one is yours.</p>`;
   return '';
@@ -404,8 +405,10 @@ function golfPlaybackHTML(gf) {
   const mine = gf.last.find(s => s.player === me.id);
   const others = gf.last.filter(s => s.player !== me.id);
   return `${mine ? `<div class="verdict ${mine.holed ? 'right' : mine.kind === 'water' || mine.kind === 'missed' || mine.kind === 'sand' ? 'wrong' : 'in'}">
-      <div class="h">${escapeHTML(mine.words)}</div></div>` : ''}
-    <table class="board">${others.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${escapeHTML(s.words)}</td></tr>`).join('')}</table>`;
+      <div class="h">${escapeHTML(mine.call || mine.words)}</div>${
+        mine.kind && (gf.clips || []).includes(mine.kind) ? `<img src="/static/golf/clips/${escapeHTML(mine.kind)}.gif" alt="" style="max-width:100%;max-height:7rem;display:block;margin:.3rem auto;border-radius:8px">` : ''}
+      <div class="t">${escapeHTML(mine.words)}</div></div>` : ''}
+    <table class="board">${others.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.call ? '<b>' + escapeHTML(s.call) + '</b> ' : ''}${escapeHTML(s.words)}</td></tr>`).join('')}</table>`;
 }
 function golfBoardHTML(gf) {
   return `<table class="board">${(gf.leaderboard || []).map(r =>

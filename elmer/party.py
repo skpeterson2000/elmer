@@ -41,6 +41,7 @@ import random
 import re
 import secrets
 import threading
+from pathlib import Path
 import time
 from collections import deque
 
@@ -921,6 +922,14 @@ class Room:
                              seconds=seconds or DEFAULT_ROUND_SECONDS)
             self.clubs = {}
             self.golf_pace = float(seconds or DEFAULT_ROUND_SECONDS)
+            # Which clips of the swing are on this unit - static/golf/clips/
+            # <kind>.gif - read once a round, so the screens ask only for
+            # what is there and a unit with none logs no misses.
+            clips_dir = Path(__file__).resolve().parent / "static" / "golf" / "clips"
+            try:
+                self.golf_clips = sorted(p.stem for p in clips_dir.glob("*.gif"))
+            except OSError:
+                self.golf_clips = []
             self.mode = GOLF
             self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
@@ -1013,6 +1022,13 @@ class Room:
                     "away_left": away_ball["left"] if away_ball else None,
                     "away_lie": away_ball["lie"] if away_ball else None,
                     "away_bot": bool(away_ball and away_ball.get("bot")),
+                    # Who has a tee time - joining the group at the next
+                    # hole - and whether this player is one of them.
+                    "tee_times": [name(p) for p in d.get("tee_times", [])],
+                    "clips": list(getattr(self, "golf_clips", []) or []),
+                    "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),
+                    "next_hole": (self.golf.holes[self.golf.hole_index + 1]
+                                  if self.golf.hole_index + 1 < len(self.golf.holes) else None),
                     "your_turn": bool(player_id is not None and away == player_id),
                     "last_hole_done": bool(last and last.get("hole_done")),
                     "last_card": ({name(p): s for p, s in last["card"].items()} if last and last.get("card") else None),

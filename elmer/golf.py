@@ -84,6 +84,20 @@ AIM = 12
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
+# What a golfer says at the moment of contact, by what the ball did. The
+# screens show it big, so somebody knows what they hit without reading the
+# coloured answer - and a clip of the swing can go with it later; the
+# reveal looks for static/golf/clips/<kind>.gif and shows it if it is there.
+CALLS = {
+    "fairway": ["Pured it.", "Right down the middle.", "That'll play."],
+    "green": ["On the dance floor.", "Stuck it.", "That's looking at it."],
+    "long": ["Flew the green.", "Too much club.", "Airmailed it."],
+    "holed": ["In the hole!", "Drained it.", "Bottom of the cup."],
+    "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one."],
+    "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach."],
+    "water": ["Hooked it into the water.", "Wet.", "That's a splash - what was the wind?"],
+    "missed": ["Lipped out.", "Left it short.", "Burned the edge."],
+}
 # How hard a question the lie asks for, as a place in the pool's measured
 # hardness - nought the easiest, one the hardest. The tee is a fresh start;
 # the sand is not.
@@ -179,6 +193,7 @@ class Golf:
         self.sections_used = []
         self.hole_section = None
         self.hardness = {}
+        self.tee_times = []             # who joins at the next tee, in order
         self._tee_off()
 
     # ---------------------------------------------------------------- holes
@@ -195,6 +210,14 @@ class Golf:
             return
         typical = self.course.get("wind", {}).get("typical_mph", 10)
         self.wind_mph = max(0, round(typical * self.rng.uniform(0.6, 1.4)))
+        # The tee is where a group is joined: whoever booked a tee time
+        # during the last hole is in the group from this one.
+        if not self.playoff:
+            for p in self.tee_times:
+                if p not in self.players:
+                    self.players.append(p)
+                    self.cards.setdefault(p, {})
+            self.tee_times = []
         playing = self.playoff or self.players
         self.balls = {p: Ball() for p in playing}
         self.hole_section = None            # a new hole takes a new area
@@ -376,6 +399,7 @@ class Golf:
             shot = self._fair(h, ball, club)
         else:
             shot = self._foul(h, ball, club)
+        shot["call"] = self.rng.choice(CALLS.get(shot["kind"], ["That's a shot."]))
         if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
             ball.picked_up = True
             ball.strokes = h["par"] + PICK_UP_OVER
@@ -432,18 +456,35 @@ class Golf:
         return self._after(h, shots)
 
     def add_player(self, player):
-        """Somebody sat down mid-round: a ball on this hole's tee, no card
-        for the holes before. In a playoff they watch."""
-        if player in self.players:
+        """Somebody arriving mid-round arranges a tee time: if the group is
+        still on the tee they join it now; otherwise they join at the next
+        tee, and watch this hole with the group. No card for the holes
+        before. In a playoff they watch."""
+        if player in self.players or player in self.tee_times:
             return
-        self.players.append(player)
-        self.cards[player] = {}
-        if not self.playoff and self.hole() is not None:
+        h = self.hole()
+        on_the_tee = (h is not None and not self.playoff
+                      and all(b.strokes == 0 for b in self.balls.values()))
+        if on_the_tee:
+            self.players.append(player)
+            self.cards[player] = {}
             self.balls[player] = Ball()
+            return
+        if self.playoff or h is None:
+            self.players.append(player)      # watching; there is no tee to join at
+            self.cards[player] = {}
+            return
+        self.tee_times.append(player)
+
+    def has_tee_time(self, player):
+        return player in self.tee_times
 
     def drop(self, player):
         """Somebody left: their ball is picked up, the round goes on without
         them, and the hole moves on if theirs was the last ball on it."""
+        if player in self.tee_times:
+            self.tee_times.remove(player)
+            return None
         if player not in self.players:
             return None
         self.players.remove(player)
@@ -592,6 +633,7 @@ class Golf:
             "leaderboard": self.leaderboard(),
             "playoff": list(self.playoff), "handicaps": bool(self.handicaps),
             "away": self.away(), "hole_section": self.hole_section,
+            "tee_times": list(self.tee_times),
             "asked": sum(self.asked.values()), "missed": len(self.missed),
             "winner": self._winner, "over": self.over(),
         }

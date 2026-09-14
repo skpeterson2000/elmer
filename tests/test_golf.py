@@ -240,15 +240,26 @@ def run():
     check("from the sand, a hard one", g.hardness[hard] >= 0.7, True)
     check("with nothing measured, any", golf.Golf(["a"], flat_course(), seed=1).choose(["x", "y"], "a") in ("x", "y"), True)
 
-    print("\n-- sitting down and leaving mid-round --")
-    g = golf.Golf(["a", "b"], flat_course(par=4, yards=400), seed=3)
-    g.play_one("a", {"correct": True, "club": "driver"})
+    print("\n-- arranging a tee time --")
+    two = {**flat_course(par=3, yards=150), "holes": [
+        {"n": n, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []}
+        for n in (1, 2)]}
+    g = golf.Golf(["a", "b"], two, holes=[1, 2], seed=3)
+    g.add_player("early")
+    check("arriving while the group is still on the tee: in it now", "early" in g.balls, True)
+    g.play_one("a", {"correct": True, "club": "iron"})
     g.add_player("late")
-    check("a late arrival has a ball on this tee", (g.balls["late"].at, g.balls["late"].lie), (0, "tee"))
-    check("  and is away, being farthest", g.away(), "b")     # b is also on the tee and seated first
+    check("arriving mid-hole: a tee time, not a ball", ("late" in g.balls, g.tee_times), (False, ["late"]))
+    check("  and not away", g.away() != "late", True)
+    while g.hole() and g.hole()["n"] == 1 and g.away():
+        g.play_one(g.away(), {"correct": True})
+    check("at the next tee the group picks them up", ("late" in g.balls, g.tee_times, g.hole()["n"]), (True, [], 2))
+    g.add_player("gone")
+    g.drop("gone")
+    check("a tee time given up is gone", g.tee_times, [])
+    check("every shot has the golfer's call on it", all("call" in s for r in g.history for s in r["shots"].values()), True)
     g.drop("b")
     check("somebody leaving takes their ball with them", "b" in g.balls, False)
-    check("  and the group plays on", g.away(), "late")
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

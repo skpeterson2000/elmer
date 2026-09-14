@@ -109,9 +109,11 @@ def run():
     summary = room.close_round()
     check("  and stands long enough to be read", room.reveal_seconds(summary, 8.0), party.BOT_REVEAL)
 
-    print("\n-- sitting down late --")
+    print("\n-- sitting down late: a tee time --")
     late = room.join("W9LATE")[0].id
-    check("a ball on this hole", late in room.golf.balls, True)
+    check("mid-hole, a tee time rather than a ball", (late in room.golf.balls, late in room.golf.tee_times), (False, True))
+    v = client.get(f"/api/party/state?player={late}", environ_base=local).get_json()["golf"]
+    check("  and the phone is told so", (v["your_tee_time"], "W9LATE" in v["tee_times"]), (True, True))
     check("  and the group is still a foursome at most", len(room.players) <= party.FOURSOME, True)
     room.leave(late)
     check("leaving takes the ball", late in room.golf.balls, False)

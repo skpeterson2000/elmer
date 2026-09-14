@@ -2361,6 +2361,25 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**A round is joined by tee time.** Once a round is on, the table screen is
+golf's: the Gaming Center and the round controls stand down, the QR stays
+and reads *scan to arrange a tee time*. Somebody arriving while the group
+is still on the tee is in it now; arriving mid-hole, they have a tee time
+and watch this hole with the group - the questions are worth reading - and
+the group picks them up at the next tee. That is golf. A game you can join
+any time is one of the trivia modes, and they are a tile away.
+
+**The call.** Every stroke carries what a golfer would say at the moment of
+contact - *Pured it. On the dance floor. Topped it. Hooked it into the
+water. Lipped out.* - shown big above the club and the yards, so somebody
+knows what they hit without reading the coloured answer. And a slot beside
+it: put a clip of the swing at `elmer/static/golf/clips/<kind>.gif`
+(`fairway`, `green`, `long`, `holed`, `rough`, `sand`, `water`, `missed`)
+and the reveal shows it - the unit reads the folder when a round starts, so
+the screens ask only for clips that are there. With none, nothing. The idea, the author's: have
+them thinking of the golf game while they think of the radio game, so each
+recalls the other.
+
 **The questions have a thread.** Each hole takes one test area - a section
 of the pool, drawn from those not yet played this round - and stays on it
 until its questions run out, then takes another. Once every question in the
