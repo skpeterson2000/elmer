@@ -2085,6 +2085,33 @@ room for a real one, leaves the game with it, or the pick would be handed to
 an empty chair. The big board shows the tables' letters in place of points,
 and the shot in place of the round winner.
 
+### CutThroat
+
+Musical chairs with questions, KC9SP's third game, beside the tournament
+and the shootout on the table screen. Everybody answers the same drawn
+question - no pick; this game is about answering, not choosing - and when
+the music stops, anyone still in who did not get it right is out: a wrong
+answer, or none, which is the same thing when the chairs are counted. Every
+correct answer keeps its seat. One exception, because a question nobody got
+is a question and not a chair: a round where *nobody* was right eliminates
+nobody.
+
+Two left, and the game changes. Fifteen questions, and a miss no longer
+removes anybody: the better count of correct answers over the fifteen wins.
+Level after fifteen, and it is sudden death - one right wins; both right,
+the faster wins; both wrong, another question.
+
+The seated stay. A player who is out keeps every question and every reveal
+on their phone, told plainly that they are watching, with no buttons that
+count. Their place is the order they went out in, last out placing highest.
+Practice players are in it and out of it like anybody. Somebody who sits
+down while the field is still playing takes a chair; during the final they
+are seated with the others. Leaving is losing: walk away and you are out
+from that moment, and if that leaves one, that one has won.
+
+The rules are `elmer/cutthroat.py`, with no clock or question in them;
+`tests/test_cutthroat.py` plays every part of the game through them.
+
 ### Certificates for the wall
 
 A club that runs a tournament night had nothing to hand the winner: the score

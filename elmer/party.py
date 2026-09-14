@@ -43,6 +43,7 @@ import time
 from collections import deque
 
 from . import trivia
+from .cutthroat import CutThroat
 from .shootout import Shootout
 
 # Measured on a Raspberry Pi 5: 30 players answering simultaneously were all
@@ -84,7 +85,8 @@ def callsign_of(name):
 # The games a table can be playing.
 TOURNAMENT = "tournament"
 SHOOTOUT = "shootout"
-MODES = (TOURNAMENT, SHOOTOUT)
+CUTTHROAT = "cutthroat"
+MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT)
 
 # How long the picker gets to choose a subject before it goes round the
 # table. A question has a clock and so must the pick, or a phone put down on
@@ -305,6 +307,7 @@ class Room:
         # hands one player the choice of subject and the rest have to keep up.
         self.mode = TOURNAMENT
         self.shootout = None
+        self.cutthroat = None      # musical chairs with questions; see cutthroat.py
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
         self._pick_since = None    # (when the wait began, on whom)
@@ -461,7 +464,13 @@ class Room:
             return player, None
 
     def _admit_late(self, player):
-        """Somebody sat down during a shootout: they are in it."""
+        """Somebody sat down during a shootout: they are in it. During a
+        CutThroat: a chair while the field is playing, a seat to watch from
+        after that."""
+        if self.cutthroat is not None and not self.cutthroat.over():
+            self.cutthroat.seat(player.id)
+            if player.bot:
+                self.cutthroat.passers.add(player.id)
         s = self.shootout
         if s is None or s.over():
             return
@@ -472,6 +481,8 @@ class Room:
     def leave(self, player_id):
         with self.lock:
             gone = self.players.pop(player_id, None)
+            if gone is not None and self.cutthroat is not None:
+                self.cutthroat.withdraw(player_id)    # leaving is losing
             if gone is not None and self.shootout is not None:
                 # Out is out. The order is not rewritten, so nobody else's
                 # turn moves; the pick moves on if they were holding it.
@@ -770,8 +781,64 @@ class Room:
                     summary["shootout"] = self.shootout.play(section, {
                         a["player_id"]: {"correct": a["correct"], "ms": a["ms"]}
                         for a in rnd.answers.values()})
+            # In a CutThroat the round is a chair. Every answer goes to the
+            # rules; who did not answer is not in them, which they read as a
+            # miss - the music stopped and they were not sitting.
+            if self.cutthroat is not None and not self.cutthroat.over():
+                summary["cutthroat"] = self.cutthroat.play({
+                    a["player_id"]: {"correct": a["correct"], "ms": a["ms"]}
+                    for a in rnd.answers.values()})
             self.history.append(summary)
             return summary
+
+    # ------------------------------------------------------------- cutthroat
+
+    def begin_cutthroat(self):
+        """Start a CutThroat over everybody at the table, people first."""
+        with self.lock:
+            order = (sorted(p for p, pl in self.players.items() if not pl.bot)
+                     + sorted(p for p, pl in self.players.items() if pl.bot))
+            if len(order) < 2:
+                return None, "a CutThroat needs two players"
+            self.cutthroat = CutThroat(
+                order, passers=[p for p, pl in self.players.items() if pl.bot])
+            self.mode = CUTTHROAT
+            return self.cutthroat, None
+
+    def end_cutthroat(self):
+        with self.lock:
+            self.cutthroat = None
+            if self.mode == CUTTHROAT:
+                self.mode = TOURNAMENT
+
+    def cutthroat_over(self):
+        with self.lock:
+            return self.cutthroat is not None and self.cutthroat.over()
+
+    def cutthroat_view(self, player_id=None):
+        """What the screens need, with names on it rather than ids."""
+        with self.lock:
+            g = self.cutthroat
+            if g is None:
+                return None
+            standing = []
+            for row in g.standing():
+                player = self.players.get(row["player"])
+                standing.append({**row,
+                                 "name": player.name if player else "(left)",
+                                 "gone": player is None})
+            winner = self.players.get(g.winner()) if g.winner() else None
+            last = g.history[-1] if g.history else None
+            names = lambda ids: [self.players[p].name for p in ids if p in self.players]  # noqa: E731
+            return {
+                **g.as_dict(),
+                "standing": standing,
+                "winner_name": winner.name if winner else None,
+                "you_in": (player_id is not None and player_id in g.alive()),
+                "you_out_round": g.out_at.get(player_id) if player_id is not None else None,
+                "last": ({**last, "out_names": names(last["out"]),
+                          "right_names": names(last["right"])} if last else None),
+            }
 
     # -------------------------------------------------------------- shootout
 
@@ -1045,6 +1112,7 @@ class Room:
                 "picker": self.picker(),
                 "mode": self.mode,
                 "shootout": self.shootout_view(player_id),
+                "cutthroat": self.cutthroat_view(player_id),
                 # Filled in by the route when this table reports to a hall:
                 # the hall's shootout as it concerns this table, so a phone
                 # here can see that its table holds the pick.

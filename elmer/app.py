@@ -3324,7 +3324,7 @@ def _subject_name(long_title, limit=48):
 
 @app.route("/api/party/mode", methods=["POST"])
 def api_party_mode():
-    """Which game this table is playing: a tournament, or a shootout.
+    """Which game this table is playing: a tournament, a shootout, or a CutThroat.
 
     A shootout needs the subjects of the pool being played, with their titles,
     because "T5C" is a filing reference and "Electrical principles" is a thing
@@ -3368,11 +3368,29 @@ def api_party_mode():
         # The director carries it from here, waiting on the pick between
         # questions.
         seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
+        room.end_cutthroat()
         autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
         log.info("party: shootout started (%s, %d players)", difficulty,
                  len(room.players))
+    elif wanted == party.CUTTHROAT:
+        # Musical chairs with questions: drawn like a tournament's, no pick,
+        # and the director asks until one player is left. See cutthroat.py.
+        _not_this_tables_part()
+        difficulty = str(body.get("difficulty") or _party_class()).lower()
+        if difficulty not in party.DIFFICULTIES:
+            abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+        room.fill_bots(body.get("level"))
+        room.end_shootout()
+        started, why = room.begin_cutthroat()
+        if started is None:
+            abort(409, why)
+        seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
+        autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
+        log.info("party: CutThroat started (%s, %d players)", difficulty,
+                 len(room.players))
     else:
         room.end_shootout()
+        room.end_cutthroat()
         log.info("party: back to a tournament")
     return jsonify(room.state())
 

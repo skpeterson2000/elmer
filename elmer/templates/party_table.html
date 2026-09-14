@@ -252,6 +252,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
                style="width:4.6rem" title="seconds per question">
         <button class="btn primary" id="tourney">&#9873; Start tournament</button>
         <button class="btn" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">&#127919; Shootout</button>
+        <button class="btn" id="cutthroat" title="Musical chairs: miss and you are out, every correct answer keeps its seat. Two left get fifteen questions; level after that, sudden death.">&#128481; CutThroat</button>
         <button class="btn" id="stopt" hidden>Stop</button>
         <span class="chip" id="autostate"></span>
       </div>
@@ -419,6 +420,28 @@ document.addEventListener('click', async e => {
   }
 });
 
+/* Where a CutThroat is, in a sentence the room can read - and the chairs:
+   who is still in, who went out and when. */
+function cutLine(ct) {
+  if (!ct) return '';
+  if (ct.over) return `<b>${esc(ct.winner_name || 'Somebody')}</b> wins the CutThroat.`;
+  if (ct.phase === 'final') {
+    const two = (ct.standing || []).filter(r => r.in);
+    return `Final: ${two.map(r => `<b>${esc(r.name)}</b> ${r.final_correct || 0}`).join(' &ndash; ')}, question ${(ct.final_round || 0) + 1} of ${ct.final_length}.`;
+  }
+  if (ct.phase === 'sudden') return 'Sudden death: one right wins; both right, the faster.';
+  const last = ct.last;
+  const went = last && last.out_names && last.out_names.length
+    ? ` Out this round: ${last.out_names.map(esc).join(', ')}.`
+    : (last && last.note ? ` ${esc(last.note)}.` : '');
+  return `${ct.remaining} of ${ct.players} still in.${went}`;
+}
+function cutChairs(ct) {
+  if (!ct) return '';
+  return `<div class="seats" style="margin-top:.6rem">${(ct.standing || []).map(r =>
+    `<span class="seat" style="${r.in ? '' : 'opacity:.55;text-decoration:line-through'}">${esc(r.name)}${r.bot ? ' <span class="count">bot</span>' : ''}${r.in ? '' : ` <span class="count">r${r.out_round}</span>`}</span>`).join('')}</div>`;
+}
+
 /* What a shootout is waiting on, in a sentence the room can read. */
 function shootLine(shoot) {
   if (shoot.over) return shoot.drawn
@@ -552,6 +575,16 @@ async function tick() {
        something is expected of them. */
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
+    const ct = s.cutthroat;
+    if (ct) {
+      const key = 'cut' + ct.rounds + ct.phase + (ct.over ? 'over' : '');
+      chip.textContent = ct.over ? 'CutThroat over' : `CutThroat · ${ct.phase}`;
+      if (painted !== key) {
+        painted = key;
+        stage.innerHTML = `<p class="empty" style="font-style:normal;color:var(--text)">${cutLine(ct)}</p>` + cutChairs(ct);
+      }
+      return;
+    }
     const shoot = s.shootout;
     if (shoot) {
       const key = 'shoot' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '') + atScreen.map(x => x.id).join(',');
@@ -651,7 +684,8 @@ async function tick() {
                <span>takes the round</span></div>`}
       </div>
       <table class="res" style="margin-top:1rem">${rows}</table>
-      ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}` +
+      ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}
+      ${s.cutthroat ? `<p class="hint" style="margin-top:.8rem;font-size:1rem;color:var(--text)">${cutLine(s.cutthroat)}</p>${cutChairs(s.cutthroat)}` : ''}` +
       (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
     return;
   }
@@ -705,6 +739,16 @@ tourney.addEventListener('click', async () => {
     bots: document.getElementById('botson').checked});
   tourney.disabled = false;
   autoTick();
+});
+const cutBtn = document.getElementById('cutthroat');
+cutBtn.addEventListener('click', async () => {
+  cutBtn.disabled = true;
+  await api('/api/party/mode', {
+    mode: 'cutthroat',
+    difficulty: document.getElementById('difficulty').value,
+    seconds: parseFloat(document.getElementById('seconds').value) || 30});
+  cutBtn.disabled = false;
+  autoTick(); tick();
 });
 const shootBtn = document.getElementById('shootout');
 shootBtn.addEventListener('click', async () => {

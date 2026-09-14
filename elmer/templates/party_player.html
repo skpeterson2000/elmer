@@ -276,6 +276,19 @@ function paintWaiting(state) {
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
   if (paintHallShootout(state)) return;
+  const ct = state.cutthroat;
+  if (ct) {
+    // A CutThroat between questions: who is still in, and where it is.
+    const rows = (ct.standing || []).map(r =>
+      `<tr><td class="n">${r.place}</td><td>${escapeHTML(r.name)}${r.bot ? ' <span class="clock">bot</span>' : ''}</td>
+           <td class="ms">${r.in ? (ct.phase === 'final' || ct.phase === 'sudden' ? (r.final_correct || 0) + ' right' : 'in')
+                                 : 'out r' + r.out_round}</td></tr>`).join('');
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem">
+        <h2>CutThroat</h2><p>${cutLine(ct, true)}</p>
+        <table class="res" style="margin-top:.6rem;width:100%">${rows}</table>
+        ${ct.over ? '' : '<p style="padding:1rem 0;color:var(--dim)">Waiting for the next question.</p>'}</div>`;
+    return;
+  }
   const shoot = state.shootout;
   if (shoot) {
     // A shootout between questions: the word so far, and either the pick
@@ -314,12 +327,27 @@ function paintWaiting(state) {
   });
 }
 
-function paintQuestion(round) {
+/* CutThroat, on a phone: whether this player is still in, and where the
+   game is. The seated see every question and the reveal - they just have
+   no buttons that count, and are told so rather than left to press. */
+function cutLine(ct, mine) {
+  if (!ct) return '';
+  if (ct.over) return `<b>${escapeHTML(ct.winner_name || 'Somebody')}</b> wins the CutThroat.`;
+  const where = ct.phase === 'final'
+      ? `Final: question ${(ct.final_round || 0) + 1} of ${ct.final_length}`
+      : ct.phase === 'sudden' ? 'Sudden death: one right wins; both right, the faster'
+      : `${ct.remaining} of ${ct.players} still in`;
+  const you = mine ? (ct.you_in ? '' : ` &middot; You went out in round ${ct.you_out_round}; watch the rest.`) : '';
+  return where + you;
+}
+
+function paintQuestion(round, ct) {
   const q = round.question || {};
   answered = false;
   paintedAt = performance.now();     // the clock the race is actually timed on
+  const seated = !!(ct && !ct.you_in);
   const choices = (q.choices || []).map((c, i) =>
-    `<button class="choice" data-i="${i}">
+    `<button class="choice" data-i="${i}"${seated ? ' disabled' : ''}>
        <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('');
   view.innerHTML = `
     <div style="display:flex;gap:.6rem;align-items:baseline;margin-bottom:.6rem">
@@ -327,9 +355,11 @@ function paintQuestion(round) {
       <span class="clock" style="color:var(--dimmer)">${escapeHTML(q.section || '')}</span>
       <span class="clock" id="left" style="margin-left:auto"></span>
     </div>
+    ${ct ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:${seated ? 'var(--amber)' : 'var(--dim)'}">${seated ? 'CutThroat &middot; you are out - watching. ' : 'CutThroat &middot; '}${cutLine(ct, false)}</p>` : ''}
     <p class="big">${escapeHTML(q.text || '')}</p>
     ${q.figure ? `<img src="${q.figure}" alt="" style="max-width:100%;border-radius:10px;margin-bottom:1rem">` : ''}
     <div id="choices">${choices}</div>`;
+  if (seated) { answered = true; return; }
   document.querySelectorAll('.choice').forEach(b => {
     b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b));
   });
@@ -665,7 +695,7 @@ async function tick() {
   }
   if (shownRound !== round.number) {
     shownRound = round.number;
-    paintQuestion(round);
+    paintQuestion(round, s.cutthroat);
   }
   // Answered, and the clock is nearly out: the scoring beat starts early so
   // it does not cut into the reveal, and the card gives way to it.

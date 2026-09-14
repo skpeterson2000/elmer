@@ -72,7 +72,7 @@ class Director:
         # A shootout has no fixed length: it ends when one player is left,
         # and between questions it waits on whoever holds the pick, which is
         # a state of its own so the screens can say so rather than "asking".
-        if room.shootout_over():
+        if room.shootout_over() or room.cutthroat_over():
             self.state = "finished"
             self.stop.set()
             return
