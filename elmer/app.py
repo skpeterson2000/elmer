@@ -228,6 +228,26 @@ def _kiosk():
             "own_window": bool(app.config.get("WINDOW"))}
 
 
+@app.route("/api/window", methods=["GET", "POST"])
+def api_window():
+    """How the window of ELMER's own opens: where it was left, maximised,
+    or a size. The person's own preference, kept with the unit's settings
+    and read at every launch; local screen only, like the rest of what
+    changes this machine."""
+    from . import window
+    if not _is_local(request.remote_addr):
+        abort(403)
+    connection = conn()
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        choice = window.start_choice(body.get("start"))
+        db.unit_set(connection, window.START_SETTING, choice)
+        log.info("window: opens %s from now on", choice)
+    return jsonify({"start": db.unit_get(connection, window.START_SETTING, window.START_DEFAULT),
+                    "own": bool(app.config.get("WINDOW")),
+                    "remembered": window.remembered_bounds()})
+
+
 @app.route("/favicon.ico")
 def favicon():
     """The icon by the name every browser asks for on its own, and the

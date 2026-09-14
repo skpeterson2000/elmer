@@ -857,7 +857,14 @@ def main():
             else:
                 return
             from elmer import window
-            process, name = window.launch(url)
+            try:
+                from elmer import db as _wdb
+                _c = _wdb.connect()
+                start = _wdb.unit_get(_c, window.START_SETTING, window.START_DEFAULT)
+                _c.close()
+            except Exception:
+                start = window.START_DEFAULT
+            process, name = window.launch(url, start)
             if process is not None:
                 own_window[0] = process
                 window.watch(process, window_quitting, args.port)

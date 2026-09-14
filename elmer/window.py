@@ -22,6 +22,7 @@ while they are. Where neither browser is found, the URL goes to the
 default browser as a tab and the console says the window will not stop
 the server; that is the truth of it, and better than pretending.
 """
+import json
 import logging
 import os
 import subprocess
@@ -44,6 +45,36 @@ CANDIDATES = [
 PROFILE = paths.STATE / "window-profile"
 OWNER_FLAG = "elmer_window=1"
 
+# How the window opens: the unit's setting, kept with the others under the
+# key below. "as-left" is the default - the profile restores the bounds the
+# person left the window at, and ELMER says nothing about size - with one
+# exception: a machine with no bounds saved yet gets it maximised, which is
+# the offer a first launch makes. "maximized" and "WIDTHxHEIGHT" are the
+# person's own choice and are applied every launch, saved bounds or not.
+START_SETTING = "window_start"
+START_DEFAULT = "as-left"
+STARTS = ("as-left", "maximized")
+
+
+def start_choice(value):
+    """A setting as typed, made valid: one of STARTS or WIDTHxHEIGHT."""
+    text = str(value or "").strip().lower().replace(" ", "")
+    if text in STARTS:
+        return text
+    w, sep, h = text.partition("x")
+    if sep and w.isdigit() and h.isdigit() and 400 <= int(w) <= 8000 and 300 <= int(h) <= 8000:
+        return f"{int(w)}x{int(h)}"
+    return START_DEFAULT
+
+
+def remembered_bounds():
+    """Whether the profile has a window placement saved - a second launch."""
+    try:
+        prefs = json.loads((PROFILE / "Default" / "Preferences").read_text(encoding="utf-8"))
+        return bool(prefs.get("browser", {}).get("app_window_placement"))
+    except (OSError, ValueError, AttributeError):
+        return False
+
 
 def find_browser():
     """The first browser that can open an app window, as (path, name)."""
@@ -56,30 +87,38 @@ def find_browser():
     return None, None
 
 
-def command(browser, url):
+def command(browser, url, start=START_DEFAULT, remembered=None):
     """The browser as an app window on ELMER, in a profile of ELMER's own.
 
-    No size or position is given. The profile remembers the window's last
-    bounds - which screen, how big - and the zoom the person set with
-    Ctrl and the wheel, and restores both; a size on the command line
-    overrode the first of those on every launch, so the window came back
-    where ELMER put it rather than where the person had left it.
+    The profile remembers the window's last bounds - which screen, how big
+    - and the zoom set with Ctrl and the wheel, and restores both. What
+    ELMER adds about size follows `start` (see START_SETTING): nothing, for
+    "as-left" with bounds saved; maximised for a first launch or by choice;
+    a fixed size by choice. A size given every launch regardless was what
+    made the window come back where ELMER put it, not where it was left.
     """
     PROFILE.mkdir(parents=True, exist_ok=True)
     joiner = "&" if "?" in url else "?"
-    return [browser, f"--app={url}{joiner}{OWNER_FLAG}",
-            f"--user-data-dir={PROFILE}",
-            "--no-first-run", "--no-default-browser-check",
-            "--disable-features=Translate"]
+    cmd = [browser, f"--app={url}{joiner}{OWNER_FLAG}",
+           f"--user-data-dir={PROFILE}",
+           "--no-first-run", "--no-default-browser-check",
+           "--disable-features=Translate"]
+    start = start_choice(start)
+    remembered = remembered_bounds() if remembered is None else remembered
+    if start == "maximized" or (start == "as-left" and not remembered):
+        cmd.append("--start-maximized")
+    elif start != "as-left":
+        cmd.append("--window-size=" + start.replace("x", ","))
+    return cmd
 
 
-def launch(url):
+def launch(url, start=START_DEFAULT):
     """Open the window. Returns (process, browser name) or (None, None)."""
     browser, name = find_browser()
     if not browser:
         return None, None
     try:
-        process = subprocess.Popen(command(browser, url),
+        process = subprocess.Popen(command(browser, url, start),
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError as exc:
         log.warning("window: could not start %s: %s", name, exc)

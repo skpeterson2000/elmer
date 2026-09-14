@@ -103,6 +103,9 @@ function renderUpdate(d) {
   // A redraw during an update - somebody pressing Check now while it runs -
   // would otherwise hand back a fresh button that looks pressable and is not.
   applyButtons(updating);
+  // The window's own setting, shown as it is rather than as the first option.
+  const ws = document.getElementById('window-start');
+  if (ws) api('/api/window').then(w => { if (w && w.start) ws.value = w.start; }).catch(() => {});
 }
 
 function updateControls(d, waiting) {
@@ -119,6 +122,18 @@ function updateControls(d, waiting) {
       '<select id="update-policy">' + options.map(([v, label]) =>
         '<option value="' + v + '"' + (d.policy === v ? ' selected' : '') + '>' +
         label + '</option>').join('') + '</select></label>' +
+    /* Only in the window of ELMER's own: how it opens next time. The
+       default respects what the person left - size, screen and zoom are
+       the profile's memory - and a first launch offers it maximised. */
+    (document.body.dataset.window
+      ? '<label class="tiny muted">This window opens&nbsp;' +
+        '<select id="window-start">' +
+          '<option value="as-left">where I left it</option>' +
+          '<option value="maximized">maximized</option>' +
+          '<option value="1280x860">1280 × 860</option>' +
+          '<option value="1600x1000">1600 × 1000</option>' +
+        '</select></label>'
+      : '') +
     '</div>' +
     (d.status && d.status.behind && d.status.commits.length
       ? '<ul class="facts" style="margin-top:.6rem">' + d.status.commits.map(c =>
@@ -218,6 +233,12 @@ document.addEventListener('click', async e => {
 });
 
 document.addEventListener('change', async e => {
+  const start = e.target.closest('#window-start');
+  if (start) {
+    await api('/api/window', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                              body: JSON.stringify({start: start.value})});
+    return;
+  }
   if (e.target.id !== 'update-policy') return;
   renderUpdate(await postJSON('/api/update/policy', {policy: e.target.value}));
   toast('Updates', {notify: 'ELMER will tell you when one appears, and wait',

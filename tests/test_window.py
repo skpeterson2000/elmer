@@ -41,6 +41,30 @@ def run():
     cmd = window.command("browser.exe", "http://localhost:5000/?x=1")
     check("  a query already there is joined, not doubled", cmd[1], "--app=http://localhost:5000/?x=1&elmer_window=1")
 
+    print("\n-- how it opens: the person's preference, and a first launch's offer --")
+    size = lambda c: [a for a in c if a.startswith("--window-size") or a == "--start-maximized"]  # noqa: E731
+    check("nothing saved yet: maximised, as the offer",
+          size(window.command("b", "http://x/", "as-left", remembered=False)), ["--start-maximized"])
+    check("bounds saved, left as they were: nothing said",
+          size(window.command("b", "http://x/", "as-left", remembered=True)), [])
+    check("maximised by choice: every launch, saved bounds or not",
+          size(window.command("b", "http://x/", "maximized", remembered=True)), ["--start-maximized"])
+    check("a size by choice: that size",
+          size(window.command("b", "http://x/", "1280x860", remembered=True)), ["--window-size=1280,860"])
+    check("a setting as typed is made valid", window.start_choice(" 1600 X 1000 "), "1600x1000")
+    check("  and nonsense is the default", window.start_choice("huge"), "as-left")
+    check("  as is a size no screen has", window.start_choice("10x10"), "as-left")
+
+    print("\n-- the setting, kept with the unit's --")
+    client0 = appmod.app.test_client()
+    local0 = {"REMOTE_ADDR": "127.0.0.1"}
+    check("the default", client0.get("/api/window", environ_base=local0).get_json()["start"], "as-left")
+    r = client0.post("/api/window", json={"start": "maximized"}, environ_base=local0)
+    check("set to maximised", r.get_json()["start"], "maximized")
+    check("  and kept", client0.get("/api/window", environ_base=local0).get_json()["start"], "maximized")
+    check("  not from the LAN", client0.post("/api/window", json={"start": "as-left"},
+                                            environ_base={"REMOTE_ADDR": "10.0.0.5"}).status_code, 403)
+
     print("\n-- the watcher --")
     stopped = []
     real = host.stop_main_thread
