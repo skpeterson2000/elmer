@@ -128,3 +128,9 @@ elmer/static/golf/clubhouse/<course>.jpg) were made by KC9SP with a
 generative image model - a pro shop looking out over the course, not a
 photograph of the real one - and are shown as the backdrop while a round
 waits for its tee time.
+
+The pictures from the tee (artwork/pb1.jpg and its successors, served as
+elmer/static/golf/tee/<course>/<hole>.jpg) were made the same way, by
+KC9SP with a generative image model - a view down the hole from the tee
+box, not a photograph of the real one - and are the backdrop while a group
+is on the tee.

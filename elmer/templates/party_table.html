@@ -166,6 +166,7 @@ body.golfing .joinurl { font-size: .7rem; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
 /* The clubhouse's picture, when the unit has one - static/golf/clubhouse.jpg. */
+.clubhouse-pic.teepic { aspect-ratio: 16 / 6; max-height: 34vh; background-position: center 55%; }
 .clubhouse-pic { width: 100%; aspect-ratio: 16 / 7; max-height: 40vh; border-radius: 12px; margin-bottom: .8rem;
                  background-size: cover; background-position: center 40%;
                  box-shadow: inset 0 -70px 70px -40px rgba(0,0,0,.75); }
@@ -818,7 +819,11 @@ async function tick() {
         const address = gf.away_name && !gf.over
           ? `<p class="narrator"><b>${esc(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
               gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;<span class="cue" title="the question is coming"></span></p>` : '';
-        stage.innerHTML = (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
+        // The view from the tee, when the unit has the picture: the address
+        // is spoken over it while the group is on the tee.
+        const teePic = onTheTee && gf.tee_pic && !gf.over
+          ? `<div class="clubhouse-pic teepic" style="background-image:url(${esc(gf.tee_pic)})"></div>` : '';
+        stage.innerHTML = teePic + (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
           golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '');
         if (window.Voice) Voice.setHave(gf.voice_have);

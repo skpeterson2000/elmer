@@ -149,6 +149,9 @@ def run():
           (True, ["KC9SP"]))
     check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),
           ("pebble-beach", "Pebble Beach Golf Links"))
+    r = client.post("/api/party/tee-off", json={}, environ_base=local)
+    check("  and, on the first tee, the view from it", r.get_json()["golf"]["tee_pic"], "/static/golf/tee/pebble-beach/1.jpg")
+    autoplay.stop()
     for n in ("W1AW", "N0CALL", "K9XYZ"):
         client.post("/api/party/join", json={"name": n, "device": "phone"}, environ_base=local)
     st = client.get("/api/party/state", environ_base=local).get_json()

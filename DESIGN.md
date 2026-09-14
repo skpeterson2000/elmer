@@ -2441,7 +2441,11 @@ time a round is booked with nobody on the course yet, not only the first of
 the day. Cancel puts the tee sheet away. The course's clubhouse is the
 backdrop when the unit has a picture of it - `elmer/static/golf/clubhouse/
 <course>.jpg`; Pebble Beach's is a pro shop looking out over the course,
-made by the author, and the other two courses wait for theirs. The picture
+made by the author, and the other two courses wait for theirs. Each hole can
+have its own picture from the tee - `elmer/static/golf/tee/<course>/<hole>.jpg`,
+the first at Pebble Beach has one - shown over the address while the group
+is on the tee, so *Scott addresses the ball* is said over the view Scott
+would be looking at. The picture
 is meant to become a place: spots in it to press - the desk to check in,
 the door to the lounge, the pro shop for the record board - each opening
 its own panel. That is the next step, once the rooms behind the doors exist.

@@ -958,6 +958,13 @@ class Room:
                 self.golf_voice = sorted(p.stem for p in voice_dir.glob("*.mp3"))
             except OSError:
                 self.golf_voice = []
+            # And which holes have a picture from the tee: static/golf/tee/
+            # <course>/<hole>.jpg - the view the address is spoken over.
+            tee_dir = Path(__file__).resolve().parent / "static" / "golf" / "tee" / course["id"]
+            try:
+                self.golf_tees = sorted(int(p.stem) for p in tee_dir.glob("*.jpg") if p.stem.isdigit())
+            except OSError:
+                self.golf_tees = []
             self.mode = GOLF
             self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
@@ -1093,6 +1100,8 @@ class Room:
                     "tee_times": [name(p) for p in d.get("tee_times", [])],
                     "clips": list(getattr(self, "golf_clips", []) or []),
                     "voice_have": list(getattr(self, "golf_voice", []) or []),
+                    "tee_pic": (f"/static/golf/tee/{d['course']}/{d['hole']}.jpg"
+                                if d.get("hole") in (getattr(self, "golf_tees", []) or []) else None),
                     "address_tokens": (_voice_address(name(away), away_ball) if away_ball else []),
                     "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),
