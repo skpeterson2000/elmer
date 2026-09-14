@@ -22,6 +22,7 @@ turned on knowing what it carries. The drop is only which door it leaves by.
 """
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.request
@@ -46,12 +47,21 @@ VERSION = 1
 
 
 def url():
-    """Where this unit's reports are dropped, or an empty string."""
+    """Where this unit's reports are dropped, or an empty string.
+
+    The unit's own drop.json first; then ELMER_DROP_URL if it is in the
+    environment at all - the tests set it empty, so nothing a test writes
+    can reach the project's real drop; then the address built in.
+    """
     try:
         own = json.loads(SETTINGS.read_text()).get("url")
     except (OSError, ValueError, AttributeError):
         own = None
-    return str(own or URL or "").strip()
+    if own:
+        return str(own).strip()
+    if "ELMER_DROP_URL" in os.environ:
+        return os.environ["ELMER_DROP_URL"].strip()
+    return str(URL or "").strip()
 
 
 def configured():

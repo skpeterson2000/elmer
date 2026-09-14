@@ -15,6 +15,7 @@ filling them in is the choice - and forgetting them goes back to the drop.
 Nothing here opens a real socket to anywhere but this machine.
 """
 import json
+import os
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -73,6 +74,17 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 
 
 def run():
+    # The program carries the project's drop; this test is about the
+    # mechanism, so it starts from no address at all and puts it back.
+    baked = drop.URL
+    drop.URL = ""
+    try:
+        return _run()
+    finally:
+        drop.URL = baked
+
+
+def _run():
     global STATUS, REPLY
     print("\n-- with nothing set, there is no door --")
     check("no drop", drop.configured(), False)
@@ -161,10 +173,15 @@ def run():
     drop.SETTINGS.unlink()
     check("with nothing on the unit and nothing baked in: no door", home.way(), None)
     drop.URL = f"http://127.0.0.1:{PORT}/exec"
-    check("baked in: the drop", home.way()["via"], "drop")
+    check("baked in, but the tests' veto stands: still no door", home.way(), None)
+    veto = os.environ.pop("ELMER_DROP_URL")
+    check("veto lifted: the drop", home.way()["via"], "drop")
     drop.SETTINGS.write_text(json.dumps({"url": "http://127.0.0.1:9/other"}))
     check("  and the unit's own wins over it", drop.url(), "http://127.0.0.1:9/other")
     drop.SETTINGS.unlink()
+    os.environ["ELMER_DROP_URL"] = "http://127.0.0.1:9/env"
+    check("  the environment's over the built-in", drop.url(), "http://127.0.0.1:9/env")
+    os.environ["ELMER_DROP_URL"] = veto
     drop.URL = ""
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

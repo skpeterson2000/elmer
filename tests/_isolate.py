@@ -32,6 +32,11 @@ REAL = Path(os.environ.get("ELMER_ISOLATE_WATCH") or (ROOT / "data"))
 
 STATE = Path(tempfile.mkdtemp(prefix="elmer-test-"))
 os.environ["ELMER_STATE"] = str(STATE)
+# And no way home. The program carries the project's drop, and a test that
+# sends a report must not send it there - a field report from a runner in
+# somebody's inbox is not a test passing. Empty means "no drop"; a test of
+# the drop itself points a unit-level drop.json at a stand-in.
+os.environ["ELMER_DROP_URL"] = ""
 
 # The guard. Not a fingerprint of data/ - a live ELMER on the same machine
 # writes its log and its database every second, and a fingerprint blames
