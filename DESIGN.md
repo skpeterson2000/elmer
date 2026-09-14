@@ -2377,6 +2377,30 @@ and attention is one spotlight, not several. Clips of the swing, when they
 come, will go in the gap between the answer and the next address, not over
 the question.
 
+**The narrator.** A stroke is told the way a commentator tells it, in a
+line with the golfer's name in it. Before the question: *Halyard addresses
+the ball, the iron in hand, 162 to go from the fairway…* with a pulsing cue
+beside it - the moment at the tee, theirs to enjoy - and then the question.
+After the answer, two beats: first the shot in golfing terms alone - *Halyard…
+Topped it. Iron, a foul ball - short and into the rough* - and only then the
+answers, theirs and the right one at once, two colours side by side, which
+people read fine as long as it is one car of the train at a time. The tee
+shot gets the hole read out; every stroke after it gets the narrator alone,
+since we were all there for the start of the hole. What is said goes on the
+screen; a voice or a sound hangs on `window.golfCue(text)`, a stub on
+purpose until there is a voice worth having.
+
+**A hole in one** is real on a par 3 - about one in twelve thousand for an
+amateur, which nobody would ever see here - so a right answer from the tee
+of a par 3 drops at one in fifty instead: rare, and possible. Never on a par
+4 or 5, where the real world says almost never and the game says never.
+
+**Regulars and the record board.** A table remembers who has played at it
+- the last two dozen names, offered back to every seat's and phone's name
+box so nobody types their own name twice - and keeps a golf record board by
+name: rounds played, best to par and the course it was on, aces. It stands
+at the end of a round, under the card; practice players are not on it.
+
 **A round is joined by tee time.** Once a round is on, the table screen is
 golf's: the Gaming Center and the round controls stand down, the QR stays
 and reads *scan to arrange a tee time*. Somebody arriving while the group

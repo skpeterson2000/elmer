@@ -130,8 +130,9 @@ function showJoin(reason) {
   view.innerHTML = `
     <div class="join">
       <p class="big">What should we call you?</p>
-      <input id="nm" maxlength="24" autocomplete="off" autocapitalize="words"
+      <input id="nm" maxlength="24" autocomplete="off" autocapitalize="words" list="regulars"
              placeholder="A name, a callsign, or an alias">
+      <datalist id="regulars"></datalist>
       <p class="tiny muted" style="margin:.3rem 0 .9rem">This is what the room sees. Play under whatever you like.</p>
       <p class="small" style="margin:0 0 .3rem">The name or callsign you want on any certificate won today</p>
       <input id="cert" maxlength="48" autocomplete="off" autocapitalize="words"
@@ -379,6 +380,7 @@ function golfHeadHTML(gf) {
    is on a clock. */
 function golfTurnHTML(gf) {
   if (gf.over) return '';
+  if (gf.away_name && !gf.your_turn && !gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>${escapeHTML(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + escapeHTML(gf.away_club) + ' in hand' : ''}&hellip; The question comes up in a moment; read it with them.</p>`;
   if (gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>You have a tee time.</b> The group picks you up ${gf.next_hole ? 'at the ' + gf.next_hole + ordinal(gf.next_hole) : 'at the next hole'}; watch this one with them - the questions are worth reading.</p>`;
   if (gf.your_turn) return '<p style="margin:0 0 .5rem"><b>Your stroke.</b> Take your time.</p>';
   if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${escapeHTML(gf.away_lie || '')}${gf.away_club ? ' &middot; the ' + escapeHTML(gf.away_club) : ''}.<br>Read the question with them; the next one is yours.</p>`;
@@ -491,7 +493,9 @@ async function send(index, button) {
    asks and which is why most people who stay in the hobby stayed. Not exam
    material, on purpose: the exam is what the game is already made of. */
 let currentRound = null;
+api('/api/party/regulars').then(r => { const d = r.data || r; const dl = document.getElementById('regulars'); if (dl) dl.innerHTML = (d.regulars || []).map(n => `<option value="${escapeHTML(n)}">`).join(''); }).catch(() => {});
 let closedSeenAt = null;
+const revealBeat = {};
 const SCORING_MS = 3000;
 
 function paintCard(round) {
@@ -555,6 +559,14 @@ function paintResults(round, shoot) {
   const gf = s_last && s_last.golf;
   if (gf && gf.last && gf.last.length) {
     const wasMine = gf.last.some(s => s.player === me.id);
+    // Two beats: the shot in golfing terms first, then the answers together.
+    if (wasMine && !revealBeat[round.number]) {
+      revealBeat[round.number] = true;
+      const mine = gf.last.find(s => s.player === me.id);
+      view.innerHTML = `${golfHeadHTML(gf)}<div class="verdict in"><div class="h">${escapeHTML(mine.call || '')}</div><div class="t">${escapeHTML(mine.words)}</div></div>`;
+      setTimeout(() => { shownRound = null; }, 4000);
+      return;
+    }
     view.innerHTML = `${golfHeadHTML(gf)}${golfPlaybackHTML(gf)}
       ${wasMine && !gf.over ? `<p style="padding:.6rem 0 0"><button class="choice" id="next-stroke" style="text-align:center"><b>Next stroke &rsaquo;</b></button>
         <span class="tiny muted" style="display:block;margin-top:.3rem">Read it first; the round waits for you.</span></p>` : ''}

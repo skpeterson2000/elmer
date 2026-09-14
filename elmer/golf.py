@@ -84,6 +84,12 @@ AIM = 12
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
+# A hole in one. Real on a par 3 - about one in twelve thousand for an
+# amateur, which nobody would ever see here - so a right answer from the tee
+# of a par 3 drops with these odds instead: rare, and possible, which is
+# what an ace is. Never on a par 4 or 5, where the real world says almost
+# never and the game says never.
+ACE_ODDS = 0.02
 # What a golfer says at the moment of contact, by what the ball did. The
 # screens show it big, so somebody knows what they hit without reading the
 # coloured answer - and a clip of the swing can go with it later; the
@@ -300,8 +306,14 @@ class Golf:
             return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
         carry = self._carry(ball, club, wind, h["yards"] - ball.at)
         landed = ball.at + carry
+        from_the_tee = ball.strokes == 0
         ball.strokes += 1
         left = h["yards"] - landed
+        if from_the_tee and h["par"] == 3 and self.rng.random() < ACE_ODDS:
+            ball.at = h["yards"]
+            ball.holed = True
+            return {"kind": "holed", "words": f"{club}, {h['yards']} yards - IN THE HOLE. An ace.",
+                    "carry": h["yards"], "wind": wind, "ace": True}
         edge = h["green"] / 2 + 5                # the green's depth either side of the pin
         # On the green is on the green, whatever bunkers ring it. Off it, in
         # the line of play only: a fair ball down the middle avoids the
@@ -399,7 +411,8 @@ class Golf:
             shot = self._fair(h, ball, club)
         else:
             shot = self._foul(h, ball, club)
-        shot["call"] = self.rng.choice(CALLS.get(shot["kind"], ["That's a shot."]))
+        shot["call"] = ("A hole in one!" if shot.get("ace")
+                        else self.rng.choice(CALLS.get(shot["kind"], ["That's a shot."])))
         if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
             ball.picked_up = True
             ball.strokes = h["par"] + PICK_UP_OVER

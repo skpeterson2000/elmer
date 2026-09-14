@@ -120,6 +120,22 @@ def run():
     room.leave(late)
     check("leaving takes the ball", late in room.golf.balls, False)
 
+    print("\n-- the regulars, and the record board --")
+    client.post("/api/party/join", json={"name": "W9REG", "device": "phone"}, environ_base=local)
+    r = client.get("/api/party/regulars", environ_base=local).get_json()
+    check("somebody who joined is remembered as a regular", "W9REG" in r["regulars"], True)
+    from elmer import db as _db
+    c2 = _db.connect()
+    appmod._note_golf_records(c2, [{"name": "KC9SP", "to_par": 2, "bot": False}, {"name": "Beacon", "to_par": 0, "bot": True}],
+                              "pebble-beach", "Pebble Beach Golf Links", [{"name": "KC9SP", "ace": True}])
+    appmod._note_golf_records(c2, [{"name": "KC9SP", "to_par": -1, "bot": False}], "st-andrews-old", "The Old Course", [])
+    c2.commit(); c2.close()
+    r = client.get("/api/party/regulars", environ_base=local).get_json()
+    me = next(x for x in r["records"] if x["name"] == "KC9SP")
+    check("two rounds, the best kept with its course, the ace counted",
+          (me["rounds"], me["best_to_par"], me["best_course"], me["aces"]), (2, -1, "The Old Course", 1))
+    check("  and practice players are not on the board", any(x["name"] == "Beacon" for x in r["records"]), False)
+
     print("\n-- strokes given, only with the switch --")
     party.close_room()
     room = party.room(create=True, cohorts=1)

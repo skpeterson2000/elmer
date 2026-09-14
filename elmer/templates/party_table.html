@@ -165,6 +165,13 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfstage .figwrap-large .figfull img { max-height: 30vh; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
+/* The narrator: one line, large, the golfer's name in it. */
+.narrator { font-size: 1.3rem; margin: .4rem 0 .6rem; }
+.narrator b { color: var(--amber); }
+.narrator .cue { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: var(--green);
+                 margin-left: .5rem; vertical-align: middle; animation: cue 1s ease-in-out infinite; }
+@keyframes cue { 50% { opacity: .2; } }
+.records td { padding: .2rem .5rem .2rem 0; }
 .shotcall { font-size: 1.15rem; font-weight: 700; color: var(--amber); }
 .shotclip { max-width: 100%; max-height: 8rem; display: block; margin: .3rem 0; border-radius: 8px; }
 .seatcol .clubrow { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .5rem; }
@@ -234,7 +241,7 @@ body.golfing .joinurl { font-size: .7rem; }
         <div class="hotseat" id="hotseat">
           <div class="tiny muted" style="margin:.7rem 0 .3rem">Or play at this screen &mdash; two can sit here, side by side, phones or no phones.</div>
           <div class="hs-row" data-seat="A">
-            <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off">
+            <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off" list="regulars">
             <select class="hs-lic" title="License class held, if you care to say - for the class report only, never shown">
               <option value="">Class?</option>
               <option value="none">None yet</option>
@@ -249,7 +256,9 @@ body.golfing .joinurl { font-size: .7rem; }
             <button class="btn sm ghost" data-stand="A" hidden>Stand up</button>
           </div>
           <div class="hs-row" data-seat="B">
-            <input class="hs-name" maxlength="24" placeholder="Seat B &mdash; a name" autocomplete="off">
+            <input class="hs-name" maxlength="24" placeholder="Seat B &mdash; a name" autocomplete="off" list="regulars">
+          {# The people who have played here, offered back to the name boxes. #}
+          <datalist id="regulars"></datalist>
             <select class="hs-lic" title="License class held, if you care to say - for the class report only, never shown">
               <option value="">Class?</option>
               <option value="none">None yet</option>
@@ -773,8 +782,16 @@ async function tick() {
       chip.textContent = gf.over ? 'round over' : `golf · ${gf.hole}${ordinal(gf.hole)}`;
       if (painted !== key) {
         painted = key;
-        stage.innerHTML = golfHead(gf) + `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>` +
-          golfBalls(gf) + golfTeeTimes(gf) + golfPlayback(gf) + golfBoard(gf);
+        // The tee shot gets the hole read out - par, yards, wind. Every stroke
+        // after it gets the narrator alone: we were all there for the start.
+        const onTheTee = Object.values(gf.balls || {}).every(b => b.strokes === 0);
+        const address = gf.away_name && !gf.over
+          ? `<p class="narrator"><b>${esc(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
+              gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;<span class="cue" title="the question is coming"></span></p>` : '';
+        stage.innerHTML = (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
+          address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
+          golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '');
+        if (address) narrate(`${gf.away_name} addresses the ball`);
       }
       return;
     }
@@ -869,6 +886,19 @@ async function tick() {
       // A stroke, not a race: the answer, then where the ball went, and
       // the group's balls. No seconds, no points, no placings.
       const mineHere = atScreen.filter(x => round.to == null || x.id === round.to);
+      // Two beats: first the shot in golfing terms - the call, the club, the
+      // yards - and only then the answers, theirs and the right one at once.
+      if (!revealBeat[round.number]) {
+        revealBeat[round.number] = performance.now();
+        const shot = (s.golf.last || [])[0];
+        stage.innerHTML = golfHead(s.golf) + (shot
+          ? `<p class="narrator"><b>${esc(shot.name)}</b>&hellip; ${esc(shot.call || '')}</p><p class="qtext">${esc(shot.words)}</p>`
+          : '<p class="narrator">The ball is away&hellip;</p>');
+        if (shot) narrate(`${shot.name}: ${shot.call || shot.words}`);
+        painted = key + ':beat';
+        setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS);
+        return;
+      }
       const next = mineHere.length
         ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button><span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
         : '';
@@ -969,6 +999,34 @@ document.getElementById('endtable').addEventListener('click', async () => {
   await api('/api/party/end', {});
   location.href = '/';
 });
+
+/* The narrator, and the cue. What is said goes on the screen; a voice or a
+   sound can be hung on golfCue later - a stub for now, on purpose. */
+const SHOT_BEAT_MS = 4000;
+const revealBeat = {};
+function narrate(text) {
+  try { if (typeof window.golfCue === 'function') window.golfCue(text); } catch (e) {}
+}
+
+/* The people who have played at this table, offered back to the name
+   boxes, and the golf record board. */
+let recordsCache = null;
+async function loadRegulars() {
+  try {
+    const r = await api('/api/party/regulars');
+    recordsCache = r.data || r;
+    const dl = document.getElementById('regulars');
+    if (dl) dl.innerHTML = (recordsCache.regulars || []).map(n => `<option value="${esc(n)}">`).join('');
+  } catch (e) { /* the table plays without it */ }
+}
+function recordBoardHTML() {
+  const rows = (recordsCache && recordsCache.records) || [];
+  if (!rows.length) return '';
+  return `<div class="chip" style="margin-top:.8rem">Record board &middot; this table</div>
+    <table class="res records">${rows.slice(0, 10).map(r =>
+      `<tr><td>${esc(r.name)}</td><td class="ms">${r.rounds} round${r.rounds === 1 ? '' : 's'}</td><td class="ms">best ${r.best_to_par > 0 ? '+' + r.best_to_par : r.best_to_par === 0 ? 'E' : r.best_to_par}${r.best_course ? ' at ' + esc(r.best_course) : ''}</td><td class="ms">${r.aces ? r.aces + ' ace' + (r.aces === 1 ? '' : 's') : ''}</td></tr>`).join('')}</table>`;
+}
+loadRegulars();
 
 /* ------------------------------------------------------- tournament mode */
 const tourney = document.getElementById('tourney');

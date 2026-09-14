@@ -240,6 +240,23 @@ def run():
     check("from the sand, a hard one", g.hardness[hard] >= 0.7, True)
     check("with nothing measured, any", golf.Golf(["a"], flat_course(), seed=1).choose(["x", "y"], "a") in ("x", "y"), True)
 
+    print("\n-- a hole in one, rare and real --")
+    par3 = flat_course(par=3, yards=150, green=30)
+    had = golf.ACE_ODDS
+    golf.ACE_ODDS = 1.0
+    g = golf.Golf(["a"], par3, seed=1)
+    row = g.play_one("a", {"correct": True, "club": "iron"})
+    check("from the tee of a par 3, a right answer can drop", (row["shots"]["a"]["holed"], row["shots"]["a"].get("ace")), (True, True))
+    check("  and the call says so", row["shots"]["a"]["call"], "A hole in one!")
+    g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=1)
+    row = g.play_one("a", {"correct": True, "club": "driver"})
+    check("never on a par 4", row["shots"]["a"].get("ace"), None)
+    golf.ACE_ODDS = 0.0
+    g = golf.Golf(["a"], par3, seed=1)
+    row = g.play_one("a", {"correct": True, "club": "iron"})
+    check("and at no odds, none", row["shots"]["a"].get("ace"), None)
+    golf.ACE_ODDS = had
+
     print("\n-- arranging a tee time --")
     two = {**flat_course(par=3, yards=150), "holes": [
         {"n": n, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []}

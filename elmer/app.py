@@ -2986,6 +2986,11 @@ def api_party_join():
                             device=body.get("device"),
                             previous=body.get("previous"),
                             license=body.get("license"))
+    if player is not None and not player.bot:
+        try:
+            _note_regular(conn(), player.name)
+        except Exception as exc:                           # pragma: no cover
+            log.debug("regulars: %s", exc)
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
@@ -3358,6 +3363,70 @@ def _party_arm_start(room):
                     lambda: _party_begin(room, difficulty, True)).start()
 
 
+# The people who play at this table, and how they have done at golf: a list
+# a seat's name box offers back (nobody should type their own name in twice),
+# and a record board - rounds played, best to par, aces - kept with the
+# unit's settings, by name, because a name is what a table knows.
+REGULARS_KEY = "table_regulars"
+RECORDS_KEY = "golf_records"
+REGULARS_MOST = 24
+
+
+def _note_regular(connection, name):
+    name = str(name or "").strip()[:24]
+    if not name:
+        return
+    try:
+        rows = json.loads(db.unit_get(connection, REGULARS_KEY, "[]") or "[]")
+    except ValueError:
+        rows = []
+    rows = [r for r in rows if r.get("name", "").lower() != name.lower()]
+    rows.insert(0, {"name": name, "last": date.today().isoformat()})
+    db.unit_set(connection, REGULARS_KEY, json.dumps(rows[:REGULARS_MOST]))
+
+
+def _note_golf_records(connection, board, course_id, course_name, shots):
+    """The round is over: every name on the card gets its round counted, its
+    best to-par kept, and any ace this round on its tally."""
+    try:
+        recs = json.loads(db.unit_get(connection, RECORDS_KEY, "{}") or "{}")
+    except ValueError:
+        recs = {}
+    aces = {}
+    for s in shots or []:
+        if s.get("ace"):
+            aces[s.get("name")] = aces.get(s.get("name"), 0) + 1
+    for row in board or []:
+        if row.get("bot") or not row.get("name"):
+            continue
+        r = recs.setdefault(row["name"], {"rounds": 0, "best_to_par": None, "best_course": None, "aces": 0})
+        r["rounds"] += 1
+        to_par = row.get("to_par")
+        if to_par is not None and (r["best_to_par"] is None or to_par < r["best_to_par"]):
+            r["best_to_par"], r["best_course"] = to_par, course_name or course_id
+        r["aces"] += aces.get(row["name"], 0)
+        r["last"] = date.today().isoformat()
+    db.unit_set(connection, RECORDS_KEY, json.dumps(recs))
+    return recs
+
+
+@app.route("/api/party/regulars")
+def api_party_regulars():
+    """Who has played at this table, and the golf record board."""
+    connection = conn()
+    try:
+        regulars = json.loads(db.unit_get(connection, REGULARS_KEY, "[]") or "[]")
+    except ValueError:
+        regulars = []
+    try:
+        records = json.loads(db.unit_get(connection, RECORDS_KEY, "{}") or "{}")
+    except ValueError:
+        records = {}
+    board = sorted(({"name": n, **r} for n, r in records.items()),
+                   key=lambda r: (-(r.get("aces") or 0), r["best_to_par"] if r.get("best_to_par") is not None else 99, r["name"]))
+    return jsonify({"regulars": [r["name"] for r in regulars], "records": board})
+
+
 def _table_writes_its_rounds(room):
     """A table's own rounds go into the log a hall's do, once per room.
 
@@ -3390,6 +3459,24 @@ def _table_writes_its_rounds(room):
         finally:
             connection.close()
     room.on_round_closed.append(_write)
+
+    def _records(summary):
+        g = summary.get("golf") or {}
+        if not g.get("round_over"):
+            return
+        view = room.golf_view() or {}
+        board = [{**r, "bot": (view.get("balls") or {}).get(str(r["player"]), {}).get("bot")
+                  or any(p.id == r["player"] and p.bot for p in room.players.values())}
+                 for r in view.get("leaderboard") or []]
+        shots = [s for r in room.golf.history for s in
+                 ({**sh, "name": view["balls"].get(str(p), {}).get("name")} for p, sh in r.get("shots", {}).items())] if room.golf else []
+        connection = db.connect()
+        try:
+            _note_golf_records(connection, board, view.get("course"), view.get("course_name"), shots)
+            connection.commit()
+        finally:
+            connection.close()
+    room.on_round_closed.append(_records)
 
 
 def _credit_players(connection, summary, rows):
