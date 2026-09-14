@@ -1287,3 +1287,24 @@ body.hs-held { overflow: hidden; }
                     color: var(--dimmer); white-space: nowrap; }
 .roommark .credit b { font-weight: 600; color: var(--dim); }
 @media (max-width: 40rem) { .roommark .credit { display: none; } }
+
+/* A question's figure, and the part it names cut out and enlarged beside
+   it (figure.js). The cut-out is a window on the same image, scaled and
+   shifted; the ring is the window's own edge, amber like the pick. */
+.figwrap { display: flex; gap: .8rem; align-items: flex-start; flex-wrap: wrap; margin: .3rem 0 .9rem; }
+.figwrap .figfull { flex: 1 1 16rem; min-width: 12rem; }
+.figwrap .figfull img { max-width: 100%; height: auto; border-radius: 10px; background: #fff; display: block; }
+.figwrap .figzoom { position: relative; overflow: hidden; flex: 0 0 auto; width: 13rem; height: 10rem;
+                    border-radius: 12px; border: 3px solid var(--amber); background: #fff;
+                    box-shadow: 0 0 0 4px rgba(255,180,84,.25); }
+.figwrap .figzoom img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; opacity: 0; }
+.figwrap .figzoom.fitted img { opacity: 1; transition: opacity .25s; }
+.figwrap .figzoom .figpart { position: absolute; left: .4rem; bottom: .3rem; font: 700 .72rem var(--mono);
+                              letter-spacing: .05em; text-transform: uppercase; color: #7a4b00;
+                              background: rgba(255,255,255,.85); padding: .1rem .4rem; border-radius: 6px; }
+.figwrap-large .figfull { flex-basis: 24rem; }
+.figwrap-large .figfull img { max-height: 42vh; width: auto; }
+.figwrap-large .figzoom { width: 20rem; height: 15rem; }
+.figwrap-small .figfull { flex-basis: 10rem; }
+.figwrap-small .figzoom { width: 11rem; height: 8.5rem; }
+@media (max-width: 40rem) { .figwrap .figzoom { width: 100%; height: 11rem; } }

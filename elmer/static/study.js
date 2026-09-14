@@ -74,7 +74,7 @@ function render() {
       escapeHTML(q.section) + ' ' + escapeHTML(q.section_title) +
       ' <span style="float:right">' + escapeHTML(seenNote) + '</span></div>' +
     '<div class="question-text">' + escapeHTML(q.text) + '</div>' +
-    figureHTML(q.figure) +
+    figureHTML(q.figure, q.highlight) +
     '<div class="choices">' + q.choices.map((c, i) =>
       '<button class="choice" data-i="' + i + '">' +
         '<span class="choice-key">' + 'ABCD'[i] + '</span><span>' + escapeHTML(c) + '</span>' +

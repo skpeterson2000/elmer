@@ -40,6 +40,35 @@ class Pool:
         name = self.figures.get(fig)
         return f"/figure/{self.pool_id}/{name}" if name else None
 
+    def figure_highlight(self, question):
+        """Where the part a question names sits in its figure, or None.
+
+        "What is component 3 in figure T-2?" names a part, and a room
+        identifies it faster with that part ringed and enlarged beside the
+        whole figure. "Which symbol represents a Zener diode?" names
+        nothing - the answer is a place in the figure - and gets no
+        highlight, whatever the map says. The map is the pool's
+        highlights.json: a box per numbered part, as fractions of the image.
+        """
+        import json
+        import re
+        fig = question.get("figure")
+        if not fig:
+            return None
+        m = re.search(r"component\s+(\d+)", question.get("text") or "", re.IGNORECASE)
+        if not m:
+            return None
+        if not hasattr(self, "_highlights"):
+            path = ROOT / "data" / "figures" / self.pool_id / "highlights.json"
+            try:
+                self._highlights = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                self._highlights = {}
+        box = (self._highlights.get(fig) or {}).get(m.group(1))
+        if not box:
+            return None
+        return {"part": m.group(1), "box": [float(v) for v in box]}
+
 
 @lru_cache(maxsize=1)
 def load_pools():

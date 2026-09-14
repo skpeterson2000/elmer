@@ -2184,6 +2184,24 @@ The rules are `elmer/golf.py`, with no clock or question in them;
 the playoff through them, and `tests/test_golf_table.py` the table around
 them.
 
+### The figure, and the part it names
+
+A question with a figure shows the figure on every screen - the table's,
+the phone's, the big board's, the study page - which the table and the
+board did not do. And a question that *names a part* - "What is component 3
+in figure T-2?", which is every Technician figure question - shows that
+part cut out and enlarged beside the whole figure, ringed in amber and
+labelled, the way a finger on the page would show it: a room of people on
+phones has thirty seconds, and identifying a symbol is faster with the
+symbol in front of you. The whole figure stays beside the cut-out, because
+a symbol means what it means from what it is wired to. A question that asks
+*which* symbol is the thing - every General and Extra figure question - gets
+no cut-out, whatever the map says, since the answer is a place in the
+figure. The map is `data/figures/tech2026/highlights.json`: a box per
+numbered part, as fractions of the image, read off the figures by eye and
+open to correction; `tests/test_figure_highlight.py` checks every
+Technician figure question has its part on it.
+
 ### The room's mark, and the credit
 
 Every room page - the table, a phone at it, net control, the big board -

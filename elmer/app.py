@@ -2167,6 +2167,7 @@ def api_next():
         "choices": shown["choices"],
         "order": shown["order"],
         "figure": pool.figure_url(question),
+        "highlight": pool.figure_highlight(question),
         "refs": question.get("refs"),
         "remaining": len(queue),
         "card": {"seen": card["seen"], "correct": card["correct"],
@@ -3419,6 +3420,7 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
                  "section": question["section"],
                  "section_title": pool.section_title(question["section"]),
                  "figure": pool.figure_url(question),
+                 "highlight": pool.figure_highlight(question),
                  "difficulty": str(difficulty).lower()})
 
 
@@ -4034,7 +4036,8 @@ def _ask_net(running, level="technician", section=None, seconds=None):
         {"text": question["text"], "choices": shown["choices"],
          "section": question["section"],
          "section_title": pool.section_title(question["section"]),
-         "figure": pool.figure_url(question), "difficulty": wanted},
+         "figure": pool.figure_url(question), "highlight": pool.figure_highlight(question),
+         "difficulty": wanted},
         seconds=float(seconds or party.DEFAULT_ROUND_SECONDS))
     log.info("net round %d: %s %s across %d units",
              running.round_number, pool_id, question["id"],

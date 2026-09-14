@@ -411,7 +411,7 @@ function paintQuestion(round, ct, gf) {
     ${ct ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:${seated ? 'var(--amber)' : 'var(--dim)'}">${seated ? 'CutThroat &middot; you are out - watching. ' : 'CutThroat &middot; '}${cutLine(ct, false)}</p>` : ''}
     ${gf && gf.you ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par} &middot; ${gf.you.left} to go &middot; <b>${escapeHTML(gf.your_club || gf.you.default_club || '')}</b></p>` : ''}
     <p class="big">${escapeHTML(q.text || '')}</p>
-    ${q.figure ? `<img src="${q.figure}" alt="" style="max-width:100%;border-radius:10px;margin-bottom:1rem">` : ''}
+    ${figureBlock(q, {size: 'small'})}
     <div id="choices">${choices}</div>`;
   if (seated) { answered = true; return; }
   document.querySelectorAll('.choice').forEach(b => {
@@ -826,5 +826,6 @@ if (remembered) {
 }
 </script>
 <script src="{{ asset('owner.js') }}"></script>
+<script src="{{ asset('figure.js') }}"></script>
 </body>
 </html>

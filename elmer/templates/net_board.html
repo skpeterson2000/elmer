@@ -748,6 +748,7 @@ async function tick() {
         <div class="question">
           <div class="tag">Round ${round.number} · ${esc(q.difficulty || '')} · ${esc(q.section || '')}</div>
           <p>${esc(q.text || '')}</p>
+          ${figureBlock(q, {size: 'large'})}
         </div>` : reveal(round, board.last)) +
       `<div class="cols">${left(board)}${right(board)}</div>`;
   } else {
@@ -883,5 +884,6 @@ tick();
 scheduleBoard();
 </script>
 <script src="{{ asset('owner.js') }}"></script>
+<script src="{{ asset('figure.js') }}"></script>
 </body>
 </html>

@@ -143,9 +143,15 @@ function fmtDuration(seconds) {
   return m + ':' + String(s).padStart(2, '0');
 }
 
-/* Render a figure: SVGs go in an <object> so they stay crisp and selectable. */
-function figureHTML(url) {
+/* Render a figure: SVGs go in an <object> so they stay crisp and selectable.
+   A question that names a part - "component 3 in figure T-2" - gets the
+   part cut out and enlarged beside the figure (figure.js), the way the
+   game screens show it. */
+function figureHTML(url, highlight) {
   if (!url) return '';
+  if (highlight && window.figureBlock && !url.endsWith('.svg')) {
+    return figureBlock({figure: url, highlight: highlight}, {size: 'medium'});
+  }
   const tag = url.endsWith('.svg')
     ? '<object type="image/svg+xml" data="' + url + '"></object>'
     : '<img src="' + url + '" alt="pool diagram">';

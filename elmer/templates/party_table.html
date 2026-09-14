@@ -709,6 +709,7 @@ async function tick() {
       stage.innerHTML = `
         <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
         <p class="qtext">${esc(q.text || '')}</p>` +
+        figureBlock(q, {size: 'medium'}) +
         boardHTML(q, round.answer, false) +
         (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
       return;
@@ -757,6 +758,7 @@ async function tick() {
     stage.innerHTML = (s.golf ? golfHead(s.golf) : '') + `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="qtext">${esc(q.text || '')}</p>` +
+      figureBlock(q, {size: 'large'}) +
       (atScreen.length ? '' : boardHTML(q, null)) + `
       <div class="bigclock" id="clock"></div>
       <p class="hint" id="waiting"></p>` +
@@ -1095,5 +1097,6 @@ scheduleTable();
 <script src="{{ asset('certs.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script src="{{ asset('owner.js') }}"></script>
+<script src="{{ asset('figure.js') }}"></script>
 </body>
 </html>
