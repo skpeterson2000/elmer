@@ -560,7 +560,9 @@ function golfBoard(gf) {
 function golfLine(gf) {
   if (gf.over) return `<b>${esc(gf.winner_name || 'Somebody')}</b> wins the round.`;
   if (gf.playoff && gf.playoff.length) return 'Playoff &mdash; sudden death, hole by hole.';
-  if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away.`;
+  if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${esc(gf.away_lie || '')}` +
+    (gf.away_club ? ` &middot; the ${esc(gf.away_club)}` : '') +
+    (gf.away_bot ? '<br><span class="hint" style="display:inline">The question comes up in a moment. Read it with them: the next one is yours.</span>' : '');
   return 'Next stroke coming.';
 }
 /* The stroke in hand, for the line above the question: who is away, and
@@ -569,7 +571,7 @@ function golfAwayLine(gf) {
   const b = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
   if (!b) return '';
   return `<p class="hint" style="text-align:left;font-size:1rem;color:var(--text);margin:.2rem 0 .5rem">
-    <b>${esc(b.name)}</b> is away &middot; ${b.left} to go, ${esc(b.lie)} &middot; ${b.strokes} played</p>`;
+    <b>${esc(b.name)}</b> is away &middot; ${b.left} to go, ${esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(b.club) : ''}</p>`;
 }
 
 /* Where a CutThroat is, in a sentence the room can read - and the chairs:
@@ -896,7 +898,7 @@ async function tick() {
   stage.querySelectorAll('[data-seatclk]').forEach(el => { el.textContent = Math.ceil(round.remaining) + 's'; });
   const waiting = document.getElementById('waiting');
   if (waiting) waiting.textContent = round.to != null
-    ? (round.waiting_on ? `${round.to_name || 'somebody'}'s stroke - nothing is timed` : 'the ball is away')
+    ? (round.waiting_on ? `${round.to_name || 'somebody'}'s stroke - nothing is timed. Read it with them.` : 'the ball is away')
     : round.waiting_on
       ? `${round.waiting_on} player${round.waiting_on === 1 ? '' : 's'} still thinking`
       : (round.waiting_on_all

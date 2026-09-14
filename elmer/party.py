@@ -97,11 +97,36 @@ MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF)
 # only how long the room waits on a golfer who has walked away before it
 # plays their foul ball and moves the group on. Ten minutes.
 GOLF_SECONDS = 600.0
-# How long a practice player takes over a stroke, so the group is not
-# waiting on software: a few seconds to read the lie and swing.
-BOT_SWING = (2.0, 5.0)
-# And how long their shot stands on the screens before the next stroke.
-BOT_REVEAL = 4.0
+# A practice player's stroke is the other players' reading time. Golfers
+# watch the others hit; here the others read the question and consider the
+# choices while the practice player "reads" it too - so the swing comes at
+# reading pace, set by the length of the question (people read about 180
+# words a minute and take longer to weigh four choices than to read them),
+# never under BOT_READ_LEAST, and never over the table's pace box, which in
+# golf is the host's knob for how long the practice players take.
+BOT_READ_LEAST = 8.0
+BOT_READ_WPM = 180.0
+BOT_READ_BASE = 6.0             # the beat of looking up from the question
+# How long the stroke stands on the screens after it: the answer lit, the
+# ball in words, long enough to be read by somebody who reads slowly.
+BOT_REVEAL = 9.0
+# And before the question, the address: who is away, where the ball lies,
+# which club - alone on the screen for this long, so the room knows whose
+# shot it is before it has to read anything.
+GOLF_PRELUDE = 4.0
+
+
+def bot_swing_seconds(payload, pace=None):
+    """How long a practice player takes over a stroke: the question's
+    reading time, within the floor and the table's pace."""
+    words = len(str((payload or {}).get("text") or "").split())
+    for c in (payload or {}).get("choices") or []:
+        words += len(str(c).split())
+    seconds = BOT_READ_BASE + words * 60.0 / BOT_READ_WPM
+    seconds = max(BOT_READ_LEAST, seconds)
+    if pace:
+        seconds = min(seconds, max(BOT_READ_LEAST, float(pace)))
+    return seconds
 # A group on the course is a foursome. Practice players make it up to that
 # and no further, or one person waits through a queue of software swings.
 FOURSOME = 4
@@ -336,6 +361,7 @@ class Room:
         self.log_key = secrets.token_bytes(32)
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
+        self.golf_pace = None      # how long its practice players take, seconds
         self.clubs = {}            # player -> the club chosen for the next stroke
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
@@ -563,7 +589,9 @@ class Room:
             right = random.random() < accuracy
             wrong = [i for i in range(4) if i != rnd.answer_index]
             if rnd.to is not None:
-                quick, slow = BOT_SWING       # a swing, not a race
+                # A swing, not a race: at reading pace, give or take a breath.
+                swing = bot_swing_seconds(rnd.payload, self.golf_pace)
+                quick, slow = swing * 0.9, swing * 1.1
             rnd.bot_plan[player.id] = {
                 "at": random.uniform(quick, min(slow, max(quick + 0.5,
                                                           rnd.seconds - 1.0))),
@@ -892,6 +920,7 @@ class Room:
             self.golf = Golf(order, course, holes=holes, handicaps=handicaps,
                              seconds=seconds or DEFAULT_ROUND_SECONDS)
             self.clubs = {}
+            self.golf_pace = float(seconds or DEFAULT_ROUND_SECONDS)
             self.mode = GOLF
             self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
@@ -907,8 +936,18 @@ class Room:
             if summary["golf"].get("hole_done"):
                 return default            # the card, worth the look
             if all(p in self.players and self.players[p].bot for p in shots):
-                return min(default, BOT_REVEAL)
+                return max(default, BOT_REVEAL)
             return default
+
+    def golf_prelude(self):
+        """How long the address stands before the next stroke's question -
+        who is away, the lie, the club - or 0 when there is no stroke to
+        address."""
+        with self.lock:
+            g = self.golf
+            if g is None or g.over() or g.away() is None:
+                return 0.0
+            return GOLF_PRELUDE
 
     def golf_away(self):
         """Whose stroke it is, or None."""
@@ -964,8 +1003,16 @@ class Room:
             board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
             mine = balls.get(player_id) if player_id is not None else None
             away = d.get("away")
+            away_ball = balls.get(away) if away is not None else None
             return {**d, "balls": balls, "leaderboard": board, "last": shots,
                     "away_name": name(away) if away is not None else None,
+                    # The address, for the screens: where the ball lies and
+                    # the club in hand, so the room knows the shot before
+                    # the question.
+                    "away_club": away_ball["club"] if away_ball else None,
+                    "away_left": away_ball["left"] if away_ball else None,
+                    "away_lie": away_ball["lie"] if away_ball else None,
+                    "away_bot": bool(away_ball and away_ball.get("bot")),
                     "your_turn": bool(player_id is not None and away == player_id),
                     "last_hole_done": bool(last and last.get("hole_done")),
                     "last_card": ({name(p): s for p, s in last["card"].items()} if last and last.get("card") else None),

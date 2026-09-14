@@ -2346,6 +2346,21 @@ ball finds the nearest trouble the club could have reached - water most
 often a drop and a penalty stroke - and trouble out of the club's reach is
 out of the foul ball's too.
 
+**The other players' strokes are your reading time.** Golfers watch the
+others hit, and here that is the point rather than the wait: while a
+practice player is away, the question and its choices are on every screen
+for everyone to read and weigh. So it is paced for people, who read slowly
+compared to computers and comprehend slower still. Before the question, the
+*address* stands alone on the screens for a few seconds - who is away, where
+the ball lies, how far, the club in hand - so the room knows whose shot it
+is before it has anything to read. Then the question goes up and the
+practice player takes as long over it as the question takes to read, about
+180 words a minute over the question and the choices, never under eight
+seconds, and never over the table's pace box - which in golf is the host's
+knob for how long the practice players take. Then the stroke stands, the
+answer lit and the ball in words, nine seconds before the next player is
+up. A person's own stroke is untimed, as before.
+
 **The questions have a thread.** Each hole takes one test area - a section
 of the pool, drawn from those not yet played this round - and stays on it
 until its questions run out, then takes another. Once every question in the

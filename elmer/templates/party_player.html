@@ -380,7 +380,7 @@ function golfHeadHTML(gf) {
 function golfTurnHTML(gf) {
   if (gf.over) return '';
   if (gf.your_turn) return '<p style="margin:0 0 .5rem"><b>Your stroke.</b> Take your time.</p>';
-  if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away. Watching.</p>`;
+  if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${escapeHTML(gf.away_lie || '')}${gf.away_club ? ' &middot; the ' + escapeHTML(gf.away_club) : ''}.<br>Read the question with them; the next one is yours.</p>`;
   return '';
 }
 function golfClubsHTML(gf) {
@@ -449,7 +449,7 @@ function paintQuestion(round, ct, gf) {
     ${gf ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par}${gf.you ? ` &middot; ${gf.you.left} to go, ${escapeHTML(gf.you.lie)}` : ''}</p>` : ''}
     ${gf ? (gf.your_turn
         ? '<p style="margin:0 0 .5rem"><b>Your stroke.</b> Take your time - nothing here is timed.</p>' + golfClubsHTML(gf)
-        : `<p style="margin:0 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away. Watching.</p>`) : ''}
+        : `<p style="margin:0 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away${gf.away_club ? ' with the ' + escapeHTML(gf.away_club) : ''}. Read it with them - what would you play?</p>`) : ''}
     <p class="big">${escapeHTML(q.text || '')}</p>
     ${figureBlock(q, {size: 'small'})}
     <div id="choices">${choices}</div>`;

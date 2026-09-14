@@ -40,6 +40,7 @@ class Director:
         self.state = "starting"
         self.next_at = 0.0
         self.error = None
+        self._addressed = False        # golf: the address before the stroke has stood
 
     def _tick(self):
         room = self.room
@@ -60,8 +61,24 @@ class Director:
 
         if rnd and rnd.closed:
             if time.monotonic() < self.next_at:
-                self.state = "revealing"
+                # The closed round stands through the reveal - and, in golf,
+                # through the address that follows it, which keeps its own name.
+                if self.state != "addressing":
+                    self.state = "revealing"
                 return
+
+        # Golf: before the question, the address - who is away, the lie, the
+        # club - stands alone on the screens for a beat, so the room knows
+        # whose shot it is before it has anything to read. A state of its
+        # own, so the screens can say so.
+        prelude = room.golf_prelude()
+        if prelude and not self._addressed:
+            self._addressed = True
+            self.state = "addressing"
+            self.next_at = time.monotonic() + prelude
+            return
+        if self.state == "addressing" and time.monotonic() < self.next_at:
+            return
 
         if self.rounds is not None and self.played >= self.rounds:
             self.state = "finished"
@@ -88,6 +105,7 @@ class Director:
             return
 
         self.state = "asking"
+        self._addressed = False
         self.ask()
         self.next_at = time.monotonic() + BETWEEN_MIN
 

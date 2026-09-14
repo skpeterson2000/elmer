@@ -94,13 +94,20 @@ def run():
     rnd = appmod._ask_party("general", None, 30)
     check("put to the practice player who is away", rnd.to, v["away"])
     plan = room.round.bot_plan.get(rnd.to)
-    check("  who swings in a few seconds", bool(plan) and party.BOT_SWING[0] <= plan["at"] <= party.BOT_SWING[1], True)
+    want = party.bot_swing_seconds(rnd.payload, room.golf_pace)
+    check("  who swings at reading pace, never under the floor",
+          bool(plan) and party.BOT_READ_LEAST <= plan["at"] <= max(want * 1.1, party.BOT_READ_LEAST) + 0.01, True)
+    check("  a long question takes longer than a short one",
+          party.bot_swing_seconds({"text": " ".join(["word"] * 60), "choices": ["a", "b"]}) >
+          party.bot_swing_seconds({"text": "short", "choices": ["a", "b"]}), True)
+    check("  and the table's pace caps it", party.bot_swing_seconds({"text": " ".join(["word"] * 200)}, 12), 12.0)
+    check("  the address stands before the question", room.golf_prelude(), party.GOLF_PRELUDE)
     check("  and the person cannot play it for them", room.submit(ann, 0, 1000)[0], None)
     room.round.opened_at -= plan["at"] + 1
     room.run_bots()
     check("  the swing arrives on its own", room.everyone_answered(), True)
     summary = room.close_round()
-    check("  and stands only briefly", room.reveal_seconds(summary, 8.0), party.BOT_REVEAL)
+    check("  and stands long enough to be read", room.reveal_seconds(summary, 8.0), party.BOT_REVEAL)
 
     print("\n-- sitting down late --")
     late = room.join("W9LATE")[0].id
