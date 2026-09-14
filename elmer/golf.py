@@ -142,6 +142,7 @@ class Golf:
         # The front nine unless told otherwise - the course's first nine,
         # which on a course with fewer holes is what it has.
         self.holes = list(holes) if holes else [h["n"] for h in course["holes"]][:9]
+        self.round_holes = list(self.holes)      # the card; a playoff adds holes but not to it
         self.handicaps = dict(handicaps or {})
         self.seconds = float(seconds)
         self.rng = random.Random(seed)
@@ -405,15 +406,17 @@ class Golf:
 
     def par_so_far(self, player):
         return sum(next(h["par"] for h in self.course["holes"] if h["n"] == n)
-                   for n in self.cards[player])
+                   for n in self.cards[player] if n in self.round_holes)
 
     def leaderboard(self):
-        """Everybody, best first: gross, strokes given, net, and to par."""
+        """Everybody, best first: gross, strokes given, net, and to par -
+        over the round's holes; a playoff decides, it does not count."""
         rows = []
         for p in self.players:
-            gross = sum(self.cards[p].values())
+            on_card = {n: s for n, s in self.cards[p].items() if n in self.round_holes}
+            gross = sum(on_card.values())
             given = int(self.handicaps.get(p, 0))
-            played = len(self.cards[p])
+            played = len(on_card)
             rows.append({"player": p, "gross": gross, "given": given, "net": gross - given,
                          "holes": played, "to_par": gross - given - self.par_so_far(p)})
         rows.sort(key=lambda r: (r["net"], r["gross"]))

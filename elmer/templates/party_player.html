@@ -276,6 +276,16 @@ function paintWaiting(state) {
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
   if (paintHallShootout(state)) return;
+  const gf = state.golf;
+  if (gf) {
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
+        <h2 style="margin:0 0 .4rem">Golf</h2>${golfHeadHTML(gf)}
+        ${gf.over ? `<p><b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.</p>` : golfClubsHTML(gf)}
+        ${golfPlaybackHTML(gf)}
+        <h3 style="margin:.8rem 0 .3rem">The card</h3>${golfBoardHTML(gf)}</div>`;
+    wireClubs();
+    return;
+  }
   const ct = state.cutthroat;
   if (ct) {
     // A CutThroat between questions: who is still in, and where it is.
@@ -327,6 +337,48 @@ function paintWaiting(state) {
   });
 }
 
+/* Golf, on a phone. Before each question the club, chosen here and sent
+   the moment it is tapped; the sensible one is lit until then and is what
+   the stroke gets if the clock on choosing runs out. After, the playback:
+   this player's stroke first, then the table's. Between, the card. */
+function golfHeadHTML(gf) {
+  const you = gf.you;
+  return `<p class="clock" style="margin:0 0 .3rem">${escapeHTML(gf.course_name)} &middot; ${ordinal(gf.hole)}${gf.hole_name ? ' ' + escapeHTML(gf.hole_name) : ''}
+    &middot; par ${gf.par} &middot; ${gf.yards} yd &middot; ${gf.wind_mph} mph ${escapeHTML(gf.hole_wind || '')}</p>` +
+    (you ? `<p style="margin:0 0 .6rem"><b>${you.holed ? 'Holed in ' + you.strokes : you.picked_up ? 'Picked up' : you.left + ' to go'}</b>
+      ${you.holed || you.picked_up ? '' : `&middot; ${escapeHTML(you.lie)} &middot; ${you.strokes} played`}</p>` : '');
+}
+function golfClubsHTML(gf) {
+  const you = gf.you;
+  if (!you || !you.clubs || !you.clubs.length || you.holed || you.picked_up) return '';
+  const chosen = gf.your_club || you.default_club;
+  return `<div class="pick" style="margin:.4rem 0">
+    <h3 style="margin:0 0 .4rem">Your club <span class="clock" id="clubleft">${gf.choosing && gf.club_seconds_left != null ? Math.ceil(gf.club_seconds_left) + 's' : ''}</span></h3>
+    <div id="clubs">${you.clubs.map(c => `<button class="choice club ${c === chosen ? 'picked' : ''}" data-club="${c}">
+      <span class="k">${c === 'putter' ? '&#9971;' : c[0].toUpperCase()}</span>${c}${c === you.default_club ? ' <span class="clock">sensible</span>' : ''}</button>`).join('')}</div></div>`;
+}
+function wireClubs() {
+  document.querySelectorAll('#clubs .club').forEach(b => b.addEventListener('click', async () => {
+    document.querySelectorAll('#clubs .club').forEach(x => x.classList.toggle('picked', x === b));
+    const r = await api('/api/party/club', {player: me.id, club: b.dataset.club});
+    if (!r.ok && r.data && r.data.message) { b.classList.remove('picked'); }
+  }));
+}
+function golfPlaybackHTML(gf) {
+  if (!gf.last || !gf.last.length) return '';
+  const mine = gf.last.find(s => s.player === me.id);
+  const others = gf.last.filter(s => s.player !== me.id);
+  return `${mine ? `<div class="verdict ${mine.holed ? 'right' : mine.kind === 'water' || mine.kind === 'missed' || mine.kind === 'sand' ? 'wrong' : 'in'}">
+      <div class="h">${escapeHTML(mine.words)}</div></div>` : ''}
+    <table class="board">${others.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${escapeHTML(s.words)}</td></tr>`).join('')}</table>`;
+}
+function golfBoardHTML(gf) {
+  return `<table class="board">${(gf.leaderboard || []).map(r =>
+    `<tr class="${r.player === me.id ? 'me' : ''}"><td class="n">${r.place}</td><td>${escapeHTML(r.name)}</td>
+     <td class="ms">${r.holes} holes</td><td class="ms">${gf.handicaps ? r.net + ' net' : r.gross}</td>
+     <td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>`;
+}
+
 /* CutThroat, on a phone: whether this player is still in, and where the
    game is. The seated see every question and the reveal - they just have
    no buttons that count, and are told so rather than left to press. */
@@ -341,7 +393,7 @@ function cutLine(ct, mine) {
   return where + you;
 }
 
-function paintQuestion(round, ct) {
+function paintQuestion(round, ct, gf) {
   const q = round.question || {};
   answered = false;
   paintedAt = performance.now();     // the clock the race is actually timed on
@@ -356,6 +408,7 @@ function paintQuestion(round, ct) {
       <span class="clock" id="left" style="margin-left:auto"></span>
     </div>
     ${ct ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:${seated ? 'var(--amber)' : 'var(--dim)'}">${seated ? 'CutThroat &middot; you are out - watching. ' : 'CutThroat &middot; '}${cutLine(ct, false)}</p>` : ''}
+    ${gf && gf.you ? `<p class="clock" style="margin:-.2rem 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par} &middot; ${gf.you.left} to go &middot; <b>${escapeHTML(gf.your_club || gf.you.default_club || '')}</b></p>` : ''}
     <p class="big">${escapeHTML(q.text || '')}</p>
     ${q.figure ? `<img src="${q.figure}" alt="" style="max-width:100%;border-radius:10px;margin-bottom:1rem">` : ''}
     <div id="choices">${choices}</div>`;
@@ -454,6 +507,12 @@ function paintResults(round, shoot) {
       <td class="ms">${(r.ms / 1000).toFixed(2)}s</td>
       ${shoot ? '' : `<td class="ms">${r.points || 0}</td>`}
     </tr>`).join('');
+  const gf = s_last && s_last.golf;
+  if (gf && gf.last && gf.last.length) {
+    view.innerHTML = `${golfHeadHTML(gf)}${golfPlaybackHTML(gf)}
+      <p class="state" style="padding:1rem 0">${gf.over ? `<b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.` : 'Next stroke coming.'}</p>`;
+    return;
+  }
   view.innerHTML = `
     ${shoot ? shootVerdict(mine, shoot)
      : mine ? `<div class="verdict ${mine.correct ? 'right' : 'wrong'}">
@@ -701,7 +760,7 @@ async function tick() {
   }
   if (shownRound !== round.number) {
     shownRound = round.number;
-    paintQuestion(round, s.cutthroat);
+    paintQuestion(round, s.cutthroat, s.golf);
   }
   // Answered, and the clock is nearly out: the scoring beat starts early so
   // it does not cut into the reveal, and the card gives way to it.

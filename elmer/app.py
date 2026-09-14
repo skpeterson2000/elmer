@@ -37,7 +37,7 @@ from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
                netwatch, pota, references, sweeps,
                gps, netcontrol,
                party, phonegps, prints, qr,
-               fieldreport, mail, monitoring, personal, reachout, repeaters,
+               fieldreport, golf, mail, monitoring, personal, reachout, repeaters,
                show, units,
                calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
                tournament, trivia, update, vna, whipbuild, op25)
@@ -3324,7 +3324,7 @@ def _subject_name(long_title, limit=48):
 
 @app.route("/api/party/mode", methods=["POST"])
 def api_party_mode():
-    """Which game this table is playing: a tournament, a shootout, or a CutThroat.
+    """Which game this table is playing: a tournament, a shootout, a CutThroat, or golf.
 
     A shootout needs the subjects of the pool being played, with their titles,
     because "T5C" is a filing reference and "Electrical principles" is a thing
@@ -3388,11 +3388,84 @@ def api_party_mode():
         autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
         log.info("party: CutThroat started (%s, %d players)", difficulty,
                  len(room.players))
+    elif wanted == party.GOLF:
+        # A round on the course that goes with the pool - Pebble Beach for
+        # Technician, the Old Course for General, Augusta for Extra. Front
+        # nine unless asked; strokes given only if the handicap switch is
+        # on, and then from each player's own study on this unit.
+        _not_this_tables_part()
+        difficulty = str(body.get("difficulty") or _party_class()).lower()
+        if difficulty not in party.DIFFICULTIES:
+            abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+        course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+        which = str(body.get("holes") or "front").lower()
+        holes = {"front": list(range(1, 10)), "back": list(range(10, 19)),
+                 "all": list(range(1, 19))}.get(which)
+        if holes is None:
+            try:
+                holes = [int(n) for n in str(which).split(",") if 1 <= int(n) <= 18]
+            except ValueError:
+                holes = list(range(1, 10))
+        room.fill_bots(body.get("level"))
+        handicaps = _golf_handicaps(room, difficulty, len(holes)) if body.get("handicap") else None
+        room.end_shootout()
+        room.end_cutthroat()
+        seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
+        started, why = room.begin_golf(course, holes, handicaps, seconds)
+        if started is None:
+            abort(409, why)
+        autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
+        log.info("party: golf started at %s, %d holes, %d players%s", course["id"], len(holes),
+                 len(room.players), " (handicaps)" if handicaps else "")
     else:
         room.end_shootout()
         room.end_cutthroat()
+        room.end_golf()
         log.info("party: back to a tournament")
     return jsonify(room.state())
+
+
+def _golf_handicaps(room, difficulty, holes):
+    """Strokes given, by player, from the study each has done on this unit:
+    a callsign that is a profile here has an answer history; anybody else
+    plays scratch, and the table is told who was given what."""
+    pool_id = party.DIFFICULTIES.get(difficulty)
+    connection = conn()
+    by_call = {}
+    for prof in db.users(connection):
+        call = (prof.get("callsign") or "").strip().upper()
+        if call:
+            by_call[call] = prof["id"]
+    given = {}
+    for pid, pl in room.players.items():
+        call = party.callsign_of(pl.name)
+        user_id = by_call.get(call) if call else None
+        if user_id is None:
+            continue
+        row = connection.execute(
+            "SELECT COUNT(*) AS attempts, COALESCE(SUM(correct), 0) AS n_right "
+            "FROM answer_log WHERE user_id = ? AND pool_id = ?", (user_id, pool_id)).fetchone()
+        attempts = row["attempts"] or 0
+        if attempts >= 20:
+            strokes = golf.handicap_from_accuracy(row["n_right"] / attempts, holes)
+            if strokes:
+                given[pid] = strokes
+    return given
+
+
+@app.route("/api/party/club", methods=["POST"])
+def api_party_club():
+    """The club a player will hit the next question with."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player_id = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "which player?")
+    ok, said = room.choose_club(player_id, str(body.get("club") or "").lower())
+    if not ok:
+        return jsonify({"ok": False, "message": said}), 409
+    return jsonify({"ok": True, "club": said, "golf": room.golf_view(player_id)})
 
 
 @app.route("/api/party/pick", methods=["POST"])

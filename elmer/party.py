@@ -44,6 +44,7 @@ from collections import deque
 
 from . import trivia
 from .cutthroat import CutThroat
+from .golf import Golf
 from .shootout import Shootout
 
 # Measured on a Raspberry Pi 5: 30 players answering simultaneously were all
@@ -86,7 +87,12 @@ def callsign_of(name):
 TOURNAMENT = "tournament"
 SHOOTOUT = "shootout"
 CUTTHROAT = "cutthroat"
-MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT)
+GOLF = "golf"
+MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF)
+# How long a golfer has to choose a club before the next question, after
+# which the sensible one is chosen for them. Long enough to read the lie
+# and the yardage; short enough that the round keeps moving.
+CLUB_SECONDS = 12.0
 
 # How long the picker gets to choose a subject before it goes round the
 # table. A question has a clock and so must the pick, or a phone put down on
@@ -308,6 +314,9 @@ class Room:
         self.mode = TOURNAMENT
         self.shootout = None
         self.cutthroat = None      # musical chairs with questions; see cutthroat.py
+        self.golf = None           # a round on a real course; see golf.py
+        self.clubs = {}            # player -> the club chosen for the next stroke
+        self._clubs_since = None   # when the choosing began, for the clock on it
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
         self._pick_since = None    # (when the wait began, on whom)
@@ -483,6 +492,7 @@ class Room:
             gone = self.players.pop(player_id, None)
             if gone is not None and self.cutthroat is not None:
                 self.cutthroat.withdraw(player_id)    # leaving is losing
+            self.clubs.pop(player_id, None)
             if gone is not None and self.shootout is not None:
                 # Out is out. The order is not rewritten, so nobody else's
                 # turn moves; the pick moves on if they were holding it.
@@ -788,8 +798,109 @@ class Room:
                 summary["cutthroat"] = self.cutthroat.play({
                     a["player_id"]: {"correct": a["correct"], "ms": a["ms"]}
                     for a in rnd.answers.values()})
+            # In a golf round the round is a stroke, with the club each
+            # player chose before the question; no answer is a foul ball.
+            if self.golf is not None and not self.golf.over():
+                summary["golf"] = self.golf.play({
+                    p: {"correct": a["correct"], "ms": a["ms"], "club": self.clubs.get(p)}
+                    for p, a in ((a["player_id"], a) for a in rnd.answers.values())})
+                self.clubs = {}
+                self._clubs_since = _now()
             self.history.append(summary)
             return summary
+
+    # ------------------------------------------------------------------ golf
+
+    def begin_golf(self, course, holes=None, handicaps=None, seconds=None):
+        """Start a round over everybody at the table, people first."""
+        with self.lock:
+            order = (sorted(p for p, pl in self.players.items() if not pl.bot)
+                     + sorted(p for p, pl in self.players.items() if pl.bot))
+            if not order:
+                return None, "a round of golf needs a player"
+            self.golf = Golf(order, course, holes=holes, handicaps=handicaps,
+                             seconds=seconds or DEFAULT_ROUND_SECONDS)
+            self.clubs = {}
+            self._clubs_since = _now()
+            self.mode = GOLF
+            return self.golf, None
+
+    def end_golf(self):
+        with self.lock:
+            self.golf = None
+            self.clubs = {}
+            if self.mode == GOLF:
+                self.mode = TOURNAMENT
+
+    def golf_over(self):
+        with self.lock:
+            return self.golf is not None and self.golf.over()
+
+    def waiting_for_clubs(self):
+        """Whether the next question waits on a club: yes while a person
+        still playing this hole has not chosen and the clock on choosing has
+        not run out. Practice players get the sensible club without asking."""
+        with self.lock:
+            g = self.golf
+            if g is None or g.over():
+                return False
+            if self._clubs_since is not None and _now() - self._clubs_since >= CLUB_SECONDS:
+                return False
+            for p, ball in g.balls.items():
+                pl = self.players.get(p)
+                if pl is None or pl.bot or ball.done():
+                    continue
+                if p not in self.clubs:
+                    return True
+            return False
+
+    def club_seconds_left(self):
+        with self.lock:
+            if self._clubs_since is None:
+                return None
+            return max(0.0, CLUB_SECONDS - (_now() - self._clubs_since))
+
+    def choose_club(self, player_id, club):
+        """The club for this player's next stroke. Refused in words."""
+        with self.lock:
+            g = self.golf
+            if g is None:
+                return False, "this table is not playing golf"
+            if self.round is not None and not self.round.closed:
+                return False, "a question is open - the club was chosen"
+            if club not in g.clubs_for(player_id):
+                return False, f"not a club you can play from here: {', '.join(g.clubs_for(player_id)) or 'none'}"
+            self.clubs[player_id] = club
+            return True, club
+
+    def golf_view(self, player_id=None):
+        """What the screens need: the hole, every ball with its name, the
+        last stroke in words, the card, and this player's own choices."""
+        with self.lock:
+            g = self.golf
+            if g is None:
+                return None
+            d = g.as_dict()
+            name = lambda p: self.players[p].name if p in self.players else "(left)"  # noqa: E731
+            balls = {}
+            for p, b in d["balls"].items():
+                balls[p] = {**b, "name": name(p), "bot": bool(self.players[p].bot) if p in self.players else False,
+                            "club": self.clubs.get(p) or b["default_club"]}
+            last = g.history[-1] if g.history else None
+            shots = []
+            if last:
+                shots = [{"player": p, "name": name(p), **s} for p, s in last["shots"].items()]
+            board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
+            mine = balls.get(player_id) if player_id is not None else None
+            return {**d, "balls": balls, "leaderboard": board, "last": shots,
+                    "choosing": self.waiting_for_clubs(),
+                    "club_seconds_left": (round(self.club_seconds_left(), 1)
+                                          if self.club_seconds_left() is not None else None),
+                    "last_hole_done": bool(last and last.get("hole_done")),
+                    "last_card": ({name(p): s for p, s in last["card"].items()} if last and last.get("card") else None),
+                    "you": mine, "your_club": (self.clubs.get(player_id) if player_id is not None else None),
+                    "winner_name": name(g.winner()) if g.winner() else None,
+                    "handicaps_given": {name(p): n for p, n in g.handicaps.items()}}
 
     # ------------------------------------------------------------- cutthroat
 
@@ -1113,6 +1224,7 @@ class Room:
                 "mode": self.mode,
                 "shootout": self.shootout_view(player_id),
                 "cutthroat": self.cutthroat_view(player_id),
+                "golf": self.golf_view(player_id),
                 # Filled in by the route when this table reports to a hall:
                 # the hall's shootout as it concerns this table, so a phone
                 # here can see that its table holds the pick.

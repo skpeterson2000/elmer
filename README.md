@@ -2162,9 +2162,22 @@ same card. Every stroke is written as a line of **playback** - *"wedge, 27
 yards - on the green, 6 feet"*, *"driver, a foul ball - into the Swilcan
 Burn; drop, and a penalty stroke"* - which is what the reveal becomes.
 
+At the table it is a fourth button beside the others - **Golf**, with the
+holes to play (front nine, back nine, all eighteen) and the handicap
+switch - and the course is the pool's. Before each question the table
+pauses twelve seconds for the people to choose a club on their phones; the
+sensible one is lit and is what anybody who does not choose gets; the
+practice players choose for themselves. The table shows the hole as the
+card gives it, where every ball lies, the last stroke in everybody's words,
+and the card; the phone shows this player's ball, their clubs, their own
+stroke first and then the table's, and the card between questions. One
+person can just go and play a round: a table of one, a phone or a seat at
+the screen, is a round of golf.
+
 The rules are `elmer/golf.py`, with no clock or question in them;
 `tests/test_golf.py` plays the shot, the course, the green, the card and
-the playoff through them.
+the playoff through them, and `tests/test_golf_table.py` the table around
+them.
 
 ### Certificates for the wall
 

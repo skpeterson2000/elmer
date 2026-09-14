@@ -253,6 +253,14 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
         <button class="btn primary" id="tourney">&#9873; Start tournament</button>
         <button class="btn" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">&#127919; Shootout</button>
         <button class="btn" id="cutthroat" title="Musical chairs: miss and you are out, every correct answer keeps its seat. Two left get fifteen questions; level after that, sudden death.">&#128481; CutThroat</button>
+        <span style="display:inline-flex;gap:.3rem;align-items:center">
+          <button class="btn" id="golf" title="A round on a real course - a question a stroke. Right and the ball flies, the faster the better; wrong is a foul ball. Choose a club before each question.">&#9971; Golf</button>
+          <select class="btn sm" id="golf-holes" title="which holes">
+            <option value="front">front 9</option><option value="back">back 9</option><option value="all">all 18</option>
+          </select>
+          <label class="small" style="color:var(--dim);display:inline-flex;align-items:center;gap:.25rem" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
+            <input type="checkbox" id="golf-handicap"> handicap</label>
+        </span>
         <button class="btn" id="stopt" hidden>Stop</button>
         <span class="chip" id="autostate"></span>
       </div>
@@ -420,6 +428,38 @@ document.addEventListener('click', async e => {
   }
 });
 
+/* Golf, for the room: the hole as the card gives it, where every ball
+   lies, the last stroke in everybody's words - the playback - and the
+   card. The club is chosen on the phone; the room sees who is choosing. */
+function golfHead(gf) {
+  const wind = gf.hole_wind === 'swirling' ? 'swirling' : gf.hole_wind;
+  return `<div class="chip">${esc(gf.course_name)}</div>
+    <p class="qtext" style="margin:.4rem 0 .2rem"><b>${gf.hole}${ordinal(gf.hole)}</b>${gf.hole_name ? ' &middot; ' + esc(gf.hole_name) : ''}
+      &middot; par ${gf.par} &middot; ${gf.yards} yards &middot; ${gf.wind_mph} mph ${esc(wind || '')}
+      <span class="chip" style="margin-left:.5rem">hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes}</span></p>`;
+}
+function ordinal(n) { return [, 'st', 'nd', 'rd'][(n % 100 >> 3 ^ 1) && n % 10] || 'th'; }
+function golfBalls(gf) {
+  return `<div class="seats" style="margin:.4rem 0">${Object.values(gf.balls).map(b =>
+    `<span class="seat" style="${b.holed ? 'border-color:var(--green)' : b.picked_up ? 'opacity:.6' : ''}">${esc(b.name)}${b.bot ? ' <span class="count">bot</span>' : ''}
+       <span class="count">&middot; ${b.holed ? 'holed, ' + b.strokes : b.picked_up ? 'picked up, ' + b.strokes : `${b.left} to go, ${esc(b.lie)}, ${b.strokes} played`}</span></span>`).join('')}</div>`;
+}
+function golfPlayback(gf) {
+  if (!gf.last || !gf.last.length) return '';
+  return `<table class="res" style="margin-top:.4rem">${gf.last.map(s =>
+    `<tr><td>${esc(s.name)}</td><td>${esc(s.words)}</td></tr>`).join('')}</table>`;
+}
+function golfBoard(gf) {
+  return `<table class="res" style="margin-top:.6rem"><tr><td class="n"></td><td>player</td><td class="ms">holes</td><td class="ms">gross</td>${gf.handicaps ? '<td class="ms">given</td><td class="ms">net</td>' : ''}<td class="ms">to par</td></tr>${gf.leaderboard.map(r =>
+    `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.holes}</td><td class="ms">${r.gross}</td>${gf.handicaps ? `<td class="ms">${r.given}</td><td class="ms">${r.net}</td>` : ''}<td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>`;
+}
+function golfLine(gf) {
+  if (gf.over) return `<b>${esc(gf.winner_name || 'Somebody')}</b> wins the round.`;
+  if (gf.playoff && gf.playoff.length) return 'Playoff &mdash; sudden death, hole by hole.';
+  if (gf.choosing) return `Choosing clubs&hellip; <span style="font-family:var(--mono)">${Math.ceil(gf.club_seconds_left || 0)}s</span>`;
+  return 'Next stroke coming.';
+}
+
 /* Where a CutThroat is, in a sentence the room can read - and the chairs:
    who is still in, who went out and when. */
 function cutLine(ct) {
@@ -575,6 +615,17 @@ async function tick() {
        something is expected of them. */
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
+    const gf = s.golf;
+    if (gf) {
+      const key = 'golf' + gf.hole + gf.holes_played + (gf.choosing ? 'c' + Math.ceil(gf.club_seconds_left || 0) : '') + (gf.over ? 'over' : '') + (gf.last || []).length;
+      chip.textContent = gf.over ? 'round over' : `golf · ${gf.hole}${ordinal(gf.hole)}`;
+      if (painted !== key) {
+        painted = key;
+        stage.innerHTML = golfHead(gf) + `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>` +
+          golfBalls(gf) + golfPlayback(gf) + golfBoard(gf);
+      }
+      return;
+    }
     const ct = s.cutthroat;
     if (ct) {
       const key = 'cut' + ct.rounds + ct.phase + (ct.over ? 'over' : '');
@@ -686,7 +737,8 @@ async function tick() {
       </div>
       <table class="res" style="margin-top:1rem">${rows}</table>
       ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}
-      ${s.cutthroat ? `<p class="hint" style="margin-top:.8rem;font-size:1rem;color:var(--text)">${cutLine(s.cutthroat)}</p>${cutChairs(s.cutthroat)}` : ''}` +
+      ${s.cutthroat ? `<p class="hint" style="margin-top:.8rem;font-size:1rem;color:var(--text)">${cutLine(s.cutthroat)}</p>${cutChairs(s.cutthroat)}` : ''}
+      ${s.golf ? `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>` : ''}` +
       (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
     return;
   }
@@ -701,7 +753,7 @@ async function tick() {
     }
     painted = openKey;
     const q = round.question || {};
-    stage.innerHTML = `
+    stage.innerHTML = (s.golf ? golfHead(s.golf) : '') + `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="qtext">${esc(q.text || '')}</p>` +
       (atScreen.length ? '' : boardHTML(q, null)) + `
@@ -740,6 +792,18 @@ tourney.addEventListener('click', async () => {
     bots: document.getElementById('botson').checked});
   tourney.disabled = false;
   autoTick();
+});
+const golfBtn = document.getElementById('golf');
+golfBtn.addEventListener('click', async () => {
+  golfBtn.disabled = true;
+  await api('/api/party/mode', {
+    mode: 'golf',
+    difficulty: document.getElementById('difficulty').value,
+    holes: document.getElementById('golf-holes').value,
+    handicap: document.getElementById('golf-handicap').checked,
+    seconds: parseFloat(document.getElementById('seconds').value) || 30});
+  golfBtn.disabled = false;
+  autoTick(); tick();
 });
 const cutBtn = document.getElementById('cutthroat');
 cutBtn.addEventListener('click', async () => {
