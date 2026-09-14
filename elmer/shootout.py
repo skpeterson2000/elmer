@@ -34,7 +34,12 @@ missed and you take nothing: the shot was not made.
 that question fastest among those who got it right. If nobody got it right it
 goes round the table in order, because somebody has to have it. A picker who
 keeps answering their own picks keeps picking, which is the reward for having
-picked well.
+picked well - with one way to lose it while making the shot. KC9SP: the pick
+resides with the fastest, *if* the fastest is more than a second faster than
+the player with the pick. Somebody who got the picker's own question right a
+clear second sooner has out-swum them on their own water, and takes the pick:
+"Pack your bags. Maybe you can swim here, but others swim better." A near
+thing - under a second - is not that, and the picker keeps it.
 
 **Last one standing wins.** With everybody else out there is nothing left to
 decide, so the game ends the moment one player is left rather than playing out
@@ -63,6 +68,11 @@ anybody to answer in.
 
 WORD = "ELMER"
 OUT_AT = len(WORD)          # five letters and you are done
+# How much faster than the picker a right answer has to be to take the pick
+# off a made shot. A second is a clear beating on a question the picker
+# chose; anything less is the same thinking finishing at nearly the same
+# moment, and the picker's own question stays the picker's.
+OUTSWUM_BY_MS = 1000
 
 
 def letters(count):
@@ -209,11 +219,25 @@ class Shootout:
         self.spent.append(section)
 
         # Who picks next. The picker keeps it while they keep making them -
-        # unless they are furniture; a miss hands it to the quickest correct
-        # answer, and a question nobody got goes round the table.
+        # unless they are furniture, or somebody made their shot a clear
+        # second sooner and has out-swum them; a miss hands it to the
+        # quickest correct answer, and a question nobody got goes round the
+        # table. Practice players cannot out-swim anybody: the pick is for
+        # the people.
+        outswum = None
+        if made:
+            mine = (said.get(picker) or {}).get("ms")
+            faster = sorted((a.get("ms") or 0, p) for p, a in said.items()
+                            if a.get("correct") and p in self.live() and p != picker
+                            and p not in self.passers and mine is not None
+                            and (a.get("ms") or 0) < mine - OUTSWUM_BY_MS)
+            if faster:
+                outswum = faster[0][1]
         if (made and not is_out(self.letters.get(picker, 0))
-                and picker not in self.passers):
+                and picker not in self.passers and outswum is None):
             following, why = picker, "kept"
+        elif made and outswum is not None and picker not in self.passers:
+            following, why = outswum, "outswum"
         else:
             right = [(a.get("ms") or 0, p) for p, a in said.items()
                      if a.get("correct") and p in self.live() and p != picker]
@@ -229,7 +253,7 @@ class Shootout:
         self.pick_reason = None if self.over() else why
 
         played = {"section": section, "picker": picker, "made": made,
-                  "took": took, "next_picker": self.picker,
+                  "took": took, "next_picker": self.picker, "outswum": outswum,
                   "out": [p for p in self.order if is_out(self.letters[p])],
                   "winner": self.winner(), "over": self.over()}
         self.history.append(played)

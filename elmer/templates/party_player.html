@@ -533,6 +533,11 @@ function paintShootout(shoot, withNote) {
       ? (took.length ? `${picker === 'you' ? 'You' : picker} made it. ${escapeHTML(whoTook(shoot, took))} took a letter.`
                      : `${picker === 'you' ? 'You' : picker} made it, and so did everybody else.`)
       : `${picker === 'you' ? 'You' : picker} missed, so nobody takes a letter.`;
+    if (last.outswum) {
+      // Made it, and somebody made it a clear second sooner: the pick moves.
+      const swimmer = escapeHTML(nameOf(shoot, last.outswum));
+      note += ` ${swimmer === 'you' ? 'You' : swimmer} had it a second faster — pack your bags, ${picker}: maybe you can swim here, but others swim better. The pick moves.`;
+    }
   }
   // The note is the table's summary; under a verdict card it would say the
   // same thing twice, so the results screen leaves it out.
@@ -569,6 +574,7 @@ function pickGreeting(shoot) {
   switch (shoot.pick_reason) {
     case 'kept':     return 'Nice one \u2014 you made it. Your pick again.';
     case 'quickest': return 'Quickest right answer. Your pick.';
+    case 'outswum':  return 'You had it a clear second faster — the pick is yours.';
     case 'first':    return 'You\u2019re up first. Your pick.';
     case 'admitted': return 'You\u2019re in, and it\u2019s your pick.';
     case 'timeout':  return 'Time ran out over there. Your pick.';

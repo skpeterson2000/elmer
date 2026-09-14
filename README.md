@@ -2085,6 +2085,14 @@ room for a real one, leaves the game with it, or the pick would be handed to
 an empty chair. The big board shows the tables' letters in place of points,
 and the shot in place of the round winner.
 
+**And one way to lose the pick while making the shot.** KC9SP: the pick
+resides with the fastest, *if* the fastest is more than a second faster than
+the player with the pick. Somebody who got the picker's own question right
+a clear second sooner has out-swum them on their own water, and takes it -
+"pack your bags: maybe you can swim here, but others swim better." Under a
+second is a near thing, and the picker keeps it. Practice players cannot
+out-swim anybody; the pick is for the people.
+
 ### CutThroat
 
 Musical chairs with questions, KC9SP's third game, beside the tournament

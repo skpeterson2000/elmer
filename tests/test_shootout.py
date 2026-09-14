@@ -194,6 +194,26 @@ def main():
           r.shootout.letters[bob],
           min(r.shootout.letters[p] for p in r.shootout.live() if p != bob))
 
+    print("\n-- out-swum: a made shot, beaten by a clear second --")
+    # KC9SP: the pick resides with the fastest, if the fastest is more than
+    # a second faster than the player with the pick. "Pack your bags."
+    g = Shootout(["ann", "bob", "cat"], sections=["S1", "S2", "S3", "S4", "S5"])
+    out = g.play("S1", {"ann": right(3000), "bob": right(1900), "cat": right(2500)})
+    check("ann made it, bob had it 1.1 s sooner: the pick moves to bob",
+          [out["made"], out["outswum"], g.picker, g.pick_reason], [True, "bob", "bob", "outswum"])
+    check("  and nobody took a letter for it", out["took"], [])
+    out = g.play("S2", {"bob": right(2000), "ann": right(1100), "cat": wrong()})
+    check("ann 0.9 s faster: not a clear second, bob keeps it",
+          [out["outswum"], g.picker, g.pick_reason], [None, "bob", "kept"])
+    check("  and the miss still costs cat a letter", out["took"], ["cat"])
+    out = g.play("S3", {"bob": right(2000), "ann": right(1000)})
+    check("exactly a second is not more than a second", [out["outswum"], g.picker], [None, "bob"])
+    out = g.play("S4", {"bob": right(2001), "ann": right(1000)})
+    check("a millisecond over it is", [out["outswum"], g.picker], ["ann", "ann"])
+    h = Shootout(["ann", "bot"], sections=["S1", "S2"], passers=["bot"])
+    out = h.play("S1", {"ann": right(3000), "bot": right(500)})
+    check("a practice player cannot out-swim anybody", [out["outswum"], h.picker], [None, "ann"])
+
     print("\n-- why the pick arrived --")
     g = Shootout(["ann", "bob", "cat"], sections=["S1", "S2", "S3", "S4"])
     check("at the start: first", g.pick_reason, "first")

@@ -676,9 +676,10 @@ async function tick() {
       <div class="tally">
         <div><b>${correct}/${(round.results || []).length}</b><span>correct</span></div>
         ${shoot
-          ? `<div><b>${last ? (last.made ? 'made' : 'missed') : '—'}</b>
+          ? `<div><b>${last ? (last.made ? (last.outswum ? 'out-swum' : 'made') : 'missed') : '—'}</b>
                <span>${last && last.made
-                 ? (last.took.length ? last.took.length + ' took a letter' : 'nobody missed it')
+                 ? (last.outswum ? 'made it, but a second slower - pack your bags: the pick moves'
+                    : last.took.length ? last.took.length + ' took a letter' : 'nobody missed it')
                  : 'nobody takes a letter'}</span></div>`
           : `<div><b>${round.winner_cohort ? 'Cohort ' + round.winner_cohort : '—'}</b>
                <span>takes the round</span></div>`}
