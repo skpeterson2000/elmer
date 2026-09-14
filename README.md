@@ -1724,14 +1724,29 @@ and a timed contest mode.
 
 ---
 
-## Tournament mode
+## The Gaming Center
 
 A study tool assumes one person and a quiet evening. A club night is neither.
+Every class card on the dashboard has a **Gaming Center** button, and it
+opens the table screen with that class chosen and every game the table can
+run in one panel: **Tournament**, **Shootout**, **CutThroat** and **Golf**,
+and an open slot for the next one. Pick the class and the pace at the top,
+then a game; while one is in play the tiles stand down and the readout says
+which. Each game is described in its own section below; what they share is
+that every question answered at the table counts for the player who
+answered it, on that unit, the same as study does.
+
+The panel has a look of its own - one orange, kept to that panel; brackets
+on the corners; a ring that breathes while the table stands by. It is a
+quiet nod to some friends of the author's, and it says nothing about it.
+
+### Tournament
+
 Tournament mode is the same 2,475 questions run as a race: everybody gets the
 same question at the same moment, and the fastest correct answer takes the
 round.
 
-### How long one is, and where its questions come from
+### How long a tournament is, and where its questions come from
 
 A tournament is modelled on the examination for the class being played. The
 pool is divided into sections, the exam takes one question from each, and the
@@ -2033,8 +2048,8 @@ level M, versions 1 to 10, which covers any join address a table will need.
 
 A tournament asks everybody the same questions and the skill is knowing the
 material. Shootout asks a different question: **what do you know that the
-person across the table does not?** It is the other game a table can play,
-started from the **Shootout** button beside **Start tournament**.
+person across the table does not?** It is the second game in the Gaming
+Center, and the one a net can also run from the host.
 
 One player holds the pick and chooses the *subject* — a section of the pool,
 "Feed lines" or "Propagation modes", grouped on the phone under its subelement

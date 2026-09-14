@@ -1112,8 +1112,9 @@ tr.law td { background: rgba(255,180,84,.08); }
 
 /* Tournament mode: the launcher on a license class, and the controller that
    runs a hall of them. */
-.btn.tournament { border-color: var(--amber); color: var(--amber); }
-.btn.tournament:hover { background: #2a2216; border-color: var(--amber); }
+/* The Gaming Center's own orange, on the one button that leads to it. */
+.btn.gaming { border-color: #b8561a; color: #ff7a1a; letter-spacing: .06em; }
+.btn.gaming:hover { background: #2a1a10; border-color: #ff7a1a; box-shadow: 0 0 10px rgba(255,122,26,.25); }
 .master-panel {
   display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap;
   margin-top: 1rem;

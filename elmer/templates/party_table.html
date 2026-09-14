@@ -42,6 +42,48 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .empty { color: var(--dimmer); font-style: italic; }
 .hs-joincopy { max-width: 22rem; margin: 0 auto; }
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+/* The Gaming Center. One orange, kept to this panel; brackets on the
+   corners; a ring that breathes while the table stands by. */
+.gc { --gco: #ff7a1a; --gco-dim: #b8561a; position: relative; margin-bottom: 1rem;
+      padding: 1rem 1.1rem .9rem; background: linear-gradient(180deg, #16120e, var(--panel));
+      border: 1px solid #3a2a1c; border-radius: var(--radius); }
+.gc::before, .gc::after { content: ""; position: absolute; width: 14px; height: 14px;
+      border: 2px solid var(--gco); pointer-events: none; }
+.gc::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; border-radius: 3px 0 0 0; }
+.gc::after  { bottom: -1px; right: -1px; border-left: 0; border-top: 0; border-radius: 0 0 3px 0; }
+.gc-head { display: flex; align-items: center; gap: .8rem; margin-bottom: .8rem; }
+.gc-ring { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--gco);
+           box-shadow: 0 0 0 3px #16120e, 0 0 0 4px var(--gco-dim), 0 0 14px 2px rgba(255,122,26,.35);
+           animation: gc-breathe 3s ease-in-out infinite; }
+.gc-ring::after { content: ""; display: block; width: 6px; height: 6px; margin: 7px auto 0;
+                  border-radius: 50%; background: var(--gco); }
+@keyframes gc-breathe { 50% { box-shadow: 0 0 0 3px #16120e, 0 0 0 4px var(--gco-dim), 0 0 22px 5px rgba(255,122,26,.5); } }
+@media (prefers-reduced-motion: reduce) { .gc-ring { animation: none; } }
+.gc-title { font-family: var(--mono); font-size: .8rem; letter-spacing: .28em; text-transform: uppercase;
+            color: var(--gco); font-weight: 700; }
+.gc-sub { color: var(--dim); font-size: .82rem; margin-top: .15rem; }
+.gc-status { margin-left: auto; font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+             text-transform: uppercase; color: var(--gco-dim); white-space: nowrap; }
+.gc-setup { margin-bottom: .7rem; align-items: center; }
+.gc-pace { display: inline-flex; align-items: center; gap: .35rem; color: var(--dim); font-size: .85rem; }
+.gc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .55rem; }
+.gc-tile, .gc-tilebtn { display: flex; flex-direction: column; gap: .2rem; text-align: left;
+      padding: .7rem .8rem; color: var(--text); background: var(--panel-2);
+      border: 1px solid var(--line-2); border-radius: 8px; font: inherit; cursor: pointer;
+      transition: border-color .15s, box-shadow .15s, transform .15s; }
+.gc-tile > span:last-child, .gc-tilebtn > span:last-child { color: var(--dim); font-size: .78rem; line-height: 1.35; }
+.gc-tile b, .gc-tilebtn b { font-family: var(--mono); letter-spacing: .12em; text-transform: uppercase; font-size: .82rem; }
+.gc-glyph { font-size: 1.3rem; line-height: 1; }
+button.gc-tile:hover, .gc-tilebtn:hover { border-color: var(--gco); box-shadow: inset 0 0 0 1px var(--gco), 0 0 12px rgba(255,122,26,.25);
+      transform: translateY(-1px); }
+button.gc-tile:disabled, .gc-tilebtn:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; border-color: var(--line-2); }
+#tourney { border-color: var(--gco-dim); }
+.gc-golf { padding: 0; cursor: default; }
+.gc-golf .gc-tilebtn { border: 0; border-radius: 8px 8px 0 0; width: 100%; }
+.gc-golfopts { display: flex; gap: .4rem; align-items: center; padding: .4rem .6rem .5rem;
+               border-top: 1px dashed var(--line-2); }
+.gc-golfopts label { color: var(--dim); display: inline-flex; align-items: center; gap: .25rem; }
+.gc-open { border-style: dashed; cursor: default; opacity: .55; }
 .qtext { font-size: 1.15rem; line-height: 1.5; margin: .3rem 0 1rem; }
 .chip { font-family: var(--mono); font-size: .8rem; color: var(--dim);
         border: 1px solid var(--line); border-radius: 999px;
@@ -147,7 +189,7 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
     <span class="chip" id="round-chip">no round</span>
     <span class="cap" id="cap"></span>
     <span class="roommark" id="roommark" data-class="{{ difficulty }}"><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
-    <button class="btn sm danger" id="endtable">End tournament</button>
+    <button class="btn sm danger" id="endtable">Close the table</button>
   </div>
 
   <div class="cols">
@@ -236,34 +278,74 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
       <div class="card node" id="node" hidden></div>
 
       <div id="owncontrols">
-      <div class="controls">
-        <select class="btn" id="difficulty">
-          <optgroup label="Amateur">
-          {% for key, label in amateur %}
-            <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-          </optgroup>
-          <optgroup label="Commercial">
-          {% for key, label in commercial %}
-            <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-          </optgroup>
-        </select>
-        <input class="btn" id="seconds" type="number" min="10" max="60" value="30"
-               style="width:4.6rem" title="seconds per question">
-        <button class="btn primary" id="tourney">&#9873; Start tournament</button>
-        <button class="btn" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">&#127919; Shootout</button>
-        <button class="btn" id="cutthroat" title="Musical chairs: miss and you are out, every correct answer keeps its seat. Two left get fifteen questions; level after that, sudden death.">&#128481; CutThroat</button>
-        <span style="display:inline-flex;gap:.3rem;align-items:center">
-          <button class="btn" id="golf" title="A round on a real course - a question a stroke. Right and the ball flies, the faster the better; wrong is a foul ball. Choose a club before each question.">&#9971; Golf</button>
-          <select class="btn sm" id="golf-holes" title="which holes">
-            <option value="front">front 9</option><option value="back">back 9</option><option value="all">all 18</option>
+      {# The Gaming Center: every game this table can run, in one place, and
+         a slot for the next one. The look is a quiet nod to a game the
+         operator's friends play - the orange, the ring, the brackets on the
+         corners - and says nothing about it. #}
+      <div class="gc">
+        <div class="gc-head">
+          <i class="gc-ring" aria-hidden="true"></i>
+          <div>
+            <div class="gc-title">Gaming Center</div>
+            <div class="gc-sub">Pick a class and a pace, then a game. Every question answered here counts for the player who answered it.</div>
+          </div>
+          <span class="gc-status" id="gc-status">4 games &middot; standing by</span>
+        </div>
+        <div class="controls gc-setup">
+          <select class="btn" id="difficulty">
+            <optgroup label="Amateur">
+            {% for key, label in amateur %}
+              <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+            </optgroup>
+            <optgroup label="Commercial">
+            {% for key, label in commercial %}
+              <option value="{{ key }}"{% if difficulty == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+            </optgroup>
           </select>
-          <label class="small" style="color:var(--dim);display:inline-flex;align-items:center;gap:.25rem" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
-            <input type="checkbox" id="golf-handicap"> handicap</label>
-        </span>
-        <button class="btn" id="stopt" hidden>Stop</button>
-        <span class="chip" id="autostate"></span>
+          <label class="gc-pace">
+            <input class="btn" id="seconds" type="number" min="10" max="60" value="30"
+                   style="width:4.6rem" title="seconds per question"> s a question</label>
+          <button class="btn" id="stopt" hidden>Stop</button>
+          <span class="chip" id="autostate"></span>
+        </div>
+        <div class="gc-tiles">
+          <button class="gc-tile" id="tourney">
+            <span class="gc-glyph">&#9873;</span>
+            <b>Tournament</b>
+            <span>Rounds of questions, points for speed, a leaderboard. The classic.</span>
+          </button>
+          <button class="gc-tile" id="shootout" title="One player picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.">
+            <span class="gc-glyph">&#127919;</span>
+            <b>Shootout</b>
+            <span>One picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.</span>
+          </button>
+          <button class="gc-tile" id="cutthroat" title="Musical chairs: miss and you are out, every correct answer keeps its seat. Two left get fifteen questions; level after that, sudden death.">
+            <span class="gc-glyph">&#128481;</span>
+            <b>CutThroat</b>
+            <span>Musical chairs: miss and you are out. Two left get fifteen questions; level after that, sudden death.</span>
+          </button>
+          <div class="gc-tile gc-golf">
+            <button class="gc-tilebtn" id="golf" title="A round on a real course - a question a stroke. Right and the ball flies, the faster the better; wrong is a foul ball. Choose a club before each question.">
+              <span class="gc-glyph">&#9971;</span>
+              <b>Golf</b>
+              <span>A round on a real course, a question a stroke. Right and the ball flies; wrong is a foul ball.</span>
+            </button>
+            <div class="gc-golfopts">
+              <select class="btn sm" id="golf-holes" title="which holes">
+                <option value="front">front 9</option><option value="back">back 9</option><option value="all">all 18</option>
+              </select>
+              <label class="small" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
+                <input type="checkbox" id="golf-handicap"> handicap</label>
+            </div>
+          </div>
+          <div class="gc-tile gc-open" aria-hidden="true">
+            <span class="gc-glyph">&#8230;</span>
+            <b>Open slot</b>
+            <span>Room for the next game.</span>
+          </div>
+        </div>
       </div>
       <div class="controls" style="margin-top:.5rem">
         <label class="chip" style="cursor:pointer">
@@ -776,7 +858,7 @@ async function tick() {
 }
 
 document.getElementById('endtable').addEventListener('click', async () => {
-  if (!confirm('End the tournament and close this table?')) return;
+  if (!confirm('End whatever is in play and close this table?')) return;
   await api('/api/party/end', {});
   location.href = '/';
 });
@@ -849,8 +931,12 @@ async function autoTick() {
   const a = r.data && r.data.auto;
   const on = !!(a && a.running);
   stopt.hidden = !on;
-  tourney.hidden = on;
-  shootBtn.hidden = on;
+  // While a game runs the tiles stand down; the readout says which one.
+  document.querySelector('.gc-tiles').hidden = on;
+  const status = document.getElementById('gc-status');
+  const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf'};
+  status.textContent = on ? `${modeName[r.data.mode] || r.data.mode || 'game'} · in play`
+                          : `${Object.keys(modeName).length} games · standing by`;
   autostate.hidden = !on;
   autostate.textContent = on
     ? `${a.state} · ${a.played} round${a.played === 1 ? '' : 's'}` : '';

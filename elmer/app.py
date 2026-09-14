@@ -3689,7 +3689,9 @@ def api_net_end():
 def api_party_auto_state():
     """Whether a tournament is running on this table."""
     driver = autoplay.director()
-    return jsonify({"auto": driver.as_dict() if driver else None})
+    room = party.room()
+    return jsonify({"auto": driver.as_dict() if driver else None,
+                    "mode": room.mode if room else None})
 
 
 @app.route("/api/party/close", methods=["POST"])
