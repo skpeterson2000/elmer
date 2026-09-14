@@ -5323,12 +5323,18 @@ def _remedy_connect():
 
 
 def _remedy_pyqt5():
-    done = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "PyQt5"],
-                          capture_output=True, text=True, timeout=600)
+    """TowerWitch's own requirements.txt when it has one, else the Qt build's
+    known list - into ELMER's Python, which is what starts it on Windows."""
+    path = towerwitch.find()
+    reqs = (path / "requirements.txt") if path else None
+    what = (["-r", str(reqs)] if reqs and reqs.is_file()
+            else ["PyQt5", "requests", "utm", "maidenhead", "mgrs", "packaging"])
+    done = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet"] + what,
+                          capture_output=True, text=True, timeout=900)
     if done.returncode:
         tail = (done.stderr or done.stdout or "").strip().splitlines()[-1:]
-        return False, "pip could not install PyQt5" + (f": {tail[0]}" if tail else "")
-    return True, "PyQt5 installed - the TowerWitch button can start it now"
+        return False, "pip could not install TowerWitch's packages" + (f": {tail[0]}" if tail else "")
+    return True, "TowerWitch's packages installed - the button can start it now"
 
 
 def _remedy_poppler():
@@ -5354,7 +5360,7 @@ REMEDIES = {
     "forget-net": ("forget the net this table remembers", _remedy_forget_net),
     "leave-net": ("cut this table loose from the net it is reporting to", _remedy_leave_net),
     "connect": ("connect this copy to the repository, so it can update itself", _remedy_connect),
-    "pyqt5": ("install PyQt5 into ELMER's Python, for TowerWitch's Qt build", _remedy_pyqt5),
+    "pyqt5": ("install TowerWitch's Qt build packages into ELMER's Python", _remedy_pyqt5),
     "poppler": ("install poppler with winget", _remedy_poppler),
     "stop-op25": ("stop OP25", _remedy_stop_op25),
 }
@@ -5566,9 +5572,16 @@ def api_gps():
         else:
             detail = (f"nothing is listening at {host}:{port} - this unit has "
                       f"no GPS. A phone can be one: turn it on in Settings")
+        # No fix, but the unit still knows where it usually is: the typed
+        # QTH, offered as such so a caller - TowerWitch on a laptop with no
+        # receiver - can take it knowingly rather than have nothing.
+        saved = _saved_qth(connection, db.get_profile(connection))
+        qth = ({"lat": saved["lat"], "lon": saved["lon"], "grid": saved.get("grid"),
+                "short": saved.get("short") or saved.get("grid")}
+               if saved.get("lat") is not None else None)
         return jsonify({"located": False, "reason": "no fix", "detail": detail,
                         "gpsd": f"{host}:{port}", "gpsd_listening": listening,
-                        "phone_listening": bool(phone)})
+                        "phone_listening": bool(phone), "qth": qth})
     place = geocode.reverse(live["lat"], live["lon"]) or {}
     return jsonify({
         "located": True,

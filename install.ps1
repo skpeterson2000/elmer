@@ -204,9 +204,11 @@ Ok "python packages installed"
 $tw = @((Join-Path $HOME 'TowerWitch'), (Join-Path (Split-Path $root -Parent) 'TowerWitch')) |
       Where-Object { Test-Path (Join-Path $_ 'TowerWitch-P.py') } | Select-Object -First 1
 if ($tw) {
-    & $vpy -m pip install --quiet PyQt5
-    if ($LASTEXITCODE -eq 0) { Ok "PyQt5 installed - the dashboard's TowerWitch button can start $tw" }
-    else { Warn "PyQt5 would not install; the self-check offers a Fix for it" }
+    $twReqs = Join-Path $tw 'requirements.txt'
+    if (Test-Path $twReqs) { & $vpy -m pip install --quiet -r $twReqs }
+    else { & $vpy -m pip install --quiet PyQt5 requests utm maidenhead mgrs packaging }
+    if ($LASTEXITCODE -eq 0) { Ok "TowerWitch's packages installed - the dashboard's TowerWitch button can start $tw" }
+    else { Warn "TowerWitch's packages would not install; the self-check offers a Fix for it" }
 }
 
 if ($Serial) {

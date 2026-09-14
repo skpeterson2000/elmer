@@ -580,11 +580,18 @@ def check_towerwitch_beside():
         return True
     import importlib.util
     if os.name == "nt":
-        if importlib.util.find_spec("PyQt5") is None:
-            _line(WARN, "TowerWitch", f"at {path}, but PyQt5 is not in ELMER's Python - the "
-                                      f"dashboard's button cannot start it", fix="pyqt5")
+        # What the Qt build imports; its requirements.txt is what the Fix
+        # installs, and these are the import names those packages go by.
+        wanted = {"PyQt5": "PyQt5", "requests": "requests", "utm": "utm",
+                  "maidenhead": "maidenhead", "mgrs": "mgrs", "packaging": "packaging"}
+        missing = [pkg for pkg, mod in wanted.items() if importlib.util.find_spec(mod) is None]
+        if missing:
+            _line(WARN, "TowerWitch", f"at {path}, but {', '.join(missing)} "
+                                      f"{'is' if len(missing) == 1 else 'are'} not in ELMER's Python - "
+                                      f"the dashboard's button cannot start it", fix="pyqt5")
         else:
-            _line(OK, "TowerWitch", f"at {path}; PyQt5 is here, so the dashboard's button can start it")
+            _line(OK, "TowerWitch", f"at {path}; its Qt build's packages are here, so the "
+                                    f"dashboard's button can start it")
     else:
         if importlib.util.find_spec("tkinter") is None:
             _line(WARN, "TowerWitch", f"at {path}, but tkinter is missing - "

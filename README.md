@@ -1092,11 +1092,20 @@ otherwise the browser opens on the dashboard, with ELMER started first if it
 was not running (`elmer_link.py` in the TowerWitch repository; it looks at
 `~/elmer`, `~/elmer-main`, beside TowerWitch, or `ELMER_HOME`).
 
-On Windows the button starts TowerWitch's Qt build, which wants PyQt5 in
-ELMER's own Python: `install.ps1` installs it when a TowerWitch is found
-beside ELMER, and the self-check has a **TowerWitch** line that says whether
-the button could start it, with a Fix that installs PyQt5 when it could not.
-On a Pi the Tk build wants `python3-tk`, and the line says so.
+On Windows the button starts TowerWitch's Qt build, which wants its packages
+(PyQt5 and a few small ones, TowerWitch's `requirements.txt`) in ELMER's own
+Python: `install.ps1` installs them when a TowerWitch is found beside ELMER,
+and the self-check has a **TowerWitch** line that says whether the button
+could start it, with a Fix that installs them when it could not. On a Pi
+the Tk build wants `python3-tk`, and the line says so.
+
+**The bridge, the other way.** A laptop has no gpsd, so TowerWitch's Qt
+build on Windows found no position at all. Now, when `gpspipe` is not there,
+it asks ELMER on the same machine: `/api/gps` answers with ELMER's fix - a
+receiver, or a phone streaming to it - and, when there is no fix, with the
+QTH typed into ELMER, offered as such. TowerWitch takes the fix as it
+comes and the QTH once, and says in its log which it was. One program owns
+the position; the other borrows it, on either OS.
 
 ### Asking a TowerWitch over the network
 
