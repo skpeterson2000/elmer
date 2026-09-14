@@ -3328,15 +3328,47 @@ def _credit_players(connection, summary, rows):
     if not by_call:
         return
     mode = f"table:{summary.get('mode') or 'tournament'}" if summary.get("tag") is None else "hall"
+    pool_id, qid = summary.get("pool") or "", summary.get("question_id") or ""
     for r in rows:
         call = party.callsign_of(r.get("name"))
         user_id = by_call.get(call) if call else None
         if user_id is None:
             continue
         connection.user_id = user_id
-        db.log_answer(connection, summary.get("pool") or "", summary.get("question_id") or "",
-                      summary.get("section") or "", bool(r.get("correct")), r.get("chosen"),
-                      int(r["ms"]) if r.get("ms") else None, mode)
+        ms = int(r["ms"]) if r.get("ms") else None
+        db.log_answer(connection, pool_id, qid, summary.get("section") or "",
+                      bool(r.get("correct")), r.get("chosen"), ms, mode)
+        _credit_card(connection, pool_id, qid, bool(r.get("correct")), ms)
+
+
+def _credit_card(connection, pool_id, question_id, correct, ms):
+    """The rest of what a study answer does, for an answer given at a table:
+    the card is graded and rescheduled - a miss lapses it, so it comes up
+    in Review with its explanation; a right answer moves it on, which is
+    what readiness is measured from - and the XP, the streak and the run
+    are the person's. Everything a study answer earns, because it was the
+    same question answered by the same person; only the room was different.
+    Standings are left to the next study session, which refreshes them."""
+    try:
+        card = db.get_card(connection, pool_id, question_id)
+        now = db.utcnow()
+        was_due = bool(card and card["due"] and card["due"] <= now.isoformat())
+        fields = srs.schedule(card, srs.grade(correct, ms), now)
+        fields.update({
+            "seen": (card["seen"] if card else 0) + 1,
+            "correct": (card["correct"] if card else 0) + int(correct),
+            "run": ((card["run"] if card else 0) + 1) if correct else 0,
+            "last_ms": ms,
+        })
+        db.upsert_card(connection, pool_id, question_id, **fields)
+        game.add_xp(connection, game.xp_for_answer(correct, ms, card, was_due))
+        streak_days = game.touch_streak(connection)
+        _, best_run = game.bump_run(connection, correct)
+        total = connection.execute("SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
+                                   (connection.user_id,)).fetchone()["c"]
+        game.check_answer_achievements(connection, best_run, total, streak_days, datetime.now().hour)
+    except Exception as exc:                                 # credit must never break a round
+        log.warning("credit: %s: %s", type(exc).__name__, exc)
 
 
 def _ask_party(difficulty="technician", section=None, seconds=None):

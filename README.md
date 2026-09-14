@@ -2199,9 +2199,14 @@ their callsign, on a unit where that callsign is a profile, gets every
 answer they give there in their own study record - a table's round or a
 hall's landing on that table - marked with the game it was. A name that is
 not a callsign, or a callsign nobody on the unit holds, is credited nowhere:
-the record belongs to the person, and only a callsign says who that is. It
-does not touch their spaced-repetition cards. This is the first step towards
-carrying a player's questions and awards home to their own machine.
+the record belongs to the person, and only a callsign says who that is. And
+it is everything a study answer earns, because it was the same question
+answered by the same person and only the room was different: the card is
+graded and rescheduled - a question missed at the table lapses, and comes up
+in **Review** with its explanation; one answered right moves on, which is
+what readiness is measured from - and the XP, the streak and the run are
+theirs. Credit where credit is due. This is the first step towards carrying
+a player's questions and awards home to their own machine.
 
 ### Certificates for the wall
 
