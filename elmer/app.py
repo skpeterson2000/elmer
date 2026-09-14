@@ -168,6 +168,11 @@ def _no_stale_pages(response):
     own change time and may be cached for ever; the pages that name them, and
     every JSON answer, may not be kept at all.
     """
+    if request.path.startswith("/static/golf/") or request.path.startswith("/figure/"):
+        # The pictures, the clips and the voice: the same bytes until an
+        # update, fetched once by every phone and kept.
+        response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
     if request.path.startswith("/static/"):
         return response
     kind = (response.mimetype or "")
@@ -3432,6 +3437,42 @@ def api_party_regulars():
     return jsonify({"regulars": [r["name"] for r in regulars], "records": board})
 
 
+def _golf_draw(room, pool, to):
+    """One question for this stroke, the golf way, and marked asked."""
+    by_section = {}
+    for q in pool.by_id.values():
+        by_section.setdefault(q["section"], []).append(q["id"])
+    drawn, _ = room.golf.draw(by_section, list(pool.by_id), to)
+    room.golf.note_asked(drawn)
+    return drawn
+
+
+def _prepare_next_stroke(room, summary):
+    """While the room reads a stroke's result, the next stroke is got
+    ready: the question is drawn for whoever is away next, and its figure
+    - the one thing a screen has to fetch - is named on the state so the
+    screens fetch it now rather than when it goes up. The draw is exact:
+    after a stroke the rules already know who is away and where their ball
+    lies, which is all the draw depends on."""
+    g = room.golf
+    if g is None or g.over() or not summary.get("golf"):
+        room.golf_next = None
+        return
+    to = g.away()
+    if to is None:
+        room.golf_next = None
+        return
+    pool_id = party.DIFFICULTIES.get(str(summary.get("difficulty") or "").lower()) \
+        or party.DIFFICULTIES.get(getattr(room, "golf_difficulty", ""), None)
+    pool = get_pool(pool_id) if pool_id else None
+    if pool is None:
+        room.golf_next = None
+        return
+    drawn = _golf_draw(room, pool, to)
+    q = pool.by_id[drawn]
+    room.golf_next = {"to": to, "id": drawn, "figure": pool.figure_url(q)}
+
+
 def _table_writes_its_rounds(room):
     """A table's own rounds go into the log a hall's do, once per room.
 
@@ -3464,6 +3505,13 @@ def _table_writes_its_rounds(room):
         finally:
             connection.close()
     room.on_round_closed.append(_write)
+
+    def _prepare(summary):
+        try:
+            _prepare_next_stroke(room, summary)
+        except Exception as exc:                          # pragma: no cover
+            log.debug("golf: could not prepare the next stroke: %s", exc)
+    room.on_round_closed.append(_prepare)
 
     def _records(summary):
         g = summary.get("golf") or {}
@@ -3596,12 +3644,14 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
     if room.mode == party.GOLF:
         if to is None:
             raise ValueError("nobody is away")
-        by_section = {}
-        for q in pool.by_id.values():
-            by_section.setdefault(q["section"], []).append(q["id"])
-        drawn, _ = room.golf.draw(by_section, list(pool.by_id), to)
-        question = pool.by_id[drawn]
-        room.golf.note_asked(drawn)
+        # Drawn already, while the last stroke's result was being read, if
+        # it was drawn for this player - see _prepare_next_stroke; else now.
+        ready = getattr(room, "golf_next", None)
+        if ready and ready.get("to") == to and ready["id"] in pool.by_id:
+            question = pool.by_id[ready["id"]]
+            room.golf_next = None
+        else:
+            question = pool.by_id[_golf_draw(room, pool, to)]
     else:
         question = pool.by_id[random.choice(fresh or ids)]
     shown = presentation(question)
@@ -3791,6 +3841,8 @@ def _start_golf(room, spec):
     except Exception as exc:                          # pragma: no cover
         log.debug("golf: no hardness to draw by: %s", exc)
     seconds = spec["seconds"]
+    room.golf_difficulty = difficulty
+    room.golf_next = None
     autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
     log.info("party: golf started at %s, %d holes, %d players%s", course["id"], len(spec["holes"]),
              len(room.players), " (handicaps)" if spec.get("handicaps") else "")
@@ -3807,6 +3859,39 @@ def _golf_depart(room, armed_only=False):
     if spec is None:
         return False
     return _start_golf(room, spec)
+
+
+@app.route("/api/party/golf-assets")
+def api_party_golf_assets():
+    """Everything a round will show or say, as URLs, for a screen to fetch
+    while the clubhouse counts down or the first stroke is read - the
+    pictures from every tee of the round, the clubhouse, the clips, the
+    voice snippets the unit has - so nothing is fetched at the moment it
+    is wanted. Only what is on this unit; a screen fetches these one at a
+    time, and a Pi hands them out once, since they are cached a day."""
+    room = _party_or_404()
+    course_id = None
+    holes = []
+    if room.golf is not None:
+        course_id = room.golf.course["id"]
+        holes = list(room.golf.holes)
+    elif room.clubhouse is not None:
+        course_id = room.clubhouse["spec"].get("course")
+        holes = list(room.clubhouse["spec"].get("holes") or [])
+    if not course_id:
+        return jsonify({"urls": []})
+    static = Path(__file__).resolve().parent / "static" / "golf"
+    urls = []
+    if (static / "clubhouse" / f"{course_id}.jpg").is_file():
+        urls.append(f"/static/golf/clubhouse/{course_id}.jpg")
+    for n in holes:
+        if (static / "tee" / course_id / f"{n}.jpg").is_file():
+            urls.append(f"/static/golf/tee/{course_id}/{n}.jpg")
+    for p in sorted((static / "clips").glob("*.gif")) if (static / "clips").is_dir() else []:
+        urls.append(f"/static/golf/clips/{p.name}")
+    for p in sorted((static / "voice").glob("*.mp3")) if (static / "voice").is_dir() else []:
+        urls.append(f"/static/golf/voice/{p.name}")
+    return jsonify({"urls": urls})
 
 
 @app.route("/api/party/tee-off", methods=["POST"])

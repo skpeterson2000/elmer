@@ -780,6 +780,10 @@ async function tick() {
     atScreen.length > 0 && ((round && !round.closed) || (!round && seatPicking)));
   const golfOn = !!(s.golf && !s.golf.over) || !!s.clubhouse;
   document.body.classList.toggle('golfing', golfOn);
+  if (golfOn && window.Warm) {
+    Warm.round();
+    if (s.golf) Warm.warm([s.golf.next_figure, s.golf.next_tee_pic]);
+  }
   const jh = document.getElementById('joinhint');
   if (jh) jh.textContent = golfOn ? 'Scan to arrange a tee time - the group picks you up at the next hole'
                                   : 'Scan to join this table';
@@ -1448,5 +1452,6 @@ scheduleTable();
 <script src="{{ asset('owner.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>
 <script src="{{ asset('voice.js') }}"></script>
+<script src="{{ asset('warm.js') }}"></script>
 </body>
 </html>

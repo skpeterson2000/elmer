@@ -790,6 +790,10 @@ async function tick() {
   // waiting room. A shootout waiting on a pick is still the game, so stay fast.
   pollMs = ((round && !round.closed) || (show && show.lead_in)
             || (shoot && !shoot.over) || (s.golf && !s.golf.over)) ? POLL_FAST : POLL_WAIT;
+  if (window.Warm && (s.clubhouse || (s.golf && !s.golf.over))) {
+    Warm.round();
+    if (s.golf) Warm.warm([s.golf.next_figure, s.golf.next_tee_pic]);
+  }
   hallShow.overlay(show);
   // The card changes on the host's clock, not the round's: swap it in place.
   const cardBox = document.getElementById('hallcard');
@@ -908,5 +912,6 @@ if (remembered) {
 <script src="{{ asset('owner.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>
 <script src="{{ asset('voice.js') }}"></script>
+<script src="{{ asset('warm.js') }}"></script>
 </body>
 </html>

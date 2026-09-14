@@ -384,6 +384,8 @@ class Room:
         # join. The group departs when it is full or the time is up, or when
         # somebody says play now. What was booked is kept to start it with.
         self.clubhouse = None      # {"at": when, "spec": {...}} while waiting
+        self.golf_next = None      # the next stroke's question, drawn while the last is read
+        self.golf_difficulty = None
         self.clubs = {}            # player -> the club chosen for the next stroke
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
@@ -1102,6 +1104,14 @@ class Room:
                     "voice_have": list(getattr(self, "golf_voice", []) or []),
                     "tee_pic": (f"/static/golf/tee/{d['course']}/{d['hole']}.jpg"
                                 if d.get("hole") in (getattr(self, "golf_tees", []) or []) else None),
+                    # The next stroke's figure, if it has one, for a screen
+                    # to fetch while this stroke's result is read.
+                    "next_figure": ((self.golf_next or {}).get("figure") if self.golf_next else None),
+                    # And the next hole's picture, once the group is near it.
+                    "next_tee_pic": (f"/static/golf/tee/{d['course']}/{self.golf.holes[self.golf.hole_index + 1]}.jpg"
+                                     if self.golf.hole_index + 1 < len(self.golf.holes)
+                                     and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_tees", []) or [])
+                                     else None),
                     "address_tokens": (_voice_address(name(away), away_ball) if away_ball else []),
                     "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),

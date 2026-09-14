@@ -2361,6 +2361,18 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**Prepared while they read.** Nothing is fetched at the moment it is
+wanted. When a stroke closes, the next stroke's question is drawn at once
+- the rules already know who is away next and where their ball lies, which
+is all the draw depends on - and its figure, the one thing a screen has to
+fetch, is named on the state so the table and every phone fetch it while
+this stroke's result is being read; the next tee's picture the same way.
+In the clubhouse, while the tee time counts down, a screen fetches
+everything the round will show or say - the pictures from every tee of the
+round, the clubhouse, the clips and the voice snippets the unit has - one
+file at a time, and keeps them a day, so a Pi hands each out once to each
+phone and no stroke waits on the wire. `static/warm.js`.
+
 **One thing to look at.** A stroke at the table screen is laid out for a
 person with one focal point: the question and its figure on the left, this
 seat's choices on the right, nothing below the fold - and the result the

@@ -120,6 +120,34 @@ def run():
     room.leave(late)
     check("leaving takes the ball", late in room.golf.balls, False)
 
+    print("\n-- the next stroke is got ready while this one is read --")
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    ann = room.join("KC9SP")[0].id
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
+                                             "seconds": 30, "level": "Elmer"}, environ_base=local)
+    autoplay.stop()
+    room.round = None
+    rnd = appmod._ask_party("technician", None, 30)
+    check("no next stroke is ready before a stroke has closed", room.golf_next, None)
+    room.submit(ann, rnd.answer_index, 3000)
+    room.close_round()
+    nxt = room.golf_next
+    check("closing a stroke draws the next question, for whoever is away next",
+          (nxt is not None, nxt and nxt["to"] == room.golf.away()), (True, True))
+    st = client.get("/api/party/state", environ_base=local).get_json()["golf"]
+    check("  and the state names its figure for the screens to fetch, or None",
+          "next_figure" in st and st["next_figure"] == (nxt or {}).get("figure"), True)
+    rnd2 = appmod._ask_party("technician", None, 30)
+    check("  the next stroke asks that very question, and it is used up",
+          (rnd2.question_id, room.golf_next), (nxt["id"], None))
+    r = client.get("/api/party/golf-assets", environ_base=local).get_json()
+    check("the round's assets, for warming: the clubhouse and the tees this unit has",
+          ("/static/golf/clubhouse/pebble-beach.jpg" in r["urls"], "/static/golf/tee/pebble-beach/1.jpg" in r["urls"]),
+          (True, True))
+    r = client.get("/static/golf/tee/pebble-beach/1.jpg", environ_base=local)
+    check("  which a phone may keep a day", r.headers.get("Cache-Control"), "public, max-age=86400")
+
     print("\n-- the regulars, and the record board --")
     client.post("/api/party/join", json={"name": "W9REG", "device": "phone"}, environ_base=local)
     r = client.get("/api/party/regulars", environ_base=local).get_json()
