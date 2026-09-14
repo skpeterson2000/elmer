@@ -69,6 +69,25 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
 .dot.idle    { background: var(--dimmer); }
 .tally span { color: var(--dim); font-size: .8rem; }
 
+/* The board: the question and every choice, big enough for a room to read
+   while it answers on its phones. On the reveal the right one goes green
+   with the wrong ones still there - the room reads what it chose against
+   what was right - then the wrong ones fall away and the right one stands
+   with the question and the round's results, as the master tabulated them. */
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .4rem 0 .8rem; }
+@media (max-width: 46rem) { .board { grid-template-columns: 1fr; } }
+.board .bc { padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--line-2);
+             background: var(--panel-2); font-size: 1.15rem; line-height: 1.4;
+             transition: opacity .5s, transform .5s; }
+.board .bc .k { display: inline-block; min-width: 1.8rem; font-weight: 700; color: var(--amber);
+                font-family: var(--mono); }
+.board .bc.right { border-color: var(--green); background: #14301b; box-shadow: 0 0 0 2px var(--green) inset; }
+.board .bc.right .k { color: var(--green); }
+.board .bc.wrong { opacity: .8; }
+.board .bc.gone { animation: bc-fall .6s ease-in forwards; pointer-events: none; }
+@keyframes bc-fall { to { opacity: 0; transform: translateY(1.2rem); max-height: 0; padding: 0 1rem; margin: 0; border-width: 0; } }
+.board.stand { grid-template-columns: 1fr; }
+
 /* Two seats at the screen. */
 .hs-row { display: flex; gap: .4rem; align-items: center; margin-bottom: .4rem; }
 .hs-row .hs-name { flex: 1; min-width: 0; padding: .4rem .55rem; border-radius: 8px;
@@ -468,6 +487,19 @@ function seats(state) {
    announcements over everything - drawn from what the poll brings back. */
 let showing = 'idle';
 const RESULT_STANDS_S = 20;         // how long a result holds before the deck
+const REVEAL_HOLD_S = 4;            // the right answer green among the wrong ones, before they fall away
+
+/* The room's board: every choice, lettered. `answer` is the right one's
+   text once the round has closed, or null while it is open; `stand` is the
+   moment after the reveal, when the wrong ones have fallen away. */
+function boardHTML(q, answer, stand) {
+  const choices = q.choices || [];
+  const right = answer == null ? -1 : choices.indexOf(answer);
+  return `<div class="board ${stand ? 'stand' : ''}">${choices.map((c, i) => {
+    const cls = right < 0 ? '' : i === right ? 'right' : (stand ? 'wrong gone' : 'wrong');
+    return `<div class="bc ${cls}"><span class="k">${String.fromCharCode(65 + i)}</span>${esc(c)}</div>`;
+  }).join('')}</div>`;
+}
 const RESULT_STANDS_HOST_S = 8;     // when the host has called intermission or study
 
 function hallCard(s) {
@@ -580,9 +612,22 @@ async function tick() {
       return;
     }
     showing = 'result';
-    const key = 'closed' + round.number + (shoot ? (shoot.picker || '') + (shoot.pick || '') : '');
+    // Two moments after the close: the reveal - every choice still up, the
+    // right one green - and then the stand, when the wrong ones have fallen
+    // away and the results are read against the one that was right.
+    const phase = (round.closed_for || 0) < REVEAL_HOLD_S ? 'reveal' : 'stand';
+    const key = 'closed' + round.number + phase + (shoot ? (shoot.picker || '') + (shoot.pick || '') : '');
     if (painted === key) { paintPickClock(shoot); return; }
     painted = key;
+    const q = round.question || {};
+    if (phase === 'reveal') {
+      stage.innerHTML = `
+        <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
+        <p class="qtext">${esc(q.text || '')}</p>` +
+        boardHTML(q, round.answer, false) +
+        (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
+      return;
+    }
     const rows = (round.results || []).map(a => `
       <tr><td class="n">${a.place || '–'}</td>
           <td>${esc(a.name)} ${a.correct ? '✓' : '✗'}</td>
@@ -593,6 +638,8 @@ async function tick() {
     // be a pick timing out since, and is not what these results are of.
     const last = shoot && shoot.last_shot;
     stage.innerHTML = `
+      <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` +
+      boardHTML(q, round.answer, true) + `
       <div class="tally">
         <div><b>${correct}/${(round.results || []).length}</b><span>correct</span></div>
         ${shoot
@@ -621,7 +668,8 @@ async function tick() {
     const q = round.question || {};
     stage.innerHTML = `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
-      <p class="qtext">${esc(q.text || '')}</p>
+      <p class="qtext">${esc(q.text || '')}</p>` +
+      (atScreen.length ? '' : boardHTML(q, null)) + `
       <div class="bigclock" id="clock"></div>
       <p class="hint" id="waiting"></p>` +
       (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout)).join('')}</div>` : '');

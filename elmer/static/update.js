@@ -661,14 +661,17 @@ function renderPeers(d) {
             (now === 'host'
               ? ' <b>This is what it is doing now.</b> ' +
                 '<a href="/net">Back to net control &rarr;</a>' : '')),
-    roleRow(now === 'table' ? currentRole('Table')
+    // A table in a net is a place to go, not a badge: the table screen is
+    // where the join code is and where the hall's questions land.
+    roleRow(now === 'table' ? '<a class="pill good" href="/party/1" style="text-decoration:none">Table</a>'
               : (nets.length
                   ? '<span class="row" style="gap:.4rem">' +
                     nets.map(netButton).join('') + '</span>'
                   : '<span class="pill">Table</span>'),
             'Keep this unit’s own players and its own screen, and hand the ' +
             'scores to whoever is running the net.' +
-            (now === 'table' ? ' <b>This is what it is doing now.</b>'
+            (now === 'table' ? ' <b>This is what it is doing now.</b> ' +
+                '<a href="/party/1">To the table screen, with the join code &rarr;</a>'
               : nets.length ? ''
               : ' <b>Nothing to join yet</b> — a table becomes possible the ' +
                 'moment one of them opens a net.')),
