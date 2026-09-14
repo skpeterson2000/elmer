@@ -1233,6 +1233,61 @@ def _landmarks():
 _LANDMARKS = _landmarks()
 
 
+def mismatch_loss_db(swr):
+    """What an SWR costs in power not accepted, in dB - the honest size of
+    a mismatch, which is small: 1.5:1 is 0.18 dB, 2:1 is 0.5 dB."""
+    swr = max(1.0, float(swr))
+    rho = (swr - 1.0) / (swr + 1.0)
+    return -10.0 * math.log10(1.0 - rho * rho)
+
+
+def height_curve(mhz, step=0.01, top=1.0):
+    """The whole story against height, for a graph: the feedpoint
+    resistance, the SWR that means into 50 ohm coax, and where the main
+    lobe points - every hundredth of a wave from the ground to a full
+    wavelength up."""
+    lam = wavelength_ft(mhz)
+    out = []
+    h = 0.04
+    while h <= top + 1e-9:
+        r = feedpoint_resistance(h)
+        if r is not None:
+            out.append({"wavelengths": round(h, 2), "ft": round(h * lam, 1),
+                        "ohms": round(r, 1), "swr": round(_swr_into_50(r), 2),
+                        "takeoff": round(takeoff_deg(h * lam, mhz), 1)})
+        h += step
+    return out
+
+
+def match_versus_height(mhz, wanted_ft):
+    """Why the height to aim for is not the height where the coax matches
+    - in the numbers, so nobody has to take it on trust. The match is worth
+    a fraction of a decibel; the takeoff angle is worth the contact. And an
+    antenna receives exactly the way it transmits, so the same height that
+    puts the signal out low brings the far signals in."""
+    lam = wavelength_ft(mhz)
+    match = next((m for m in _LANDMARKS if m[0] == "match"), None)
+    if match is None or wanted_ft <= 0:
+        return None
+    match_ft = round(match[1] * lam)
+    r_wanted = feedpoint_resistance(wanted_ft / lam)
+    if r_wanted is None:
+        return None
+    swr_wanted = _swr_into_50(r_wanted)
+    loss = mismatch_loss_db(swr_wanted)
+    low_angle = takeoff_deg(match_ft, mhz)
+    high_angle = takeoff_deg(wanted_ft, mhz)
+    return (f"Why not the {match_ft} ft where the coax matches? Because the match is worth "
+            f"almost nothing and the angle is worth everything. At {wanted_ft} ft the feed is "
+            f"about {round(r_wanted)} ohms, SWR {swr_wanted:.1f} - which costs {loss:.2f} dB, less "
+            f"than a tenth of an S-unit. At {match_ft} ft the main lobe points "
+            f"{'straight up' if low_angle >= 85 else f'{low_angle:.0f} degrees up'} - a cloud warmer; "
+            f"at {wanted_ft} ft it is {high_angle:.0f} degrees, which is "
+            f"where DX comes from. And an antenna receives exactly the way it transmits: the height "
+            f"that puts your signal out low is the height that brings the far ones in. Take the "
+            f"height; let the SWR be {swr_wanted:.1f}.")
+
+
 def matching_heights(mhz, reach_ft=None):
     """The heights worth knowing about for a horizontal wire on this band.
 
@@ -1247,6 +1302,8 @@ def matching_heights(mhz, reach_ft=None):
         out.append({
             "what": what, "wavelengths": round(h, 2), "ft": ft,
             "ohms": round(r), "swr": round(_swr_into_50(r), 1),
+            "loss_db": round(mismatch_loss_db(_swr_into_50(r)), 2),
+            "takeoff": round(takeoff_deg(ft, mhz)),
             "note": note,
             "reachable": (reach_ft is None) or (ft <= reach_ft),
         })
@@ -1686,6 +1743,7 @@ def recommend(mhz, use=None, kind=None, site=None):
                 "A dipole is the reference every other antenna is measured "
                 "against, and a well-hung one beats an expensive antenna hung "
                 "badly. Start here before spending money.",
+                match_versus_height(mhz, half_wave),
             ],
             "watch": [
                 "It is broadside: strongest off the sides of the wire, deaf off "
@@ -1705,6 +1763,7 @@ def recommend(mhz, use=None, kind=None, site=None):
         out["alternative"] = ("No second support? An inverted-V from a single "
                               "mast gives up about a decibel and takes a "
                               "rounder pattern - a good trade for most gardens.")
+        out["why"] = [w for w in out["why"] if w]
 
     out["feedline"] = _feedline(mhz)
     out["context"] = frequency_context(mhz)

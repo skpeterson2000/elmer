@@ -2562,14 +2562,61 @@ function matchingHeightsHTML(d) {
     '<td class="mono">' + r.ft + ' ft</td><td class="mono">' + r.wavelengths.toFixed(2) + ' \u03bb</td>' +
     '<td class="mono">' + r.ohms + ' \u03a9</td><td class="mono">SWR ' + r.swr.toFixed(1) + '</td>' +
     '<td>' + WORD[r.what] + (r.what === 'match' ? ' \u2014 coax matches it with nothing in between' : '') + '</td></tr>';
-  return '<div class="panel-title" style="margin-top:.9rem">Heights where the feed matches</div>' +
+  return '<div class="panel-title" style="margin-top:.9rem">The feed and the angle, against height</div>' +
+    heightGraphSVG(d) +
+    '<div class="panel-title" style="margin-top:.6rem">Heights where the feed does something</div>' +
     '<table class="facts small heights">' + near.map(line).join('') +
     (far.length && near.length ? '<tr class="far sep"><td colspan="5">beyond what the site allows</td></tr>' : '') +
     far.slice(0, 3).map(line).join('') + '</table>' +
     '<p class="tiny muted">The feedpoint swings with height because the wire sees its own ' +
     'reflection in the ground; the period is half a wavelength. Perfect-ground figures - real ' +
-    'ground damps the swings and shifts them a little, so start looking at these heights ' +
-    'rather than stop at them. The pattern changes with height too; that is drawn below.</p>';
+    'ground damps the swings and shifts them a little. None of these is a height to stop at: ' +
+    'the worst of them costs half a decibel of match, and the angle the wire fires at is worth ' +
+    'far more than that, sending and receiving alike. The pattern at your height is drawn below.</p>';
+}
+
+/* The graph: feedpoint resistance (solid, left axis) and takeoff angle
+   (dashed, right axis) against height in feet, the 50 ohm line, the height
+   to aim for, and the ground the site cannot reach shaded. The point of it
+   is the shape - the resistance wobbles within a decibel of 50 while the
+   angle falls from the zenith to where DX is - so the reader sees why the
+   advice takes the height and lets the SWR be. */
+function heightGraphSVG(d) {
+  const pts = d.height_curve || [];
+  if (pts.length < 4) return '';
+  const W = 520, H = 200, L = 40, R = 40, T = 12, B = 26;
+  const x0 = pts[0].ft, x1 = pts[pts.length - 1].ft;
+  const X = ft => L + (ft - x0) / (x1 - x0) * (W - L - R);
+  const ohmsMax = 110, Y = o => T + (1 - o / ohmsMax) * (H - T - B);
+  const Ya = a => T + (1 - a / 90) * (H - T - B);
+  const rLine = pts.map((p, i) => (i ? 'L' : 'M') + X(p.ft).toFixed(1) + ',' + Y(p.ohms).toFixed(1)).join(' ');
+  const aLine = pts.map((p, i) => (i ? 'L' : 'M') + X(p.ft).toFixed(1) + ',' + Ya(p.takeoff).toFixed(1)).join(' ');
+  const aim = d.height_ft && d.height_ft >= x0 && d.height_ft <= x1 ? X(d.height_ft) : null;
+  const reach = d.reach_ft && d.reach_ft < x1 ? X(Math.max(d.reach_ft, x0)) : null;
+  const ticks = [];
+  const stepFt = x1 - x0 > 200 ? 50 : x1 - x0 > 80 ? 20 : x1 - x0 > 30 ? 10 : 5;
+  for (let f = Math.ceil(x0 / stepFt) * stepFt; f <= x1; f += stepFt) ticks.push(f);
+  return '<svg class="heightgraph" viewBox="0 0 ' + W + ' ' + H + '" role="img" ' +
+      'aria-label="feedpoint resistance and takeoff angle against height">' +
+    (reach !== null ? '<rect x="' + reach.toFixed(1) + '" y="' + T + '" width="' + (W - R - reach).toFixed(1) +
+      '" height="' + (H - T - B) + '" class="unreach"/>' : '') +
+    '<line x1="' + L + '" y1="' + Y(50).toFixed(1) + '" x2="' + (W - R) + '" y2="' + Y(50).toFixed(1) + '" class="fifty"/>' +
+    '<text x="' + (L + 3) + '" y="' + (Y(50) - 3).toFixed(1) + '" class="lbl">50 \u03a9</text>' +
+    '<path d="' + rLine + '" class="ohms"/>' +
+    '<path d="' + aLine + '" class="angle"/>' +
+    (aim !== null ? '<line x1="' + aim.toFixed(1) + '" y1="' + T + '" x2="' + aim.toFixed(1) + '" y2="' + (H - B) + '" class="aim"/>' +
+      '<text x="' + (aim + 4).toFixed(1) + '" y="' + (T + 10) + '" class="lbl aimlbl">aim: ' + d.height_ft + ' ft</text>' : '') +
+    (d.heights || []).filter(r => r.what === 'match').map(r =>
+      '<circle cx="' + X(r.ft).toFixed(1) + '" cy="' + Y(r.ohms).toFixed(1) + '" r="3.5" class="mark"/>' +
+      '<text x="' + (X(r.ft) + 5).toFixed(1) + '" y="' + (Y(r.ohms) + 12).toFixed(1) + '" class="lbl">match ' + r.ft + ' ft, ' + r.takeoff + '\u00b0 up</text>').join('') +
+    ticks.map(f => '<text x="' + X(f).toFixed(1) + '" y="' + (H - 8) + '" class="tick">' + f + '</text>').join('') +
+    '<text x="' + (W / 2) + '" y="' + (H - 0) + '" class="tick" style="font-weight:700">height, ft</text>' +
+    '<text x="2" y="' + (Y(100) + 4).toFixed(1) + '" class="tick ohmlbl">100 \u03a9</text>' +
+    '<text x="2" y="' + (Y(0) + 4).toFixed(1) + '" class="tick ohmlbl">0 \u03a9</text>' +
+    '<text x="' + (W - R + 4) + '" y="' + (Ya(90) + 4).toFixed(1) + '" class="tick angle">90\u00b0</text>' +
+    '<text x="' + (W - R + 4) + '" y="' + (Ya(0) + 4).toFixed(1) + '" class="tick angle">0\u00b0</text>' +
+    '<text x="' + (W - R + 4) + '" y="' + (Ya(45) + 4).toFixed(1) + '" class="tick angle">lobe</text>' +
+    '</svg>';
 }
 
 /* What the power asks of the parts. Led with the thing people get wrong,

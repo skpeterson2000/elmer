@@ -1450,6 +1450,19 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   against the published curve. Perfect-ground figures: real ground damps the
   swings, so these are heights to start looking, not to stop at.
 
+  **And why the height to aim for is not the height where the coax matches**
+  — said in numbers, because a page that lists a perfect 50 Ω match at 16 ft
+  and then says "aim for 49" looks obtuse unless it says why. The match is
+  worth almost nothing: at 49 ft on 30 m the feed is about 68 Ω, SWR 1.4,
+  which costs a tenth of a decibel; 1.5:1 costs 0.18 dB and 2:1 half a dB.
+  The angle is worth everything: at 16 ft the main lobe points straight up,
+  at 49 ft it is 30° — where DX comes from. And an antenna receives exactly
+  the way it transmits, so the same height that puts the signal out low
+  brings the far ones in. The graph above the table draws both against
+  height — resistance wobbling within a decibel of 50 while the takeoff
+  angle falls from the zenith — with the height to aim for marked and the
+  ground the site cannot reach shaded.
+
   **What the power asks of it.** Not the antenna — a thicker element does not
   take more power to drive; the RF runs on its skin and a fat wire has *more*
   skin and *less* loss, and QRP operators use thin wire because it is light,

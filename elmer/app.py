@@ -1347,6 +1347,8 @@ def api_antenna_advice():
         reach = (antenna_advice.SITES.get(site) or {}).get("max_ft")
         out["heights"] = antenna_advice.matching_heights(
             mhz, reach if reach not in (None, 0) else None)
+        out["height_curve"] = antenna_advice.height_curve(mhz)
+        out["reach_ft"] = reach if reach not in (None, 0) else None
     # What the power asks of the parts. The conductor's diameter and material
     # come along so the heat in the wire is this wire's, not the default's.
     try:

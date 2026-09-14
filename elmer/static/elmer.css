@@ -453,6 +453,19 @@ table.data tr:hover td { background: #171f28; }
 table.heights td { white-space: nowrap; padding: .2rem .55rem .2rem 0; vertical-align: top; }
 table.heights td:last-child { white-space: normal; }
 table.heights tr.far td { color: var(--dimmer); }
+/* The feed-and-angle graph on the antenna advice. */
+.heightgraph { width: 100%; max-width: 34rem; height: auto; display: block; margin: .2rem 0 .4rem; }
+.heightgraph .ohms { fill: none; stroke: var(--amber); stroke-width: 2; }
+.heightgraph .angle { fill: none; stroke: var(--cyan); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.heightgraph .fifty { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.heightgraph .aim { stroke: var(--green); stroke-width: 1.5; }
+.heightgraph .unreach { fill: var(--panel-2); opacity: .6; }
+.heightgraph .mark { fill: var(--amber); }
+.heightgraph .lbl { font: .62rem var(--mono); fill: var(--dim); }
+.heightgraph .aimlbl { fill: var(--green); }
+.heightgraph .tick { font: .58rem var(--mono); fill: var(--dimmer); text-anchor: middle; }
+.heightgraph .tick.angle { text-anchor: start; fill: var(--cyan); }
+.heightgraph .tick.ohmlbl { text-anchor: start; fill: var(--amber-dim); }
 table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
 
 /* Under a frequency input: which band this is, and what is at that spot -

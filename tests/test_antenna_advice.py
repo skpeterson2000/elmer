@@ -422,6 +422,18 @@ def main():
           next(m for m in marks if m["what"] == "peak")["reachable"], False)
     check("every landmark carries the SWR into 50 ohm coax",
           all(m["swr"] >= 1.0 for m in marks), True)
+    check("  and what that SWR costs, and where the lobe points from there",
+          (marks[0]["loss_db"], marks[0]["takeoff"]), (0.0, 90))
+    check("1.5:1 costs a fifth of a decibel, 2:1 half of one",
+          (round(A.mismatch_loss_db(1.5), 2), round(A.mismatch_loss_db(2.0), 2)), (0.18, 0.51))
+    why = A.match_versus_height(10.136, 49)
+    check("the advice says why the height beats the match, in numbers",
+          all(w in why for w in ("16 ft", "49 ft", "dB", "straight up", "30 degrees")), True)
+    check("  and that receiving goes the same way", "receives exactly the way it transmits" in why, True)
+    check("  which the dipole advice carries", any("Why not the" in w for w in A.recommend(10.136, use="dx")["why"]), True)
+    curve = A.height_curve(10.136)
+    check("a curve for the graph, up to a wavelength", (curve[0]["wavelengths"], curve[-1]["wavelengths"]), (0.04, 1.0))
+    check("  with the angle falling as the wire rises", curve[-1]["takeoff"] < curve[0]["takeoff"], True)
 
     print("\n-- the power changes what has to survive, not the antenna --")
     notes = A.power_notes("dipole", 7.1, 100)
