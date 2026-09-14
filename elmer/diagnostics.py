@@ -870,8 +870,29 @@ def check_op25():
 
 
 def check_kiosk():
-    """What ./elmer.py --kiosk would do if it were run right now."""
-    from . import kiosk
+    """What ./elmer.py --kiosk would do if it were run right now - or, on
+    Windows, what the window of ELMER's own will be.
+
+    The kiosk is the Pi's full-screen Chromium and does not run on Windows;
+    the browsers it looks for are on the PATH on a Pi and never on Windows,
+    where Firefox lives in Program Files and being the default browser
+    changes nothing. So on Windows the line is about the window instead:
+    Edge or Chrome as an app window, closed to stop ELMER. Firefox cannot
+    be that window - it has no app-window mode - and Edge is on every
+    Windows machine, so the window is never missing for long.
+    """
+    from . import host, kiosk
+    if not host.can_kiosk():
+        from . import window
+        path, name = window.find_browser()
+        if path:
+            _line(OK, "window", f"{name} ({Path(path).name}) - ELMER opens in a window of "
+                                "its own; closing it stops ELMER")
+        else:
+            _line(WARN, "window", "no Edge or Chrome for a window of ELMER's own - it "
+                                  "opens as a tab in the default browser, which will "
+                                  "not stop it when closed")
+        return True
     path, family = kiosk.find_browser()
     if not path:
         _line(WARN, "kiosk mode", "no chromium or firefox - --kiosk will serve "
