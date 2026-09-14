@@ -17,6 +17,9 @@ import re
 import threading
 import time
 from datetime import date, datetime, timedelta, timezone
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 from markupsafe import escape
@@ -5188,7 +5191,95 @@ def api_doctor():
         counts[check["state"]] = counts.get(check["state"], 0) + 1
     return jsonify({"checks": checks, "counts": counts,
                     "sound": counts.get("FAIL", 0) == 0,
+                    "can_fix": _is_local(request.remote_addr),
                     "checked_at": time.time()})
+
+
+# ------------------------------------------------------------- remedies
+# What a press can do about a self-check line. The doctor looks and changes
+# nothing; each of these is one remedy, named by the line that calls for
+# it, run only from the local screen and only when pressed. Nothing here
+# is guessed at: each does the one thing the line said was wanting, and
+# says what it did. KC9SP: many operators are plenty smart enough and put
+# their energy into other things - the press is for them.
+
+def _remedy_start_menu():
+    root = Path(__file__).resolve().parents[1]
+    lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "ELMER.lnk"
+    script = (f"$s = (New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); "
+              f"$s.TargetPath = '{root / 'elmer.cmd'}'; $s.WorkingDirectory = '{root}'; "
+              f"$s.Description = 'ELMER - radio study and propagation'; "
+              f"$s.IconLocation = '{root / 'elmer' / 'static' / 'elmer.ico'},0'; $s.WindowStyle = 7; $s.Save()")
+    done = subprocess.run(["powershell", "-NoProfile", "-Command", script],
+                          capture_output=True, text=True, timeout=30)
+    if done.returncode:
+        return False, (done.stderr or done.stdout).strip()[:200] or "PowerShell refused"
+    return True, "ELMER is on the Start Menu, pointing at this copy"
+
+
+def _remedy_forget_net():
+    connection = conn()
+    cohort.forget(connection)
+    cohort.disconnect(connection)
+    return True, "forgotten; this table is on its own until it hears a net or is told one"
+
+
+def _remedy_leave_net():
+    cohort.disconnect(conn())
+    cohort.forget(conn())
+    return True, "cut loose; this table is on its own"
+
+
+def _remedy_connect():
+    ok, message, _ = update.adopt()
+    return ok, message
+
+
+def _remedy_poppler():
+    winget = shutil.which("winget")
+    if not winget:
+        return False, "winget is not on this machine - get poppler from github.com/oschwartz10612/poppler-windows"
+    done = subprocess.run([winget, "install", "--id", "oschwartz10612.Poppler", "--exact", "--silent",
+                           "--accept-source-agreements", "--accept-package-agreements"],
+                          capture_output=True, text=True, timeout=600)
+    if done.returncode:
+        return False, f"winget could not install it (exit {done.returncode})"
+    return True, "poppler installed - the NIFOG reader and the library can read now"
+
+
+def _remedy_stop_op25():
+    from . import op25
+    stopped = op25.stop(conn(), reason="asked from the self-check")
+    return True, f"stopped {stopped}" if stopped else "nothing was running"
+
+
+REMEDIES = {
+    "start-menu": ("put ELMER on the Start Menu, with its icon", _remedy_start_menu),
+    "forget-net": ("forget the net this table remembers", _remedy_forget_net),
+    "leave-net": ("cut this table loose from the net it is reporting to", _remedy_leave_net),
+    "connect": ("connect this copy to the repository, so it can update itself", _remedy_connect),
+    "poppler": ("install poppler with winget", _remedy_poppler),
+    "stop-op25": ("stop OP25", _remedy_stop_op25),
+}
+
+
+@app.route("/api/doctor/fix", methods=["POST"])
+def api_doctor_fix():
+    """One remedy, by name, from the local screen, when pressed."""
+    if not _is_local(request.remote_addr):
+        abort(403)
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("fix") or "")
+    if name not in REMEDIES:
+        abort(400, "no such remedy")
+    what, do = REMEDIES[name]
+    try:
+        ok, said = do()
+    except Exception as exc:
+        log.warning("remedy %s: %s: %s", name, type(exc).__name__, exc)
+        ok, said = False, f"{type(exc).__name__}: {exc}"
+    log.info("remedy %s: %s - %s", name, "done" if ok else "not done", said)
+    return jsonify({"ok": bool(ok), "fix": name, "what": what, "said": said})
 
 
 def _describe_this_unit():

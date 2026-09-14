@@ -2716,6 +2716,18 @@ it can hear, the hall it remembers, the mail path and the port, then prints
 every address the server can be reached on. The dashboard's **Self-check**
 runs the same checks and shows the same lines.
 
+Where a line has one known remedy, the unit's own screen gets a **Fix**
+beside it: a copy that is not connected to the repository is connected
+(`--adopt`, from the dashboard); a Start Menu entry that is missing or points
+at a copy that has gone is put back; a net this table remembers that no
+longer answers is forgotten, and a table that has come to report to itself
+is cut loose; poppler missing on Windows is installed with winget; OP25
+running before a game is stopped. Each does that one thing when pressed,
+says what it did, and the check runs again. The press works from the unit's
+own screen only - across the network the line just says what to do. Changed
+files stay a terminal matter (`./install.sh --repair` throws edits away, and
+nothing on a dashboard should do that by accident).
+
 It also reports on the two things that decide every answer ELMER gives about a
 place, because both could be dead while the rest of the self-check printed
 all-clear — which is how a GPS that has stopped answering becomes an afternoon

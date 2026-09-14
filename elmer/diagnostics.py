@@ -126,10 +126,14 @@ def check_load():
 _collected = None
 
 
-def _line(state, label, detail=""):
+def _line(state, label, detail="", fix=None):
+    """One finding. `fix` names a remedy in app.py's REMEDIES - the one thing
+    a press on the local screen can do about this line - or is None: the
+    doctor looks and changes nothing, and a fix is a separate press, so the
+    person stays in charge and nothing here needs a terminal."""
     if _collected is not None:
         _collected.append({"state": state.strip(), "label": label,
-                           "detail": detail})
+                           "detail": detail, "fix": fix})
         return
     print(f"  [{state}] {label}" + (f"  -  {detail}" if detail else ""))
 
@@ -360,12 +364,16 @@ def check_tools():
         _line(OK, "poppler tools", f"present in {', '.join(sorted(where))} "
               "(for --build and the library)")
     else:
+        from . import host
         _line(WARN, "poppler tools", "missing " +
               ", ".join(t for t in want if not found[t]) +
-              f" - looked on PATH ({os.environ.get('PATH') or 'empty'}) and in "
-              f"{', '.join(library.FALLBACK_DIRS)}. sudo apt install poppler-utils; "
-              "if it is installed, ELMER was started with a different PATH from "
-              "your terminal's")
+              (" - it reads the NIFOG channel PDF and the manuals on the shelf"
+               if host.WINDOWS else
+               f" - looked on PATH ({os.environ.get('PATH') or 'empty'}) and in "
+               f"{', '.join(library.FALLBACK_DIRS)}. sudo apt install poppler-utils; "
+               "if it is installed, ELMER was started with a different PATH from "
+               "your terminal's"),
+              fix="poppler" if host.WINDOWS else None)
     return True
 
 
@@ -689,7 +697,7 @@ def check_net_role():
     except Exception as exc:
         _line(WARN, "hall", f"remembers {url} but it is not answering ({type(exc).__name__}) "
               "- the table rejoins when it comes back, or follows the same net "
-              "to a new address if it hears it there")
+              "to a new address if it hears it there", fix="forget-net")
     return True
 
 
@@ -816,8 +824,7 @@ def check_node():
     d = link.as_dict()
     if cohort.is_own_address(d.get("url")):
         _line(WARN, "this table", "reporting to this unit's own address, with no net "
-              "running here - a leftover of hosting; Leave the net on the table "
-              "screen cuts it loose, and it is not remembered again")
+              "running here - a leftover of hosting", fix="leave-net")
         return True
     state = d.get("state")
     detail = (f"reporting to {d.get('net_name') or d.get('url')} as "
@@ -868,7 +875,7 @@ def check_op25():
     pids = ", ".join(f"pid {p}" for p, _ in procs)
     if armed:
         _line(WARN, "OP25", f"running ({pids}) - it takes most of a Pi; ELMER "
-              "will stop it when a net opens or a tournament starts")
+              "will stop it when a net opens or a tournament starts", fix="stop-op25")
     else:
         _line(WARN, "OP25", f"running ({pids}) and stopping it is switched off "
               "- on a Pi 3 it will make a game feel slow; set stop_op25 on, or "
@@ -923,8 +930,8 @@ def check_updates():
     from . import update
     st = update.state()
     if not st["checkout"]:
-        _line(WARN, "updates", "not a git checkout - run ./elmer.py --adopt "
-                               "to point this copy at the repository")
+        _line(WARN, "updates", "this copy is not connected to the repository, so "
+                               "it cannot update itself", fix="connect")
         return True
     was = update.cached()
     where = f"{st['head']} on {st['branch']}" if st["branch"] else st["head"]
@@ -961,8 +968,8 @@ def check_launcher():
         import os
         lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "ELMER.lnk"
         if not lnk.is_file():
-            _line(WARN, "Start Menu", "ELMER is not on the Start Menu - install.ps1 offers to "
-                                      "put it there, with its icon")
+            _line(WARN, "Start Menu", "ELMER is not on the Start Menu",
+                  fix="start-menu")
             return True
         try:
             import subprocess
@@ -978,8 +985,8 @@ def check_launcher():
         elif target and Path(target).exists():
             _line(WARN, "Start Menu", f"the entry points at another copy: {Path(target).parent}")
         elif target:
-            _line(BAD, "Start Menu", "the entry points at a folder that is no longer there - "
-                                     "install.ps1 here repoints it")
+            _line(BAD, "Start Menu", "the entry points at a folder that is no longer there",
+                  fix="start-menu")
         else:
             _line(OK, "Start Menu", "ELMER is on the Start Menu")
         return True

@@ -506,16 +506,39 @@ document.addEventListener('click', async e => {
 
 /* ------------------------------------------------------------ self-check */
 /* The same checks --doctor runs, for somebody who is not at a terminal - and
-   on a kiosk there is no terminal to be at. It reports; it does not repair.
-   Where something is wrong it says what to do about it rather than offering a
-   button that claims to have done it. */
+   on a kiosk there is no terminal to be at. It reports; it does not repair
+   on its own. Where a line has one known remedy, the local screen gets a
+   Fix beside it that does that one thing when pressed, says what it did,
+   and looks again; every other line says what to do about it instead of
+   offering a button that claims to have done it. */
 
-function checkRow(c) {
+function checkRow(c, canFix) {
   const tone = c.state === 'ok' ? 'ok' : (c.state === 'warn' ? 'warn' : 'bad');
   const mark = c.state === 'ok' ? '✓' : (c.state === 'warn' ? '!' : '×');
   return '<li class="check ' + tone + '"><span class="mark">' + mark + '</span>' +
          '<b>' + escapeHTML(c.label) + '</b>' +
-         (c.detail ? '<span>' + escapeHTML(c.detail) + '</span>' : '') + '</li>';
+         (c.detail ? '<span>' + escapeHTML(c.detail) + '</span>' : '') +
+         (c.fix && canFix
+           ? ' <button class="btn sm" data-fix="' + escapeHTML(c.fix) + '">Fix</button>'
+           : '') + '</li>';
+}
+
+async function runFix(btn) {
+  const name = btn.dataset.fix;
+  const row = btn.closest('li');
+  btn.disabled = true; btn.textContent = 'Working…';
+  let r;
+  try {
+    r = await api('/api/doctor/fix', {method: 'POST', body: JSON.stringify({fix: name})});
+  } catch (e) {
+    r = {ok: false, said: 'the press did not go through - details are in data/elmer.log'};
+  }
+  if (row) {
+    row.insertAdjacentHTML('beforeend', '<span class="tiny ' + (r.ok ? 'ok' : 'bad') + '">' +
+      (r.ok ? 'Done: ' : 'Not done: ') + escapeHTML(r.said || '') + '</span>');
+  }
+  btn.remove();
+  if (r.ok) setTimeout(() => runSelfCheck(), 1500);   // look again, with the result in view
 }
 
 function renderSelfCheck(d) {
@@ -531,12 +554,18 @@ function renderSelfCheck(d) {
     '<div class="panel"><div class="panel-title">Self-check</div>' +
     '<p class="tiny muted">' + verdict + ' &mdash; ' + d.checks.length +
       ' checks. This looks; it does not change anything.</p>' +
-    '<ul class="checks">' + d.checks.map(checkRow).join('') + '</ul>' +
+    '<ul class="checks">' + d.checks.map(c => checkRow(c, d.can_fix)).join('') + '</ul>' +
     (bad || warn
-      ? '<p class="tiny muted">Anything that needs putting back is done from a ' +
-        'terminal, on purpose: <span class="mono">./install.sh --repair</span> ' +
-        'restores changed files from the repository, which throws those edits ' +
-        'away and cannot be undone.</p>'
+      ? '<p class="tiny muted">' +
+        (d.checks.some(c => c.fix)
+          ? (d.can_fix
+              ? 'A <b>Fix</b> does the one thing that line calls for, when pressed, ' +
+                'and says what it did. '
+              : 'Lines with a known remedy offer a Fix on the unit’s own screen. ')
+          : '') +
+        'Changed files are put back from a terminal, on purpose: ' +
+        '<span class="mono">./install.sh --repair</span> restores them from the ' +
+        'repository, which throws those edits away and cannot be undone.</p>'
       : '') +
     '<div class="row" style="margin-top:.7rem">' +
       '<button class="btn sm" data-selfcheck="run">Check again</button></div>' +
@@ -558,6 +587,8 @@ async function runSelfCheck(btn) {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-selfcheck]');
   if (b) runSelfCheck(b);
+  const f = e.target.closest('[data-fix]');
+  if (f) runFix(f);
 });
 
 /* ------------------------------------------------------- other ELMERs here */
