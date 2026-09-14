@@ -66,7 +66,7 @@ def run():
     check("  and the ball is there, on the fairway", (g.balls["a"].at, g.balls["a"].lie), (250, "fairway"))
     g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
     row = g.play({"a": R(True, ms=30000, club="driver")})
-    check("at the bell, sixty percent of it", row["shots"]["a"]["carry"], 150)
+    check("and a slow right answer flies it just as far - the swing is not timed", row["shots"]["a"]["carry"], 250)
     g = golf.Golf(["a"], flat_course(wind="into"), seed=1, seconds=30)
     g.wind_mph = 10
     row = g.play({"a": R(True, ms=1000, club="driver")})
@@ -167,11 +167,88 @@ def run():
     g = golf.Golf(["a"], flat_course(par=4, yards=370), seed=1, seconds=30)
     g.play({"a": R(True, ms=1000, club="driver")})            # 250, fairway, 120 to go
     row = g.play({"a": R(True, ms=3000, club="iron")})        # the iron can reach: aimed at the pin
-    check("a fast iron from 120 out is aimed, and on the green", row["shots"]["a"]["kind"], "green")
-    check("  a few feet from the hole", int(row["shots"]["a"]["words"].split(", ")[-1].split()[0]) <= 15, True)
+    check("an iron from 120 out is aimed, and on the green", row["shots"]["a"]["kind"], "green")
+    check("  within a dozen yards of the hole", int(row["shots"]["a"]["words"].split(", ")[-1].split()[0]) <= 12 * 3, True)
     row = g.play({"a": R(True, ms=5000)})
     check("three strokes on the card", g.cards["a"], {1: 3})
     check("  the last one says the score", "3 for birdie" in row["shots"]["a"]["words"], True)
+
+    print("\n-- one at a time --")
+    g = golf.Golf(["a", "b", "c"], flat_course(par=4, yards=400), seed=3)
+    check("on the first tee, seating order: a is away", g.away(), "a")
+    row = g.play_one("a", {"correct": True, "club": "driver"})
+    check("  a's drive alone is in the row", list(row["shots"]), ["a"])
+    check("  b and c have not moved", (g.balls["b"].at, g.balls["c"].at), (0, 0))
+    check("  with a ball on the fairway, the tee is farther: b is away", g.away(), "b")
+    g.play_one("b", {"correct": False, "club": "driver"})     # a foul ball, short
+    g.play_one("c", {"correct": True, "club": "driver"})      # 250 out
+    check("  then whoever is farthest from the hole", g.away(), "b")
+    check("a stroke by a player who is not on the hole is refused",
+          "error" in g.play_one("zed", {"correct": True}), True)
+    while g.hole() and g.hole()["n"] == 1 and g.away():
+        g.play_one(g.away(), {"correct": g.away() == "a"})
+    check("the hole plays out one stroke at a time", all(1 in g.cards[p] for p in "abc"), True)
+    check("  and a, right every time, won it", g.winner(), "a")
+    g2 = golf.Golf(["a", "b"], {**flat_course(par=3, yards=150), "holes": [
+        {"n": 1, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []},
+        {"n": 2, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []}]},
+        holes=[1, 2], seed=3)
+    g2.play_one("a", {"correct": False, "club": "iron"})      # a into the rough
+    g2.play_one("b", {"correct": True, "club": "iron"})       # b on the green
+    while g2.hole() and g2.hole()["n"] == 1:
+        g2.play_one(g2.away(), {"correct": True})
+    check("the honour on the next tee goes to the better score", (g2.cards["a"][1] > g2.cards["b"][1], g2.away()), (True, "b"))
+
+    print("\n-- the thread of questions --")
+    two = {**flat_course(par=3, yards=150), "holes": [
+        {"n": n, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []}
+        for n in (1, 2, 3)]}
+    g = golf.Golf(["a"], two, holes=[1, 2, 3], seed=5)
+    pool = {"T1A": ["T1A01", "T1A02"], "T1B": ["T1B01"], "T1C": ["T1C01", "T1C02"]}
+    ids = [q for qs in pool.values() for q in qs]
+    q1, sec1 = g.draw(pool, ids, "a")
+    g.note_asked(q1)
+    check("the first hole takes an area", (q1 in pool[sec1], g.hole_section), (True, sec1))
+    g.play_one("a", {"correct": False, "club": "iron", "question_id": q1})     # a miss, into the rough
+    q2, sec2 = g.draw(pool, ids, "a")
+    g.note_asked(q2)
+    check("  and stays on it while it has questions, or moves when it is dry",
+          sec2 == sec1 if len(pool[sec1]) > 1 else sec2 != sec1, True)
+    check("  never the same question twice while others wait", q2 != q1, True)
+    check("  the miss is remembered", g.missed, [q1])
+    # play the round out, drawing as the room would
+    seen = [q1, q2]
+    guard = 0
+    while not g.over() and guard < 40:
+        guard += 1
+        q, sec = g.draw(pool, ids, "a")
+        g.note_asked(q)
+        seen.append(q)
+        g.play_one("a", {"correct": True, "question_id": q})
+    check("every question asked once before any again", sorted(set(seen[:5])), sorted(ids))
+    check("  and the miss came round first after that", seen[5], q1)
+    check("  then it was learned", g.missed, [])
+    check("a new hole takes a new area", len(set(g.sections_used)) >= 2, True)
+
+    print("\n-- the lie has its say, where hardness is known --")
+    g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=5)
+    g.hardness = {f"Q{i}": i / 10 for i in range(11)}
+    easy = g.choose(list(g.hardness), "a")
+    check("from the tee, an easy one", g.hardness[easy] <= 0.4, True)
+    g.balls["a"].lie = "sand"
+    hard = g.choose(list(g.hardness), "a")
+    check("from the sand, a hard one", g.hardness[hard] >= 0.7, True)
+    check("with nothing measured, any", golf.Golf(["a"], flat_course(), seed=1).choose(["x", "y"], "a") in ("x", "y"), True)
+
+    print("\n-- sitting down and leaving mid-round --")
+    g = golf.Golf(["a", "b"], flat_course(par=4, yards=400), seed=3)
+    g.play_one("a", {"correct": True, "club": "driver"})
+    g.add_player("late")
+    check("a late arrival has a ball on this tee", (g.balls["late"].at, g.balls["late"].lie), (0, "tee"))
+    check("  and is away, being farthest", g.away(), "b")     # b is also on the tee and seated first
+    g.drop("b")
+    check("somebody leaving takes their ball with them", "b" in g.balls, False)
+    check("  and the group plays on", g.away(), "late")
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

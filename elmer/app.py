@@ -3414,17 +3414,35 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
     except Exception:
         seen = set()
     fresh = [i for i in ids if i not in seen]
-    question = pool.by_id[random.choice(fresh or ids)]
+    # Golf is played one stroke at a time: the question goes to whoever is
+    # away, and it is not timed - the limit here is only for a golfer who
+    # has walked off, and no screen shows it. And golf draws its own way:
+    # one area a hole, every question once, the misses again, then by
+    # hardness against the lie - see golf.Golf.draw.
+    to = room.golf_away() if room.mode == party.GOLF else None
+    if room.mode == party.GOLF:
+        if to is None:
+            raise ValueError("nobody is away")
+        by_section = {}
+        for q in pool.by_id.values():
+            by_section.setdefault(q["section"], []).append(q["id"])
+        drawn, _ = room.golf.draw(by_section, list(pool.by_id), to)
+        question = pool.by_id[drawn]
+        room.golf.note_asked(drawn)
+    else:
+        question = pool.by_id[random.choice(fresh or ids)]
     shown = presentation(question)
     return room.start_round(
         pool_id, question["id"], shown["answer"],
-        seconds=float(seconds or party.DEFAULT_ROUND_SECONDS),
+        seconds=(party.GOLF_SECONDS if to is not None
+                 else float(seconds or party.DEFAULT_ROUND_SECONDS)),
         payload={"text": question["text"], "choices": shown["choices"],
                  "section": question["section"],
                  "section_title": pool.section_title(question["section"]),
                  "figure": pool.figure_url(question),
                  "highlight": pool.figure_highlight(question),
-                 "difficulty": str(difficulty).lower()})
+                 "difficulty": str(difficulty).lower()},
+        to=to)
 
 
 def _headline(shouted):
@@ -3533,6 +3551,13 @@ def api_party_mode():
         started, why = room.begin_golf(course, holes, handicaps, seconds)
         if started is None:
             abort(409, why)
+        # How hard the pool's questions have measured on this unit, for the
+        # draw to match to the lie once every question has been asked.
+        try:
+            measured = difficulty.measure(difficulty.load(conn(), party.DIFFICULTIES[difficulty]))
+            started.hardness = {q: m["hardness"] for q, m in measured.items() if m.get("measured")}
+        except Exception as exc:                          # pragma: no cover
+            log.debug("golf: no hardness to draw by: %s", exc)
         autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
         log.info("party: golf started at %s, %d holes, %d players%s", course["id"], len(holes),
                  len(room.players), " (handicaps)" if handicaps else "")

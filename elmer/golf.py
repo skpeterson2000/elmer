@@ -3,19 +3,26 @@
 KC9SP's game, modelled on the real one. The course is a real one - Pebble
 Beach, the Old Course, Augusta - from its card: each hole's par and yards,
 the hazards along the line, the wind it usually has. A stroke is a
-question. Answer it right and the ball flies: the faster the answer, the
-better the shot. Answer it wrong and it is a foul ball - into the rough,
-the sand, the water, over the cliff for a drop and a stroke.
+question. Answer it right and the ball flies; answer it wrong and it is a
+foul ball - into the rough, the sand, the water, over the cliff for a
+drop and a stroke.
 
-**The shot.** Before the question the player chooses a club - driver,
+**One at a time.** Golf is not a race. The player who is away - farthest
+from the hole; on the tee, the honour, which is the best score on the
+last hole - plays, and the rest of the group watches. Nothing in a round
+of golf is timed: a golfer rushed at the tee is not playing golf, so the
+clock has no say in the shot and no screen shows one. The room waits on
+the player who is away for as long as they take.
+
+**The shot.** With the question the player chooses a club - driver,
 wood, iron, wedge; on the green it is the putter and nothing else - and
-the club sets the most the ball can go. The clock sets how much of that
-it gets: answered in the first quarter of the time, all of it; at the
-bell, sixty percent. The wind adds or takes yards, and the lie the ball
-was in takes some too: rough costs a fifth, sand allows only a wedge and
-costs more. Where the ball lands is checked against the course. A fast,
-correct driver that carries into Rae's Creek is golf, and the player
-chose the driver.
+the club sets how far the ball goes. A club that can reach the pin is
+hit at it and lands within a few yards of it, either side; one that
+cannot is a full swing and goes its length. The wind adds or takes
+yards, and the lie the ball was in takes some too: rough costs a fifth,
+sand allows only a wedge and costs more. Where the ball lands is checked
+against the course. A correct driver that carries into Rae's Creek is
+golf, and the player chose the driver.
 
 **Foul balls.** A wrong answer finds the nearest trouble the club could
 have reached: water most often means a drop where you were and a penalty
@@ -30,6 +37,17 @@ and another stroke. A player who has not holed after par plus three
 picks up and takes that, the way casual golfers do, so a hole has a
 bounded number of questions and the table moves on together.
 
+**What is asked.** Golf is the slow game: the one for sitting and
+reasoning an answer through, talking radio with friends between strokes,
+nobody missing a shot to a clock. So the questions have a thread. Each
+hole takes one test area - a section of the pool, drawn from those not
+yet played this round - and stays on it until its questions run out,
+then takes another. Once every question in the pool has been asked
+once, the ones missed come round again first; after those, the order is
+by how hard the questions have measured on this unit, matched to the
+shot at hand: a ball on the tee or the fairway gets an easier one, a
+ball in the rough or the sand a harder one. A bad lie has its say.
+
 **Scoring** is real golf: strokes against the card - eagle, birdie, par,
 bogey and the rest - lowest total over the round wins. A handicap, if the
 table switched it on, is strokes given, taken off at the end: a poor
@@ -40,9 +58,9 @@ end is a playoff, hole by hole, sudden death.
 rounds play the same; the 12th at Augusta swirls, which means it is drawn
 for every shot.
 
-Nothing here has a clock or a question in it. The room says which club
-each player chose and how each answered; this says where every ball went,
-in yards and in words - the playback - and who is winning.
+Nothing here has a clock or a question in it. The room says who is away,
+which club they chose and whether they were right; this says where the
+ball went, in yards and in words - the playback - and who is winning.
 """
 import json
 import random
@@ -58,19 +76,18 @@ LIES = {
     "tee": (1.0, "driver"), "fairway": (1.0, "driver"),
     "rough": (0.8, "wood"), "sand": (0.6, "wedge"),
 }
-# The clock's share of the shot: all of the club's length inside the first
-# quarter of the time, falling to sixty percent at the bell.
-QUICK = 0.25
-SLOWEST = 0.6
-# A shot the club can reach the pin with is aimed at it, and the clock sets
-# how close it lands: within this many yards for a fast answer, and this
-# many for one at the bell. Full swings are for when the club cannot reach.
-AIM_QUICK = 5
-AIM_SLOW = 25
+# A shot the club can reach the pin with is aimed at it, and lands within
+# this many yards of it, either side. Full swings are for when the club
+# cannot reach, and go the club's length.
+AIM = 12
 # Yards per mile an hour, by how the wind sits on the line.
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
+# How hard a question the lie asks for, as a place in the pool's measured
+# hardness - nought the easiest, one the hardest. The tee is a fresh start;
+# the sand is not.
+LIE_HARDNESS = {"tee": 0.25, "fairway": 0.35, "green": 0.5, "rough": 0.7, "sand": 0.85}
 NAMES = {-3: "albatross", -2: "eagle", -1: "birdie", 0: "par", 1: "bogey",
          2: "double bogey", 3: "triple bogey"}
 
@@ -154,6 +171,14 @@ class Golf:
         self.playoff_holes = 0
         self._winner = None
         self.history = []
+        # The thread of questions: how often each has been asked this
+        # round, which were missed, the section each hole took, and how
+        # hard the pool's questions have measured (set by the room).
+        self.asked = {}
+        self.missed = []
+        self.sections_used = []
+        self.hole_section = None
+        self.hardness = {}
         self._tee_off()
 
     # ---------------------------------------------------------------- holes
@@ -172,6 +197,7 @@ class Golf:
         self.wind_mph = max(0, round(typical * self.rng.uniform(0.6, 1.4)))
         playing = self.playoff or self.players
         self.balls = {p: Ball() for p in playing}
+        self.hole_section = None            # a new hole takes a new area
 
     def wind_on(self, h):
         """How the wind sits on this hole for this shot: swirling is drawn
@@ -218,26 +244,17 @@ class Golf:
 
     # ---------------------------------------------------------------- shots
 
-    def _share(self, ms):
-        if ms is None or self.seconds <= 0:
-            return 1.0
-        f = max(0.0, min(1.0, (ms / 1000.0) / self.seconds))
-        return 1.0 if f <= QUICK else 1.0 - (1.0 - SLOWEST) * (f - QUICK) / (1.0 - QUICK)
-
-    def _carry(self, ball, club, ms, wind, left):
+    def _carry(self, ball, club, wind, left):
         """How far the ball goes. A club that can reach the pin is hit at
-        it, and the answer's speed is the precision; one that cannot is a
-        full swing, and the speed is the length. The wind has its say on
-        both."""
-        share = self._share(ms)
+        it and lands near it; one that cannot is a full swing and goes its
+        length. The wind has its say on both. Nothing about the answer but
+        that it was right reaches here: the swing is not timed."""
         most = CLUBS[club] * LIES[ball.lie][0]
         wind_yards = WIND_EFFECT.get(wind, 0.0) * self.wind_mph
         if most + wind_yards >= abs(left):
-            # Aimed - at the pin, from either side of it. The error grows as
-            # the answer slows, either way.
-            spread = AIM_QUICK + (AIM_SLOW - AIM_QUICK) * (1.0 - share) / (1.0 - SLOWEST)
-            return round(left + self.rng.uniform(-spread, spread) + wind_yards * 0.25)
-        return max(10, round(most * share + wind_yards))
+            # Aimed - at the pin, from either side of it.
+            return round(left + self.rng.uniform(-AIM, AIM) + wind_yards * 0.25)
+        return max(10, round(most + wind_yards))
 
     def _in_band(self, h, at, kinds=("water", "bunker", "rough"), sides=None):
         """The hazard a ball at `at` yards is in, if any, of these kinds and
@@ -251,14 +268,14 @@ class Golf:
                 return hz
         return None
 
-    def _fair(self, h, ball, club, ms):
+    def _fair(self, h, ball, club):
         """A correct answer: the ball flies, and the course has its say."""
         wind = self.wind_on(h)
         if club == "putter" or ball.lie == "green":
             ball.strokes += 1
             ball.holed = True
             return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
-        carry = self._carry(ball, club, ms, wind, h["yards"] - ball.at)
+        carry = self._carry(ball, club, wind, h["yards"] - ball.at)
         landed = ball.at + carry
         ball.strokes += 1
         left = h["yards"] - landed
@@ -322,34 +339,56 @@ class Golf:
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name}
 
-    def play(self, answers):
-        """One question: `answers` is {player: {"correct", "ms", "club"}}.
-        Returns every shot in words, and the hole's state after it."""
+    def away(self):
+        """Whose turn it is: the ball farthest from the hole plays first,
+        as on a course. On the tee, the honour - the best score on the last
+        hole plays first - and seating order settles the rest. None when
+        every ball on the hole is down."""
         h = self.hole()
-        if h is None or self.over():
-            return {"error": "the round is over"}
-        shots = {}
-        for p, ball in self.balls.items():
-            if ball.done():
-                continue
-            a = answers.get(p) or {}
-            club = a.get("club") or self.default_club(p)
-            if club not in self.clubs_for(p):
-                club = self.default_club(p)
+        if h is None:
+            return None
+        playing = [p for p in (self.playoff or self.players)
+                   if p in self.balls and not self.balls[p].done()]
+        if not playing:
+            return None
+        order = {p: i for i, p in enumerate(self.players)}
+        if all(self.balls[p].strokes == 0 for p in playing):
+            last = self.history[-1] if self.history else None
+            card = (last or {}).get("card") or {}
+            return min(playing, key=lambda p: (card.get(p, 99), order[p]))
+        return max(playing, key=lambda p: (h["yards"] - self.balls[p].at, -order[p]))
+
+    def _stroke(self, h, p, ball, answer):
+        """One player's stroke with one answer: where the ball went, in
+        words, and the ball moved."""
+        a = answer or {}
+        club = a.get("club") or self.default_club(p)
+        if club not in self.clubs_for(p):
+            club = self.default_club(p)
+        qid = a.get("question_id")
+        if qid:
             if a.get("correct"):
-                shot = self._fair(h, ball, club, a.get("ms"))
-            else:
-                shot = self._foul(h, ball, club)
-            if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
-                ball.picked_up = True
-                ball.strokes = h["par"] + PICK_UP_OVER
-                shot["words"] += f" - picked up, {score_name(ball.strokes, h['par'])}"
-            elif ball.holed:
-                shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
-            shot.update(strokes=ball.strokes, at=ball.at, lie=ball.lie, club=club,
-                        done=ball.done(), holed=ball.holed)
-            ball.log.append(shot["words"])
-            shots[p] = shot
+                if qid in self.missed:
+                    self.missed.remove(qid)     # learned, then
+            elif qid not in self.missed:
+                self.missed.append(qid)
+        if a.get("correct"):
+            shot = self._fair(h, ball, club)
+        else:
+            shot = self._foul(h, ball, club)
+        if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
+            ball.picked_up = True
+            ball.strokes = h["par"] + PICK_UP_OVER
+            shot["words"] += f" - picked up, {score_name(ball.strokes, h['par'])}"
+        elif ball.holed:
+            shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
+        shot.update(strokes=ball.strokes, at=ball.at, lie=ball.lie, club=club,
+                    done=ball.done(), holed=ball.holed)
+        ball.log.append(shot["words"])
+        return shot
+
+    def _after(self, h, shots):
+        """The hole's state after some strokes; the next hole if it is done."""
         hole_done = all(b.done() for b in self.balls.values())
         row = {"hole": h["n"], "par": h["par"], "shots": shots, "hole_done": hole_done,
                "wind_mph": self.wind_mph}
@@ -362,6 +401,62 @@ class Golf:
             row["winner"] = self._winner
         self.history.append(row)
         return row
+
+    def play_one(self, player, answer):
+        """One stroke, by the player who is away: `answer` is
+        {"correct", "club"}, or None for a player who never played the
+        shot - a foul ball. Returns the shot in words, and the hole's state
+        after it. The way a round is played."""
+        h = self.hole()
+        if h is None or self.over():
+            return {"error": "the round is over"}
+        ball = self.balls.get(player)
+        if ball is None or ball.done():
+            return {"error": "not on this hole"}
+        shot = self._stroke(h, player, ball, answer)
+        return self._after(h, {player: shot})
+
+    def play(self, answers):
+        """Everybody's strokes at once: `answers` is {player: {"correct",
+        "club"}}, a player not in it plays a foul ball. Returns every shot
+        in words, and the hole's state after them. The rules tests use it;
+        the room plays one at a time, see play_one."""
+        h = self.hole()
+        if h is None or self.over():
+            return {"error": "the round is over"}
+        shots = {}
+        for p, ball in self.balls.items():
+            if ball.done():
+                continue
+            shots[p] = self._stroke(h, p, ball, answers.get(p))
+        return self._after(h, shots)
+
+    def add_player(self, player):
+        """Somebody sat down mid-round: a ball on this hole's tee, no card
+        for the holes before. In a playoff they watch."""
+        if player in self.players:
+            return
+        self.players.append(player)
+        self.cards[player] = {}
+        if not self.playoff and self.hole() is not None:
+            self.balls[player] = Ball()
+
+    def drop(self, player):
+        """Somebody left: their ball is picked up, the round goes on without
+        them, and the hole moves on if theirs was the last ball on it."""
+        if player not in self.players:
+            return None
+        self.players.remove(player)
+        self.cards.pop(player, None)
+        self.playoff = [p for p in self.playoff if p != player]
+        self.balls.pop(player, None)
+        h = self.hole()
+        if h is not None and self.balls and all(b.done() for b in self.balls.values()):
+            return self._after(h, {})
+        if self.playoff and len(self.playoff) == 1:
+            self._winner = self.playoff[0]
+            self.playoff = []
+        return None
 
     def _next_hole(self):
         if self.playoff:
@@ -402,6 +497,63 @@ class Golf:
         self.hole_index = len(self.holes) - 1
         self._tee_off()
 
+    # ------------------------------------------------------------ questions
+    # Which question the room asks is the room's business - it has the pool
+    # and the unit's log. This keeps the thread: the area a hole is on, what
+    # has been asked, what was missed, and what the lie calls for.
+
+    def note_asked(self, question_id):
+        self.asked[question_id] = self.asked.get(question_id, 0) + 1
+
+    def pick_section(self, by_section):
+        """`by_section` is {section: [question ids not yet asked this
+        round]}. This hole's section while it has any left; else one not
+        yet played this round, at random; else any with some left; else
+        None - every question has been asked once."""
+        live = {sec: ids for sec, ids in by_section.items() if ids}
+        if self.hole_section in live:
+            return self.hole_section
+        fresh = [sec for sec in live if sec not in self.sections_used]
+        pick = (self.rng.choice(sorted(fresh)) if fresh
+                else self.rng.choice(sorted(live)) if live else None)
+        if pick is not None:
+            self.hole_section = pick
+            self.sections_used.append(pick)
+        return pick
+
+    def choose(self, candidates, player):
+        """One of `candidates` for this player's stroke: where the pool has
+        measured hardness, the one nearest what the lie calls for, from the
+        three nearest so it is not the same one every round; otherwise any."""
+        ids = list(candidates)
+        if not ids:
+            return None
+        ranked = [q for q in ids if q in self.hardness]
+        if len(ranked) < 3:
+            return self.rng.choice(ids)
+        ball = self.balls.get(player)
+        want = LIE_HARDNESS.get(ball.lie if ball else "fairway", 0.5)
+        lo, hi = min(self.hardness[q] for q in ranked), max(self.hardness[q] for q in ranked)
+        span = (hi - lo) or 1.0
+        place = lambda q: (self.hardness[q] - lo) / span      # noqa: E731
+        ranked.sort(key=lambda q: abs(place(q) - want))
+        return self.rng.choice(ranked[:3])
+
+    def draw(self, by_section, all_ids, player):
+        """The question for this stroke, from the pool as the room presents
+        it: `by_section` every question by section, `all_ids` every
+        question. One area per hole until it runs dry; every question once;
+        then the misses; then by hardness against the lie."""
+        left = {sec: [q for q in ids if q not in self.asked] for sec, ids in by_section.items()}
+        section = self.pick_section(left)
+        if section is not None:
+            return self.choose(left[section], player), section
+        again = [q for q in self.missed if self.asked.get(q, 0) < 2]
+        if again:
+            return again[0], None
+        fewest = min(self.asked.get(q, 0) for q in all_ids) if all_ids else 0
+        return self.choose([q for q in all_ids if self.asked.get(q, 0) == fewest], player), None
+
     # ---------------------------------------------------------------- views
 
     def par_so_far(self, player):
@@ -439,5 +591,7 @@ class Golf:
                       for p, b in self.balls.items()},
             "leaderboard": self.leaderboard(),
             "playoff": list(self.playoff), "handicaps": bool(self.handicaps),
+            "away": self.away(), "hole_section": self.hole_section,
+            "asked": sum(self.asked.values()), "missed": len(self.missed),
             "winner": self._winner, "over": self.over(),
         }

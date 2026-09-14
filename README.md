@@ -2143,9 +2143,23 @@ The rules are `elmer/cutthroat.py`, with no clock or question in them;
 ### Golf
 
 KC9SP's fourth game, modelled on the real one, on real courses. A stroke is
-a question. Answer it right and the ball flies - the faster the answer, the
-better the shot; answer it wrong and it is a foul ball, into the rough, the
-sand, the water, or over the cliff for a drop and a stroke.
+a question. Answer it right and the ball flies; answer it wrong and it is a
+foul ball, into the rough, the sand, the water, or over the cliff for a drop
+and a stroke.
+
+**Golf is the slow game.** The others are races; this is the one for
+sitting and reasoning an answer through, weighing the alternatives, talking
+radio with friends between strokes - and nobody misses a shot to a clock.
+Nothing in a round is timed. The player who is *away* - farthest from the
+hole; on the tee, the honour, which is the best score on the last hole -
+plays, and the rest of the group watches, the question in front of them
+too. The screens show no clock and the swing does not know how long the
+answer took. (A golfer who has walked off is waited on for ten minutes,
+then plays a foul ball and the group moves on; that is the only clock, and
+no screen shows it.) A group is a foursome at most: practice players make
+it up to four and no further, so one person is not waiting through a queue
+of software, and a practice player's stroke is a few seconds and its reveal
+short.
 
 The courses are three, from their real cards, one to a pool: **Pebble Beach**
 for Technician, **the Old Course at St Andrews** for General, **Augusta
@@ -2158,20 +2172,28 @@ two play the same. The 12th at Augusta swirls, which means it is drawn for
 every shot. Nothing is taken from a video game: real yardages, real hazards
 and the real names of real places are facts.
 
-Before each question the player chooses a club - driver, wood, iron, wedge;
-the putter alone on the green - and the club sets the most the ball can go.
-A club that can reach the pin is *aimed* at it, and the answer's speed is the
-precision: a fast answer lands within a few yards, one at the bell within
-twenty-five. A club that cannot reach is a full swing, and the speed is the
-length. The wind adds or takes; the lie costs (rough a fifth, sand more, and
-only a wedge). Where the ball lands is checked against the course: a fast,
-correct driver that carries into Rae's Creek is golf, and the player chose
-the driver. A foul ball finds the nearest trouble the club could have
-reached - water most often a drop and a penalty stroke - and trouble out of
-the club's reach is out of the foul ball's too.
+With the question the player chooses a club - driver, wood, iron, wedge;
+the putter alone on the green - and may change it up to the swing. A club
+that can reach the pin is *aimed* at it and lands within a dozen yards,
+either side; one that cannot is a full swing and goes its length. The wind
+adds or takes; the lie costs (rough a fifth, sand more, and only a wedge).
+Where the ball lands is checked against the course: a correct driver that
+carries into Rae's Creek is golf, and the player chose the driver. A foul
+ball finds the nearest trouble the club could have reached - water most
+often a drop and a penalty stroke - and trouble out of the club's reach is
+out of the foul ball's too.
 
-On the green, putting is about being right, not fast: a correct answer holes
-it, a wrong one is a missed putt. Pick up at par plus three, the way casual
+**The questions have a thread.** Each hole takes one test area - a section
+of the pool, drawn from those not yet played this round - and stays on it
+until its questions run out, then takes another. Once every question in the
+pool has been asked once, the ones missed come round again first; after
+those, the order is by how hard the questions have measured on this unit
+(the same measure as *The Elmer's class report*), matched to the shot at
+hand: a ball on the tee or the fairway gets an easier one, a ball in the
+rough or the sand a harder one. A bad lie has its say.
+
+On the green, putting is about being right: a correct answer holes it, a
+wrong one is a missed putt. Pick up at par plus three, the way casual
 golfers do, so a hole has a bounded number of questions. Scoring is real
 golf - eagle, birdie, par, bogey - lowest total wins; a tie for the lead is a
 playoff hole, sudden death. A **handicap** is a switch: off, everybody plays
@@ -2182,22 +2204,22 @@ same card. Every stroke is written as a line of **playback** - *"wedge, 27
 yards - on the green, 6 feet"*, *"driver, a foul ball - into the Swilcan
 Burn; drop, and a penalty stroke"* - which is what the reveal becomes.
 
-At the table it is a fourth button beside the others - **Golf**, with the
-holes to play (front nine, back nine, all eighteen) and the handicap
-switch - and the course is the pool's. Before each question the table
-pauses twelve seconds for the people to choose a club on their phones; the
-sensible one is lit and is what anybody who does not choose gets; the
-practice players choose for themselves. The table shows the hole as the
-card gives it, where every ball lies, the last stroke in everybody's words,
-and the card; the phone shows this player's ball, their clubs, their own
-stroke first and then the table's, and the card between questions. One
-person can just go and play a round: a table of one, a phone or a seat at
-the screen, is a round of golf.
+At the table it is a tile in the Gaming Center - **Golf**, with the holes
+to play (front nine, back nine, all eighteen) and the handicap switch - and
+the course is the pool's. The table shows the hole as the card gives it,
+who is away and where their ball lies, the question, where every ball
+lies, the last stroke in words, and the card; a seat at the screen that is
+away has its clubs above its choices, and the other seat watches. The phone
+shows this player's ball and clubs, *your stroke* or *who is away*, their
+own stroke first and then the group's, and the card between strokes.
+Somebody who sits down mid-round gets a ball on the current tee; somebody
+who leaves takes theirs. One person can just go and play a round: a table
+of one, a phone or a seat at the screen, is a round of golf.
 
 The rules are `elmer/golf.py`, with no clock or question in them;
-`tests/test_golf.py` plays the shot, the course, the green, the card and
-the playoff through them, and `tests/test_golf_table.py` the table around
-them.
+`tests/test_golf.py` plays the shot, the course, the green, the card, the
+turns, the thread of questions and the playoff through them, and
+`tests/test_golf_table.py` the table around them.
 
 ### The figure, and the part it names
 

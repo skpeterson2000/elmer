@@ -11,7 +11,7 @@ already runs.
     from _browser import evaluate
     value = evaluate("http://127.0.0.1:5079/party", "typeof tick")
 """
-import base64, json, os, shutil, socket, struct, subprocess, time, urllib.request
+import base64, json, os, shutil, socket, struct, subprocess, tempfile, time, urllib.request
 
 
 def available():
@@ -34,6 +34,17 @@ def available():
             ok = False
         if ok:
             return path
+    # Windows: Edge is Chromium and is on every machine; Chrome may be. Both
+    # sit at known paths, and neither is asked for its version - on Windows
+    # that opens a tab in the browser the person is using, not a probe.
+    if os.name == "nt":
+        for env, tail in (("ProgramFiles(x86)", r"Microsoft\Edge\Application\msedge.exe"),
+                          ("ProgramFiles", r"Microsoft\Edge\Application\msedge.exe"),
+                          ("ProgramFiles", r"Google\Chrome\Application\chrome.exe"),
+                          ("LocalAppData", r"Google\Chrome\Application\chrome.exe")):
+            base = os.environ.get(env)
+            if base and os.path.isfile(os.path.join(base, tail)):
+                return os.path.join(base, tail)
     return None
 
 
@@ -74,9 +85,14 @@ class _LaunchFlake(Exception):
 
 
 def _run(chromium, url, out, w, h, js, settle, port):
+  # A profile of its own, thrown away after: a headless browser sharing the
+  # profile of the one the person is using would be a tab in their face on
+  # Windows, and a locked profile elsewhere.
+  profile = tempfile.mkdtemp(prefix="elmer-browser-")
   proc = subprocess.Popen(
       [chromium, "--headless=new", "--disable-gpu", "--no-sandbox",
        "--disable-dev-shm-usage", f"--remote-debugging-port={port}",
+       f"--user-data-dir={profile}", "--no-first-run",
        f"--window-size={w},{h}", "about:blank"],
       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   try:
@@ -151,3 +167,4 @@ def _run(chromium, url, out, w, h, js, settle, port):
           proc.wait(timeout=5)
       except subprocess.TimeoutExpired:
           proc.kill()
+      shutil.rmtree(profile, ignore_errors=True)

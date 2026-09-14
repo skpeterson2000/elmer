@@ -144,7 +144,10 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
    answers, its own clock, and its own verdict. Only ELMER's own screen is
    sent here - a phone on the LAN looking at /party stays as it was. */
 body.focus .cols { grid-template-columns: 1fr; }
-body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn, body.focus #hallpick { display: none; }
+body.focus .cols > div:first-child, body.focus .controls, body.focus .gc, body.focus .head .btn, body.focus #hallpick { display: none; }
+.seatcol .clubrow { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0 .5rem; }
+.seatcol .clubrow .btn.on { border-color: var(--green); color: var(--green); }
+.seatcol .watching { color: var(--dim); font-style: italic; padding: .6rem 0; }
 .stage-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .8rem; }
 .seatcol { border: 1px solid var(--line-2); border-radius: 12px; padding: .7rem .8rem; background: var(--panel-2); }
 .seatcol.done { opacity: .75; }
@@ -327,10 +330,10 @@ body.focus .cols > div:first-child, body.focus .controls, body.focus .head .btn,
             <span>Musical chairs: miss and you are out. Two left get fifteen questions; level after that, sudden death.</span>
           </button>
           <div class="gc-tile gc-golf">
-            <button class="gc-tilebtn" id="golf" title="A round on a real course - a question a stroke. Right and the ball flies, the faster the better; wrong is a foul ball. Choose a club before each question.">
+            <button class="gc-tilebtn" id="golf" title="A round on a real course - a question a stroke, one player at a time, nothing timed. Right and the ball flies; wrong is a foul ball. Choose a club with the question.">
               <span class="gc-glyph">&#9971;</span>
               <b>Golf</b>
-              <span>A round on a real course, a question a stroke. Right and the ball flies; wrong is a foul ball.</span>
+              <span>The slow game. A real course, a question a stroke, one player at a time, no clock. Right and the ball flies; wrong is a foul ball.</span>
             </button>
             <div class="gc-golfopts">
               <select class="btn sm" id="golf-holes" title="which holes">
@@ -435,28 +438,37 @@ document.addEventListener('click', async e => {
 let seatPaintedAt = 0;
 const seatAnswered = {};        // player id -> chosen index, this round
 
-function seatColumnHTML(seat, round, shoot) {
+function seatColumnHTML(seat, round, shoot, gf) {
   const q = round.question || {};
   const me = seat.id;
   const done = seatAnswered[me] !== undefined || (round.answered_ids || []).includes(me);
   const letters = 'ABCD';
+  if (gf && round.to != null && round.to !== me) {
+    return `<div class="seatcol" data-seatcol="${me}">
+      <div class="who"><b>${esc(seat.name)}</b></div>
+      <div class="watching">${esc(round.to_name || 'Somebody')} is away. Watching.</div></div>`;
+  }
+  const ball = gf && gf.balls ? gf.balls[me] : null;
+  const clubs = ball && !done ? `<div class="clubrow" data-clubrow="${me}">${(ball.clubs || []).map(c =>
+      `<button class="btn sm ${c === ball.club ? 'on' : ''}" data-seat-club="${me}" data-club="${c}">${c}</button>`).join('')}</div>` : '';
   return `<div class="seatcol ${done ? 'done' : ''}" data-seatcol="${me}">
-      <div class="who"><b>${esc(seat.name)}</b><span class="clk" data-seatclk="${me}"></span></div>
+      <div class="who"><b>${esc(seat.name)}</b>${gf ? '' : `<span class="clk" data-seatclk="${me}"></span>`}</div>
+      ${clubs}
       ${(q.choices || []).map((c, i) => `<button class="choice ${seatAnswered[me] === i ? 'picked' : ''}"
           data-seat-answer="${me}" data-choice="${i}" ${done ? 'disabled' : ''}>
           <span class="k">${letters[i]}</span>${esc(c)}</button>`).join('')}
-      ${done ? '<div class="verdict in">In. Waiting on the rest of the table.</div>' : ''}
+      ${done ? `<div class="verdict in">${gf ? 'The ball is away.' : 'In. Waiting on the rest of the table.'}</div>` : ''}
     </div>`;
 }
 
-function seatVerdictHTML(seat, round, shoot) {
+function seatVerdictHTML(seat, round, shoot, golfNow) {
   const mine = (round.results || []).find(r => r.player_id === seat.id);
   const letters = 'ABCD';
   const q = round.question || {};
   const answer = (q.choices || []).indexOf(round.answer);
   const chose = seatAnswered[seat.id];
   return `<div class="seatcol done">
-      <div class="who"><b>${esc(seat.name)}</b><span class="clk">${mine ? (mine.ms / 1000).toFixed(2) + 's' : ''}</span></div>
+      <div class="who"><b>${esc(seat.name)}</b><span class="clk">${mine && !golfNow ? (mine.ms / 1000).toFixed(2) + 's' : ''}</span></div>
       ${(q.choices || []).map((c, i) => `<button class="choice ${i === answer ? 'right' : (chose === i ? 'wrong' : '')}" disabled>
           <span class="k">${letters[i]}</span>${esc(c)}</button>`).join('')}
       <div class="verdict ${mine && mine.correct ? 'right' : 'wrong'}">${
@@ -502,6 +514,13 @@ document.addEventListener('click', async e => {
     col.insertAdjacentHTML('beforeend', '<div class="verdict in">In. Waiting on the rest of the table.</div>');
     return;
   }
+  const cb = e.target.closest('[data-seat-club]');
+  if (cb) {
+    const me = +cb.dataset.seatClub;
+    const r = await api('/api/party/club', {player: me, club: cb.dataset.club});
+    if (r.ok) cb.closest('.clubrow').querySelectorAll('.btn').forEach(x => x.classList.toggle('on', x === cb));
+    return;
+  }
   const pk = e.target.closest('[data-seat-pick]');
   if (pk) {
     pk.closest('.seatcol').querySelectorAll('.subj').forEach(x => { x.disabled = true; });
@@ -539,8 +558,16 @@ function golfBoard(gf) {
 function golfLine(gf) {
   if (gf.over) return `<b>${esc(gf.winner_name || 'Somebody')}</b> wins the round.`;
   if (gf.playoff && gf.playoff.length) return 'Playoff &mdash; sudden death, hole by hole.';
-  if (gf.choosing) return `Choosing clubs&hellip; <span style="font-family:var(--mono)">${Math.ceil(gf.club_seconds_left || 0)}s</span>`;
+  if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away.`;
   return 'Next stroke coming.';
+}
+/* The stroke in hand, for the line above the question: who is away, and
+   where their ball lies. Nothing about time - a stroke is not timed. */
+function golfAwayLine(gf) {
+  const b = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
+  if (!b) return '';
+  return `<p class="hint" style="text-align:left;font-size:1rem;color:var(--text);margin:.2rem 0 .5rem">
+    <b>${esc(b.name)}</b> is away &middot; ${b.left} to go, ${esc(b.lie)} &middot; ${b.strokes} played</p>`;
 }
 
 /* Where a CutThroat is, in a sentence the room can read - and the chairs:
@@ -700,7 +727,7 @@ async function tick() {
     const soon = secs !== null && secs !== undefined;
     const gf = s.golf;
     if (gf) {
-      const key = 'golf' + gf.hole + gf.holes_played + (gf.choosing ? 'c' + Math.ceil(gf.club_seconds_left || 0) : '') + (gf.over ? 'over' : '') + (gf.last || []).length;
+      const key = 'golf' + gf.hole + gf.holes_played + (gf.away || '') + (gf.over ? 'over' : '') + (gf.last || []).length;
       chip.textContent = gf.over ? 'round over' : `golf · ${gf.hole}${ordinal(gf.hole)}`;
       if (painted !== key) {
         painted = key;
@@ -793,7 +820,17 @@ async function tick() {
         <p class="qtext">${esc(q.text || '')}</p>` +
         figureBlock(q, {size: 'medium'}) +
         boardHTML(q, round.answer, false) +
-        (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
+        (atScreen.length ? `<div class="stage-seats">${atScreen.filter(x => !s.golf || round.to == null || x.id === round.to).map(x => seatVerdictHTML(x, round, shoot, !!s.golf)).join('')}</div>` : '');
+      return;
+    }
+    if (s.golf) {
+      // A stroke, not a race: the answer, then where the ball went, and
+      // the group's balls. No seconds, no points, no placings.
+      stage.innerHTML = `
+        <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` +
+        boardHTML(q, round.answer, true) +
+        `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>` +
+        (atScreen.length ? `<div class="stage-seats">${atScreen.filter(x => round.to == null || x.id === round.to).map(x => seatVerdictHTML(x, round, shoot, true)).join('')}</div>` : '');
       return;
     }
     const rows = (round.results || []).map(a => `
@@ -823,7 +860,7 @@ async function tick() {
       ${shoot ? `<p class="hint" style="margin-top:.8rem">${shootLine(shoot)}</p>` : ''}
       ${s.cutthroat ? `<p class="hint" style="margin-top:.8rem;font-size:1rem;color:var(--text)">${cutLine(s.cutthroat)}</p>${cutChairs(s.cutthroat)}` : ''}
       ${s.golf ? `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>` : ''}` +
-      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatVerdictHTML(x, round, shoot)).join('')}</div>` : '');
+      (atScreen.length ? `<div class="stage-seats">${atScreen.filter(x => !s.golf || round.to == null || x.id === round.to).map(x => seatVerdictHTML(x, round, shoot, !!s.golf)).join('')}</div>` : '');
     return;
   }
 
@@ -837,24 +874,31 @@ async function tick() {
     }
     painted = openKey;
     const q = round.question || {};
-    stage.innerHTML = (s.golf ? golfHead(s.golf) : '') + `
+    // Golf: the stroke belongs to one player, and it is not timed - no
+    // clock on the stage, and the board is read-only unless that player is
+    // sitting at this screen.
+    const gf = s.golf;
+    const awayHere = gf && atScreen.some(x => x.id === round.to);
+    stage.innerHTML = (gf ? golfHead(gf) + golfAwayLine(gf) : '') + `
       <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="qtext">${esc(q.text || '')}</p>` +
       figureBlock(q, {size: 'large'}) +
-      (atScreen.length ? '' : boardHTML(q, null)) + `
-      <div class="bigclock" id="clock"></div>
+      (atScreen.length && (!gf || awayHere) ? '' : boardHTML(q, null)) +
+      (gf ? '' : '<div class="bigclock" id="clock"></div>') + `
       <p class="hint" id="waiting"></p>` +
-      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout)).join('')}</div>` : '');
+      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout, gf)).join('')}</div>` : '');
   }
   const clock = document.getElementById('clock');
   if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
   stage.querySelectorAll('[data-seatclk]').forEach(el => { el.textContent = Math.ceil(round.remaining) + 's'; });
   const waiting = document.getElementById('waiting');
-  if (waiting) waiting.textContent = round.waiting_on
-    ? `${round.waiting_on} player${round.waiting_on === 1 ? '' : 's'} still thinking`
-    : (round.waiting_on_all
-        ? 'everyone is in — waiting on the practice players'
-        : 'everyone is in');
+  if (waiting) waiting.textContent = round.to != null
+    ? (round.waiting_on ? `${round.to_name || 'somebody'}'s stroke - nothing is timed` : 'the ball is away')
+    : round.waiting_on
+      ? `${round.waiting_on} player${round.waiting_on === 1 ? '' : 's'} still thinking`
+      : (round.waiting_on_all
+          ? 'everyone is in — waiting on the practice players'
+          : 'everyone is in');
 }
 
 document.getElementById('endtable').addEventListener('click', async () => {

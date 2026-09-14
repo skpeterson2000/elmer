@@ -93,10 +93,18 @@ SHOOTOUT = "shootout"
 CUTTHROAT = "cutthroat"
 GOLF = "golf"
 MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF)
-# How long a golfer has to choose a club before the next question, after
-# which the sensible one is chosen for them. Long enough to read the lie
-# and the yardage; short enough that the round keeps moving.
-CLUB_SECONDS = 12.0
+# A stroke in golf is not timed, and no screen shows a clock on it; this is
+# only how long the room waits on a golfer who has walked away before it
+# plays their foul ball and moves the group on. Ten minutes.
+GOLF_SECONDS = 600.0
+# How long a practice player takes over a stroke, so the group is not
+# waiting on software: a few seconds to read the lie and swing.
+BOT_SWING = (2.0, 5.0)
+# And how long their shot stands on the screens before the next stroke.
+BOT_REVEAL = 4.0
+# A group on the course is a foursome. Practice players make it up to that
+# and no further, or one person waits through a queue of software swings.
+FOURSOME = 4
 
 # How long the picker gets to choose a subject before it goes round the
 # table. A question has a clock and so must the pick, or a phone put down on
@@ -245,10 +253,13 @@ class Round:
     """One question, put to the room, and the answers that came back."""
 
     def __init__(self, number, pool_id, question_id, answer_index, seconds,
-                 payload=None, tag=None):
+                 payload=None, tag=None, to=None):
         self.number = number
         self.pool_id = pool_id
         self.question_id = question_id
+        # Whose question this is, when it is one player's turn - a stroke in
+        # golf - and None when the whole room answers.
+        self.to = to
         # The index of the right answer *in the order the room was shown*.
         # One shuffle serves the whole room: two players looking at the same
         # question in different orders are not racing the same question.
@@ -326,7 +337,6 @@ class Room:
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
         self.clubs = {}            # player -> the club chosen for the next stroke
-        self._clubs_since = None   # when the choosing began, for the clock on it
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
         self._pick_since = None    # (when the wait began, on whom)
@@ -485,7 +495,9 @@ class Room:
     def _admit_late(self, player):
         """Somebody sat down during a shootout: they are in it. During a
         CutThroat: a chair while the field is playing, a seat to watch from
-        after that."""
+        after that. During golf: a ball on this hole's tee."""
+        if self.golf is not None and not self.golf.over():
+            self.golf.add_player(player.id)
         if self.cutthroat is not None and not self.cutthroat.over():
             self.cutthroat.seat(player.id)
             if player.bot:
@@ -503,6 +515,8 @@ class Room:
             if gone is not None and self.cutthroat is not None:
                 self.cutthroat.withdraw(player_id)    # leaving is losing
             self.clubs.pop(player_id, None)
+            if gone is not None and self.golf is not None:
+                self.golf.drop(player_id)             # the ball is picked up
             if gone is not None and self.shootout is not None:
                 # Out is out. The order is not rewritten, so nobody else's
                 # turn moves; the pick moves on if they were holding it.
@@ -518,12 +532,13 @@ class Room:
     # ---------------------------------------------------------------- rounds
 
     def start_round(self, pool_id, question_id, answer_index,
-                    seconds=DEFAULT_ROUND_SECONDS, payload=None, tag=None):
-        """Put a question to the room."""
+                    seconds=DEFAULT_ROUND_SECONDS, payload=None, tag=None, to=None):
+        """Put a question to the room - or, with `to`, to one player, the
+        rest watching."""
         with self.lock:
             self.round_number += 1
             self.round = Round(self.round_number, pool_id, question_id,
-                               answer_index, seconds, payload, tag)
+                               answer_index, seconds, payload, tag, to=to)
             self._plan_bots()
             return self.round
 
@@ -542,9 +557,13 @@ class Room:
         for player in self.players.values():
             if not player.bot:
                 continue
+            if rnd.to is not None and player.id != rnd.to:
+                continue                    # not their stroke
             accuracy, quick, slow = BOT_SKILLS[player.bot]
             right = random.random() < accuracy
             wrong = [i for i in range(4) if i != rnd.answer_index]
+            if rnd.to is not None:
+                quick, slow = BOT_SWING       # a swing, not a race
             rnd.bot_plan[player.id] = {
                 "at": random.uniform(quick, min(slow, max(quick + 0.5,
                                                           rnd.seconds - 1.0))),
@@ -599,12 +618,16 @@ class Room:
                 humans = [p for p in here if not p.bot]
                 bots = [p for p in here if p.bot]
                 need = max(0, min(want, COHORT_SIZE) - len(humans))
+                if self.golf is not None:
+                    need = max(0, min(need, FOURSOME - len(humans)))
                 while len(bots) > need:
                     leaving = max(bots, key=lambda p: p.id)
                     bots.remove(leaving)
                     self.players.pop(leaving.id, None)
                     if self.round and not self.round.closed:
                         self.round.bot_plan.pop(leaving.id, None)
+                    if self.golf is not None:
+                        self.golf.drop(leaving.id)
                     changed.append(("out", leaving))
                 while len(bots) < need and len(self.players) < self.cap:
                     pool = [n for n in BOT_NAMES if n not in used]
@@ -642,6 +665,8 @@ class Room:
             self.players.pop(leaving.id, None)
             if self.round and not self.round.closed:
                 self.round.bot_plan.pop(leaving.id, None)
+            if self.golf is not None:
+                self.golf.drop(leaving.id)
             return leaving
 
     def clear_bots(self):
@@ -652,6 +677,8 @@ class Room:
                 self.players.pop(pid, None)
                 if self.round:
                     self.round.bot_plan.pop(pid, None)
+                if self.golf is not None:
+                    self.golf.drop(pid)
             return len(gone)
 
     def license_of(self, player_id):
@@ -680,6 +707,9 @@ class Room:
             player = self.players.get(player_id)
             if player is None:
                 return None, "you are not in this room"
+            if rnd.to is not None and player_id != rnd.to:
+                who = self.players[rnd.to].name if rnd.to in self.players else "somebody else"
+                return None, f"not your stroke - {who} is away"
             if player_id in rnd.answers:
                 return None, "you have already answered"
 
@@ -736,6 +766,9 @@ class Room:
         with self.lock:
             if not self.round:
                 return False
+            if self.round.to is not None:
+                # One player's stroke: theirs is the only answer there is.
+                return self.round.to in self.round.answers or self.round.to not in self.players
             people = [p for p in self.players.values() if not p.bot]
             # With nobody real at the table - a demonstration, or a screen left
             # running - the practice players are all there is to wait for.
@@ -829,14 +862,21 @@ class Room:
                 summary["cutthroat"] = self.cutthroat.play({
                     a["player_id"]: {"correct": a["correct"], "ms": a["ms"]}
                     for a in rnd.answers.values()})
-            # In a golf round the round is a stroke, with the club each
-            # player chose before the question; no answer is a foul ball.
+            # In a golf round the round is one player's stroke, with the
+            # club they chose; no answer is a foul ball. A round put to the
+            # whole room - the rules tests, an old caller - plays everybody.
             if self.golf is not None and not self.golf.over():
-                summary["golf"] = self.golf.play({
-                    p: {"correct": a["correct"], "ms": a["ms"], "club": self.clubs.get(p)}
-                    for p, a in ((a["player_id"], a) for a in rnd.answers.values())})
-                self.clubs = {}
-                self._clubs_since = _now()
+                if rnd.to is not None:
+                    a = rnd.answers.get(rnd.to)
+                    summary["golf"] = self.golf.play_one(rnd.to, {
+                        "correct": bool(a and a["correct"]), "club": self.clubs.get(rnd.to),
+                        "question_id": rnd.question_id})
+                    self.clubs.pop(rnd.to, None)
+                else:
+                    summary["golf"] = self.golf.play({
+                        p: {"correct": a["correct"], "club": self.clubs.get(p)}
+                        for p, a in ((a["player_id"], a) for a in rnd.answers.values())})
+                    self.clubs = {}
             self.history.append(summary)
             return summary
 
@@ -852,9 +892,31 @@ class Room:
             self.golf = Golf(order, course, holes=holes, handicaps=handicaps,
                              seconds=seconds or DEFAULT_ROUND_SECONDS)
             self.clubs = {}
-            self._clubs_since = _now()
             self.mode = GOLF
+            self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
+
+    def reveal_seconds(self, summary, default):
+        """How long a closed round stands before the next: the default, or
+        less for a practice player's stroke in golf, which the group reads
+        in a glance and should not be kept waiting on."""
+        with self.lock:
+            if self.golf is None or not summary or not summary.get("golf"):
+                return default
+            shots = summary["golf"].get("shots") or {}
+            if summary["golf"].get("hole_done"):
+                return default            # the card, worth the look
+            if all(p in self.players and self.players[p].bot for p in shots):
+                return min(default, BOT_REVEAL)
+            return default
+
+    def golf_away(self):
+        """Whose stroke it is, or None."""
+        with self.lock:
+            g = self.golf
+            if g is None or g.over():
+                return None
+            return g.away()
 
     def end_golf(self):
         with self.lock:
@@ -867,38 +929,16 @@ class Room:
         with self.lock:
             return self.golf is not None and self.golf.over()
 
-    def waiting_for_clubs(self):
-        """Whether the next question waits on a club: yes while a person
-        still playing this hole has not chosen and the clock on choosing has
-        not run out. Practice players get the sensible club without asking."""
-        with self.lock:
-            g = self.golf
-            if g is None or g.over():
-                return False
-            if self._clubs_since is not None and _now() - self._clubs_since >= CLUB_SECONDS:
-                return False
-            for p, ball in g.balls.items():
-                pl = self.players.get(p)
-                if pl is None or pl.bot or ball.done():
-                    continue
-                if p not in self.clubs:
-                    return True
-            return False
-
-    def club_seconds_left(self):
-        with self.lock:
-            if self._clubs_since is None:
-                return None
-            return max(0.0, CLUB_SECONDS - (_now() - self._clubs_since))
-
     def choose_club(self, player_id, club):
-        """The club for this player's next stroke. Refused in words."""
+        """The club for this player's next stroke - changed freely up to the
+        answer, which is the swing. Refused in words."""
         with self.lock:
             g = self.golf
             if g is None:
                 return False, "this table is not playing golf"
-            if self.round is not None and not self.round.closed:
-                return False, "a question is open - the club was chosen"
+            rnd = self.round
+            if rnd is not None and not rnd.closed and player_id in rnd.answers:
+                return False, "the ball is away - the club was chosen"
             if club not in g.clubs_for(player_id):
                 return False, f"not a club you can play from here: {', '.join(g.clubs_for(player_id)) or 'none'}"
             self.clubs[player_id] = club
@@ -923,10 +963,10 @@ class Room:
                 shots = [{"player": p, "name": name(p), **s} for p, s in last["shots"].items()]
             board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
             mine = balls.get(player_id) if player_id is not None else None
+            away = d.get("away")
             return {**d, "balls": balls, "leaderboard": board, "last": shots,
-                    "choosing": self.waiting_for_clubs(),
-                    "club_seconds_left": (round(self.club_seconds_left(), 1)
-                                          if self.club_seconds_left() is not None else None),
+                    "away_name": name(away) if away is not None else None,
+                    "your_turn": bool(player_id is not None and away == player_id),
                     "last_hole_done": bool(last and last.get("hole_done")),
                     "last_card": ({name(p): s for p, s in last["card"].items()} if last and last.get("card") else None),
                     "you": mine, "your_club": (self.clubs.get(player_id) if player_id is not None else None),
@@ -1269,6 +1309,10 @@ class Room:
                     # answer index, which stays on the server until the round
                     # closes. A poll response is readable in any dev console.
                     "question": rnd.payload,
+                    # Whose question, when it is one player's turn; the
+                    # screens show the rest watching, and no clock.
+                    "to": rnd.to,
+                    "to_name": (self.players[rnd.to].name if rnd.to in self.players else None),
                     "remaining": round(rnd.remaining, 1),
                     "closed": rnd.closed,
                     # How long the result has stood, so a screen can let the
@@ -1276,8 +1320,9 @@ class Room:
                     "closed_for": (round(_now() - rnd.closed_at, 1)
                                    if rnd.closed and rnd.closed_at else None),
                     "answered": len(rnd.answers),
-                    "waiting_on": sum(1 for p in self.players.values()
-                                      if not p.bot and p.id not in rnd.answers),
+                    "waiting_on": (sum(1 for p in self.players.values()
+                                       if not p.bot and p.id not in rnd.answers)
+                                   if rnd.to is None else int(rnd.to not in rnd.answers)),
                     "waiting_on_all": sum(1 for p in self.players.values()
                                           if p.id not in rnd.answers),
                     "winner_cohort": rnd.winner_cohort,

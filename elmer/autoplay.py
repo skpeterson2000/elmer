@@ -52,9 +52,9 @@ class Director:
             # has run out. Waiting for a player who has wandered off is what
             # the clock is for.
             if room.everyone_answered() or rnd.expired():
-                room.close_round()
+                summary = room.close_round()
                 self.played += 1
-                self.next_at = time.monotonic() + self.reveal
+                self.next_at = time.monotonic() + room.reveal_seconds(summary, self.reveal)
                 self.state = "revealing"
             return
 
@@ -75,10 +75,6 @@ class Director:
         if room.shootout_over() or room.cutthroat_over() or room.golf_over():
             self.state = "finished"
             self.stop.set()
-            return
-        # A golfer is choosing a club: a state of its own, with its own clock.
-        if room.waiting_for_clubs():
-            self.state = "choosing"
             return
         room.choose_for_bot()
         if room.waiting_for_pick():
