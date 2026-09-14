@@ -38,11 +38,16 @@ cd elmer
 #   ELMER is on http://192.168.1.5:5000
 ```
 
-On Windows: clone the same way (or download the source zip from GitHub),
-open PowerShell in the folder and run `.\install.ps1`, then double-click
-`elmer.cmd`. It opens in a window of its own and puts itself on the Start
-Menu. A portable zip that needs no install is built for every `v` tag; the
-first tag has not been cut yet, so it is not on the *Releases* page today.
+On Windows: download `ELMER-windows-<build>.zip` from the
+[latest release](https://github.com/skpeterson2000/elmer/releases/latest),
+unzip it anywhere outside OneDrive, and double-click `elmer.cmd`. Nothing is
+installed — Python is inside the zip — and ELMER opens in a window of its
+own and puts itself on the Start Menu. Or clone as above and run
+`.\install.ps1` for a copy that updates itself.
+
+**Quick starts**, with what to expect on screen and where the rest is:
+[Windows](docs/quickstart-windows.md) · [Raspberry Pi](docs/quickstart-pi.md)
+· [Linux](docs/quickstart-linux.md).
 
 The pools ship built: it runs straight from a clone, and nothing leaves the
 unit unless you press for it.
@@ -74,10 +79,12 @@ in DESIGN.md lists exactly what leaves a unit and when.
 
 ## Status
 
-**Version.** ELMER is versioned by build: the short commit id on the
-dashboard and in every problem report. This page describes the build of
-**14 September 2026**; [CHANGELOG.md](CHANGELOG.md) is one line a commit, by
-day. The dashboard's *Update now* brings a unit to the current build.
+**Version.** [v1.0](https://github.com/skpeterson2000/elmer/releases/tag/v1.0),
+14 September 2026 — the first release, with the Windows zip attached.
+Between releases ELMER is versioned by build: the short commit id on the
+dashboard and in every problem report; [CHANGELOG.md](CHANGELOG.md) is one
+line a commit, by day. The dashboard's *Update now* brings a unit to the
+current build.
 
 **Who runs it.** Three Raspberry Pis and a Windows laptop on the author's
 bench, and the tests. No club has run an evening on it yet; the first that
@@ -85,7 +92,6 @@ does gets named here, with the date.
 
 **What does not work yet.**
 
-- The portable Windows zip is built but not released — no `v` tag yet.
 - A net puts one question to every table; a different game to each table
   at once is not built.
 - Golf has no handicap switch in the hall (it has one at a table), and a
