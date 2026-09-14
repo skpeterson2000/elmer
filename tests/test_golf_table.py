@@ -136,6 +136,47 @@ def run():
           (me["rounds"], me["best_to_par"], me["best_course"], me["aces"]), (2, -1, "The Old Course", 1))
     check("  and practice players are not on the board", any(x["name"] == "Beacon" for x in r["records"]), False)
 
+    print("\n-- the clubhouse: a tee time, and the group departs --")
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    room.join("KC9SP")
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
+                                             "tee_in": 300, "level": "Elmer"}, environ_base=local)
+    st = r.get_json() if r.status_code == 200 else {}
+    st = client.get("/api/party/state", environ_base=local).get_json()
+    check("a tee time is booked, and no round is on yet", (st["clubhouse"] is not None, st["golf"]), (True, None))
+    check("  five minutes, one in the group of four", (290 < st["clubhouse"]["tee_in"] <= 300, st["clubhouse"]["people"]),
+          (True, ["KC9SP"]))
+    check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),
+          ("pebble-beach", "Pebble Beach Golf Links"))
+    for n in ("W1AW", "N0CALL", "K9XYZ"):
+        client.post("/api/party/join", json={"name": n, "device": "phone"}, environ_base=local)
+    st = client.get("/api/party/state", environ_base=local).get_json()
+    check("a fourth person fills the group, and it departs", (st["clubhouse"], st["mode"], st["golf"] is not None),
+          (None, "golf", True))
+    check("  four people, no practice players", sorted(b["name"] for b in st["golf"]["balls"].values()),
+          ["K9XYZ", "KC9SP", "N0CALL", "W1AW"])
+    autoplay.stop()
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    room.join("KC9SP")
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "tee_in": 600, "level": "Elmer"},
+                environ_base=local)
+    r = client.post("/api/party/tee-off", json={}, environ_base=local)
+    check("play now departs at once, with practice players making up the four",
+          (r.get_json()["ok"], r.get_json()["clubhouse"], len(r.get_json()["golf"]["balls"])), (True, None, 4))
+    autoplay.stop()
+    r = client.post("/api/party/tee-off", json={}, environ_base=local)
+    check("  and there is nothing to depart from twice", r.status_code, 409)
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    room.join("KC9SP")
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "tee_in": 600, "level": "Elmer"},
+                environ_base=local)
+    client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
+    check("cancelling the tee time empties the clubhouse", room.clubhouse, None)
+    check("the timer's word does nothing once the booking has gone", appmod._golf_depart(room, armed_only=True), False)
+
     print("\n-- strokes given, only with the switch --")
     party.close_room()
     room = party.room(create=True, cohorts=1)

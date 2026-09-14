@@ -163,8 +163,13 @@ def start(room, ask, rounds=None, reveal=REVEAL_SECONDS):
 
 
 def stop():
+    """Stop the director, and wait a moment for its thread to notice - a
+    tick already under way that asked the room for a question after the
+    room was closed logged a fault that was nobody's."""
     global _director
     with _lock:
-        if _director is not None:
-            _director.stop.set()
-        _director = None
+        gone, _director = _director, None
+    if gone is not None:
+        gone.stop.set()
+        if gone.thread is not None and gone.thread is not threading.current_thread():
+            gone.thread.join(1.5)

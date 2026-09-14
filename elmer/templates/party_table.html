@@ -81,7 +81,7 @@ button.gc-tile:disabled, .gc-tilebtn:disabled { opacity: .5; cursor: default; tr
 #tourney { border-color: var(--gco-dim); }
 .gc-golf { padding: 0; cursor: default; }
 .gc-golf .gc-tilebtn { border: 0; border-radius: 8px 8px 0 0; width: 100%; }
-.gc-golfopts { display: flex; gap: .4rem; align-items: center; padding: .4rem .6rem .5rem;
+.gc-golfopts { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; padding: .4rem .6rem .5rem;
                border-top: 1px dashed var(--line-2); }
 .gc-golfopts label { color: var(--dim); display: inline-flex; align-items: center; gap: .25rem; }
 .gc-open { border-style: dashed; cursor: default; opacity: .55; }
@@ -165,6 +165,10 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfstage .figwrap-large .figfull img { max-height: 30vh; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
+/* The clubhouse's picture, when the unit has one - static/golf/clubhouse.jpg. */
+.clubhouse-pic { width: 100%; aspect-ratio: 16 / 7; max-height: 40vh; border-radius: 12px; margin-bottom: .8rem;
+                 background-size: cover; background-position: center 40%;
+                 box-shadow: inset 0 -70px 70px -40px rgba(0,0,0,.75); }
 /* The narrator: one line, large, the golfer's name in it. */
 .narrator { font-size: 1.3rem; margin: .4rem 0 .6rem; }
 .narrator b { color: var(--amber); }
@@ -370,6 +374,12 @@ body.golfing .joinurl { font-size: .7rem; }
               <select class="btn sm" id="golf-holes" title="which holes">
                 <option value="front">front 9</option><option value="back">back 9</option><option value="all">all 18</option>
               </select>
+              <select class="btn sm" id="golf-tee" title="a tee time lets friends join before the group departs; the group leaves when it is full, when the time is up, or when you say play now">
+                <option value="0">play now - I'm alone</option>
+                <option value="120">tee time in 2 min</option>
+                <option value="300" selected>tee time in 5 min</option>
+                <option value="600">tee time in 10 min</option>
+              </select>
               <label class="small" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
                 <input type="checkbox" id="golf-handicap"> handicap</label>
             </div>
@@ -548,6 +558,10 @@ document.addEventListener('click', async e => {
   }
   const nx = e.target.closest('[data-next-stroke]');
   if (nx) { nx.disabled = true; await api('/api/party/next', {}); tick(); return; }
+  const to = e.target.closest('[data-tee-off]');
+  if (to) { to.disabled = true; await api('/api/party/tee-off', {}); autoTick(); tick(); return; }
+  const tc = e.target.closest('[data-tee-cancel]');
+  if (tc) { tc.disabled = true; await api('/api/party/mode', {mode: 'tournament'}); autoTick(); tick(); return; }
   const cb = e.target.closest('[data-seat-club]');
   if (cb) {
     const me = +cb.dataset.seatClub;
@@ -763,7 +777,7 @@ async function tick() {
   // or choosing; it comes back between rounds.
   document.body.classList.toggle('focus',
     atScreen.length > 0 && ((round && !round.closed) || (!round && seatPicking)));
-  const golfOn = !!(s.golf && !s.golf.over);
+  const golfOn = !!(s.golf && !s.golf.over) || !!s.clubhouse;
   document.body.classList.toggle('golfing', golfOn);
   const jh = document.getElementById('joinhint');
   if (jh) jh.textContent = golfOn ? 'Scan to arrange a tee time - the group picks you up at the next hole'
@@ -776,6 +790,22 @@ async function tick() {
        something is expected of them. */
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
+    const club = s.clubhouse;
+    if (club) {
+      chip.textContent = `tee time in ${clockWords(club.tee_in)}`;
+      const key = 'club' + club.people.join(',') + Math.ceil(club.tee_in);
+      if (painted !== key) {
+        painted = key;
+        stage.innerHTML = `${club.backdrop ? `<div class="clubhouse-pic" style="background-image:url(/static/golf/clubhouse/${esc(club.backdrop)}.jpg)"></div>` : ''}<div class="chip">The clubhouse${club.course_name ? ' &middot; ' + esc(club.course_name) : ''}</div>
+          <p class="narrator">Tee time in <b>${clockWords(club.tee_in)}</b> &middot; ${club.people.length} of ${club.foursome} in the group</p>
+          <div class="seats" style="margin:.4rem 0">${club.people.map(n => `<span class="seat">${esc(n)}</span>`).join('') || '<span class="empty">nobody yet</span>'}</div>
+          <p class="hint" style="text-align:left">Friends scan the code to join the group. It departs when it is full, when the time is up, or when you say so; practice players make up the rest.</p>
+          <div class="row" style="gap:.5rem;margin-top:.6rem">
+            <button class="btn primary" data-tee-off>Play now &rsaquo;</button>
+            <button class="btn sm ghost" data-tee-cancel>Cancel the tee time</button></div>`;
+      }
+      return;
+    }
     const gf = s.golf;
     if (gf) {
       const key = 'golf' + gf.hole + gf.holes_played + (gf.away || '') + (gf.over ? 'over' : '') + (gf.last || []).length;
@@ -1057,6 +1087,10 @@ function askToSit(start, what) {
   const name = document.querySelector('.hs-row[data-seat="A"] .hs-name');
   if (name) name.focus();
 }
+function clockWords(secs) {
+  const s = Math.max(0, Math.ceil(secs || 0));
+  return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
+}
 function clearAsk() { const box = document.getElementById('gc-sit'); if (box) { box.hidden = true; } startAnyway = null; }
 
 tourney.addEventListener('click', async () => {
@@ -1085,6 +1119,7 @@ golfBtn.addEventListener('click', async () => {
     difficulty: document.getElementById('difficulty').value,
     holes: document.getElementById('golf-holes').value,
     handicap: document.getElementById('golf-handicap').checked,
+    tee_in: parseInt(document.getElementById('golf-tee').value, 10) || 0,
     seconds: parseFloat(document.getElementById('seconds').value) || 30});
   golfBtn.disabled = false;
   autoTick(); tick();
@@ -1129,12 +1164,14 @@ async function autoTick() {
   const r = await api('/api/party/auto-state');
   const a = r.data && r.data.auto;
   const on = !!(a && a.running);
-  stopt.hidden = !on;
-  // While a game runs the tiles stand down; the readout says which one.
-  document.querySelector('.gc-tiles').hidden = on;
+  const club = lastTableState && lastTableState.clubhouse;
+  stopt.hidden = !on && !club;
+  // While a game runs - or a tee time waits - the tiles stand down; the readout says which.
+  document.querySelector('.gc-tiles').hidden = on || !!club;
   const status = document.getElementById('gc-status');
   const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf'};
   status.textContent = on ? `${modeName[r.data.mode] || r.data.mode || 'game'} · in play`
+                          : club ? `Golf · tee time in ${clockWords(club.tee_in)}`
                           : `${Object.keys(modeName).length} games · standing by`;
   autostate.hidden = !on;
   autostate.textContent = on

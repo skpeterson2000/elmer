@@ -2991,6 +2991,9 @@ def api_party_join():
             _note_regular(conn(), player.name)
         except Exception as exc:                           # pragma: no cover
             log.debug("regulars: %s", exc)
+        if room.clubhouse is not None and room.people_here() >= party.FOURSOME:
+            log.info("party: the group is full - departing the clubhouse")
+            _golf_depart(room)
     if player is None:
         return jsonify({"joined": False, "reason": why,
                         "health": room.health()}), 409
@@ -3254,8 +3257,8 @@ def _party_class():
 
 def _party_begin(room, difficulty, armed_only=False):
     """Put the first question up and let the director carry it from there."""
-    if armed_only and not room.waiting_to_start():
-        return False                     # somebody started it, or all left
+    if armed_only and (not room.waiting_to_start() or party.room() is not room):
+        return False                     # somebody started it, all left, or the table closed
     room.disarm_start()
     if not _party_may_begin(room):
         return False
@@ -3357,6 +3360,8 @@ def _party_arm_start(room):
         return                            # the hall's rounds arrive by wire
     if room.waiting_to_start() or not _party_may_begin(room):
         return
+    if room.clubhouse is not None:
+        return                            # a tee time is the start; the group departs on it
     difficulty = _party_class()
     room.arm_start(AUTO_START_SECONDS)
     threading.Timer(AUTO_START_SECONDS + 0.25,
@@ -3697,12 +3702,12 @@ def api_party_mode():
         # A round on the course that goes with the pool - Pebble Beach for
         # Technician, the Old Course for General, Augusta for Extra. Front
         # nine unless asked; strokes given only if the handicap switch is
-        # on, and then from each player's own study on this unit.
+        # on, and then from each player's own study on this unit. With a
+        # tee time, the round waits in the clubhouse for friends to join.
         _not_this_tables_part()
         difficulty = str(body.get("difficulty") or _party_class()).lower()
         if difficulty not in party.DIFFICULTIES:
             abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
-        course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
         which = str(body.get("holes") or "front").lower()
         holes = {"front": list(range(1, 10)), "back": list(range(10, 19)),
                  "all": list(range(1, 19))}.get(which)
@@ -3712,24 +3717,27 @@ def api_party_mode():
             except ValueError:
                 holes = list(range(1, 10))
         room.fill_bots(body.get("level"))
-        handicaps = _golf_handicaps(room, difficulty, len(holes)) if body.get("handicap") else None
+        course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+        spec = {"difficulty": difficulty, "holes": holes, "holes_word": which,
+                "course": course["id"], "course_name": course["name"],
+                "handicap": bool(body.get("handicap")),
+                "handicaps": _golf_handicaps(room, difficulty, len(holes)) if body.get("handicap") else None,
+                "seconds": float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)}
         room.end_shootout()
         room.end_cutthroat()
-        seconds = float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)
-        started, why = room.begin_golf(course, holes, handicaps, seconds)
-        if started is None:
-            abort(409, why)
-        # How hard the pool's questions have measured on this unit, for the
-        # draw to match to the lie once every question has been asked.
+        room.end_golf()
         try:
-            measured = difficulty.measure(difficulty.load(conn(), party.DIFFICULTIES[difficulty]))
-            started.hardness = {q: m["hardness"] for q, m in measured.items() if m.get("measured")}
-        except Exception as exc:                          # pragma: no cover
-            log.debug("golf: no hardness to draw by: %s", exc)
-        autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
-        log.info("party: golf started at %s, %d holes, %d players%s", course["id"], len(holes),
-                 len(room.players), " (handicaps)" if handicaps else "")
+            tee_in = max(0.0, float(body.get("tee_in") or 0))
+        except (TypeError, ValueError):
+            tee_in = 0.0
+        if tee_in > 0 and room.people_here() < party.FOURSOME:
+            room.book_clubhouse(spec, tee_in)
+            threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
+            log.info("party: tee time in %.0fs at %s (%s, %d holes)", tee_in, difficulty, which, len(holes))
+        else:
+            _start_golf(room, spec)
     else:
+        room.leave_clubhouse()
         room.end_shootout()
         room.end_cutthroat()
         room.end_golf()
@@ -3763,6 +3771,52 @@ def _golf_handicaps(room, difficulty, holes):
             if strokes:
                 given[pid] = strokes
     return given
+
+
+def _start_golf(room, spec):
+    """The group departs: the round starts with whoever is at the table.
+    Called from the button, from the clubhouse's timer, and from a join that
+    fills the group - so it takes no request and opens its own connection."""
+    difficulty = spec["difficulty"]
+    course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+    room.rebalance_bots()                 # a foursome, with whoever came
+    started, why = room.begin_golf(course, spec["holes"], spec.get("handicaps"), spec["seconds"])
+    if started is None:
+        log.warning("party: golf could not start: %s", why)
+        return False
+    # How hard the pool's questions have measured on this unit, for the
+    # draw to match to the lie once every question has been asked.
+    try:
+        started.hardness = difficulty_module_measure(party.DIFFICULTIES[difficulty])
+    except Exception as exc:                          # pragma: no cover
+        log.debug("golf: no hardness to draw by: %s", exc)
+    seconds = spec["seconds"]
+    autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
+    log.info("party: golf started at %s, %d holes, %d players%s", course["id"], len(spec["holes"]),
+             len(room.players), " (handicaps)" if spec.get("handicaps") else "")
+    return True
+
+
+def _golf_depart(room, armed_only=False):
+    """Leave the clubhouse and tee off - when the time is up, the group is
+    full, or somebody says play now. `armed_only` is the timer's word: it
+    does nothing if the booking has already gone."""
+    if armed_only and room.clubhouse is None:
+        return False
+    spec = room.leave_clubhouse()
+    if spec is None:
+        return False
+    return _start_golf(room, spec)
+
+
+@app.route("/api/party/tee-off", methods=["POST"])
+def api_party_tee_off():
+    """Play now: the group departs the clubhouse without waiting."""
+    room = _party_or_404()
+    if room.clubhouse is None:
+        return jsonify({"ok": False, "message": "no tee time is booked"}), 409
+    ok = _golf_depart(room)
+    return jsonify({"ok": bool(ok), **room.state()})
 
 
 @app.route("/api/party/club", methods=["POST"])

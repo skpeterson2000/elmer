@@ -2431,6 +2431,21 @@ box so nobody types their own name twice - and keeps a golf record board by
 name: rounds played, best to par and the course it was on, aces. It stands
 at the end of a round, under the card; practice players are not on it.
 
+**The clubhouse.** A round starts from a tee time: the Golf tile offers
+*play now - I'm alone*, or a tee time in two, five or ten minutes, and the
+round waits in the clubhouse - the table screen counting down, the code up
+big for friends to scan, the group so far by name - until the time is up,
+or the group is full (a foursome of people), or somebody says *Play now*;
+practice players make up whatever is short when it departs. That is any
+time a round is booked with nobody on the course yet, not only the first of
+the day. Cancel puts the tee sheet away. The course's clubhouse is the
+backdrop when the unit has a picture of it - `elmer/static/golf/clubhouse/
+<course>.jpg`; Pebble Beach's is a pro shop looking out over the course,
+made by the author, and the other two courses wait for theirs. The picture
+is meant to become a place: spots in it to press - the desk to check in,
+the door to the lounge, the pro shop for the record board - each opening
+its own panel. That is the next step, once the rooms behind the doors exist.
+
 **A round is joined by tee time.** Once a round is on, the table screen is
 golf's: the Gaming Center and the round controls stand down, the QR stays
 and reads *scan to arrange a tee time*. Somebody arriving while the group

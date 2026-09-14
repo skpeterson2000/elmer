@@ -304,6 +304,19 @@ function paintWaiting(state) {
       <p>${hallGame}</p><p style="padding:1rem 0;color:var(--dim)">Waiting for the hall's next question.</p></div>`;
     return;
   }
+  const club = state.clubhouse;
+  if (club) {
+    const secs = Math.max(0, Math.ceil(club.tee_in));
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
+        ${club.backdrop ? `<img src="/static/golf/clubhouse/${escapeHTML(club.backdrop)}.jpg" alt="" style="width:100%;border-radius:10px;display:block;margin-bottom:.6rem">` : ''}
+        <h2 style="margin:0 0 .4rem">The clubhouse${club.course_name ? ' &middot; ' + escapeHTML(club.course_name) : ''}</h2>
+        <p>Tee time in <b>${secs >= 60 ? Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : secs + 's'}</b> &middot; ${club.people.length} of ${club.foursome} in the group${club.people.length ? ': ' + club.people.map(escapeHTML).join(', ') : ''}.</p>
+        <p class="tiny muted">The group departs when it is full, when the time is up, or when somebody at the table says play now. Practice players make up the rest.</p>
+        <p><button class="choice" id="tee-off" style="text-align:center"><b>Play now &rsaquo;</b></button></p></div>`;
+    const b = document.getElementById('tee-off');
+    if (b) b.addEventListener('click', async () => { b.disabled = true; await api('/api/party/tee-off', {}); });
+    return;
+  }
   const gf = state.golf;
   if (gf) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">

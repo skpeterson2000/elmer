@@ -380,6 +380,10 @@ class Room:
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
         self.golf_pace = None      # how long its practice players take, seconds
+        # The clubhouse: a round booked for a tee time, waiting for friends to
+        # join. The group departs when it is full or the time is up, or when
+        # somebody says play now. What was booked is kept to start it with.
+        self.clubhouse = None      # {"at": when, "spec": {...}} while waiting
         self.clubs = {}            # player -> the club chosen for the next stroke
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
@@ -972,6 +976,40 @@ class Room:
                 return max(default, BOT_REVEAL)
             return PERSON_REVEAL          # a person's: until they have read it
 
+    def book_clubhouse(self, spec, seconds):
+        """A tee time: the round in `spec` starts in `seconds`, or sooner if
+        the group fills or somebody says play now."""
+        with self.lock:
+            # The clubhouse's picture, if the unit has one for this course:
+            # static/golf/clubhouse/<course>.jpg. Read once a booking, so
+            # the screen asks only for what is there.
+            course = str(spec.get("course") or "")
+            has_pic = bool(course) and (Path(__file__).resolve().parent / "static" / "golf"
+                                        / "clubhouse" / f"{course}.jpg").is_file()
+            self.clubhouse = {"at": _now() + max(0.0, float(seconds)), "spec": dict(spec),
+                              "booked": _now(), "backdrop": (course if has_pic else None)}
+            return self.clubhouse["at"]
+
+    def leave_clubhouse(self):
+        """The group departs: what was booked, and the clubhouse is empty."""
+        with self.lock:
+            booked = self.clubhouse
+            self.clubhouse = None
+            return booked["spec"] if booked else None
+
+    def clubhouse_view(self):
+        with self.lock:
+            if self.clubhouse is None:
+                return None
+            people = [p.name for p in self.players.values() if not p.bot]
+            return {"tee_in": max(0.0, round(self.clubhouse["at"] - _now(), 1)),
+                     "people": people, "foursome": FOURSOME,
+                     "full": len(people) >= FOURSOME,
+                     "backdrop": self.clubhouse.get("backdrop"),
+                     "course_name": self.clubhouse["spec"].get("course_name"),
+                     "holes": self.clubhouse["spec"].get("holes_word"),
+                     "difficulty": self.clubhouse["spec"].get("difficulty")}
+
     def golf_prelude(self):
         """How long the address stands before the next stroke's question -
         who is away, the lie, the club - or 0 when there is no stroke to
@@ -1379,6 +1417,7 @@ class Room:
                 # so it floors at zero.
                 "starts_in": (None if self.start_at is None
                               else max(0.0, round(self.start_at - _now(), 1))),
+                "clubhouse": self.clubhouse_view(),
                 "bots": sum(1 for p in self.players.values() if p.bot),
                 "people": sum(1 for p in self.players.values() if not p.bot),
                 "bots_on": self.bots_wanted,
@@ -1452,6 +1491,10 @@ def room(create=False, cohorts=2):
 
 
 def close_room():
+    """The table closes - and its director with it, or a tick already under
+    way would ask a room that is not there for a question."""
     global _room
+    from . import autoplay
+    autoplay.stop()
     with _room_lock:
         _room = None
