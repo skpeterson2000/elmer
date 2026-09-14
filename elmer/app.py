@@ -1395,14 +1395,19 @@ def api_antenna_advice():
         abort(400)
     if not 0.1 <= mhz <= 300000:
         abort(400)
+    # Which floor a flat's balcony is on: the tenth is not the first.
+    try:
+        floor = int(request.args.get("floor") or 0) or None
+    except ValueError:
+        floor = None
     out = antenna_advice.recommend(
         mhz, use=request.args.get("use"), kind=request.args.get("kind"),
-        site=request.args.get("site") or None)
+        site=request.args.get("site") or None, floor=floor)
     # Where the feed matches, for a horizontal wire: the heights the curve
     # does something at, marked reachable or not by what the site allows.
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
         site = request.args.get("site") or ""
-        reach = (antenna_advice.SITES.get(site) or {}).get("max_ft")
+        reach = antenna_advice.site_cap(site, floor)
         out["heights"] = antenna_advice.matching_heights(
             mhz, reach if reach not in (None, 0) else None)
         out["height_curve"] = antenna_advice.height_curve(mhz)

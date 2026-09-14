@@ -147,6 +147,12 @@
           <option value="mobile">In the vehicle &mdash; on the car or truck</option>
           <option value="portable">Nothing at home &mdash; I go out</option>
         </select></div>
+      {# A balcony is on a floor, and the tenth floor is not the first: the
+         height is real height for the pattern and the horizon, and above
+         most of the street's noise. Asked only when a flat is chosen. #}
+      <div class="field" id="an-floor-field" hidden><label>Which floor is the balcony on?</label>
+        <input id="an-floor" type="number" min="1" max="120" value="1" style="width:6rem"
+               title="1 is the ground floor; each floor is about ten feet"></div>
       <div class="field"><label>What do you want to do with it?</label>
         <select id="an-use">
           <option value="">whatever the frequency is good for</option>

@@ -1517,6 +1517,13 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   half-wave dipole at 14.2 MHz, 35 feet up, and asked what you had fourth: a
   person in a flat was shown 69 feet of wire before being asked about the
   balcony. Now the site rules antennas out before the intention rules one in.
+  A flat is asked which floor: the tenth is not the first. The rail on the
+  ground floor is four feet up and no height at all; on the tenth it is
+  ninety-odd feet above the street - a quarter wave on 20 m, the height a
+  garden station puts a mast up to get, a takeoff angle in DX territory and
+  a VHF horizon most people would envy - and above most of the street's
+  noise, though inside all of the building's. The advice says which of those
+  it is, and the height it works from is the floor's.
   A flat on 20 m is offered an end-fed out of the window, sloping to wherever
   it can be tied; on 80 m, where even that is too long, a loaded vertical
   clamped to the rail with the rail as counterpoise; an attic gets an

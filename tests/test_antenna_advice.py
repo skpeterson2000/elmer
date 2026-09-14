@@ -435,6 +435,27 @@ def main():
     check("a curve for the graph, up to a wavelength", (curve[0]["wavelengths"], curve[-1]["wavelengths"]), (0.04, 1.0))
     check("  with the angle falling as the wire rises", curve[-1]["takeoff"] < curve[0]["takeoff"], True)
 
+    print("\n-- a balcony is on a floor, and the tenth is not the first --")
+    check("the ground floor's rail is four feet up", A.floor_height_ft(1), 4)
+    check("  the tenth is ninety-four", A.floor_height_ft(10), 94)
+    check("  nonsense is the ground floor", A.floor_height_ft("x"), 4)
+    check("a flat's cap is its floor", (A.site_cap("apartment"), A.site_cap("apartment", 10)), (0, 94))
+    check("  a house's cap is its own", A.site_cap("house", 10), 35)
+    low = A.reality("dipole", 14.2, 49, "apartment", 1)
+    high = A.reality("dipole", 14.2, 49, "apartment", 10)
+    check("the ground floor says no height at all", "no height at all" in low["means"], True)
+    check("the tenth floor says what the height is worth",
+          (high["floor"], high["floor_ft"], high["takeoff_deg"] < 15, "DX" in high["means"]), (10, 94, True, True))
+    check("  and a horizon on VHF", "horizon" in high["means"], True)
+    check("  and what it is good at changes", "envy" in high["good_at"], True)
+    got = A.recommend(14.2, use="dx", site="apartment", floor=10)
+    check("the recommendation carries the floor", (got["reality"]["floor"], got["height_ft"]), (10, 94))
+    got = A.recommend(146.52, use="local", kind="jpole", site="apartment", floor=6)
+    check("  a chosen antenna does too", got["reality"]["floor"], 6)
+    got = A.recommend(7.1, "dx", "dipole", "apartment")
+    check("  and a flat with no floor said is still the ground floor, not the spec's",
+          (got["reality"].get("floor"), got["reality"]["max_ft"]), (None, 0))
+
     print("\n-- the power changes what has to survive, not the antenna --")
     notes = A.power_notes("dipole", 7.1, 100)
     check("#14 at 100 W on 40 m heats the wire by about two watts",

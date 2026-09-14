@@ -929,7 +929,36 @@ def takeoff_deg(height_ft, mhz):
 GROUND_LIMIT = 0.10
 
 
-def reality(kind, mhz, wanted_ft, site):
+# A balcony is on a floor, and the floor is the height. The ground floor's
+# rail is about four feet up; each storey adds about ten. The tenth floor is
+# ninety-odd feet above the street, which on 20 m is a tower's height for
+# the takeoff angle and on VHF is a horizon most people would envy - and it
+# is above most of the street's noise, though not the building's own.
+STOREY_FT = 10
+RAIL_FT = 4
+
+
+def floor_height_ft(floor):
+    """How high a balcony rail is on this floor: 1 is the ground floor."""
+    try:
+        n = max(1, min(120, int(floor)))
+    except (TypeError, ValueError):
+        n = 1
+    return RAIL_FT + STOREY_FT * (n - 1)
+
+
+def site_cap(site, floor=None):
+    """The height a site allows, in feet: the site's own cap, or for a flat
+    the floor its balcony is on. None means no cap."""
+    spec = SITES.get(site)
+    if not spec:
+        return None
+    if site == "apartment" and floor:
+        return floor_height_ft(floor)
+    return spec["max_ft"]
+
+
+def reality(kind, mhz, wanted_ft, site, floor=None):
     """What that height means where somebody actually lives.
 
     Returns None when the site imposes nothing, so the ordinary case stays
@@ -938,10 +967,49 @@ def reality(kind, mhz, wanted_ft, site):
     spec = SITES.get(site)
     if not spec:
         return None
-    cap = spec["max_ft"]
+    cap = site_cap(site, floor)
     out = {"site": site, "label": spec["label"], "works": list(spec["works"]),
            "costs": list(spec["costs"]), "good_at": spec["good_at"],
            "wanted_ft": wanted_ft, "max_ft": cap, "capped": False}
+    if site == "apartment" and floor:
+        n = max(1, int(floor))
+        out["floor"] = n
+        out["floor_ft"] = cap
+        # A flat on a floor is a different place from a flat on the ground.
+        # The height the balcony gives is real height for the pattern; the
+        # window still says how long the wire can be, and the noise is still
+        # the city's - less of the street's, all of the building's.
+        waves = cap / wavelength_ft(mhz)
+        if TYPES.get(kind, {}).get("polarisation") == "horizontal" and cap > 0:
+            angle = takeoff_deg(cap, mhz)
+            out["takeoff_deg"] = round(angle)
+        horizon_km = 4.12 * (cap * 0.3048) ** 0.5
+        if n == 1:
+            out["means"] = ("The ground floor: the rail is about %d ft up, which is no height "
+                            "at all for the pattern, so the balcony's antenna is the one that "
+                            "does not need height - the loop, or the rail as a counterpoise."
+                            % cap)
+        elif waves >= 0.25:
+            out["means"] = ("The %s floor puts the rail about %d ft above the street - %.2f of a "
+                            "wavelength on %g MHz, which is the height a garden station puts a "
+                            "mast up to get. A horizontal wire here fires at about %d degrees, "
+                            "DX territory; a vertical on the rail sees a radio horizon %d km "
+                            "out on VHF. The window still sets how long the wire can be and the "
+                            "building's own noise is still with you, but the street's is "
+                            "below you now, and that is the trade a high floor makes."
+                            % (_ordinal(n), cap, waves, mhz, round(takeoff_deg(cap, mhz)), round(horizon_km)))
+        else:
+            out["means"] = ("The %s floor puts the rail about %d ft above the street - %.2f of a "
+                            "wavelength on %g MHz, so on this band it is height enough to lift "
+                            "the pattern off the ground, not enough to make it a low-angle "
+                            "antenna; on VHF the same rail sees a radio horizon about %d km out. "
+                            "Above some of the street's noise, inside all of the building's."
+                            % (_ordinal(n), cap, waves, mhz, round(horizon_km)))
+        out["good_at"] = (spec["good_at"] if n < 4 else
+                          "VHF and UHF from a height most people would envy, and 20 m and up "
+                          "at a takeoff angle a garden station would need a mast for")
+        out["height_ft"] = cap
+        return out
     if cap is None or wanted_ft <= cap:
         out["height_ft"] = wanted_ft
         return out
@@ -1068,7 +1136,11 @@ def suits(kind, use, mhz):
     return {"verdict": "suits it", "note": ""}
 
 
-def for_type(mhz, kind, use=None, site=None):
+def _ordinal(n):
+    return "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])
+
+
+def for_type(mhz, kind, use=None, site=None, floor=None):
     """How to use the antenna somebody has actually chosen.
 
     The other half of `recommend`. That one answers "what should I put up";
@@ -1085,12 +1157,15 @@ def for_type(mhz, kind, use=None, site=None):
     if hanging_low:
         height = nvis_height_ft(mhz, kind)
     else:
-        fraction, floor, ceiling = spec["height"]
-        height = _height(mhz, fraction, floor, ceiling)
+        # floor_ft, not floor: `floor` is which floor a flat is on, and a
+        # local of the same name once shadowed it - a ground-floor flat was
+        # told it was on the twentieth, the dipole spec's floor in feet.
+        fraction, floor_ft, ceiling = spec["height"]
+        height = _height(mhz, fraction, floor_ft, ceiling)
     # And then what is actually possible where somebody lives. The ideal
     # height is worth knowing; a number they cannot reach is worth less than
     # the truth about the one they can.
-    where = reality(kind, mhz, height, site)
+    where = reality(kind, mhz, height, site, floor)
     if where:
         height = where["height_ft"]
     fit = suits(kind, use, mhz)
@@ -1486,13 +1561,14 @@ def _steered_title(kind, site, mhz):
     return _STEERED_TITLES.get((site, kind)) or TYPES[kind]["title"]
 
 
-def recommend(mhz, use=None, kind=None, site=None):
-    """A starting antenna for this frequency and intention, with its reasoning."""
+def recommend(mhz, use=None, kind=None, site=None, floor=None):
+    """A starting antenna for this frequency and intention, with its reasoning.
+    `floor` is which floor a flat's balcony is on, and matters only there."""
     mhz = float(mhz)
     # Somebody who named an antenna wants to be taught that antenna, not
     # talked back to a dipole.
     if kind in TYPES:
-        return for_type(mhz, kind, use, site)
+        return for_type(mhz, kind, use, site, floor)
     # What somebody has to work with settles the question before what they
     # want to do with it does, because the site is the thing that rules
     # antennas out. This used to be true only of a vehicle; a flat, an attic
@@ -1502,7 +1578,7 @@ def recommend(mhz, use=None, kind=None, site=None):
     # short vertical on the rail. The program knew and did not act on it.
     steered = _site_type(mhz, site, use)
     if steered:
-        out = for_type(mhz, steered, use, site)
+        out = for_type(mhz, steered, use, site, floor)
         out["title"] = _steered_title(steered, site, mhz)
         out["steered"] = True          # the site chose this, not the intention
         return out

@@ -1005,6 +1005,16 @@ function anSiteValue() {
   const v = (document.getElementById('an-site') || {}).value || '';
   return v === 'textbook' ? '' : v;      // "nothing in particular" imposes nothing
 }
+/* Which floor a flat's balcony is on - asked only for a flat, sent only then. */
+function anFloorValue() {
+  if (anSiteValue() !== 'apartment') return '';
+  const n = parseInt((document.getElementById('an-floor') || {}).value, 10);
+  return n > 0 ? String(n) : '';
+}
+function paintFloorField() {
+  const f = document.getElementById('an-floor-field');
+  if (f) f.hidden = anSiteValue() !== 'apartment';
+}
 
 /* The questions have been answered enough to suggest from: what you have to
    work with is the one that matters, because it is the one that rules
@@ -1663,7 +1673,7 @@ function drawAntenna(shape, rows, type) {
    control - it tells somebody the program has considered their arrangement
    when it has not. */
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site',
+ 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site', 'an-floor',
  'an-slope', 'an-use', 'an-pw']
   .forEach(id => {
     const el = document.getElementById(id);
@@ -1696,6 +1706,12 @@ function drawAntenna(shape, rows, type) {
         // from elsewhere is answered - or the band plan's "set up an antenna
         // for this" on 160 m was answered for nobody's garden at all.
         remember('lab.antenna.site', el.value);
+        paintFloorField();
+      }
+      if (id === 'an-floor') {
+        remember('lab.antenna.floor', el.value);
+        refreshAdvice();
+        return;
       }
       if (id === 'an-pw') { refreshAdvice(); calcAnt(); return; }
       if (id === 'an-site' || id === 'an-use') {
@@ -2769,7 +2785,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
   try {
     d = await api('/api/antenna-advice?' + new URLSearchParams(
       Object.entries({mhz: mhz, use: use || '', kind: kind || '',
-                      site: anSiteValue(),
+                      site: anSiteValue(), floor: anFloorValue(),
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
                       conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));
@@ -2831,7 +2847,10 @@ async function antennaAdvice(mhz, use, kind, quiet) {
         /* A flat has no height to aim for - the wire starts at the window and
            slopes down - and "0 ft" there is a number standing where a sentence
            belongs. A vehicle likewise: the roof is the height. */
-        '<p class="small"><b>' + (d.reality && d.reality.max_ft === 0
+        '<p class="small"><b>' + (d.reality && d.reality.floor
+            ? 'Height: the rail on the ' + d.reality.floor + (['th', 'st', 'nd', 'rd'][(d.reality.floor % 100 >> 3 ^ 1) && d.reality.floor % 10] || 'th') +
+              ' floor, about ' + d.reality.floor_ft + ' ft above the street.'
+            : d.reality && d.reality.max_ft === 0
             ? 'Height: the window or rail you start from, and the slope down from it does the rest.'
             : d.reality && d.reality.site === 'mobile'
               ? 'Height: the roof of the vehicle.'
@@ -2873,7 +2892,9 @@ async function antennaAdvice(mhz, use, kind, quiet) {
               : 'and there is no height to be had here at all. That rules out ' +
                 'the low bands for distance and rules almost nothing else out. ') +
             escapeHTML(d.reality.means || '')
-          : 'The textbook height fits here.') +
+          : d.reality.means
+            ? escapeHTML(d.reality.means)          // a flat on a floor: what the floor is worth
+            : 'The textbook height fits here.') +
         '<div class="mt"><b>What works:</b><ul class="facts small">' +
         d.reality.works.map(w => '<li>' + escapeHTML(w) + '</li>').join('') +
         '</ul></div>' +
@@ -3003,6 +3024,11 @@ const recallAntenna = () => recall('lab.antenna', null);
   if (siteSel && knownSite && [...siteSel.options].some(o => o.value === knownSite)) {
     siteSel.value = knownSite;
   }
+  // And which floor, for a flat - kept the same way, shown only for a flat.
+  const floorEl = document.getElementById('an-floor');
+  const knownFloor = parseInt(recall('lab.antenna.floor', ''), 10);
+  if (floorEl && knownFloor > 0) floorEl.value = knownFloor;
+  paintFloorField();
 
   const q = new URLSearchParams(location.search);
   const f = q.get('f');
