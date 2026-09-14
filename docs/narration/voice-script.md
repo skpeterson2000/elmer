@@ -95,6 +95,24 @@ How a line is pieced together (the game composes these; see `elmer/voice.py`):
 - `call-missed-2`: Left it short.
 - `call-missed-3`: Burned the edge.
 - `call-ace`: A hole in one!
+- `call-worked-1`: Worked it around the trees.
+- `call-worked-2`: Shaped it out of there.
+- `call-worked-3`: Hooked it on purpose, and it came back.
+- `call-stinger-1`: A stinger, under the wind.
+- `call-stinger-2`: Punched it. The wind never saw it.
+- `call-stinger-3`: Kept it low. That's the shot.
+- `call-flop-1`: Flopped it to a tap-in.
+- `call-flop-2`: Straight up, straight down. Kick-in.
+- `call-flop-3`: That's a touch shot.
+- `call-holed-out-1`: Holed it from the fairway!
+- `call-holed-out-2`: It's IN. From out there.
+- `call-holed-out-3`: Walked it in from the fairway.
+- `call-launched-1`: Launched it.
+- `call-launched-2`: That one's still going.
+- `call-launched-3`: Nuked it.
+- `call-pure-1`: Pured it. Stiff.
+- `call-pure-2`: All over the flag.
+- `call-pure-3`: Pin high, and close.
 
 ## Everything else - the address, the stroke, the wind, the card
 
@@ -145,6 +163,8 @@ How a line is pieced together (the game composes these; see `elmer/voice.py`):
 - `for-a-double-bogey`: for a double bogey
 - `for-a-triple-bogey`: for a triple bogey
 - `over-par`: over par
+- `holed-it-from-the-fairway`: holed it from the fairway
+- `flopped-it-to-a-tap-in`: flopped it, to a tap-in
 - `thats-the-hole`: that's the hole
 - `on-to-the-next`: on to the next
 - `wins-the-round`: wins the round

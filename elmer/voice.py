@@ -82,6 +82,18 @@ VOCABULARY = {
     "call-water-1": "Hooked it into the water.", "call-water-2": "Wet.", "call-water-3": "That's a splash. What was the wind?",
     "call-missed-1": "Lipped out.", "call-missed-2": "Left it short.", "call-missed-3": "Burned the edge.",
     "call-ace": "A hole in one!",
+    # the shots worth making - earned by an adept answer
+    "call-worked-1": "Worked it around the trees.", "call-worked-2": "Shaped it out of there.",
+    "call-worked-3": "Hooked it on purpose, and it came back.",
+    "call-stinger-1": "A stinger, under the wind.", "call-stinger-2": "Punched it. The wind never saw it.",
+    "call-stinger-3": "Kept it low. That's the shot.",
+    "call-flop-1": "Flopped it to a tap-in.", "call-flop-2": "Straight up, straight down. Kick-in.",
+    "call-flop-3": "That's a touch shot.",
+    "call-holed-out-1": "Holed it from the fairway!", "call-holed-out-2": "It's IN. From out there.",
+    "call-holed-out-3": "Walked it in from the fairway.",
+    "call-launched-1": "Launched it.", "call-launched-2": "That one's still going.", "call-launched-3": "Nuked it.",
+    "call-pure-1": "Pured it. Stiff.", "call-pure-2": "All over the flag.", "call-pure-3": "Pin high, and close.",
+    "holed-it-from-the-fairway": "holed it from the fairway", "flopped-it-to-a-tap-in": "flopped it, to a tap-in",
     # the card, and the round
     "thats-the-hole": "that's the hole", "on-to-the-next": "on to the next",
     "wins-the-round": "wins the round", "a-playoff": "a playoff, sudden death",
@@ -100,6 +112,16 @@ CALL_TOKENS = {
     "That's a splash - what was the wind?": "call-water-3",
     "Lipped out.": "call-missed-1", "Left it short.": "call-missed-2", "Burned the edge.": "call-missed-3",
     "A hole in one!": "call-ace",
+    "Worked it around the trees.": "call-worked-1", "Shaped it out of there.": "call-worked-2",
+    "Hooked it on purpose, and it came back.": "call-worked-3",
+    "A stinger, under the wind.": "call-stinger-1", "Punched it. The wind never saw it.": "call-stinger-2",
+    "Kept it low. That's the shot.": "call-stinger-3",
+    "Flopped it to a tap-in.": "call-flop-1", "Straight up, straight down. Kick-in.": "call-flop-2",
+    "That's a touch shot.": "call-flop-3",
+    "Holed it from the fairway!": "call-holed-out-1", "It's IN. From out there.": "call-holed-out-2",
+    "Walked it in from the fairway.": "call-holed-out-3",
+    "Launched it.": "call-launched-1", "That one's still going.": "call-launched-2", "Nuked it.": "call-launched-3",
+    "Pured it. Stiff.": "call-pure-1", "All over the flag.": "call-pure-2", "Pin high, and close.": "call-pure-3",
 }
 
 SCORE_TOKENS = {"albatross": "for-an-albatross", "eagle": "for-an-eagle", "birdie": "for-a-birdie",
@@ -199,7 +221,12 @@ def shot(s):
     kind = s.get("kind")
     out = []
     club = s.get("club")
-    if kind == "holed":
+    if s.get("flair") == "holed-out":
+        out += [f"the-{club}"] if club else []
+        out += number(s.get("carry") or 0) + ["yards", "holed-it-from-the-fairway"]
+    elif s.get("flair") == "flop":
+        out += ["the-wedge"] + number(s.get("carry") or 0) + ["yards", "flopped-it-to-a-tap-in"]
+    elif kind == "holed":
         if s.get("ace"):
             out += [f"the-{club}"] if club else []
             out += number(s.get("carry") or 0) + ["yards", "in-the-hole", "an-ace"]

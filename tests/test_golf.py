@@ -240,6 +240,40 @@ def run():
     check("from the sand, a hard one", g.hardness[hard] >= 0.7, True)
     check("with nothing measured, any", golf.Golf(["a"], flat_course(), seed=1).choose(["x", "y"], "a") in ("x", "y"), True)
 
+    print("\n-- the shots worth making, for an adept answer --")
+    g = golf.Golf(["a"], flat_course(par=4, yards=400, wind="into"), seed=2)
+    g.wind_mph = 15
+    g.hardness = {"HARD": 0.9, "EASY": 0.1}
+    row = g.play_one("a", {"correct": True, "club": "driver", "question_id": "EASY"})
+    check("an easy question right off the tee is a drive, no more", row["shots"]["a"].get("flair"), None)
+    g = golf.Golf(["a"], flat_course(par=4, yards=400, wind="into"), seed=2)
+    g.wind_mph = 15; g.hardness = {"HARD": 0.9}
+    row = g.play_one("a", {"correct": True, "club": "driver", "question_id": "HARD"})
+    check("a hard question right, into the wind: a stinger", row["shots"]["a"].get("flair"), "stinger")
+    check("  which the wind did not touch", row["shots"]["a"]["carry"], 250)
+    check("  and the call says so", row["shots"]["a"]["call"] in golf.FLAIR_CALLS["stinger"], True)
+    g = golf.Golf(["a"], flat_course(par=4, yards=400, hazards=[{"kind": "bunker", "from": 200, "to": 260, "side": "across", "name": "sand"}]), seed=2)
+    g.balls["a"].at = 100; g.balls["a"].lie = "rough"; g.balls["a"].strokes = 1
+    row = g.play_one("a", {"correct": True, "club": "wood", "adept": True})
+    check("from the rough, adept: worked out of it, the lie not costing, the sand not catching",
+          (row["shots"]["a"].get("flair"), row["shots"]["a"]["kind"]), ("worked", "fairway"))
+    g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=2)
+    g.balls["a"].at = 370; g.balls["a"].lie = "fairway"; g.balls["a"].strokes = 2
+    row = g.play_one("a", {"correct": True, "club": "wedge", "adept": True})
+    check("a wedge from thirty out, adept: a flop to a tap-in, or holed",
+          row["shots"]["a"].get("flair") in ("flop", "holed-out"), True)
+    holed = 0
+    for seed in range(40):
+        g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=seed)
+        g.balls["a"].at = 300; g.balls["a"].lie = "fairway"; g.balls["a"].strokes = 1
+        if g.play_one("a", {"correct": True, "club": "iron", "adept": True})["shots"]["a"].get("flair") == "holed-out":
+            holed += 1
+    check("an adept approach from a hundred out goes in now and then, not always", 0 < holed < 20, True)
+    g = golf.Golf(["a"], flat_course(par=5, yards=560), seed=4)
+    for i in range(3):
+        row = g.play_one("a", {"correct": True, "question_id": f"Q{i}"})
+    check("the third right answer in a row is adept without any measure", row["shots"]["a"].get("flair") is not None, True)
+
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)
     had = golf.ACE_ODDS

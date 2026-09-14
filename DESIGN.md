@@ -2404,6 +2404,22 @@ script to record - one line a snippet, ready for a voice service - is
 `python3 tools/voice_script.py`, and `docs/narration/voice-script.md` is
 its printout.
 
+**The shots worth making.** Golf is about the shots - good, bad and
+regular - and some are shaped on purpose: a hook worked around the trees, a
+stinger punched under the wind, a flop over the sand to a tap-in, the
+approach that goes in, the drive that was launched. Here they are earned by
+an *adept* answer: a right answer on a question this unit has measured as
+hard (the same measure as the class report), or the third right answer in
+a row when nothing is measured yet. Which shot depends on where the ball
+is: from the rough or the sand it is worked out, the lie not costing and
+the trouble it was shaped past not catching; into the wind it is a stinger,
+and the wind has no say; off the tee it is launched, a little more of
+everything; a wedge from inside forty is flopped to a tap-in; and an
+approach from inside a hundred and twenty goes in one time in six. The
+call says which, and the record board will count the holed ones. The ball
+still obeys the course - it gets the shot a good golfer would have played
+from there, and nothing more.
+
 **A hole in one** is real on a par 3 - about one in twelve thousand for an
 amateur, which nobody would ever see here - so a right answer from the tee
 of a par 3 drops at one in fifty instead: rare, and possible. Never on a par

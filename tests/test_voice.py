@@ -78,6 +78,10 @@ def run():
 
     print("\n-- the calls --")
     check("every call the rules make has a file", [c for cs in golf.CALLS.values() for c in cs if not voice.call(c)], [])
+    check("  and every shot worth making", [c for cs in golf.FLAIR_CALLS.values() for c in cs if not voice.call(c)], [])
+    check("holed it from the fairway, in words",
+          voice.shot({"kind": "holed", "holed": True, "flair": "holed-out", "club": "iron", "carry": 100, "strokes": 3, "score": "birdie"}),
+          ["the-iron", "one", "hundred", "yards", "holed-it-from-the-fairway", "three", "for-a-birdie"])
     check("  and the ace", voice.call("A hole in one!"), ["call-ace"])
 
     print("\n-- the card --")

@@ -84,6 +84,26 @@ AIM = 12
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
+# The shots worth making. Golf is about the shots - good, bad and regular -
+# and some are shaped on purpose: a hook worked around the trees, a stinger
+# punched under the wind, a flop over the sand to a tap-in, the approach
+# that goes in. Here they are earned by an adept answer: a right answer on
+# a question this unit has measured as hard, or the third right answer in a
+# row. Which shot depends on where the ball is; the ball still obeys the
+# course, it just gets the shot a good golfer would have played from there.
+ADEPT_HARDNESS = 0.6            # of the unit's own 0..1 measure; see difficulty.py
+ADEPT_STREAK = 3                # right answers in a row, when nothing is measured
+HOLE_OUT_ODDS = 1 / 6           # an adept approach from inside HOLE_OUT_FROM yards
+HOLE_OUT_FROM = 120
+FLAIR_CALLS = {
+    "worked": ["Worked it around the trees.", "Shaped it out of there.", "Hooked it on purpose, and it came back."],
+    "stinger": ["A stinger, under the wind.", "Punched it. The wind never saw it.", "Kept it low. That's the shot."],
+    "flop": ["Flopped it to a tap-in.", "Straight up, straight down. Kick-in.", "That's a touch shot."],
+    "holed-out": ["Holed it from the fairway!", "It's IN. From out there.", "Walked it in from the fairway."],
+    "launched": ["Launched it.", "That one's still going.", "Nuked it."],
+    "pure": ["Pured it. Stiff.", "All over the flag.", "Pin high, and close."],
+}
+
 # A hole in one. Real on a par 3 - about one in twelve thousand for an
 # amateur, which nobody would ever see here - so a right answer from the tee
 # of a par 3 drops with these odds instead: rare, and possible, which is
@@ -200,6 +220,7 @@ class Golf:
         self.hole_section = None
         self.hardness = {}
         self.tee_times = []             # who joins at the next tee, in order
+        self.streak = {}                # right answers in a row, per player
         self._tee_off()
 
     # ---------------------------------------------------------------- holes
@@ -297,14 +318,53 @@ class Golf:
                 return hz
         return None
 
-    def _fair(self, h, ball, club):
-        """A correct answer: the ball flies, and the course has its say."""
+    def _fair(self, h, ball, club, adept=False):
+        """A correct answer: the ball flies, and the course has its say. An
+        adept answer gets the shot a good golfer would have played from
+        there - see FLAIR_CALLS."""
         wind = self.wind_on(h)
         if club == "putter" or ball.lie == "green":
             ball.strokes += 1
             ball.holed = True
             return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
-        carry = self._carry(ball, club, wind, h["yards"] - ball.at)
+        left_before = h["yards"] - ball.at
+        flair = None
+        if adept:
+            if left_before <= HOLE_OUT_FROM and self.rng.random() < HOLE_OUT_ODDS:
+                ball.strokes += 1
+                ball.at = h["yards"]
+                ball.holed = True
+                return {"kind": "holed", "words": f"{club}, {left_before} yards - holed it from the fairway",
+                        "carry": left_before, "wind": wind, "flair": "holed-out"}
+            if club == "wedge" and left_before <= 40:
+                ball.strokes += 1
+                ball.at = h["yards"] - 1
+                ball.lie = "green"
+                return {"kind": "green", "words": f"wedge, {left_before} yards - flopped it, to a tap-in, 3 feet",
+                        "carry": left_before, "wind": wind, "feet": 3, "flair": "flop"}
+            if ball.lie in ("rough", "sand"):
+                flair = "worked"              # the lie does not cost: shaped out of it
+            elif wind == "into":
+                flair = "stinger"             # the wind does not cost: punched under it
+            elif ball.strokes == 0:
+                flair = "launched"            # off the tee: a little more of everything
+        if flair == "worked":
+            lie_was = ball.lie
+            ball.lie = "fairway"
+            carry = self._carry(ball, club, wind, left_before)
+            ball.lie = lie_was
+        elif flair == "stinger":
+            carry = self._carry(ball, club, None, left_before)       # the wind's say, taken away
+        elif flair == "launched":
+            carry = round(self._carry(ball, club, wind, left_before) * 1.12)
+        elif adept and CLUBS[club] * LIES[ball.lie][0] >= left_before:
+            flair = "pure"                    # the club reaches: stiff, all over the flag
+            carry = round(left_before + self.rng.uniform(-4, 4))
+        elif adept:
+            flair = "launched"                # a full swing with everything in it
+            carry = round(self._carry(ball, club, wind, left_before) * 1.12)
+        else:
+            carry = self._carry(ball, club, wind, left_before)
         landed = ball.at + carry
         from_the_tee = ball.strokes == 0
         ball.strokes += 1
@@ -319,7 +379,7 @@ class Golf:
         # the line of play only: a fair ball down the middle avoids the
         # trouble off to the sides, but not a creek across the fairway, a
         # bunker in front of the green, or the ocean beyond it.
-        hz = None if abs(left) <= edge else             self._in_band(h, landed, sides=("across", "front", "centre", "around", "beyond", ""))
+        hz = None if abs(left) <= edge or flair == "worked" else self._in_band(h, landed, sides=("across", "front", "centre", "around", "beyond", ""))
         if hz and hz["kind"] == "water":
             ball.strokes += 1                        # the penalty
             return {"kind": "water", "words": f"{club}, {carry} yards - into {hz['name'] or 'the water'}; "
@@ -330,7 +390,7 @@ class Golf:
             ball.lie = "green"
             feet = max(3, abs(left) * 3)
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards - on the green, {feet} feet",
-                    "carry": carry, "wind": wind, "feet": feet}
+                    "carry": carry, "wind": wind, "feet": feet, "flair": flair}
         if left < -edge:
             # Over the back: rough beyond, or whatever is there.
             ball.at = h["yards"]
@@ -348,7 +408,7 @@ class Golf:
                     "carry": carry, "wind": wind, "hazard": hz["name"]}
         ball.lie = "fairway"
         return {"kind": "fairway", "words": f"{club}, {carry} yards, fairway - {left} to go",
-                "carry": carry, "wind": wind, "left": left}
+                "carry": carry, "wind": wind, "left": left, "flair": flair}
 
     def _foul(self, h, ball, club):
         """A wrong answer: the ball finds the nearest trouble the club could
@@ -408,10 +468,16 @@ class Golf:
             elif qid not in self.missed:
                 self.missed.append(qid)
         if a.get("correct"):
-            shot = self._fair(h, ball, club)
+            self.streak[p] = self.streak.get(p, 0) + 1
+            adept = (bool(qid) and self.hardness.get(qid, 0.0) >= ADEPT_HARDNESS) \
+                or self.streak[p] >= ADEPT_STREAK or bool(a.get("adept"))
+            shot = self._fair(h, ball, club, adept=adept)
         else:
+            self.streak[p] = 0
             shot = self._foul(h, ball, club)
+        flair = shot.get("flair")
         shot["call"] = ("A hole in one!" if shot.get("ace")
+                        else self.rng.choice(FLAIR_CALLS[flair]) if flair in FLAIR_CALLS
                         else self.rng.choice(CALLS.get(shot["kind"], ["That's a shot."])))
         if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
             ball.picked_up = True
