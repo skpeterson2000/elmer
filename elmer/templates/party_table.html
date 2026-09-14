@@ -931,7 +931,7 @@ function askToSit(start, what) {
   const box = document.getElementById('gc-sit');
   box.hidden = false;
   box.innerHTML = `<b>Nobody is at this table yet.</b> ${esc(what)} would start for the practice players alone, and you would be watching with no way in. ` +
-    `Sit down at a seat below, or scan the code, and press again &mdash; or ` +
+    `Sit down at a seat under <b>At this table</b> &mdash; to the left, or above on a narrow screen &mdash; or scan the code, and press again; or ` +
     `<button class="btn sm ghost" id="gc-anyway">start anyway and watch</button>`;
   startAnyway = start;
   document.getElementById('gc-anyway').addEventListener('click', () => { box.hidden = true; const go = startAnyway; startAnyway = 'go'; if (go) go(); });
