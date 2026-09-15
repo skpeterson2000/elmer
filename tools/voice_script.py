@@ -3,6 +3,7 @@
 
     python3 tools/voice_script.py            # to the terminal
     python3 tools/voice_script.py --md       # as docs/narration/voice-script.md
+    python3 tools/voice_script.py --have     # what is recorded, what is still to do
 
 Record each line as its own file, named by the stem, as MP3, into
 elmer/static/golf/voice/ - three.mp3, addresses-the-ball.mp3 - and the
@@ -58,8 +59,41 @@ def as_markdown():
     return "\n".join(out)
 
 
+def shelf_report():
+    """What is on the shelf and what is not: the recordings in
+    elmer/static/golf/voice/ against the script, so a batch can be checked
+    before a round is played. Whole numbers (n-377) and names (name-scott)
+    are listed as extras; a file the script does not know is flagged, since
+    a typo in a stem is a snippet the narrator will never say."""
+    folder = Path(__file__).resolve().parents[1] / "elmer" / "static" / "golf" / "voice"
+    have = sorted(p.stem for p in folder.glob("*.mp3")) if folder.is_dir() else []
+    known = set(voice.VOCABULARY)
+    numbers = [h for h in have if h.startswith("n-") and h[2:].isdigit()]
+    names = [h for h in have if h.startswith("name-")]
+    scripted = [h for h in have if h in known]
+    strays = [h for h in have if h not in known and h not in numbers and h not in names]
+    missing = [k for k in voice.VOCABULARY if k not in have]
+    out = [f"{folder}", "",
+           f"recorded: {len(scripted)} of {len(known)} scripted snippets, "
+           f"{len(numbers)} whole numbers, {len(names)} names"]
+    if strays:
+        out += ["", "not in the script (check the stem - the narrator will never say these):"]
+        out += [f"  {h}" for h in strays]
+    if missing:
+        out += ["", f"still to record ({len(missing)}):"]
+        for title, rows in grouped():
+            todo = [k for k, _ in rows if k in missing]
+            if todo:
+                out.append(f"  {title}: " + ", ".join(todo))
+    else:
+        out += ["", "every scripted snippet is recorded."]
+    return "\n".join(out)
+
+
 if __name__ == "__main__":
-    if "--md" in sys.argv:
+    if "--have" in sys.argv:
+        print(shelf_report())
+    elif "--md" in sys.argv:
         target = Path(__file__).resolve().parents[1] / "docs" / "narration" / "voice-script.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(as_markdown(), encoding="utf-8")
