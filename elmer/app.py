@@ -41,8 +41,8 @@ from . import (
     phonegps, places, pota, prints, programmes, propagation,
     qr, ranks, reachout, references, regional, repeaters,
     rfexposure, rfpdf, show, smith, spotlog, srs,
-    sweeps, terrain, touchstone, tournament, towerwitch, trivia,
-    units, update, vna, whipbuild,
+    sweeps, terrain, touchstone, tournament, towerwitch, track,
+    trivia, units, update, vna, whipbuild,
 )
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
@@ -896,6 +896,28 @@ def api_path_to():
     return jsonify(out)
 
 
+@app.route("/api/track", methods=["POST"])
+def api_track():
+    """Mark a step of the first-contact track done, or undo it. The date is
+    kept, because the day of a first contact is a date people remember."""
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    key = str(body.get("step") or "").strip()
+    if not key or not re.match(r"^[a-z]{2,20}$", key):
+        abort(400, "which step?")
+    profile = db.get_profile(connection)
+    settings = profile["settings"]
+    done = dict(settings.get("track") or {})
+    if body.get("done", True):
+        done[key] = date.today().isoformat()
+    else:
+        done.pop(key, None)
+    settings["track"] = done
+    db.save_settings(connection, settings)
+    connection.commit()
+    return jsonify({"ok": True, "track": done})
+
+
 @app.route("/api/ways-out")
 def api_ways_out():
     """Every avenue worth trying from where the station is now."""
@@ -919,6 +941,11 @@ def api_ways_out():
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
     answer["located"] = True
+    # The track: the steps from a silent radio to a first contact, for the
+    # person the list of avenues does nothing for. Progress is theirs,
+    # kept in the profile, marked with a press.
+    answer["track"] = track.build(gear, license, answer["ways"], profile.get("callsign") or "",
+                                  profile["settings"].get("track") or {})
     # What the law says about listening, beside the frequencies rather than
     # on a page of its own - this is where somebody is looking at what they
     # could tune. Driven off the fix, because the statutes that matter are

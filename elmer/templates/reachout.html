@@ -79,6 +79,23 @@
   </p>
 </div>
 
+{# The track: the order to do things in, for the person who has never keyed
+   up. The list below it is every avenue; this is the first one, step by
+   step, with the machine's tone and the operator's call filled in. #}
+<div class="panel" id="ro-track-panel" style="margin-top:1rem">
+  <div class="spread" style="align-items:baseline">
+    <div class="panel-title" style="margin:0">Getting on the air &mdash; your track</div>
+    <span class="tiny muted" id="ro-track-say"></span>
+  </div>
+  <p class="tiny muted" style="margin:.3rem 0 .6rem;max-width:80ch">
+    The list further down is everything worth trying. This is the order to try it in, for a
+    first contact: each step says how, how you know it worked, and what to do when it does
+    not. Mark a step when it is done &mdash; the date is kept, because the day of a first
+    contact is one people remember.
+  </p>
+  <ol class="ro-track" id="ro-track"></ol>
+</div>
+
 <div id="ro-out" style="margin-top:1rem"></div>
 
 {# Beside the frequencies, because that is where somebody is looking at what

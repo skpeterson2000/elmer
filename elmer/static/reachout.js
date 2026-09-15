@@ -171,6 +171,39 @@ async function roAsk() {
   }
   box.innerHTML = d.ways.map(roCard).join('') +
     '<p class="tiny muted">' + escapeHTML(d.note) + '</p>';
+  roTrack(d.track || []);
+}
+
+/* The track. The next step is the open one; done steps fold to a line with
+   their date; the ones beyond the next are there to be read, not pressed
+   out of order - but nothing stops it, because the order is advice. */
+function roTrack(steps) {
+  const list = document.getElementById('ro-track');
+  const say = document.getElementById('ro-track-say');
+  if (!list) return;
+  const done = steps.filter(s => s.done).length;
+  say.textContent = steps.length ? done + ' of ' + steps.length + ' done' : '';
+  list.innerHTML = steps.map(s =>
+    '<li class="ro-step' + (s.done ? ' done' : '') + (s.next ? ' next' : '') + '">' +
+      '<div class="spread" style="align-items:baseline;gap:.6rem">' +
+        '<b>' + escapeHTML(s.title) + '</b>' +
+        '<button class="btn sm ' + (s.done ? 'ghost' : 'primary') + ' ro-mark" data-step="' + escapeHTML(s.key) +
+          '" data-done="' + (s.done ? '1' : '') + '">' + (s.done ? 'done ' + escapeHTML(s.done) : 'Done') + '</button>' +
+      '</div>' +
+      (s.done ? '' :
+        '<p class="small" style="margin:.3rem 0">' + escapeHTML(s.how) +
+          (s.link ? ' <a class="tiny" href="' + escapeHTML(s.link) + '">&rarr;</a>' : '') + '</p>' +
+        '<p class="tiny" style="margin:.2rem 0"><b>You know it worked:</b> <span class="muted">' + escapeHTML(s.know) + '</span></p>' +
+        (s.stuck ? '<p class="tiny" style="margin:.2rem 0"><b>If not:</b> <span class="muted">' + escapeHTML(s.stuck) + '</span></p>' : '')) +
+    '</li>').join('');
+  list.querySelectorAll('.ro-mark').forEach(b => b.addEventListener('click', async () => {
+    const undo = b.dataset.done === '1';
+    try {
+      await postJSON('/api/track', {step: b.dataset.step, done: !undo});
+      if (!undo) toast('Marked', 'the date is kept with it');
+      roAsk();
+    } catch (e) { toast('Could not save that', 'see data/elmer.log'); }
+  }));
 }
 
 /* What the law says about listening, beside the frequencies rather than on a
