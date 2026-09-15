@@ -1329,3 +1329,12 @@ body.hs-held { overflow: hidden; }
 /* ---------- the EME page's legend ---------- */
 .eme-swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: 3px;
               vertical-align: -2px; margin-right: .25rem; }
+
+/* ---------- one park or summit, picked: modes and months ---------- */
+.ac-modes { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin-top: .4rem; }
+.ac-modes i { display: block; height: 100%; }
+.ac-modes .phone { background: var(--green); } .ac-modes .cw { background: var(--amber); } .ac-modes .data { background: var(--cyan); }
+.ac-months { display: flex; gap: 3px; align-items: flex-end; height: 44px; margin-top: .6rem; }
+.ac-months span { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.ac-months i { display: block; width: 100%; background: var(--line-2); border-radius: 2px 2px 0 0; min-height: 1px; }
+.ac-months b { font-size: .6rem; color: var(--dimmer); font-weight: normal; margin-top: 2px; }

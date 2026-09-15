@@ -38,11 +38,11 @@ from . import (
     gps, groundwave, hall, host, ionosonde, landmarks,
     library, logs, mail, monitoring, nanovna, netcontrol,
     netwatch, op25, party, pathto, patterns, personal,
-    phonegps, places, pota, prints, propagation, qr,
-    ranks, reachout, references, regional, repeaters, rfexposure,
-    rfpdf, show, smith, srs, sweeps, terrain,
-    touchstone, tournament, towerwitch, trivia, units, update,
-    vna, whipbuild,
+    phonegps, places, pota, prints, programmes, propagation,
+    qr, ranks, reachout, references, regional, repeaters,
+    rfexposure, rfpdf, show, smith, srs, sweeps,
+    terrain, touchstone, tournament, towerwitch, trivia, units,
+    update, vna, whipbuild,
 )
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
@@ -1006,6 +1006,52 @@ def _in_band(rows, inner_km, outer_km):
     """Only what falls between the two edges, nearest first."""
     return [r for r in rows
             if inner_km <= (r.get("km") or 0) <= outer_km]
+
+
+@app.route("/api/reference")
+def api_reference():
+    """One park or summit, picked: where it is from here, what has worked
+    for the people who went, and the spots inside it that ELMER holds.
+
+    `ref` is a programme reference; `q` is a name or part of one, answered
+    from the held and bundled lists and the landmarks without a fetch. The
+    record itself is fetched from the programme when there is a network
+    and read from disk when there is not.
+    """
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    ref = (request.args.get("ref") or "").strip().upper()
+    if not ref:
+        q = (request.args.get("q") or "").strip()
+        hits = references.search(q)
+        # A spot's place comes first: "Harney" is the summit's park before
+        # it is anything held by that name elsewhere.
+        for spot in reversed(landmarks.search(q)):
+            code = spot.get("pota") or spot.get("sota")
+            if not code:
+                continue
+            hits = [h for h in hits if h["ref"] != code]
+            hits.insert(0, references.find(code)
+                        or {"ref": code, "name": spot["landmark"],
+                            "kind": "park" if spot.get("pota") else "summit"})
+        return jsonify({"matches": hits})
+    record = programmes.lookup(ref, refresh=request.args.get("refresh") == "1")
+    held = references.find(ref)
+    if held:
+        # the list's name is the full one; the park record's is often short
+        if len(held["name"]) > len(record.get("name") or ""):
+            record["name"] = held["name"]
+        for key in ("lat", "lon", "grid", "where", "kind"):
+            if record.get(key) in (None, ""):
+                record[key] = held.get(key)
+    if record.get("lat") is not None and place.get("lat") is not None:
+        km, bearing = terrain.great_circle(place["lat"], place["lon"], record["lat"], record["lon"])
+        record["from_here"] = {"km": round(km), "bearing": round(bearing),
+                               "qth": place.get("short") or place.get("grid") or ""}
+    record["spots"] = landmarks.group_for(ref=ref)
+    record["sentence"] = programmes.sentence(record) if record.get("ok") else ""
+    return jsonify(record)
 
 
 @app.route("/api/activations/print", methods=["POST"])

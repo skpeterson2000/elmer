@@ -41,6 +41,12 @@ log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT / "data" / "references.json"
+# The National Park Service units, shipped with the program: the places
+# people drive across the country for, about four hundred of them, and the
+# ones a visitor plans a radio afternoon around. State parks are thousands
+# and of interest only near home, so those are fetched for the interested
+# and never bundled for the rest. tools/build_national_parks.py makes it.
+NATIONAL = ROOT / "data" / "parks" / "national.json"
 
 POTA_LOCATIONS = "https://api.pota.app/locations"
 POTA_PARKS = "https://api.pota.app/location/parks/{code}"
@@ -218,6 +224,49 @@ def held():
         return []
 
 
+_national = None
+
+
+def national():
+    """The bundled National Park Service units, or [] without the file."""
+    global _national
+    if _national is None:
+        try:
+            _national = json.loads(NATIONAL.read_text(encoding="utf-8")).get("parks", [])
+        except (OSError, ValueError):
+            _national = []
+    return _national
+
+
+def find(ref):
+    """One held reference - a park or a summit - by its code, or None."""
+    ref = (ref or "").strip().upper()
+    for row in national():
+        if row["ref"] == ref:
+            return dict(row)
+    for area in held():
+        for row in (area.get("parks") or []) + (area.get("summits") or []):
+            if row["ref"].upper() == ref:
+                return dict(row)
+    return None
+
+
+def search(text, limit=8):
+    """Held references whose name or code contains the words typed."""
+    words = [w for w in (text or "").lower().split() if w]
+    if not words:
+        return []
+    seen, out = set(), []
+    for row in national() + [r for a in held() for r in (a.get("parks") or []) + (a.get("summits") or [])]:
+        hay = (row["name"] + " " + row["ref"]).lower()
+        if row["ref"] in seen or not all(w in hay for w in words):
+            continue
+        seen.add(row["ref"])
+        out.append(dict(row))
+    out.sort(key=lambda r: (not r["ref"].lower().startswith(words[0]), -(r.get("activations") or 0)))
+    return out[:limit]
+
+
 def nearby(lat, lon, kind=None, limit=12, radius_km=None):
     """The references held for anywhere, nearest to here first.
 
@@ -229,7 +278,9 @@ def nearby(lat, lon, kind=None, limit=12, radius_km=None):
     of having driven somewhere.
     """
     seen, out = set(), []
-    for area in held():
+    # The fetched lists first, because they are newer than the bundle and
+    # carry today's activation counts; the bundle fills in behind them.
+    for area in held() + [{"parks": national()}]:
         for row in (area.get("parks") or []) + (area.get("summits") or []):
             if kind and row["kind"] != kind:
                 continue
@@ -262,7 +313,7 @@ def coverage(lat, lon):
     areas = held()
     if not areas:
         return {"known": False, "reason": "none", "areas": 0,
-                "nearest_km": None}
+                "nearest_km": None, "national": len(national())}
     def away(area):
         return great_circle(lat, lon, area["lat"], area["lon"])[0]
 
@@ -275,6 +326,7 @@ def coverage(lat, lon):
     oldest = max(ages) if ages else None
     return {"known": inside, "reason": "here" if inside else "elsewhere",
             "areas": len(areas), "nearest_km": round(nearest),
+            "national": len(national()),
             "oldest_days": round(oldest) if oldest is not None else None,
             "stale": bool(oldest is not None and oldest >= STALE_DAYS),
             "stale_days": STALE_DAYS}

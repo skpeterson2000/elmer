@@ -53,7 +53,8 @@ function acPlace(row) {
      column is visible as one. */
   return '<tr>' +
     '<td class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' +
-      escapeHTML(row.ref) + '</td>' +
+      '<a href="#ac-pick-panel" class="ac-ref" data-ref="' + escapeHTML(row.ref) + '">' +
+      escapeHTML(row.ref) + '</a></td>' +
     '<td>' + escapeHTML(row.name) + '</td>' +
     '<td class="mono">' + acAway(row.km) + '</td>' +
     '<td class="mono">' + row.bearing + '&deg;</td>' +
@@ -331,3 +332,125 @@ if (document.getElementById('ac-near')) {
   acLoad();
   acAwards();
 }
+
+
+/* ---------------------------------------------------- one place, picked */
+/* The programme's own record of a park or a summit, read out: how many
+   made it, on what, when, and who was last. Fetched while there is a signal
+   and held on disk after, the same bargain as the lists. The spots inside it
+   are ELMER's own, from data/landmarks.json, and each is a button that sets
+   the "of" box on this page to it - so "mile 55" is one press, not a search. */
+function acMonthBar(story) {
+  if (!story || !story.by_month) return '';
+  const max = Math.max.apply(null, story.by_month) || 1;
+  const names = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  return '<div class="ac-months" title="activations by month, all years">' +
+    story.by_month.map((n, i) => '<span><i style="height:' + Math.round(100 * n / max) +
+      '%"></i><b>' + names[i] + '</b></span>').join('') + '</div>';
+}
+
+function acCard(r) {
+  const box = document.getElementById('ac-pick-card');
+  if (!r.ok) {
+    box.innerHTML = '<p class="small muted">' + escapeHTML(r.error || 'nothing found') + '</p>';
+    return;
+  }
+  const summit = r.kind === 'summit';
+  const from = r.from_here
+    ? '<span class="mono">' + acAway(r.from_here.km) + ' ' + AC_UNITS.short + ' at ' +
+      r.from_here.bearing + '&deg;</span> from ' + escapeHTML(r.from_here.qth)
+    : 'set a QTH for the distance';
+  const facts = [
+    summit ? (r.alt_ft ? r.alt_ft + ' ft' : '') + (r.points ? ' &middot; ' + r.points + ' points' : '')
+           : escapeHTML([r.type, r.agency].filter(Boolean).join(' - ')),
+    escapeHTML(r.where || ''), r.grid ? '<span class="mono">' + escapeHTML(r.grid) + '</span>' : '',
+    r.access ? 'access: ' + escapeHTML(r.access) : '', r.methods ? 'set up: ' + escapeHTML(r.methods) : '',
+  ].filter(Boolean).join(' &middot; ');
+  const modes = r.story && r.story.modes
+    ? '<div class="ac-modes"><i class="phone" style="width:' + r.story.modes.phone + '%" title="phone"></i>' +
+      '<i class="cw" style="width:' + r.story.modes.cw + '%" title="CW"></i>' +
+      '<i class="data" style="width:' + r.story.modes.data + '%" title="data"></i></div>' +
+      '<div class="tiny muted">phone &middot; CW &middot; data, by contacts made</div>'
+    : '';
+  const spots = r.spots && r.spots.spots && r.spots.spots.length
+    ? '<div class="panel-title mt" style="margin-bottom:.3rem">Where people set up</div>' +
+      '<p class="tiny muted" style="margin:0 0 .4rem">' + escapeHTML(r.spots.about || '') +
+      ' A press puts the spot in the “of” box above, so the printed sheet is measured from it; ~ marks one read from a map by eye.</p>' +
+      '<div class="row" style="gap:.35rem;flex-wrap:wrap">' + r.spots.spots.map(s =>
+        '<button class="btn sm ghost ac-spot" data-name="' + escapeHTML(s.short) + '" title="' +
+        escapeHTML(s.kind + ' - ' + s.grid) + '">' + escapeHTML(s.short) + (s.about ? ' ~' : '') + '</button>').join('') +
+      '</div>'
+    : '';
+  box.innerHTML =
+    '<div class="prog ' + (summit ? 'prog-summit' : 'prog-park') + '">' +
+    '<div class="spread" style="align-items:baseline">' +
+      '<div><span class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' + escapeHTML(r.ref) + '</span> ' +
+      '<b>' + escapeHTML(r.name || '') + '</b></div>' +
+      '<span class="tiny">' + from + '</span></div>' +
+    '<div class="tiny muted" style="margin:.2rem 0 .5rem">' + facts + '</div>' +
+    '<p class="small" style="margin:.3rem 0">' + escapeHTML(r.sentence || '') +
+      (r.stale ? ' <span class="muted">(held from an earlier look; the programme could not be reached)</span>' : '') + '</p>' +
+    modes + acMonthBar(r.story) +
+    (r.story && r.story.recent && r.story.recent.length
+      ? '<div class="tiny muted mt">Lately: ' + r.story.recent.map(a =>
+          escapeHTML(a.date) + (a.call ? ' ' + escapeHTML(a.call) : '') + (a.qsos != null ? ' (' + a.qsos + ')' : '')).join(' &middot; ') + '</div>'
+      : '') +
+    spots +
+    (r.website ? '<div class="tiny mt"><a href="' + escapeHTML(r.website) + '" target="_blank" rel="noopener">the place\u2019s own page</a></div>' : '') +
+    '</div>';
+  box.querySelectorAll('.ac-spot').forEach(b => b.addEventListener('click', () => {
+    const from = document.getElementById('ac-from');
+    if (!from) return;
+    from.value = b.dataset.name;
+    const hint = document.getElementById('ac-from-hint');
+    if (hint) hint.textContent = 'the printed sheet is measured from ' + b.dataset.name;
+    toast('Sheet from ' + b.dataset.name, 'Print nearest measures from there now');
+  }));
+}
+
+async function acPickRef(ref) {
+  const hint = document.getElementById('ac-pick-hint');
+  hint.textContent = 'asking the programme\u2026';
+  document.getElementById('ac-pick-matches').hidden = true;
+  try {
+    acCard(await api('/api/reference?ref=' + encodeURIComponent(ref)));
+    hint.textContent = '';
+  } catch (e) {
+    hint.textContent = 'could not look that up';
+  }
+}
+
+async function acPick() {
+  const text = document.getElementById('ac-pick').value.trim();
+  if (!text) return;
+  if (/^[A-Z0-9]{1,3}-\d{3,6}$/i.test(text) || /^[A-Z0-9]+\/[A-Z]{2}-\d{3}$/i.test(text)) {
+    acPickRef(text.toUpperCase());
+    return;
+  }
+  const hint = document.getElementById('ac-pick-hint');
+  const list = document.getElementById('ac-pick-matches');
+  let d;
+  try { d = await api('/api/reference?q=' + encodeURIComponent(text)); } catch (e) { d = {matches: []}; }
+  const m = d.matches || [];
+  if (!m.length) {
+    hint.textContent = 'nothing held by that name - a reference works anywhere, and "Fetch what is near" brings the state parks and summits in';
+    list.hidden = true;
+    return;
+  }
+  if (m.length === 1) { acPickRef(m[0].ref); return; }
+  hint.textContent = m.length + ' held - pick one';
+  list.hidden = false;
+  list.innerHTML = m.map(r => '<button class="btn sm ghost ac-match" data-ref="' + escapeHTML(r.ref) + '">' +
+    '<span class="mono ' + (r.kind === 'summit' ? 'ref-summit' : 'ref-park') + '">' + escapeHTML(r.ref) + '</span> ' +
+    escapeHTML(r.name) + (r.activations ? ' <span class="tiny muted">' + r.activations + ' act.</span>' : '') + '</button>').join(' ');
+  list.querySelectorAll('.ac-match').forEach(b => b.addEventListener('click', () => acPickRef(b.dataset.ref)));
+}
+
+document.getElementById('ac-pick-go').addEventListener('click', acPick);
+document.getElementById('ac-pick').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); acPick(); } });
+document.addEventListener('click', e => {
+  const a = e.target.closest('.ac-ref');
+  if (!a) return;
+  document.getElementById('ac-pick').value = a.dataset.ref;
+  acPickRef(a.dataset.ref);
+});

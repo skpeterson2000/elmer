@@ -51,6 +51,25 @@
   <div id="ac-near" class="mt"></div>
 </div>
 
+{# One place, picked: what the people who went there actually did, which is
+   the best guide there is to what the next one will do, and the spots inside
+   it that ELMER holds for the QTH box. Every unit carries the National Park
+   Service units; state parks and summits arrive with "Fetch what is near". #}
+<div class="panel mt" id="ac-pick-panel">
+  <div class="spread" style="align-items:baseline">
+    <div class="panel-title" style="margin:0">One park or summit</div>
+    <span class="tiny muted">what has worked for others, and where they set up</span>
+  </div>
+  <div class="row mt" style="gap:.5rem;align-items:center">
+    <input class="btn sm" id="ac-pick" type="text" style="min-width:16rem"
+           placeholder="a name, or a reference like US-0690 or W0D/BB-001" autocomplete="off">
+    <button class="btn sm primary" id="ac-pick-go">Look up</button>
+    <span class="tiny muted" id="ac-pick-hint"></span>
+  </div>
+  <div id="ac-pick-matches" class="mt" hidden></div>
+  <div id="ac-pick-card" class="mt"></div>
+</div>
+
 <div class="panel mt">
   <div class="panel-title">What counts</div>
   <p class="small muted" style="margin:.35rem 0 .8rem;max-width:74ch">
