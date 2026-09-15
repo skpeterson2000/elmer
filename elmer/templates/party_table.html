@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Table {{ table }} &middot; ELMER party</title>
+<title>{{ name }} &middot; ELMER party</title>
 <link rel="stylesheet" href="{{ asset('elmer.css') }}">
 <style>
 /* The screen on the table itself: a code to scan from across the table, and
@@ -820,6 +820,7 @@ async function tick() {
   const round = s.addressing ? null : s.round;
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   lastTableState = s;
+  nameForCourse(s);
   const shootOpen = s.shootout && !s.shootout.over;
   const leadIn = s.hall && s.hall.show && s.hall.show.lead_in;
   tableMs = ((round && !round.closed) || leadIn || shootOpen
@@ -853,6 +854,20 @@ async function tick() {
        something is expected of them. */
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
+    const standing = s.standing;
+    if (standing && standing.mode === 'golf' && !s.golf && !s.clubhouse) {
+      chip.textContent = 'golf · waiting for the first arrival';
+      const key = 'standing' + standing.course + standing.tee_in;
+      if (painted !== key) {
+        painted = key;
+        stage.innerHTML = `<div class="chip">${esc(standing.course_name || 'Golf')}</div>
+          <p class="narrator">Golf at <b>${esc(standing.course_name || 'the course')}</b> is set${standing.holes ? ' &middot; ' + esc(standing.holes) + ' nine' : ''}.</p>
+          <p class="hint" style="text-align:left">Scan the code to check in. The clubhouse opens for the first arrival${
+            standing.tee_in > 0 ? ` with a ${clockWords(standing.tee_in)} tee time for friends to follow` : ' and the round starts at once'}. No countdown, no tournament.</p>
+          <div class="row" style="gap:.5rem;margin-top:.6rem"><button class="btn sm ghost" data-standing-cancel>Not golf after all</button></div>`;
+      }
+      return;
+    }
     const club = s.clubhouse;
     if (club) {
       chip.textContent = `tee time in ${clockWords(club.tee_in)}`;
@@ -1144,6 +1159,11 @@ function stripToYards(img, e, geo) {
   return {at, off};
 }
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-standing-cancel]')) {
+    await api('/api/party/mode', {mode: 'tournament'});
+    painted = null; tick();
+    return;
+  }
   const clear = e.target.closest('[data-aim-clear]');
   if (clear) {
     e.preventDefault();
@@ -1227,6 +1247,17 @@ function askToSit(start, what) {
   const name = document.querySelector('.hs-row[data-seat="A"] .hs-name');
   if (name) name.focus();
 }
+/* Golf is not a table: while it is the game - set, booked, or under way -
+   the screen is named for the course, "Pebble Beach", not "Table 1". */
+const TABLE_NAME = document.querySelector('h1') ? document.querySelector('h1').textContent : '';
+function nameForCourse(s) {
+  const course = (s.golf && s.golf.course_name) || (s.clubhouse && s.clubhouse.course_name) ||
+                 (s.standing && s.standing.mode === 'golf' && s.standing.course_name) || '';
+  const short = course ? course.replace(' Golf Links', '').replace(' Golf Club', '').replace(' National', '') : '';
+  const want = short || TABLE_NAME;
+  const h1 = document.querySelector('h1');
+  if (h1 && h1.textContent !== want) { h1.textContent = want; document.title = want + ' · ELMER party'; }
+}
 function clockWords(secs) {
   const s = Math.max(0, Math.ceil(secs || 0));
   return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
@@ -1251,7 +1282,8 @@ document.getElementById('difficulty').addEventListener('change', e => {
 });
 const golfBtn = document.getElementById('golf');
 golfBtn.addEventListener('click', async () => {
-  if (!somebodyHere()) { askToSit(() => golfBtn.click(), 'A round of golf'); return; }
+  // Nobody here yet is fine for golf: it becomes the standing game, and
+  // the clubhouse opens for the first person who scans in.
   clearAsk();
   golfBtn.disabled = true;
   await api('/api/party/mode', {

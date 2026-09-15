@@ -3376,6 +3376,25 @@ def _locate_net(token):
 cohort.locator = _locate_net
 
 
+def _table_name(table):
+    """What this table is called: the course, when golf is the game or
+    the standing game - "Pebble Beach", not "Table 1" - and the table
+    otherwise. The screens keep it current from the state as the game
+    changes."""
+    room = party.room()
+    if room is not None:
+        course = None
+        if room.golf is not None:
+            course = room.golf.course.get("name")
+        elif room.clubhouse is not None:
+            course = room.clubhouse["spec"].get("course_name")
+        elif room.standing and room.standing.get("mode") == party.GOLF:
+            course = room.standing["spec"].get("course_name")
+        if course:
+            return course.replace(" Golf Links", "").replace(" Golf Club", "").replace(" National", "")
+    return f"Table {table}"
+
+
 def _party_arm_start(room):
     """Join a net if one can be heard, and otherwise start on our own account."""
     if _party_auto_join(room):
@@ -3384,6 +3403,24 @@ def _party_arm_start(room):
         return
     if room.clubhouse is not None:
         return                            # a tee time is the start; the group departs on it
+    if room.standing and room.standing.get("mode") == party.GOLF and room.golf is None:
+        # The host set golf up beforehand: the first arrival is met by the
+        # clubhouse, with the tee time they chose, not by a countdown.
+        standing = room.standing
+        room.set_standing(None)
+        spec = standing["spec"]
+        room.end_shootout()
+        room.end_cutthroat()
+        tee_in = float(standing.get("tee_in") or 0)
+        if tee_in > 0 and room.people_here() < party.FOURSOME:
+            room.book_clubhouse(spec, tee_in)
+            room.fill_bots(spec.get("level"))         # after the booking, so it is a foursome
+            threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
+            log.info("party: the standing golf opens its clubhouse - tee time in %.0fs", tee_in)
+        else:
+            room.fill_bots(spec.get("level"))
+            _start_golf(room, spec)
+        return
     difficulty = _party_class()
     room.arm_start(AUTO_START_SECONDS)
     threading.Timer(AUTO_START_SECONDS + 0.25,
@@ -3776,6 +3813,8 @@ def api_party_mode():
         # nine unless asked; strokes given only if the handicap switch is
         # on, and then from each player's own study on this unit. With a
         # tee time, the round waits in the clubhouse for friends to join.
+        # On an empty table, the round is the standing game: it waits for
+        # the first person to scan in, and the clubhouse opens for them.
         _not_this_tables_part()
         difficulty = str(body.get("difficulty") or _party_class()).lower()
         if difficulty not in party.DIFFICULTIES:
@@ -3790,7 +3829,7 @@ def api_party_mode():
                 holes = list(range(1, 10))
         room.fill_bots(body.get("level"))
         course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
-        spec = {"difficulty": difficulty, "holes": holes, "holes_word": which,
+        spec = {"difficulty": difficulty, "holes": holes, "holes_word": which, "level": body.get("level"),
                 "course": course["id"], "course_name": course["name"],
                 "handicap": bool(body.get("handicap")),
                 "handicaps": _golf_handicaps(room, difficulty, len(holes)) if body.get("handicap") else None,
@@ -3802,7 +3841,12 @@ def api_party_mode():
             tee_in = max(0.0, float(body.get("tee_in") or 0))
         except (TypeError, ValueError):
             tee_in = 0.0
-        if tee_in > 0 and room.people_here() < party.FOURSOME:
+        if room.people_here() == 0 and not body.get("watch"):
+            room.set_standing(party.GOLF, spec, tee_in or DEFAULT_TEE_IN)
+            room.disarm_start()
+            log.info("party: golf at %s set as the standing game - the clubhouse opens for the first arrival",
+                     course["name"])
+        elif tee_in > 0 and room.people_here() < party.FOURSOME:
             room.book_clubhouse(spec, tee_in)
             threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
             log.info("party: tee time in %.0fs at %s (%s, %d holes)", tee_in, difficulty, which, len(holes))
@@ -3810,11 +3854,17 @@ def api_party_mode():
             _start_golf(room, spec)
     else:
         room.leave_clubhouse()
+        room.set_standing(None)
         room.end_shootout()
         room.end_cutthroat()
         room.end_golf()
         log.info("party: back to a tournament")
     return jsonify(room.state())
+
+
+# A standing game's tee time, when the host set none: long enough for the
+# person who scanned in to read the clubhouse and for friends to follow.
+DEFAULT_TEE_IN = 300.0
 
 
 def _golf_handicaps(room, difficulty, holes):
@@ -4217,7 +4267,7 @@ def party_table(table="1"):
         wanted = "technician"
     amateur, commercial = _tournament_choices()
     return render_template(
-        "party_table.html", table=table, name=f"Table {table}",
+        "party_table.html", table=table, name=_table_name(table),
         difficulty=wanted, join_url=url, amateur=amateur, commercial=commercial,
         qr_svg=qr.as_svg(url, module=7, quiet=3))
 
@@ -4228,7 +4278,7 @@ def party_join(table):
     if party.room() is None:
         abort(404, "no party is running on this unit")
     return render_template("party_player.html", table=table,
-                           name=f"Table {table}")
+                           name=_table_name(table))
 
 
 # --------------------------------------------------------------- net control

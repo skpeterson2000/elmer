@@ -419,6 +419,11 @@ class Room:
         self.log_key = secrets.token_bytes(32)
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
+        # The standing game: what an empty table will play when somebody
+        # scans in - set by the host beforehand ("I'll go set up a golf
+        # game to join"), so the first arrival is met by the clubhouse and
+        # a tee time, not by a fifteen-second tournament countdown.
+        self.standing = None       # {"mode": "golf", "spec": {...}, "tee_in": seconds}
         self.golf_pace = None      # how long its practice players take, seconds
         self.golf_tempo = 1.0      # every golf beat, scaled: the speed selector's knob
         # The clubhouse: a round booked for a tee time, waiting for friends to
@@ -712,8 +717,8 @@ class Room:
                 humans = [p for p in here if not p.bot]
                 bots = [p for p in here if p.bot]
                 need = max(0, min(want, COHORT_SIZE) - len(humans))
-                if self.golf is not None:
-                    need = max(0, min(need, FOURSOME - len(humans)))
+                if self.golf is not None or self.clubhouse is not None:
+                    need = max(0, min(need, FOURSOME - len(humans)))     # a foursome, not a field
                 while len(bots) > need:
                     leaving = max(bots, key=lambda p: p.id)
                     bots.remove(leaving)
@@ -1060,6 +1065,24 @@ class Room:
             booked = self.clubhouse
             self.clubhouse = None
             return booked["spec"] if booked else None
+
+    def set_standing(self, mode, spec=None, tee_in=0.0):
+        """What this table will play when the first person arrives."""
+        with self.lock:
+            if not mode:
+                self.standing = None
+            else:
+                self.standing = {"mode": mode, "spec": dict(spec or {}), "tee_in": max(0.0, float(tee_in or 0))}
+            return self.standing
+
+    def standing_view(self):
+        with self.lock:
+            if not self.standing:
+                return None
+            spec = self.standing["spec"]
+            return {"mode": self.standing["mode"], "tee_in": self.standing["tee_in"],
+                    "course_name": spec.get("course_name"), "course": spec.get("course"),
+                    "holes": spec.get("holes_word"), "difficulty": spec.get("difficulty")}
 
     def clubhouse_view(self):
         with self.lock:
@@ -1525,6 +1548,7 @@ class Room:
                 "starts_in": (None if self.start_at is None
                               else max(0.0, round(self.start_at - _now(), 1))),
                 "clubhouse": self.clubhouse_view(),
+                "standing": self.standing_view(),
                 "bots": sum(1 for p in self.players.values() if p.bot),
                 "people": sum(1 for p in self.players.values() if not p.bot),
                 "bots_on": self.bots_wanted,

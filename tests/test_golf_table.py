@@ -256,6 +256,36 @@ def run():
     check("cancelling the tee time empties the clubhouse", room.clubhouse, None)
     check("the timer's word does nothing once the booking has gone", appmod._golf_depart(room, armed_only=True), False)
 
+    print("\n-- the standing game: golf set up before anybody arrives --")
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
+                                             "tee_in": 120, "level": "Operator"}, environ_base=local)
+    st = r.get_json()
+    check("on an empty table, golf is the standing game - no round, no clubhouse yet",
+          (st["standing"]["mode"], st["standing"]["course_name"], st["standing"]["tee_in"], st["golf"], st["clubhouse"]),
+          ("golf", "Pebble Beach Golf Links", 120.0, None, None))
+    check("  and nothing is counting down to a tournament", room.waiting_to_start(), False)
+    page = client.get("/party/1", environ_base=local).get_data(as_text=True)
+    check("  the screen is named for the course, not the table", ("<h1>Pebble Beach</h1>" in page, "Table 1</h1>" in page), (True, False))
+    r = client.post("/api/party/join", json={"name": "W1AW", "device": "phone"}, environ_base=local)
+    st = client.get("/api/party/state", environ_base=local).get_json()
+    check("the first person to scan in is met by the clubhouse, with the tee time the host set",
+          (st["clubhouse"] is not None, 110 < (st["clubhouse"] or {}).get("tee_in", 0) <= 120, st["standing"], st["starts_in"]),
+          (True, True, None, None))
+    check("  and the practice players are the level the host chose, spread",
+          sorted(p.bot for p in room.players.values() if p.bot), sorted(["Operator", "Learner", "Elmer"]))
+    client.post("/api/party/tee-off", json={}, environ_base=local)
+    autoplay.stop()
+    check("  and the round is at that course", room.golf.course["id"], "pebble-beach")
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "tee_in": 0}, environ_base=local)
+    check("with no tee time asked for, a standing game still gives the first arrival five minutes",
+          room.standing["tee_in"], appmod.DEFAULT_TEE_IN)
+    client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
+    check("  and 'not golf after all' clears it", room.standing, None)
+
     print("\n-- strokes given, only with the switch --")
     party.close_room()
     room = party.room(create=True, cohorts=1)

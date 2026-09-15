@@ -2361,6 +2361,19 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**The standing game.** "I'll go set up a golf game to join" was not a
+thing a host could do: the Gaming Center asked for somebody at the table
+first, and the moment somebody scanned in the table's own fifteen-second
+countdown started a tournament unless they were quick. Now golf chosen on
+an empty table is the *standing game*: nothing starts, the screen says
+golf at the course is set and what will happen, and the first person to
+scan in is met by the clubhouse with the tee time the host chose (five
+minutes when none was), practice players filled to a foursome at the
+host's level, spread. No countdown, no tournament. "Not golf after all"
+clears it. And while golf is the game - set, booked, or under way - the
+table is not a table: the screen and the phone are named for the course,
+"Pebble Beach", not "Table 1".
+
 **The tempo.** The first rounds at a table were still too fast for the
 person who wrote the game, who knew what was coming and could not keep
 up - a question arrived while he was still looking at the clubs, with no

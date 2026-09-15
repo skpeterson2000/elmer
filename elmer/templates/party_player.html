@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d1117">
-<title>Table {{ table }} &middot; ELMER</title>
+<title>{{ name }} &middot; ELMER</title>
 <link rel="stylesheet" href="{{ asset('elmer.css') }}">
 <style>
 /* A phone held in a noisy hall, at arm's length, by somebody who has not used
@@ -110,6 +110,7 @@ const PAGE_BUILD = "{{ build }}";
 const TABLE = {{ table|tojson }};
 let me = null;              // {id, name, cohort}
 let shownRound = null;      // round number currently painted
+const PAGE_TABLE_NAME = "{{ name }}";
 let paintedAt = 0;          // when this phone actually drew the question
 let answered = false;
 let myChoice = null;        // which choice this phone tapped, for the reveal
@@ -308,6 +309,13 @@ function paintWaiting(state) {
   if (hallGame) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem"><h2>${state.hall.cutthroat && state.hall.cutthroat.on ? 'CutThroat' : 'Golf'} across the hall</h2>
       <p>${hallGame}</p><p style="padding:1rem 0;color:var(--dim)">Waiting for the hall's next question.</p></div>`;
+    return;
+  }
+  const standing = state.standing;
+  if (standing && standing.mode === 'golf' && !state.golf && !state.clubhouse) {
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
+        <h2 style="margin:0 0 .4rem">Golf at ${escapeHTML(standing.course_name || 'the course')}</h2>
+        <p>The round is set. The clubhouse opens the moment somebody checks in.</p></div>`;
     return;
   }
   const club = state.clubhouse;
@@ -824,6 +832,12 @@ async function tick() {
   // player is kept in sessionStorage, so the reload lands back in the game.
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   s_last = s;
+  // Named for the course while golf is the game, as the table is.
+  const courseName = (s.golf && s.golf.course_name) || (s.clubhouse && s.clubhouse.course_name) ||
+                     (s.standing && s.standing.mode === 'golf' && s.standing.course_name) || '';
+  const shortName = courseName ? courseName.replace(' Golf Links', '').replace(' Golf Club', '').replace(' National', '') : '';
+  const wantTitle = (shortName || PAGE_TABLE_NAME) + ' · ELMER';
+  if (document.title !== wantTitle) document.title = wantTitle;
   const hall = s.hall && s.hall.shootout;
   const show = s.hall && s.hall.show;
   // Cadence: fast while a round is up or its run-up is counting, easy in the
