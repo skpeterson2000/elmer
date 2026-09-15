@@ -125,6 +125,38 @@ def main():
     check("their name for 2 m is 148 MHz, and it is mapped",
           R.TX_BANDS["148 mhz"], "2 m")
 
+    print("\n-- the coordinator follows the QTH --")
+    check("a named place gives its state", R.state_for({"name": "Pequot Lakes, Crow Wing County, Minnesota, United States"}), "MN")
+    check("a bare grid square gives it from the position", R.state_for({"lat": 46.66, "lon": -94.34}), "MN")
+    check("  Padre Island is Texas", R.state_for({"lat": 27.2, "lon": -97.36}), "TX")
+    check("  Black Elk Peak is South Dakota", R.state_for({"lat": 43.866, "lon": -103.53}), "SD")
+    check("  the Netherlands is nobody's", R.state_for({"lat": 52.0, "lon": 5.0}), None)
+    check("  and no QTH is None", R.state_for({}), None)
+    check("the name wins over the position when both are there",
+          R.state_for({"name": "Superior, Douglas County, Wisconsin, United States", "lat": 46.72, "lon": -92.10}), "WI")
+
+    print("\n-- reading any page whose rows are a plan --")
+    page = "\n".join([
+        "Two metres", "144.100 - 144.275 Weak Signal SSB", "144.500 - 144.900 Repeater Inputs",
+        "145.100 - 145.500 Repeater Outputs", "146.400 - 146.580 Simplex",
+        "Seventy centimetres", "442.000 - 445.000 Repeater Outputs", "446.000 - 446.175 Simplex",
+        "447.000 - 450.000 Repeater Inputs", "1000.000 - 1001.000 not a band", "146.900 - 442.000 spans two",
+    ])
+    from elmer import bandplan
+    out = {}
+    for seg in R._parse_plan(page):
+        band = bandplan.band_at(seg["low"])
+        if band and band["low"] <= seg["high"] <= band["high"]:
+            out.setdefault(band["name"], []).append(seg)
+    check("segments are filed by the band their frequency is in", sorted(out), ["2 m", "70 cm"])
+    check("  four on 2 m, three on 70 cm", (len(out["2 m"]), len(out["70 cm"])), (4, 3))
+    check("  a frequency outside every band is dropped", any(s["low"] == 1000.0 for v in out.values() for s in v), False)
+    check("  and one that spans two bands", any(s["low"] == 146.9 for v in out.values() for s in v), False)
+    check("a page must yield enough to be believed", R.GENERIC_LEAST, (8, 2))
+    check("a repeater directory row - one frequency, a callsign - is not a segment",
+          bool(R.RE_CALL_IN.search("N2MO Farmingdale Monmouth")), True)
+    check("  while a plan's label is", bool(R.RE_CALL_IN.search("Weak Signal SSB (144.200 calling)")), False)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

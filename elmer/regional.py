@@ -337,6 +337,22 @@ def state_of(place):
     return None
 
 
+def state_for(place):
+    """The state a QTH is in: from the place's name where it has one, and
+    from its position when it is a bare grid square or a GPS fix - which
+    used to leave the coordinator blank for exactly the operator who had
+    driven somewhere. Only US states, since only those have coordinators
+    here."""
+    from . import regions
+    found = state_of(place)
+    if found:
+        return found
+    lat, lon = (place or {}).get("lat"), (place or {}).get("lon")
+    if lat is None or lon is None:
+        return None
+    return regions.at(float(lat), float(lon), among=set(US_STATES.values()))
+
+
 def for_state(state):
     """Every coordinator covering a state, most specific first."""
     state = (state or "").upper()
@@ -426,6 +442,53 @@ def _fetch_txvhffm():
     return out
 
 
+def generic(url):
+    """Read a plan off any page, filing each segment under the band its
+    frequency falls in - no headings needed, so a coordinator whose page
+    is "144.60 - 144.90 FM repeater inputs" row after row is readable
+    without anybody writing a parser for it. Segments that are not in an
+    amateur band, or that span two, are somebody's typo or a repeater
+    pair, and are dropped. Raises on a page that cannot be fetched."""
+    from . import bandplan
+    page = _text(url, "utf-8")
+    out = {}
+    for seg in _parse_plan(page):
+        band = bandplan.band_at(seg["low"])
+        if not band or not (band["low"] <= seg["high"] <= band["high"]):
+            continue
+        # A repeater directory reads as hundreds of one-frequency rows with
+        # a callsign on each. That is a list of machines, not a plan.
+        if seg["high"] == seg["low"] and RE_CALL_IN.search(seg["label"]):
+            continue
+        out.setdefault(band["name"], []).append(seg)
+    return out
+
+
+RE_CALL_IN = re.compile(r"\b[AKNW][A-Z]{0,2}\d[A-Z]{1,3}\b")
+
+
+# The fewest segments across the fewest bands a page must yield before it
+# is believed to be a plan rather than a page that happens to mention two
+# frequencies.
+GENERIC_LEAST = (8, 2)
+
+
+def _fetch_generic(entry):
+    import logging
+    log = logging.getLogger("elmer")
+    try:
+        bands = generic(entry["plans_url"])
+    except Exception as exc:
+        log.warning("%s plan failed: %s: %s", entry["short"], type(exc).__name__, exc)
+        return {}
+    segments, spread = sum(len(v) for v in bands.values()), len(bands)
+    if segments < GENERIC_LEAST[0] or spread < GENERIC_LEAST[1]:
+        log.info("%s: %d segments in %d bands on the plan page - not read as a plan",
+                 entry["short"], segments, spread)
+        return {}
+    return bands
+
+
 FETCHERS = {"_fetch_mrc": _fetch_mrc, "_fetch_txvhffm": _fetch_txvhffm}
 
 
@@ -450,7 +513,7 @@ def plan(state, refresh=False):
         except ValueError:
             pass
 
-    bands = FETCHERS[entry["fetch"]]()
+    bands = FETCHERS[entry["fetch"]]() if entry.get("fetch") else _fetch_generic(entry)
     if not bands:
         if path.is_file():                       # stale beats nothing
             try:

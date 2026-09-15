@@ -55,6 +55,24 @@ NAMES = {
 }
 
 
+def at(lat, lon, among=None):
+    """The region a point is most likely in, from the boxes: the one whose
+    box holds it and whose centre is nearest. A box is not a boundary, so
+    near a state line this can name the neighbour - which is why the name
+    on a reverse-geocoded place is asked first and this only when the QTH
+    is a bare grid square. None when no box holds it."""
+    best, best_km2 = None, None
+    for code, (south, north, west, east) in BOXES.items():
+        if among is not None and code not in among:
+            continue
+        if not (south <= lat <= north and west <= lon <= east):
+            continue
+        d = (lat - (south + north) / 2) ** 2 + (lon - (west + east) / 2) ** 2
+        if best_km2 is None or d < best_km2:
+            best, best_km2 = code, d
+    return best
+
+
 def inside(region, lat, lon):
     """Whether a point is within the region's box; True for an unknown
     region, since no box is not the same as the wrong box."""

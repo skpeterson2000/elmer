@@ -489,6 +489,18 @@ def prefetch_sky(log_it=True):
                      time.perf_counter() - started)
     except Exception as exc:                          # pragma: no cover
         log.debug("sky prefetch skipped: %s", exc)
+    # And the local coordinator's band plan for wherever the QTH is, on
+    # the same bargain: fetched now while there is a network, cached for a
+    # month, and the band plan page opens on it rather than on a link.
+    try:
+        state = regional.state_for(loc)
+        if state and regional.readable(state):
+            plan = regional.plan(state)
+            if log_it and plan:
+                log.info("regional plan at start: %s for %s, %d segments%s", plan.get("short"), state,
+                         plan.get("segments", 0), " (cached)" if plan.get("cached") else "")
+    except Exception as exc:                          # pragma: no cover
+        log.debug("regional prefetch skipped: %s", exc)
 
 
 @app.route("/")
@@ -679,6 +691,18 @@ def api_eme():
     return jsonify(out)
 
 
+def _state_for_page(connection, profile):
+    """The state the band plan's coordinator should show: the one picked
+    by hand if the QTH has not moved since, else the QTH's own."""
+    settings = profile["settings"]
+    place = qth_for(connection, profile)
+    here = geocode.to_grid(place["lat"], place["lon"], 4) if place.get("lat") is not None else ""
+    picked = settings.get("state") or ""
+    if picked and settings.get("state_for", "") == here:
+        return picked
+    return regional.state_for(place) or ""
+
+
 @app.route("/bandplan")
 def bandplan_page():
     connection = conn()
@@ -690,13 +714,11 @@ def bandplan_page():
                        or (profile["settings"].get("license") or {}).get("license_class")
                        or "Technician",
         coordinators=regional.states(),
-        # Chosen from the QTH when nobody has picked one. The reverse-geocoded
-        # place name already carries the state and it was being thrown away,
-        # so a Wisconsin operator got a silent "none" rather than the name of
-        # whoever actually coordinates them.
-        state=(profile["settings"].get("state")
-               or regional.state_of(profile["settings"].get("location") or {})
-               or ""),
+        # The QTH decides, including a GPS fix: a state picked by hand on
+        # this page stands only while the QTH is the one it was picked
+        # under, so that driving to Texas moves the coordinator with you
+        # and the pick does not pin Minnesota to the page for good.
+        state=_state_for_page(connection, profile),
         # Whether there is a QTH at all, which decides what the empty option in
         # the coordinator list should say. With a location and no match - a
         # station outside the US, say - "none" is the true answer and telling
@@ -1688,6 +1710,20 @@ def api_privileges():
     result["known_class"] = license_class in bandplan.CLASSES
     result["classes"] = bandplan.CLASSES
     return jsonify(result)
+
+
+def _prefetch_regional(place):
+    state = regional.state_for(place)
+    if not state or not regional.readable(state):
+        return
+    import threading
+
+    def run():
+        try:
+            regional.plan(state)
+        except Exception as exc:                   # never at the page's expense
+            log.debug("regional prefetch: %s", exc)
+    threading.Thread(target=run, name="regional-prefetch", daemon=True).start()
 
 
 @app.route("/api/bandplan/regional/<state>")
@@ -6605,12 +6641,21 @@ def api_settings():
     for key in ("license_class", "state"):
         if key in body:
             settings[key] = body[key]
+    if "state" in body:
+        # Remembered with the QTH it was picked under; see _state_for_page.
+        place = qth_for(connection, {"settings": settings})
+        settings["state_for"] = (geocode.to_grid(place["lat"], place["lon"], 4)
+                                 if place.get("lat") is not None else "")
     if "location" in body:
         place = body["location"] or {}
         if place.get("lat") is not None and place.get("lon") is not None:
             place.setdefault("grid", geocode.to_grid(place["lat"], place["lon"]))
         settings["location"] = place
         log.info("QTH set to %s (%s)", place.get("grid"), place.get("short") or "unnamed")
+        # The coordinator's plan for wherever this is, fetched now while
+        # there is a network so the band plan opens on it. Quiet if there
+        # is no plan to read or no route out.
+        _prefetch_regional(place)
     db.save_settings(connection, settings)
     return jsonify({"ok": True, **db.get_profile(connection)})
 
