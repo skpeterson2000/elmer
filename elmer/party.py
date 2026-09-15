@@ -1085,7 +1085,8 @@ class Room:
             spec = self.standing["spec"]
             return {"mode": self.standing["mode"], "tee_in": self.standing["tee_in"],
                     "course_name": spec.get("course_name"), "course": spec.get("course"),
-                    "holes": spec.get("holes_word"), "difficulty": spec.get("difficulty")}
+                    "holes": spec.get("holes_word"), "difficulty": spec.get("difficulty"),
+                    "innings": spec.get("innings")}
 
     def clubhouse_view(self):
         with self.lock:

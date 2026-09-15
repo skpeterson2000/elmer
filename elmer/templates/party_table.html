@@ -62,6 +62,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .gc-title { font-family: var(--mono); font-size: .8rem; letter-spacing: .28em; text-transform: uppercase;
             color: var(--gco); font-weight: 700; }
 .gc-sub { color: var(--dim); font-size: .82rem; margin-top: .15rem; }
+.gc-about { margin-top: .7rem; padding: .6rem .8rem; border: 1px solid var(--line-2); border-radius: 8px; font-size: .88rem; line-height: 1.45; color: var(--text); }
+.gc-about .k { color: var(--dim); }
 .gc-status { margin-left: auto; font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
              text-transform: uppercase; color: var(--gco-dim); white-space: nowrap; }
 .gc-setup { margin-bottom: .7rem; align-items: center; }
@@ -446,6 +448,7 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
           </div>
         </div>
         <div class="hint" id="gc-sit" hidden style="text-align:left;margin-top:.6rem;color:var(--amber)"></div>
+        <div class="gc-about" id="gc-about"></div>
       </div>
       <div class="controls" style="margin-top:.5rem">
         <label class="chip" style="cursor:pointer">
@@ -892,17 +895,23 @@ async function tick() {
     const secs = s.starts_in;
     const soon = secs !== null && secs !== undefined;
     const standing = s.standing;
-    if (standing && standing.mode === 'golf' && !s.golf && !s.clubhouse) {
-      chip.textContent = 'golf · waiting for the first arrival';
-      const key = 'standing' + standing.course + standing.tee_in;
+    if (standing && !s.golf && !s.clubhouse && !s.baseball) {
+      const gname = GAME_NAMES[standing.mode] || standing.mode;
+      chip.textContent = `${gname.toLowerCase()} · waiting for the first arrival`;
+      const key = 'standing' + standing.mode + (standing.course || '') + standing.tee_in + (standing.innings || '');
       if (painted !== key) {
         painted = key;
-        stage.innerHTML = `<div class="chip">${esc(standing.course_name || 'Golf')}</div>
-          <p class="narrator">Golf at <b>${esc(standing.course_name || 'the course')}</b> is set${standing.holes ? ' &middot; ' + esc(standing.holes) + ' nine' : ''}.</p>
-          <p class="hint" style="text-align:left;font-size:1rem;color:var(--text)">Nobody is checked in yet. <b>Scan the code</b> with a phone, or <b>sit down at a seat</b> under <i>At this table</i> on the left, and the clubhouse opens${
-            standing.tee_in > 0 ? ` with a ${clockWords(standing.tee_in)} tee time for friends to follow` : ' and the round starts at once'}. No countdown, no tournament.</p>
+        const what = standing.mode === 'golf'
+          ? `Golf at <b>${esc(standing.course_name || 'the course')}</b> is set${standing.holes ? ' &middot; ' + esc(standing.holes) + ' nine' : ''}.`
+          : `<b>${esc(gname)}</b> is set${standing.innings ? ' &middot; ' + standing.innings + ' inning' + (standing.innings === 1 ? '' : 's') : ''}.`;
+        const then = standing.mode === 'golf'
+          ? `the clubhouse opens${standing.tee_in > 0 ? ` with a ${clockWords(standing.tee_in)} tee time for friends to follow` : ' and the round starts at once'}`
+          : 'the game starts';
+        stage.innerHTML = `<div class="chip">${esc(standing.course_name || gname)}</div>
+          <p class="narrator">${what}</p>
+          <p class="hint" style="text-align:left;font-size:1rem;color:var(--text)">Nobody is checked in yet. <b>Scan the code</b> with a phone, or <b>sit down at a seat</b> under <i>At this table</i> on the left, and ${then}. Choose another game above any time before then.</p>
           <div class="row" style="gap:.5rem;margin-top:.6rem"><button class="btn primary" data-standing-sit>Sit down and play</button>
-            <button class="btn sm ghost" data-standing-cancel>Not golf after all</button></div>`;
+            <button class="btn sm ghost" data-standing-cancel>Not ${esc(gname.toLowerCase())} after all</button></div>`;
       }
       return;
     }
@@ -1481,6 +1490,26 @@ function nameForCourse(s) {
 }
 /* The tile of the game this table has chosen: the mode in play, the
    clubhouse's, or the standing game set before anybody arrived. */
+/* GAME_NAMES and GAME_ABOUT are in games.js, shared with the phone. */
+let aboutShown = null;
+async function paintAbout(mode) {
+  const box = document.getElementById('gc-about');
+  if (!box) return;
+  const a = GAME_ABOUT[mode] || GAME_ABOUT.tournament;
+  let progress = a.progress;
+  try {
+    if (mode === 'golf' && recordsCache && (recordsCache.records || []).length) {
+      const top = recordsCache.records.slice(0, 3).map(r => `${esc(r.name)} ${r.best_to_par > 0 ? '+' + r.best_to_par : r.best_to_par === 0 ? 'E' : r.best_to_par}${r.aces ? ' · ' + r.aces + ' ace' + (r.aces === 1 ? '' : 's') : ''}`).join(' &middot; ');
+      progress += ` Record board: ${top}.`;
+    } else if (mode === 'baseball') {
+      const r = await api('/api/cw/rating');
+      const d = r.data || r;
+      if (d && (d.copy_wpm || d.send_wpm)) progress += ` This operator: copies at ${Math.round(d.copy_wpm || 0)} wpm${d.send_wpm ? ', sends at ' + Math.round(d.send_wpm) : ''}.`;
+      else progress += ' No rating yet - the pitching starts at 10 wpm.';
+    }
+  } catch (e) { /* the description stands without it */ }
+  box.innerHTML = `<b>${esc(GAME_NAMES[mode] || mode)}</b> &mdash; ${a.how} <span class="k">${progress}</span>`;
+}
 function markChosen(s) {
   const mode = (s.standing && s.standing.mode) || (s.clubhouse ? 'golf' : (s.baseball ? 'baseball' : s.mode)) || 'tournament';
   const tiles = {tournament: '#tourney', shootout: '#shootout', cutthroat: '#cutthroat', golf: '#golf', baseball: '#baseball'};
@@ -1488,6 +1517,7 @@ function markChosen(s) {
   const el = document.querySelector(tiles[mode] || '#tourney');
   if (!el) return;
   (el.classList.contains('gc-tilebtn') ? el.closest('.gc-golf') : el).classList.add('chosen');
+  if (aboutShown !== mode) { aboutShown = mode; paintAbout(mode); }
 }
 function clockWords(secs) {
   const s = Math.max(0, Math.ceil(secs || 0));
@@ -1496,7 +1526,14 @@ function clockWords(secs) {
 function clearAsk() { const box = document.getElementById('gc-sit'); if (box) { box.hidden = true; } startAnyway = null; }
 
 tourney.addEventListener('click', async () => {
-  if (!somebodyHere()) { askToSit(() => tourney.click(), 'A tournament'); return; }
+  if (!somebodyHere()) {
+    // Nobody here: a tournament is what an empty table plays anyway - the
+    // press clears any other standing game and lights this tile.
+    clearAsk();
+    await api('/api/party/mode', {mode: 'tournament'});
+    tick(); autoTick();
+    return;
+  }
   clearAsk();
   tourney.disabled = true;
   await api('/api/party/auto', {
@@ -1529,7 +1566,6 @@ golfBtn.addEventListener('click', async () => {
 });
 const ballBtn = document.getElementById('baseball');
 ballBtn.addEventListener('click', async () => {
-  if (!somebodyHere()) { askToSit(() => ballBtn.click(), 'CW Baseball'); return; }
   clearAsk();
   ballBtn.disabled = true;
   await api('/api/party/mode', {mode: 'baseball',
@@ -1541,7 +1577,6 @@ ballBtn.addEventListener('click', async () => {
 });
 const cutBtn = document.getElementById('cutthroat');
 cutBtn.addEventListener('click', async () => {
-  if (!somebodyHere()) { askToSit(() => cutBtn.click(), 'A CutThroat'); return; }
   clearAsk();
   cutBtn.disabled = true;
   await api('/api/party/mode', {
@@ -1553,7 +1588,6 @@ cutBtn.addEventListener('click', async () => {
 });
 const shootBtn = document.getElementById('shootout');
 shootBtn.addEventListener('click', async () => {
-  if (!somebodyHere()) { askToSit(() => shootBtn.click(), 'A shootout'); return; }
   clearAsk();
   shootBtn.disabled = true;
   await api('/api/party/mode', {
@@ -1857,6 +1891,7 @@ function scheduleTable() {
 tick();
 scheduleTable();
 </script>
+<script src="{{ asset('games.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('certs.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>

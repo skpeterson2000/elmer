@@ -104,6 +104,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   </div>
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
+<script src="{{ asset('games.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
@@ -313,10 +314,12 @@ function paintWaiting(state) {
     return;
   }
   const standing = state.standing;
-  if (standing && standing.mode === 'golf' && !state.golf && !state.clubhouse) {
+  if (standing && !state.golf && !state.clubhouse && !state.baseball) {
+    const gname = GAME_NAMES[standing.mode] || standing.mode;
     view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
-        <h2 style="margin:0 0 .4rem">Golf at ${escapeHTML(standing.course_name || 'the course')}</h2>
-        <p>The round is set. The clubhouse opens the moment somebody checks in.</p></div>`;
+        <h2 style="margin:0 0 .4rem">${standing.mode === 'golf' ? 'Golf at ' + escapeHTML(standing.course_name || 'the course') : escapeHTML(gname)}</h2>
+        <p>The table is set for ${escapeHTML(gname.toLowerCase())}. It starts the moment somebody checks in.</p>
+        ${gamesGuideHTML(standing.mode)}</div>`;
     return;
   }
   const club = state.clubhouse;
@@ -406,6 +409,7 @@ function paintWaiting(state) {
             : `<p>Waiting for the next question.</p>`)}
       <p class="clock">${n} player${n === 1 ? '' : 's'} at this table</p>
       ${!soon ? hallCardHTML(state) : ''}
+      <div style="text-align:left">${gamesGuideHTML(state.mode || 'tournament')}</div>
     </div>`;
   const go = document.getElementById('startnow');
   if (go) go.addEventListener('click', async () => {
@@ -968,6 +972,17 @@ function start() {
   if (poll) clearTimeout(poll);
   tick();
   schedulePoll();
+}
+
+/* The games, in words, for whoever was invited: the one the table is set
+   for first, open; the others folded under it. */
+function gamesGuideHTML(chosen) {
+  const order = [chosen].concat(Object.keys(GAME_NAMES).filter(m => m !== chosen));
+  return `<h3 style="margin:.9rem 0 .3rem">The games here</h3>` + order.map(m => {
+    const a = GAME_ABOUT[m]; if (!a) return '';
+    return `<details ${m === chosen ? 'open' : ''} style="margin:.3rem 0"><summary><b>${escapeHTML(GAME_NAMES[m])}</b>${m === chosen ? ' <span class="clock">this table</span>' : ''}</summary>
+      <p class="small" style="margin:.3rem 0">${a.how}</p><p class="tiny muted" style="margin:0 0 .4rem">${a.progress}</p></details>`;
+  }).join('');
 }
 
 /* ---------------------------------------------------------- CW Baseball */

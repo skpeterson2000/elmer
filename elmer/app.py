@@ -3446,24 +3446,20 @@ def _party_arm_start(room):
         return
     if room.clubhouse is not None:
         return                            # a tee time is the start; the group departs on it
-    if room.standing and room.standing.get("mode") == party.GOLF and room.golf is None:
-        # The host set golf up beforehand: the first arrival is met by the
-        # clubhouse, with the tee time they chose, not by a countdown.
+    if room.standing and room.standing.get("mode") in party.MODES:
+        # The host set a game up beforehand: the first arrival is met by it -
+        # golf's clubhouse with the tee time they chose, a CutThroat, a
+        # shootout, a ballgame - not by a countdown.
         standing = room.standing
         room.set_standing(None)
-        spec = standing["spec"]
-        room.end_shootout()
-        room.end_cutthroat()
-        tee_in = float(standing.get("tee_in") or 0)
-        if tee_in > 0 and room.people_here() < party.FOURSOME:
-            room.book_clubhouse(spec, tee_in)
-            room.fill_bots(spec.get("level"))         # after the booking, so it is a foursome
-            threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
-            log.info("party: the standing golf opens its clubhouse - tee time in %.0fs", tee_in)
+        try:
+            _apply_mode(room, standing["mode"], dict(standing.get("spec") or {}))
+        except Exception as exc:                 # a refusal (409) or a fault: say so, fall back to the countdown
+            log.warning("party: the standing %s could not start for the first arrival: %s",
+                        standing["mode"], getattr(exc, "description", exc))
         else:
-            room.fill_bots(spec.get("level"))
-            _start_golf(room, spec)
-        return
+            log.info("party: the standing %s starts for the first arrival", standing["mode"])
+            return
     difficulty = _party_class()
     room.arm_start(AUTO_START_SECONDS)
     threading.Timer(AUTO_START_SECONDS + 0.25,
@@ -3827,6 +3823,34 @@ def api_party_mode():
     # over the top of the tee time they had just booked.
     if wanted != party.TOURNAMENT:
         room.disarm_start()
+    if wanted != party.TOURNAMENT and room.people_here() == 0 and not body.get("watch"):
+        # Nobody here yet: the game is the standing game, chosen as often
+        # as the host likes until somebody arrives, and started for them
+        # the moment they do. The tile stays lit meanwhile.
+        spec = dict(body)
+        if wanted == party.GOLF:
+            difficulty = str(body.get("difficulty") or _party_class()).lower()
+            course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+            spec.update({"course": course["id"], "course_name": course["name"],
+                         "holes_word": str(body.get("holes") or "front").lower(), "difficulty": difficulty})
+            spec.setdefault("tee_in", DEFAULT_TEE_IN)
+            if not float(spec.get("tee_in") or 0):
+                spec["tee_in"] = DEFAULT_TEE_IN
+        room.set_standing(wanted, spec, spec.get("tee_in") or 0)
+        room.end_shootout()
+        room.end_cutthroat()
+        room.end_golf()
+        room.end_baseball()
+        log.info("party: %s set as the standing game - it starts for the first arrival", wanted)
+        return jsonify(room.state())
+    _apply_mode(room, wanted, body)
+    return jsonify(room.state())
+
+
+def _apply_mode(room, wanted, body):
+    """Start the game asked for, with whoever is here. The mode route
+    with people at the table; the first arrival's join with a standing
+    game set before them."""
     if wanted == party.SHOOTOUT:
         _not_this_tables_part()      # the hall's shootout is the hall's
         difficulty = str(body.get("difficulty") or _party_class()).lower()
@@ -3919,7 +3943,6 @@ def api_party_mode():
                 holes = [int(n) for n in str(which).split(",") if 1 <= int(n) <= 18]
             except ValueError:
                 holes = list(range(1, 10))
-        room.fill_bots(body.get("level"))
         course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
         spec = {"difficulty": difficulty, "holes": holes, "holes_word": which, "level": body.get("level"),
                 "course": course["id"], "course_name": course["name"],
@@ -3933,16 +3956,13 @@ def api_party_mode():
             tee_in = max(0.0, float(body.get("tee_in") or 0))
         except (TypeError, ValueError):
             tee_in = 0.0
-        if room.people_here() == 0 and not body.get("watch"):
-            room.set_standing(party.GOLF, spec, tee_in or DEFAULT_TEE_IN)
-            room.disarm_start()
-            log.info("party: golf at %s set as the standing game - the clubhouse opens for the first arrival",
-                     course["name"])
-        elif tee_in > 0 and room.people_here() < party.FOURSOME:
+        if tee_in > 0 and room.people_here() < party.FOURSOME:
             room.book_clubhouse(spec, tee_in)
+            room.fill_bots(body.get("level"))         # after the booking, so it is a foursome
             threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
             log.info("party: tee time in %.0fs at %s (%s, %d holes)", tee_in, difficulty, which, len(holes))
         else:
+            room.fill_bots(body.get("level"))
             _start_golf(room, spec)
     else:
         room.leave_clubhouse()
@@ -3952,7 +3972,6 @@ def api_party_mode():
         room.end_golf()
         room.end_baseball()
         log.info("party: back to a tournament")
-    return jsonify(room.state())
 
 
 # A standing game's tee time, when the host set none: long enough for the
