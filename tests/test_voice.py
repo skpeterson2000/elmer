@@ -68,6 +68,7 @@ def run():
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-read-2"])
     reads = {voice.hole(1, 4, 377, None, None, "pebble-beach")[0] for _ in range(40)}
     check("  a hole with two reads is read either way, over an evening", reads, {"hole-pebble-beach-1", "hole-pebble-beach-1-read-2"})
+    voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1", "hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2", "the-putter", "in-hand", "on-the-green"])
     check("  and the green's colour comes with the first putt, when it is asked for",
           voice.address("Scott", "putter", 0, "green", green_notes=voice.notes("pebble-beach", 1, "green"))[-2:],
           ["hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2"])
