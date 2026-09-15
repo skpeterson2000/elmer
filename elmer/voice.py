@@ -304,7 +304,9 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
 def notes(course, n, where):
     """The colour a hole was given, in order: hole-<course>-<n>-<where>-<k>
     files - "A four here feels like nothing" at the tee, "The putting
-    surface is modest" at the first putt - said when they are recorded."""
+    surface is modest" at the first putt, and likewise the fairway's, the
+    sand's, the rough's at the first stroke from each, the water's with
+    the first splash - said when they are recorded."""
     if not course or _shelf is None:
         return []
     out = []
@@ -336,11 +338,12 @@ def address(name, club=None, left=None, lie=None, slot=None, honors=False, green
         if green_notes:
             out += green_notes
         return out
+    notes_after = list(green_notes or [])      # the fairway's, the sand's, the rough's: after the lie
     if left is not None:
         out += number(left) + ["to-go"]
     if lie in LIE_TOKENS:
         out.append(LIE_TOKENS[lie])
-    return out
+    return out + notes_after
 
 
 def call(text):

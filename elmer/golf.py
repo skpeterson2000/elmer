@@ -785,6 +785,7 @@ class Golf:
         words, and the ball moved."""
         a = answer or {}
         self._who = p
+        played_from = ball.lie
         # The swing's timing seeds this stroke's draw - see CLUB_SPREAD.
         try:
             ms = int(a.get("ms")) if a.get("ms") is not None else None
@@ -824,7 +825,7 @@ class Golf:
             shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
             shot["score"] = score_name(ball.strokes, h["par"])
         shot.update(strokes=ball.strokes, at=ball.at, off=ball.off, lie=ball.lie, club=club,
-                    done=ball.done(), holed=ball.holed, aim=ball.last_aim)
+                    done=ball.done(), holed=ball.holed, aim=ball.last_aim, **{"from": played_from})
         self.aims.pop(p, None)            # a mark is for one stroke
         ball.log.append(shot["words"])
         return shot

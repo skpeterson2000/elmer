@@ -69,6 +69,9 @@ def run():
           voice.address("Scott", "putter", 0, "green", green_notes=voice.notes("pebble-beach", 1, "green"))[-2:],
           ["hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2"])
     check("  but not with every putt", voice.address("Scott", "putter", 0, "green")[-1], "on-the-green")
+    voice.set_shelf(["hole-pebble-beach-1-sand-1", "the-wedge", "in-hand", "to-go", "from-the-sand"])
+    check("  the sand's colour comes after the lie, when asked for",
+          voice.address("Scott", "wedge", 40, "sand", green_notes=voice.notes("pebble-beach", 1, "sand"))[-2:], ["from-the-sand", "hole-pebble-beach-1-sand-1"])
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
     check("  and a stroke into the rough says 'rough' when the phrase is not there",

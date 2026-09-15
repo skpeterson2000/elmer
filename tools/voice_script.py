@@ -118,7 +118,7 @@ def adopt(dry_run=False):
     stems = set(voice.VOCABULARY)
     renamed, strays = [], []
     for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
-        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green)-\d+)?)$", p.stem):
+        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green|fairway|rough|sand|water)-\d+)?)$", p.stem):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
@@ -170,7 +170,13 @@ def _hole_note(text, folder):
     words = str(text).replace("_", " ").strip()
     if len(words.split()) < 3:
         return None
-    where = "green" if re.search(r"\b(green|putt|putting)\b", words.lower()) else "tee"
+    low = words.lower()
+    where = "tee"
+    for name, pat in (("sand", r"\b(bunker|sand|trap)\b"), ("water", r"\b(water|ocean|creek|sea|lake|pond|splash)\b"),
+                      ("rough", r"\b(rough|grass|trees)\b"), ("fairway", r"\bfairway\b"), ("green", r"\b(green|putt|putting)\b")):
+        if re.search(pat, low):
+            where = name
+            break
     k = 1
     while (folder / f"hole-pebble-beach-1-{where}-{k}.mp3").exists():
         k += 1

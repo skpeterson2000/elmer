@@ -140,6 +140,27 @@ PERSON_ADDRESS = 180.0
 PERSON_REVEAL = 120.0
 
 
+def _lie_notes(g, d, ball):
+    """The colour a hole was given for a lie, said the first time anybody
+    addresses the ball from that lie on the hole: hole-<course>-<n>-
+    <lie>-<k>. The tee's colour is the hole's read; water's comes with the
+    splash."""
+    from . import voice
+    lie = ball.get("lie")
+    if lie not in ("green", "fairway", "rough", "sand"):
+        return None
+    hole = d.get("hole")
+    for row in g.history:
+        if row.get("hole") != hole:
+            continue
+        for s in (row.get("shots") or {}).values():
+            if lie == "green" and s.get("putt"):
+                return None
+            if lie != "green" and s.get("from") == lie:
+                return None
+    return voice.notes(d.get("course"), hole, lie) or None
+
+
 def _voice_address(who, ball, slot=None, honors=False, green_notes=None):
     from . import voice
     return voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"), slot=slot, honors=honors,
@@ -1181,7 +1202,11 @@ class Room:
                 from . import voice
                 shots = [{"player": p, "name": name(p), **s,
                           # the stroke and the call as the narrator's tokens
-                          "tokens": voice.name_tokens(name(p)) + voice.call(s.get("call")) + voice.shot(s)}
+                          "tokens": voice.name_tokens(name(p)) + voice.call(s.get("call")) + voice.shot(s)
+                          + (voice.notes(d.get("course"), d.get("hole"), "water")
+                             if s.get("kind") == "water" and not any(
+                                 t.get("kind") == "water" for row in g.history[:-1] if row.get("hole") == d.get("hole")
+                                 for t in (row.get("shots") or {}).values()) else [])}
                          for p, s in last["shots"].items()]
             board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
             mine = balls.get(player_id) if player_id is not None else None
@@ -1226,11 +1251,10 @@ class Room:
                     "address_tokens": (_voice_address(name(away), away_ball,
                                                       slot=(g.players.index(away) + 1 if away in g.players else None),
                                                       honors=all(b["strokes"] == 0 for b in d["balls"].values()),
-                                                      # the green's colour, the first time anybody putts on it
-                                                      green_notes=(voice.notes(d.get("course"), d.get("hole"), "green")
-                                                                   if away_ball.get("lie") == "green" and not any(
-                                                                       s.get("putt") for row in g.history if row.get("hole") == d.get("hole")
-                                                                       for s in (row.get("shots") or {}).values()) else None))
+                                                      # the lie's colour - the green's, the fairway's, the
+                                                      # sand's, the rough's - the first time anybody plays
+                                                      # from it on this hole
+                                                      green_notes=_lie_notes(g, d, away_ball))
                                        if away_ball else []),
                     "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),
