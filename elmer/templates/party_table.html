@@ -155,6 +155,10 @@ body.golfing .gc, body.golfing .controls { display: none; }
    with both rules on, the stage was landing in the narrow track. */
 body.golfing:not(.focus) .cols { grid-template-columns: minmax(11rem, 13rem) 1fr; }
 body.golfing .qr { padding: .4rem; max-width: 9rem; margin: 0 auto; }
+/* The narrow column squeezed the seat's name box to nothing: the name
+   takes its own line, the class and the button the next. */
+body.golfing .hs-row { flex-wrap: wrap; }
+body.golfing .hs-row .hs-name { flex: 1 1 100%; }
 body.golfing .joinurl { font-size: .7rem; }
 /* One thing to look at: the question on the left, this seat's choices on the
    right, nothing below the fold. A person reading a question should not

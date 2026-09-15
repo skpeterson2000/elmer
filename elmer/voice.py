@@ -35,10 +35,20 @@ ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "
             "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth", "fifteenth", "sixteenth",
             "seventeenth", "eighteenth"]
 
+# The phonetic alphabet, for a callsign nobody recorded a name for: KC9SP
+# is Kilo Charlie nine Sierra Papa, which is how the operator says it too.
+PHONETIC = {"a": "Alpha", "b": "Bravo", "c": "Charlie", "d": "Delta", "e": "Echo", "f": "Foxtrot",
+            "g": "Golf", "h": "Hotel", "i": "India", "j": "Juliett", "k": "Kilo", "l": "Lima",
+            "m": "Mike", "n": "November", "o": "Oscar", "p": "Papa", "q": "Quebec", "r": "Romeo",
+            "s": "Sierra", "t": "Tango", "u": "Uniform", "v": "Victor", "w": "Whiskey", "x": "X-ray",
+            "y": "Yankee", "z": "Zulu"}
+
 VOCABULARY = {
     # numbers, reused everywhere: yards, feet, strokes, miles an hour
     **{w: w for w in NUMBER_WORDS.values()},
     "hundred": "hundred", "and": "and",
+    # the letters, phonetic - a callsign spelled out when there is no name file
+    **{f"phon-{k}": v for k, v in PHONETIC.items()},
     # the holes
     **{f"the-{o}": f"the {o}" for o in ORDINALS},
     "par": "par", "yards": "yards", "feet": "feet", "to-go": "to go",
@@ -204,6 +214,29 @@ def name_token(name):
     return f"name-{slug}" if slug else "the-player"
 
 
+def looks_like_callsign(name):
+    """KC9SP, W1AW, VE3ABC: letters and digits, three to seven of them, at
+    least one digit, no spaces. Not "Scott", not "Ann Lee"."""
+    s = str(name or "").strip().upper()
+    # a prefix, the digit, and a suffix of letters - the shape of every
+    # amateur callsign, and not of "4X4" or a licence number
+    return bool(re.fullmatch(r"[A-Z0-9]{1,3}[0-9][A-Z]{1,4}", s)) and any(c.isalpha() for c in s[:-1])
+
+
+def name_tokens(name):
+    """How the narrator says who: their recorded name when the shelf has
+    it; a callsign spelled phonetically, letter by letter, when it does
+    not - Kilo Charlie nine Sierra Papa - which is what the operator would
+    say; and otherwise the name file, silent if unrecorded."""
+    token = name_token(name)
+    if _shelf is None or token in _shelf or not looks_like_callsign(name):
+        return [token]
+    out = []
+    for c in str(name).strip().lower():
+        out += [f"phon-{c}"] if c.isalpha() else number(int(c))
+    return out
+
+
 def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     """The hole read out at the tee: the course once, the hole, par, yards,
     and the breeze."""
@@ -223,7 +256,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
 def address(name, club=None, left=None, lie=None):
     """Scott addresses the ball, the driver in hand, three hundred and
     seventy-seven to go, from the tee."""
-    out = [name_token(name), "addresses-the-ball"]
+    out = name_tokens(name) + ["addresses-the-ball"]
     if club:
         out += [f"the-{club}", "in-hand"]
     if lie == "green":
@@ -298,7 +331,7 @@ def card(rows):
     """That's the hole: each name and its score."""
     out = ["thats-the-hole"]
     for r in rows or []:
-        out.append(name_token(r.get("name")))
+        out += name_tokens(r.get("name"))
         score = r.get("score")
         if score in SCORE_TOKENS:
             out.append(SCORE_TOKENS[score])

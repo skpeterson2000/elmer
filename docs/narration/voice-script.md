@@ -49,6 +49,35 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 - `hundred`: hundred
 - `and`: and
 
+## The letters - phonetic, for a callsign with no name file
+
+- `phon-a`: Alpha
+- `phon-b`: Bravo
+- `phon-c`: Charlie
+- `phon-d`: Delta
+- `phon-e`: Echo
+- `phon-f`: Foxtrot
+- `phon-g`: Golf
+- `phon-h`: Hotel
+- `phon-i`: India
+- `phon-j`: Juliett
+- `phon-k`: Kilo
+- `phon-l`: Lima
+- `phon-m`: Mike
+- `phon-n`: November
+- `phon-o`: Oscar
+- `phon-p`: Papa
+- `phon-q`: Quebec
+- `phon-r`: Romeo
+- `phon-s`: Sierra
+- `phon-t`: Tango
+- `phon-u`: Uniform
+- `phon-v`: Victor
+- `phon-w`: Whiskey
+- `phon-x`: X-ray
+- `phon-y`: Yankee
+- `phon-z`: Zulu
+
 ## The holes
 
 - `the-first`: the first

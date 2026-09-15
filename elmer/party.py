@@ -1176,7 +1176,7 @@ class Room:
                 from . import voice
                 shots = [{"player": p, "name": name(p), **s,
                           # the stroke and the call as the narrator's tokens
-                          "tokens": [voice.name_token(name(p))] + voice.call(s.get("call")) + voice.shot(s)}
+                          "tokens": voice.name_tokens(name(p)) + voice.call(s.get("call")) + voice.shot(s)}
                          for p, s in last["shots"].items()]
             board = [{**r, "name": name(r["player"])} for r in d["leaderboard"]]
             mine = balls.get(player_id) if player_id is not None else None

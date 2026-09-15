@@ -27,6 +27,10 @@ GROUPS = [
 ]
 
 
+GROUPS = [g for g in GROUPS if g[0] != "The letters - phonetic, for a callsign with no name file"]
+GROUPS.insert(1, ("The letters - phonetic, for a callsign with no name file", lambda k: k.startswith("phon-")))
+
+
 def grouped():
     seen = set()
     for title, pick in GROUPS:

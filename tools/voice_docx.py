@@ -41,7 +41,7 @@ FIRST_HOLE = [
     "call-rough-1", "call-rough-2", "call-rough-3", "call-sand-1", "call-sand-2", "call-sand-3",
     "call-water-1", "call-water-2", "call-water-3", "call-holed-1", "call-holed-2", "call-holed-3",
     "call-missed-1", "call-missed-2", "call-missed-3", "call-long-1", "call-long-2", "call-long-3",
-]
+] + [f"phon-{c}" for c in "abcdefghijklmnopqrstuvwxyz"]
 
 
 def sentence(words):
