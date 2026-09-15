@@ -289,6 +289,12 @@ def run():
     client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "tee_in": 0}, environ_base=local)
     check("with no tee time asked for, a standing game still gives the first arrival five minutes",
           room.standing["tee_in"], appmod.DEFAULT_TEE_IN)
+    client.post("/api/party/join", json={"name": "KC9SP", "device": "screen", "build": appmod._build()}, environ_base=local)
+    check("  and sitting down at the screen is an arrival too: the clubhouse opens", (room.clubhouse is not None, room.standing), (True, None))
+    client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "tee_in": 0}, environ_base=local)
     client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
     check("  and 'not golf after all' clears it", room.standing, None)
 

@@ -84,8 +84,7 @@ jobs:
           echo "$out"
           if [ $rc -ne 0 ]; then
             failed="$failed $t"
-            why=$(echo "$out" | grep -E "FAIL|Traceback|Error" | head -6 | tr '
-' ' | ')
+            why=$(echo "$out" | grep -E "FAIL|Traceback|Error" | head -6 | paste -sd '|' -)
             echo "::error file=$t::$t failed (rc $rc): ${why:0:900}"
           fi
           echo "::endgroup::"

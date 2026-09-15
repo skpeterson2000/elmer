@@ -874,9 +874,10 @@ async function tick() {
         painted = key;
         stage.innerHTML = `<div class="chip">${esc(standing.course_name || 'Golf')}</div>
           <p class="narrator">Golf at <b>${esc(standing.course_name || 'the course')}</b> is set${standing.holes ? ' &middot; ' + esc(standing.holes) + ' nine' : ''}.</p>
-          <p class="hint" style="text-align:left">Scan the code to check in. The clubhouse opens for the first arrival${
+          <p class="hint" style="text-align:left;font-size:1rem;color:var(--text)">Nobody is checked in yet. <b>Scan the code</b> with a phone, or <b>sit down at a seat</b> under <i>At this table</i> on the left, and the clubhouse opens${
             standing.tee_in > 0 ? ` with a ${clockWords(standing.tee_in)} tee time for friends to follow` : ' and the round starts at once'}. No countdown, no tournament.</p>
-          <div class="row" style="gap:.5rem;margin-top:.6rem"><button class="btn sm ghost" data-standing-cancel>Not golf after all</button></div>`;
+          <div class="row" style="gap:.5rem;margin-top:.6rem"><button class="btn primary" data-standing-sit>Sit down and play</button>
+            <button class="btn sm ghost" data-standing-cancel>Not golf after all</button></div>`;
       }
       return;
     }
@@ -1202,6 +1203,13 @@ async function openProShop() {
   el.hidden = false;
 }
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-standing-sit]')) {
+    // Straight to the seat: the name box, with the cursor in it. Sitting
+    // down is what opens the clubhouse.
+    const name = document.querySelector('.hs-row[data-seat="A"] .hs-name');
+    if (name) { name.scrollIntoView({behavior: 'smooth', block: 'center'}); name.focus(); }
+    return;
+  }
   if (e.target.closest('[data-proshop]')) { openProShop(); return; }
   const shop = document.getElementById('proshop');
   if (shop && !shop.hidden && (e.target.closest('[data-proshop-close]') || e.target === shop)) { shop.hidden = true; return; }
