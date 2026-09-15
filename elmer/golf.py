@@ -744,9 +744,14 @@ class Golf:
         ahead = [hz for hz in h.get("hazards", [])
                  if hz["to"] > ball.at and hz["from"] <= reach and hz["kind"] in ("water", "bunker", "rough")]
         if not ahead:
+            # short, and off to one side - the rough is beside the fairway,
+            # not down the middle of it, and the strip shows it there
             ball.at += max(20, round(CLUBS[club] * 0.4))
             ball.lie = "rough"
-            return {"kind": "rough", "words": f"{club}, a foul ball - short and into the rough", "carry": 0}
+            side = -1 if ball.off < 0 else 1 if ball.off > 0 else self.swing.choice((-1, 1))
+            ball.off = side * int(round(fairway_half(h) + self.swing.uniform(4, 12)))
+            return {"kind": "rough", "words": f"{club}, a foul ball - short and into the rough on the {'left' if side < 0 else 'right'}",
+                    "carry": 0, "off": ball.off}
         weights = {"water": 2, "bunker": 3, "rough": 3}
         hz = self.rng.choices(ahead, weights=[weights[x["kind"]] for x in ahead])[0]
         name = hz["name"] or hz["kind"]
@@ -758,6 +763,9 @@ class Golf:
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         if hz.get("side") in ("left", "right"):
             ball.off = (-1 if hz["side"] == "left" else 1) * (fairway_half(h) + LEAK_PUSH)
+        elif hz["kind"] == "rough":
+            # a band of rough across the hole: in it, and off the middle a little
+            ball.off = int(round(self.swing.uniform(-fairway_half(h) / 2, fairway_half(h) / 2)))
         return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 

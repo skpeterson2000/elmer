@@ -321,6 +321,10 @@ def run():
     foul = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 230, "to": 260, "side": "right", "name": "the right trap"}]), seed=3)
     s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
     check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
+    short = golf.Golf(["a"], flat_course(), seed=5)
+    s = short.play_one("a", {"correct": False, "club": "wedge"})["shots"]["a"]
+    check("a foul ball short into the rough is beside the fairway, not down the middle of it",
+          (s["kind"], abs(short.balls["a"].off) > golf.FAIRWAY_HALF, ("left" in s["words"]) != ("right" in s["words"])), ("rough", True, True))
 
     print("\n-- not every golfer hits it the same --")
     g = golf.Golf(["a", "b"], flat_course(), seed=1)
