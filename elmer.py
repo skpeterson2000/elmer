@@ -288,8 +288,20 @@ def main():
     if _not_installed_here():
         sys.exit(_hand_off())
 
+    # A reset asked for from the Developer panel is done here, before the
+    # log or the database are opened - the only moment nothing in data/ is
+    # held by this process. See elmer/devreset.py.
+    from elmer import devreset as _devreset
+    _reset_done = _devreset.perform_if_pending()
+
     from elmer import logs
     log_path = logs.setup(args.log_level, to_file=not args.no_log_file)
+    if _reset_done is not None:
+        if _reset_done.get("ok"):
+            print(f"\n  Reset: {_reset_done.get('count', 0)} thing(s) taken from data/ - "
+                  "this unit starts fresh.", flush=True)
+        else:
+            print(f"\n  Reset could not finish: {_reset_done.get('error')}", flush=True)
 
     # The kiosk is a Linux appliance: it finds the browser it started by
     # reading /proc, signals it by pid, and expects an X or Wayland session.
@@ -968,8 +980,10 @@ def main():
             # A restart hands the kiosk window to the next process instead of
             # closing it, so an update on an appliance is invisible except for
             # the page reloading itself.
-            keep = browsers[0].pid if (restarting and browsers) else None
-            if not restarting:
+            # A restart to reset the unit closes the browser too: its
+            # profile is in data/ and is about to go.
+            keep = browsers[0].pid if (restarting and browsers and not _devreset.pending()) else None
+            if keep is None:
                 for process in browsers:
                     kiosk.close(process)
             # Windows opened for an off-site link are incidental either way.

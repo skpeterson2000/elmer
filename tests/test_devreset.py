@@ -14,6 +14,8 @@ session. And it will not act on a stale count: a page left open while somebody
 fetched a day's worth of parks would otherwise take them on a press that was
 meant for an empty unit.
 """
+import pathlib
+import shutil
 import sys
 from pathlib import Path
 
@@ -83,6 +85,53 @@ with app.test_client() as client:
     away = client.post("/api/dev/reset", json={"count": 0},
                        environ_overrides={"REMOTE_ADDR": "10.0.0.9"})
     check("403, not a reset", away.status_code, 403)
+
+print("\nthe press marks the reset and restarts; the clean is done on the way back up")
+import subprocess, tempfile  # noqa: E402
+scratch = pathlib.Path(tempfile.mkdtemp(prefix="elmer-reset-"))
+subprocess.run(["git", "init", "-q", "."], cwd=str(scratch), check=True)
+(scratch / ".gitignore").write_text("data/x.db\ndata/x.log\n", encoding="utf-8")
+(scratch / "data").mkdir()
+(scratch / "data" / "pools.txt").write_text("ships with a clone\n", encoding="utf-8")
+subprocess.run(["git", "add", "."], cwd=str(scratch), check=True)
+subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"], cwd=str(scratch), check=True)
+(scratch / "data" / "x.db").write_text("study\n", encoding="utf-8")
+(scratch / "data" / "x.log").write_text("lines\n", encoding="utf-8")
+was = (devreset.ROOT, devreset.DATA, devreset.PENDING)
+devreset.ROOT, devreset.DATA = scratch, scratch / "data"
+devreset.PENDING = devreset.DATA / "reset-pending"
+try:
+    check("nothing pending on a unit nobody asked to reset", devreset.perform_if_pending(), None)
+    asked = devreset.request()
+    check("the press marks it", (asked.get("ok"), asked.get("restarting"), devreset.pending()), (True, True, True))
+    check("  and takes nothing yet", (scratch / "data" / "x.db").exists(), True)
+    done = devreset.perform_if_pending()
+    check("the next start does the clean", done.get("ok"), True)
+    check("  the study and the log are gone, the mark with them",
+          ((scratch / "data" / "x.db").exists(), (scratch / "data" / "x.log").exists(), devreset.pending()),
+          (False, False, False))
+    check("  what a clone ships with stays", (scratch / "data" / "pools.txt").exists(), True)
+    check("  and the start after that has nothing to do", devreset.perform_if_pending(), None)
+finally:
+    devreset.ROOT, devreset.DATA, devreset.PENDING = was
+    shutil.rmtree(scratch, ignore_errors=True)
+
+print("\nfrom the panel, the right count marks and restarts rather than deleting in place")
+import elmer.app as appmod  # noqa: E402
+restarts = []
+real_restart, real_request = appmod.request_restart, devreset.request
+appmod.request_restart = lambda: restarts.append(True)
+devreset.request = lambda: {"ok": True, "restarting": True}    # the mark, without writing into this checkout's data/
+try:
+    with app.test_client() as client:
+        real = client.get("/api/dev/reset").get_json().get("count")
+        reply = client.post("/api/dev/reset", json={"count": real})
+        check("accepted", (reply.status_code, reply.get_json().get("restarting")), (200, True))
+        check("  and ELMER restarts to do it", restarts, [True])
+        check("  with this checkout's study still here", devreset.DATA.joinpath("elmer.db").exists()
+              or not any(devreset.DATA.iterdir()), True)
+finally:
+    appmod.request_restart, devreset.request = real_restart, real_request
 
 print("\nit says how to remove itself, because it is meant to be removed")
 check("the module says so", "delete this" in (devreset.__doc__ or "").lower(),

@@ -68,8 +68,19 @@
         escapeHTML(d.error || 'no') + '</span>';
       return;
     }
-    /* Straight back to the dashboard, because what was being looked at has
-       just been deleted and the page is describing a unit that is gone. */
-    location.href = '/';
+    /* ELMER restarts to do it - the running server holds the database and
+       the log, so the clean happens on the way back up. Wait for it, then
+       the dashboard: a fresh unit's first run. */
+    list.hidden = true;
+    say.textContent = 'ELMER is restarting to reset itself…';
+    for (let n = 0; n < 90; n++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const res = await fetch('/api/update', {cache: 'no-store'});
+        if (res.ok) { location.href = '/'; return; }
+      } catch (e) { /* still down, which is expected */ }
+    }
+    say.innerHTML = '<span style="color:var(--amber)">ELMER has not come back yet - ' +
+      'start it again from the Start Menu or the terminal.</span>';
   });
 })();

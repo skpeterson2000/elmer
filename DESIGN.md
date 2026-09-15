@@ -2361,6 +2361,21 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**The tempo.** The first rounds at a table were still too fast for the
+person who wrote the game, who knew what was coming and could not keep
+up - a question arrived while he was still looking at the clubs, with no
+word of whose stroke it was. So every beat is set for reading aloud, and
+one of them is not a beat at all: **a person's address waits for them.**
+Who is away, the lie, the yards, the clubs to hand and a Hit button - on
+their seat or their phone - and the question does not come until they
+press it (or three minutes pass). A practice player's address stands
+twelve seconds, twenty on the tee where the hole is read out first; its
+swing takes twenty seconds or the question's reading time, whichever is
+longer, within the pace box; its stroke stands twenty seconds on the
+screens, in two beats of eight; the card stands thirty when the hole is
+done. Every one of those is scaled by the room's `golf_tempo`, one
+number, so a speed selector is a knob on it and not a rewrite.
+
 **The scorecard.** During golf the party card - "At this table" - is the
 card: a column a hole with its par, a row a player with the strokes
 taken, total and to par at the end, holes not yet played blank. The phone
@@ -3688,6 +3703,17 @@ closing host can hand the net to the next unit that can carry it (see the
 open threads).
 Where neither browser is found the page opens as a tab in the default
 browser instead, and the console says the tab will not stop the server.
+
+**The developer's reset, on Windows.** The Developer panel's reset used
+to run `git clean` in place and said it had. On Windows it had not: the
+running server holds the database and the log, the ELMER window holds its
+browser profile, and Windows will not delete an open file - every item
+failed with "Invalid argument" and the study was still there. Now the
+press marks the reset (`data/reset-pending`) and restarts ELMER the way an
+update does; the new process finds the mark before it opens anything and
+does the clean then, when nothing is held, retrying for a few seconds
+while the closed browser lets go of its profile. The mark is untracked
+inside data/, so the clean takes it too.
 
 **The Start Menu, and Exit.** The installer offers to put ELMER on the
 Start Menu with its own icon, and a shortcut already there is refreshed to
