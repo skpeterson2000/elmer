@@ -59,9 +59,10 @@ def run():
     # The rules, pinned: these sections read the physics exactly - the
     # club's length, the wind's yards, the creek - so the club's spread and
     # leak are off for them and on again for the section that is about them.
-    SPREAD, LEAK = dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK)
+    SPREAD, LEAK, RUN = dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK), dict(golf.ROLL)
     golf.CLUB_SPREAD = {c: 0 for c in SPREAD}
     golf.CLUB_LEAK = {c: 0.0 for c in LEAK}
+    golf.ROLL = {c: 0 for c in RUN}
 
     print("\n-- the shot --")
     g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
@@ -315,8 +316,50 @@ def run():
     s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
     check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
 
+    print("\n-- carry, then roll: a ball does not stick where it lands --")
+    golf.ROLL = RUN
+    def rolled(club, lie="fairway", at=0, wind="with", mph=10, seed=1, aim=None):
+        g = golf.Golf(["a"], flat_course(wind=wind), seed=seed)
+        g.wind_mph = mph
+        g.balls["a"].at, g.balls["a"].lie, g.balls["a"].strokes = at, lie, (1 if at else 0)
+        if aim:
+            g.set_aim("a", *aim)
+        return g.play_one("a", {"correct": True, "club": club, "ms": 1000 * seed})["shots"]["a"]
+    runs = {club: [rolled(club, seed=s)["roll"] for s in range(1, 21)] for club in ("driver", "wood", "iron", "wedge")}
+    avg = {c: sum(v) / len(v) for c, v in runs.items()}
+    check("a driver runs on after it lands", avg["driver"] > 15, True)
+    check("  a wood a little less, an iron less again, a wedge hardly at all",
+          avg["driver"] > avg["wood"] > avg["iron"] > avg["wedge"], True)
+    check("  and the words say so", "ran" in rolled("driver")["words"], True)
+    check("  the ball lies where it stopped, not where it came down", rolled("driver")["at"] - rolled("driver")["carry"] == rolled("driver")["roll"], True)
+    d_with = sum(rolled("driver", wind="with", seed=s)["roll"] for s in range(1, 21))
+    d_into = sum(rolled("driver", wind="into", seed=s)["roll"] for s in range(1, 21))
+    check("downwind it runs further, into the wind it sits down", d_with > d_into, True)
+    r = golf.Golf(["a"], flat_course(hazards=[{"kind": "rough", "from": 200, "to": 300, "side": "across", "name": "long grass"}]), seed=1)
+    r.wind_mph = 0
+    s = r.play_one("a", {"correct": True, "club": "driver", "ms": 1000})["shots"]["a"]
+    check("into the rough it stops quickly", s["roll"] < 12, True)
+    green = rolled("wedge", lie="fairway", at=310, wind="across", mph=0)
+    check("a wedge onto the green checks up", (green["kind"], green["roll"] <= 3), ("green", True))
+    bumps = [rolled("iron", lie="fairway", at=240, wind="across", mph=0, seed=sd, aim=(371, 0)) for sd in range(1, 13)]
+    check("an iron landed nine short of the green can run onto it - the bump and run",
+          any(b["kind"] == "green" and "ran onto" in b["words"] for b in bumps), True)
+    check("  and can stop short of it too - that is the gamble", any(b["kind"] != "green" for b in bumps), True)
+    creek = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 255, "to": 265, "side": "across", "name": "the creek"}]), seed=1)
+    creek.wind_mph = 0
+    creek.set_aim("a", 250, 0)
+    s = creek.play_one("a", {"correct": True, "club": "driver", "ms": 2000})["shots"]["a"]
+    check("aimed five short of the creek, a driver runs into it - land it shorter", (s["kind"], "ran into" in s["words"]), ("water", True))
+    x = golf.Golf(["a"], flat_course(wind="across"), seed=1)
+    x.wind_mph = 15
+    s = x.play_one("a", {"correct": True, "club": "driver", "ms": 1000})["shots"]["a"]
+    check("a crosswind off the left drifts the ball right", s["off"] > 0, True)
+    check("  a golfer allows for the run: what a driver is expected to run on the fairway",
+          golf.Golf(["a"], flat_course(), seed=1).expected_roll("driver") > 15, True)
+    golf.ROLL = {c: 0 for c in RUN}
+
     print("\n-- the club's say: a right answer still varies --")
-    golf.CLUB_SPREAD, golf.CLUB_LEAK = SPREAD, LEAK
+    golf.CLUB_SPREAD, golf.CLUB_LEAK, golf.ROLL = SPREAD, LEAK, RUN
     pb = golf.course("pebble-beach")
     def tee_shots(club, n=300):
         out = []

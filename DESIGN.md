@@ -2391,6 +2391,22 @@ but the same swing lands the same way and every stroke lands a little
 differently, which is what a golfer means by luck. It is what puts four
 tee shots in four places, and so decides who is away.
 
+**Carry, then roll.** A ball does not stick where it lands. The club
+sets how much life it has when it comes down - a driver's low, running
+ball about twenty-four yards of it, a wood eighteen, an iron nine, a
+wedge's high spinning ball three - the surface it lands on sets how much
+of that it keeps (all of it on the fairway, under half on a green, a
+third in the rough, none in sand), and the wind pushes the roll along or
+holds it up. A crosswind drifts the ball in flight, off the side the
+course says it blows from. The ball is read where it comes to rest, so a
+driver landed five yards short of the creek runs into it, an iron landed
+nine short of the green can run onto it or stop short - the bump and run,
+and the gamble - and a wedge onto the green checks up. The mark is where
+the ball comes down; a golfer who wants it to stop short lands it
+shorter still, as on a course. An adept "pure" shot is stiff: it lands
+and stops. The playback says the carry and the run - "driver, 248 yards,
+ran 22 more".
+
 **The hole has a width, and the golfer has a mark.** A ball is yards
 along the line and yards off it, left negative, right positive. Inside
 eighteen yards either side is the fairway, or whatever band crosses it;
