@@ -470,6 +470,10 @@ api('/api/personal').then(d => {
    costs nothing beyond the one fetch this page makes at load. */
 
 let bpProp = null;
+/* The moon and the meteor calendar, kept apart from the outlook because they
+   come from a clock rather than the network: they are on the page when the
+   space weather is not. */
+let bpSky = null;
 
 /* "Set your QTH" opens the station panel here rather than sending anybody to
    another page for it: the gear is on every page, so its button can be. */
@@ -484,7 +488,8 @@ document.addEventListener('click', e => {
    from the reading the dashboard already fetched. */
 api('/api/propagation/outlook').then(d => {
   bpProp = d.ok ? d : null;
-  if (bpProp && bpData) bpRender();       // it arrived after the first draw
+  bpSky = (d.moon || d.meteors) ? {moon: d.moon || null, meteors: d.meteors || null} : null;
+  if ((bpProp || bpSky) && bpData) bpRender();       // it arrived after the first draw
 }).catch(() => {});
 
 function conditionsFor(band) {
@@ -758,6 +763,45 @@ function clockAt(iso) {
 function sunriseAt() {
   return clockAt(bpProp && bpProp.sun && bpProp.sun.rise);
 }
+/* The moon, for the moonbounce crowd, who will notice its absence before
+   anybody notices the aurora: where it is from here, when it rises and
+   sets, how far away it is against the average (the path goes there and
+   back, so the loss runs as the fourth power of the distance), how far it
+   sits from the sun, and the declination - a moon low in the south has the
+   galaxy behind it. All of it from a clock and the QTH; nothing fetched.
+   And the meteor calendar beside it: the shower on now, or the next. */
+function localClock(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+function moonBox(moon, met) {
+  const parts = [];
+  if (moon) {
+    const where = moon.up
+      ? '<b>' + Math.round(moon.altitude) + '°</b> above the horizon at a bearing of <b>' + Math.round(moon.azimuth) + '°</b>' +
+        (moon.set ? ', setting at <b>' + localClock(moon.set) + '</b>' : '')
+      : 'below the horizon' + (moon.rise ? ', rising at <b>' + localClock(moon.rise) + '</b>' : '');
+    const dist = moon.loss_db < -0.3 ? 'near perigee, ' + (-moon.loss_db).toFixed(1) + ' dB better than the average path'
+      : moon.loss_db > 0.3 ? 'near apogee, ' + moon.loss_db.toFixed(1) + ' dB down on the average path'
+      : 'about an average distance, ' + Math.round(moon.distance_km / 1000) + ',000 km';
+    parts.push('<b>Moonbounce.</b> The moon is ' + where + ' — ' + dist + ', declination ' +
+      (moon.declination >= 0 ? '+' : '') + Math.round(moon.declination) + '°, ' + Math.round(moon.sun_separation) +
+      '° from the sun, ' + escapeHTML(moon.phase.name) + '. ' +
+      (moon.up ? 'The verdict is <b>' + escapeHTML(moon.verdict) + '</b>: ' + escapeHTML((moon.reasons || []).join('; ')) + '.'
+               : 'Nothing to point at until it rises.') +
+      ' The loss runs as the fourth power of the distance because the path goes there and back; a moon low in the south has the galaxy behind it, and the sun within fifteen degrees puts its noise in the beam.' +
+      ' <a href="/eme">The EME page</a> paints who else can see it.');
+  }
+  if (met) {
+    const line = met.now
+      ? 'The <b>' + escapeHTML(met.now.name) + '</b> are on — peak ' + escapeHTML(met.now.peak) + ', ZHR about ' + met.now.zhr + '.'
+      : met.next ? 'The next shower is the <b>' + escapeHTML(met.next.name) + '</b>, peaking ' + escapeHTML(met.next.peak) +
+        ' (' + met.next.days + ' days), ZHR about ' + met.next.zhr + '.' : '';
+    if (line) parts.push('<b>Meteor calendar.</b> ' + line + ' Random meteors are there every morning near 06:00; a shower is when it is worth staying up.');
+  }
+  return parts.length ? '<div class="tiny muted mt">' + parts.join('<br>') + '</div>' : '';
+}
 function vhfBox(band) {
   const v = (bpProp && bpProp.vhf) || {};
   const hour = sunriseAt();
@@ -769,6 +813,11 @@ function vhfBox(band) {
     '">Sporadic E: ' + escapeHTML(eskip) + '</span>');
   if (aurora) bits.push('<span class="pill ' + (open(aurora) ? 'q2' : 'q0') +
     '">Aurora: ' + escapeHTML(aurora) + '</span>');
+  const moon = bpSky && bpSky.moon;
+  if (moon) bits.push('<span class="pill ' + ({good: 'q4', fair: 'q2', poor: 'q1', down: 'q0'}[moon.verdict] || 'q0') +
+    '">Moon: ' + (moon.up ? moon.verdict + ', ' + Math.round(moon.altitude) + '° up' : 'down') + '</span>');
+  const met = bpSky && bpSky.meteors;
+  if (met && met.now) bits.push('<span class="pill q4">' + escapeHTML(met.now.name) + ' peak' + (met.now.days ? (met.now.days > 0 ? ' in ' + met.now.days + ' d' : ' ' + (-met.now.days) + ' d ago') : ' today') + '</span>');
   return '<div class="condbox">' +
     '<div class="condhead"><span class="panel-title" style="margin:0">' +
       'Conditions on ' + escapeHTML(band.name) + ' now</span>' + bits.join(' ') +
@@ -796,6 +845,7 @@ function vhfBox(band) {
       'In midsummer those two land almost together; in December they are ' +
       'nearly two hours apart. Neither is a prediction &mdash; both are just ' +
       'when it is worth going to look.</div>' +
+    moonBox(moon, met) +
     '<div class="tiny muted mt">The grey line does almost nothing for you up ' +
       'here. D-layer absorption falls as 1/f&sup2;, so what shuts 80 m all ' +
       'day costs 2 m nothing you could measure &mdash; the whole business of ' +

@@ -231,6 +231,36 @@ def main():
     check("  and after dark, nothing about the low bands at all",
           dark["80m"]["note"], "")
 
+    print("\n-- the sky, for the all-mode rig --")
+    # The moon is not on the list for a handheld, and it is on the list for
+    # an all-mode rig only while it can be pointed at: up, or rising soon.
+    from elmer import celestial as C
+    keys = lambda gear, when: [w["key"] for w in R.ways(LAT, LON, gear, "Extra", now=when.timestamp())]  # noqa: E731
+    check("a handheld is never told about the moon", "eme" in keys(["ht"], at(13, 0)), False)
+    day = datetime(2026, 9, 15, tzinfo=timezone.utc)
+    up = next((day + timedelta(hours=h) for h in range(48)
+               if C.moon_altitude_azimuth(LAT, LON, day + timedelta(hours=h))[0] > 5), None)
+    check("the moon is up at some hour of the day", up is not None, True)
+    listed = keys(["vhf_ssb"], up)
+    check("  and then the all-mode rig has EME on the list", "eme" in listed, True)
+    eme = next(w for w in R.ways(LAT, LON, ["vhf_ssb"], "Extra", now=up.timestamp()) if w["key"] == "eme")
+    check("  as a long shot, honestly", eme["odds"], "long shot")
+    check("  saying where the moon is", "degrees up at a bearing of" in eme["do"], True)
+    down = next((day + timedelta(hours=h) for h in range(48)
+                 if C.moon_altitude_azimuth(LAT, LON, day + timedelta(hours=h))[0] < -20), None)
+    look = C.eme_outlook(LAT, LON, down)
+    hours_to_rise = (datetime.fromisoformat(look["rise"]) - down).total_seconds() / 3600
+    check("well before moonrise, the card is off the list",
+          "eme" in keys(["vhf_ssb"], down), hours_to_rise <= 6)
+    shower = datetime(2026, 8, 12, 12, tzinfo=timezone.utc)
+    check("on the Perseids' peak, meteor scatter is worth trying",
+          next((w["odds"] for w in R.ways(LAT, LON, ["vhf_ssb"], "Extra", now=shower.timestamp())
+                if w["key"] == "meteor"), None), "worth trying")
+    check("  and on an ordinary day it is not on the list",
+          "meteor" in keys(["vhf_ssb"], datetime(2026, 9, 15, 12, tzinfo=timezone.utc)), False)
+    check("an about-time is words, not a clock", R._hours_until((down + timedelta(hours=2)).isoformat(), down), "2 hours")
+    check("  minutes when it is close", R._hours_until((down + timedelta(minutes=20)).isoformat(), down), "20 minutes")
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

@@ -183,6 +183,56 @@ def main():
           C.fix(sights(3, 120))["uncertainty_nm"]
           < C.fix(sights(3, 12))["uncertainty_nm"], True)
 
+    print("\n-- the moon, against Meeus example 47.a --")
+    # 1992 April 12, 0h TD: apparent RA 134.688470, Dec 13.768368, distance
+    # 368409.7 km. The low-precision series is promised to a third of a
+    # degree and a few hundred kilometres, and that is what it delivers.
+    moon = C.moon_position(datetime(1992, 4, 12, 0, 0, tzinfo=timezone.utc))
+    check("right ascension within 0.2 degrees", abs(moon["ra"] - 134.688) < 0.2, True)
+    check("declination within 0.2 degrees", abs(moon["dec"] - 13.768) < 0.2, True)
+    check("distance within half a percent", abs(moon["distance_km"] / 368409.7 - 1) < 0.005, True)
+    print(f"       (RA {moon['ra']:.2f}, Dec {moon['dec']:.2f}, {moon['distance_km']:.0f} km)")
+    # A full moon in 2026 (May 31, 08:45 UTC per the almanacs) is opposite
+    # the sun; the phase must say so.
+    full = C.moon_phase(datetime(2026, 5, 31, 8, 45, tzinfo=timezone.utc))
+    check("a known full moon is called full", full["name"], "full")
+    check("  and is lit", full["lit"] > 0.98, True)
+    new = C.moon_phase(datetime(2026, 6, 15, 2, 54, tzinfo=timezone.utc))
+    check("a known new moon is called new", new["name"], "new")
+
+    print("\n-- the moon from a place --")
+    home = (46.66, -94.34)
+    when = datetime(2026, 9, 15, 19, 0, tzinfo=timezone.utc)
+    look = C.eme_outlook(*home, when)
+    check("the outlook says up or down and why", look["verdict"] in ("good", "fair", "poor", "down"), True)
+    check("  with reasons in words", len(look["reasons"]) >= 1, True)
+    check("  a rise and a set within thirty hours", bool(look["rise"] and look["set"]), True)
+    check("  the loss is within 2 dB of the average either way", abs(look["loss_db"]) < 2.0, True)
+    # rise and set bracket "up": if the moon is up now, the set comes first
+    rise, sett = (datetime.fromisoformat(look[k]) for k in ("rise", "set"))
+    check("  the next event is the right one for the state", (sett < rise) == look["up"], True)
+    track = C.moon_track(when, hours=24, step_minutes=15)
+    check("a day's track at a quarter hour is 97 samples", len(track), 97)
+    check("  each carries the moon and the sun",
+          all(k in track[0] for k in ("gha", "dec", "distance_km", "sun_gha", "sun_dec")), True)
+    # the antipode never shares a window with home; a neighbour always does
+    anti = (-home[0], home[1] + 180)
+    check("no common window with the antipode", C.common_window(*home, *anti, when, hours=24), [])
+    near = C.common_window(*home, home[0] + 1, home[1] + 1, when, hours=24)
+    check("a neighbour shares the whole moon-up span", len(near) >= 1, True)
+    spans = [(b - a).total_seconds() / 3600 for a, b in near]
+    check("  and a moon-up span is hours long", max(spans) > 6, True)
+    euro = C.common_window(*home, 52.0, 5.0, when, hours=24)
+    check("Minnesota and the Netherlands share a window some hours a day", len(euro) >= 1, True)
+
+    print("\n-- the meteor calendar --")
+    met = C.meteor_outlook(datetime(2026, 8, 12, 12, tzinfo=timezone.utc))
+    check("the Perseids are on at their peak", met["now"]["name"], "Perseids")
+    check("  and the next one after them is the Orionids", met["next"]["name"], "Orionids")
+    met = C.meteor_outlook(datetime(2026, 12, 30, tzinfo=timezone.utc))
+    check("the year wraps: after the Ursids come the Quadrantids", met["next"]["name"], "Quadrantids")
+    check("  nothing is on at the end of December", "now" in met, False)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

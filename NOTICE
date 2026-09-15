@@ -76,6 +76,17 @@ OpenStreetMap - Open Database License (ODbL) 1.0
     script that produced it.
 
 
+Natural Earth - public domain
+-----------------------------
+
+    elmer/static/maps/coast.json    the world's coastline at 1:110,000,000
+
+    Natural Earth's coarse coastline, rounded to a tenth of a degree by
+    tools/coastline.py, so that the EME page can draw the Earth on a unit
+    with no network. Natural Earth is in the public domain and asks for no
+    credit; it gets one anyway. https://www.naturalearthdata.com/
+
+
 Fetched at runtime, not shipped
 -------------------------------
 

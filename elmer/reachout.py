@@ -20,7 +20,7 @@ invented. "Worth trying" means worth trying.
 """
 from datetime import datetime, timezone
 
-from . import bandplan, personal, propagation, repeaters
+from . import bandplan, celestial, personal, propagation, repeaters
 
 # How good a bet each avenue is, worst to best. Sorting is by this, then by
 # how little it asks of the operator.
@@ -93,6 +93,79 @@ def _ssb_calling():
                 out.append((band, low))
                 break
     return out
+
+
+def _sky_ways(lat, lon, now=None):
+    """The two paths that go up rather than along, for the all-mode rig: the
+    moon, while it is up or about to be, and a meteor shower while one is
+    on. Both are honest long shots from a single antenna and a hundred
+    watts, and both are on the list because somebody with that rig and
+    nobody on 144.200 has more sky to try than they think."""
+    when = (datetime.fromtimestamp(now, timezone.utc) if now is not None
+            else datetime.now(timezone.utc))
+    out = []
+    try:
+        moon = celestial.eme_outlook(lat, lon, when)
+    except Exception:
+        moon = None
+    if moon:
+        rise_in = None
+        if not moon["up"] and moon.get("rise"):
+            rise_in = (datetime.fromisoformat(moon["rise"]) - when).total_seconds() / 3600
+        if moon["up"] or (rise_in is not None and rise_in <= 6):
+            if moon["up"]:
+                where = (f"The moon is {moon['altitude']:.0f} degrees up at a bearing of "
+                         f"{moon['azimuth']:.0f}" + (f", setting in about {_hours_until(moon['set'], when)}"
+                                                    if moon.get("set") else "") + ".")
+            else:
+                where = f"The moon rises in about {_hours_until(moon['rise'], when)}."
+            out.append({
+                "key": "eme", "title": "The moon - EME, if you can point at it",
+                "odds": "long shot",
+                "needs": "An all-mode 2 m rig, a beam you can aim and elevate (a single "
+                         "long Yagi will do for the big stations), a preamp at the "
+                         "antenna, and WSJT-X",
+                "do": (f"{where} Point the beam at it - the bearing and elevation are "
+                       f"on the EME page, and the sun's are not the moon's. Q65-60A on "
+                       f"144.100-144.160, and listen first: the big stations - hundreds "
+                       f"of them in Europe, Japan and the US - run enough antenna that a "
+                       f"single Yagi and 100 W is worked from their end. Reply to a CQ "
+                       f"before calling your own. " +
+                       ("; ".join(moon["reasons"]) + "." if moon["reasons"] else "")),
+                "why": (f"Verdict from here right now: {moon['verdict']}. Every EME contact "
+                        f"is line of sight to a target a quarter of a million miles off, "
+                        f"and the only geography in it is whether both ends can see the "
+                        f"moon at once. That is the window the EME page paints - who "
+                        f"else on Earth can point at it this minute."),
+            })
+    met = celestial.meteor_outlook(when)
+    if met.get("now"):
+        shower = met["now"]
+        out.append({
+            "key": "meteor", "title": f"Meteor scatter - the {shower['name']} are on",
+            "odds": "worth trying",
+            "needs": "An all-mode 6 m or 2 m rig, a beam or even a dipole, and WSJT-X",
+            "do": (f"MSK144 on 50.260 or 144.360, 15-second sequences, the beam toward "
+                   f"stations 500 to 1,200 miles off. Mornings are best - after midnight "
+                   f"local, the Earth's leading edge faces the stream. Peak "
+                   f"{shower['peak']}, ZHR about {shower['zhr']}."),
+            "why": ("A meteor's trail ionises for a second or two, and a burst on a "
+                    "big shower carries a 6 m or 2 m signal 1,000 miles that the band "
+                    "will not carry any other way today. The digital modes were built "
+                    "to complete a contact in those seconds; a voice cannot."),
+        })
+    return out
+
+
+def _hours_until(iso, when):
+    """"about two hours", from an ISO time and now - said, not clocked,
+    because this text has no idea what time zone the operator keeps."""
+    hours = (datetime.fromisoformat(iso) - when).total_seconds() / 3600
+    if hours < 0.75:
+        return f"{max(1, round(hours * 60))} minutes"
+    if hours < 1.5:
+        return "an hour"
+    return f"{round(hours)} hours"
 
 
 def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
@@ -181,6 +254,9 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
                     "has carried hundreds of miles on evenings when 146.52 "
                     "reached the next town."),
         })
+
+    if "vhf_ssb" in gear:
+        out.extend(_sky_ways(lat, lon, now))
 
     if _vhf(gear):
         out.append({

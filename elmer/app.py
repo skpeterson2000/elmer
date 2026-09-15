@@ -639,6 +639,47 @@ def propagation_page():
                            **profile_block(connection))
 
 
+@app.route("/eme")
+def eme_page():
+    """The moon, for moonbounce: where its window falls on the Earth."""
+    connection = conn()
+    prof = db.get_profile(connection)
+    return render_template("eme.html", location=prof["settings"].get("location") or {},
+                           **profile_block(connection))
+
+
+@app.route("/api/eme")
+def api_eme():
+    """Everything the EME page paints, worked out from a clock and the QTH:
+    the outlook now, the moon's track through the next day (so the map can
+    be scrubbed without asking again), and - given a far end - the common
+    window with it. Nothing here is fetched; the page works in a shack with
+    no network the same as anywhere."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    if place.get("lat") is None:
+        return jsonify({"located": False, "track": celestial.moon_track(hours=24, step_minutes=15),
+                        "meteors": celestial.meteor_outlook()})
+    lat, lon = float(place["lat"]), float(place["lon"])
+    out = {"located": True, "qth": place.get("short") or place.get("grid") or "",
+           "lat": lat, "lon": lon,
+           "moon": celestial.eme_outlook(lat, lon),
+           "track": celestial.moon_track(hours=24, step_minutes=15),
+           "meteors": celestial.meteor_outlook()}
+    try:
+        lat2, lon2 = float(request.args["lat2"]), float(request.args["lon2"])
+    except (KeyError, ValueError):
+        lat2 = lon2 = None
+    if lat2 is not None and -90 <= lat2 <= 90 and -180 <= lon2 <= 180:
+        spans = celestial.common_window(lat, lon, lat2, lon2, hours=24)
+        out["far"] = {"lat": lat2, "lon": lon2,
+                      "altitude": round(celestial.moon_altitude_azimuth(lat2, lon2, datetime.now(timezone.utc))[0], 1),
+                      "windows": [[a.isoformat(timespec="minutes"), b.isoformat(timespec="minutes")]
+                                  for a, b in spans]}
+    return jsonify(out)
+
+
 @app.route("/bandplan")
 def bandplan_page():
     connection = conn()
@@ -2504,6 +2545,14 @@ def api_propagation():
     loc = settings.get("location") or {}
     snap = propagation.snapshot(lat=loc.get("lat"), lon=loc.get("lon"),
                                 force=request.args.get("force") == "1")
+    # The moon and the meteor calendar come from a clock and a place, fetched
+    # from nowhere - so they are on the page whether the network is or not.
+    try:
+        if loc.get("lat") is not None and loc.get("lon") is not None:
+            snap["moon"] = celestial.eme_outlook(float(loc["lat"]), float(loc["lon"]))
+        snap["meteors"] = celestial.meteor_outlook()
+    except Exception:                              # never at the page's expense
+        log.exception("moon and meteors")
     if not snap.get("ok"):
         log.warning("space weather fetch failed: %s", snap.get("error"))
     else:
@@ -2639,8 +2688,17 @@ def api_propagation_outlook():
     loc = settings.get("location") or {}
     lat, lon = loc.get("lat"), loc.get("lon")
     snap = propagation.snapshot(lat=lat, lon=lon)
+    # The moon and the meteor calendar need no network, so they are answered
+    # even when the space weather is not - the one VHF forecast a unit with
+    # no route to hamqsl.com can still make.
+    sky = {"meteors": celestial.meteor_outlook()}
+    try:
+        if lat is not None and lon is not None:
+            sky["moon"] = celestial.eme_outlook(float(lat), float(lon))
+    except Exception:
+        log.exception("moon for the band plan")
     if not snap.get("ok"):
-        return jsonify({"ok": False, "error": snap.get("error", "no space weather")})
+        return jsonify({"ok": False, "error": snap.get("error", "no space weather"), **sky})
 
     # The snapshot has already been anchored to the ionosonde network, so there
     # is nothing to redo here. It used to be redone - a second anchor with a
@@ -2797,7 +2855,7 @@ def api_propagation_outlook():
                     "aurora": snap.get("aurora"),
                     "geomag_lat": round(geomag, 1) if geomag is not None else None,
                     "aurora_lat": aurora_lat,
-                    "sun": sun_times,
+                    "sun": sun_times, **sky,
                     "fetched": snap.get("fetched"), "bands": bands})
 
 

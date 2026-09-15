@@ -547,3 +547,252 @@ def _widest_gap(bearings):
             gap = abs(b - a) % 360.0
             best = max(best, min(gap, 360.0 - gap))
     return best
+
+
+# --- the moon ---------------------------------------------------------------
+#
+# Moonbounce is the one path where the whole of the physics is in plain view:
+# the moon is up or it is not, it is near or it is far, and the sky behind it
+# is quiet or it is not. Everything an EME operator looks up before switching
+# on comes from where the moon is, so ELMER works it out the way it works out
+# the sun - from a clock and a place, with nothing to fetch.
+#
+# The lunar position here is the Astronomical Almanac's low-precision series
+# (the largest terms of Meeus chapter 47): good to about a third of a degree
+# in longitude and latitude, and a fraction of a percent in distance. That
+# is a moonrise good to a minute or two and a distance good to a tenth of a
+# decibel, which is all a "should I bother tonight" needs. It is not a
+# tracking ephemeris; a dish is pointed with a better one.
+
+MOON_MEAN_KM = 384400.0
+EARTH_RADIUS_KM = 6378.14
+
+
+def moon_position(when):
+    """The moon's right ascension, declination, Greenwich hour angle and
+    distance, for a UTC datetime."""
+    jd = julian_day(when)
+    t = (jd - J2000) / 36525.0
+    d2r = math.radians
+    lam = (218.32 + 481267.881 * t
+           + 6.29 * math.sin(d2r(477198.87 * t + 134.9))
+           - 1.27 * math.sin(d2r(259.2 - 413335.38 * t))
+           + 0.66 * math.sin(d2r(890534.22 * t + 235.7))
+           + 0.21 * math.sin(d2r(954397.74 * t + 269.9))
+           - 0.19 * math.sin(d2r(35999.05 * t + 357.5))
+           - 0.11 * math.sin(d2r(966404.05 * t + 186.6))) % 360.0
+    beta = (5.13 * math.sin(d2r(483202.03 * t + 93.3))
+            + 0.28 * math.sin(d2r(960400.89 * t + 228.2))
+            - 0.28 * math.sin(d2r(6003.15 * t + 318.3))
+            - 0.17 * math.sin(d2r(217.6 - 407332.21 * t)))
+    parallax = (0.9508
+                + 0.0518 * math.cos(d2r(477198.87 * t + 134.9))
+                + 0.0095 * math.cos(d2r(259.2 - 413335.38 * t))
+                + 0.0078 * math.cos(d2r(890534.22 * t + 235.7))
+                + 0.0028 * math.cos(d2r(954397.74 * t + 269.9)))
+    distance_km = EARTH_RADIUS_KM / math.sin(d2r(parallax))
+    eps = d2r(23.439291 - 0.0130042 * t)
+    lr, br = d2r(lam), d2r(beta)
+    x = math.cos(br) * math.cos(lr)
+    y = math.cos(eps) * math.cos(br) * math.sin(lr) - math.sin(eps) * math.sin(br)
+    z = math.sin(eps) * math.cos(br) * math.sin(lr) + math.cos(eps) * math.sin(br)
+    ra = math.degrees(math.atan2(y, x)) % 360.0
+    dec = math.degrees(math.asin(max(-1.0, min(1.0, z))))
+    gmst = (280.46061837 + 360.98564736629 * (jd - J2000)
+            + 0.000387933 * t * t - t ** 3 / 38710000.0) % 360.0
+    return {"ra": ra, "dec": dec, "gha": (gmst - ra) % 360.0, "distance_km": distance_km,
+            "longitude": lam, "latitude": beta}
+
+
+def moon_altitude_azimuth(lat, lon, when, moon=None):
+    """How high the moon is from a place, and its bearing, in degrees -
+    the same arithmetic as the sun's, with the moon's position in it."""
+    moon = moon or moon_position(when)
+    return altitude_azimuth(lat, lon, when, sun={"gha": moon["gha"], "dec": moon["dec"]})
+
+
+def _sun_longitude(when):
+    jd = julian_day(when)
+    t = (jd - J2000) / 36525.0
+    l0 = (280.46646 + 36000.76983 * t + 0.0003032 * t * t) % 360.0
+    m = math.radians(357.52911 + 35999.05029 * t - 0.0001537 * t * t)
+    c = ((1.914602 - 0.004817 * t) * math.sin(m) + 0.019993 * math.sin(2 * m) + 0.000289 * math.sin(3 * m))
+    return (l0 + c) % 360.0
+
+
+def moon_phase(when):
+    """How much of the moon is lit, 0 to 1, and the phase's name."""
+    moon = moon_position(when)
+    elong = (moon["longitude"] - _sun_longitude(when)) % 360.0
+    lit = (1 - math.cos(math.radians(elong))) / 2
+    names = ["new", "waxing crescent", "first quarter", "waxing gibbous", "full",
+             "waning gibbous", "last quarter", "waning crescent"]
+    return {"lit": round(lit, 3), "name": names[int(((elong + 22.5) % 360) // 45)], "elongation": round(elong, 1)}
+
+
+def moon_crossings(lat, lon, start, hours=24.0, altitude=0.0, step_minutes=6.0):
+    """Every moonrise and moonset in the window, as `(when, rising)` in UTC,
+    the way `crossings` finds the sun's."""
+    start = start.astimezone(timezone.utc) if start.tzinfo else start.replace(tzinfo=timezone.utc)
+    step = timedelta(minutes=float(step_minutes))
+    span = timedelta(hours=float(hours))
+    found, when = [], start
+    prev_t, prev_v = start, moon_altitude_azimuth(lat, lon, start)[0] - altitude
+    while when < start + span:
+        when = min(when + step, start + span)
+        value = moon_altitude_azimuth(lat, lon, when)[0] - altitude
+        if (prev_v < 0.0) != (value < 0.0):
+            lo, hi, lo_v = prev_t, when, prev_v
+            for _ in range(24):
+                mid = lo + (hi - lo) / 2
+                mid_v = moon_altitude_azimuth(lat, lon, mid)[0] - altitude
+                if (lo_v < 0.0) != (mid_v < 0.0):
+                    hi = mid
+                else:
+                    lo, lo_v = mid, mid_v
+            found.append((lo + (hi - lo) / 2, value > prev_v))
+        prev_t, prev_v = when, value
+        if when >= start + span:
+            break
+    return found
+
+
+def eme_outlook(lat, lon, when=None):
+    """Moonbounce, from a place and a clock: where the moon is, when it is
+    up, how far away it is (the path loss against the average), how far it
+    is from the sun (sun noise), and its declination (the sky behind it).
+    Nothing fetched; a judgement in words with the numbers that made it."""
+    when = when or datetime.now(timezone.utc)
+    when = when.astimezone(timezone.utc) if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    moon = moon_position(when)
+    alt, az = moon_altitude_azimuth(lat, lon, when, moon)
+    sun = sun_position(when)
+    d1, d2 = math.radians(moon["dec"]), math.radians(sun["dec"])
+    dra = math.radians(moon["ra"] - sun["ra"])
+    sep = math.degrees(math.acos(max(-1.0, min(1.0, math.sin(d1) * math.sin(d2)
+                                                + math.cos(d1) * math.cos(d2) * math.cos(dra)))))
+    # path loss goes as the fourth power of distance: 20 log there, 20 log back
+    loss_db = 40.0 * math.log10(moon["distance_km"] / MOON_MEAN_KM)
+    phase = moon_phase(when)
+    events = moon_crossings(lat, lon, when, hours=30.0)
+    rise = next((t for t, up in events if up), None)
+    sett = next((t for t, up in events if not up), None)
+    reasons = []
+    if alt <= 0:
+        verdict = "down"
+        reasons.append("the moon is below the horizon")
+    else:
+        verdict = "good"
+        if alt < 10:
+            verdict = "poor"
+            reasons.append(f"only {alt:.0f} degrees up - ground noise, trees, the neighbours")
+        if sep < 15:
+            verdict = "poor"
+            reasons.append(f"{sep:.0f} degrees from the sun - sun noise in the beam")
+        elif sep < 30 and verdict == "good":
+            verdict = "fair"
+            reasons.append(f"{sep:.0f} degrees from the sun")
+        if moon["dec"] < -15:
+            if verdict == "good":
+                verdict = "fair"
+            reasons.append(f"declination {moon['dec']:.0f}: low in the south, a noisier sky behind it")
+        if loss_db > 1.0:
+            if verdict == "good":
+                verdict = "fair"
+            reasons.append(f"near apogee, {loss_db:.1f} dB down on the average")
+        elif loss_db < -1.0:
+            reasons.append(f"near perigee, {-loss_db:.1f} dB better than the average")
+        if not reasons:
+            reasons.append("high, a quiet sky behind it, the sun well away")
+    return {"altitude": round(alt, 1), "azimuth": round(az, 1), "declination": round(moon["dec"], 1),
+            "distance_km": round(moon["distance_km"]), "loss_db": round(loss_db, 2),
+            "sun_separation": round(sep, 1), "phase": phase,
+            "rise": rise.isoformat(timespec="minutes") if rise else None,
+            "set": sett.isoformat(timespec="minutes") if sett else None,
+            "up": alt > 0, "verdict": verdict, "reasons": reasons}
+
+
+# --- the meteor showers ------------------------------------------------------
+#
+# Meteor scatter keeps a calendar as well as a clock. The big annual showers
+# are as regular as the tides, and a VHF operator plans a weekend round the
+# Perseids and the Geminids. Peak dates drift a day either way from year to
+# year; these are the usual ones. ZHR is the zenithal hourly rate, the
+# visual figure - for radio, more is more.
+
+SHOWERS = [
+    ("Quadrantids", 1, 3, 110), ("Lyrids", 4, 22, 18), ("Eta Aquariids", 5, 6, 50),
+    ("Delta Aquariids", 7, 30, 25), ("Perseids", 8, 12, 100), ("Orionids", 10, 21, 20),
+    ("Leonids", 11, 17, 15), ("Geminids", 12, 14, 150), ("Ursids", 12, 22, 10),
+]
+
+
+def meteor_outlook(when=None):
+    """The shower on now, if one is within two days of its peak, and the
+    next one coming."""
+    when = when or datetime.now(timezone.utc)
+    today = when.date()
+    peaks = []
+    for name, m, d, zhr in SHOWERS:
+        for year in (today.year, today.year + 1):
+            peaks.append((datetime(year, m, d, tzinfo=timezone.utc).date(), name, zhr))
+    peaks.sort()
+    on = [(p, n, z) for p, n, z in peaks if abs((p - today).days) <= 2]
+    ahead = [(p, n, z) for p, n, z in peaks if p > today]
+    out = {}
+    if on:
+        p, n, z = on[0]
+        out["now"] = {"name": n, "peak": p.isoformat(), "zhr": z, "days": (p - today).days}
+    if ahead:
+        p, n, z = ahead[0]
+        out["next"] = {"name": n, "peak": p.isoformat(), "zhr": z, "days": (p - today).days}
+    return out
+
+
+def moon_track(start=None, hours=24.0, step_minutes=15.0):
+    """The moon's hour angle, declination and distance, and the sun's hour
+    angle and declination, at each step through the window - enough for a
+    page to paint where on Earth the moon is up at any minute of the next
+    day without asking again. A place sees the moon when
+
+        sin(alt) = sin(lat) sin(dec) + cos(lat) cos(dec) cos(gha + lon)
+
+    is positive; everything about the common window is that one line, done
+    for every place at once."""
+    start = start or datetime.now(timezone.utc)
+    start = start.astimezone(timezone.utc) if start.tzinfo else start.replace(tzinfo=timezone.utc)
+    start = start.replace(second=0, microsecond=0)
+    out, step = [], timedelta(minutes=float(step_minutes))
+    when = start
+    while when <= start + timedelta(hours=float(hours)):
+        moon, sun = moon_position(when), sun_position(when)
+        out.append({"t": when.isoformat(timespec="minutes"),
+                    "gha": round(moon["gha"], 3), "dec": round(moon["dec"], 3),
+                    "distance_km": round(moon["distance_km"]),
+                    "sun_gha": round(sun["gha"], 3), "sun_dec": round(sun["dec"], 3)})
+        when += step
+    return out
+
+
+def common_window(lat, lon, lat2, lon2, start=None, hours=24.0, floor=0.0):
+    """When both ends see the moon: `(open, close)` pairs in UTC through the
+    window, the moon at least `floor` degrees up at each. Two stations can
+    only work each other off the moon while both can point at it, and the
+    schedule everybody keeps is this list."""
+    start = start or datetime.now(timezone.utc)
+    start = start.astimezone(timezone.utc) if start.tzinfo else start.replace(tzinfo=timezone.utc)
+    step, end = timedelta(minutes=5), start + timedelta(hours=float(hours))
+    spans, opened, when = [], None, start
+    while when <= end:
+        moon = moon_position(when)
+        both = (moon_altitude_azimuth(lat, lon, when, moon)[0] >= floor
+                and moon_altitude_azimuth(lat2, lon2, when, moon)[0] >= floor)
+        if both and opened is None:
+            opened = when
+        elif not both and opened is not None:
+            spans.append((opened, when))
+            opened = None
+        when += step
+    if opened is not None:
+        spans.append((opened, end))
+    return spans

@@ -1325,3 +1325,7 @@ body.hs-held { overflow: hidden; }
 
 /* A number a person watches move: the CW ratings. */
 .big-number { font-size: 2.2rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+
+/* ---------- the EME page's legend ---------- */
+.eme-swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: 3px;
+              vertical-align: -2px; margin-right: .25rem; }
