@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from elmer import geocode
+from elmer import geocode, regions
 
 CITIES = """
 Seattle WA|Spokane WA|Tacoma WA|Yakima WA|Bellingham WA|Olympia WA|Vancouver WA
@@ -76,16 +76,43 @@ Nassau BS|Havana CU|San Juan PR|Hamilton BM
 """.replace("\n", "|").strip("|")
 
 names = [c.strip() for c in CITIES.split("|") if c.strip()]
-seen, out, missed = set(), [], []
+
+# What is already on disk is kept where it is right. "Right" is checked, not
+# assumed: "Mobile AL" once came back as Mobile, New South Wales, and
+# "Sheridan WY" as a street in London, because the query never said which
+# country. Anything outside its region's box is asked again with the region
+# spelled out, and dropped if it still lands elsewhere.
+try:
+    have = {(p["name"], p["region"]): p
+            for p in json.load(open(ROOT / "data" / "places.json"))["places"]}
+except (OSError, ValueError, KeyError):
+    have = {}
+
+
+def lookup(label, region):
+    for query in (f"{label}, {regions.NAMES.get(region, region)}", f"{label} {region}"):
+        place = geocode.resolve(query)
+        if place and place.get("lat") is not None and regions.inside(region, place["lat"], place["lon"]):
+            return place
+    return None
+
+
+seen, out, missed, fixed = set(), [], [], []
 for n, name in enumerate(names, 1):
     if name in seen:
         continue
     seen.add(name)
-    place = geocode.resolve(name)
-    if place and place.get("lat") is not None:
-        label, region = name.rsplit(" ", 1)
+    label, region = name.rsplit(" ", 1)
+    kept = have.get((label, region))
+    if kept and regions.inside(region, kept["lat"], kept["lon"]):
+        out.append(kept)
+        continue
+    place = lookup(label, region)
+    if place:
         out.append({"name": label, "region": region,
                     "lat": round(place["lat"], 4), "lon": round(place["lon"], 4)})
+        if kept:
+            fixed.append(name)
     else:
         missed.append(name)
     if n % 50 == 0:
@@ -96,4 +123,4 @@ json.dump({"note": "Coordinates from OpenStreetMap Nominatim; the names are "
                    "actually reach from where the operator is.",
            "places": sorted(out, key=lambda p: (p["region"], p["name"]))},
           open(ROOT / "data" / "places.json", "w"), indent=1)
-print(f"wrote {len(out)} places; could not resolve {len(missed)}: {missed[:10]}")
+print(f"wrote {len(out)} places; moved {len(fixed)}: {fixed}; could not resolve {len(missed)}: {missed[:10]}")

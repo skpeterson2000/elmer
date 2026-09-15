@@ -112,8 +112,8 @@
   {
    "name": "Mobile",
    "region": "AL",
-   "lat": -33.2838,
-   "lon": 151.5647
+   "lat": 30.6913,
+   "lon": -88.0438
   },
   {
    "name": "Montgomery",
@@ -370,14 +370,14 @@
   {
    "name": "Hartford",
    "region": "CT",
-   "lat": 42.3144,
-   "lon": -71.0729
+   "lat": 41.7646,
+   "lon": -72.6909
   },
   {
    "name": "New Haven",
    "region": "CT",
-   "lat": 22.2666,
-   "lon": 114.1923
+   "lat": 41.3082,
+   "lon": -72.9251
   },
   {
    "name": "Havana",
@@ -448,8 +448,8 @@
   {
    "name": "Albany",
    "region": "GA",
-   "lat": 51.519,
-   "lon": -2.5463
+   "lat": 31.5782,
+   "lon": -84.1557
   },
   {
    "name": "Atlanta",
@@ -466,8 +466,8 @@
   {
    "name": "Columbus",
    "region": "GA",
-   "lat": 43.183,
-   "lon": -79.8146
+   "lat": 32.4611,
+   "lon": -84.988
   },
   {
    "name": "Macon",
@@ -478,8 +478,8 @@
   {
    "name": "Savannah",
    "region": "GA",
-   "lat": 43.4129,
-   "lon": -79.7028
+   "lat": 32.079,
+   "lon": -81.0921
   },
   {
    "name": "Valdosta",
@@ -520,8 +520,8 @@
   {
    "name": "Waimea",
    "region": "HI",
-   "lat": -46.0864,
-   "lon": 168.943
+   "lat": 20.0217,
+   "lon": -155.6686
   },
   {
    "name": "Cedar Rapids",
@@ -742,26 +742,26 @@
   {
    "name": "Baton Rouge",
    "region": "LA",
-   "lat": 28.2973,
-   "lon": -82.5023
+   "lat": 30.4494,
+   "lon": -91.187
   },
   {
    "name": "Lafayette",
    "region": "LA",
-   "lat": 39.1561,
-   "lon": -84.5134
+   "lat": 30.2262,
+   "lon": -92.0178
   },
   {
    "name": "Lake Charles",
    "region": "LA",
-   "lat": 29.6175,
-   "lon": -81.2666
+   "lat": 30.2305,
+   "lon": -93.217
   },
   {
    "name": "Monroe",
    "region": "LA",
-   "lat": 41.7518,
-   "lon": -72.6417
+   "lat": 32.5025,
+   "lon": -92.1162
   },
   {
    "name": "New Orleans",
@@ -1012,8 +1012,8 @@
   {
    "name": "Greenville",
    "region": "MS",
-   "lat": 34.8577,
-   "lon": -82.3703
+   "lat": 33.4111,
+   "lon": -91.0636
   },
   {
    "name": "Gulfport",
@@ -1024,14 +1024,14 @@
   {
    "name": "Jackson",
    "region": "MS",
-   "lat": 29.735,
-   "lon": -95.3255
+   "lat": 32.2999,
+   "lon": -90.183
   },
   {
    "name": "Meridian",
    "region": "MS",
-   "lat": 47.3933,
-   "lon": -122.1801
+   "lat": 32.3643,
+   "lon": -88.7037
   },
   {
    "name": "Tupelo",
@@ -1594,8 +1594,8 @@
   {
    "name": "Providence",
    "region": "RI",
-   "lat": 51.4325,
-   "lon": -2.6643
+   "lat": 41.824,
+   "lon": -71.4128
   },
   {
    "name": "Charleston",
@@ -1870,8 +1870,8 @@
   {
    "name": "Richmond",
    "region": "VA",
-   "lat": -32.8652,
-   "lon": 151.5012
+   "lat": 37.5385,
+   "lon": -77.4343
   },
   {
    "name": "Roanoke",
@@ -2008,26 +2008,26 @@
   {
    "name": "Casper",
    "region": "WY",
-   "lat": 38.3066,
-   "lon": -122.3467
+   "lat": 42.8501,
+   "lon": -106.3251
   },
   {
    "name": "Cheyenne",
    "region": "WY",
-   "lat": 45.2519,
-   "lon": -75.7307
+   "lat": 41.14,
+   "lon": -104.8202
   },
   {
    "name": "Rock Springs",
    "region": "WY",
-   "lat": 34.1621,
-   "lon": -117.9013
+   "lat": 41.5861,
+   "lon": -109.2195
   },
   {
    "name": "Sheridan",
    "region": "WY",
-   "lat": 51.4098,
-   "lon": -0.0368
+   "lat": 44.7948,
+   "lon": -106.8223
   },
   {
    "name": "Whitehorse",
