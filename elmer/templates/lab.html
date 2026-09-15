@@ -17,6 +17,7 @@
   <button class="btn sm ghost" data-tab="smith">Smith chart</button>
   <button class="btn sm ghost" data-tab="db">Decibels</button>
   <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
+  {% for b in benches %}<button class="btn sm ghost" data-tab="{{ b.key }}">{{ b.title }}</button>{% endfor %}
 </div>
 <p class="tiny muted" style="margin:.5rem 0 0">
   The analyser, the sextant and the exposure evaluation have moved to
@@ -466,9 +467,19 @@
 </div>
 
 
+{% from "_bench.html" import bench_pane %}
+{% set calc = {
+  "The power line": '<div class="bench-calc"><div class="grid cols-3">
+      <div class="field"><label>Mast or antenna height above its base (feet)</label><input id="bf-h" value="30"></div>
+      <div class="field"><label>Nearest power line from the base (feet)</label><input id="bf-d" value="35"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bf-go">Check it</button></div>
+    </div><div id="bf-out" class="small mt"></div></div>'
+} %}
+{% for b in benches %}{{ bench_pane(b, bench_questions, calculators=calc) }}{% endfor %}
 {% endblock %}
 {% block scripts %}
 <script>window.QTH = {{ (qth or {})|tojson }};
 window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+<script src="{{ asset('bench.js') }}"></script>
 <script src="{{ asset('lab.js') }}"></script>
 {% endblock %}

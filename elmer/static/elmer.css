@@ -1345,3 +1345,9 @@ body.hs-held { overflow: hidden; }
 .ro-step.next { border-left-color: var(--green); }
 .ro-step.done { opacity: .7; }
 .ro-step.done b { text-decoration: line-through; text-decoration-color: var(--dimmer); }
+
+/* ---------- the bench cards: instruments on Tools, safety on the Lab ---------- */
+.bench-card { border-top: 1px solid var(--line); padding-top: .3rem; margin-top: .6rem; }
+.bench-card:first-of-type { border-top: 0; }
+.bench-calc { margin: .5rem 0 .3rem; padding: .5rem .7rem; border: 1px dashed var(--line-2); border-radius: 8px; }
+.bench-calc .field { margin-bottom: 0; }

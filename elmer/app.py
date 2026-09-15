@@ -31,18 +31,19 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
 
 from . import (
     activations, activationspdf, antenna_advice, antennapdf, autoplay, bandpdf,
-    bandplan, bugreport, calibrate, callsign, celestial, certpdf,
-    cohort, conductors, cw, db, devreset, diagnostics,
-    difficulty, discovery, exams, explain, fieldkit, fieldreport,
-    forecastlog, game, gating, geocode, golf, golfmap,
-    gps, groundwave, hall, host, ionosonde, landmarks,
-    library, logs, mail, monitoring, nanovna, netcontrol,
-    netwatch, op25, party, pathto, patterns, personal,
-    phonegps, places, pota, prints, programmes, propagation,
-    qr, ranks, reachout, references, regional, repeaters,
-    rfexposure, rfpdf, show, smith, spotlog, srs,
-    sweeps, terrain, touchstone, tournament, towerwitch, track,
-    trivia, units, update, vna, weather, whipbuild,
+    bandplan, bench, bugreport, calibrate, callsign, celestial,
+    certpdf, cohort, conductors, cw, db, devreset,
+    diagnostics, difficulty, discovery, exams, explain, fieldkit,
+    fieldreport, forecastlog, game, gating, geocode, golf,
+    golfmap, gps, groundwave, hall, host, ionosonde,
+    landmarks, library, logs, mail, monitoring, nanovna,
+    netcontrol, netwatch, op25, party, pathto, patterns,
+    personal, phonegps, places, pota, prints, programmes,
+    propagation, qr, ranks, reachout, references, regional,
+    repeaters, rfexposure, rfpdf, show, smith, spotlog,
+    srs, sweeps, terrain, touchstone, tournament, towerwitch,
+    track, trivia, units, update, vna, weather,
+    whipbuild,
 )
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
@@ -2203,7 +2204,10 @@ def api_cw_result():
 
 @app.route("/lab")
 def lab():
-    return render_template("lab.html", **profile_block(conn()))
+    benches = bench.for_page("lab")
+    return render_template("lab.html", benches=benches,
+                           bench_questions=bench.questions_for(benches, load_pools()),
+                           **profile_block(conn()))
 
 
 @app.route("/tools")
@@ -2214,7 +2218,10 @@ def tools():
     and these are not: no element has ever asked how to drive a NanoVNA or
     take a sun sight. They are worth having and they were worth moving.
     """
-    return render_template("tools.html", **profile_block(conn()))
+    benches = bench.for_page("tools")
+    return render_template("tools.html", benches=benches,
+                           bench_questions=bench.questions_for(benches, load_pools()),
+                           **profile_block(conn()))
 
 
 # --------------------------------------------------------------------------

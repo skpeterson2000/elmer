@@ -1,0 +1,34 @@
+{# One bench of cards - the instruments on Tools, the safety on the Lab -
+   from elmer/bench.py. Each card: what it is, how it is used, what the
+   readings mean, why; then the pool's own questions on it, so the card and
+   the exam agree, with a press into the study drill. A calculator goes
+   under the card it belongs to, by key. #}
+{% macro bench_pane(bench, questions, hidden=True, calculators={}) %}
+<div class="panel mt lab-pane" id="pane-{{ bench.key }}" {% if hidden %}hidden{% endif %}>
+  <div class="panel-title">{{ bench.title }}</div>
+  <p class="small muted" style="max-width:80ch">{{ bench.lead }}</p>
+  {% for card in bench.cards %}
+    <div class="bench-card">
+      <div class="panel-title" style="margin:.9rem 0 .2rem">{{ card.title }}</div>
+      <p class="small" style="margin:.2rem 0">{{ card.what }}</p>
+      <p class="small" style="margin:.35rem 0"><b>How.</b> {{ card.how }}</p>
+      <p class="small" style="margin:.35rem 0"><b>What it reads.</b> {{ card.reads }}</p>
+      <p class="small muted" style="margin:.35rem 0"><b>Why.</b> {{ card.why }}</p>
+      {% if calculators.get(card.title) %}{{ calculators[card.title]|safe }}{% endif %}
+      {% set asked = [] %}
+      {% for qid in card.exam %}{% if questions.get(qid) %}{% set _ = asked.append(questions[qid]) %}{% endif %}{% endfor %}
+      {% if asked %}
+      <details class="derivation">
+        <summary class="tiny">The exam asks it &mdash; {{ asked|length }} question{{ '' if asked|length == 1 else 's' }}</summary>
+        <ul class="tiny muted" style="margin:.4rem 0 0;padding-left:1.1rem;line-height:1.5">
+          {% for q in asked %}
+            <li><a href="/study/{{ q.pool }}?section={{ q.section }}"><span class="mono">{{ q.id }}</span></a> {{ q.text }}
+              <span style="color:var(--dim)">&mdash; {{ q.answer_text }}</span></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endmacro %}

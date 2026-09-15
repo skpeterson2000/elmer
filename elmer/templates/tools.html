@@ -17,6 +17,7 @@
   <button class="btn sm primary" data-tab="vna">VNA</button>
   <button class="btn sm ghost" data-tab="sextant">Sextant</button>
   <button class="btn sm ghost" data-tab="rf">RF exposure</button>
+  {% for b in benches %}<button class="btn sm ghost" data-tab="{{ b.key }}">{{ b.title }}</button>{% endfor %}
 </div>
 
 <!-- ----------------------------------------------------------------- vna -->
@@ -518,10 +519,33 @@
   <div id="dev-list" hidden></div>
 </div>
 
+{% from "_bench.html" import bench_pane %}
+{# The calculators, under the cards they belong to. #}
+{% set calc = {
+  "The antenna analyser": '<div class="bench-calc"><div class="grid cols-3">
+      <div class="field"><label>R the analyser shows (ohms)</label><input id="bc-r" value="35"></div>
+      <div class="field"><label>X, with its sign (ohms)</label><input id="bc-x" value="+22"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bc-go">Read it</button></div>
+    </div><div id="bc-out" class="small mt"></div></div>',
+  "Volts at the supply, volts at the radio": '<div class="bench-calc"><div class="grid cols-4">
+      <div class="field"><label>Wire gauge (AWG)</label><select id="bd-awg" class="mono"><option>8</option><option>10</option><option selected>12</option><option>14</option><option>16</option><option>18</option></select></div>
+      <div class="field"><label>Run, one way (feet)</label><input id="bd-feet" value="10"></div>
+      <div class="field"><label>Current on transmit (amps)</label><input id="bd-amps" value="20"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bd-go">Work it out</button></div>
+    </div><div id="bd-out" class="small mt"></div></div>',
+  "The battery": '<div class="bench-calc"><div class="grid cols-4">
+      <div class="field"><label>Battery (amp-hours)</label><input id="bb-ah" value="20"></div>
+      <div class="field"><label>Receive draw (amps)</label><input id="bb-rx" value="1"></div>
+      <div class="field"><label>Transmit draw (amps)</label><input id="bb-tx" value="20"></div>
+      <div class="field"><label>Time transmitting (%)</label><input id="bb-share" value="20"></div>
+    </div><div id="bb-out" class="small mt"></div></div>'
+} %}
+{% for b in benches %}{{ bench_pane(b, bench_questions, calculators=calc) }}{% endfor %}
 {% endblock %}
 {% block scripts %}
 <script>window.QTH = {{ (qth or {})|tojson }};
 window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+<script src="{{ asset('bench.js') }}"></script>
 {# One script serves both benches. Every pane in it is guarded on the elements
    it needs, so the half that is not on this page simply does not start. #}
 <script src="{{ asset('lab.js') }}"></script>
