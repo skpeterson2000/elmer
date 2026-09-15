@@ -104,6 +104,12 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 - `call-fairway-1`: Pured it.
 - `call-fairway-2`: Right down the middle.
 - `call-fairway-3`: That'll play.
+- `call-fairway-4`: Nice shot!
+- `call-fairway-5`: On the fairway.
+- `call-rough-4`: In the rough.
+- `call-sand-4`: Found the bunker.
+- `call-water-4`: That's swimming.
+- `call-water-5`: Are you going after that?
 - `call-green-1`: On the dance floor.
 - `call-green-2`: Stuck it.
 - `call-green-3`: That's looking at it.
@@ -121,7 +127,7 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 - `call-sand-3`: Beach.
 - `call-water-1`: Hooked it into the water.
 - `call-water-2`: Wet.
-- `call-water-3`: That's a splash. What was the wind?
+- `call-water-3`: That's a splash - what was the wind?
 - `call-missed-1`: Lipped out.
 - `call-missed-2`: Left it short.
 - `call-missed-3`: Burned the edge.

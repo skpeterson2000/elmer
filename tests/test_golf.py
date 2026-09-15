@@ -137,6 +137,11 @@ def run():
 
     print("\n-- the round: the card, the leaderboard --")
     c = golf.course("pebble-beach")
+    # Two golfers playing the same shots must score the same: no holing out
+    # from the fairway by the odds here, which is a draw the two would not
+    # share.
+    HOLE_OUT = golf.HOLE_OUT_ODDS
+    golf.HOLE_OUT_ODDS = 0.0
     g = golf.Golf(["ann", "bob"], c, holes=range(1, 4), handicaps={"bob": 2}, seed=7, seconds=30)
     check("three holes to play", g.as_dict()["holes"], 3)
     played = 0
@@ -150,6 +155,7 @@ def run():
     ann = next(r for r in board if r["player"] == "ann")
     bob = next(r for r in board if r["player"] == "bob")
     check("  gross is the same, so the net leads", (ann["gross"] == bob["gross"], board[0]["player"]), (True, "bob"))
+    golf.HOLE_OUT_ODDS = HOLE_OUT
     check("  and bob wins it", g.winner(), "bob")
 
     print("\n-- a tie goes to a playoff hole --")

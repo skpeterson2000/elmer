@@ -167,13 +167,14 @@ ACE_ODDS = 0.02
 # coloured answer - and a clip of the swing can go with it later; the
 # reveal looks for static/golf/clips/<kind>.gif and shows it if it is there.
 CALLS = {
-    "fairway": ["Pured it.", "Right down the middle.", "That'll play."],
-    "green": ["On the dance floor.", "Stuck it.", "That's looking at it."],
+    "fairway": ["Pured it.", "Right down the middle.", "That'll play.", "Nice shot!", "On the fairway."],
+    "green": ["On the dance floor.", "Stuck it.", "That's looking at it.", "Nice shot!"],
     "long": ["Flew the green.", "Too much club.", "Airmailed it."],
     "holed": ["In the hole!", "Drained it.", "Bottom of the cup."],
-    "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one."],
-    "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach."],
-    "water": ["Hooked it into the water.", "Wet.", "That's a splash - what was the wind?"],
+    "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one.", "In the rough."],
+    "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach.", "Found the bunker."],
+    "water": ["Hooked it into the water.", "Wet.", "That's a splash - what was the wind?",
+              "That's swimming.", "Are you going after that?"],
     "missed": ["Lipped out.", "Left it short.", "Burned the edge."],
 }
 # How hard a question the lie asks for, as a place in the pool's measured
