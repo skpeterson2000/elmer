@@ -969,7 +969,11 @@ async function tick() {
     // Two moments after the close: the reveal - every choice still up, the
     // right one green - and then the stand, when the wrong ones have fallen
     // away and the results are read against the one that was right.
-    const phase = (round.closed_for || 0) < REVEAL_HOLD_S ? 'reveal' : 'stand';
+    // In golf there is no reveal phase: the shot is described first, alone,
+    // and the answer - theirs and the right one - comes after it. The ball
+    // in the fairway is what makes the answer stick; shown first it is
+    // just a score.
+    const phase = s.golf ? 'stand' : ((round.closed_for || 0) < REVEAL_HOLD_S ? 'reveal' : 'stand');
     const key = 'closed' + round.number + phase + (shoot ? (shoot.picker || '') + (shoot.pick || '') : '');
     if (painted === key) { paintPickClock(shoot); return; }
     painted = key;
@@ -1004,10 +1008,13 @@ async function tick() {
         ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button><span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
         : '';
       if (mineHere.length) {
-        stage.innerHTML = golfHead(s.golf) + `<div class="golfstage"><div>
+        // The second beat: the answer at the top - the question, every
+        // choice, theirs and the right one - the shot beside it, and the
+        // hole under a rule, after the thing to learn.
+        stage.innerHTML = `<div class="golfstage"><div>
           <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` + boardHTML(q, round.answer, true) + `</div>
           <div><div class="stage-seats">${mineHere.map(x => seatVerdictHTML(x, round, shoot, true)).join('')}</div>${golfPlayback(s.golf)}${next}</div></div>` +
-          golfBalls(s.golf);
+          `<div class="golfunder">${golfHead(s.golf)}${golfBalls(s.golf)}</div>`;
       } else {
       stage.innerHTML = `
         <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` +

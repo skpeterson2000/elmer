@@ -110,6 +110,7 @@ let me = null;              // {id, name, cohort}
 let shownRound = null;      // round number currently painted
 let paintedAt = 0;          // when this phone actually drew the question
 let answered = false;
+let myChoice = null;        // which choice this phone tapped, for the reveal
 let poll = null;
 
 const view = document.getElementById('view');
@@ -507,6 +508,7 @@ async function send(index, button) {
   // The interval this phone measured, from painting the question to the tap.
   // Network time is deliberately not in it - that is the whole point.
   const ms = Math.round(performance.now() - paintedAt);
+  myChoice = index;
   document.querySelectorAll('.choice').forEach(b => { b.disabled = true; });
   button.classList.add('picked');
   const r = await api('/api/party/answer', {player: me.id, chosen: index, ms});
@@ -604,7 +606,14 @@ function paintResults(round, shoot) {
       setTimeout(() => { shownRound = null; }, 4000);
       return;
     }
-    view.innerHTML = `${golfHeadHTML(gf)}${golfPlaybackHTML(gf)}
+    // After the shot: the answer, kept for those still learning - the
+    // question, what they tapped, and the right one, together.
+    const q = round.question || {};
+    const rightAt = (q.choices || []).indexOf(round.answer);
+    const answers = wasMine ? `<p class="big" style="margin:.6rem 0 .4rem">${escapeHTML(q.text || '')}</p>
+      <div id="choices">${(q.choices || []).map((c, i) => `<button class="choice ${i === rightAt ? 'right' : (i === myChoice ? 'wrong' : '')}" disabled>
+        <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('')}</div>` : '';
+    view.innerHTML = `${golfPlaybackHTML(gf)}${answers}${golfHeadHTML(gf)}
       ${wasMine && !gf.over ? `<p style="padding:.6rem 0 0"><button class="choice" id="next-stroke" style="text-align:center"><b>Next stroke &rsaquo;</b></button>
         <span class="tiny muted" style="display:block;margin-top:.3rem">Read it first; the round waits for you.</span></p>` : ''}
       <p class="state" style="padding:1rem 0">${gf.over ? `<b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.`
