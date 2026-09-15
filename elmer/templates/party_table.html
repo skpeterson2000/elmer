@@ -1328,6 +1328,25 @@ function ballKeyEnd() {
 }
 document.addEventListener('keydown', e => { if (ballKey && e.code === 'Space' && !e.repeat) { e.preventDefault(); ballKeyStart(e); } });
 document.addEventListener('keyup', e => { if (ballKey && e.code === 'Space') { e.preventDefault(); ballKeyEnd(); } });
+/* A paddle wired to two keys: the left lever is the dit, the right the dah,
+   each a made element at the table's speed - a simple keyer, no squeeze.
+   The decoder is fed the element and the gap before it, as a hand would. */
+const PADDLE_WPM = 15;
+function ballElement(dah) {
+  if (!ballKey) return;
+  const dit = 1200 / PADDLE_WPM, ms = dah ? dit * 3 : dit, now = performance.now();
+  if (ballKey.lastUp) ballKey.decoder.space(now - ballKey.lastUp);
+  ballKey.decoder.mark(ms);
+  ballKey.lastUp = now + ms;
+  if (ballPlayer) { ballPlayer.down(); setTimeout(() => ballPlayer.up(), ms); }
+  const out = document.getElementById('ball-keyed');
+  if (out) out.textContent = ballKey.decoder.text + ballKey.decoder.symbols.join('');
+}
+document.addEventListener('keydown', e => {
+  if (!ballKey || e.repeat) return;
+  if (e.code === 'ArrowLeft') { e.preventDefault(); ballElement(false); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); ballElement(true); }
+});
 
 function paintBaseball(s) {
   const b = s.baseball;
@@ -1349,19 +1368,19 @@ function paintBaseball(s) {
   } else if (b.phase === 'between') {
     main = `<p class="narrator">${b.inning === 1 && b.half === 'top' && !b.line.A.length ? 'Play ball.' : 'Side retired.'} ${b.half === 'top' ? 'Top' : 'Bottom'} of the ${b.inning}${ordinal(b.inning)} - Side ${b.batting} bats, Side ${b.fielding} fields. The pitch: ${esc(b.level)} at ${b.wpm} wpm.</p>`;
   } else if (b.phase === 'pitch') {
-    main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; the pitch is ${esc(b.level)}, ${b.wpm} wpm &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
-      (mine ? `<div class="hitrow"><input class="hs-name" id="ball-typed" placeholder="type what you copied" autocomplete="off" style="max-width:20rem;font-family:var(--mono)">
+    main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; the pitch is ${esc(b.level)}, ${b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' &middot; copy the call that is calling CQ' : ''} &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
+      (mine ? `<div class="hitrow"><input class="hs-name" id="ball-typed" placeholder="${b.pitch && b.pitch.kind === 'contact' ? 'the call that is calling' : 'type what you copied'}" autocomplete="off" style="max-width:20rem;font-family:var(--mono)">
                <button class="btn primary" data-ball-swing="${mine.id}">Swing</button></div>` :
        `<p class="hint" style="text-align:left">${b.batter_name} copies it on their phone. Everybody else: copy along.</p>`);
   } else if (b.phase === 'field') {
-    main = `<p class="narrator">In play! <b>${esc(b.fielder_name)}</b> has it &middot; key back <span class="mono">${esc(b.pitch.plain)}</span> &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
-      (fielding ? `<div class="hitrow"><p class="hint" style="text-align:left">Hold the <b>space bar</b> as a straight key. Keyed so far: <span class="mono" id="ball-keyed"></span></p>
+    main = `<p class="narrator">In play! <b>${esc(b.fielder_name)}</b> has it &middot; ${b.pitch.kind === 'contact' ? 'answer the call' : 'key back'} <span class="mono">${esc(b.pitch.key || b.pitch.plain)}</span> &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
+      (fielding ? `<div class="hitrow"><p class="hint" style="text-align:left">Hold the <b>space bar</b> as a straight key, or a paddle on the <b>arrow keys</b>: left dits, right dahs. Keyed so far: <span class="mono" id="ball-keyed"></span></p>
                    <button class="btn primary" data-ball-throw="${fielding.id}">Throw</button></div>` :
        `<p class="hint" style="text-align:left">${b.fielder_name} keys it on their phone.</p>`);
     if (fielding && !ballKey) ballKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0, player: fielding.id};
   } else {
     main = `<p class="narrator">${esc((b.last && b.last.words) || '')}</p>` +
-      (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.keyed !== undefined ? ' · keyed as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
+      (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.want && b.last.want !== b.last.pitch ? ' (the call: <span class="mono">' + esc(b.last.want) + '</span>)' : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.key && b.last.key !== b.last.pitch ? ' · to answer: <span class="mono">' + esc(b.last.key) + '</span>' : ''}${b.last.keyed !== undefined ? ' · keyed as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
   }
   stage.innerHTML = `<div class="golfstage golfstage-map"><div>
       <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'}</div>

@@ -35,6 +35,9 @@ LEVELS = [
     {"kind": "word", "bases": 2, "name": "a word"},
     {"kind": "call", "bases": 3, "name": "a call and a report"},
     {"kind": "exchange", "bases": 4, "name": "the exchange"},
+    # the contact: the pitcher calls CQ, the batter copies the call, and the
+    # fielder answers it - their own call - which is the ritual of the air
+    {"kind": "contact", "bases": 4, "name": "a contact"},
 ]
 WORDS = ["RADIO", "ANTENNA", "SIGNAL", "REPEAT", "STATION", "COPY", "TOWER", "GROUND", "TUNER", "BAND",
          "FILTER", "POWER", "METER", "NIGHT", "MORNING", "COAX", "DIPOLE", "BEACON", "QSL", "RIG"]
@@ -116,8 +119,12 @@ class Baseball:
         return self.phase == "over"
 
     def level(self):
-        """The pitch's level: the inning's, capped at the top."""
-        return min(len(LEVELS) - 1, self.inning - 1)
+        """The pitch's level: the inning's, capped below the top - and the
+        last inning of the game, whatever number it is, pitches the contact
+        every other time, so the end-game is the air itself."""
+        if self.inning >= self.innings and self.inning > 1 and self.rng.random() < 0.5:
+            return len(LEVELS) - 1
+        return min(len(LEVELS) - 2, self.inning - 1)
 
     def wpm(self):
         return round(self.base_wpm + INNING_WPM * (self.inning - 1), 1)
@@ -136,6 +143,8 @@ class Baseball:
         if kind == "call":
             return f"{r.choice(PREFIXES)}{''.join(r.choice(letters) for _ in range(r.choice((2, 3))))} 5{r.choice('789')}9"
         call = f"{r.choice(PREFIXES)}{''.join(r.choice(letters) for _ in range(3))}"
+        if kind == "contact":
+            return f"CQ CQ CQ DE {call} {call} K"
         return f"CQ CQ DE {call} {call} K"
 
     def new_pitch(self):
@@ -155,9 +164,15 @@ class Baseball:
         # how long the pitch sounds, then how long to type it
         sounds = sum(len(cw.MORSE.get(c, "")) for c in text.replace(" ", "")) * 2.5 * timing["dit"] / 1000.0 + \
             len(text.split()) * timing["word_gap"] / 1000.0
-        self.pitch = {"n": len(self.plays) + 1, "kind": LEVELS[level]["kind"], "name": LEVELS[level]["name"],
+        kind = LEVELS[level]["kind"]
+        # what each side must produce: the whole text, except in a contact -
+        # the batter copies the call that was heard, the fielder answers it
+        called = text.split()[3] if kind == "contact" else None
+        self.pitch = {"n": len(self.plays) + 1, "kind": kind, "name": LEVELS[level]["name"],
                       "bases": LEVELS[level]["bases"], "text": text, "plain": cw.plain(text),
                       "groups": cw.encode(text), "timing": timing, "wpm": wpm,
+                      "want": called or cw.plain(text),
+                      "answer": (f"{called} DE" if called else None),
                       "sounds": round(sounds, 1), "window": round(max(COPY_LEAST, chars * COPY_SECONDS), 1)}
         self.phase = "pitch"
         self.deadline = _now() + self.pitch["sounds"] + self.pitch["window"]
@@ -181,9 +196,11 @@ class Baseball:
             return
         text = self.pitch["plain"]
         if self.phase == "pitch":
+            want = self.pitch["want"]
             clean = self.rng.random() < BOT_SWING.get(level, 0.5)
-            self.swing(who, text if clean else text[:max(1, len(text) // 2)] + "?")
+            self.swing(who, want if clean else want[:max(1, len(want) // 2)] + "?")
         else:
+            text = self.pitch.get("key") or text
             roll = self.rng.random()
             odds = BOT_FIELD.get(level, 0.5)
             got = text if roll < odds else (text[:-1] + "?" if roll < odds + 0.3 else "??")
@@ -196,9 +213,10 @@ class Baseball:
             return {"error": "no pitch to swing at"}
         if player != self.batter:
             return {"error": f"not your at-bat - {self.name(self.batter)} is up"}
-        pct = accuracy(self.pitch["plain"], typed)
+        pct = accuracy(self.pitch["want"], typed)
         play = {"n": self.pitch["n"], "batter": player, "batter_name": self.name(player), "typed": str(typed or "")[:60],
-                "pitch": self.pitch["plain"], "copy_pct": pct, "kind": self.pitch["kind"], "bases": self.pitch["bases"]}
+                "pitch": self.pitch["plain"], "want": self.pitch["want"], "copy_pct": pct, "kind": self.pitch["kind"],
+                "bases": self.pitch["bases"]}
         if pct >= HIT_PCT:
             play["result"] = "in play"
             play["words"] = f"{self.name(player)} copied {self.pitch['name']} clean - in play, {self.pitch['bases']} base{'s' if self.pitch['bases'] > 1 else ''} if it drops"
@@ -231,6 +249,15 @@ class Baseball:
         self.next_fielder[team] += 1
         play["fielder"] = self.fielder
         play["fielder_name"] = self.name(self.fielder)
+        # the fielder keys the text back - or, in a contact, answers the
+        # call with their own: "W1AW DE KC9SP"
+        if self.pitch.get("answer"):
+            own = self.name(self.fielder).upper()
+            own = own if own.replace("/", "").isalnum() and any(c.isdigit() for c in own) else "ELMER"
+            self.pitch["key"] = f"{self.pitch['answer']} {own}"
+        else:
+            self.pitch["key"] = self.pitch["plain"]
+        play["key"] = self.pitch["key"]
         self.last = play
         self.phase = "field"
         chars = len(self.pitch["plain"].replace(" ", ""))
@@ -244,7 +271,7 @@ class Baseball:
         if player != self.fielder:
             return {"error": f"not your ball - {self.name(self.fielder)} has it"}
         play = dict(self.last or {})
-        pct = 0 if late else accuracy(self.pitch["plain"], keyed)
+        pct = 0 if late else accuracy(self.pitch.get("key") or self.pitch["plain"], keyed)
         play["keyed"] = str(keyed or "")[:60]
         play["field_pct"] = pct
         bases = self.pitch["bases"]
@@ -373,7 +400,7 @@ class Baseball:
             "batting": self.batting(), "fielding": self.fielding(),
             "batter": self.batter, "batter_name": self.name(self.batter) if self.batter is not None else None,
             "fielder": self.fielder, "fielder_name": self.name(self.fielder) if self.fielder is not None else None,
-            "pitch": ({k: v for k, v in self.pitch.items() if k not in ("text", "plain")}
+            "pitch": ({k: v for k, v in self.pitch.items() if k not in ("text", "plain", "want", "answer", "key")}
                       if self.pitch and self.phase == "pitch" else
                       dict(self.pitch) if self.pitch and self.phase == "field" else None),
             "deadline_in": max(0.0, round(self.deadline - _now(), 1)),

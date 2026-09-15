@@ -991,13 +991,13 @@ function paintBaseballPhone(b) {
   else if (b.phase === 'between') main = `<p>${b.half === 'top' ? 'Top' : 'Bottom'} of the ${ordinal(b.inning)}. Side ${b.batting} bats. The pitch is ${escapeHTML(b.level)} at ${b.wpm} wpm.</p>`;
   else if (b.phase === 'pitch') {
     main = b.your_swing
-      ? `<p><b>You're up.</b> Copy the pitch and swing. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
+      ? `<p><b>You're up.</b> ${b.pitch && b.pitch.kind === 'contact' ? 'Somebody is calling CQ: copy their call and swing.' : 'Copy the pitch and swing.'} <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
          <input id="ball-typed" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="what you copied">
          <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>`
-      : `<p><b>${escapeHTML(b.batter_name)}</b> at bat. The pitch is ${escapeHTML(b.level)}, ${b.wpm} wpm. Copy along.</p>`;
+      : `<p><b>${escapeHTML(b.batter_name)}</b> at bat. The pitch is ${escapeHTML(b.level)}, ${b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' - somebody is calling CQ' : ''}. Copy along.</p>`;
   } else if (b.phase === 'field') {
     main = b.your_throw
-      ? `<p><b>Your ball.</b> Key back <span class="mono">${escapeHTML(b.pitch.plain)}</span> and throw. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
+      ? `<p><b>Your ball.</b> ${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key back'} <span class="mono">${escapeHTML(b.pitch.key || b.pitch.plain)}</span> and throw. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
          <button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
          <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>
          <p><button class="choice" id="ball-throw" style="text-align:center"><b>Throw &rsaquo;</b></button></p>`

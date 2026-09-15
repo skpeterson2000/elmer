@@ -95,12 +95,41 @@ def run():
         if g.phase == "reveal":
             g.tick(g.deadline + 1)
     check("B goes down in order in a one-inning game: A wins 1-0", (g.over(), g.winner, g.runs), (True, "A", {"A": 1, "B": 0}))
-    g = game(innings=3, seed=6)
+    g = game(innings=6, seed=6)
     check("the second inning pitches groups, faster; the fifth the exchange",
           (cwball.LEVELS[1]["kind"], cwball.LEVELS[4]["kind"], cwball.LEVELS[4]["bases"]), ("group", "exchange", 4))
     g.inning = 3
     g.new_pitch()
-    check("  the third inning: a word, two bases, three wpm faster", (g.pitch["kind"], g.pitch["bases"], g.pitch["wpm"]), ("word", 2, 13.0))
+    check("  the third inning of six: a word, two bases, three wpm faster", (g.pitch["kind"], g.pitch["bases"], g.pitch["wpm"]), ("word", 2, 13.0))
+
+    print("\n-- the contact: the top pitch of the last inning --")
+    g = cwball.Baseball({"A": [1], "B": [3]}, {1: "KC9SP", 3: "W1AW"}, innings=2, seed=11)
+    g.inning = 2
+    kinds = set()
+    for sd in range(30):
+        g.rng.seed(sd)
+        g.new_pitch()
+        kinds.add(g.pitch["kind"])
+    check("the last inning pitches the contact now and then, groups the rest of the time", kinds, {"contact", "group"})
+    while g.pitch["kind"] != "contact":
+        g.new_pitch()
+    p = g.pitch
+    check("  the pitcher calls CQ", p["plain"].startswith("CQ CQ CQ DE "), True)
+    called = p["plain"].split()[3]
+    check("  the batter has only to copy the call", p["want"], called)
+    play = g.swing(1, called)
+    check("  and a clean copy of it is in play", play["result"], "in play")
+    check("  the fielder answers the call with their own: W1AW DE - and, in this game, the caller first",
+          g.pitch["key"], f"{called} DE W1AW")
+    play = g.field(3, f"{called} DE W1AW")
+    check("  a clean answer is the out", play["result"], "out")
+    h = cwball.Baseball({"A": [1], "B": [4]}, {1: "KC9SP", 4: "Ann"}, innings=2, seed=3)
+    h.inning = 2
+    h.new_pitch()
+    while h.pitch["kind"] != "contact":
+        h.new_pitch()
+    h.swing(1, h.pitch["want"])
+    check("  a fielder without a callsign answers as ELMER", h.pitch["key"].endswith(" DE ELMER"), True)
 
     print("\n-- practice players play their part --")
     g = cwball.Baseball({"A": [1], "B": [9]}, {1: "Ann", 9: "Sparks"}, innings=1, seed=7, bots={9: "Elmer"})
