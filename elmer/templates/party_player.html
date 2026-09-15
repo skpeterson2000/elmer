@@ -427,7 +427,12 @@ function golfHeadHTML(gf) {
   // The strip takes a tap: where this golfer means the ball to land. Their
   // own ball, any time before the stroke; not on the green - that is a putt.
   const canAim = you && !you.holed && !you.picked_up && !gf.over;
-  return (onTheTee && gf.tee_pic && !gf.over
+  const standings = onTheTee && gf.holes_played > 0 && !gf.over
+    ? `<p class="clock" style="margin:0 0 .3rem">Standings after the ${ordinal(gf.holes_played)}</p><table class="board" style="margin-bottom:.6rem">${(gf.leaderboard || []).map(r =>
+        `<tr class="${r.player === me.id ? 'me' : ''}"><td class="n">${r.place}</td><td>${escapeHTML(r.name)}</td><td class="ms">${r.gross}</td><td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>` +
+      (gf.away_name ? `<p style="margin:0 0 .6rem"><b>${escapeHTML(gf.away_name)}</b> has the honour on the ${ordinal(gf.hole)}.</p>` : '')
+    : '';
+  return standings + (onTheTee && gf.tee_pic && !gf.over
       ? `<img src="${escapeHTML(gf.tee_pic)}" alt="" style="width:100%;border-radius:10px;display:block;margin-bottom:.5rem">` : '') +
     (!gf.over ? `<img id="holemap" src="/api/party/golf/map.svg?player=${me.id}&k=${encodeURIComponent(mapKey)}" alt="the hole" style="float:right;width:${canAim ? '8rem' : '6.5rem'};height:auto;border-radius:8px;margin:0 0 .4rem .6rem${canAim ? ';outline:2px solid var(--amber);outline-offset:2px' : ''}"${canAim ? ' data-aim-for="' + me.id + '"' : ''}>` : '') +
     (canAim ? `<p class="tiny muted" style="margin:0 0 .4rem">${myAim && myAim.set ? (you.lie === 'green' ? `Aiming ${Math.abs(Math.round((myAim.at - gf.yards) * 3))} ft ${(myAim.at - gf.yards) < 0 ? 'short of' : 'past'} the cup${myAim.off ? ', ' + Math.abs(Math.round(myAim.off * 3)) + ' ft ' + (myAim.off < 0 ? 'left' : 'right') : ''}. ` : `Aiming ${myAim.at} yards${myAim.off ? ', ' + Math.abs(myAim.off) + (myAim.off < 0 ? ' left' : ' right') : ''}. `) : ''}${you.lie === 'green' ? 'Tap the green where you mean the putt to die' : 'Tap the hole to set your mark'}${myAim && myAim.set ? ', or <a href="#" id="aim-clear">aim at the ' + (you.lie === 'green' ? 'cup' : 'pin') + '</a>' : ''}.</p>` : '') +
@@ -982,7 +987,9 @@ document.addEventListener('click', async e => {
   } else {
     const usable = geo.h - geo.pad_top - geo.pad_bot;
     at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
-    off = Math.round((x - geo.centre) / geo.px_per_yard);
+    const b = geo.bend;
+    const centre = (b && at > b.at) ? geo.centre + b.dir * Math.min(b.most, (at - b.at) * b.k) : geo.centre;
+    off = Math.round((x - centre) / geo.px_per_yard);
   }
   await api('/api/party/aim', {player: me.id, at, off});
   shownRound = null; tick();

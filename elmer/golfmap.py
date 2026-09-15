@@ -26,12 +26,43 @@ def geometry(h):
     """What a screen needs to turn a tap on the strip into yards: the
     box, the paddings, the centre line and the scale."""
     return {"w": W, "h": H, "pad_top": PAD_TOP, "pad_bot": PAD_BOT, "centre": CENTRE,
-            "px_per_yard": PX_PER_YARD, "yards": h["yards"]}
+            "px_per_yard": PX_PER_YARD, "yards": h["yards"], "bend": bend_of(h)}
 
 
-def _x(off):
-    """Yards off the line, as a place across the strip."""
-    return CENTRE + float(off or 0) * PX_PER_YARD
+# A dog-leg: past the bend the line of play swings left or right. The
+# strip is a yardage book's, schematic, so the swing is drawn at a third
+# of its angle and never runs off the page; the rules do not bend - a
+# ball is yards along the line and off it wherever the line goes.
+BEND_SCALE = 0.35
+BEND_MOST = 62.0
+
+
+def bend_of(h):
+    """The hole's bend as (yards, direction, lateral px per yard along), or
+    None. Direction +1 is right."""
+    b = (h or {}).get("bend") or {}
+    try:
+        at, deg = float(b.get("at") or 0), float(b.get("degrees") or 0)
+    except (TypeError, ValueError):
+        return None
+    if not at or not deg or b.get("turn") not in ("left", "right"):
+        return None
+    import math
+    k = math.tan(math.radians(min(75.0, deg))) * BEND_SCALE * PX_PER_YARD
+    return {"at": at, "dir": 1 if b["turn"] == "right" else -1, "k": k, "most": BEND_MOST}
+
+
+def centre_x(at, bend=None):
+    """Where the line of play is, across the strip, at these yards."""
+    if not bend or at <= bend["at"]:
+        return CENTRE
+    return CENTRE + bend["dir"] * min(bend["most"], (float(at) - bend["at"]) * bend["k"])
+
+
+def _x(off, at=None, bend=None):
+    """Yards off the line, as a place across the strip - the line itself
+    where the hole's bend puts it at these yards."""
+    return centre_x(at if at is not None else 0, bend) + float(off or 0) * PX_PER_YARD
 SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
         "across": (FAIR_L, FAIR_R), "front": (FAIR_L, FAIR_R),
         "centre": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
@@ -56,33 +87,52 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
     drawn fainter beside where the ball went - a shot bounces, rolls, or
     falls off a cliff, and the mark says what was meant."""
     total = float(h["yards"])
+    bend = bend_of(h)
+    half_yd = float(h.get("width") or 18)
+    half_px = half_yd * PX_PER_YARD
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
              f'class="holemap" role="img" aria-label="the {h["n"]} hole, par {h["par"]}, {h["yards"]} yards">']
     parts.append(f'<rect x="0" y="0" width="{W}" height="{H}" rx="14" fill="#16221a"/>')
-    # the fairway, tee to green, with rough either side
+    # the fairway, tee to green, with rough either side - a line of play that
+    # bends where the card says, the hole's own width
     top, bot = _y(total, total), _y(0, total)
-    parts.append(f'<rect x="{FAIR_L - 40}" y="{top - 30}" width="{FAIR_R - FAIR_L + 80}" '
-                 f'height="{bot - top + 60}" rx="30" fill="#2a4a24"/>')
-    parts.append(f'<rect x="{FAIR_L}" y="{top}" width="{FAIR_R - FAIR_L}" height="{bot - top}" '
-                 f'rx="22" fill="#4a8a3a"/>')
-    # the hazards, as bands at their yards and on their side
+    line = [(centre_x(0, bend), bot)]
+    if bend and 0 < bend["at"] < total:
+        line.append((centre_x(bend["at"], bend), _y(bend["at"], total)))
+    line.append((centre_x(total, bend), top))
+    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in line)
+    parts.append(f'<polyline points="{pts}" fill="none" stroke="#2a4a24" stroke-width="{half_px * 2 + 80:.1f}" '
+                 f'stroke-linecap="round" stroke-linejoin="round"/>')
+    parts.append(f'<polyline points="{pts}" fill="none" stroke="#4a8a3a" stroke-width="{half_px * 2:.1f}" '
+                 f'stroke-linecap="round" stroke-linejoin="round"/>')
+    # the hazards, as bands at their yards and on their side, following the line
     for hz in h.get("hazards", []):
         x0, x1 = SIDE.get(hz.get("side", ""), SIDE[""])
+        mid = (hz["from"] + hz["to"]) / 2.0
+        shift = centre_x(mid, bend) - CENTRE
+        # the sides sit just beyond this hole's own width
+        if hz.get("side") == "left":
+            x0, x1 = CENTRE - half_px - 34, CENTRE - half_px - 4
+        elif hz.get("side") == "right":
+            x0, x1 = CENTRE + half_px + 4, CENTRE + half_px + 34
+        elif hz.get("side") in ("across", "front", ""):
+            x0, x1 = CENTRE - half_px, CENTRE + half_px
         y1, y0 = _y(hz["from"], total), _y(hz["to"], total)
         fill = FILL.get(hz["kind"], "#666")
-        parts.append(f'<rect x="{x0}" y="{y0:.1f}" width="{x1 - x0}" height="{max(6.0, y1 - y0):.1f}" '
+        parts.append(f'<rect x="{x0 + shift:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{max(6.0, y1 - y0):.1f}" '
                      f'rx="8" fill="{fill}" opacity="0.92"><title>{escape(hz.get("name") or hz["kind"])}, '
                      f'{hz["from"]}-{hz["to"]} yards</title></rect>')
-    # the green, and the cup
+    # the green, and the cup, where the line ends
     depth = float(h.get("green") or 28)
     gy = _y(total, total)
+    gx = centre_x(total, bend)
     gh = max(18.0, (depth / total) * (H - PAD_TOP - PAD_BOT))
-    parts.append(f'<ellipse cx="{(FAIR_L + FAIR_R) / 2}" cy="{gy:.1f}" rx="46" ry="{gh / 2 + 6:.1f}" fill="#8fe39a"/>')
-    parts.append(f'<circle cx="{(FAIR_L + FAIR_R) / 2}" cy="{gy:.1f}" r="3.2" fill="#16221a"/>')
-    parts.append(f'<line x1="{(FAIR_L + FAIR_R) / 2}" y1="{gy:.1f}" x2="{(FAIR_L + FAIR_R) / 2}" y2="{gy - 22:.1f}" '
+    parts.append(f'<ellipse cx="{gx:.1f}" cy="{gy:.1f}" rx="46" ry="{gh / 2 + 6:.1f}" fill="#8fe39a"/>')
+    parts.append(f'<circle cx="{gx:.1f}" cy="{gy:.1f}" r="3.2" fill="#16221a"/>')
+    parts.append(f'<line x1="{gx:.1f}" y1="{gy:.1f}" x2="{gx:.1f}" y2="{gy - 22:.1f}" '
                  f'stroke="#e8e8e8" stroke-width="1.5"/>')
-    parts.append(f'<polygon points="{(FAIR_L + FAIR_R) / 2},{gy - 22:.1f} {(FAIR_L + FAIR_R) / 2 + 12},{gy - 17:.1f} '
-                 f'{(FAIR_L + FAIR_R) / 2},{gy - 12:.1f}" fill="#e05a5a"/>')
+    parts.append(f'<polygon points="{gx:.1f},{gy - 22:.1f} {gx + 12:.1f},{gy - 17:.1f} '
+                 f'{gx:.1f},{gy - 12:.1f}" fill="#e05a5a"/>')
     # the tee box
     parts.append(f'<rect x="{(FAIR_L + FAIR_R) / 2 - 16}" y="{bot - 6:.1f}" width="32" height="12" rx="3" '
                  f'fill="#c9e2c0" stroke="#16221a"/>')
@@ -108,7 +158,7 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
     # where the last stroke was aimed, faint, so the result can be read against it
     if aimed and aimed.get("at") is not None:
-        ax, ay = _x(aimed.get("off")), _y(min(float(aimed["at"]), total + 20), total)
+        ax, ay = _x(aimed.get("off"), float(aimed["at"]), bend), _y(min(float(aimed["at"]), total + 20), total)
         parts.append(f'<g class="aimed" stroke="#ffb454" stroke-width="1.5" fill="none" opacity="0.55" stroke-dasharray="3 2">'
                      f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="8"/>'
                      f'<line x1="{ax - 12:.1f}" y1="{ay:.1f}" x2="{ax + 12:.1f}" y2="{ay:.1f}"/>'
@@ -116,7 +166,7 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
                      f'<title>aimed here</title></g>')
     # the mark: where the golfer means the ball to land
     if mark and mark.get("at") is not None:
-        mx, my = _x(mark.get("off")), _y(min(float(mark["at"]), total + 20), total)
+        mx, my = _x(mark.get("off"), float(mark["at"]), bend), _y(min(float(mark["at"]), total + 20), total)
         parts.append(f'<g class="mark" stroke="#ffb454" stroke-width="2" fill="none">'
                      f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="9"/>'
                      f'<line x1="{mx - 14:.1f}" y1="{my:.1f}" x2="{mx + 14:.1f}" y2="{my:.1f}"/>'
@@ -132,7 +182,7 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         if at == 0 and b in on_the_tee:
             xx = CENTRE + (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 14
         else:
-            xx = _x(b.get("off"))
+            xx = _x(b.get("off"), at, bend)
         color = LIE_MARK.get(b.get("lie") or "fairway", "#e8e8e8")
         if b.get("picked_up"):
             color = "#8b98a5"

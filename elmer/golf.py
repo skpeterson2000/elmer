@@ -139,12 +139,23 @@ SIDE_BANDS = {"": ("across", "front", "centre", "around", "beyond", ""),
               "left": ("left", "around"), "right": ("right", "around")}
 
 
-def side_of(off):
+def fairway_half(h=None):
+    """The fairway's half-width on this hole, yards: the card's, or the
+    usual eighteen. Every hole its own - the 7th's a lane, the 2nd's a
+    field."""
+    try:
+        return float((h or {}).get("width") or FAIRWAY_HALF)
+    except (TypeError, ValueError):
+        return float(FAIRWAY_HALF)
+
+
+def side_of(off, half=None):
     """Which side of the hole a ball this far off the line is on: '' for
     the fairway's width, 'left' or 'right' beyond it."""
-    if off < -FAIRWAY_HALF:
+    half = FAIRWAY_HALF if half is None else half
+    if off < -half:
         return "left"
-    if off > FAIRWAY_HALF:
+    if off > half:
         return "right"
     return ""
 LEAK_CALLS = ["Leaked it.", "Pushed it a touch.", "Pulled it a hair.", "That got away from him."]
@@ -522,8 +533,8 @@ class Golf:
         if not adept and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
             leaked = "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
             off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
-            if abs(off) <= FAIRWAY_HALF:              # a leak goes off the fairway, by definition
-                off = (-1 if leaked == "left" else 1) * (FAIRWAY_HALF + 3)
+            if abs(off) <= fairway_half(h):           # a leak goes off the fairway, by definition
+                off = (-1 if leaked == "left" else 1) * (fairway_half(h) + 3)
         # A crosswind drifts the ball in flight, off the side it blows from.
         if wind == "across" and self.wind_mph:
             drift = WIND_DRIFT * self.wind_mph * (1 if self.wind_from(h) == "left" else -1)
@@ -536,9 +547,10 @@ class Golf:
         # with the wind. A pure shot is stiff - it lands and stops; a flop
         # has already been dealt with. The ball is read where it comes to
         # rest, and a roll across a creek is a ball in the creek.
+        half = fairway_half(h)
         came_down = "green" if (abs(h["yards"] - landed) <= edge and abs(off) <= GREEN_HALF) else \
-            ("sand" if (self._in_band(h, landed, kinds=("bunker",), sides=SIDE_BANDS[side_of(off)])) else
-             "rough" if (side_of(off) or self._in_band(h, landed, kinds=("rough",), sides=SIDE_BANDS[""])) else "fairway")
+            ("sand" if (self._in_band(h, landed, kinds=("bunker",), sides=SIDE_BANDS[side_of(off, half)])) else
+             "rough" if (side_of(off, half) or self._in_band(h, landed, kinds=("rough",), sides=SIDE_BANDS[""])) else "fairway")
         roll = 0
         if flair != "pure":
             roll = ROLL.get(club, 0) * SURFACE_ROLL.get(came_down, 1.0) * WIND_ROLL.get(wind, 1.0) \
@@ -547,7 +559,7 @@ class Golf:
         ran_through = None
         if roll:
             for y in range(landed + 1, landed + roll + 1):
-                hz_on_the_way = self._in_band(h, y, kinds=("water", "bunker"), sides=SIDE_BANDS[side_of(off)])
+                hz_on_the_way = self._in_band(h, y, kinds=("water", "bunker"), sides=SIDE_BANDS[side_of(off, half)])
                 if hz_on_the_way:
                     ran_through, roll = hz_on_the_way, y - landed
                     break
@@ -558,7 +570,7 @@ class Golf:
             ball.holed = True
             return {"kind": "holed", "words": f"{club}, {h['yards']} yards - IN THE HOLE. An ace.",
                     "carry": h["yards"], "wind": wind, "ace": True}
-        side = side_of(off)
+        side = side_of(off, half)
         on_green = abs(left) <= edge and abs(off) <= GREEN_HALF
         # On the green is on the green, whatever bunkers ring it. Off it,
         # what is where the ball came to rest: down the middle, a creek
@@ -615,7 +627,7 @@ class Golf:
             return {"kind": "rough", "words": f"{club}, {carry} yards{ran} - {how}into {hz['name'] or 'the rough'}",
                     "carry": carry, "roll": roll, "wind": wind, "hazard": hz["name"], "leak": leaked, "off": off}
         ball.lie = "fairway"
-        where = "fairway" if abs(off) <= FAIRWAY_HALF / 2 else f"{side_of(off) or ('left' if off < 0 else 'right')} side of the fairway"
+        where = "fairway" if abs(off) <= half / 2 else f"{side_of(off, half) or ('left' if off < 0 else 'right')} side of the fairway"
         return {"kind": "fairway", "words": f"{club}, {carry} yards{ran}, {where} - {left} to go",
                 "carry": carry, "roll": roll, "wind": wind, "left": left, "flair": flair, "off": off}
 
@@ -745,7 +757,7 @@ class Golf:
         ball.at = max(ball.at + 10, hz["from"])
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         if hz.get("side") in ("left", "right"):
-            ball.off = (-1 if hz["side"] == "left" else 1) * (FAIRWAY_HALF + LEAK_PUSH)
+            ball.off = (-1 if hz["side"] == "left" else 1) * (fairway_half(h) + LEAK_PUSH)
         return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 

@@ -9,7 +9,7 @@
   "from": "the Pacific, off the left on the ocean holes",
   "note": "steady afternoon sea breeze; the 6th to the 10th and the 17th and 18th feel it most"
  },
- "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately. Greens fall toward the ocean and the front, placed approximately too.",
+ "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately. Greens fall toward the ocean and the front, placed approximately too. Dog-legs and fairway widths are placed approximately too.",
  "holes": [
   {
    "n": 1,
@@ -37,7 +37,13 @@
    "slope": {
     "falls": "front",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 220,
+    "turn": "right",
+    "degrees": 18
+   },
+   "width": 18
   },
   {
    "n": 2,
@@ -65,7 +71,8 @@
    "slope": {
     "falls": "front",
     "grade": 1.5
-   }
+   },
+   "width": 20
   },
   {
    "n": 3,
@@ -93,7 +100,13 @@
    "slope": {
     "falls": "left",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 230,
+    "turn": "left",
+    "degrees": 25
+   },
+   "width": 16
   },
   {
    "n": 4,
@@ -121,7 +134,8 @@
    "slope": {
     "falls": "right",
     "grade": 2
-   }
+   },
+   "width": 15
   },
   {
    "n": 5,
@@ -149,7 +163,8 @@
    "slope": {
     "falls": "front",
     "grade": 2.5
-   }
+   },
+   "width": 17
   },
   {
    "n": 6,
@@ -177,7 +192,13 @@
    "slope": {
     "falls": "left",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 260,
+    "turn": "right",
+    "degrees": 20
+   },
+   "width": 20
   },
   {
    "n": 7,
@@ -205,7 +226,8 @@
    "slope": {
     "falls": "front",
     "grade": 3
-   }
+   },
+   "width": 14
   },
   {
    "n": 8,
@@ -233,7 +255,13 @@
    "slope": {
     "falls": "left",
     "grade": 3
-   }
+   },
+   "bend": {
+    "at": 240,
+    "turn": "right",
+    "degrees": 45
+   },
+   "width": 17
   },
   {
    "n": 9,
@@ -261,7 +289,8 @@
    "slope": {
     "falls": "left",
     "grade": 2.5
-   }
+   },
+   "width": 19
   },
   {
    "n": 10,
@@ -289,7 +318,13 @@
    "slope": {
     "falls": "left",
     "grade": 2.5
-   }
+   },
+   "bend": {
+    "at": 250,
+    "turn": "right",
+    "degrees": 15
+   },
+   "width": 18
   },
   {
    "n": 11,
@@ -317,7 +352,8 @@
    "slope": {
     "falls": "front",
     "grade": 2
-   }
+   },
+   "width": 16
   },
   {
    "n": 12,
@@ -338,7 +374,8 @@
    "slope": {
     "falls": "front",
     "grade": 1.5
-   }
+   },
+   "width": 17
   },
   {
    "n": 13,
@@ -366,7 +403,13 @@
    "slope": {
     "falls": "front",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 240,
+    "turn": "left",
+    "degrees": 15
+   },
+   "width": 18
   },
   {
    "n": 14,
@@ -394,7 +437,13 @@
    "slope": {
     "falls": "front",
     "grade": 3
-   }
+   },
+   "bend": {
+    "at": 280,
+    "turn": "right",
+    "degrees": 35
+   },
+   "width": 19
   },
   {
    "n": 15,
@@ -415,7 +464,8 @@
    "slope": {
     "falls": "front",
     "grade": 1.5
-   }
+   },
+   "width": 16
   },
   {
    "n": 16,
@@ -443,7 +493,13 @@
    "slope": {
     "falls": "front",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 230,
+    "turn": "right",
+    "degrees": 30
+   },
+   "width": 17
   },
   {
    "n": 17,
@@ -471,7 +527,8 @@
    "slope": {
     "falls": "back",
     "grade": 2
-   }
+   },
+   "width": 18
   },
   {
    "n": 18,
@@ -506,7 +563,13 @@
    "slope": {
     "falls": "left",
     "grade": 2
-   }
+   },
+   "bend": {
+    "at": 260,
+    "turn": "left",
+    "degrees": 12
+   },
+   "width": 20
   }
  ]
 }

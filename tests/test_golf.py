@@ -489,6 +489,19 @@ def run():
     check("  the wind on it", "with 12 mph" in svg, True)
     check("  two balls, and yours ringed in amber", (svg.count("<circle cx=") >= 3, "#ffb454" in svg), (True, True))
     check("a hole with no balls draws too", "<svg" in golfmap.hole_svg(pb["holes"][6]), True)
+    h8 = next(x for x in pb["holes"] if x["n"] == 8)
+    check("the 8th bends right past the corner, and the strip follows the line",
+          (golfmap.bend_of(h8)["dir"], golfmap.centre_x(100, golfmap.bend_of(h8)) == golfmap.CENTRE,
+           golfmap.centre_x(400, golfmap.bend_of(h8)) > golfmap.CENTRE), (1, True, True))
+    check("  the 2nd is straight and wide, the 7th a lane", (golfmap.bend_of(pb["holes"][1]), golf.fairway_half(pb["holes"][1]) > golf.fairway_half(pb["holes"][6])), (None, True))
+    strips = {n: golfmap.hole_svg(next(x for x in pb["holes"] if x["n"] == n)) for n in (1, 2, 3, 8)}
+    check("  so no two of the first holes look the same", len(set(strips.values())), 4)
+    check("  and the geometry a screen turns a tap with carries the bend", golfmap.geometry(h8)["bend"]["at"], 240)
+    narrow = golf.Golf(["a"], flat_course(), seed=1)
+    narrow.hole()["width"] = 10
+    narrow.set_aim("a", 250, 14)
+    s = narrow.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    check("a hole's own width is the rules' width: fourteen yards off on a ten-yard lane is the first cut", s["kind"], "rough")
 
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)

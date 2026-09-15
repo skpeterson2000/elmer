@@ -2503,6 +2503,19 @@ taken, total and to par at the end, holes not yet played blank. The phone
 shows the same card under the round. It is the only account of who is
 in the party that anybody needs.
 
+**Every hole its own shape.** The card gives a hole a bend - where the
+dog-leg turns, which way, how sharply - and a width, and the strip
+draws both: the line of play swings past the corner at a third of the
+real angle, as a yardage book's does, and the fairway is as wide as the
+card says, the 7th a lane and the 2nd a field. Hazards, balls and the
+mark follow the line; a tap is read against it. The rules do not bend -
+a ball is yards along the line and off it wherever the line goes - but
+the width is the rules' width, so the first cut is nearer on a narrow
+hole. Pebble's dog-legs are on the card where the course has them,
+placed approximately like the bunkers. And between holes the tee shows
+the standings after the last, then who has the honour - the best score
+on the last hole plays first, practice player or person, as on a course.
+
 **The hole, drawn.** Beside the words, every screen shows the hole as a
 yardage-book strip - the tee at the foot, the green at the head, every
 hazard as a band at the yards it covers and on the side it sits, the wind

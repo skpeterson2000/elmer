@@ -181,6 +181,8 @@ body.golfing .joinurl { font-size: .7rem; }
 /* The golf, under the question: whose stroke and the hole, for those who
    want it, after the thing to read. */
 .golfunder { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.standings { margin-bottom: .8rem; padding-bottom: .6rem; border-bottom: 1px solid var(--line); }
+.standings table.res td { padding: .25rem .35rem; }
 .golfunder .narrator { font-size: 1.05rem; }
 .hitrow .clubrow { margin-bottom: .6rem; }
 table.res.card { font-variant-numeric: tabular-nums; font-size: .82rem; }
@@ -939,7 +941,15 @@ async function tick() {
         const holeMap = gf.over ? '' : `<img class="holemap ${canAim ? 'aimable' : ''}" src="/api/party/golf/map.svg?k=${encodeURIComponent(mapKey)}" alt="the hole"${
           canAim ? ` data-aim-for="${gf.away}" title="tap where you mean the ball to land"` : ''}>` +
           (canAim ? `<p class="hint holemap-hint">${awayAim && awayAim.set ? (awayBall.lie === 'green' ? `Aiming ${Math.round((awayAim.at - gf.yards) * 3)} ft ${(awayAim.at - gf.yards) < 0 ? 'short of' : 'past'} the cup${awayAim.off ? ', ' + Math.abs(Math.round(awayAim.off * 3)) + ' ft ' + (awayAim.off < 0 ? 'left' : 'right') : ''}. ` : `Aiming ${awayAim.at} yards${awayAim.off ? ', ' + Math.abs(awayAim.off) + (awayAim.off < 0 ? ' left' : ' right') : ''}. `) : ''}${awayBall.lie === 'green' ? 'Tap the green where you mean the putt to die' : 'Tap the hole to set your mark'}${awayAim && awayAim.set ? ', or <a href="#" data-aim-clear="' + gf.away + '">aim at the ' + (awayBall.lie === 'green' ? 'cup' : 'pin') + '</a>' : ''}.</p>` : '');
-        stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` +
+        // Between holes: the standings after the last, then the order of
+        // address - who has the honour is who is away on the tee.
+        const standings = onTheTee && gf.holes_played > 0 && !gf.over
+          ? `<div class="standings"><div class="chip">Standings after the ${gf.holes_played}${ordinal(gf.holes_played)}</div>
+             <table class="res" style="margin:.3rem 0 .6rem">${(gf.leaderboard || []).map(r =>
+               `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.gross}</td><td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>
+             ${gf.away_name ? `<p class="narrator"><b>${esc(gf.away_name)}</b> has the honour on the ${gf.hole}${ordinal(gf.hole)}.</p>` : ''}</div>`
+          : '';
+        stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` + standings +
           (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
           golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '') +
@@ -1174,7 +1184,10 @@ function stripToYards(img, e, geo) {
   }
   const usable = geo.h - geo.pad_top - geo.pad_bot;
   const at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
-  const off = Math.round((x - geo.centre) / geo.px_per_yard);
+  // the line of play bends where the card says: off is measured from it
+  const b = geo.bend;
+  const centre = (b && at > b.at) ? geo.centre + b.dir * Math.min(b.most, (at - b.at) * b.k) : geo.centre;
+  const off = Math.round((x - centre) / geo.px_per_yard);
   return {at, off};
 }
 /* The pro shop: the record board and the wall - the operator's own
