@@ -118,7 +118,7 @@ def adopt(dry_run=False):
     stems = set(voice.VOCABULARY)
     renamed, strays = [], []
     for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
-        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green|fairway|rough|sand|water)-\d+)?)$", p.stem):
+        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green|fairway|rough|sand|water|read)-\d+)?)$", p.stem):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
@@ -152,8 +152,20 @@ def _whole_hole(text):
     whole, named by the course the script is for and the number it opens
     with. Pebble Beach is the course of the first recordings."""
     import re
-    m = re.match(r"^\s*hole[\s_]+([a-z0-9]+)", str(text).lower().replace("_", " "))
+    low = str(text).lower().replace("_", " ")
+    m = re.match(r"^\s*hole[\s_]+([a-z0-9]+)", low)
     if not m:
+        # "The first hole at Pebble Beach ..." - a read of the hole in other
+        # words, kept as another read beside the first: -read-<k>
+        m2 = re.match(r"^\s*the\s+(\w+)\s+hole\s+at\s+pebble", low)
+        if m2:
+            ordinals = {w: i + 1 for i, w in enumerate(voice.ORDINALS)}
+            n = ordinals.get(m2.group(1))
+            if n:
+                k = 2
+                while (Path(__file__).resolve().parents[1] / "elmer" / "static" / "golf" / "voice" / f"hole-pebble-beach-{n}-read-{k}.mp3").exists():
+                    k += 1
+                return f"hole-pebble-beach-{n}-read-{k}"
         return None
     words = {w: n for n, w in voice.NUMBER_WORDS.items()}
     n = words.get(m.group(1)) or (int(m.group(1)) if m.group(1).isdigit() else None)

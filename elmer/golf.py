@@ -200,7 +200,7 @@ CALLS = {
     "holed": ["In the hole!", "Drained it.", "Bottom of the cup.", "It's in the cup!", "In the cup!"],
     "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one.", "In the rough.",
               "OOOPS! That's going to need patching.", "Are you new at this?"],
-    "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach.", "Found the bunker."],
+    "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach.", "Found the bunker.", "That ball is on the beach."],
     "water": ["Hooked it into the water.", "Wet.", "That's a splash - what was the wind?",
               "That's swimming.", "Are you going after that?", "We all have bad days."],
     "missed": ["Lipped out.", "Left it short.", "Burned the edge."],

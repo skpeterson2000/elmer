@@ -17,6 +17,7 @@ The script to record is VOCABULARY, one line a snippet: `python3
 tools/voice_script.py` prints it, and docs/narration/voice-script.md is
 that printout.
 """
+import random
 import re
 
 # ------------------------------------------------------------- the words
@@ -99,6 +100,7 @@ VOCABULARY = {
     "call-water-4": "That's swimming.", "call-water-5": "Are you going after that?",
     "call-rough-5": "OOOPS! That's going to need patching.", "call-rough-6": "Are you new at this?",
     "call-water-6": "We all have bad days.", "call-holed-4": "It's in the cup!", "call-holed-5": "In the cup!",
+    "call-sand-5": "That ball is on the beach.",
     "call-green-1": "On the dance floor.", "call-green-2": "Stuck it.", "call-green-3": "That's looking at it.",
     "call-long-1": "Flew the green.", "call-long-2": "Too much club.", "call-long-3": "Airmailed it.",
     "call-holed-1": "In the hole!", "call-holed-2": "Drained it.", "call-holed-3": "Bottom of the cup.",
@@ -139,6 +141,7 @@ CALL_TOKENS = {
     "Found the bunker.": "call-sand-4", "That's swimming.": "call-water-4", "Are you going after that?": "call-water-5",
     "OOOPS! That's going to need patching.": "call-rough-5", "Are you new at this?": "call-rough-6",
     "We all have bad days.": "call-water-6", "It's in the cup!": "call-holed-4", "In the cup!": "call-holed-5",
+    "That ball is on the beach.": "call-sand-5",
     "Lipped out.": "call-missed-1", "Left it short.": "call-missed-2", "Burned the edge.": "call-missed-3",
     "A hole in one!": "call-ace",
     "Worked it around the trees.": "call-worked-1", "Shaped it out of there.": "call-worked-2",
@@ -277,8 +280,12 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     # A hole read as one recording - hole-<course>-<n>.mp3, "Hole one is a
     # par four at three hundred and seventy-seven yards" in one breath -
     # is said instead of the pieces when the shelf has it.
-    whole = f"hole-{course}-{n}" if course else None
-    if whole and _shelf and whole in _shelf:
+    # A hole may have more than one read - hole-<course>-<n>-read-<k> beside
+    # the first - and the narrator takes one of them, so a regular hears
+    # the hole in different words on different evenings.
+    reads = ([f"hole-{course}-{n}"] if course and _shelf and f"hole-{course}-{n}" in _shelf else []) +         ([t for k in range(2, 10) for t in [f"hole-{course}-{n}-read-{k}"] if _shelf and t in _shelf] if course else [])
+    whole = random.choice(reads) if reads else None
+    if whole:
         out.append(whole)
         if wind in WIND_TOKENS:
             out.append(WIND_TOKENS[wind])
