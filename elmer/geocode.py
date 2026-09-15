@@ -162,6 +162,14 @@ def resolve(text, allow_lookup=True):
                     "kind": "coordinates", "lat": lat, "lon": lon,
                     "grid": to_grid(lat, lon)}
 
+    # A spot inside a place people operate from - a visitor centre, a mile
+    # marker, a summit - held with the program, so it costs no lookup and
+    # answers where there is no network to ask.
+    from . import landmarks
+    spot = landmarks.resolve(text)
+    if spot:
+        return spot
+
     if not allow_lookup:
         return None
     found = search(text, limit=1)

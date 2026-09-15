@@ -1,0 +1,44 @@
+{
+  "note": "Named spots inside places people operate from, resolvable with no network: the QTH picker and Make Contact's far end both read this before asking anybody. A point with \"about\": true is a fix from a map read by eye, good to a few hundred metres; a line is a run of markers laid along an arc between two fixed ends, good to about a mile, which is what a post in the sand is good to. Each spot carries the programme reference of the place it is in.",
+  "groups": [
+    {
+      "name": "Padre Island National Seashore",
+      "region": "TX",
+      "pota": "US-0690",
+      "about_lines": "The beach south of the pavement is signed with mile markers from mile 0 at the end of Park Road 22 to mile 60 at the Port Mansfield Channel, and for most of it there is no signal at all. An operator at mile 55 who wants to know whether a handheld reaches the park office asks this list for both ends.",
+      "points": [
+        {"name": "Malaquite Visitor Center", "aliases": ["Padre Island visitor center", "park office", "Padre Island ranger station", "PINS visitor center", "Malaquite"], "kind": "visitor centre", "lat": 27.4224, "lon": -97.3001, "about": true},
+        {"name": "Malaquite Beach", "aliases": ["Padre Island Malaquite beach"], "kind": "beach", "lat": 27.4260, "lon": -97.2985, "about": true},
+        {"name": "North Beach", "aliases": ["Padre Island north beach"], "kind": "beach", "lat": 27.4520, "lon": -97.2910, "about": true},
+        {"name": "Bird Island Basin", "aliases": ["Padre Island Bird Island Basin", "Bird Island boat ramp"], "kind": "campground and boat ramp", "lat": 27.4770, "lon": -97.3430, "about": true},
+        {"name": "Yarborough Pass", "aliases": ["Padre Island Yarborough Pass", "Yarbrough Pass"], "kind": "about mile 15, the old pass", "lat": 27.2000, "lon": -97.3610, "about": true},
+        {"name": "Port Mansfield Channel", "aliases": ["Mansfield Channel", "Padre Island mile 60", "the end of the beach", "Mansfield jetties"], "kind": "mile 60, the end", "lat": 26.5640, "lon": -97.2770, "about": true}
+      ],
+      "lines": [
+        {
+          "name": "Padre Island mile {n}",
+          "aliases": ["mile {n}", "mile marker {n}", "PINS mile {n}", "Padre mile {n}"],
+          "kind": "mile marker",
+          "from": [27.4145, -97.3015],
+          "to": [26.5640, -97.2770],
+          "bulge_lon": -0.095,
+          "miles": 60,
+          "every": 5,
+          "note": "Mile 0 is the end of the pavement south of Malaquite; mile 60 is the Port Mansfield Channel. The beach bows west between them, so the markers are laid along an arc rather than a straight line, and are good to about a mile."
+        }
+      ]
+    },
+    {
+      "name": "Black Elk Peak",
+      "region": "SD",
+      "sota": "W0D/BB-001",
+      "about_lines": "Harney Peak until 2016 and still Harney Peak to most of the people who have climbed it: the top of South Dakota, a stone lookout on the summit, and a SOTA activation zone that is the summit block. The summit fix is SOTA's own; the trailhead is read from the map.",
+      "points": [
+        {"name": "Black Elk Peak summit", "aliases": ["Harney Peak", "Harney Peak summit", "Black Elk Peak", "W0D/BB-001", "Harney Peak lookout"], "kind": "summit, 7,242 ft, SOTA W0D/BB-001", "lat": 43.8660, "lon": -103.5312, "about": false},
+        {"name": "Sylvan Lake trailhead", "aliases": ["Harney Peak trailhead", "Black Elk Peak trailhead", "Trail 9 trailhead", "Sylvan Lake"], "kind": "trailhead, Trail 9", "lat": 43.8445, "lon": -103.5605, "about": true},
+        {"name": "Little Devils Tower", "aliases": ["Little Devil's Tower"], "kind": "summit on the way, Trail 4", "lat": 43.8535, "lon": -103.5470, "about": true}
+      ],
+      "lines": []
+    }
+  ]
+}

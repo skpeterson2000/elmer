@@ -29,22 +29,21 @@ from urllib.parse import urlsplit
 from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
-from . import (antenna_advice, antennapdf, bandpdf, bandplan, callsign, cw,
-               db, devreset, exams,
-               celestial, explain, game, geocode, groundwave,
-               ionosonde, logs,
-               propagation, ranks,
-               nanovna, patterns, places, regional, rfexposure, rfpdf, smith, srs,
-               autoplay, bugreport, cohort, conductors, diagnostics,
-               activations, activationspdf, discovery, fieldkit,
-               gating, hall, host, library,
-               netwatch, pota, references, sweeps,
-               gps, netcontrol,
-               party, phonegps, prints, qr,
-               fieldreport, golf, golfmap, mail, monitoring, pathto, personal, reachout, repeaters,
-               show, units,
-               calibrate, certpdf, difficulty, forecastlog, terrain, touchstone,
-               tournament, towerwitch, trivia, update, vna, whipbuild, op25)
+from . import (
+    activations, activationspdf, antenna_advice, antennapdf, autoplay, bandpdf,
+    bandplan, bugreport, calibrate, callsign, celestial, certpdf,
+    cohort, conductors, cw, db, devreset, diagnostics,
+    difficulty, discovery, exams, explain, fieldkit, fieldreport,
+    forecastlog, game, gating, geocode, golf, golfmap,
+    gps, groundwave, hall, host, ionosonde, landmarks,
+    library, logs, mail, monitoring, nanovna, netcontrol,
+    netwatch, op25, party, pathto, patterns, personal,
+    phonegps, places, pota, prints, propagation, qr,
+    ranks, reachout, references, regional, repeaters, rfexposure,
+    rfpdf, show, smith, srs, sweeps, terrain,
+    touchstone, tournament, towerwitch, trivia, units, update,
+    vna, whipbuild,
+)
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
 # because home() is the front page a few thousand lines down.
@@ -3001,12 +3000,15 @@ def api_geocode():
     if not query.strip():
         return jsonify({"results": []})
     direct = geocode.resolve(query, allow_lookup=False)
-    if direct:
+    if direct and direct.get("kind") in ("grid", "coordinates"):
         return jsonify({"results": [direct]})
+    # The held spots first - they need no network and a beach has none -
+    # and then whatever the geocoder can add.
+    results = landmarks.search(query)
     try:
-        results = geocode.search(query, limit=int(request.args.get("limit", 6)))
+        results += geocode.search(query, limit=int(request.args.get("limit", 6)))
     except ValueError:
-        results = geocode.search(query)
+        results += geocode.search(query)
     if not results:
         log.info("geocode found nothing for %r", query[:80])
     return jsonify({"results": results})
