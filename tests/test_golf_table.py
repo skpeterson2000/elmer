@@ -175,6 +175,9 @@ def run():
           (st["you"]["aim"]["set"], st["map"]["yards"], st["map"]["w"]), (True, 377, 260))
     r = client.get(f"/api/party/golf/map.svg?player={ann}", environ_base=local)
     check("  and the mark is drawn", 'class="mark"' in r.get_data(as_text=True), True)
+    r = client.get("/api/party/golf/map.svg", environ_base=local)
+    check("  the table's strip shows where the last stroke was aimed, beside where it went",
+          'class="aimed"' in r.get_data(as_text=True), True)
     r = client.post("/api/party/aim", json={"player": ann, "clear": True}, environ_base=local)
     check("  aim at the pin again", r.get_json()["aim"]["set"], False)
     r = client.post("/api/party/aim", json={"player": 99999, "at": 200}, environ_base=local)

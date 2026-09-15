@@ -217,6 +217,7 @@ class Ball:
     def __init__(self):
         self.at = 0            # yards from the tee, along the line
         self.off = 0           # yards off the line: left negative, right positive
+        self.last_aim = None   # where the last stroke was aimed, for the strip to show beside where it went
         self.lie = "tee"
         self.strokes = 0
         self.holed = False
@@ -580,6 +581,7 @@ class Golf:
         except (TypeError, ValueError):
             ms = None
         self.swing = random.Random(ms) if ms is not None else self.rng
+        ball.last_aim = self.aim(p)       # the mark this stroke is played at, kept beside the result
         club = a.get("club") or self.default_club(p)
         if club not in self.clubs_for(p):
             club = self.default_club(p)
@@ -612,7 +614,7 @@ class Golf:
             shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
             shot["score"] = score_name(ball.strokes, h["par"])
         shot.update(strokes=ball.strokes, at=ball.at, off=ball.off, lie=ball.lie, club=club,
-                    done=ball.done(), holed=ball.holed)
+                    done=ball.done(), holed=ball.holed, aim=ball.last_aim)
         self.aims.pop(p, None)            # a mark is for one stroke
         ball.log.append(shot["words"])
         return shot
@@ -835,7 +837,7 @@ class Golf:
             "holes_played": self.hole_index, "holes": len(self.holes),
             "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
                           "picked_up": b.picked_up, "left": (h["yards"] - b.at) if h else 0,
-                          "aim": self.aim(p),
+                          "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "log": list(b.log)}
                       for p, b in self.balls.items()},

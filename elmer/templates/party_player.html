@@ -328,7 +328,8 @@ function paintWaiting(state) {
         ${gf.over ? `<p><b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.</p>` : golfClubsHTML(gf)}
         ${gf.your_turn && gf.address_waits && !gf.over ? `<p><button class="choice" id="golf-hit" style="text-align:center"><b>Hit &rsaquo;</b></button></p>` : ''}
         ${golfPlaybackHTML(gf)}
-        <h3 style="margin:.8rem 0 .3rem">The card</h3>${golfBoardHTML(gf)}</div>`;
+        <h3 style="margin:.8rem 0 .3rem">The card</h3>${golfBoardHTML(gf)}
+        ${gf.you && gf.you.log && gf.you.log.length ? `<h3 style="margin:.8rem 0 .3rem">Your strokes this hole</h3><ol class="tiny" style="margin:0;padding-left:1.2rem">${gf.you.log.map(l => `<li>${escapeHTML(l)}</li>`).join('')}</ol>` : ''}</div>`;
     wireClubs();
     const hb = document.getElementById('golf-hit');
     if (hb) hb.addEventListener('click', async () => { hb.disabled = true; await api('/api/party/hit', {player: me.id}); tick(); });

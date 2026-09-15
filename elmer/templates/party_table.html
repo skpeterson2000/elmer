@@ -636,7 +636,9 @@ function golfCard(gf, esc_) {
   const rows = (gf.leaderboard || []).map(r => {
     const cells = holes.map(h => { const s = (r.card || {})[String(h.n)]; return `<td class="ms">${s == null ? '' : s}</td>`; });
     const par = r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : String(r.to_par);
-    return `<tr><td title="${e(r.name)}">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
+    const ball = (gf.balls || {})[r.player];
+    const played = ball && ball.log && ball.log.length ? 'this hole: ' + ball.log.map((l, i) => (i + 1) + '. ' + l).join('  |  ') : e(r.name);
+    return `<tr><td title="${e(played)}">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
   });
   return `<div style="overflow:hidden"><table class="res card"><tr><td class="k">hole</td>${holes.map(h => `<td class="ms">${h.n}</td>`).join('')}<td class="ms tot">tot</td></tr>
     <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms tot">${holes.reduce((a, h) => a + h.par, 0)}</td></tr>${rows.join('')}</table></div>`;

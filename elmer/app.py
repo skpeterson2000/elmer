@@ -3922,7 +3922,15 @@ def api_party_golf_map():
     whose = who if who is not None else view.get("away")
     ball = (view.get("balls") or {}).get(str(whose)) or (view.get("balls") or {}).get(whose)
     mark = (ball or {}).get("aim") if ball and (ball.get("aim") or {}).get("set") else None
-    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark),
+    # And where the last stroke was aimed - the phone's own golfer's last,
+    # or on the table the stroke just played - beside where it went.
+    last = (view.get("last") or [{}])[0] if view.get("last") else {}
+    aimed = None
+    if who is not None:
+        aimed = (ball or {}).get("last_aim") if ball and ball.get("strokes") else None
+    elif last.get("aim"):
+        aimed = last["aim"]
+    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark, aimed),
                               mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "no-store"
     return resp

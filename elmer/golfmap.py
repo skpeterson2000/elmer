@@ -49,10 +49,12 @@ def _y(yards, total):
     return H - PAD_BOT - frac * usable
 
 
-def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None):
+def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None, aimed=None):
     """One hole as an SVG string. `h` is the card's hole; `balls` a list of
     {name, at, off, lie, holed, picked_up, you}; `mark` the golfer's aim,
-    {at, off}, drawn as a cross."""
+    {at, off}, drawn as a cross; `aimed` where the last stroke was aimed,
+    drawn fainter beside where the ball went - a shot bounces, rolls, or
+    falls off a cliff, and the mark says what was meant."""
     total = float(h["yards"])
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
              f'class="holemap" role="img" aria-label="the {h["n"]} hole, par {h["par"]}, {h["yards"]} yards">']
@@ -104,6 +106,14 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         wtxt = f'{arrow} {wind}' + (f' {wind_mph} mph' if wind_mph is not None else '')
         parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="13" fill="#9ad1ff" '
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
+    # where the last stroke was aimed, faint, so the result can be read against it
+    if aimed and aimed.get("at") is not None:
+        ax, ay = _x(aimed.get("off")), _y(min(float(aimed["at"]), total + 20), total)
+        parts.append(f'<g class="aimed" stroke="#ffb454" stroke-width="1.5" fill="none" opacity="0.55" stroke-dasharray="3 2">'
+                     f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="8"/>'
+                     f'<line x1="{ax - 12:.1f}" y1="{ay:.1f}" x2="{ax + 12:.1f}" y2="{ay:.1f}"/>'
+                     f'<line x1="{ax:.1f}" y1="{ay - 12:.1f}" x2="{ax:.1f}" y2="{ay + 12:.1f}"/>'
+                     f'<title>aimed here</title></g>')
     # the mark: where the golfer means the ball to land
     if mark and mark.get("at") is not None:
         mx, my = _x(mark.get("off")), _y(min(float(mark["at"]), total + 20), total)
