@@ -5,6 +5,7 @@
     python3 tools/voice_script.py --md       # as docs/narration/voice-script.md
     python3 tools/voice_script.py --have     # what is recorded, what is still to do
     python3 tools/voice_script.py --adopt    # rename a reader's files ('29.One_hundred.mp3') to the stems
+    python3 tools/voice_script.py --adopt --hole 2   # a batch of colour for the second hole
 
 Record each line as its own file, named by the stem, as MP3, into
 elmer/static/golf/voice/ - three.mp3, addresses-the-ball.mp3 - and the
@@ -75,12 +76,13 @@ def shelf_report():
     known = set(voice.VOCABULARY)
     numbers = [h for h in have if h.startswith("n-") and h[2:].isdigit()]
     names = [h for h in have if h.startswith("name-")]
+    holes = [h for h in have if h.startswith("hole-")]        # a hole's reads and colour
     scripted = [h for h in have if h in known]
-    strays = [h for h in have if h not in known and h not in numbers and h not in names]
+    strays = [h for h in have if h not in known and h not in numbers and h not in names and h not in holes]
     missing = [k for k in voice.VOCABULARY if k not in have]
     out = [f"{folder}", "",
            f"recorded: {len(scripted)} of {len(known)} scripted snippets, "
-           f"{len(numbers)} whole numbers, {len(names)} names"]
+           f"{len(numbers)} whole numbers, {len(names)} names, {len(holes)} hole reads and lines of colour"]
     if strays:
         out += ["", "not in the script (check the stem - the narrator will never say these):"]
         out += [f"  {h}" for h in strays]
@@ -105,19 +107,37 @@ def _key(text):
 NUMBER_WORDS_TO_N = {w: n for n, w in voice.NUMBER_WORDS.items()}
 
 
-def adopt(dry_run=False):
+def adopt(dry_run=False, hole=None):
     """Rename what a text-to-speech reader produced - files named for the
     line's text, with a number in front ('29.One_hundred.mp3') - to the
     stems the narrator listens for, by matching the text against the
-    script. Whole numbers ('Three hundred seventy seven') become n-377.
-    Files already named for a stem are left alone; a file that matches
-    nothing is listed, not touched."""
+    script. The number in front is the reader's and is dropped before
+    anything is matched. Whole numbers ('Three hundred seventy seven')
+    become n-377. A hole read whole becomes hole-<course>-<n>, or a
+    further -read-<k> when one is there; a line of colour becomes
+    hole-<course>-<n>-<where>-<k>, for the hole the batch is for -
+    `hole`, or the hole a line names, or the first. Files already named
+    for a stem are left alone; a file that matches nothing is listed,
+    not touched."""
     import re
     folder = Path(__file__).resolve().parents[1] / "elmer" / "static" / "golf" / "voice"
     by_words = {_key(words): stem for stem, words in voice.VOCABULARY.items()}
     stems = set(voice.VOCABULARY)
     renamed, strays = [], []
-    for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
+    taken = {p.stem for p in folder.glob("*.mp3")} if folder.is_dir() else set()
+    # the hole the batch is for: said, or read off a line that names one
+    batch_hole = hole
+    if batch_hole is None:
+        for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
+            n = _named_hole(re.sub(r"^\d+\.", "", p.stem))
+            if n:
+                batch_hole = n
+                break
+    def reader_order(path):
+        # the reader's number is the script's order: 2 before 10
+        m = re.match(r"^(\d+)\.", path.stem)
+        return (int(m.group(1)) if m else 10 ** 9, path.stem)
+    for p in sorted(folder.glob("*.mp3"), key=reader_order) if folder.is_dir() else []:
         if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green|fairway|rough|sand|water|read)-\d+)?)$", p.stem):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
@@ -129,70 +149,91 @@ def adopt(dry_run=False):
             if len(starts) == 1:
                 target = starts[0]
         if target is None:
-            target = _whole_hole(text)
+            target = _whole_hole(text, taken)
         if target is None:
-            target = _hole_note(text, folder)
+            target = _hole_note(text, taken, batch_hole or 1)
         if target is None:
             target = _whole_number(text)
         if target is None:
             strays.append(p.name)
             continue
         dest = folder / f"{target}.mp3"
-        if dest.exists():
+        if target in taken:
             strays.append(f"{p.name} (would be {dest.name}, which exists)")
             continue
+        taken.add(target)
         renamed.append((p.name, dest.name))
         if not dry_run:
             p.rename(dest)
     return renamed, strays
 
 
-def _whole_hole(text):
+def _named_hole(text):
+    """The hole a line names - 'Hole two ...', 'the second hole' - or None."""
+    import re
+    low = str(text).lower().replace("_", " ")
+    words = {w: n for n, w in voice.NUMBER_WORDS.items()}
+    ordinals = {w: i + 1 for i, w in enumerate(voice.ORDINALS)}
+    m = re.search(r"\bhole[\s_]+([a-z]+|\d+)\b", low)
+    if m:
+        w = m.group(1)
+        return words.get(w) or (int(w) if w.isdigit() else None)
+    m = re.search(r"\bthe\s+([a-z]+)\s+hole\b", low)
+    if m:
+        return ordinals.get(m.group(1))
+    return None
+
+
+def _whole_hole(text, taken=()):
     """'Hole one is a par four at ...' -> hole-pebble-beach-1: a hole read
     whole, named by the course the script is for and the number it opens
-    with. Pebble Beach is the course of the first recordings."""
+    with; a second read of the same hole is -read-2, and so on. Pebble
+    Beach is the course of the first recordings."""
     import re
     low = str(text).lower().replace("_", " ")
     m = re.match(r"^\s*hole[\s_]+([a-z0-9]+)", low)
-    if not m:
-        # "The first hole at Pebble Beach ..." - a read of the hole in other
-        # words, kept as another read beside the first: -read-<k>
-        m2 = re.match(r"^\s*the\s+(\w+)\s+hole\s+at\s+pebble", low)
-        if m2:
-            ordinals = {w: i + 1 for i, w in enumerate(voice.ORDINALS)}
-            n = ordinals.get(m2.group(1))
-            if n:
-                k = 2
-                while (Path(__file__).resolve().parents[1] / "elmer" / "static" / "golf" / "voice" / f"hole-pebble-beach-{n}-read-{k}.mp3").exists():
-                    k += 1
-                return f"hole-pebble-beach-{n}-read-{k}"
+    m2 = re.match(r"^\s*the\s+(\w+)\s+hole\s+at\s+pebble", low)
+    if m:
+        words = {w: n for n, w in voice.NUMBER_WORDS.items()}
+        n = words.get(m.group(1)) or (int(m.group(1)) if m.group(1).isdigit() else None)
+    elif m2:
+        n = {w: i + 1 for i, w in enumerate(voice.ORDINALS)}.get(m2.group(1))
+    else:
         return None
-    words = {w: n for n, w in voice.NUMBER_WORDS.items()}
-    n = words.get(m.group(1)) or (int(m.group(1)) if m.group(1).isdigit() else None)
-    return f"hole-pebble-beach-{n}" if n else None
+    if not n:
+        return None
+    if f"hole-pebble-beach-{n}" not in taken:
+        return f"hole-pebble-beach-{n}"
+    k = 2
+    while f"hole-pebble-beach-{n}-read-{k}" in taken:
+        k += 1
+    return f"hole-pebble-beach-{n}-read-{k}"
 
 
-def _hole_note(text, folder):
-    """A line of colour about the first hole - anything not in the script
-    that reads like a sentence - becomes hole-pebble-beach-1-<where>-<k>:
-    'green' when it speaks of the green or the putting, 'tee' otherwise,
-    numbered after the ones already there. The first hole is the one being
-    recorded; other holes' colour is named by hand."""
+def _hole_note(text, taken, hole=1):
+    """A line of colour about a hole - anything not in the script that
+    reads like a sentence - becomes hole-pebble-beach-<hole>-<where>-<k>:
+    where the line is spoken from, read off its words - the sand when it
+    speaks of bunkers, the water, the rough, the fairway (a hazard ahead,
+    the second shot), the green (the putting) - and the tee otherwise;
+    numbered after the ones already there."""
     import re
     words = str(text).replace("_", " ").strip()
     if len(words.split()) < 3:
         return None
     low = words.lower()
     where = "tee"
-    for name, pat in (("sand", r"\b(bunker|sand|trap)\b"), ("water", r"\b(water|ocean|creek|sea|lake|pond|splash)\b"),
-                      ("rough", r"\b(rough|grass|trees)\b"), ("fairway", r"\bfairway\b"), ("green", r"\b(green|putt|putting)\b")):
+    for name, pat in (("sand", r"\b(bunkers?|sand|traps?)\b"), ("water", r"\b(water|ocean|creek|sea|lake|pond|splash)\b"),
+                      ("rough", r"\b(rough|grass|trees)\b"),
+                      ("fairway", r"\b(fairway|barranca|ravine|gully|ditch|in two|second shot|lay(ing)? up|go for it)\b"),
+                      ("green", r"\b(green|putt|putting)\b")):
         if re.search(pat, low):
             where = name
             break
     k = 1
-    while (folder / f"hole-pebble-beach-1-{where}-{k}.mp3").exists():
+    while f"hole-pebble-beach-{hole}-{where}-{k}" in taken:
         k += 1
-    return f"hole-pebble-beach-1-{where}-{k}"
+    return f"hole-pebble-beach-{hole}-{where}-{k}"
 
 
 def _whole_number(text):
@@ -221,7 +262,9 @@ def _whole_number(text):
 if __name__ == "__main__":
     if "--adopt" in sys.argv:
         dry = "--dry-run" in sys.argv
-        renamed, strays = adopt(dry_run=dry)
+        # --hole 2: the hole this batch of colour is for, when no line names it
+        hole = int(sys.argv[sys.argv.index("--hole") + 1]) if "--hole" in sys.argv else None
+        renamed, strays = adopt(dry_run=dry, hole=hole)
         for a, b in renamed:
             print(f"{'would rename' if dry else 'renamed'}  {a}  ->  {b}")
         for name in strays:
