@@ -55,6 +55,15 @@ def run():
     check("  a callsign with a file is the file too", (voice.set_shelf(["name-kc9sp"]), voice.name_tokens("KC9SP"))[1], ["name-kc9sp"])
     voice.set_shelf(None)
     check("  and with no shelf known, the name file", voice.name_tokens("KC9SP"), ["name-kc9sp"])
+    voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
+    check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
+    check("  and a stroke into the rough says 'rough' when the phrase is not there",
+          voice.shot({"kind": "rough", "club": "driver", "carry": 200})[-1], "rough")
+    check("  the green likewise", "green" in voice.shot({"kind": "green", "club": "driver", "carry": 200, "feet": 12}), True)
+    voice.set_shelf(["the-first", "hole", "one", "is", "into-the-rough", "rough"])
+    check("  the phrase wins when it is recorded", (voice.hole(1, 4, 377)[0], voice.shot({"kind": "rough", "club": "driver", "carry": 200})[-1]),
+          ("the-first", "into-the-rough"))
+    voice.set_shelf(None)
     check("200", voice.number(200), ["two", "hundred"])
     check("0", voice.number(0), ["zero"])
     check("the ninth", voice.ordinal(9), ["the-ninth"])

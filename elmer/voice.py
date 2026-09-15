@@ -49,6 +49,11 @@ VOCABULARY = {
     "hundred": "hundred", "and": "and",
     # the letters, phonetic - a callsign spelled out when there is no name file
     **{f"phon-{k}": v for k, v in PHONETIC.items()},
+    # single words, the pieces a phrase falls back to when the phrase is
+    # not recorded: "hole, one, is, par, four" for "the first, par, four";
+    # "rough", "bunker", "green" for "into the rough", "into the sand",
+    # "on the green". Terse, the way an ATIS is, and better than silence.
+    "hole": "hole", "is": "is", "rough": "rough", "bunker": "bunker", "green": "green",
     # the holes
     **{f"the-{o}": f"the {o}" for o in ORDINALS},
     "par": "par", "yards": "yards", "feet": "feet", "to-go": "to go",
@@ -163,6 +168,20 @@ def set_shelf(stems):
     _shelf = set(stems) if stems is not None else None
 
 
+def _say(phrase, *pieces):
+    """The phrase, when the shelf has it or the shelf is unknown; the
+    pieces instead when it does not and they are all recorded; the phrase
+    (silent) otherwise. So a half-recorded shelf still says something."""
+    if _shelf is None or phrase in _shelf or not pieces:
+        return [phrase]
+    flat = []
+    for p in pieces:
+        flat += p if isinstance(p, list) else [p]
+    if all(t in _shelf for t in flat):
+        return flat
+    return [phrase]
+
+
 def number(n):
     """A whole number as the words to say it: 377 is three, hundred, seventy,
     seven; 15 is fifteen; 0 is zero. Up to 999, which is every number on a
@@ -243,7 +262,10 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     out = []
     if course and course in COURSE_TOKENS:
         out.append(COURSE_TOKENS[course])
-    out += ordinal(n)
+    # "the first" - or, from the pieces, "hole, one, is"
+    first = ordinal(n)
+    if first:
+        out += _say(first[0], "hole", number(n), *(["is"] if _shelf and "is" in _shelf else []))
     out += ["par"] + number(par)
     out += number(yards) + ["yards"]
     if wind in WIND_TOKENS:
@@ -306,17 +328,17 @@ def shot(s):
             if s.get("left") is not None:
                 out += number(s["left"]) + ["to-go"]
         elif kind == "green":
-            out.append("on-the-green")
+            out += _say("on-the-green", "green")
             if s.get("feet"):
                 out += number(s["feet"]) + ["feet"]
         elif kind == "long":
             out.append("through-the-green")
         elif kind == "sand":
-            out.append("into-the-sand")
+            out += _say("into-the-sand", "bunker")
         elif kind == "water":
             out += ["into-the-water", "drop-and-a-penalty-stroke"]
         elif kind == "rough":
-            out.append("short-and-into-the-rough" if not s.get("carry") else "into-the-rough")
+            out += _say("short-and-into-the-rough" if not s.get("carry") else "into-the-rough", "rough")
     if s.get("picked_up"):
         out.append("picked-up")
     score = s.get("score")

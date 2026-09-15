@@ -147,6 +147,11 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 
 ## Everything else - the address, the stroke, the wind, the card
 
+- `hole`: hole
+- `is`: is
+- `rough`: rough
+- `bunker`: bunker
+- `green`: green
 - `par`: par
 - `yards`: yards
 - `feet`: feet
