@@ -80,7 +80,8 @@ jobs:
         failed=""
         for t in tests/test_*.py; do
           echo "::group::$t"
-          out=$(python "$t" 2>&1); rc=$?
+          rc=0
+          out=$(python "$t" 2>&1) || rc=$?
           echo "$out"
           if [ $rc -ne 0 ]; then
             failed="$failed $t"
