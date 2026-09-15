@@ -979,6 +979,8 @@ class Room:
                 self.golf_voice = sorted(p.stem for p in voice_dir.glob("*.mp3"))
             except OSError:
                 self.golf_voice = []
+            from . import voice
+            voice.set_shelf(self.golf_voice)      # so a whole number is said whole
             # And which holes have a picture from the tee: static/golf/tee/
             # <course>/<hole>.jpg - the view the address is spoken over.
             tee_dir = Path(__file__).resolve().parent / "static" / "golf" / "tee" / course["id"]

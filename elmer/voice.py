@@ -137,15 +137,33 @@ WIND_TOKENS = {"with": "the-breeze-is-behind-you", "into": "into-the-breeze",
 
 # ------------------------------------------------------------ composing
 
+# The shelf: which stems are recorded on this unit, told to us by the room
+# when it reads the folder at the start of a round. Only numbers look at it -
+# a whole number read in one breath (n-377.mp3, "three hundred seventy-seven")
+# beats five pieces stitched, so when the shelf has the whole number that is
+# what is said, and the pieces are the fallback for a number it does not
+# have. Everything else is composed the same whatever is recorded, and the
+# screen skips what is missing.
+_shelf = None
+
+
+def set_shelf(stems):
+    """What is recorded: a list of stems, or None for unknown (say the pieces)."""
+    global _shelf
+    _shelf = set(stems) if stems is not None else None
+
+
 def number(n):
     """A whole number as the words to say it: 377 is three, hundred, seventy,
     seven; 15 is fifteen; 0 is zero. Up to 999, which is every number on a
-    course."""
+    course. If the unit has the whole number recorded (n-377), that alone."""
     n = int(n)
     if n < 0:
         n = -n
     if n > 999:
         n = 999
+    if _shelf and f"n-{n}" in _shelf:
+        return [f"n-{n}"]
     out = []
     if n >= 100:
         out += [NUMBER_WORDS[n // 100], "hundred"]
@@ -284,3 +302,13 @@ def card(rows):
 def script_lines():
     """The recording list: one line a snippet, `stem: words`."""
     return [f"{stem}: {words}" for stem, words in VOCABULARY.items()]
+
+
+def whole_number_note():
+    """For the script: the optional whole-number files, and their names."""
+    return ("Whole numbers, optional: a number read in one breath beats the pieces, so "
+            "any file named n-<number>.mp3 (n-377.mp3: \"three hundred seventy-seven\", "
+            "n-15.mp3: \"fifteen\") is said in place of the pieces whenever that number "
+            "comes up, and the pieces cover every number that has no file. Zero to 999; "
+            "the numbers on the first hole at Pebble Beach are the yards from each lie, "
+            "so record what the card and the clubs can produce, and the pieces fill the rest.")

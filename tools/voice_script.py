@@ -48,6 +48,8 @@ def as_markdown():
            "- the stroke: *the-driver · two · hundred · and · fifty · five · yards · fairway · one · hundred · and · twenty · two · to-go*",
            "- the call: one of the *call-* files",
            "- the card: *thats-the-hole · name-scott · for-a-bogey · name-ann · for-par · on-to-the-next*",
+           "",
+           voice.whole_number_note(),
            ""]
     for title, rows in grouped():
         out += [f"## {title}", ""]
