@@ -30,7 +30,7 @@
         a.addEventListener('ended', finish, {once: true});
         a.addEventListener('error', finish, {once: true});
         a.play().catch(finish);
-        setTimeout(finish, token.startsWith('hole-') ? 40000 : 8000);   // a snippet is seconds; a hole read whole is longer
+        setTimeout(finish, token.startsWith('hole-') ? 40000 : 12000);  // a snippet is seconds; a hole read whole is longer
       } catch (e) { finish(); }
     });
   }

@@ -63,6 +63,12 @@ def run():
     check("a hole recorded whole is read whole at the tee, then the wind",
           voice.hole(1, 4, 377, "with", 12, "pebble-beach"), ["hole-pebble-beach-1", "the-breeze-is-behind-you", "twelve", "miles-an-hour"])
     check("  and the second, with no such file, from the pieces", voice.hole(2, 5, 502, None, None, "pebble-beach")[:2], ["pebble-beach", "hole"] if False else voice.hole(2, 5, 502, None, None, "pebble-beach")[:2])
+    voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1", "hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2", "the-putter", "in-hand", "on-the-green"])
+    check("a hole's colour follows the read at the tee", voice.hole(1, 4, 377, None, None, "pebble-beach"), ["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1"])
+    check("  and the green's colour comes with the first putt, when it is asked for",
+          voice.address("Scott", "putter", 0, "green", green_notes=voice.notes("pebble-beach", 1, "green"))[-2:],
+          ["hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2"])
+    check("  but not with every putt", voice.address("Scott", "putter", 0, "green")[-1], "on-the-green")
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
     check("  and a stroke into the rough says 'rough' when the phrase is not there",

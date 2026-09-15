@@ -118,7 +118,7 @@ def adopt(dry_run=False):
     stems = set(voice.VOCABULARY)
     renamed, strays = [], []
     for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
-        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+)$", p.stem):
+        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+(-(tee|green)-\d+)?)$", p.stem):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
@@ -130,6 +130,8 @@ def adopt(dry_run=False):
                 target = starts[0]
         if target is None:
             target = _whole_hole(text)
+        if target is None:
+            target = _hole_note(text, folder)
         if target is None:
             target = _whole_number(text)
         if target is None:
@@ -156,6 +158,23 @@ def _whole_hole(text):
     words = {w: n for n, w in voice.NUMBER_WORDS.items()}
     n = words.get(m.group(1)) or (int(m.group(1)) if m.group(1).isdigit() else None)
     return f"hole-pebble-beach-{n}" if n else None
+
+
+def _hole_note(text, folder):
+    """A line of colour about the first hole - anything not in the script
+    that reads like a sentence - becomes hole-pebble-beach-1-<where>-<k>:
+    'green' when it speaks of the green or the putting, 'tee' otherwise,
+    numbered after the ones already there. The first hole is the one being
+    recorded; other holes' colour is named by hand."""
+    import re
+    words = str(text).replace("_", " ").strip()
+    if len(words.split()) < 3:
+        return None
+    where = "green" if re.search(r"\b(green|putt|putting)\b", words.lower()) else "tee"
+    k = 1
+    while (folder / f"hole-pebble-beach-1-{where}-{k}.mp3").exists():
+        k += 1
+    return f"hole-pebble-beach-1-{where}-{k}"
 
 
 def _whole_number(text):

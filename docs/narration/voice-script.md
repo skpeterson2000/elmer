@@ -114,6 +114,7 @@ Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, hol
 - `call-rough-6`: Are you new at this?
 - `call-water-6`: We all have bad days.
 - `call-holed-4`: It's in the cup!
+- `call-holed-5`: In the cup!
 - `call-green-1`: On the dance floor.
 - `call-green-2`: Stuck it.
 - `call-green-3`: That's looking at it.

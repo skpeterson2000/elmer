@@ -140,9 +140,10 @@ PERSON_ADDRESS = 180.0
 PERSON_REVEAL = 120.0
 
 
-def _voice_address(who, ball, slot=None, honors=False):
+def _voice_address(who, ball, slot=None, honors=False, green_notes=None):
     from . import voice
-    return voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"), slot=slot, honors=honors)
+    return voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"), slot=slot, honors=honors,
+                         green_notes=green_notes)
 
 
 def _voice_hole(d, g):
@@ -1224,7 +1225,12 @@ class Room:
                                      else None),
                     "address_tokens": (_voice_address(name(away), away_ball,
                                                       slot=(g.players.index(away) + 1 if away in g.players else None),
-                                                      honors=all(b["strokes"] == 0 for b in d["balls"].values()))
+                                                      honors=all(b["strokes"] == 0 for b in d["balls"].values()),
+                                                      # the green's colour, the first time anybody putts on it
+                                                      green_notes=(voice.notes(d.get("course"), d.get("hole"), "green")
+                                                                   if away_ball.get("lie") == "green" and not any(
+                                                                       s.get("putt") for row in g.history if row.get("hole") == d.get("hole")
+                                                                       for s in (row.get("shots") or {}).values()) else None))
                                        if away_ball else []),
                     "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),
