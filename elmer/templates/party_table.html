@@ -166,6 +166,10 @@ body.golfing .joinurl { font-size: .7rem; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
 .hitrow { margin: .4rem 0 .8rem; }
+/* The golf, under the question: whose stroke and the hole, for those who
+   want it, after the thing to read. */
+.golfunder { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.golfunder .narrator { font-size: 1.05rem; }
 .hitrow .clubrow { margin-bottom: .6rem; }
 table.res.card { font-variant-numeric: tabular-nums; font-size: .82rem; }
 table.res.card td, table.res.card td.ms { padding: .12rem .08rem; text-align: center; font-family: inherit; color: var(--text); }
@@ -1062,20 +1066,25 @@ async function tick() {
       // A stroke at this screen: the question and the figure on the left,
       // the seat that is away on the right, and nothing else to look at.
       const seat = atScreen.find(x => x.id === round.to);
-      stage.innerHTML = golfHead(gf) + golfAwayLine(gf) + `<div class="golfstage"><div>
-        <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
+      // The question at the top - a reader starts there, and hunting for
+      // it under the hole's description skewed the game towards people
+      // who read pages for a living. The golf goes below it.
+      stage.innerHTML = `<div class="golfstage"><div>
         <p class="qtext">${esc(q.text || '')}</p>` + figureBlock(q, {size: 'large'}) + `
+        <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
         <p class="hint" id="waiting" style="text-align:left"></p></div>
-        <div class="stage-seats">${seatColumnHTML(seat, round, s.shootout, gf)}</div></div>`;
+        <div class="stage-seats">${seatColumnHTML(seat, round, s.shootout, gf)}</div></div>` +
+        `<div class="golfunder">${golfAwayLine(gf)}${golfHead(gf)}</div>`;
     } else {
-    stage.innerHTML = (gf ? golfHead(gf) + golfAwayLine(gf) : '') + `
-      <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
+    stage.innerHTML = `
       <p class="qtext">${esc(q.text || '')}</p>` +
       figureBlock(q, {size: 'large'}) +
       (atScreen.length && (!gf || awayHere) ? '' : boardHTML(q, null)) +
       (gf ? '' : '<div class="bigclock" id="clock"></div>') + `
+      <div class="chip">${esc(q.section || '')} — ${esc(q.section_title || '')}</div>
       <p class="hint" id="waiting"></p>` +
-      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout, gf)).join('')}</div>` : '');
+      (atScreen.length ? `<div class="stage-seats">${atScreen.map(x => seatColumnHTML(x, round, s.shootout, gf)).join('')}</div>` : '') +
+      (gf ? `<div class="golfunder">${golfAwayLine(gf)}${golfHead(gf)}</div>` : '');
     }
   }
   const clock = document.getElementById('clock');
