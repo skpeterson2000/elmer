@@ -686,7 +686,7 @@ def bandplan_page():
     profile = db.get_profile(connection)
     return render_template(
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
-        classes=bandplan.CLASSES,
+        classes=bandplan.CHOICES, class_labels=bandplan.CLASS_LABELS,
         license_class=profile["settings"].get("license_class")
                        or (profile["settings"].get("license") or {}).get("license_class")
                        or "Technician",
@@ -717,7 +717,7 @@ def _usable(low, high, kind, band_name, license):
 def api_bandplan():
     """Privileges and activity for every band, for one license class."""
     license = request.args.get("class", "Technician")
-    if license not in bandplan.CLASSES:
+    if license not in bandplan.CHOICES:
         abort(400, "unknown license class")
     # Which class is being read, and which one this station actually holds.
     # The page is free to show any of them - that is how somebody decides
@@ -822,7 +822,8 @@ def reachout_page():
     settings = profile["settings"]
     shelf = library.shelf_gear(connection)
     return render_template(
-        "reachout.html", gear=reachout.GEAR, classes=bandplan.CLASSES,
+        "reachout.html", gear=reachout.GEAR, classes=bandplan.CHOICES,
+        class_labels=bandplan.CLASS_LABELS,
         license_class=settings.get("license_class")
                       or (settings.get("license") or {}).get("license_class")
                       or "Technician",

@@ -94,6 +94,14 @@ def run():
     print("\n-- nonsense --")
     check("nothing made of it", pathto.resolve_to("zzzz qqqq nowhere"), None)
 
+    print("\n-- 11 m and the unlicensed --")
+    check("CB is on the path list for a Technician", pathto._allowed("11m", "Technician")[0], True)
+    check("  and for an Extra", pathto._allowed("11m", "Extra")[0], True)
+    check("  and for somebody with no licence", pathto._allowed("11m", "none")[0], True)
+    check("  saying which channels and what radio", "36-40" in pathto._allowed("11m", "none")[1], True)
+    check("but 20 m is not the unlicensed person's", pathto._allowed("20m", "none")[0], False)
+    check("  nor 10 m", pathto._allowed("10m", "none")[0], False)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

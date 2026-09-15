@@ -130,6 +130,12 @@ def _sight(lat1, lon1, lat2, lon2, km):
 
 def _allowed(band, license):
     rank = reachout._class_rank(license)
+    # CB is a licence-free service, so 11 m is on the list for everybody -
+    # with a certified CB radio, which is the condition, not the class.
+    if band == "11m":
+        return True, "CB: SSB on channels 36-40 (38 LSB to call), 12 W PEP, any certified CB radio"
+    if rank < 0:
+        return False, "needs an amateur licence"
     if rank >= bandplan.CLASS_RANK.get("General", 2):
         return True, BAND_MODE.get(band, "")
     if band in TECH_BANDS:

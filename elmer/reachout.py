@@ -47,6 +47,10 @@ GEAR = {
     "cb": "A CB radio (11 m)",
 }
 
+# The cards that need no amateur licence: the Part 95 services, the listening
+# card, and the rule that applies to everybody.
+PERSONAL_KEYS = {"frs-gmrs", "murs", "cb", "ham-on-frs", "emergency"}
+
 # 47 CFR 97.301: what a license class may actually key up on.
 TECH_HF = "Technician HF is 10 m SSB 28.300-28.500, plus CW on 80, 40 and 15."
 
@@ -72,6 +76,7 @@ def sun_state(lat, lon, now=None):
 
 
 def _class_rank(license):
+    """Novice 0 to Extra 4; -1 for no licence; 0 for a class not said."""
     return bandplan.CLASS_RANK.get((license or "").title(), 0)
 
 
@@ -490,6 +495,14 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
                "channels have people on them who can telephone.",
         "ladder": personal.LADDER,
     })
+
+    # No licence: the amateur avenues are not avenues. What is left is the
+    # personal services and the emergency rule, which is the honest list -
+    # and a longer one than most people with a blister-pack pair suspect.
+    if rank < 0:
+        for way in out:
+            if way["key"] not in PERSONAL_KEYS:
+                way["odds"] = "no"
 
     def sort_key(way):
         # The emergency rule is the floor under the list, not the top of it.

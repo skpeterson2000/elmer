@@ -15,6 +15,16 @@ Frequencies are MHz throughout.
 
 CLASSES = ["Novice", "Technician", "General", "Advanced", "Extra"]
 CLASS_RANK = {name: n for n, name in enumerate(CLASSES)}
+# No licence is a class too - the one most people are in. It holds nothing
+# on the amateur bands and everything on FRS, MURS and CB, and a band plan
+# that could not be asked for it fell back to the Novice sheet, which told
+# somebody with a blister-pack handheld that they had CW on 80 m. It ranks
+# below Novice so that "may this class..." answers no, and it stays out of
+# CLASSES so that "which classes permit..." never names it.
+NO_LICENSE = "none"
+CHOICES = [NO_LICENSE] + CLASSES              # what a page may be asked for
+CLASS_LABELS = {NO_LICENSE: "No licence"}
+CLASS_RANK[NO_LICENSE] = CLASS_RANK["None"] = -1
 
 # Activity kinds drive the colouring; the order here is the legend order.
 KINDS = [
@@ -306,6 +316,9 @@ def privilege_table(license_class):
     bands they hold nothing on, which is the half of the answer that keeps
     somebody out of trouble.
     """
+    if license_class == NO_LICENSE:
+        return {"license_class": license_class, "bands": [],
+                "none_on": [band["name"] for band in BANDS]}
     if license_class not in CLASSES:
         return {"license_class": license_class, "bands": [], "none_on": []}
     bands, none_on = [], []

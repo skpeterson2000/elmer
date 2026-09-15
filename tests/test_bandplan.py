@@ -110,6 +110,17 @@ def main():
     check("a Technician is told the real reason",
           "may transmit on" in tech[0], True)
 
+    print("\n-- no licence is a class the plan can be asked for --")
+    check("it is offered, first", B.CHOICES[0], B.NO_LICENSE)
+    check("  but never named as a class that permits something", B.NO_LICENSE in B.CLASSES, False)
+    check("  and ranks below Novice", B.CLASS_RANK[B.NO_LICENSE] < B.CLASS_RANK["Novice"], True)
+    table = B.privilege_table(B.NO_LICENSE)
+    check("its sheet holds nothing", table["bands"], [])
+    check("  and says so for every band", len(table["none_on"]), len(B.BANDS))
+    check("no band is transmittable on it", B.may_transmit("2 m", B.NO_LICENSE, 146.52)[0], False)
+    check("  and 2 m phone still needs a Technician, not a nobody",
+          B.classes_permitting("2 m", 146.0, 148.0, "phone")[0], "Technician")
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

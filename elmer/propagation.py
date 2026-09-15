@@ -30,8 +30,18 @@ BANDS = [
     ("160m", 1.8, "80m-40m"), ("80m", 3.5, "80m-40m"), ("60m", 5.3, "80m-40m"),
     ("40m", 7.0, "80m-40m"), ("30m", 10.1, "30m-20m"), ("20m", 14.0, "30m-20m"),
     ("17m", 18.1, "17m-15m"), ("15m", 21.0, "17m-15m"), ("12m", 24.9, "12m-10m"),
+    # 11 m is CB - 26.965-27.405, forty channels, no licence, 4 W AM or 12 W
+    # PEP SSB. It sits between two amateur bands the model already rates and
+    # opens with them: when the MUF passes 27 MHz, or sporadic E arrives in
+    # summer, "skip" is in and a 4 W call carries hundreds of miles. Nobody
+    # forecasts that for the people who use it, and the physics is the same
+    # physics, so ELMER does - see PERSONAL below for what marks it apart.
+    ("11m", 27.2, "12m-10m"),
     ("10m", 28.0, "12m-10m"), ("6m", 50.0, None),
 ]
+# Bands in the list that are not amateur bands: rated like the others,
+# never offered to an amateur as the band that fills a gap or wins a path.
+PERSONAL = {"11m": "CB"}
 RATING_SCORE = {"Poor": 1, "Fair": 2, "Good": 3, "Band Closed": 0}
 
 # Keyed on where as well as when. It always held the sun angle for one QTH;
@@ -1015,7 +1025,7 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
                            "critical frequency a signal comes back from "
                            "overhead, above it the near stations are the ones "
                            "that go" % round(nearest / 1.609))
-        under = [name for name, freq, _ in BANDS if freq <= fof2]
+        under = [name for name, freq, _ in BANDS if freq <= fof2 and name not in PERSONAL]
         out["fills_the_gap"] = under[-1] if under and nearest else None
     return out
 

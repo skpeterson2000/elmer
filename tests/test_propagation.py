@@ -569,6 +569,20 @@ def main():
     check("  and the regional caveat is untouched",
           "critical frequency" in PA.QUALIFIED["regional"][1], True)
 
+    print("\n-- 11 m, rated with its neighbours --")
+    names = [name for name, _, _ in P.BANDS]
+    check("11 m sits between 12 m and 10 m", names[names.index("12m") + 1: names.index("10m")], ["11m"])
+    check("  in the same wall-chart group", dict((n, g) for n, _, g in P.BANDS)["11m"], "12m-10m")
+    check("  and is marked as a personal service", P.PERSONAL.get("11m"), "CB")
+    ham = {"conditions": {("12m-10m", "day"): "Good", ("12m-10m", "night"): "Poor"}, "vhf": {}}
+    rows = {r["band"]: r for r in P._band_rows(ham, "lit", 31.0)}
+    check("it gets the group's rating by day", rows["11m"]["rating"], "Good")
+    rows = {r["band"]: r for r in P._band_rows(ham, "lit", 25.0)}
+    check("  and the MUF note when the MUF is under it", "above the estimated" in rows["11m"]["note"], True)
+    sky = P.path_bands(1500.0, fof2=9.0, hmf2=300.0)
+    check("the path tool rates it", any(r["band"] == "11m" for r in sky["bands"]), True)
+    check("  but never names it as the band that fills a gap", sky.get("fills_the_gap") != "11m", True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

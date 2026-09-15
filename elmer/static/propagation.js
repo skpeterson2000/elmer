@@ -80,9 +80,12 @@ async function load(force) {
     '<span class="stat-value">' + escapeHTML(String(value)) + '</span>' +
     '<span class="stat-note">' + note + '</span></div>').join('');
 
+  /* 11 m is CB, rated here on purpose - it opens with 12 m and 10 m and
+     nobody else tells its users when. Marked so it is not read as a band. */
   document.getElementById('p-bands').innerHTML = d.bands.map(b =>
     '<div class="band-row">' +
-      '<span class="band-name">' + b.band + '</span>' +
+      '<span class="band-name">' + b.band +
+        (b.band === '11m' ? ' <span class="tiny muted">CB</span>' : '') + '</span>' +
       ratingPill(b.rating, b.score) +
       '<span class="band-note">' + escapeHTML(b.note) + '</span>' +
     '</div>').join('');

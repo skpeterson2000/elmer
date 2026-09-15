@@ -19,7 +19,7 @@
       </label>
       <select id="bp-class">
         {% for c in classes %}
-          <option value="{{ c }}" {% if c == license_class %}selected{% endif %}>{{ c }}</option>
+          <option value="{{ c }}" {% if c == license_class %}selected{% endif %}>{{ class_labels.get(c, c) }}</option>
         {% endfor %}
       </select>
     </div>

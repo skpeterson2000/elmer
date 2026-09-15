@@ -64,7 +64,7 @@
       <label>License class</label>
       <select id="ro-class">
         {% for name in classes %}
-        <option value="{{ name }}" {% if name == license_class %}selected{% endif %}>{{ name }}</option>
+        <option value="{{ name }}" {% if name == license_class %}selected{% endif %}>{{ class_labels.get(name, name) }}</option>
         {% endfor %}
       </select>
     </div>

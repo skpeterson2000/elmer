@@ -118,7 +118,7 @@
 
     <label class="setup-label" for="setup-class">Licence class</label>
     <select id="setup-class">
-      <option value="">Not licensed yet</option>
+      <option value="none" {% if (profile.settings.license_class or '') == 'none' %}selected{% endif %}>Not licensed yet</option>
       {% for name in license_classes %}
         <option value="{{ name }}"
           {% if (profile.settings.license_class or '') == name %}selected{% endif %}>

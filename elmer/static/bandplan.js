@@ -20,6 +20,24 @@ function bpClass() { return document.getElementById('bp-class').value; }
 function bpNotYours(d) {
   const box = document.getElementById('bp-notyours');
   if (!box) return;
+  /* No licence is not a lapse and gets no owl: it is where everybody
+     starts, and the honest sheet for it is the one further down the page -
+     FRS, MURS and CB now, GMRS for a fee and no exam, and the amateur bands
+     above shown for what they are, the reason to sit the Technician. */
+  if (d && d.class === 'none') {
+    box.hidden = false;
+    box.className = 'notice';
+    box.innerHTML =
+      '<div><b>No licence yet.</b> Every amateur band above reads <i>no</i> ' +
+      'for you, and that is the truth of it - but it is not the whole list. ' +
+      '<a href="#personal">FRS, MURS and CB</a> are yours today with a radio ' +
+      'certified for them, GMRS is a fee and a form with no exam, and CB has ' +
+      'its own skip forecast down there, worked from the same sky as 10 m. ' +
+      'The Technician exam is thirty-five questions and the pool is in this ' +
+      'program.</div>';
+    return;
+  }
+  box.className = 'lapse';
   if (!d || !d.above_yours) { box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML =
@@ -421,9 +439,41 @@ function psCb(rows) {
     col(rows.slice(0, half)) + col(rows.slice(half)) + '</div>';
 }
 
-api('/api/personal').then(d => {
+/* The personal services, drawn once the channel tables arrive and again when
+   the outlook does: the CB fold carries the same conditions box as 10 m,
+   since 11 m sits between two amateur bands and opens with them, and that
+   box is empty until the outlook is in. */
+let bpPersonal = null;
+api('/api/personal').then(d => { bpPersonal = d; psRender(); }).catch(() => {
   const box = document.getElementById('personal-body');
-  if (!box) return;
+  if (box) box.innerHTML = '<p class="small muted">Could not load the channel tables.</p>';
+});
+
+/* What a score means on CB, in CB's terms: AM on the channels, SSB on 36-40.
+   The amateur table talks about CW and FT8, which a CB radio has not got. */
+function cbModes(score) {
+  return score >= 60 ? 'Skip is in: SSB on 36-40 (call on 38 LSB) and AM will carry too'
+    : score >= 38 ? 'Skip is there for SSB on 36-40; AM will struggle past the horizon'
+    : score >= 18 ? 'Faint skip - SSB on 38 with patience; AM is local'
+    : 'No skip: local only, a few miles by ground wave, more with SSB';
+}
+
+function cbConditions() {
+  const cond = conditionsFor({name: '11 m'});
+  if (!cond || !cond.now) return conditionBar({name: '11 m', high: 27.405});
+  const now = Object.assign({}, cond.now, {modes: cbModes(cond.now.score)});
+  return '<div class="tiny muted" style="margin-top:.6rem">The one forecast ' +
+    'nobody publishes for CB, from the same physics as 10 m: when the MUF ' +
+    'passes 27 MHz, or sporadic E arrives in summer, a 4 W call goes ' +
+    'hundreds of miles. Legal since 2017 - the 155-mile rule went with the ' +
+    'Part 95 rewrite.</div>' +
+    conditionBar({name: '11 m', high: 27.405}, Object.assign({}, cond, {now}));
+}
+
+function psRender() {
+  const d = bpPersonal;
+  const box = document.getElementById('personal-body');
+  if (!box || !d) return;
   const tables = {
     frs: () => psFrsGmrs(d.frs_gmrs), gmrs: () => psFrsGmrs(d.frs_gmrs),
     murs: () => psMurs(d.murs), cb: () => psCb(d.cb),
@@ -442,7 +492,7 @@ api('/api/personal').then(d => {
       '<div class="grid cols-2 ps-grid">' +
         '<div>' + psFacts(svc) + '</div>' +
         '<div class="nifog-band" style="margin-top:0">' + tables[svc.key]() + '</div>' +
-      '</div></details>').join('') +
+      '</div>' + (svc.key === 'cb' ? cbConditions() : '') + '</details>').join('') +
     /* Said once, on the page that shows the channels, because this is where
        somebody with a dual-band handheld is looking at 462.675 and
        wondering. */
@@ -456,10 +506,7 @@ api('/api/personal').then(d => {
       '<ol class="ps-ladder">' + d.ladder.map(step =>
         '<li><b>' + escapeHTML(step.what) + '.</b> <span class="muted">' +
         escapeHTML(step.how) + '</span></li>').join('') + '</ol></div>';
-}).catch(() => {
-  const box = document.getElementById('personal-body');
-  if (box) box.innerHTML = '<p class="small muted">Could not load the channel tables.</p>';
-});
+}
 
 /* ---------- the bar as a way in ----------
 
@@ -490,6 +537,7 @@ api('/api/propagation/outlook').then(d => {
   bpProp = d.ok ? d : null;
   bpSky = (d.moon || d.meteors) ? {moon: d.moon || null, meteors: d.meteors || null} : null;
   if ((bpProp || bpSky) && bpData) bpRender();       // it arrived after the first draw
+  if (bpProp) psRender();                            // the CB fold's forecast
 }).catch(() => {});
 
 function conditionsFor(band) {
@@ -855,7 +903,7 @@ function vhfBox(band) {
       'answer.</div></div>';
 }
 
-function conditionBar(band) {
+function conditionBar(band, given) {
   /* Above about 30 MHz there is usually no F layer return and so no daily
      curve worth drawing - but "usually" is not "never", and 6m is the band
      where it matters. It is in the propagation model, the outlook returns a
@@ -878,7 +926,7 @@ function conditionBar(band) {
       'band is shut - which is the honest answer.</div>' +
       forecastStrip(cond) + '</div>';
   }
-  const cond = conditionsFor(band);
+  const cond = given || conditionsFor(band);
   if (!cond || !cond.now) {
     return '<div class="condbox"><div class="tiny muted">Band conditions ' +
       'unavailable &mdash; the space-weather feed could not be reached.</div></div>';
