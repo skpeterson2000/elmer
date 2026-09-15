@@ -114,6 +114,22 @@ LEAK_PUSH = 10
 # where the ball lies, and where the hazards are read. The mark is where
 # the ball comes down; a golfer who wants it to stop short of the creek
 # lands it shorter still, as on a course.
+# The green. Everyone wants the cup, and the green decides: a putt is
+# rolled the distance to the mark, give or take a pace that grows with the
+# length, and the slope has its say - downhill runs long, uphill comes up
+# short, and a cross-slope breaks the line toward the fall. A ball that
+# passes over the cup with pace to spare drops; too much pace and it lips
+# out and runs on. Inside TAP_IN feet of the cup is good - a stroke, no
+# question. A wrong answer is a bad stroke: never up, or raced past.
+CUP_CAPTURE = 0.7               # feet either side of the cup a putt with pace drops in
+CUP_OVERRUN = 4.0               # feet past the cup a putt may still have and drop
+TAP_IN = 2.0                    # feet: that's good
+PUTT_PACE = (0.08, 300.0)       # the pace's spread: eight percent, plus a foot in three hundred
+SLOPE_PACE = 0.06               # per percent of grade, on a putt straight up or down it
+SLOPE_BREAK = 0.035             # feet of break per foot rolled, per percent of grade
+PUTT_LINE = 4.0                 # degrees either side of the line a right answer's putt may start on
+DEFAULT_SLOPE = {"falls": "front", "grade": 1.5}
+FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right": (0.0, 1.0)}
 ROLL = {"driver": 24, "wood": 18, "iron": 9, "wedge": 3}
 SURFACE_ROLL = {"fairway": 1.0, "green": 0.45, "rough": 0.3, "sand": 0.0, "tee": 1.0}
 WIND_ROLL = {"with": 1.4, "into": 0.6, "across": 1.0}
@@ -382,12 +398,21 @@ class Golf:
         algorithm feeds the result. Returns the mark as kept, or None."""
         h = self.hole()
         ball = self.balls.get(player)
-        if h is None or ball is None or ball.done() or ball.lie == "green":
+        if h is None or ball is None or ball.done():
             return None
         try:
-            at, off = int(round(float(at))), int(round(float(off)))
+            at, off = float(at), float(off)
         except (TypeError, ValueError):
             return None
+        if ball.lie == "green":
+            # On the green the mark is anywhere on it, in feet if need be:
+            # the cup, or the spot above it the break wants.
+            half = h["green"] / 2 + 2
+            at = max(h["yards"] - half, min(h["yards"] + half, at))
+            off = max(-(GREEN_HALF + 2), min(GREEN_HALF + 2, off))
+            self.aims[player] = {"at": round(at, 2), "off": round(off, 2)}
+            return dict(self.aims[player])
+        at, off = int(round(at)), int(round(off))
         at = max(ball.at + 10, min(h["yards"] + 20, at))
         off = max(-OFF_MOST, min(OFF_MOST, off))
         self.aims[player] = {"at": at, "off": off}
@@ -444,10 +469,7 @@ class Golf:
         there - see FLAIR_CALLS."""
         wind = self.wind_on(h)
         if club == "putter" or ball.lie == "green":
-            ball.strokes += 1
-            ball.holed = True
-            ball.off = 0
-            return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
+            return self._putt(h, ball, right=True, adept=adept)
         left_before = h["yards"] - ball.at
         # The mark: the pin down the line unless the golfer set one. The
         # shot is played at the mark; the pin is what is left after it.
@@ -596,12 +618,115 @@ class Golf:
         return {"kind": "fairway", "words": f"{club}, {carry} yards{ran}, {where} - {left} to go",
                 "carry": carry, "roll": roll, "wind": wind, "left": left, "flair": flair, "off": off}
 
+    def slope(self, h):
+        """How this green falls, and how much: {"falls", "grade"}."""
+        s = dict(DEFAULT_SLOPE)
+        s.update(h.get("slope") or {})
+        if s.get("falls") not in FALLS:
+            s["falls"] = "front"
+        s["grade"] = max(0.0, min(5.0, float(s.get("grade") or 0)))
+        return s
+
+    def feet_from_cup(self, ball, h):
+        """Where the ball sits on the green, in feet from the cup: along
+        (short negative, past positive) and across (left negative)."""
+        return (ball.at - h["yards"]) * 3.0, ball.off * 3.0
+
+    def _putt(self, h, ball, right, adept=False):
+        """The putt. Everyone wants the cup, and the green decides."""
+        ball.strokes += 1
+        bx, by = self.feet_from_cup(ball, h)
+        mark = self.aim(self._who) or {"at": h["yards"], "off": 0}
+        mx, my = (float(mark["at"]) - h["yards"]) * 3.0, float(mark["off"]) * 3.0
+        vx, vy = mx - bx, my - by
+        length = (vx * vx + vy * vy) ** 0.5
+        have = (bx * bx + by * by) ** 0.5                 # the putt's length to the cup
+        feet = int(round(have))
+        s = self.slope(h)
+        fx, fy = FALLS[s["falls"]]
+        grade = s["grade"]
+        if have < 1.5 and right:
+            # a foot away: the tap-in is the stroke
+            ball.at, ball.off, ball.holed = h["yards"], 0, True
+            return {"kind": "holed", "putt": True, "feet": feet, "words": "tap-in - holed", "carry": 0, "left_feet": 0}
+        if length < 0.5:
+            vx, vy, length = -bx, -by, max(have, 0.5)     # a mark on the ball: at the cup, then
+        ux, uy = vx / length, vy / length
+        if right:
+            pace = PUTT_PACE[0] + length / PUTT_PACE[1]
+            line = PUTT_LINE
+            if adept:
+                pace, line = pace * 0.5, line * 0.5
+            rolled = length * (1 + self.swing.uniform(-pace, pace))
+            # and the line: a degree or two either side of where it was meant
+            import math as _m
+            ang = _m.radians(self.swing.uniform(-line, line))
+            ux, uy = ux * _m.cos(ang) - uy * _m.sin(ang), ux * _m.sin(ang) + uy * _m.cos(ang)
+        elif self.swing.random() < 0.5:
+            rolled = length * self.swing.uniform(0.45, 0.72)          # never up
+        else:
+            rolled = length * self.swing.uniform(1.25, 1.6)           # raced it
+        # The slope: pace on the up-and-down, break across. A golfer who set
+        # no mark is taken to have allowed for the pace, as anyone who has
+        # putted uphill does; one who set a mark gets the green as it is.
+        along_fall = ux * fx + uy * fy
+        if mark.get("set"):
+            rolled *= 1 + SLOPE_PACE * grade * along_fall
+        px, py = fx - along_fall * ux, fy - along_fall * uy         # the fall across the line
+        brk = SLOPE_BREAK * grade * rolled
+        rx, ry = bx + ux * rolled + px * brk, by + uy * rolled + py * brk
+        if not right:
+            # a bad stroke is off line as well as off pace
+            wobble = self.swing.uniform(-0.12, 0.12) * length
+            rx, ry = rx - uy * wobble, ry + ux * wobble
+        # Over the cup with pace to spare, and it drops. The path is the
+        # segment from the ball to where it would rest.
+        holed = False
+        if right:
+            dx, dy = rx - bx, ry - by
+            seg = (dx * dx + dy * dy) ** 0.5 or 1e-6
+            t = max(0.0, min(1.0, (-bx * dx - by * dy) / (seg * seg)))
+            cx, cy = bx + t * dx, by + t * dy
+            miss = (cx * cx + cy * cy) ** 0.5
+            overrun = seg * (1 - t)
+            capture, allow = (CUP_CAPTURE * 1.4, CUP_OVERRUN * 1.5) if adept else (CUP_CAPTURE, CUP_OVERRUN)
+            holed = miss <= capture and overrun <= allow and t > 0
+        words_slope = ("downhill" if along_fall > 0.4 and grade >= 1 else "uphill" if along_fall < -0.4 and grade >= 1
+                       else (f"breaking {s['falls']}" if s["falls"] in ("left", "right") else "across the slope")
+                       if grade >= 1.5 and abs(along_fall) < 0.7 else "")
+        head = f"putt, {feet} feet" + (f", {words_slope}" if words_slope else "")
+        if holed:
+            ball.at, ball.off, ball.holed = h["yards"], 0, True
+            return {"kind": "holed", "putt": True, "feet": feet, "words": f"{head} - holed", "carry": 0, "left_feet": 0}
+        left = (rx * rx + ry * ry) ** 0.5
+        if right and left <= TAP_IN:
+            ball.strokes += 1                       # the tap-in: a stroke, no question
+            ball.at, ball.off, ball.holed = h["yards"], 0, True
+            return {"kind": "holed", "putt": True, "feet": feet, "tap_in": True,
+                    "words": f"{head} - to {'a foot' if left < 1.5 else str(int(round(left))) + ' feet'}, that's good",
+                    "carry": 0, "left_feet": 0}
+        half = h["green"] * 1.5 + 6
+        ball.at, ball.off = h["yards"] + rx / 3.0, ry / 3.0
+        left_ft = max(1, int(round(left)))
+        if abs(rx) > half or abs(ry) > GREEN_HALF * 3 + 3:
+            ball.lie = "rough"                      # raced it off the green
+            ball.at, ball.off = round(ball.at), round(ball.off)
+            return {"kind": "missed", "putt": True, "feet": feet, "words": f"{head} - raced it off the green",
+                    "carry": 0, "left_feet": left_ft}
+        ball.lie = "green"
+        how = ("holed" if holed else (f"{left_ft} feet past" if (rx * ux + ry * uy) > (bx * ux + by * uy) + length else
+                                     f"{left_ft} feet short" if left_ft and rolled < length * 0.9 else f"to {left_ft} feet"))
+        if not right:
+            how = f"left it short, {left_ft} feet" if rolled < length else f"raced it past, {left_ft} feet"
+        return {"kind": "green" if right else "missed", "putt": True, "feet": feet, "words": f"{head} - {how}",
+                "carry": 0, "left_feet": left_ft}
+
     def _foul(self, h, ball, club):
         """A wrong answer: the ball finds the nearest trouble the club could
         have reached. Nothing in reach means a short one into the rough."""
-        ball.strokes += 1
         if club == "putter" or ball.lie == "green":
-            return {"kind": "missed", "words": "putt missed", "carry": 0}
+            return self._putt(h, ball, right=False)
+        ball.strokes += 1
         reach = ball.at + CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
         ahead = [hz for hz in h.get("hazards", [])
                  if hz["to"] > ball.at and hz["from"] <= reach and hz["kind"] in ("water", "bunker", "rough")]
@@ -907,8 +1032,10 @@ class Golf:
             "yards": h["yards"] if h else None, "hole_name": (h.get("name") or "") if h else "",
             "hole_wind": h.get("wind") if h else None, "wind_mph": self.wind_mph,
             "holes_played": self.hole_index, "holes": len(self.holes),
+            "slope": self.slope(h) if h else None,
             "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
-                          "picked_up": b.picked_up, "left": (h["yards"] - b.at) if h else 0,
+                          "picked_up": b.picked_up, "left": int(round(h["yards"] - b.at)) if h else 0,
+                          "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie == "green" else None),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "log": list(b.log)}

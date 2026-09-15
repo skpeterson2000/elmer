@@ -1190,6 +1190,7 @@ class Room:
                     "away_club": away_ball["club"] if away_ball else None,
                     "away_left": away_ball["left"] if away_ball else None,
                     "away_lie": away_ball["lie"] if away_ball else None,
+                    "away_feet": away_ball.get("feet") if away_ball else None,
                     "away_bot": bool(away_ball and away_ball.get("bot")),
                     # A person's address waits on their Hit; the screens
                     # offer the clubs and the button, and say the question
@@ -1198,7 +1199,10 @@ class Room:
                     "address_waits": bool(away_ball and not away_ball.get("bot")),
                     "tempo": self.golf_tempo,
                     # For turning a tap on the strip into yards - see golfmap.geometry.
-                    "map": golfmap.geometry(g.hole()) if g.hole() else None,
+                    "map": ((golfmap.green_geometry(g.hole())
+                             if (player_id is not None and mine and mine.get("lie") == "green" and not mine.get("holed"))
+                             or (player_id is None and away_ball and away_ball.get("lie") == "green")
+                             else golfmap.geometry(g.hole())) if g.hole() else None),
                     # Who has a tee time - joining the group at the next
                     # hole - and whether this player is one of them.
                     "tee_times": [name(p) for p in d.get("tee_times", [])],

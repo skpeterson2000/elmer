@@ -313,6 +313,15 @@ def shot(s):
         out += number(s.get("carry") or 0) + ["yards", "holed-it-from-the-fairway"]
     elif s.get("flair") == "flop":
         out += ["the-wedge"] + number(s.get("carry") or 0) + ["yards", "flopped-it-to-a-tap-in"]
+    elif s.get("putt"):
+        # a putt: holed, or how much is left
+        if kind == "holed":
+            out.append("putt-holed")
+        else:
+            if kind == "missed":
+                out.append("putt-missed")
+            if s.get("left_feet"):
+                out += number(s["left_feet"]) + ["feet"]
     elif kind == "holed":
         if s.get("ace"):
             out += [f"the-{club}"] if club else []

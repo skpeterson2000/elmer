@@ -620,7 +620,7 @@ function ordinal(n) { return [, 'st', 'nd', 'rd'][(n % 100 >> 3 ^ 1) && n % 10] 
 function golfBalls(gf) {
   return `<div class="seats" style="margin:.4rem 0">${Object.values(gf.balls).map(b =>
     `<span class="seat" style="${b.holed ? 'border-color:var(--green)' : b.picked_up ? 'opacity:.6' : ''}">${esc(b.name)}${b.bot ? ' <span class="count">bot</span>' : ''}
-       <span class="count">&middot; ${b.holed ? 'holed, ' + b.strokes : b.picked_up ? 'picked up, ' + b.strokes : `${b.left} to go, ${esc(b.lie)}, ${b.strokes} played`}</span></span>`).join('')}</div>`;
+       <span class="count">&middot; ${b.holed ? 'holed, ' + b.strokes : b.picked_up ? 'picked up, ' + b.strokes : b.lie === 'green' ? `${b.feet} feet, on the green, ${b.strokes} played` : `${b.left} to go, ${esc(b.lie)}, ${b.strokes} played`}</span></span>`).join('')}</div>`;
 }
 /* The stroke, the way a golfer says it, big; the club and the yards under
    it; and a slot for a clip of the moment of contact - static/golf/clips/
@@ -667,7 +667,7 @@ function golfBoard(gf) {
 function golfLine(gf) {
   if (gf.over) return `<b>${esc(gf.winner_name || 'Somebody')}</b> wins the round.`;
   if (gf.playoff && gf.playoff.length) return 'Playoff &mdash; sudden death, hole by hole.';
-  if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${esc(gf.away_lie || '')}` +
+  if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away &middot; ${gf.away_lie === 'green' ? (gf.away_feet || 0) + ' feet, on the green' : gf.away_left + ' to go, ' + esc(gf.away_lie || '')}` +
     (gf.away_club ? ` &middot; the ${esc(gf.away_club)}` : '') +
     (gf.away_bot ? '<br><span class="hint" style="display:inline">The question comes up in a moment. Read it with them: the next one is yours.</span>' : '');
   return 'Next stroke coming.';
@@ -678,7 +678,7 @@ function golfAwayLine(gf) {
   const b = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
   if (!b) return '';
   return `<p class="narrator" style="margin:.2rem 0 .5rem">
-    <b>${esc(b.name)}</b> is away &middot; ${b.left} to go, ${esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(b.club) : ''}</p>`;
+    <b>${esc(b.name)}</b> is away &middot; ${b.lie === 'green' ? b.feet + ' feet, on the green' : b.left + ' to go, ' + esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(b.club) : ''}</p>`;
 }
 
 /* Where a CutThroat is, in a sentence the room can read - and the chairs:
@@ -904,7 +904,7 @@ async function tick() {
         const awayBall = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
         const address = gf.away_name && !gf.over
           ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
-              gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}</p>` +
+              gf.away_lie === 'green' ? `, ${gf.away_feet || 0} feet` : gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}</p>` +
             (awayHere && awayBall
               ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club, then press Hit. The question is yours when you are ready - nothing here is timed.</p>
                  <div class="clubrow" data-clubrow="${gf.away}">${(awayBall.clubs || []).map(c =>
@@ -925,10 +925,10 @@ async function tick() {
                        (awayAim && awayAim.set ? 'a' + awayAim.at + ':' + awayAim.off : '');
         // The strip takes a tap from the golfer who is away, at this screen:
         // where they mean the ball to land. Their mark is their mark.
-        const canAim = awayHere && awayBall && awayBall.lie !== 'green';
+        const canAim = awayHere && awayBall;
         const holeMap = gf.over ? '' : `<img class="holemap ${canAim ? 'aimable' : ''}" src="/api/party/golf/map.svg?k=${encodeURIComponent(mapKey)}" alt="the hole"${
           canAim ? ` data-aim-for="${gf.away}" title="tap where you mean the ball to land"` : ''}>` +
-          (canAim ? `<p class="hint holemap-hint">${awayAim && awayAim.set ? `Aiming ${awayAim.at} yards${awayAim.off ? ', ' + Math.abs(awayAim.off) + (awayAim.off < 0 ? ' left' : ' right') : ''}. ` : ''}Tap the hole to set your mark${awayAim && awayAim.set ? ', or <a href="#" data-aim-clear="' + gf.away + '">aim at the pin</a>' : ''}.</p>` : '');
+          (canAim ? `<p class="hint holemap-hint">${awayAim && awayAim.set ? (awayBall.lie === 'green' ? `Aiming ${Math.round((awayAim.at - gf.yards) * 3)} ft ${(awayAim.at - gf.yards) < 0 ? 'short of' : 'past'} the cup${awayAim.off ? ', ' + Math.abs(Math.round(awayAim.off * 3)) + ' ft ' + (awayAim.off < 0 ? 'left' : 'right') : ''}. ` : `Aiming ${awayAim.at} yards${awayAim.off ? ', ' + Math.abs(awayAim.off) + (awayAim.off < 0 ? ' left' : ' right') : ''}. `) : ''}${awayBall.lie === 'green' ? 'Tap the green where you mean the putt to die' : 'Tap the hole to set your mark'}${awayAim && awayAim.set ? ', or <a href="#" data-aim-clear="' + gf.away + '">aim at the ' + (awayBall.lie === 'green' ? 'cup' : 'pin') + '</a>' : ''}.</p>` : '');
         stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` +
           (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
@@ -1157,6 +1157,11 @@ function stripToYards(img, e, geo) {
   const r = img.getBoundingClientRect();
   const x = (e.clientX - r.left) * geo.w / r.width;
   const y = (e.clientY - r.top) * geo.h / r.height;
+  if (geo.view === 'green') {
+    // On the green: feet from the cup, kept as fractional yards.
+    const along = (geo.cy - y) / geo.px_per_ft, across = (x - geo.cx) / geo.px_per_ft;
+    return {at: Math.round((geo.yards + along / 3) * 100) / 100, off: Math.round(across / 3 * 100) / 100};
+  }
   const usable = geo.h - geo.pad_top - geo.pad_bot;
   const at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
   const off = Math.round((x - geo.centre) / geo.px_per_yard);

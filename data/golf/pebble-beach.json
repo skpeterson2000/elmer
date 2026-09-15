@@ -9,7 +9,7 @@
   "from": "the Pacific, off the left on the ocean holes",
   "note": "steady afternoon sea breeze; the 6th to the 10th and the 17th and 18th feel it most"
  },
- "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately.",
+ "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately. Greens fall toward the ocean and the front, placed approximately too.",
  "holes": [
   {
    "n": 1,
@@ -33,7 +33,11 @@
      "side": "left",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 2
+   }
   },
   {
    "n": 2,
@@ -57,7 +61,11 @@
      "side": "across",
      "name": "the barranca"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 1.5
+   }
   },
   {
    "n": 3,
@@ -81,7 +89,11 @@
      "side": "right",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 2
+   }
   },
   {
    "n": 4,
@@ -105,7 +117,11 @@
      "side": "right",
      "name": "Stillwater Cove"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "right",
+    "grade": 2
+   }
   },
   {
    "n": 5,
@@ -129,7 +145,11 @@
      "side": "beyond",
      "name": "the cove beyond"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 2.5
+   }
   },
   {
    "n": 6,
@@ -153,7 +173,11 @@
      "side": "right",
      "name": "the cliff and the ocean"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 2
+   }
   },
   {
    "n": 7,
@@ -177,7 +201,11 @@
      "side": "beyond",
      "name": "the Pacific"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 3
+   }
   },
   {
    "n": 8,
@@ -201,7 +229,11 @@
      "side": "right",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 3
+   }
   },
   {
    "n": 9,
@@ -225,7 +257,11 @@
      "side": "left",
      "name": "fairway bunker"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 2.5
+   }
   },
   {
    "n": 10,
@@ -249,7 +285,11 @@
      "side": "left",
      "name": "fairway bunker"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 2.5
+   }
   },
   {
    "n": 11,
@@ -273,7 +313,11 @@
      "side": "left",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 2
+   }
   },
   {
    "n": 12,
@@ -290,7 +334,11 @@
      "side": "front",
      "name": "front bunker"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 1.5
+   }
   },
   {
    "n": 13,
@@ -314,7 +362,11 @@
      "side": "right",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 2
+   }
   },
   {
    "n": 14,
@@ -338,7 +390,11 @@
      "side": "left",
      "name": "the deep greenside bunker"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 3
+   }
   },
   {
    "n": 15,
@@ -355,7 +411,11 @@
      "side": "left",
      "name": "fairway bunkers"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 1.5
+   }
   },
   {
    "n": 16,
@@ -379,7 +439,11 @@
      "side": "across",
      "name": "the barranca"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "front",
+    "grade": 2
+   }
   },
   {
    "n": 17,
@@ -403,7 +467,11 @@
      "side": "beyond",
      "name": "the ocean"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "back",
+    "grade": 2
+   }
   },
   {
    "n": 18,
@@ -434,7 +502,11 @@
      "side": "right",
      "name": "greenside"
     }
-   ]
+   ],
+   "slope": {
+    "falls": "left",
+    "grade": 2
+   }
   }
  ]
 }

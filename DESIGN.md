@@ -2404,6 +2404,30 @@ but the same swing lands the same way and every stroke lands a little
 differently, which is what a golfer means by luck. It is what puts four
 tee shots in four places, and so decides who is away.
 
+**The green.** On the green the wind stops mattering and the slope
+starts, and everyone wants the cup. The strip becomes the green: the
+whole of it, the cup at the centre, rings every ten feet, every ball on
+it at its feet from the cup, an arrow the way it falls and how much (the
+card gives each green a slope - Pebble's fall toward the ocean and the
+front, placed approximately like the bunkers), and the golfer's mark
+wherever they tap. A putt is rolled the distance to the mark, give or
+take a pace that grows with the length and a degree or two of line, and
+then the green has its say: downhill runs long, uphill comes up short,
+a cross-slope breaks the ball toward the fall. A ball that passes over
+the cup with pace to spare drops; too much pace and it lips out and runs
+on; what stops inside two feet is good - a stroke, no question. A wrong
+answer is a bad stroke, never up or raced past, and the ball is still on
+the green for the next question. So a green takes one, two or three
+questions as it takes putts. A golfer who set no mark is taken to have
+allowed for the pace, as anyone who has putted uphill does, and gets the
+break as it is; one who set a mark gets the green exactly - which is how
+aiming two feet up the slope holes a putt that, aimed at the cup, breaks
+below it. The odds are kinder than a tour's: from six feet a right answer
+drops, from ten most of the time, from twenty-five now and then, from
+forty rarely and never impossible, an adept read far oftener. Real
+golfers will miss and appreciate it; this is about radio, and the reward
+is one they already find rewarding.
+
 **Not every golfer hits it the same.** Each practice player has a swing
 of their own for the round: a power, a factor on every club's length,
 and a wildness, a factor on the leak - drawn once from ranges by level,

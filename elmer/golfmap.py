@@ -141,3 +141,87 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
                      f'<title>{escape(str(b.get("name") or ""))}</title></circle>')
     parts.append("</svg>")
     return "".join(parts)
+
+
+# ------------------------------------------------------------- the green
+# On the green the strip is the green: the whole of it, the cup at its
+# centre, every ball on it at its feet from the cup, the way it falls as an
+# arrow, and the golfer's mark. The wind is not on it - on the green the
+# wind stops mattering and the slope starts.
+GW, GH = 260, 300
+GREEN_HALF_FT = 14 * 3          # golf.GREEN_HALF, in feet
+
+
+def green_geometry(h):
+    """What a screen needs to turn a tap on the green into feet from the
+    cup, and then into the yards the mark is kept in."""
+    depth_ft = float(h.get("green") or 28) * 3
+    px_per_ft = min((GW / 2 - 20) / GREEN_HALF_FT, (GH / 2 - 30) / (depth_ft / 2))
+    return {"view": "green", "w": GW, "h": GH, "cx": GW / 2, "cy": GH / 2, "px_per_ft": px_per_ft,
+            "yards": h["yards"], "depth_ft": depth_ft}
+
+
+def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
+    """The green as an SVG string: `balls` those on it, with `feet_along`
+    (short negative) and `feet_across` (left negative); `mark` and
+    `aimed` in the same feet; `slope` {"falls", "grade"}."""
+    geo = green_geometry(h)
+    cx, cy, k = geo["cx"], geo["cy"], geo["px_per_ft"]
+    ry, rx = geo["depth_ft"] / 2 * k, GREEN_HALF_FT * k
+
+    def at(fa, fx):
+        return cx + float(fx or 0) * k, cy - float(fa or 0) * k
+
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GW} {GH}" class="holemap greenmap" role="img" '
+             f'aria-label="the {h["n"]} green">',
+             f'<rect x="0" y="0" width="{GW}" height="{GH}" rx="14" fill="#16221a"/>',
+             f'<ellipse cx="{cx}" cy="{cy}" rx="{rx + 10:.1f}" ry="{ry + 10:.1f}" fill="#2a4a24"/>',
+             f'<ellipse cx="{cx}" cy="{cy}" rx="{rx:.1f}" ry="{ry:.1f}" fill="#8fe39a"/>']
+    # feet rings, every ten
+    for ft in (10, 20, 30):
+        if ft * k < max(rx, ry):
+            parts.append(f'<circle cx="{cx}" cy="{cy}" r="{ft * k:.1f}" fill="none" stroke="#5fb36c" stroke-width="0.8" '
+                         f'stroke-dasharray="3 3"/>')
+            parts.append(f'<text x="{cx + ft * k + 3:.1f}" y="{cy - 3}" font-size="9" fill="#2a4a24" '
+                         f'font-family="ui-monospace, monospace">{ft}</text>')
+    # the slope, as an arrow the way the green falls
+    s = slope or {}
+    if s.get("grade", 0) > 0:
+        dirs = {"front": (0, 1), "back": (0, -1), "left": (-1, 0), "right": (1, 0)}
+        dx, dy = dirs.get(s.get("falls"), (0, 1))
+        ax, ay = cx + dx * 22, cy + dy * 22
+        bx, by = cx + dx * 62, cy + dy * 62
+        parts.append(f'<g class="slope" stroke="#1d3a22" stroke-width="2" fill="#1d3a22" opacity="0.7">'
+                     f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}"/>'
+                     f'<polygon points="{bx + dx * 8:.1f},{by + dy * 8:.1f} {bx - dy * 5:.1f},{by + dx * 5:.1f} {bx + dy * 5:.1f},{by - dx * 5:.1f}"/>'
+                     f'<title>falls to the {escape(str(s.get("falls")))}, {s.get("grade")}%</title></g>')
+        parts.append(f'<text x="14" y="{GH - 12}" font-size="11" fill="#c9d1d9" font-family="system-ui, sans-serif">'
+                     f'falls {escape(str(s.get("falls")))} · {s.get("grade"):g}%</text>')
+    # the cup
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="4" fill="#16221a"/>')
+    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy - 24}" stroke="#e8e8e8" stroke-width="1.5"/>')
+    parts.append(f'<polygon points="{cx},{cy - 24} {cx + 12},{cy - 19} {cx},{cy - 14}" fill="#e05a5a"/>')
+    # where the last putt was aimed, faint; the mark, bright
+    if aimed and aimed.get("feet_along") is not None:
+        x, y = at(aimed["feet_along"], aimed["feet_across"])
+        parts.append(f'<g class="aimed" stroke="#ffb454" stroke-width="1.5" fill="none" opacity="0.55" stroke-dasharray="3 2">'
+                     f'<circle cx="{x:.1f}" cy="{y:.1f}" r="8"/><line x1="{x - 12:.1f}" y1="{y:.1f}" x2="{x + 12:.1f}" y2="{y:.1f}"/>'
+                     f'<line x1="{x:.1f}" y1="{y - 12:.1f}" x2="{x:.1f}" y2="{y + 12:.1f}"/><title>aimed here</title></g>')
+    if mark and mark.get("feet_along") is not None:
+        x, y = at(mark["feet_along"], mark["feet_across"])
+        parts.append(f'<g class="mark" stroke="#ffb454" stroke-width="2" fill="none">'
+                     f'<circle cx="{x:.1f}" cy="{y:.1f}" r="9"/><line x1="{x - 14:.1f}" y1="{y:.1f}" x2="{x + 14:.1f}" y2="{y:.1f}"/>'
+                     f'<line x1="{x:.1f}" y1="{y - 14:.1f}" x2="{x:.1f}" y2="{y + 14:.1f}"/><title>your mark</title></g>')
+    # the balls on the green
+    for b in balls or []:
+        if b.get("holed"):
+            continue
+        x, y = at(b.get("feet_along"), b.get("feet_across"))
+        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{7 if b.get("you") else 5.5}" fill="#ffffff" '
+                     f'stroke="{"#ffb454" if b.get("you") else "#16221a"}" stroke-width="{2.5 if b.get("you") else 1}">'
+                     f'<title>{escape(str(b.get("name") or ""))}, {b.get("feet", "?")} feet</title></circle>')
+    head = f'{h["n"]} · the green · par {h["par"]}'
+    parts.append(f'<text x="14" y="22" font-size="15" font-weight="700" fill="#f3f3f3" font-family="system-ui, sans-serif">'
+                 f'{escape(head)}</text>')
+    parts.append("</svg>")
+    return "".join(parts)

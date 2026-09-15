@@ -317,7 +317,7 @@ def run():
     check("pin-high but twenty yards wide of a green fourteen wide: not on it", s["kind"] != "green", True)
     check("a mark behind the ball is moved ahead of it", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", -50, 0)["at"], 10)
     check("  and one off the property is brought in", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", 200, 900)["off"], golf.OFF_MOST)
-    check("no mark on the green - it is a putt", (lambda g: (setattr(g.balls["a"], "lie", "green"), g.set_aim("a", 400, 0))[1])(golf.Golf(["a"], flat_course(), seed=1)), None)
+    check("a mark on the green is kept in feet - a yard past the cup", (lambda g: (setattr(g.balls["a"], "lie", "green"), g.set_aim("a", 401, 0))[1])(golf.Golf(["a"], flat_course(), seed=1)), {"at": 401.0, "off": 0.0})
     foul = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 230, "to": 260, "side": "right", "name": "the right trap"}]), seed=3)
     s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
     check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
@@ -426,6 +426,50 @@ def run():
     ats = [g.balls[p].at for p in ("a", "b", "c")]
     check("three right answers off the tee land in three places, so somebody is away", len(set(ats)), 3)
     check("  the farthest out", g.away(), min(("a", "b", "c"), key=lambda p: g.balls[p].at))
+
+    print("\n-- the green: everyone wants the cup, and the green decides --")
+    def putt(feet, across=0, right=True, ms=1000, adept=False, slope=None, aim=None, seed=1):
+        g = golf.Golf(["a"], pb, holes=[1], seed=seed)
+        h = g.hole()
+        if slope is not None:
+            h["slope"] = slope
+        b = g.balls["a"]
+        b.at, b.off, b.lie, b.strokes = h["yards"] - feet / 3.0, across / 3.0, "green", 2
+        if aim:
+            g.set_aim("a", h["yards"] + aim[0] / 3.0, aim[1] / 3.0)
+        return g.play_one("a", {"correct": right, "club": "putter", "ms": ms, "adept": adept})["shots"]["a"]
+    swings = range(1000, 41000, 1000)
+    one = lambda feet, **kw: sum(1 for m in swings if (r := putt(feet, ms=m, **kw))["holed"] and not r.get("tap_in"))  # noqa: E731
+    check("a right answer from three feet drops", one(3), 40)
+    check("  from ten, most of the time", 15 < one(10) < 40, True)
+    check("  from twenty-five, now and then", 3 < one(25) < 25, True)
+    check("  from forty, rarely - and never impossible", 0 < one(40) < 12, True)
+    check("  an adept read from twenty-five drops far more often", one(25, adept=True) > one(25) + 8, True)
+    long = [putt(25, ms=m) for m in swings]
+    check("  what does not drop is left near the cup: a tap-in, or a few feet",
+          all(r.get("tap_in") or (r["kind"] == "green" and 0 < r["left_feet"] <= 8) for r in long if not (r["holed"] and not r.get("tap_in"))), True)
+    check("  a tap-in is a stroke, no question: two putts on the card", next(r for r in long if r.get("tap_in"))["strokes"], 4)
+    wrong = [putt(10, right=False, ms=m) for m in swings]
+    check("a wrong answer never drops, and is a bad stroke: short, or raced past",
+          (any(r["holed"] for r in wrong), all(("short" in r["words"] or "past" in r["words"]) and r["kind"] == "missed" for r in wrong)), (False, True))
+    check("  and leaves the ball on the green, feet from the cup", all(r["lie"] == "green" and r["left_feet"] >= 2 for r in wrong), True)
+    flat = {"falls": "front", "grade": 0}
+    down = sum(putt(20, slope={"falls": "back", "grade": 3}, aim=(0, 0), ms=m)["left_feet"] for m in swings)
+    up = sum(putt(20, slope={"falls": "front", "grade": 3}, aim=(0, 0), ms=m)["left_feet"] for m in swings)
+    check("with a mark on the cup, a downhill putt runs past and an uphill one comes up short: both leave more than a flat one",
+          (down > 0, up > 0), (True, True))
+    check("  the words say which", ("downhill" in putt(20, slope={"falls": "back", "grade": 3}, aim=(0, 0))["words"],
+                                      "uphill" in putt(20, slope={"falls": "front", "grade": 3}, aim=(0, 0))["words"]), (True, True))
+    check("  a mark three feet past the cup, uphill, holes it", putt(20, slope={"falls": "front", "grade": 3}, aim=(3, 0))["holed"], True)
+    cross = putt(20, slope={"falls": "left", "grade": 3}, aim=(0, 0))
+    check("a cross-slope breaks the putt toward the fall", ("breaking left" in cross["words"], cross["off"] < 0), (True, True))
+    check("  aimed a couple of feet up the slope, it breaks in", putt(20, slope={"falls": "left", "grade": 3}, aim=(0, 2))["holed"], True)
+    check("  with no mark the golfer is taken to have read the pace, not the break",
+          putt(20, slope={"falls": "front", "grade": 3})["holed"], True)
+    check("a foot from the cup is a tap-in, one stroke", (putt(1)["holed"], putt(1)["strokes"]), (True, 3))
+    check("the card's greens have their slopes", all("slope" in h for h in pb["holes"]), True)
+    check("  and every ball on a green knows its feet from the cup",
+          (lambda g: (setattr(g.balls["a"], "lie", "green"), setattr(g.balls["a"], "at", g.hole()["yards"] - 4), g.as_dict()["balls"]["a"]["feet"])[-1])(golf.Golf(["a"], pb, holes=[1], seed=1)), 12)
 
     print("\n-- the scorecard --")
     d = golf.Golf(["a", "b"], golf.course("pebble-beach"), holes=[1, 2, 3], seed=1).as_dict()
