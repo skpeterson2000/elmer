@@ -64,7 +64,8 @@ def run():
           voice.hole(1, 4, 377, "with", 12, "pebble-beach"), ["hole-pebble-beach-1", "the-breeze-is-behind-you", "twelve", "miles-an-hour"])
     check("  and the second, with no such file, from the pieces", voice.hole(2, 5, 502, None, None, "pebble-beach")[:2], ["pebble-beach", "hole"] if False else voice.hole(2, 5, 502, None, None, "pebble-beach")[:2])
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1", "hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2", "the-putter", "in-hand", "on-the-green"])
-    check("a hole's colour follows the read at the tee", voice.hole(1, 4, 377, None, None, "pebble-beach"), ["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1"])
+    check("a hole's colour is not in the read - it comes a line at a time, to each player's address",
+          voice.hole(1, 4, 377, None, None, "pebble-beach"), ["hole-pebble-beach-1"])
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-read-2"])
     reads = {voice.hole(1, 4, 377, None, None, "pebble-beach")[0] for _ in range(40)}
     check("  a hole with two reads is read either way, over an evening", reads, {"hole-pebble-beach-1", "hole-pebble-beach-1-read-2"})
@@ -147,6 +148,40 @@ def run():
     stray = sorted({t for line in lines for t in in_vocabulary(line)})
     check("no token outside the vocabulary", stray, [])
     check("the script has a line for every snippet", len(voice.script_lines()), len(voice.VOCABULARY))
+
+    print("\n-- the colour, a line at a time, one to each player --")
+    from elmer.party import _lie_notes
+    shelf_was = voice._shelf
+    voice.set_shelf({"hole-pebble-beach-2", "hole-pebble-beach-2-tee-1", "hole-pebble-beach-2-tee-2",
+                     "hole-pebble-beach-2-tee-3", "hole-pebble-beach-2-fairway-1", "hole-pebble-beach-2-sand-1",
+                     "hole-pebble-beach-2-green-1"})
+    check("the hole's read carries no tee lines of its own",
+          [t for t in voice.hole(2, 5, 502, "with", 10, "pebble-beach") if "-tee-" in t], [])
+
+    class G:                                   # a round's history, as the notes read it
+        history = []
+    d = {"course": "pebble-beach", "hole": 2}
+    tee = {"lie": "tee"}
+    check("the first player on the tee gets the first line", _lie_notes(G, d, tee, "a"), ["hole-pebble-beach-2-tee-1"])
+    G.history = [{"hole": 2, "shots": {"a": {"from": "tee", "kind": "fairway"}}}]
+    check("  the second the second", _lie_notes(G, d, tee, "b"), ["hole-pebble-beach-2-tee-2"])
+    G.history.append({"hole": 2, "shots": {"b": {"from": "tee", "kind": "rough"}}})
+    check("  the third the third", _lie_notes(G, d, tee, "c"), ["hole-pebble-beach-2-tee-3"])
+    G.history.append({"hole": 2, "shots": {"c": {"from": "tee", "kind": "sand"}}})
+    check("  and a fourth, with three lines, hears the hole without one", _lie_notes(G, d, tee, "d"), None)
+    check("the first from the fairway gets the fairway's line", _lie_notes(G, d, {"lie": "fairway"}, "a"),
+          ["hole-pebble-beach-2-fairway-1"])
+    G.history.append({"hole": 2, "shots": {"a": {"from": "fairway", "kind": "fairway"}}})
+    check("  a second stroke from it, nothing more", _lie_notes(G, d, {"lie": "fairway"}, "a"), None)
+    check("  and the next player from the fairway, nothing - there is one line",
+          _lie_notes(G, d, {"lie": "fairway"}, "b"), None)
+    check("the sand's line is the player in the sand's", _lie_notes(G, d, {"lie": "sand"}, "c"), ["hole-pebble-beach-2-sand-1"])
+    G.history.append({"hole": 2, "shots": {"a": {"from": "fairway", "putt": False, "kind": "green"}}})
+    G.history.append({"hole": 2, "shots": {"a": {"putt": True, "kind": "green"}}})
+    check("the first putt of the hole took the green's line; the next player's does not",
+          _lie_notes(G, d, {"lie": "green"}, "b"), None)
+    check("  another hole starts the count again", _lie_notes(G, {"course": "pebble-beach", "hole": 3}, tee, "b"), None)
+    voice.set_shelf(shelf_was)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

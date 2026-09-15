@@ -140,31 +140,43 @@ PERSON_ADDRESS = 180.0
 PERSON_REVEAL = 120.0
 
 
-def _lie_notes(g, d, ball):
-    """The colour a hole was given for a lie, said the first time anybody
-    addresses the ball from that lie on the hole: hole-<course>-<n>-
-    <lie>-<k>. The tee's colour is the hole's read; water's comes with the
-    splash."""
+def _lie_notes(g, d, ball, player=None):
+    """The colour a hole was given for a lie - hole-<course>-<n>-<lie>-<k>
+    - revealed a line at a time: the first player to address the ball
+    from that lie on the hole hears the first line, the second player the
+    second, and so on, so that by the end of the group's first time round
+    they have been told the hole between them, the way a course is
+    learned. A player's second stroke from the same lie gets nothing
+    more. The tee's and the green's everyone reaches; the fairway's, the
+    sand's and the rough's are situational, and a player who never finds
+    the sand never hears its colour. Water's comes with the splash."""
     from . import voice
     lie = ball.get("lie")
-    if lie not in ("green", "fairway", "rough", "sand"):
+    if lie not in ("tee", "green", "fairway", "rough", "sand"):
         return None
     hole = d.get("hole")
+    been = []                                   # who has played from this lie here, in order
     for row in g.history:
         if row.get("hole") != hole:
             continue
-        for s in (row.get("shots") or {}).values():
-            if lie == "green" and s.get("putt"):
-                return None
-            if lie != "green" and s.get("from") == lie:
-                return None
-    return voice.notes(d.get("course"), hole, lie) or None
+        for p, s in (row.get("shots") or {}).items():
+            from_lie = "green" if s.get("putt") else s.get("from")
+            if from_lie == lie and p not in been:
+                been.append(p)
+    if player in been:
+        return None
+    lines = voice.notes(d.get("course"), hole, lie)
+    k = len(been)                                # this player is the (k+1)th from here
+    return [lines[k]] if k < len(lines) else None
 
 
 def _voice_address(who, ball, slot=None, honors=False, green_notes=None):
     from . import voice
-    return voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"), slot=slot, honors=honors,
-                         green_notes=green_notes)
+    return (voice.address(who, ball.get("club"), ball.get("left"), ball.get("lie"), slot=slot, honors=honors,
+                          green_notes=green_notes)
+            # and what lies in the line - the bunker at the club's distance,
+            # the ocean beyond the green - foreground or background
+            + voice.ahead(ball.get("ahead")))
 
 
 def _voice_hole(d, g):
@@ -1219,6 +1231,8 @@ class Room:
                     # the club in hand, so the room knows the shot before
                     # the question.
                     "away_club": away_ball["club"] if away_ball else None,
+                    "away_ahead": (__import__("elmer.voice", fromlist=["ahead_words"]).ahead_words(away_ball.get("ahead"))
+                                   if away_ball else ""),
                     "away_left": away_ball["left"] if away_ball else None,
                     "away_lie": away_ball["lie"] if away_ball else None,
                     "away_feet": away_ball.get("feet") if away_ball else None,
@@ -1255,7 +1269,7 @@ class Room:
                                                       # the lie's colour - the green's, the fairway's, the
                                                       # sand's, the rough's - the first time anybody plays
                                                       # from it on this hole
-                                                      green_notes=_lie_notes(g, d, away_ball))
+                                                      green_notes=_lie_notes(g, d, away_ball, away))
                                        if away_ball else []),
                     "hole_tokens": _voice_hole(d, g),
                     "your_tee_time": bool(player_id is not None and g.has_tee_time(player_id)),

@@ -557,6 +557,26 @@ def run():
     g.drop("b")
     check("somebody leaving takes their ball with them", "b" in g.balls, False)
 
+    print("\n-- what lies in the line, at address --")
+    from elmer import voice
+    pb = golf.course("pebble-beach")
+    g = golf.Golf(["a"], pb, seed=1)
+    g.holes = [x["n"] for x in pb["holes"]]
+    g.hole_index, g.balls["a"] = 0, golf.Ball()
+    line = g.ahead("a")
+    check("from the first tee with the driver, the fairway bunker on the right is in play",
+          [(z["name"], z["side"], z["where"]) for z in line][:1], [("fairway bunker", "right", "in-play")])
+    check("  said with its yards", "at 230 yards, on the right, in play" in voice.ahead_words(line), True)
+    check("  and the wedge, which cannot spray that far, sees nothing", g.ahead("a", "wedge"), [])
+    g.hole_index, g.balls["a"] = 6, golf.Ball()
+    line = g.ahead("a")
+    check("the seventh: the bunkers in play and the Pacific beyond the green",
+          [(z["kind"], z["side"]) for z in line], [("bunker", "around"), ("water", "beyond")])
+    check("  the narrator has pieces for it", voice.ahead(line)[:2], ["ahead", "a-bunker"])
+    g.balls["a"].lie = "green"
+    check("on the green there is nothing ahead", g.ahead("a"), [])
+    check("nothing ahead is nothing said", (voice.ahead([]), voice.ahead_words([])), ([], ""))
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

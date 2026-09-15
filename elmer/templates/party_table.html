@@ -981,7 +981,7 @@ async function tick() {
         const awayBall = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
         const address = gf.away_name && !gf.over
           ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
-              gf.away_lie === 'green' ? `, ${gf.away_feet || 0} feet` : gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}</p>` +
+              gf.away_lie === 'green' ? `, ${gf.away_feet || 0} feet` : gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}${gf.away_ahead ? ` <span class="hint" style="display:inline">${esc(gf.away_ahead)}</span>` : ''}</p>` +
             (awayHere && awayBall
               ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club, then press Hit. The question is yours when you are ready - nothing here is timed.</p>
                  <div class="clubrow" data-clubrow="${gf.away}">${(awayBall.clubs || []).map(c =>

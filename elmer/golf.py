@@ -491,6 +491,47 @@ class Golf:
         longest = LIES[ball.lie][1]
         return list(CLUB_ORDER[CLUB_ORDER.index(longest):])
 
+    def ahead(self, player, club=None):
+        """What lies in the line of this player's next shot, as a caddie
+        would say it at address: the hazards down the line from the ball
+        toward the mark, each with its yards from the ball, its side, and
+        whether it is in play with the club in hand - within the club's
+        reach and run, foreground - or beyond, where a shot at the mark
+        that gets away goes, background. A hazard off to the other side
+        of the line from the ball and the mark is not in the line."""
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie == "green":
+            return []
+        club = club or self.default_club(player)
+        if not club or club == "putter":
+            return []
+        mark = self.aim(player) or {"at": h["yards"], "off": 0}
+        reach = self.reach(player, club) + self.expected_roll(club, "fairway", self.wind_on(h)) * ROLL_NOISE[1]
+        half = fairway_half(h)
+        # the sides the line runs through: the ball's, the mark's, and the
+        # middle when either is near it
+        mark_off = int(mark.get("off") or 0)
+        sides = {side_of(ball.off, half), side_of(mark_off, half)}
+        if any(abs(o) <= half for o in (ball.off, mark_off)):
+            sides |= {"", "across", "front", "centre", "around", "beyond"}
+        # a bunker to one side is in the line of a club that can spray that
+        # far: the driver's, on most holes; not the wedge's
+        if CLUB_SPREAD.get(club, AIM) >= half - abs(mark_off) - 2:
+            sides |= {"left", "right"}
+        out = []
+        for hz in h.get("hazards", []):
+            if hz["to"] <= ball.at or hz.get("side", "") not in sides:
+                continue
+            at = int(hz["from"] - ball.at)
+            if hz.get("side") == "beyond" and at < 0:
+                at = 0
+            out.append({"kind": hz["kind"], "name": hz.get("name") or hz["kind"], "at": max(0, at),
+                        "to": int(hz["to"] - ball.at), "side": hz.get("side", ""),
+                        "where": "in-play" if hz["from"] <= ball.at + reach else "beyond"})
+        out.sort(key=lambda z: z["at"])
+        return out[:2]
+
     def default_club(self, player):
         """The sensible club: the shortest allowed that can reach the pin,
         since a club that reaches is aimed; the longest if none can."""
@@ -1253,7 +1294,7 @@ class Golf:
                           "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie == "green" else None),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
-                          "log": list(b.log)}
+                          "log": list(b.log), "ahead": self.ahead(p)}
                       for p, b in self.balls.items()},
             # every stroke of every hole, in words, by player: the history a
             # name on the card opens, so a score can always be counted

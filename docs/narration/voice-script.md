@@ -115,6 +115,7 @@ Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, hol
 - `call-water-6`: We all have bad days.
 - `call-holed-4`: It's in the cup!
 - `call-holed-5`: In the cup!
+- `call-holed-6`: THAT, ladies and gentlemen, is how it is done.
 - `call-sand-5`: That ball is on the beach.
 - `call-green-1`: On the dance floor.
 - `call-green-2`: Stuck it.
@@ -172,6 +173,17 @@ Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, hol
 - `rough`: rough
 - `bunker`: bunker
 - `green`: green
+- `ahead`: Ahead,
+- `a-bunker`: a bunker
+- `the-water`: the water
+- `the-rough`: the rough
+- `at`: at
+- `on-the-left`: on the left
+- `on-the-right`: on the right
+- `across-the-fairway`: across the fairway
+- `beyond-the-green`: beyond the green
+- `in-play`: in play.
+- `out-of-reach`: out of reach.
 - `par`: par
 - `yards`: yards
 - `feet`: feet

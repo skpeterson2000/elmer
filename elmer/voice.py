@@ -60,6 +60,13 @@ VOCABULARY = {
     # "rough", "bunker", "green" for "into the rough", "into the sand",
     # "on the green". Terse, the way an ATIS is, and better than silence.
     "hole": "hole", "is": "is", "rough": "rough", "bunker": "bunker", "green": "green",
+    # What lies in the line at address, as a caddie says it: "Ahead, a
+    # bunker at two hundred forty yards, on the right, in play." "Ahead,
+    # the water beyond the green."
+    "ahead": "Ahead,", "a-bunker": "a bunker", "the-water": "the water", "the-rough": "the rough",
+    "at": "at", "on-the-left": "on the left", "on-the-right": "on the right",
+    "across-the-fairway": "across the fairway", "beyond-the-green": "beyond the green",
+    "in-play": "in play.", "out-of-reach": "out of reach.",
     # the holes
     **{f"the-{o}": f"the {o}" for o in ORDINALS},
     "par": "par", "yards": "yards", "feet": "feet", "to-go": "to go",
@@ -293,7 +300,8 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
             out.append(WIND_TOKENS[wind])
             if wind_mph:
                 out += number(wind_mph) + ["miles-an-hour"]
-        out += notes(course, n, "tee")
+        # the tee's colour is not here: it comes a line at a time, one to
+        # each player's address on the tee - see party._lie_notes
         return out
     if course and course in COURSE_TOKENS:
         out.append(COURSE_TOKENS[course])
@@ -353,6 +361,49 @@ def address(name, club=None, left=None, lie=None, slot=None, honors=False, green
     if lie in LIE_TOKENS:
         out.append(LIE_TOKENS[lie])
     return out + notes_after
+
+
+AHEAD_KIND = {"bunker": "a-bunker", "water": "the-water", "rough": "the-rough"}
+AHEAD_SIDE = {"left": "on-the-left", "right": "on-the-right", "across": "across-the-fairway",
+              "front": "across-the-fairway", "beyond": "beyond-the-green"}
+
+
+def ahead(hazards):
+    """What lies in the line, said: each hazard the rules found ahead, its
+    yards from the ball, its side, and whether the club in hand reaches
+    it. Nothing when nothing is ahead; the pieces when they are recorded,
+    and silence for a piece that is not - the screen has the words."""
+    out = []
+    for z in hazards or []:
+        kind = AHEAD_KIND.get(z.get("kind"))
+        if not kind:
+            continue
+        piece = ["ahead", kind] if not out else [kind]
+        if z.get("side") != "beyond" and z.get("at"):
+            piece += ["at"] + number(z["at"]) + ["yards"]
+        side = AHEAD_SIDE.get(z.get("side") or "")
+        if side:
+            piece.append(side)
+        piece.append("in-play" if z.get("where") == "in-play" else "out-of-reach")
+        out += piece
+    return out
+
+
+def ahead_words(hazards):
+    """The same, as a sentence for the screen."""
+    parts = []
+    for z in hazards or []:
+        kind = {"bunker": "a bunker", "water": "the water", "rough": "the rough"}.get(z.get("kind"), z.get("kind", ""))
+        name = z.get("name") or ""
+        what = name if name and name != z.get("kind") else kind
+        if z.get("kind") == "bunker" and "bunker" not in what.lower():
+            what += " bunker"                       # "greenside" wants its noun
+        where = {"left": "on the left", "right": "on the right", "across": "across the fairway",
+                 "front": "across the fairway", "beyond": "beyond the green"}.get(z.get("side") or "", "")
+        bit = what + (f" at {z['at']} yards" if z.get("side") != "beyond" and z.get("at") else "") + (f", {where}" if where else "")
+        bit += ", in play" if z.get("where") == "in-play" else ", out of reach"
+        parts.append(bit)
+    return ("Ahead: " + "; ".join(parts) + ".") if parts else ""
 
 
 def call(text):
