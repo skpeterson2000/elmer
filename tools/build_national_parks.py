@@ -24,6 +24,7 @@ which is which.
 """
 import json
 import re
+from collections import Counter
 import sys
 import time
 from pathlib import Path
@@ -46,6 +47,20 @@ CANDIDATE = re.compile(
     r"Heritage Area|Cemetery|Mall)\b", re.I)
 THROTTLE = 0.25
 
+# The unit types POTA assigns that are the National Park Service's, used
+# when a record names no agency. A "National Monument" or "National
+# Recreation Area" with no agency named could be BLM's or the Forest
+# Service's; those two are kept on the type when nothing says otherwise,
+# and the note in the file says so.
+NPS_UNITS = {
+    "National Park", "National Monument", "National Seashore", "National Lakeshore",
+    "National Historical Park", "National Historic Site", "National Memorial",
+    "National Battlefield", "National Battlefield Park", "National Military Park",
+    "National Recreation Area", "National Preserve", "National Reserve", "National Parkway",
+    "National River", "National Scenic Riverway", "National Historic Trail",
+    "National Scenic Trail", "National Heritage Area", "National Mall",
+}
+
 
 def main():
     locations = references._get(references.POTA_LOCATIONS) or []
@@ -60,11 +75,19 @@ def main():
                 candidates[park["reference"]] = park
         time.sleep(THROTTLE)
     print(f"{len(candidates)} candidates by name")
-    kept = []
+    kept, dropped = [], Counter()
     for n, (ref, park) in enumerate(sorted(candidates.items()), 1):
         detail = references._get(PARK.format(ref=ref)) or {}
         agencies = detail.get("agencies") or ""
-        if "National Park Service" not in agencies:
+        unit = detail.get("parktypeDesc") or ""
+        # The agency field is the answer when it is filled in; it is empty
+        # on a good many NPS records (Padre Island's among them), and then
+        # the unit type POTA assigns has to stand in for it.
+        if agencies and "National Park Service" not in agencies:
+            dropped[agencies] += 1
+            continue
+        if not agencies and unit not in NPS_UNITS:
+            dropped["type: " + unit] += 1
             continue
         kept.append({
             "kind": "park", "ref": ref, "name": park.get("name") or ref,
@@ -77,12 +100,16 @@ def main():
         if n % 50 == 0:
             print(f"  {n}/{len(candidates)} checked, {len(kept)} kept")
         time.sleep(THROTTLE)
+    for why, count in dropped.most_common(12):
+        print(f"  dropped {count:4d}  {why}")
     kept.sort(key=lambda p: p["ref"])
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
-        "note": "National Park Service units as Parks on the Air lists them, confirmed against "
-                "each park's POTA record (agency: National Park Service). Built by "
-                "tools/build_national_parks.py; rebuild when POTA adds references.",
+        "note": "National Park Service units as Parks on the Air lists them: candidates by name "
+                "from every US location, each checked against its own POTA record - kept when the "
+                "record names the National Park Service, dropped when it names another agency, and "
+                "judged by the unit type when it names none. Built by tools/build_national_parks.py; "
+                "rebuild when POTA adds references.",
         "built": time.strftime("%Y-%m-%d"),
         "source": "api.pota.app",
         "parks": kept}, indent=1), encoding="utf-8")
