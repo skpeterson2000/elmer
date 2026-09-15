@@ -77,6 +77,11 @@ VOCABULARY = {
     "the-breeze-is-behind-you": "the breeze is behind you",
     "into-the-breeze": "into the breeze", "a-crosswind": "a crosswind",
     "the-wind-swirls-here": "the wind swirls here", "miles-an-hour": "miles an hour",
+    # The wind, said the better way when these are recorded: "The wind is,
+    # twelve miles per hour, from behind you." The pieces above are the
+    # older reading and stand in until they are.
+    "the-wind-is": "The wind is,", "from-behind-you": "from behind you.", "in-your-face": "in your face.",
+    "across-the-hole": "across the hole.", "and-swirling": "and swirling.",
     # the address
     "the-player": "the player", "addresses-the-ball": "addresses the ball",
     "in-hand": "in hand",
@@ -174,6 +179,23 @@ COURSE_TOKENS = {"pebble-beach": "pebble-beach", "st-andrews-old": "the-old-cour
                  "augusta-national": "augusta-national"}
 WIND_TOKENS = {"with": "the-breeze-is-behind-you", "into": "into-the-breeze",
                "across": "a-crosswind", "swirling": "the-wind-swirls-here"}
+WIND_FROM = {"with": "from-behind-you", "into": "in-your-face",
+             "across": "across-the-hole", "swirling": "and-swirling"}
+
+
+def wind(kind, mph=None):
+    """The wind, read: "The wind is, twelve miles per hour, from behind
+    you" when those pieces are on the shelf, and the older "the breeze is
+    behind you, twelve miles an hour" when they are not."""
+    if kind not in WIND_TOKENS:
+        return []
+    new = _shelf is not None and "the-wind-is" in _shelf and WIND_FROM[kind] in _shelf
+    if new and mph:
+        return ["the-wind-is"] + number(mph) + ["miles-an-hour", WIND_FROM[kind]]
+    out = [WIND_TOKENS[kind]]
+    if mph:
+        out += number(mph) + ["miles-an-hour"]
+    return out
 
 
 # ------------------------------------------------------------ composing
@@ -296,10 +318,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     whole = random.choice(reads) if reads else None
     if whole:
         out.append(whole)
-        if wind in WIND_TOKENS:
-            out.append(WIND_TOKENS[wind])
-            if wind_mph:
-                out += number(wind_mph) + ["miles-an-hour"]
+        out += globals()["wind"](wind, wind_mph)
         # the tee's colour is not here: it comes a line at a time, one to
         # each player's address on the tee - see party._lie_notes
         return out
@@ -311,10 +330,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
         out += _say(first[0], "hole", number(n), *(["is"] if _shelf and "is" in _shelf else []))
     out += ["par"] + number(par)
     out += number(yards) + ["yards"]
-    if wind in WIND_TOKENS:
-        out.append(WIND_TOKENS[wind])
-        if wind_mph:
-            out += number(wind_mph) + ["miles-an-hour"]
+    out += globals()["wind"](wind, wind_mph)
     return out
 
 

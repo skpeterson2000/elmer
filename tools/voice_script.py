@@ -106,6 +106,9 @@ def _key(text):
 
 NUMBER_WORDS_TO_N = {w: n for n, w in voice.NUMBER_WORDS.items()}
 
+# What a reader said that means a scripted snippet in other words.
+ALIASES = {"milesperhour": "miles-an-hour", "mph": "miles-an-hour"}
+
 
 def adopt(dry_run=False, hole=None):
     """Rename what a text-to-speech reader produced - files named for the
@@ -142,7 +145,7 @@ def adopt(dry_run=False, hole=None):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
-        target = by_words.get(key)
+        target = by_words.get(key) or ALIASES.get(key)
         if target is None and len(key) >= 12:
             # the reader cuts a long line's name short: a unique prefix will do
             starts = [stem for k, stem in by_words.items() if k.startswith(key)]
@@ -219,7 +222,9 @@ def _hole_note(text, taken, hole=1):
     numbered after the ones already there."""
     import re
     words = str(text).replace("_", " ").strip()
-    if len(words.split()) < 3:
+    # a line of colour is a sentence; three words are a piece of the
+    # script the reader phrased another way, and belong in ALIASES
+    if len(words.split()) < 5:
         return None
     low = words.lower()
     where = "tee"

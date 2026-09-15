@@ -196,6 +196,11 @@ Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, hol
 - `a-crosswind`: a crosswind
 - `the-wind-swirls-here`: the wind swirls here
 - `miles-an-hour`: miles an hour
+- `the-wind-is`: The wind is,
+- `from-behind-you`: from behind you.
+- `in-your-face`: in your face.
+- `across-the-hole`: across the hole.
+- `and-swirling`: and swirling.
 - `the-player`: the player
 - `addresses-the-ball`: addresses the ball
 - `in-hand`: in hand
