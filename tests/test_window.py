@@ -120,6 +120,17 @@ def run():
     room = party.room(create=True, cohorts=1)
     room.join("KC9SP", device="screen")
     check("one person, at the screen, alone: nothing to warn", client.get("/api/people", environ_base=local).get_json()["total"], 0)
+    room.join("W9ABC")                       # on a phone
+    check("  a phone at the table is", client.get("/api/people", environ_base=local).get_json()["total"], 1)
+    from elmer import golf
+    room.book_clubhouse({"difficulty": "technician", "holes": [1, 2, 3], "course": "pebble-beach",
+                         "course_name": "Pebble Beach Golf Links", "seconds": 30}, 300)
+    check("  but not during golf: the party is on the scorecard", client.get("/api/people", environ_base=local).get_json()["total"], 0)
+    room.leave_clubhouse()
+    room.fill_bots()
+    room.begin_golf(golf.course("pebble-beach"), [1, 2, 3], None, 30)
+    check("  in the clubhouse or on the course", client.get("/api/people", environ_base=local).get_json()["total"], 0)
+    room.end_golf()
     client.post("/api/net/end", json={}, environ_base=local)
     party.close_room()
 

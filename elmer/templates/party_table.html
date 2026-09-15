@@ -165,6 +165,11 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfstage .figwrap-large .figfull img { max-height: 30vh; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
+table.res.card { font-variant-numeric: tabular-nums; font-size: .82rem; }
+table.res.card td, table.res.card td.ms { padding: .12rem .08rem; text-align: center; font-family: inherit; color: var(--text); }
+table.res.card td:first-child { text-align: left; max-width: 4.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: .2rem; }
+table.res.card td.tot { white-space: nowrap; padding-left: .3rem; }
+table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-child(2) td { color: var(--dim); font-size: .75rem; }
 /* The hole, drawn: a yardage-book strip beside the words. */
 .golfstage-map { grid-template-columns: minmax(0, 1fr) 11rem; }
 .holemap { width: 11rem; height: auto; display: block; border-radius: 12px; justify-self: end; }
@@ -613,6 +618,21 @@ function golfTeeTimes(gf) {
   return `<p class="hint" style="text-align:left">Tee time booked: <b>${gf.tee_times.map(esc).join(', ')}</b> &mdash; ` +
     (gf.next_hole ? `in the group from the ${gf.next_hole}${ordinal(gf.next_hole)}.` : 'when the next hole starts.') + '</p>';
 }
+/* The scorecard, as a card reads: a column a hole with its par, a row a
+   player with the strokes taken, out and total at the end. Holes not yet
+   played are blank; a holed ball on the hole being played shows too. */
+function golfCard(gf, esc_) {
+  const e = esc_ || esc;
+  const holes = gf.round_holes || [];
+  if (!holes.length) return '';
+  const rows = (gf.leaderboard || []).map(r => {
+    const cells = holes.map(h => { const s = (r.card || {})[String(h.n)]; return `<td class="ms">${s == null ? '' : s}</td>`; });
+    const par = r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : String(r.to_par);
+    return `<tr><td title="${e(r.name)}">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
+  });
+  return `<div style="overflow:hidden"><table class="res card"><tr><td class="k">hole</td>${holes.map(h => `<td class="ms">${h.n}</td>`).join('')}<td class="ms tot">tot</td></tr>
+    <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms tot">${holes.reduce((a, h) => a + h.par, 0)}</td></tr>${rows.join('')}</table></div>`;
+}
 function golfBoard(gf) {
   return `<table class="res" style="margin-top:.6rem"><tr><td class="n"></td><td>player</td><td class="ms">holes</td><td class="ms">gross</td>${gf.handicaps ? '<td class="ms">given</td><td class="ms">net</td>' : ''}<td class="ms">to par</td></tr>${gf.leaderboard.map(r =>
     `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.holes}</td><td class="ms">${r.gross}</td>${gf.handicaps ? `<td class="ms">${r.given}</td><td class="ms">${r.net}</td>` : ''}<td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>`;
@@ -699,6 +719,14 @@ function seats(state) {
   (state.cohorts || []).forEach(c =>
     (c.members || []).forEach(m => all.push({...m, cohort: c.id})));
   const box = document.getElementById('seats');
+  // In golf the party card is the scorecard - everybody in the group, with
+  // their strokes hole by hole, the way a card reads.
+  if (state.golf && (state.golf.round_holes || []).length) {
+    box.innerHTML = golfCard(state.golf);
+    const hg = state.health || {};
+    document.getElementById('cap').textContent = `${hg.players || 0}/${hg.cap || 0} seats`;
+    return;
+  }
   // In a shootout the word is the score, so it goes where the points went.
   const shoot = state.shootout;
   const word = {};

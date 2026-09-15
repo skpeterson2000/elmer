@@ -2361,6 +2361,12 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**The scorecard.** During golf the party card - "At this table" - is the
+card: a column a hole with its par, a row a player with the strokes
+taken, total and to par at the end, holes not yet played blank. The phone
+shows the same card under the round. It is the only account of who is
+in the party that anybody needs.
+
 **The hole, drawn.** Beside the words, every screen shows the hole as a
 yardage-book strip - the tee at the foot, the green at the head, every
 hazard as a band at the yards it covers and on the side it sits, the wind
@@ -3674,7 +3680,12 @@ leave-page question at close. With nobody on it, it closes like any other.
 tables of the net. Somebody seated at the screen itself is looking at the
 window, and closing it is their own act; counting them had the banner
 warning the one person in the room about themselves, all through a round
-of golf played alone.
+of golf played alone. And during golf nothing is said at all: the party
+is on the scorecard, in the clubhouse and on the course, and the operator
+can see everyone in it. The one warning left is for a net this unit is
+hosting with people at other tables - and that one goes too once a
+closing host can hand the net to the next unit that can carry it (see the
+open threads).
 Where neither browser is found the page opens as a tab in the default
 browser instead, and the console says the tab will not stop the server.
 

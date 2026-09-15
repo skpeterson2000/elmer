@@ -274,6 +274,12 @@ def run():
         row = g.play_one("a", {"correct": True, "question_id": f"Q{i}"})
     check("the third right answer in a row is adept without any measure", row["shots"]["a"].get("flair") is not None, True)
 
+    print("\n-- the scorecard --")
+    d = golf.Golf(["a", "b"], golf.course("pebble-beach"), holes=[1, 2, 3], seed=1).as_dict()
+    check("the round's holes, with their pars", [(h["n"], h["par"]) for h in d["round_holes"]], [(1, 4), (2, 5), (3, 4)])
+    check("  and every player's strokes by hole on the card",
+          all(isinstance(r.get("card"), dict) for r in d["leaderboard"]), True)
+
     print("\n-- the hole, drawn from the card --")
     from elmer import golfmap
     pb = golf.course("pebble-beach")

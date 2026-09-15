@@ -692,7 +692,9 @@ class Golf:
             given = int(self.handicaps.get(p, 0))
             played = len(on_card)
             rows.append({"player": p, "gross": gross, "given": given, "net": gross - given,
-                         "holes": played, "to_par": gross - given - self.par_so_far(p)})
+                         "holes": played, "to_par": gross - given - self.par_so_far(p),
+                         # the card itself: strokes by hole, for a scorecard
+                         "card": {str(n): s for n, s in on_card.items()}})
         rows.sort(key=lambda r: (r["net"], r["gross"]))
         for i, r in enumerate(rows, start=1):
             r["place"] = i
@@ -712,6 +714,9 @@ class Golf:
                           "log": list(b.log)}
                       for p, b in self.balls.items()},
             "leaderboard": self.leaderboard(),
+            # the round's holes with their pars, in order: the scorecard's top rows
+            "round_holes": [{"n": n, "par": next(x["par"] for x in self.course["holes"] if x["n"] == n)}
+                            for n in self.round_holes],
             "playoff": list(self.playoff), "handicaps": bool(self.handicaps),
             "away": self.away(), "hole_section": self.hole_section,
             "tee_times": list(self.tee_times),

@@ -3061,8 +3061,11 @@ def api_people():
     """
     room = party.room()
     # Only the people the closing would surprise: on phones, not at the
-    # screen whose window this is.
-    here = room.people_elsewhere() if room is not None else 0
+    # screen whose window this is. And none at all during golf: the party
+    # is on the scorecard, in the clubhouse and on the course, and the
+    # operator can see everyone in it - no warning is wanted there.
+    golfing = room is not None and (room.clubhouse is not None or room.golf is not None)
+    here = 0 if golfing else (room.people_elsewhere() if room is not None else 0)
     others, tables = 0, 0
     net = netcontrol.net()
     if net is not None:
