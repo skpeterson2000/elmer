@@ -78,7 +78,10 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 button.gc-tile:hover, .gc-tilebtn:hover { border-color: var(--gco); box-shadow: inset 0 0 0 1px var(--gco), 0 0 12px rgba(255,122,26,.25);
       transform: translateY(-1px); }
 button.gc-tile:disabled, .gc-tilebtn:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; border-color: var(--line-2); }
-#tourney { border-color: var(--gco-dim); }
+/* The chosen game is lit, whatever it is - so a player looking for the
+   board with the golf on it can tell it from the one with the tournament,
+   before anybody has sat down. */
+.gc-tile.chosen, .gc-golf.chosen { border-color: var(--gco); box-shadow: inset 0 0 0 1px var(--gco), 0 0 12px rgba(255,122,26,.25); }
 .gc-golf { padding: 0; cursor: default; }
 .gc-golf .gc-tilebtn { border: 0; border-radius: 8px 8px 0 0; width: 100%; }
 .gc-golfopts { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; padding: .4rem .6rem .5rem;
@@ -849,6 +852,7 @@ async function tick() {
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   lastTableState = s;
   nameForCourse(s);
+  markChosen(s);
   const shootOpen = s.shootout && !s.shootout.over;
   const leadIn = s.hall && s.hall.show && s.hall.show.lead_in;
   tableMs = ((round && !round.closed) || leadIn || shootOpen
@@ -1475,6 +1479,16 @@ function nameForCourse(s) {
   const h1 = document.querySelector('h1');
   if (h1 && h1.textContent !== want) { h1.textContent = want; document.title = want + ' · ELMER party'; }
 }
+/* The tile of the game this table has chosen: the mode in play, the
+   clubhouse's, or the standing game set before anybody arrived. */
+function markChosen(s) {
+  const mode = (s.standing && s.standing.mode) || (s.clubhouse ? 'golf' : (s.baseball ? 'baseball' : s.mode)) || 'tournament';
+  const tiles = {tournament: '#tourney', shootout: '#shootout', cutthroat: '#cutthroat', golf: '#golf', baseball: '#baseball'};
+  document.querySelectorAll('.gc-tile.chosen, .gc-golf.chosen').forEach(el => el.classList.remove('chosen'));
+  const el = document.querySelector(tiles[mode] || '#tourney');
+  if (!el) return;
+  (el.classList.contains('gc-tilebtn') ? el.closest('.gc-golf') : el).classList.add('chosen');
+}
 function clockWords(secs) {
   const s = Math.max(0, Math.ceil(secs || 0));
   return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
@@ -1570,9 +1584,13 @@ async function autoTick() {
   // While a game runs - or a tee time waits - the tiles stand down; the readout says which.
   document.querySelector('.gc-tiles').hidden = on || !!club;
   const status = document.getElementById('gc-status');
-  const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf'};
+  const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf', baseball: 'CW Baseball'};
+  const standing = lastTableState && lastTableState.standing;
+  const ball = lastTableState && lastTableState.baseball && !lastTableState.baseball.over;
   status.textContent = on ? `${modeName[r.data.mode] || r.data.mode || 'game'} · in play`
+                          : ball ? 'CW Baseball · in play'
                           : club ? `Golf · tee time in ${clockWords(club.tee_in)}`
+                          : standing ? `${modeName[standing.mode] || standing.mode} · set, waiting for the first arrival`
                           : `${Object.keys(modeName).length} games · standing by`;
   autostate.hidden = !on;
   autostate.textContent = on
