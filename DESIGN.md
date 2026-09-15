@@ -2376,6 +2376,28 @@ screens, in two beats of eight; the card stands thirty when the hole is
 done. Every one of those is scaled by the room's `golf_tempo`, one
 number, so a speed selector is a knob on it and not a rewrite.
 
+**The club's say.** A right answer flies the ball, and the club decides
+how surely. Every club has a spread - the driver eighteen yards long or
+short of its mark, the wedge five - and a leak, the chance a fair ball
+drifts off the line: a driver's nearly one in five, a wedge's almost
+never. A leaked ball takes whatever is out that side, a fairway bunker or
+the rough, or the first cut when nothing is; never the water, which it
+stops on the bank of, and never out of bounds - those are a wrong
+answer's to find. "Less bad luck." An adept shot is shaped and does not
+leak. Where in the spread, and whether it leaks, is the swing's timing:
+the milliseconds the answer took seed that stroke's draw. Not a clock - a
+quick answer is no straighter than a slow one, and the tests say so -
+but the same swing lands the same way and every stroke lands a little
+differently, which is what a golfer means by luck. It is what puts four
+tee shots in four places, and so decides who is away.
+
+**The address, on the screens.** While the director addresses the next
+stroke the closed round before it is still on the table, and the screens
+used to go on drawing that round - so with a person's address waiting on
+their Hit, the round stood still for ever after the practice players had
+played through. The state now says `addressing`, and the screens draw the
+address instead, Hit button and all.
+
 **The scorecard.** During golf the party card - "At this table" - is the
 card: a column a hole with its par, a row a player with the strokes
 taken, total and to par at the end, holes not yet played blank. The phone

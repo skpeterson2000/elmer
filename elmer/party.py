@@ -941,7 +941,10 @@ class Room:
                     a = rnd.answers.get(rnd.to)
                     summary["golf"] = self.golf.play_one(rnd.to, {
                         "correct": bool(a and a["correct"]), "club": self.clubs.get(rnd.to),
-                        "question_id": rnd.question_id})
+                        "question_id": rnd.question_id,
+                        # the swing's timing, which seeds where in the
+                        # club's spread the ball lands - luck, repeatable
+                        "ms": (a["ms"] if a else None)})
                     self.clubs.pop(rnd.to, None)
                 else:
                     summary["golf"] = self.golf.play({

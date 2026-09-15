@@ -56,6 +56,13 @@ def run():
     a12 = next(h for h in cs["augusta-national"]["holes"] if h["n"] == 12)
     check("Golden Bell swirls", a12["wind"], "swirling")
 
+    # The rules, pinned: these sections read the physics exactly - the
+    # club's length, the wind's yards, the creek - so the club's spread and
+    # leak are off for them and on again for the section that is about them.
+    SPREAD, LEAK = dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK)
+    golf.CLUB_SPREAD = {c: 0 for c in SPREAD}
+    golf.CLUB_LEAK = {c: 0.0 for c in LEAK}
+
     print("\n-- the shot --")
     g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
     check("from the tee, every club", g.clubs_for("a"), ["driver", "wood", "iron", "wedge"])
@@ -273,6 +280,47 @@ def run():
     for i in range(3):
         row = g.play_one("a", {"correct": True, "question_id": f"Q{i}"})
     check("the third right answer in a row is adept without any measure", row["shots"]["a"].get("flair") is not None, True)
+
+    print("\n-- the club's say: a right answer still varies --")
+    golf.CLUB_SPREAD, golf.CLUB_LEAK = SPREAD, LEAK
+    pb = golf.course("pebble-beach")
+    def tee_shots(club, n=300):
+        out = []
+        for seed in range(n):
+            g = golf.Golf(["a"], pb, holes=[1], seed=seed)
+            out.append(g.play_one("a", {"correct": True, "club": club})["shots"]["a"])
+        return out
+    drives, irons = tee_shots("driver"), tee_shots("iron")
+    check("a driver's carries vary - not one number", len({s["carry"] for s in drives}) > 10, True)
+    check("  and land in the fairway most of the time", sum(s["kind"] == "fairway" for s in drives) / len(drives) > 0.7, True)
+    leaks = [s for s in drives if s.get("leak")]
+    check("  some leak off the line, into the first cut or the sand", 0.08 < len(leaks) / len(drives) < 0.3, True)
+    check("  a leaked ball has a worse lie, so the next question is harder",
+          all(s["lie"] in ("rough", "sand") for s in leaks), True)
+    check("  never the water, never out of bounds", all(s["kind"] != "water" for s in drives), True)
+    check("  and the call says what happened", all(s["call"] in golf.LEAK_CALLS for s in leaks), True)
+    check("an iron off the tee is shorter and straighter",
+          (max(s["carry"] for s in irons) < min(s["carry"] for s in drives) + 40,
+           sum(bool(s.get("leak")) for s in irons) < len(leaks)), (True, True))
+    adepts = [golf.Golf(["a"], pb, holes=[1], seed=seed).play_one("a", {"correct": True, "club": "driver", "adept": True})["shots"]["a"]
+              for seed in range(200)]
+    check("an adept drive is shaped, and does not leak", any(s.get("leak") for s in adepts), False)
+    def timed(ms, seed=0):
+        g = golf.Golf(["a"], pb, holes=[1], seed=seed)
+        g.wind_mph = 0                    # the wind is the round's; the swing is the stroke's
+        return g.play_one("a", {"correct": True, "club": "driver", "ms": ms})["shots"]["a"]
+    check("the swing's timing is the luck: the same swing lands the same way, whatever the round's seed",
+          (timed(4321, 1)["carry"], timed(4321, 2)["carry"]) == (timed(4321, 3)["carry"], timed(4321, 3)["carry"]), True)
+    check("  and different swings land differently", len({timed(ms)["carry"] for ms in range(1000, 9000, 250)}) > 8, True)
+    check("  quick is no straighter than slow - it is a seed, not a clock",
+          abs(sum(timed(ms)["carry"] for ms in range(500, 3000, 100)) / 25
+              - sum(timed(ms)["carry"] for ms in range(20000, 45000, 1000)) / 25) < 8, True)
+    g = golf.Golf(["a", "b", "c"], pb, holes=[1], seed=7)
+    for p in ("a", "b", "c"):
+        g.play_one(p, {"correct": True, "club": "driver"})
+    ats = [g.balls[p].at for p in ("a", "b", "c")]
+    check("three right answers off the tee land in three places, so somebody is away", len(set(ats)), 3)
+    check("  the farthest out", g.away(), min(("a", "b", "c"), key=lambda p: g.balls[p].at))
 
     print("\n-- the scorecard --")
     d = golf.Golf(["a", "b"], golf.course("pebble-beach"), holes=[1, 2, 3], seed=1).as_dict()

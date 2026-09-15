@@ -78,8 +78,23 @@ LIES = {
 }
 # A shot the club can reach the pin with is aimed at it, and lands within
 # this many yards of it, either side. Full swings are for when the club
-# cannot reach, and go the club's length.
+# cannot reach, and go the club's length. Both within the club's spread.
 AIM = 12
+# The club's say in where a fair ball lands. A right answer flies the ball,
+# but a driver is longer and wilder than an iron: the spread is how far
+# long or short of the mark it can land, and the leak is the chance it
+# drifts off the line into the first cut or whatever is out there - a
+# bunker, the rough - never the water and never out of bounds, which are a
+# wrong answer's to find. "Less bad luck." It is what puts variety in the
+# lies after a good tee shot, and so in who is away next.
+# Where within the spread, and whether it leaks, is the swing's timing: the
+# milliseconds the answer took seed the draw for that stroke. Not a clock -
+# a quick answer is no straighter than a slow one - but the same swing
+# twice lands the same way, and every stroke lands a little differently,
+# which is what a golfer means by luck.
+CLUB_SPREAD = {"driver": 18, "wood": 14, "iron": 9, "wedge": 5}
+CLUB_LEAK = {"driver": 0.18, "wood": 0.12, "iron": 0.06, "wedge": 0.02}
+LEAK_CALLS = ["Leaked it.", "Pushed it a touch.", "Pulled it a hair.", "That got away from him."]
 # Yards per mile an hour, by how the wind sits on the line.
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
 # Where a hole ends: picked up at par plus this many.
@@ -205,6 +220,7 @@ class Golf:
         self.rng = random.Random(seed)
         self.cards = {p: {} for p in self.players}      # player -> hole n -> strokes
         self.hole_index = 0
+        self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.balls = {}
         self.wind_mph = 0
         self.playoff = []          # players still in a playoff, if one
@@ -301,10 +317,12 @@ class Golf:
         that it was right reaches here: the swing is not timed."""
         most = CLUBS[club] * LIES[ball.lie][0]
         wind_yards = WIND_EFFECT.get(wind, 0.0) * self.wind_mph
+        spread = CLUB_SPREAD.get(club, AIM)
         if most + wind_yards >= abs(left):
-            # Aimed - at the pin, from either side of it.
-            return round(left + self.rng.uniform(-AIM, AIM) + wind_yards * 0.25)
-        return max(10, round(most + wind_yards))
+            # Aimed - at the pin, from either side of it, within the club's spread.
+            return round(left + self.swing.uniform(-spread, spread) + wind_yards * 0.25)
+        # A full swing: the club's length, give or take its spread.
+        return max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
 
     def _in_band(self, h, at, kinds=("water", "bunker", "rough"), sides=None):
         """The hazard a ball at `at` yards is in, if any, of these kinds and
@@ -391,6 +409,26 @@ class Golf:
             feet = max(3, abs(left) * 3)
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards - on the green, {feet} feet",
                     "carry": carry, "wind": wind, "feet": feet, "flair": flair}
+        # The club's say: a fair ball that leaks off the line. Whatever is
+        # out that side takes it - a bunker, the rough - or the first cut
+        # does. Not the water: a right answer stops on the bank. An adept
+        # shot is shaped, and does not leak.
+        if not adept and not hz and left > edge and self.swing.random() < CLUB_LEAK.get(club, 0.0):
+            side = self.swing.choice(("left", "right"))
+            wide = self._in_band(h, landed, sides=(side,))
+            ball.at = landed
+            if wide and wide["kind"] == "bunker":
+                ball.lie = "sand"
+                return {"kind": "sand", "words": f"{club}, {carry} yards - leaked {side}, into {wide['name'] or 'the sand'}",
+                        "carry": carry, "wind": wind, "hazard": wide["name"], "leak": side, "left": left}
+            ball.lie = "rough"
+            if wide and wide["kind"] == "water":
+                return {"kind": "rough", "words": f"{club}, {carry} yards - leaked {side}, stopped on the bank of "
+                                                  f"{wide['name'] or 'the water'} - {left} to go, from the rough",
+                        "carry": carry, "wind": wind, "leak": side, "left": left}
+            where = (wide["name"] or "the rough") if wide else "the first cut"
+            return {"kind": "rough", "words": f"{club}, {carry} yards - leaked {side}, into {where} - {left} to go",
+                    "carry": carry, "wind": wind, "hazard": wide["name"] if wide else None, "leak": side, "left": left}
         if left < -edge:
             # Over the back: rough beyond, or whatever is there.
             ball.at = h["yards"]
@@ -457,6 +495,12 @@ class Golf:
         """One player's stroke with one answer: where the ball went, in
         words, and the ball moved."""
         a = answer or {}
+        # The swing's timing seeds this stroke's draw - see CLUB_SPREAD.
+        try:
+            ms = int(a.get("ms")) if a.get("ms") is not None else None
+        except (TypeError, ValueError):
+            ms = None
+        self.swing = random.Random(ms) if ms is not None else self.rng
         club = a.get("club") or self.default_club(p)
         if club not in self.clubs_for(p):
             club = self.default_club(p)
@@ -478,6 +522,7 @@ class Golf:
         flair = shot.get("flair")
         shot["call"] = ("A hole in one!" if shot.get("ace")
                         else self.rng.choice(FLAIR_CALLS[flair]) if flair in FLAIR_CALLS
+                        else self.rng.choice(LEAK_CALLS) if shot.get("leak")
                         else self.rng.choice(CALLS.get(shot["kind"], ["That's a shot."])))
         if not ball.holed and ball.strokes >= h["par"] + PICK_UP_OVER:
             ball.picked_up = True
