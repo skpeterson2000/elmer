@@ -149,7 +149,16 @@ function paintVerdict(d) {
     tile('Declination', (m.declination >= 0 ? '+' : '') + m.declination.toFixed(0) + '&deg;',
          m.declination < -15 ? 'low in the south; a noisier sky behind it' : m.declination > 15 ? 'high; a quiet sky behind it' : 'middling') +
     tile('From the sun', Math.round(m.sun_separation) + '&deg;',
-         m.sun_separation < 15 ? 'sun noise in the beam' : m.sun_separation < 30 ? 'close enough to notice' : 'well clear · ' + escapeHTML(m.phase.name));
+         m.sun_separation < 15 ? 'sun noise in the beam' : m.sun_separation < 30 ? 'close enough to notice' : 'well clear') +
+    /* The phase, always - it is the sun separation seen from the other
+       side: a new moon is beside the sun and up by day, a full moon is
+       opposite it and up all night, and a quarter moon is the one you
+       can work at dusk with the sun below the horizon. */
+    tile('Phase', escapeHTML(m.phase.name), Math.round(m.phase.lit * 100) + '% lit · ' +
+         (m.phase.name === 'new' ? 'beside the sun, up by day - hard to find and noisy'
+          : m.phase.name === 'full' ? 'opposite the sun, up all night'
+          : /quarter/.test(m.phase.name) ? 'half a sky from the sun - up at dusk or dawn'
+          : /waxing/.test(m.phase.name) ? 'evening moon, setting after the sun' : 'morning moon, rising after midnight'));
 }
 
 function paintMeteors(met) {
