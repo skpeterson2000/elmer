@@ -104,6 +104,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   </div>
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
+<script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
 const PAGE_BUILD = "{{ build }}";
@@ -361,6 +362,11 @@ function paintWaiting(state) {
     wireClubs();
     const hb = document.getElementById('golf-hit');
     if (hb) hb.addEventListener('click', async () => { hb.disabled = true; await api('/api/party/hit', {player: me.id}); tick(); });
+    return;
+  }
+  const bb = state.baseball;
+  if (bb) {
+    paintBaseballPhone(bb);
     return;
   }
   const ct = state.cutthroat;
@@ -962,6 +968,69 @@ function start() {
   if (poll) clearTimeout(poll);
   tick();
   schedulePoll();
+}
+
+/* ---------------------------------------------------------- CW Baseball */
+/* Batting: the pitch sounds here too, in the batter's ear; they type what
+   they copied and swing. Fielding: a touch key - hold the big button - and
+   the decoder in morse.js reads what was keyed; Throw sends it. */
+const phonePlayer = (typeof CWPlayer === 'function') ? new CWPlayer() : null;
+let phonePitched = null, phoneKey = null;
+function paintBaseballPhone(b) {
+  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== phonePitched && phonePlayer && (b.your_swing || b.your_team === b.batting)) {
+    phonePitched = b.pitch.n;
+    try { phonePlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
+  }
+  if (b.phase !== 'field') phoneKey = null;
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + (b.last ? b.last.n + (b.last.result || '') : '') + (b.your_swing ? 's' : '') + (b.your_throw ? 't' : '');
+  if (shownRound === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
+  shownRound = key;
+  const score = `<p class="clock" style="margin:0 0 .4rem">CW Baseball &middot; ${b.over ? 'final' : (b.half + ' ' + ordinal(b.inning))} &middot; A ${b.runs.A} &ndash; B ${b.runs.B} &middot; ${b.outs} out &middot; you are Side ${b.your_team || '?'}</p>`;
+  let main = '';
+  if (b.over) main = `<h2>Side ${b.winner} wins, ${b.runs.A} to ${b.runs.B}.</h2>`;
+  else if (b.phase === 'between') main = `<p>${b.half === 'top' ? 'Top' : 'Bottom'} of the ${ordinal(b.inning)}. Side ${b.batting} bats. The pitch is ${escapeHTML(b.level)} at ${b.wpm} wpm.</p>`;
+  else if (b.phase === 'pitch') {
+    main = b.your_swing
+      ? `<p><b>You're up.</b> Copy the pitch and swing. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
+         <input id="ball-typed" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="what you copied">
+         <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>`
+      : `<p><b>${escapeHTML(b.batter_name)}</b> at bat. The pitch is ${escapeHTML(b.level)}, ${b.wpm} wpm. Copy along.</p>`;
+  } else if (b.phase === 'field') {
+    main = b.your_throw
+      ? `<p><b>Your ball.</b> Key back <span class="mono">${escapeHTML(b.pitch.plain)}</span> and throw. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
+         <button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
+         <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>
+         <p><button class="choice" id="ball-throw" style="text-align:center"><b>Throw &rsaquo;</b></button></p>`
+      : `<p>In play - <b>${escapeHTML(b.fielder_name)}</b> keys it back.</p>`;
+  } else {
+    main = `<p>${escapeHTML((b.last && b.last.words) || '')}</p>` +
+      (b.last && b.last.pitch ? `<p class="tiny muted">The pitch was <span class="mono">${escapeHTML(b.last.pitch)}</span>${b.last.typed !== undefined ? ' · copied as <span class="mono">' + escapeHTML(b.last.typed || '·') + '</span>' : ''}</p>` : '');
+  }
+  view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">${score}${main}
+    <p class="tiny muted" style="margin-top:.8rem">Bases: ${(b.bases || []).map((x, i) => x ? ordinal(i + 1) + ' ' + escapeHTML(x.name) : '').filter(Boolean).join(', ') || 'empty'}</p></div>`;
+  const sw = document.getElementById('ball-swing');
+  if (sw) {
+    const inp = document.getElementById('ball-typed');
+    inp.focus();
+    const go = async () => { sw.disabled = true; await api('/api/party/ball/swing', {player: me.id, typed: inp.value}); shownRound = null; tick(); };
+    sw.addEventListener('click', go);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  }
+  const kb = document.getElementById('ball-key');
+  if (kb) {
+    phoneKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0};
+    const down = e => { e.preventDefault(); if (phoneKey.down) return; phoneKey.down = true; const now = performance.now();
+      if (phoneKey.lastUp) phoneKey.decoder.space(now - phoneKey.lastUp); phoneKey.downAt = now; if (phonePlayer) phonePlayer.down(); kb.classList.add('picked'); };
+    const up = e => { e.preventDefault(); if (!phoneKey.down) return; phoneKey.down = false; const now = performance.now();
+      phoneKey.decoder.mark(now - phoneKey.downAt); phoneKey.lastUp = now; if (phonePlayer) phonePlayer.up(); kb.classList.remove('picked');
+      document.getElementById('ball-keyed').textContent = phoneKey.decoder.text + phoneKey.decoder.symbols.join(''); };
+    kb.addEventListener('pointerdown', down); kb.addEventListener('pointerup', up); kb.addEventListener('pointercancel', up); kb.addEventListener('pointerleave', up);
+    document.getElementById('ball-throw').addEventListener('click', async () => {
+      phoneKey.decoder.flush();
+      await api('/api/party/ball/field', {player: me.id, keyed: phoneKey.decoder.text});
+      phoneKey = null; shownRound = null; tick();
+    });
+  }
 }
 
 /* A tap on the strip is the golfer's mark: the point turned into yards

@@ -48,6 +48,7 @@ from collections import deque
 from . import trivia
 from .cutthroat import CutThroat
 from . import golfmap
+from .cwball import Baseball
 from .golf import Golf
 from .shootout import Shootout
 
@@ -94,7 +95,8 @@ TOURNAMENT = "tournament"
 SHOOTOUT = "shootout"
 CUTTHROAT = "cutthroat"
 GOLF = "golf"
-MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF)
+BASEBALL = "baseball"
+MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF, BASEBALL)
 # A stroke in golf is not timed, and no screen shows a clock on it; this is
 # only how long the room waits on a golfer who has walked away before it
 # plays their foul ball and moves the group on. Ten minutes.
@@ -424,6 +426,7 @@ class Room:
         # game to join"), so the first arrival is met by the clubhouse and
         # a tee time, not by a fifteen-second tournament countdown.
         self.standing = None       # {"mode": "golf", "spec": {...}, "tee_in": seconds}
+        self.baseball = None       # a CW Baseball game, see cwball.py
         self.golf_pace = None      # how long its practice players take, seconds
         self.golf_tempo = 1.0      # every golf beat, scaled: the speed selector's knob
         # The clubhouse: a round booked for a tee time, waiting for friends to
@@ -1253,6 +1256,61 @@ class Room:
             if self.mode == CUTTHROAT:
                 self.mode = TOURNAMENT
 
+    # ------------------------------------------------------------ baseball
+    def begin_baseball(self, innings=3, base_wpm=10.0):
+        """CW Baseball over everybody at the table: the cohorts are the
+        teams when there are two; one cohort is dealt out alternately, people
+        first. A practice player fills an empty side."""
+        with self.lock:
+            people = sorted(p for p, pl in self.players.items() if not pl.bot)
+            bots = sorted(p for p, pl in self.players.items() if pl.bot)
+            by_cohort = {}
+            for p in people + bots:
+                by_cohort.setdefault(self.players[p].cohort_id, []).append(p)
+            if len(by_cohort) >= 2:
+                ids = sorted(by_cohort)
+                teams = {"A": list(by_cohort[ids[0]]), "B": list(by_cohort[ids[1]])}
+            else:
+                teams = {"A": (people + bots)[0::2], "B": (people + bots)[1::2]}
+            if not teams["A"] or not teams["B"]:
+                return None, "CW Baseball needs two sides - sit two people down, or turn the practice players on"
+            self.baseball = Baseball(teams, {p: pl.name for p, pl in self.players.items()},
+                                     innings=innings, base_wpm=base_wpm,
+                                     bots={p: pl.bot for p, pl in self.players.items() if pl.bot})
+            self.mode = BASEBALL
+            return self.baseball, None
+
+    def end_baseball(self):
+        with self.lock:
+            self.baseball = None
+            if self.mode == BASEBALL:
+                self.mode = TOURNAMENT
+
+    def baseball_over(self):
+        with self.lock:
+            return self.baseball is not None and self.baseball.over()
+
+    def baseball_view(self, player_id=None):
+        with self.lock:
+            if self.baseball is None:
+                return None
+            self.baseball.tick()
+            return self.baseball.as_dict(player_id)
+
+    def baseball_swing(self, player_id, typed):
+        with self.lock:
+            if self.baseball is None:
+                return {"error": "no game"}
+            self.baseball.tick()
+            return self.baseball.swing(player_id, typed)
+
+    def baseball_field(self, player_id, keyed):
+        with self.lock:
+            if self.baseball is None:
+                return {"error": "no game"}
+            self.baseball.tick()
+            return self.baseball.field(player_id, keyed)
+
     def cutthroat_over(self):
         with self.lock:
             return self.cutthroat is not None and self.cutthroat.over()
@@ -1566,6 +1624,7 @@ class Room:
                 "mode": self.mode,
                 "shootout": self.shootout_view(player_id),
                 "cutthroat": self.cutthroat_view(player_id),
+                "baseball": self.baseball_view(player_id),
                 "golf": self.golf_view(player_id),
                 # Filled in by the route when this table reports to a hall:
                 # the hall's shootout as it concerns this table, so a phone

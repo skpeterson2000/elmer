@@ -3292,6 +3292,8 @@ def _party_playing(room):
     director = autoplay.director()
     if director and (director.as_dict() or {}).get("running"):
         return True
+    if room.baseball is not None and not room.baseball.over():
+        return True                       # CW Baseball keeps its own clock
     rnd = room.round
     return rnd is not None and not rnd.closed and not rnd.expired()
 
@@ -3859,6 +3861,28 @@ def api_party_mode():
         autoplay.start(room, lambda: _ask_party(difficulty, None, seconds))
         log.info("party: shootout started (%s, %d players)", difficulty,
                  len(room.players))
+    elif wanted == party.BASEBALL:
+        # CW Baseball: the machine pitches code, the batting side copies it,
+        # the fielding side keys it back. No director - the game keeps its
+        # own clock and the screens drive it by polling. See cwball.py.
+        _not_this_tables_part()
+        room.disarm_start()
+        room.fill_bots(body.get("level"))
+        room.end_shootout()
+        room.end_cutthroat()
+        room.end_golf()
+        room.leave_clubhouse()
+        try:
+            innings = max(1, min(9, int(body.get("innings") or 3)))
+            base_wpm = max(5.0, min(30.0, float(body.get("wpm") or _cw_base_wpm())))
+        except (TypeError, ValueError):
+            abort(400, "check the numbers")
+        started, why = room.begin_baseball(innings, base_wpm)
+        if started is None:
+            abort(409, why)
+        _quiet_op25("CW Baseball is starting")
+        log.info("party: CW Baseball started - %d innings at %.0f wpm, %d a side",
+                 innings, base_wpm, len(started.lineups["A"]))
     elif wanted == party.CUTTHROAT:
         # Musical chairs with questions: drawn like a tournament's, no pick,
         # and the director asks until one player is left. See cutthroat.py.
@@ -3926,6 +3950,7 @@ def api_party_mode():
         room.end_shootout()
         room.end_cutthroat()
         room.end_golf()
+        room.end_baseball()
         log.info("party: back to a tournament")
     return jsonify(room.state())
 
@@ -4234,6 +4259,47 @@ def api_party_next():
     driver = autoplay.director()
     hurried = bool(driver and driver.hurry())
     return jsonify({"ok": True, "hurried": hurried})
+
+
+def _cw_base_wpm():
+    """Where the pitching starts: the operator's copy rating, a little
+    under it, or ten."""
+    try:
+        rating = db.get_profile(conn())["settings"].get("cw_rating") or {}
+        copy = float(rating.get("copy_wpm") or 0)
+    except (TypeError, ValueError):
+        copy = 0
+    return max(5.0, copy - 2.0) if copy else 10.0
+
+
+@app.route("/api/party/ball/swing", methods=["POST"])
+def api_party_ball_swing():
+    """The batter's copy of the pitch."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    play = room.baseball_swing(player, str(body.get("typed") or ""))
+    if play.get("error"):
+        abort(409, play["error"])
+    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})
+
+
+@app.route("/api/party/ball/field", methods=["POST"])
+def api_party_ball_field():
+    """The fielder's throw: what they keyed."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    play = room.baseball_field(player, str(body.get("keyed") or ""))
+    if play.get("error"):
+        abort(409, play["error"])
+    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})
 
 
 @app.route("/api/party/aim", methods=["POST"])

@@ -182,6 +182,8 @@ body.golfing .joinurl { font-size: .7rem; }
    want it, after the thing to read. */
 .golfunder { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line); }
 .standings { margin-bottom: .8rem; padding-bottom: .6rem; border-bottom: 1px solid var(--line); }
+.diamond { width: 13rem; height: auto; display: block; border-radius: 12px; justify-self: end; }
+table.linescore { margin: .4rem 0 .6rem; }
 .standings table.res td { padding: .25rem .35rem; }
 .golfunder .narrator { font-size: 1.05rem; }
 .hitrow .clubrow { margin-bottom: .6rem; }
@@ -422,10 +424,22 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
                 <input type="checkbox" id="golf-handicap"> handicap</label>
             </div>
           </div>
-          <div class="gc-tile gc-open" aria-hidden="true">
-            <span class="gc-glyph">&#8230;</span>
-            <b>Open slot</b>
-            <span>Room for the next game.</span>
+          <div class="gc-tile gc-golf">
+            <button class="gc-tilebtn" id="baseball" title="The machine pitches Morse. The batting side copies it - clean is a hit, sized by the pitch. The fielding side keys it back - clean and in time is the out. Innings, runs, a diamond.">
+              <span class="gc-glyph">&#9918;</span>
+              <b>CW Baseball</b>
+              <span>The machine pitches code. Batting is copying, fielding is sending it back. Innings, runs, and the late innings come faster.</span>
+            </button>
+            <div class="gc-golfopts">
+              <select class="btn sm" id="ball-innings" title="how many innings">
+                <option value="1">1 inning</option><option value="3" selected>3 innings</option><option value="6">6 innings</option><option value="9">9 innings</option>
+              </select>
+              <select class="btn sm" id="ball-wpm" title="where the pitching starts; the innings speed it up">
+                <option value="">from the operator's rating</option>
+                <option value="6">6 wpm</option><option value="8">8 wpm</option><option value="10">10 wpm</option>
+                <option value="13">13 wpm</option><option value="16">16 wpm</option><option value="20">20 wpm</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="hint" id="gc-sit" hidden style="text-align:left;margin-top:.6rem;color:var(--amber)"></div>
@@ -852,7 +866,8 @@ async function tick() {
   document.body.classList.toggle('focus',
     atScreen.length > 0 && ((round && !round.closed) || (!round && seatPicking)));
   const golfOn = !!(s.golf && !s.golf.over) || !!s.clubhouse;
-  document.body.classList.toggle('golfing', golfOn);
+  // Golf and CW Baseball take the screen: the Gaming Center steps aside.
+  document.body.classList.toggle('golfing', golfOn || !!(s.baseball && !s.baseball.over));
   if (golfOn && window.Warm) {
     Warm.round();
     if (s.golf) Warm.warm([s.golf.next_figure, s.golf.next_tee_pic]);
@@ -862,6 +877,10 @@ async function tick() {
                                   : 'Scan to join this table';
   document.getElementById('close').disabled = !round || round.closed;
 
+  if (s.baseball && !round) {
+    paintBaseball(s);
+    return;
+  }
   if (!round) {
     /* A table with somebody sitting at it starts on its own, and the screen
        says so rather than leaving whoever is here to wonder whether pressing
@@ -1258,6 +1277,118 @@ document.getElementById('endtable').addEventListener('click', async () => {
   location.href = '/';
 });
 
+/* ---------------------------------------------------------- CW Baseball */
+/* The machine pitches code through this screen's speaker; the batting side
+   copies it, the fielding side keys it back. The diamond shows the runners,
+   the board the line score. A seated batter types in the seat's box; a
+   seated fielder holds the space bar as a straight key and the decoder in
+   morse.js reads it. Phones do the same on their own screens. */
+const ballPlayer = (typeof CWPlayer === 'function') ? new CWPlayer() : null;
+let ballPitched = null;                  // the pitch number this screen has sounded
+let ballKey = null;                      // {decoder, downAt, lastUp, player} while a seat is fielding
+
+function diamondSVG(b) {
+  const on = i => b.bases && b.bases[i];
+  const base = (x, y, i) => `<rect x="${x - 9}" y="${y - 9}" width="18" height="18" transform="rotate(45 ${x} ${y})" fill="${on(i) ? '#ffb454' : '#e8e8e8'}" stroke="#16221a"/>` +
+    (on(i) ? `<text x="${x}" y="${y - 16}" text-anchor="middle" font-size="10" fill="#ffb454" font-family="system-ui">${esc(on(i).name)}</text>` : '');
+  return `<svg viewBox="0 0 220 200" class="diamond" role="img" aria-label="the diamond">
+    <rect x="0" y="0" width="220" height="200" rx="14" fill="#16221a"/>
+    <path d="M110 190 L20 100 L110 10 L200 100 Z" fill="#2a4a24"/>
+    <path d="M110 176 L34 100 L110 24 L186 100 Z" fill="none" stroke="#8fe39a" stroke-width="2"/>
+    <circle cx="110" cy="100" r="10" fill="#c9a86a"/>
+    ${base(186, 100, 0)}${base(110, 24, 1)}${base(34, 100, 2)}
+    <rect x="101" y="167" width="18" height="18" transform="rotate(45 110 176)" fill="#e8e8e8" stroke="#16221a"/>
+    <text x="110" y="120" text-anchor="middle" font-size="11" fill="#e8e8e8" font-family="ui-monospace, monospace">${b.outs} out${b.outs === 1 ? '' : 's'} · ${b.strikes} strike${b.strikes === 1 ? '' : 's'}</text>
+  </svg>`;
+}
+function lineScore(b) {
+  const inn = Math.max(b.innings, b.line.A.length, b.line.B.length);
+  const cells = t => Array.from({length: inn}, (_, i) => `<td class="ms">${b.line[t][i] !== undefined ? b.line[t][i] : (t === b.batting && i + 1 === b.inning ? (b.runs[t] - b.line[t].reduce((x, y) => x + y, 0)) : '')}</td>`).join('');
+  return `<table class="res card linescore"><tr><td class="k"></td>${Array.from({length: inn}, (_, i) => `<td class="ms">${i + 1}</td>`).join('')}<td class="ms tot">R</td><td class="ms">H</td><td class="ms">E</td></tr>
+    <tr><td>${b.batting === 'A' ? '&#9654; ' : ''}Side A</td>${cells('A')}<td class="ms tot"><b>${b.runs.A}</b></td><td class="ms">${b.hits.A}</td><td class="ms">${b.errors.A}</td></tr>
+    <tr><td>${b.batting === 'B' ? '&#9654; ' : ''}Side B</td>${cells('B')}<td class="ms tot"><b>${b.runs.B}</b></td><td class="ms">${b.hits.B}</td><td class="ms">${b.errors.B}</td></tr></table>`;
+}
+function ballKeyStart(e) {
+  if (!ballKey || ballKey.down) return;
+  ballKey.down = true;
+  const now = performance.now();
+  if (ballKey.lastUp) ballKey.decoder.space(now - ballKey.lastUp);
+  ballKey.downAt = now;
+  if (ballPlayer) ballPlayer.down();
+}
+function ballKeyEnd() {
+  if (!ballKey || !ballKey.down) return;
+  ballKey.down = false;
+  const now = performance.now();
+  ballKey.decoder.mark(now - ballKey.downAt);
+  ballKey.lastUp = now;
+  if (ballPlayer) ballPlayer.up();
+  const out = document.getElementById('ball-keyed');
+  if (out) out.textContent = ballKey.decoder.text + ballKey.decoder.symbols.join('');
+}
+document.addEventListener('keydown', e => { if (ballKey && e.code === 'Space' && !e.repeat) { e.preventDefault(); ballKeyStart(e); } });
+document.addEventListener('keyup', e => { if (ballKey && e.code === 'Space') { e.preventDefault(); ballKeyEnd(); } });
+
+function paintBaseball(s) {
+  const b = s.baseball;
+  const atScreen = seated();
+  chip.textContent = b.over ? 'game over' : `${b.half} of the ${b.inning}${ordinal(b.inning)}`;
+  const mine = atScreen.find(x => x.id === b.batter), fielding = atScreen.find(x => x.id === b.fielder);
+  // The pitch sounds once, on this screen, when it is new.
+  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== ballPitched && ballPlayer) {
+    ballPitched = b.pitch.n;
+    try { ballPlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
+  }
+  if (b.phase !== 'field' && ballKey) { ballKey = null; }
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + JSON.stringify(b.bases) + (b.last ? b.last.n + (b.last.result || '') : '') + (mine ? 'm' : '') + (fielding ? 'f' : '');
+  if (painted === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
+  painted = key;
+  let main = '';
+  if (b.over) {
+    main = `<p class="narrator">That's the game: <b>Side ${b.winner}</b> wins, ${b.runs.A} to ${b.runs.B}.</p>`;
+  } else if (b.phase === 'between') {
+    main = `<p class="narrator">${b.inning === 1 && b.half === 'top' && !b.line.A.length ? 'Play ball.' : 'Side retired.'} ${b.half === 'top' ? 'Top' : 'Bottom'} of the ${b.inning}${ordinal(b.inning)} - Side ${b.batting} bats, Side ${b.fielding} fields. The pitch: ${esc(b.level)} at ${b.wpm} wpm.</p>`;
+  } else if (b.phase === 'pitch') {
+    main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; the pitch is ${esc(b.level)}, ${b.wpm} wpm &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
+      (mine ? `<div class="hitrow"><input class="hs-name" id="ball-typed" placeholder="type what you copied" autocomplete="off" style="max-width:20rem;font-family:var(--mono)">
+               <button class="btn primary" data-ball-swing="${mine.id}">Swing</button></div>` :
+       `<p class="hint" style="text-align:left">${b.batter_name} copies it on their phone. Everybody else: copy along.</p>`);
+  } else if (b.phase === 'field') {
+    main = `<p class="narrator">In play! <b>${esc(b.fielder_name)}</b> has it &middot; key back <span class="mono">${esc(b.pitch.plain)}</span> &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
+      (fielding ? `<div class="hitrow"><p class="hint" style="text-align:left">Hold the <b>space bar</b> as a straight key. Keyed so far: <span class="mono" id="ball-keyed"></span></p>
+                   <button class="btn primary" data-ball-throw="${fielding.id}">Throw</button></div>` :
+       `<p class="hint" style="text-align:left">${b.fielder_name} keys it on their phone.</p>`);
+    if (fielding && !ballKey) ballKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0, player: fielding.id};
+  } else {
+    main = `<p class="narrator">${esc((b.last && b.last.words) || '')}</p>` +
+      (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.keyed !== undefined ? ' · keyed as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
+  }
+  stage.innerHTML = `<div class="golfstage golfstage-map"><div>
+      <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'}</div>
+      ${lineScore(b)}${main}
+      <p class="hint" style="text-align:left;margin-top:.6rem">Side A: ${b.lineups.A.map(p => esc(p.name)).join(', ')} &middot; Side B: ${b.lineups.B.map(p => esc(p.name)).join(', ')}</p>
+    </div><div>${diamondSVG(b)}</div></div>`;
+  const t = document.getElementById('ball-typed');
+  if (t) { t.focus(); t.addEventListener('keydown', e => { if (e.key === 'Enter') { const bt = document.querySelector('[data-ball-swing]'); if (bt) bt.click(); } }); }
+}
+document.addEventListener('click', async e => {
+  const sw = e.target.closest('[data-ball-swing]');
+  if (sw) {
+    const typed = (document.getElementById('ball-typed') || {}).value || '';
+    await api('/api/party/ball/swing', {player: parseInt(sw.dataset.ballSwing, 10), typed});
+    painted = null; tick();
+    return;
+  }
+  const th = e.target.closest('[data-ball-throw]');
+  if (th) {
+    if (ballKey) ballKey.decoder.flush();
+    const keyed = ballKey ? ballKey.decoder.text : '';
+    ballKey = null;
+    await api('/api/party/ball/field', {player: parseInt(th.dataset.ballThrow, 10), keyed});
+    painted = null; tick();
+  }
+});
+
 /* The narrator, and the cue. What is said goes on the screen; a voice or a
    sound can be hung on golfCue later - a stub for now, on purpose. */
 const SHOT_BEAT_MS = 8000;      // scaled by the round's tempo where it is used
@@ -1362,6 +1493,18 @@ golfBtn.addEventListener('click', async () => {
     seconds: parseFloat(document.getElementById('seconds').value) || 30});
   golfBtn.disabled = false;
   autoTick(); tick();
+});
+const ballBtn = document.getElementById('baseball');
+ballBtn.addEventListener('click', async () => {
+  if (!somebodyHere()) { askToSit(() => ballBtn.click(), 'CW Baseball'); return; }
+  clearAsk();
+  ballBtn.disabled = true;
+  await api('/api/party/mode', {mode: 'baseball',
+    innings: parseInt(document.getElementById('ball-innings').value, 10) || 3,
+    wpm: document.getElementById('ball-wpm').value || null,
+    level: document.getElementById('bot-level') ? document.getElementById('bot-level').value : null});
+  ballBtn.disabled = false;
+  tick();
 });
 const cutBtn = document.getElementById('cutthroat');
 cutBtn.addEventListener('click', async () => {
@@ -1677,6 +1820,7 @@ function scheduleTable() {
 tick();
 scheduleTable();
 </script>
+<script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('certs.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script src="{{ asset('owner.js') }}"></script>

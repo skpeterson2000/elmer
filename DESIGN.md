@@ -1272,7 +1272,29 @@ on a straight key or the keyer's setting on a paddle. Both are kept with
 the profile (`cw_rating`), shown on the page, and are what the CW games
 set their level from.
 
-**CW Baseball (the plan, 2026-09-15).** Two teams - the table's cohorts -
+**CW Baseball (built 2026-09-15; `elmer/cwball.py`).** In the Gaming
+Center beside the others. The machine pitches through the table's speaker
+(and into the batter's phone); the rules keep their own clock and the
+screens drive them by polling, so there is no director. Two sides - the
+cohorts when there are two, one cohort dealt out alternately, practice
+players filling in - and innings chosen at the tile, one to nine; the
+pitching starts at the operator's copy rating, a little under it, or where
+the tile says, and comes a word and a half a minute faster each inning.
+Batting: the pitch's text is not in the state while it is in the air; the
+batter types what they copied and swings, on the phone or in the seat's
+box; nine in ten right is in play, six in ten a foul, less a strike. In
+play: the fielding side's next fielder is told the text and keys it back -
+on the phone a hold-to-key button, at a seat the space bar as a straight
+key, a paddle wired to either works - and Throw sends what the decoder
+read; nine in ten clean is the out, a rougher send leaves the runner on,
+under half is an error and an extra base; a throw never made in time is
+the runner safe. Runners advance the hit's bases, the diamond shows them,
+the line score the innings. The late innings pitch groups, words, a call
+and a report, and then the exchange, and the full contact - CQ, answer,
+reports, 73 - is the next thing to add to the pitching, along with a paddle
+on the Pi's GPIO.
+
+**The plan it was built from.** Two teams - the table's cohorts -
 and the machine pitches. Batting is copying: a pitch is a transmission,
 its speed, length and content rising with the level - letters, groups,
 words, a callsign and a report, a full exchange - and copying it right is
