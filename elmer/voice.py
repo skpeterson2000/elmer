@@ -166,12 +166,21 @@ def number(n):
         return [f"n-{n}"]
     out = []
     if n >= 100:
-        out += [NUMBER_WORDS[n // 100], "hundred"]
-        n %= 100
-        if n:
-            out.append("and")
+        whole_hundred = f"n-{n // 100 * 100}"
+        if _shelf and whole_hundred in _shelf:
+            # "three hundred" in one breath, then the rest - no "and":
+            # that is how it is said this side of the water.
+            out.append(whole_hundred)
+            n %= 100
+            if not n:
+                return out
         else:
-            return out
+            out += [NUMBER_WORDS[n // 100], "hundred"]
+            n %= 100
+            if n:
+                out.append("and")
+            else:
+                return out
     if n in NUMBER_WORDS:
         out.append(NUMBER_WORDS[n])
     else:

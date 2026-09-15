@@ -4,6 +4,7 @@
     python3 tools/voice_script.py            # to the terminal
     python3 tools/voice_script.py --md       # as docs/narration/voice-script.md
     python3 tools/voice_script.py --have     # what is recorded, what is still to do
+    python3 tools/voice_script.py --adopt    # rename a reader's files ('29.One_hundred.mp3') to the stems
 
 Record each line as its own file, named by the stem, as MP3, into
 elmer/static/golf/voice/ - three.mp3, addresses-the-ball.mp3 - and the
@@ -90,8 +91,82 @@ def shelf_report():
     return "\n".join(out)
 
 
+def _key(text):
+    """Letters and digits only, lowercased: 'That'll play.' and
+    'Thatll_play' and '12.That_ll_play' all come to the same thing."""
+    import re
+    return re.sub(r"[^a-z0-9]", "", str(text).lower())
+
+
+NUMBER_WORDS_TO_N = {w: n for n, w in voice.NUMBER_WORDS.items()}
+
+
+def adopt(dry_run=False):
+    """Rename what a text-to-speech reader produced - files named for the
+    line's text, with a number in front ('29.One_hundred.mp3') - to the
+    stems the narrator listens for, by matching the text against the
+    script. Whole numbers ('Three hundred seventy seven') become n-377.
+    Files already named for a stem are left alone; a file that matches
+    nothing is listed, not touched."""
+    import re
+    folder = Path(__file__).resolve().parents[1] / "elmer" / "static" / "golf" / "voice"
+    by_words = {_key(words): stem for stem, words in voice.VOCABULARY.items()}
+    stems = set(voice.VOCABULARY)
+    renamed, strays = [], []
+    for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
+        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+)$", p.stem):
+            continue
+        text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
+        key = _key(text)
+        target = by_words.get(key)
+        if target is None:
+            target = _whole_number(text)
+        if target is None:
+            strays.append(p.name)
+            continue
+        dest = folder / f"{target}.mp3"
+        if dest.exists():
+            strays.append(f"{p.name} (would be {dest.name}, which exists)")
+            continue
+        renamed.append((p.name, dest.name))
+        if not dry_run:
+            p.rename(dest)
+    return renamed, strays
+
+
+def _whole_number(text):
+    """'Three hundred seventy seven' -> 'n-377'; 'Forty' alone is a piece,
+    not a whole number, and is matched by the script instead."""
+    import re
+    words = re.findall(r"[a-z]+", str(text).lower().replace("-", " "))
+    if not words:
+        return None
+    n, hundreds = 0, False
+    for w in words:
+        if w == "hundred":
+            n *= 100
+            hundreds = True
+        elif w == "and":
+            continue
+        elif w in NUMBER_WORDS_TO_N:
+            n += NUMBER_WORDS_TO_N[w]
+        else:
+            return None
+    if not hundreds and len(words) < 2:
+        return None                         # a single number word is a piece of the script
+    return f"n-{n}" if 0 < n <= 999 else None
+
+
 if __name__ == "__main__":
-    if "--have" in sys.argv:
+    if "--adopt" in sys.argv:
+        dry = "--dry-run" in sys.argv
+        renamed, strays = adopt(dry_run=dry)
+        for a, b in renamed:
+            print(f"{'would rename' if dry else 'renamed'}  {a}  ->  {b}")
+        for name in strays:
+            print(f"not in the script: {name}")
+        print(f"{len(renamed)} adopted, {len(strays)} left as they were")
+    elif "--have" in sys.argv:
         print(shelf_report())
     elif "--md" in sys.argv:
         target = Path(__file__).resolve().parents[1] / "docs" / "narration" / "voice-script.md"

@@ -87,7 +87,9 @@ def run():
     summary = net.close_round()
     g = summary["golf"]
     check("every table hit at once", sorted(g["shots"]), sorted([a, b]))
-    check("  Poldhu's ball flew", g["shots"][a]["kind"] in ("fairway", "green", "sand", "water", "long"), True)
+    check("  Poldhu's ball flew - fairway, or the first cut the club leaked it into, never a foul ball",
+          (g["shots"][a]["kind"] in ("fairway", "green", "sand", "water", "long", "rough"), "foul" in g["shots"][a]["words"]),
+          (True, False))
     check("  Clifden's was a foul ball", "foul" in g["shots"][b]["words"], True)
     check("  with the table's name on the shot", g["shots"][a]["name"], "Poldhu")
     view = net.golf_view(a)

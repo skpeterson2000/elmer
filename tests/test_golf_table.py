@@ -94,7 +94,7 @@ def run():
     summary = room.close_round()
     shots = summary["golf"]["shots"]
     check("the stroke was the person's alone, with the wedge", (list(shots), shots[ann]["club"]), ([ann], "wedge"))
-    check("  a right answer flew it, however long it took", shots[ann]["kind"] in ("fairway", "green", "sand", "water", "long"), True)
+    check("  a right answer flew it, however long it took", "foul" in shots[ann]["words"], False)
     check("  and the club is cleared for the next", ann in room.clubs, False)
     check("  a stroke by a person stands until they have read it", room.reveal_seconds(summary, 8.0), party.PERSON_REVEAL)
     r = client.post("/api/party/next", json={}, environ_base=local)
