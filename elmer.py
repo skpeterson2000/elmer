@@ -949,8 +949,13 @@ def main():
         threading.Thread(target=prefetch_sky, daemon=True, name="elmer-sky").start()
         # The weekly field report, if the operator has switched it on. The
         # thread looks at the clock once an hour and does nothing otherwise.
-        from elmer import db as _fdb, fieldreport
+        from elmer import db as _fdb, fieldreport, spotlog
         fieldreport.watch(_fdb.connect)
+        # The POTA spot feed, sampled while there is a network, so each
+        # park's card can say which bands and hours people here are on.
+        # One small public request every twenty minutes; empty if there is
+        # no route out, and nothing of the operator's goes with it.
+        spotlog.watch()
         # Windows cannot signal itself awake, so stopping the server there
         # needs one connection to this port to break the accept loop. See
         # elmer.host.stop_main_thread.

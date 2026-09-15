@@ -391,6 +391,16 @@ function acCard(r) {
     '<p class="small" style="margin:.3rem 0">' + escapeHTML(r.sentence || '') +
       (r.stale ? ' <span class="muted">(held from an earlier look; the programme could not be reached)</span>' : '') + '</p>' +
     modes + acMonthBar(r.story) +
+    (r.seen
+      ? '<p class="small" style="margin:.5rem 0 0">' + escapeHTML(r.seen_sentence || '') +
+        (r.seen.busy_utc && r.seen.busy_utc.length
+          ? ' Busiest around ' + r.seen.busy_utc.map(h => acLocalHour(h)).join(', ') + '.' : '') + '</p>' +
+        (r.seen.hints && r.seen.hints.length
+          ? '<div class="tiny muted" style="margin-top:.25rem">Said on the feed: ' + r.seen.hints.slice(0, 4).map(h =>
+              '“' + escapeHTML(h.text) + '”' + (h.call ? ' — ' + escapeHTML(h.call) : '') +
+              (h.band ? ', ' + escapeHTML(h.band) : '')).join(' · ') + '</div>'
+          : '')
+      : '<p class="tiny muted" style="margin:.5rem 0 0">Bands and hours come from the spot feed, which this unit samples while it has a network; nothing seen here yet.</p>') +
     (r.story && r.story.recent && r.story.recent.length
       ? '<div class="tiny muted mt">Lately: ' + r.story.recent.map(a =>
           escapeHTML(a.date) + (a.call ? ' ' + escapeHTML(a.call) : '') + (a.qsos != null ? ' (' + a.qsos + ')' : '')).join(' &middot; ') + '</div>'
@@ -454,3 +464,9 @@ document.addEventListener('click', e => {
   document.getElementById('ac-pick').value = a.dataset.ref;
   acPickRef(a.dataset.ref);
 });
+
+/* An hour of the day off the spot feed, said on the viewer's clock. */
+function acLocalHour(utcHour) {
+  const d = new Date(); d.setUTCHours(utcHour, 0, 0, 0);
+  return d.toLocaleTimeString([], {hour: 'numeric'});
+}

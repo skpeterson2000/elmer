@@ -40,9 +40,9 @@ from . import (
     netwatch, op25, party, pathto, patterns, personal,
     phonegps, places, pota, prints, programmes, propagation,
     qr, ranks, reachout, references, regional, repeaters,
-    rfexposure, rfpdf, show, smith, srs, sweeps,
-    terrain, touchstone, tournament, towerwitch, trivia, units,
-    update, vna, whipbuild,
+    rfexposure, rfpdf, show, smith, spotlog, srs,
+    sweeps, terrain, touchstone, tournament, towerwitch, trivia,
+    units, update, vna, whipbuild,
 )
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
@@ -1051,6 +1051,10 @@ def api_reference():
                                "qth": place.get("short") or place.get("grid") or ""}
     record["spots"] = landmarks.group_for(ref=ref)
     record["sentence"] = programmes.sentence(record) if record.get("ok") else ""
+    # What this unit has seen on the spot feed here - bands, hours, the odd
+    # comment about an antenna - which the programme's record does not carry.
+    record["seen"] = spotlog.story(ref)
+    record["seen_sentence"] = spotlog.sentence(record["seen"])
     return jsonify(record)
 
 
