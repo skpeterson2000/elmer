@@ -3491,6 +3491,33 @@ def api_party_regulars():
     return jsonify({"regulars": [r["name"] for r in regulars], "records": board})
 
 
+@app.route("/api/golf/proshop")
+def api_golf_proshop():
+    """The pro shop: the unit's record board, and the wall - the operator's
+    certificates, from artwork/awards/ sized into static/golf/awards/, with
+    the captions in data/awards.json. A certificate with no caption
+    hangs under its file name; a caption with no file is not hung."""
+    static = Path(__file__).resolve().parent / "static" / "golf" / "awards"
+    have = {p.stem: p.name for p in static.glob("*.jpg")} if static.is_dir() else {}
+    captions = {}
+    try:
+        for row in json.loads((Path(__file__).resolve().parents[1] / "data" / "awards.json").read_text(encoding="utf-8")):
+            captions[row["file"]] = row
+    except (OSError, ValueError, KeyError):
+        captions = {}
+    wall = []
+    # hung in the order the captions file gives, then anything uncaptioned
+    order = {stem: i for i, stem in enumerate(captions)}
+    for stem, name in sorted(have.items(), key=lambda kv: (order.get(kv[0], 999), kv[0])):
+        c = captions.get(stem, {})
+        wall.append({"url": f"/static/golf/awards/{name}", "title": c.get("title") or stem.replace("-", " "),
+                     "detail": c.get("detail", ""), "issued": c.get("issued", ""), "number": c.get("number", "")})
+    settings = db.get_profile(conn())["settings"]
+    whose = settings.get("callsign") or ""
+    regs = api_party_regulars().get_json()
+    return jsonify({"whose": whose, "wall": wall, "records": regs.get("records", [])})
+
+
 def _golf_draw(room, pool, to):
     """One question for this stroke, the golf way, and marked asked."""
     by_section = {}

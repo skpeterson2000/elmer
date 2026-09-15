@@ -326,9 +326,27 @@ function paintWaiting(state) {
         <h2 style="margin:0 0 .4rem">The clubhouse${club.course_name ? ' &middot; ' + escapeHTML(club.course_name) : ''}</h2>
         <p>Tee time in <b>${secs >= 60 ? Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : secs + 's'}</b> &middot; ${club.people.length} of ${club.foursome} in the group${club.people.length ? ': ' + club.people.map(escapeHTML).join(', ') : ''}.</p>
         <p class="tiny muted">The group departs when it is full, when the time is up, or when somebody at the table says play now. Practice players make up the rest.</p>
-        <p><button class="choice" id="tee-off" style="text-align:center"><b>Play now &rsaquo;</b></button></p></div>`;
+        <p><button class="choice" id="tee-off" style="text-align:center"><b>Play now &rsaquo;</b></button></p>
+        <p><button class="choice" id="proshop-open" style="text-align:center">The pro shop &rsaquo;</button></p>
+        <div id="proshop-phone" hidden></div></div>`;
     const b = document.getElementById('tee-off');
     if (b) b.addEventListener('click', async () => { b.disabled = true; await api('/api/party/tee-off', {}); });
+    const ps = document.getElementById('proshop-open');
+    if (ps) ps.addEventListener('click', async () => {
+      const box = document.getElementById('proshop-phone');
+      if (!box.hidden) { box.hidden = true; return; }
+      let d;
+      try { const r = await api('/api/golf/proshop'); d = r.data || r; } catch (e) { return; }
+      box.innerHTML = `<h3 style="margin:.6rem 0 .3rem">${d.whose ? escapeHTML(d.whose) + "'s wall" : 'The wall'}</h3>` +
+        (d.wall || []).map(a => `<figure style="margin:0 0 .8rem;padding:.4rem;background:#1b1f27;border:4px solid #3a2f1c;border-radius:3px">
+          <img src="${escapeHTML(a.url)}" alt="${escapeHTML(a.title)}" style="width:100%;height:auto;display:block" loading="lazy">
+          <figcaption class="tiny" style="margin-top:.3rem"><b>${escapeHTML(a.title)}</b>${a.detail ? '<br>' + escapeHTML(a.detail) : ''}${a.issued ? '<br><span class="muted">' + escapeHTML(a.issued) + '</span>' : ''}</figcaption></figure>`).join('') +
+        ((d.records || []).length ? `<h3 style="margin:.6rem 0 .3rem">Record board</h3><table class="board">${d.records.slice(0, 10).map(r =>
+          `<tr><td>${escapeHTML(r.name)}</td><td class="ms">${r.rounds} rd</td><td class="ms">${r.best_to_par > 0 ? '+' + r.best_to_par : r.best_to_par === 0 ? 'E' : r.best_to_par}</td></tr>`).join('')}</table>` : '');
+      box.hidden = false;
+      // The clubhouse repaints on its key; keep the shop open across it.
+      shownRound = 'proshop';
+    });
     return;
   }
   const gf = state.golf;

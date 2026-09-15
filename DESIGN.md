@@ -2361,6 +2361,17 @@ knob for how long the practice players take. Then the stroke stands, the
 answer lit and the ball in words, nine seconds before the next player is
 up. A person's own stroke is untimed, as before.
 
+**The pro shop.** A door off the clubhouse, on the table and the phone:
+the record board on the counter, and the wall. The wall is the
+operator's own certificates - what a radio operator actually hangs up -
+read from `artwork/awards/` (sized into `elmer/static/golf/awards/`),
+captioned from `data/awards.json` and hung in that order, in frames,
+under the operator's callsign. KC9SP's are the first three: eWAC, its
+FT8 endorsement, and eDX at 29 countries; an eDX at 50 hangs beside the
+29, not over it, because a wall shows the place you got to and the room
+beside it. A unit's owner hangs the unit's; the lounge, when it comes,
+is each regular's own.
+
 **The standing game.** "I'll go set up a golf game to join" was not a
 thing a host could do: the Gaming Center asked for somebody at the table
 first, and the moment somebody scanned in the table's own fifteen-second

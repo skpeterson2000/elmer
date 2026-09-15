@@ -183,6 +183,12 @@ def run():
     r = client.post("/api/party/aim", json={"player": 99999, "at": 200}, environ_base=local)
     check("  a stranger has no mark here", r.status_code, 404)
     check("  a hole nobody has", client.get("/golf/map/pebble-beach/99.svg", environ_base=local).status_code, 404)
+    r = client.get("/api/golf/proshop", environ_base=local)
+    d = r.get_json()
+    check("the pro shop: the wall, with the operator's certificates in the captions' order",
+          (r.status_code, [a["title"][:4] for a in d["wall"]], all(a["issued"] for a in d["wall"])), (200, ["eWAC", "eWAC", "eDX "], True))
+    check("  every certificate on it is served", all(client.get(a["url"], environ_base=local).status_code == 200 for a in d["wall"]), True)
+    check("  and the record board is on the counter", isinstance(d["records"], list), True)
     r = client.get("/api/party/golf-assets", environ_base=local).get_json()
     check("the round's assets, for warming: the clubhouse and the tees this unit has",
           ("/static/golf/clubhouse/pebble-beach.jpg" in r["urls"], "/static/golf/tee/pebble-beach/1.jpg" in r["urls"]),

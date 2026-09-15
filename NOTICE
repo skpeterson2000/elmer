@@ -134,3 +134,10 @@ elmer/static/golf/tee/<course>/<hole>.jpg) were made the same way, by
 KC9SP with a generative image model - a view down the hole from the tee
 box, not a photograph of the real one - and are the backdrop while a group
 is on the tee.
+
+The certificates on the pro shop's wall (artwork/awards/, served sized as
+elmer/static/golf/awards/*.jpg) are KC9SP's own awards, issued to him by
+eQSL.cc - the eWAC and eDX designs, the eQSL mark and the webmaster's
+signature are eQSL's, shown here as the record of what was earned and
+not as anything this project claims. An operator running their own unit
+hangs their own; the folder is theirs.
