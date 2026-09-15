@@ -15,6 +15,7 @@
     <button class="btn sm ghost" data-mode="copy">Copy practice</button>
     <button class="btn sm ghost" data-mode="text">Send text</button>
     <button class="btn sm ghost" data-mode="key">Your sending</button>
+    <button class="btn sm ghost" data-mode="rating">Your rating</button>
     <button class="btn sm ghost" data-mode="decode">Decode off air</button>
   </div>
 </div>
@@ -161,6 +162,36 @@
 </div>
 
 <!-- ---------------------------------------------------------- send text -->
+<div class="panel mt cw-pane" id="cw-rating" hidden>
+  <h2>Your rating</h2>
+  <p class="small muted">Two numbers, and where they stand: the speed you copy at, and the speed
+    you send at. Each is the top rung of a ladder you passed - nine in ten characters right at that
+    speed - and the games set their level from them.</p>
+  <div class="row" style="gap:1.5rem;flex-wrap:wrap;margin:.6rem 0 1rem">
+    <div class="field"><label>Copying</label><div class="big-number" id="cw-rating-copy">&mdash;</div><div class="tiny muted">wpm</div></div>
+    <div class="field"><label>Sending</label><div class="big-number" id="cw-rating-send">&mdash;</div><div class="tiny muted" id="cw-rating-send-acc">wpm</div></div>
+    <div class="field"><label>Rated</label><div class="small" id="cw-rating-when">never</div></div>
+  </div>
+  <h3>Copying</h3>
+  <p class="small muted">Five groups of five come at a speed. Type what you heard and check. Nine in ten right and
+    the next rung is two words a minute faster; short of that, two slower. The ladder settles in a few rungs.</p>
+  <div class="row" style="gap:.5rem;align-items:center">
+    <button class="btn sm primary" id="cw-ladder-start">Rate my copying</button>
+    <button class="btn sm" id="cw-ladder-repeat" hidden>Repeat</button>
+    <button class="btn sm ghost" id="cw-ladder-stop" hidden>Stop</button>
+    <span class="tiny muted" id="cw-ladder-status"></span>
+  </div>
+  <textarea id="cw-ladder-typed" class="cw-input mt" rows="2" spellcheck="false" autocomplete="off"
+            placeholder="what you heard" hidden></textarea>
+  <div class="row mt" id="cw-ladder-checkrow" hidden><button class="btn sm primary" id="cw-ladder-check">Check</button></div>
+  <div id="cw-ladder-result" class="mt"></div>
+  <h3 class="mt">Sending</h3>
+  <p class="small muted">On the <b>Your sending</b> pane, press <i>Rate my sending</i>: a line is shown, you key it -
+    straight key or paddle, on the keys bound there or a paddle wired to them - and the decoder scores what it
+    heard against what was asked. Your speed is read from your own dits on a straight key, and from the keyer's
+    setting on a paddle.</p>
+</div>
+
 <div class="panel mt cw-pane" id="cw-text" hidden>
   <div class="spread">
     <div class="panel-title" style="margin:0">Send text</div>
@@ -228,6 +259,9 @@
 
   <div class="row mt">
     <button class="btn sm" id="cw-key-clear">Clear</button>
+    <button class="btn sm primary" id="cw-send-rate">Rate my sending</button>
+    <button class="btn sm ghost" id="cw-send-rate-done" hidden>Done - score it</button>
+    <span class="mono" id="cw-send-prompt" style="margin-left:.6rem"></span>
     <button class="btn sm ghost" id="cw-swap" hidden>Swap the two keys</button>
     <span class="tiny muted">target speed follows the character speed above</span>
   </div>

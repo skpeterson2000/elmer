@@ -1986,6 +1986,47 @@ def api_cw_encode():
                     "timing": cw.timing(wpm, effective)})
 
 
+@app.route("/api/cw/ladder")
+def api_cw_ladder():
+    """One rung of the rating ladder: a block of mixed characters at a
+    plain speed - no Farnsworth, a rating is at the speed it says."""
+    try:
+        wpm = max(5.0, min(40.0, float(request.args.get("wpm", 10))))
+        count = max(3, min(12, int(request.args.get("count", 5))))
+    except ValueError:
+        abort(400, "check the numbers")
+    # Letters and numbers, five to a group, as a rating is taken: no
+    # punctuation or prosigns, which are a lesson of their own.
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" * 3 + "0123456789"
+    text = " ".join("".join(random.choices(alphabet, k=5)) for _ in range(count))
+    return jsonify({"text": text, "plain": cw.plain(text), "groups": cw.encode(text),
+                    "timing": cw.timing(wpm, wpm), "wpm": wpm})
+
+
+@app.route("/api/cw/rating", methods=["GET", "POST"])
+def api_cw_rating():
+    """The operator's two numbers: the speed they copy at and the speed
+    they send at, each the top rung they passed on the ladder. Kept with
+    the profile, shown on the CW page, and what the games set their
+    level from."""
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    rating = dict(settings.get("cw_rating") or {})
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        for key in ("copy_wpm", "send_wpm", "send_accuracy"):
+            if body.get(key) is not None:
+                try:
+                    rating[key] = round(float(body[key]), 1)
+                except (TypeError, ValueError):
+                    abort(400, f"{key} must be a number")
+        rating["when"] = datetime.now().isoformat(timespec="minutes")
+        settings["cw_rating"] = rating
+        db.save_settings(connection, settings)
+        log.info("CW rating: %s", ", ".join(f"{k} {v}" for k, v in rating.items()))
+    return jsonify(rating)
+
+
 @app.route("/api/cw/result", methods=["POST"])
 def api_cw_result():
     """Record a copy session, per character."""

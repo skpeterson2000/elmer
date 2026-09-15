@@ -1259,6 +1259,35 @@ Tone is generated with a shaped 5 ms rise and fall rather than by switching an
 oscillator, because hard keying is what produces key clicks — the same wide
 sidebands E8D asks about.
 
+**Your rating.** Two numbers a person can watch move: the speed they copy
+at and the speed they send at, each the top rung of a ladder they passed.
+Copying: five groups of five letters and numbers come at a plain speed - no
+Farnsworth, a rating is at the speed it says - they type what they heard
+and check; nine in ten right and the next rung is two words a minute
+faster, short of that two slower, and the ladder settles when a pass has a
+fail two above it (or at the ends, or after eight rungs). Sending: on the
+keying pane, a line is shown, they key it on the straight key or the
+paddle, the decoder is scored against it, and the speed is their own dit
+on a straight key or the keyer's setting on a paddle. Both are kept with
+the profile (`cw_rating`), shown on the page, and are what the CW games
+set their level from.
+
+**CW Baseball (the plan, 2026-09-15).** Two teams - the table's cohorts -
+and the machine pitches. Batting is copying: a pitch is a transmission,
+its speed, length and content rising with the level - letters, groups,
+words, a callsign and a report, a full exchange - and copying it right is
+a hit sized by the pitch: a group a single, a word a double, a callsign
+with a report a triple, a full exchange at speed a home run; a miss is a
+strike, three strikes an out, three outs the side. Fielding is sending: a
+ball in play is a sending challenge for the fielding side - key the ball
+back, or the play, clean and in time, on a paddle wired to two keys or the
+Pi's GPIO - and a clean send makes the out, a botched one lets the runner
+on, an error gives a base. Innings, runs on the board, a diamond with the
+runners on it for the fanatics who will do code to watch a fake ballgame
+play out, and the late innings faster and longer. The top pitch is a
+contact: CQ from the pitcher, the batter answers with their own call,
+report and name both ways, 73. Lives in the Gaming Center with the rest.
+
 ### Your QTH, set once
 
 Your location is a single setting shared by everything that needs it. Set it on

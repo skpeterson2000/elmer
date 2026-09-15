@@ -1322,3 +1322,6 @@ body.hs-held { overflow: hidden; }
 .figwrap-small .figfull { flex-basis: 10rem; }
 .figwrap-small .figzoom { width: 11rem; height: 8.5rem; }
 @media (max-width: 40rem) { .figwrap .figzoom { width: 100%; height: 11rem; } }
+
+/* A number a person watches move: the CW ratings. */
+.big-number { font-size: 2.2rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }

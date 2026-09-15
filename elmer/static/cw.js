@@ -1172,3 +1172,142 @@ setKeyerMode(settings.keyer || 'straight', false);
    to the lesson, not to the top of the page. */
 showMode((location.hash || '').replace('#', '')
          || recall('cw.mode', 'learn'));
+
+
+/* ---------------------------------------------------------------- rating */
+/* Two numbers a person can watch move: the speed they copy at and the
+   speed they send at. Each is the top rung of a ladder they passed - nine in
+   ten right at that speed - kept with the profile, and what the games set
+   their level from. Copying: a block comes, they type it, the rung moves two
+   words a minute either way and settles when a pass is followed by a fail.
+   Sending: a line is shown on the keying pane, they key it, the decoder is
+   scored against it, and the speed is their own dit on a straight key or
+   the keyer's setting on a paddle. */
+const PASS_PCT = 90, RUNG = 2, RUNG_LOW = 5, RUNG_HIGH = 40, LADDER_MOST = 8;
+let ladder = null;              // {wpm, passed: [], failed: [], data, text, rungs}
+
+async function paintRating() {
+  let r = {};
+  try { r = await api('/api/cw/rating'); } catch (e) { r = {}; }
+  const c = document.getElementById('cw-rating-copy'), sd = document.getElementById('cw-rating-send');
+  if (c) c.textContent = r.copy_wpm ? Math.round(r.copy_wpm) : '\u2014';
+  if (sd) sd.textContent = r.send_wpm ? Math.round(r.send_wpm) : '\u2014';
+  const acc = document.getElementById('cw-rating-send-acc');
+  if (acc) acc.textContent = r.send_accuracy != null ? 'wpm \u00b7 ' + Math.round(r.send_accuracy) + '% clean' : 'wpm';
+  const w = document.getElementById('cw-rating-when');
+  if (w) w.textContent = r.when ? r.when.replace('T', ' ') : 'never';
+  return r;
+}
+
+function ladderWord(w) { return w + ' wpm'; }
+
+async function ladderRung(repeat) {
+  const status = document.getElementById('cw-ladder-status');
+  if (!repeat) {
+    status.textContent = 'fetching ' + ladderWord(ladder.wpm) + '\u2026';
+    ladder.data = await api('/api/cw/ladder?' + new URLSearchParams({wpm: ladder.wpm, count: 5}));
+    ladder.text = ladder.data.plain || ladder.data.text;
+    document.getElementById('cw-ladder-typed').value = '';
+  }
+  document.getElementById('cw-ladder-typed').hidden = false;
+  document.getElementById('cw-ladder-checkrow').hidden = false;
+  document.getElementById('cw-ladder-repeat').hidden = true;
+  status.textContent = 'rung ' + (ladder.rungs + 1) + ' \u00b7 ' + ladderWord(ladder.wpm) + ' \u2026';
+  document.getElementById('cw-ladder-typed').focus();
+  player.send(ladder.data.groups, ladder.data.timing, null, () => {
+    status.textContent = ladderWord(ladder.wpm) + ' \u2014 type what you heard, then check';
+    document.getElementById('cw-ladder-repeat').hidden = false;
+  });
+}
+
+function ladderFinish(rated) {
+  const res = document.getElementById('cw-ladder-result');
+  document.getElementById('cw-ladder-start').hidden = false;
+  document.getElementById('cw-ladder-stop').hidden = true;
+  document.getElementById('cw-ladder-repeat').hidden = true;
+  document.getElementById('cw-ladder-typed').hidden = true;
+  document.getElementById('cw-ladder-checkrow').hidden = true;
+  document.getElementById('cw-ladder-status').textContent = '';
+  if (rated) {
+    postJSON('/api/cw/rating', {copy_wpm: rated}).then(paintRating).catch(() => null);
+    res.innerHTML = '<div class="spread"><b>Rated: you copy at ' + ladderWord(rated) + '</b>' +
+      '<span class="pill good">the top rung you passed</span></div>' +
+      '<div class="tiny muted mt">passed ' + (ladder.passed.map(ladderWord).join(', ') || 'none') +
+      (ladder.failed.length ? ' \u00b7 short at ' + ladder.failed.map(ladderWord).join(', ') : '') + '</div>';
+  } else {
+    res.innerHTML = '<div class="small muted">No rung passed - the ladder starts at ' + ladderWord(RUNG_LOW) +
+      ' next time. Keep at the lessons; it comes.</div>';
+  }
+  ladder = null;
+}
+
+document.getElementById('cw-ladder-start').addEventListener('click', async () => {
+  const r = await paintRating();
+  ladder = {wpm: Math.max(RUNG_LOW, Math.min(RUNG_HIGH, Math.round(r.copy_wpm || 10))), passed: [], failed: [], rungs: 0};
+  document.getElementById('cw-ladder-start').hidden = true;
+  document.getElementById('cw-ladder-stop').hidden = false;
+  document.getElementById('cw-ladder-result').innerHTML = '';
+  ladderRung(false);
+});
+document.getElementById('cw-ladder-repeat').addEventListener('click', () => ladder && ladderRung(true));
+document.getElementById('cw-ladder-stop').addEventListener('click', () => {
+  player.stop();
+  if (ladder) ladderFinish(ladder.passed.length ? Math.max(...ladder.passed) : null);
+});
+document.getElementById('cw-ladder-check').addEventListener('click', () => {
+  if (!ladder || !ladder.text) return;
+  player.stop();
+  const a = ladder.text.replace(/\s+/g, ''), b = (document.getElementById('cw-ladder-typed').value || '').toUpperCase().replace(/\s+/g, '');
+  let hits = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] === b[i]) hits++;
+  const pct = a.length ? Math.round(100 * hits / a.length) : 0;
+  ladder.rungs++;
+  const res = document.getElementById('cw-ladder-result');
+  res.innerHTML = '<div class="spread"><b>' + ladderWord(ladder.wpm) + ': ' + pct + '% copied</b>' +
+    '<span class="pill ' + (pct >= PASS_PCT ? 'good' : 'warn') + '">' + (pct >= PASS_PCT ? 'passed - up two' : 'short - down two') + '</span></div>' +
+    '<div class="tiny muted" style="margin-top:.3rem">sent: <span class="mono">' + escapeHTML(ladder.text) + '</span></div>';
+  if (pct >= PASS_PCT) ladder.passed.push(ladder.wpm); else ladder.failed.push(ladder.wpm);
+  const best = ladder.passed.length ? Math.max(...ladder.passed) : null;
+  // Settled: a pass with a fail two above it, or the ladder's ends, or enough rungs.
+  const settled = (best !== null && ladder.failed.includes(best + RUNG)) ||
+                  (pct >= PASS_PCT && ladder.wpm >= RUNG_HIGH) || (pct < PASS_PCT && ladder.wpm <= RUNG_LOW) ||
+                  ladder.rungs >= LADDER_MOST;
+  if (settled) { ladderFinish(best); return; }
+  ladder.wpm = Math.max(RUNG_LOW, Math.min(RUNG_HIGH, ladder.wpm + (pct >= PASS_PCT ? RUNG : -RUNG)));
+  setTimeout(() => ladder && ladderRung(false), 1200);
+});
+
+/* Sending: on the keying pane. A line to key; the decoder is scored
+   against it when Done is pressed or the line is long enough. */
+let sendRate = null;            // {text}
+document.getElementById('cw-send-rate').addEventListener('click', async () => {
+  const d = await api('/api/cw/ladder?' + new URLSearchParams({wpm: settings.wpm, count: 3}));
+  sendRate = {text: (d.plain || d.text).replace(/\s+/g, ' ').trim()};
+  keyDecoder.reset(1200 / settings.wpm); lastUpAt = 0; keyer.prevEnd = null; renderKey();
+  document.getElementById('cw-send-prompt').textContent = 'send: ' + sendRate.text;
+  document.getElementById('cw-send-rate').hidden = true;
+  document.getElementById('cw-send-rate-done').hidden = false;
+});
+document.getElementById('cw-send-rate-done').addEventListener('click', async () => {
+  if (!sendRate) return;
+  keyDecoder.flush();
+  const a = sendRate.text.replace(/\s+/g, ''), b = (keyDecoder.text || '').toUpperCase().replace(/\s+/g, '');
+  let hits = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] === b[i]) hits++;
+  const pct = a.length ? Math.round(100 * hits / a.length) : 0;
+  const st = keyDecoder.stats();
+  const wpm = keyerMode === 'straight' ? (st.dit ? Math.round(1200 / st.dit) : null) : Math.round(settings.wpm);
+  const rated = wpm && pct >= PASS_PCT;
+  const box = document.getElementById('cw-key-timing');
+  box.innerHTML = '<div class="spread"><b>' + pct + '% clean' + (wpm ? ' at ' + wpm + ' wpm' : '') + '</b>' +
+    '<span class="pill ' + (rated ? 'good' : 'warn') + '">' + (rated ? 'rated' : 'nine in ten to rate it') + '</span></div>' +
+    '<div class="tiny muted" style="margin-top:.3rem">asked: <span class="mono">' + escapeHTML(sendRate.text) +
+    '</span> \u00b7 heard: <span class="mono">' + escapeHTML(keyDecoder.text || '\u2014') + '</span></div>' + box.innerHTML;
+  if (rated) postJSON('/api/cw/rating', {send_wpm: wpm, send_accuracy: pct}).then(paintRating).catch(() => null);
+  else if (wpm) postJSON('/api/cw/rating', {send_accuracy: pct}).then(paintRating).catch(() => null);
+  sendRate = null;
+  document.getElementById('cw-send-prompt').textContent = '';
+  document.getElementById('cw-send-rate').hidden = false;
+  document.getElementById('cw-send-rate-done').hidden = true;
+});
+paintRating();
