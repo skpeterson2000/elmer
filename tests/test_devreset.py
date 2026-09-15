@@ -124,12 +124,13 @@ appmod.request_restart = lambda: restarts.append(True)
 devreset.request = lambda: {"ok": True, "restarting": True}    # the mark, without writing into this checkout's data/
 try:
     with app.test_client() as client:
+        before_press = sorted(p.name for p in devreset.DATA.iterdir()) if devreset.DATA.exists() else []
         real = client.get("/api/dev/reset").get_json().get("count")
         reply = client.post("/api/dev/reset", json={"count": real})
         check("accepted", (reply.status_code, reply.get_json().get("restarting")), (200, True))
         check("  and ELMER restarts to do it", restarts, [True])
-        check("  with this checkout's study still here", devreset.DATA.joinpath("elmer.db").exists()
-              or not any(devreset.DATA.iterdir()), True)
+        after_press = sorted(p.name for p in devreset.DATA.iterdir()) if devreset.DATA.exists() else []
+        check("  with nothing in this checkout's data/ taken by the press itself", after_press, before_press)
 finally:
     appmod.request_restart, devreset.request = real_restart, real_request
 
