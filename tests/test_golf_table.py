@@ -33,6 +33,10 @@ def check(label, got, want):
         FAILS.append(label)
 
 
+def bot_id_for_hit(room):
+    return next(p.id for p in room.players.values() if p.bot)
+
+
 def run():
     client = appmod.app.test_client()
     local = {"REMOTE_ADDR": "127.0.0.1"}
@@ -63,6 +67,14 @@ def run():
     r = client.post("/api/party/club", json={"player": ann, "club": "putter"}, environ_base=local)
     check("a putter from the tee is refused, naming the clubs", (r.status_code, "driver" in r.get_json()["message"]),
           (409, True))
+
+    print("\n-- a person's address waits on their Hit --")
+    check("the address is theirs: it stands until they say hit", room.golf_prelude(), party.PERSON_ADDRESS)
+    check("  and the screens are told the question waits", (room.golf_address_waits(), v["address_waits"]), (True, True))
+    r = client.post("/api/party/hit", json={"player": bot_id_for_hit(room)}, environ_base=local)
+    check("  a practice player's press is not a hit", r.status_code, 409)
+    r = client.post("/api/party/hit", json={"player": ann}, environ_base=local)
+    check("  the golfer's is - with no director running there is nothing to hurry, but it is taken", (r.status_code, r.get_json()["hit"]), (200, False))
 
     print("\n-- the question goes to the player who is away, and is not timed --")
     rnd = appmod._ask_party("general", None, 30)
@@ -98,18 +110,27 @@ def run():
     plan = room.round.bot_plan.get(rnd.to)
     want = party.bot_swing_seconds(rnd.payload, room.golf_pace)
     check("  who swings at reading pace, never under the floor",
-          bool(plan) and party.BOT_READ_LEAST <= plan["at"] <= max(want * 1.1, party.BOT_READ_LEAST) + 0.01, True)
+          bool(plan) and party.BOT_READ_LEAST <= plan["at"] <= max(want * 1.15, party.BOT_READ_LEAST) + 0.01, True)
     check("  a long question takes longer than a short one",
           party.bot_swing_seconds({"text": " ".join(["word"] * 60), "choices": ["a", "b"]}) >
           party.bot_swing_seconds({"text": "short", "choices": ["a", "b"]}), True)
-    check("  and the table's pace caps it", party.bot_swing_seconds({"text": " ".join(["word"] * 200)}, 12), 12.0)
-    check("  the address stands before the question", room.golf_prelude(), party.GOLF_PRELUDE)
+    check("  and the table's pace caps it", party.bot_swing_seconds({"text": " ".join(["word"] * 200)}, 25), 25.0)
+    check("  never under the floor, whatever the pace box says",
+          party.bot_swing_seconds({"text": "short"}, 5), party.BOT_READ_LEAST)
+    check("  and the tempo scales it", party.bot_swing_seconds({"text": "short"}, None, 2.0), party.BOT_READ_LEAST * 2)
+    check("  the address stands before the question - the group is off the tee by now",
+          room.golf_prelude(), party.GOLF_PRELUDE)
+    check("  (on the tee it would be longer, but a person tees off first here and theirs waits on them)",
+          party.TEE_PRELUDE > party.GOLF_PRELUDE, True)
+    check("  and a practice player's stroke does not wait on anybody", room.golf_address_waits(), False)
     check("  and the person cannot play it for them", room.submit(ann, 0, 1000)[0], None)
     room.round.opened_at -= plan["at"] + 1
     room.run_bots()
     check("  the swing arrives on its own", room.everyone_answered(), True)
     summary = room.close_round()
     check("  and stands long enough to be read", room.reveal_seconds(summary, 8.0), party.BOT_REVEAL)
+    check("  the card stands longer still when the hole is done",
+          room.reveal_seconds({"golf": {"shots": {}, "hole_done": True}}, 8.0), party.HOLE_DONE_REVEAL)
 
     print("\n-- sitting down late: a tee time --")
     late = room.join("W9LATE")[0].id

@@ -105,20 +105,36 @@ GOLF_SECONDS = 600.0
 # words a minute and take longer to weigh four choices than to read them),
 # never under BOT_READ_LEAST, and never over the table's pace box, which in
 # golf is the host's knob for how long the practice players take.
-BOT_READ_LEAST = 8.0
-BOT_READ_WPM = 180.0
-BOT_READ_BASE = 6.0             # the beat of looking up from the question
+#
+# The tempo. Golf is the slow game, and the first rounds played at a table
+# were still too fast for the person who wrote it, who knew what was coming
+# and could not keep up - so somebody new would have been lost. Every beat
+# below is set for reading aloud, not skimming, and every one is scaled by
+# the room's golf_tempo (1.0 here; a speed selector can set it later), so
+# slowing the whole round down is one number.
+BOT_READ_LEAST = 20.0
+BOT_READ_WPM = 150.0
+BOT_READ_BASE = 12.0            # the beat of looking up from the question
 # How long the stroke stands on the screens after it: the answer lit, the
 # ball in words, long enough to be read by somebody who reads slowly.
-BOT_REVEAL = 9.0
+BOT_REVEAL = 20.0
+# When the hole is done the card stands - everybody's score, the walk to
+# the next tee - before the next hole is read out.
+HOLE_DONE_REVEAL = 30.0
 # And before the question, the address: who is away, where the ball lies,
 # which club - alone on the screen for this long, so the room knows whose
-# shot it is before it has to read anything.
-GOLF_PRELUDE = 4.0
+# shot it is before it has to read anything. Longer on the tee, where the
+# hole itself is read out first.
+GOLF_PRELUDE = 12.0
+TEE_PRELUDE = 20.0
+# A person's own address stands until they say they are ready - the club
+# chosen, Hit pressed on their seat or their phone - or this long. Nobody
+# should be handed a question while they are still looking at the clubs.
+PERSON_ADDRESS = 180.0
 # A person's own stroke stands until they say they have read it - Next
 # stroke, on their seat or their phone - or this long, for a person who has
 # walked off. Nobody reading a result should have it taken away on a clock.
-PERSON_REVEAL = 90.0
+PERSON_REVEAL = 120.0
 
 
 def _voice_address(who, ball):
@@ -134,16 +150,17 @@ def _voice_hole(d, g):
     return voice.hole(d["hole"], d.get("par"), d.get("yards"), h.get("wind"), d.get("wind_mph"), d.get("course"))
 
 
-def bot_swing_seconds(payload, pace=None):
+def bot_swing_seconds(payload, pace=None, tempo=1.0):
     """How long a practice player takes over a stroke: the question's
-    reading time, within the floor and the table's pace."""
+    reading time, within the floor and the table's pace, at the tempo."""
+    tempo = float(tempo or 1.0)
     words = len(str((payload or {}).get("text") or "").split())
     for c in (payload or {}).get("choices") or []:
         words += len(str(c).split())
-    seconds = BOT_READ_BASE + words * 60.0 / BOT_READ_WPM
-    seconds = max(BOT_READ_LEAST, seconds)
+    seconds = (BOT_READ_BASE + words * 60.0 / BOT_READ_WPM) * tempo
+    seconds = max(BOT_READ_LEAST * tempo, seconds)
     if pace:
-        seconds = min(seconds, max(BOT_READ_LEAST, float(pace)))
+        seconds = min(seconds, max(BOT_READ_LEAST * tempo, float(pace)))
     return seconds
 # A group on the course is a foursome. Practice players make it up to that
 # and no further, or one person waits through a queue of software swings.
@@ -380,6 +397,7 @@ class Room:
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
         self.golf_pace = None      # how long its practice players take, seconds
+        self.golf_tempo = 1.0      # every golf beat, scaled: the speed selector's knob
         # The clubhouse: a round booked for a tee time, waiting for friends to
         # join. The group departs when it is full or the time is up, or when
         # somebody says play now. What was booked is kept to start it with.
@@ -613,9 +631,10 @@ class Room:
             right = random.random() < accuracy
             wrong = [i for i in range(4) if i != rnd.answer_index]
             if rnd.to is not None:
-                # A swing, not a race: at reading pace, give or take a breath.
-                swing = bot_swing_seconds(rnd.payload, self.golf_pace)
-                quick, slow = swing * 0.9, swing * 1.1
+                # A swing, not a race: at reading pace, plus a breath - never
+                # under it, so the floor is a floor.
+                swing = bot_swing_seconds(rnd.payload, self.golf_pace, self.golf_tempo)
+                quick, slow = swing, swing * 1.15
             rnd.bot_plan[player.id] = {
                 "at": random.uniform(quick, min(slow, max(quick + 0.5,
                                                           rnd.seconds - 1.0))),
@@ -980,9 +999,9 @@ class Room:
                 return default
             shots = summary["golf"].get("shots") or {}
             if summary["golf"].get("hole_done"):
-                return default            # the card, worth the look
+                return max(default, HOLE_DONE_REVEAL) * self.golf_tempo   # the card, worth the look
             if all(p in self.players and self.players[p].bot for p in shots):
-                return max(default, BOT_REVEAL)
+                return max(default, BOT_REVEAL) * self.golf_tempo
             return PERSON_REVEAL          # a person's: until they have read it
 
     def book_clubhouse(self, spec, seconds):
@@ -1022,12 +1041,28 @@ class Room:
     def golf_prelude(self):
         """How long the address stands before the next stroke's question -
         who is away, the lie, the club - or 0 when there is no stroke to
-        address."""
+        address. A person's address waits for them to say Hit; a practice
+        player's stands for a beat, a longer one on the tee where the hole
+        is read out first."""
         with self.lock:
             g = self.golf
             if g is None or g.over() or g.away() is None:
                 return 0.0
-            return GOLF_PRELUDE
+            away = g.away()
+            if away in self.players and not self.players[away].bot:
+                return PERSON_ADDRESS
+            on_the_tee = all(b.strokes == 0 for b in g.balls.values())
+            return (TEE_PRELUDE if on_the_tee else GOLF_PRELUDE) * self.golf_tempo
+
+    def golf_address_waits(self):
+        """Whether the stroke being addressed is a person's - whose question
+        waits on their Hit."""
+        with self.lock:
+            g = self.golf
+            if g is None or g.over():
+                return False
+            away = g.away()
+            return away is not None and away in self.players and not self.players[away].bot
 
     def golf_away(self):
         """Whose stroke it is, or None."""
@@ -1097,6 +1132,12 @@ class Room:
                     "away_left": away_ball["left"] if away_ball else None,
                     "away_lie": away_ball["lie"] if away_ball else None,
                     "away_bot": bool(away_ball and away_ball.get("bot")),
+                    # A person's address waits on their Hit; the screens
+                    # offer the clubs and the button, and say the question
+                    # is theirs to call for. And the tempo, for the screens'
+                    # own beats.
+                    "address_waits": bool(away_ball and not away_ball.get("bot")),
+                    "tempo": self.golf_tempo,
                     # Who has a tee time - joining the group at the next
                     # hole - and whether this player is one of them.
                     "tee_times": [name(p) for p in d.get("tee_times", [])],

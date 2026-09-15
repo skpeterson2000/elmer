@@ -131,6 +131,14 @@ class Director:
             return True
         return False
 
+    def hit(self):
+        """The golfer is ready: the address ends and the question comes.
+        Only the address - a press meant for the club cannot skip a reveal."""
+        if self.state == "addressing":
+            self.next_at = time.monotonic()
+            return True
+        return False
+
     def start(self):
         self.thread = threading.Thread(target=self.run, daemon=True,
                                        name="autoplay")

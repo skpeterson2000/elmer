@@ -4083,6 +4083,23 @@ def api_party_next():
     return jsonify({"ok": True, "hurried": hurried})
 
 
+@app.route("/api/party/hit", methods=["POST"])
+def api_party_hit():
+    """The golfer who is away has chosen a club and is ready: their
+    question comes now. Anybody else's press does nothing - the address is
+    the golfer's own time."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    if room.golf_away() != player:
+        abort(409, "it is not your stroke")
+    driver = autoplay.director()
+    return jsonify({"ok": True, "hit": bool(driver and driver.hit())})
+
+
 @app.route("/api/party/auto-state")
 def api_party_auto_state():
     """Whether a tournament is running on this table."""
@@ -6250,8 +6267,15 @@ def api_dev_reset():
                         "items": preview["items"],
                         "error": "what is here has changed since you looked - "
                                  "read it again before resetting"}), 409
-    log.warning("dev reset asked for from %s", request.remote_addr)
-    return jsonify(devreset.reset())
+    log.warning("dev reset asked for from %s - restarting to do it", request.remote_addr)
+    # Not done here: this process holds the database and the log, and its
+    # window holds the browser profile, so the clean would fail on every
+    # one of them (and did, on Windows). Marked, and done on the way back up.
+    asked = devreset.request()
+    if not asked.get("ok"):
+        return jsonify(asked), 400
+    request_restart()
+    return jsonify({"ok": True, "restarting": True, "count": preview["count"]})
 
 
 # ------------------------------------------------------ end development only

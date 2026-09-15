@@ -325,9 +325,12 @@ function paintWaiting(state) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
         <h2 style="margin:0 0 .4rem">Golf</h2>${golfHeadHTML(gf)}${golfTurnHTML(gf)}
         ${gf.over ? `<p><b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.</p>` : golfClubsHTML(gf)}
+        ${gf.your_turn && gf.address_waits && !gf.over ? `<p><button class="choice" id="golf-hit" style="text-align:center"><b>Hit &rsaquo;</b></button></p>` : ''}
         ${golfPlaybackHTML(gf)}
         <h3 style="margin:.8rem 0 .3rem">The card</h3>${golfBoardHTML(gf)}</div>`;
     wireClubs();
+    const hb = document.getElementById('golf-hit');
+    if (hb) hb.addEventListener('click', async () => { hb.disabled = true; await api('/api/party/hit', {player: me.id}); tick(); });
     return;
   }
   const ct = state.cutthroat;
@@ -403,7 +406,7 @@ function golfTurnHTML(gf) {
   if (gf.over) return '';
   if (gf.away_name && !gf.your_turn && !gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>${escapeHTML(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + escapeHTML(gf.away_club) + ' in hand' : ''}&hellip; The question comes up in a moment; read it with them.</p>`;
   if (gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>You have a tee time.</b> The group picks you up ${gf.next_hole ? 'at the ' + gf.next_hole + ordinal(gf.next_hole) : 'at the next hole'}; watch this one with them - the questions are worth reading.</p>`;
-  if (gf.your_turn) return '<p style="margin:0 0 .5rem"><b>Your stroke.</b> Take your time.</p>';
+  if (gf.your_turn) return `<p style="margin:0 0 .5rem"><b>Your stroke.</b> ${gf.address_waits ? 'Choose a club, then press Hit - the question comes when you are ready.' : 'Take your time.'}</p>`;
   if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away &middot; ${gf.away_left} to go, ${escapeHTML(gf.away_lie || '')}${gf.away_club ? ' &middot; the ' + escapeHTML(gf.away_club) : ''}.<br>Read the question with them; the next one is yours.</p>`;
   return '';
 }

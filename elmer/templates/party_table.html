@@ -165,6 +165,8 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfstage .figwrap-large .figfull img { max-height: 30vh; }
 @media (max-width: 60rem) { .golfstage { grid-template-columns: 1fr; } }
 .nextstroke { margin-top: .6rem; }
+.hitrow { margin: .4rem 0 .8rem; }
+.hitrow .clubrow { margin-bottom: .6rem; }
 table.res.card { font-variant-numeric: tabular-nums; font-size: .82rem; }
 table.res.card td, table.res.card td.ms { padding: .12rem .08rem; text-align: center; font-family: inherit; color: var(--text); }
 table.res.card td:first-child { text-align: left; max-width: 4.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: .2rem; }
@@ -650,7 +652,7 @@ function golfLine(gf) {
 function golfAwayLine(gf) {
   const b = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
   if (!b) return '';
-  return `<p class="hint" style="text-align:left;font-size:1rem;color:var(--text);margin:.2rem 0 .5rem">
+  return `<p class="narrator" style="margin:.2rem 0 .5rem">
     <b>${esc(b.name)}</b> is away &middot; ${b.left} to go, ${esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(b.club) : ''}</p>`;
 }
 
@@ -852,9 +854,23 @@ async function tick() {
         // The tee shot gets the hole read out - par, yards, wind. Every stroke
         // after it gets the narrator alone: we were all there for the start.
         const onTheTee = Object.values(gf.balls || {}).every(b => b.strokes === 0);
+        // A person's address is theirs: the clubs, and Hit when they are
+        // ready - the question does not come until they say so. Seated
+        // here, the clubs are on this screen; on a phone, they are there.
+        const awayHere = gf.address_waits && atScreen.some(x => x.id === gf.away);
+        const awayBall = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
         const address = gf.away_name && !gf.over
-          ? `<p class="narrator"><b>${esc(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
-              gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;<span class="cue" title="the question is coming"></span></p>` : '';
+          ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
+              gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}</p>` +
+            (awayHere && awayBall
+              ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club, then press Hit. The question is yours when you are ready - nothing here is timed.</p>
+                 <div class="clubrow" data-clubrow="${gf.away}">${(awayBall.clubs || []).map(c =>
+                   `<button class="btn sm ${c === awayBall.club ? 'on' : ''}" data-seat-club="${gf.away}" data-club="${c}">${c}</button>`).join('')}</div>
+                 <button class="btn primary" data-golf-hit="${gf.away}">Hit &rsaquo;</button></div>`
+              : gf.address_waits
+                ? `<p class="hint" style="text-align:left">${esc(gf.away_name)} is choosing a club on their phone. The question comes when they hit.</p>`
+                : '')
+          : '';
         // The view from the tee, when the unit has the picture: the address
         // is spoken over it while the group is on the tee.
         const teePic = onTheTee && gf.tee_pic && !gf.over
@@ -974,7 +990,7 @@ async function tick() {
           : '<p class="narrator">The ball is away&hellip;</p>');
         if (shot) narrate(`${shot.name}: ${shot.call || shot.words}`, shot.tokens);
         painted = key + ':beat';
-        setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS);
+        setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS * ((s.golf && s.golf.tempo) || 1));
         return;
       }
       const next = mineHere.length
@@ -1072,6 +1088,14 @@ async function tick() {
           : 'everyone is in');
 }
 
+document.addEventListener('click', async e => {
+  const hit = e.target.closest('[data-golf-hit]');
+  if (!hit) return;
+  hit.disabled = true;
+  await api('/api/party/hit', {player: parseInt(hit.dataset.golfHit, 10)});
+  tick();
+});
+
 document.getElementById('endtable').addEventListener('click', async () => {
   if (!confirm('End whatever is in play and close this table?')) return;
   await api('/api/party/end', {});
@@ -1080,7 +1104,7 @@ document.getElementById('endtable').addEventListener('click', async () => {
 
 /* The narrator, and the cue. What is said goes on the screen; a voice or a
    sound can be hung on golfCue later - a stub for now, on purpose. */
-const SHOT_BEAT_MS = 4000;
+const SHOT_BEAT_MS = 8000;      // scaled by the round's tempo where it is used
 const revealBeat = {};
 function narrate(text, tokens) {
   try { if (typeof window.golfCue === 'function') window.golfCue(text, tokens); } catch (e) {}
