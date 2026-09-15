@@ -3929,6 +3929,12 @@ def api_party_mode():
         abort(400, f"mode must be one of {list(party.MODES)}")
     if room.round is not None and not room.round.closed:
         abort(409, "a question is still open")
+    # A node takes its game from the hall, standing or started: the check
+    # used to live inside _apply_mode, and the standing-game branch below
+    # returned before reaching it, so a node with nobody seated could set a
+    # game of its own underneath the hall's.
+    if wanted != party.TOURNAMENT:
+        _not_this_tables_part()
     # A game somebody chose beats the countdown a seat armed: left armed, it
     # fired fifteen seconds after the first person sat and put a tournament
     # over the top of the tee time they had just booked.
