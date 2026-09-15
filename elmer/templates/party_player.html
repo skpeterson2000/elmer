@@ -55,6 +55,8 @@ body { margin: 0; background: var(--bg); color: var(--text);
 table.scorecard td { padding: .15rem .25rem; text-align: center; font-variant-numeric: tabular-nums; }
 table.scorecard td:first-child { text-align: left; }
 table.scorecard td.k { color: var(--dim); font-size: .8rem; }
+table.scorecard td.hand { font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard", cursive; color: #e8e0c8; }
+table.scorecard td.pencil { color: #a9a493; font-style: italic; }
 .shoot .took { color: var(--red); font-size: .85rem; }
 .pick h3 { margin: .8rem 0 .4rem; }
 .pick h4 { margin: .9rem 0 .35rem; color: var(--dim); font-weight: 600;
@@ -444,15 +446,17 @@ function golfPlaybackHTML(gf) {
       <div class="t">${escapeHTML(mine.words)}</div></div>` : ''}
     <table class="board">${others.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.call ? '<b>' + escapeHTML(s.call) + '</b> ' : ''}${escapeHTML(s.words)}</td></tr>`).join('')}</table>`;
 }
-function strokeCell(card, n) {
+function strokeCell(card, n, ball, hole) {
   const s = (card || [])[String(n)];
-  return `<td class="ms">${s == null ? '' : s}</td>`;
+  if (s != null) return `<td class="ms hand">${s}</td>`;
+  if (n === hole && ball && ball.strokes) return `<td class="ms hand pencil">${ball.strokes}</td>`;
+  return '<td class="ms"></td>';
 }
 function golfBoardHTML(gf) {
   const holes = gf.round_holes || [];
   if (holes.length) {
     const rows = (gf.leaderboard || []).map(r =>
-      `<tr class="${r.player === me.id ? 'me' : ''}"><td>${escapeHTML(r.name)}</td>${holes.map(h => strokeCell(r.card, h.n)).join('')}<td class="ms"><b>${r.gross}</b></td><td class="ms">${
+      `<tr class="${r.player === me.id ? 'me' : ''}"><td>${escapeHTML(r.name)}</td>${holes.map(h => strokeCell(r.card, h.n, (gf.balls || [])[r.player], gf.hole)).join('')}<td class="ms"><b>${r.gross}</b></td><td class="ms">${
         r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`);
     return `<div style="overflow-x:auto"><table class="board scorecard"><tr><td class="k">hole</td>${holes.map(h => `<td class="ms">${h.n}</td>`).join('')}<td class="ms">tot</td><td class="ms">&plusmn;</td></tr>
       <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms">${holes.reduce((a, h) => a + h.par, 0)}</td><td></td></tr>${rows.join('')}</table></div>`;

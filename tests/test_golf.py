@@ -316,6 +316,25 @@ def run():
     s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
     check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
 
+    print("\n-- not every golfer hits it the same --")
+    g = golf.Golf(["a", "b"], flat_course(), seed=1)
+    g.set_swing("b", 0.8, 1.5)
+    check("a short hitter's driver is a short hitter's driver", g.reach("b", "driver"), 200.0)
+    check("  and a person's is the book's", g.reach("a", "driver"), 250.0)
+    sa = g.play_one("a", {"correct": True, "club": "driver", "ms": 1000})["shots"]["a"]
+    sb = g.play_one("b", {"correct": True, "club": "driver", "ms": 1000})["shots"]["b"]
+    check("  the same swing, forty yards less", sa["carry"] - sb["carry"], 50)
+    h2 = golf.Golf(["a", "b"], flat_course(), seed=1)
+    h2.set_swing("b", 0.8, 1.5)
+    for pp in ("a", "b"):
+        h2.balls[pp].at, h2.balls[pp].lie, h2.balls[pp].strokes = 200, "fairway", 1
+    check("  the sensible club allows for it: 200 out, the person takes a wood, the short hitter the driver",
+          (h2.default_club("a"), h2.default_club("b")), ("wood", "driver"))
+    from elmer import party as party_mod
+    check("a spread of levels around the one chosen", [party_mod.spread_level("Operator", i) for i in range(4)],
+          ["Operator", "Learner", "Elmer", "Listener"])
+    check("  clamped at the ends", [party_mod.spread_level("Elmer", i) for i in range(3)], ["Elmer", "Operator", "Elmer"])
+
     print("\n-- carry, then roll: a ball does not stick where it lands --")
     golf.ROLL = RUN
     def rolled(club, lie="fairway", at=0, wind="with", mph=10, seed=1, aim=None):

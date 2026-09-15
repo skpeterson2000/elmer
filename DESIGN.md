@@ -2391,6 +2391,24 @@ but the same swing lands the same way and every stroke lands a little
 differently, which is what a golfer means by luck. It is what puts four
 tee shots in four places, and so decides who is away.
 
+**Not every golfer hits it the same.** Each practice player has a swing
+of their own for the round: a power, a factor on every club's length,
+and a wildness, a factor on the leak - drawn once from ranges by level,
+so a Listener is a short, wild hitter and an Elmer long and straight,
+and Sparks is the same Sparks all round. The group is not three copies
+either: the practice players are spread around the level the table
+chose, one at it, one a step easier, one a step harder. People are 1.0
+and 1.0 - their swing is the question. The sensible club allows for the
+power: from two hundred out a short hitter needs the driver where a
+person takes the wood.
+
+**The card, written as it happens.** The hole being played is pencilled
+in on the scorecard stroke by stroke - the strokes so far, in a lighter
+hand - and inked when the hole is done. The scores are in a handwriting
+face where the machine has one (Segoe Print on Windows, Bradley Hand on
+a Mac, whatever cursive a Pi offers), a little askew row by row, because
+a scorecard is a thing somebody writes on.
+
 **Carry, then roll.** A ball does not stick where it lands. The club
 sets how much life it has when it comes down - a driver's low, running
 ball about twenty-four yards of it, a wood eighteen, an iron nine, a

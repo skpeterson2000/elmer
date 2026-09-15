@@ -242,6 +242,28 @@ BOT_SKILLS = {
     "Elmer":    (0.90, 2.0, 7.0),
 }
 
+# The levels in order, for spreading a group of practice players around
+# the one the table chose: one at it, one a step easier, one a step
+# harder - a foursome of different golfers, not three copies.
+BOT_LEVELS = ["Listener", "Learner", "Operator", "Elmer"]
+# And how each level hits it: a range of power (a factor on every club's
+# length) and of wildness (a factor on the leak). Drawn once a player, so
+# Sparks is a short straight hitter for the whole round and Pileup a long
+# wild one. People are 1.0 and 1.0.
+BOT_SWINGS = {"Listener": ((0.78, 0.92), (1.3, 2.0)), "Learner": ((0.84, 0.98), (1.0, 1.6)),
+              "Operator": ((0.9, 1.03), (0.8, 1.2)), "Elmer": ((0.95, 1.08), (0.5, 0.9))}
+
+
+def spread_level(level, i):
+    """The level for the i-th practice player around `level`: at it, then
+    a step easier, a step harder, two easier - clamped to the ends."""
+    if level not in BOT_LEVELS:
+        return level
+    at = BOT_LEVELS.index(level)
+    step = [0, -1, 1, -2, 2][i % 5]
+    return BOT_LEVELS[max(0, min(len(BOT_LEVELS) - 1, at + step))]
+
+
 BOT_NAMES = ["Sparks", "Skip", "Static", "Hertz", "Marconi", "Doppler",
              "Ionos", "Ragchew", "Beacon", "Quench", "Pileup", "Grayline",
              "Whip", "Vertical", "Dipole", "Halyard"]
@@ -708,7 +730,8 @@ class Room:
                     name = random.choice(pool)
                     used.add(name)
                     player = Player(self._next_id, name, cid,
-                                    bot=level or random.choice(list(BOT_SKILLS)))
+                                    bot=(spread_level(level, len(bots)) if level
+                                         else random.choice(list(BOT_SKILLS))))
                     self.players[player.id] = player
                     self._next_id += 1
                     bots.append(player)
@@ -966,6 +989,13 @@ class Room:
                 return None, "a round of golf needs a player"
             self.golf = Golf(order, course, holes=holes, handicaps=handicaps,
                              seconds=seconds or DEFAULT_ROUND_SECONDS)
+            # Each practice player's swing, from their level: a foursome of
+            # different golfers - some short and straight, some long and wild.
+            for p in order:
+                pl = self.players.get(p)
+                if pl is not None and pl.bot:
+                    (lo, hi), (wlo, whi) = BOT_SWINGS.get(pl.bot, ((1.0, 1.0), (1.0, 1.0)))
+                    self.golf.set_swing(p, random.uniform(lo, hi), random.uniform(wlo, whi))
             self.clubs = {}
             self.golf_pace = float(seconds or DEFAULT_ROUND_SECONDS)
             # Which clips of the swing are on this unit - static/golf/clips/

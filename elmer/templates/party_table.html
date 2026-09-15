@@ -172,9 +172,15 @@ body.golfing .joinurl { font-size: .7rem; }
 .golfunder .narrator { font-size: 1.05rem; }
 .hitrow .clubrow { margin-bottom: .6rem; }
 table.res.card { font-variant-numeric: tabular-nums; font-size: .82rem; }
-table.res.card td, table.res.card td.ms { padding: .12rem .08rem; text-align: center; font-family: inherit; color: var(--text); }
-table.res.card td:first-child { text-align: left; max-width: 4.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: .2rem; }
-table.res.card td.tot { white-space: nowrap; padding-left: .3rem; }
+table.res.card td, table.res.card td.ms { padding: .12rem .05rem; text-align: center; font-family: inherit; color: var(--text); }
+table.res.card td.tot .k { font-size: .7rem; }
+table.res.card td:first-child { text-align: left; max-width: 3.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: .2rem; }
+table.res.card td.tot { white-space: nowrap; padding-left: .2rem; }
+/* The scores, in a hand: written as they happen. */
+table.res.card td.hand { font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard", cursive; font-size: .78rem; color: #e8e0c8; letter-spacing: -.02em; }
+table.res.card td.pencil { color: #a9a493; font-style: italic; }
+table.res.card tr:nth-child(odd) td.hand { transform: rotate(-2deg); }
+table.res.card tr:nth-child(even) td.hand { transform: rotate(1.5deg); }
 table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-child(2) td { color: var(--dim); font-size: .75rem; }
 /* The hole, drawn: a yardage-book strip beside the words. */
 .golfstage-map { grid-template-columns: minmax(0, 1fr) 11rem; }
@@ -634,9 +640,16 @@ function golfCard(gf, esc_) {
   const holes = gf.round_holes || [];
   if (!holes.length) return '';
   const rows = (gf.leaderboard || []).map(r => {
-    const cells = holes.map(h => { const s = (r.card || {})[String(h.n)]; return `<td class="ms">${s == null ? '' : s}</td>`; });
-    const par = r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : String(r.to_par);
+    // The hole being played is written in as it happens - the strokes so
+    // far, pencilled - and inked when the hole is done.
     const ball = (gf.balls || {})[r.player];
+    const cells = holes.map(h => {
+      const s = (r.card || {})[String(h.n)];
+      if (s != null) return `<td class="ms hand">${s}</td>`;
+      if (h.n === gf.hole && ball && ball.strokes) return `<td class="ms hand pencil">${ball.strokes}</td>`;
+      return '<td class="ms"></td>';
+    });
+    const par = r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : String(r.to_par);
     const played = ball && ball.log && ball.log.length ? 'this hole: ' + ball.log.map((l, i) => (i + 1) + '. ' + l).join('  |  ') : e(r.name);
     return `<tr><td title="${e(played)}">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
   });

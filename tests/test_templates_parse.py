@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # for _browser
 FAILS = []
 
 
@@ -129,6 +130,44 @@ for path in sorted((ROOT / "elmer" / "templates").glob("*.html")):
 print("\nand so does every static script")
 for path in sorted((ROOT / "elmer" / "static").glob("*.js")):
     check(path.name, unmatched(path.read_text(encoding="utf-8")), None)
+
+# The brackets balancing is not the same as the script parsing. A variable
+# declared twice in one block, a stray token, a template literal's ${}
+# holding something that is not an expression - the browser refuses the
+# whole script and the page runs with none, which is how the table screen
+# went blank on 2026-09-15 with every bracket matched. Where a browser is
+# on the machine, every script is handed to it to compile, Jinja's own
+# tags stood in for by a plain value.
+print("\nand a browser compiles every one of them")
+try:
+    import json
+    import _browser
+    have_browser = _browser.available()
+except Exception:
+    have_browser = None
+if not have_browser:
+    print("  (no browser on this machine - skipped)")
+else:
+    bundle = []
+    for path in sorted((ROOT / "elmer" / "templates").glob("*.html")):
+        html = path.read_text(encoding="utf-8")
+        for k, src in enumerate(re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)):
+            src = re.sub(r"\{#.*?#\}", "", src, flags=re.S)
+            src = re.sub(r"\{%.*?%\}", "", src, flags=re.S)
+            src = re.sub(r"\{\{.*?\}\}", "0", src, flags=re.S)
+            bundle.append((f"{path.name} script {k + 1}", src))
+    for path in sorted((ROOT / "elmer" / "static").glob("*.js")):
+        bundle.append((path.name, path.read_text(encoding="utf-8")))
+    js = ("(() => { const out = {}; for (const [name, src] of " + json.dumps(bundle) +
+          ") { try { new Function(src); out[name] = null; } catch (e) { out[name] = String(e.message); } } "
+          "return JSON.stringify(out); })()")
+    got = _browser.evaluate("about:blank", js, settle=0.5)
+    try:
+        results = json.loads(got)
+    except (TypeError, ValueError):
+        results = {"the browser answered": str(got)[:120]}
+    for name, err in results.items():
+        check(name, err, None)
 
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)

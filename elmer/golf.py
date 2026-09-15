@@ -262,6 +262,12 @@ class Golf:
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
         self._who = None               # whose stroke is being played
+        # Not every golfer hits it the same. Power is a factor on every
+        # club's length; wildness a factor on the leak. People are 1.0 and
+        # 1.0 - the question is their swing. Practice players are given a
+        # spread by the room, so a foursome is four different golfers.
+        self.power = {p: 1.0 for p in self.players}
+        self.wild = {p: 1.0 for p in self.players}
         self.balls = {}
         self.wind_mph = 0
         self.playoff = []          # players still in a playoff, if one
@@ -351,11 +357,22 @@ class Golf:
         ball = self.balls[player]
         left = abs(h["yards"] - ball.at)
         for club in reversed(allowed):
-            if CLUBS[club] * LIES[ball.lie][0] >= left:
+            if self.reach(player, club) >= left:
                 return club
         return allowed[0]
 
     # ---------------------------------------------------------------- shots
+
+    def set_swing(self, player, power=1.0, wild=1.0):
+        """How this golfer hits it: a factor on the clubs' length and one
+        on the leak. For the practice players; a person is 1.0 and 1.0."""
+        self.power[player] = max(0.6, min(1.2, float(power)))
+        self.wild[player] = max(0.3, min(3.0, float(wild)))
+
+    def reach(self, player, club, lie=None):
+        """How far this golfer's club goes from this lie."""
+        lie = lie or self.balls[player].lie
+        return CLUBS[club] * LIES[lie][0] * self.power.get(player, 1.0)
 
     def set_aim(self, player, at, off=0):
         """The golfer's mark: where they mean the ball to land, in yards
@@ -399,7 +416,7 @@ class Golf:
         it and lands near it; one that cannot is a full swing and goes its
         length. The wind has its say on both. Nothing about the answer but
         that it was right reaches here: the swing is not timed."""
-        most = CLUBS[club] * LIES[ball.lie][0]
+        most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
         wind_yards = WIND_EFFECT.get(wind, 0.0) * self.wind_mph
         spread = CLUB_SPREAD.get(club, AIM)
         if most + wind_yards >= abs(left):
@@ -464,7 +481,7 @@ class Golf:
             carry = self._carry(ball, club, None, to_mark)       # the wind's say, taken away
         elif flair == "launched":
             carry = round(self._carry(ball, club, wind, to_mark) * 1.12)
-        elif adept and CLUBS[club] * LIES[ball.lie][0] >= to_mark:
+        elif adept and self.reach(self._who, club) >= to_mark:
             flair = "pure"                    # the club reaches: stiff, all over the mark
             carry = round(to_mark + self.rng.uniform(-4, 4))
         elif adept:
@@ -478,7 +495,7 @@ class Golf:
         spread = CLUB_SPREAD.get(club, AIM) * 0.6
         off = mark["off"] + (self.swing.uniform(-4, 4) if flair == "pure" else self.swing.uniform(-spread, spread))
         leaked = None
-        if not adept and self.swing.random() < CLUB_LEAK.get(club, 0.0):
+        if not adept and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
             leaked = "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
             off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
             if abs(off) <= FAIRWAY_HALF:              # a leak goes off the fairway, by definition
@@ -584,7 +601,7 @@ class Golf:
         ball.strokes += 1
         if club == "putter" or ball.lie == "green":
             return {"kind": "missed", "words": "putt missed", "carry": 0}
-        reach = ball.at + CLUBS[club] * LIES[ball.lie][0]
+        reach = ball.at + CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
         ahead = [hz for hz in h.get("hazards", [])
                  if hz["to"] > ball.at and hz["from"] <= reach and hz["kind"] in ("water", "bunker", "rough")]
         if not ahead:
