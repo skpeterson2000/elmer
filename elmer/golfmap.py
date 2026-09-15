@@ -15,6 +15,23 @@ from xml.sax.saxutils import escape
 W, H = 260, 560                 # the strip
 PAD_TOP, PAD_BOT = 58, 46       # room for the green's cup and the tee's box
 FAIR_L, FAIR_R = 95, 165        # the fairway's edges
+CENTRE = (FAIR_L + FAIR_R) / 2
+# Across the hole: the fairway's half-width in the rules (golf.FAIRWAY_HALF,
+# 18 yards) is the fairway's half-width here, so a ball's yards off the
+# line and a mark's are the same yards on the strip.
+PX_PER_YARD = (FAIR_R - FAIR_L) / 2 / 18.0
+
+
+def geometry(h):
+    """What a screen needs to turn a tap on the strip into yards: the
+    box, the paddings, the centre line and the scale."""
+    return {"w": W, "h": H, "pad_top": PAD_TOP, "pad_bot": PAD_BOT, "centre": CENTRE,
+            "px_per_yard": PX_PER_YARD, "yards": h["yards"]}
+
+
+def _x(off):
+    """Yards off the line, as a place across the strip."""
+    return CENTRE + float(off or 0) * PX_PER_YARD
 SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
         "across": (FAIR_L, FAIR_R), "front": (FAIR_L, FAIR_R),
         "centre": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
@@ -32,9 +49,10 @@ def _y(yards, total):
     return H - PAD_BOT - frac * usable
 
 
-def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None):
+def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None):
     """One hole as an SVG string. `h` is the card's hole; `balls` a list of
-    {name, at, lie, holed, picked_up, you}."""
+    {name, at, off, lie, holed, picked_up, you}; `mark` the golfer's aim,
+    {at, off}, drawn as a cross."""
     total = float(h["yards"])
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
              f'class="holemap" role="img" aria-label="the {h["n"]} hole, par {h["par"]}, {h["yards"]} yards">']
@@ -86,12 +104,25 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None):
         wtxt = f'{arrow} {wind}' + (f' {wind_mph} mph' if wind_mph is not None else '')
         parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="13" fill="#9ad1ff" '
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
+    # the mark: where the golfer means the ball to land
+    if mark and mark.get("at") is not None:
+        mx, my = _x(mark.get("off")), _y(min(float(mark["at"]), total + 20), total)
+        parts.append(f'<g class="mark" stroke="#ffb454" stroke-width="2" fill="none">'
+                     f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="9"/>'
+                     f'<line x1="{mx - 14:.1f}" y1="{my:.1f}" x2="{mx + 14:.1f}" y2="{my:.1f}"/>'
+                     f'<line x1="{mx:.1f}" y1="{my - 14:.1f}" x2="{mx:.1f}" y2="{my + 14:.1f}"/>'
+                     f'<title>aiming {int(mark["at"])} yards{", " + str(abs(int(mark.get("off") or 0))) + " " + ("left" if (mark.get("off") or 0) < 0 else "right") if mark.get("off") else ""}</title></g>')
     # the balls, where they lie - the one that is you ringed, the holed at the cup
+    on_the_tee = [b for b in (balls or []) if not b.get("holed") and float(b.get("at") or 0) == 0]
     for i, b in enumerate(balls or []):
         at = total if b.get("holed") else min(float(b.get("at") or 0), total)
         yy = _y(at, total)
-        # spread side by side so a foursome on the tee is four dots, not one
-        xx = (FAIR_L + FAIR_R) / 2 + (i - (len(balls) - 1) / 2) * 14
+        # across the hole where the ball sits; on the tee, side by side so a
+        # foursome is four dots, not one
+        if at == 0 and b in on_the_tee:
+            xx = CENTRE + (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 14
+        else:
+            xx = _x(b.get("off"))
         color = LIE_MARK.get(b.get("lie") or "fairway", "#e8e8e8")
         if b.get("picked_up"):
             color = "#8b98a5"

@@ -392,10 +392,16 @@ function paintWaiting(state) {
 function golfHeadHTML(gf) {
   const you = gf.you;
   const onTheTee = Object.values(gf.balls || {}).every(b => b.strokes === 0);
-  const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at).join(',');
+  const myAim = you && you.aim;
+  const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at + ':' + b.off).join(',') +
+                 (myAim && myAim.set ? 'a' + myAim.at + ':' + myAim.off : '');
+  // The strip takes a tap: where this golfer means the ball to land. Their
+  // own ball, any time before the stroke; not on the green - that is a putt.
+  const canAim = you && !you.holed && !you.picked_up && you.lie !== 'green' && !gf.over;
   return (onTheTee && gf.tee_pic && !gf.over
       ? `<img src="${escapeHTML(gf.tee_pic)}" alt="" style="width:100%;border-radius:10px;display:block;margin-bottom:.5rem">` : '') +
-    (!gf.over ? `<img src="/api/party/golf/map.svg?player=${me.id}&k=${encodeURIComponent(mapKey)}" alt="the hole" style="float:right;width:6.5rem;height:auto;border-radius:8px;margin:0 0 .4rem .6rem">` : '') +
+    (!gf.over ? `<img id="holemap" src="/api/party/golf/map.svg?player=${me.id}&k=${encodeURIComponent(mapKey)}" alt="the hole" style="float:right;width:${canAim ? '8rem' : '6.5rem'};height:auto;border-radius:8px;margin:0 0 .4rem .6rem${canAim ? ';outline:2px solid var(--amber);outline-offset:2px' : ''}"${canAim ? ' data-aim-for="' + me.id + '"' : ''}>` : '') +
+    (canAim ? `<p class="tiny muted" style="margin:0 0 .4rem">${myAim && myAim.set ? `Aiming ${myAim.at} yards${myAim.off ? ', ' + Math.abs(myAim.off) + (myAim.off < 0 ? ' left' : ' right') : ''}. ` : ''}Tap the hole to set your mark${myAim && myAim.set ? ', or <a href="#" id="aim-clear">aim at the pin</a>' : ''}.</p>` : '') +
     `<p class="clock" style="margin:0 0 .3rem">${escapeHTML(gf.course_name)} &middot; ${ordinal(gf.hole)}${gf.hole_name ? ' ' + escapeHTML(gf.hole_name) : ''}
     &middot; par ${gf.par} &middot; ${gf.yards} yd &middot; ${gf.wind_mph} mph ${escapeHTML(gf.hole_wind || '')}</p>` +
     (you ? `<p style="margin:0 0 .6rem"><b>${you.holed ? 'Holed in ' + you.strokes : you.picked_up ? 'Picked up' : you.left + ' to go'}</b>
@@ -915,6 +921,29 @@ function start() {
   tick();
   schedulePoll();
 }
+
+/* A tap on the strip is the golfer's mark: the point turned into yards
+   along the hole and off the line with the geometry the state carries. */
+document.addEventListener('click', async e => {
+  const clear = e.target.closest('#aim-clear');
+  if (clear) {
+    e.preventDefault();
+    await api('/api/party/aim', {player: me.id, clear: true});
+    shownRound = null; tick();
+    return;
+  }
+  const strip = e.target.closest('img[data-aim-for]');
+  if (!strip || !s_last || !s_last.golf || !s_last.golf.map) return;
+  const geo = s_last.golf.map;
+  const r = strip.getBoundingClientRect();
+  const x = (e.clientX - r.left) * geo.w / r.width;
+  const y = (e.clientY - r.top) * geo.h / r.height;
+  const usable = geo.h - geo.pad_top - geo.pad_bot;
+  const at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
+  const off = Math.round((x - geo.centre) / geo.px_per_yard);
+  await api('/api/party/aim', {player: me.id, at, off});
+  shownRound = null; tick();
+});
 
 /* A phone that locks and comes back should not sit on a stale question. */
 document.addEventListener('visibilitychange', () => {

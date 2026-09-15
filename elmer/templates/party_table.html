@@ -179,6 +179,8 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
 /* The hole, drawn: a yardage-book strip beside the words. */
 .golfstage-map { grid-template-columns: minmax(0, 1fr) 11rem; }
 .holemap { width: 11rem; height: auto; display: block; border-radius: 12px; justify-self: end; }
+.holemap.aimable { cursor: crosshair; outline: 2px solid var(--amber); outline-offset: 2px; }
+.holemap-hint { text-align: right; font-size: .8rem; margin-top: .3rem; }
 @media (max-width: 60rem) { .golfstage-map { grid-template-columns: 1fr; } .holemap { width: 9rem; justify-self: center; } }
 /* The clubhouse's picture, when the unit has one - static/golf/clubhouse.jpg. */
 .clubhouse-pic.teepic { aspect-ratio: 16 / 6; max-height: 34vh; background-position: center 55%; }
@@ -884,8 +886,15 @@ async function tick() {
           ? `<div class="clubhouse-pic teepic" style="background-image:url(${esc(gf.tee_pic)})"></div>` : '';
         // The hole, drawn from the card, with every ball where it lies -
         // beside the words, so the yards mean something.
-        const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at).join(',');
-        const holeMap = gf.over ? '' : `<img class="holemap" src="/api/party/golf/map.svg?k=${encodeURIComponent(mapKey)}" alt="the hole">`;
+        const awayAim = gf.away != null && gf.balls && gf.balls[gf.away] ? gf.balls[gf.away].aim : null;
+        const mapKey = 'm' + gf.hole + (gf.last || []).length + Object.values(gf.balls || {}).map(b => b.at + ':' + b.off).join(',') +
+                       (awayAim && awayAim.set ? 'a' + awayAim.at + ':' + awayAim.off : '');
+        // The strip takes a tap from the golfer who is away, at this screen:
+        // where they mean the ball to land. Their mark is their mark.
+        const canAim = awayHere && awayBall && awayBall.lie !== 'green';
+        const holeMap = gf.over ? '' : `<img class="holemap ${canAim ? 'aimable' : ''}" src="/api/party/golf/map.svg?k=${encodeURIComponent(mapKey)}" alt="the hole"${
+          canAim ? ` data-aim-for="${gf.away}" title="tap where you mean the ball to land"` : ''}>` +
+          (canAim ? `<p class="hint holemap-hint">${awayAim && awayAim.set ? `Aiming ${awayAim.at} yards${awayAim.off ? ', ' + Math.abs(awayAim.off) + (awayAim.off < 0 ? ' left' : ' right') : ''}. ` : ''}Tap the hole to set your mark${awayAim && awayAim.set ? ', or <a href="#" data-aim-clear="' + gf.away + '">aim at the pin</a>' : ''}.</p>` : '');
         stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` +
           (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
@@ -1107,7 +1116,33 @@ async function tick() {
           : 'everyone is in');
 }
 
+/* A tap on the strip: the point, in the strip's own box, turned into
+   yards along the hole and off the line with the geometry the state
+   carries, and sent as the golfer's mark. */
+function stripToYards(img, e, geo) {
+  const r = img.getBoundingClientRect();
+  const x = (e.clientX - r.left) * geo.w / r.width;
+  const y = (e.clientY - r.top) * geo.h / r.height;
+  const usable = geo.h - geo.pad_top - geo.pad_bot;
+  const at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
+  const off = Math.round((x - geo.centre) / geo.px_per_yard);
+  return {at, off};
+}
 document.addEventListener('click', async e => {
+  const clear = e.target.closest('[data-aim-clear]');
+  if (clear) {
+    e.preventDefault();
+    await api('/api/party/aim', {player: parseInt(clear.dataset.aimClear, 10), clear: true});
+    painted = null; tick();
+    return;
+  }
+  const strip = e.target.closest('img[data-aim-for]');
+  if (strip && lastTableState && lastTableState.golf && lastTableState.golf.map) {
+    const {at, off} = stripToYards(strip, e, lastTableState.golf.map);
+    await api('/api/party/aim', {player: parseInt(strip.dataset.aimFor, 10), at, off});
+    painted = null; tick();
+    return;
+  }
   const hit = e.target.closest('[data-golf-hit]');
   if (!hit) return;
   hit.disabled = true;

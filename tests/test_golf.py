@@ -281,6 +281,40 @@ def run():
         row = g.play_one("a", {"correct": True, "question_id": f"Q{i}"})
     check("the third right answer in a row is adept without any measure", row["shots"]["a"].get("flair") is not None, True)
 
+    print("\n-- the mark: their aim is their aim, and the algorithm feeds the result --")
+    # Spread and leak still off: this is the geometry, exactly.
+    creek = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 240, "to": 260, "side": "across", "name": "the creek"}]), seed=1)
+    check("with no mark the shot is at the pin, down the line", creek.aim("a"), {"at": 400, "off": 0, "set": False})
+    check("a mark short of the creek is kept", creek.set_aim("a", 225, 0), {"at": 225, "off": 0})
+    row = creek.play_one("a", {"correct": True, "club": "driver"})
+    s = row["shots"]["a"]
+    check("  and the driver lands short of it, on the fairway", (s["kind"], s["carry"], creek.balls["a"].lie), ("fairway", 225, "fairway"))
+    check("  a mark is for one stroke", creek.aims, {})
+    check("  the next is at the pin again", creek.aim("a")["set"], False)
+    bunker = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 230, "to": 260, "side": "left", "name": "the left trap"}]), seed=1)
+    bunker.set_aim("a", 250, -30)
+    s = bunker.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    check("aimed thirty yards left, into the left trap's yards: in the sand", (s["kind"], s["hazard"], bunker.balls["a"].off), ("sand", "the left trap", -30))
+    wide = golf.Golf(["a"], flat_course(), seed=1)
+    wide.set_aim("a", 250, 30)
+    s = wide.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    check("aimed thirty right with nothing there: the first cut", (s["kind"], wide.balls["a"].lie, wide.balls["a"].off), ("rough", "rough", 30))
+    check("  and the next club is the rough's longest", wide.clubs_for("a")[0], "wood")
+    wide.set_aim("a", 400, 0)
+    s = wide.play_one("a", {"correct": True, "club": "wood"})["shots"]["a"]
+    check("  back at the pin: on the line, and the wood reaches from there", (s["off"], s["kind"]), (0, "green"))
+    edge = golf.Golf(["a"], flat_course(), seed=1)
+    edge.balls["a"].at, edge.balls["a"].lie, edge.balls["a"].strokes = 300, "fairway", 1
+    edge.set_aim("a", 400, 20)
+    s = edge.play_one("a", {"correct": True, "club": "iron"})["shots"]["a"]
+    check("pin-high but twenty yards wide of a green fourteen wide: not on it", s["kind"] != "green", True)
+    check("a mark behind the ball is moved ahead of it", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", -50, 0)["at"], 10)
+    check("  and one off the property is brought in", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", 200, 900)["off"], golf.OFF_MOST)
+    check("no mark on the green - it is a putt", (lambda g: (setattr(g.balls["a"], "lie", "green"), g.set_aim("a", 400, 0))[1])(golf.Golf(["a"], flat_course(), seed=1)), None)
+    foul = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 230, "to": 260, "side": "right", "name": "the right trap"}]), seed=3)
+    s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
+    check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
+
     print("\n-- the club's say: a right answer still varies --")
     golf.CLUB_SPREAD, golf.CLUB_LEAK = SPREAD, LEAK
     pb = golf.course("pebble-beach")
@@ -297,6 +331,9 @@ def run():
     check("  some leak off the line, into the first cut or the sand", 0.08 < len(leaks) / len(drives) < 0.3, True)
     check("  a leaked ball has a worse lie, so the next question is harder",
           all(s["lie"] in ("rough", "sand") for s in leaks), True)
+    check("  and sits off the fairway's width, on the side it leaked to",
+          all(abs(s["off"]) > golf.FAIRWAY_HALF and (s["off"] < 0) == (s["leak"] == "left") for s in leaks), True)
+    check("  the rest are within it", all(abs(s["off"]) <= golf.FAIRWAY_HALF for s in drives if not s.get("leak") and s["kind"] == "fairway"), True)
     check("  never the water, never out of bounds", all(s["kind"] != "water" for s in drives), True)
     check("  and the call says what happened", all(s["call"] in golf.LEAK_CALLS for s in leaks), True)
     check("an iron off the tee is shorter and straighter",

@@ -2391,6 +2391,23 @@ but the same swing lands the same way and every stroke lands a little
 differently, which is what a golfer means by luck. It is what puts four
 tee shots in four places, and so decides who is away.
 
+**The hole has a width, and the golfer has a mark.** A ball is yards
+along the line and yards off it, left negative, right positive. Inside
+eighteen yards either side is the fairway, or whatever band crosses it;
+beyond that are the sides, where the card's left and right hazards live
+and the first cut where nothing does; a green is fourteen yards wide of
+the pin. The strip draws every ball where it sits across the hole, and
+the strip takes a tap: the golfer who is away, at their seat or on their
+phone, taps where they mean the ball to land, a cross is drawn there, and
+the shot is played at the mark instead of the pin - short of the creek,
+wide of the trap, over the corner. Their mark is their mark and the
+algorithm feeds the result: the club's spread and leak still apply around
+it, so aiming at the edge of the trap is a way of finding it. A mark is
+for one stroke; with none set the aim is the pin, down the line, and
+nobody has to aim who does not want to. The tap's geometry travels in
+the state (`golf.map`) so the screens turn a pixel into yards the same
+way the strip drew it (`elmer/golfmap.py`).
+
 **The address, on the screens.** While the director addresses the next
 stroke the closed round before it is still on the table, and the screens
 used to go on drawing that round - so with a person's address waiting on

@@ -47,6 +47,7 @@ from collections import deque
 
 from . import trivia
 from .cutthroat import CutThroat
+from . import golfmap
 from .golf import Golf
 from .shootout import Shootout
 
@@ -1143,6 +1144,8 @@ class Room:
                     # own beats.
                     "address_waits": bool(away_ball and not away_ball.get("bot")),
                     "tempo": self.golf_tempo,
+                    # For turning a tap on the strip into yards - see golfmap.geometry.
+                    "map": golfmap.geometry(g.hole()) if g.hole() else None,
                     # Who has a tee time - joining the group at the next
                     # hole - and whether this player is one of them.
                     "tee_times": [name(p) for p in d.get("tee_times", [])],

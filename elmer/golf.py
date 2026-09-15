@@ -94,6 +94,29 @@ AIM = 12
 # which is what a golfer means by luck.
 CLUB_SPREAD = {"driver": 18, "wood": 14, "iron": 9, "wedge": 5}
 CLUB_LEAK = {"driver": 0.18, "wood": 0.12, "iron": 0.06, "wedge": 0.02}
+# The hole has a width. A ball is so many yards along the line and so many
+# off it - left negative, right positive. Inside FAIRWAY_HALF either side
+# is the fairway (or whatever band crosses it); beyond it are the sides,
+# where the card's left and right hazards live, and the first cut where
+# nothing does. A green is GREEN_HALF wide either side of the pin. The
+# mark a golfer aims at is a point in the same yards, and the leak is a
+# push of LEAK_PUSH yards off to one side.
+FAIRWAY_HALF = 18
+GREEN_HALF = 14
+OFF_MOST = 45
+LEAK_PUSH = 10
+SIDE_BANDS = {"": ("across", "front", "centre", "around", "beyond", ""),
+              "left": ("left", "around"), "right": ("right", "around")}
+
+
+def side_of(off):
+    """Which side of the hole a ball this far off the line is on: '' for
+    the fairway's width, 'left' or 'right' beyond it."""
+    if off < -FAIRWAY_HALF:
+        return "left"
+    if off > FAIRWAY_HALF:
+        return "right"
+    return ""
 LEAK_CALLS = ["Leaked it.", "Pushed it a touch.", "Pulled it a hair.", "That got away from him."]
 # Yards per mile an hour, by how the wind sits on the line.
 WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
@@ -193,6 +216,7 @@ class Ball:
 
     def __init__(self):
         self.at = 0            # yards from the tee, along the line
+        self.off = 0           # yards off the line: left negative, right positive
         self.lie = "tee"
         self.strokes = 0
         self.holed = False
@@ -221,6 +245,8 @@ class Golf:
         self.cards = {p: {} for p in self.players}      # player -> hole n -> strokes
         self.hole_index = 0
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
+        self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
+        self._who = None               # whose stroke is being played
         self.balls = {}
         self.wind_mph = 0
         self.playoff = []          # players still in a playoff, if one
@@ -310,8 +336,40 @@ class Golf:
 
     # ---------------------------------------------------------------- shots
 
+    def set_aim(self, player, at, off=0):
+        """The golfer's mark: where they mean the ball to land, in yards
+        along the line and off it. Theirs to set, for their next stroke,
+        anywhere ahead of the ball and within the hole's width; the
+        algorithm feeds the result. Returns the mark as kept, or None."""
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie == "green":
+            return None
+        try:
+            at, off = int(round(float(at))), int(round(float(off)))
+        except (TypeError, ValueError):
+            return None
+        at = max(ball.at + 10, min(h["yards"] + 20, at))
+        off = max(-OFF_MOST, min(OFF_MOST, off))
+        self.aims[player] = {"at": at, "off": off}
+        return dict(self.aims[player])
+
+    def clear_aim(self, player):
+        self.aims.pop(player, None)
+
+    def aim(self, player):
+        """Where this player's next stroke is aimed: their mark, or the
+        sensible one - the pin, down the line."""
+        h = self.hole()
+        if h is None:
+            return None
+        mark = self.aims.get(player)
+        if mark:
+            return {"at": mark["at"], "off": mark["off"], "set": True}
+        return {"at": h["yards"], "off": 0, "set": False}
+
     def _carry(self, ball, club, wind, left):
-        """How far the ball goes. A club that can reach the pin is hit at
+        """How far the ball goes. A club that can reach the mark is hit at
         it and lands near it; one that cannot is a full swing and goes its
         length. The wind has its say on both. Nothing about the answer but
         that it was right reaches here: the swing is not timed."""
@@ -344,8 +402,13 @@ class Golf:
         if club == "putter" or ball.lie == "green":
             ball.strokes += 1
             ball.holed = True
+            ball.off = 0
             return {"kind": "holed", "words": "putt holed", "carry": 0, "wind": wind}
         left_before = h["yards"] - ball.at
+        # The mark: the pin down the line unless the golfer set one. The
+        # shot is played at the mark; the pin is what is left after it.
+        mark = self.aim(self._who) or {"at": h["yards"], "off": 0, "set": False}
+        to_mark = mark["at"] - ball.at
         flair = None
         if adept:
             if left_before <= HOLE_OUT_FROM and self.rng.random() < HOLE_OUT_ODDS:
@@ -369,21 +432,32 @@ class Golf:
         if flair == "worked":
             lie_was = ball.lie
             ball.lie = "fairway"
-            carry = self._carry(ball, club, wind, left_before)
+            carry = self._carry(ball, club, wind, to_mark)
             ball.lie = lie_was
         elif flair == "stinger":
-            carry = self._carry(ball, club, None, left_before)       # the wind's say, taken away
+            carry = self._carry(ball, club, None, to_mark)       # the wind's say, taken away
         elif flair == "launched":
-            carry = round(self._carry(ball, club, wind, left_before) * 1.12)
-        elif adept and CLUBS[club] * LIES[ball.lie][0] >= left_before:
-            flair = "pure"                    # the club reaches: stiff, all over the flag
-            carry = round(left_before + self.rng.uniform(-4, 4))
+            carry = round(self._carry(ball, club, wind, to_mark) * 1.12)
+        elif adept and CLUBS[club] * LIES[ball.lie][0] >= to_mark:
+            flair = "pure"                    # the club reaches: stiff, all over the mark
+            carry = round(to_mark + self.rng.uniform(-4, 4))
         elif adept:
             flair = "launched"                # a full swing with everything in it
-            carry = round(self._carry(ball, club, wind, left_before) * 1.12)
+            carry = round(self._carry(ball, club, wind, to_mark) * 1.12)
         else:
-            carry = self._carry(ball, club, wind, left_before)
+            carry = self._carry(ball, club, wind, to_mark)
         landed = ball.at + carry
+        # Across the line: at the mark's side of it, within the club's
+        # spread - and, for a plain shot, the leak: a push off to one side.
+        spread = CLUB_SPREAD.get(club, AIM) * 0.6
+        off = mark["off"] + (self.swing.uniform(-4, 4) if flair == "pure" else self.swing.uniform(-spread, spread))
+        leaked = None
+        if not adept and self.swing.random() < CLUB_LEAK.get(club, 0.0):
+            leaked = "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
+            off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
+            if abs(off) <= FAIRWAY_HALF:              # a leak goes off the fairway, by definition
+                off = (-1 if leaked == "left" else 1) * (FAIRWAY_HALF + 3)
+        off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         from_the_tee = ball.strokes == 0
         ball.strokes += 1
         left = h["yards"] - landed
@@ -393,60 +467,61 @@ class Golf:
             return {"kind": "holed", "words": f"{club}, {h['yards']} yards - IN THE HOLE. An ace.",
                     "carry": h["yards"], "wind": wind, "ace": True}
         edge = h["green"] / 2 + 5                # the green's depth either side of the pin
-        # On the green is on the green, whatever bunkers ring it. Off it, in
-        # the line of play only: a fair ball down the middle avoids the
-        # trouble off to the sides, but not a creek across the fairway, a
-        # bunker in front of the green, or the ocean beyond it.
-        hz = None if abs(left) <= edge or flair == "worked" else self._in_band(h, landed, sides=("across", "front", "centre", "around", "beyond", ""))
+        side = side_of(off)
+        on_green = abs(left) <= edge and abs(off) <= GREEN_HALF
+        # On the green is on the green, whatever bunkers ring it. Off it,
+        # what is where the ball came down: down the middle, a creek across
+        # the fairway, a bunker in front of the green, the ocean beyond it;
+        # off to a side, that side's trouble - or the first cut, when the
+        # card has nothing there.
+        hz = None if on_green or flair == "worked" else self._in_band(h, landed, sides=SIDE_BANDS[side])
+        wide = f" {side}" if side else ""
         if hz and hz["kind"] == "water":
+            if side:
+                # A right answer that drifted stops on the bank: no penalty,
+                # a bad lie. The water is a wrong answer's to find.
+                ball.at, ball.off, ball.lie = landed, off, "rough"
+                return {"kind": "rough", "words": f"{club}, {carry} yards - out to the {side}, stopped on the bank of "
+                                                  f"{hz['name'] or 'the water'} - {left} to go, from the rough",
+                        "carry": carry, "wind": wind, "leak": leaked, "left": left, "off": off}
             ball.strokes += 1                        # the penalty
             return {"kind": "water", "words": f"{club}, {carry} yards - into {hz['name'] or 'the water'}; "
                                               f"drop, and a penalty stroke", "carry": carry, "wind": wind,
                     "hazard": hz["name"]}
-        if abs(left) <= edge:
-            ball.at = landed
+        if on_green:
+            ball.at, ball.off = landed, off
             ball.lie = "green"
-            feet = max(3, abs(left) * 3)
+            feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards - on the green, {feet} feet",
-                    "carry": carry, "wind": wind, "feet": feet, "flair": flair}
-        # The club's say: a fair ball that leaks off the line. Whatever is
-        # out that side takes it - a bunker, the rough - or the first cut
-        # does. Not the water: a right answer stops on the bank. An adept
-        # shot is shaped, and does not leak.
-        if not adept and not hz and left > edge and self.swing.random() < CLUB_LEAK.get(club, 0.0):
-            side = self.swing.choice(("left", "right"))
-            wide = self._in_band(h, landed, sides=(side,))
-            ball.at = landed
-            if wide and wide["kind"] == "bunker":
-                ball.lie = "sand"
-                return {"kind": "sand", "words": f"{club}, {carry} yards - leaked {side}, into {wide['name'] or 'the sand'}",
-                        "carry": carry, "wind": wind, "hazard": wide["name"], "leak": side, "left": left}
-            ball.lie = "rough"
-            if wide and wide["kind"] == "water":
-                return {"kind": "rough", "words": f"{club}, {carry} yards - leaked {side}, stopped on the bank of "
-                                                  f"{wide['name'] or 'the water'} - {left} to go, from the rough",
-                        "carry": carry, "wind": wind, "leak": side, "left": left}
-            where = (wide["name"] or "the rough") if wide else "the first cut"
-            return {"kind": "rough", "words": f"{club}, {carry} yards - leaked {side}, into {where} - {left} to go",
-                    "carry": carry, "wind": wind, "hazard": wide["name"] if wide else None, "leak": side, "left": left}
+                    "carry": carry, "wind": wind, "feet": feet, "flair": flair, "off": off}
+        if side and not hz and abs(left) > edge:
+            # Off the fairway's width, into the first cut - by the golfer's
+            # own mark, or the club's leak.
+            ball.at, ball.off, ball.lie = landed, off, "rough"
+            how = f"leaked {side}" if leaked else f"out to the {side}"
+            return {"kind": "rough", "words": f"{club}, {carry} yards - {how}, into the first cut - {left} to go",
+                    "carry": carry, "wind": wind, "leak": leaked, "left": left, "off": off}
         if left < -edge:
             # Over the back: rough beyond, or whatever is there.
-            ball.at = h["yards"]
+            ball.at, ball.off = h["yards"], off
             ball.lie = "rough"
             return {"kind": "long", "words": f"{club}, {carry} yards - through the green, into the rough behind",
-                    "carry": carry, "wind": wind}
-        ball.at = landed
+                    "carry": carry, "wind": wind, "off": off}
+        ball.at, ball.off = landed, off
         if hz and hz["kind"] == "bunker":
             ball.lie = "sand"
-            return {"kind": "sand", "words": f"{club}, {carry} yards - into {hz['name'] or 'the sand'}",
-                    "carry": carry, "wind": wind, "hazard": hz["name"]}
+            how = f"leaked {side}, " if leaked else ""
+            return {"kind": "sand", "words": f"{club}, {carry} yards - {how}into {hz['name'] or 'the sand'}",
+                    "carry": carry, "wind": wind, "hazard": hz["name"], "leak": leaked, "off": off}
         if hz and hz["kind"] == "rough":
             ball.lie = "rough"
-            return {"kind": "rough", "words": f"{club}, {carry} yards - into {hz['name'] or 'the rough'}",
-                    "carry": carry, "wind": wind, "hazard": hz["name"]}
+            how = f"leaked {side}, " if leaked else ""
+            return {"kind": "rough", "words": f"{club}, {carry} yards - {how}into {hz['name'] or 'the rough'}",
+                    "carry": carry, "wind": wind, "hazard": hz["name"], "leak": leaked, "off": off}
         ball.lie = "fairway"
-        return {"kind": "fairway", "words": f"{club}, {carry} yards, fairway - {left} to go",
-                "carry": carry, "wind": wind, "left": left, "flair": flair}
+        where = "fairway" if abs(off) <= FAIRWAY_HALF / 2 else f"{side_of(off) or ('left' if off < 0 else 'right')} side of the fairway"
+        return {"kind": "fairway", "words": f"{club}, {carry} yards, {where} - {left} to go",
+                "carry": carry, "wind": wind, "left": left, "flair": flair, "off": off}
 
     def _foul(self, h, ball, club):
         """A wrong answer: the ball finds the nearest trouble the club could
@@ -470,7 +545,10 @@ class Golf:
                     "carry": 0, "hazard": name}
         ball.at = max(ball.at + 10, hz["from"])
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
-        return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name}
+        if hz.get("side") in ("left", "right"):
+            ball.off = (-1 if hz["side"] == "left" else 1) * (FAIRWAY_HALF + LEAK_PUSH)
+        return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name,
+                "off": ball.off}
 
     def away(self):
         """Whose turn it is: the ball farthest from the hole plays first,
@@ -495,6 +573,7 @@ class Golf:
         """One player's stroke with one answer: where the ball went, in
         words, and the ball moved."""
         a = answer or {}
+        self._who = p
         # The swing's timing seeds this stroke's draw - see CLUB_SPREAD.
         try:
             ms = int(a.get("ms")) if a.get("ms") is not None else None
@@ -532,8 +611,9 @@ class Golf:
         elif ball.holed:
             shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
             shot["score"] = score_name(ball.strokes, h["par"])
-        shot.update(strokes=ball.strokes, at=ball.at, lie=ball.lie, club=club,
+        shot.update(strokes=ball.strokes, at=ball.at, off=ball.off, lie=ball.lie, club=club,
                     done=ball.done(), holed=ball.holed)
+        self.aims.pop(p, None)            # a mark is for one stroke
         ball.log.append(shot["words"])
         return shot
 
@@ -753,8 +833,9 @@ class Golf:
             "yards": h["yards"] if h else None, "hole_name": (h.get("name") or "") if h else "",
             "hole_wind": h.get("wind") if h else None, "wind_mph": self.wind_mph,
             "holes_played": self.hole_index, "holes": len(self.holes),
-            "balls": {p: {"at": b.at, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
+            "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
                           "picked_up": b.picked_up, "left": (h["yards"] - b.at) if h else 0,
+                          "aim": self.aim(p),
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "log": list(b.log)}
                       for p, b in self.balls.items()},

@@ -3913,11 +3913,16 @@ def api_party_golf_map():
     except ValueError:
         who = None
     view = room.golf_view(who) or {}
-    balls = [{"name": b["name"], "at": b["at"], "lie": b["lie"], "holed": b["holed"],
+    balls = [{"name": b["name"], "at": b["at"], "off": b.get("off", 0), "lie": b["lie"], "holed": b["holed"],
               "picked_up": b["picked_up"], "you": (who is not None and str(who) == str(pid))}
              for pid, b in (view.get("balls") or {}).items()]
     h = g.hole()
-    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name")),
+    # The mark: the phone's own golfer's, or on the table the one who is
+    # away - when they set one. The sensible aim is not drawn; the pin is.
+    whose = who if who is not None else view.get("away")
+    ball = (view.get("balls") or {}).get(str(whose)) or (view.get("balls") or {}).get(whose)
+    mark = (ball or {}).get("aim") if ball and (ball.get("aim") or {}).get("set") else None
+    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark),
                               mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -4088,6 +4093,30 @@ def api_party_next():
     driver = autoplay.director()
     hurried = bool(driver and driver.hurry())
     return jsonify({"ok": True, "hurried": hurried})
+
+
+@app.route("/api/party/aim", methods=["POST"])
+def api_party_aim():
+    """The golfer's mark: a tap on the strip, in yards along the hole and
+    off the line. Their own ball only; the stroke plays at it."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    if player not in room.players:
+        abort(404, "not at this table")
+    g = room.golf
+    if g is None or g.over():
+        abort(409, "no round is on")
+    if body.get("clear"):
+        g.clear_aim(player)
+        return jsonify({"ok": True, "aim": g.aim(player)})
+    mark = g.set_aim(player, body.get("at"), body.get("off") or 0)
+    if mark is None:
+        abort(409, "no mark from there - it is a putt, or the ball is down")
+    return jsonify({"ok": True, "aim": g.aim(player)})
 
 
 @app.route("/api/party/hit", methods=["POST"])

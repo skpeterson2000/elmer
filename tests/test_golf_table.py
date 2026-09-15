@@ -167,6 +167,18 @@ def run():
           (200, "image/svg+xml", "public, max-age=86400"))
     r = client.get(f"/api/party/golf/map.svg?player={ann}", environ_base=local)
     check("  and the live one has the balls on it", (r.status_code, "<circle cx=" in r.get_data(as_text=True)), (200, True))
+    check("  with no mark on it yet", 'class="mark"' in r.get_data(as_text=True), False)
+    r = client.post("/api/party/aim", json={"player": ann, "at": 330, "off": -12}, environ_base=local)
+    check("a tap on the strip is the golfer's mark", (r.status_code, r.get_json()["aim"]), (200, {"at": 330, "off": -12, "set": True}))
+    st = client.get(f"/api/party/state?player={ann}", environ_base=local).get_json()["golf"]
+    check("  the state carries it, and the strip's geometry for the next tap",
+          (st["you"]["aim"]["set"], st["map"]["yards"], st["map"]["w"]), (True, 377, 260))
+    r = client.get(f"/api/party/golf/map.svg?player={ann}", environ_base=local)
+    check("  and the mark is drawn", 'class="mark"' in r.get_data(as_text=True), True)
+    r = client.post("/api/party/aim", json={"player": ann, "clear": True}, environ_base=local)
+    check("  aim at the pin again", r.get_json()["aim"]["set"], False)
+    r = client.post("/api/party/aim", json={"player": 99999, "at": 200}, environ_base=local)
+    check("  a stranger has no mark here", r.status_code, 404)
     check("  a hole nobody has", client.get("/golf/map/pebble-beach/99.svg", environ_base=local).status_code, 404)
     r = client.get("/api/party/golf-assets", environ_base=local).get_json()
     check("the round's assets, for warming: the clubhouse and the tees this unit has",
