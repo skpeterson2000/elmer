@@ -55,6 +55,10 @@ def run():
     check("  a callsign with a file is the file too", (voice.set_shelf(["name-kc9sp"]), voice.name_tokens("KC9SP"))[1], ["name-kc9sp"])
     voice.set_shelf(None)
     check("  and with no shelf known, the name file", voice.name_tokens("KC9SP"), ["name-kc9sp"])
+    voice.set_shelf(["player-2-is-away", "player-1-has-honors", "the-driver", "in-hand"])
+    check("the slot on the sheet is called when it is recorded", voice.address("Scott", "driver", 377, "tee", slot=2)[:1], ["player-2-is-away"])
+    check("  first off the tee, the honors", voice.address("Scott", "driver", 377, "tee", slot=1, honors=True)[:1], ["player-1-has-honors"])
+    check("  a slot with no file falls back to the name", voice.address("Scott", "driver", 377, "tee", slot=3)[:2], ["name-scott", "addresses-the-ball"])
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
     check("  and a stroke into the rough says 'rough' when the phrase is not there",

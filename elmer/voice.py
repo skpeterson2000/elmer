@@ -49,6 +49,11 @@ VOCABULARY = {
     "hundred": "hundred", "and": "and",
     # the letters, phonetic - a callsign spelled out when there is no name file
     **{f"phon-{k}": v for k, v in PHONETIC.items()},
+    # the slots on the sheet: the narrator calls the golfer by their place
+    # in the group rather than by name - "Player 2 is away" - which is what
+    # a starter does, and needs no file per person. Honors on the tee.
+    **{f"player-{n}-is-away": f"Player {n} is away" for n in (1, 2, 3, 4)},
+    **{f"player-{n}-has-honors": f"Player {n} has honors" for n in (1, 2, 3, 4)},
     # single words, the pieces a phrase falls back to when the phrase is
     # not recorded: "hole, one, is, par, four" for "the first, par, four";
     # "rough", "bunker", "green" for "into the rough", "into the sand",
@@ -92,6 +97,8 @@ VOCABULARY = {
     "call-fairway-4": "Nice shot!", "call-fairway-5": "On the fairway.",
     "call-rough-4": "In the rough.", "call-sand-4": "Found the bunker.",
     "call-water-4": "That's swimming.", "call-water-5": "Are you going after that?",
+    "call-rough-5": "OOOPS! That's going to need patching.", "call-rough-6": "Are you new at this?",
+    "call-water-6": "We all have bad days.", "call-holed-4": "It's in the cup!",
     "call-green-1": "On the dance floor.", "call-green-2": "Stuck it.", "call-green-3": "That's looking at it.",
     "call-long-1": "Flew the green.", "call-long-2": "Too much club.", "call-long-3": "Airmailed it.",
     "call-holed-1": "In the hole!", "call-holed-2": "Drained it.", "call-holed-3": "Bottom of the cup.",
@@ -130,6 +137,8 @@ CALL_TOKENS = {
     "That's a splash - what was the wind?": "call-water-3",
     "Nice shot!": "call-fairway-4", "On the fairway.": "call-fairway-5", "In the rough.": "call-rough-4",
     "Found the bunker.": "call-sand-4", "That's swimming.": "call-water-4", "Are you going after that?": "call-water-5",
+    "OOOPS! That's going to need patching.": "call-rough-5", "Are you new at this?": "call-rough-6",
+    "We all have bad days.": "call-water-6", "It's in the cup!": "call-holed-4",
     "Lipped out.": "call-missed-1", "Left it short.": "call-missed-2", "Burned the edge.": "call-missed-3",
     "A hole in one!": "call-ace",
     "Worked it around the trees.": "call-worked-1", "Shaped it out of there.": "call-worked-2",
@@ -280,10 +289,20 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     return out
 
 
-def address(name, club=None, left=None, lie=None):
+def address(name, club=None, left=None, lie=None, slot=None, honors=False):
     """Scott addresses the ball, the driver in hand, three hundred and
-    seventy-seven to go, from the tee."""
-    out = name_tokens(name) + ["addresses-the-ball"]
+    seventy-seven to go, from the tee - or, by the slot on the sheet,
+    "Player 2 is away" ("Player 1 has honors" first off the tee), which
+    is how a starter calls it and needs no file per person. The slot line
+    when it is recorded; the name and "addresses the ball" otherwise."""
+    out = None
+    if slot and _shelf is not None:
+        if honors and f"player-{slot}-has-honors" in _shelf:
+            out = [f"player-{slot}-has-honors"]
+        elif f"player-{slot}-is-away" in _shelf:
+            out = [f"player-{slot}-is-away"]
+    if out is None:
+        out = name_tokens(name) + ["addresses-the-ball"]
     if club:
         out += [f"the-{club}", "in-hand"]
     if lie == "green":

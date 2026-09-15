@@ -110,6 +110,10 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 - `call-sand-4`: Found the bunker.
 - `call-water-4`: That's swimming.
 - `call-water-5`: Are you going after that?
+- `call-rough-5`: OOOPS! That's going to need patching.
+- `call-rough-6`: Are you new at this?
+- `call-water-6`: We all have bad days.
+- `call-holed-4`: It's in the cup!
 - `call-green-1`: On the dance floor.
 - `call-green-2`: Stuck it.
 - `call-green-3`: That's looking at it.
@@ -153,6 +157,14 @@ Whole numbers, optional: a number read in one breath beats the pieces, so any fi
 
 ## Everything else - the address, the stroke, the wind, the card
 
+- `player-1-is-away`: Player 1 is away
+- `player-2-is-away`: Player 2 is away
+- `player-3-is-away`: Player 3 is away
+- `player-4-is-away`: Player 4 is away
+- `player-1-has-honors`: Player 1 has honors
+- `player-2-has-honors`: Player 2 has honors
+- `player-3-has-honors`: Player 3 has honors
+- `player-4-has-honors`: Player 4 has honors
 - `hole`: hole
 - `is`: is
 - `rough`: rough

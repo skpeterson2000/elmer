@@ -123,6 +123,11 @@ def adopt(dry_run=False):
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
         target = by_words.get(key)
+        if target is None and len(key) >= 12:
+            # the reader cuts a long line's name short: a unique prefix will do
+            starts = [stem for k, stem in by_words.items() if k.startswith(key)]
+            if len(starts) == 1:
+                target = starts[0]
         if target is None:
             target = _whole_number(text)
         if target is None:

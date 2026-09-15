@@ -186,11 +186,12 @@ CALLS = {
     "fairway": ["Pured it.", "Right down the middle.", "That'll play.", "Nice shot!", "On the fairway."],
     "green": ["On the dance floor.", "Stuck it.", "That's looking at it.", "Nice shot!"],
     "long": ["Flew the green.", "Too much club.", "Airmailed it."],
-    "holed": ["In the hole!", "Drained it.", "Bottom of the cup."],
-    "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one.", "In the rough."],
+    "holed": ["In the hole!", "Drained it.", "Bottom of the cup.", "It's in the cup!"],
+    "rough": ["Topped it.", "Fat. Chunked it.", "Skied that one.", "In the rough.",
+              "OOOPS! That's going to need patching.", "Are you new at this?"],
     "sand": ["Sliced it into the sand.", "Pulled it into the bunker.", "Beach.", "Found the bunker."],
     "water": ["Hooked it into the water.", "Wet.", "That's a splash - what was the wind?",
-              "That's swimming.", "Are you going after that?"],
+              "That's swimming.", "Are you going after that?", "We all have bad days."],
     "missed": ["Lipped out.", "Left it short.", "Burned the edge."],
 }
 # How hard a question the lie asks for, as a place in the pool's measured

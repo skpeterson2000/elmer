@@ -77,6 +77,12 @@ def _hook(event, args):
                 _touched.append(f"{event} {args[0]}")
         elif event in ("os.remove", "os.unlink", "os.rmdir", "os.mkdir", "os.rename",
                        "shutil.rmtree", "shutil.move", "os.truncate"):
+            # A path given relative to a directory descriptor (os.rmdir("data",
+            # dir_fd=fd), which is how shutil.rmtree walks a tree on Linux) is
+            # not relative to the working directory: a scratch folder's own
+            # "data" is not the operator's, and the runner said it was.
+            if event in ("os.remove", "os.unlink", "os.rmdir", "os.mkdir") and len(args) > 1                     and isinstance(args[1], int) and args[1] >= 0:
+                return
             for a in args[:2]:
                 if isinstance(a, (str, bytes, os.PathLike)) and _under_real(a):
                     _touched.append(f"{event} {os.fsdecode(a)}")
