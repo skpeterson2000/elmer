@@ -14,7 +14,7 @@ How a line is pieced together (the game composes these; see `elmer/voice.py`):
 - the call: one of the *call-* files
 - the card: *thats-the-hole · name-scott · for-a-bogey · name-ann · for-par · on-to-the-next*
 
-Whole numbers, optional: a number read in one breath beats the pieces, so any file named n-<number>.mp3 (n-377.mp3: "three hundred seventy-seven", n-15.mp3: "fifteen") is said in place of the pieces whenever that number comes up, and the pieces cover every number that has no file. Zero to 999; the numbers on the first hole at Pebble Beach are the yards from each lie, so record what the card and the clubs can produce, and the pieces fill the rest.
+Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, hole-pebble-beach-1.mp3 for the first at Pebble Beach - is said at the tee instead of the pieces, then the wind. Whole numbers, optional: a number read in one breath beats the pieces, so any file named n-<number>.mp3 (n-377.mp3: "three hundred seventy-seven", n-15.mp3: "fifteen") is said in place of the pieces whenever that number comes up, and the pieces cover every number that has no file. Zero to 999; the numbers on the first hole at Pebble Beach are the yards from each lie, so record what the card and the clubs can produce, and the pieces fill the rest.
 
 ## Numbers - reused for yards, feet, strokes, miles an hour
 

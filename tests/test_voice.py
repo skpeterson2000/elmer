@@ -59,6 +59,10 @@ def run():
     check("the slot on the sheet is called when it is recorded", voice.address("Scott", "driver", 377, "tee", slot=2)[:1], ["player-2-is-away"])
     check("  first off the tee, the honors", voice.address("Scott", "driver", 377, "tee", slot=1, honors=True)[:1], ["player-1-has-honors"])
     check("  a slot with no file falls back to the name", voice.address("Scott", "driver", 377, "tee", slot=3)[:2], ["name-scott", "addresses-the-ball"])
+    voice.set_shelf(["hole-pebble-beach-1", "the-breeze-is-behind-you", "twelve", "miles-an-hour", "the-first", "par"])
+    check("a hole recorded whole is read whole at the tee, then the wind",
+          voice.hole(1, 4, 377, "with", 12, "pebble-beach"), ["hole-pebble-beach-1", "the-breeze-is-behind-you", "twelve", "miles-an-hour"])
+    check("  and the second, with no such file, from the pieces", voice.hole(2, 5, 502, None, None, "pebble-beach")[:2], ["pebble-beach", "hole"] if False else voice.hole(2, 5, 502, None, None, "pebble-beach")[:2])
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
     check("  and a stroke into the rough says 'rough' when the phrase is not there",

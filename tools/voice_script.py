@@ -118,7 +118,7 @@ def adopt(dry_run=False):
     stems = set(voice.VOCABULARY)
     renamed, strays = [], []
     for p in sorted(folder.glob("*.mp3")) if folder.is_dir() else []:
-        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+)$", p.stem):
+        if p.stem in stems or re.match(r"^(n-\d+|name-[a-z0-9-]+|hole-[a-z0-9-]+-\d+)$", p.stem):
             continue
         text = re.sub(r"^\d+\.", "", p.stem)          # the reader's running number
         key = _key(text)
@@ -128,6 +128,8 @@ def adopt(dry_run=False):
             starts = [stem for k, stem in by_words.items() if k.startswith(key)]
             if len(starts) == 1:
                 target = starts[0]
+        if target is None:
+            target = _whole_hole(text)
         if target is None:
             target = _whole_number(text)
         if target is None:
@@ -141,6 +143,19 @@ def adopt(dry_run=False):
         if not dry_run:
             p.rename(dest)
     return renamed, strays
+
+
+def _whole_hole(text):
+    """'Hole one is a par four at ...' -> hole-pebble-beach-1: a hole read
+    whole, named by the course the script is for and the number it opens
+    with. Pebble Beach is the course of the first recordings."""
+    import re
+    m = re.match(r"^\s*hole[\s_]+([a-z0-9]+)", str(text).lower().replace("_", " "))
+    if not m:
+        return None
+    words = {w: n for n, w in voice.NUMBER_WORDS.items()}
+    n = words.get(m.group(1)) or (int(m.group(1)) if m.group(1).isdigit() else None)
+    return f"hole-pebble-beach-{n}" if n else None
 
 
 def _whole_number(text):

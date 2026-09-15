@@ -274,6 +274,17 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     """The hole read out at the tee: the course once, the hole, par, yards,
     and the breeze."""
     out = []
+    # A hole read as one recording - hole-<course>-<n>.mp3, "Hole one is a
+    # par four at three hundred and seventy-seven yards" in one breath -
+    # is said instead of the pieces when the shelf has it.
+    whole = f"hole-{course}-{n}" if course else None
+    if whole and _shelf and whole in _shelf:
+        out.append(whole)
+        if wind in WIND_TOKENS:
+            out.append(WIND_TOKENS[wind])
+            if wind_mph:
+                out += number(wind_mph) + ["miles-an-hour"]
+        return out
     if course and course in COURSE_TOKENS:
         out.append(COURSE_TOKENS[course])
     # "the first" - or, from the pieces, "hole, one, is"
@@ -403,7 +414,10 @@ def script_lines():
 
 def whole_number_note():
     """For the script: the optional whole-number files, and their names."""
-    return ("Whole numbers, optional: a number read in one breath beats the pieces, so "
+    return ("Whole holes, optional: a hole read as one recording - hole-<course>-<n>.mp3, "
+            "hole-pebble-beach-1.mp3 for the first at Pebble Beach - is said at the tee instead of "
+            "the pieces, then the wind. "
+            "Whole numbers, optional: a number read in one breath beats the pieces, so "
             "any file named n-<number>.mp3 (n-377.mp3: \"three hundred seventy-seven\", "
             "n-15.mp3: \"fifteen\") is said in place of the pieces whenever that number "
             "comes up, and the pieces cover every number that has no file. Zero to 999; "
