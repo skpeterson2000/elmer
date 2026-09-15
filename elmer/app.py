@@ -3089,6 +3089,13 @@ def api_party_state():
         who = None
     player = room.players.get(who) if who is not None else None
     state = _with_hall(room.state(who), player.name if player else None)
+    # Golf: while the director is addressing the next stroke the closed round
+    # before it is still on the table, and a screen drawing that round would
+    # never show the address - with a person's address waiting on their Hit,
+    # that was a round that stood still for ever. Said plainly, so the
+    # screens draw the address instead.
+    driver = autoplay.director()
+    state["addressing"] = bool(driver and driver.state == "addressing" and state.get("golf"))
     # The table screen says what it is showing so the host can see the room;
     # the bridge carries it up with the next check-in.
     showing = request.args.get("showing")

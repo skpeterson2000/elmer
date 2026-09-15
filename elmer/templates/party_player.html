@@ -799,7 +799,7 @@ async function tick() {
     r = await api('/api/party/state?player=' + me.id);
   } catch (e) { return; }
   if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
-  const s = r.data, round = s.round, shoot = s.shootout;
+  const s = r.data, round = s.addressing ? null : s.round, shoot = s.shootout;
   // The unit has been updated underneath this page: fetch the new one. The
   // player is kept in sessionStorage, so the reload lands back in the game.
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
@@ -824,7 +824,12 @@ async function tick() {
   // The pick is part of what is on screen, so a change in whose it is - or
   // in whether it has been made - repaints, even with no new round.
   const pickKey = (shoot ? ('|' + (shoot.picker || '') + (shoot.pick || '') + (shoot.over ? 'over' : '')) : '') +
-                  (hall ? ('|h' + (hall.picker || '') + (hall.pick || '') + (hall.your_pick ? 'mine' : '') + (hall.over ? 'over' : '')) : '');
+                  (hall ? ('|h' + (hall.picker || '') + (hall.pick || '') + (hall.your_pick ? 'mine' : '') + (hall.over ? 'over' : '')) : '') +
+                  // Golf between strokes: whose address it is, and whether it
+                  // waits on this phone's Hit, are part of what is on screen.
+                  (s.golf ? ('|g' + (s.golf.away == null ? '' : s.golf.away) + (s.golf.last || []).length +
+                             (s.golf.address_waits ? 'w' : '') + (s.golf.hole || '') + (s.golf.over ? 'over' : '')) : '') +
+                  (s.clubhouse ? ('|c' + s.clubhouse.people.length + Math.ceil((s.clubhouse.tee_in || 0) / 5)) : '');
 
 
   if (!round) {

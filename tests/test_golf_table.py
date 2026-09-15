@@ -259,6 +259,67 @@ def run():
           (g["handicaps"], g["handicaps_given"]), (False, {}))
     autoplay.stop()
 
+    print("\n-- the round comes back to the person, and the screens show it --")
+    # The freeze of 2026-09-14: after the person's tee shot the practice
+    # players played through, the round came back to the person - and the
+    # screens went on showing the last practice player's result, because a
+    # closed round stays on the table until the next question is asked and
+    # the address is only drawn when there is no round. With an address that
+    # waits on the person's Hit, that was a round that stood still for ever.
+    party.close_room()
+    room = party.room(create=True, cohorts=1)
+    ann = room.join("KC9SP")[0].id
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
+                                             "level": "Elmer"}, environ_base=local)
+    driver = autoplay.director()
+    check("the round is under way with a director", bool(driver and driver.as_dict()["running"]), True)
+    saved = (party.PERSON_REVEAL, party.BOT_REVEAL, party.GOLF_PRELUDE, party.TEE_PRELUDE, party.BOT_READ_LEAST,
+             party.BOT_READ_BASE, party.HOLE_DONE_REVEAL, autoplay.BETWEEN_MIN)
+    # Fast beats for the test - but a person's address still waits.
+    party.PERSON_REVEAL, party.BOT_REVEAL, party.GOLF_PRELUDE, party.TEE_PRELUDE = 0.2, 0.2, 0.2, 0.2
+    party.BOT_READ_LEAST, party.BOT_READ_BASE, party.HOLE_DONE_REVEAL, autoplay.BETWEEN_MIN = 0.3, 0.1, 0.2, 0.1
+    driver.reveal = 0.2
+    try:
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and not (room.round and not room.round.closed and room.round.to == ann):
+            if driver.state == "addressing" and room.golf_away() == ann:
+                client.post("/api/party/hit", json={"player": ann}, environ_base=local)
+            time.sleep(0.1)
+        check("the first question is the person's, after their Hit", room.round is not None and room.round.to == ann, True)
+        room.submit(ann, room.round.answer_index, 5000)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not (room.round and room.round.closed):
+            time.sleep(0.05)
+        st = client.get("/api/party/state", environ_base=local).get_json()
+        check("  the person's result stands until they say Next stroke", (st["round"]["closed"], st["addressing"]), (True, False))
+        client.post("/api/party/next", json={}, environ_base=local)
+        # The practice players play through on their own - every stroke of
+        # theirs until the person is farthest out again, which with the
+        # club's say in where balls land may be a while - and the address
+        # then waits on the person.
+        deadline = time.monotonic() + 150
+        while time.monotonic() < deadline and not (driver.state == "addressing" and room.golf_away() == ann):
+            time.sleep(0.1)
+        check("the practice players played through and the person is away again",
+              (driver.state, room.golf_away() == ann), ("addressing", True))
+        st = client.get(f"/api/party/state?player={ann}", environ_base=local).get_json()
+        check("  the state says so - addressing, the question waiting on their Hit",
+              (st["addressing"], st["golf"]["address_waits"], st["golf"]["your_turn"]), (True, True, True))
+        check("  and the closed round before it is still there for a screen that wants it", st["round"] is not None, True)
+        time.sleep(1.0)
+        check("  a second later it is still waiting - nobody's clock moves it", driver.state, "addressing")
+        client.post("/api/party/hit", json={"player": ann}, environ_base=local)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not (room.round and not room.round.closed and room.round.to == ann):
+            time.sleep(0.05)
+        check("  Hit, and the question is theirs", (room.round is not None and not room.round.closed, room.round.to), (True, ann))
+    finally:
+        (party.PERSON_REVEAL, party.BOT_REVEAL, party.GOLF_PRELUDE, party.TEE_PRELUDE, party.BOT_READ_LEAST,
+         party.BOT_READ_BASE, party.HOLE_DONE_REVEAL, autoplay.BETWEEN_MIN) = saved
+        autoplay.stop()
+        if room.round is not None and not room.round.closed:
+            room.close_round()            # the next section asks for a tournament, which an open question refuses
+
     print("\n-- back to a tournament --")
     r = client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
     check("the round is put away", (r.get_json()["mode"], room.golf), ("tournament", None))

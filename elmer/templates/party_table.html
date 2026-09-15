@@ -793,7 +793,10 @@ function waitingToStart(s) {
 async function tick() {
   const r = await api('/api/party/state?showing=' + encodeURIComponent(showing));
   if (r.status === 404) { chip.textContent = 'party ended'; return; }
-  const s = r.data, round = s.round;
+  const s = r.data;
+  // Addressing the next stroke: the round before it is done with - the
+  // address is what the room needs to see, and the Hit button on it.
+  const round = s.addressing ? null : s.round;
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   lastTableState = s;
   const shootOpen = s.shootout && !s.shootout.over;
