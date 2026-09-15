@@ -73,10 +73,21 @@ jobs:
       run: |
         # Every one of them, and the whole list even if an early one fails -
         # "three of these broke" is worth more than "the first one broke".
+        # A failing test is also an annotation on the run, with the FAIL
+        # lines it printed: the annotations can be read from the API
+        # without a login, the job log cannot, and "which test, which
+        # check" is the whole of what a red build needs to say.
         failed=""
         for t in tests/test_*.py; do
           echo "::group::$t"
-          python "$t" || failed="$failed $t"
+          out=$(python "$t" 2>&1); rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            failed="$failed $t"
+            why=$(echo "$out" | grep -E "FAIL|Traceback|Error" | head -6 | tr '
+' ' | ')
+            echo "::error file=$t::$t failed (rc $rc): ${why:0:900}"
+          fi
           echo "::endgroup::"
         done
         if [ -n "$failed" ]; then
