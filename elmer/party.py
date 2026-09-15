@@ -47,7 +47,7 @@ from collections import deque
 
 from . import trivia
 from .cutthroat import CutThroat
-from . import golfmap
+from . import golfmap, weather
 from .cwball import Baseball
 from .golf import Golf
 from .shootout import Shootout
@@ -1017,7 +1017,8 @@ class Room:
                      + sorted(p for p, pl in self.players.items() if pl.bot))
             if not order:
                 return None, "a round of golf needs a player"
-            self.golf = Golf(order, course, holes=holes, handicaps=handicaps,
+            forecast = weather.cached(course["id"])
+            self.golf = Golf(order, course, holes=holes, handicaps=handicaps, forecast=forecast,
                              seconds=seconds or DEFAULT_ROUND_SECONDS)
             # Each practice player's swing, from their level: a foursome of
             # different golfers - some short and straight, some long and wild.

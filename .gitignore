@@ -122,3 +122,6 @@ data/window-profile/
 
 # The reader draws pages with poppler and keeps them here, one PNG a page.
 data/library-pages/
+data/weather/
+data/spots.json
+data/programmes/

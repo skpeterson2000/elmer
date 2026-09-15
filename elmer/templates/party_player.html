@@ -447,7 +447,7 @@ function golfHeadHTML(gf) {
     (!gf.over ? `<img id="holemap" src="/api/party/golf/map.svg?player=${me.id}&k=${encodeURIComponent(mapKey)}" alt="the hole" style="float:right;width:${canAim ? '8rem' : '6.5rem'};height:auto;border-radius:8px;margin:0 0 .4rem .6rem${canAim ? ';outline:2px solid var(--amber);outline-offset:2px' : ''}"${canAim ? ' data-aim-for="' + me.id + '"' : ''}>` : '') +
     (canAim ? `<p class="tiny muted" style="margin:0 0 .4rem">${myAim && myAim.set ? (you.lie === 'green' ? `Aiming ${Math.abs(Math.round((myAim.at - gf.yards) * 3))} ft ${(myAim.at - gf.yards) < 0 ? 'short of' : 'past'} the cup${myAim.off ? ', ' + Math.abs(Math.round(myAim.off * 3)) + ' ft ' + (myAim.off < 0 ? 'left' : 'right') : ''}. ` : `Aiming ${myAim.at} yards${myAim.off ? ', ' + Math.abs(myAim.off) + (myAim.off < 0 ? ' left' : ' right') : ''}. `) : ''}${you.lie === 'green' ? 'Tap the green where you mean the putt to die' : 'Tap the hole to set your mark'}${myAim && myAim.set ? ', or <a href="#" id="aim-clear">aim at the ' + (you.lie === 'green' ? 'cup' : 'pin') + '</a>' : ''}.</p>` : '') +
     `<p class="clock" style="margin:0 0 .3rem">${escapeHTML(gf.course_name)} &middot; ${ordinal(gf.hole)}${gf.hole_name ? ' ' + escapeHTML(gf.hole_name) : ''}
-    &middot; par ${gf.par} &middot; ${gf.yards} yd &middot; ${gf.wind_mph} mph ${escapeHTML(gf.hole_wind || '')}</p>` +
+    &middot; par ${gf.par} &middot; ${gf.yards} yd &middot; ${gf.wind_mph} mph ${escapeHTML(gf.hole_wind || '')}${(gf.day && (gf.day.sky_words || gf.day.ground_words)) ? ' &middot; ' + [gf.day.sky_words, gf.day.ground_words].filter(Boolean).map(escapeHTML).join(', ') : ''}</p>` +
     (you ? `<p style="margin:0 0 .6rem"><b>${you.holed ? 'Holed in ' + you.strokes : you.picked_up ? 'Picked up' : you.lie === 'green' ? you.feet + ' feet' : you.left + ' to go'}</b>
       ${you.holed || you.picked_up ? '' : `&middot; ${escapeHTML(you.lie)} &middot; ${you.strokes} played`}</p>` : '');
 }
@@ -493,6 +493,21 @@ function strokeCell(card, n, ball, hole) {
   if (n === hole && ball && ball.strokes) return `<td class="ms hand pencil">${ball.strokes}</td>`;
   return '<td class="ms"></td>';
 }
+/* Every stroke of yours, hole by hole, under the card - one line a stroke,
+   the tap-in included - so the number on the card can always be counted.
+   Folded by default; a press opens it. */
+let myHistoryOpen = false;
+function golfMyHistory(gf) {
+  const logs = (gf.logs || {})[me.id];
+  const row = (gf.leaderboard || []).find(r => r.player === me.id);
+  if (!logs || !Object.keys(logs).length) return '';
+  const holes = (gf.round_holes || []).filter(h => logs[String(h.n)]);
+  return `<details class="tiny" style="margin-top:.4rem"${myHistoryOpen ? ' open' : ''} id="my-history"><summary>Your strokes, hole by hole</summary>` +
+    holes.map(h => { const n = (row && row.card && row.card[String(h.n)]) || (h.n === gf.hole && gf.you ? gf.you.strokes : logs[String(h.n)].length);
+      return `<div style="margin-top:.3rem"><b>${h.n}${ordinal(h.n)}, par ${h.par}</b> &middot; ${n} stroke${n === 1 ? '' : 's'}${h.n === gf.hole && !(row && row.card && row.card[String(h.n)]) ? ' so far' : ''}<ol style="margin:.1rem 0 0;padding-left:1.2rem">${logs[String(h.n)].map(l => `<li>${escapeHTML(l)}</li>`).join('')}</ol></div>`; }).join('') +
+    `<p class="muted" style="margin:.4rem 0 0">One line a stroke; a penalty is a stroke on top of its line; a pick-up is written as par plus three.</p></details>`;
+}
+document.addEventListener('toggle', e => { if (e.target && e.target.id === 'my-history') myHistoryOpen = e.target.open; }, true);
 function golfBoardHTML(gf) {
   const holes = gf.round_holes || [];
   if (holes.length) {
@@ -500,7 +515,8 @@ function golfBoardHTML(gf) {
       `<tr class="${r.player === me.id ? 'me' : ''}"><td>${escapeHTML(r.name)}</td>${holes.map(h => strokeCell(r.card, h.n, (gf.balls || [])[r.player], gf.hole)).join('')}<td class="ms"><b>${r.gross}</b></td><td class="ms">${
         r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`);
     return `<div style="overflow-x:auto"><table class="board scorecard"><tr><td class="k">hole</td>${holes.map(h => `<td class="ms">${h.n}</td>`).join('')}<td class="ms">tot</td><td class="ms">&plusmn;</td></tr>
-      <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms">${holes.reduce((a, h) => a + h.par, 0)}</td><td></td></tr>${rows.join('')}</table></div>`;
+      <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms">${holes.reduce((a, h) => a + h.par, 0)}</td><td></td></tr>${rows.join('')}</table></div>` +
+      golfMyHistory(gf);
   }
   return `<table class="board">${(gf.leaderboard || []).map(r =>
     `<tr class="${r.player === me.id ? 'me' : ''}"><td class="n">${r.place}</td><td>${escapeHTML(r.name)}</td>

@@ -63,6 +63,10 @@ def run():
     golf.CLUB_SPREAD = {c: 0 for c in SPREAD}
     golf.CLUB_LEAK = {c: 0.0 for c in LEAK}
     golf.ROLL = {c: 0 for c in RUN}
+    # And the day's life - the gust, the kick, the spin - off with them,
+    # and on again for the section about the ground.
+    GUST, KICK, SPIN = golf.Day.GUST, golf.KICK_ODDS, dict(golf.SPIN_ODDS)
+    golf.Day.GUST, golf.KICK_ODDS, golf.SPIN_ODDS = (1.0, 1.0), 0.0, {}
 
     print("\n-- the shot --")
     g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
@@ -247,11 +251,15 @@ def run():
     print("\n-- the lie has its say, where hardness is known --")
     g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=5)
     g.hardness = {f"Q{i}": i / 10 for i in range(11)}
-    easy = g.choose(list(g.hardness), "a")
-    check("from the tee, an easy one", g.hardness[easy] <= 0.4, True)
+    tee = [g.hardness[g.choose(list(g.hardness), "a")] for _ in range(300)]
+    check("from the tee, the draw leans easy", sum(tee) / len(tee) < 0.45, True)
     g.balls["a"].lie = "sand"
-    hard = g.choose(list(g.hardness), "a")
-    check("from the sand, a hard one", g.hardness[hard] >= 0.7, True)
+    sand = [g.hardness[g.choose(list(g.hardness), "a")] for _ in range(300)]
+    check("from the sand, it leans hard", sum(sand) / len(sand) > 0.6, True)
+    g.balls["a"].lie = "fairway"
+    check("  but every question can come - the three nearest were all it used to show",
+          len({g.choose(list(g.hardness), "a") for _ in range(400)}), 11)
+    check("a question nobody here has met comes first", g.choose(list(g.hardness), "a", seen=set(g.hardness) - {"Q0"}), "Q0")
     check("with nothing measured, any", golf.Golf(["a"], flat_course(), seed=1).choose(["x", "y"], "a") in ("x", "y"), True)
 
     print("\n-- the shots worth making, for an adept answer --")
@@ -389,6 +397,7 @@ def run():
 
     print("\n-- the club's say: a right answer still varies --")
     golf.CLUB_SPREAD, golf.CLUB_LEAK, golf.ROLL = SPREAD, LEAK, RUN
+    golf.Day.GUST, golf.KICK_ODDS, golf.SPIN_ODDS = GUST, KICK, SPIN
     pb = golf.course("pebble-beach")
     def tee_shots(club, n=300):
         out = []
@@ -504,7 +513,10 @@ def run():
     narrow = golf.Golf(["a"], flat_course(), seed=1)
     narrow.hole()["width"] = 10
     narrow.set_aim("a", 250, 14)
+    # read with the spread and the kick off: this is about the width
+    golf.CLUB_SPREAD, golf.KICK_ODDS = {c: 0 for c in SPREAD}, 0.0
     s = narrow.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    golf.CLUB_SPREAD, golf.KICK_ODDS = SPREAD, KICK
     check("a hole's own width is the rules' width: fourteen yards off on a ten-yard lane is the first cut", s["kind"], "rough")
 
     print("\n-- a hole in one, rare and real --")

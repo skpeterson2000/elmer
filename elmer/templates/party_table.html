@@ -200,6 +200,11 @@ table.res.card td.tot { white-space: nowrap; padding-left: .2rem; }
 /* The scores, in a hand: written as they happen. */
 table.res.card td.hand { font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard", cursive; font-size: .78rem; color: #e8e0c8; letter-spacing: -.02em; }
 table.res.card td.pencil { color: #a9a493; font-style: italic; }
+table.res.card td.card-name { cursor: pointer; text-decoration: underline dotted var(--dimmer); }
+.card-history { margin-top: .5rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: .8rem; }
+.card-history .hist-hole { margin-top: .35rem; }
+.card-history ol { margin: .15rem 0 0; padding-left: 1.3rem; }
+.card-history li { color: var(--text); }
 table.res.card tr:nth-child(odd) td.hand { transform: rotate(-2deg); }
 table.res.card tr:nth-child(even) td.hand { transform: rotate(1.5deg); }
 table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-child(2) td { color: var(--dim); font-size: .75rem; }
@@ -639,11 +644,19 @@ document.addEventListener('click', async e => {
 /* Golf, for the room: the hole as the card gives it, where every ball
    lies, the last stroke in everybody's words - the playback - and the
    card. The club is chosen on the phone; the room sees who is choosing. */
+/* The day, in the hole's line: sun out, a shower coming through, firm and
+   running. From the real forecast at the course when the unit had one. */
+function dayWords(gf) {
+  const d = gf.day || {};
+  const bits = [d.sky_words, d.ground_words].filter(Boolean);
+  return bits.length ? ' &middot; ' + bits.map(esc).join(', ') + (d.forecast ? ' <span class="chip">forecast</span>' : '') : '';
+}
+
 function golfHead(gf) {
   const wind = gf.hole_wind === 'swirling' ? 'swirling' : gf.hole_wind;
   return `<div class="chip">${esc(gf.course_name)}</div>
     <p class="qtext" style="margin:.4rem 0 .2rem"><b>${gf.hole}${ordinal(gf.hole)}</b>${gf.hole_name ? ' &middot; ' + esc(gf.hole_name) : ''}
-      &middot; par ${gf.par} &middot; ${gf.yards} yards &middot; ${gf.wind_mph} mph ${esc(wind || '')}
+      &middot; par ${gf.par} &middot; ${gf.yards} yards &middot; ${gf.wind_mph} mph ${esc(wind || '')}${dayWords(gf)}
       <span class="chip" style="margin-left:.5rem">hole ${Math.min(gf.holes_played + 1, gf.holes)} of ${gf.holes}</span></p>`;
 }
 function ordinal(n) { return [, 'st', 'nd', 'rd'][(n % 100 >> 3 ^ 1) && n % 10] || 'th'; }
@@ -685,11 +698,31 @@ function golfCard(gf, esc_) {
     });
     const par = r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : String(r.to_par);
     const played = ball && ball.log && ball.log.length ? 'this hole: ' + ball.log.map((l, i) => (i + 1) + '. ' + l).join('  |  ') : e(r.name);
-    return `<tr><td title="${e(played)}">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
+    return `<tr><td title="${e(played)}" class="card-name" data-player="${e(r.player)}" role="button" tabindex="0">${e(r.name)}</td>${cells.join('')}<td class="ms tot" title="${r.holes} played, ${par} to par"><b>${r.gross}</b> <span class="k">${par}</span></td></tr>`;
   });
   return `<div style="overflow:hidden"><table class="res card"><tr><td class="k">hole</td>${holes.map(h => `<td class="ms">${h.n}</td>`).join('')}<td class="ms tot">tot</td></tr>
-    <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms tot">${holes.reduce((a, h) => a + h.par, 0)}</td></tr>${rows.join('')}</table></div>`;
+    <tr><td class="k">par</td>${holes.map(h => `<td class="ms">${h.par}</td>`).join('')}<td class="ms tot">${holes.reduce((a, h) => a + h.par, 0)}</td></tr>${rows.join('')}</table></div>` +
+    golfHistory(gf);
 }
+/* A name on the card, pressed, opens that golfer's every stroke, hole by
+   hole, in the words the stroke was called in - one line a stroke, the
+   tap-in included, so the card can always be counted against it. */
+let cardOpen = null;
+function golfHistory(gf) {
+  if (!cardOpen || !(gf.logs || {})[cardOpen]) return '';
+  const row = (gf.leaderboard || []).find(r => r.player === cardOpen);
+  const logs = gf.logs[cardOpen];
+  const holes = (gf.round_holes || []).filter(h => logs[String(h.n)]);
+  return `<div class="card-history"><div class="spread"><b>${esc(row ? row.name : cardOpen)}</b><button class="btn sm ghost" data-history-close="1">close</button></div>` +
+    holes.map(h => { const n = (row && row.card && row.card[String(h.n)]) || (h.n === gf.hole && gf.balls[cardOpen] ? gf.balls[cardOpen].strokes : logs[String(h.n)].length);
+      return `<div class="hist-hole"><span class="k">${h.n}${ordinal(h.n)}, par ${h.par} &middot; ${n} stroke${n === 1 ? '' : 's'}${h.n === gf.hole && !(row && row.card && row.card[String(h.n)]) ? ' so far' : ''}</span><ol>${logs[String(h.n)].map(l => `<li>${esc(l)}</li>`).join('')}</ol></div>`; }).join('') +
+    '<p class="k" style="margin:.4rem 0 0">One line a stroke; a penalty is a stroke on top of its line, and a pick-up is written down as par plus three.</p></div>';
+}
+document.addEventListener('click', e => {
+  const name = e.target.closest('.card-name');
+  if (name) { cardOpen = cardOpen === name.dataset.player ? null : name.dataset.player; if (lastTableState) seats(lastTableState); return; }
+  if (e.target.closest('[data-history-close]')) { cardOpen = null; if (lastTableState) seats(lastTableState); }
+});
 function golfBoard(gf) {
   return `<table class="res" style="margin-top:.6rem"><tr><td class="n"></td><td>player</td><td class="ms">holes</td><td class="ms">gross</td>${gf.handicaps ? '<td class="ms">given</td><td class="ms">net</td>' : ''}<td class="ms">to par</td></tr>${gf.leaderboard.map(r =>
     `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.holes}</td><td class="ms">${r.gross}</td>${gf.handicaps ? `<td class="ms">${r.given}</td><td class="ms">${r.net}</td>` : ''}<td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>`;

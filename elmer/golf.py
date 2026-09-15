@@ -63,6 +63,7 @@ which club they chose and whether they were right; this says where the
 ball went, in yards and in words - the playback - and who is winning.
 """
 import json
+import math
 import random
 from pathlib import Path
 
@@ -130,11 +131,33 @@ SLOPE_BREAK = 0.035             # feet of break per foot rolled, per percent of 
 PUTT_LINE = 4.0                 # degrees either side of the line a right answer's putt may start on
 DEFAULT_SLOPE = {"falls": "front", "grade": 1.5}
 FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right": (0.0, 1.0)}
-ROLL = {"driver": 24, "wood": 18, "iron": 9, "wedge": 3}
-SURFACE_ROLL = {"fairway": 1.0, "green": 0.45, "rough": 0.3, "sand": 0.0, "tee": 1.0}
-WIND_ROLL = {"with": 1.4, "into": 0.6, "across": 1.0}
+# The ground's say. A ball lands with the speed it was hit at, and the roll
+# is that speed on that surface on that day: a full driver on a running
+# fairway goes forty yards more; a three-quarter iron into a soft green
+# releases a few and stops. ROLL is a full swing on a fairway of ordinary
+# firmness; the speed of a lesser swing scales it, the surface it came down
+# on scales it, the wind, and the day.
+ROLL = {"driver": 24, "wood": 19, "iron": 11, "wedge": 6}
+SURFACE_ROLL = {"fairway": 1.0, "green": 0.6, "rough": 0.35, "sand": 0.0, "tee": 1.0}
+WIND_ROLL = {"with": 1.25, "into": 0.7, "across": 1.0}
 WIND_DRIFT = 0.35               # yards of sideways drift per mile an hour, across
-ROLL_NOISE = (0.6, 1.4)         # the bounce: the roll, times somewhere in here
+ROLL_NOISE = (0.7, 1.3)         # the bounce: the roll, times somewhere in here
+ROLL_SPEED = 1.2                # the roll goes as the landing speed to this power
+# The day - see Day. The ground's firmness comes from how wet it is, and
+# how wet it is comes from the sky, hole by hole.
+GROUND_WORDS = ((0.25, "firm and running"), (0.55, ""), (0.8, "soft underfoot"), (1.01, "wet - nothing runs"))
+SKY_WORDS = {"sun": "sun out", "cloud": "overcast", "shower": "a shower coming through"}
+# A green that falls toward the player checks an approach; one that falls
+# away releases it; one that falls across nudges the roll toward the fall.
+SLOPE_RELEASE = 0.1             # per percent of grade, on the roll
+SLOPE_DRIFT = 0.15              # of the roll, per percent of grade, across
+# Spin: a wedge into a green can bite and come back; an iron now and then.
+SPIN_ODDS = {"wedge": 0.35, "iron": 0.15}
+SPIN_BACK = {"wedge": (1, 4), "iron": (0, 2)}
+# The bounce that kicks: ground is not flat, and one landing in eight goes
+# sideways a few yards off what it hit.
+KICK_ODDS = 0.12
+KICK_YARDS = (2, 6)
 SIDE_BANDS = {"": ("across", "front", "centre", "around", "beyond", ""),
               "left": ("left", "around"), "right": ("right", "around")}
 
@@ -170,6 +193,10 @@ PICK_UP_OVER = 3
 # a question this unit has measured as hard, or the third right answer in a
 # row. Which shot depends on where the ball is; the ball still obeys the
 # course, it just gets the shot a good golfer would have played from there.
+# How far from the lie's wanted hardness a question may be and still be
+# likely: the draw's bell, in the pool's 0..1 measure. A quarter means a
+# question half a scale away is a fifth as likely as one dead on.
+CHOOSE_WIDTH = 0.25
 ADEPT_HARDNESS = 0.6            # of the unit's own 0..1 measure; see difficulty.py
 ADEPT_STREAK = 3                # right answers in a row, when nothing is measured
 HOLE_OUT_ODDS = 1 / 6           # an adept approach from inside HOLE_OUT_FROM yards
@@ -254,6 +281,83 @@ def handicap_from_accuracy(accuracy, holes=18):
     return max(0, min(18, full)) * holes // 18
 
 
+class Day:
+    """The weather a round is played in, and how it moves.
+
+    A round is four hours, and in four hours the wind gets up and backs
+    round, a shower comes through and the sun follows it, and the ground
+    that was running at the first is holding at the ninth. So the day is
+    a small model rather than a number: the wind walks around the day's
+    mean from hole to hole and gusts from shot to shot; the sky steps
+    between sun, cloud and shower; the ground's moisture rises under a
+    shower and dries in sun and wind, and its firmness - what the roll
+    is multiplied by - follows the moisture. It starts from the real
+    forecast at the course when the unit had a network (weather.py), and
+    from the card's typical wind when it did not.
+    """
+    WALK = 3.0                  # mph the wind may drift between holes
+    PULL = 0.3                  # of the way back to the day's mean, each hole
+    GUST = (0.7, 1.4)           # a shot's wind, as a factor on the hole's
+    DRY = {"sun": 0.02, "cloud": 0.01, "shower": -0.15}     # moisture per hole
+    WIND_DRY = 0.001            # more, per mile an hour
+    STEP = {"sun": (("cloud", 0.15),), "cloud": (("sun", 0.25), ("shower", 0.2)), "shower": (("cloud", 0.5),)}
+
+    def __init__(self, rng, typical_mph=10, forecast=None):
+        self.rng = rng
+        self.forecast = forecast or None
+        if forecast:
+            self.mean = float(forecast.get("wind_mph") or typical_mph)
+            self.sky = forecast.get("sky") or "sun"
+            self.rain_chance = float(forecast.get("rain_chance") or 0.0)
+            self.moisture = 0.7 if forecast.get("raining") else 0.3 + 0.3 * self.rain_chance
+        else:
+            self.mean = float(typical_mph)
+            self.sky = rng.choices(("sun", "cloud", "shower"), weights=(5, 3, 1))[0]
+            self.rain_chance = {"sun": 0.05, "cloud": 0.25, "shower": 0.6}[self.sky]
+            self.moisture = rng.uniform(0.15, 0.6) + (0.3 if self.sky == "shower" else 0.0)
+        self.moisture = max(0.0, min(1.0, self.moisture))
+        self.wind_mph = max(0, round(self.mean * rng.uniform(0.7, 1.3)))
+        self.holes = 0
+
+    def next_hole(self):
+        """The day moves on: the wind walks, the sky steps, the ground
+        dries or soaks."""
+        self.holes += 1
+        drift = self.rng.uniform(-self.WALK, self.WALK) + self.PULL * (self.mean - self.wind_mph)
+        self.wind_mph = max(0, min(40, round(self.wind_mph + drift)))
+        r = self.rng.random()
+        for to, odds in self.STEP[self.sky]:
+            # the forecast's rain chance leans the step toward a shower
+            if to == "shower":
+                odds *= 0.5 + 2.0 * self.rain_chance
+            if r < odds:
+                self.sky = to
+                break
+            r -= odds
+        self.moisture -= self.DRY[self.sky] + (self.WIND_DRY * self.wind_mph if self.sky != "shower" else 0.0)
+        self.moisture = max(0.0, min(1.0, self.moisture))
+
+    def gust(self):
+        """This shot's wind: the hole's, gusting or lulling."""
+        return self.wind_mph * self.rng.uniform(*self.GUST)
+
+    @property
+    def firmness(self):
+        """What the roll is multiplied by: bone dry runs a third more,
+        soaked runs a third less."""
+        return round(1.35 - 0.7 * self.moisture, 3)
+
+    @property
+    def ground_words(self):
+        return next(w for edge, w in GROUND_WORDS if self.moisture < edge)
+
+    def state(self):
+        return {"wind_mph": self.wind_mph, "sky": self.sky, "sky_words": SKY_WORDS.get(self.sky, ""),
+                "moisture": round(self.moisture, 2), "firmness": self.firmness,
+                "ground_words": self.ground_words,
+                "forecast": bool(self.forecast), "where": (self.forecast or {}).get("where", "")}
+
+
 class Ball:
     """One player's ball on one hole."""
 
@@ -273,7 +377,7 @@ class Ball:
 
 class Golf:
 
-    def __init__(self, players, course, holes=None, handicaps=None, seed=None, seconds=30.0):
+    def __init__(self, players, course, holes=None, handicaps=None, seed=None, seconds=30.0, forecast=None):
         """`players` in seating order; `course` a course dict; `holes` the
         hole numbers to play (default the front nine); `handicaps` strokes
         given per player over the round, or None for none."""
@@ -298,11 +402,12 @@ class Golf:
         self.power = {p: 1.0 for p in self.players}
         self.wild = {p: 1.0 for p in self.players}
         self.balls = {}
-        self.wind_mph = 0
+        self.day = Day(self.rng, (course.get("wind") or {}).get("typical_mph", 10), forecast)
         self.playoff = []          # players still in a playoff, if one
         self.playoff_holes = 0
         self._winner = None
         self.history = []
+        self.logs = {p: {} for p in self.players}       # player -> hole n -> every stroke's words
         # The thread of questions: how often each has been asked this
         # round, which were missed, the section each hole took, and how
         # hard the pool's questions have measured (set by the room).
@@ -314,6 +419,17 @@ class Golf:
         self.tee_times = []             # who joins at the next tee, in order
         self.streak = {}                # right answers in a row, per player
         self._tee_off()
+
+    # The day's wind, as the round has always been asked for it - and set,
+    # which the tests do to read the wind's yards exactly.
+    @property
+    def wind_mph(self):
+        return self.day.wind_mph
+
+    @wind_mph.setter
+    def wind_mph(self, mph):
+        self.day.wind_mph = mph
+        self.day.mean = mph
 
     # ---------------------------------------------------------------- holes
 
@@ -327,8 +443,8 @@ class Golf:
         h = self.hole()
         if h is None:
             return
-        typical = self.course.get("wind", {}).get("typical_mph", 10)
-        self.wind_mph = max(0, round(typical * self.rng.uniform(0.6, 1.4)))
+        if self.hole_index > 0:
+            self.day.next_hole()
         # The tee is where a group is joined: whoever booked a tee time
         # during the last hole is in the group from this one.
         if not self.playoff:
@@ -388,7 +504,19 @@ class Golf:
         for club in reversed(allowed):
             if self.reach(player, club) >= left:
                 return club
-        return allowed[0]
+        # None reaches: the longest - unless a full swing with it, and the
+        # run after, would find water lying across the fairway. Then the
+        # longest that stops short of it: the lay-up every golfer knows.
+        for club in allowed:
+            # with room for the club's spread and a lively bounce
+            far = (ball.at + self.reach(player, club) + CLUB_SPREAD.get(club, AIM)
+                   + self.expected_roll(club, "fairway", self.wind_on(h)) * ROLL_NOISE[1])
+            water = self._in_band(h, int(far), kinds=("water",), sides=SIDE_BANDS[""])
+            crossing = [hz for hz in h.get("hazards", []) if hz["kind"] == "water"
+                        and hz.get("side", "") in SIDE_BANDS[""] and ball.at < hz["from"] <= far]
+            if not water and not crossing:
+                return club
+        return allowed[-1]
 
     # ---------------------------------------------------------------- shots
 
@@ -444,10 +572,13 @@ class Golf:
             return {"at": mark["at"], "off": mark["off"], "set": True}
         return {"at": h["yards"], "off": 0, "set": False}
 
-    def expected_roll(self, club, lie="fairway", wind="across"):
+    def expected_roll(self, club, lie="fairway", wind="across", carry=None, most=None):
         """How far a ball with this club is expected to run on after it
-        lands there: what a golfer allows for when landing it short."""
-        return ROLL.get(club, 0) * SURFACE_ROLL.get(lie, 1.0) * WIND_ROLL.get(wind, 1.0)
+        lands there: what a golfer allows for when landing it short. A
+        full swing unless the carry is given against the club's most."""
+        speed = 1.0 if not carry or not most else max(0.3, min(1.15, (abs(carry) / float(most)) ** ROLL_SPEED))
+        return (ROLL.get(club, 0) * speed * SURFACE_ROLL.get(lie, 1.0) * WIND_ROLL.get(wind, 1.0)
+                * self.day.firmness)
 
     def _carry(self, ball, club, wind, left):
         """How far the ball goes. A club that can reach the mark is hit at
@@ -455,7 +586,7 @@ class Golf:
         length. The wind has its say on both. Nothing about the answer but
         that it was right reaches here: the swing is not timed."""
         most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-        wind_yards = WIND_EFFECT.get(wind, 0.0) * self.wind_mph
+        wind_yards = WIND_EFFECT.get(wind, 0.0) * self.day.gust()
         spread = CLUB_SPREAD.get(club, AIM)
         if most + wind_yards >= abs(left):
             # Aimed - at the pin, from either side of it, within the club's spread.
@@ -487,6 +618,13 @@ class Golf:
         # shot is played at the mark; the pin is what is left after it.
         mark = self.aim(self._who) or {"at": h["yards"], "off": 0, "set": False}
         to_mark = mark["at"] - ball.at
+        if not mark.get("set") and club != "putter":
+            # Nobody aims at the pin with a club that runs: the ball is
+            # landed short by what it is expected to release on the green,
+            # and the run does the rest. A golfer who set a mark gets it.
+            most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+            if most >= to_mark:
+                to_mark -= int(round(self.expected_roll(club, "green", wind, to_mark, most) * 0.8))
         flair = None
         if adept:
             if left_before <= HOLE_OUT_FROM and self.rng.random() < HOLE_OUT_ODDS:
@@ -536,8 +674,8 @@ class Golf:
             if abs(off) <= fairway_half(h):           # a leak goes off the fairway, by definition
                 off = (-1 if leaked == "left" else 1) * (fairway_half(h) + 3)
         # A crosswind drifts the ball in flight, off the side it blows from.
-        if wind == "across" and self.wind_mph:
-            drift = WIND_DRIFT * self.wind_mph * (1 if self.wind_from(h) == "left" else -1)
+        if wind == "across" and self.day.wind_mph:
+            drift = WIND_DRIFT * self.day.wind_mph * (1 if self.wind_from(h) == "left" else -1)
             off += drift * (0.4 if flair == "stinger" else 1.0)
         off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         from_the_tee = ball.strokes == 0
@@ -551,15 +689,37 @@ class Golf:
         came_down = "green" if (abs(h["yards"] - landed) <= edge and abs(off) <= GREEN_HALF) else \
             ("sand" if (self._in_band(h, landed, kinds=("bunker",), sides=SIDE_BANDS[side_of(off, half)])) else
              "rough" if (side_of(off, half) or self._in_band(h, landed, kinds=("rough",), sides=SIDE_BANDS[""])) else "fairway")
-        roll = 0
+        roll, spun, kicked = 0, False, None
         if flair != "pure":
-            roll = ROLL.get(club, 0) * SURFACE_ROLL.get(came_down, 1.0) * WIND_ROLL.get(wind, 1.0) \
-                * self.swing.uniform(*ROLL_NOISE)
+            most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+            roll = self.expected_roll(club, came_down, wind, abs(carry), most) * self.swing.uniform(*ROLL_NOISE)
+            if came_down == "green":
+                # The green's fall: toward the player checks the ball, away
+                # releases it, across nudges the roll toward the fall.
+                s = self.slope(h)
+                if s["falls"] == "front":
+                    roll *= max(0.4, 1 - SLOPE_RELEASE * s["grade"])
+                elif s["falls"] == "back":
+                    roll *= 1 + SLOPE_RELEASE * s["grade"]
+                else:
+                    off += (-1 if s["falls"] == "left" else 1) * SLOPE_DRIFT * s["grade"] * roll
+                if club in SPIN_ODDS and not adept and self.swing.random() < SPIN_ODDS[club]:
+                    lo, hi = SPIN_BACK[club]
+                    roll, spun = -self.swing.uniform(lo, hi), True
+            elif came_down in ("fairway", "rough") and self.swing.random() < KICK_ODDS:
+                kicked = "left" if self.swing.random() < 0.5 else "right"
+                off += (-1 if kicked == "left" else 1) * self.swing.uniform(*KICK_YARDS)
+            off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         roll = int(round(roll))
         ran_through = None
-        if roll:
+        if roll > 0:
             for y in range(landed + 1, landed + roll + 1):
                 hz_on_the_way = self._in_band(h, y, kinds=("water", "bunker"), sides=SIDE_BANDS[side_of(off, half)])
+                # The card puts the water beyond a green at the pin's own
+                # yardage; the green runs on past the pin, and a ball still
+                # on it has not gone in.
+                if hz_on_the_way and hz_on_the_way.get("side") == "beyond" and y <= h["yards"] + edge                         and abs(off) <= GREEN_HALF:
+                    continue
                 if hz_on_the_way:
                     ran_through, roll = hz_on_the_way, y - landed
                     break
@@ -579,7 +739,12 @@ class Golf:
         # when the card has nothing there.
         hz = ran_through or (None if on_green or flair == "worked" else self._in_band(h, rest, sides=SIDE_BANDS[side]))
         landed = rest
-        ran = (f", ran {roll} more" if roll >= 4 else ", checked up" if (came_down == "green" and roll <= 1 and club in ("iron", "wedge")) else "")
+        ran = (f", spun back {-roll * 3} feet" if spun and roll < 0
+               else f", released {roll}" if (came_down == "green" and roll >= 3)
+               else f", ran {roll} more" if roll >= 4
+               else ", checked up" if (came_down == "green" and roll <= 1 and club in ("iron", "wedge")) else "")
+        if kicked:
+            ran = f", kicked {kicked}" + ran
         wide = f" {side}" if side else ""
         if hz and hz["kind"] == "water":
             if side:
@@ -599,6 +764,8 @@ class Golf:
             ball.lie = "green"
             feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
             onto = " - ran onto the green" if came_down != "green" and roll >= 4 else f"{ran} - on the green"
+            if came_down == "green" and left < 0 and not spun and roll >= 3:
+                onto = f", released {roll} past the pin - on the green"
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards{onto}, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off}
         if side and not hz and abs(left) > edge:
@@ -716,7 +883,7 @@ class Golf:
             ball.strokes += 1                       # the tap-in: a stroke, no question
             ball.at, ball.off, ball.holed = h["yards"], 0, True
             return {"kind": "holed", "putt": True, "feet": feet, "tap_in": True,
-                    "words": f"{head} - to {'a foot' if left < 1.5 else str(int(round(left))) + ' feet'}, that's good",
+                    "words": f"{head} - to {'a foot' if left < 1.5 else str(int(round(left))) + ' feet'}, that's good - and the tap-in is a stroke",
                     "carry": 0, "left_feet": 0}
         half = h["green"] * 1.5 + 6
         ball.at, ball.off = h["yards"] + rx / 3.0, ry / 3.0
@@ -829,6 +996,14 @@ class Golf:
             ball.strokes = h["par"] + PICK_UP_OVER
             shot["words"] += f" - picked up, {score_name(ball.strokes, h['par'])}"
             shot["score"] = score_name(ball.strokes, h["par"])
+        elif ball.holed and shot.get("tap_in"):
+            # The tap-in is a stroke - a conceded putt counts, on any card -
+            # and it is written as a line of its own so the strokes on the
+            # card and the lines in the history are the same number. It
+            # used to be folded into the putt's line, and a golfer who
+            # counted the lines was one short and called it cheating.
+            shot["also"] = f"tap-in - holed, {ball.strokes} for {score_name(ball.strokes, h['par'])}"
+            shot["score"] = score_name(ball.strokes, h["par"])
         elif ball.holed:
             shot["words"] += f" - {ball.strokes} for {score_name(ball.strokes, h['par'])}"
             shot["score"] = score_name(ball.strokes, h["par"])
@@ -836,13 +1011,16 @@ class Golf:
                     done=ball.done(), holed=ball.holed, aim=ball.last_aim, **{"from": played_from})
         self.aims.pop(p, None)            # a mark is for one stroke
         ball.log.append(shot["words"])
+        if shot.get("also"):
+            ball.log.append(shot["also"])
+        self.logs.setdefault(p, {})[h["n"]] = list(ball.log)
         return shot
 
     def _after(self, h, shots):
         """The hole's state after some strokes; the next hole if it is done."""
         hole_done = all(b.done() for b in self.balls.values())
         row = {"hole": h["n"], "par": h["par"], "shots": shots, "hole_done": hole_done,
-               "wind_mph": self.wind_mph}
+               "wind_mph": self.day.wind_mph}
         if hole_done:
             for p, b in self.balls.items():
                 self.cards[p][h["n"]] = b.strokes
@@ -989,13 +1167,24 @@ class Golf:
             self.sections_used.append(pick)
         return pick
 
-    def choose(self, candidates, player):
-        """One of `candidates` for this player's stroke: where the pool has
-        measured hardness, the one nearest what the lie calls for, from the
-        three nearest so it is not the same one every round; otherwise any."""
+    def choose(self, candidates, player, seen=None):
+        """One of `candidates` for this player's stroke.
+
+        Questions nobody on this unit has met come first, the way the
+        tournament draws - a group that plays every Thursday should not
+        meet the same forty questions every Thursday. Then, where the pool
+        has measured hardness, the draw leans toward what the lie calls
+        for: nearer the wanted hardness is likelier, but every question can
+        come. It used to take the three nearest and pick one of those,
+        which put the same three up on every first fairway stroke of every
+        round and never showed a section's easy or hard questions at all."""
         ids = list(candidates)
         if not ids:
             return None
+        if seen:
+            fresh = [q for q in ids if q not in seen]
+            if fresh:
+                ids = fresh
         ranked = [q for q in ids if q in self.hardness]
         if len(ranked) < 3:
             return self.rng.choice(ids)
@@ -1003,24 +1192,26 @@ class Golf:
         want = LIE_HARDNESS.get(ball.lie if ball else "fairway", 0.5)
         lo, hi = min(self.hardness[q] for q in ranked), max(self.hardness[q] for q in ranked)
         span = (hi - lo) or 1.0
-        place = lambda q: (self.hardness[q] - lo) / span      # noqa: E731
-        ranked.sort(key=lambda q: abs(place(q) - want))
-        return self.rng.choice(ranked[:3])
+        weights = [math.exp(-(((self.hardness[q] - lo) / span - want) / CHOOSE_WIDTH) ** 2 / 2) for q in ranked]
+        return self.rng.choices(ranked, weights=weights)[0]
 
-    def draw(self, by_section, all_ids, player):
+    def draw(self, by_section, all_ids, player, seen=None):
         """The question for this stroke, from the pool as the room presents
         it: `by_section` every question by section, `all_ids` every
-        question. One area per hole until it runs dry; every question once;
-        then the misses; then by hardness against the lie."""
+        question, `seen` the questions anybody on this unit has met. One
+        area per hole until it runs dry; every question once, the unmet
+        first; then the misses, once more each - on purpose, since a
+        question missed is one to meet again; then by hardness against
+        the lie."""
         left = {sec: [q for q in ids if q not in self.asked] for sec, ids in by_section.items()}
         section = self.pick_section(left)
         if section is not None:
-            return self.choose(left[section], player), section
+            return self.choose(left[section], player, seen), section
         again = [q for q in self.missed if self.asked.get(q, 0) < 2]
         if again:
             return again[0], None
         fewest = min(self.asked.get(q, 0) for q in all_ids) if all_ids else 0
-        return self.choose([q for q in all_ids if self.asked.get(q, 0) == fewest], player), None
+        return self.choose([q for q in all_ids if self.asked.get(q, 0) == fewest], player, seen), None
 
     # ---------------------------------------------------------------- views
 
@@ -1052,7 +1243,8 @@ class Golf:
             "course": self.course["id"], "course_name": self.course["name"],
             "hole": h["n"] if h else None, "par": h["par"] if h else None,
             "yards": h["yards"] if h else None, "hole_name": (h.get("name") or "") if h else "",
-            "hole_wind": h.get("wind") if h else None, "wind_mph": self.wind_mph,
+            "hole_wind": h.get("wind") if h else None, "wind_mph": self.day.wind_mph,
+            "day": self.day.state(), "ground_words": self.day.ground_words,
             "holes_played": self.hole_index, "holes": len(self.holes),
             "slope": self.slope(h) if h else None,
             "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
@@ -1062,6 +1254,9 @@ class Golf:
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "log": list(b.log)}
                       for p, b in self.balls.items()},
+            # every stroke of every hole, in words, by player: the history a
+            # name on the card opens, so a score can always be counted
+            "logs": {p: {str(n): lines for n, lines in holes.items()} for p, holes in self.logs.items()},
             "leaderboard": self.leaderboard(),
             # the round's holes with their pars, in order: the scorecard's top rows
             "round_holes": [{"n": n, "par": next(x["par"] for x in self.course["holes"] if x["n"] == n)}

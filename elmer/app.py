@@ -42,7 +42,7 @@ from . import (
     qr, ranks, reachout, references, regional, repeaters,
     rfexposure, rfpdf, show, smith, spotlog, srs,
     sweeps, terrain, touchstone, tournament, towerwitch, track,
-    trivia, units, update, vna, whipbuild,
+    trivia, units, update, vna, weather, whipbuild,
 )
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
@@ -3736,7 +3736,17 @@ def _golf_draw(room, pool, to):
     by_section = {}
     for q in pool.by_id.values():
         by_section.setdefault(q["section"], []).append(q["id"])
-    drawn, _ = room.golf.draw(by_section, list(pool.by_id), to)
+    # The questions this unit has shown anybody, so the unmet come first -
+    # on a connection of its own, since the director draws from its thread.
+    try:
+        _c = db.connect()
+        try:
+            seen = db.seen_questions(_c, pool.pool_id)
+        finally:
+            _c.close()
+    except Exception:
+        seen = set()
+    drawn, _ = room.golf.draw(by_section, list(pool.by_id), to, seen)
     room.golf.note_asked(drawn)
     return drawn
 
@@ -3923,7 +3933,7 @@ def _ask_party(difficulty="technician", section=None, seconds=None):
     try:
         _c = db.connect()
         try:
-            seen = db.seen_questions(_c, pool_id)
+            seen = db.seen_questions(_c, pool.pool_id)
         finally:
             _c.close()
     except Exception:
@@ -4011,6 +4021,7 @@ def api_party_mode():
         if wanted == party.GOLF:
             difficulty = str(body.get("difficulty") or _party_class()).lower()
             course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+            weather.prefetch(course)
             spec.update({"course": course["id"], "course_name": course["name"],
                          "holes_word": str(body.get("holes") or "front").lower(), "difficulty": difficulty})
             spec.setdefault("tee_in", DEFAULT_TEE_IN)
@@ -4124,6 +4135,7 @@ def _apply_mode(room, wanted, body):
             except ValueError:
                 holes = list(range(1, 10))
         course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+        weather.prefetch(course)
         spec = {"difficulty": difficulty, "holes": holes, "holes_word": which, "level": body.get("level"),
                 "course": course["id"], "course_name": course["name"],
                 "handicap": bool(body.get("handicap")),
@@ -4193,6 +4205,7 @@ def _start_golf(room, spec):
     fills the group - so it takes no request and opens its own connection."""
     difficulty = spec["difficulty"]
     course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+    weather.prefetch(course)
     room.rebalance_bots()                 # a foursome, with whoever came
     started, why = room.begin_golf(course, spec["holes"], spec.get("handicaps"), spec["seconds"])
     if started is None:
@@ -5052,6 +5065,7 @@ def _begin_hall_game(running, wanted, difficulty=None, seconds=None, tables=None
         started, why = running.begin_cutthroat()
     else:
         course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
+        weather.prefetch(course)
         which = str(holes or "front").lower()
         played = {"front": list(range(1, 10)), "back": list(range(10, 19)),
                   "all": list(range(1, 19))}.get(which, list(range(1, 10)))
