@@ -980,10 +980,31 @@ async function tick() {
    which is what a room full of phones actually strains, not the pipe. */
 const POLL_FAST = 1000, POLL_WAIT = 5000;
 let pollMs = POLL_FAST;
+/* Every poll is caught and the next always armed - a tick that threw used
+   to end the polling for good, and a phone with nothing wrong on it sat on
+   its last screen. A failed or slow poll is reported to the server log. */
+let lastGoodPoll = performance.now();
+async function guardedTick() {
+  const t0 = performance.now();
+  try {
+    await tick();
+    lastGoodPoll = performance.now();
+    if (performance.now() - t0 > 4000) reportError('slow-poll', 'the phone state took ' + Math.round(performance.now() - t0) + ' ms');
+  } catch (err) {
+    reportError('poll-failed', 'phone tick failed: ' + (err && err.message ? err.message : err), {stack: err && err.stack});
+  }
+}
 function schedulePoll() {
   if (poll) clearTimeout(poll);
-  poll = setTimeout(async () => { await tick(); schedulePoll(); }, pollMs);
+  poll = setTimeout(async () => { await guardedTick(); schedulePoll(); }, pollMs);
 }
+setInterval(() => {
+  if (poll && performance.now() - lastGoodPoll > 30000) {
+    reportError('poll-stalled', 'no phone state in ' + Math.round((performance.now() - lastGoodPoll) / 1000) + ' s; polling again');
+    lastGoodPoll = performance.now();
+    schedulePoll();
+  }
+}, 10000);
 function start() {
   if (poll) clearTimeout(poll);
   tick();

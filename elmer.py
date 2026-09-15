@@ -956,6 +956,11 @@ def main():
         # One small public request every twenty minutes; empty if there is
         # no route out, and nothing of the operator's goes with it.
         spotlog.watch()
+        # A request that never answers is otherwise invisible: the log line
+        # is written when it completes. This writes it down while it is
+        # stuck, with where its thread is - see elmer.logs.watch_stuck.
+        from elmer import logs as _logs
+        _logs.watch_stuck()
         # Windows cannot signal itself awake, so stopping the server there
         # needs one connection to this port to break the accept loop. See
         # elmer.host.stop_main_thread.

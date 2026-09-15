@@ -977,7 +977,7 @@ async function tick() {
         // A person's address is theirs: the clubs, and Hit when they are
         // ready - the question does not come until they say so. Seated
         // here, the clubs are on this screen; on a phone, they are there.
-        const awayHere = gf.address_waits && atScreen.some(x => x.id === gf.away);
+        const awayHere = gf.address_waits && atScreen.some(x => String(x.id) === String(gf.away));
         const awayBall = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
         const address = gf.away_name && !gf.over
           ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
@@ -1118,7 +1118,7 @@ async function tick() {
     if (s.golf) {
       // A stroke, not a race: the answer, then where the ball went, and
       // the group's balls. No seconds, no points, no placings.
-      const mineHere = atScreen.filter(x => round.to == null || x.id === round.to);
+      const mineHere = atScreen.filter(x => round.to == null || String(x.id) === String(round.to));
       // Two beats: first the shot in golfing terms - the call, the club, the
       // yards - and only then the answers, theirs and the right one at once.
       if (!revealBeat[round.number]) {
@@ -1917,11 +1917,42 @@ setInterval(netTick, 5000);
    every second to do it. */
 const TABLE_FAST = 1000, TABLE_WAIT = 5000;
 let tableMs = TABLE_FAST, tableTimer = null;
+/* A poll that throws - a fetch that failed, a paint that hit a bad value -
+   used to end the polling for good: the timer was only re-armed after a
+   tick that came back. A screen with nothing wrong on it then sat on
+   whatever it last drew, which is what "the game locked up" looks like. Now
+   every tick is caught and the next is always armed; a poll that fails or
+   takes longer than a few seconds is reported to the server log, with the
+   page it was on, so the next report says what happened rather than nothing. */
+let lastGoodPoll = performance.now();
+async function guardedTick() {
+  const t0 = performance.now();
+  try {
+    await tick();
+    lastGoodPoll = performance.now();
+    const took = performance.now() - t0;
+    if (took > 4000) reportError('slow-poll', 'the table state took ' + Math.round(took) + ' ms');
+  } catch (err) {
+    reportError('poll-failed', 'table tick failed: ' + (err && err.message ? err.message : err),
+                {stack: err && err.stack, since: Math.round((performance.now() - lastGoodPoll) / 1000)});
+    painted = null;                 // repaint from scratch on the next good state
+  }
+}
 function scheduleTable() {
   if (tableTimer) clearTimeout(tableTimer);
-  tableTimer = setTimeout(async () => { await tick(); scheduleTable(); }, tableMs);
+  tableTimer = setTimeout(async () => { await guardedTick(); scheduleTable(); }, tableMs);
 }
-tick();
+// And a watchdog on the watchdog: if no poll has come back in half a
+// minute - a fetch that hangs never resolves, and cannot be caught - start
+// another line of polling and say so.
+setInterval(() => {
+  if (performance.now() - lastGoodPoll > 30000) {
+    reportError('poll-stalled', 'no table state in ' + Math.round((performance.now() - lastGoodPoll) / 1000) + ' s; polling again');
+    lastGoodPoll = performance.now();
+    scheduleTable();
+  }
+}, 10000);
+guardedTick();
 scheduleTable();
 </script>
 <script src="{{ asset('games.js') }}"></script>

@@ -31,6 +31,7 @@ import os
 import secrets
 import threading
 import time
+import sys
 import traceback
 
 from . import db, startup
@@ -173,14 +174,73 @@ def is_poll(path):
     return any(base.endswith(sfx) for sfx in POLL_SUFFIXES)
 
 
+# Requests in flight, by thread: a request that never comes back is never
+# logged by the line below, which is written when it completes - so a table
+# whose state poll is stuck shows nothing in the log but a gap. The
+# watchdog reads this every few seconds and writes down any request older
+# than STUCK_SECONDS, with the thread's stack, while it is still stuck.
+_inflight = {}
+_inflight_lock = threading.Lock()
+STUCK_SECONDS = 10.0
+
+
+def stuck_requests(older_than=STUCK_SECONDS):
+    """The requests in flight longer than `older_than` seconds, with where
+    their thread is."""
+    now = time.perf_counter()
+    frames = sys._current_frames()
+    out = []
+    with _inflight_lock:
+        rows = list(_inflight.items())
+    for ident, (started, method, path) in rows:
+        age = now - started
+        if age < older_than:
+            continue
+        frame = frames.get(ident)
+        where = "".join(traceback.format_stack(frame, limit=8)) if frame else "(no frame)"
+        out.append({"age": age, "method": method, "path": path, "where": where})
+    return out
+
+
+def watch_stuck(every=5.0):
+    """Log any request stuck longer than STUCK_SECONDS, once a minute per
+    request, for as long as the server runs."""
+    log = logging.getLogger("http")
+    said = {}
+
+    def run():
+        while True:
+            time.sleep(every)
+            try:
+                for r in stuck_requests():
+                    key = (r["method"], r["path"], int(r["age"] // 60))
+                    if key in said:
+                        continue
+                    said[key] = True
+                    log.warning("stuck: %s %s has not answered in %.0fs; its thread is at:\n%s",
+                                r["method"], r["path"], r["age"], r["where"])
+            except Exception:                   # the watchdog must never fall over
+                pass
+    thread = threading.Thread(target=run, name="stuck-watch", daemon=True)
+    thread.start()
+    return thread
+
+
 def install_request_logging(app):
     """Log every request with client address, status and duration."""
     log = logging.getLogger("http")
 
     @app.before_request
     def _start_timer():
-        from flask import g
+        from flask import g, request
         g._started = time.perf_counter()
+        with _inflight_lock:
+            _inflight[threading.get_ident()] = (g._started, request.method, request.full_path.rstrip("?"))
+
+    @app.teardown_request
+    def _done(exc=None):
+        with _inflight_lock:
+            _inflight.pop(threading.get_ident(), None)
 
     @app.after_request
     def _log_request(response):
