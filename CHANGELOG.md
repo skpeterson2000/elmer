@@ -5,8 +5,93 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-15
+
+- The bench: the instruments on Tools, the safety in the Lab, written to be handed on
+- The wind swirls here, recorded
+- Two wind pieces recorded: the breeze is behind you, into the breeze
+- The wind, read the better way: "The wind is, twelve miles per hour, from behind you"
+- The narrator: a hole's colour a line at a time, one to each player, and what lies in the line at address
+- The narrator's second hole: two reads, four lines at the tee, three from the fairway, one from the sand
+- Golf: the ground gets a day - roll from landing speed, weather that moves, the real forecast
+- Make Contact: a track from a silent radio to a first contact
+- The band plan's coordinator follows the QTH, and its plan is fetched ahead
+- A node's game press is refused before the standing-game branch, not after it
+- Twenty bundled places were on the wrong continent; a box round each region
+- The spot feed, sampled: which bands and hours people are on at each park
+- The National Park Service units, bundled: 569 POTA references, each checked against its record
+- One park or summit, picked: what has worked for others, and where to set up
+- Landmarks: the spots inside a place, resolvable with no network
+- 11 m in the model, and no licence as a class the plan can be asked for
+- The moon: an EME page, and moonbounce on the band plan and Make Contact
+- Golf: a ball in the rough is drawn in the rough
+- test_voice: the shelf is put back after the two-reads check
+- A hole may have more than one read, and "That ball is on the beach"
+- Colour for the fairway, the sand, the rough and the water too
+- The narrator gives a hole its colour: lines at the tee, lines at the first putt
+- Any game is the standing game, re-chosen freely; the games explained on both screens
+- The Gaming Center lights the game this table has chosen
+- The narrator reads a hole whole when it is recorded that way
+- CW Baseball: the contact as the last inning's pitch, and a paddle on two keys
+- CW Baseball: the machine pitches code, batting is copying, fielding is sending
+- CW: your rating - the speed you copy at, and the speed you send at
+- Golf: every hole its own shape, and the standings between holes
+- The narrator calls the slot on the sheet: "Player 2 is away"
+- CI: an isolation breach is in the annotation too
+- test_devreset: the press takes nothing, judged by the folder before and after
+- CI: the test loop survives a failing test under bash -e
+- The standing game says how to get in from the screen; CI annotation fixed
+- CI: a failing test annotates the run with which checks failed
+- The pro shop: the record board on the counter, and the wall
+- Golf: the green - everyone wants the cup, and the green decides
+- The golfer's own calls, in his voice: "Nice shot!", "That's swimming."
+- The narrator says the pieces when a phrase is not recorded
+- The phonetic alphabet, recorded: a callsign is said letter by letter
+- The narrator spells a callsign phonetically, and the seat's name box has room
+- The narrator's first recordings, and the tools to take more
+- Golf: set it up before anybody arrives, and name the screen for the course
+- Golf: four different golfers, and the card written as it happens
+- Golf: carry, then roll - a ball does not stick where it lands
+
 ## 2026-09-14
 
+- Golf: the strip keeps the mark beside where the ball went
+- Golf: the hole has a width, and the golfer's mark is their mark
+- Golf: the shot first, then the answer - and the phone shows the answer at all
+- Golf: the question at the top of the screen, the hole under it
+- voice_script.py --have: what is recorded and what is still to do
+- Golf: the club's say - a right answer still lands a little differently
+- Golf: the screens draw the address when the round comes back to a person
+- The narrator says a whole number whole when it has one recorded
+- The developer's reset actually resets: marked, then done on restart
+- Golf, slowed right down: a person's address waits on their Hit
+- Golf: the party card is the scorecard, and the window says nothing
+- The window's closing warning counts the people it would surprise
+- A tee time is no longer run over by the seat's countdown
+- The hole, drawn: a yardage-book strip from the card the game plays
+- The second and third tees at Pebble Beach, sized for the screens
+- Add files via upload
+- The startup update offer no longer kills ELMER on Windows
+- Prepared while they read: the next stroke drawn at the close, the round warmed in the clubhouse
+- The served pictures are sized for the screens, not as they were made
+- The view from the tee: the address is spoken over it
+- The clubhouse: a tee time, friends join, the group departs
+- Add files via upload
+- Add files via upload
+- The shots worth making: an adept answer gets the shot a good golfer would play
+- The narrator's voice, pieced together from recorded snippets
+- Narration for the first at Pebble Beach, for a voice
+- Golf, narrated: the address, the shot alone, then the answers; regulars, records, an ace
+- Golf at the screen: one thing to look at, and the result waits for the person
+- Golf: joined by tee time, the screen is the round's, and every stroke has its call
+- Golf at reading pace: the address, the question read with them, the stroke stood
+- The seat-first ask points where the seats are
+- A game pressed with nobody at the table asks first
+- A balcony is on a floor, and the tenth is not the first
+- The reader draws the page itself; the browser's viewer would not open at it
+- Band plan: the holes in the tables, filled from the ARRL plan
+- Quick starts for Windows, the Pi and Linux; the README points at v1.0
+- README: one screen; the notebook moves to DESIGN.md
 - README: the punch list's checkable errors, corrected
 - The whole Gaming Center across a hall: CutThroat and golf from net control
 - The GPS says where it comes from, and which antenna to move when it goes
