@@ -76,7 +76,7 @@ VOCABULARY = {
     # the holes
     **{f"the-{o}": f"the {o}" for o in ORDINALS},
     "par": "par", "yards": "yards", "feet": "feet", "to-go": "to go",
-    "yards-to-go": "yards to go",
+    "yards-to-go": "yards left to go",
     # the courses
     "pebble-beach": "Pebble Beach", "the-old-course": "the Old Course at Saint Andrews",
     "augusta-national": "Augusta National",
