@@ -98,11 +98,16 @@ does gets named here, with the date.
 
 **What it fetches, and what it does not.** Space weather, the ionosonde
 record, the coordinator's plan, the weather at the golf course, the POTA
-spot feed and a picked park's record come over the network when there is
-one; the moon, the meteor calendar, the sun and every
-game work from a clock and a place with nothing fetched. Nothing about you
-goes out with any request, and nothing is sent from a unit that you have not
-pressed for — the whole list is in [DESIGN.md](DESIGN.md#fidelity).
+spot feed, a picked park's record, and the FCC's own licence files — one
+zip per service, read into an index on the unit the first time a callsign
+of that kind is saved, so every callsign after is answered with no network
+— come over the network when there is one; the moon, the meteor calendar,
+the sun, the reach map and every game work from a clock, a place and what is
+already held. Where a service offers its users a key of their own
+(RepeaterBook does), that is the route ELMER takes, with the operator's own
+key, and a file import is the fallback. Nothing about you goes out with any
+request, and nothing is sent from a unit that you have not pressed for — the
+whole list is in [DESIGN.md](DESIGN.md#fidelity).
 
 **Since v1.0** (on main, untagged): golf got a hand-written scorecard, a
 map of each hole with the aim mark, real carry-and-roll physics and a day's
@@ -112,8 +117,22 @@ recorded a hole at a time; CW Baseball joined the Gaming Center; an EME page
 paints the moon's window on a world map; 11 m got a forecast beside its
 neighbours; "no licence" is a class the band plan can be asked for; Make
 Contact gained a first-contact track; parks and summits have a card of what
-has worked for others, with the National Park Service units bundled; the
-Tools and Lab pages grew a bench of instruments and the safety the exam asks.
+has worked for others, with the National Park Service units bundled, and a
+trip can be planned around a place typed rather than around home; the
+Tools and Lab pages grew a bench of instruments and the safety the exam
+asks, and a card on noise and the near field. The band plan draws where a
+band reaches from your station right now — the path model asked for every
+cell of a grid, a field with soft edges and isolines, one way or the round
+trip, zoomable with borders that follow the zoom — and asks the same path
+three ways on the path tool: with no licence, as a Technician, as a
+General, saying what the far end needs too. Licences come from the FCC's
+own files — amateur, GMRS and commercial alike, with the FRN's other
+tickets — a GMRS licence covers the family it covers, and the paper copy
+and the certificates a person has earned live on their own account: the
+papers on the Library page, the wall in the pro shop and the lounge. CW
+opens on Today, where the record decides the lesson and one press runs the
+session. Golf lets the host say how many companions. The unit keeps a
+ledger of its own pace and names a creeper in the weekly report home.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**
@@ -128,6 +147,9 @@ Tools and Lab pages grew a bench of instruments and the safety the exam asks.
   typical wind.
 - Sound effects for golf are on the bench, unwired.
 - A player's record and awards do not yet travel between units.
+- RepeaterBook's API route is built and waits on RepeaterBook listing ELMER
+  as an app; until then the CSV import is the way in. The FCC licence files
+  have been read on the laptop and not yet timed on a Pi.
 - LoRa: not started. The design is in [DESIGN.md](DESIGN.md), the radios are
   not on the bench.
 - iOS cannot be a LoRa station (no Web Bluetooth in Safari); an iPhone plays
