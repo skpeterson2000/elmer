@@ -63,7 +63,10 @@ def wired():
     # Anything with a listener of its own counts as wired too.
     own = set(re.findall(
         r"getElementById\('(an-[a-z0-9-]+)'\)\.addEventListener", JS))
-    return listed | own
+    # A copy of a control under the figure - [['an-head-2', 'an-head'], ...]
+    # - moves the real one, which is wired; so the copy is.
+    mirrors = {m for m, real in re.findall(r"\['(an-[a-z0-9-]+)', '(an-[a-z0-9-]+)'\]", JS)}
+    return listed | own | mirrors
 
 
 print("\nthe page's controls are found")
