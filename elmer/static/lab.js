@@ -1463,13 +1463,13 @@ function calcAnt() {
                     (type === 'dipole' ? 2 : 1);
   const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2) : heightFt;
   const heading = num('an-head');
-  const headEl = document.getElementById('an-head-v');
-  if (headEl) {
-    headEl.textContent = type === 'yagi'
-      ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
-      : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
-        ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
-  }
+  const headWords = type === 'yagi'
+    ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
+    : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
+      ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
+  ['an-head-v', 'an-head-2-v'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = headWords; });
+  const slope2 = document.getElementById('an-slope-2-v');
+  if (slope2 && slopeEl) slope2.textContent = slopeEl.textContent;
   drawPattern(type, f, heightFt, heading, slope, effHeight);
 
   window.LAB_ANTENNA = {
@@ -1672,6 +1672,16 @@ function drawAntenna(shape, rows, type) {
    nothing ever re-ran to use it. A control that does nothing is worse than no
    control - it tells somebody the program has considered their arrangement
    when it has not. */
+/* The copies on the figure: one value, two sliders. Moving either moves
+   the other and the figure. */
+[['an-head-2', 'an-head'], ['an-slope-2', 'an-slope']].forEach(([mirror, real]) => {
+  const m = document.getElementById(mirror), r = document.getElementById(real);
+  if (!m || !r) return;
+  m.value = r.value;
+  m.addEventListener('input', () => { r.value = m.value; r.dispatchEvent(new Event('input')); });
+  r.addEventListener('input', () => { if (m.value !== r.value) m.value = r.value; });
+});
+
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site', 'an-floor',
  'an-slope', 'an-use', 'an-pw']

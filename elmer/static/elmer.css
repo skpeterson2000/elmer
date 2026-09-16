@@ -698,6 +698,10 @@ table.data tr.denied td { opacity: .45; }
 .cw-char.weak  { color: var(--red); border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.08); }
 .cw-char.unmet { opacity: .4; }
 .cw-char.new { outline: 2px solid var(--amber); outline-offset: 1px; }
+/* The sliders that turn the antenna's picture sit right under it, above
+   the plots they move. */
+.an-turn { margin-top: .6rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); }
+.an-turn .field { margin-bottom: .3rem; }
 /* The phonetic said back, shown where the eye is: under the letter, in the
    colour of the grading. */
 .cw-flash-word { font-size: 1.15rem; min-height: 1.5em; opacity: 0; transition: opacity .15s; text-align: center; }

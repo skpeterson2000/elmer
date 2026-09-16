@@ -269,10 +269,26 @@
       </div>
     </div>
 
-    <div>
+    {# The two controls that turn the picture - which way the wire runs, how
+       much it slopes - are on the picture as well as in the list: a slider
+       has to be next to the thing it moves, or a person is guessing which
+       way to turn it and scrolling back to find out. Both copies are one
+       value. #}
+    <div class="an-figure">
       <svg id="an-svg" viewBox="0 0 620 250" style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
-      <div id="an-out" class="mt small"></div>
+      {# The plots, and the sliders that turn them, straight under the
+         figure; the numbers and the prose after. What moves is next to
+         what moves it. #}
+      <div class="an-turn">
+        <div class="field an-when-heading"><label>Turn it &mdash; which way is it laid?</label>
+          <input type="range" id="an-head-2" min="0" max="179" step="1" value="90">
+          <span class="sim-out" id="an-head-2-v"></span></div>
+        <div class="field an-when-slope"><label>Slope from horizontal (&deg;)</label>
+          <input type="range" id="an-slope-2" min="0" max="70" step="1" value="0">
+          <span class="sim-out" id="an-slope-2-v"></span></div>
+      </div>
       <div id="an-pattern" class="mt"></div>
+      <div id="an-out" class="mt small"></div>
     </div>
   </div>
   <div class="row mt">
