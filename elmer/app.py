@@ -6515,26 +6515,11 @@ def api_doctor():
 # says what it did. KC9SP: many operators are plenty smart enough and put
 # their energy into other things - the press is for them.
 
-def _start_menu_target():
-    """What the Start Menu entry runs: Python itself, windowless, on
-    elmer.py - not the batch file. A batch file under a shortcut is a
-    console on the taskbar beside ELMER's own window and a "Terminate
-    batch job (Y/N)?" when it stops; an application is one icon and no
-    question. The batch file stays for a double-click in a folder, where
-    a console that can show an error is the point. (target, arguments)."""
-    root = Path(__file__).resolve().parents[1]
-    for exe in (root / "python" / "pythonw.exe", root / ".venv" / "Scripts" / "pythonw.exe"):
-        if exe.is_file():
-            return str(exe), f'"{root / "elmer.py"}" --open'
-    return str(root / "elmer.cmd"), ""
-
-
 def _remedy_start_menu():
     root = Path(__file__).resolve().parents[1]
     lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "ELMER.lnk"
-    target, arguments = _start_menu_target()
     script = (f"$s = (New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); "
-              f"$s.TargetPath = '{target}'; $s.Arguments = '{arguments}'; $s.WorkingDirectory = '{root}'; "
+              f"$s.TargetPath = '{root / 'elmer.cmd'}'; $s.WorkingDirectory = '{root}'; "
               f"$s.Description = 'ELMER - radio study and propagation'; "
               f"$s.IconLocation = '{root / 'elmer' / 'static' / 'elmer.ico'},0'; $s.WindowStyle = 7; $s.Save()")
     done = subprocess.run(["powershell", "-NoProfile", "-Command", script],

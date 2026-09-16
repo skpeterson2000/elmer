@@ -182,24 +182,6 @@ def close(process):
     close_by_profile()
 
 
-def bring_to_front():
-    """ELMER's own window, if one is open, brought to the front. True if it
-    was. Windows only: the window is found by the browser process on
-    ELMER's profile and raised by its title, which ends in ELMER."""
-    if os.name != "nt":
-        return False
-    marker = str(PROFILE).replace("'", "''")
-    script = ("$p = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--user-data-dir=" + marker +
-              "*' } | Select-Object -First 1; if (-not $p) { exit 3 }; "
-              "$sh = New-Object -ComObject WScript.Shell; if ($sh.AppActivate([int]$p.ProcessId)) { exit 0 } else { exit 4 }")
-    try:
-        done = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
-        return done.returncode == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
-
-
 def close_by_profile():
     """End any browser process on ELMER's window profile, whatever its pid.
     Windows only; elsewhere the launched process is the window."""
