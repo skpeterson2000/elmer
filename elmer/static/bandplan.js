@@ -474,6 +474,18 @@ function cbConditions() {
    amateur repeaters come from - TowerWitch's, or the import - told apart
    by their eight fixed outputs. A repeater is most of what the GMRS
    licence buys, so the fold says where the nearest ones are. */
+function gmrsLicence(d) {
+  const g = d.gmrs_license;
+  if (!g || !g.callsign) return '';
+  if (!g.found) return '<p class="tiny muted" style="margin-top:.5rem">' + escapeHTML(g.callsign) + ': ' + escapeHTML(g.reason || 'not on record') + '</p>';
+  const st = (g.status || {}).state;
+  return '<p class="small" style="margin-top:.5rem">Your licence: <b class="mono">' + escapeHTML(g.callsign) + '</b>, ' +
+    (st === 'current' ? 'good until <b>' + escapeHTML(g.expires) + '</b>' + ((g.status.days || 0) < 90 ? ' <span class="pill warn">renew soon</span>' : '') :
+     st === 'expired' ? '<b>expired ' + escapeHTML(g.expires) + '</b> \u2014 no grace period on GMRS; apply again before transmitting' :
+     'granted ' + escapeHTML(g.granted || '')) +
+    ' <span class="tiny muted">(' + escapeHTML(g.source || '') + ')</span></p>';
+}
+
 function gmrsRepeaters(d) {
   const rows = d.gmrs_repeaters || [];
   if (!rows.length) {
@@ -511,7 +523,7 @@ function psRender() {
       '<div class="grid cols-2 ps-grid">' +
         '<div>' + psFacts(svc) + '</div>' +
         '<div class="nifog-band" style="margin-top:0">' + tables[svc.key]() + '</div>' +
-      '</div>' + (svc.key === 'cb' ? cbConditions() : '') + (svc.key === 'gmrs' ? gmrsRepeaters(d) : '') + '</details>').join('') +
+      '</div>' + (svc.key === 'cb' ? cbConditions() : '') + (svc.key === 'gmrs' ? gmrsLicence(d) + gmrsRepeaters(d) : '') + '</details>').join('') +
     /* Said once, on the page that shows the channels, because this is where
        somebody with a dual-band handheld is looking at 462.675 and
        wondering. */

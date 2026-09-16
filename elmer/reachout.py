@@ -173,7 +173,21 @@ def _hours_until(iso, when):
     return f"{round(hours)} hours"
 
 
-def gmrs_repeater_ways(lat, lon, height_ft=6.0, conn=None):
+def gmrs_words(gmrs):
+    """The operator's GMRS licence in a clause, or None when there is none
+    on record: what the card says they need is different once they have it."""
+    if not gmrs or not gmrs.get("found"):
+        return None
+    state = (gmrs.get("status") or {}).get("state")
+    call = gmrs["callsign"]
+    if state == "current":
+        return f"you hold {call}, good until {gmrs.get('expires')}"
+    if state == "expired":
+        return f"{call} expired {gmrs.get('expires')} - a GMRS licence has no grace period, so it must be applied for again before you transmit"
+    return f"you hold {call}"
+
+
+def gmrs_repeater_ways(lat, lon, height_ft=6.0, conn=None, gmrs=None):
     """The nearest GMRS repeater, for the GMRS radio - a machine a GMRS
     licensee may key at 50 W and an FRS radio cannot, which is most of
     what the licence buys."""
@@ -181,14 +195,18 @@ def gmrs_repeater_ways(lat, lon, height_ft=6.0, conn=None):
     if not rows:
         return []
     best = rows[0]
+    held = gmrs_words(gmrs)
     return [{
         "key": "gmrs-repeater", "title": f"The GMRS repeater at {best['where'] or best['call']}, {best['output']:.3f}",
         "odds": "good" if best["km"] < 30 else "worth trying",
-        "needs": "A GMRS radio and the GMRS licence - a fee and a form, no exam - which covers the "
-                 "whole family; an FRS radio cannot use a repeater",
+        "needs": (f"A GMRS radio - {held}; the licence covers the whole family, and an FRS radio cannot use a repeater"
+                  if held else
+                  "A GMRS radio and the GMRS licence - a fee and a form, no exam - which covers the "
+                  "whole family; an FRS radio cannot use a repeater"),
         "do": (f"Listen on {best['output']:.3f}, transmit 5 MHz up on {best['output'] + 5:.3f}"
                + (f", tone {best['tone']}" if best.get("tone") else "") + f". It is {best['miles']} miles away on a "
-               f"bearing of {best['bearing']}\u00b0. Say your GMRS call, which begins with W."),
+               f"bearing of {best['bearing']}\u00b0. "
+               + (f"Say {gmrs['callsign']}." if held else "Say your GMRS call, which begins with W.")),
         "why": (f"{len(rows)} GMRS machine{'' if len(rows) == 1 else 's'} within reach of here. A repeater on a "
                 f"tower turns a handheld's mile into thirty; on GMRS that costs the licence and nothing else, "
                 f"and the machines are often open to any licensee - ask the owner, whose call is on the listing."),
@@ -243,12 +261,13 @@ def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
 
 
 def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
-         conn=None):
-    """Everything worth trying from here, best bet first."""
+         conn=None, gmrs=None):
+    """Everything worth trying from here, best bet first. `gmrs` is the
+    operator's GMRS licence record, where one is held."""
     gear = set(gear or [])
     out = list(repeater_ways(lat, lon, gear, height_ft, conn))
     if "gmrs" in gear:
-        out += gmrs_repeater_ways(lat, lon, height_ft, conn)
+        out += gmrs_repeater_ways(lat, lon, height_ft, conn, gmrs)
     state = sun_state(lat, lon, now)
     day = state == "lit"
     rank = _class_rank(license)
@@ -427,8 +446,9 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
             "key": "frs-gmrs", "title": "FRS / GMRS - channel 20 with the "
                                         "travel tone, then 1 and 16",
             "odds": "worth trying",
-            "needs": "An FRS or GMRS radio. FRS needs no license; GMRS needs "
-                     "the no-exam one (47 CFR 95.1705).",
+            "needs": (f"An FRS or GMRS radio - {gmrs_words(gmrs)} (47 CFR 95.1705)." if gmrs_words(gmrs) else
+                      "An FRS or GMRS radio. FRS needs no license; GMRS needs "
+                      "the no-exam one (47 CFR 95.1705)."),
             "do": "462.675 MHz - channel 20 - with a 141.3 Hz tone is the "
                   "travellers' assistance channel by long convention and "
                   "carries a good many GMRS repeaters, so try it first with "
@@ -541,9 +561,9 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
     return [w for w in sorted(out, key=sort_key) if w["odds"] != "no"]
 
 
-def summary(lat, lon, gear=(), license="Technician", now=None, conn=None):
+def summary(lat, lon, gear=(), license="Technician", now=None, conn=None, gmrs=None):
     """The whole answer, with the reasoning that produced it attached."""
-    found = ways(lat, lon, gear, license, now=now, conn=conn)
+    found = ways(lat, lon, gear, license, now=now, conn=conn, gmrs=gmrs)
     cover = repeaters.coverage(lat, lon)
     return {
         "ways": found,

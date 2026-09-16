@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _isolate  # noqa: E402,F401  - before anything from elmer
-from elmer import reachout, repeaters as R  # noqa: E402
+from elmer import callsign, reachout, repeaters as R  # noqa: E402
 
 FAILS = []
 
@@ -65,6 +65,23 @@ def run():
     g = next(w for w in ways if w["key"] == "gmrs-repeater")
     check("  with the input 5 MHz up and the tone", "467.675" in g["do"] and "141.3" in g["do"], True)
     check("  and the licence named as a fee and a form", "no exam" in g["needs"], True)
+
+    print("\n-- the GMRS licence, held --")
+    check("a GMRS call is known by its shape", (callsign.is_gmrs("WRMP909"), callsign.is_gmrs("KAB1234"), callsign.is_gmrs("KC9SP")), (True, True, False))
+    callsign.CACHE = Path(tempfile.mkdtemp()) / "calls"
+    callsign._fetch_gmrs = lambda call: {"results": [{"callsign": "WRMP909", "name": "x", "city": "x", "state": "MN",
+                                                       "grant_date": "2021-05-14", "expiration_date": "2031-05-14"}], "page": 1}
+    rec = callsign.lookup("WRMP909")
+    check("looked up through the one door, filed as GMRS", (rec["found"], rec["service"], rec["expires"]), (True, "gmrs", "2031-05-14"))
+    check("  the name and town the record carries are not kept", "name" in rec or "city" in rec, False)
+    check("  and it is current", rec["status"]["state"], "current")
+    check("a GMRS licence past its date has no grace period", callsign.status_for(callsign._parse_date("2020-01-01"), 0)["state"], "expired")
+    check("  where an amateur one would", callsign.status_for(callsign._parse_date("2025-01-01"))["state"], "grace")
+    ways = reachout.ways(46.60, -94.31, ["gmrs"], "none", gmrs=rec)
+    g = next(w for w in ways if w["key"] == "gmrs-repeater")
+    check("the repeater card knows the licence is held", "you hold WRMP909" in g["needs"] and "Say WRMP909" in g["do"], True)
+    f = next(w for w in ways if w["key"] == "frs-gmrs")
+    check("  and so does the FRS/GMRS card", "you hold WRMP909, good until 2031-05-14" in f["needs"], True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

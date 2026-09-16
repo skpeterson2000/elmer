@@ -419,7 +419,8 @@ def profile_block(connection):
             "rank_rules": {"current_days": ranks.CURRENT_DAYS,
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
-            "license": prof["settings"].get("license") or {}}
+            "license": prof["settings"].get("license") or {},
+            "gmrs": prof["settings"].get("gmrs") or {}}
 
 
 # --------------------------------------------------------------------------
@@ -946,7 +947,7 @@ def api_ways_out():
     license = request.args.get("license") or \
         profile["settings"].get("license_class") or "Technician"
     answer = reachout.summary(place["lat"], place["lon"], gear, license,
-                              conn=connection)
+                              conn=connection, gmrs=profile["settings"].get("gmrs"))
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
     answer["located"] = True
@@ -1664,6 +1665,7 @@ def api_personal():
             out["gmrs_credit"] = repeaters.RB_CREDIT if _ and repeaters.RB_SOURCE in _ else None
         except Exception:                          # never at the page's expense
             log.exception("gmrs repeaters")
+    out["gmrs_license"] = db.get_profile(connection)["settings"].get("gmrs") or None
     return jsonify(out)
 
 
@@ -6694,6 +6696,15 @@ def _adopt_license(connection, call, settings=None):
     on it is also what ELMER calls them.
     """
     save = settings is None
+    if call and callsign.is_gmrs(call):
+        # A GMRS call typed into the amateur box is a GMRS licence, not a
+        # wrong amateur one: filed where it belongs, the amateur call left
+        # as it was. The panel has a box of its own for it.
+        settings = db.get_profile(connection)["settings"] if save else settings
+        settings = _adopt_gmrs(call, settings)
+        if save:
+            db.save_settings(connection, settings)
+        return settings
     db.set_callsign(connection, call or "")
     settings = db.get_profile(connection)["settings"] if save else settings
     found = callsign.lookup(call) if call else None
@@ -6713,6 +6724,30 @@ def _adopt_license(connection, call, settings=None):
     return settings
 
 
+def _adopt_gmrs(call, settings):
+    """Record a GMRS callsign and read its licence - the dates, since a GMRS
+    licence has no class. Blank takes it off."""
+    call = callsign.normalise(call)
+    if not call:
+        settings.pop("gmrs_call", None)
+        settings.pop("gmrs", None)
+        return settings
+    settings["gmrs_call"] = call
+    found = callsign.lookup_gmrs(call)
+    if found:
+        settings["gmrs"] = found
+        if found.get("found"):
+            log.info("GMRS licence %s: granted %s, expires %s (%s)", call,
+                     found.get("granted"), found.get("expires"), found["status"]["state"])
+        else:
+            log.info("GMRS licence %s: %s", call, found.get("reason"))
+    else:
+        settings["gmrs"] = {"callsign": call, "found": False, "service": "gmrs",
+                            "reason": "lookup unavailable - the call is kept, the dates are not known"}
+        log.warning("GMRS lookup unavailable for %s", call)
+    return settings
+
+
 @app.route("/api/settings", methods=["POST"])
 def api_settings():
     body = request.get_json(force=True)
@@ -6720,6 +6755,8 @@ def api_settings():
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         settings = _adopt_license(connection, body["callsign"] or "", settings)
+    if "gmrs_call" in body:
+        settings = _adopt_gmrs(body["gmrs_call"] or "", settings)
     if "units" in body:
         # Narrow on purpose - see elmer/units.py. This is how far away a thing
         # is, not a request to rename the 40 m band.

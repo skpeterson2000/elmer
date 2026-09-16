@@ -110,6 +110,25 @@
   </div>
 {% endif %}
 
+{% if gmrs.get('found') %}
+  <div class="panel tight mt license-strip{% if gmrs.status.state == 'expired' %} bad{% endif %}">
+    <div class="row" style="gap:1.1rem">
+      <b class="mono">{{ gmrs.callsign }}</b>
+      <span class="pill info">GMRS</span>
+      <span class="small muted">granted {{ gmrs.granted }}</span>
+      {% if gmrs.status.state == 'current' %}
+        <span class="small">expires <b>{{ gmrs.expires }}</b> &mdash;
+          {{ gmrs.status.days }} days
+          {% if gmrs.status.days < 90 %}<span class="pill warn">renew soon</span>{% endif %}</span>
+      {% else %}
+        <span class="small">expired {{ gmrs.expires }} &mdash; GMRS has no grace
+          period, so it must be applied for again before you transmit.</span>
+      {% endif %}
+      <span class="tiny muted" style="margin-left:auto">{{ gmrs.source }}</span>
+    </div>
+  </div>
+{% endif %}
+
 <div class="panel tight mt">
   <div class="row" id="bp-legend"></div>
 </div>
