@@ -35,7 +35,13 @@ SAY_EVERY = 3600                   # seconds between log lines about creepers
 BASELINE_CALLS = 100               # the first this many set an endpoint's baseline
 CREEP_FACTOR = 2.0                 # a mean this much over its baseline has crept
 # Budgets for the ninety-fifth percentile, in milliseconds, on a Pi.
-BUDGET = {"poll": 150, "api": 400, "page": 900, "static": 150, "pdf": 4000}
+BUDGET = {"poll": 150, "api": 400, "page": 900, "static": 150, "pdf": 4000, "fetch": 20000}
+# Endpoints that go out to the network on a cold cache - the sky, a
+# geocode, a park list, an update check. Their pace is somebody else's
+# server's; they are judged against a fetch's budget, not a call's.
+FETCHES = ("/api/propagation", "/api/ionosonde", "/api/geocode", "/api/reverse-geocode", "/api/activations/prepare",
+           "/api/reference", "/api/update", "/api/terrain", "/api/pota/", "/api/repeaterbook/", "/api/uls/", "/api/path-to",
+           "/api/callsign", "/api/weather")
 POLLS = ("/api/party/state", "/api/people", "/api/peers", "/health", "/api/party/net",
          "/api/net/checkin", "/api/discovery", "/api/gps", "/api/update", "/api/scoreboard")
 
@@ -65,6 +71,8 @@ def kind_of(path):
         return "static"
     if p.endswith(".pdf") or "/pdf" in p or p.startswith("/prints/"):
         return "pdf"
+    if any(p.startswith(x) for x in FETCHES):
+        return "fetch"
     if any(p.startswith(x) for x in POLLS):
         return "poll"
     if p.startswith("/api/"):

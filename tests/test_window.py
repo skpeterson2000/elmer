@@ -71,6 +71,8 @@ def run():
     stopped = []
     real = host.stop_main_thread
     host.stop_main_thread = lambda port=None: stopped.append(port)
+    alive_was = window.profile_alive
+    window.profile_alive = lambda: False           # nothing else on the profile, in the check
     try:
         # A process that ends on its own stands in for the window closing.
         proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.3)"])
@@ -78,6 +80,17 @@ def run():
         t = window.watch(proc, quitting, 5000)
         t.join(5)
         check("the server is told to stop when the window ends", stopped, [5000])
+        # Edge handing the window to another process: the launched pid ends
+        # while a browser still runs on the profile. The watcher waits.
+        alive = [True, True, False]
+        window.profile_alive = lambda: alive.pop(0) if alive else False
+        window.WATCH_EVERY = 0.05
+        stopped.clear()
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        t = window.watch(proc, threading.Event(), 5001)
+        t.join(5)
+        check("  a pid that ends while the profile is still alive is not a closed window - the server stops only when the profile is empty",
+              (stopped, alive), ([5001], []))
         stopped.clear()
         proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.3)"])
         quitting = threading.Event()
@@ -87,6 +100,7 @@ def run():
         check("  but not when it is already stopping", stopped, [])
     finally:
         host.stop_main_thread = real
+        window.profile_alive = alive_was
 
     print("\n-- closing it from our side --")
     proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])

@@ -208,11 +208,18 @@ def watch_stuck(every=5.0):
     log = logging.getLogger("http")
     said = {}
 
+    # Requests that are long by design - thirty-odd calls to POTA and SOTA
+    # for an area, a licence file from the FCC - are not stuck at ten
+    # seconds; they are said to be at three minutes.
+    LONG = ("/api/activations/prepare", "/api/repeaterbook/fetch", "/api/uls/fetch")
+
     def run():
         while True:
             time.sleep(every)
             try:
                 for r in stuck_requests():
+                    if any(r["path"].startswith(x) for x in LONG) and r["age"] < 180:
+                        continue
                     key = (r["method"], r["path"], int(r["age"] // 60))
                     if key in said:
                         continue

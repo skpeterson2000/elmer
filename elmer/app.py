@@ -7321,6 +7321,9 @@ def api_quit():
         abort(403)
 
     log.info("quit requested from the %s", "kiosk browser" if app.config["KIOSK"] else "ELMER window")
+    quitting = app.config.get("WINDOW_QUITTING")
+    if quitting is not None:
+        quitting.set()                  # the window may close itself before the server is down
     # Answer first, then interrupt the main thread: ./elmer.py closes the
     # browser and exits from there, so the shutdown path is the same one
     # Ctrl+C already takes.
