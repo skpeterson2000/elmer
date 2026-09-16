@@ -132,7 +132,11 @@ and the certificates a person has earned live on their own account: the
 papers on the Library page, the wall in the pro shop and the lounge. CW
 opens on Today, where the record decides the lesson and one press runs the
 session. Golf lets the host say how many companions. The unit keeps a
-ledger of its own pace and names a creeper in the weekly report home.
+ledger of its own pace and names a creeper in the weekly report home. A
+book on the shelf with no bookmarks gives up its printed chapter headings
+where they run in order, or takes the chapters you list in a text file
+beside it (`Book.pdf.toc.txt`); an outside link from the Windows window
+opens as a popout of ELMER's that Exit closes too.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

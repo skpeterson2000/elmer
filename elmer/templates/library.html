@@ -92,9 +92,13 @@
   <div class="panel-title">ELMER's topics, in your books</div>
   <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
     Matched from the bookmarks the publisher put in each file &mdash; a
-    chapter is an antenna chapter because its title says so. A book with no
-    bookmarks is placed by its own title or file name, whole. Nothing is
-    inferred beyond that; search reaches into every page regardless.
+    chapter is an antenna chapter because its title says so. A file with no
+    bookmarks gives up its printed chapter headings where they are numbered
+    in order, or the chapters you list yourself in a text file beside it
+    (<span class="mono">Book.pdf.toc.txt</span>: a page number, a space, the
+    title, one to a line). A book with none of the three is placed by its
+    own title or file name, whole. Nothing is inferred beyond that; search
+    reaches into every page regardless.
   </p>
   <div id="lib-topics" class="lib-topics"></div>
 </div>
@@ -174,7 +178,7 @@
           <b>${escapeHTML(b.title)}</b>
           ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' \u2014 ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
           <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
-          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' bookmarks' : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
+          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
           <span style="flex:1"></span>
           <label class="tiny muted" title="Yours: Make Contact assumes you have this radio. The shelf itself is shared." style="display:flex;align-items:center;gap:.3rem;white-space:nowrap">
             <input type="checkbox" data-mine="${escapeHTML(b.name)}" ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>

@@ -9,6 +9,7 @@ own data/library/. Skips, and says so, where poppler is not installed.
 """
 import io
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -47,9 +48,15 @@ def make_manual(path, chapters, bookmarks=True, title="FT-991A Operating Manual"
             c.addOutlineEntry(title, f"ch{i}", level=0)
         c.setFont("Helvetica-Bold", 16)
         c.drawString(72, 720, title)
-        c.setFont("Helvetica", 11)
-        for j, line in enumerate(lines):
-            c.drawString(72, 690 - 16 * j, line)
+        y = 690
+        for line in lines:
+            # A printed heading is set bolder and bigger than the text, as
+            # a publisher sets one; pdftotext keeps it on a line of its own
+            # for that reason and joins same-font lines into paragraphs.
+            heading = bool(re.match(r"^(\d+\.|Appendix)", line))
+            c.setFont("Helvetica-Bold" if heading else "Helvetica", 13 if heading else 11)
+            c.drawString(72, y, line)
+            y -= 18
         if bookmarks and i == 1:
             c.bookmarkPage("sub")
             c.addOutlineEntry("2.1 Pitch and sidetone", "sub", level=1)
@@ -68,6 +75,9 @@ CHAPTERS = [
 print("\nthe tools are found by full path, whatever PATH this process was given")
 found = L.tools_present()
 check("each tool is a path, not a yes", all(v and v.startswith(("/", "C:", "c:")) for v in found.values()), True)
+# Git for Windows puts xpdf's pdftotext on the PATH of a shell opened from
+# it, under poppler's name; it joins the columns of a two-column page.
+check("  and poppler's, where any is", L._is_poppler(found["pdftotext"]), True)
 saved, L._tools = os.environ.get("PATH"), {}
 os.environ["PATH"] = "/nowhere"
 try:
@@ -154,6 +164,67 @@ check("  its words are searchable", L.search("under the mat")["hits"][0]["book"]
 check("  and its bookmarks were read", (row["bookmarks"], row["bookmarks_problem"]), (1, ""))
 check("  so its chapter is a pointer", any(x["book"] == "Locked Manual.pdf" for x in L.pointers("words", words=["door"])), True)
 (L.SHELF / "Locked Manual.pdf").unlink()
+L.refresh()
+
+print("\na file with no bookmarks gives up its printed chapter headings")
+# A magazine article: numbered headings in order across the pages, and a
+# layout file's name where the title should be.
+ARTICLE = [
+    ("The FT4 and FT8 Communication Protocols", ["1. Introduction", "FT4 and FT8 are digital protocols.",
+                                                 "2. Structured Messages and Source Encoding", "77 bits of user information."]),
+    ("8 QEX July/August 2020", ["3. Error Detection and Error Correction", "A 14-bit CRC.",
+                                "4. Channel Symbols and Modulation", "8-tone CPFSK."]),
+    ("9 QEX July/August 2020", ["5. Generated Waveforms", "Continuous phase.", "2.1 User Guide [19] for further details."]),
+    ("10 QEX July/August 2020", ["9. Concluding Remarks", "The end.", "Appendix A. Source Encoding Details", "The details."]),
+]
+make_manual(L.SHELF / "FT4_FT8_QEX.pdf", ARTICLE, bookmarks=False, title="Taylor.indd")
+# A manual whose numbered lines are the steps of a procedure, across pages.
+STEPS = [
+    ("Mounting", ["1. Holes in the location where the bracket is to be", "drilled.", "2. Attach the bracket", "With the screws."]),
+    ("Front Panel", ["3. Fasten the transceiver to the bracket", "Tightly.", "4. Install the Front Panel by sliding it into the", "slot."]),
+    ("Keying", ["5. Press the", "key.", "6. Set the Keyer", "Fast."]),
+]
+make_manual(L.SHELF / "steps.pdf", STEPS, bookmarks=False, title="Installation")
+# A guide whose contents page lists every chapter on one page.
+CONTENTS = [
+    ("Contents", ["1. Introduction", "page 2", "2. System Requirements", "page 3", "3. Installation", "page 4",
+                  "4. Settings", "page 5", "5. Transceiver Setup", "page 5"]),
+    ("Body", ["1. Introduction", "Words."]), ("Body", ["2. System Requirements", "A sound card."]),
+    ("Body", ["3. Installation", "Run it."]), ("Body", ["4. Settings", "Many.", "5. Transceiver Setup", "One."]),
+]
+make_manual(L.SHELF / "guide.pdf", CONTENTS, bookmarks=False, title="A Guide")
+r = L.refresh()
+cat = {b["name"]: b for b in L.catalogue()}
+check("the article's chapters are read from its printed headings",
+      [(x["page"], x["title"]) for x in L.outline("FT4_FT8_QEX.pdf")],
+      [(1, "1. Introduction"), (1, "2. Structured Messages and Source Encoding"),
+       (2, "3. Error Detection and Error Correction"), (2, "4. Channel Symbols and Modulation"),
+       (3, "5. Generated Waveforms"), (4, "Appendix A. Source Encoding Details")])
+check("  the run stops at the first number missing, so 9 is not a chapter; the appendix printed after the run is",
+      any(x["title"].startswith("9.") for x in L.outline("FT4_FT8_QEX.pdf")), False)
+check("  the catalogue says where they came from", (cat["FT4_FT8_QEX.pdf"]["bookmarks"], cat["FT4_FT8_QEX.pdf"]["bookmarks_from"]), (6, "printed headings"))
+check("  a layout file's name is not a title", cat["FT4_FT8_QEX.pdf"]["title"], "FT4 FT8 QEX")
+check("  and a chapter whose title says so is a pointer",
+      [(x["book"], x["page"]) for x in L.pointers("words", words=["modulation"])], [("FT4_FT8_QEX.pdf", 2)])
+check("the steps of a procedure are not chapters, though numbered in order across pages", L.outline("steps.pdf"), [])
+check("a contents page is not the chapters; the headings in the body are",
+      [(x["page"], x["title"]) for x in L.outline("guide.pdf")],
+      [(2, "1. Introduction"), (3, "2. System Requirements"), (4, "3. Installation"), (5, "4. Settings"), (5, "5. Transceiver Setup")])
+
+print("\na chapter list the operator writes beside a book outranks anything read from it")
+(L.SHELF / "steps.pdf.toc.txt").write_text(
+    "title: The Installation Sheet\n# a comment\n1 Mounting the Radio\n  2 The Bracket\n3 Keying\n99 Past the end\nnonsense\n", encoding="utf-8")
+check("the catalogue sees the list arrive", {b["name"]: b["stale"] for b in L.catalogue()}["steps.pdf"], "your chapter list changed")
+L.refresh()
+cat = {b["name"]: b for b in L.catalogue()}
+check("  its chapters, a page out of range and a line that is not one left out",
+      [(x["page"], x["level"], x["title"]) for x in L.outline("steps.pdf")],
+      [(1, 0, "Mounting the Radio"), (2, 1, "The Bracket"), (3, 0, "Keying")])
+check("  named as the list names it", (cat["steps.pdf"]["title"], cat["steps.pdf"]["bookmarks_from"]), ("The Installation Sheet", "your list"))
+check("  and the list's chapters are pointers", [x["title"] for x in L.pointers("words", words=["bracket"])], ["The Bracket"])
+check("  the list is not a book on the shelf", "steps.pdf.toc.txt" in [b.name for b in L.shelf()], False)
+for name in ("FT4_FT8_QEX.pdf", "steps.pdf", "steps.pdf.toc.txt", "guide.pdf"):
+    (L.SHELF / name).unlink()
 L.refresh()
 
 print("\nan index from an older reader is remade")
