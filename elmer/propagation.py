@@ -900,8 +900,31 @@ def _midpoint(lat1, lon1, lat2, lon2):
     return math.degrees(math.atan2(z, h)), math.degrees(math.atan2(y, x))
 
 
-def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0):
-    """A band's reach from here, as cells of 0-100 over the globe."""
+# The edges the geometry draws are cliffs - inside the skip it is nothing,
+# a metre outside it is the band's score - and the ionosphere's are not:
+# the critical frequency the skip is worked out from is a reading with a
+# tenth of itself of uncertainty, and the layer is not a mirror. So each
+# edge is softened over a band either side of it, which is what the real
+# map looks like and what keeps the picture from reading as a stencil.
+REACH_EDGE = 0.12                  # the soft band, as a fraction of the distance at the edge
+
+
+def _soft(km, edge, inside_below=True):
+    """0 to 1 across a band round `edge`: 1 past it (or before it, when the
+    open side is below), 0 on the closed side, smooth between."""
+    if edge is None or edge <= 0:
+        return 1.0
+    half = edge * REACH_EDGE
+    t = (km - edge + half) / (2 * half) if inside_below else (edge + half - km) / (2 * half)
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None):
+    """A band's reach from here, as cells of 0-100 - over the globe, or,
+    with `window` = (lat_top, lat_bottom, lon_left, lon_span), over that
+    window at the step given, which is how a zoomed view gets real detail
+    rather than the coarse grid stretched."""
     from . import groundwave
     from .terrain import great_circle
     when = when or datetime.now(timezone.utc)
@@ -913,8 +936,15 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0):
     m3000 = cal.get("m3000")
     far = one_hop_limit_km(hmf2)
     ground_km = float(groundwave.describe(mhz, watts=watts).get("km") or 0.0)
-    lats = [85 - i * step for i in range(int(180 / step))]      # 85 .. -85 cell centres
-    lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
+    if window:
+        top, bottom, left, span = window
+        rows = max(2, int(round((top - bottom) / step)) + 1)
+        cols = max(2, int(round(span / step)) + 1)
+        lats = [top - i * step for i in range(rows)]
+        lons = [((left + j * step + 180) % 360) - 180 for j in range(cols)]
+    else:
+        lats = [90 - step / 2 - i * step for i in range(int(180 / step))]      # cell centres, pole to pole
+        lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
     cells, night = [], []
     for glat in lats:
         for glon in lons:
@@ -927,22 +957,29 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0):
                 score = 100.0
             else:
                 skip = skip_km(mhz, fof2, hmf2)
-                hops = 0
                 if skip is not None:
-                    if km <= far and (skip <= 0 or km >= skip):
-                        hops = 1
-                    elif km > far:
-                        n = int(math.ceil(km / far))
+                    rated = float(band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
+                    if km <= far * (1 + REACH_EDGE):
+                        # one hop: open past the skip's near edge, closing at the
+                        # furthest a hop lands - both edges soft
+                        gate = (_soft(km, skip) if skip > 0 else 1.0) * _soft(km, far, inside_below=False)
+                        score = rated * gate
+                    if km > far * (1 - REACH_EDGE):
+                        # several hops: each leg has to clear the skip and land
+                        # inside a hop; each hop past the first is paid for
+                        n = max(2, int(math.ceil(km / far)))
                         leg = km / n
-                        if (skip <= 0 or leg >= skip) and leg <= far:
-                            hops = n
-                if hops:
-                    rated = band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2)
-                    score = float(rated.get("score") or 0.0) * (REACH_HOP_COST ** (hops - 1))
+                        gate = (_soft(leg, skip) if skip > 0 else 1.0) * _soft(leg, far, inside_below=False)
+                        multi = rated * gate * (REACH_HOP_COST ** (n - 1))
+                        score = max(score, multi)
+                # ground wave fades out rather than stopping at a line
+                if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):
+                    score = max(score, 100.0 * _soft(km, ground_km, inside_below=False))
             cells.append(int(round(max(0.0, min(100.0, score)))))
             night.append(solar_elevation(glat, glon, when) < 0)
     sun = celestial.sun_position(when)
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
+            "window": bool(window),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),

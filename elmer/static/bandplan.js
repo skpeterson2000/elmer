@@ -940,92 +940,143 @@ function vhfBox(band) {
 }
 
 /* ---------------------------------------------------- where the band reaches */
-/* The path model asked for every cell of a ten-degree grid, drawn as a
-   map: the sky read at each path's midpoint, the geometry deciding inside
-   the skip, one hop or several, the score charged for the hops. Fetched
-   once per band per reading - a press, not a poll - and painted here.
-   Sequential: one hue, light for good, dark for shut, darker under the
-   night. The coast is the EME page's. */
+/* The path model asked for every cell of a grid, drawn as a map with a
+   viewport on it: drag to pan, the wheel or a pinch to zoom, a double tap
+   to zoom in, a press to come back to the whole world. The world is the
+   five-degree grid; a zoomed window asks the model for the same area at a
+   finer step - half a degree and below - once the hand has stopped, so the
+   edge of a skip zone is real detail and not the coarse grid stretched.
+   Fetched on the band button and on a settled zoom, never polled; drawn at
+   half resolution while the hand is moving and in full when it stops. The
+   coast is the EME page's. */
 let bpCoast = null, bpReachFor = null;
-const REACH_W = 720, REACH_H = 360;
-fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachPaint(bpReachFor); }).catch(() => {});
+fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachDraw(false); }).catch(() => {});
 
 /* A continuous ramp - one hue family, dark where the band is shut, bright
    where it is good - so the eye reads a field and not a legend. */
 const REACH_STOPS = [[0, [12, 22, 38]], [12, [18, 58, 72]], [30, [26, 108, 92]], [55, [64, 172, 98]], [80, [156, 226, 112]], [100, [242, 250, 176]]];
-function reachColour(score) {
-  const v = Math.max(0, Math.min(100, score));
-  for (let i = 1; i < REACH_STOPS.length; i++) {
-    const [s1, c1] = REACH_STOPS[i - 1], [s2, c2] = REACH_STOPS[i];
-    if (v <= s2) {
-      const t = (v - s1) / (s2 - s1);
-      return [c1[0] + (c2[0] - c1[0]) * t, c1[1] + (c2[1] - c1[1]) * t, c1[2] + (c2[2] - c1[2]) * t];
+const REACH_LUT = (() => {
+  const lut = new Uint8ClampedArray(101 * 3);
+  for (let v = 0; v <= 100; v++) {
+    for (let i = 1; i < REACH_STOPS.length; i++) {
+      const [s1, c1] = REACH_STOPS[i - 1], [s2, c2] = REACH_STOPS[i];
+      if (v <= s2) {
+        const t = (v - s1) / (s2 - s1);
+        lut[v * 3] = c1[0] + (c2[0] - c1[0]) * t; lut[v * 3 + 1] = c1[1] + (c2[1] - c1[1]) * t; lut[v * 3 + 2] = c1[2] + (c2[2] - c1[2]) * t;
+        break;
+      }
     }
   }
-  return REACH_STOPS[REACH_STOPS.length - 1][1];
-}
+  return lut;
+})();
+const REACH_CONTOURS = [20, 40, 60, 80];        // the isolines, like a weather map's
 
-/* The score at any point, from the cells around it: a cubic (Catmull-Rom)
-   pass across the sixteen nearest cell centres, wrapping in longitude and
-   clamped at the poles. Bilinear left the faint tiling of the grid in the
-   picture; cubic reads as the field it is. */
 function cubic(p0, p1, p2, p3, t) {
   return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
 }
+
+/* The score at any point, a cubic pass across the sixteen nearest cell
+   centres. The world grid wraps in longitude; a window grid clamps. */
 function reachAt(d, lat, lon) {
-  const fy = (d.lat0 - lat) / d.step, fx = (lon - d.lon0) / d.step;
+  const fy = (d.lat0 - lat) / d.step;
+  let dl = lon - d.lon0;
+  if (!d.window) dl = ((dl % 360) + 360) % 360;
+  const fx = dl / d.step;
   const y1 = Math.floor(fy), x1 = Math.floor(fx);
   const ty = fy - y1, tx = fx - x1;
   const c = d.cells, rows = d.rows, cols = d.cols;
-  const cell = (r, k) => c[Math.min(rows - 1, Math.max(0, r)) * cols + (((k % cols) + cols) % cols)];
-  const rowsOut = [];
-  for (let j = -1; j <= 2; j++) {
-    rowsOut.push(cubic(cell(y1 + j, x1 - 1), cell(y1 + j, x1), cell(y1 + j, x1 + 1), cell(y1 + j, x1 + 2), tx));
-  }
-  return Math.max(0, Math.min(100, cubic(rowsOut[0], rowsOut[1], rowsOut[2], rowsOut[3], ty)));
+  const col = d.window ? k => Math.min(cols - 1, Math.max(0, k)) : k => ((k % cols) + cols) % cols;
+  const cell = (r, k) => c[Math.min(rows - 1, Math.max(0, r)) * cols + col(k)];
+  const r0 = cubic(cell(y1 - 1, x1 - 1), cell(y1 - 1, x1), cell(y1 - 1, x1 + 1), cell(y1 - 1, x1 + 2), tx);
+  const r1 = cubic(cell(y1, x1 - 1), cell(y1, x1), cell(y1, x1 + 1), cell(y1, x1 + 2), tx);
+  const r2 = cubic(cell(y1 + 1, x1 - 1), cell(y1 + 1, x1), cell(y1 + 1, x1 + 1), cell(y1 + 1, x1 + 2), tx);
+  const r3 = cubic(cell(y1 + 2, x1 - 1), cell(y1 + 2, x1), cell(y1 + 2, x1 + 1), cell(y1 + 2, x1 + 2), tx);
+  return Math.max(0, Math.min(100, cubic(r0, r1, r2, r3, ty)));
 }
 
-/* The map is rolled so the operator's longitude is its centre: you in the
-   middle, the far side of the world at the edges, the coast wrapping
-   across the seam. A map in 2026 is about the person holding it. */
-function bpReachPaint(d) {
+/* Whether a window grid covers this point, with a cell to spare. */
+function inWindow(w, lat, lon) {
+  if (!w || !w.window) return false;
+  if (lat > w.lat0 || lat < w.lat0 - (w.rows - 1) * w.step) return false;
+  const dl = ((lon - w.lon0) % 360 + 360) % 360;
+  return dl <= (w.cols - 1) * w.step;
+}
+
+/* The viewport: the middle of the picture and how far in it is. Zoom 1 is
+   the whole world with the operator at the centre. */
+const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: null, band: null};
+
+function bpReachDraw(coarse) {
+  const d = bpReachFor;
   const canvas = document.getElementById('bp-reach-map');
-  if (!canvas) return;
-  const W = canvas.width, H = canvas.height;
+  if (!d || !canvas) return;
+  const full = {w: canvas.width, h: canvas.height};
+  const scale = coarse ? 2 : 1;
+  const W = full.w / scale, H = full.h / scale;
   const ctx = canvas.getContext('2d');
-  const centre = d.qth ? d.qth.lon : 0;
+  const view = bpView;
+  const spanLon = 360 / view.zoom, spanLat = 180 / view.zoom;
   const wrap = lon => ((lon + 180) % 360 + 360) % 360 - 180;
+  const lonAt = x => wrap(view.lon - spanLon / 2 + (x + 0.5) * (spanLon / W));
+  const latAt = y => view.lat + spanLat / 2 - (y + 0.5) * (spanLat / H);
+  const fine = view.refined && view.refined.band === view.band ? view.refined : null;
   const img = ctx.createImageData(W, H);
   const px = img.data;
+  const score = new Float32Array(W * H);
   const D2R = Math.PI / 180;
   const sd = Math.sin(d.sun.dec * D2R), cd = Math.cos(d.sun.dec * D2R);
   for (let y = 0; y < H; y++) {
-    const lat = 90 - (y + 0.5) * (180 / H);
+    const lat = latAt(y);
     const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
     for (let x = 0; x < W; x++) {
-      const lon = wrap(centre - 180 + (x + 0.5) * (360 / W));
-      const c = reachColour(reachAt(d, lat, lon));
+      const lon = lonAt(x);
+      const v = (fine && inWindow(fine, lat, lon)) ? reachAt(fine, lat, lon) : reachAt(d, lat, lon);
+      score[y * W + x] = v;
+      const k = Math.round(v) * 3;
       const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
       const t = Math.max(0, Math.min(1, (alt + 12) / 18));
       const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
       const o = (y * W + x) * 4;
-      px[o] = c[0] * shade; px[o + 1] = c[1] * shade; px[o + 2] = c[2] * shade; px[o + 3] = 255;
+      px[o] = REACH_LUT[k] * shade; px[o + 1] = REACH_LUT[k + 1] * shade; px[o + 2] = REACH_LUT[k + 2] * shade; px[o + 3] = 255;
     }
   }
-  ctx.putImageData(img, 0, 0);
-  const X = lon => (((lon - centre + 180) % 360 + 360) % 360) * (W / 360), Y = lat => (90 - lat) * (H / 180);
-  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
-  for (let lon = -180; lon < 180; lon += 30) { ctx.beginPath(); ctx.moveTo(X(lon), 0); ctx.lineTo(X(lon), H); ctx.stroke(); }
-  for (let lat = -60; lat <= 60; lat += 30) { ctx.beginPath(); ctx.moveTo(0, Y(lat)); ctx.lineTo(W, Y(lat)); ctx.stroke(); }
+  /* The isolines: where the score crosses a contour between a pixel and
+     its neighbour, that pixel is drawn a shade darker - a line one pixel
+     wide at every threshold, the way a weather map draws its fronts. */
+  if (!coarse) {
+    const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
+    for (let y = 0; y < H - 1; y++) {
+      for (let x = 0; x < W - 1; x++) {
+        const i = y * W + x, b = band(score[i]);
+        if (b !== band(score[i + 1]) || b !== band(score[i + W])) {
+          const o = i * 4;
+          px[o] *= 0.55; px[o + 1] *= 0.55; px[o + 2] *= 0.55;
+        }
+      }
+    }
+  }
+  if (scale === 1) {
+    ctx.putImageData(img, 0, 0);
+  } else {
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    off.getContext('2d').putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, full.w, full.h);
+  }
+  const X = lon => (((lon - view.lon + spanLon / 2) % 360 + 360) % 360) * (full.w / spanLon);
+  const Y = lat => (view.lat + spanLat / 2 - lat) * (full.h / spanLat);
+  const every = view.zoom >= 8 ? 5 : view.zoom >= 3 ? 10 : 30;
+  ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
+  for (let lon = -180; lon < 180; lon += every) { const x = X(lon); if (x >= 0 && x <= full.w) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, full.h); ctx.stroke(); } }
+  for (let lat = -90 + every; lat < 90; lat += every) { const y = Y(lat); if (y >= 0 && y <= full.h) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(full.w, y); ctx.stroke(); } }
   if (bpCoast) {
-    ctx.strokeStyle = 'rgba(245,248,252,.55)'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(245,248,252,.6)'; ctx.lineWidth = view.zoom >= 3 ? 1.6 : 1.2; ctx.lineJoin = 'round';
     bpCoast.forEach(line => {
       ctx.beginPath();
       let last = null;
       line.forEach(p => {
         const x = X(p[0]), y = Y(p[1]);
-        /* a line that crosses the seam is lifted and set down again */
-        if (last === null || Math.abs(x - last) > W / 2) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        if (last === null || Math.abs(x - last) > full.w / 2) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         last = x;
       });
       ctx.stroke();
@@ -1033,13 +1084,101 @@ function bpReachPaint(d) {
   }
   if (d.qth) {
     const x = X(d.qth.lon), y = Y(d.qth.lat);
-    ctx.save();
-    ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 14;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI); ctx.fill();
+    if (x >= -20 && x <= full.w + 20 && y >= -20 && y <= full.h + 20) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 14;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI); ctx.fill();
+    }
   }
+  const zoomEl = document.getElementById('bp-reach-zoom');
+  if (zoomEl) zoomEl.textContent = view.zoom > 1.05 ? '×' + (view.zoom < 10 ? view.zoom.toFixed(1) : Math.round(view.zoom)) + (fine ? ' · ' + fine.step + '° detail' : ' · 5° grid') : '';
+}
+
+/* A settled zoom asks the model for the window at a finer step. */
+async function bpRefine() {
+  const d = bpReachFor;
+  if (!d || bpView.zoom < 1.8) { bpView.refined = null; return; }
+  const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
+  const top = Math.min(89.5, bpView.lat + spanLat * 0.6), bottom = Math.max(-89.5, bpView.lat - spanLat * 0.6);
+  const left = bpView.lon - spanLon * 0.6, span = Math.min(360, spanLon * 1.2);
+  const step = bpView.zoom >= 12 ? 0.25 : bpView.zoom >= 6 ? 0.5 : bpView.zoom >= 3 ? 1 : 2.5;
+  const key = bpView.band;
+  try {
+    const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: key, top: top.toFixed(2), bottom: bottom.toFixed(2), left: left.toFixed(2), span: span.toFixed(2), step: step}), {cache: 'no-store'});
+    const w = await r.json();
+    if (!w.ok || bpView.band !== key) return;
+    w.band = key;
+    bpView.refined = w;
+    bpReachDraw(false);
+  } catch (e) { /* the coarse grid stands */ }
+}
+
+function bpViewSettled() {
+  clearTimeout(bpView.timer);
+  bpView.timer = setTimeout(() => { bpReachDraw(false); bpRefine(); }, 350);
+}
+
+function bpZoomAt(factor, cx, cy) {
+  const canvas = document.getElementById('bp-reach-map');
+  const rect = canvas.getBoundingClientRect();
+  const fx = (cx - rect.left) / rect.width, fy = (cy - rect.top) / rect.height;
+  const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
+  const lonUnder = bpView.lon - spanLon / 2 + fx * spanLon, latUnder = bpView.lat + spanLat / 2 - fy * spanLat;
+  bpView.zoom = Math.max(1, Math.min(24, bpView.zoom * factor));
+  const nLon = 360 / bpView.zoom, nLat = 180 / bpView.zoom;
+  bpView.lon = lonUnder - (fx - 0.5) * nLon;
+  bpView.lat = Math.max(-90 + nLat / 2, Math.min(90 - nLat / 2, latUnder + (fy - 0.5) * nLat));
+  if (bpView.zoom <= 1.001) { bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; }
+  bpReachDraw(true);
+  bpViewSettled();
+}
+
+function bpReachBind() {
+  const canvas = document.getElementById('bp-reach-map');
+  if (!canvas || canvas.dataset.bound) return;
+  canvas.dataset.bound = '1';
+  const pointers = new Map();
+  let pinch = null, lastTap = 0;
+  canvas.addEventListener('wheel', e => { e.preventDefault(); bpZoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); }, {passive: false});
+  canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = {dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: bpView.zoom};
+    } else if (pointers.size === 1) {
+      const now = Date.now();
+      if (now - lastTap < 320) { bpZoomAt(2, e.clientX, e.clientY); lastTap = 0; } else lastTap = now;
+    }
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    const was = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    const rect = canvas.getBoundingClientRect();
+    if (pointers.size === 2 && pinch) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const want = Math.max(1, Math.min(24, pinch.zoom * dist / pinch.dist));
+      bpZoomAt(want / bpView.zoom, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      return;
+    }
+    if (pointers.size === 1 && (e.buttons & 1 || e.pointerType === 'touch')) {
+      const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
+      bpView.lon -= (e.clientX - was.x) / rect.width * spanLon;
+      bpView.lat = Math.max(-90 + spanLat / 2, Math.min(90 - spanLat / 2, bpView.lat + (e.clientY - was.y) / rect.height * spanLat));
+      bpView.dragging = true;
+      bpReachDraw(true);
+      bpViewSettled();
+    }
+  });
+  const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; bpView.dragging = false; };
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('pointerleave', up);
+  const reset = document.getElementById('bp-reach-reset');
+  if (reset) reset.addEventListener('click', () => { bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null; bpReachDraw(false); });
 }
 
 let bpReachCache = {};
@@ -1053,27 +1192,36 @@ async function bpReach(band) {
   document.getElementById('bp-reach-band').textContent = band.name;
   let d = bpReachCache[key];
   if (!d) {
-    document.getElementById('bp-reach-when').textContent = 'working it out\u2026';
+    document.getElementById('bp-reach-when').textContent = 'working it out…';
     try {
       const r = await fetch('/api/bandplan/reach?band=' + encodeURIComponent(key), {cache: 'no-store'});
       d = await r.json();
     } catch (e) {
       document.getElementById('bp-reach-when').textContent = '';
-      document.getElementById('bp-reach-note').textContent = (e && e.message) || 'no map just now';
+      document.getElementById('bp-reach-note').textContent = 'no map just now';
       return;
     }
     if (!d.ok) { document.getElementById('bp-reach-note').textContent = d.error || 'no map just now'; return; }
     bpReachCache[key] = d;
   }
   if (bpBand !== band.name) return;                 // the band moved on while this was fetched
+  const fresh = bpView.band !== key;
   bpReachFor = d;
-  bpReachPaint(d);
+  bpView.band = key;
+  if (fresh) {
+    /* a new band keeps the viewport the hand set, but its detail is its own */
+    bpView.refined = null;
+    if (bpView.zoom <= 1.001) bpView.lon = d.qth ? d.qth.lon : 0;
+  }
+  bpReachBind();
+  bpReachDraw(false);
+  if (bpView.zoom >= 1.8) bpRefine();
   document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
-    (d.muf_here ? ' \u00b7 MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
+    (d.muf_here ? ' · MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
   document.getElementById('bp-reach-note').textContent =
-    'A model, and labelled as one: one sonde\u2019s reading anchoring a modelled sky, read at the midpoint of each path - the sun\u2019s angle there, not here. ' +
-    'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for - and nothing of your antenna, your power, or the far end\u2019s. ' +
-    'Ground wave to about ' + d.ground_km + ' km. What it is right about is the shape.';
+    'A model, and labelled as one: one sonde’s reading anchoring a modelled sky, read at the midpoint of each path - the sun’s angle there, not here. ' +
+    'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for, the edges soft the way the layer is - and nothing of your antenna, your power, or the far end’s. ' +
+    'Ground wave to about ' + d.ground_km + ' km. Drag to look round; the wheel, a pinch or a double tap to zoom in, and the model is asked again for that window in finer detail. What it is right about is the shape.';
 }
 
 function conditionBar(band, given) {

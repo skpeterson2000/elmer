@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The reach map, zoomable: drag, wheel, pinch or double tap, and the model is asked again for that window in finer detail; soft edges and isolines, the way a weather map draws it
 - The band plan: where the band reaches from here, now, as a map - the path model for every cell of a grid, one hue, the night shaded
 - POTA/SOTA: planning a trip - the place typed is the centre of the fetch as well as the list, and the button says where it will fetch
 - The pace ledger: every endpoint's timings kept on the unit, creepers named in the log, by the doctor, and in the weekly report home

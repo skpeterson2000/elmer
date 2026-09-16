@@ -598,6 +598,12 @@ def main():
     check("Europe at noon here is reached on 20 m, in daylight", (reach(m, 45, 5)[0] > 0, reach(m, 45, 5)[1]), (True, False))
     check("Japan is in the dark, and 20 m is shut there while 40 m carries", (reach(m, 35, 135)[1], reach(m, 35, 135)[0], reach(m40, 35, 135)[0] > 0), (True, 0, True))
     check("10 m reaches fewer cells than 20 m under a 20 MHz MUF", sum(1 for c in m10["cells"] if c > 0) < sum(1 for c in m["cells"] if c > 0), True)
+    w = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc, step=0.5, window=(50, 40, -100, 30))
+    check("a window at half a degree is its own grid, clamped not wrapped", (w["window"], w["rows"], w["cols"], w["lat0"], w["lon0"]), (True, 21, 61, 50, -100))
+    profile = [w["cells"][20 * w["cols"] + j] for j in range(0, w["cols"], 3)]
+    rises = [b - a for a, b in zip(profile, profile[1:]) if b != a]
+    check("  the skip's edge is a slope, not a cliff - it takes more than one step to climb", len([r for r in rises if r > 0]) >= 3, True)
+    check("  and nothing falls back inside the band once it has opened", all(r >= 0 for r in rises), True)
     check("nothing scores past a hundred or under nought", (max(m["cells"]) <= 100, min(m["cells"]) >= 0), (True, True))
     import time as _t
     t = _t.perf_counter(); P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc); took = (_t.perf_counter() - t) * 1000

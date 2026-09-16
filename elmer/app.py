@@ -1860,15 +1860,35 @@ def api_bandplan_reach():
     snap = propagation.snapshot(lat=place["lat"], lon=place["lon"])
     if not snap.get("ok"):
         return jsonify({"ok": False, "error": snap.get("error") or "no reading"}), 503
-    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"))
+    # A zoomed view asks for its window at a finer step: top, bottom, left
+    # and span in degrees. Capped at a few thousand cells however it is
+    # asked, so a Pi is never asked for more than it can do in a second.
+    window, step = None, propagation.REACH_STEP
+    if request.args.get("top") is not None:
+        try:
+            top = max(-90.0, min(90.0, float(request.args.get("top"))))
+            bottom = max(-90.0, min(top - 0.5, float(request.args.get("bottom"))))
+            left = float(request.args.get("left"))
+            span = max(1.0, min(360.0, float(request.args.get("span"))))
+            step = float(request.args.get("step") or 1.0)
+        except (TypeError, ValueError):
+            abort(400, "the window wants top, bottom, left and span in degrees")
+        allowed = (5.0, 2.5, 1.0, 0.5, 0.25)
+        step = min(allowed, key=lambda s_: abs(s_ - step))
+        while ((top - bottom) / step + 1) * (span / step + 1) > 4000 and step < 5.0:
+            step = allowed[allowed.index(step) - 1]
+        window = (round(top, 2), round(bottom, 2), round(left, 2), round(span, 2))
+    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step)
     hit = _reach_cache.get(key)
     if hit and time.time() - hit[0] < REACH_CACHE_S:
         return jsonify({"ok": True, "cached": True, **hit[1]})
     started = time.perf_counter()
-    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap)
-    _reach_cache.clear()                 # one band's map at a time is plenty to hold
+    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window)
+    if len(_reach_cache) > 12:            # the world map and a few windows; not a gallery
+        _reach_cache.clear()
     _reach_cache[key] = (time.time(), made)
-    log.debug("reach map for %s in %.0f ms", name, (time.perf_counter() - started) * 1000)
+    log.debug("reach map for %s%s in %.0f ms", name, f" window {window} at {step}" if window else "",
+              (time.perf_counter() - started) * 1000)
     return jsonify({"ok": True, "cached": False, "qth": {"lat": place["lat"], "lon": place["lon"],
                                                         "short": place.get("short") or place.get("grid")}, **made})
 
