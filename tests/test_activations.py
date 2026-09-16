@@ -122,6 +122,26 @@ def main():
     d4 = c.get("/api/activations?outer=50&from=Nowhereville").get_json()
     check("  and one that cannot be found falls back to here, and says so", (d4["qth"], "could not find" in (d4["band"]["note"] or "")), ("Pequot Lakes", True))
 
+    print("\n-- planning a trip: the place typed is the centre of the fetch as well as the list --")
+    from elmer import references
+    calls = []
+    real_fetch = references.fetch
+    def fake_fetch(lat, lon, label="here", radius_km=None):
+        calls.append((round(lat, 2), round(lon, 2), label))
+        return {"label": label, "radius_km": 350, "parks": [{"ref": "US-4321"}], "summits": [], "missing": []}
+    references.fetch = fake_fetch
+    local = {"REMOTE_ADDR": "127.0.0.1"}
+    d = c.get("/api/activations?inner=0&outer=80&from=EL16hq").get_json()
+    check("a grid square typed centres the list there", (d["qth"], all(p["km"] <= d["band"]["outer_km"] for p in d["parks"])), ("EL16HQ", True))
+    check("  and the bundled national units near it are listed before any fetch", any(p["ref"] == "US-0690" for p in d["parks"]), True)
+    r = c.post("/api/activations/prepare", json={"from": "EL16hq"}, environ_base=local)
+    check("the fetch goes around the place typed, labelled by it", (r.status_code, calls[-1]), (200, (26.69, -97.38, "EL16HQ")))
+    r = c.post("/api/activations/prepare", json={}, environ_base=local)
+    check("  and around here when the box is empty", calls[-1][2], "Pequot Lakes")
+    r = c.post("/api/activations/prepare", json={"from": "Nowhereville"}, environ_base=local)
+    check("  a place that cannot be found is refused, not fetched around here", (r.status_code, len(calls)), (400, 2))
+    references.fetch = real_fetch
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

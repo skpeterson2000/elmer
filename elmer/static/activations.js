@@ -303,12 +303,13 @@ document.addEventListener('click', async e => {
   const go = e.target.closest('#ac-fetch');
   if (!go) return;
   const say = document.getElementById('ac-fetch-say');
+  const from = ((document.getElementById('ac-from') || {}).value || '').trim();
   go.disabled = true;
-  say.textContent = 'asking POTA and SOTA - this takes most of a minute…';
+  say.textContent = 'asking POTA and SOTA about ' + (from || 'here') + ' - this takes most of a minute…';
   try {
-    const d = await postJSON('/api/activations/prepare', {});
+    const d = await postJSON('/api/activations/prepare', {from: from});
     say.textContent = d.ok
-      ? d.area.parks + ' parks and ' + d.area.summits + ' summits held.'
+      ? d.area.parks + ' parks and ' + d.area.summits + ' summits held around ' + (d.area.label || from || 'here') + '.'
       : (d.error || 'could not fetch');
   } catch (err) {
     say.textContent = 'could not fetch just now.';
@@ -320,6 +321,13 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', e => {
   if (e.target.closest('#ac-gear')) acVerdicts();
 });
+
+/* The fetch button says where it will fetch: here, or the place typed. */
+function acFetchWords() {
+  const go = document.getElementById('ac-fetch');
+  const from = ((document.getElementById('ac-from') || {}).value || '').trim();
+  if (go) go.textContent = from ? 'Fetch what is near ' + from : 'Fetch what is near';
+}
 
 async function acLoad() {
   const q = new URLSearchParams({
@@ -343,8 +351,9 @@ if (document.getElementById('ac-near')) {
   let acBandTimer = null;
   ['ac-inner', 'ac-outer', 'ac-from'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => { clearTimeout(acBandTimer); acBandTimer = setTimeout(acLoad, id === 'ac-from' ? 700 : 250); });
+    if (el) el.addEventListener('input', () => { clearTimeout(acBandTimer); acBandTimer = setTimeout(acLoad, id === 'ac-from' ? 700 : 250); acFetchWords(); });
   });
+  acFetchWords();
 }
 
 

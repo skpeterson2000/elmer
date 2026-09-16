@@ -1259,13 +1259,26 @@ def api_activations_prepare():
     _local_json_or_403()
     connection = conn()
     profile = db.get_profile(connection)
-    place = qth_for(connection, profile)
+    # Around here, or around where you are going: the "of" box on the page
+    # is the centre of the fetch as well as of the list. Planning a trip to
+    # EL16hq from Minnesota means holding what is near EL16hq, not what is
+    # near the QTH.
+    body = request.get_json(silent=True) or {}
+    asked = str(body.get("from") or "").strip()
+    if asked:
+        place = geocode.resolve(asked)
+        if not place or place.get("lat") is None:
+            return jsonify({"ok": False,
+                            "error": "could not find “%s” - try a town, a grid square, "
+                                     "or coordinates" % asked[:60]}), 400
+    else:
+        place = qth_for(connection, profile)
     if place.get("lat") is None:
         return jsonify({"ok": False,
                         "error": "ELMER does not know where you are yet - "
                                  "set a QTH on the propagation page"}), 409
     area = references.fetch(place["lat"], place["lon"],
-                            label=place.get("short") or "here")
+                            label=place.get("short") or place.get("grid") or asked or "here")
     return jsonify({"ok": True, "area": {
         "label": area["label"], "radius_km": area["radius_km"],
         "parks": len(area["parks"] or []),
