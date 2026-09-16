@@ -514,12 +514,17 @@ def run():
     check("  two balls, and yours ringed in amber", (svg.count("<circle cx=") >= 3, "#ffb454" in svg), (True, True))
     check("a hole with no balls draws too", "<svg" in golfmap.hole_svg(pb["holes"][6]), True)
     h8 = next(x for x in pb["holes"] if x["n"] == 8)
-    check("the 8th bends right past the corner, and the strip follows the line",
-          (golfmap.bend_of(h8)["dir"], golfmap.centre_x(100, golfmap.bend_of(h8)) == golfmap.CENTRE,
-           golfmap.centre_x(400, golfmap.bend_of(h8)) > golfmap.CENTRE), (1, True, True))
-    check("  the 2nd is straight and wide, the 7th a lane", (golfmap.bend_of(pb["holes"][1]), golf.fairway_half(pb["holes"][1]) > golf.fairway_half(pb["holes"][6])), (None, True))
-    strips = {n: golfmap.hole_svg(next(x for x in pb["holes"] if x["n"] == n)) for n in (1, 2, 3, 8)}
-    check("  so no two of the first holes look the same", len(set(strips.values())), 4)
+    plan8 = golfmap.Plan(h8)
+    before, turn, after = plan8.at(100, 0), plan8.at(h8["bend"]["at"], 0), plan8.at(h8["yards"], 0)
+    import math as _math
+    leg1 = _math.degrees(_math.atan2(turn[0] - before[0], before[1] - turn[1]))
+    leg2 = _math.degrees(_math.atan2(after[0] - turn[0], turn[1] - after[1]))
+    check("the 8th bends right past the corner, at the card's angle, and the plan draws it so",
+          (golfmap.bend_of(h8)["dir"], round(leg2 - leg1)), (1, h8["bend"]["degrees"]))
+    check("  the same yard both ways: a yard off the line is a yard along it",
+          round(_math.hypot(*(a - b for a, b in zip(plan8.at(200, 10), plan8.at(200, 0)))), 1) == round(_math.hypot(*(a - b for a, b in zip(plan8.at(210, 0), plan8.at(200, 0)))), 1), True)
+    check("  and a tap's yards come back: the legs a screen projects onto are on the page",
+          (golfmap.geometry(h8)["view"], len(golfmap.geometry(h8)["legs"]), golfmap.geometry(h8)["legs"][1]["at0"]), ("plan", 2, h8["bend"]["at"]))
     check("  and the geometry a screen turns a tap with carries the bend", golfmap.geometry(h8)["bend"]["at"], h8["bend"]["at"])
     narrow = golf.Golf(["a"], flat_course(), seed=1)
     narrow.hole()["width"] = 10
@@ -581,7 +586,7 @@ def run():
     app.balls["a"].lie = "fringe"
     check("  on the fringe it is the green's", golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"])["view"], "green")
     app.balls["a"].at, app.balls["a"].lie = 100, "fairway"
-    check("  from three hundred, the whole hole", "view" in golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"]), False)
+    check("  from three hundred, the whole hole in plan", golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"])["view"], "plan")
     svg = golfmap.approach_svg(pb["holes"][6], "into", 9, [{"name": "Scott", "at": 0, "off": 0, "lie": "tee", "you": True}], {"at": 96, "off": -4}, None)
     h7 = pb["holes"][6]
     check("the approach draws the green, the fringe, the sand and the ocean beyond the 7th",

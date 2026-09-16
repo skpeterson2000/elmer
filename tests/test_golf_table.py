@@ -241,7 +241,9 @@ def run():
     check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),
           ("pebble-beach", "Pebble Beach Golf Links"))
     r = client.post("/api/party/tee-off", json={}, environ_base=local)
-    check("  and, on the first tee, the view from it", r.get_json()["golf"]["tee_pic"], "/static/golf/tee/pebble-beach/1.jpg")
+    pic = r.get_json()["golf"]["tee_pic"] or ""
+    check("  and, on the first tee, the view from it - stamped with the file's time, so a replaced picture is fetched fresh",
+          (pic.startswith("/static/golf/tee/pebble-beach/1.jpg?v="), pic.endswith("?v=0")), (True, False))
     autoplay.stop()
     for n in ("W1AW", "N0CALL", "K9XYZ"):
         client.post("/api/party/join", json={"name": n, "device": "phone"}, environ_base=local)

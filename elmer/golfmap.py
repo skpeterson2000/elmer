@@ -31,24 +31,113 @@ CENTRE = (FAIR_L + FAIR_R) / 2
 PX_PER_YARD = (FAIR_R - FAIR_L) / 2 / 18.0
 
 
+class Plan:
+    """The hole in plan: the same yard both ways, the dogleg at its true
+    angle, turned so the tee is at the foot and the green at the head,
+    and fitted to the strip. The rules do not bend - a ball is yards along
+    the line of play and off it wherever the line goes - and this is the
+    map from those yards to the page and back.
+
+    The line is a polyline in yards: the tee at the origin, the first leg
+    straight up, the second leg turned by the card's degrees at the
+    card's yards. It is rotated so the tee-to-green line stands vertical
+    and scaled to fit, no more than PX_MOST a yard so a par 3 does not
+    fill the strip with one green.
+    """
+    PX_MOST = 2.4
+    MARGIN = 52                  # yards either side of the line kept in view: the rough and the sand
+
+    def __init__(self, h):
+        self.total = float(h["yards"])
+        b = (h or {}).get("bend") or {}
+        try:
+            at, deg = float(b.get("at") or 0), float(b.get("degrees") or 0)
+        except (TypeError, ValueError):
+            at, deg = 0.0, 0.0
+        if at <= 0 or at >= self.total or deg <= 0 or b.get("turn") not in ("left", "right"):
+            at, deg = self.total, 0.0
+        sign = 1 if b.get("turn") == "right" else -1
+        # the legs in yards, x right and y up, before rotation
+        self.legs = []                   # (at0, x0, y0, heading) - heading in radians from up, clockwise
+        pts = [(0.0, 0.0)]
+        head = 0.0
+        self.legs.append((0.0, 0.0, 0.0, head, at))
+        x1, y1 = 0.0, at
+        if deg:
+            head = sign * math.radians(min(80.0, deg))
+            self.legs.append((at, x1, y1, head, self.total - at))
+            x2, y2 = x1 + math.sin(head) * (self.total - at), y1 + math.cos(head) * (self.total - at)
+        else:
+            x2, y2 = x1, y1
+        # rotate so the tee-to-green line stands up
+        self.rot = math.atan2(x2, y2)
+        self.scale = 1.0
+        self.ox, self.oy = 0.0, 0.0
+        xs, ys = [], []
+        for at_, x, y, hd, ln in self.legs:
+            for f in (0.0, 1.0):
+                for off in (-self.MARGIN, self.MARGIN):
+                    px, py = self._rotate(x + math.sin(hd) * ln * f + math.cos(hd) * off, y + math.cos(hd) * ln * f - math.sin(hd) * off)
+                    xs.append(px); ys.append(py)
+        span_x, span_y = max(xs) - min(xs), max(ys) - min(ys)
+        self.scale = min(self.PX_MOST, (H - PAD_TOP - PAD_BOT) / max(span_y, 1.0), (W - 8) / max(span_x, 1.0))
+        # centre it, both ways, in the room the paddings leave
+        self.ox = W / 2 - (min(xs) + max(xs)) / 2 * self.scale
+        self.oy = (PAD_TOP + (H - PAD_BOT)) / 2 + (min(ys) + max(ys)) / 2 * self.scale
+
+    def _rotate(self, x, y):
+        c, s_ = math.cos(-self.rot), math.sin(-self.rot)
+        return x * c - y * s_, x * s_ + y * c
+
+    def heading(self, at):
+        """The line's heading at these yards, in radians clockwise from up, on the page."""
+        leg = self.legs[-1] if at >= self.legs[-1][0] else self.legs[0]
+        return leg[3] - self.rot
+
+    def at(self, at, off=0.0):
+        """Yards along the line and off it (right positive), as a point on
+        the page. At the turn itself the offset is mitred - along the
+        bisector of the two legs - so a band's edge turns the corner
+        without folding over itself."""
+        at = float(at)
+        off = float(off or 0)
+        if len(self.legs) > 1 and abs(at - self.legs[1][0]) < 0.5:
+            h1, h2 = self.legs[0][3], self.legs[1][3]
+            bis = (h1 + h2) / 2
+            stretch = 1.0 / max(0.35, math.cos((h2 - h1) / 2))
+            x0, y0 = self.legs[1][1], self.legs[1][2]
+            x, y = x0 + math.cos(bis) * off * stretch, y0 - math.sin(bis) * off * stretch
+        else:
+            leg = self.legs[-1] if at >= self.legs[-1][0] else self.legs[0]
+            at0, x0, y0, hd, _ln = leg
+            d = at - at0
+            x, y = x0 + math.sin(hd) * d + math.cos(hd) * off, y0 + math.cos(hd) * d - math.sin(hd) * off
+        rx, ry = self._rotate(x, y)
+        return self.ox + rx * self.scale, self.oy - ry * self.scale
+
+    def legs_px(self):
+        """The line as the page sees it, for a tap to be turned back into yards."""
+        out = []
+        for at0, x0, y0, hd, ln in self.legs:
+            x1, y1 = self.at(at0)
+            x2, y2 = self.at(at0 + ln)
+            out.append({"at0": at0, "x1": round(x1, 1), "y1": round(y1, 1), "x2": round(x2, 1), "y2": round(y2, 1), "yards": ln})
+        return out
+
+
 def geometry(h):
-    """What a screen needs to turn a tap on the strip into yards: the
-    box, the paddings, the centre line and the scale."""
-    return {"w": W, "h": H, "pad_top": PAD_TOP, "pad_bot": PAD_BOT, "centre": CENTRE,
-            "px_per_yard": PX_PER_YARD, "yards": h["yards"], "bend": bend_of(h)}
-
-
-# A dog-leg: past the bend the line of play swings left or right. The
-# strip is a yardage book's, schematic, so the swing is drawn at a third
-# of its angle and never runs off the page; the rules do not bend - a
-# ball is yards along the line and off it wherever the line goes.
-BEND_SCALE = 0.35
-BEND_MOST = 62.0
+    """What a screen needs to turn a tap on the plan into yards: the
+    line's legs on the page and the scale. A tap is projected onto the
+    nearest leg; its distance along that leg is yards along the hole,
+    its distance across is yards off the line."""
+    plan = Plan(h)
+    return {"view": "plan", "w": W, "h": H, "px_per_yard": round(plan.scale, 4), "yards": h["yards"],
+            "legs": plan.legs_px(), "bend": bend_of(h)}
 
 
 def bend_of(h):
-    """The hole's bend as (yards, direction, lateral px per yard along), or
-    None. Direction +1 is right."""
+    """The hole's bend as the card has it, or None: kept for the screens
+    that ask whether there is one."""
     b = (h or {}).get("bend") or {}
     try:
         at, deg = float(b.get("at") or 0), float(b.get("degrees") or 0)
@@ -56,22 +145,9 @@ def bend_of(h):
         return None
     if not at or not deg or b.get("turn") not in ("left", "right"):
         return None
-    import math
-    k = math.tan(math.radians(min(75.0, deg))) * BEND_SCALE * PX_PER_YARD
-    return {"at": at, "dir": 1 if b["turn"] == "right" else -1, "k": k, "most": BEND_MOST}
+    return {"at": at, "dir": 1 if b["turn"] == "right" else -1, "degrees": deg}
 
 
-def centre_x(at, bend=None):
-    """Where the line of play is, across the strip, at these yards."""
-    if not bend or at <= bend["at"]:
-        return CENTRE
-    return CENTRE + bend["dir"] * min(bend["most"], (float(at) - bend["at"]) * bend["k"])
-
-
-def _x(off, at=None, bend=None):
-    """Yards off the line, as a place across the strip - the line itself
-    where the hole's bend puts it at these yards."""
-    return centre_x(at if at is not None else 0, bend) + float(off or 0) * PX_PER_YARD
 SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
         "across": (FAIR_L, FAIR_R), "front": (FAIR_L, FAIR_R),
         "centre": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
@@ -81,13 +157,6 @@ WIND_ARROW = {"with": "↑", "into": "↓", "across": "→", "swirling": "↻"}
 LIE_MARK = {"tee": "#e8e8e8", "fairway": "#e8e8e8", "rough": "#c9d13a", "sand": "#d9c48a",
             "green": "#8fe39a", "fringe": "#6fbf7a", "water": "#7fbfff"}
 GREEN_FILL, FRINGE_FILL, FAIRWAY_FILL, ROUGH_FILL, GROUND = "#8fe39a", "#5fa86a", "#4a8a3a", "#2a4a24", "#16221a"
-
-
-def _y(yards, total):
-    """Yards from the tee, as a height up the strip."""
-    usable = H - PAD_TOP - PAD_BOT
-    frac = max(0.0, min(1.0, float(yards) / float(total or 1)))
-    return H - PAD_BOT - frac * usable
 
 
 # ------------------------------------------------------------ the shapes
@@ -273,73 +342,63 @@ def _mark_title(mark, total):
 # --------------------------------------------------------------- the hole
 
 def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None, aimed=None):
-    """One hole as an SVG string. `h` is the card's hole; `balls` a list of
-    {name, at, off, lie, holed, picked_up, you}; `mark` the golfer's aim,
-    {at, off}, drawn as a cross; `aimed` where the last stroke was aimed,
-    drawn fainter beside where the ball went - a shot bounces, rolls, or
-    falls off a cliff, and the mark says what was meant."""
+    """One hole as an SVG string, in plan. `h` is the card's hole; `balls`
+    a list of {name, at, off, lie, holed, picked_up, you}; `mark` the
+    golfer's aim, {at, off}, drawn as a cross; `aimed` where the last
+    stroke was aimed, drawn fainter beside where the ball went - a shot
+    bounces, rolls, or falls off a cliff, and the mark says what was
+    meant."""
     from . import golf
     total = float(h["yards"])
-    bend = bend_of(h)
+    plan = Plan(h)
+    k = plan.scale
     half_yd = float(h.get("width") or 18)
-    half_px = half_yd * PX_PER_YARD
     seed = _seed(h)
     uid = f"h{h['n']}{seed % 1000}"
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
              f'class="holemap" role="img" aria-label="the {h["n"]} hole, par {h["par"]}, {h["yards"]} yards">']
     parts.append(f'<rect x="0" y="0" width="{W}" height="{H}" rx="14" fill="{GROUND}"/>')
-    top, bot = _y(total, total), _y(0, total)
-    # the line of play, sampled tee to green; the fairway and the rough are
-    # bands either side of it, their edges softened
-    ats = [total * i / 28 for i in range(29)]
-    line = [(centre_x(at, bend), _y(at, total)) for at in ats]
-    rough_l = [(x - half_px - 30, y) for x, y in line]
-    rough_r = [(x + half_px + 30, y) for x, y in line]
+    # the line of play, sampled tee to green; the rough and the fairway are
+    # bands either side of it, their edges softened. Where the line turns
+    # the samples crowd the corner so the bands turn with it.
+    ats = sorted(set([total * i / 28 for i in range(29)] + ([plan.legs[1][0]] if len(plan.legs) > 1 else [])))
+    rough_l = [plan.at(a, -half_yd - 30) for a in ats]
+    rough_r = [plan.at(a, half_yd + 30) for a in ats]
     parts.append(f'<path d="{_strip(rough_l, rough_r, seed + 3, 9)}" fill="{ROUGH_FILL}"/>')
-    _trees(parts, [(x - 4, y) for x, y in rough_l[1:-1]], seed, -1)
-    _trees(parts, [(x + 4, y) for x, y in rough_r[1:-1]], seed, 1)
+    _trees(parts, [plan.at(a, -half_yd - 34) for a in ats[1:-1]], seed, -1)
+    _trees(parts, [plan.at(a, half_yd + 34) for a in ats[1:-1]], seed, 1)
     # the fairway ends at the front of the fringe; beside the green is rough
     front = total - golf.green_edge(h) - golf.FRINGE + 2
-    fline = [(centre_x(at, bend), _y(at, total)) for at in ats if at < front] + [(centre_x(front, bend), _y(front, total))]
-    fair_l = [(x - half_px, y) for x, y in fline]
-    fair_r = [(x + half_px, y) for x, y in fline]
+    fats = [a for a in ats if a < front] + [front]
+    fair_l = [plan.at(a, -half_yd) for a in fats]
+    fair_r = [plan.at(a, half_yd) for a in fats]
     fairway = _strip(fair_l, fair_r, seed + 5, 4, swell=9)
     parts.append(f'<defs><clipPath id="{uid}f"><path d="{fairway}"/></clipPath></defs>')
     parts.append(f'<path d="{fairway}" fill="{FAIRWAY_FILL}"/>')
-    _stripes(parts, f"{uid}f", top - 20, bot + 20)
-    # the hazards, at their yards and on their side, following the line
+    _stripes(parts, f"{uid}f", 0, H)
+    # the hazards, at their yards and where they sit across the hole,
+    # turned with the line
     for i, hz in enumerate(h.get("hazards", [])):
-        x0, x1 = SIDE.get(hz.get("side", ""), SIDE[""])
-        mid = (hz["from"] + hz["to"]) / 2.0
-        shift = centre_x(mid, bend) - CENTRE
-        if hz.get("side") == "left":
-            x0, x1 = CENTRE - half_px - 34, CENTRE - half_px - 4
-        elif hz.get("side") == "right":
-            x0, x1 = CENTRE + half_px + 4, CENTRE + half_px + 34
-        elif hz.get("side") in ("across", "front", ""):
-            x0, x1 = CENTRE - half_px, CENTRE + half_px
-        y1, y0 = _y(hz["from"], total), _y(hz["to"], total)
-        if y1 - y0 < 8:
-            y0, y1 = (y0 + y1) / 2 - 4, (y0 + y1) / 2 + 4
-        _hazard(parts, h, hz, x0 + shift, x1 + shift, y0, y1, i)
+        _plan_hazard(parts, h, hz, plan, i, k)
     # the green and its fringe, where the line ends - the one shape every view draws
-    depth = float(h.get("green") or 28)
-    gy, gx = _y(total, total), centre_x(total, bend)
-    ry = max(12.0, (golf.green_edge(h) / total) * (H - PAD_TOP - PAD_BOT))
-    rx = golf.GREEN_HALF * PX_PER_YARD + 4
-    fr = golf.FRINGE * PX_PER_YARD
+    gx, gy = plan.at(total)
+    rot = plan.heading(total)
+    ry = golf.green_edge(h) * k
+    rx = golf.green_half(h) * k
+    fr = golf.FRINGE * k
     shape = _outline(_seed(h, "green"))
-    parts.append(f'<path d="{_blob(gx, gy, rx + fr, ry + fr * ry / rx, shape)}" fill="{FRINGE_FILL}"/>')
-    parts.append(f'<path d="{_blob(gx, gy, rx, ry, shape)}" fill="{GREEN_FILL}"/>')
+    parts.append(f'<path d="{_blob(gx, gy, rx + fr, ry + fr, shape, rot)}" fill="{FRINGE_FILL}"/>')
+    parts.append(f'<path d="{_blob(gx, gy, rx, ry, shape, rot)}" fill="{GREEN_FILL}"/>')
     _flag(parts, gx, gy)
     # the tee box
-    parts.append(f'<rect x="{CENTRE - 16}" y="{bot - 6:.1f}" width="32" height="12" rx="3" fill="#c9e2c0" stroke="{GROUND}"/>')
-    # yard marks every 100
+    tx, ty = plan.at(0)
+    parts.append(f'<rect x="{tx - 14:.1f}" y="{ty - 5:.1f}" width="28" height="10" rx="3" fill="#c9e2c0" stroke="{GROUND}"/>')
+    # yard marks every 100, beside the line
     y100 = 100
     while y100 < total:
-        yy = _y(y100, total)
-        parts.append(f'<line x1="{FAIR_R + 44}" y1="{yy:.1f}" x2="{FAIR_R + 52}" y2="{yy:.1f}" stroke="#8b98a5"/>')
-        parts.append(f'<text x="{FAIR_R + 56}" y="{yy + 4:.1f}" font-size="11" fill="#8b98a5" '
+        mx, my = plan.at(y100, half_yd + 40)
+        parts.append(f'<line x1="{mx - 4:.1f}" y1="{my:.1f}" x2="{mx + 4:.1f}" y2="{my:.1f}" stroke="#8b98a5"/>')
+        parts.append(f'<text x="{mx + 7:.1f}" y="{my + 4:.1f}" font-size="10" fill="#8b98a5" '
                      f'font-family="ui-monospace, monospace">{y100}</text>')
         y100 += 100
     # the head: hole, par, yards, wind
@@ -355,23 +414,89 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="13" fill="#9ad1ff" '
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
     if aimed and aimed.get("at") is not None:
-        _cross(parts, _x(aimed.get("off"), float(aimed["at"]), bend), _y(min(float(aimed["at"]), total + 20), total),
-               "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
+        ax, ay = plan.at(min(float(aimed["at"]), total + 20), aimed.get("off"))
+        _cross(parts, ax, ay, "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("at") is not None:
-        _cross(parts, _x(mark.get("off"), float(mark["at"]), bend), _y(min(float(mark["at"]), total + 20), total),
-               "mark", 9, 2, 1, "", f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""))
+        mx, my = plan.at(min(float(mark["at"]), total + 20), mark.get("off"))
+        _cross(parts, mx, my, "mark", 9, 2, 1, "", f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""))
     # the balls, where they lie - the one that is you ringed, the holed at the cup
     on_the_tee = [b for b in (balls or []) if not b.get("holed") and float(b.get("at") or 0) == 0]
     for b in balls or []:
         at = total if b.get("holed") else min(float(b.get("at") or 0), total)
-        yy = _y(at, total)
         if at == 0 and b in on_the_tee:
-            xx = CENTRE + (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 14
+            xx, yy = plan.at(0, (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 7)
         else:
-            xx = _x(b.get("off"), at, bend)
+            xx, yy = plan.at(at, b.get("off"))
         _ball(parts, xx, yy, b)
     parts.append("</svg>")
     return "".join(parts)
+
+
+def _plan_hazard(parts, h, hz, plan, i, k):
+    """One hazard on the plan: at its yards along the line and its
+    measured yards across it, turned with the line where it sits. A
+    band across the hole spans the fairway; a hazard beside it is a
+    blob at its offset; "around" the green is a blob each side."""
+    from . import golf
+    title = f'{hz.get("name") or hz["kind"]}, {hz["from"]}-{hz["to"]} yards'
+    seed = _seed(h, f"hz{i}")
+    half = golf.fairway_half(h)
+    lo, hi = float(hz["from"]), float(max(hz["to"], hz["from"] + 4))
+    mid = (lo + hi) / 2
+    side = hz.get("side", "")
+    rot = plan.heading(mid)
+    ry = (hi - lo) / 2 * k
+    if side in ("across", "front", "centre", "") and hz.get("off") is None:
+        offs, rx = [0.0], half * k * (0.75 if side == "centre" else 1.0)
+    elif side == "beyond" and hz.get("off") is None:
+        offs, rx = [0.0], (golf.green_half(h) + 6) * k
+    elif side == "around" and hz.get("off") is None:
+        offs, rx = [-(golf.green_half(h) + 8), golf.green_half(h) + 8], 7 * k
+    else:
+        off = golf.hazard_off(h, hz)
+        if hz["kind"] == "water" and side in ("left", "right") and hi - lo > 80:
+            # water down one side of the hole, the length of it: a band out to the edge
+            offs, rx = [off + (18 if off > 0 else -18)], 24 * k
+        elif hz["kind"] == "water" and side in ("across", "front"):
+            offs, rx = [off], half * k
+        else:
+            offs, rx = [off], (8 if hz["kind"] == "bunker" else 12) * k
+    if hi - lo > 60:
+        # A hazard the length of a leg or more - the bay down the 18th, a
+        # creek along the hole, a run of bunkers - follows the line, as a
+        # band between two offsets, rather than one shape across the turn.
+        ats = [lo + (hi - lo) * i / 12 for i in range(13)]
+        if len(plan.legs) > 1 and lo < plan.legs[1][0] < hi:
+            ats = sorted(ats + [plan.legs[1][0]])
+        for j, off in enumerate(offs):
+            inner, outer = off - rx / k, off + rx / k
+            left = [plan.at(a, inner) for a in ats]
+            right = [plan.at(a, outer) for a in ats]
+            d = _strip(left, right, seed + j, 3)
+            if hz["kind"] == "bunker":
+                parts.append(f'<path d="{d}" fill="{SAND}" stroke="{SAND_LIP}" stroke-width="1.2"><title>{escape(title)}</title></path>')
+            elif hz["kind"] == "water":
+                parts.append(f'<path d="{d}" fill="{WATER}" stroke="{WATER_EDGE}" stroke-width="1" opacity="0.95"><title>{escape(title)}</title></path>')
+            else:
+                parts.append(f'<path d="{d}" fill="#3f6127" opacity="0.95"><title>{escape(title)}</title></path>')
+        return
+    for j, off in enumerate(offs):
+        cx, cy = plan.at(mid, off)
+        rx_ = max(rx, 5.0)
+        ry_ = max(ry, 5.0)
+        if hz["kind"] == "bunker":
+            parts.append(f'<path d="{_blob(cx, cy, rx_, ry_, _outline(seed + j, 28, 0.22, inward=True), rot)}" fill="{SAND}" '
+                         f'stroke="{SAND_LIP}" stroke-width="1.2"><title>{escape(title)}</title></path>')
+        elif hz["kind"] == "water":
+            parts.append(f'<path d="{_blob(cx, cy, rx_, ry_, _outline(seed + j, 28, 0.08), rot)}" fill="{WATER}" '
+                         f'stroke="{WATER_EDGE}" stroke-width="1" opacity="0.95"><title>{escape(title)}</title></path>')
+            r = random.Random(seed)
+            for _ in range(2):
+                x, y = cx + r.uniform(-rx_ * 0.5, rx_ * 0.5), cy + r.uniform(-ry_ * 0.5, ry_ * 0.5)
+                parts.append(f'<path d="M{x:.1f},{y:.1f} q3,-2 6,0 t6,0" fill="none" stroke="#9ad1ff" stroke-width="0.8" opacity="0.6"/>')
+        else:
+            parts.append(f'<path d="{_blob(cx, cy, rx_, ry_, _outline(seed + j, 28, 0.12), rot)}" fill="#3f6127" opacity="0.95">'
+                         f'<title>{escape(title)}</title></path>')
 
 
 # ------------------------------------------------------------- the green
@@ -408,7 +533,7 @@ def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
     from . import golf
     geo = green_geometry(h)
     cx, cy, k = geo["cx"], geo["cy"], geo["px_per_ft"]
-    ry, rx = (golf.green_edge(h) * 3) * k, GREEN_HALF_FT * k
+    ry, rx = (golf.green_edge(h) * 3) * k, golf.green_half(h) * 3 * k
     fr = FRINGE_FT * k
     seed = _seed(h, "green")
     uid = f"g{h['n']}{seed % 1000}"
@@ -426,6 +551,10 @@ def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
         side = hz.get("side", "")
         dy = -((hz["from"] + hz["to"]) / 2.0 - h["yards"]) * 3 * k
         boxes = []
+        if hz.get("off") is not None and hz["kind"] == "bunker":
+            ox = cx + float(hz["off"]) * 3 * k
+            boxes.append((ox - 13, ox + 13, cy + dy - 20, cy + dy + 20))
+            side = "measured"
         if side in ("left", "around"):
             boxes.append((cx - rx - fr - 26, cx - rx - fr - 2, cy + dy - 22, cy + dy + 22))
         if side in ("right", "around"):
@@ -571,7 +700,17 @@ def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None)
         if hz["to"] < foot - 5:
             continue
         side = hz.get("side", "")
-        if side == "left":
+        if hz.get("off") is not None:
+            # measured: where it sits across the hole, a bunker's width wide
+            o = float(hz["off"])
+            w = 9 if hz["kind"] == "bunker" else 14
+            if hz["kind"] == "water" and side in ("left", "right") and hz["to"] - hz["from"] > 80:
+                o0, o1 = (o, o + 40) if o > 0 else (o - 40, o)
+            elif hz["kind"] == "water" and side in ("across", "front"):
+                o0, o1 = -half_yd, half_yd
+            else:
+                o0, o1 = o - w / 2, o + w / 2
+        elif side == "left":
             o0, o1 = -half_yd - 18, -half_yd - 2
         elif side == "right":
             o0, o1 = half_yd + 2, half_yd + 18
@@ -591,9 +730,9 @@ def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None)
     # the green and its fringe, the one shape every view draws
     gy = y_at(total)
     shape = _outline(_seed(h, "green"))
-    parts.append(f'<path d="{_blob(cx, gy, (golf.GREEN_HALF + golf.FRINGE) * k, (edge + golf.FRINGE) * k, shape)}" '
+    parts.append(f'<path d="{_blob(cx, gy, (golf.green_half(h) + golf.FRINGE) * k, (edge + golf.FRINGE) * k, shape)}" '
                  f'fill="{FRINGE_FILL}"><title>the fringe</title></path>')
-    green = _blob(cx, gy, golf.GREEN_HALF * k, edge * k, shape)
+    green = _blob(cx, gy, golf.green_half(h) * k, edge * k, shape)
     parts.append(f'<defs><clipPath id="{uid}g"><path d="{green}"/></clipPath></defs>')
     parts.append(f'<path d="{green}" fill="{GREEN_FILL}"/>')
     _stripes(parts, f"{uid}g", gy - edge * k - 10, gy + edge * k + 10, 9, int(cx - 70), int(cx + 70), diagonal=True)

@@ -177,14 +177,42 @@ def green_edge(h):
     return h["green"] / 2 + 5
 
 
+def green_half(h):
+    """The green's half-width in yards: the card's, where it was measured
+    (the greenside sand says where the green stops), else GREEN_HALF."""
+    try:
+        return max(6.0, min(float(GREEN_HALF), float(h.get("green_half") or GREEN_HALF)))
+    except (TypeError, ValueError):
+        return float(GREEN_HALF)
+
+
+def hazard_off(h, hz):
+    """Where a hazard sits across the hole, in yards off the line, right
+    positive: as measured where the card has it, else where its side
+    puts it - beside the fairway for left and right, on the line for the
+    rest. "around" is two: this returns the right one; the caller mirrors."""
+    if hz.get("off") is not None:
+        return float(hz["off"])
+    half = fairway_half(h)
+    side = hz.get("side", "")
+    if side == "left":
+        return -(half + 12)
+    if side == "right":
+        return half + 12
+    if side == "around":
+        return green_half(h) + 8
+    return 0.0
+
+
 def on_the_green(h, at, off):
     """What a ball at these yards is on, of the green and its collar:
     "green", "fringe", or None for neither."""
     edge = green_edge(h)
     along, across = abs(h["yards"] - float(at)), abs(float(off or 0))
-    if along <= edge and across <= GREEN_HALF:
+    half = green_half(h)
+    if along <= edge and across <= half:
         return "green"
-    if along <= edge + FRINGE and across <= GREEN_HALF + FRINGE:
+    if along <= edge + FRINGE and across <= half + FRINGE:
         return "fringe"
     return None
 
@@ -626,7 +654,7 @@ class Golf:
             # the cup, or the spot above it the break wants.
             half = h["green"] / 2 + 2
             at = max(h["yards"] - half, min(h["yards"] + half, at))
-            off = max(-(GREEN_HALF + 2), min(GREEN_HALF + 2, off))
+            off = max(-(green_half(h) + 2), min(green_half(h) + 2, off))
             self.aims[player] = {"at": round(at, 2), "off": round(off, 2)}
             return dict(self.aims[player])
         at, off = int(round(at)), int(round(off))
@@ -816,7 +844,8 @@ class Golf:
                 # The card puts the water beyond a green at the pin's own
                 # yardage; the green runs on past the pin, and a ball still
                 # on it has not gone in.
-                if hz_on_the_way and hz_on_the_way.get("side") == "beyond" and y <= h["yards"] + edge                         and abs(off) <= GREEN_HALF:
+                if hz_on_the_way and hz_on_the_way.get("side") == "beyond" and y <= h["yards"] + edge \
+                        and abs(off) <= green_half(h):
                     continue
                 if hz_on_the_way:
                     ran_through, roll = hz_on_the_way, y - landed
@@ -881,7 +910,7 @@ class Golf:
             ball.at, ball.off = landed, off
             ball.lie = "fringe"
             feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
-            where = ("short" if left > 0 and abs(off) <= GREEN_HALF else "long" if left < 0 and abs(off) <= GREEN_HALF
+            where = ("short" if left > 0 and abs(off) <= green_half(h) else "long" if left < 0 and abs(off) <= green_half(h)
                      else "left" if off < 0 else "right")
             return {"kind": "fringe", "words": f"{club}, {abs(carry)} yards{ran} - on the fringe, {where}, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off}

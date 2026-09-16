@@ -30,7 +30,8 @@
    "pins": {
     "front": -18,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 2,
@@ -38,7 +39,7 @@
    "yards": 411,
    "name": "Dyke",
    "wind": "with",
-   "green": 18,
+   "green": 12,
    "hazards": [
     {
      "kind": "bunker",
@@ -58,7 +59,8 @@
    "pins": {
     "front": -12,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 3,
@@ -80,6 +82,7 @@
     "front": -34,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 250,
     "turn": "left",
@@ -112,7 +115,8 @@
    "pins": {
     "front": -25,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 5,
@@ -140,7 +144,8 @@
    "pins": {
     "front": -44,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 6,
@@ -169,6 +174,7 @@
     "front": -23,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 250,
     "turn": "right",
@@ -202,6 +208,7 @@
     "front": -23,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 269,
     "turn": "right",
@@ -227,7 +234,8 @@
    "pins": {
     "front": -25,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 9,
@@ -235,7 +243,7 @@
    "yards": 347,
    "name": "End",
    "wind": "with",
-   "green": 18,
+   "green": 17,
    "hazards": [
     {
      "kind": "bunker",
@@ -249,6 +257,7 @@
     "front": -17,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 250,
     "turn": "right",
@@ -274,7 +283,8 @@
    "pins": {
     "front": -25,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 11,
@@ -282,7 +292,7 @@
    "yards": 174,
    "name": "High (in)",
    "wind": "into",
-   "green": 18,
+   "green": 12,
    "hazards": [
     {
      "kind": "bunker",
@@ -309,7 +319,8 @@
    "pins": {
     "front": -12,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 12,
@@ -330,7 +341,8 @@
    "pins": {
     "front": -19,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 13,
@@ -365,7 +377,8 @@
    "pins": {
     "front": -25,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 14,
@@ -407,7 +420,8 @@
    "pins": {
     "front": -18,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 15,
@@ -429,6 +443,7 @@
     "front": -23,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 250,
     "turn": "right",
@@ -468,7 +483,8 @@
    "pins": {
     "front": -20,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 17,
@@ -503,7 +519,8 @@
    "pins": {
     "front": -23,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 18,
@@ -531,7 +548,8 @@
    "pins": {
     "front": -23,
     "back": 0
-   }
+   },
+   "green_half": 14
   }
  ],
  "source": "Doglegs, green depths and pin positions measured from GolfTraxx's hole maps (https://golftraxx.com) on 2026-09-16; wind, slope, width and names are ELMER's own; the hazards are the card's own, from published descriptions - the maps mark none here."

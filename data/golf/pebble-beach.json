@@ -20,13 +20,14 @@
    "yards": 377,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 14,
    "hazards": [
     {
      "kind": "bunker",
      "from": 245,
      "to": 264,
      "side": "left",
+     "off": -13,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -34,6 +35,7 @@
      "from": 285,
      "to": 304,
      "side": "left",
+     "off": -12,
      "name": "the 2nd fairway bunker, left"
     },
     {
@@ -41,6 +43,7 @@
      "from": 350,
      "to": 377,
      "side": "left",
+     "off": -11,
      "name": "the greenside bunker, left"
     },
     {
@@ -48,6 +51,7 @@
      "from": 356,
      "to": 377,
      "side": "right",
+     "off": 10,
      "name": "the greenside bunkers, right"
     }
    ],
@@ -64,7 +68,8 @@
    "pins": {
     "front": -14,
     "back": 0
-   }
+   },
+   "green_half": 8
   },
   {
    "n": 2,
@@ -72,13 +77,14 @@
    "yards": 511,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 16,
    "hazards": [
     {
      "kind": "bunker",
      "from": 201,
      "to": 205,
      "side": "centre",
+     "off": 4,
      "name": "the fairway bunker"
     },
     {
@@ -86,6 +92,7 @@
      "from": 218,
      "to": 239,
      "side": "right",
+     "off": 21,
      "name": "the 1st fairway bunker, right"
     },
     {
@@ -93,6 +100,7 @@
      "from": 253,
      "to": 275,
      "side": "right",
+     "off": 31,
      "name": "the 2nd fairway bunker, right"
     },
     {
@@ -100,6 +108,7 @@
      "from": 285,
      "to": 320,
      "side": "right",
+     "off": 27,
      "name": "the 3rd fairway bunker, right"
     },
     {
@@ -107,6 +116,7 @@
      "from": 290,
      "to": 334,
      "side": "left",
+     "off": -12,
      "name": "the fairway bunker, left"
     },
     {
@@ -114,6 +124,7 @@
      "from": 431,
      "to": 451,
      "side": "across",
+     "off": 6,
      "name": "the barranca"
     }
    ],
@@ -125,7 +136,8 @@
    "pins": {
     "front": -16,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 3,
@@ -133,13 +145,14 @@
    "yards": 390,
    "name": "",
    "wind": "across",
-   "green": 18,
+   "green": 14,
    "hazards": [
     {
      "kind": "rough",
      "from": 174,
      "to": 178,
      "side": "left",
+     "off": -33,
      "name": "the trees, left"
     },
     {
@@ -147,6 +160,7 @@
      "from": 192,
      "to": 205,
      "side": "left",
+     "off": -5,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -154,6 +168,7 @@
      "from": 220,
      "to": 225,
      "side": "left",
+     "off": -12,
      "name": "the 2nd fairway bunker, left"
     },
     {
@@ -161,6 +176,7 @@
      "from": 242,
      "to": 323,
      "side": "right",
+     "off": 16,
      "name": "the 1st set fairway bunkers, right"
     },
     {
@@ -168,6 +184,7 @@
      "from": 362,
      "to": 386,
      "side": "right",
+     "off": 13,
      "name": "the greenside bunkers, right"
     },
     {
@@ -175,6 +192,7 @@
      "from": 374,
      "to": 390,
      "side": "left",
+     "off": -10,
      "name": "the greenside bunker, left"
     }
    ],
@@ -191,7 +209,8 @@
    "pins": {
     "front": -14,
     "back": 0
-   }
+   },
+   "green_half": 8
   },
   {
    "n": 4,
@@ -199,13 +218,14 @@
    "yards": 326,
    "name": "",
    "wind": "across",
-   "green": 18,
+   "green": 11,
    "hazards": [
     {
      "kind": "bunker",
      "from": 170,
      "to": 174,
      "side": "centre",
+     "off": -11,
      "name": "the 1st fairway bunker"
     },
     {
@@ -213,6 +233,7 @@
      "from": 212,
      "to": 216,
      "side": "left",
+     "off": -53,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -220,6 +241,7 @@
      "from": 220,
      "to": 224,
      "side": "left",
+     "off": -20,
      "name": "the small fairway bunker, left"
     },
     {
@@ -234,6 +256,7 @@
      "from": 262,
      "to": 266,
      "side": "left",
+     "off": -36,
      "name": "the small fairway bunker, left"
     },
     {
@@ -241,6 +264,7 @@
      "from": 278,
      "to": 282,
      "side": "left",
+     "off": -31,
      "name": "the 2nd fairway bunker, left"
     },
     {
@@ -248,6 +272,7 @@
      "from": 281,
      "to": 285,
      "side": "right",
+     "off": 8,
      "name": "the greenside bunkers, right"
     },
     {
@@ -255,6 +280,7 @@
      "from": 299,
      "to": 303,
      "side": "left",
+     "off": -19,
      "name": "the greenside bunker, left"
     }
    ],
@@ -266,7 +292,8 @@
    "pins": {
     "front": -11,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 5,
@@ -274,13 +301,14 @@
    "yards": 192,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 12,
    "hazards": [
     {
      "kind": "bunker",
      "from": 167,
      "to": 182,
      "side": "right",
+     "off": 4,
      "name": "the greenside bunkers, right"
     },
     {
@@ -288,6 +316,7 @@
      "from": 192,
      "to": 196,
      "side": "left",
+     "off": -12,
      "name": "the greenside bunkers, left"
     },
     {
@@ -306,7 +335,8 @@
    "pins": {
     "front": -12,
     "back": 0
-   }
+   },
+   "green_half": 10
   },
   {
    "n": 6,
@@ -314,20 +344,14 @@
    "yards": 506,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 15,
    "hazards": [
-    {
-     "kind": "water",
-     "from": 0,
-     "to": 262,
-     "side": "left",
-     "name": "the stillwater cove, left"
-    },
     {
      "kind": "bunker",
      "from": 229,
      "to": 233,
      "side": "left",
+     "off": -44,
      "name": "the fairway bunker, left"
     },
     {
@@ -342,6 +366,7 @@
      "from": 258,
      "to": 336,
      "side": "left",
+     "off": -31,
      "name": "the 1st set fairway bunkers, left"
     },
     {
@@ -349,6 +374,7 @@
      "from": 387,
      "to": 469,
      "side": "left",
+     "off": -36,
      "name": "the 2nd set fairway bunkers, left"
     },
     {
@@ -356,6 +382,7 @@
      "from": 387,
      "to": 391,
      "side": "left",
+     "off": -53,
      "name": "the 2nd fairway bunker, left"
     },
     {
@@ -363,6 +390,7 @@
      "from": 477,
      "to": 506,
      "side": "right",
+     "off": 15,
      "name": "the greenside bunkers, right"
     },
     {
@@ -370,6 +398,7 @@
      "from": 495,
      "to": 506,
      "side": "left",
+     "off": -12,
      "name": "the greenside bunkers, left"
     }
    ],
@@ -381,7 +410,8 @@
    "pins": {
     "front": -15,
     "back": 0
-   }
+   },
+   "green_half": 10
   },
   {
    "n": 7,
@@ -389,13 +419,14 @@
    "yards": 106,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 12,
    "hazards": [
     {
      "kind": "bunker",
      "from": 78,
      "to": 100,
      "side": "front",
+     "off": 3,
      "name": "the greenside bunker"
     },
     {
@@ -403,6 +434,7 @@
      "from": 91,
      "to": 104,
      "side": "left",
+     "off": -12,
      "name": "the greenside bunker, left"
     },
     {
@@ -410,6 +442,7 @@
      "from": 106,
      "to": 110,
      "side": "beyond",
+     "off": 11,
      "name": "the greenside bunker"
     },
     {
@@ -428,7 +461,8 @@
    "pins": {
     "front": -12,
     "back": 0
-   }
+   },
+   "green_half": 9
   },
   {
    "n": 8,
@@ -436,7 +470,7 @@
    "yards": 427,
    "name": "",
    "wind": "across",
-   "green": 18,
+   "green": 10,
    "hazards": [
     {
      "kind": "water",
@@ -450,6 +484,7 @@
      "from": 367,
      "to": 386,
      "side": "centre",
+     "off": -9,
      "name": "the fairway bunker"
     },
     {
@@ -457,6 +492,7 @@
      "from": 393,
      "to": 415,
      "side": "left",
+     "off": -23,
      "name": "the fairway bunker, left"
     },
     {
@@ -464,6 +500,7 @@
      "from": 415,
      "to": 427,
      "side": "right",
+     "off": 11,
      "name": "the greenside bunker, right"
     }
    ],
@@ -480,7 +517,8 @@
    "pins": {
     "front": -10,
     "back": 0
-   }
+   },
+   "green_half": 9
   },
   {
    "n": 9,
@@ -488,7 +526,7 @@
    "yards": 481,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 10,
    "hazards": [
     {
      "kind": "water",
@@ -502,6 +540,7 @@
      "from": 265,
      "to": 287,
      "side": "left",
+     "off": -27,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -509,6 +548,7 @@
      "from": 368,
      "to": 393,
      "side": "left",
+     "off": -19,
      "name": "the fairway bunkers, left"
     },
     {
@@ -516,6 +556,7 @@
      "from": 458,
      "to": 468,
      "side": "left",
+     "off": -7,
      "name": "the greenside bunker, left"
     }
    ],
@@ -528,6 +569,7 @@
     "front": -10,
     "back": 0
    },
+   "green_half": 8,
    "bend": {
     "at": 241,
     "turn": "right",
@@ -540,7 +582,7 @@
    "yards": 446,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 14,
    "hazards": [
     {
      "kind": "water",
@@ -554,6 +596,7 @@
      "from": 254,
      "to": 258,
      "side": "left",
+     "off": -29,
      "name": "the fairway bunkers, left"
     },
     {
@@ -561,6 +604,7 @@
      "from": 425,
      "to": 429,
      "side": "left",
+     "off": -14,
      "name": "the greenside bunker, left"
     }
    ],
@@ -577,7 +621,8 @@
    "pins": {
     "front": -14,
     "back": 0
-   }
+   },
+   "green_half": 12
   },
   {
    "n": 11,
@@ -585,13 +630,14 @@
    "yards": 373,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 8,
    "hazards": [
     {
      "kind": "bunker",
      "from": 163,
      "to": 167,
      "side": "left",
+     "off": -15,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -599,6 +645,7 @@
      "from": 328,
      "to": 343,
      "side": "left",
+     "off": -1,
      "name": "the fairway bunker, left"
     },
     {
@@ -606,6 +653,7 @@
      "from": 349,
      "to": 373,
      "side": "right",
+     "off": 7,
      "name": "the greenside bunker, right"
     }
    ],
@@ -618,6 +666,7 @@
     "front": -7,
     "back": 0
    },
+   "green_half": 8,
    "bend": {
     "at": 239,
     "turn": "right",
@@ -630,13 +679,14 @@
    "yards": 201,
    "name": "",
    "wind": "across",
-   "green": 18,
+   "green": 8,
    "hazards": [
     {
      "kind": "bunker",
      "from": 174,
      "to": 189,
      "side": "front",
+     "off": -3,
      "name": "the greenside bunker"
     }
    ],
@@ -648,7 +698,8 @@
    "pins": {
     "front": -8,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 13,
@@ -656,13 +707,14 @@
    "yards": 403,
    "name": "",
    "wind": "across",
-   "green": 18,
+   "green": 10,
    "hazards": [
     {
      "kind": "bunker",
      "from": 210,
      "to": 302,
      "side": "left",
+     "off": -24,
      "name": "the fairway bunker, left"
     },
     {
@@ -670,6 +722,7 @@
      "from": 265,
      "to": 301,
      "side": "right",
+     "off": 12,
      "name": "the fairway bunkers, right"
     },
     {
@@ -677,6 +730,7 @@
      "from": 356,
      "to": 376,
      "side": "right",
+     "off": 11,
      "name": "the 2nd fairway bunkers, right"
     }
    ],
@@ -688,7 +742,8 @@
    "pins": {
     "front": -10,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 14,
@@ -696,13 +751,14 @@
    "yards": 572,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 13,
    "hazards": [
     {
      "kind": "bunker",
      "from": 188,
      "to": 237,
      "side": "right",
+     "off": 18,
      "name": "the fairway bunker, right"
     },
     {
@@ -710,6 +766,7 @@
      "from": 217,
      "to": 221,
      "side": "left",
+     "off": -48,
      "name": "the fairway bunker, left"
     },
     {
@@ -717,6 +774,7 @@
      "from": 224,
      "to": 241,
      "side": "left",
+     "off": -49,
      "name": "the 1st fairway bunker, left"
     },
     {
@@ -724,6 +782,7 @@
      "from": 254,
      "to": 265,
      "side": "left",
+     "off": -42,
      "name": "the 2nd fairway bunker, left"
     },
     {
@@ -731,6 +790,7 @@
      "from": 261,
      "to": 309,
      "side": "right",
+     "off": 15,
      "name": "the 2nd fairway bunker, right"
     },
     {
@@ -738,6 +798,7 @@
      "from": 275,
      "to": 286,
      "side": "left",
+     "off": -23,
      "name": "the 3rd fairway bunker, left"
     },
     {
@@ -745,6 +806,7 @@
      "from": 548,
      "to": 565,
      "side": "left",
+     "off": -4,
      "name": "the greenside bunker, left"
     },
     {
@@ -752,6 +814,7 @@
      "from": 550,
      "to": 569,
      "side": "right",
+     "off": 12,
      "name": "the greenside bunker, right"
     }
    ],
@@ -768,7 +831,8 @@
    "pins": {
     "front": -13,
     "back": 0
-   }
+   },
+   "green_half": 10
   },
   {
    "n": 15,
@@ -776,13 +840,14 @@
    "yards": 396,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 13,
    "hazards": [
     {
      "kind": "bunker",
      "from": 241,
      "to": 270,
      "side": "left",
+     "off": -28,
      "name": "the fairway bunkers, left"
     },
     {
@@ -790,6 +855,7 @@
      "from": 291,
      "to": 308,
      "side": "left",
+     "off": -15,
      "name": "the small fairway bunker, left"
     },
     {
@@ -797,6 +863,7 @@
      "from": 340,
      "to": 355,
      "side": "right",
+     "off": 10,
      "name": "the fairway bunker, right"
     },
     {
@@ -804,6 +871,7 @@
      "from": 375,
      "to": 395,
      "side": "left",
+     "off": -13,
      "name": "the greenside bunker, left"
     },
     {
@@ -811,6 +879,7 @@
      "from": 379,
      "to": 394,
      "side": "right",
+     "off": 12,
      "name": "the greenside bunker, right"
     },
     {
@@ -818,6 +887,7 @@
      "from": 396,
      "to": 400,
      "side": "beyond",
+     "off": 7,
      "name": "the greenside bunker"
     }
    ],
@@ -830,6 +900,7 @@
     "front": -13,
     "back": 0
    },
+   "green_half": 8,
    "bend": {
     "at": 249,
     "turn": "left",
@@ -842,13 +913,14 @@
    "yards": 401,
    "name": "",
    "wind": "with",
-   "green": 18,
+   "green": 11,
    "hazards": [
     {
      "kind": "bunker",
      "from": 162,
      "to": 166,
      "side": "centre",
+     "off": 1,
      "name": "the island bunker"
     },
     {
@@ -856,6 +928,7 @@
      "from": 265,
      "to": 269,
      "side": "right",
+     "off": 31,
      "name": "the fairway bunkers, right"
     },
     {
@@ -870,6 +943,7 @@
      "from": 343,
      "to": 347,
      "side": "centre",
+     "off": 7,
      "name": "the greenside bunkers"
     },
     {
@@ -877,6 +951,7 @@
      "from": 345,
      "to": 349,
      "side": "left",
+     "off": -14,
      "name": "the tree and bunkers, left"
     },
     {
@@ -884,6 +959,7 @@
      "from": 373,
      "to": 377,
      "side": "left",
+     "off": -7,
      "name": "the greenside bunker, left"
     }
    ],
@@ -900,7 +976,8 @@
    "pins": {
     "front": -11,
     "back": 0
-   }
+   },
+   "green_half": 8
   },
   {
    "n": 17,
@@ -908,13 +985,14 @@
    "yards": 177,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 8,
    "hazards": [
     {
      "kind": "bunker",
      "from": 146,
      "to": 169,
      "side": "centre",
+     "off": 1,
      "name": "the greenside bunker"
     },
     {
@@ -922,6 +1000,7 @@
      "from": 177,
      "to": 181,
      "side": "centre",
+     "off": -5,
      "name": "the greenside bunker"
     },
     {
@@ -940,7 +1019,8 @@
    "pins": {
     "front": -7,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 18,
@@ -948,7 +1028,7 @@
    "yards": 543,
    "name": "",
    "wind": "into",
-   "green": 18,
+   "green": 14,
    "hazards": [
     {
      "kind": "water",
@@ -962,6 +1042,7 @@
      "from": 176,
      "to": 180,
      "side": "right",
+     "off": 47,
      "name": "the fairway bunker, right"
     },
     {
@@ -969,6 +1050,7 @@
      "from": 186,
      "to": 190,
      "side": "right",
+     "off": 44,
      "name": "the 1st fairway bunker, right"
     },
     {
@@ -976,6 +1058,7 @@
      "from": 258,
      "to": 262,
      "side": "right",
+     "off": 30,
      "name": "the 2nd fairway bunker, right"
     },
     {
@@ -983,6 +1066,7 @@
      "from": 277,
      "to": 281,
      "side": "centre",
+     "off": 9,
      "name": "the trees"
     },
     {
@@ -990,6 +1074,7 @@
      "from": 391,
      "to": 543,
      "side": "right",
+     "off": 0,
      "name": "the fairway bunker, right"
     },
     {
@@ -997,6 +1082,7 @@
      "from": 519,
      "to": 543,
      "side": "right",
+     "off": 16,
      "name": "the greenside bunker, right"
     }
    ],
@@ -1013,7 +1099,8 @@
    "pins": {
     "front": -14,
     "back": 0
-   }
+   },
+   "green_half": 14
   }
  ],
  "source": "Hazards, doglegs, green depths and pin positions measured from GolfTraxx's hole maps (https://golftraxx.com) on 2026-09-16; wind, slope, width and names are ELMER's own."

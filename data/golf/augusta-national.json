@@ -17,13 +17,14 @@
    "yards": 455,
    "name": "Tea Olive",
    "wind": "across",
-   "green": 18,
+   "green": 17,
    "hazards": [
     {
      "kind": "bunker",
      "from": 291,
      "to": 326,
      "side": "right",
+     "off": 5,
      "name": "the fairway bunker, right"
     },
     {
@@ -31,6 +32,7 @@
      "from": 426,
      "to": 452,
      "side": "left",
+     "off": -11,
      "name": "the greenside bunker, left"
     }
    ],
@@ -38,6 +40,7 @@
     "front": -17,
     "back": 0
    },
+   "green_half": 9,
    "bend": {
     "at": 254,
     "turn": "right",
@@ -50,13 +53,14 @@
    "yards": 575,
    "name": "Pink Dogwood",
    "wind": "with",
-   "green": 18,
+   "green": 17,
    "hazards": [
     {
      "kind": "rough",
      "from": 151,
      "to": 160,
      "side": "centre",
+     "off": 2,
      "name": "the road"
     },
     {
@@ -64,6 +68,7 @@
      "from": 292,
      "to": 315,
      "side": "right",
+     "off": 30,
      "name": "the fairway bunker, right"
     },
     {
@@ -71,6 +76,7 @@
      "from": 552,
      "to": 567,
      "side": "left",
+     "off": -11,
      "name": "the greenside bunker, left"
     },
     {
@@ -78,6 +84,7 @@
      "from": 564,
      "to": 575,
      "side": "right",
+     "off": 14,
      "name": "the greenside bunker, right"
     }
    ],
@@ -85,6 +92,7 @@
     "front": -17,
     "back": 0
    },
+   "green_half": 9,
    "bend": {
     "at": 287,
     "turn": "left",
@@ -97,13 +105,14 @@
    "yards": 350,
    "name": "Flowering Peach",
    "wind": "into",
-   "green": 18,
+   "green": 11,
    "hazards": [
     {
      "kind": "bunker",
      "from": 228,
      "to": 271,
      "side": "left",
+     "off": -22,
      "name": "the fairway bunkers, left"
     },
     {
@@ -111,6 +120,7 @@
      "from": 337,
      "to": 350,
      "side": "left",
+     "off": -21,
      "name": "the greenside bunker, left"
     }
    ],
@@ -118,6 +128,7 @@
     "front": -11,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 250,
     "turn": "right",
@@ -130,13 +141,14 @@
    "yards": 240,
    "name": "Flowering Crab Apple",
    "wind": "into",
-   "green": 18,
+   "green": 9,
    "hazards": [
     {
      "kind": "bunker",
      "from": 216,
      "to": 232,
      "side": "front",
+     "off": 8,
      "name": "the greenside bunker"
     },
     {
@@ -144,13 +156,15 @@
      "from": 219,
      "to": 240,
      "side": "left",
+     "off": -17,
      "name": "the greenside bunker, left"
     }
    ],
    "pins": {
     "front": -9,
     "back": 0
-   }
+   },
+   "green_half": 8
   },
   {
    "n": 5,
@@ -165,6 +179,7 @@
      "from": 239,
      "to": 286,
      "side": "left",
+     "off": -12,
      "name": "the fairway bunkers, left"
     },
     {
@@ -172,6 +187,7 @@
      "from": 455,
      "to": 459,
      "side": "beyond",
+     "off": -10,
      "name": "the greenside bunker"
     }
    ],
@@ -179,6 +195,7 @@
     "front": -21,
     "back": 0
    },
+   "green_half": 8,
    "bend": {
     "at": 255,
     "turn": "left",
@@ -191,20 +208,22 @@
    "yards": 180,
    "name": "Juniper",
    "wind": "across",
-   "green": 18,
+   "green": 13,
    "hazards": [
     {
      "kind": "bunker",
      "from": 145,
      "to": 170,
      "side": "front",
+     "off": -4,
      "name": "the greenside bunker"
     }
    ],
    "pins": {
     "front": -13,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 7,
@@ -212,13 +231,14 @@
    "yards": 450,
    "name": "Pampas",
    "wind": "with",
-   "green": 18,
+   "green": 11,
    "hazards": [
     {
      "kind": "rough",
      "from": 111,
      "to": 119,
      "side": "right",
+     "off": 14,
      "name": "the road, right"
     },
     {
@@ -226,13 +246,15 @@
      "from": 428,
      "to": 440,
      "side": "front",
+     "off": -2,
      "name": "the greenside bunker"
     }
    ],
    "pins": {
     "front": -11,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 8,
@@ -247,6 +269,7 @@
      "from": 192,
      "to": 210,
      "side": "centre",
+     "off": -2,
      "name": "the road"
     },
     {
@@ -254,6 +277,7 @@
      "from": 272,
      "to": 322,
      "side": "right",
+     "off": 16,
      "name": "the fairway bunker, right"
     }
    ],
@@ -261,6 +285,7 @@
     "front": -19,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 255,
     "turn": "right",
@@ -273,13 +298,14 @@
    "yards": 460,
    "name": "Carolina Cherry",
    "wind": "across",
-   "green": 18,
+   "green": 15,
    "hazards": [
     {
      "kind": "bunker",
      "from": 437,
      "to": 453,
      "side": "left",
+     "off": -2,
      "name": "the greenside bunker, left"
     }
    ],
@@ -287,6 +313,7 @@
     "front": -15,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 254,
     "turn": "left",
@@ -299,13 +326,14 @@
    "yards": 495,
    "name": "Camellia",
    "wind": "with",
-   "green": 18,
+   "green": 17,
    "hazards": [
     {
      "kind": "bunker",
      "from": 375,
      "to": 434,
      "side": "centre",
+     "off": 8,
      "name": "the fairway bunker"
     }
    ],
@@ -313,6 +341,7 @@
     "front": -17,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 294,
     "turn": "left",
@@ -332,6 +361,7 @@
      "from": 461,
      "to": 505,
      "side": "left",
+     "off": -20,
      "name": "the water, left"
     }
    ],
@@ -339,6 +369,7 @@
     "front": -22,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 287,
     "turn": "right",
@@ -351,7 +382,7 @@
    "yards": 155,
    "name": "Golden Bell",
    "wind": "swirling",
-   "green": 18,
+   "green": 8,
    "hazards": [
     {
      "kind": "water",
@@ -365,13 +396,15 @@
      "from": 139,
      "to": 151,
      "side": "front",
+     "off": 2,
      "name": "the greenside bunker"
     }
    ],
    "pins": {
     "front": -8,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 13,
@@ -393,6 +426,7 @@
      "from": 190,
      "to": 334,
      "side": "right",
+     "off": 56,
      "name": "the trees, right"
     },
     {
@@ -400,6 +434,7 @@
      "from": 356,
      "to": 360,
      "side": "right",
+     "off": 60,
      "name": "the tree 14th fairway, right"
     },
     {
@@ -407,6 +442,7 @@
      "from": 470,
      "to": 483,
      "side": "front",
+     "off": -2,
      "name": "the creek"
     },
     {
@@ -414,6 +450,7 @@
      "from": 471,
      "to": 491,
      "side": "left",
+     "off": -16,
      "name": "the 1st greenside bunker, left"
     },
     {
@@ -421,6 +458,7 @@
      "from": 510,
      "to": 514,
      "side": "beyond",
+     "off": 3,
      "name": "the greenside bunker"
     },
     {
@@ -428,6 +466,7 @@
      "from": 510,
      "to": 514,
      "side": "left",
+     "off": -13,
      "name": "the 2nd greenside bunker, left"
     }
    ],
@@ -435,6 +474,7 @@
     "front": -20,
     "back": 0
    },
+   "green_half": 11,
    "bend": {
     "at": 255,
     "turn": "left",
@@ -447,13 +487,14 @@
    "yards": 440,
    "name": "Chinese Fir",
    "wind": "into",
-   "green": 18,
+   "green": 16,
    "hazards": [
     {
      "kind": "rough",
      "from": 172,
      "to": 200,
      "side": "right",
+     "off": 39,
      "name": "the big tree, right"
     }
    ],
@@ -461,6 +502,7 @@
     "front": -16,
     "back": 0
    },
+   "green_half": 14,
    "bend": {
     "at": 255,
     "turn": "left",
@@ -473,13 +515,14 @@
    "yards": 530,
    "name": "Firethorn",
    "wind": "with",
-   "green": 18,
+   "green": 9,
    "hazards": [
     {
      "kind": "rough",
      "from": 346,
      "to": 394,
      "side": "left",
+     "off": -31,
      "name": "the fairway trees, left"
     },
     {
@@ -487,20 +530,22 @@
      "from": 484,
      "to": 517,
      "side": "across",
+     "off": -2,
      "name": "the greenside lake"
     },
     {
      "kind": "water",
-     "from": 530,
-     "to": 534,
-     "side": "left",
-     "name": "the greenside lake, left"
+     "from": 550,
+     "to": 575,
+     "side": "beyond",
+     "name": "the pond at the 16th"
     }
    ],
    "pins": {
     "front": -9,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 16,
@@ -515,6 +560,7 @@
      "from": 40,
      "to": 166,
      "side": "left",
+     "off": -6,
      "name": "the lake, left"
     },
     {
@@ -522,6 +568,7 @@
      "from": 149,
      "to": 160,
      "side": "right",
+     "off": 14,
      "name": "the greenside bunker, right"
     },
     {
@@ -529,6 +576,7 @@
      "from": 168,
      "to": 172,
      "side": "left",
+     "off": -14,
      "name": "the greenside bunker, left"
     },
     {
@@ -536,13 +584,15 @@
      "from": 170,
      "to": 174,
      "side": "beyond",
+     "off": 12,
      "name": "the greenside bunker"
     }
    ],
    "pins": {
     "front": -19,
     "back": 0
-   }
+   },
+   "green_half": 10
   },
   {
    "n": 17,
@@ -550,13 +600,14 @@
    "yards": 440,
    "name": "Nandina",
    "wind": "into",
-   "green": 18,
+   "green": 13,
    "hazards": [
     {
      "kind": "bunker",
      "from": 418,
      "to": 433,
      "side": "left",
+     "off": -16,
      "name": "the greenside bunker, left"
     },
     {
@@ -564,13 +615,15 @@
      "from": 418,
      "to": 432,
      "side": "right",
+     "off": 3,
      "name": "the greenside bunker, right"
     }
    ],
    "pins": {
     "front": -13,
     "back": 0
-   }
+   },
+   "green_half": 14
   },
   {
    "n": 18,
@@ -585,6 +638,7 @@
      "from": 296,
      "to": 340,
      "side": "left",
+     "off": -28,
      "name": "the fairway bunkers, left"
     },
     {
@@ -592,6 +646,7 @@
      "from": 427,
      "to": 449,
      "side": "left",
+     "off": -9,
      "name": "the greenside bunker, left"
     },
     {
@@ -599,6 +654,7 @@
      "from": 449,
      "to": 453,
      "side": "right",
+     "off": 4,
      "name": "the greenside bunker, right"
     }
    ],
@@ -606,6 +662,7 @@
     "front": -18,
     "back": 0
    },
+   "green_half": 8,
    "bend": {
     "at": 260,
     "turn": "right",

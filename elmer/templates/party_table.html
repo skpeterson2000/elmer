@@ -1326,13 +1326,27 @@ function stripToYards(img, e, geo) {
     // The approach: a yard a yard, the pin's yards at the top of the view.
     return {at: Math.round(geo.top - (y - geo.top_y) / geo.px_per_yard), off: Math.round((x - geo.cx) / geo.px_per_yard)};
   }
-  const usable = geo.h - geo.pad_top - geo.pad_bot;
-  const at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
-  // the line of play bends where the card says: off is measured from it
-  const b = geo.bend;
-  const centre = (b && at > b.at) ? geo.centre + b.dir * Math.min(b.most, (at - b.at) * b.k) : geo.centre;
-  const off = Math.round((x - centre) / geo.px_per_yard);
-  return {at, off};
+  // The plan: the line of play is legs on the page, at their true angle.
+  // The tap is projected onto the nearest leg - its distance along that
+  // leg is yards along the hole, its distance across is yards off the line.
+  return planToYards(x, y, geo);
+}
+function planToYards(x, y, geo) {
+  let best = null;
+  for (const leg of geo.legs || []) {
+    const dx = leg.x2 - leg.x1, dy = leg.y2 - leg.y1, L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const t = Math.max(0, Math.min(L, (x - leg.x1) * ux + (y - leg.y1) * uy));
+    const px = leg.x1 + ux * t, py = leg.y1 + uy * t;
+    const near = Math.hypot(x - px, y - py);
+    if (!best || near < best.near) {
+      // right of the line of play: the cross product, with the page's y running down
+      const side = (y - leg.y1) * ux - (x - leg.x1) * uy;
+      best = {near, at: leg.at0 + t / geo.px_per_yard, off: side / geo.px_per_yard};
+    }
+  }
+  if (!best) return {at: 0, off: 0};
+  return {at: Math.round(best.at), off: Math.round(best.off)};
 }
 /* The pro shop: the record board and the wall - the operator's own
    certificates, hung where a golfer waiting for a tee time would look at

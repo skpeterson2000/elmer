@@ -143,6 +143,18 @@ PERSON_REVEAL = 120.0
 SOLO_LINES = 2          # a hole's colour, to a player with nobody to share it with
 
 
+def _tee_pic(course, hole):
+    """The tee picture's address, with the file's own time on it: a
+    picture replaced on disk is fetched again, not served from the
+    window's cache under the same name for the rest of the day."""
+    path = Path(__file__).resolve().parent / "static" / "golf" / "tee" / str(course) / f"{hole}.jpg"
+    try:
+        stamp = int(path.stat().st_mtime)
+    except OSError:
+        stamp = 0
+    return f"/static/golf/tee/{course}/{hole}.jpg?v={stamp}"
+
+
 def _lie_notes(g, d, ball, player=None):
     """The colour a hole was given for a lie - hole-<course>-<n>-<lie>-<k>
     - revealed a line at a time: the first player to address the ball
@@ -1299,13 +1311,13 @@ class Room:
                     "tee_times": [name(p) for p in d.get("tee_times", [])],
                     "clips": list(getattr(self, "golf_clips", []) or []),
                     "voice_have": list(getattr(self, "golf_voice", []) or []),
-                    "tee_pic": (f"/static/golf/tee/{d['course']}/{d['hole']}.jpg"
+                    "tee_pic": (_tee_pic(d['course'], d['hole'])
                                 if d.get("hole") in (getattr(self, "golf_tees", []) or []) else None),
                     # The next stroke's figure, if it has one, for a screen
                     # to fetch while this stroke's result is read.
                     "next_figure": ((self.golf_next or {}).get("figure") if self.golf_next else None),
                     # And the next hole's picture, once the group is near it.
-                    "next_tee_pic": (f"/static/golf/tee/{d['course']}/{self.golf.holes[self.golf.hole_index + 1]}.jpg"
+                    "next_tee_pic": (_tee_pic(d['course'], self.golf.holes[self.golf.hole_index + 1])
                                      if self.golf.hole_index + 1 < len(self.golf.holes)
                                      and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_tees", []) or [])
                                      else None),

@@ -194,12 +194,17 @@ def hazards(page, legs, origin, total, scale=1.0):
         carry = (float(m["carrylat"]), float(m["carrylong"])) if m.get("carrylat") else reach
         a1, o1, n1 = place(reach, legs, origin)
         a2, o2, n2 = place(carry, legs, origin)
-        if min(n1, n2) > STRAY or max(a1, a2) < 15:
-            continue                       # another hole's mark, left on this page
+        # A flag off the hole altogether - another hole's, or a coordinate
+        # typed wrong (the 6th's cove has a longitude of nonsense on one
+        # edge) - is left out; a hazard with one good edge is that edge.
+        good = [(a, o) for a, o, n in ((a1, o1, n1), (a2, o2, n2)) if n <= STRAY]
+        if not good or max(a for a, _o in good) < 15:
+            continue
+        (a1, o1), (a2, o2) = good[0], good[-1]
         if "greenside" in name.lower() and max(a1, a2) < total - 80:
             continue                       # a greenside bunker nowhere near this green: the last hole's
         lo, hi = sorted((a1 * scale, a2 * scale))
-        off = (o1 + o2) / 2
+        off = max(-60.0, min(60.0, (o1 + o2) / 2))
         label = (m.get("landmarkposition") or "").lower()
         greenside = hi >= total - 30
         if abs(off) > FAIRWAY_HALF * 0.75 or label in ("left", "right"):
@@ -211,6 +216,9 @@ def hazards(page, legs, origin, total, scale=1.0):
         if label == "back" and greenside:
             side = "beyond"
         out.append({"kind": kind, "from": int(round(lo)), "to": int(round(max(hi, lo + 4))), "side": side,
+                    # where it is across the hole, as measured: yards off the
+                    # line of play, right positive - the map draws it there
+                    "off": int(round(off)),
                     "name": words(name) + (f", {side}" if side in ("left", "right") and "left" not in name.lower() and "right" not in name.lower() else "")})
     out.sort(key=lambda z: z["from"])
     # The site marks a few bunkers twice, once under each name; one is enough.
@@ -275,8 +283,14 @@ def update_card(card_id, course, zipcode, compare=False):
         if page["par"]:
             h["par"] = page["par"]
         h["yards"] = yards
-        h["green"] = max(18, got["green"])
+        h["green"] = max(8, got["green"])
         h["pins"] = got["pins"]
+        # The green's width: the site does not measure it, but the sand at
+        # the green says where the green stops - the nearest greenside
+        # bunker either side, less a couple of yards of fringe.
+        beside = [abs(z["off"]) for z in got["hazards"] if z["kind"] == "bunker" and z.get("off") is not None
+                  and z["to"] >= yards - 25 and abs(z["off"]) >= 6]
+        h["green_half"] = max(8, min(14, min(beside) - 2)) if beside else 14
         if got["bend"]:
             h["bend"] = got["bend"]
         else:
@@ -284,8 +298,19 @@ def update_card(card_id, course, zipcode, compare=False):
         # The site marks the sand; the ocean, a creek, a chasm it mostly
         # does not. The card's water stays where the measurement has no
         # water near it - the Pacific down the 18th is not in doubt.
-        water = [z for z in h["hazards"] if z["kind"] == "water"
-                 and not any(g["kind"] == "water" and abs(g["from"] - z["from"]) < 60 for g in got["hazards"])]
+        # A single flag on water says where it starts, not how far it runs;
+        # where the card has the same water written out - the cliff and
+        # the ocean down the 6th - the card's stands and the flag goes.
+        water = [z for z in h["hazards"] if z["kind"] == "water" and z.get("off") is None]
+        for g in list(got["hazards"]):
+            if g["kind"] != "water":
+                continue
+            near = [z for z in water if abs(g["from"] - z["from"]) < 60]
+            if near and g["to"] - g["from"] <= 6:
+                got["hazards"].remove(g)
+            else:
+                for z in near:
+                    water.remove(z)
         if not any(kind_of(m.get("landmarkname", "")) for m in page["marks"]):
             # The site marked nothing on this hole but the tee and the green
             # - the Old Course's pages are like that - so the card's own

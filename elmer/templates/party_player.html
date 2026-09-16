@@ -1161,11 +1161,16 @@ document.addEventListener('click', async e => {
   } else if (geo.view === 'approach') {
     at = Math.round(geo.top - (y - geo.top_y) / geo.px_per_yard); off = Math.round((x - geo.cx) / geo.px_per_yard);
   } else {
-    const usable = geo.h - geo.pad_top - geo.pad_bot;
-    at = Math.round((geo.h - geo.pad_bot - y) / usable * geo.yards);
-    const b = geo.bend;
-    const centre = (b && at > b.at) ? geo.centre + b.dir * Math.min(b.most, (at - b.at) * b.k) : geo.centre;
-    off = Math.round((x - centre) / geo.px_per_yard);
+    // the plan: the tap projected onto the nearest leg of the line of play
+    let best = null;
+    for (const leg of geo.legs || []) {
+      const dx = leg.x2 - leg.x1, dy = leg.y2 - leg.y1, L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L;
+      const t = Math.max(0, Math.min(L, (x - leg.x1) * ux + (y - leg.y1) * uy));
+      const near = Math.hypot(x - (leg.x1 + ux * t), y - (leg.y1 + uy * t));
+      if (!best || near < best.near) best = {near, at: leg.at0 + t / geo.px_per_yard, off: ((y - leg.y1) * ux - (x - leg.x1) * uy) / geo.px_per_yard};
+    }
+    at = Math.round(best ? best.at : 0); off = Math.round(best ? best.off : 0);
   }
   await api('/api/party/aim', {player: me.id, at, off});
   shownRound = null; tick();
