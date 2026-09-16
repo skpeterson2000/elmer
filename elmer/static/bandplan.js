@@ -486,7 +486,7 @@ function gmrsRepeaters(d) {
     rows.map(r => '<tr><td class="mono">' + r.output.toFixed(3) + ' <span class="muted">+5</span></td><td class="mono">' + escapeHTML(String(r.tone || '\u2014')) +
       '</td><td>' + escapeHTML(r.where || r.call || '') + (r.approx ? ' ~' : '') + '</td><td class="mono">' + r.miles + '</td><td class="mono">' + r.bearing + '&deg;</td></tr>').join('') +
     '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
-    (d.gmrs_credit ? ' <span class="muted">' + escapeHTML(d.gmrs_credit) + '</span>' : '') + '</p>';
+    (d.gmrs_credit ? ' <a class="muted" href="https://www.repeaterbook.com" target="_blank" rel="noopener">' + escapeHTML(d.gmrs_credit) + '</a>' : '') + '</p>';
 }
 
 function psRender() {
