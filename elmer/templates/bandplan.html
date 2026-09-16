@@ -57,6 +57,15 @@
       {# Said before the press rather than only on the printed sheet -
          see bpNotYours() in bandplan.js. #}
       <div class="lapse" id="bp-notyours" hidden></div>
+      {# Is it worth the effort? What each licence may key up, drawn: the
+         width of spectrum, by band group, by the most you can do there.
+         HF and VHF/UHF in separate bars on purpose - the nine HF bands
+         are under four megahertz together and reach the world; 70 cm
+         alone is thirty. Filled by bandplan.js from /api/bandplan/allocation. #}
+      <details class="derivation" id="bp-worth-fold" style="margin-top:.6rem">
+        <summary class="small">Is it worth the effort? What each licence unlocks, drawn</summary>
+        <div id="bp-worth" class="mt"></div>
+      </details>
   </div>
 </div>
 

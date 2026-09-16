@@ -764,3 +764,73 @@ ACTIVITY = {
 
 def activity_for(band_name):
     return ACTIVITY.get(band_name, [])
+
+
+# --- is it worth the effort? --------------------------------------------
+# What each licence unlocks, in the one measure that is honest about it:
+# the width of spectrum the class may key up, by band group and by the most
+# a segment lets you do there - a segment that allows phone counts as
+# phone, since CW is allowed wherever phone is. HF and VHF/UHF are kept
+# apart on purpose: the nine HF bands together are under four megahertz
+# and reach the world; 70 cm alone is thirty and reaches the next town.
+# No licence is a class too, with the Part 95 services that are anybody's.
+
+GROUP_SETS = {"HF": ("HF",), "VHF/UHF": ("VHF", "UHF")}
+EMISSION_ORDER = ("phone", "image", "data", "cw")
+
+
+def _most(terms):
+    """The most a privilege lets you do: phone before image before data
+    before CW, since each includes the ones after it."""
+    em = emissions_in(terms)
+    for kind in EMISSION_ORDER:
+        if kind in em:
+            return kind
+    return "cw"
+
+
+def _union_width(segments):
+    spans = sorted((lo, hi) for lo, hi, _ in segments)
+    out = []
+    for lo, hi in spans:
+        if out and lo <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], hi))
+        else:
+            out.append((lo, hi))
+    return sum(hi - lo for lo, hi in out)
+
+
+# The licence-free services, by group, in megahertz: FRS's 22 channels at
+# 12.5 kHz, MURS's five (two at 20 kHz, three at 11.25), CB's forty at 10
+# kHz. GMRS is a licence - a fee and a form, no exam - and is said apart.
+PERSONAL_MHZ = {"HF": [("cb", 0.400, "CB, 40 channels")],
+                "VHF/UHF": [("frs", 0.275, "FRS, 22 channels"), ("murs", 0.074, "MURS, 5 channels")]}
+GMRS_MHZ = 0.600      # 22 channels and 8 repeater inputs at 20 kHz
+
+
+def allocation():
+    """Per band group, the total width and what each class may key up,
+    split by the most it can do there - for the chart that answers
+    "is it worth the effort"."""
+    out = {"groups": [], "emissions": list(EMISSION_ORDER)}
+    for label, groups in GROUP_SETS.items():
+        bands = [b for b in BANDS if b.get("group") in groups]
+        total = sum(b["high"] - b["low"] for b in bands)
+        rows = [{"license": NO_LICENSE, "label": "No licence", "mhz": 0.0, "by": {},
+                 "personal": [{"key": k, "mhz": mhz, "label": lab} for k, mhz, lab in PERSONAL_MHZ[label]]}]
+        for cls in ("Technician", "General", "Extra"):
+            by = {}
+            have = 0.0
+            for b in bands:
+                segs = privileges_for(b["name"], cls)
+                for lo, hi, terms in segs:
+                    by[_most(terms)] = by.get(_most(terms), 0.0) + (hi - lo)
+                have += _union_width(segs)
+            rows.append({"license": cls, "label": cls, "mhz": round(have, 3),
+                         "by": {k: round(v, 3) for k, v in by.items()}, "personal": []})
+        out["groups"].append({"group": label, "total_mhz": round(total, 3), "bands": [b["name"] for b in bands],
+                              "reach": ("the world - the ionosphere carries it" if label == "HF"
+                                        else "line of sight, repeaters and satellites - the town and the sky"),
+                              "rows": rows})
+    out["gmrs_mhz"] = GMRS_MHZ
+    return out

@@ -1102,3 +1102,75 @@ function bindSegments(band) {
     });
   });
 }
+
+
+/* ------------------------------------------- is it worth the effort? */
+/* Four licences, two rows of spectrum, and the width of it each may key
+   up - stacked by the most a segment lets you do there. A horizontal bar
+   a class, not a pie a class: the four are read against each other along
+   one scale, and the megahertz are printed, because a pie hides the
+   magnitude that is the whole argument. HF and VHF/UHF are separate bars
+   because a Technician already holds nearly every VHF/UHF hertz; it is
+   the General step that opens HF, where the world is. */
+const WORTH_COLOUR = {phone: '#3987e5', cw: '#d95926', data: '#199e70', image: '#c98500'};
+const WORTH_NAME = {phone: 'phone', cw: 'CW', data: 'data', image: 'image'};
+
+function worthBar(row, total, colours) {
+  const W = 420, H = 18, gap = 2;
+  const parts = [];
+  let x = 0;
+  const px = mhz => Math.max(0, mhz / total * W);
+  const emissions = ['phone', 'image', 'data', 'cw'];
+  emissions.forEach(k => {
+    const mhz = (row.by || {})[k] || 0;
+    if (!mhz) return;
+    const w = px(mhz);
+    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colours[k]}"><title>${WORTH_NAME[k]}: ${mhz.toFixed(3)} MHz</title></rect>`);
+    x += w;
+  });
+  (row.personal || []).forEach(p => {
+    const w = px(p.mhz);
+    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1.5, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colours.phone}"><title>${escapeHTML(p.label)}: ${p.mhz.toFixed(3)} MHz - voice, licence-free</title></rect>`);
+    x += Math.max(2, w);
+  });
+  parts.push(`<rect x="${x.toFixed(1)}" y="${H / 2 - 3}" width="${Math.max(0, W - x).toFixed(1)}" height="6" rx="3" fill="var(--line)"><title>not yours: ${(total - (row.mhz || 0) - (row.personal || []).reduce((a, p) => a + p.mhz, 0)).toFixed(3)} MHz</title></rect>`);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(row.label)}">${parts.join('')}</svg>`;
+}
+
+function worthRender(d) {
+  const box = document.getElementById('bp-worth');
+  if (!box || !d) return;
+  const legend = '<div class="row tiny muted" style="gap:.9rem;flex-wrap:wrap;margin:.2rem 0 .6rem">' +
+    ['phone', 'image', 'data', 'cw'].map(k => `<span><i class="worth-swatch" style="background:${WORTH_COLOUR[k]}"></i>${WORTH_NAME[k]}</span>`).join('') +
+    '<span><i class="worth-swatch" style="background:var(--line)"></i>not yours</span>' +
+    '<span class="muted">the colour is the most a segment lets you do; CW is allowed wherever phone is</span></div>';
+  const groups = d.groups.map(g => {
+    const rows = g.rows.map(r => {
+      const mine = (r.mhz || 0) + (r.personal || []).reduce((a, p) => a + p.mhz, 0);
+      const pct = g.total_mhz ? Math.round(100 * mine / g.total_mhz) : 0;
+      const what = r.personal && r.personal.length
+        ? r.personal.map(p => p.label).join(' and ') + ' - voice'
+        : ['phone', 'image', 'data', 'cw'].filter(k => (r.by || {})[k]).map(k => WORTH_NAME[k] + ' ' + r.by[k].toFixed(2)).join(', ');
+      return `<tr><th scope="row">${escapeHTML(r.label)}</th><td class="worth-bar">${worthBar(r, g.total_mhz, WORTH_COLOUR)}</td>` +
+        `<td class="mono worth-num">${mine.toFixed(mine < 1 ? 2 : 1)} MHz <span class="muted">${r.personal && r.personal.length ? 'its own channels' : pct + '%'}</span></td><td class="tiny muted worth-what">${escapeHTML(what)}</td></tr>`;
+    }).join('');
+    return `<div class="worth-group"><div class="spread" style="align-items:baseline"><b>${escapeHTML(g.group)}</b> <span class="tiny muted">${g.total_mhz.toFixed(1)} MHz of amateur allocation in ${g.bands.length} bands &middot; reaches ${escapeHTML(g.reach)}</span></div>` +
+      `<table class="worth">${rows}</table></div>`;
+  }).join('');
+  box.innerHTML = legend + groups +
+    `<p class="tiny muted" style="margin:.6rem 0 0;max-width:84ch">The bars are to one scale within a row: the grey is what the row's whole allocation would be. ` +
+    `Read across, the step that matters is the first one - from a licence-free radio to a Technician, VHF and UHF go from a few channels to all of it, ` +
+    `and HF from CB to ten metres with the world on it when the sun is up; the General step opens the rest of HF, and the Extra the last of every band. ` +
+    `GMRS - a fee and a form, no exam - adds ${d.gmrs_mhz.toFixed(1)} MHz of UHF at 50 W with repeaters for a family, and is the one step that is not an exam. ` +
+    `Thirty-five questions from a pool of about four hundred, all of it in this program, is the Technician.</p>` +
+    `<details class="derivation"><summary class="tiny">The same as a table</summary><table class="data tiny"><tr><th>group</th><th>licence</th><th>MHz</th><th>of</th><th>by what you can do</th></tr>` +
+    d.groups.map(g => g.rows.map(r => `<tr><td>${escapeHTML(g.group)}</td><td>${escapeHTML(r.label)}</td><td class="mono">${((r.mhz || 0) + (r.personal || []).reduce((a, p) => a + p.mhz, 0)).toFixed(3)}</td><td class="mono">${g.total_mhz.toFixed(3)}</td><td>${escapeHTML(r.personal && r.personal.length ? r.personal.map(p => p.label + ' ' + p.mhz.toFixed(3)).join('; ') : Object.entries(r.by || {}).map(([k, v]) => WORTH_NAME[k] + ' ' + v.toFixed(3)).join('; '))}</td></tr>`).join('')).join('') +
+    `</table></details>`;
+  // the row of the class being read is marked, so the selector and the chart agree
+  const cls = bpClass();
+  box.querySelectorAll('table.worth tr').forEach(tr => tr.classList.toggle('worth-me', tr.querySelector('th').textContent === (cls === 'none' ? 'No licence' : cls)));
+}
+
+let bpWorth = null;
+api('/api/bandplan/allocation').then(d => { bpWorth = d; worthRender(d); }).catch(() => {});
+document.getElementById('bp-class').addEventListener('change', () => { if (bpWorth) worthRender(bpWorth); });

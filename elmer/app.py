@@ -1754,6 +1754,12 @@ def _prefetch_regional(place):
     threading.Thread(target=run, name="regional-prefetch", daemon=True).start()
 
 
+@app.route("/api/bandplan/allocation")
+def api_bandplan_allocation():
+    """What each licence unlocks, by band group - the chart's numbers."""
+    return jsonify(bandplan.allocation())
+
+
 @app.route("/api/bandplan/regional/<state>")
 def api_bandplan_regional(state):
     """The local coordinator's plan. 503 when it cannot be reached."""

@@ -1351,3 +1351,16 @@ body.hs-held { overflow: hidden; }
 .bench-card:first-of-type { border-top: 0; }
 .bench-calc { margin: .5rem 0 .3rem; padding: .5rem .7rem; border: 1px dashed var(--line-2); border-radius: 8px; }
 .bench-calc .field { margin-bottom: 0; }
+
+/* ---------- the band plan: is it worth the effort? ---------- */
+.worth-group { margin-top: .6rem; }
+table.worth { width: 100%; border-collapse: collapse; margin-top: .3rem; }
+table.worth th { text-align: left; font-weight: normal; color: var(--dim); font-size: .82rem; width: 6.5rem; padding: .18rem .4rem .18rem 0; }
+table.worth td { padding: .18rem .3rem; vertical-align: middle; }
+table.worth td.worth-bar { width: 46%; }
+table.worth td.worth-num { white-space: nowrap; font-size: .85rem; }
+table.worth td.worth-what { max-width: 18rem; }
+table.worth tr.worth-me th { color: var(--text); font-weight: bold; }
+table.worth tr.worth-me td.worth-num { color: var(--text); }
+.worth-swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; vertical-align: -1px; margin-right: .3rem; }
+@media (max-width: 700px) { table.worth td.worth-what { display: none; } table.worth td.worth-bar { width: 50%; } }
