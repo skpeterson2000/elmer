@@ -131,6 +131,25 @@
   </div>
 {% endif %}
 
+{% if commercial_license.get('found') %}
+  <div class="panel tight mt license-strip{% if commercial_license.status.state == 'expired' %} bad{% endif %}">
+    <div class="row" style="gap:1.1rem">
+      <b class="mono">{{ commercial_license.callsign }}</b>
+      <span class="pill info">{{ commercial_license.license_class or 'Commercial' }}</span>
+      <span class="small muted">granted {{ commercial_license.granted }}</span>
+      {% if commercial_license.status.lifetime %}
+        <span class="small">for life &mdash; a commercial operator licence does not expire</span>
+      {% elif commercial_license.status.state == 'current' %}
+        <span class="small">expires <b>{{ commercial_license.expires }}</b> &mdash; {{ commercial_license.status.days }} days</span>
+      {% elif commercial_license.expires %}
+        <span class="small">expired {{ commercial_license.expires }}</span>
+      {% endif %}
+      {% if paper_commercial %}<a class="tiny" style="margin-left:auto" href="/library">your licence, on paper &rarr;</a>{% endif %}
+      <span class="tiny muted" {% if not paper_commercial %}style="margin-left:auto"{% endif %}>{{ commercial_license.source }}</span>
+    </div>
+  </div>
+{% endif %}
+
 <div class="panel tight mt">
   <div class="row" id="bp-legend"></div>
 </div>

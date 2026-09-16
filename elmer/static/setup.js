@@ -117,6 +117,8 @@
       body.callsign = callBox.value.trim().toUpperCase();
       const gmrsBox = document.getElementById('setup-gmrs');
       if (gmrsBox) body.gmrs_call = gmrsBox.value.trim().toUpperCase();
+      const commBox = document.getElementById('setup-commcall');
+      if (commBox) body.commercial_call = commBox.value.trim().toUpperCase();
       body.license_class = classBox.value;
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');

@@ -421,7 +421,8 @@ def profile_block(connection):
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
             "license": prof["settings"].get("license") or {},
-            "gmrs": prof["settings"].get("gmrs") or {}}
+            "gmrs": prof["settings"].get("gmrs") or {},
+            "commercial_license": prof["settings"].get("commercial_license") or {}}
 
 
 # --------------------------------------------------------------------------
@@ -740,6 +741,7 @@ def bandplan_page():
         # Whether the person's own paper is on the unit, for a link from the strip.
         paper_amateur=papers.paper(connection.user_id, "amateur") is not None,
         paper_gmrs=papers.paper(connection.user_id, "gmrs") is not None,
+        paper_commercial=any(papers.paper(connection.user_id, k) is not None for k in ("grol", "mrop", "radar")),
         **profile_block(connection))
 
 
@@ -2019,7 +2021,7 @@ def _records_for(connection):
     be laid beside the record for the same callsign."""
     settings = db.get_profile(connection)["settings"]
     out = {}
-    for rec in (settings.get("license"), settings.get("gmrs")):
+    for rec in (settings.get("license"), settings.get("gmrs"), settings.get("commercial_license")):
         if rec and rec.get("callsign"):
             out[rec["callsign"]] = rec
     return out
@@ -6776,12 +6778,13 @@ def _adopt_license(connection, call, settings=None):
     on it is also what ELMER calls them.
     """
     save = settings is None
-    if call and callsign.is_gmrs(call):
-        # A GMRS call typed into the amateur box is a GMRS licence, not a
-        # wrong amateur one: filed where it belongs, the amateur call left
-        # as it was. The panel has a box of its own for it.
+    other = uls.service_of(callsign.normalise(call)) if call else None
+    if other in ("gmrs", "commercial"):
+        # A GMRS or commercial call typed into the amateur box is that
+        # licence, not a wrong amateur one: filed where it belongs, the
+        # amateur call left as it was. The panel has a box for each.
         settings = db.get_profile(connection)["settings"] if save else settings
-        settings = _adopt_gmrs(call, settings)
+        settings = (_adopt_gmrs if other == "gmrs" else _adopt_commercial)(call, settings)
         if save:
             db.save_settings(connection, settings)
         return settings
@@ -6828,6 +6831,34 @@ def _adopt_gmrs(call, settings):
     return settings
 
 
+def _adopt_commercial(call, settings):
+    """Record a commercial operator callsign - a GROL, an MROP, a GMDSS
+    ticket - and read its record: the class, the Ship Radar endorsement,
+    the dates where there are any. Blank takes it off. Holding one is the
+    plainest reason to want the commercial pools on the dashboard, so the
+    switch goes on with it; it can be turned back off."""
+    call = callsign.normalise(call)
+    if not call:
+        settings.pop("commercial_call", None)
+        settings.pop("commercial_license", None)
+        return settings
+    settings["commercial_call"] = call
+    found = callsign.lookup(call)
+    if found:
+        settings["commercial_license"] = found
+        if found.get("found"):
+            settings["commercial"] = True
+            log.info("commercial licence %s: %s, expires %s (%s)", call, found.get("license_class"),
+                     found.get("expires") or "never", found["status"]["state"])
+        else:
+            log.info("commercial licence %s: %s", call, found.get("reason"))
+    else:
+        settings["commercial_license"] = {"callsign": call, "found": False, "service": "commercial",
+                                          "reason": "lookup unavailable - the call is kept, the record is not known"}
+        log.warning("commercial lookup unavailable for %s", call)
+    return settings
+
+
 @app.route("/api/uls")
 def api_uls():
     """Which of the FCC's licence files this unit has read, and when."""
@@ -6854,6 +6885,8 @@ def api_settings():
         settings = _adopt_license(connection, body["callsign"] or "", settings)
     if "gmrs_call" in body:
         settings = _adopt_gmrs(body["gmrs_call"] or "", settings)
+    if "commercial_call" in body:
+        settings = _adopt_commercial(body["commercial_call"] or "", settings)
     if "units" in body:
         # Narrow on purpose - see elmer/units.py. This is how far away a thing
         # is, not a request to rename the 40 m band.

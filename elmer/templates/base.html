@@ -140,6 +140,22 @@
         Make Contact and the band plan treat a GMRS radio as licensed.{% endif -%}
     </p>
 
+    <label class="setup-label" for="setup-commcall">Commercial operator callsign</label>
+    <input id="setup-commcall" type="text" autocomplete="off" maxlength="12"
+           spellcheck="false" autocapitalize="characters" placeholder="PG00000000"
+           value="{{ profile.settings.commercial_call or '' }}">
+    <p class="tiny muted" id="setup-commcall-hint">
+      {%- set cl = profile.settings.commercial_license or {} -%}
+      {%- if cl.found %}<b>{{ cl.license_class or 'Commercial operator licence' }}</b>, granted {{ cl.granted }}
+        {%- if cl.status.lifetime %}, for life{% elif cl.expires %}, expires <b>{{ cl.expires }}</b>{% if cl.status.state == 'expired' %} &mdash; <b>expired</b>{% endif %}{% endif %}.
+        {{ cl.source }}.
+      {%- elif cl.callsign %}{{ cl.reason }}.
+      {%- else %}A GROL, an MROP, a GMDSS or Radiotelegraph ticket &mdash; the call on
+        the FCC record (PG&hellip;, MP&hellip;, DO&hellip;). Read from the FCC&rsquo;s file, with the
+        Ship Radar endorsement if it is on it; the commercial pools come onto the
+        dashboard with it.{% endif -%}
+    </p>
+
     <label class="setup-label" for="setup-class">Licence class</label>
     <select id="setup-class">
       <option value="none" {% if (profile.settings.license_class or '') == 'none' %}selected{% endif %}>Not licensed yet</option>
