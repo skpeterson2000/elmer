@@ -45,7 +45,7 @@
     if (d.others) parts.push(d.others + (d.others === 1 ? ' person' : ' people') + ' at ' +
                              d.tables + (d.tables === 1 ? ' other table' : ' other tables') + ' of the net');
     banner.textContent = parts.join(' and ') + (people === 1 ? ' is' : ' are') +
-      ' playing on this unit from another device. Closing this window ends their game.';
+      ' playing on this unit from another device. Stopping ELMER ends their game.';
     banner.hidden = false;
   }
 

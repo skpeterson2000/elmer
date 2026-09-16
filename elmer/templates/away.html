@@ -26,8 +26,7 @@
 
   <p class="tiny muted" id="away-hint" style="margin-top:.7rem">
     {% if kiosk_token %}
-      ELMER is running full screen, so the link opens in its own window with a
-      close button. Shut that window and you are back here.
+      The link opens on its own, with a close button. Shut it and you are back here.
     {% else %}
       It opens in a new tab, so this one stays where it is.
     {% endif %}
@@ -48,8 +47,7 @@ document.getElementById('away-open').addEventListener('click', async e => {
     const res = await postJSON('/api/open-external',
       {token: button.dataset.token, url: button.dataset.url});
     if (res.opened) {
-      hint.textContent = 'Opened in its own window. Close that window to come ' +
-                         'back to ELMER, which is still running behind it.';
+      hint.textContent = 'Opened. Close it to come back to ELMER, which is still running behind it.';
     } else {
       hint.textContent = 'This machine could not open another window. The ' +
                          'address above will work on a phone or another computer.';

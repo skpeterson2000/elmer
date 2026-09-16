@@ -52,8 +52,13 @@ OWNER_FLAG = "elmer_window=1"
 # the offer a first launch makes. "maximized" and "WIDTHxHEIGHT" are the
 # person's own choice and are applied every launch, saved bounds or not.
 START_SETTING = "window_start"
-START_DEFAULT = "as-left"
-STARTS = ("as-left", "maximized")
+# Full screen by default: the whole display and nothing of the browser's
+# on it - no title bar, no menu button, nothing that says what is drawing
+# the screen. Windows has no kiosk mode and does not need one for this;
+# full screen is what an application takes. The other choices are there
+# for somebody who wants a window among windows.
+START_DEFAULT = "fullscreen"
+STARTS = ("fullscreen", "as-left", "maximized")
 
 
 def start_choice(value):
@@ -105,7 +110,9 @@ def command(browser, url, start=START_DEFAULT, remembered=None):
            "--disable-features=Translate"]
     start = start_choice(start)
     remembered = remembered_bounds() if remembered is None else remembered
-    if start == "maximized" or (start == "as-left" and not remembered):
+    if start == "fullscreen":
+        cmd.append("--start-fullscreen")
+    elif start == "maximized" or (start == "as-left" and not remembered):
         cmd.append("--start-maximized")
     elif start != "as-left":
         cmd.append("--window-size=" + start.replace("x", ","))

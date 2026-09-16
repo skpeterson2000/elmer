@@ -60,7 +60,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
   <div class="title" title="{{ name }}">{{ title }}</div>
   <span class="tiny muted mono" id="pages">{{ pages }} pages</span>
   {% if draws %}
-  <button class="btn sm ghost" id="mode" title="ELMER draws the page; the browser's viewer can select text and search the file, but may not open at the page">Browser viewer</button>
+  <button class="btn sm ghost" id="mode" title="ELMER draws the page; the built-in viewer can select text and search the file, but may not open at the page">Built-in viewer</button>
   {% endif %}
   <label class="tiny muted" style="display:flex;align-items:center;gap:.3rem">page
     <input class="pg" id="pg" type="number" min="1" max="{{ pages }}" value="{{ page }}">
@@ -96,7 +96,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
        the page is drawn for it like any other screen; without, say so and
        offer the file rather than show a grey rectangle. #}
     <div id="phone" hidden class="missing">
-      <p class="small">This browser will not show a PDF inside a page, and this unit has no poppler to draw it. Open the file itself and your phone's viewer will take it &mdash; page {{ page }} is where the Library pointed.</p>
+      <p class="small">This device will not show a PDF here, and this unit has no poppler to draw it. Open the file itself and your phone's viewer will take it &mdash; page {{ page }} is where the Library pointed.</p>
       <p><a class="btn primary" href="/library/book/{{ name|urlencode }}#page={{ page }}">Open the file</a></p>
     </div>
   </div>
@@ -144,7 +144,7 @@ if (DRAWS) {
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(current - 1); }
   });
   img.addEventListener('error', () => {
-    img.alt = 'This page could not be drawn - the browser viewer may still show it.';
+    img.alt = 'This page could not be drawn - the built-in viewer may still show it.';
   });
   document.getElementById('mode').addEventListener('click', () => {
     browserViewer = !browserViewer;
