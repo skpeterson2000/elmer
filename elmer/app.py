@@ -6639,10 +6639,16 @@ def api_client_error():
     looking at, and the page would just sit there looking broken.
     """
     body = request.get_json(force=True, silent=True) or {}
-    log.error("BROWSER %s | %s | line %s | page %s | %s",
-              body.get("kind", "error"), body.get("message"),
-              body.get("line"), body.get("page"),
-              (request.user_agent.string or "-")[:80])
+    kind = str(body.get("kind", "error"))
+    # A press is a fact, not a fault - it is logged so that a request that
+    # never came back has the press beside it. A slow or stalled poll is
+    # worth a warning. Everything else is the fault it says it is.
+    level = (logging.INFO if kind in ("press",) else
+             logging.WARNING if kind in ("slow-poll", "poll-stalled", "deadline") else logging.ERROR)
+    log.log(level, "BROWSER %s | %s | line %s | page %s | %s",
+            kind, body.get("message"),
+            body.get("line"), body.get("page"),
+            (request.user_agent.string or "-")[:80])
     if body.get("stack"):
         log.debug("BROWSER stack:\n%s", str(body["stack"])[:4000])
     return jsonify({"logged": True})

@@ -20,13 +20,27 @@
 
   function setHave(list) { have = Array.isArray(list) ? new Set(list) : null; }
 
+  /* The elements still playing or loading, so a stalled request elsewhere
+     on the page can say whether the narrator had the browser's connections.
+     An element is let go the moment it is done: a clip that has finished
+     must not keep a connection, and there are six to the whole host. */
+  const playing = new Set();
+  function pending() {
+    return playing.size + ' clip' + (playing.size === 1 ? '' : 's') + ' open, ' + queue.length + ' line' + (queue.length === 1 ? '' : 's') + ' queued';
+  }
   function playOne(token) {
     return new Promise(resolve => {
       if (have && !have.has(token)) { setTimeout(resolve, PAUSE_MS); return; }
-      let done = false;
-      const finish = () => { if (!done) { done = true; setTimeout(resolve, GAP_MS); } };
+      let done = false, a = null;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (a) { playing.delete(a); try { a.pause(); a.removeAttribute('src'); a.load(); } catch (e) {} }
+        setTimeout(resolve, GAP_MS);
+      };
       try {
-        const a = new Audio(BASE + encodeURIComponent(token) + '.mp3');
+        a = new Audio(BASE + encodeURIComponent(token) + '.mp3');
+        playing.add(a);
         a.addEventListener('ended', finish, {once: true});
         a.addEventListener('error', finish, {once: true});
         a.play().catch(finish);
@@ -55,7 +69,7 @@
     run();
   }
 
-  window.Voice = {say: say, setHave: setHave, get have() { return have; }};
+  window.Voice = {say: say, setHave: setHave, pending: pending, get have() { return have; }};
   // The narrator's hook, which the table and the phone call with what they
   // show. Tokens when the state carries them; text alone stays silent.
   window.golfCue = function (text, tokens) { if (tokens) say(tokens); };

@@ -119,13 +119,66 @@ let myChoice = null;        // which choice this phone tapped, for the reveal
 let poll = null;
 
 const view = document.getElementById('view');
+/* The game pages do not load elmer.js, so its reporter and toast are not
+   here - and a report that throws inside a catch is worse than none. What
+   goes wrong on this page goes to data/elmer.log the same way, by beacon,
+   which needs no free connection to get out. */
+// Ours, unconditionally: the browser has a built-in window.reportError
+// that rethrows its argument as an uncaught error, which is the opposite.
+window.reportError = function (kind, message, extra) {
+  try {
+    const body = JSON.stringify(Object.assign({kind, message, page: location.pathname}, extra || {}));
+    if (navigator.sendBeacon) navigator.sendBeacon('/api/client-error', new Blob([body], {type: 'application/json'}));
+    else fetch('/api/client-error', {method: 'POST', headers: {'Content-Type': 'application/json'}, body, keepalive: true});
+  } catch (e) { /* reporting must never itself break the page */ }
+};
+window.addEventListener('error', e => reportError('js-error', e.message, {line: e.lineno, stack: e.error && e.error.stack}));
+window.addEventListener('unhandledrejection', e => { const r = e.reason; reportError('promise-rejection', r && r.message ? r.message : String(r), {stack: r && r.stack}); });
+window.toast = window.toast || function (title, text) {
+  let el = document.getElementById('page-toast');
+  if (!el) { el = document.createElement('div'); el.id = 'page-toast'; el.style.cssText = 'position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:#1c2733;color:#e6edf3;border:1px solid #3a4a5a;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;z-index:99;max-width:90vw'; document.body.appendChild(el); }
+  el.innerHTML = '<b></b> <span></span>'; el.querySelector('b').textContent = title; el.querySelector('span').textContent = text || '';
+  el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 5000);
+};
 const who = document.getElementById('who');
 
+/* Every call has a deadline and is counted while it is out. A press whose
+   request never leaves the browser - the connection pool full, a fetch
+   that hangs - used to sit for ever with the button greyed and nothing in
+   any log; now it fails at the deadline, and the report says how many
+   other requests were in flight and what the narrator's audio was doing,
+   which is the one place a page like this can tie the pool up. */
+const API_DEADLINE_MS = 12000;
+const inflight = new Map();
+let apiSerial = 0;
+function inflightWords() {
+  const now = performance.now();
+  const rows = Array.from(inflight.values()).map(r => r.path + ' ' + Math.round(now - r.at) + 'ms');
+  const audio = window.Voice && Voice.pending ? Voice.pending() : null;
+  return rows.length + ' in flight' + (rows.length ? ' [' + rows.join(', ') + ']' : '') +
+    (audio ? '; audio: ' + audio : '');
+}
 async function api(path, body) {
   const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
                       body: JSON.stringify(body)} : {};
-  const r = await fetch(path, opt);
-  return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
+  const ctl = ('AbortController' in window) ? new AbortController() : null;
+  if (ctl) opt.signal = ctl.signal;
+  const id = ++apiSerial;
+  inflight.set(id, {path: path.split('?')[0], at: performance.now()});
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, API_DEADLINE_MS);
+  try {
+    const r = await fetch(path, opt);
+    return {ok: r.ok, status: r.status, data: await r.json().catch(() => ({}))};
+  } catch (err) {
+    const aborted = err && err.name === 'AbortError';
+    reportError(aborted ? 'deadline' : 'network',
+                (aborted ? 'no answer in ' + API_DEADLINE_MS + ' ms from ' : 'fetch failed for ') + path.split('?')[0] +
+                (aborted ? '' : ': ' + err.message) + ' - ' + inflightWords());
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    inflight.delete(id);
+  }
 }
 
 /* ---------------------------------------------------------------- joining */
