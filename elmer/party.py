@@ -1276,10 +1276,11 @@ class Room:
                     "address_waits": bool(away_ball and not away_ball.get("bot")),
                     "tempo": self.golf_tempo,
                     # For turning a tap on the strip into yards - see golfmap.geometry.
-                    "map": ((golfmap.green_geometry(g.hole())
-                             if (player_id is not None and mine and mine.get("lie") == "green" and not mine.get("holed"))
-                             or (player_id is None and away_ball and away_ball.get("lie") == "green")
-                             else golfmap.geometry(g.hole())) if g.hole() else None),
+                    # Which view: the green for a ball on it or its fringe,
+                    # the approach when the green is the target, the whole
+                    # hole otherwise - the phone's own golfer's, or on the
+                    # table the one who is away.
+                    "map": golfmap.geometry_for(g, g.hole(), mine if player_id is not None else away_ball),
                     # Who has a tee time - joining the group at the next
                     # hole - and whether this player is one of them.
                     "tee_times": [name(p) for p in d.get("tee_times", [])],

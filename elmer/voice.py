@@ -121,6 +121,9 @@ VOCABULARY = {
     "call-holed-6": "THAT, ladies and gentlemen, is how it is done.",
     "call-sand-5": "That ball is on the beach.",
     "call-green-1": "On the dance floor.", "call-green-2": "Stuck it.", "call-green-3": "That's looking at it.",
+    "call-fringe-1": "On the collar.", "call-fringe-2": "Just on the fringe.",
+    "call-fringe-3": "The fringe took the pace off it.", "call-fringe-4": "Putt it from there.",
+    "on-the-fringe": "on the fringe",
     "call-long-1": "Flew the green.", "call-long-2": "Too much club.", "call-long-3": "Airmailed it.",
     "call-holed-1": "In the hole!", "call-holed-2": "Drained it.", "call-holed-3": "Bottom of the cup.",
     "call-rough-1": "Topped it.", "call-rough-2": "Fat. Chunked it.", "call-rough-3": "Skied that one.",
@@ -150,6 +153,8 @@ VOCABULARY = {
 CALL_TOKENS = {
     "Pured it.": "call-fairway-1", "Right down the middle.": "call-fairway-2", "That'll play.": "call-fairway-3",
     "On the dance floor.": "call-green-1", "Stuck it.": "call-green-2", "That's looking at it.": "call-green-3",
+    "On the collar.": "call-fringe-1", "Just on the fringe.": "call-fringe-2",
+    "The fringe took the pace off it.": "call-fringe-3", "Putt it from there.": "call-fringe-4",
     "Flew the green.": "call-long-1", "Too much club.": "call-long-2", "Airmailed it.": "call-long-3",
     "In the hole!": "call-holed-1", "Drained it.": "call-holed-2", "Bottom of the cup.": "call-holed-3",
     "Topped it.": "call-rough-1", "Fat. Chunked it.": "call-rough-2", "Skied that one.": "call-rough-3",
@@ -180,7 +185,7 @@ SCORE_TOKENS = {"albatross": "for-an-albatross", "eagle": "for-an-eagle", "birdi
                 "par": "for-par", "bogey": "for-a-bogey", "double bogey": "for-a-double-bogey",
                 "triple bogey": "for-a-triple-bogey"}
 LIE_TOKENS = {"tee": "from-the-tee", "fairway": "from-the-fairway", "rough": "from-the-rough",
-              "sand": "from-the-sand", "green": "on-the-green"}
+              "sand": "from-the-sand", "green": "on-the-green", "fringe": "on-the-fringe"}
 COURSE_TOKENS = {"pebble-beach": "pebble-beach", "st-andrews-old": "the-old-course",
                  "augusta-national": "augusta-national"}
 WIND_TOKENS = {"with": "the-breeze-is-behind-you", "into": "into-the-breeze",
@@ -478,6 +483,10 @@ def shot(s):
                 out += number(s["left"]) + ["to-go"]
         elif kind == "green":
             out += _say("on-the-green", "green")
+            if s.get("feet"):
+                out += number(s["feet"]) + ["feet"]
+        elif kind == "fringe":
+            out += _say("on-the-fringe", "green")
             if s.get("feet"):
                 out += number(s["feet"]) + ["feet"]
         elif kind == "long":

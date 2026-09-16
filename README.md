@@ -136,7 +136,11 @@ ledger of its own pace and names a creeper in the weekly report home. A
 book on the shelf with no bookmarks gives up its printed chapter headings
 where they run in order, or takes the chapters you list in a text file
 beside it (`Book.pdf.toc.txt`); an outside link from the Windows window
-opens as a popout of ELMER's that Exit closes too.
+opens as a popout of ELMER's that Exit closes too; on Windows the
+installer builds an `ELMER.exe` with the icon on it, to double-click.
+Golf grew a fringe that brakes a chipped ball, an approach view that
+zooms to the green when it is the target, and holes and greens drawn as
+grass rather than geometry.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

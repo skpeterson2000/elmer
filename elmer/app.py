@@ -4686,7 +4686,7 @@ def api_party_golf_map():
     ball = (view.get("balls") or {}).get(str(whose)) or (view.get("balls") or {}).get(whose)
     mark = (ball or {}).get("aim") if ball and (ball.get("aim") or {}).get("set") else None
     h = g.hole()
-    if ball and ball.get("lie") == "green" and not ball.get("holed"):
+    if ball and ball.get("lie") in ("green", "fringe") and not ball.get("holed"):
         # On the green, the green: the strip is the whole of it, in feet.
         def feet(pt):
             if not pt or pt.get("at") is None:
@@ -4694,7 +4694,7 @@ def api_party_golf_map():
             return {"feet_along": (float(pt["at"]) - h["yards"]) * 3, "feet_across": float(pt.get("off") or 0) * 3}
         on = [{"name": b["name"], "feet_along": (float(b["at"]) - h["yards"]) * 3, "feet_across": float(b.get("off") or 0) * 3,
                "feet": b.get("feet"), "holed": b["holed"], "you": (who is not None and str(who) == str(pid))}
-              for pid, b in (view.get("balls") or {}).items() if b.get("lie") == "green"]
+              for pid, b in (view.get("balls") or {}).items() if b.get("lie") in ("green", "fringe")]
         last = (view.get("last") or [{}])[0] if view.get("last") else {}
         aimed = feet(ball.get("last_aim")) if (who is not None and ball.get("strokes") and last.get("putt")) else None
         resp = app.response_class(golfmap.green_svg(h, on, feet(mark), aimed, view.get("slope")), mimetype="image/svg+xml")
@@ -4708,6 +4708,12 @@ def api_party_golf_map():
         aimed = (ball or {}).get("last_aim") if ball and ball.get("strokes") else None
     elif last.get("aim"):
         aimed = last["aim"]
+    if ball and ball.get("approaching"):
+        # The green is the target: the last hundred yards, a yard a yard.
+        resp = app.response_class(golfmap.approach_svg(h, h.get("wind"), view.get("wind_mph"), balls, mark, aimed),
+                                  mimetype="image/svg+xml")
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
     resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark, aimed),
                               mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "no-store"

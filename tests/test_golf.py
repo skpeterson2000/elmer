@@ -377,7 +377,18 @@ def run():
     s = r.play_one("a", {"correct": True, "club": "driver", "ms": 1000})["shots"]["a"]
     check("into the rough it stops quickly", s["roll"] < 12, True)
     green = rolled("wedge", lie="fairway", at=310, wind="across", mph=0)
-    check("a wedge onto the green checks up", (green["kind"], green["roll"] <= 3), ("green", True))
+    check("a wedge onto the green releases a little, or bites and comes back - a green is clipped to nothing", (green["kind"], -5 <= green["roll"] <= 8), ("green", True))
+    fast = golf.Golf(["a"], flat_course(), seed=1)
+    check("  the green runs faster than the fairway, and the fringe is between",
+          (fast.expected_roll("wood", "green") > fast.expected_roll("wood", "fairway") > fast.expected_roll("wood", "fringe") > fast.expected_roll("wood", "rough")), True)
+    golf.CLUB_SPREAD, golf.KICK_ODDS = {c: 0 for c in SPREAD}, 0.0
+    beside = golf.Golf(["a"], flat_course(), seed=1)
+    beside.day.wind_mph = 0
+    beside.balls["a"].at, beside.balls["a"].lie, beside.balls["a"].strokes = 320, "fairway", 1
+    beside.set_aim("a", 395, 18)
+    b = beside.play_one("a", {"correct": True, "club": "wedge", "ms": 3})["shots"]["a"]
+    golf.CLUB_SPREAD, golf.KICK_ODDS = SPREAD, KICK
+    check("  beside the green, off its collar, is rough - the fringe is bordered by it", (b["kind"], beside.balls["a"].lie), ("rough", "rough"))
     bumps = [rolled("iron", lie="fairway", at=240, wind="across", mph=0, seed=sd, aim=(371, 0)) for sd in range(1, 13)]
     check("an iron landed nine short of the green can run onto it - the bump and run",
           any(b["kind"] == "green" and "ran onto" in b["words"] for b in bumps), True)
@@ -518,6 +529,69 @@ def run():
     s = narrow.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
     golf.CLUB_SPREAD, golf.KICK_ODDS = SPREAD, KICK
     check("a hole's own width is the rules' width: fourteen yards off on a ten-yard lane is the first cut", s["kind"], "rough")
+
+    print("\n-- the fringe: the collar brakes a ball, and can be putted from --")
+    golf.CLUB_SPREAD, golf.KICK_ODDS, LEAK = {c: 0 for c in SPREAD}, 0.0, dict(golf.CLUB_LEAK)
+    golf.CLUB_LEAK = {c: 0 for c in LEAK}
+    check("the green's edge is its half depth and a bit; the fringe three yards more",
+          (golf.green_edge({"green": 30}), golf.on_the_green({"yards": 400, "green": 30}, 380, 0), golf.on_the_green({"yards": 400, "green": 30}, 378, 0),
+           golf.on_the_green({"yards": 400, "green": 30}, 376, 0), golf.on_the_green({"yards": 400, "green": 30}, 390, 16), golf.on_the_green({"yards": 400, "green": 30}, 390, 18)),
+          (20.0, "green", "fringe", None, "fringe", None))
+    def from_(at, club, mark, ms=1):
+        g = golf.Golf(["a"], flat_course(), seed=2)
+        g.day.wind_mph = 0
+        g.balls["a"].at, g.balls["a"].lie, g.balls["a"].strokes = at, "fairway", 1
+        g.set_aim("a", *mark)
+        return g, g.play_one("a", {"correct": True, "club": club, "ms": ms})["shots"]["a"]
+    g, s = from_(320, "wedge", (378, 0))
+    check("a wedge chipped onto the collar stops on it, in feet from the cup", (s["kind"], g.balls["a"].lie, s["feet"] > 0, "fringe" in s["words"]), ("fringe", "fringe", True, True))
+    check("  from there the clubs are the wedge and the putter", g.clubs_for("a"), ["wedge", "putter"])
+    check("  and the putter, through the collar, is the sensible one", g.default_club("a"), "putter")
+    check("  and the hazards in the line are nobody's business from there", g.ahead("a"), [])
+    rolls = {}
+    for ms in (1, 2, 3):
+        _, on = from_(210, "wood", (378, 0), ms)
+        _, short = from_(210, "wood", (374, 0), ms)
+        rolls[ms] = (on["roll"], short["roll"], on["kind"], on.get("via"))
+    check("a wood landed on the fringe runs less than one landed on the fairway just short of it",
+          all(a < b for a, b, _k, _v in rolls.values()), True)
+    check("  and trickles through the collar onto the green, which the words say", all(k == "green" and v == "fringe" for _a, _b, k, v in rolls.values()), True)
+    golf.CLUB_SPREAD, golf.KICK_ODDS, golf.CLUB_LEAK = SPREAD, KICK, LEAK
+    putt = golf.Golf(["a"], flat_course(), seed=2)
+    putt.balls["a"].at, putt.balls["a"].off, putt.balls["a"].lie, putt.balls["a"].strokes = 379, 0, "fringe", 2
+    s = putt.play_one("a", {"correct": True, "club": "putter", "ms": 7})["shots"]["a"]
+    check("a putt from the fringe is a putt from the fringe", ("from the fringe" in s["words"], s["putt"], putt.balls["a"].lie in ("green", "fringe")), (True, True, True))
+    check("  the ball on the collar is in feet in the state", golf.Golf(["a"], flat_course(), seed=2).as_dict()["balls"]["a"]["feet"], None)
+    putt.balls["a"].at, putt.balls["a"].off, putt.balls["a"].lie = 379, 0, "fringe"
+    check("  and so it is", putt.as_dict()["balls"]["a"]["feet"], 63)
+
+    print("\n-- the approach: the map zooms when the green is the target --")
+    app = golf.Golf(["a"], flat_course(), seed=2)
+    check("off the tee, no", app.approaching("a"), False)
+    app.balls["a"].at, app.balls["a"].lie = 240, "fairway"
+    check("  an iron's length out, with the iron in hand: yes", (app.default_club("a"), app.approaching("a")), ("iron", True))
+    app.balls["a"].at = 100
+    check("  three hundred out, a full swing: no", app.approaching("a"), False)
+    app.balls["a"].at, app.balls["a"].lie = 330, "rough"
+    check("  seventy out from the rough, whatever the club: yes", app.approaching("a"), True)
+    check("  and it travels with the ball's state", app.as_dict()["balls"]["a"]["approaching"], True)
+    from elmer import golfmap
+    geo = golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"])
+    check("the geometry a screen turns a tap with is the approach's, a yard a yard", (geo["view"], geo["px_per_yard"] > 3, geo["top"]), ("approach", True, 430.0))
+    app.balls["a"].lie = "fringe"
+    check("  on the fringe it is the green's", golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"])["view"], "green")
+    app.balls["a"].at, app.balls["a"].lie = 100, "fairway"
+    check("  from three hundred, the whole hole", "view" in golfmap.geometry_for(app, app.hole(), app.as_dict()["balls"]["a"]), False)
+    svg = golfmap.approach_svg(pb["holes"][6], "into", 9, [{"name": "Scott", "at": 0, "off": 0, "lie": "tee", "you": True}], {"at": 96, "off": -4}, None)
+    h7 = pb["holes"][6]
+    check("the approach draws the green, the fringe, the sand and the ocean beyond the 7th",
+          all(w in svg for w in ["the fringe", "aiming 10 short of the pin, 4 left"] + [z["name"] for z in h7["hazards"]]), True)
+    check("  a ball short of the view stands at its foot with its yards", f"you, {h7['yards']} out" in svg, True)
+    gsvg = golfmap.green_svg(pb["holes"][1], [], None, None, {"falls": "left", "grade": 2})
+    check("the green is drawn with its fall and its sand, not a bullseye", ("falls left" in gsvg, "greenside bunkers" in gsvg, "linearGradient" in gsvg, "stroke-dasharray=\"3 3\"" in gsvg), (True, True, True, False))
+    check("  and the one green in every view: the same outline seeds them all", golfmap._outline(golfmap._seed(pb["holes"][1], "green")) == golfmap._outline(golfmap._seed(pb["holes"][1], "green")), True)
+    check("  a drawn green is never smaller than the rules' green", min(golfmap._outline(1)) >= 1.0, True)
+    check("  and a drawn bunker never bigger than its band", max(golfmap._outline(1, inward=True)) <= 1.0, True)
 
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)

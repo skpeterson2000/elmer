@@ -4,12 +4,21 @@ Not a map of the real course - that is the club's, and the game does not
 have the routing anyway. This is the hole as the rules see it, which is
 the honest picture: the tee at the foot, the green at the head, every
 hazard as a band at the yards it covers and on the side it sits, the wind
-as an arrow, and the balls where they lie. What it draws is exactly what
-the ball obeys, so a golfer reading it is reading the game.
+as an arrow, and the balls where they lie. What it draws is what the ball
+obeys, so a golfer reading it is reading the game - drawn as grass rather
+than geometry: the outlines are softened by a yard or two, never more, and
+always outward for what helps (the drawn green is never smaller than the
+rules' green, the fairway never narrower) and inward for what hurts (a
+bunker is drawn inside its band, never beyond it). The shapes come from
+the card's numbers seeded by the hole, so a hole looks the same every
+round and no two holes look alike.
 
 SVG, in the page's own colours, drawn small enough for a phone and clear
 enough for the table.
 """
+import math
+import random
+import zlib
 from xml.sax.saxutils import escape
 
 W, H = 260, 560                 # the strip
@@ -70,7 +79,8 @@ SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
 FILL = {"water": "#2f6f9f", "bunker": "#d9c48a", "rough": "#4c6b2f"}
 WIND_ARROW = {"with": "↑", "into": "↓", "across": "→", "swirling": "↻"}
 LIE_MARK = {"tee": "#e8e8e8", "fairway": "#e8e8e8", "rough": "#c9d13a", "sand": "#d9c48a",
-            "green": "#8fe39a", "water": "#7fbfff"}
+            "green": "#8fe39a", "fringe": "#6fbf7a", "water": "#7fbfff"}
+GREEN_FILL, FRINGE_FILL, FAIRWAY_FILL, ROUGH_FILL, GROUND = "#8fe39a", "#5fa86a", "#4a8a3a", "#2a4a24", "#16221a"
 
 
 def _y(yards, total):
@@ -80,37 +90,228 @@ def _y(yards, total):
     return H - PAD_BOT - frac * usable
 
 
+# ------------------------------------------------------------ the shapes
+# Grass, not geometry. Every outline is an ellipse or a band with its edge
+# pushed out (or pulled in) by a slow wobble round it, the wobble drawn
+# from a seed the hole owns, so the green on the strip, the approach and
+# the green view is the one green.
+TREE_GREENS = ("#1d3a1c", "#254a22", "#1a3320")
+SAND, SAND_LIP, WATER, WATER_EDGE = "#d9c48a", "#b9a56c", "#2f6f9f", "#5b9ccc"
+STRIPE = "rgba(255,255,255,0.055)"
+
+
+def _seed(h, tag=""):
+    return zlib.crc32(f"{h.get('n')}|{h.get('name')}|{h.get('yards')}|{h.get('par')}|{tag}".encode("utf-8"))
+
+
+def _outline(seed, n=36, wobble=0.13, inward=False):
+    """Radius factors round a closed shape, one per angle. Outward: from
+    1 to 1 + wobble, so the drawn edge is never inside the rules' edge;
+    inward: from 1 - wobble to 1, never outside it."""
+    r = random.Random(seed)
+    a, b, c = (r.uniform(0, 2 * math.pi) for _ in range(3))
+    out = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        noise = 0.5 + 0.5 * (0.55 * math.sin(2 * t + a) + 0.3 * math.sin(3 * t + b) + 0.15 * math.sin(5 * t + c))
+        out.append((1 - wobble * (1 - noise)) if inward else (1 + wobble * noise))
+    return out
+
+
+def _smooth(pts):
+    """A closed path through the points, curved (Catmull-Rom as cubics)."""
+    n = len(pts)
+    d = [f"M{pts[0][0]:.1f},{pts[0][1]:.1f}"]
+    for i in range(n):
+        p0, p1, p2, p3 = pts[i - 1], pts[i], pts[(i + 1) % n], pts[(i + 2) % n]
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        d.append(f"C{c1[0]:.1f},{c1[1]:.1f} {c2[0]:.1f},{c2[1]:.1f} {p2[0]:.1f},{p2[1]:.1f}")
+    return " ".join(d) + "Z"
+
+
+def _blob(cx, cy, rx, ry, factors, rot=0.0):
+    """An ellipse with the outline's wobble, as a path."""
+    n = len(factors)
+    pts = []
+    for i, f in enumerate(factors):
+        t = 2 * math.pi * i / n
+        x, y = rx * f * math.cos(t), ry * f * math.sin(t)
+        pts.append((cx + x * math.cos(rot) - y * math.sin(rot), cy + x * math.sin(rot) + y * math.cos(rot)))
+    return _smooth(pts)
+
+
+def _band(x0, x1, y0, y1, seed, wobble=0.1, inward=False):
+    """A band with soft, slightly irregular edges - a bunker in its yards,
+    a creek across the fairway - as a path within (or just over) its box."""
+    cx, cy, rx, ry = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
+    return _blob(cx, cy, rx, ry, _outline(seed, 28, wobble, inward), 0.0)
+
+
+def _strip(edges_left, edges_right, seed, wobble_px, swell=0.0):
+    """A long shape from a left edge and a right edge, top to bottom, each
+    pushed outward by up to `wobble_px`, ends rounded - and, for a
+    fairway, a swell of up to `swell` px where the tee shots land, a
+    little short of the middle of the hole, the way a fairway opens
+    there."""
+    r = random.Random(seed)
+    a, b = r.uniform(0, 6.28), r.uniform(0, 6.28)
+
+    def push(i, n, side):
+        f = i / max(1, n - 1)                       # 0 at the green end, 1 at the tee
+        t = f * 6.0
+        bulge = swell * max(0.0, math.cos((f - 0.42) * 2.6)) ** 2 * (0.85 + 0.15 * math.sin(a + side))
+        return bulge + wobble_px * (0.5 + 0.5 * math.sin(t * 1.7 + a + side) * 0.7 + 0.3 * math.sin(t * 3.1 + b - side) * 0.5)
+
+    n = len(edges_left)
+    left = [(x - push(i, n, 0.0), y) for i, (x, y) in enumerate(edges_left)]
+    right = [(x + push(i, n, 2.0), y) for i, (x, y) in enumerate(reversed(edges_right))]
+    return _smooth(left + right)
+
+
+def _trees(parts, points, seed, side):
+    """A tree line: dark crowns scattered along the outside of the rough."""
+    r = random.Random(seed + (7 if side > 0 else 11))
+    for x, y in points:
+        if r.random() < 0.35:
+            continue
+        rad = r.uniform(3.2, 6.5)
+        parts.append(f'<circle cx="{x + side * r.uniform(2, 9):.1f}" cy="{y + r.uniform(-6, 6):.1f}" r="{rad:.1f}" '
+                     f'fill="{r.choice(TREE_GREENS)}"/>')
+
+
+def _stripes(parts, clip_id, y0, y1, step=14, x0=0, x1=W, diagonal=False):
+    """Mown stripes: alternate bands a shade lighter, clipped to the grass."""
+    parts.append(f'<g clip-path="url(#{clip_id})">')
+    if diagonal:
+        span = (y1 - y0) + (x1 - x0)
+        k = 0
+        y = y0 - (x1 - x0)
+        while y < y1 + span:
+            if k % 2 == 0:
+                parts.append(f'<polygon points="{x0},{y:.1f} {x1},{y - (x1 - x0):.1f} {x1},{y - (x1 - x0) + step:.1f} {x0},{y + step:.1f}" fill="{STRIPE}"/>')
+            y += step
+            k += 1
+    else:
+        k = 0
+        y = y0
+        while y < y1:
+            if k % 2 == 0:
+                parts.append(f'<rect x="{x0}" y="{y:.1f}" width="{x1 - x0}" height="{step}" fill="{STRIPE}"/>')
+            y += step
+            k += 1
+    parts.append("</g>")
+
+
+def _sand(parts, x0, x1, y0, y1, seed, title):
+    parts.append(f'<path d="{_band(x0, x1, y0, y1, seed, 0.22, inward=True)}" fill="{SAND}" stroke="{SAND_LIP}" '
+                 f'stroke-width="1.2"><title>{escape(title)}</title></path>')
+
+
+def _water(parts, x0, x1, y0, y1, seed, title):
+    parts.append(f'<path d="{_band(x0, x1, y0, y1, seed, 0.08)}" fill="{WATER}" stroke="{WATER_EDGE}" stroke-width="1" '
+                 f'opacity="0.95"><title>{escape(title)}</title></path>')
+    r = random.Random(seed)
+    for _ in range(3):
+        x, y = r.uniform(x0 + 8, x1 - 16), r.uniform(y0 + 4, y1 - 4)
+        parts.append(f'<path d="M{x:.1f},{y:.1f} q3,-2 6,0 t6,0" fill="none" stroke="#9ad1ff" stroke-width="0.8" opacity="0.6"/>')
+
+
+def _rough_patch(parts, x0, x1, y0, y1, seed, title):
+    parts.append(f'<path d="{_band(x0, x1, y0, y1, seed, 0.12)}" fill="#3f6127" opacity="0.95"><title>{escape(title)}</title></path>')
+    r = random.Random(seed)
+    for _ in range(int((x1 - x0) * (y1 - y0) / 90)):
+        parts.append(f'<circle cx="{r.uniform(x0 + 3, x1 - 3):.1f}" cy="{r.uniform(y0 + 3, y1 - 3):.1f}" r="0.9" fill="#2f4a1e"/>')
+
+
+def _hazard(parts, h, hz, x0, x1, y0, y1, i):
+    """One hazard in its box, drawn as what it is."""
+    title = f'{hz.get("name") or hz["kind"]}, {hz["from"]}-{hz["to"]} yards'
+    seed = _seed(h, f"hz{i}")
+    if hz["kind"] == "bunker":
+        if x1 - x0 > 3.2 * max(8.0, y1 - y0):
+            # a wide, shallow band - bunkers "around" the green - is two
+            # traps, one each side, not a moat
+            w = (x1 - x0) * 0.28
+            _sand(parts, x0, x0 + w, y0, y1, seed, title)
+            _sand(parts, x1 - w, x1, y0, y1, seed + 1, title)
+        else:
+            _sand(parts, x0, x1, y0, y1, seed, title)
+    elif hz["kind"] == "water":
+        _water(parts, x0, x1, y0, y1, seed, title)
+    else:
+        _rough_patch(parts, x0, x1, y0, y1, seed, title)
+
+
+def _cross(parts, x, y, cls, r, width, opacity, dash, title):
+    extra = f' stroke-dasharray="{dash}"' if dash else ""
+    parts.append(f'<g class="{cls}" stroke="#ffb454" stroke-width="{width}" fill="none" opacity="{opacity}"{extra}>'
+                 f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}"/><line x1="{x - r - 5:.1f}" y1="{y:.1f}" x2="{x + r + 5:.1f}" y2="{y:.1f}"/>'
+                 f'<line x1="{x:.1f}" y1="{y - r - 5:.1f}" x2="{x:.1f}" y2="{y + r + 5:.1f}"/><title>{escape(title)}</title></g>')
+
+
+def _ball(parts, x, y, b):
+    color = "#8b98a5" if b.get("picked_up") else LIE_MARK.get(b.get("lie") or "fairway", "#e8e8e8")
+    parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{7 if b.get("you") else 5.5}" fill="{color}" '
+                 f'stroke="{"#ffb454" if b.get("you") else GROUND}" stroke-width="{2.5 if b.get("you") else 1}">'
+                 f'<title>{escape(str(b.get("name") or ""))}</title></circle>')
+
+
+def _flag(parts, x, y):
+    parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.2" fill="{GROUND}"/>')
+    parts.append(f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{x:.1f}" y2="{y - 22:.1f}" stroke="#e8e8e8" stroke-width="1.5"/>')
+    parts.append(f'<polygon points="{x:.1f},{y - 22:.1f} {x + 12:.1f},{y - 17:.1f} {x:.1f},{y - 12:.1f}" fill="#e05a5a"/>')
+
+
+def _mark_title(mark, total):
+    short = total - float(mark["at"])
+    where = (f"{abs(int(round(short)))} short of the pin" if short > 0 else f"{abs(int(round(short)))} past the pin" if short < 0 else "at the pin")
+    off = mark.get("off") or 0
+    return f"aiming {where}" + (f', {abs(int(off))} {"left" if off < 0 else "right"}' if off else "")
+
+
+# --------------------------------------------------------------- the hole
+
 def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None, aimed=None):
     """One hole as an SVG string. `h` is the card's hole; `balls` a list of
     {name, at, off, lie, holed, picked_up, you}; `mark` the golfer's aim,
     {at, off}, drawn as a cross; `aimed` where the last stroke was aimed,
     drawn fainter beside where the ball went - a shot bounces, rolls, or
     falls off a cliff, and the mark says what was meant."""
+    from . import golf
     total = float(h["yards"])
     bend = bend_of(h)
     half_yd = float(h.get("width") or 18)
     half_px = half_yd * PX_PER_YARD
+    seed = _seed(h)
+    uid = f"h{h['n']}{seed % 1000}"
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
              f'class="holemap" role="img" aria-label="the {h["n"]} hole, par {h["par"]}, {h["yards"]} yards">']
-    parts.append(f'<rect x="0" y="0" width="{W}" height="{H}" rx="14" fill="#16221a"/>')
-    # the fairway, tee to green, with rough either side - a line of play that
-    # bends where the card says, the hole's own width
+    parts.append(f'<rect x="0" y="0" width="{W}" height="{H}" rx="14" fill="{GROUND}"/>')
     top, bot = _y(total, total), _y(0, total)
-    line = [(centre_x(0, bend), bot)]
-    if bend and 0 < bend["at"] < total:
-        line.append((centre_x(bend["at"], bend), _y(bend["at"], total)))
-    line.append((centre_x(total, bend), top))
-    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in line)
-    parts.append(f'<polyline points="{pts}" fill="none" stroke="#2a4a24" stroke-width="{half_px * 2 + 80:.1f}" '
-                 f'stroke-linecap="round" stroke-linejoin="round"/>')
-    parts.append(f'<polyline points="{pts}" fill="none" stroke="#4a8a3a" stroke-width="{half_px * 2:.1f}" '
-                 f'stroke-linecap="round" stroke-linejoin="round"/>')
-    # the hazards, as bands at their yards and on their side, following the line
-    for hz in h.get("hazards", []):
+    # the line of play, sampled tee to green; the fairway and the rough are
+    # bands either side of it, their edges softened
+    ats = [total * i / 28 for i in range(29)]
+    line = [(centre_x(at, bend), _y(at, total)) for at in ats]
+    rough_l = [(x - half_px - 30, y) for x, y in line]
+    rough_r = [(x + half_px + 30, y) for x, y in line]
+    parts.append(f'<path d="{_strip(rough_l, rough_r, seed + 3, 9)}" fill="{ROUGH_FILL}"/>')
+    _trees(parts, [(x - 4, y) for x, y in rough_l[1:-1]], seed, -1)
+    _trees(parts, [(x + 4, y) for x, y in rough_r[1:-1]], seed, 1)
+    # the fairway ends at the front of the fringe; beside the green is rough
+    front = total - golf.green_edge(h) - golf.FRINGE + 2
+    fline = [(centre_x(at, bend), _y(at, total)) for at in ats if at < front] + [(centre_x(front, bend), _y(front, total))]
+    fair_l = [(x - half_px, y) for x, y in fline]
+    fair_r = [(x + half_px, y) for x, y in fline]
+    fairway = _strip(fair_l, fair_r, seed + 5, 4, swell=9)
+    parts.append(f'<defs><clipPath id="{uid}f"><path d="{fairway}"/></clipPath></defs>')
+    parts.append(f'<path d="{fairway}" fill="{FAIRWAY_FILL}"/>')
+    _stripes(parts, f"{uid}f", top - 20, bot + 20)
+    # the hazards, at their yards and on their side, following the line
+    for i, hz in enumerate(h.get("hazards", [])):
         x0, x1 = SIDE.get(hz.get("side", ""), SIDE[""])
         mid = (hz["from"] + hz["to"]) / 2.0
         shift = centre_x(mid, bend) - CENTRE
-        # the sides sit just beyond this hole's own width
         if hz.get("side") == "left":
             x0, x1 = CENTRE - half_px - 34, CENTRE - half_px - 4
         elif hz.get("side") == "right":
@@ -118,30 +319,27 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         elif hz.get("side") in ("across", "front", ""):
             x0, x1 = CENTRE - half_px, CENTRE + half_px
         y1, y0 = _y(hz["from"], total), _y(hz["to"], total)
-        fill = FILL.get(hz["kind"], "#666")
-        parts.append(f'<rect x="{x0 + shift:.1f}" y="{y0:.1f}" width="{x1 - x0:.1f}" height="{max(6.0, y1 - y0):.1f}" '
-                     f'rx="8" fill="{fill}" opacity="0.92"><title>{escape(hz.get("name") or hz["kind"])}, '
-                     f'{hz["from"]}-{hz["to"]} yards</title></rect>')
-    # the green, and the cup, where the line ends
+        if y1 - y0 < 8:
+            y0, y1 = (y0 + y1) / 2 - 4, (y0 + y1) / 2 + 4
+        _hazard(parts, h, hz, x0 + shift, x1 + shift, y0, y1, i)
+    # the green and its fringe, where the line ends - the one shape every view draws
     depth = float(h.get("green") or 28)
-    gy = _y(total, total)
-    gx = centre_x(total, bend)
-    gh = max(18.0, (depth / total) * (H - PAD_TOP - PAD_BOT))
-    parts.append(f'<ellipse cx="{gx:.1f}" cy="{gy:.1f}" rx="46" ry="{gh / 2 + 6:.1f}" fill="#8fe39a"/>')
-    parts.append(f'<circle cx="{gx:.1f}" cy="{gy:.1f}" r="3.2" fill="#16221a"/>')
-    parts.append(f'<line x1="{gx:.1f}" y1="{gy:.1f}" x2="{gx:.1f}" y2="{gy - 22:.1f}" '
-                 f'stroke="#e8e8e8" stroke-width="1.5"/>')
-    parts.append(f'<polygon points="{gx:.1f},{gy - 22:.1f} {gx + 12:.1f},{gy - 17:.1f} '
-                 f'{gx:.1f},{gy - 12:.1f}" fill="#e05a5a"/>')
+    gy, gx = _y(total, total), centre_x(total, bend)
+    ry = max(12.0, (golf.green_edge(h) / total) * (H - PAD_TOP - PAD_BOT))
+    rx = golf.GREEN_HALF * PX_PER_YARD + 4
+    fr = golf.FRINGE * PX_PER_YARD
+    shape = _outline(_seed(h, "green"))
+    parts.append(f'<path d="{_blob(gx, gy, rx + fr, ry + fr * ry / rx, shape)}" fill="{FRINGE_FILL}"/>')
+    parts.append(f'<path d="{_blob(gx, gy, rx, ry, shape)}" fill="{GREEN_FILL}"/>')
+    _flag(parts, gx, gy)
     # the tee box
-    parts.append(f'<rect x="{(FAIR_L + FAIR_R) / 2 - 16}" y="{bot - 6:.1f}" width="32" height="12" rx="3" '
-                 f'fill="#c9e2c0" stroke="#16221a"/>')
+    parts.append(f'<rect x="{CENTRE - 16}" y="{bot - 6:.1f}" width="32" height="12" rx="3" fill="#c9e2c0" stroke="{GROUND}"/>')
     # yard marks every 100
     y100 = 100
     while y100 < total:
         yy = _y(y100, total)
-        parts.append(f'<line x1="{FAIR_R + 40}" y1="{yy:.1f}" x2="{FAIR_R + 48}" y2="{yy:.1f}" stroke="#8b98a5"/>')
-        parts.append(f'<text x="{FAIR_R + 52}" y="{yy + 4:.1f}" font-size="11" fill="#8b98a5" '
+        parts.append(f'<line x1="{FAIR_R + 44}" y1="{yy:.1f}" x2="{FAIR_R + 52}" y2="{yy:.1f}" stroke="#8b98a5"/>')
+        parts.append(f'<text x="{FAIR_R + 56}" y="{yy + 4:.1f}" font-size="11" fill="#8b98a5" '
                      f'font-family="ui-monospace, monospace">{y100}</text>')
         y100 += 100
     # the head: hole, par, yards, wind
@@ -156,122 +354,278 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         wtxt = f'{arrow} {wind}' + (f' {wind_mph} mph' if wind_mph is not None else '')
         parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="13" fill="#9ad1ff" '
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
-    # where the last stroke was aimed, faint, so the result can be read against it
     if aimed and aimed.get("at") is not None:
-        ax, ay = _x(aimed.get("off"), float(aimed["at"]), bend), _y(min(float(aimed["at"]), total + 20), total)
-        parts.append(f'<g class="aimed" stroke="#ffb454" stroke-width="1.5" fill="none" opacity="0.55" stroke-dasharray="3 2">'
-                     f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="8"/>'
-                     f'<line x1="{ax - 12:.1f}" y1="{ay:.1f}" x2="{ax + 12:.1f}" y2="{ay:.1f}"/>'
-                     f'<line x1="{ax:.1f}" y1="{ay - 12:.1f}" x2="{ax:.1f}" y2="{ay + 12:.1f}"/>'
-                     f'<title>aimed here</title></g>')
-    # the mark: where the golfer means the ball to land
+        _cross(parts, _x(aimed.get("off"), float(aimed["at"]), bend), _y(min(float(aimed["at"]), total + 20), total),
+               "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("at") is not None:
-        mx, my = _x(mark.get("off"), float(mark["at"]), bend), _y(min(float(mark["at"]), total + 20), total)
-        parts.append(f'<g class="mark" stroke="#ffb454" stroke-width="2" fill="none">'
-                     f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="9"/>'
-                     f'<line x1="{mx - 14:.1f}" y1="{my:.1f}" x2="{mx + 14:.1f}" y2="{my:.1f}"/>'
-                     f'<line x1="{mx:.1f}" y1="{my - 14:.1f}" x2="{mx:.1f}" y2="{my + 14:.1f}"/>'
-                     f'<title>aiming {int(mark["at"])} yards{", " + str(abs(int(mark.get("off") or 0))) + " " + ("left" if (mark.get("off") or 0) < 0 else "right") if mark.get("off") else ""}</title></g>')
+        _cross(parts, _x(mark.get("off"), float(mark["at"]), bend), _y(min(float(mark["at"]), total + 20), total),
+               "mark", 9, 2, 1, "", f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""))
     # the balls, where they lie - the one that is you ringed, the holed at the cup
     on_the_tee = [b for b in (balls or []) if not b.get("holed") and float(b.get("at") or 0) == 0]
-    for i, b in enumerate(balls or []):
+    for b in balls or []:
         at = total if b.get("holed") else min(float(b.get("at") or 0), total)
         yy = _y(at, total)
-        # across the hole where the ball sits; on the tee, side by side so a
-        # foursome is four dots, not one
         if at == 0 and b in on_the_tee:
             xx = CENTRE + (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 14
         else:
             xx = _x(b.get("off"), at, bend)
-        color = LIE_MARK.get(b.get("lie") or "fairway", "#e8e8e8")
-        if b.get("picked_up"):
-            color = "#8b98a5"
-        parts.append(f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="{7 if b.get("you") else 5.5}" fill="{color}" '
-                     f'stroke="{"#ffb454" if b.get("you") else "#16221a"}" stroke-width="{2.5 if b.get("you") else 1}">'
-                     f'<title>{escape(str(b.get("name") or ""))}</title></circle>')
+        _ball(parts, xx, yy, b)
     parts.append("</svg>")
     return "".join(parts)
 
 
 # ------------------------------------------------------------- the green
 # On the green the strip is the green: the whole of it, the cup at its
-# centre, every ball on it at its feet from the cup, the way it falls as an
-# arrow, and the golfer's mark. The wind is not on it - on the green the
-# wind stops mattering and the slope starts.
+# centre, every ball on it at its feet from the cup, the way it falls as
+# shading and contours, the sand beside it, and the golfer's mark. The
+# wind is not on it - on the green the wind stops mattering and the slope
+# starts.
 GW, GH = 260, 300
 GREEN_HALF_FT = 14 * 3          # golf.GREEN_HALF, in feet
+FRINGE_FT = 3 * 3               # golf.FRINGE, in feet
 
 
 def green_geometry(h):
     """What a screen needs to turn a tap on the green into feet from the
     cup, and then into the yards the mark is kept in."""
     depth_ft = float(h.get("green") or 28) * 3
-    px_per_ft = min((GW / 2 - 20) / GREEN_HALF_FT, (GH / 2 - 30) / (depth_ft / 2))
+    px_per_ft = min((GW / 2 - 36) / (GREEN_HALF_FT + FRINGE_FT), (GH / 2 - 34) / (depth_ft / 2 + FRINGE_FT))
     return {"view": "green", "w": GW, "h": GH, "cx": GW / 2, "cy": GH / 2, "px_per_ft": px_per_ft,
             "yards": h["yards"], "depth_ft": depth_ft}
+
+
+def _greenside(h):
+    """The hazards that sit at the green: within its depth of the pin."""
+    from . import golf
+    near = golf.green_edge(h) + 12
+    return [hz for hz in h.get("hazards", []) if hz["to"] >= h["yards"] - near]
 
 
 def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
     """The green as an SVG string: `balls` those on it, with `feet_along`
     (short negative) and `feet_across` (left negative); `mark` and
     `aimed` in the same feet; `slope` {"falls", "grade"}."""
+    from . import golf
     geo = green_geometry(h)
     cx, cy, k = geo["cx"], geo["cy"], geo["px_per_ft"]
-    ry, rx = geo["depth_ft"] / 2 * k, GREEN_HALF_FT * k
+    ry, rx = (golf.green_edge(h) * 3) * k, GREEN_HALF_FT * k
+    fr = FRINGE_FT * k
+    seed = _seed(h, "green")
+    uid = f"g{h['n']}{seed % 1000}"
+    shape = _outline(seed)
 
     def at(fa, fx):
         return cx + float(fx or 0) * k, cy - float(fa or 0) * k
 
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GW} {GH}" class="holemap greenmap" role="img" '
              f'aria-label="the {h["n"]} green">',
-             f'<rect x="0" y="0" width="{GW}" height="{GH}" rx="14" fill="#16221a"/>',
-             f'<ellipse cx="{cx}" cy="{cy}" rx="{rx + 10:.1f}" ry="{ry + 10:.1f}" fill="#2a4a24"/>',
-             f'<ellipse cx="{cx}" cy="{cy}" rx="{rx:.1f}" ry="{ry:.1f}" fill="#8fe39a"/>']
-    # feet rings, every ten
-    for ft in (10, 20, 30):
-        if ft * k < max(rx, ry):
-            parts.append(f'<circle cx="{cx}" cy="{cy}" r="{ft * k:.1f}" fill="none" stroke="#5fb36c" stroke-width="0.8" '
-                         f'stroke-dasharray="3 3"/>')
-            parts.append(f'<text x="{cx + ft * k + 3:.1f}" y="{cy - 3}" font-size="9" fill="#2a4a24" '
-                         f'font-family="ui-monospace, monospace">{ft}</text>')
-    # the slope, as an arrow the way the green falls
+             f'<rect x="0" y="0" width="{GW}" height="{GH}" rx="14" fill="{GROUND}"/>',
+             f'<path d="{_blob(cx, cy, rx + fr + 16, ry + fr + 16, _outline(seed + 1, 36, 0.14))}" fill="{ROUGH_FILL}"/>']
+    # the sand and the water at the green, on the side the card puts them
+    for i, hz in enumerate(_greenside(h)):
+        side = hz.get("side", "")
+        dy = -((hz["from"] + hz["to"]) / 2.0 - h["yards"]) * 3 * k
+        boxes = []
+        if side in ("left", "around"):
+            boxes.append((cx - rx - fr - 26, cx - rx - fr - 2, cy + dy - 22, cy + dy + 22))
+        if side in ("right", "around"):
+            boxes.append((cx + rx + fr + 2, cx + rx + fr + 26, cy + dy - 22, cy + dy + 22))
+        if side in ("front", "across", "", "centre"):
+            boxes.append((cx - 30, cx + 30, cy + ry + fr + 2, cy + ry + fr + 22))
+        if side == "beyond":
+            boxes.append((cx - 40, cx + 40, cy - ry - fr - 24, cy - ry - fr - 2))
+        for j, (x0, x1, y0, y1) in enumerate(boxes):
+            _hazard(parts, h, hz, x0, x1, y0, y1, 100 + i * 4 + j)
+    # the fringe and the green
+    parts.append(f'<path d="{_blob(cx, cy, rx + fr, ry + fr, shape)}" fill="{FRINGE_FILL}"><title>the fringe</title></path>')
+    green = _blob(cx, cy, rx, ry, shape)
+    parts.append(f'<defs><clipPath id="{uid}"><path d="{green}"/></clipPath>')
     s = slope or {}
+    dirs = {"front": (0, 1), "back": (0, -1), "left": (-1, 0), "right": (1, 0)}
+    dx, dy = dirs.get(s.get("falls"), (0, 1))
     if s.get("grade", 0) > 0:
-        dirs = {"front": (0, 1), "back": (0, -1), "left": (-1, 0), "right": (1, 0)}
-        dx, dy = dirs.get(s.get("falls"), (0, 1))
-        ax, ay = cx + dx * 22, cy + dy * 22
-        bx, by = cx + dx * 62, cy + dy * 62
-        parts.append(f'<g class="slope" stroke="#1d3a22" stroke-width="2" fill="#1d3a22" opacity="0.7">'
+        # the fall, as shade: the high side light, the low side dark
+        parts.append(f'<linearGradient id="{uid}s" x1="{0.5 - dx * 0.5}" y1="{0.5 - dy * 0.5}" x2="{0.5 + dx * 0.5}" y2="{0.5 + dy * 0.5}">'
+                     f'<stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="{min(0.34, 0.09 * s["grade"]):.2f}"/></linearGradient>')
+    parts.append('</defs>')
+    parts.append(f'<path d="{green}" fill="{GREEN_FILL}"/>')
+    _stripes(parts, uid, cy - ry - 10, cy + ry + 10, 12, int(cx - rx - 10), int(cx + rx + 10), diagonal=True)
+    if s.get("grade", 0) > 0:
+        parts.append(f'<path d="{green}" fill="url(#{uid}s)"/>')
+        # contours across the fall, bowed the way the ground would show them
+        parts.append(f'<g clip-path="url(#{uid})" fill="none" stroke="#3f8a4c" stroke-width="0.9" opacity="0.55">')
+        for f in (-0.5, -0.17, 0.17, 0.5):
+            px, py = cx + dx * f * (rx if dx else ry) * 1.6, cy + dy * f * (ry if dy else rx) * 1.6
+            if dx:
+                parts.append(f'<path d="M{px:.1f},{cy - ry - 6:.1f} Q{px + dx * 10:.1f},{cy:.1f} {px:.1f},{cy + ry + 6:.1f}"/>')
+            else:
+                parts.append(f'<path d="M{cx - rx - 6:.1f},{py:.1f} Q{cx:.1f},{py + dy * 10:.1f} {cx + rx + 6:.1f},{py:.1f}"/>')
+        parts.append('</g>')
+        ax, ay = cx + dx * (rx if dx else ry) * 0.55, cy + dy * (ry if dy else rx) * 0.55
+        bx, by = ax + dx * 26, ay + dy * 26
+        parts.append(f'<g stroke="#1d3a22" stroke-width="2" fill="#1d3a22" opacity="0.7">'
                      f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{bx:.1f}" y2="{by:.1f}"/>'
-                     f'<polygon points="{bx + dx * 8:.1f},{by + dy * 8:.1f} {bx - dy * 5:.1f},{by + dx * 5:.1f} {bx + dy * 5:.1f},{by - dx * 5:.1f}"/>'
+                     f'<polygon points="{bx + dx * 7:.1f},{by + dy * 7:.1f} {bx - dy * 4:.1f},{by + dx * 4:.1f} {bx + dy * 4:.1f},{by - dx * 4:.1f}"/>'
                      f'<title>falls to the {escape(str(s.get("falls")))}, {s.get("grade")}%</title></g>')
         parts.append(f'<text x="14" y="{GH - 12}" font-size="11" fill="#c9d1d9" font-family="system-ui, sans-serif">'
                      f'falls {escape(str(s.get("falls")))} · {s.get("grade"):g}%</text>')
-    # the cup
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="4" fill="#16221a"/>')
-    parts.append(f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy - 24}" stroke="#e8e8e8" stroke-width="1.5"/>')
-    parts.append(f'<polygon points="{cx},{cy - 24} {cx + 12},{cy - 19} {cx},{cy - 14}" fill="#e05a5a"/>')
-    # where the last putt was aimed, faint; the mark, bright
+    # a scale: ten feet
+    sx, sy = GW - 14 - 10 * k, GH - 14
+    parts.append(f'<line x1="{sx:.1f}" y1="{sy}" x2="{sx + 10 * k:.1f}" y2="{sy}" stroke="#c9d1d9" stroke-width="1.5"/>'
+                 f'<text x="{sx + 5 * k:.1f}" y="{sy - 4}" text-anchor="middle" font-size="10" fill="#c9d1d9" font-family="ui-monospace, monospace">10 ft</text>')
+    _flag(parts, cx, cy)
     if aimed and aimed.get("feet_along") is not None:
         x, y = at(aimed["feet_along"], aimed["feet_across"])
-        parts.append(f'<g class="aimed" stroke="#ffb454" stroke-width="1.5" fill="none" opacity="0.55" stroke-dasharray="3 2">'
-                     f'<circle cx="{x:.1f}" cy="{y:.1f}" r="8"/><line x1="{x - 12:.1f}" y1="{y:.1f}" x2="{x + 12:.1f}" y2="{y:.1f}"/>'
-                     f'<line x1="{x:.1f}" y1="{y - 12:.1f}" x2="{x:.1f}" y2="{y + 12:.1f}"/><title>aimed here</title></g>')
+        _cross(parts, x, y, "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("feet_along") is not None:
         x, y = at(mark["feet_along"], mark["feet_across"])
-        parts.append(f'<g class="mark" stroke="#ffb454" stroke-width="2" fill="none">'
-                     f'<circle cx="{x:.1f}" cy="{y:.1f}" r="9"/><line x1="{x - 14:.1f}" y1="{y:.1f}" x2="{x + 14:.1f}" y2="{y:.1f}"/>'
-                     f'<line x1="{x:.1f}" y1="{y - 14:.1f}" x2="{x:.1f}" y2="{y + 14:.1f}"/><title>your mark</title></g>')
-    # the balls on the green
+        _cross(parts, x, y, "mark", 9, 2, 1, "", "your mark")
     for b in balls or []:
         if b.get("holed"):
             continue
         x, y = at(b.get("feet_along"), b.get("feet_across"))
         parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{7 if b.get("you") else 5.5}" fill="#ffffff" '
-                     f'stroke="{"#ffb454" if b.get("you") else "#16221a"}" stroke-width="{2.5 if b.get("you") else 1}">'
+                     f'stroke="{"#ffb454" if b.get("you") else GROUND}" stroke-width="{2.5 if b.get("you") else 1}">'
                      f'<title>{escape(str(b.get("name") or ""))}, {b.get("feet", "?")} feet</title></circle>')
     head = f'{h["n"]} · the green · par {h["par"]}'
     parts.append(f'<text x="14" y="22" font-size="15" font-weight="700" fill="#f3f3f3" font-family="system-ui, sans-serif">'
                  f'{escape(head)}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+# ---------------------------------------------------------- the approach
+# When the green is the target - the club in hand reaches the pin, or the
+# ball is inside a wedge of it - the strip zooms to the green and what is
+# round it: the fringe, the bunkers and the water at their yards, the
+# fairway running in, the yards from the pin ticked off. The same yard in
+# both directions, so the mark can be put on the front edge, the collar,
+# or the far side of the bunker, and mean it.
+APPROACH_PX = 3.75              # pixels a yard, both ways
+APPROACH_BEYOND = 30            # yards past the pin the view shows: the back of the green and its collar
+APPROACH_PAD_TOP = 40
+
+
+def geometry_for(g, h, ball):
+    """The geometry for this ball's view of the hole: the green when the
+    ball is on it or on its fringe, the approach when the green is the
+    target (golf.Golf.approaching), the whole hole otherwise."""
+    if h is None:
+        return None
+    if ball and ball.get("lie") in ("green", "fringe") and not ball.get("holed"):
+        return green_geometry(h)
+    if ball and ball.get("approaching"):
+        return approach_geometry(h)
+    return geometry(h)
+
+
+def approach_geometry(h):
+    """What a screen needs to turn a tap on the approach into yards along
+    the hole and off the line."""
+    k = APPROACH_PX
+    top = float(h["yards"]) + APPROACH_BEYOND           # the yards at the top of the view
+    shows = (H - APPROACH_PAD_TOP - 12) / k             # yards the view covers, top to bottom
+    return {"view": "approach", "w": W, "h": H, "cx": W / 2, "top_y": APPROACH_PAD_TOP, "px_per_yard": k,
+            "top": top, "yards": h["yards"], "from": top - shows}
+
+
+def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None):
+    """The last hundred yards, drawn: `balls`, `mark` and `aimed` as
+    hole_svg takes them. A ball short of the view is shown at its foot
+    with its yards, so the golfer knows where they are hitting from."""
+    from . import golf
+    geo = approach_geometry(h)
+    k, cx, top = geo["px_per_yard"], geo["cx"], geo["top"]
+    total = float(h["yards"])
+    half_yd = float(h.get("width") or 18)
+    seed = _seed(h)
+    uid = f"a{h['n']}{seed % 1000}"
+
+    def y_at(at):
+        return geo["top_y"] + (top - float(at)) * k
+
+    def x_off(off):
+        return cx + float(off or 0) * k
+
+    foot = geo["from"]
+    edge = golf.green_edge(h)
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" class="holemap approachmap" role="img" '
+             f'aria-label="the approach to the {h["n"]} green">',
+             f'<rect x="0" y="0" width="{W}" height="{H}" rx="14" fill="{GROUND}"/>']
+    # the rough, with its trees, and the fairway running in to the green's front
+    ats = [foot - 10 + (total + 4 - foot + 10) * i / 16 for i in range(17)]
+    rough_l = [(x_off(-half_yd - 22), y_at(a)) for a in ats]
+    rough_r = [(x_off(half_yd + 22), y_at(a)) for a in ats]
+    parts.append(f'<path d="{_strip(rough_l, rough_r, seed + 3, 14)}" fill="{ROUGH_FILL}"/>')
+    _trees(parts, [(max(x - 6, 10.0), y) for x, y in rough_l[1:-1]], seed, -1)
+    _trees(parts, [(min(x + 6, W - 10.0), y) for x, y in rough_r[1:-1]], seed, 1)
+    fats = [a for a in ats if a <= total - edge - golf.FRINGE + 2] + [total - edge - golf.FRINGE + 2]
+    fair_l = [(x_off(-half_yd), y_at(a)) for a in fats]
+    fair_r = [(x_off(half_yd), y_at(a)) for a in fats]
+    fairway = _strip(fair_l, fair_r, seed + 5, 6)
+    parts.append(f'<defs><clipPath id="{uid}f"><path d="{fairway}"/></clipPath></defs>')
+    parts.append(f'<path d="{fairway}" fill="{FAIRWAY_FILL}"/>')
+    _stripes(parts, f"{uid}f", geo["top_y"], H, 16)
+    # the hazards, as they are at these yards and on their side
+    for i, hz in enumerate(h.get("hazards", [])):
+        if hz["to"] < foot - 5:
+            continue
+        side = hz.get("side", "")
+        if side == "left":
+            o0, o1 = -half_yd - 18, -half_yd - 2
+        elif side == "right":
+            o0, o1 = half_yd + 2, half_yd + 18
+        elif side == "around":
+            o0, o1 = -half_yd - 16, half_yd + 16
+        elif side == "beyond":
+            o0, o1 = -half_yd - 6, half_yd + 6
+        elif side == "centre":
+            o0, o1 = -half_yd + 5, half_yd - 5
+        else:
+            o0, o1 = -half_yd, half_yd
+        y1, y0 = y_at(hz["from"]), y_at(hz["to"])
+        y0, y1 = max(y0, geo["top_y"] - 8), min(y1, H + 8)
+        if y1 - y0 < 10:
+            y0, y1 = (y0 + y1) / 2 - 5, (y0 + y1) / 2 + 5
+        _hazard(parts, h, hz, x_off(o0), x_off(o1), y0, y1, i)
+    # the green and its fringe, the one shape every view draws
+    gy = y_at(total)
+    shape = _outline(_seed(h, "green"))
+    parts.append(f'<path d="{_blob(cx, gy, (golf.GREEN_HALF + golf.FRINGE) * k, (edge + golf.FRINGE) * k, shape)}" '
+                 f'fill="{FRINGE_FILL}"><title>the fringe</title></path>')
+    green = _blob(cx, gy, golf.GREEN_HALF * k, edge * k, shape)
+    parts.append(f'<defs><clipPath id="{uid}g"><path d="{green}"/></clipPath></defs>')
+    parts.append(f'<path d="{green}" fill="{GREEN_FILL}"/>')
+    _stripes(parts, f"{uid}g", gy - edge * k - 10, gy + edge * k + 10, 9, int(cx - 70), int(cx + 70), diagonal=True)
+    _flag(parts, cx, gy)
+    # the yards from the pin, every ten, up the left
+    yd = 10
+    while total - yd > foot:
+        yy = y_at(total - yd)
+        parts.append(f'<line x1="10" y1="{yy:.1f}" x2="18" y2="{yy:.1f}" stroke="#8b98a5"/>')
+        parts.append(f'<text x="22" y="{yy + 4:.1f}" font-size="10" fill="#8b98a5" font-family="ui-monospace, monospace">{yd}</text>')
+        yd += 10
+    head = f'{h["n"]} · the approach'
+    parts.append(f'<text x="14" y="26" font-size="15" font-weight="700" fill="#f3f3f3" font-family="system-ui, sans-serif">'
+                 f'{escape(head)}</text>')
+    if wind:
+        wtxt = f'{WIND_ARROW.get(wind, "")} {wind}' + (f' {wind_mph} mph' if wind_mph is not None else '')
+        parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="12" fill="#9ad1ff" '
+                     f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
+    if aimed and aimed.get("at") is not None:
+        _cross(parts, x_off(aimed.get("off")), y_at(min(float(aimed["at"]), top)), "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
+    if mark and mark.get("at") is not None:
+        _cross(parts, x_off(mark.get("off")), y_at(min(float(mark["at"]), top)), "mark", 9, 2, 1, "", _mark_title(mark, total))
+    # the balls: on the view where they lie; short of it, at its foot with the yards
+    for b in balls or []:
+        if b.get("holed"):
+            continue
+        at = float(b.get("at") or 0)
+        if at >= foot:
+            _ball(parts, x_off(b.get("off")), y_at(at), b)
+        elif b.get("you"):
+            _ball(parts, x_off(b.get("off")), H - 10, b)
+            parts.append(f'<text x="{x_off(b.get("off")) + 11:.1f}" y="{H - 6}" font-size="11" fill="#ffb454" '
+                         f'font-family="system-ui, sans-serif">you, {int(round(total - at))} out</text>')
     parts.append("</svg>")
     return "".join(parts)

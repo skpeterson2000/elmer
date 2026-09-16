@@ -75,7 +75,7 @@ CLUB_ORDER = ("driver", "wood", "iron", "wedge")
 # What the lie costs: a factor on the carry, and the longest club allowed.
 LIES = {
     "tee": (1.0, "driver"), "fairway": (1.0, "driver"),
-    "rough": (0.8, "wood"), "sand": (0.6, "wedge"),
+    "rough": (0.8, "wood"), "sand": (0.6, "wedge"), "fringe": (1.0, "wedge"),
 }
 # A shot the club can reach the pin with is aimed at it, and lands within
 # this many yards of it, either side. Full swings are for when the club
@@ -106,6 +106,16 @@ FAIRWAY_HALF = 18
 GREEN_HALF = 14
 OFF_MOST = 45
 LEAK_PUSH = 10
+# The fringe: the collar of longer grass round the green, FRINGE yards
+# wide, and bordered by rough on every side but the front, where the
+# fairway runs up to it. A green is clipped to nothing and does not absorb
+# a landing the way a fairway's grass does - a ball that comes down on it
+# releases, and can run to the far side and off; the fringe is the middle
+# ground, which is why a golfer chips into it on purpose, to take the pace
+# off a ball that would otherwise run across the green. A ball that stops
+# on the collar can be putted - the putter through it - or chipped.
+FRINGE = 3
+FRINGE_DRAG = 0.12              # of a putt's roll, lost to the collar when the golfer did not allow for it
 # A ball does not stick where it lands. Carry, then roll: the club sets
 # how much life the ball has when it comes down - a driver's low, running
 # ball has a lot, a wedge's high, spinning one almost none - the surface it
@@ -138,7 +148,7 @@ FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right":
 # firmness; the speed of a lesser swing scales it, the surface it came down
 # on scales it, the wind, and the day.
 ROLL = {"driver": 24, "wood": 19, "iron": 11, "wedge": 6}
-SURFACE_ROLL = {"fairway": 1.0, "green": 0.6, "rough": 0.35, "sand": 0.0, "tee": 1.0}
+SURFACE_ROLL = {"fairway": 1.0, "green": 1.35, "fringe": 0.7, "rough": 0.35, "sand": 0.0, "tee": 1.0}
 WIND_ROLL = {"with": 1.25, "into": 0.7, "across": 1.0}
 WIND_DRIFT = 0.35               # yards of sideways drift per mile an hour, across
 ROLL_NOISE = (0.7, 1.3)         # the bounce: the roll, times somewhere in here
@@ -160,6 +170,23 @@ KICK_ODDS = 0.12
 KICK_YARDS = (2, 6)
 SIDE_BANDS = {"": ("across", "front", "centre", "around", "beyond", ""),
               "left": ("left", "around"), "right": ("right", "around")}
+
+
+def green_edge(h):
+    """The green's half-depth in yards, either side of the pin."""
+    return h["green"] / 2 + 5
+
+
+def on_the_green(h, at, off):
+    """What a ball at these yards is on, of the green and its collar:
+    "green", "fringe", or None for neither."""
+    edge = green_edge(h)
+    along, across = abs(h["yards"] - float(at)), abs(float(off or 0))
+    if along <= edge and across <= GREEN_HALF:
+        return "green"
+    if along <= edge + FRINGE and across <= GREEN_HALF + FRINGE:
+        return "fringe"
+    return None
 
 
 def fairway_half(h=None):
@@ -201,6 +228,9 @@ ADEPT_HARDNESS = 0.6            # of the unit's own 0..1 measure; see difficulty
 ADEPT_STREAK = 3                # right answers in a row, when nothing is measured
 HOLE_OUT_ODDS = 1 / 6           # an adept approach from inside HOLE_OUT_FROM yards
 HOLE_OUT_FROM = 120
+# From inside this the map is the green and its approaches, whatever the
+# club - a wedge's length; see Golf.approaching and golfmap.approach_svg.
+APPROACH_FROM = 105
 FLAIR_CALLS = {
     "worked": ["Worked it around the trees.", "Shaped it out of there.", "Hooked it on purpose, and it came back."],
     "stinger": ["A stinger, under the wind.", "Punched it. The wind never saw it.", "Kept it low. That's the shot."],
@@ -223,6 +253,7 @@ ACE_ODDS = 0.02
 CALLS = {
     "fairway": ["Pured it.", "Right down the middle.", "That'll play.", "Nice shot!", "On the fairway."],
     "green": ["On the dance floor.", "Stuck it.", "That's looking at it.", "Nice shot!"],
+    "fringe": ["On the collar.", "Just on the fringe.", "The fringe took the pace off it.", "Putt it from there."],
     "long": ["Flew the green.", "Too much club.", "Airmailed it."],
     "holed": ["In the hole!", "Drained it.", "Bottom of the cup.", "It's in the cup!", "In the cup!",
               "THAT, ladies and gentlemen, is how it is done."],
@@ -236,7 +267,7 @@ CALLS = {
 # How hard a question the lie asks for, as a place in the pool's measured
 # hardness - nought the easiest, one the hardest. The tee is a fresh start;
 # the sand is not.
-LIE_HARDNESS = {"tee": 0.25, "fairway": 0.35, "green": 0.5, "rough": 0.7, "sand": 0.85}
+LIE_HARDNESS = {"tee": 0.25, "fairway": 0.35, "green": 0.5, "fringe": 0.5, "rough": 0.7, "sand": 0.85}
 NAMES = {-3: "albatross", -2: "eagle", -1: "birdie", 0: "par", 1: "bogey",
          2: "double bogey", 3: "triple bogey"}
 
@@ -488,6 +519,8 @@ class Golf:
             return []
         if ball.lie == "green":
             return ["putter"]
+        if ball.lie == "fringe":
+            return ["wedge", "putter"]
         longest = LIES[ball.lie][1]
         return list(CLUB_ORDER[CLUB_ORDER.index(longest):])
 
@@ -501,7 +534,7 @@ class Golf:
         of the line from the ball and the mark is not in the line."""
         h = self.hole()
         ball = self.balls.get(player)
-        if h is None or ball is None or ball.done() or ball.lie == "green":
+        if h is None or ball is None or ball.done() or ball.lie in ("green", "fringe"):
             return []
         club = club or self.default_club(player)
         if not club or club == "putter":
@@ -542,6 +575,8 @@ class Golf:
             return "putter"
         h = self.hole()
         ball = self.balls[player]
+        if ball.lie == "fringe":
+            return "putter"                 # through the collar: the Texas wedge; the wedge is there to choose
         left = abs(h["yards"] - ball.at)
         for club in reversed(allowed):
             if self.reach(player, club) >= left:
@@ -586,7 +621,7 @@ class Golf:
             at, off = float(at), float(off)
         except (TypeError, ValueError):
             return None
-        if ball.lie == "green":
+        if ball.lie in ("green", "fringe"):
             # On the green the mark is anywhere on it, in feet if need be:
             # the cup, or the spot above it the break wants.
             half = h["green"] / 2 + 2
@@ -613,6 +648,21 @@ class Golf:
         if mark:
             return {"at": mark["at"], "off": mark["off"], "set": True}
         return {"at": h["yards"], "off": 0, "set": False}
+
+    def approaching(self, player):
+        """Whether this golfer's next stroke is at the green: the club in
+        hand reaches the pin, or the ball is inside a wedge of it. The
+        screens zoom the map to the green then, so the mark can be put on
+        the fringe or the front edge rather than somewhere near the flag."""
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie in ("green", "fringe"):
+            return False
+        left = h["yards"] - ball.at
+        if left <= APPROACH_FROM:
+            return True
+        club = self.default_club(player)
+        return bool(club and club != "putter" and self.reach(player, club) >= left)
 
     def expected_roll(self, club, lie="fairway", wind="across", carry=None, most=None):
         """How far a ball with this club is expected to run on after it
@@ -655,6 +705,10 @@ class Golf:
         wind = self.wind_on(h)
         if club == "putter" or ball.lie == "green":
             return self._putt(h, ball, right=True, adept=adept)
+        if ball.lie == "fringe":
+            # A putt leaves the ball at fractional yards; a chip from the
+            # collar is read in whole ones like every other shot.
+            ball.at, ball.off = int(round(ball.at)), int(round(ball.off))
         left_before = h["yards"] - ball.at
         # The mark: the pin down the line unless the golfer set one. The
         # shot is played at the mark; the pin is what is left after it.
@@ -722,13 +776,15 @@ class Golf:
         off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         from_the_tee = ball.strokes == 0
         ball.strokes += 1
-        edge = h["green"] / 2 + 5                # the green's depth either side of the pin
+        edge = green_edge(h)                     # the green's depth either side of the pin
         # Then the roll: the club's life, on the surface it came down on,
         # with the wind. A pure shot is stiff - it lands and stops; a flop
         # has already been dealt with. The ball is read where it comes to
-        # rest, and a roll across a creek is a ball in the creek.
+        # rest, and a roll across a creek is a ball in the creek. The
+        # fringe brakes a ball that comes down on it and lets the rest
+        # trickle on - the chip through the collar every golfer plays.
         half = fairway_half(h)
-        came_down = "green" if (abs(h["yards"] - landed) <= edge and abs(off) <= GREEN_HALF) else \
+        came_down = on_the_green(h, landed, off) or \
             ("sand" if (self._in_band(h, landed, kinds=("bunker",), sides=SIDE_BANDS[side_of(off, half)])) else
              "rough" if (side_of(off, half) or self._in_band(h, landed, kinds=("rough",), sides=SIDE_BANDS[""])) else "fairway")
         roll, spun, kicked = 0, False, None
@@ -773,18 +829,26 @@ class Golf:
             return {"kind": "holed", "words": f"{club}, {h['yards']} yards - IN THE HOLE. An ace.",
                     "carry": h["yards"], "wind": wind, "ace": True}
         side = side_of(off, half)
-        on_green = abs(left) <= edge and abs(off) <= GREEN_HALF
+        rests_on = on_the_green(h, rest, off)
+        on_green = rests_on == "green"
+        # Beside the green, off its collar, is rough: the fairway ends at
+        # the front of the fringe.
+        beside_green = rests_on is None and abs(left) <= edge + FRINGE
+        if beside_green and not side:
+            side = "left" if off < 0 else "right"
         # On the green is on the green, whatever bunkers ring it. Off it,
         # what is where the ball came to rest: down the middle, a creek
         # across the fairway, a bunker in front of the green, the ocean
         # beyond it; off to a side, that side's trouble - or the first cut,
         # when the card has nothing there.
-        hz = ran_through or (None if on_green or flair == "worked" else self._in_band(h, rest, sides=SIDE_BANDS[side]))
+        hz = ran_through or (None if rests_on or flair == "worked" else self._in_band(h, rest, sides=SIDE_BANDS[side]))
         landed = rest
         ran = (f", spun back {-roll * 3} feet" if spun and roll < 0
                else f", released {roll}" if (came_down == "green" and roll >= 3)
+               else f", took the fringe and trickled {roll * 3} feet" if (came_down == "fringe" and 1 <= roll <= 3)
                else f", ran {roll} more" if roll >= 4
-               else ", checked up" if (came_down == "green" and roll <= 1 and club in ("iron", "wedge")) else "")
+               else ", checked up" if (came_down == "green" and roll <= 1 and club in ("iron", "wedge"))
+               else ", the fringe checked it" if (came_down == "fringe" and roll < 1) else "")
         if kicked:
             ran = f", kicked {kicked}" + ran
         wide = f" {side}" if side else ""
@@ -805,11 +869,28 @@ class Golf:
             ball.at, ball.off = landed, off
             ball.lie = "green"
             feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
-            onto = " - ran onto the green" if came_down != "green" and roll >= 4 else f"{ran} - on the green"
+            onto = (" - through the fringe and onto the green" if came_down == "fringe"
+                    else " - ran onto the green" if came_down != "green" and roll >= 4 else f"{ran} - on the green")
             if came_down == "green" and left < 0 and not spun and roll >= 3:
                 onto = f", released {roll} past the pin - on the green"
             return {"kind": "green", "words": f"{club}, {abs(carry)} yards{onto}, {feet} feet",
+                    "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off,
+                    "via": "fringe" if came_down == "fringe" else None}
+        if rests_on == "fringe":
+            # Stopped on the collar: putt it from there, or chip it.
+            ball.at, ball.off = landed, off
+            ball.lie = "fringe"
+            feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
+            where = ("short" if left > 0 and abs(off) <= GREEN_HALF else "long" if left < 0 and abs(off) <= GREEN_HALF
+                     else "left" if off < 0 else "right")
+            return {"kind": "fringe", "words": f"{club}, {abs(carry)} yards{ran} - on the fringe, {where}, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off}
+        if beside_green and not hz:
+            # Off the collar, beside the green: the rough that borders it.
+            ball.at, ball.off, ball.lie = landed, off, "rough"
+            feet = int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3))
+            return {"kind": "rough", "words": f"{club}, {abs(carry)} yards{ran} - {side} of the green, in the rough beside it, {feet} feet",
+                    "carry": carry, "roll": roll, "wind": wind, "leak": leaked, "left": left, "off": off}
         if side and not hz and abs(left) > edge:
             # Off the fairway's width, into the first cut - by the golfer's
             # own mark, or the club's leak.
@@ -874,6 +955,7 @@ class Golf:
         if length < 0.5:
             vx, vy, length = -bx, -by, max(have, 0.5)     # a mark on the ball: at the cup, then
         ux, uy = vx / length, vy / length
+        from_fringe = ball.lie == "fringe"
         if right:
             pace = PUTT_PACE[0] + length / PUTT_PACE[1]
             line = PUTT_LINE
@@ -894,6 +976,8 @@ class Golf:
         along_fall = ux * fx + uy * fy
         if mark.get("set"):
             rolled *= 1 + SLOPE_PACE * grade * along_fall
+            if from_fringe:
+                rolled *= 1 - FRINGE_DRAG            # the collar takes some of it
         px, py = fx - along_fall * ux, fy - along_fall * uy         # the fall across the line
         brk = SLOPE_BREAK * grade * rolled
         rx, ry = bx + ux * rolled + px * brk, by + uy * rolled + py * brk
@@ -916,7 +1000,7 @@ class Golf:
         words_slope = ("downhill" if along_fall > 0.4 and grade >= 1 else "uphill" if along_fall < -0.4 and grade >= 1
                        else (f"breaking {s['falls']}" if s["falls"] in ("left", "right") else "across the slope")
                        if grade >= 1.5 and abs(along_fall) < 0.7 else "")
-        head = f"putt, {feet} feet" + (f", {words_slope}" if words_slope else "")
+        head = (f"putt from the fringe, {feet} feet" if from_fringe else f"putt, {feet} feet") + (f", {words_slope}" if words_slope else "")
         if holed:
             ball.at, ball.off, ball.holed = h["yards"], 0, True
             return {"kind": "holed", "putt": True, "feet": feet, "words": f"{head} - holed", "carry": 0, "left_feet": 0}
@@ -927,19 +1011,21 @@ class Golf:
             return {"kind": "holed", "putt": True, "feet": feet, "tap_in": True,
                     "words": f"{head} - to {'a foot' if left < 1.5 else str(int(round(left))) + ' feet'}, that's good - and the tap-in is a stroke",
                     "carry": 0, "left_feet": 0}
-        half = h["green"] * 1.5 + 6
         ball.at, ball.off = h["yards"] + rx / 3.0, ry / 3.0
         left_ft = max(1, int(round(left)))
-        if abs(rx) > half or abs(ry) > GREEN_HALF * 3 + 3:
+        stopped_on = on_the_green(h, ball.at, ball.off)
+        if stopped_on is None:
             ball.lie = "rough"                      # raced it off the green
             ball.at, ball.off = round(ball.at), round(ball.off)
             return {"kind": "missed", "putt": True, "feet": feet, "words": f"{head} - raced it off the green",
                     "carry": 0, "left_feet": left_ft}
-        ball.lie = "green"
+        ball.lie = stopped_on
         how = ("holed" if holed else (f"{left_ft} feet past" if (rx * ux + ry * uy) > (bx * ux + by * uy) + length else
                                      f"{left_ft} feet short" if left_ft and rolled < length * 0.9 else f"to {left_ft} feet"))
         if not right:
             how = f"left it short, {left_ft} feet" if rolled < length else f"raced it past, {left_ft} feet"
+        if stopped_on == "fringe":
+            how += ", onto the fringe"
         return {"kind": "green" if right else "missed", "putt": True, "feet": feet, "words": f"{head} - {how}",
                 "carry": 0, "left_feet": left_ft}
 
@@ -1291,7 +1377,8 @@ class Golf:
             "slope": self.slope(h) if h else None,
             "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
                           "picked_up": b.picked_up, "left": int(round(h["yards"] - b.at)) if h else 0,
-                          "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie == "green" else None),
+                          "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie in ("green", "fringe") else None),
+                          "approaching": self.approaching(p),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "log": list(b.log), "ahead": self.ahead(p)}
