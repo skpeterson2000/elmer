@@ -965,26 +965,36 @@ function reachColour(score) {
   return REACH_STOPS[REACH_STOPS.length - 1][1];
 }
 
-/* The score at any point, from the cells around it: bilinear between the
-   four nearest cell centres, wrapping in longitude and clamped at the
-   poles. The model was asked every five degrees; this is what makes it
-   a field on a screen that can show one. */
+/* The score at any point, from the cells around it: a cubic (Catmull-Rom)
+   pass across the sixteen nearest cell centres, wrapping in longitude and
+   clamped at the poles. Bilinear left the faint tiling of the grid in the
+   picture; cubic reads as the field it is. */
+function cubic(p0, p1, p2, p3, t) {
+  return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+}
 function reachAt(d, lat, lon) {
   const fy = (d.lat0 - lat) / d.step, fx = (lon - d.lon0) / d.step;
-  let y0 = Math.floor(fy), x0 = Math.floor(fx);
-  const ty = fy - y0, tx = fx - x0;
-  const y1 = Math.min(d.rows - 1, Math.max(0, y0 + 1)); y0 = Math.min(d.rows - 1, Math.max(0, y0));
-  const x1 = ((x0 + 1) % d.cols + d.cols) % d.cols; x0 = ((x0 % d.cols) + d.cols) % d.cols;
-  const c = d.cells;
-  const a = c[y0 * d.cols + x0], b = c[y0 * d.cols + x1], e = c[y1 * d.cols + x0], f = c[y1 * d.cols + x1];
-  return (a * (1 - tx) + b * tx) * (1 - ty) + (e * (1 - tx) + f * tx) * ty;
+  const y1 = Math.floor(fy), x1 = Math.floor(fx);
+  const ty = fy - y1, tx = fx - x1;
+  const c = d.cells, rows = d.rows, cols = d.cols;
+  const cell = (r, k) => c[Math.min(rows - 1, Math.max(0, r)) * cols + (((k % cols) + cols) % cols)];
+  const rowsOut = [];
+  for (let j = -1; j <= 2; j++) {
+    rowsOut.push(cubic(cell(y1 + j, x1 - 1), cell(y1 + j, x1), cell(y1 + j, x1 + 1), cell(y1 + j, x1 + 2), tx));
+  }
+  return Math.max(0, Math.min(100, cubic(rowsOut[0], rowsOut[1], rowsOut[2], rowsOut[3], ty)));
 }
 
+/* The map is rolled so the operator's longitude is its centre: you in the
+   middle, the far side of the world at the edges, the coast wrapping
+   across the seam. A map in 2026 is about the person holding it. */
 function bpReachPaint(d) {
   const canvas = document.getElementById('bp-reach-map');
   if (!canvas) return;
   const W = canvas.width, H = canvas.height;
   const ctx = canvas.getContext('2d');
+  const centre = d.qth ? d.qth.lon : 0;
+  const wrap = lon => ((lon + 180) % 360 + 360) % 360 - 180;
   const img = ctx.createImageData(W, H);
   const px = img.data;
   const D2R = Math.PI / 180;
@@ -993,10 +1003,8 @@ function bpReachPaint(d) {
     const lat = 90 - (y + 0.5) * (180 / H);
     const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
     for (let x = 0; x < W; x++) {
-      const lon = (x + 0.5) * (360 / W) - 180;
+      const lon = wrap(centre - 180 + (x + 0.5) * (360 / W));
       const c = reachColour(reachAt(d, lat, lon));
-      /* the sun's altitude at this point: full day above 6 degrees, night
-         below -12, a real twilight between - the terminator as a band */
       const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
       const t = Math.max(0, Math.min(1, (alt + 12) / 18));
       const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
@@ -1005,20 +1013,26 @@ function bpReachPaint(d) {
     }
   }
   ctx.putImageData(img, 0, 0);
-  const X = lon => (lon + 180) * (W / 360), Y = lat => (90 - lat) * (H / 180);
+  const X = lon => (((lon - centre + 180) % 360 + 360) % 360) * (W / 360), Y = lat => (90 - lat) * (H / 180);
   ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
-  for (let lon = -150; lon <= 150; lon += 30) { ctx.beginPath(); ctx.moveTo(X(lon), 0); ctx.lineTo(X(lon), H); ctx.stroke(); }
+  for (let lon = -180; lon < 180; lon += 30) { ctx.beginPath(); ctx.moveTo(X(lon), 0); ctx.lineTo(X(lon), H); ctx.stroke(); }
   for (let lat = -60; lat <= 60; lat += 30) { ctx.beginPath(); ctx.moveTo(0, Y(lat)); ctx.lineTo(W, Y(lat)); ctx.stroke(); }
   if (bpCoast) {
     ctx.strokeStyle = 'rgba(245,248,252,.55)'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
     bpCoast.forEach(line => {
       ctx.beginPath();
-      line.forEach((p, n) => { if (n) ctx.lineTo(X(p[0]), Y(p[1])); else ctx.moveTo(X(p[0]), Y(p[1])); });
+      let last = null;
+      line.forEach(p => {
+        const x = X(p[0]), y = Y(p[1]);
+        /* a line that crosses the seam is lifted and set down again */
+        if (last === null || Math.abs(x - last) > W / 2) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        last = x;
+      });
       ctx.stroke();
     });
   }
   if (d.qth) {
-    const x = X(((d.qth.lon + 180) % 360 + 360) % 360 - 180), y = Y(d.qth.lat);
+    const x = X(d.qth.lon), y = Y(d.qth.lat);
     ctx.save();
     ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 14;
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
