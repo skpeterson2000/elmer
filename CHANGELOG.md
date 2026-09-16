@@ -8,7 +8,6 @@ short commit id on its dashboard and in every problem report.
 ## 2026-09-16
 
 - The band plan: where the band reaches from here, now, as a map - the path model for every cell of a grid, one hue, the night shaded
-- Exit closes the ELMER window - by its process tree and by its profile - and says nothing about closing a page
 - POTA/SOTA: planning a trip - the place typed is the centre of the fetch as well as the list, and the button says where it will fetch
 - The pace ledger: every endpoint's timings kept on the unit, creepers named in the log, by the doctor, and in the weekly report home
 - POTA/SOTA: the band on the page - between A and B miles of here or of somewhere typed - is the list's band, not only the printed sheet's; only the band is worked out, and the held list is read from the card once, not per call

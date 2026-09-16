@@ -150,41 +150,14 @@ def watch(process, quitting, port):
 
 def close(process):
     """Close the window, for a shutdown that started elsewhere - the Exit
-    button, an update - so it does not stand empty over a stopped server.
-
-    Two ways, because Edge on Windows does not promise that the process
-    launched is the process holding the window: the browser re-launches
-    itself and the first pid can be gone while the window stands. So the
-    launched process is ended with its whole tree, and then every browser
-    process running on ELMER's own profile directory - which nothing but
-    this window ever uses - is ended by name. An application closes when it
-    is told to close; it does not leave a page up saying so."""
-    if process is not None and process.poll() is None:
-        try:
-            if os.name == "nt":
-                subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-            else:
-                process.terminate()
-            process.wait(timeout=5)
-        except (OSError, subprocess.TimeoutExpired):
-            try:
-                process.kill()
-            except OSError:
-                pass
-    close_by_profile()
-
-
-def close_by_profile():
-    """End any browser process on ELMER's window profile, whatever its pid.
-    Windows only; elsewhere the launched process is the window."""
-    if os.name != "nt":
+    button, an update - so it does not stand empty over a stopped server."""
+    if process is None or process.poll() is not None:
         return
-    marker = str(PROFILE).replace("'", "''")
-    script = ("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--user-data-dir=" + marker +
-              "*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     try:
-        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
-    except (OSError, subprocess.SubprocessError) as exc:
-        log.debug("window: could not close by profile: %s", exc)
+        process.terminate()
+        process.wait(timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            process.kill()
+        except OSError:
+            pass
