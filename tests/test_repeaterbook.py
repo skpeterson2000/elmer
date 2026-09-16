@@ -111,6 +111,9 @@ def run():
     check("  a digital-only machine says so", n0["modes"], "DMR")
     _, error = R.from_repeaterbook("MN", "rbuapp_wrongwrongwrong")
     check("a refused token is said plainly", "did not accept the token" in error, True)
+    check("a build RepeaterBook does not know by name is the author's errand, and says so",
+          "author" in R._rb_refusal({"ok": False, "error_code": "ua_mismatch"}), True)
+    check("  and a revoked token its owner's", "revoked" in R._rb_refusal({"ok": False, "error_code": "auth_revoked"}), True)
     _, error = R.from_repeaterbook("ON", TOKEN)
     check("a place RepeaterBook does not number is said plainly", "not one it knows" in error, True)
 

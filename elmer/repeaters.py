@@ -48,15 +48,28 @@ ASSUMED_TOWER_FT = 200.0
 _cache = {"key": None, "rows": [], "source": None}
 _asked = {"at": 0.0}          # when a network TowerWitch was last tried
 
-# RepeaterBook's API. Access is by token: a person signed in at RepeaterBook
-# makes one for "an app" on their own account page, and it goes out in a
-# header with every request. The token is theirs, kept in their own
-# settings on this unit, sent to RepeaterBook and to nobody else, and never
-# written to a log - a problem report carries the log. RepeaterBook asks
-# for a User-Agent naming the program and a way to reach whoever wrote it,
-# and for its data to be credited; both are done here, once.
+# RepeaterBook's API (repeaterbook.com/wiki/doku.php?id=api). Access is by
+# token, and in two steps. First the *program* is approved: its author
+# applies at RB_APPLY, naming the User-Agent it will send, and RepeaterBook
+# lists it as an app. Then a person signed in at RepeaterBook makes a token
+# for that app on their own account page (RB_TOKENS) - bound to them and to
+# the one app - and it goes out in a header with every request. Until the
+# first step is done a token cannot be made for ELMER, and a request under
+# any other name is refused as ua_mismatch; the User-Agent below is the one
+# to give on the form, and it must not drift from it.
+#
+# The token is the operator's, kept in their own settings on this unit,
+# sent to RepeaterBook and to nobody else, and never written to a log - a
+# problem report carries the log. RepeaterBook asks for its data to be
+# credited, and its terms draw a line ELMER stays behind: what is fetched
+# is one state's list, kept on this unit for this operator's own use and
+# asked for again a month later, never served on to anybody else and never
+# bundled into a release. Their published "more likely approved" case is a
+# private, non-commercial, narrowly scoped field tool, which is what this
+# is; a public repeater search or a mirror is what it must not become.
 RB_EXPORT = "https://www.repeaterbook.com/api/export.php"
 RB_TOKENS = "https://www.repeaterbook.com/user/api_apps.php"
+RB_APPLY = "https://www.repeaterbook.com/api/token_request.php"
 RB_CREDIT = "Data courtesy of RepeaterBook.com"
 RB_SOURCE = "RepeaterBook.com"
 RB_TIMEOUT = 25.0
@@ -487,19 +500,47 @@ def from_repeaterbook(state, token, service="amateur"):
         with urllib.request.urlopen(request, timeout=RB_TIMEOUT) as response:
             payload = json.loads(response.read())
     except urllib.error.HTTPError as exc:
+        # The refusal is a JSON sentence with a code in it; read it, since
+        # "the token is wrong" and "ELMER is not listed" are different errands.
+        try:
+            payload = json.loads(exc.read())
+        except Exception:
+            payload = None
+        if isinstance(payload, dict) and payload.get("error_code"):
+            return [], _rb_refusal(payload)
         if exc.code in (401, 403):
-            return [], "RepeaterBook did not accept the token - check it on your RepeaterBook account page"
+            return [], RB_REFUSALS["auth_invalid"]
         if exc.code == 429:
-            return [], "RepeaterBook asked us to slow down; try again later"
+            return [], RB_REFUSALS["rate_limited"]      # and nothing tries again by itself
         return [], f"RepeaterBook answered {exc.code}"
     except Exception as exc:
         return [], f"RepeaterBook could not be reached ({exc.__class__.__name__})"
     if isinstance(payload, dict) and payload.get("ok") is False:
-        code = str(payload.get("error_code") or payload.get("error") or "refused")
-        if code.startswith("auth"):
-            return [], "RepeaterBook did not accept the token - check it on your RepeaterBook account page"
-        return [], f"RepeaterBook refused: {code}"
+        return [], _rb_refusal(payload)
     return _rows_from_rb(payload), None
+
+
+# RepeaterBook's refusals, each in a sentence that says whose move it is.
+RB_REFUSALS = {
+    "auth_missing": "RepeaterBook wanted a token and did not see one",
+    "auth_invalid": "RepeaterBook did not accept the token - check it on your RepeaterBook account page",
+    "auth_inactive": "RepeaterBook says that token, or ELMER's listing there, is not active",
+    "auth_revoked": "RepeaterBook says access under that token has been revoked",
+    "auth_scope_denied": "RepeaterBook says that token is not allowed this export",
+    "ua_mismatch": "RepeaterBook does not know this build of ELMER by the name it gave - "
+                   "its listing there needs updating, which is the author's to do",
+    "rate_limited": "RepeaterBook asked us to slow down; try again later",
+}
+
+
+def _rb_refusal(payload):
+    code = str(payload.get("error_code") or payload.get("error") or "refused")
+    said = RB_REFUSALS.get(code)
+    if said:
+        return said
+    if code.startswith("auth"):
+        return RB_REFUSALS["auth_invalid"]
+    return f"RepeaterBook refused: {code}"
 
 
 def _rb_log():

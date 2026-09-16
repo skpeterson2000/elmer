@@ -1102,19 +1102,30 @@ The page says which of the two the figures came from.
 Above 50 MHz "what can I reach" is answered by repeaters, not by towns. Three
 routes feed one list, and the list says which fed it.
 
-The first is the operator's own RepeaterBook account. RepeaterBook offers each
-of its users a token for programs like this one - made on their own account
-page under *API apps* - and a person who pastes theirs into the Station panel
-gets the amateur and GMRS machines for the state their QTH is in fetched
-straight from RepeaterBook, under their account, again when the QTH moves to
-another state and no more than once a month otherwise, or on the panel's
-*Fetch now*. The token is theirs: it lives in their own settings on the unit,
-goes out to RepeaterBook in the header RepeaterBook asks for and to nobody
-else, is never written to a log, and a problem report redacts anything of its
-shape in case. RepeaterBook's ask that the data be credited is met wherever
-the list is shown. This is the pattern for every service that offers a
-user-facing pathway: the person's own credentials, entered by them, kept on
-the unit, spent only on that service; a file import is the fallback, not the
+The first is the operator's own RepeaterBook account. RepeaterBook's API is
+open to approved programs, in two steps: the program's author applies once,
+naming the User-Agent it sends (ELMER's is in `repeaters.py` and must not
+drift from the form), and RepeaterBook lists it as an app; then each of its
+users can make a token for that app on their own account page under *API
+apps*. A person who pastes theirs into the Station panel gets the amateur and
+GMRS machines for the state their QTH is in fetched straight from
+RepeaterBook, under their account, again when the QTH moves to another state
+and no more than once a month otherwise, or on the panel's *Fetch now*. The
+token is theirs: it lives in their own settings on the unit, goes out to
+RepeaterBook in the header RepeaterBook asks for and to nobody else, is never
+written to a log, and a problem report redacts anything of its shape in case.
+
+RepeaterBook's terms draw a line and ELMER stays behind it. Its data is
+credited wherever the list is shown. What is fetched is one state's list,
+kept on the unit for that operator's own use - RepeaterBook's own "more
+likely approved" case is a private, non-commercial, narrowly scoped field
+tool - and it is never served on to another unit, offered as a public search,
+or bundled into a release; `data/repeaters.json` is ignored by git for that
+reason among others. Building or refreshing another repeater directory from
+it would need RepeaterBook's written permission, and ELMER does not. This is
+the pattern for every service that offers a user-facing pathway: the person's
+own credentials, entered by them, kept on the unit, spent only on that
+service, within that service's terms; a file import is the fallback, not the
 route.
 
 The second is TowerWitch, the station's own repeater tool, which keeps a
@@ -1123,9 +1134,11 @@ writes rather than asking for the same list twice. The third is the saved
 copy: `--import-repeaters` keeps what TowerWitch has, and copying
 `data/repeaters.json` to another install works too. The saved copy is what
 makes a machine without a token or a TowerWitch work; the other two are what
-make anywhere work. And ELMER tells the two kinds of empty apart: no repeaters
-near you is a fact, no repeater data for where you are is an errand, and it
-says which one it is looking at.
+make anywhere work. Copying the saved list between your own units is fine for
+what TowerWitch or an import put in it; what RepeaterBook fetched under your
+token is for the unit it was fetched to. And ELMER tells the two kinds of
+empty apart: no repeaters near you is a fact, no repeater data for where you
+are is an errand, and it says which one it is looking at.
 
 ### The button to TowerWitch
 
