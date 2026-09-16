@@ -6519,7 +6519,7 @@ def _remedy_start_menu():
     root = Path(__file__).resolve().parents[1]
     lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "ELMER.lnk"
     script = (f"$s = (New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); "
-              f"$s.TargetPath = '{root / 'elmer.cmd'}'; $s.WorkingDirectory = '{root}'; "
+              f"$s.TargetPath = '{root / 'elmer.cmd'}'; $s.Arguments = ''; $s.WorkingDirectory = '{root}'; "
               f"$s.Description = 'ELMER - radio study and propagation'; "
               f"$s.IconLocation = '{root / 'elmer' / 'static' / 'elmer.ico'},0'; $s.WindowStyle = 7; $s.Save()")
     done = subprocess.run(["powershell", "-NoProfile", "-Command", script],
