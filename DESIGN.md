@@ -2485,6 +2485,19 @@ The certificates ELMER's own games hand out are a different thing and
 are said to be - see the tournaments - and a wall of them would be a
 wall of a program praising itself.
 
+**The lounge** (`/lounge`) is the same wall as decor rather than subject:
+a picture of a room - shelves of silverware, a fire, a window on the
+course, a counter - with the operator's own things put into it by the
+unit. The blank plates in the picture were measured off it on a pixel
+grid once; the signed-in operator's certificates hang in them, newest in
+the two beside the window, the rest across the shelves, empty plates
+left as painted; the regulars are in the small frames on the mantel and
+the far wall; the record board is on the counter; the screen over the
+fire shows the sky tonight, or the tee time when the clubhouse has one
+booked. The sign is the program's - a unit does not get its own name on
+it. Nothing on the page is the main element, which is the point of a
+lounge.
+
 **The standing game.** "I'll go set up a golf game to join" was not a
 thing a host could do: the Gaming Center asked for somebody at the table
 first, and the moment somebody scanned in the table's own fifteen-second

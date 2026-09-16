@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The lounge: a room with the operator's own things in it - certificates in the frames, the regulars on the mantel, the board on the counter, the sky on the screen
 - The wall is each operator's own: certificates hung from the Library on their account, shown in the pro shop under their call; the program carries nobody's
 - The error page says when ELMER's own files changed after it started - a restart owed, not a fault
 - CW: one door - Today - where the record decides the lesson and one press runs the session: meet, one at a time against the clock, groups, words; after each key a chime or a buzz and then what was sent, by name; a streak

@@ -3938,6 +3938,40 @@ def api_golf_proshop():
     return jsonify({"whose": whose, "wall": awards.wall(connection.user_id), "records": regs.get("records", [])})
 
 
+# The lounge's frames, as percentages of the picture (elmers_lounge.jpg,
+# 1408 x 768), measured off it on a pixel grid: left, top, width, height. The large
+# ones take certificates in this order - the two beside the window first,
+# the far wall, then the shelves; the small ones take the regulars' names.
+LOUNGE_FRAMES = [
+    (50.21, 19.79, 4.12, 10.42),
+    (50.21, 32.81, 4.12, 11.2),
+    (87.0, 24.35, 4.62, 6.38),
+    (29.97, 34.9, 2.7, 6.77),
+    (19.53, 35.16, 2.63, 6.25),
+    (25.71, 35.16, 2.7, 6.51),
+    (39.77, 35.81, 2.63, 5.86),
+    (32.81, 44.92, 2.56, 6.51),
+    (36.01, 44.92, 2.7, 6.51),
+    (25.71, 26.69, 2.2, 5.21),
+    (45.17, 36.46, 2.27, 4.95),
+    (12.78, 46.22, 2.13, 5.21),
+    (12.64, 36.72, 1.92, 4.95),
+]
+LOUNGE_SMALL = [
+    (3.91, 26.3, 2.84, 5.6),
+    (7.6, 26.69, 2.7, 5.47),
+    (0.0, 23.44, 2.49, 7.81),
+    (86.29, 33.85, 2.13, 4.17),
+    (89.63, 33.85, 2.13, 4.17),
+]
+
+
+@app.route("/lounge")
+def lounge_page():
+    """A room with the operator's own things in it - the wall as decor."""
+    return render_template("lounge.html", frames=LOUNGE_FRAMES, small=LOUNGE_SMALL, **profile_block(conn()))
+
+
 @app.route("/api/awards")
 def api_awards():
     return jsonify({"wall": awards.wall(conn().user_id), "fields": list(awards.FIELDS)})

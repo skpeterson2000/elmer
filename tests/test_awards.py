@@ -67,6 +67,13 @@ def main():
     check("  may look at the first person's certificate - a wall is for looking at", c.get(a["url"]).status_code, 200)
     check("  but cannot take it down", c.post("/api/awards/remove", json={"name": a["name"]}).status_code, 404)
 
+    print("\n-- in the lounge --")
+    c.post("/api/users/switch", json={"id": 1})
+    html = c.get("/lounge").get_data(as_text=True)
+    check("the lounge renders, with a frame for every plate in the picture", (html.count('class="lg-frame"'), html.count('class="lg-small"')), (13, 5))
+    check("  and the room itself", "golf/lounge.jpg" in html, True)
+    c.post("/api/users/switch", json={"id": 2})
+
     print("\n-- taken down --")
     c.post("/api/users/switch", json={"id": 1})
     r = c.post("/api/awards/remove", json={"name": a["name"]})
