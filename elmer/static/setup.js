@@ -32,6 +32,22 @@
     said.style.color = bad ? 'var(--red)' : 'var(--dim)';
   }
 
+  // Fetch now: the operator's press, answered in a sentence beside it.
+  const rbFetch = document.getElementById('setup-rb-fetch');
+  const rbSaid = document.getElementById('setup-rb-said');
+  if (rbFetch) rbFetch.addEventListener('click', async () => {
+    rbFetch.disabled = true;
+    rbSaid.textContent = 'asking RepeaterBook\u2026';
+    try {
+      const r = await fetch('/api/repeaterbook/fetch', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+      const d = await r.json();
+      rbSaid.textContent = d.message + (d.ok && d.count ? ' \u2014 ' + d.credit : '');
+    } catch (err) {
+      rbSaid.textContent = 'could not ask';
+    }
+    rbFetch.disabled = false;
+  });
+
   gear.addEventListener('click', async () => {
     say('');
     // Asked for here rather than read off the account menu, which fills its
@@ -103,6 +119,8 @@
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');
       if (commercialBox) body.commercial = commercialBox.checked;
+      const rbBox = document.getElementById('setup-rb');
+      if (rbBox && rbBox.value.trim() !== (rbBox.defaultValue || '').trim()) body.repeaterbook_token = rbBox.value.trim();
       if (picked) body.location = picked;
       await postJSON('/api/settings', body);
 

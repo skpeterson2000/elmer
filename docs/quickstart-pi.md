@@ -61,9 +61,11 @@ network.
 - **GPS.** gpsd on the Pi, a phone streaming to it, or a TowerWitch beside it
   — ELMER takes whichever it has, says which, and says which antenna to move
   when the fix goes ([Where the station is](../DESIGN.md#where-the-station-is)).
-- **Repeaters.** From [TowerWitch](https://github.com/skpeterson2000/TowerWitch)
-  installed beside ELMER, or `--import-repeaters` once to keep its list on a
-  Pi without one.
+- **Repeaters.** Paste your own RepeaterBook token (*My Account → API apps*
+  at RepeaterBook.com) into **Station** and the amateur and GMRS machines for
+  your state are fetched under your account. Or from
+  [TowerWitch](https://github.com/skpeterson2000/TowerWitch) installed beside
+  ELMER, or `--import-repeaters` once to keep its list on a Pi without one.
 - **A club night.** Open the **Gaming Center** from any class card: a table
   of players joins by QR code from their own phones. A hall of tables is one
   more Pi running **net control**; the tables find it by themselves

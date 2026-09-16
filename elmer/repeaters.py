@@ -6,11 +6,17 @@ which around most stations names no towns at all - and ELMER used to say
 exactly that and stop, having correctly observed that the repeater is doing the
 reaching and then declining to say which repeater.
 
-This is where the repeaters come from. TowerWitch, the station's own repeater
-tool, already keeps a RepeaterBook export with coordinates on it; if it is
+This is where the repeaters come from. RepeaterBook offers each of its users
+a token of their own for programs like this one; an operator who pastes
+theirs into the Station panel gets the amateur and GMRS machines for the
+state their QTH is in fetched straight from RepeaterBook, under their own
+account, and refreshed as the QTH moves. That is the first route, because it
+is the one the service offers. TowerWitch, the station's own repeater tool,
+already keeps a RepeaterBook export with coordinates on it; if it is
 installed alongside, ELMER reads it rather than asking the operator to gather
 the same list twice. `--import-repeaters` copies that list into ELMER's own
-data so it keeps working on a Pi that has no TowerWitch on it.
+data so it keeps working on a Pi that has no TowerWitch on it. All three land
+in the same list, told apart by nothing but a source name.
 
 Two honesties are carried through to the screen. A coordinate matched only to
 the county is marked approximate, because a bearing computed from a county
@@ -23,6 +29,7 @@ import json
 import math
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -40,6 +47,32 @@ ASSUMED_TOWER_FT = 200.0
 
 _cache = {"key": None, "rows": [], "source": None}
 _asked = {"at": 0.0}          # when a network TowerWitch was last tried
+
+# RepeaterBook's API. Access is by token: a person signed in at RepeaterBook
+# makes one for "an app" on their own account page, and it goes out in a
+# header with every request. The token is theirs, kept in their own
+# settings on this unit, sent to RepeaterBook and to nobody else, and never
+# written to a log - a problem report carries the log. RepeaterBook asks
+# for a User-Agent naming the program and a way to reach whoever wrote it,
+# and for its data to be credited; both are done here, once.
+RB_EXPORT = "https://www.repeaterbook.com/api/export.php"
+RB_TOKENS = "https://www.repeaterbook.com/user/api_apps.php"
+RB_CREDIT = "Data courtesy of RepeaterBook.com"
+RB_SOURCE = "RepeaterBook.com"
+RB_TIMEOUT = 25.0
+RB_FRESH_DAYS = 30            # a state's list is asked for again after this
+RB_TOKEN_STARTS = ("rbuapp_", "app_")
+
+# RepeaterBook names a state by its FIPS code, not its letters.
+FIPS = {
+    "AL": "01", "AK": "02", "AZ": "04", "AR": "05", "CA": "06", "CO": "08", "CT": "09", "DE": "10",
+    "DC": "11", "FL": "12", "GA": "13", "HI": "15", "ID": "16", "IL": "17", "IN": "18", "IA": "19",
+    "KS": "20", "KY": "21", "LA": "22", "ME": "23", "MD": "24", "MA": "25", "MI": "26", "MN": "27",
+    "MS": "28", "MO": "29", "MT": "30", "NE": "31", "NV": "32", "NH": "33", "NJ": "34", "NM": "35",
+    "NY": "36", "NC": "37", "ND": "38", "OH": "39", "OK": "40", "OR": "41", "PA": "42", "RI": "44",
+    "SC": "45", "SD": "46", "TN": "47", "TX": "48", "UT": "49", "VT": "50", "VA": "51", "WA": "53",
+    "WV": "54", "WI": "55", "WY": "56", "AS": "60", "GU": "66", "MP": "69", "PR": "72", "VI": "78",
+}
 
 
 def horizon_km(height_ft, other_ft=ASSUMED_TOWER_FT):
@@ -335,15 +368,19 @@ def load():
     return rows, _cache["source"]
 
 
-def save(rows, source):
+def save(rows, source, repeaterbook=None):
     """Keep a list of ELMER's own, so it works without TowerWitch there."""
     STORE.parent.mkdir(parents=True, exist_ok=True)
+    if repeaterbook is None:
+        repeaterbook = _rb_log()
     STORE.write_text(json.dumps({
         "note": "Repeaters near this station, with coordinates. Imported "
                 "rather than typed; entries marked approx were placed only to "
                 "their county, so treat the bearing as a direction to the "
                 "county rather than to the machine.",
         "source": source, "imported": time.time(),
+        "credit": RB_CREDIT if RB_SOURCE in str(source or "") else None,
+        "repeaterbook": repeaterbook,
         "repeaters": rows}, indent=1))
     _cache["key"] = None
     return len(rows)
@@ -360,6 +397,156 @@ def import_towerwitch(path=None):
         return False, (f"found {where}, but nothing in it carried both a "
                        f"callsign and a coordinate"), 0
     return True, f"imported {save(rows, f'TowerWitch ({where})')} repeaters", len(rows)
+
+
+def token_looks_right(token):
+    """Whether a pasted token has the shape RepeaterBook hands out - a
+    mistyped one is refused here, kindly, rather than by RepeaterBook."""
+    token = (token or "").strip()
+    return bool(token) and token.startswith(RB_TOKEN_STARTS) and len(token) > 12 and " " not in token
+
+
+def rb_user_agent():
+    """Who is asking: the program, its home and a way to reach the author.
+    RepeaterBook refuses a generic one. The operator's own address is not
+    in it - the token already says whose account this is."""
+    try:
+        from .mail import CONTACT
+    except Exception:
+        CONTACT = "KC9SP@arrl.net"
+    return f"ELMER/1.0 (+https://github.com/skpeterson2000/elmer; {CONTACT})"
+
+
+def _field(entry, *names):
+    """A field by any of its names, since the JSON keys are spelt as the
+    site's column headings and those have moved before."""
+    if not isinstance(entry, dict):
+        return None
+    want = {n.lower().replace(" ", "").replace("_", "") for n in names}
+    for key, value in entry.items():
+        if str(key).lower().replace(" ", "").replace("_", "") in want:
+            return value
+    return None
+
+
+def _yes(value):
+    return str(value or "").strip().lower() in ("yes", "y", "1", "true")
+
+
+def _rows_from_rb(payload):
+    """RepeaterBook's export, as rows of ELMER's own shape."""
+    results = payload.get("results") if isinstance(payload, dict) else payload
+    if not isinstance(results, list):
+        return []
+    out = []
+    for entry in results:
+        status = str(_field(entry, "Operational Status") or "").strip().lower()
+        if status.startswith("off"):
+            continue                       # an off-air machine is not a way to reach anybody
+        lat, lon = _num(_field(entry, "Lat", "Latitude")), _num(_field(entry, "Long", "Lon", "Longitude"))
+        if lat is None or lon is None:
+            continue
+        tone = str(_field(entry, "PL", "Uplink Tone") or "").strip() or None
+        digital = [name for name, keys in (("DMR", ("DMR",)), ("D-STAR", ("D-Star", "DStar")),
+                                           ("YSF", ("System Fusion", "YSF")), ("P25", ("APCO P-25", "P25")),
+                                           ("NXDN", ("NXDN",)), ("M17", ("M17",)))
+                   if _yes(_field(entry, *keys))]
+        modes = ", ".join((["FM"] if _yes(_field(entry, "FM Analog")) or not digital else []) + digital)
+        town = str(_field(entry, "Nearest City", "City", "Location") or "").strip()
+        landmark = str(_field(entry, "Landmark") or "").strip()
+        precise = _field(entry, "Precise")
+        row = _row(_field(entry, "Callsign", "Call"), _field(entry, "Frequency", "Output Freq"),
+                   input=_num(_field(entry, "Input Freq", "Input")),
+                   tone=tone, location=(f"{town} - {landmark}" if town and landmark else town or landmark),
+                   county=str(_field(entry, "County") or "").strip(), modes=modes, lat=lat, lon=lon,
+                   approx=(precise is not None and not _yes(precise)))
+        if row and row["input"] and row["output"]:
+            row["offset"] = round(row["input"] - row["output"], 4)
+        if row:
+            out.append(row)
+    return out
+
+
+def from_repeaterbook(state, token, service="amateur"):
+    """One state's machines from RepeaterBook, under the operator's own
+    token. Returns (rows, error) - the error a plain sentence for the
+    Station panel, or None."""
+    fips = FIPS.get((state or "").upper())
+    if not fips:
+        return [], f"RepeaterBook lists US states by number and {state or 'this place'} is not one it knows"
+    if not token_looks_right(token):
+        return [], "that does not look like a RepeaterBook token - they begin rbuapp_"
+    query = {"state_id": fips}
+    if service == "gmrs":
+        query["stype"] = "gmrs"
+    request = urllib.request.Request(
+        RB_EXPORT + "?" + urllib.parse.urlencode(query),
+        headers={"User-Agent": rb_user_agent(), "X-RB-App-Token": token.strip(),
+                 "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=RB_TIMEOUT) as response:
+            payload = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            return [], "RepeaterBook did not accept the token - check it on your RepeaterBook account page"
+        if exc.code == 429:
+            return [], "RepeaterBook asked us to slow down; try again later"
+        return [], f"RepeaterBook answered {exc.code}"
+    except Exception as exc:
+        return [], f"RepeaterBook could not be reached ({exc.__class__.__name__})"
+    if isinstance(payload, dict) and payload.get("ok") is False:
+        code = str(payload.get("error_code") or payload.get("error") or "refused")
+        if code.startswith("auth"):
+            return [], "RepeaterBook did not accept the token - check it on your RepeaterBook account page"
+        return [], f"RepeaterBook refused: {code}"
+    return _rows_from_rb(payload), None
+
+
+def _rb_log():
+    """When each state was last fetched, kept in the store."""
+    if not STORE.is_file():
+        return {}
+    try:
+        return dict(json.loads(STORE.read_text()).get("repeaterbook") or {})
+    except (OSError, ValueError):
+        return {}
+
+
+def rb_fresh(state):
+    """Whether this state's list was fetched recently enough to leave be."""
+    at = _rb_log().get((state or "").upper())
+    return bool(at) and time.time() - float(at) < RB_FRESH_DAYS * 86400
+
+
+def fetch_repeaterbook(state, token, force=False):
+    """Amateur and GMRS machines for a state, from RepeaterBook, into
+    ELMER's own list. Returns (ok, message, count). Nothing is fetched
+    twice in a month unless asked, so a QTH that moves within the state
+    costs RepeaterBook nothing."""
+    state = (state or "").upper()
+    if not force and rb_fresh(state):
+        return True, f"RepeaterBook's list for {state} is under a month old", 0
+    fetched = []
+    for service in ("amateur", "gmrs"):
+        rows, error = from_repeaterbook(state, token, service)
+        if error and service == "amateur":
+            return False, error, 0
+        fetched += rows
+    if not fetched:
+        return False, f"RepeaterBook returned nothing for {state}", 0
+    stored, stored_from = _from_store()
+    # RepeaterBook's own rows replace what an older export said about the
+    # same machine: they are the same data, newer, and placed precisely.
+    keep = {(r["call"], round(r["output"], 3)) for r in fetched}
+    rows = _dedupe([r for r in stored if (r["call"], round(r["output"], 3)) not in keep] + fetched)
+    names = [n for n in str(stored_from or "").split(" and ") if n and RB_SOURCE not in n]
+    source = " and ".join(dict.fromkeys(names + [RB_SOURCE]))
+    fetched_log = _rb_log()
+    fetched_log[state] = time.time()
+    save(rows, source, repeaterbook=fetched_log)
+    gmrs = sum(1 for r in fetched if r["service"] == "gmrs")
+    log_line = f"{len(fetched) - gmrs} amateur and {gmrs} GMRS repeaters for {state} from RepeaterBook"
+    return True, log_line, len(fetched)
 
 
 # Anything further than this is not "near here" by any reading, so a list

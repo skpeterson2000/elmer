@@ -477,14 +477,16 @@ function cbConditions() {
 function gmrsRepeaters(d) {
   const rows = d.gmrs_repeaters || [];
   if (!rows.length) {
-    return '<p class="tiny muted" style="margin-top:.5rem">GMRS repeaters near you: none held. RepeaterBook\u2019s GMRS ' +
-      'section exports a CSV per state; in TowerWitch\u2019s data folder it reaches ELMER with the amateur machines, told apart by frequency.</p>';
+    return '<p class="tiny muted" style="margin-top:.5rem">GMRS repeaters near you: none held. A RepeaterBook token of your own, under ' +
+      '<b>Station</b>, fetches them with the amateur machines; failing that, RepeaterBook\u2019s GMRS section exports a CSV per state, which ' +
+      'reaches ELMER through TowerWitch\u2019s data folder.</p>';
   }
   return '<div class="panel-title mt" style="margin-bottom:.3rem">GMRS repeaters within reach</div>' +
     '<table class="data"><thead><tr><th>Output</th><th>Tone</th><th>Where</th><th>Miles</th><th>Bearing</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="mono">' + r.output.toFixed(3) + ' <span class="muted">+5</span></td><td class="mono">' + escapeHTML(String(r.tone || '\u2014')) +
       '</td><td>' + escapeHTML(r.where || r.call || '') + (r.approx ? ' ~' : '') + '</td><td class="mono">' + r.miles + '</td><td class="mono">' + r.bearing + '&deg;</td></tr>').join('') +
-    '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.</p>';
+    '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
+    (d.gmrs_credit ? ' <span class="muted">' + escapeHTML(d.gmrs_credit) + '</span>' : '') + '</p>';
 }
 
 function psRender() {

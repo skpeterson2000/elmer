@@ -134,6 +134,19 @@
       Radar endorsement &mdash; three more cards on the dashboard and a second
       rank. Off the front by default; the pools are always there.</p>
 
+    <label class="setup-label" for="setup-rb">RepeaterBook token</label>
+    <input id="setup-rb" type="password" autocomplete="off" spellcheck="false"
+           placeholder="rbuapp_&hellip;" value="{{ profile.settings.repeaterbook_token or '' }}">
+    <p class="tiny muted">Your own, from <b>My Account &rarr; API apps</b> at
+      RepeaterBook.com. With it, the amateur and GMRS repeaters for the state
+      your QTH is in are fetched straight from RepeaterBook under your account,
+      and again when the QTH moves to another state. It stays on this unit and
+      goes to RepeaterBook and nowhere else. Without one, ELMER reads
+      TowerWitch&rsquo;s list or an import.
+      <button type="button" class="btn sm ghost" id="setup-rb-fetch"
+              {% if not profile.settings.repeaterbook_token %}hidden{% endif %}>Fetch now</button>
+      <span id="setup-rb-said"></span></p>
+
     <label class="setup-label" for="setup-units">Distances in</label>
     <select id="setup-units">
       {% for key, sys in unit_systems.items() %}

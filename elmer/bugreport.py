@@ -40,6 +40,9 @@ RE_CALL = re.compile(r"\b[AKNW][A-Z]?\d[A-Z]{1,3}\b")
 # /home/jsmith/ELMER/data/elmer.log says more about a person than the grid
 # square that was so carefully cut down two lines above it.
 RE_HOME = re.compile(r"(/home/|/Users/|\\Users\\)[^/\\ \t\n\"',;:)\]]+")
+# A service token - RepeaterBook's begin rbuapp_ - is a password by another
+# name. Nothing here logs one, and this makes sure of it anyway.
+RE_TOKEN = re.compile(r"\b(?:rbuapp|app)_[A-Za-z0-9._-]{6,}")
 
 
 def redact(text, callsign=None, places=()):
@@ -61,6 +64,7 @@ def redact(text, callsign=None, places=()):
     text = RE_LATLON.sub("[coord]", text)
     text = RE_PRIVATE_IP.sub("[lan-ip]", text)
     text = RE_HOME.sub(lambda m: m.group(1) + "[user]", text)
+    text = RE_TOKEN.sub("[token]", text)
     return text
 
 

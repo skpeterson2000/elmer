@@ -1660,6 +1660,8 @@ def api_personal():
             rows, _ = repeaters.nearby(place["lat"], place["lon"], None, limit=6, conn=connection, service="gmrs")
             out["gmrs_repeaters"] = [{k: r.get(k) for k in ("call", "output", "tone", "where", "miles", "bearing", "approx")}
                                      for r in rows]
+            out["gmrs_source"] = _
+            out["gmrs_credit"] = repeaters.RB_CREDIT if _ and repeaters.RB_SOURCE in _ else None
         except Exception:                          # never at the page's expense
             log.exception("gmrs repeaters")
     return jsonify(out)
@@ -6727,6 +6729,16 @@ def api_settings():
             settings[key] = body[key]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
+    if "repeaterbook_token" in body:
+        # The operator's own RepeaterBook token: theirs, on this unit, for
+        # RepeaterBook and nobody else. Never logged - see repeaters.py.
+        token = str(body["repeaterbook_token"] or "").strip()
+        if token and not repeaters.token_looks_right(token):
+            abort(400, "that does not look like a RepeaterBook token - they begin rbuapp_")
+        if token:
+            settings["repeaterbook_token"] = token
+        else:
+            settings.pop("repeaterbook_token", None)
     if "state" in body:
         # Remembered with the QTH it was picked under; see _state_for_page.
         place = qth_for(connection, {"settings": settings})
@@ -6743,7 +6755,46 @@ def api_settings():
         # is no plan to read or no route out.
         _prefetch_regional(place)
     db.save_settings(connection, settings)
+    if settings.get("repeaterbook_token") and ("location" in body or "repeaterbook_token" in body):
+        # The machines for wherever this is, under the operator's own token.
+        _prefetch_repeaterbook(qth_for(connection, {"settings": settings}), settings["repeaterbook_token"])
     return jsonify({"ok": True, **db.get_profile(connection)})
+
+
+def _prefetch_repeaterbook(place, token):
+    """RepeaterBook's list for the QTH's state, in the background, unless it
+    was fetched within the month."""
+    state = regional.state_for(place)
+    if not state or repeaters.rb_fresh(state):
+        return
+    import threading
+
+    def run():
+        try:
+            ok, message, count = repeaters.fetch_repeaterbook(state, token)
+            (log.info if ok else log.warning)("repeaterbook: %s", message)
+        except Exception as exc:                   # never at the page's expense
+            log.debug("repeaterbook prefetch: %s", exc)
+    threading.Thread(target=run, name="repeaterbook-prefetch", daemon=True).start()
+
+
+@app.route("/api/repeaterbook/fetch", methods=["POST"])
+def api_repeaterbook_fetch():
+    """Fetch now, on the operator's press: the QTH's state, amateur and
+    GMRS, under their own token. Answers in a sentence for the panel."""
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    token = settings.get("repeaterbook_token")
+    if not token:
+        return jsonify({"ok": False, "message": "no RepeaterBook token saved for this account"}), 400
+    place = qth_for(connection, {"settings": settings})
+    state = regional.state_for(place)
+    if not state:
+        return jsonify({"ok": False, "message": "set a QTH in a US state first - RepeaterBook's export is by state"}), 400
+    ok, message, count = repeaters.fetch_repeaterbook(state, token, force=True)
+    (log.info if ok else log.warning)("repeaterbook: %s", message)
+    return jsonify({"ok": ok, "message": message, "count": count, "state": state,
+                    "credit": repeaters.RB_CREDIT})
 
 
 # --------------------------------------------------------------------------

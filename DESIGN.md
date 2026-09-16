@@ -731,8 +731,9 @@ So name where you are going while you still have a signal:
 
 It fetches the towns around that destination and keeps them, then says plainly
 what no preparation can carry: live solar numbers need the network at the time,
-repeaters come from TowerWitch and are its to fetch (`--import-repeaters`
-before you leave), and ground profiles are per-path with more paths than
+repeaters come from RepeaterBook under your own token or from TowerWitch
+(set the QTH there with a token saved, or `--import-repeaters` before you
+leave), and ground profiles are per-path with more paths than
 anybody could cache. Set the QTH to the destination's grid square and every
 answer - who is in reach, which way to point, what to try - is about there.
 
@@ -1098,17 +1099,33 @@ can see; `--gpsd HOST` points it at another machine, which is how a second Pi
 reads the one with the antenna on it. `--gpsd off` goes back to the typed QTH.
 The page says which of the two the figures came from.
 
-Above 50 MHz "what can I reach" is answered by repeaters, not by towns. ELMER
-does not look repeaters up itself - TowerWitch does that, against a data source
-that is its subscription to hold - so ELMER reads what TowerWitch writes and
-merges it with its own saved copy. Neither replaces the other: the saved copy
-is what makes a machine without TowerWitch work, and TowerWitch is what makes
-anywhere work.
+Above 50 MHz "what can I reach" is answered by repeaters, not by towns. Three
+routes feed one list, and the list says which fed it.
 
-`--import-repeaters` keeps a copy of what TowerWitch has. Copying
-`data/repeaters.json` to another install works too. And ELMER tells the two
-kinds of empty apart: no repeaters near you is a fact, no repeater data for
-where you are is an errand, and it says which one it is looking at.
+The first is the operator's own RepeaterBook account. RepeaterBook offers each
+of its users a token for programs like this one - made on their own account
+page under *API apps* - and a person who pastes theirs into the Station panel
+gets the amateur and GMRS machines for the state their QTH is in fetched
+straight from RepeaterBook, under their account, again when the QTH moves to
+another state and no more than once a month otherwise, or on the panel's
+*Fetch now*. The token is theirs: it lives in their own settings on the unit,
+goes out to RepeaterBook in the header RepeaterBook asks for and to nobody
+else, is never written to a log, and a problem report redacts anything of its
+shape in case. RepeaterBook's ask that the data be credited is met wherever
+the list is shown. This is the pattern for every service that offers a
+user-facing pathway: the person's own credentials, entered by them, kept on
+the unit, spent only on that service; a file import is the fallback, not the
+route.
+
+The second is TowerWitch, the station's own repeater tool, which keeps a
+RepeaterBook export with coordinates on it; ELMER reads what TowerWitch
+writes rather than asking for the same list twice. The third is the saved
+copy: `--import-repeaters` keeps what TowerWitch has, and copying
+`data/repeaters.json` to another install works too. The saved copy is what
+makes a machine without a token or a TowerWitch work; the other two are what
+make anywhere work. And ELMER tells the two kinds of empty apart: no repeaters
+near you is a fact, no repeater data for where you are is an errand, and it
+says which one it is looking at.
 
 ### The button to TowerWitch
 
