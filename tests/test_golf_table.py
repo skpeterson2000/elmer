@@ -392,6 +392,29 @@ def run():
         if room.round is not None and not room.round.closed:
             room.close_round()            # the next section asks for a tournament, which an open question refuses
 
+    print("\n-- the host says how many companions --")
+    room.end_golf()
+    room.clear_bots()
+    for want in (0, 2, 3):
+        r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                                 "seconds": 30, "level": "Elmer", "companions": want}, environ_base=local)
+        bots = [p for p in room.players.values() if p.bot]
+        check(f"asked for {want}: {want} practice player{'s' if want != 1 else ''} sat down", (r.status_code, len(bots)), (200, want))
+        autoplay.stop()
+        room.round = None
+        room.end_golf()
+        room.clear_bots()
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                             "seconds": 30, "companions": 9}, environ_base=local)
+    check("nine is three - the rest of a foursome", len([p for p in room.players.values() if p.bot]), 3)
+    autoplay.stop(); room.round = None; room.end_golf(); room.clear_bots()
+    second = room.join("W0ABC")[0].id
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                             "seconds": 30, "companions": 3}, environ_base=local)
+    check("two people asking for three get two - humans first, four seats", len([p for p in room.players.values() if p.bot]), 2)
+    autoplay.stop(); room.round = None; room.end_golf(); room.clear_bots()
+    room.leave(second)
+
     print("\n-- back to a tournament --")
     r = client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)
     check("the round is put away", (r.get_json()["mode"], room.golf), ("tournament", None))

@@ -5,6 +5,10 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-16
+
+- Golf: the host says how many companions, none to three; alone or a pair, the hole is told two lines a stroke
+
 ## 2026-09-15
 
 - What a GMRS licence earns: the family it covers, a first contact on the track, the renewal link, and each machine's reach in words

@@ -140,6 +140,9 @@ PERSON_ADDRESS = 180.0
 PERSON_REVEAL = 120.0
 
 
+SOLO_LINES = 2          # a hole's colour, to a player with nobody to share it with
+
+
 def _lie_notes(g, d, ball, player=None):
     """The colour a hole was given for a lie - hole-<course>-<n>-<lie>-<k>
     - revealed a line at a time: the first player to address the ball
@@ -149,7 +152,11 @@ def _lie_notes(g, d, ball, player=None):
     learned. A player's second stroke from the same lie gets nothing
     more. The tee's and the green's everyone reaches; the fairway's, the
     sand's and the rough's are situational, and a player who never finds
-    the sand never hears its colour. Water's comes with the splash."""
+    the sand never hears its colour. Water's comes with the splash.
+
+    A player alone, or a pair, has nobody to share the hole with, so the
+    rule turns round for them: two lines a stroke, on every stroke from
+    the lie, until that lie's colour is used up."""
     from . import voice
     lie = ball.get("lie")
     if lie not in ("tee", "green", "fairway", "rough", "sand"):
@@ -163,9 +170,18 @@ def _lie_notes(g, d, ball, player=None):
             from_lie = "green" if s.get("putt") else s.get("from")
             if from_lie == lie and p not in been:
                 been.append(p)
+    lines = voice.notes(d.get("course"), hole, lie)
+    if len(g.players) <= 2:
+        # Alone, or a pair: nobody else is going to hear the rest of the
+        # hole, so the course is told to them - two lines a stroke, on
+        # every stroke from the lie, until the lie's colour runs out.
+        strokes = sum(1 for row in g.history if row.get("hole") == hole
+                      for s in (row.get("shots") or {}).values()
+                      if ("green" if s.get("putt") else s.get("from")) == lie)
+        k = strokes * SOLO_LINES
+        return lines[k:k + SOLO_LINES] or None
     if player in been:
         return None
-    lines = voice.notes(d.get("course"), hole, lie)
     k = len(been)                                # this player is the (k+1)th from here
     return [lines[k]] if k < len(lines) else None
 
@@ -434,6 +450,11 @@ class Room:
         self._next_id = 1
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.bots_wanted = False
+        # Golf: how many practice players the host asked for - 0 to 3, the
+        # rest of a foursome at most - or None for the floor rule the other
+        # games use. A person alone may want a foursome, or the course to
+        # themselves; that is theirs to say, not the table's to assume.
+        self.companions = None
         self.open = True
         # When the first question goes up on its own, or None for a table
         # waiting on somebody to press something. Somebody who has just
@@ -756,6 +777,8 @@ class Room:
                 need = max(0, min(want, COHORT_SIZE) - len(humans))
                 if self.golf is not None or self.clubhouse is not None:
                     need = max(0, min(need, FOURSOME - len(humans)))     # a foursome, not a field
+                    if self.companions is not None:
+                        need = max(0, min(self.companions, FOURSOME - len(humans)))
                 while len(bots) > need:
                     leaving = max(bots, key=lambda p: p.id)
                     bots.remove(leaving)
@@ -782,10 +805,14 @@ class Room:
                 self._plan_bots()
             return changed
 
-    def fill_bots(self, level=None):
-        """Switch practice opponents on and top the table up."""
+    def fill_bots(self, level=None, companions=None):
+        """Switch practice opponents on and top the table up. `companions`
+        is golf's count - 0 to 3 - and 0 is a real answer: the course to
+        yourself, the practice players sent home."""
         with self.lock:
             self.bots_wanted = True
+            if companions is not None:
+                self.companions = max(0, min(FOURSOME - 1, int(companions)))
             self.rebalance_bots(level)
             return [p for p in self.players.values() if p.bot]
 
@@ -809,6 +836,7 @@ class Room:
     def clear_bots(self):
         with self.lock:
             self.bots_wanted = False
+            self.companions = None
             gone = [p.id for p in self.players.values() if p.bot]
             for pid in gone:
                 self.players.pop(pid, None)

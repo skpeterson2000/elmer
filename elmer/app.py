@@ -4296,13 +4296,20 @@ def _apply_mode(room, wanted, body):
             tee_in = max(0.0, float(body.get("tee_in") or 0))
         except (TypeError, ValueError):
             tee_in = 0.0
+        # How many practice players: the host's count, 0 to 3, or the
+        # foursome rule when the page did not say.
+        companions = body.get("companions")
+        try:
+            companions = None if companions in (None, "") else max(0, min(3, int(companions)))
+        except (TypeError, ValueError):
+            companions = None
         if tee_in > 0 and room.people_here() < party.FOURSOME:
             room.book_clubhouse(spec, tee_in)
-            room.fill_bots(body.get("level"))         # after the booking, so it is a foursome
+            room.fill_bots(body.get("level"), companions)   # after the booking, so it is a foursome
             threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
             log.info("party: tee time in %.0fs at %s (%s, %d holes)", tee_in, difficulty, which, len(holes))
         else:
-            room.fill_bots(body.get("level"))
+            room.fill_bots(body.get("level"), companions)
             _start_golf(room, spec)
     else:
         room.leave_clubhouse()

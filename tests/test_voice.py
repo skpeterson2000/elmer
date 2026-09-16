@@ -160,6 +160,7 @@ def run():
 
     class G:                                   # a round's history, as the notes read it
         history = []
+        players = ["a", "b", "c", "d"]
     d = {"course": "pebble-beach", "hole": 2}
     tee = {"lie": "tee"}
     check("the first player on the tee gets the first line", _lie_notes(G, d, tee, "a"), ["hole-pebble-beach-2-tee-1"])
@@ -181,6 +182,26 @@ def run():
     check("the first putt of the hole took the green's line; the next player's does not",
           _lie_notes(G, d, {"lie": "green"}, "b"), None)
     check("  another hole starts the count again", _lie_notes(G, {"course": "pebble-beach", "hole": 3}, tee, "b"), None)
+
+    print("\n-- alone, the hole is told to the one player, two lines a stroke --")
+    class Solo:
+        history = []
+        players = ["a"]
+    check("the first stroke from the tee gets the first two lines", _lie_notes(Solo, d, tee, "a"),
+          ["hole-pebble-beach-2-tee-1", "hole-pebble-beach-2-tee-2"])
+    Solo.history = [{"hole": 2, "shots": {"a": {"from": "tee", "kind": "fairway"}}}]
+    check("  the fairway's one line on the first stroke from there", _lie_notes(Solo, d, {"lie": "fairway"}, "a"),
+          ["hole-pebble-beach-2-fairway-1"])
+    Solo.history.append({"hole": 2, "shots": {"a": {"from": "fairway", "kind": "rough"}}})
+    check("  and nothing more from the fairway once it is used up", _lie_notes(Solo, d, {"lie": "fairway"}, "a"), None)
+    Solo.history = [{"hole": 2, "shots": {"a": {"from": "tee", "kind": "water"}}}]
+    check("  a second stroke from the tee - after a splash - gets the third line", _lie_notes(Solo, d, tee, "a"),
+          ["hole-pebble-beach-2-tee-3"])
+    class Pair(Solo):
+        history = []
+        players = ["a", "b"]
+    check("a pair is told the hole the same way", _lie_notes(Pair, d, tee, "b"),
+          ["hole-pebble-beach-2-tee-1", "hole-pebble-beach-2-tee-2"])
     voice.set_shelf(shelf_was)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
