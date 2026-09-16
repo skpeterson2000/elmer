@@ -520,7 +520,7 @@ def run():
     check("  the 2nd is straight and wide, the 7th a lane", (golfmap.bend_of(pb["holes"][1]), golf.fairway_half(pb["holes"][1]) > golf.fairway_half(pb["holes"][6])), (None, True))
     strips = {n: golfmap.hole_svg(next(x for x in pb["holes"] if x["n"] == n)) for n in (1, 2, 3, 8)}
     check("  so no two of the first holes look the same", len(set(strips.values())), 4)
-    check("  and the geometry a screen turns a tap with carries the bend", golfmap.geometry(h8)["bend"]["at"], 240)
+    check("  and the geometry a screen turns a tap with carries the bend", golfmap.geometry(h8)["bend"]["at"], h8["bend"]["at"])
     narrow = golf.Golf(["a"], flat_course(), seed=1)
     narrow.hole()["width"] = 10
     narrow.set_aim("a", 250, 14)
@@ -587,8 +587,8 @@ def run():
     check("the approach draws the green, the fringe, the sand and the ocean beyond the 7th",
           all(w in svg for w in ["the fringe", "aiming 10 short of the pin, 4 left"] + [z["name"] for z in h7["hazards"]]), True)
     check("  a ball short of the view stands at its foot with its yards", f"you, {h7['yards']} out" in svg, True)
-    gsvg = golfmap.green_svg(pb["holes"][1], [], None, None, {"falls": "left", "grade": 2})
-    check("the green is drawn with its fall and its sand, not a bullseye", ("falls left" in gsvg, "greenside bunkers" in gsvg, "linearGradient" in gsvg, "stroke-dasharray=\"3 3\"" in gsvg), (True, True, True, False))
+    gsvg = golfmap.green_svg(pb["holes"][0], [], None, None, {"falls": "left", "grade": 2})
+    check("the green is drawn with its fall and its sand, not a bullseye", ("falls left" in gsvg, "greenside bunker" in gsvg, "linearGradient" in gsvg, "stroke-dasharray=\"3 3\"" in gsvg), (True, True, True, False))
     check("  and the one green in every view: the same outline seeds them all", golfmap._outline(golfmap._seed(pb["holes"][1], "green")) == golfmap._outline(golfmap._seed(pb["holes"][1], "green")), True)
     check("  a drawn green is never smaller than the rules' green", min(golfmap._outline(1)) >= 1.0, True)
     check("  and a drawn bunker never bigger than its band", max(golfmap._outline(1, inward=True)) <= 1.0, True)
@@ -638,15 +638,17 @@ def run():
     g.holes = [x["n"] for x in pb["holes"]]
     g.hole_index, g.balls["a"] = 0, golf.Ball()
     line = g.ahead("a")
-    check("from the first tee with the driver, the fairway bunker on the right is in play",
-          [(z["name"], z["side"], z["where"]) for z in line][:1], [("fairway bunker", "right", "in-play")])
-    check("  said with its yards", "at 230 yards, on the right, in play" in voice.ahead_words(line), True)
-    check("  and the wedge, which cannot spray that far, sees only the sand at the green, as background",
-          [(z["name"], z["where"]) for z in g.ahead("a", "wedge")], [("greenside bunkers", "beyond")])
+    # The card is measured from GolfTraxx's map of the hole: the tee-shot
+    # bunkers are on the left of the 1st, two of them.
+    check("from the first tee with the driver, the first fairway bunker on the left is in play",
+          [(z["name"], z["side"], z["where"]) for z in line][:1], [("the 1st fairway bunker, left", "left", "in-play")])
+    check("  said with its yards", "at 245 yards, on the left, in play" in voice.ahead_words(line), True)
+    check("  and the wedge, which cannot spray that far, sees nothing", g.ahead("a", "wedge"), [])
     g.hole_index, g.balls["a"] = 6, golf.Ball()
     line = g.ahead("a")
-    check("the seventh: the bunkers in play and the Pacific beyond the green",
-          [(z["kind"], z["side"]) for z in line], [("bunker", "around"), ("water", "beyond")])
+    check("the seventh: the bunker in front in play, and the Pacific beyond the green on the card",
+          ([(z["kind"], z["side"], z["where"]) for z in line][:1], any(z["kind"] == "water" and z["side"] == "beyond" for z in g.hole()["hazards"])),
+          ([("bunker", "front", "in-play")], True))
     check("  the narrator has pieces for it", voice.ahead(line)[:2], ["ahead", "a-bunker"])
     g.balls["a"].lie = "green"
     check("on the green there is nothing ahead", g.ahead("a"), [])

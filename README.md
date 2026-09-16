@@ -140,7 +140,10 @@ opens as a popout of ELMER's that Exit closes too; on Windows the
 installer builds an `ELMER.exe` with the icon on it, to double-click.
 Golf grew a fringe that brakes a chipped ball, an approach view that
 zooms to the green when it is the target, and holes and greens drawn as
-grass rather than geometry.
+grass rather than geometry - and the cards are measured now, from
+GolfTraxx's hole maps (`tools/coursecard.py`): every bunker on its side
+at its yards, the dogleg where the line turns, the green's depth, the
+pins.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

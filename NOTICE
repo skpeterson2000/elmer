@@ -167,3 +167,10 @@ eQSL.cc - the eWAC and eDX designs, the eQSL mark and the webmaster's
 signature are eQSL's, shown here as the record of what was earned and
 not as anything this project claims. An operator running their own unit
 hangs their own; the folder is theirs.
+
+GolfTraxx (https://golftraxx.com)
+  The golf cards' hazards, doglegs, green depths and pin positions were
+  measured from GolfTraxx's hole maps - a yardage book laid over a
+  satellite photo, every landmark with a latitude and longitude - by
+  tools/coursecard.py, once, by hand. Their compilation; the yards are
+  the course's own facts. ELMER fetches nothing from them at play.

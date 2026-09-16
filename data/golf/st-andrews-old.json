@@ -17,7 +17,7 @@
    "yards": 376,
    "name": "Burn",
    "wind": "with",
-   "green": 34,
+   "green": 18,
    "hazards": [
     {
      "kind": "water",
@@ -26,15 +26,19 @@
      "side": "across",
      "name": "the Swilcan Burn"
     }
-   ]
+   ],
+   "pins": {
+    "front": -18,
+    "back": 0
+   }
   },
   {
    "n": 2,
    "par": 4,
-   "yards": 453,
+   "yards": 411,
    "name": "Dyke",
    "wind": "with",
-   "green": 40,
+   "green": 18,
    "hazards": [
     {
      "kind": "bunker",
@@ -50,15 +54,19 @@
      "side": "right",
      "name": "gorse"
     }
-   ]
+   ],
+   "pins": {
+    "front": -12,
+    "back": 0
+   }
   },
   {
    "n": 3,
    "par": 4,
-   "yards": 397,
+   "yards": 370,
    "name": "Cartgate (out)",
    "wind": "with",
-   "green": 40,
+   "green": 34,
    "hazards": [
     {
      "kind": "bunker",
@@ -67,15 +75,24 @@
      "side": "left",
      "name": "Cartgate bunker"
     }
-   ]
+   ],
+   "pins": {
+    "front": -34,
+    "back": 0
+   },
+   "bend": {
+    "at": 250,
+    "turn": "left",
+    "degrees": 8
+   }
   },
   {
    "n": 4,
    "par": 4,
-   "yards": 480,
+   "yards": 419,
    "name": "Ginger Beer",
    "wind": "with",
-   "green": 40,
+   "green": 25,
    "hazards": [
     {
      "kind": "bunker",
@@ -91,15 +108,19 @@
      "side": "left",
      "name": "Ginger Beer bunkers"
     }
-   ]
+   ],
+   "pins": {
+    "front": -25,
+    "back": 0
+   }
   },
   {
    "n": 5,
    "par": 5,
-   "yards": 568,
+   "yards": 514,
    "name": "Hole O'Cross (out)",
    "wind": "with",
-   "green": 50,
+   "green": 44,
    "hazards": [
     {
      "kind": "bunker",
@@ -115,15 +136,19 @@
      "side": "front",
      "name": "the Spectacles"
     }
-   ]
+   ],
+   "pins": {
+    "front": -44,
+    "back": 0
+   }
   },
   {
    "n": 6,
    "par": 4,
-   "yards": 412,
+   "yards": 374,
    "name": "Heathery (out)",
    "wind": "across",
-   "green": 40,
+   "green": 23,
    "hazards": [
     {
      "kind": "bunker",
@@ -139,15 +164,24 @@
      "side": "right",
      "name": "heather and gorse"
     }
-   ]
+   ],
+   "pins": {
+    "front": -23,
+    "back": 0
+   },
+   "bend": {
+    "at": 250,
+    "turn": "right",
+    "degrees": 11
+   }
   },
   {
    "n": 7,
    "par": 4,
-   "yards": 371,
+   "yards": 359,
    "name": "High (out)",
    "wind": "across",
-   "green": 40,
+   "green": 23,
    "hazards": [
     {
      "kind": "bunker",
@@ -163,15 +197,24 @@
      "side": "right",
      "name": "Cockle bunker"
     }
-   ]
+   ],
+   "pins": {
+    "front": -23,
+    "back": 0
+   },
+   "bend": {
+    "at": 269,
+    "turn": "right",
+    "degrees": 27
+   }
   },
   {
    "n": 8,
    "par": 3,
-   "yards": 175,
+   "yards": 166,
    "name": "Short",
    "wind": "across",
-   "green": 36,
+   "green": 25,
    "hazards": [
     {
      "kind": "bunker",
@@ -180,15 +223,19 @@
      "side": "front",
      "name": "Short Hole bunker"
     }
-   ]
+   ],
+   "pins": {
+    "front": -25,
+    "back": 0
+   }
   },
   {
    "n": 9,
    "par": 4,
-   "yards": 352,
+   "yards": 347,
    "name": "End",
    "wind": "with",
-   "green": 34,
+   "green": 18,
    "hazards": [
     {
      "kind": "bunker",
@@ -197,15 +244,24 @@
      "side": "left",
      "name": "Boase's and End Hole bunkers"
     }
-   ]
+   ],
+   "pins": {
+    "front": -17,
+    "back": 0
+   },
+   "bend": {
+    "at": 250,
+    "turn": "right",
+    "degrees": 27
+   }
   },
   {
    "n": 10,
    "par": 4,
-   "yards": 386,
+   "yards": 340,
    "name": "Bobby Jones",
    "wind": "into",
-   "green": 34,
+   "green": 25,
    "hazards": [
     {
      "kind": "bunker",
@@ -214,7 +270,11 @@
      "side": "left",
      "name": "Kruger bunkers"
     }
-   ]
+   ],
+   "pins": {
+    "front": -25,
+    "back": 0
+   }
   },
   {
    "n": 11,
@@ -222,7 +282,7 @@
    "yards": 174,
    "name": "High (in)",
    "wind": "into",
-   "green": 36,
+   "green": 18,
    "hazards": [
     {
      "kind": "bunker",
@@ -245,15 +305,19 @@
      "side": "beyond",
      "name": "the Eden estuary"
     }
-   ]
+   ],
+   "pins": {
+    "front": -12,
+    "back": 0
+   }
   },
   {
    "n": 12,
    "par": 4,
-   "yards": 348,
+   "yards": 316,
    "name": "Heathery (in)",
    "wind": "into",
-   "green": 34,
+   "green": 19,
    "hazards": [
     {
      "kind": "bunker",
@@ -262,15 +326,19 @@
      "side": "centre",
      "name": "the hidden bunkers"
     }
-   ]
+   ],
+   "pins": {
+    "front": -19,
+    "back": 0
+   }
   },
   {
    "n": 13,
    "par": 4,
-   "yards": 465,
+   "yards": 418,
    "name": "Hole O'Cross (in)",
    "wind": "into",
-   "green": 50,
+   "green": 25,
    "hazards": [
     {
      "kind": "bunker",
@@ -293,15 +361,19 @@
      "side": "front",
      "name": "the Lion's Mouth"
     }
-   ]
+   ],
+   "pins": {
+    "front": -25,
+    "back": 0
+   }
   },
   {
    "n": 14,
    "par": 5,
-   "yards": 618,
+   "yards": 530,
    "name": "Long",
    "wind": "into",
-   "green": 40,
+   "green": 18,
    "hazards": [
     {
      "kind": "bunker",
@@ -331,15 +403,19 @@
      "side": "left",
      "name": "the Grave"
     }
-   ]
+   ],
+   "pins": {
+    "front": -18,
+    "back": 0
+   }
   },
   {
    "n": 15,
    "par": 4,
-   "yards": 455,
+   "yards": 414,
    "name": "Cartgate (in)",
    "wind": "into",
-   "green": 40,
+   "green": 23,
    "hazards": [
     {
      "kind": "bunker",
@@ -348,15 +424,24 @@
      "side": "centre",
      "name": "Sutherland bunker"
     }
-   ]
+   ],
+   "pins": {
+    "front": -23,
+    "back": 0
+   },
+   "bend": {
+    "at": 250,
+    "turn": "right",
+    "degrees": 15
+   }
   },
   {
    "n": 16,
    "par": 4,
-   "yards": 423,
+   "yards": 381,
    "name": "Corner of the Dyke",
    "wind": "into",
-   "green": 34,
+   "green": 20,
    "hazards": [
     {
      "kind": "bunker",
@@ -379,15 +464,19 @@
      "side": "left",
      "name": "Wig bunker"
     }
-   ]
+   ],
+   "pins": {
+    "front": -20,
+    "back": 0
+   }
   },
   {
    "n": 17,
    "par": 4,
-   "yards": 495,
+   "yards": 455,
    "name": "Road",
    "wind": "across",
-   "green": 30,
+   "green": 23,
    "hazards": [
     {
      "kind": "rough",
@@ -410,7 +499,11 @@
      "side": "beyond",
      "name": "the road and the wall"
     }
-   ]
+   ],
+   "pins": {
+    "front": -23,
+    "back": 0
+   }
   },
   {
    "n": 18,
@@ -418,7 +511,7 @@
    "yards": 357,
    "name": "Tom Morris",
    "wind": "into",
-   "green": 30,
+   "green": 23,
    "hazards": [
     {
      "kind": "water",
@@ -434,8 +527,12 @@
      "side": "front",
      "name": "the Valley of Sin"
     }
-   ]
+   ],
+   "pins": {
+    "front": -23,
+    "back": 0
+   }
   }
  ],
- "hazards_note": "The signature hazards of each hole from published descriptions, at approximate yards, with the greenside and fairway bunkering that is well documented - not a survey of every trap."
+ "source": "Doglegs, green depths and pin positions measured from GolfTraxx's hole maps (https://golftraxx.com) on 2026-09-16; wind, slope, width and names are ELMER's own; the hazards are the card's own, from published descriptions - the maps mark none here."
 }

@@ -136,3 +136,6 @@ data/programmes/
 # Built by install.ps1 from tools/launcher/ELMER.cs, with the icon in it;
 # a compiled file is not something to keep in a repository.
 ELMER.exe
+
+# GolfTraxx pages the cards were measured from - theirs, kept for re-runs, not shipped
+data/golf/.golftraxx/
