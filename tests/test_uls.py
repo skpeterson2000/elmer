@@ -112,6 +112,21 @@ def main():
     check("  and amateur too, once the amateur file is here", callsign.lookup("KC9SP")["source"][:8], "FCC ULS,")
     check("what is on the unit", sorted(k for k, v in uls.state().items() if v["have"]), ["amateur", "commercial", "gmrs"])
 
+    print("\n-- the three boxes on the Station panel --")
+    from elmer.app import app
+    c = app.test_client()
+    r = c.post("/api/settings", json={"callsign": "KC9SP", "gmrs_call": "WRMP909", "commercial_call": "PG1136564"})
+    d = r.get_json()
+    check("an operator with all three, each filed under its own", (d["callsign"], d["settings"]["gmrs_call"], d["settings"]["commercial_call"]),
+          ("KC9SP", "WRMP909", "PG1136564"))
+    check("  the commercial record read, with the class", d["settings"]["commercial_license"]["license_class"][:37], "General Radiotelephone Operator Licen")
+    check("  and the commercial pools switched on with it", d["settings"].get("commercial"), True)
+    r = c.post("/api/settings", json={"callsign": "MP0000001"})
+    check("a commercial call typed into the amateur box is filed as commercial, the amateur call untouched",
+          (r.get_json()["callsign"], r.get_json()["settings"]["commercial_call"]), ("KC9SP", "MP0000001"))
+    html = c.get("/bandplan").get_data(as_text=True)
+    check("the band plan shows a strip for each", html.count('class="panel tight mt license-strip'), 3)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

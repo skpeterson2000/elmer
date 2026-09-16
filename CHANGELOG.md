@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-15
 
+- A commercial operator callsign in Station: the class and the radar endorsement from the FCC's file, a third strip on the band plan, the pools switched on with it
 - The FCC's own licence files, read on the unit: every callsign - amateur, GMRS, commercial - answered from the record, offline, with the FRN's other tickets
 - Your licences, on paper: the FCC's PDF kept for you alone, shown back and printed from the Library, read against the record
 - A GMRS licence, by its callsign: the dates read from the FCC record, and the cards that know it is held
