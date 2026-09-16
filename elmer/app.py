@@ -1039,26 +1039,44 @@ def api_activations():
     """
     connection = conn()
     profile = db.get_profile(connection)
-    place = qth_for(connection, profile)
+    system = units.system(profile["settings"].get("units"))["key"]
+    # The band on the page - between A and B miles of here, or of somewhere
+    # typed - is the list's band as well as the sheet's. It used to be the
+    # sheet's alone, and the list under a box that said "50" ran to two
+    # hundred miles.
+    inner_km, outer_km = _print_band(request.args, system)
+    asked = (request.args.get("from") or "").strip()
+    place = geocode.resolve(asked) if asked else None
+    if asked and (not place or place.get("lat") is None):
+        place = qth_for(connection, profile)
+        from_note = f"could not find \u201c{asked[:60]}\u201d - from here instead"
+    else:
+        from_note = None
+        if not asked:
+            place = qth_for(connection, profile)
     lat, lon = place.get("lat"), place.get("lon")
     # Each kind counted and listed on its own. Taking the nearest forty of
     # everything and sorting them afterwards reported "no summits" whenever
     # forty parks were closer than the first hill, which is most places -
     # the wrong answer to "is there anything up there", and it looked
     # authoritative.
-    parks, summits = [], []
+    parks, summits, all_parks, all_summits = [], [], [], []
     cover = {"known": False, "reason": "nowhere", "areas": 0}
     if lat is not None:
-        parks = references.nearby(lat, lon, kind="park", limit=None)
-        summits = references.nearby(lat, lon, kind="summit", limit=None)
+        all_parks = references.nearby(lat, lon, kind="park", limit=None)
+        all_summits = references.nearby(lat, lon, kind="summit", limit=None)
+        parks = _in_band(all_parks, inner_km, outer_km)
+        summits = _in_band(all_summits, inner_km, outer_km)
         cover = references.coverage(lat, lon)
     return jsonify({
         "qth": place.get("short") or place.get("grid") or "",
         "located": lat is not None,
         "coverage": cover,
         "radius_km": references.DEFAULT_RADIUS_KM,
+        "band": {"inner_km": inner_km, "outer_km": outer_km, "from": asked or "", "note": from_note},
         "parks": parks[:12], "summits": summits[:12],
         "held": {"parks": len(parks), "summits": len(summits)},
+        "held_all": {"parks": len(all_parks), "summits": len(all_summits)},
         "programs": [activations.POTA, activations.SOTA],
         "gear": activations.GEAR_VERDICTS,
         "land": {"read": activations.LAND_READ, "source": activations.LAND_SOURCE,

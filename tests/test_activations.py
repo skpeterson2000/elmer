@@ -106,6 +106,23 @@ def main():
     check("  and the states are not guessed at",
           "does not guess" in A.LAND[-1]["what"], True)
 
+    print("\n-- the band on the page is the list's band, not only the sheet's --")
+    from elmer.app import app
+    c = app.test_client()
+    c.post("/api/settings", json={"location": {"lat": 46.60, "lon": -94.31, "short": "Pequot Lakes", "grid": "EN36"}, "units": "imperial"})
+    d = c.get("/api/activations?inner=0&outer=50").get_json()
+    farthest = max([p["km"] for p in d["parks"] + d["summits"]] or [0])
+    check("nothing listed beyond fifty miles when the box says fifty", farthest <= d["band"]["outer_km"] + 0.01, True)
+    check("  and the count is the band's, with the whole held said beside it",
+          (d["held"]["parks"] <= d["held_all"]["parks"], d["held_all"]["parks"] > d["held"]["parks"]), (True, True))
+    d2 = c.get("/api/activations?inner=30&outer=120").get_json()
+    nearest = min([p["km"] for p in d2["parks"]] or [0])
+    check("a band that starts at thirty lists nothing nearer", nearest >= d2["band"]["inner_km"] - 0.01, True)
+    d3 = c.get("/api/activations?outer=50&from=Duluth, MN").get_json()
+    check("a place typed is the centre", d3["qth"], "Duluth")
+    d4 = c.get("/api/activations?outer=50&from=Nowhereville").get_json()
+    check("  and one that cannot be found falls back to here, and says so", (d4["qth"], "could not find" in (d4["band"]["note"] or "")), ("Pequot Lakes", True))
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

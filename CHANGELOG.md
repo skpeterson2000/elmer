@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- POTA/SOTA: the band on the page - between A and B miles of here or of somewhere typed - is the list's band, not only the printed sheet's
 - The antenna page: the sliders that turn the picture sit under the plots they move - turned from below, watching what one does; the reading of it after
 - Golf: choosing no companions at an empty table clears an earlier booking's practice players; the count holds wherever golf is in its life, and the seating is logged
 - The lounge: a room with the operator's own things in it - certificates in the frames, the regulars on the mantel, the board on the counter, the sky on the screen

@@ -96,10 +96,16 @@ function acNear(d) {
     box.innerHTML = '';
     return;
   }
+  const band = d.band || {};
+  const all = d.held_all || held;
   note.innerHTML = '<b>' + held.parks + ' park' + (held.parks === 1 ? '' : 's') +
     '</b> and <b>' + held.summits + ' summit' + (held.summits === 1 ? '' : 's') +
-    '</b> held within ' + acAway(d.radius_km) + ' ' + AC_UNITS.short +
+    '</b> between ' + acAway(band.inner_km || 0) + ' and ' + acAway(band.outer_km || d.radius_km) + ' ' + AC_UNITS.short +
+    ' of ' + escapeHTML(d.qth) +
+    (all.parks !== held.parks || all.summits !== held.summits
+      ? ' <span class="muted">(' + all.parks + ' and ' + all.summits + ' held in all, out to ' + acAway(d.radius_km) + ' ' + AC_UNITS.short + ')</span>' : '') +
     acAge(d.coverage) +
+    (band.note ? ' <span style="color:var(--amber)">' + escapeHTML(band.note) + '</span>' : '') +
     '. The nearest of each are below, ' +
     'and the distances are straight lines, which a road is not: reckon on more.';
 
@@ -319,8 +325,12 @@ document.addEventListener('change', e => {
 });
 
 async function acLoad() {
+  const q = new URLSearchParams({
+    inner: (document.getElementById('ac-inner') || {}).value || 0,
+    outer: (document.getElementById('ac-outer') || {}).value || 50,
+    from: ((document.getElementById('ac-from') || {}).value || '').trim()});
   try {
-    acData = await api('/api/activations');
+    acData = await api('/api/activations?' + q);
   } catch (e) { return; }
   acNear(acData);
   acRules(acData);
@@ -331,6 +341,13 @@ async function acLoad() {
 if (document.getElementById('ac-near')) {
   acLoad();
   acAwards();
+  /* The band and the place it is around drive the list as they change -
+     a moment after the typing stops, so a town is looked up once. */
+  let acBandTimer = null;
+  ['ac-inner', 'ac-outer', 'ac-from'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => { clearTimeout(acBandTimer); acBandTimer = setTimeout(acLoad, id === 'ac-from' ? 700 : 250); });
+  });
 }
 
 
