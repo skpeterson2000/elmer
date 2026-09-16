@@ -93,8 +93,9 @@ def run():
                                                      "side": "across", "name": "the creek"}]), seed=1)
     row = creek.play({"a": R(True, ms=1000, club="driver")})
     check("a fast driver into a creek across the fairway is in the creek", row["shots"]["a"]["kind"], "water")
-    check("  a drop where you were, and a penalty: two strokes, still on the tee",
-          (creek.balls["a"].strokes, creek.balls["a"].at, creek.balls["a"].lie), (2, 0, "tee"))
+    check("  a drop short of it and a penalty: two strokes, on the fairway three yards short of the creek",
+          (creek.balls["a"].strokes, creek.balls["a"].at, creek.balls["a"].lie, "dropped short of the creek" in row["shots"]["a"]["words"]),
+          (2, 237, "fairway", True))
     side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
                                                     "side": "right", "name": "a bunker"}]), seed=1)
     row = side.play({"a": R(True, ms=1000, club="driver")})
@@ -597,6 +598,25 @@ def run():
     check("  and the one green in every view: the same outline seeds them all", golfmap._outline(golfmap._seed(pb["holes"][1], "green")) == golfmap._outline(golfmap._seed(pb["holes"][1], "green")), True)
     check("  a drawn green is never smaller than the rules' green", min(golfmap._outline(1)) >= 1.0, True)
     check("  and a drawn bunker never bigger than its band", max(golfmap._outline(1, inward=True)) <= 1.0, True)
+
+    print("\n-- the mulligan: a foul ball taken back, once a hole --")
+    mg = golf.Golf(["a", "b"], flat_course(), seed=3)
+    check("nothing to take back before a stroke", mg.can_mulligan("a"), False)
+    mg.play_one("a", {"correct": True, "club": "driver"})
+    check("  nor after a fair one", mg.can_mulligan("a"), False)
+    mg.set_aim("b", 240, -5)
+    mg.play_one("b", {"correct": False, "club": "driver"})
+    was = (mg.balls["b"].strokes, mg.balls["b"].at, mg.balls["b"].lie)
+    check("a foul ball can be", (mg.can_mulligan("b"), was[0] >= 1, was[2]), (True, True, "rough"))
+    words = mg.mulligan("b")
+    check("  taken back: the ball on the tee, no stroke counted, the mark restored, and the card says so",
+          (mg.balls["b"].strokes, mg.balls["b"].at, mg.balls["b"].lie, mg.aim("b")["at"], mg.balls["b"].log, "mulligan" in (words or "")),
+          (0, 0, "tee", 240, ["mulligan - a fresh ball from the tee"], True))
+    check("  written on the foul ball's row of the history", mg.history[-1]["shots"]["b"].get("mulligan"), words)
+    check("  and not twice on a hole", (mg.can_mulligan("b"), mg.mulligan("b")), (False, None))
+    mg.play_one("b", {"correct": False, "club": "driver"})
+    check("  a second foul ball on the hole stands", mg.can_mulligan("b"), False)
+    check("  the state carries whether one may be had", mg.as_dict()["balls"]["b"]["can_mulligan"], False)
 
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)

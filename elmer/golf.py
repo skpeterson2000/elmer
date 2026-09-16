@@ -454,6 +454,8 @@ class Golf:
         self.hole_index = 0
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
+        self.before = {}                 # player -> the ball before their last stroke, for a mulligan
+        self.mulligans = {}              # player -> the hole they took one on
         self._who = None               # whose stroke is being played
         # Not every golfer hits it the same. Power is a factor on every
         # club's length; wildness a factor on the leak. People are 1.0 and
@@ -889,11 +891,15 @@ class Golf:
                 return {"kind": "rough", "words": f"{club}, {carry} yards - out to the {side}, stopped on the bank of "
                                                   f"{hz['name'] or 'the water'} - {left} to go, from the rough",
                         "carry": carry, "wind": wind, "leak": leaked, "left": left, "off": off}
-            ball.strokes += 1                        # the penalty
             how = "ran into" if ran_through else "into"
+            at_before = ball.at
+            ball.at, ball.off = landed, off
+            dropped = self._drop(h, ball, hz, side)
+            ball.at = max(ball.at, at_before)
+            left = int(round(h["yards"] - ball.at))
             return {"kind": "water", "words": f"{club}, {carry} yards - {how} {hz['name'] or 'the water'}; "
-                                              f"drop, and a penalty stroke", "carry": carry, "roll": roll, "wind": wind,
-                    "hazard": hz["name"]}
+                                              f"{dropped}, and a penalty stroke - {left} to go",
+                    "carry": carry, "roll": roll, "wind": wind, "hazard": hz["name"], "left": left, "off": ball.off}
         if on_green:
             ball.at, ball.off = landed, off
             ball.lie = "green"
@@ -1058,6 +1064,31 @@ class Golf:
         return {"kind": "green" if right else "missed", "putt": True, "feet": feet, "words": f"{head} - {how}",
                 "carry": 0, "left_feet": left_ft}
 
+    def _drop(self, h, ball, hz, side=""):
+        """The ball is in the water: a penalty stroke, and a drop where it
+        went in - short of water across the hole, on the bank beside water
+        down a side, behind the green when it flew into the sea beyond.
+        Not stroke and distance, which is the harsh option and the slow
+        one; this is what a golfer does. Returns where, in words."""
+        ball.strokes += 1                            # the penalty
+        half = fairway_half(h)
+        where = hz.get("side", "")
+        if where == "beyond":
+            ball.at = int(round(h["yards"] + green_edge(h) + 2))
+            ball.off = int(round(max(-half, min(half, ball.off))))
+            ball.lie = "rough"
+            return "dropped behind the green, in the rough"
+        if where in ("left", "right") or side in ("left", "right"):
+            s = where if where in ("left", "right") else side
+            ball.at = int(round(max(ball.at, min(hz["to"], max(hz["from"], ball.at)))))
+            ball.off = (-1 if s == "left" else 1) * (half + 3)
+            ball.lie = "rough"
+            return f"dropped on the bank, {s}"
+        ball.at = int(round(hz["from"] - 3))
+        ball.off = int(round(max(-half, min(half, ball.off))))
+        ball.lie = "fairway" if abs(ball.off) <= half else "rough"
+        return f"dropped short of {hz.get('name') or 'the water'}"
+
     def _foul(self, h, ball, club):
         """A wrong answer: the ball finds the nearest trouble the club could
         have reached. Nothing in reach means a short one into the rough."""
@@ -1080,9 +1111,13 @@ class Golf:
         hz = self.rng.choices(ahead, weights=[weights[x["kind"]] for x in ahead])[0]
         name = hz["name"] or hz["kind"]
         if hz["kind"] == "water":
-            ball.strokes += 1
-            return {"kind": "water", "words": f"{club}, a foul ball - into {name}; drop, and a penalty stroke",
-                    "carry": 0, "hazard": name}
+            at_before = ball.at
+            ball.at = max(ball.at + 10, hz["from"])
+            dropped = self._drop(h, ball, hz)
+            ball.at = max(ball.at, at_before)
+            left = int(round(h["yards"] - ball.at))
+            return {"kind": "water", "words": f"{club}, a foul ball - into {name}; {dropped}, and a penalty stroke - {left} to go",
+                    "carry": 0, "hazard": name, "left": left, "off": ball.off}
         ball.at = max(ball.at + 10, hz["from"])
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         if hz.get("side") in ("left", "right"):
@@ -1118,6 +1153,11 @@ class Golf:
         a = answer or {}
         self._who = p
         played_from = ball.lie
+        # Where the ball was, kept for a mulligan: the stroke undone, a
+        # fresh ball from the same spot.
+        self.before[p] = {"hole": h["n"], "at": ball.at, "off": ball.off, "lie": ball.lie, "strokes": ball.strokes,
+                          "holed": ball.holed, "picked_up": ball.picked_up, "log": len(ball.log),
+                          "aim": self.aims.get(p)}
         # The swing's timing seeds this stroke's draw - see CLUB_SPREAD.
         try:
             ms = int(a.get("ms")) if a.get("ms") is not None else None
@@ -1167,11 +1207,53 @@ class Golf:
         shot.update(strokes=ball.strokes, at=ball.at, off=ball.off, lie=ball.lie, club=club,
                     done=ball.done(), holed=ball.holed, aim=ball.last_aim, **{"from": played_from})
         self.aims.pop(p, None)            # a mark is for one stroke
+        self.before[p]["foul"] = not bool(a.get("correct"))
         ball.log.append(shot["words"])
         if shot.get("also"):
             ball.log.append(shot["also"])
         self.logs.setdefault(p, {})[h["n"]] = list(ball.log)
         return shot
+
+    def can_mulligan(self, player):
+        """Whether this golfer may take a mulligan now: their last stroke
+        was on this hole and was a foul ball, the hole is still being
+        played, and they have not had one on this hole. Once a hole, the
+        way a friendly game gives it."""
+        h = self.hole()
+        b = self.before.get(player)
+        ball = self.balls.get(player)
+        if h is None or b is None or ball is None or b.get("hole") != h["n"] or not b.get("foul"):
+            return False
+        if self.mulligans.get(player) == h["n"] or ball.done():
+            return False
+        return True
+
+    def mulligan(self, player):
+        """The foul ball taken back: the ball, the strokes and the mark as
+        they were before it; the words say so on the card; the next
+        stroke is a fresh question from the same spot. Returns the words,
+        or None when there is no mulligan to be had."""
+        if not self.can_mulligan(player):
+            return None
+        h = self.hole()
+        b = self.before[player]
+        ball = self.balls[player]
+        ball.at, ball.off, ball.lie = b["at"], b["off"], b["lie"]
+        ball.strokes, ball.holed, ball.picked_up = b["strokes"], b["holed"], b["picked_up"]
+        del ball.log[b["log"]:]
+        if b.get("aim"):
+            self.aims[player] = dict(b["aim"])
+        self.mulligans[player] = h["n"]
+        b["foul"] = False
+        words = f"mulligan - a fresh ball from {'the tee' if ball.strokes == 0 else f'{int(round(h['yards'] - ball.at))} out'}"
+        ball.log.append(words)
+        self.logs.setdefault(player, {})[h["n"]] = list(ball.log)
+        # the history keeps the foul ball's row, with the mulligan written on it
+        for row in reversed(self.history):
+            if row.get("hole") == h["n"] and player in (row.get("shots") or {}):
+                row["shots"][player]["mulligan"] = words
+                break
+        return words
 
     def _after(self, h, shots):
         """The hole's state after some strokes; the next hole if it is done."""
@@ -1410,6 +1492,7 @@ class Golf:
                           "approaching": self.approaching(p),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
+                          "can_mulligan": self.can_mulligan(p),
                           "log": list(b.log), "ahead": self.ahead(p)}
                       for p, b in self.balls.items()},
             # every stroke of every hole, in words, by player: the history a

@@ -4969,6 +4969,26 @@ def api_party_hit():
     return jsonify({"ok": True, "hit": bool(driver and driver.hit())})
 
 
+@app.route("/api/party/mulligan", methods=["POST"])
+def api_party_mulligan():
+    """A mulligan: the golfer's foul ball taken back, once a hole, and a
+    fresh question from the same spot. The reveal ends with it, so the
+    round moves on to their stroke again."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    words = room.golf_mulligan(player)
+    if not words:
+        abort(409, "no mulligan to be had")
+    driver = autoplay.director()
+    if driver:
+        driver.hurry()
+    return jsonify({"ok": True, "words": words})
+
+
 @app.route("/api/party/auto-state")
 def api_party_auto_state():
     """Whether a tournament is running on this table."""

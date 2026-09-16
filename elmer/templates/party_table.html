@@ -681,6 +681,19 @@ document.addEventListener('click', async e => {
     col.insertAdjacentHTML('beforeend', '<div class="verdict in">In. Waiting on the rest of the table.</div>');
     return;
   }
+  const mg = e.target.closest('[data-mulligan]');
+  if (mg) {
+    mg.disabled = true;
+    try {
+      const r = await api('/api/party/mulligan', {player: parseInt(mg.dataset.mulligan, 10)});
+      toast('Mulligan', (r.data || r).words || 'a fresh ball from the same spot');
+    } catch (err) {
+      mg.disabled = false;
+      toast('No mulligan', 'one a hole, and only for a foul ball');
+    }
+    tick();
+    return;
+  }
   const nx = e.target.closest('[data-next-stroke]');
   if (nx) {
     // Said at the press, before anything can go wrong with it: a log with
@@ -1207,8 +1220,15 @@ async function tick() {
         setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS * ((s.golf && s.golf.tempo) || 1));
         return;
       }
+      // The mulligan: a person's foul ball taken back, once a hole, their
+      // own call - offered beside Next stroke while the result stands.
+      const foulBy = (s.golf.last || []).find(x => !x.holed && x.kind && s.golf.balls && s.golf.balls[x.player] && s.golf.balls[x.player].can_mulligan
+                                                && atScreen.some(a => String(a.id) === String(x.player)));
+      const mulligan = foulBy
+        ? `<button class="btn sm ghost" data-mulligan="${foulBy.player}" title="take that one back: a fresh question from the same spot, once a hole">Mulligan</button>`
+        : '';
       const next = mineHere.length
-        ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button><span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
+        ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button>${mulligan}<span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
         : '';
       if (mineHere.length) {
         // The second beat: the answer at the top - the question, every

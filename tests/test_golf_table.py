@@ -134,6 +134,9 @@ def run():
     person = next(p for p in room.players if not room.players[p].bot)
     check("  but a person's putt that finishes the hole stands until they press, not on the hole's clock",
           room.reveal_seconds({"golf": {"shots": {person: {}}, "hole_done": True}}, 8.0), party.PERSON_REVEAL)
+    check("a practice player gets no mulligan; a person with no foul ball to take back, none either",
+          (room.golf_mulligan(next(p for p in room.players if room.players[p].bot)), client.post("/api/party/mulligan", json={"player": person}, environ_base=local).status_code),
+          (None, 409))
 
     print("\n-- sitting down late: a tee time --")
     late = room.join("W9LATE")[0].id

@@ -1066,6 +1066,20 @@ class Room:
 
     # ------------------------------------------------------------------ golf
 
+    def golf_mulligan(self, player_id):
+        """A person takes their mulligan: the foul ball undone, a fresh
+        question from the same spot. The words, or None. Practice players
+        do not get one - it is a friendly game's grace to the person."""
+        with self.lock:
+            g = self.golf
+            if g is None or player_id not in self.players or self.players[player_id].bot:
+                return None
+            words = g.mulligan(player_id)
+            if words:
+                self.clubs.pop(player_id, None)
+                log.info("golf: %s takes a mulligan on the %s", self.players[player_id].name, g.hole()["n"])
+            return words
+
     def begin_golf(self, course, holes=None, handicaps=None, seconds=None):
         """Start a round over everybody at the table, people first."""
         with self.lock:

@@ -735,12 +735,19 @@ function paintResults(round, shoot) {
       <div id="choices">${(q.choices || []).map((c, i) => `<button class="choice ${i === rightAt ? 'right' : (i === myChoice ? 'wrong' : '')}" disabled>
         <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('')}</div>` : '';
     view.innerHTML = `${golfPlaybackHTML(gf)}${answers}${golfHeadHTML(gf)}
+      ${wasMine && !gf.over && gf.you && gf.you.can_mulligan ? `<p style="padding:.6rem 0 0"><button class="choice" id="mulligan" style="text-align:center">Mulligan &middot; take that one back, a fresh question from the same spot (once a hole)</button></p>` : ''}
       ${wasMine && !gf.over ? `<p style="padding:.6rem 0 0"><button class="choice" id="next-stroke" style="text-align:center"><b>Next stroke &rsaquo;</b></button>
         <span class="tiny muted" style="display:block;margin-top:.3rem">Read it first; the round waits for you.</span></p>` : ''}
       <p class="state" style="padding:1rem 0">${gf.over ? `<b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.`
         : gf.your_turn ? 'Your stroke next.' : gf.away_name ? `${escapeHTML(gf.away_name)} is away next.` : 'Next stroke coming.'}</p>`;
     const nb = document.getElementById('next-stroke');
     if (nb) nb.addEventListener('click', async () => { nb.disabled = true; await api('/api/party/next', {}); });
+    const mb = document.getElementById('mulligan');
+    if (mb) mb.addEventListener('click', async () => {
+      mb.disabled = true;
+      try { await api('/api/party/mulligan', {player: me.id}); } catch (e) { mb.disabled = false; }
+      tick();
+    });
     return;
   }
   view.innerHTML = `
