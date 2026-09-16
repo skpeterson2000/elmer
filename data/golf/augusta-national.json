@@ -73,6 +73,13 @@
      "to": 270,
      "side": "left",
      "name": "the cluster of fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 335,
+     "to": 350,
+     "side": "left",
+     "name": "greenside bunker"
     }
    ]
   },
@@ -107,6 +114,13 @@
      "to": 320,
      "side": "left",
      "name": "the deep fairway bunkers"
+    },
+    {
+     "kind": "bunker",
+     "from": 480,
+     "to": 495,
+     "side": "beyond",
+     "name": "the back bunker"
     }
    ]
   },
@@ -333,6 +347,13 @@
      "to": 575,
      "side": "beyond",
      "name": "the pond at the 16th"
+    },
+    {
+     "kind": "bunker",
+     "from": 530,
+     "to": 550,
+     "side": "right",
+     "name": "the greenside bunker"
     }
    ]
   },
@@ -408,5 +429,6 @@
     }
    ]
   }
- ]
+ ],
+ "hazards_note": "The signature hazards of each hole from published descriptions, at approximate yards, with the greenside and fairway bunkering that is well documented - not a survey of every trap."
 }

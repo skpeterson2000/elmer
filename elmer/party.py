@@ -1109,11 +1109,16 @@ class Room:
             if self.golf is None or not summary or not summary.get("golf"):
                 return default
             shots = summary["golf"].get("shots") or {}
+            if not all(p in self.players and self.players[p].bot for p in shots):
+                # A person's stroke: the reveal stands until they have read
+                # it and pressed, hole done or not. It used to go on the
+                # hole-done clock when the putt finished the hole, and the
+                # next tee's "has the honour" was said over a person still
+                # reading their card, thirty seconds in.
+                return PERSON_REVEAL
             if summary["golf"].get("hole_done"):
                 return max(default, HOLE_DONE_REVEAL) * self.golf_tempo   # the card, worth the look
-            if all(p in self.players and self.players[p].bot for p in shots):
-                return max(default, BOT_REVEAL) * self.golf_tempo
-            return PERSON_REVEAL          # a person's: until they have read it
+            return max(default, BOT_REVEAL) * self.golf_tempo
 
     def book_clubhouse(self, spec, seconds):
         """A tee time: the round in `spec` starts in `seconds`, or sooner if

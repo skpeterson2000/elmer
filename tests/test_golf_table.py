@@ -131,6 +131,9 @@ def run():
     check("  and stands long enough to be read", room.reveal_seconds(summary, 8.0), party.BOT_REVEAL)
     check("  the card stands longer still when the hole is done",
           room.reveal_seconds({"golf": {"shots": {}, "hole_done": True}}, 8.0), party.HOLE_DONE_REVEAL)
+    person = next(p for p in room.players if not room.players[p].bot)
+    check("  but a person's putt that finishes the hole stands until they press, not on the hole's clock",
+          room.reveal_seconds({"golf": {"shots": {person: {}}, "hole_done": True}}, 8.0), party.PERSON_REVEAL)
 
     print("\n-- sitting down late: a tee time --")
     late = room.join("W9LATE")[0].id

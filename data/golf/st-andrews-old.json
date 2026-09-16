@@ -155,6 +155,13 @@
      "to": 371,
      "side": "front",
      "name": "Shell bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 230,
+     "to": 250,
+     "side": "right",
+     "name": "Cockle bunker"
     }
    ]
   },
@@ -278,6 +285,13 @@
      "to": 445,
      "side": "front",
      "name": "Walkinshaw's"
+    },
+    {
+     "kind": "bunker",
+     "from": 450,
+     "to": 465,
+     "side": "front",
+     "name": "the Lion's Mouth"
     }
    ]
   },
@@ -309,6 +323,13 @@
      "to": 618,
      "side": "right",
      "name": "the wall and out of bounds"
+    },
+    {
+     "kind": "bunker",
+     "from": 590,
+     "to": 610,
+     "side": "left",
+     "name": "the Grave"
     }
    ]
   },
@@ -350,6 +371,13 @@
      "to": 423,
      "side": "right",
      "name": "the railway, out of bounds"
+    },
+    {
+     "kind": "bunker",
+     "from": 400,
+     "to": 423,
+     "side": "left",
+     "name": "Wig bunker"
     }
    ]
   },
@@ -408,5 +436,6 @@
     }
    ]
   }
- ]
+ ],
+ "hazards_note": "The signature hazards of each hole from published descriptions, at approximate yards, with the greenside and fairway bunkering that is well documented - not a survey of every trap."
 }

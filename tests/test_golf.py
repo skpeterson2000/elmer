@@ -641,7 +641,8 @@ def run():
     check("from the first tee with the driver, the fairway bunker on the right is in play",
           [(z["name"], z["side"], z["where"]) for z in line][:1], [("fairway bunker", "right", "in-play")])
     check("  said with its yards", "at 230 yards, on the right, in play" in voice.ahead_words(line), True)
-    check("  and the wedge, which cannot spray that far, sees nothing", g.ahead("a", "wedge"), [])
+    check("  and the wedge, which cannot spray that far, sees only the sand at the green, as background",
+          [(z["name"], z["where"]) for z in g.ahead("a", "wedge")], [("greenside bunkers", "beyond")])
     g.hole_index, g.balls["a"] = 6, golf.Ball()
     line = g.ahead("a")
     check("the seventh: the bunkers in play and the Pacific beyond the green",
