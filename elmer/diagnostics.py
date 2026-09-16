@@ -1025,8 +1025,20 @@ def check_launcher():
         except (OSError, subprocess.SubprocessError):
             target = ""
         here = Path(__file__).resolve().parents[1]
-        if target and Path(target).resolve().parent == here:
-            _line(OK, "Start Menu", "ELMER is on the Start Menu, and points at this copy")
+        try:
+            inside = bool(target) and Path(target).resolve().is_relative_to(here)
+        except (OSError, ValueError):
+            inside = False
+        if inside and Path(target).name.lower() == "elmer.cmd":
+            # The entry runs the batch file: a console beside the window
+            # and a "Terminate batch job" question when it stops. The
+            # remedy rewrites it to run Python itself, windowless.
+            _line(WARN, "Start Menu", "ELMER is on the Start Menu but runs the batch file - a console beside "
+                                      "the window, and a question when it stops", fix="start-menu")
+        elif inside:
+            _line(OK, "Start Menu", "ELMER is on the Start Menu, and points at this copy - "
+                                    "right-click it there and Pin to taskbar for an icon that starts ELMER "
+                                    "(pinning the open window pins the browser instead)")
         elif target and Path(target).exists():
             _line(WARN, "Start Menu", f"the entry points at another copy: {Path(target).parent}")
         elif target:

@@ -700,22 +700,34 @@ def main():
                     return
 
         if not took_over and args.open:
-            # A double-click on elmer.cmd while ELMER is already up: the
-            # person wanted a window, and there is a server to put one on.
-            # Refusing here left a console that closed before it could be
-            # read, and no window - which looks like nothing happening.
+            # The launcher pressed while ELMER is already up - the Start
+            # Menu entry, the taskbar pin, a double-click on elmer.cmd: the
+            # person wanted ELMER in front of them, and there is a server
+            # to put it on. ELMER's own window, if it is open, is brought to
+            # the front; if it has been closed, a new one is opened on the
+            # running server. Never a browser: that is the wrong program.
             import urllib.request
-            import webbrowser
             url = f"http://localhost:{args.port}/"
             try:
                 urllib.request.urlopen(url, timeout=3).close()
                 serving = True
             except Exception:
                 serving = False
-            if serving and webbrowser.open(url):
-                print(f"\n  ELMER is already running on port {args.port} - "
-                      f"opened {url} in your browser instead.\n")
-                return
+            if serving:
+                from elmer import window as _window
+                if _window.bring_to_front():
+                    print(f"\n  ELMER is already running on port {args.port} - brought to the front.\n")
+                    return
+                if _window.find_browser()[0]:
+                    process, _name = _window.launch(url)
+                    if process is not None:
+                        print(f"\n  ELMER is already running on port {args.port} - opened its window.\n")
+                        return
+                import webbrowser
+                if webbrowser.open(url):
+                    print(f"\n  ELMER is already running on port {args.port} - "
+                          f"opened {url}.\n")
+                    return
 
         if not took_over:
             print(f"\n  Port {args.port} is already in use - ELMER may already be "

@@ -235,7 +235,18 @@ if ($wantShortcut) {
     try {
         $sh = New-Object -ComObject WScript.Shell
         $s = $sh.CreateShortcut($lnk)
-        $s.TargetPath = Join-Path $root 'elmer.cmd'
+        # Python itself, windowless, on elmer.py - not the batch file. A
+        # batch file under a shortcut is a console on the taskbar beside
+        # ELMER's own window and a "Terminate batch job (Y/N)?" when it
+        # stops; an application is one icon and no question.
+        $pyw = Join-Path $venv 'Scripts\pythonw.exe'
+        if (Test-Path (Join-Path $root 'python\pythonw.exe')) { $pyw = Join-Path $root 'python\pythonw.exe' }
+        if (Test-Path $pyw) {
+            $s.TargetPath = $pyw
+            $s.Arguments = '"' + (Join-Path $root 'elmer.py') + '" --open'
+        } else {
+            $s.TargetPath = Join-Path $root 'elmer.cmd'
+        }
         $s.WorkingDirectory = $root
         $s.Description = 'ELMER - radio study and propagation'
         $s.IconLocation = (Join-Path $root 'elmer\static\elmer.ico') + ',0'
