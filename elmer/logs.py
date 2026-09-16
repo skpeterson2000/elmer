@@ -226,6 +226,30 @@ def watch_stuck(every=5.0):
     return thread
 
 
+# When this process started. A template or a script that is newer than
+# that was written after the program was loaded: the file on disk and the
+# code in memory are from different builds, and the first error out of
+# that is not a fault but a restart owed. It has looked like a fault three
+# times, so the error page says which it is.
+STARTED = time.time()
+
+
+def changed_since_start():
+    """The newest of ELMER's own files written since the program started,
+    as 'templates/cw.html', or None."""
+    root = Path(__file__).resolve().parent
+    newest, name = STARTED, None
+    for folder, pattern in (("templates", "*.html"), ("static", "*.js"), ("", "*.py")):
+        try:
+            for p in (root / folder).glob(pattern) if folder else root.glob(pattern):
+                m = p.stat().st_mtime
+                if m > newest:
+                    newest, name = m, f"{folder}/{p.name}" if folder else p.name
+        except OSError:
+            continue
+    return name
+
+
 def install_request_logging(app):
     """Log every request with client address, status and duration."""
     log = logging.getLogger("http")
@@ -290,10 +314,19 @@ def install_request_logging(app):
         ref = "e-" + secrets.token_hex(2)
         log.error("UNHANDLED %s on %s %s  ref %s\n%s", type(exc).__name__,
                   request.method, request.path, ref, traceback.format_exc())
+        stale = changed_since_start()
+        if stale:
+            log.warning("ELMER's files changed since it started (%s) - a restart is what this needs", stale)
         if request.path.startswith("/api/"):
             body = jsonify({"error": "ELMER hit an error", "ref": ref,
-                            "where": f"{request.method} {request.path}"})
+                            "where": f"{request.method} {request.path}",
+                            "restart": bool(stale)})
             return body, 500
-        return (f"<h1>ELMER hit an error</h1><p>Reference <code>{ref}</code> - "
+        note = ""
+        if stale:
+            note = (f"<p><b>ELMER's own files have changed since it started</b> ({stale}) - "
+                    f"a page read from the new files is meeting the old program. "
+                    f"Restart ELMER and try again; if it happens again after that, it is a fault.</p>")
+        return (f"<h1>ELMER hit an error</h1>{note}<p>Reference <code>{ref}</code> - "
                 f"the details are in <code>data/elmer.log</code> under that "
                 f"reference.</p>", 500)

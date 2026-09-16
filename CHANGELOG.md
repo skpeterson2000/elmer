@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The error page says when ELMER's own files changed after it started - a restart owed, not a fault
 - CW: one door - Today - where the record decides the lesson and one press runs the session: meet, one at a time against the clock, groups, words; every key said back phonetically and shown; a streak
 - The path tool asks the same path three ways - no licence, Technician, General - and says what the far end needs on each
 - The Lab: noise and what the antenna keeps company with - the transformer on the pole, the near field in feet, the S-meter against a dummy load; and whether to cut at all
