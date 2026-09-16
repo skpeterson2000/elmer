@@ -121,6 +121,23 @@ def main():
     check("  and 2 m phone still needs a Technician, not a nobody",
           B.classes_permitting("2 m", 146.0, 148.0, "phone")[0], "Technician")
 
+    print("\n-- is it worth the effort: what each licence unlocks --")
+    a = B.allocation()
+    groups = {g["group"]: g for g in a["groups"]}
+    check("two rows of spectrum, HF and VHF/UHF", sorted(groups), ["HF", "VHF/UHF"])
+    check("HF is under four megahertz together", 3.5 < groups["HF"]["total_mhz"] < 4.0, True)
+    check("  and VHF/UHF over a hundred", groups["VHF/UHF"]["total_mhz"] > 100, True)
+    hf = {r["license"]: r for r in groups["HF"]["rows"]}
+    check("no licence holds no amateur HF, and CB", (hf["none"]["mhz"], hf["none"]["personal"][0]["key"]), (0.0, "cb"))
+    check("a Technician holds under a megahertz of HF", 0.5 < hf["Technician"]["mhz"] < 1.0, True)
+    check("  a fifth of it phone - ten metres", round(hf["Technician"]["by"]["phone"], 2), 0.2)
+    check("a General most of it", hf["General"]["mhz"] > 3.0, True)
+    check("  and an Extra more still", hf["Extra"]["mhz"] > hf["General"]["mhz"], True)
+    vu = {r["license"]: r for r in groups["VHF/UHF"]["rows"]}
+    check("VHF/UHF is the Technician's already", vu["Technician"]["mhz"], groups["VHF/UHF"]["total_mhz"])
+    check("  and no licence has a third of a megahertz of it", round(sum(p["mhz"] for p in vu["none"]["personal"]), 2), 0.35)
+    check("a segment counts as the most it allows: phone before CW", B._most("CW, phone"), "phone")
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
