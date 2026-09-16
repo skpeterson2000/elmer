@@ -698,7 +698,8 @@ table.data tr.denied td { opacity: .45; }
 .cw-char.weak  { color: var(--red); border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.08); }
 .cw-char.unmet { opacity: .4; }
 .cw-char.new { outline: 2px solid var(--amber); outline-offset: 1px; }
-.bp-reach-key { display: inline-block; width: .9em; height: .9em; border-radius: 2px; vertical-align: -.1em; margin-right: .25em; border: 1px solid rgba(255,255,255,.2); }
+.bp-reach-ramp { display: inline-block; width: 12rem; max-width: 40vw; height: .7rem; border-radius: 4px; border: 1px solid rgba(255,255,255,.15);
+  background: linear-gradient(90deg, #0c1626 0%, #123a48 12%, #1a6c5c 30%, #40ac62 55%, #9ce270 80%, #f2fab0 100%); }
 /* The sliders that turn the antenna's picture sit right under it, above
    the plots they move. */
 .an-turn { margin-top: .6rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); }

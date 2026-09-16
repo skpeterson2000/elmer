@@ -950,49 +950,81 @@ let bpCoast = null, bpReachFor = null;
 const REACH_W = 720, REACH_H = 360;
 fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachPaint(bpReachFor); }).catch(() => {});
 
+/* A continuous ramp - one hue family, dark where the band is shut, bright
+   where it is good - so the eye reads a field and not a legend. */
+const REACH_STOPS = [[0, [12, 22, 38]], [12, [18, 58, 72]], [30, [26, 108, 92]], [55, [64, 172, 98]], [80, [156, 226, 112]], [100, [242, 250, 176]]];
 function reachColour(score) {
-  /* one hue, light to dark: the ramp the legend shows */
-  if (score >= 60) return [142, 227, 154];
-  if (score >= 35) return [58, 161, 90];
-  if (score > 0) return [30, 90, 52];
-  return [15, 42, 24];
+  const v = Math.max(0, Math.min(100, score));
+  for (let i = 1; i < REACH_STOPS.length; i++) {
+    const [s1, c1] = REACH_STOPS[i - 1], [s2, c2] = REACH_STOPS[i];
+    if (v <= s2) {
+      const t = (v - s1) / (s2 - s1);
+      return [c1[0] + (c2[0] - c1[0]) * t, c1[1] + (c2[1] - c1[1]) * t, c1[2] + (c2[2] - c1[2]) * t];
+    }
+  }
+  return REACH_STOPS[REACH_STOPS.length - 1][1];
+}
+
+/* The score at any point, from the cells around it: bilinear between the
+   four nearest cell centres, wrapping in longitude and clamped at the
+   poles. The model was asked every five degrees; this is what makes it
+   a field on a screen that can show one. */
+function reachAt(d, lat, lon) {
+  const fy = (d.lat0 - lat) / d.step, fx = (lon - d.lon0) / d.step;
+  let y0 = Math.floor(fy), x0 = Math.floor(fx);
+  const ty = fy - y0, tx = fx - x0;
+  const y1 = Math.min(d.rows - 1, Math.max(0, y0 + 1)); y0 = Math.min(d.rows - 1, Math.max(0, y0));
+  const x1 = ((x0 + 1) % d.cols + d.cols) % d.cols; x0 = ((x0 % d.cols) + d.cols) % d.cols;
+  const c = d.cells;
+  const a = c[y0 * d.cols + x0], b = c[y0 * d.cols + x1], e = c[y1 * d.cols + x0], f = c[y1 * d.cols + x1];
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (e * (1 - tx) + f * tx) * ty;
 }
 
 function bpReachPaint(d) {
   const canvas = document.getElementById('bp-reach-map');
   if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
   const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(REACH_W, REACH_H);
+  const img = ctx.createImageData(W, H);
   const px = img.data;
-  const cw = REACH_W / d.cols, ch = REACH_H / d.rows;
-  for (let y = 0; y < REACH_H; y++) {
-    const row = Math.min(d.rows - 1, Math.floor(y / ch));
-    for (let x = 0; x < REACH_W; x++) {
-      const col = Math.min(d.cols - 1, Math.floor(x / cw));
-      const i = row * d.cols + col;
-      const c = reachColour(d.cells[i]);
-      const shade = d.night[i] ? 0.55 : 1.0;
-      const o = (y * REACH_W + x) * 4;
+  const D2R = Math.PI / 180;
+  const sd = Math.sin(d.sun.dec * D2R), cd = Math.cos(d.sun.dec * D2R);
+  for (let y = 0; y < H; y++) {
+    const lat = 90 - (y + 0.5) * (180 / H);
+    const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
+    for (let x = 0; x < W; x++) {
+      const lon = (x + 0.5) * (360 / W) - 180;
+      const c = reachColour(reachAt(d, lat, lon));
+      /* the sun's altitude at this point: full day above 6 degrees, night
+         below -12, a real twilight between - the terminator as a band */
+      const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
+      const t = Math.max(0, Math.min(1, (alt + 12) / 18));
+      const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
+      const o = (y * W + x) * 4;
       px[o] = c[0] * shade; px[o + 1] = c[1] * shade; px[o + 2] = c[2] * shade; px[o + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
-  ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
-  for (let lon = -150; lon <= 150; lon += 30) { const x = (lon + 180) * 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, REACH_H); ctx.stroke(); }
-  for (let lat = -60; lat <= 60; lat += 30) { const y = (90 - lat) * 2; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(REACH_W, y); ctx.stroke(); }
+  const X = lon => (lon + 180) * (W / 360), Y = lat => (90 - lat) * (H / 180);
+  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+  for (let lon = -150; lon <= 150; lon += 30) { ctx.beginPath(); ctx.moveTo(X(lon), 0); ctx.lineTo(X(lon), H); ctx.stroke(); }
+  for (let lat = -60; lat <= 60; lat += 30) { ctx.beginPath(); ctx.moveTo(0, Y(lat)); ctx.lineTo(W, Y(lat)); ctx.stroke(); }
   if (bpCoast) {
-    ctx.strokeStyle = 'rgba(235,240,245,.7)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(245,248,252,.55)'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
     bpCoast.forEach(line => {
       ctx.beginPath();
-      line.forEach((p, n) => { const x = (p[0] + 180) * 2, y = (90 - p[1]) * 2; if (n) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      line.forEach((p, n) => { if (n) ctx.lineTo(X(p[0]), Y(p[1])); else ctx.moveTo(X(p[0]), Y(p[1])); });
       ctx.stroke();
     });
   }
   if (d.qth) {
-    const x = (((d.qth.lon + 180) % 360 + 360) % 360) * 2, y = (90 - d.qth.lat) * 2;
-    ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText('\u25EF', x + 1, y + 1);
-    ctx.fillStyle = '#ffffff'; ctx.fillText('\u25EF', x, y);
+    const x = X(((d.qth.lon + 180) % 360 + 360) % 360 - 180), y = Y(d.qth.lat);
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 14;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI); ctx.fill();
   }
 }
 

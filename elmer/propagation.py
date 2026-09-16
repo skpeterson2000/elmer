@@ -884,7 +884,7 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
 # tens of milliseconds on a Pi, cached with the reading it was made from.
 # The one big assumption is the one the whole model makes: one sonde's
 # reading, anchoring a modelled sky, applied everywhere. It is a shape.
-REACH_STEP = 10
+REACH_STEP = 5                     # 2592 cells: about a tenth of a second here, a second on a Pi, cached
 REACH_HOP_COST = 0.75              # each hop past the first keeps this much of the score
 
 
@@ -941,8 +941,10 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0):
                     score = float(rated.get("score") or 0.0) * (REACH_HOP_COST ** (hops - 1))
             cells.append(int(round(max(0.0, min(100.0, score)))))
             night.append(solar_elevation(glat, glon, when) < 0)
+    sun = celestial.sun_position(when)
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
+            "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),
             "at": when.isoformat()}
 
