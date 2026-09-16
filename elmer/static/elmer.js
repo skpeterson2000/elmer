@@ -345,8 +345,10 @@ async function quitElmer(button) {
   document.body.appendChild(veil);
   try { window.close(); } catch (err) { /* a window a script did not open may refuse */ }
   setTimeout(() => {
-    veil.innerHTML += '<p>ELMER has stopped.</p>' +
-      (document.body.dataset.window ? '<p>Start it again from the Start Menu.</p>' : '');
+    const again = document.body.dataset.window
+      ? 'Start it again from the Start Menu, or with <code>elmer.cmd</code>'
+      : 'Start it again with <code>./elmer.py --kiosk</code>';
+    veil.innerHTML += '<p>ELMER has stopped, and this window did not close on its own - close it.</p><p>' + again + '</p>';
   }, 6000);
 }
 
@@ -369,7 +371,7 @@ async function confirmQuit() {
     return confirm(bits.join(' and ') + (people.total === 1 ? ' is' : ' are') + ' playing on this unit from another device.\n\n' +
                    'Stop ELMER anyway? Their game ends with it.');
   }
-  return confirm('Stop ELMER?');
+  return confirm('Stop ELMER and close this window?');
 }
 
 document.addEventListener('click', async e => {
@@ -571,7 +573,7 @@ async function locateMe() {
     return await browserFix();
   } catch (e) {
     const err = new Error(lastFixReason ||
-      'this device would not give a position either');
+      'the browser would not give a position either');
     err.reason = lastFixReason;
     throw err;
   }

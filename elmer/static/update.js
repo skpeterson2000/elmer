@@ -126,9 +126,8 @@ function updateControls(d, waiting) {
        default respects what the person left - size, screen and zoom are
        the profile's memory - and a first launch offers it maximised. */
     (document.body.dataset.window
-      ? '<label class="tiny muted">ELMER opens&nbsp;' +
+      ? '<label class="tiny muted">This window opens&nbsp;' +
         '<select id="window-start">' +
-          '<option value="fullscreen">full screen</option>' +
           '<option value="as-left">where I left it</option>' +
           '<option value="maximized">maximized</option>' +
           '<option value="1280x860">1280 × 860</option>' +
@@ -160,17 +159,15 @@ function applyButtons(busy) {
    page waits for it to answer again and reloads itself. On a kiosk this is the
    only thing anybody sees of an update. */
 async function waitForServer(box, tries) {
-  for (let n = 0; n < (tries || 180); n++) {
+  for (let n = 0; n < (tries || 60); n++) {
     await new Promise(r => setTimeout(r, 1000));
     try {
       const res = await fetch('/api/update', {cache: 'no-store'});
       if (res.ok) { location.reload(); return; }
     } catch (e) { /* still down, which is expected */ }
   }
-  /* Three minutes is past any restart. The person is told what happened,
-     not asked to do the program's job. */
   box.innerHTML = '<div class="panel tight welcome">ELMER updated but has not ' +
-    'come back. Start it again' + (document.body.dataset.window ? ' from the Start Menu' : '') + '.</div>';
+    'come back yet. Reload the page in a moment.</div>';
 }
 
 /* A second press before the first repaints would start a second
@@ -196,8 +193,7 @@ async function applyUpdate() {
     // Contact lost is not the same as refused: the update may well have
     // landed, so this does not offer the press again.
     box.innerHTML = '<div class="panel tight welcome">Lost contact while ' +
-                    'updating - waiting for ELMER to come back.</div>';
-    waitForServer(box);
+                    'updating. Reload the page in a moment.</div>';
     return;
   }
   const d = await res.json().catch(() => ({}));

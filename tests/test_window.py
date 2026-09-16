@@ -51,16 +51,14 @@ def run():
           size(window.command("b", "http://x/", "maximized", remembered=True)), ["--start-maximized"])
     check("a size by choice: that size",
           size(window.command("b", "http://x/", "1280x860", remembered=True)), ["--window-size=1280,860"])
-    check("full screen is the whole display and nothing of the browser's",
-          [a for a in window.command("b", "http://x/", "fullscreen", remembered=True) if a.startswith("--start")], ["--start-fullscreen"])
     check("a setting as typed is made valid", window.start_choice(" 1600 X 1000 "), "1600x1000")
-    check("  and nonsense is the default - full screen", window.start_choice("huge"), "fullscreen")
-    check("  as is a size no screen has", window.start_choice("10x10"), "fullscreen")
+    check("  and nonsense is the default", window.start_choice("huge"), "as-left")
+    check("  as is a size no screen has", window.start_choice("10x10"), "as-left")
 
     print("\n-- the setting, kept with the unit's --")
     client0 = appmod.app.test_client()
     local0 = {"REMOTE_ADDR": "127.0.0.1"}
-    check("the default is full screen", client0.get("/api/window", environ_base=local0).get_json()["start"], "fullscreen")
+    check("the default", client0.get("/api/window", environ_base=local0).get_json()["start"], "as-left")
     r = client0.post("/api/window", json={"start": "maximized"}, environ_base=local0)
     check("set to maximised", r.get_json()["start"], "maximized")
     check("  and kept", client0.get("/api/window", environ_base=local0).get_json()["start"], "maximized")

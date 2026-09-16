@@ -8,7 +8,6 @@ short commit id on its dashboard and in every problem report.
 ## 2026-09-16
 
 - The band plan: where the band reaches from here, now, as a map - the path model for every cell of a grid, one hue, the night shaded
-- On Windows ELMER opens full screen, the whole display and nothing of the browser's; and nothing on any screen speaks of browsers, windows, tabs or reloading
 - Exit closes the ELMER window - by its process tree and by its profile - and says nothing about closing a page
 - POTA/SOTA: planning a trip - the place typed is the centre of the fetch as well as the list, and the button says where it will fetch
 - The pace ledger: every endpoint's timings kept on the unit, creepers named in the log, by the doctor, and in the weekly report home
