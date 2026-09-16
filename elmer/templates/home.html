@@ -233,10 +233,16 @@
   {% for row in summary if row.pool.track == 'amateur' %}{{ pool_card(row) }}{% endfor %}
 </div>
 
+{% if commercial %}
 <h2 class="mt">Commercial &mdash; FCC operator licenses</h2>
 <div class="grid cols-2">
   {% for row in summary if row.pool.track == 'commercial' %}{{ pool_card(row) }}{% endfor %}
 </div>
+{% else %}
+<p class="tiny muted mt">Three more pools are on the shelf &mdash; the Marine Radio
+  Operator Permit, the GROL and the Ship Radar endorsement. Switch them on under
+  <b>Station</b> if a commercial ticket is where you are headed.</p>
+{% endif %}
 
 <div class="panel master-panel">
   <div>

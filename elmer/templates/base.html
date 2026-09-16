@@ -126,6 +126,14 @@
       {% endfor %}
     </select>
 
+    <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
+      <input type="checkbox" id="setup-commercial" {% if profile.settings.commercial %}checked{% endif %}>
+      Show the commercial pools
+    </label>
+    <p class="tiny muted">The Marine Radio Operator Permit, the GROL and the Ship
+      Radar endorsement &mdash; three more cards on the dashboard and a second
+      rank. Off the front by default; the pools are always there.</p>
+
     <label class="setup-label" for="setup-units">Distances in</label>
     <select id="setup-units">
       {% for key, sys in unit_systems.items() %}

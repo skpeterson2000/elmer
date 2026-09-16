@@ -101,6 +101,8 @@
       body.callsign = callBox.value.trim().toUpperCase();
       body.license_class = classBox.value;
       if (unitBox) body.units = unitBox.value;
+      const commercialBox = document.getElementById('setup-commercial');
+      if (commercialBox) body.commercial = commercialBox.checked;
       if (picked) body.location = picked;
       await postJSON('/api/settings', body);
 

@@ -400,7 +400,15 @@ def profile_block(connection):
         "SELECT COUNT(*) c FROM answer_log WHERE user_id = ? AND day = ?",
         (connection.user_id, db.today())
     ).fetchone()["c"]
-    return {"profile": prof, "standings": standings, "tracks": tracks,
+    # The commercial pools - MROP, GROL, Ship Radar - are on the shelf but
+    # off the shelf front unless a person asks: most people opening ELMER
+    # are here for the amateur exams, and three more cards and a second
+    # rank line were three more things to read past. A switch in the
+    # Station panel; the pools' own pages answer either way.
+    commercial = bool(prof["settings"].get("commercial"))
+    if not commercial:
+        tracks = {k: v for k, v in tracks.items() if k != "commercial"}
+    return {"profile": prof, "standings": standings, "tracks": tracks, "commercial": commercial,
             # Handed to every page, because the offer belongs at the start of a
             # session rather than behind the account menu.
             "offer_password": db.should_offer_password(connection,
@@ -3148,13 +3156,17 @@ def api_geocode():
 POOL_DIFFICULTY = {v: k for k, v in party.DIFFICULTIES.items()}
 
 
-def _tournament_choices():
-    """What a tournament can be run on, grouped by track for the pickers."""
+def _tournament_choices(connection=None):
+    """What a tournament can be run on, grouped by track for the pickers.
+    The commercial pools only when the station has switched them on."""
     order = list(party.DIFFICULTIES)
+    show = True
+    if connection is not None:
+        show = bool(db.get_profile(connection)["settings"].get("commercial"))
     return ([(k, party.LABELS[k]) for k in order
              if party.TRACK_OF.get(k) == "amateur"],
             [(k, party.LABELS[k]) for k in order
-             if party.TRACK_OF.get(k) == "commercial"])
+             if show and party.TRACK_OF.get(k) == "commercial"])
 
 
 def _net_name_for(difficulty):
@@ -4639,7 +4651,7 @@ def party_table(table="1"):
     wanted = str(request.args.get("difficulty", "")).lower()
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
-    amateur, commercial = _tournament_choices()
+    amateur, commercial = _tournament_choices(conn())
     return render_template(
         "party_table.html", table=table, name=_table_name(table),
         difficulty=wanted, join_url=url, amateur=amateur, commercial=commercial,
@@ -5676,7 +5688,7 @@ def net_host():
     # tables now find on their own anyway.  The address stays in writing
     # beside it for whoever still wants to type it.
     join_url = _join_url("1")
-    amateur, commercial = _tournament_choices()
+    amateur, commercial = _tournament_choices(conn())
     return render_template("net_host.html", where=where, join_url=join_url,
                            net_name=running.name,
                            difficulty=running.difficulty,
@@ -6701,6 +6713,8 @@ def api_settings():
     for key in ("license_class", "state"):
         if key in body:
             settings[key] = body[key]
+    if "commercial" in body:
+        settings["commercial"] = bool(body["commercial"])
     if "state" in body:
         # Remembered with the QTH it was picked under; see _state_for_page.
         place = qth_for(connection, {"settings": settings})
