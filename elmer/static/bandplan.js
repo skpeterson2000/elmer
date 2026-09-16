@@ -952,6 +952,27 @@ function vhfBox(band) {
 let bpCoast = null, bpReachFor = null;
 fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachDraw(false); }).catch(() => {});
 
+/* The borders, and a finer coast, each fetched the first time the zoom
+   wants it and never before: countries are small and always drawn,
+   states arrive at a few times in, US counties well in - a person
+   estimating a null's edge against a county line has zoomed to where a
+   county is a shape. "Auto" is that rule; the select overrides it. */
+const bpLayers = {countries: null, states: null, counties: null, coast50: null};
+const bpLayerFiles = {countries: 'borders-countries.json', states: 'borders-states.json', counties: 'borders-counties.json', coast50: 'coast-50m.json'};
+function bpLayer(name) {
+  if (bpLayers[name] || bpLayers[name] === false) return bpLayers[name] || null;
+  bpLayers[name] = false;                          // asked for; not here yet
+  fetch('/static/maps/' + bpLayerFiles[name]).then(r => r.json()).then(lines => { bpLayers[name] = lines; if (bpReachFor) bpReachDraw(false); })
+    .catch(() => { bpLayers[name] = null; });
+  return null;
+}
+function bpBorderLevel() {
+  const sel = document.getElementById('bp-reach-borders');
+  const mode = sel ? sel.value : 'auto';
+  if (mode !== 'auto') return mode;
+  return bpView.zoom >= 7 ? 'counties' : bpView.zoom >= 2.5 ? 'states' : 'countries';
+}
+
 /* A continuous ramp - one hue family, dark where the band is shut, bright
    where it is good - so the eye reads a field and not a legend. */
 const REACH_STOPS = [[0, [12, 22, 38]], [12, [18, 58, 72]], [30, [26, 108, 92]], [55, [64, 172, 98]], [80, [156, 226, 112]], [100, [242, 250, 176]]];
@@ -1069,19 +1090,32 @@ function bpReachDraw(coarse) {
   ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
   for (let lon = -180; lon < 180; lon += every) { const x = X(lon); if (x >= 0 && x <= full.w) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, full.h); ctx.stroke(); } }
   for (let lat = -90 + every; lat < 90; lat += every) { const y = Y(lat); if (y >= 0 && y <= full.h) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(full.w, y); ctx.stroke(); } }
-  if (bpCoast) {
-    ctx.strokeStyle = 'rgba(245,248,252,.6)'; ctx.lineWidth = view.zoom >= 3 ? 1.6 : 1.2; ctx.lineJoin = 'round';
-    bpCoast.forEach(line => {
-      ctx.beginPath();
+  const strokeLines = (lines, style, width) => {
+    if (!lines) return;
+    ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round';
+    const top = view.lat + spanLat / 2, bottom = view.lat - spanLat / 2;
+    ctx.beginPath();
+    lines.forEach(line => {
+      /* a line wholly above or below the view is not drawn at all */
+      const p0 = line[0];
+      if (line.length < 40 && (p0[1] > top + 5 || p0[1] < bottom - 5)) return;
       let last = null;
       line.forEach(p => {
         const x = X(p[0]), y = Y(p[1]);
         if (last === null || Math.abs(x - last) > full.w / 2) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         last = x;
       });
-      ctx.stroke();
     });
+    ctx.stroke();
+  };
+  const level = bpBorderLevel();
+  if (level !== 'none') {
+    strokeLines(bpLayer('countries'), 'rgba(255,255,255,.42)', view.zoom >= 3 ? 1.1 : 0.9);
+    if (level === 'states' || level === 'counties') strokeLines(bpLayer('states'), 'rgba(255,255,255,.30)', 0.9);
+    if (level === 'counties') strokeLines(bpLayer('counties'), 'rgba(255,255,255,.22)', 0.8);
   }
+  const coast = view.zoom >= 3 ? (bpLayer('coast50') || bpCoast) : bpCoast;
+  strokeLines(coast, 'rgba(245,248,252,.65)', view.zoom >= 3 ? 1.5 : 1.2);
   if (d.qth) {
     const x = X(d.qth.lon), y = Y(d.qth.lat);
     if (x >= -20 && x <= full.w + 20 && y >= -20 && y <= full.h + 20) {
@@ -1177,6 +1211,9 @@ function bpReachBind() {
   });
   const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; bpView.dragging = false; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('pointerleave', up);
+  const borders = document.getElementById('bp-reach-borders');
+  if (borders) borders.addEventListener('change', () => { remember('bandplan.borders', borders.value); bpReachDraw(false); });
+  if (borders) { const kept = recall('bandplan.borders', 'auto'); if ([...borders.options].some(o => o.value === kept)) borders.value = kept; }
   const reset = document.getElementById('bp-reach-reset');
   if (reset) reset.addEventListener('click', () => { bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null; bpReachDraw(false); });
 }

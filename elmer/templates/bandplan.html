@@ -174,9 +174,19 @@
     <span class="tiny muted" id="bp-reach-when"></span>
   </div>
   <canvas id="bp-reach-map" width="1440" height="720" style="width:100%;display:block;margin:.5rem auto 0;border-radius:10px;border:1px solid var(--line);touch-action:none;cursor:grab"></canvas>
-  <div class="row" style="justify-content:space-between;align-items:center;margin-top:.3rem">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-top:.3rem;flex-wrap:wrap;gap:.5rem">
     <span class="tiny mono muted" id="bp-reach-zoom"></span>
-    <button class="btn sm ghost" id="bp-reach-reset">The whole world</button>
+    <span class="row" style="gap:.5rem;align-items:center">
+      <label class="tiny muted" for="bp-reach-borders">Borders</label>
+      <select class="btn sm" id="bp-reach-borders" title="which borders are drawn - auto follows the zoom: countries, then states, then US counties">
+        <option value="auto" selected>auto, by zoom</option>
+        <option value="countries">countries</option>
+        <option value="states">states and provinces</option>
+        <option value="counties">counties (US)</option>
+        <option value="none">none</option>
+      </select>
+      <button class="btn sm ghost" id="bp-reach-reset">The whole world</button>
+    </span>
   </div>
   <div class="row" style="justify-content:center;gap:.8rem;margin-top:.45rem;flex-wrap:wrap;align-items:center">
     <span class="tiny muted">shut</span>

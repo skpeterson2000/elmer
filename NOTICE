@@ -79,12 +79,27 @@ OpenStreetMap - Open Database License (ODbL) 1.0
 Natural Earth - public domain
 -----------------------------
 
-    elmer/static/maps/coast.json    the world's coastline at 1:110,000,000
+    elmer/static/maps/coast.json               the world's coastline at 1:110,000,000
+    elmer/static/maps/coast-50m.json           the coastline at 1:50,000,000, for the reach map zoomed in
+    elmer/static/maps/borders-countries.json   country boundaries, 1:110,000,000
+    elmer/static/maps/borders-states.json      state and province boundaries, 1:50,000,000
 
-    Natural Earth's coarse coastline, rounded to a tenth of a degree by
-    tools/coastline.py, so that the EME page can draw the Earth on a unit
-    with no network. Natural Earth is in the public domain and asks for no
-    credit; it gets one anyway. https://www.naturalearthdata.com/
+    Natural Earth's coastlines and boundaries, snapped to a pixel's grid by
+    tools/coastline.py and tools/borders.py, so that the EME page and the
+    band plan's reach map can draw the Earth on a unit with no network.
+    Natural Earth is in the public domain and asks for no credit; it gets
+    one anyway. https://www.naturalearthdata.com/
+
+
+US Census Bureau - public domain
+--------------------------------
+
+    elmer/static/maps/borders-counties.json    US county boundaries, from the
+                                               2010 cartographic boundary files at 1:20,000,000
+
+    The counties the reach map draws when zoomed well in, one shared border
+    kept once, by tools/borders.py. Census Bureau data is in the public
+    domain. https://www.census.gov/geographies/mapping-files.html
 
 
 Fetched at runtime, not shipped
