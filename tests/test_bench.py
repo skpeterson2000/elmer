@@ -58,6 +58,14 @@ def main():
     check("20 Ah at 1 A receive, 20 A transmit a fifth of the time: about three hours", round(B.battery_hours(20, 1, 20, 0.2), 1), 3.3)
     check("  listening only, sixteen", round(B.battery_hours(20, 1, 20, 0.0)), 16)
     check("a thirty-foot mast wants the line forty feet off", B.fall_clearance_ft(30), 40.0)
+    check("the near field on 40 m reaches about twenty-two feet", round(B.near_field_ft(7.1)), 22)
+    check("  on 2 m, a yard", round(B.near_field_ft(146), 1), 1.1)
+    check("  and on 160 m, over eighty", round(B.near_field_ft(1.9)), 82)
+    check("the analyser says whether to cut at all - a permanent home cuts, the field does not",
+          "If it travels, do not" in B.analyser_reading(35, 22)["where"], True)
+    noise = next(c for b in B.BENCHES for c in b["cards"] if c["title"].startswith("Noise"))
+    check("the noise card names the transformer and the near field", "transformer" in noise["what"] and "near field" in noise["how"], True)
+    check("  and the one measurement: the S-meter against a dummy load", "dummy load" in noise["reads"], True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

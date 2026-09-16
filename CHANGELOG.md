@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The Lab: noise and what the antenna keeps company with - the transformer on the pole, the near field in feet, the S-meter against a dummy load; and whether to cut at all
 - Golf: the host says how many companions, none to three; alone or a pair, the hole is told two lines a stroke
 
 ## 2026-09-15

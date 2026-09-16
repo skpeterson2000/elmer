@@ -81,7 +81,13 @@ BENCHES = [
                 "why": "A transmitter into a mismatch heats the feedline and folds back its "
                        "power; a modern rig protects itself by folding back too, so a bad "
                        "match costs you the signal twice. The analyser lets you fix the "
-                       "antenna without transmitting into it at all.",
+                       "antenna without transmitting into it at all. But 'cut it for the "
+                       "best match' is advice for an antenna with a permanent home: "
+                       "resonance moves with height and with what is near the wire, so a "
+                       "length trimmed here is wrong at the next campsite. In the field, "
+                       "let the tuner take the reactance and think about what radiates - "
+                       "height, clear ground, the pattern - rather than the dip. And a "
+                       "match matters on transmit; the receiver hardly cares.",
                 "exam": ["T7C01", "T7C02", "T7C03", "T7C04", "T7C06", "T9A05"],
             },
             {
@@ -312,6 +318,36 @@ BENCHES = [
                 "exam": ["T0B06", "T0B09", "T0B04"],
             },
             {
+                "title": "Noise, and what the antenna keeps company with",
+                "what": "The ten-foot rule keeps you alive. This is the next thing: the "
+                        "transformer on the pole, the one in the doorbell, every switching "
+                        "supply, LED driver, charger and motor in the house is a noise "
+                        "source, and any conductor near an antenna - the service drop, the "
+                        "gutter, the metal roof, the fence - couples to it: it hears their "
+                        "noise, and they detune it.",
+                "how": "Put the antenna as far as you can from anything that is not "
+                       "intentionally helping it, and the feedpoint furthest of all. Close "
+                       "in there is a reactive near field, roughly a sixth of a wavelength "
+                       "out - twenty-odd feet on 40 m, a yard on 2 m - and a conductor inside "
+                       "it is part of the antenna whether you meant it or not. The "
+                       "calculator below says how far that is on a band, and whether the "
+                       "thing you are looking at is inside it. Beyond it, distance still "
+                       "helps: noise falls off with the square of it.",
+                "reads": "The one measurement that matters is the noise floor: the S-meter "
+                         "with the antenna connected, against the S-meter on a dummy load, "
+                         "on a quiet part of the band. Every S-unit of the difference is "
+                         "noise the site is putting into the receiver, and it costs exactly "
+                         "what a signal of that strength would gain you. Move the antenna, "
+                         "read it again; switch the house's breakers off one by one and read "
+                         "it again - that finds the culprit.",
+                "why": "You cannot transmit your way out of a noisy receiver. A station that "
+                       "hears S5 of noise has thrown away every signal below S5, on every "
+                       "band, all the time; a station in the clear hears them all. It is "
+                       "the cheapest gain there is, and it is a philosophy most people hold "
+                       "and few site by.",
+                "exam": ["T8C01", "T7B08", "T4B10", "G4A03"],
+            },
+            {
                 "title": "The tower",
                 "what": "A climbing harness, an observer on the ground, and a tower that "
                         "has been checked before anyone leaves the ground - and a crank-up "
@@ -384,6 +420,14 @@ def battery_hours(amp_hours, receive_amps, transmit_amps, transmit_share, usable
     return float(amp_hours) * float(usable) / draw
 
 
+def near_field_ft(mhz):
+    """How far the reactive near field reaches: a wavelength over two pi,
+    in feet. A conductor inside it is part of the antenna."""
+    import math
+    wavelength_m = 299.792458 / float(mhz)
+    return wavelength_m / (2 * math.pi) * 3.28084
+
+
 def fall_clearance_ft(mast_height_ft, margin_ft=10.0):
     """How far a power line must be from the base of a mast: its height
     plus the pool's ten feet, so a fall cannot reach it."""
@@ -409,7 +453,18 @@ def analyser_reading(r, x, z0=50.0):
         cut = "inductive: the antenna is long for this frequency - shorten it a little and sweep again"
     else:
         cut = "capacitive: the antenna is short for this frequency - add a little and sweep again"
-    return {"swr": round(swr, 2), "magnitude": round(mag, 1), "phase": round(phase, 1), "cut": cut,
+    # Which way to cut is the arithmetic; whether to cut at all is where the
+    # antenna is going to live. Resonance moves with height and with what
+    # is near the wire, so a length trimmed to one site is wrong at the
+    # next. Cut for a permanent home. In the field, note the number, let a
+    # tuner take the reactance, and put the effort into height and clear
+    # ground - what the antenna radiates matters more than what the meter
+    # reads, and on receive the match matters least of all.
+    where = ("If this antenna lives here, cut to it. If it travels, do not: resonance moves with height and "
+             "with whatever is near the wire, so a length trimmed to this site is wrong at the next - note "
+             "the reading, let the tuner take the reactance, and spend the effort on height and clear "
+             "ground. A match matters on transmit; on receive it matters least of all.")
+    return {"swr": round(swr, 2), "magnitude": round(mag, 1), "phase": round(phase, 1), "cut": cut, "where": where,
             "match": "a good match" if swr <= 1.5 else "usable - a tuner will take it" if swr <= 3 else
                      "a poor match - look for the fault before you cut anything"}
 

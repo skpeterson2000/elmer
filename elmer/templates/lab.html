@@ -473,7 +473,12 @@
       <div class="field"><label>Mast or antenna height above its base (feet)</label><input id="bf-h" value="30"></div>
       <div class="field"><label>Nearest power line from the base (feet)</label><input id="bf-d" value="35"></div>
       <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bf-go">Check it</button></div>
-    </div><div id="bf-out" class="small mt"></div></div>'
+    </div><div id="bf-out" class="small mt"></div></div>',
+  "Noise, and what the antenna keeps company with": '<div class="bench-calc"><div class="grid cols-3">
+      <div class="field"><label>Band or frequency (MHz)</label><input id="bn-mhz" value="7.1"></div>
+      <div class="field"><label>Nearest conductor or noise source (feet)</label><input id="bn-d" value="30"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bn-go">Where is it</button></div>
+    </div><div id="bn-out" class="small mt"></div></div>'
 } %}
 {% for b in benches %}{{ bench_pane(b, bench_questions, calculators=calc) }}{% endfor %}
 {% endblock %}

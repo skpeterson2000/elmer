@@ -28,7 +28,8 @@ function benchAnalyser() {
   out.innerHTML = '<b>SWR ' + (isFinite(swr) ? swr.toFixed(2) + ':1' : 'off the scale') + '</b> - ' + match +
     '. |Z| ' + mag.toFixed(0) + ' &Omega; at ' + phase.toFixed(0) + '&deg;. ' + cut +
     (r > 0 && r < 20 && Math.abs(x) < 3 ? ' A low resistance at resonance is a vertical without enough radials, or a dipole too near the ground.' : '') +
-    (r > 150 && Math.abs(x) < 3 ? ' A high resistance at resonance is an end-fed or a full-wave loop - fed at a voltage point, and wanting a transformer.' : '');
+    (r > 150 && Math.abs(x) < 3 ? ' A high resistance at resonance is an end-fed or a full-wave loop - fed at a voltage point, and wanting a transformer.' : '') +
+    (Math.abs(x) >= 3 ? '<div class="tiny muted" style="margin-top:.35rem">Whether to cut at all: if this antenna lives here, cut to it. If it travels, do not - resonance moves with height and with whatever is near the wire, so a length trimmed to this site is wrong at the next. Note the reading, let the tuner take the reactance, and spend the effort on height and clear ground. A match matters on transmit; on receive it matters least of all.</div>' : '');
 }
 
 /* The volts lost along the DC lead, and the fuse for the load. */
@@ -76,6 +77,26 @@ function benchFall() {
       ' ft. Move the base ' + (need - d).toFixed(0) + ' ft further away, or lower the mast to ' + Math.max(0, d - 10).toFixed(0) + ' ft. Never attach anything to a utility pole.';
 }
 
+/* The reactive near field: a wavelength over two pi. A conductor inside it
+   is part of the antenna; a noise source inside it is in the receiver. */
+const NEAR_BANDS = [['160 m', 1.9], ['80 m', 3.6], ['40 m', 7.1], ['20 m', 14.2], ['10 m', 28.4], ['6 m', 50.1], ['2 m', 146], ['70 cm', 446]];
+function nearFieldFt(mhz) { return 299.792458 / mhz / (2 * Math.PI) * 3.28084; }
+function benchNear() {
+  const mhz = benchNum('bn-mhz', 7.1), d = benchNum('bn-d', 30);
+  const nf = nearFieldFt(mhz);
+  const out = document.getElementById('bn-out');
+  const verdict = d <= nf
+    ? '<b style="color:var(--red)">Inside.</b> At ' + mhz + ' MHz the near field reaches about <b>' + nf.toFixed(0) + ' ft</b>, and the thing at ' + d +
+      ' ft is inside it: it is coupled to the antenna - detuning it, and if it makes noise, feeding that noise straight in. Moving to ' + Math.ceil(nf + 1) +
+      ' ft gets it out of the near field; every doubling beyond that cuts what it couples by a quarter.'
+    : '<b>Outside.</b> At ' + mhz + ' MHz the near field reaches about <b>' + nf.toFixed(0) + ' ft</b>; the thing at ' + d + ' ft is ' + (d - nf).toFixed(0) +
+      ' ft beyond it. It still radiates noise the antenna can hear - at ' + (2 * d) + ' ft that would be a quarter of it, at ' + (4 * d) + ' ft a sixteenth.';
+  out.innerHTML = verdict + '<table class="data mt" style="max-width:26rem"><thead><tr><th>Band</th><th>Near field</th></tr></thead><tbody>' +
+    NEAR_BANDS.map(([n, f]) => '<tr><td>' + n + '</td><td class="mono">' + (nearFieldFt(f) >= 10 ? nearFieldFt(f).toFixed(0) + ' ft' : nearFieldFt(f).toFixed(1) + ' ft') + '</td></tr>').join('') +
+    '</tbody></table><div class="tiny muted">A wavelength over two pi - the boundary of the reactive near field for a wire-sized antenna. A rule of thumb, not a wall: coupling fades across it rather than stopping at it.</div>';
+}
+
+if (document.getElementById('bn-go')) { document.getElementById('bn-go').addEventListener('click', benchNear); benchNear(); }
 if (document.getElementById('bc-go')) { document.getElementById('bc-go').addEventListener('click', benchAnalyser); benchAnalyser(); }
 if (document.getElementById('bd-go')) { document.getElementById('bd-go').addEventListener('click', benchDrop); benchDrop(); }
 if (document.getElementById('bb-ah')) { ['bb-ah', 'bb-rx', 'bb-tx', 'bb-share'].forEach(id => document.getElementById(id).addEventListener('input', benchBattery)); benchBattery(); }
