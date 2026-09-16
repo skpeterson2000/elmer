@@ -324,9 +324,11 @@ async function sendPractice(repeat) {
       kind: kind, count: kind === 'qso' ? 1 : 5, lesson: settings.lesson,
       wpm: settings.wpm, effective: settings.effective}));
     currentText = currentData.plain || currentData.text;
-    document.getElementById('cw-typed').value = '';
-    document.getElementById('cw-result').innerHTML = '';
   }
+  /* A repeat is a fresh copy of the same text: what was typed and what
+     was marked go, so the second hearing is heard and not read. */
+  document.getElementById('cw-typed').value = '';
+  document.getElementById('cw-result').innerHTML = '';
   sending = true;
   document.getElementById('cw-send').hidden = true;
   document.getElementById('cw-stop').hidden = false;
@@ -1108,7 +1110,9 @@ async function refreshPlan() {
    said back and marked; then the next. Slow is wrong: a second and a half is
    the window, which is long enough to hear and press and not long enough to
    count dits. */
-const FLASH_WINDOW_MS = 1500, FLASH_GAP_MS = 350;
+/* After the answer: the cue and the spoken name take most of a second,
+   and the next character must not start over them. */
+const FLASH_WINDOW_MS = 1500, FLASH_GAP_MS = 1000, FLASH_GAP_WRONG_MS = 1700;
 let flashKey = null;
 document.addEventListener('keydown', e => {
   if (!flashKey) return;
@@ -1159,7 +1163,7 @@ async function flashRun(seconds) {
     letter.style.color = ok ? 'var(--green)' : 'var(--red)';
     letter.classList.add('show');
     score.textContent = right + ' / ' + sent;
-    await sleep(ok ? FLASH_GAP_MS : FLASH_GAP_MS * 3);
+    await sleep(ok ? FLASH_GAP_MS : FLASH_GAP_WRONG_MS);
   }
   flashKey = null;
   letter.style.color = '';
@@ -1177,8 +1181,13 @@ async function runSession() {
   document.getElementById('cw-today-stop').hidden = false;
   result.innerHTML = '';
   const lines = [];
+  let first = true;
   for (const step of todaySession) {
     if (sessionStop) break;
+    /* A breath between chunks: the last word of one is still being said
+       when the next would start, and two sounds at once is neither. */
+    if (!first) await sleep(1200);
+    first = false;
     if (step.kind === 'meet') {
       status.textContent = 'meet ' + step.chars.join(' ');
       const flash = document.getElementById('cw-flash'); flash.hidden = false;
