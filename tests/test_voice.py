@@ -93,9 +93,14 @@ def run():
 
     print("\n-- the address --")
     a = voice.address("Scott", "driver", 377, "tee")
-    check("Scott addresses the ball, the driver in hand, 377 to go, from the tee", a,
+    check("Scott addresses the ball, the driver in hand, 377 yards to go, from the tee - the shelf unknown, the fuller piece", a,
           ["name-scott", "addresses-the-ball", "the-driver", "in-hand",
-           "three", "hundred", "and", "seventy", "seven", "to-go", "from-the-tee"])
+           "three", "hundred", "and", "seventy", "seven", "yards-to-go", "from-the-tee"])
+    check("  inside a hundred it is 'to go'", voice.address("Scott", "wedge", 80, "fairway")[-2:], ["to-go", "from-the-fairway"])
+    voice.set_shelf(["to-go", "from-the-tee", "the-driver", "in-hand", "addresses-the-ball", "name-scott",
+                     "three", "hundred", "and", "seventy", "seven"])
+    check("  and 'to go' throughout when 'yards to go' is not recorded", voice.address("Scott", "driver", 377, "tee")[-2:], ["to-go", "from-the-tee"])
+    voice.set_shelf(None)
     check("  on the green, the putter and no yards", voice.address("Ann Lee", "putter", 0, "green"),
           ["name-ann-lee", "addresses-the-ball", "the-putter", "in-hand", "on-the-green"])
     check("  nobody named is the player", voice.address("", None, None, None), ["the-player", "addresses-the-ball"])
@@ -109,7 +114,7 @@ def run():
     print("\n-- the stroke, in words --")
     check("a drive down the fairway", voice.shot({"kind": "fairway", "club": "driver", "carry": 255, "left": 122}),
           ["the-driver", "two", "hundred", "and", "fifty", "five", "yards", "fairway",
-           "one", "hundred", "and", "twenty", "two", "to-go"])
+           "one", "hundred", "and", "twenty", "two", "yards-to-go"])
     check("a foul ball into the sand", voice.shot({"kind": "sand", "club": "driver", "carry": 0}),
           ["the-driver", "a-foul-ball", "into-the-sand"])
     check("on the green, nine feet", voice.shot({"kind": "green", "club": "iron", "carry": 122, "feet": 9}),

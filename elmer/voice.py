@@ -76,6 +76,7 @@ VOCABULARY = {
     # the holes
     **{f"the-{o}": f"the {o}" for o in ORDINALS},
     "par": "par", "yards": "yards", "feet": "feet", "to-go": "to go",
+    "yards-to-go": "yards to go",
     # the courses
     "pebble-beach": "Pebble Beach", "the-old-course": "the Old Course at Saint Andrews",
     "augusta-national": "Augusta National",
@@ -225,6 +226,17 @@ def set_shelf(stems):
     """What is recorded: a list of stems, or None for unknown (say the pieces)."""
     global _shelf
     _shelf = set(stems) if stems is not None else None
+
+
+def to_go(left):
+    """"To go", after the yards: "yards to go" for a long way, where the
+    yards are the point and the piece is on the shelf - "one hundred and
+    fifty yards to go" - and the shorter "to go" inside a hundred, so the
+    address does not say the same thing every stroke. Without the piece,
+    "to go" throughout."""
+    if left is not None and left >= 100 and (_shelf is None or "yards-to-go" in _shelf):
+        return ["yards-to-go"]
+    return ["to-go"]
 
 
 def _say(phrase, *pieces):
@@ -384,7 +396,7 @@ def address(name, club=None, left=None, lie=None, slot=None, honors=False, green
         return out
     notes_after = list(green_notes or [])      # the fairway's, the sand's, the rough's: after the lie
     if left is not None:
-        out += number(left) + ["to-go"]
+        out += number(left) + to_go(left)
     if lie in LIE_TOKENS:
         out.append(LIE_TOKENS[lie])
     return out + notes_after
@@ -480,7 +492,7 @@ def shot(s):
         if kind == "fairway":
             out.append("fairway")
             if s.get("left") is not None:
-                out += number(s["left"]) + ["to-go"]
+                out += number(s["left"]) + to_go(s["left"])
         elif kind == "green":
             out += _say("on-the-green", "green")
             if s.get("feet"):
