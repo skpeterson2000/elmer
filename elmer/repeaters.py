@@ -34,11 +34,13 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import bandplan
+from . import bandplan, paths
 from .terrain import great_circle
 
 ROOT = Path(__file__).resolve().parents[1]
-STORE = ROOT / "data" / "repeaters.json"
+# Under the state directory, like everything the unit writes - so a test
+# run against ELMER_STATE never touches the operator's own list.
+STORE = paths.STATE / "repeaters.json"
 
 # A repeater is on a tower or a hill; the operator is usually not. Assuming a
 # couple of hundred feet for the far end is what makes the radius resemble the
@@ -645,6 +647,24 @@ def from_service(url, lat, lon, radius_km=100):
         if row and row["lat"] is not None:
             out.append(row)
     return out
+
+
+# What a distance means for a GMRS radio, in the one term that decides it.
+# At 462 MHz the radio horizon is the reach: a handheld at head height sees
+# a 200-ft tower some twenty-three miles off, an antenna at twenty feet -
+# a roof, a mast, the top of a mobile whip on a truck - a few miles more.
+# Power buys margin inside that, not distance past it; the words say so.
+HANDHELD_FT = 6.0
+ROOF_FT = 20.0
+
+
+def reach_words(km):
+    """A distance to a GMRS repeater, as what it takes to reach it."""
+    if km <= horizon_km(HANDHELD_FT):
+        return "inside a handheld's radio horizon"
+    if km <= horizon_km(ROOF_FT):
+        return "past a handheld's horizon; an antenna at twenty feet - a roof, a mast - brings it in"
+    return "beyond line of sight from here - the ground between decides, and 50 W does not move the horizon"
 
 
 def coverage(lat, lon):

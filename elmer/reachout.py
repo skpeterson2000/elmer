@@ -180,6 +180,11 @@ def gmrs_words(gmrs):
         return None
     state = (gmrs.get("status") or {}).get("state")
     call = gmrs["callsign"]
+    if gmrs.get("covered_by"):
+        # 47 CFR 95.1705(c): the licensee's immediate family operate under
+        # the licensee's call. Said that way, with the rule.
+        return (f"you operate under {call}, {gmrs['covered_by']}'s licence, as family (95.1705(c))"
+                + (f", good until {gmrs.get('expires')}" if state == "current" else ""))
     if state == "current":
         return f"you hold {call}, good until {gmrs.get('expires')}"
     if state == "expired":
@@ -205,13 +210,14 @@ def gmrs_repeater_ways(lat, lon, height_ft=6.0, conn=None, gmrs=None):
                   "whole family; an FRS radio cannot use a repeater"),
         "do": (f"Listen on {best['output']:.3f}, transmit 5 MHz up on {best['output'] + 5:.3f}"
                + (f", tone {best['tone']}" if best.get("tone") else "") + f". It is {best['miles']} miles away on a "
-               f"bearing of {best['bearing']}\u00b0. "
+               f"bearing of {best['bearing']}\u00b0, {repeaters.reach_words(best['km'])}. "
                + (f"Say {gmrs['callsign']}." if held else "Say your GMRS call, which begins with W.")),
         "why": (f"{len(rows)} GMRS machine{'' if len(rows) == 1 else 's'} within reach of here. A repeater on a "
                 f"tower turns a handheld's mile into thirty; on GMRS that costs the licence and nothing else, "
                 f"and the machines are often open to any licensee - ask the owner, whose call is on the listing."),
         "rows": [{"output": r["output"], "call": r["call"], "where": r["where"], "miles": r["miles"],
-                  "bearing": r["bearing"], "tone": r.get("tone"), "approx": r.get("approx")} for r in rows],
+                  "bearing": r["bearing"], "tone": r.get("tone"), "approx": r.get("approx"),
+                  "reach": repeaters.reach_words(r["km"])} for r in rows],
     }]
 
 

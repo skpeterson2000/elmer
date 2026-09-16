@@ -479,8 +479,9 @@ function gmrsLicence(d) {
   if (!g || !g.callsign) return '';
   if (!g.found) return '<p class="tiny muted" style="margin-top:.5rem">' + escapeHTML(g.callsign) + ': ' + escapeHTML(g.reason || 'not on record') + '</p>';
   const st = (g.status || {}).state;
-  return '<p class="small" style="margin-top:.5rem">Your licence: <b class="mono">' + escapeHTML(g.callsign) + '</b>, ' +
-    (st === 'current' ? 'good until <b>' + escapeHTML(g.expires) + '</b>' + ((g.status.days || 0) < 90 ? ' <span class="pill warn">renew soon</span>' : '') :
+  return '<p class="small" style="margin-top:.5rem">' + (g.covered_by ? escapeHTML(g.covered_by) + '\u2019s licence, yours to operate under as family (95.1705(c)): ' : 'Your licence: ') +
+    '<b class="mono">' + escapeHTML(g.callsign) + '</b>, ' +
+    (st === 'current' ? 'good until <b>' + escapeHTML(g.expires) + '</b>' + ((g.status.days || 0) < 90 ? ' <span class="pill warn">renew soon</span> <a href="https://wireless2.fcc.gov/UlsEntry/licManager/login.jsp" target="_blank" rel="noopener">renew at ULS \u2192</a>' : '') :
      st === 'expired' ? '<b>expired ' + escapeHTML(g.expires) + '</b> \u2014 no grace period on GMRS; apply again before transmitting' :
      'granted ' + escapeHTML(g.granted || '')) +
     ' <span class="tiny muted">(' + escapeHTML(g.source || '') + ')</span></p>';
@@ -494,10 +495,13 @@ function gmrsRepeaters(d) {
       'reaches ELMER through TowerWitch\u2019s data folder.</p>';
   }
   return '<div class="panel-title mt" style="margin-bottom:.3rem">GMRS repeaters within reach</div>' +
-    '<table class="data"><thead><tr><th>Output</th><th>Tone</th><th>Where</th><th>Miles</th><th>Bearing</th></tr></thead><tbody>' +
+    '<table class="data"><thead><tr><th>Output</th><th>Tone</th><th>Where</th><th>Miles</th><th>Bearing</th><th>Reach</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="mono">' + r.output.toFixed(3) + ' <span class="muted">+5</span></td><td class="mono">' + escapeHTML(String(r.tone || '\u2014')) +
-      '</td><td>' + escapeHTML(r.where || r.call || '') + (r.approx ? ' ~' : '') + '</td><td class="mono">' + r.miles + '</td><td class="mono">' + r.bearing + '&deg;</td></tr>').join('') +
-    '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
+      '</td><td>' + escapeHTML(r.where || r.call || '') + (r.approx ? ' ~' : '') + '</td><td class="mono">' + r.miles + '</td><td class="mono">' + r.bearing + '&deg;</td>' +
+      '<td class="tiny">' + escapeHTML(r.reach || '') + '</td></tr>').join('') +
+    '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. At 462 MHz the radio horizon is the reach: a handheld at head height sees a tower ' +
+    'some twenty-three miles off, an antenna at twenty feet a few miles more, and 50 W buys margin inside that rather than distance past it. ' +
+    'A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
     (d.gmrs_credit ? ' <a class="muted" href="https://www.repeaterbook.com" target="_blank" rel="noopener">' + escapeHTML(d.gmrs_credit) + '</a>' : '') + '</p>';
 }
 

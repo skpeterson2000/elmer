@@ -410,6 +410,7 @@ def profile_block(connection):
         tracks = {k: v for k, v in tracks.items() if k != "commercial"}
     return {"profile": prof, "standings": standings, "tracks": tracks, "commercial": commercial,
             "uls": uls.state(),
+            "renew_url": callsign.RENEW_URL,
             # Handed to every page, because the offer belongs at the start of a
             # session rather than behind the account menu.
             "offer_password": db.should_offer_password(connection,
@@ -421,7 +422,10 @@ def profile_block(connection):
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
             "license": prof["settings"].get("license") or {},
-            "gmrs": prof["settings"].get("gmrs") or {},
+            "gmrs": gmrs_licence_for(connection, prof["settings"]) or {},
+            "gmrs_covers": prof["settings"].get("gmrs_covers") or [],
+            "others_here": [{"id": p["id"], "name": p["display_name"]}
+                            for p in db.users(connection) if p["id"] != connection.user_id],
             "commercial_license": prof["settings"].get("commercial_license") or {}}
 
 
@@ -965,16 +969,23 @@ def api_ways_out():
             if g in reachout.GEAR]
     license = request.args.get("license") or \
         profile["settings"].get("license_class") or "Technician"
+    gmrs = gmrs_licence_for(connection, profile["settings"])
     answer = reachout.summary(place["lat"], place["lon"], gear, license,
-                              conn=connection, gmrs=profile["settings"].get("gmrs"))
+                              conn=connection, gmrs=gmrs)
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
     answer["located"] = True
     # The track: the steps from a silent radio to a first contact, for the
     # person the list of avenues does nothing for. Progress is theirs,
     # kept in the profile, marked with a press.
-    answer["track"] = track.build(gear, license, answer["ways"], profile.get("callsign") or "",
-                                  profile["settings"].get("track") or {})
+    # The avenues assume Technician when no class is set, which is the useful
+    # default for reading a band; the track must not, since its first steps
+    # are the ones for somebody with no licence yet - and an account with no
+    # class and no callsign is exactly that person.
+    track_class = (profile["settings"].get("license_class")
+                   or (license if profile.get("callsign") else "none"))
+    answer["track"] = track.build(gear, track_class, answer["ways"], profile.get("callsign") or "",
+                                  profile["settings"].get("track") or {}, gmrs=gmrs)
     # What the law says about listening, beside the frequencies rather than
     # on a page of its own - this is where somebody is looking at what they
     # could tune. Driven off the fix, because the statutes that matter are
@@ -1678,13 +1689,14 @@ def api_personal():
     if place.get("lat") is not None:
         try:
             rows, _ = repeaters.nearby(place["lat"], place["lon"], None, limit=6, conn=connection, service="gmrs")
-            out["gmrs_repeaters"] = [{k: r.get(k) for k in ("call", "output", "tone", "where", "miles", "bearing", "approx")}
+            out["gmrs_repeaters"] = [{**{k: r.get(k) for k in ("call", "output", "tone", "where", "miles", "bearing", "approx")},
+                                      "reach": repeaters.reach_words(r["km"])}
                                      for r in rows]
             out["gmrs_source"] = _
             out["gmrs_credit"] = repeaters.RB_CREDIT if _ and repeaters.RB_SOURCE in _ else None
         except Exception:                          # never at the page's expense
             log.exception("gmrs repeaters")
-    out["gmrs_license"] = db.get_profile(connection)["settings"].get("gmrs") or None
+    out["gmrs_license"] = gmrs_licence_for(connection) or None
     return jsonify(out)
 
 
@@ -6844,6 +6856,23 @@ def _adopt_gmrs(call, settings):
     return settings
 
 
+def gmrs_licence_for(connection, settings=None):
+    """The GMRS licence this person operates under: their own, or - 47 CFR
+    95.1705(c) - a licensee's on this unit who has marked them as family.
+    The licensee marks, on their own account; nobody can claim cover."""
+    settings = settings if settings is not None else db.get_profile(connection)["settings"]
+    own = settings.get("gmrs")
+    if own and own.get("found"):
+        return own
+    for prof in db.users(connection):
+        if prof["id"] == connection.user_id:
+            continue
+        theirs = prof["settings"].get("gmrs")
+        if theirs and theirs.get("found") and connection.user_id in (prof["settings"].get("gmrs_covers") or []):
+            return dict(theirs, covered_by=prof["display_name"], via="family")
+    return own
+
+
 def _adopt_commercial(call, settings):
     """Record a commercial operator callsign - a GROL, an MROP, a GMDSS
     ticket - and read its record: the class, the Ship Radar endorsement,
@@ -6900,6 +6929,14 @@ def api_settings():
         settings = _adopt_gmrs(body["gmrs_call"] or "", settings)
     if "commercial_call" in body:
         settings = _adopt_commercial(body["commercial_call"] or "", settings)
+    if "gmrs_covers" in body:
+        # Only a licensee marks family, and only among the accounts here.
+        here = {p["id"] for p in db.users(connection)} - {connection.user_id}
+        wanted = {int(u) for u in (body["gmrs_covers"] or []) if str(u).isdigit()} & here
+        if (settings.get("gmrs") or {}).get("found"):
+            settings["gmrs_covers"] = sorted(wanted)
+        else:
+            settings.pop("gmrs_covers", None)
     if "units" in body:
         # Narrow on purpose - see elmer/units.py. This is how far away a thing
         # is, not a request to rename the 40 m band.

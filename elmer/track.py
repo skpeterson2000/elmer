@@ -35,8 +35,16 @@ def _has(gear, *keys):
     return bool(set(keys) & set(gear or []))
 
 
-def build(gear, license, ways, callsign="", done=None):
-    """The steps for this station, in order, with what is done marked."""
+def _gmrs_repeater(ways):
+    for way in ways or []:
+        if way.get("key") == "gmrs-repeater" and way.get("rows"):
+            return way["rows"][0]
+    return None
+
+
+def build(gear, license, ways, callsign="", done=None, gmrs=None):
+    """The steps for this station, in order, with what is done marked.
+    `gmrs` is the GMRS licence the person operates under, if any."""
     gear = set(gear or [])
     done = done or {}
     call = (callsign or "").upper().strip()
@@ -62,6 +70,22 @@ def build(gear, license, ways, callsign="", done=None):
                 "Say who you are and where, and ask if anybody copies.",
                 "Somebody answered, and you said your name and where you were without reading it.",
                 "Channel 9 is emergencies only; try 19. FRS needs line of sight - a hilltop.",
+                "/bandplan#personal"))
+        machine = _gmrs_repeater(ways)
+        if gmrs and gmrs.get("found") and machine:
+            # A first contact on the air this week, on a licence already
+            # held - before any exam. The one step a GMRS ticket changes.
+            gcall = gmrs["callsign"]
+            steps.append(_step(
+                "gmrs", f"Key the GMRS repeater at {machine.get('where') or machine.get('call')} - say {gcall}",
+                f"Listen on {machine['output']:.3f} for a while, then transmit 5 MHz up"
+                + (f" with tone {machine['tone']}" if machine.get("tone") else "")
+                + f": \"{gcall}, listening.\" It is {machine['miles']} miles off, {machine.get('reach', 'within reach')}. "
+                f"Say the call at the end of the exchange too - it is the licence talking, and on GMRS "
+                f"that licence covers the whole family (95.1705(c)).",
+                "Somebody came back to your call through the machine, and you heard yourself in the repeater's tail.",
+                "Nothing back: the owner's say-so may be needed - the call on the listing is theirs. Try channel 20 "
+                "simplex with the travel tone meanwhile.",
                 "/bandplan#personal"))
         steps.append(_step(
             "exam", "Sit the Technician exam",

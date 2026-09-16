@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-15
 
+- What a GMRS licence earns: the family it covers, a first contact on the track, the renewal link, and each machine's reach in words
+- The repeater store lives under the state directory, so a test never touches the operator's list
 - 11 m on the band plan, in its place between 12 m and 10 m: the channels, the one privilege everyone has, the forecast
 - A commercial operator callsign in Station: the class and the radar endorsement from the FCC's file, a third strip on the band plan, the pools switched on with it
 - The FCC's own licence files, read on the unit: every callsign - amateur, GMRS, commercial - answered from the record, offline, with the FRN's other tickets

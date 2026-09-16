@@ -37,6 +37,8 @@ MAX_AGE_DAYS = 7
 GRACE_DAYS = 730                     # two years, per 47 CFR 97.21(b)
 
 RE_CALL = re.compile(r"^[A-Z0-9]{3,10}$")
+# Where a licence is renewed: the ULS licence manager, signed in by FRN.
+RENEW_URL = "https://wireless2.fcc.gov/UlsEntry/licManager/login.jsp"
 # callook reports the class as a single letter.
 CLASS_NAMES = {
     "N": "Novice", "T": "Technician", "G": "General",

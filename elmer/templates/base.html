@@ -133,12 +133,32 @@
     <p class="tiny muted" id="setup-gmrs-hint">
       {%- set g = profile.settings.gmrs or {} -%}
       {%- if g.found %}Granted {{ g.granted }}, expires <b>{{ g.expires }}</b>
-        {%- if g.status.state == 'expired' %} &mdash; <b>expired</b>, and GMRS has no grace period{% endif %}.
+        {%- if g.status.state == 'expired' %} &mdash; <b>expired</b>, and GMRS has no grace period{% endif %}
+        {%- if g.status.state == 'current' and g.status.days < 90 %} &mdash; <b>{{ g.status.days }} days left</b>, and no grace period after:
+          <a href="{{ renew_url }}" target="_blank" rel="noopener">renew at ULS &rarr;</a>{% if g.frn %} (your FRN is {{ g.frn }}){% endif %}{% endif %}.
         {{ g.source }}.
       {%- elif g.callsign %}{{ g.reason }}.
       {%- else %}If you hold one &mdash; the FCC record says when it runs out, and
         Make Contact and the band plan treat a GMRS radio as licensed.{% endif -%}
     </p>
+
+    {%- set g = profile.settings.gmrs or {} -%}
+    {%- if g.found and others_here %}
+    <p class="tiny muted" style="margin-top:.4rem">Your GMRS licence covers your immediate family
+      &mdash; 47 CFR 95.1705(c): they operate under <b class="mono">{{ g.callsign }}</b>. Mark
+      the accounts on this unit that are family, and Make Contact offers them the
+      GMRS repeaters under your call.</p>
+    <div class="row" style="flex-wrap:wrap;gap:.5rem 1rem" id="setup-gmrs-family">
+      {% for o in others_here %}
+      <label class="tiny" style="display:flex;align-items:center;gap:.3rem">
+        <input type="checkbox" data-gmrs-cover="{{ o.id }}" {% if o.id in gmrs_covers %}checked{% endif %}> {{ o.name }}
+      </label>
+      {% endfor %}
+    </div>
+    {%- elif gmrs.covered_by %}
+    <p class="tiny muted" style="margin-top:.4rem">You operate under <b class="mono">{{ gmrs.callsign }}</b>,
+      {{ gmrs.covered_by }}&rsquo;s GMRS licence, as immediate family (47 CFR 95.1705(c)).</p>
+    {%- endif %}
 
     <label class="setup-label" for="setup-commcall">Commercial operator callsign</label>
     <input id="setup-commcall" type="text" autocomplete="off" maxlength="12"

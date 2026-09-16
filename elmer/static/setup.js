@@ -119,6 +119,8 @@
       if (gmrsBox) body.gmrs_call = gmrsBox.value.trim().toUpperCase();
       const commBox = document.getElementById('setup-commcall');
       if (commBox) body.commercial_call = commBox.value.trim().toUpperCase();
+      const family = document.getElementById('setup-gmrs-family');
+      if (family) body.gmrs_covers = [...family.querySelectorAll('[data-gmrs-cover]:checked')].map(b => +b.dataset.gmrsCover);
       body.license_class = classBox.value;
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');
