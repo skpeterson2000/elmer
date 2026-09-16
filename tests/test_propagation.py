@@ -583,6 +583,26 @@ def main():
     check("the path tool rates it", any(r["band"] == "11m" for r in sky["bands"]), True)
     check("  but never names it as the band that fills a gap", sky.get("fills_the_gap") != "11m", True)
 
+    print("\n-- where a band reaches, as a map --")
+    snap = {"sfi": 120.0, "k_index": 2.0, "hmf2": 300.0, "muf": 20.0, "fof2": 6.0, "muf_source": "test",
+            "calibration": {"factor": 1.0, "m3000": 3.1}}
+    noon_utc = datetime(2026, 6, 21, 18, 0, tzinfo=timezone.utc)      # midday over Minnesota, night over Asia
+    m = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc)
+    check("a ten-degree grid over the globe", (m["rows"], m["cols"], len(m["cells"]), len(m["night"])), (18, 36, 648, 648))
+    def reach(mm, lat, lon):
+        r = int(round((mm["lat0"] - lat) / mm["step"])); c = int(round((lon - mm["lon0"]) / mm["step"]))
+        return mm["cells"][r * mm["cols"] + c], mm["night"][r * mm["cols"] + c]
+    m40 = P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc)
+    m10 = P.reach_map(28.0, 46.6, -94.31, snap, when=noon_utc)
+    check("800 km out at noon: inside 20 m's skip, shut; 40 m carries it", (reach(m, 45, -105)[0], reach(m40, 45, -105)[0] > 0), (0, True))
+    check("Europe at noon here is reached on 20 m, in daylight", (reach(m, 45, 5)[0] > 0, reach(m, 45, 5)[1]), (True, False))
+    check("Japan is in the dark, and 20 m is shut there while 40 m carries", (reach(m, 35, 135)[1], reach(m, 35, 135)[0], reach(m40, 35, 135)[0] > 0), (True, 0, True))
+    check("10 m reaches fewer cells than 20 m under a 20 MHz MUF", sum(1 for c in m10["cells"] if c > 0) < sum(1 for c in m["cells"] if c > 0), True)
+    check("nothing scores past a hundred or under nought", (max(m["cells"]) <= 100, min(m["cells"]) >= 0), (True, True))
+    import time as _t
+    t = _t.perf_counter(); P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc); took = (_t.perf_counter() - t) * 1000
+    check("and it is cheap enough for a Pi - under a fifth of a second on this machine", took < 200, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

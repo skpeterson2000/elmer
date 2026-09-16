@@ -873,6 +873,80 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
             "any": [r for r in out if r["works"]]}
 
 
+# --- where a band reaches, as a map ------------------------------------------
+#
+# The path model asked the same question for every cell of a coarse grid
+# instead of one far end: for each cell, the sky is read at the midpoint of
+# the path to it - the sun's angle there, not here, so 20 m fades where the
+# far end is in the dark and 40 m fills in - the geometry says whether the
+# distance is inside the skip, one hop, or several, and the band's score at
+# that sky is charged for the hops. Ten-degree cells, 648 of them, a few
+# tens of milliseconds on a Pi, cached with the reading it was made from.
+# The one big assumption is the one the whole model makes: one sonde's
+# reading, anchoring a modelled sky, applied everywhere. It is a shape.
+REACH_STEP = 10
+REACH_HOP_COST = 0.75              # each hop past the first keeps this much of the score
+
+
+def _midpoint(lat1, lon1, lat2, lon2):
+    """The point halfway along the great circle, where a hop is reflected."""
+    p1, l1, p2, l2 = map(math.radians, (lat1, lon1, lat2, lon2))
+    x = math.cos(p1) * math.cos(l1) + math.cos(p2) * math.cos(l2)
+    y = math.cos(p1) * math.sin(l1) + math.cos(p2) * math.sin(l2)
+    z = math.sin(p1) + math.sin(p2)
+    h = math.hypot(x, y)
+    if h < 1e-9 and abs(z) < 1e-9:
+        return lat1, lon1
+    return math.degrees(math.atan2(z, h)), math.degrees(math.atan2(y, x))
+
+
+def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0):
+    """A band's reach from here, as cells of 0-100 over the globe."""
+    from . import groundwave
+    from .terrain import great_circle
+    when = when or datetime.now(timezone.utc)
+    sfi = float(snap.get("sfi") or 100.0)
+    k = float(snap.get("k_index") or 2.0)
+    hmf2 = float(snap.get("hmf2") or HMF2_DEFAULT)
+    cal = snap.get("calibration") or {}
+    anchor = float(cal.get("factor") or 1.0)
+    m3000 = cal.get("m3000")
+    far = one_hop_limit_km(hmf2)
+    ground_km = float(groundwave.describe(mhz, watts=watts).get("km") or 0.0)
+    lats = [85 - i * step for i in range(int(180 / step))]      # 85 .. -85 cell centres
+    lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
+    cells, night = [], []
+    for glat in lats:
+        for glon in lons:
+            km, _ = great_circle(lat, lon, glat, glon)
+            mlat, mlon = _midpoint(lat, lon, glat, glon)
+            elev = solar_elevation(mlat, mlon, when)
+            muf, fof2 = levels(sfi, elev, mlat, m3000, anchor, drive=f2_drive(mlat, mlon, when), when=when)
+            score = 0.0
+            if km <= ground_km:
+                score = 100.0
+            else:
+                skip = skip_km(mhz, fof2, hmf2)
+                hops = 0
+                if skip is not None:
+                    if km <= far and (skip <= 0 or km >= skip):
+                        hops = 1
+                    elif km > far:
+                        n = int(math.ceil(km / far))
+                        leg = km / n
+                        if (skip <= 0 or leg >= skip) and leg <= far:
+                            hops = n
+                if hops:
+                    rated = band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2)
+                    score = float(rated.get("score") or 0.0) * (REACH_HOP_COST ** (hops - 1))
+            cells.append(int(round(max(0.0, min(100.0, score)))))
+            night.append(solar_elevation(glat, glon, when) < 0)
+    return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
+            "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
+            "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),
+            "at": when.isoformat()}
+
+
 def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
                hmf2=HMF2_DEFAULT,
                geomag_lat=None, aurora_lat=None):

@@ -225,6 +225,7 @@ function bpRender() {
     '</div>';
 
   bindSegments(band);
+  bpReach(band);
 
   const rbox = document.getElementById('bp-regional');
   if (bpRegional && !bpRegional.ok && bpRegional.coordinators) {
@@ -936,6 +937,97 @@ function vhfBox(band) {
       'And line of sight is always there, at every hour: for that, the ' +
       '<a href="/lab#ant">antenna and terrain tools</a> are the ones that ' +
       'answer.</div></div>';
+}
+
+/* ---------------------------------------------------- where the band reaches */
+/* The path model asked for every cell of a ten-degree grid, drawn as a
+   map: the sky read at each path's midpoint, the geometry deciding inside
+   the skip, one hop or several, the score charged for the hops. Fetched
+   once per band per reading - a press, not a poll - and painted here.
+   Sequential: one hue, light for good, dark for shut, darker under the
+   night. The coast is the EME page's. */
+let bpCoast = null, bpReachFor = null;
+const REACH_W = 720, REACH_H = 360;
+fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachPaint(bpReachFor); }).catch(() => {});
+
+function reachColour(score) {
+  /* one hue, light to dark: the ramp the legend shows */
+  if (score >= 60) return [142, 227, 154];
+  if (score >= 35) return [58, 161, 90];
+  if (score > 0) return [30, 90, 52];
+  return [15, 42, 24];
+}
+
+function bpReachPaint(d) {
+  const canvas = document.getElementById('bp-reach-map');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(REACH_W, REACH_H);
+  const px = img.data;
+  const cw = REACH_W / d.cols, ch = REACH_H / d.rows;
+  for (let y = 0; y < REACH_H; y++) {
+    const row = Math.min(d.rows - 1, Math.floor(y / ch));
+    for (let x = 0; x < REACH_W; x++) {
+      const col = Math.min(d.cols - 1, Math.floor(x / cw));
+      const i = row * d.cols + col;
+      const c = reachColour(d.cells[i]);
+      const shade = d.night[i] ? 0.55 : 1.0;
+      const o = (y * REACH_W + x) * 4;
+      px[o] = c[0] * shade; px[o + 1] = c[1] * shade; px[o + 2] = c[2] * shade; px[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
+  for (let lon = -150; lon <= 150; lon += 30) { const x = (lon + 180) * 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, REACH_H); ctx.stroke(); }
+  for (let lat = -60; lat <= 60; lat += 30) { const y = (90 - lat) * 2; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(REACH_W, y); ctx.stroke(); }
+  if (bpCoast) {
+    ctx.strokeStyle = 'rgba(235,240,245,.7)'; ctx.lineWidth = 1;
+    bpCoast.forEach(line => {
+      ctx.beginPath();
+      line.forEach((p, n) => { const x = (p[0] + 180) * 2, y = (90 - p[1]) * 2; if (n) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.stroke();
+    });
+  }
+  if (d.qth) {
+    const x = (((d.qth.lon + 180) % 360 + 360) % 360) * 2, y = (90 - d.qth.lat) * 2;
+    ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText('\u25EF', x + 1, y + 1);
+    ctx.fillStyle = '#ffffff'; ctx.fillText('\u25EF', x, y);
+  }
+}
+
+let bpReachCache = {};
+async function bpReach(band) {
+  const box = document.getElementById('bp-reach');
+  if (!box) return;
+  const key = band.name.replace(/\s+/g, '');
+  const hf = band.high <= 30;
+  box.hidden = !hf;
+  if (!hf) return;
+  document.getElementById('bp-reach-band').textContent = band.name;
+  let d = bpReachCache[key];
+  if (!d) {
+    document.getElementById('bp-reach-when').textContent = 'working it out\u2026';
+    try {
+      const r = await fetch('/api/bandplan/reach?band=' + encodeURIComponent(key), {cache: 'no-store'});
+      d = await r.json();
+    } catch (e) {
+      document.getElementById('bp-reach-when').textContent = '';
+      document.getElementById('bp-reach-note').textContent = (e && e.message) || 'no map just now';
+      return;
+    }
+    if (!d.ok) { document.getElementById('bp-reach-note').textContent = d.error || 'no map just now'; return; }
+    bpReachCache[key] = d;
+  }
+  if (bpBand !== band.name) return;                 // the band moved on while this was fetched
+  bpReachFor = d;
+  bpReachPaint(d);
+  document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
+    (d.muf_here ? ' \u00b7 MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
+  document.getElementById('bp-reach-note').textContent =
+    'A model, and labelled as one: one sonde\u2019s reading anchoring a modelled sky, read at the midpoint of each path - the sun\u2019s angle there, not here. ' +
+    'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for - and nothing of your antenna, your power, or the far end\u2019s. ' +
+    'Ground wave to about ' + d.ground_km + ' km. What it is right about is the shape.';
 }
 
 function conditionBar(band, given) {

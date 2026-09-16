@@ -2498,6 +2498,21 @@ booked. The sign is the program's - a unit does not get its own name on
 it. Nothing on the page is the main element, which is the point of a
 lounge.
 
+**Where the band reaches, as a map** (`propagation.reach_map`, on the
+band plan between the coordinator's section and the other radios). The
+path model asked for every cell of a ten-degree grid instead of one far
+end: for each cell the sky is read at the midpoint of the path - the
+sun's angle there, not here, so 20 m fades where the far end is in the
+dark and 40 m fills in - the geometry says inside the skip, one hop or
+several, and the band's score at that sky is charged for the hops. Ground
+wave near, nothing for 6 m and up rather than a made-up map. One hue,
+light for good and dark for shut, darker under the night, the QTH marked.
+648 cells is a few tens of milliseconds on a laptop and a few hundred on
+a Pi, fetched once per band per reading and cached ten minutes. The one
+big assumption is the whole model's: one sonde's reading anchoring a
+modelled sky, applied everywhere. The footnote says so; what it is right
+about is the shape.
+
 **The pace ledger** (`elmer/pace.py`). Every request is timed already; the
 ledger keeps, per endpoint, how many times it was asked, its mean, its
 slowest and its last forty timings for a ninety-fifth percentile - the

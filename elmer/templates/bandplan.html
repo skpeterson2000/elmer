@@ -163,6 +163,27 @@
 <div id="bp-out" class="mt"><div class="muted">Loading&hellip;</div></div>
 <div id="bp-regional"></div>
 
+{# Where the band reaches from here, now: the path model asked for every
+   cell of a coarse grid, drawn as a map. A model, from one reading, and
+   labelled as one; the shape is what it is right about. Filled by
+   bandplan.js when an HF band is up; VHF and above get no map rather
+   than a made-up one. #}
+<div class="panel mt" id="bp-reach" hidden>
+  <div class="spread" style="align-items:baseline;flex-wrap:wrap">
+    <div class="panel-title" style="margin:0">Where <span id="bp-reach-band"></span> reaches from here, now</div>
+    <span class="tiny muted" id="bp-reach-when"></span>
+  </div>
+  <canvas id="bp-reach-map" width="720" height="360" style="width:100%;max-width:720px;display:block;margin:.5rem auto 0;border-radius:8px;border:1px solid var(--line)"></canvas>
+  <div class="row" style="justify-content:center;gap:1rem;margin-top:.4rem;flex-wrap:wrap">
+    <span class="tiny"><i class="bp-reach-key" style="background:#0f2a18"></i> shut</span>
+    <span class="tiny"><i class="bp-reach-key" style="background:#1e5a34"></i> a chance</span>
+    <span class="tiny"><i class="bp-reach-key" style="background:#3aa15a"></i> fair</span>
+    <span class="tiny"><i class="bp-reach-key" style="background:#8ee39a"></i> good</span>
+    <span class="tiny muted">&middot; darker where it is night &middot; <span class="mono">&#9711;</span> you</span>
+  </div>
+  <p class="tiny muted" style="margin:.5rem 0 0" id="bp-reach-note"></p>
+</div>
+
 {# The radios most of the country carries, given the amateur bands' own
    treatment: channels exactly, law cited, conventions marked as such. Filled
    from /api/personal by bandplan.js. #}

@@ -1841,6 +1841,38 @@ def _prefetch_regional(place):
     threading.Thread(target=run, name="regional-prefetch", daemon=True).start()
 
 
+_reach_cache = {}                      # (band, qth, reading) -> (made_at, map)
+REACH_CACHE_S = 600
+
+
+@app.route("/api/bandplan/reach")
+def api_bandplan_reach():
+    """Where the band reaches from here, now, as a coarse map - a model,
+    from the reading the dashboard already has, cached ten minutes."""
+    name = (request.args.get("band") or "").replace(" ", "")
+    mhz = next((f for n, f, _ in propagation.BANDS if n == name), None)
+    if mhz is None or mhz > 30.0:
+        return jsonify({"ok": False, "error": "no reach map for this band - the ionosphere is not what carries it"}), 404
+    connection = conn()
+    place = qth_for(connection, db.get_profile(connection))
+    if place.get("lat") is None:
+        return jsonify({"ok": False, "error": "no QTH - set one and the map has a here"}), 409
+    snap = propagation.snapshot(lat=place["lat"], lon=place["lon"])
+    if not snap.get("ok"):
+        return jsonify({"ok": False, "error": snap.get("error") or "no reading"}), 503
+    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"))
+    hit = _reach_cache.get(key)
+    if hit and time.time() - hit[0] < REACH_CACHE_S:
+        return jsonify({"ok": True, "cached": True, **hit[1]})
+    started = time.perf_counter()
+    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap)
+    _reach_cache.clear()                 # one band's map at a time is plenty to hold
+    _reach_cache[key] = (time.time(), made)
+    log.debug("reach map for %s in %.0f ms", name, (time.perf_counter() - started) * 1000)
+    return jsonify({"ok": True, "cached": False, "qth": {"lat": place["lat"], "lon": place["lon"],
+                                                        "short": place.get("short") or place.get("grid")}, **made})
+
+
 @app.route("/api/bandplan/allocation")
 def api_bandplan_allocation():
     """What each licence unlocks, by band group - the chart's numbers."""
