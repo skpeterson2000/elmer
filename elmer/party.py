@@ -452,8 +452,10 @@ class Room:
         self.bots_wanted = False
         # Golf: how many practice players the host asked for - 0 to 3, the
         # rest of a foursome at most - or None for the floor rule the other
-        # games use. A person alone may want a foursome, or the course to
-        # themselves; that is theirs to say, not the table's to assume.
+        # games use. A foursome unless the host says otherwise: every
+        # companion's stroke is a question and its answer put in front of
+        # the person, free, and that is what the questions are for. The
+        # course to themselves is theirs to ask for.
         self.companions = None
         self.open = True
         # When the first question goes up on its own, or None for a table

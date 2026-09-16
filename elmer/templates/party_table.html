@@ -430,11 +430,14 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
                 <option value="300" selected>tee time in 5 min</option>
                 <option value="600">tee time in 10 min</option>
               </select>
-              <select class="btn sm" id="golf-companions" title="practice players in the group - stand-ins, played by the unit on the same terms, never on the record board">
-                <option value="0" selected>no companions</option>
-                <option value="1">1 companion</option>
+              {# A full party by default: every companion's stroke is a question and
+                 its answer put in front of the person, free - no penalty for a guess on
+                 somebody else's question - and that is what the questions are for. #}
+              <select class="btn sm" id="golf-companions" title="practice players in the group - stand-ins, played by the unit on the same terms, never on the record board. Every one of their strokes is a question and its answer in front of you, free">
+                <option value="3" selected>a foursome - 3 companions</option>
                 <option value="2">2 companions</option>
-                <option value="3">3 companions - a foursome</option>
+                <option value="1">1 companion</option>
+                <option value="0">no companions - the course to yourself</option>
               </select>
               <label class="small" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
                 <input type="checkbox" id="golf-handicap"> handicap</label>
