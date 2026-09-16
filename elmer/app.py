@@ -1060,13 +1060,15 @@ def api_activations():
     # forty parks were closer than the first hill, which is most places -
     # the wrong answer to "is there anything up there", and it looked
     # authoritative.
-    parks, summits, all_parks, all_summits = [], [], [], []
+    # Only the band is worked out - the outer edge is the radius of the
+    # scan, and nothing beyond it is counted, sorted or sent. This runs on
+    # a Pi, per keystroke in the band boxes; a nationwide tally is not a
+    # thing anybody asked for.
+    parks, summits = [], []
     cover = {"known": False, "reason": "nowhere", "areas": 0}
     if lat is not None:
-        all_parks = references.nearby(lat, lon, kind="park", limit=None)
-        all_summits = references.nearby(lat, lon, kind="summit", limit=None)
-        parks = _in_band(all_parks, inner_km, outer_km)
-        summits = _in_band(all_summits, inner_km, outer_km)
+        parks = _in_band(references.nearby(lat, lon, kind="park", limit=None, radius_km=outer_km), inner_km, outer_km)
+        summits = _in_band(references.nearby(lat, lon, kind="summit", limit=None, radius_km=outer_km), inner_km, outer_km)
         cover = references.coverage(lat, lon)
     return jsonify({
         "qth": place.get("short") or place.get("grid") or "",
@@ -1076,7 +1078,6 @@ def api_activations():
         "band": {"inner_km": inner_km, "outer_km": outer_km, "from": asked or "", "note": from_note},
         "parks": parks[:12], "summits": summits[:12],
         "held": {"parks": len(parks), "summits": len(summits)},
-        "held_all": {"parks": len(all_parks), "summits": len(all_summits)},
         "programs": [activations.POTA, activations.SOTA],
         "gear": activations.GEAR_VERDICTS,
         "land": {"read": activations.LAND_READ, "source": activations.LAND_SOURCE,

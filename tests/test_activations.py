@@ -113,8 +113,7 @@ def main():
     d = c.get("/api/activations?inner=0&outer=50").get_json()
     farthest = max([p["km"] for p in d["parks"] + d["summits"]] or [0])
     check("nothing listed beyond fifty miles when the box says fifty", farthest <= d["band"]["outer_km"] + 0.01, True)
-    check("  and the count is the band's, with the whole held said beside it",
-          (d["held"]["parks"] <= d["held_all"]["parks"], d["held_all"]["parks"] > d["held"]["parks"]), (True, True))
+    check("  and the count is the band's alone - nothing beyond it is tallied or sent", "held_all" in d, False)
     d2 = c.get("/api/activations?inner=30&outer=120").get_json()
     nearest = min([p["km"] for p in d2["parks"]] or [0])
     check("a band that starts at thirty lists nothing nearer", nearest >= d2["band"]["inner_km"] - 0.01, True)

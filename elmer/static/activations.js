@@ -97,13 +97,10 @@ function acNear(d) {
     return;
   }
   const band = d.band || {};
-  const all = d.held_all || held;
   note.innerHTML = '<b>' + held.parks + ' park' + (held.parks === 1 ? '' : 's') +
     '</b> and <b>' + held.summits + ' summit' + (held.summits === 1 ? '' : 's') +
     '</b> between ' + acAway(band.inner_km || 0) + ' and ' + acAway(band.outer_km || d.radius_km) + ' ' + AC_UNITS.short +
     ' of ' + escapeHTML(d.qth) +
-    (all.parks !== held.parks || all.summits !== held.summits
-      ? ' <span class="muted">(' + all.parks + ' and ' + all.summits + ' held in all, out to ' + acAway(d.radius_km) + ' ' + AC_UNITS.short + ')</span>' : '') +
     acAge(d.coverage) +
     (band.note ? ' <span style="color:var(--amber)">' + escapeHTML(band.note) + '</span>' : '') +
     '. The nearest of each are below, ' +

@@ -216,12 +216,25 @@ def _write(areas):
         "areas": areas}, indent=1))
 
 
+_held = {"stamp": None, "areas": []}
+
+
 def held():
-    """Every area prepared so far."""
+    """Every area prepared so far - read from disk once per change of the
+    file, not once per call. This is asked several times a page and, on
+    the activations page, per keystroke; a Pi's card is not a place to
+    read a list of parks from that often."""
     try:
-        return json.loads(STORE.read_text()).get("areas", [])
-    except (OSError, ValueError):
+        stamp = STORE.stat().st_mtime_ns
+    except OSError:
         return []
+    if _held["stamp"] != stamp:
+        try:
+            _held["areas"] = json.loads(STORE.read_text()).get("areas", [])
+        except (OSError, ValueError):
+            _held["areas"] = []
+        _held["stamp"] = stamp
+    return _held["areas"]
 
 
 _national = None
