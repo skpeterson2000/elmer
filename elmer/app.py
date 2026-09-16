@@ -4321,7 +4321,19 @@ def api_party_mode():
         room.end_cutthroat()
         room.end_golf()
         room.end_baseball()
-        log.info("party: %s set as the standing game - it starts for the first arrival", wanted)
+        # An earlier booking and its practice players do not outlive the
+        # choice: a foursome booked before the seat emptied was still in
+        # the clubhouse when "no companions" was chosen, and departed as
+        # four. The standing game starts clean, with the count it was set with.
+        room.leave_clubhouse()
+        room.clear_bots()
+        if wanted == party.GOLF and spec.get("companions") not in (None, ""):
+            try:
+                room.companions = max(0, min(3, int(spec["companions"])))
+            except (TypeError, ValueError):
+                pass
+        log.info("party: %s set as the standing game - it starts for the first arrival (companions: %s)",
+                 wanted, room.companions if room.companions is not None else "the foursome rule")
         return jsonify(room.state())
     _apply_mode(room, wanted, body)
     return jsonify(room.state())
@@ -4448,7 +4460,9 @@ def _apply_mode(room, wanted, body):
             room.book_clubhouse(spec, tee_in)
             room.fill_bots(body.get("level"), companions)   # after the booking, so it is a foursome
             threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
-            log.info("party: tee time in %.0fs at %s (%s, %d holes)", tee_in, difficulty, which, len(holes))
+            log.info("party: tee time in %.0fs at %s (%s, %d holes) - %d practice player(s) seated, companions %s",
+                     tee_in, difficulty, which, len(holes), sum(1 for p in room.players.values() if p.bot),
+                     "the foursome rule" if companions is None else companions)
         else:
             room.fill_bots(body.get("level"), companions)
             _start_golf(room, spec)

@@ -183,10 +183,16 @@ def run():
     r = client.post("/api/party/aim", json={"player": 99999, "at": 200}, environ_base=local)
     check("  a stranger has no mark here", r.status_code, 404)
     check("  a hole nobody has", client.get("/golf/map/pebble-beach/99.svg", environ_base=local).status_code, 404)
+    # The wall is the signed-in operator's own, hung from their account.
+    import io
+    from PIL import Image
+    buf = io.BytesIO(); Image.new("RGB", (800, 600), (240, 230, 210)).save(buf, "PNG")
+    client.post("/api/awards/add", data={"file": (io.BytesIO(buf.getvalue()), "ewac.png"), "title": "eWAC", "issued": "eQSL.cc"},
+                content_type="multipart/form-data", environ_base=local)
     r = client.get("/api/golf/proshop", environ_base=local)
     d = r.get_json()
-    check("the pro shop: the wall, with the operator's certificates in the captions' order",
-          (r.status_code, [a["title"][:4] for a in d["wall"]], all(a["issued"] for a in d["wall"])), (200, ["eWAC", "eWAC", "eDX "], True))
+    check("the pro shop: the wall, with the operator's own certificates",
+          (r.status_code, [a["title"][:4] for a in d["wall"]], all(a["issued"] for a in d["wall"])), (200, ["eWAC"], True))
     check("  every certificate on it is served", all(client.get(a["url"], environ_base=local).status_code == 200 for a in d["wall"]), True)
     check("  and the record board is on the counter", isinstance(d["records"], list), True)
     r = client.get("/api/party/golf-assets", environ_base=local).get_json()
@@ -414,6 +420,24 @@ def run():
     check("two people asking for three get two - humans first, four seats", len([p for p in room.players.values() if p.bot]), 2)
     autoplay.stop(); room.round = None; room.end_golf(); room.clear_bots()
     room.leave(second)
+
+    print("\n-- none, chosen after a foursome was booked and the seat emptied --")
+    # The sequence from the field: a foursome booked with somebody seated,
+    # they leave, Golf pressed again with no companions at the empty table,
+    # then somebody scans in and says play now - and departed as four.
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                         "seconds": 30, "companions": 3, "tee_in": 300}, environ_base=local)
+    check("a foursome booked", (room.clubhouse is not None, len([p for p in room.players.values() if p.bot])), (True, 3))
+    room.leave(ann)
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                             "seconds": 30, "companions": 0, "tee_in": 300}, environ_base=local)
+    check("none chosen at the empty table: the booking and its practice players go", (r.status_code, room.clubhouse, len([p for p in room.players.values() if p.bot])), (200, None, 0))
+    r = client.post("/api/party/join", json={"name": "KC9SP"}, environ_base=local)
+    ann = r.get_json()["player_id"] if "player_id" in (r.get_json() or {}) else next(p.id for p in room.players.values() if not p.bot)
+    check("  the first arrival gets the standing game, alone", (room.clubhouse is not None, len([p for p in room.players.values() if p.bot])), (True, 0))
+    r = client.post("/api/party/tee-off", json={}, environ_base=local)
+    check("  and plays now, alone", (r.status_code, len(room.players)), (200, 1))
+    autoplay.stop(); room.round = None; room.end_golf(); room.clear_bots()
 
     print("\n-- back to a tournament --")
     r = client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=local)

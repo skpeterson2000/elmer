@@ -779,8 +779,10 @@ class Room:
                 need = max(0, min(want, COHORT_SIZE) - len(humans))
                 if self.golf is not None or self.clubhouse is not None:
                     need = max(0, min(need, FOURSOME - len(humans)))     # a foursome, not a field
-                    if self.companions is not None:
-                        need = max(0, min(self.companions, FOURSOME - len(humans)))
+                if self.companions is not None:
+                    # The host's count, wherever golf is in its life - booked,
+                    # standing, or seated before the round has begun.
+                    need = max(0, min(self.companions, FOURSOME - len(humans)))
                 while len(bots) > need:
                     leaving = max(bots, key=lambda p: p.id)
                     bots.remove(leaving)
