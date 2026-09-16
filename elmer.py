@@ -891,9 +891,6 @@ def main():
             process, name = window.launch(url, start)
             if process is not None:
                 own_window[0] = process
-                # The Exit press sets this before the window can close
-                # itself, so the watcher does not read Exit as a closed window.
-                app.config["WINDOW_QUITTING"] = window_quitting
                 window.watch(process, window_quitting, args.port)
                 print(f"\n  Opened ELMER in a window of its own ({name}). "
                       "Closing that window stops ELMER.\n", flush=True)

@@ -27,7 +27,6 @@ import logging
 import os
 import subprocess
 import threading
-import time
 from pathlib import Path
 
 from . import paths
@@ -121,20 +120,10 @@ def command(browser, url, start=START_DEFAULT, remembered=None):
 
 
 def launch(url, start=START_DEFAULT):
-    """Open the window. Returns (process, browser name) or (None, None).
-
-    Anything still running on ELMER's profile is stale by definition here -
-    a window left over from a stop that did not take - and is ended first,
-    because a new launch onto a profile with an instance already up hands
-    the URL to that instance and exits at once, which the watcher would
-    read as the window closing and stop the server under a live window.
-    That happened at 04:11 on 16 September."""
+    """Open the window. Returns (process, browser name) or (None, None)."""
     browser, name = find_browser()
     if not browser:
         return None, None
-    if profile_alive():
-        log.info("window: a browser was still running on ELMER's profile - ended before opening")
-        close_by_profile()
     try:
         process = subprocess.Popen(command(browser, url, start),
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -147,13 +136,7 @@ def launch(url, start=START_DEFAULT):
 
 def watch(process, quitting, port):
     """Stop the server when the window goes away - unless the server is
-    already on its way out, which is what `quitting` says.
-
-    The launched process is not trusted to be the window: Edge may hand
-    the window to another process of its own and let this one go. So
-    when the pid ends, the profile is looked at - is any browser process
-    still running on it? - and only when there is none is the window
-    gone. While there is, it is looked at again every few seconds."""
+    already on its way out, which is what `quitting` says."""
     from . import host
 
     def wait():
@@ -161,12 +144,6 @@ def watch(process, quitting, port):
             process.wait()
         except OSError:
             return
-        if quitting.is_set():
-            return
-        while profile_alive():
-            if quitting.is_set():
-                return
-            time.sleep(WATCH_EVERY)
         if quitting.is_set():
             return
         log.info("window: closed - stopping the server")
@@ -203,24 +180,6 @@ def close(process):
             except OSError:
                 pass
     close_by_profile()
-
-
-WATCH_EVERY = 5.0
-
-
-def profile_alive():
-    """Whether any browser process is running on ELMER's window profile."""
-    if os.name != "nt":
-        return False
-    marker = str(PROFILE).replace("'", "''")
-    script = ("if (Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--user-data-dir=" + marker +
-              "*' } | Select-Object -First 1) { exit 0 } else { exit 3 }")
-    try:
-        done = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
-        return done.returncode == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
 
 
 def bring_to_front():

@@ -7,7 +7,6 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
-- The window watcher does not trust the launched pid: a browser still on ELMER's profile is the window; a stale one is ended before launch; Exit sets the quitting flag first; long fetches are not 'stuck' and are judged on a fetch's budget
 - Windows: the Start Menu entry runs Python windowless, not the batch file - one icon, no console, no 'Terminate batch job'; pressed while ELMER runs, it brings ELMER's window to the front
 - The band plan: where the band reaches from here, now, as a map - the path model for every cell of a grid, one hue, the night shaded
 - On Windows ELMER opens full screen, the whole display and nothing of the browser's; and nothing on any screen speaks of browsers, windows, tabs or reloading
