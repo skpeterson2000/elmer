@@ -30,7 +30,7 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (
-    activations, activationspdf, antenna_advice, antennapdf, autoplay, bandpdf,
+    activations, activationspdf, antenna_advice, antennapdf, autoplay, awards, bandpdf,
     bandplan, bench, bugreport, calibrate, callsign, celestial,
     certpdf, cohort, conductors, cw, db, devreset,
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
@@ -3928,29 +3928,62 @@ def api_party_regulars():
 
 @app.route("/api/golf/proshop")
 def api_golf_proshop():
-    """The pro shop: the unit's record board, and the wall - the operator's
-    certificates, from artwork/awards/ sized into static/golf/awards/, with
-    the captions in data/awards.json. A certificate with no caption
-    hangs under its file name; a caption with no file is not hung."""
-    static = Path(__file__).resolve().parent / "static" / "golf" / "awards"
-    have = {p.stem: p.name for p in static.glob("*.jpg")} if static.is_dir() else {}
-    captions = {}
-    try:
-        for row in json.loads((Path(__file__).resolve().parents[1] / "data" / "awards.json").read_text(encoding="utf-8")):
-            captions[row["file"]] = row
-    except (OSError, ValueError, KeyError):
-        captions = {}
-    wall = []
-    # hung in the order the captions file gives, then anything uncaptioned
-    order = {stem: i for i, stem in enumerate(captions)}
-    for stem, name in sorted(have.items(), key=lambda kv: (order.get(kv[0], 999), kv[0])):
-        c = captions.get(stem, {})
-        wall.append({"url": f"/static/golf/awards/{name}", "title": c.get("title") or stem.replace("-", " "),
-                     "detail": c.get("detail", ""), "issued": c.get("issued", ""), "number": c.get("number", "")})
-    settings = db.get_profile(conn())["settings"]
-    whose = settings.get("callsign") or ""
+    """The pro shop: the unit's record board, and the wall - the certificates
+    of whoever is at the table, hung by them from their own account. The
+    program carries nobody's wall."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    whose = profile.get("callsign") or profile.get("display_name") or ""
     regs = api_party_regulars().get_json()
-    return jsonify({"whose": whose, "wall": wall, "records": regs.get("records", [])})
+    return jsonify({"whose": whose, "wall": awards.wall(connection.user_id), "records": regs.get("records", [])})
+
+
+@app.route("/api/awards")
+def api_awards():
+    return jsonify({"wall": awards.wall(conn().user_id), "fields": list(awards.FIELDS)})
+
+
+@app.route("/api/awards/add", methods=["POST"])
+def api_awards_add():
+    """Hang a certificate on the wall of the person signed in."""
+    up = request.files.get("file")
+    if up is None or not up.filename:
+        abort(400, "no picture")
+    caption = {k: request.form.get(k, "") for k in awards.FIELDS}
+    connection = conn()
+    ok, message = awards.add(connection.user_id, up.stream, up.filename, caption)
+    if not ok:
+        abort(400, message)
+    return jsonify({"ok": True, "name": message, "wall": awards.wall(connection.user_id)})
+
+
+@app.route("/api/awards/caption", methods=["POST"])
+def api_awards_caption():
+    body = request.get_json(silent=True) or {}
+    connection = conn()
+    if not awards.recaption(connection.user_id, str(body.get("name") or ""), body):
+        abort(404, "no such certificate of yours")
+    return jsonify({"ok": True, "wall": awards.wall(connection.user_id)})
+
+
+@app.route("/api/awards/remove", methods=["POST"])
+def api_awards_remove():
+    body = request.get_json(silent=True) or {}
+    connection = conn()
+    if not awards.remove(connection.user_id, str(body.get("name") or "")):
+        abort(404, "no such certificate of yours")
+    return jsonify({"ok": True, "wall": awards.wall(connection.user_id)})
+
+
+@app.route("/awards/<int:user_id>/<name>")
+def awards_picture(user_id, name):
+    """A certificate, for the wall - anyone at the table may look at a wall."""
+    if "/" in name or "\\" in name or not name.endswith(".jpg"):
+        abort(404)
+    here = awards.folder(user_id)
+    if not (here / name).is_file():
+        abort(404)
+    return send_from_directory(str(here), name, mimetype="image/jpeg", max_age=3600)
 
 
 def _golf_draw(room, pool, to):
@@ -7300,6 +7333,7 @@ def api_users_remove():
     try:
         db.remove_user(connection, wanted)
         papers.remove_all(wanted)
+        awards.remove_all(wanted)
     except ValueError as exc:
         return jsonify({"ok": False, "message": str(exc)}), 409
     log.info("removed %s and everything of theirs", name)

@@ -2472,14 +2472,18 @@ up. A person's own stroke is untimed, as before.
 
 **The pro shop.** A door off the clubhouse, on the table and the phone:
 the record board on the counter, and the wall. The wall is the
-operator's own certificates - what a radio operator actually hangs up -
-read from `artwork/awards/` (sized into `elmer/static/golf/awards/`),
-captioned from `data/awards.json` and hung in that order, in frames,
-under the operator's callsign. KC9SP's are the first three: eWAC, its
-FT8 endorsement, and eDX at 29 countries; an eDX at 50 hangs beside the
-29, not over it, because a wall shows the place you got to and the room
-beside it. A unit's owner hangs the unit's; the lounge, when it comes,
-is each regular's own.
+certificates of whoever is at the table - what a radio operator actually
+hangs up - and each person's are their own: hung from the Library page
+on their account (the picture eQSL or LoTW handed out, sized once to the
+wall, with the caption they wrote), kept in `data/awards/<account>/`,
+shown under their call whenever they are the one at the table, taken
+down only by them, gone with the account. The program carries nobody's
+wall: the author's own were the first three on it and are on his units
+now the same way as anyone's. An eDX at 50 hangs beside the 29, not over
+it, because a wall shows the place you got to and the room beside it.
+The certificates ELMER's own games hand out are a different thing and
+are said to be - see the tournaments - and a wall of them would be a
+wall of a program praising itself.
 
 **The standing game.** "I'll go set up a golf game to join" was not a
 thing a host could do: the Gaming Center asked for somebody at the table

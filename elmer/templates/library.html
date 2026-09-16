@@ -47,6 +47,37 @@
   <div class="tiny muted" id="pp-said"></div>
 </div>
 
+{# The wall: the person's own certificates, hung from here and shown in
+   the pro shop under their call. Theirs, on their account; the program
+   carries nobody's. #}
+<div class="panel mt">
+  <div class="spread">
+    <div>
+      <div class="panel-title">Your wall</div>
+      <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+        What a radio operator hangs up &mdash; an eWAC, an eDX, a contest plaque, a
+        first-contact certificate. Hand over the picture eQSL or LoTW gave you
+        (a PNG or a JPEG), write the caption, and it hangs in the pro shop under
+        your own call whenever you are the one at the table. Yours alone; it
+        leaves with your account.
+      </p>
+    </div>
+  </div>
+  <div class="grid cols-2" style="gap:.5rem 1rem;max-width:60rem">
+    <div class="field"><label>Title</label><input id="aw-title" placeholder="eWAC &middot; Worked All Continents" maxlength="200"></div>
+    <div class="field"><label>A line about it</label><input id="aw-detail" placeholder="Two-way contact with radio amateurs on six continents" maxlength="200"></div>
+    <div class="field"><label>Issued by, and when</label><input id="aw-issued" placeholder="eQSL.cc, 16 August 2022" maxlength="200"></div>
+    <div class="field"><label>Number</label><input id="aw-number" placeholder="477016" maxlength="200"></div>
+  </div>
+  <div class="row mt" style="gap:.5rem">
+    <label class="btn sm ghost" style="cursor:pointer">Hang a certificate
+      <input type="file" id="aw-file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
+    </label>
+    <span class="tiny muted" id="aw-said"></span>
+  </div>
+  <div id="aw-wall" class="mt"><span class="small muted">Looking&hellip;</span></div>
+</div>
+
 <div class="panel mt">
   <div class="panel-title">Find the page</div>
   <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
@@ -240,6 +271,44 @@
     btn.disabled = false;
   }
   document.getElementById('lib-reindex').addEventListener('click', () => reindex(false));
+
+  // ---- the person's own wall
+  async function wallDraw() {
+    const box = document.getElementById('aw-wall');
+    let d;
+    try { d = await (await fetch('/api/awards')).json(); } catch (err) { box.innerHTML = '<span class="small muted">could not look</span>'; return; }
+    if (!d.wall.length) { box.innerHTML = '<span class="small muted">Nothing hung yet.</span>'; return; }
+    box.innerHTML = '<div class="grid cols-3" style="gap:.8rem">' + d.wall.map(a =>
+      '<figure style="margin:0;padding:.4rem;background:#1b1f27;border:4px solid #3a2f1c;border-radius:3px">' +
+      '<img src="' + escapeHTML(a.url) + '" alt="' + escapeHTML(a.title) + '" style="width:100%;height:auto;display:block" loading="lazy">' +
+      '<figcaption class="tiny" style="margin-top:.3rem"><b>' + escapeHTML(a.title) + '</b>' + (a.detail ? '<br>' + escapeHTML(a.detail) : '') +
+      (a.issued ? '<br><span class="muted">' + escapeHTML(a.issued) + (a.number ? ' &middot; no. ' + escapeHTML(a.number) : '') + '</span>' : '') +
+      '<br><button class="btn sm ghost" style="margin-top:.3rem" data-award-remove="' + escapeHTML(a.name) + '" data-title="' + escapeHTML(a.title) + '">Take down</button></figcaption></figure>').join('') + '</div>';
+  }
+  wallDraw();
+  document.getElementById('aw-file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const said = document.getElementById('aw-said');
+    said.textContent = 'hanging ' + f.name + '\u2026';
+    const fd = new FormData(); fd.append('file', f);
+    ['title', 'detail', 'issued', 'number'].forEach(k => fd.append(k, document.getElementById('aw-' + k).value.trim()));
+    try {
+      const r = await fetch('/api/awards/add', {method: 'POST', body: fd});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || d.message || 'refused');
+      said.textContent = 'hung';
+      ['title', 'detail', 'issued', 'number'].forEach(k => { document.getElementById('aw-' + k).value = ''; });
+      wallDraw();
+    } catch (err) { said.textContent = err.message || 'could not hang it'; }
+    e.target.value = '';
+  });
+  document.getElementById('aw-wall').addEventListener('click', async e => {
+    const b = e.target.closest('[data-award-remove]');
+    if (!b) return;
+    if (!confirm('Take ' + b.dataset.title + ' down? The picture is deleted from this unit.')) return;
+    try { await postJSON('/api/awards/remove', {name: b.dataset.awardRemove}); wallDraw(); } catch (err) {}
+  });
 
   // ---- the person's own licence papers
   async function papersDraw() {
