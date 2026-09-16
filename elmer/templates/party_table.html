@@ -295,13 +295,13 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
         <div class="hotseat" id="hotseat">
           <div class="tiny muted" style="margin:.7rem 0 .3rem">Or play at this screen &mdash; two can sit here, side by side, phones or no phones.</div>
           <div class="hs-row" data-seat="A">
-            <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off" list="regulars">
+            <input class="hs-name" maxlength="24" placeholder="Seat A &mdash; a name" autocomplete="off" list="regulars" value="{{ seat_name }}">
             <select class="hs-lic" title="License class held, if you care to say - for the class report only, never shown">
               <option value="">Class?</option>
               <option value="none">None yet</option>
-              <option value="Technician">Tech</option>
-              <option value="General">General</option>
-              <option value="Extra">Extra</option>
+              <option value="Technician"{% if seat_class == 'Technician' %} selected{% endif %}>Tech</option>
+              <option value="General"{% if seat_class == 'General' %} selected{% endif %}>General</option>
+              <option value="Extra"{% if seat_class == 'Extra' %} selected{% endif %}>Extra</option>
               <option value="Advanced">Advanced</option>
               <option value="Novice">Novice</option>
             </select>

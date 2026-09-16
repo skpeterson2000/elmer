@@ -5034,10 +5034,19 @@ def party_table(table="1"):
     wanted = str(request.args.get("difficulty", "")).lower()
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
-    amateur, commercial = _tournament_choices(conn())
+    connection = conn()
+    amateur, commercial = _tournament_choices(connection)
+    # The first seat at this screen defaults to whoever is signed in to
+    # ELMER, by callsign where they hold one: it is theirs, it is what a
+    # game credits them under, and the new ones should see their own call
+    # often. The box stays a box - anyone may sit there as anyone.
+    me = db.get_profile(connection)
+    seat_name = (me.get("callsign") or me.get("display_name") or "").strip()
+    seat_class = (me["settings"].get("license_class") or "").strip()
     return render_template(
         "party_table.html", table=table, name=_table_name(table),
         difficulty=wanted, join_url=url, amateur=amateur, commercial=commercial,
+        seat_name=seat_name, seat_class=seat_class if seat_class in ("Technician", "General", "Extra") else "",
         qr_svg=qr.as_svg(url, module=7, quiet=3))
 
 
