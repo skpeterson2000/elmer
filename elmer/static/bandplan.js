@@ -1157,14 +1157,35 @@ function worthRender(d) {
     return `<div class="worth-group"><div class="spread" style="align-items:baseline"><b>${escapeHTML(g.group)}</b> <span class="tiny muted">${g.total_mhz.toFixed(1)} MHz of amateur allocation in ${g.bands.length} bands &middot; reaches ${escapeHTML(g.reach)}</span></div>` +
       `<table class="worth">${rows}</table></div>`;
   }).join('');
-  box.innerHTML = legend + groups +
+  /* The power ceiling: a bar a radio, on the ham's own scale - decibels -
+     because half a watt to fifteen hundred is three and a half thousand to
+     one and a linear bar would show nothing but the amateur. The watts are
+     printed; the decibels below 1500 W are the number an operator feels. */
+  const power = (d.power || []);
+  const DB_LO = 20, DB_HI = 62;                          // 0.1 W to 1500 W, in dBm
+  const powerRows = power.map(r => {
+    const w = Math.max(2, (r.dbm - DB_LO) / (DB_HI - DB_LO) * 420);
+    const colour = r.license === 'none' ? '#c98500' : r.license === 'gmrs' ? '#199e70' : '#3987e5';
+    const watts = r.watts >= 1000 ? (r.watts / 1000).toFixed(1) + ' kW' : r.watts + ' ' + r.unit;
+    return `<tr class="${bpClass() === r.license || (bpClass() === 'Extra' && r.license === 'General') ? 'worth-me' : ''}"><th scope="row">${escapeHTML(r.label)}</th>` +
+      `<td class="worth-bar"><svg viewBox="0 0 420 18" width="100%" height="18" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(r.label)} ${watts}">` +
+      `<rect x="0" y="6" width="420" height="6" rx="3" fill="var(--line)"/><rect x="0" y="0" width="${w.toFixed(1)}" height="18" rx="2" fill="${colour}"><title>${escapeHTML(r.note)}</title></rect></svg></td>` +
+      `<td class="mono worth-num">${watts} <span class="muted">${r.db_below ? '-' + r.db_below.toFixed(0) + ' dB' : 'the ceiling'}</span></td>` +
+      `<td class="tiny muted worth-what">${escapeHTML(r.antenna)}</td></tr>`;
+  }).join('');
+  const powerBlock = `<div class="worth-group"><div class="spread" style="align-items:baseline"><b>Power</b> <span class="tiny muted">the most each radio may run, on a decibel scale - each 6 dB is an S-unit at the far end; the antenna rule beside it</span></div>` +
+    `<table class="worth">${powerRows}</table></div>`;
+  box.innerHTML = legend + groups + powerBlock +
     `<p class="tiny muted" style="margin:.6rem 0 0;max-width:84ch">The bars are to one scale within a row: the grey is what the row's whole allocation would be. ` +
     `Read across, the step that matters is the first one - from a licence-free radio to a Technician, VHF and UHF go from a few channels to all of it, ` +
     `and HF from CB to ten metres with the world on it when the sun is up; the General step opens the rest of HF, and the Extra the last of every band. ` +
     `GMRS - a fee and a form, no exam - adds ${d.gmrs_mhz.toFixed(1)} MHz of UHF at 50 W with repeaters for a family, and is the one step that is not an exam. ` +
+    `On power, a Technician's handheld on 2 m may run the same two or five watts as an FRS radio - and a beam on the roof, which the FRS radio may never have, is where the difference is made; the 1500 W is there when the band asks for it. ` +
     `Thirty-five questions from a pool of about four hundred, all of it in this program, is the Technician.</p>` +
     `<details class="derivation"><summary class="tiny">The same as a table</summary><table class="data tiny"><tr><th>group</th><th>licence</th><th>MHz</th><th>of</th><th>by what you can do</th></tr>` +
     d.groups.map(g => g.rows.map(r => `<tr><td>${escapeHTML(g.group)}</td><td>${escapeHTML(r.label)}</td><td class="mono">${((r.mhz || 0) + (r.personal || []).reduce((a, p) => a + p.mhz, 0)).toFixed(3)}</td><td class="mono">${g.total_mhz.toFixed(3)}</td><td>${escapeHTML(r.personal && r.personal.length ? r.personal.map(p => p.label + ' ' + p.mhz.toFixed(3)).join('; ') : Object.entries(r.by || {}).map(([k, v]) => WORTH_NAME[k] + ' ' + v.toFixed(3)).join('; '))}</td></tr>`).join('')).join('') +
+    `</table><table class="data tiny mt"><tr><th>radio</th><th>watts</th><th>dBm</th><th>below 1500 W</th><th>rule</th><th>antenna</th></tr>` +
+    power.map(r => `<tr><td>${escapeHTML(r.label)}</td><td class="mono">${r.watts} ${escapeHTML(r.unit)}</td><td class="mono">${r.dbm}</td><td class="mono">${r.db_below} dB (${r.s_units} S-units)</td><td>${escapeHTML(r.note)}</td><td>${escapeHTML(r.antenna)}</td></tr>`).join('') +
     `</table></details>`;
   // the row of the class being read is marked, so the selector and the chart agree
   const cls = bpClass();

@@ -138,6 +138,18 @@ def main():
     check("  and no licence has a third of a megahertz of it", round(sum(p["mhz"] for p in vu["none"]["personal"]), 2), 0.35)
     check("a segment counts as the most it allows: phone before CW", B._most("CW, phone"), "phone")
 
+    print("\n-- and the power ceiling --")
+    power = {r["label"]: r for r in B.power_rows()}
+    check("FRS's two watts are 29 dB below the amateur's kilowatt and a half", power["FRS"]["db_below"], 28.8)
+    check("  which is nearly five S-units", power["FRS"]["s_units"], 4.8)
+    check("CB's 12 W PEP is 21 dB down", power["CB"]["db_below"], 21.0)
+    check("GMRS, the one step with no exam, is 50 W", power["GMRS - a fee and a form, no exam"]["watts"], 50.0)
+    check("a Technician on HF has 200 W, 9 dB down", (power["Technician, HF"]["watts"], power["Technician, HF"]["db_below"]), (200.0, 8.8))
+    check("  and the ceiling above 30 MHz", power["Technician, VHF and up"]["db_below"], 0.0)
+    check("every row says its antenna rule", all(r["antenna"] for r in B.POWER), True)
+    check("  and cites its section", all("(9" in r["note"] for r in B.POWER), True)
+    check("the chart carries it", "power" in B.allocation(), True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

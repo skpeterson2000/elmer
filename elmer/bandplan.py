@@ -833,4 +833,49 @@ def allocation():
                                         else "line of sight, repeaters and satellites - the town and the sky"),
                               "rows": rows})
     out["gmrs_mhz"] = GMRS_MHZ
+    out["power"] = power_rows()
+    return out
+
+
+# The other half of the argument: the power ceiling, and the antenna rule
+# beside it, since a fixed antenna is as much of the ceiling as the watts.
+# Each row is a radio somebody can hold, with the most the rule allows it,
+# in watts and in decibels below the amateur's 1500 W PEP - a number an
+# operator can feel: six decibels is an S-unit, and a hundred times the
+# power is twenty of them. Sources: 47 CFR 95.567, 95.2767, 95.967,
+# 95.1767 for the Part 95 services; 97.313 for the amateur, with the
+# 200 W PEP the Technician's HF segments carry.
+POWER = [
+    {"license": "none", "label": "FRS", "watts": 2.0, "unit": "W ERP",
+     "note": "2 W ERP on channels 1-7 and 15-22; half a watt on 8-14 (95.567)",
+     "antenna": "fixed to the radio, not replaceable (95.587)"},
+    {"license": "none", "label": "MURS", "watts": 2.0, "unit": "W ERP",
+     "note": "2 W ERP (95.2767)", "antenna": "any, up to 60 ft above ground (95.2741)"},
+    {"license": "none", "label": "CB", "watts": 12.0, "unit": "W PEP",
+     "note": "4 W carrier on AM or FM, 12 W PEP on SSB; no amplifier ever (95.967, 95.939)",
+     "antenna": "any, up to 60 ft above ground or 20 ft above its support (95.941)"},
+    {"license": "gmrs", "label": "GMRS - a fee and a form, no exam", "watts": 50.0, "unit": "W",
+     "note": "50 W on the main channels and through repeaters; 5 W on the interstitials, half a watt on 8-14 (95.1767)",
+     "antenna": "any; a repeater on a tower is permitted"},
+    {"license": "Technician", "label": "Technician, HF", "watts": 200.0, "unit": "W PEP",
+     "note": "200 W PEP on the Technician's HF segments (97.313(c))",
+     "antenna": "any - a beam's gain counts for you"},
+    {"license": "Technician", "label": "Technician, VHF and up", "watts": 1500.0, "unit": "W PEP",
+     "note": "1500 W PEP (97.313(b)), and always the minimum power needed (97.313(a))",
+     "antenna": "any - height and gain are yours to build"},
+    {"license": "General", "label": "General and Extra", "watts": 1500.0, "unit": "W PEP",
+     "note": "1500 W PEP everywhere but 30 m (200 W) and the 60 m channels (100 W ERP) (97.313)",
+     "antenna": "any - height and gain are yours to build"},
+]
+
+
+def power_rows():
+    """The power ceilings with their decibels below 1500 W, for the chart."""
+    import math
+    top = 1500.0
+    out = []
+    for row in POWER:
+        db_below = 10 * math.log10(top / row["watts"])
+        out.append(dict(row, dbm=round(10 * math.log10(row["watts"] * 1000), 1), db_below=round(db_below, 1),
+                        s_units=round(db_below / 6, 1)))
     return out
