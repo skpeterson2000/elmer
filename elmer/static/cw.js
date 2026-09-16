@@ -1012,21 +1012,52 @@ function phoneticWord(key) {
   if (CWS.meanings && CWS.meanings[k]) return k + ' - ' + CWS.meanings[k];
   return k;
 }
-/* Said, and shown: the word appears where the eye already is, so the
-   sound, the key and the name land together whether the shelf has the
-   recording or not. */
-function sayBack(key, where) {
+/* A chime before a right answer, a buzz before a wrong one - made here
+   from the player's own audio context, so no file is needed and they are
+   never late. The chime is two rising notes; the buzz is a low, rough
+   note. Both short: they announce the word, they do not replace it. */
+function cue(ok) {
+  try {
+    const ctx = player.ensure();
+    const t = ctx.currentTime + 0.02;
+    const g = ctx.createGain(); g.connect(ctx.destination);
+    const v = Math.pow(settings.volume / 100, 2) * 0.5;
+    if (ok) {
+      [[880, 0], [1320, 0.09]].forEach(([hz, at]) => {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = hz; o.connect(g);
+        o.start(t + at); o.stop(t + at + 0.12);
+      });
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.01);
+      g.gain.setValueAtTime(v, t + 0.18); g.gain.linearRampToValueAtTime(0, t + 0.22);
+    } else {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 150; o.connect(g);
+      o.start(t); o.stop(t + 0.28);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v * 0.6, t + 0.01);
+      g.gain.setValueAtTime(v * 0.6, t + 0.24); g.gain.linearRampToValueAtTime(0, t + 0.28);
+    }
+    return ok ? 0.25 : 0.32;
+  } catch (e) { return 0; }
+}
+
+/* Said, and shown: what the code WAS, not what the key was. When K is
+   heard and M is pressed the word is Kilo, after a buzz; when K is
+   pressed it is Kilo after a chime. The key decides the grading and the
+   cue; the word is always the truth, so the sound of the code is coupled
+   to its name and never to a mistake. */
+function sayBack(actual, where, ok) {
   const box = document.getElementById('cw-sayback');
-  const word = phoneticWord(key);
+  const word = phoneticWord(actual);
   if (where) { where.textContent = word; where.classList.add('show'); }
   if (box && !box.checked) return word;
-  const k = String(key || '').toUpperCase();
+  let wait = 0;
+  if (ok === true || ok === false) wait = cue(ok);
+  const k = String(actual || '').toUpperCase();
   let token = null;
   if (/^[A-Z]$/.test(k)) token = 'phon-' + k.toLowerCase();
   else if (/^[0-9]$/.test(k)) token = DIGIT_WORDS[+k];
   else if (/^Q[A-Z]{2}$/.test(k)) token = 'q-' + k.toLowerCase();
   else if (/^[A-Z]{2}$/.test(k)) token = 'pro-' + k.toLowerCase();
-  if (token && window.Voice) Voice.say([token]);
+  if (token && window.Voice) setTimeout(() => Voice.say([token]), wait * 1000);
   return word;
 }
 
@@ -1119,9 +1150,9 @@ async function flashRun(seconds) {
     const want = sym.char;
     perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}};
     perChar[want].sent++;
-    if (answer) sayBack(answer, word);
     const ok = answer === want;
     word.style.color = ok ? 'var(--green)' : 'var(--red)';
+    sayBack(want, word, answer ? ok : undefined);
     if (ok) { right++; perChar[want].copied++; times.push(performance.now() - t0); }
     else if (answer) perChar[want].confused[answer] = (perChar[want].confused[answer] || 0) + 1;
     letter.innerHTML = escapeHTML(want) + (ok ? '' : ' <span class="cw-miss"><i>' + escapeHTML(answer || '·') + '</i></span>');
@@ -1202,13 +1233,19 @@ document.getElementById('cw-today-start').addEventListener('click', runSession);
 document.getElementById('cw-today-stop').addEventListener('click', () => { sessionStop = true; flashKey = null; player.stop(); teachHalt(); });
 renderToday();
 
-/* Say back on the copy pane too, when asked for: off by default there,
-   because the code is still sounding while the fingers type and a spoken
-   letter over the next character masks it. */
+/* Say back on the copy pane too, once the sending has finished (while it
+   is still sounding a spoken word masks the next character): the key at
+   this position is set against the character that was sent there, and
+   what is said is the character sent, after a chime or a buzz. */
 document.getElementById('cw-typed').addEventListener('keydown', e => {
   const box = document.getElementById('cw-sayback');
-  if (!box || !box.checked || sending) return;
-  if (e.key.length === 1) document.getElementById('cw-copy-status').textContent = sayBack(e.key);
+  if (!box || !box.checked || sending || !currentText) return;
+  if (e.key.length !== 1 || e.key === ' ') return;
+  const typed = (e.target.value || '').replace(/\s+/g, '');
+  const sentChars = currentText.replace(/\s+/g, '');
+  const want = sentChars[typed.length];
+  if (!want) return;
+  document.getElementById('cw-copy-status').textContent = sayBack(want, null, e.key.toUpperCase() === want);
 });
 
 /* ---------------------------------------------------------------- rating */

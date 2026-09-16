@@ -8,7 +8,7 @@ short commit id on its dashboard and in every problem report.
 ## 2026-09-16
 
 - The error page says when ELMER's own files changed after it started - a restart owed, not a fault
-- CW: one door - Today - where the record decides the lesson and one press runs the session: meet, one at a time against the clock, groups, words; every key said back phonetically and shown; a streak
+- CW: one door - Today - where the record decides the lesson and one press runs the session: meet, one at a time against the clock, groups, words; after each key a chime or a buzz and then what was sent, by name; a streak
 - The path tool asks the same path three ways - no licence, Technician, General - and says what the far end needs on each
 - The Lab: noise and what the antenna keeps company with - the transformer on the pole, the near field in feet, the S-meter against a dummy load; and whether to cut at all
 - Golf: the host says how many companions - a foursome unless they say otherwise, every companion's stroke a question in front of them for free; alone or a pair, the hole is told two lines a stroke
