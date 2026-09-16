@@ -4217,24 +4217,37 @@ def _credit_players(connection, summary, rows):
     KC9SP: the player should get credit for their questions on that
     machine too - towards carrying their questions and awards home. So a
     table's round, or a hall's landing on this table, is also a study
-    answer for every player here whose name is a callsign with a profile
-    on this unit: the same row study writes, marked with the game. A name
-    that is not a callsign, or a callsign nobody here holds, is credited
-    nowhere - the record belongs to the person, and only a callsign says
+    answer for every player here whose name is an account on this unit:
+    the same row study writes, marked with the game. A callsign held by a
+    profile here names its person; so does the name of an account, when
+    one account here has it - a family's unit seats "Grandkid" as surely
+    as it seats KC9SP, and a golf round played under the name on the
+    account should count for it. A name that is neither is credited
+    nowhere - the record belongs to a person, and only their account says
     who that is.
     """
-    by_call = {}
+    by_call, by_name, dupes = {}, {}, set()
     for prof in db.users(connection):
         call = (prof.get("callsign") or "").strip().upper()
         if call:
             by_call[call] = prof["id"]
-    if not by_call:
+        for name in {(prof.get("name") or "").strip().lower(), (prof.get("display_name") or "").strip().lower()}:
+            if not name:
+                continue
+            if name in by_name and by_name[name] != prof["id"]:
+                dupes.add(name)
+            by_name.setdefault(name, prof["id"])
+    for name in dupes:
+        by_name.pop(name, None)          # two accounts with one name: neither is credited by it
+    if not by_call and not by_name:
         return
     mode = f"table:{summary.get('mode') or 'tournament'}" if summary.get("tag") is None else "hall"
     pool_id, qid = summary.get("pool") or "", summary.get("question_id") or ""
     for r in rows:
         call = party.callsign_of(r.get("name"))
         user_id = by_call.get(call) if call else None
+        if user_id is None:
+            user_id = by_name.get(str(r.get("name") or "").strip().lower())
         if user_id is None:
             continue
         connection.user_id = user_id
