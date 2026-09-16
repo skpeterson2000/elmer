@@ -58,6 +58,7 @@ venv/
 # with no signal, and never anybody else's to check out.
 data/library/
 data/papers/
+data/pace.json
 data/awards/
 artwork/awards/
 elmer/static/golf/awards/

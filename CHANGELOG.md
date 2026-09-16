@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The pace ledger: every endpoint's timings kept on the unit, creepers named in the log, by the doctor, and in the weekly report home
 - POTA/SOTA: the band on the page - between A and B miles of here or of somewhere typed - is the list's band, not only the printed sheet's; only the band is worked out, and the held list is read from the card once, not per call
 - The antenna page: the sliders that turn the picture sit under the plots they move - turned from below, watching what one does; the reading of it after
 - Golf: choosing no companions at an empty table clears an earlier booking's practice players; the count holds wherever golf is in its life, and the seating is logged

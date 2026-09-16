@@ -1097,6 +1097,28 @@ def check_start():
     return True
 
 
+def check_pace():
+    """Whether anything on this unit has crept, from the ledger."""
+    try:
+        from . import pace
+        bad = pace.creepers()
+    except Exception as exc:
+        _line(WARN, "pace", f"the ledger could not be read ({exc})")
+        return True
+    if not pace.rows():
+        _line(OK, "pace", "no requests timed yet - the ledger fills as pages are served")
+    elif bad:
+        worst = bad[0]
+        _line(WARN, "pace", f"{len(bad)} endpoint(s) over budget or crept - worst {worst['key']} "
+                            f"p95 {worst['p95']} ms" + (f", crept from {worst['base']} ms" if worst["crept"] else "")
+                            + "; the weekly field report carries the table",
+              fix="find what that endpoint does per call that it did not - the log around it, then the code")
+    else:
+        top = pace.rows()[0]
+        _line(OK, "pace", f"nothing over budget, nothing crept - slowest {top['key']} p95 {top['p95']} ms")
+    return True
+
+
 def check_server(port):
     if port_in_use(port):
         try:
@@ -1132,7 +1154,7 @@ def doctor(port=5000):
         check_gps(), check_repeaters(), check_towerwitch_service(), check_towerwitch_beside(),
         check_neighbours(), check_net_role(), check_hall(), check_node(),
         check_mail(), check_load(), check_op25(),
-        check_internet(), check_start(), check_server(port),
+        check_internet(), check_start(), check_pace(), check_server(port),
     ]
 
     print("\n  Open ELMER at any of these:\n")

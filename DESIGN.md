@@ -2498,6 +2498,19 @@ booked. The sign is the program's - a unit does not get its own name on
 it. Nothing on the page is the main element, which is the point of a
 lounge.
 
+**The pace ledger** (`elmer/pace.py`). Every request is timed already; the
+ledger keeps, per endpoint, how many times it was asked, its mean, its
+slowest and its last forty timings for a ninety-fifth percentile - the
+first, cold call of each left out - and writes itself to `data/pace.json`
+every few minutes so a restart does not lose the week. A *creeper* is an
+endpoint whose p95 is past the budget for its kind (a poll 150 ms, an API
+call 400, a page 900, a print 4 s - on a Pi, which is the machine that
+matters) or whose mean has doubled since its first hundred calls, which is
+what creeping looks like before it crosses any budget. The unit says so in
+the log once an hour, the doctor says so, and the weekly field report
+carries the table of the slow ones and the creepers home - so a creeper is
+caught by the unit and not by somebody looking over their shoulder.
+
 **The standing game.** "I'll go set up a golf game to join" was not a
 thing a host could do: the Gaming Center asked for somebody at the table
 first, and the moment somebody scanned in the table's own fifteen-second

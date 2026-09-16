@@ -50,8 +50,9 @@ WHAT_IT_SENDS = (
     "this unit has learned and whether it is applying it, how many rounds "
     "of each game and study answers there were - as counts - how each "
     "question went for the people who met it for the first time (its id, "
-    "how many, the miss rate and a time index; no names), and the errors and "
-    "warnings, counted, with the last few in full. Your callsign, grid "
+    "how many, the miss rate and a time index; no names), how long each "
+    "page and call takes on this unit and whether any has crept, and the "
+    "errors and warnings, counted, with the last few in full. Your callsign, grid "
     "square, coordinates, network addresses and home directory are taken "
     "out before it is written. Every report is saved here first so you can "
     "read it, and it goes to " + mail.CONTACT + " by the drop, or through "
@@ -234,6 +235,16 @@ def build(conn=None, now=None):
                         f"{m['median_z'] if m['median_z'] is not None else '-'} {m['hardness']:.2f}")
         except Exception as exc:
             add(f"  (could not be measured: {type(exc).__name__}: {exc})")
+
+    # -- the pace: the slow ones and the creepers, from the ledger
+    add("")
+    add("the pace - slowest endpoints on this unit (p95 over the last forty calls), and any that crept")
+    add("-" * 60)
+    try:
+        from . import pace
+        out.extend(pace.report_lines())
+    except Exception as exc:
+        add(f"  (could not be read: {type(exc).__name__}: {exc})")
 
     # -- the log's complaints
     add("")

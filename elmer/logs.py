@@ -272,6 +272,15 @@ def install_request_logging(app):
         elapsed = (time.perf_counter() - getattr(g, "_started", time.perf_counter())) * 1000
         status = response.status_code
         path = request.full_path.rstrip("?")
+        # The pace ledger: every endpoint's timings, kept, so a creeper is
+        # caught by the unit rather than by somebody watching for one.
+        try:
+            from . import pace
+            if request.endpoint != "static":
+                pace.note(request.method, path, elapsed)
+                pace.tick()
+        except Exception:               # never at a request's expense
+            pass
         agent = (request.user_agent.string or "-")[:60]
         own = agent.startswith("ELMER/")       # a table, a board, a bridge
         if status < 400 and elapsed < POLL_SLOW_MS and is_poll(path) \
