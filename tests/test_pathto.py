@@ -102,6 +102,28 @@ def run():
     check("but 20 m is not the unlicensed person's", pathto._allowed("20m", "none")[0], False)
     check("  nor 10 m", pathto._allowed("10m", "none")[0], False)
 
+    print("\n-- the same path three ways: no licence, Technician, General --")
+    d = pathto.predict(here, there, gear=["ht"], license="Technician", now=1789400000)
+    lad = d["ladder"]
+    check("three rungs, in order", [r["key"] for r in lad["rungs"]], ["none", "Technician", "General"])
+    none, tech, gen = lad["rungs"]
+    check("the unlicensed rung across the state has no personal-radio way", any("FRS" in w["band"] for w in none["ways"]), False)
+    check("  and says so plainly when it has nothing", none["ways"] or "without a licence" in none["verdict"], True)
+    check("a Technician's HF ways are the CW-only bands, and say so",
+          all(w.get("mode") for w in tech["ways"] if w["band"] not in ("2 m / 70 cm",)), True)
+    check("  General has at least what Technician has", len(gen["ways"]) >= len(tech["ways"]), True)
+    check("  and every amateur way on the General rung is a band General may use",
+          all(pathto._allowed(w["band"], "General")[0] for w in gen["ways"] if w["band"] not in ("2 m / 70 cm",)), True)
+    check("the operator's own rung is marked", lad["yours"], "Technician")
+    check("  an Extra sits on the General rung", pathto.predict(here, there, gear=["ht"], license="Extra", now=1789400000)["ladder"]["yours"], "General")
+    check("each rung says what the far end needs", all(r["far_end"] for r in lad["rungs"]), True)
+    check("  and the two-way rule is named", "97.113" in lad["two_way"], True)
+    d = pathto.predict(here, near, gear=["ht"], license="none", now=1789400000)
+    lad = d["ladder"]
+    check("across town, the unlicensed rung has GMRS or the personal radios", any("GMRS" in w["band"] or "FRS" in w["band"] for w in lad["rungs"][0]["ways"]), True)
+    check("  and across town HF is two bands at most on a rung", all(len([w for w in r["ways"] if w["band"] != "2 m / 70 cm"]) <= 2 for r in lad["rungs"]), True)
+    check("  the step between rungs is said", len(lad["step"]) >= 1, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

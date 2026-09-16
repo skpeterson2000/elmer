@@ -97,9 +97,36 @@ function roPathCard(d) {
     (d.when ? '<p class="small" style="margin:.3rem 0"><b>When:</b> ' + escapeHTML(d.when) + '</p>' : '') +
     '<div class="panel-title" style="margin-top:.6rem">The approach</div>' +
     '<ol style="margin:.2rem 0 0;padding-left:1.2rem">' + steps + '</ol>' +
+    roLadder(d.ladder) +
     '<p class="tiny muted" style="margin:.5rem 0 0">This is what the numbers say. The band that ' +
     'carries it is the science; working it is the art - call, listen a full minute, move, try again.</p>' +
     '</div>';
+}
+
+/* The same path, three ways: with no licence, as a Technician, as a
+   General - each with the radio that class would have in hand. Side by
+   side, so the distance between the rungs shows. */
+function roLadder(l) {
+  if (!l || !l.rungs) return '';
+  const cols = l.rungs.map(r => {
+    const mine = l.yours && r.key === l.yours;
+    const ways = r.ways.length
+      ? '<ul style="margin:.25rem 0 0;padding-left:1rem">' + r.ways.map(w =>
+          '<li class="small"><b>' + escapeHTML(w.band) + '</b> <span class="muted">by ' + escapeHTML(w.how) + '</span> ' +
+          '<span class="tiny mono" style="color:' + (RO_TONE[w.odds] || '#8b98a5') + '">' + escapeHTML(w.odds) + '</span>' +
+          (w.mode ? '<div class="tiny muted">' + escapeHTML(w.mode) + '</div>' : '') + '</li>').join('') + '</ul>'
+      : '<div class="small muted" style="margin-top:.25rem">nothing, right now</div>';
+    return '<div style="padding:.5rem;border-radius:8px;border:1px solid ' + (mine ? 'var(--amber)' : 'var(--line)') + '">' +
+      '<b>' + escapeHTML(r.label) + '</b>' + (mine ? ' <span class="tiny mono" style="color:var(--amber)">you</span>' : '') +
+      '<div class="tiny muted">with ' + escapeHTML(r.radio) + '</div>' + ways +
+      '<div class="tiny" style="margin-top:.3rem">' + escapeHTML(r.verdict) + '</div>' +
+      (r.far_end ? '<div class="tiny muted" style="margin-top:.2rem">Far end: ' + escapeHTML(r.far_end) + '</div>' : '') + '</div>';
+  }).join('');
+  return '<div class="panel-title" style="margin-top:.8rem">Right now, without a phone - by licence</div>' +
+    '<div class="grid cols-3" style="gap:.5rem">' + cols + '</div>' +
+    (l.step.length ? '<p class="small" style="margin:.4rem 0 0">' + l.step.map(escapeHTML).join('; ') + '.</p>' : '') +
+    (l.two_way ? '<p class="small" style="margin:.3rem 0 0"><b>Two-way:</b> ' + escapeHTML(l.two_way) + '</p>' : '') +
+    '<p class="tiny muted" style="margin:.3rem 0 0">Each column assumes the radio that licence would have in hand, whatever is ticked above; the approach above is for what you actually have.</p>';
 }
 
 async function roPath() {

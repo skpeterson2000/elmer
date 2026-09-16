@@ -160,6 +160,112 @@ def _antenna_note(how, bearing):
             f"a vertical is the second choice, and a fair one for the low angle")
 
 
+# Line of sight for a personal radio: two handhelds at head height see each
+# other about this far over flat ground - FRS, MURS, GMRS simplex.
+PERSONAL_SIGHT_KM = 8.0
+
+
+def ladder(km, sight, sky, license=None):
+    """The same path, asked three ways: with no licence, as a Technician,
+    as a General - each with the radio that class would have in hand, not
+    the gear ticked. Put side by side so the distance between the rungs
+    is visible: what a Technician can do that an unlicensed person cannot,
+    and what a General can that a Technician cannot. The carrot, if it is
+    one; the numbers either way."""
+    works = [r for r in sky["bands"] if r["works"]]
+    works.sort(key=lambda r: ((r.get("hops") or 1), -(r.get("score") or 0)))
+    near = km <= SIGHT_KM
+    clear = bool(sight.get("clear"))
+    if near:
+        # Across town HF is ground wave or straight up, and two bands say
+        # it; ten would be a list of bands that happen to reach.
+        works = [r for r in works if r["how"] in ("ground wave", "straight up and back") or r["band"] == "11m"]
+
+    def hf_ways(rank_name):
+        out = []
+        for r in works:
+            if r["band"] == "11m":
+                continue
+            ok, mode = _allowed(r["band"], rank_name)
+            if ok:
+                out.append({"band": r["band"], "how": r["how"], "mode": mode,
+                            "odds": "good" if (r.get("hops") or 1) == 1 and (r.get("score") or 50) >= 50
+                            else "worth trying" if (r.get("hops") or 1) <= 2 else "long shot"})
+            if near and len(out) >= 2:
+                break
+        return out
+
+    # No licence: FRS, MURS, GMRS simplex only by line of sight, a few
+    # miles; a GMRS repeater within reach of both ends past that, if there
+    # is one; CB on 11 m by ground wave or skip when the sky says so.
+    none = []
+    if km <= PERSONAL_SIGHT_KM and clear:
+        none.append({"band": "FRS / GMRS / MURS", "how": "line of sight", "odds": "good"})
+    elif near:
+        none.append({"band": "GMRS", "how": "a repeater covering both ends, if one exists", "odds": "worth trying"})
+    cb = next((r for r in works if r["band"] == "11m"), None)
+    if cb:
+        none.append({"band": "11 m (CB)", "how": cb["how"], "odds": "worth trying" if (cb.get("hops") or 1) <= 2 else "long shot"})
+    elif km <= 20:
+        none.append({"band": "11 m (CB)", "how": "ground wave", "odds": "worth trying"})
+
+    # Technician: 2 m / 70 cm by sight or by repeater; 6 m and 10 m when
+    # open; CW on 40, 15 and 80 m - the code, not a rig, is the limit.
+    tech = []
+    if clear:
+        tech.append({"band": "2 m / 70 cm", "how": "line of sight", "odds": "good"})
+    elif near:
+        tech.append({"band": "2 m / 70 cm", "how": "by repeater", "odds": "worth trying"})
+    tech += hf_ways("Technician")
+
+    general = []
+    if clear:
+        general.append({"band": "2 m / 70 cm", "how": "line of sight", "odds": "good"})
+    elif near:
+        general.append({"band": "2 m / 70 cm", "how": "by repeater", "odds": "worth trying"})
+    general += hf_ways("General")
+
+    def words(ways, who):
+        if not ways:
+            return {"none": f"nothing reaches {km:.0f} km without a licence right now",
+                    "Technician": f"nothing on a Technician's bands carries {km:.0f} km right now",
+                    "General": f"no band carries {km:.0f} km by the numbers right now"}[who]
+        good = [w for w in ways if w["odds"] == "good"]
+        return (f"{len(ways)} way{'s' if len(ways) != 1 else ''}, {len(good)} of them good"
+                if good else f"{len(ways)} way{'s' if len(ways) != 1 else ''} worth trying, none certain")
+
+    # Reaching somebody is two-way or it is nothing: 97.113(b) forbids the
+    # one-way call, and a station that can be heard but cannot answer has
+    # not been reached. So each rung says what the far end needs as well.
+    rungs = [
+        {"key": "none", "label": "No licence", "radio": "an FRS, GMRS, MURS or CB radio", "ways": none, "verdict": words(none, "none"),
+         "far_end": "the same kind of radio at the far end - FRS to FRS, CB to CB; no licence either side"},
+        {"key": "Technician", "label": "Technician", "radio": "a 2 m handheld, a 10 m or 6 m rig, and the code on 40 m",
+         "ways": tech, "verdict": words(tech, "Technician"),
+         "far_end": "an amateur at the far end, licensed for that band - a General there can meet you on 2 m or 10 m; you cannot meet them on 20 m"},
+        {"key": "General", "label": "General and above", "radio": "an HF rig on every band", "ways": general,
+         "verdict": words(general, "General"),
+         "far_end": "an amateur at the far end with a rig for that band - and if they hold a Technician licence, only the bands they may answer on"},
+    ]
+    # The distance between the rungs, in one sentence each way.
+    step_up = []
+    if len(tech) > len(none):
+        step_up.append(f"a Technician licence opens {len(tech) - len(none)} more way{'s' if len(tech) - len(none) != 1 else ''} to reach there than no licence")
+    elif not tech and not none:
+        step_up.append("neither no licence nor Technician reaches there right now")
+    if len(general) > len(tech):
+        step_up.append(f"General opens {len(general) - len(tech)} more than Technician - the HF bands that carry {km:.0f} km at this hour")
+    elif tech and len(general) == len(tech):
+        step_up.append("right now General adds nothing a Technician has not got - the hour, not the licence, is the limit")
+    you = (license or "").strip()
+    return {"rungs": rungs, "step": step_up,
+            "two_way": ("Reaching them is two-way or it is nothing - a one-way transmission is forbidden on the amateur bands "
+                        "(97.113(b)), and a station that can hear you but cannot answer has not been reached. "
+                        "Each column needs its far end too."),
+            "yours": you if you in ("none", "Technician", "General") else
+            ("General" if reachout._class_rank(you) >= bandplan.CLASS_RANK.get("General", 2) else you)}
+
+
 def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
     """The path and the approach. `here` and `there` are place dicts with
     lat/lon; the ionosphere is read at the midpoint, which is where a
@@ -269,4 +375,5 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
                 "read_at": "the midpoint of the path, where a hop is reflected"},
         "approach": approach,
         "when": when,
+        "ladder": ladder(km, sight, sky, license),
     }
