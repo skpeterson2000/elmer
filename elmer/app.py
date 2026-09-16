@@ -1649,8 +1649,20 @@ def api_antenna_pdf():
 @app.route("/api/personal")
 def api_personal():
     """FRS, GMRS, MURS and CB: channels, law and conventions, for the band
-    plan page and anything else that meets a frequency it does not own."""
-    return jsonify(personal.for_bandplan())
+    plan page and anything else that meets a frequency it does not own -
+    and the GMRS repeaters within reach of the QTH, where ELMER holds any."""
+    out = personal.for_bandplan()
+    connection = conn()
+    place = qth_for(connection, db.get_profile(connection))
+    out["gmrs_repeaters"] = []
+    if place.get("lat") is not None:
+        try:
+            rows, _ = repeaters.nearby(place["lat"], place["lon"], None, limit=6, conn=connection, service="gmrs")
+            out["gmrs_repeaters"] = [{k: r.get(k) for k in ("call", "output", "tone", "where", "miles", "bearing", "approx")}
+                                     for r in rows]
+        except Exception:                          # never at the page's expense
+            log.exception("gmrs repeaters")
+    return jsonify(out)
 
 
 @app.route("/api/nifog")

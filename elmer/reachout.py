@@ -49,7 +49,7 @@ GEAR = {
 
 # The cards that need no amateur licence: the Part 95 services, the listening
 # card, and the rule that applies to everybody.
-PERSONAL_KEYS = {"frs-gmrs", "murs", "cb", "ham-on-frs", "emergency"}
+PERSONAL_KEYS = {"frs-gmrs", "gmrs-repeater", "murs", "cb", "ham-on-frs", "emergency"}
 
 # 47 CFR 97.301: what a license class may actually key up on.
 TECH_HF = "Technician HF is 10 m SSB 28.300-28.500, plus CW on 80, 40 and 15."
@@ -173,6 +173,30 @@ def _hours_until(iso, when):
     return f"{round(hours)} hours"
 
 
+def gmrs_repeater_ways(lat, lon, height_ft=6.0, conn=None):
+    """The nearest GMRS repeater, for the GMRS radio - a machine a GMRS
+    licensee may key at 50 W and an FRS radio cannot, which is most of
+    what the licence buys."""
+    rows, _ = repeaters.nearby(lat, lon, None, limit=4, height_ft=height_ft, conn=conn, service="gmrs")
+    if not rows:
+        return []
+    best = rows[0]
+    return [{
+        "key": "gmrs-repeater", "title": f"The GMRS repeater at {best['where'] or best['call']}, {best['output']:.3f}",
+        "odds": "good" if best["km"] < 30 else "worth trying",
+        "needs": "A GMRS radio and the GMRS licence - a fee and a form, no exam - which covers the "
+                 "whole family; an FRS radio cannot use a repeater",
+        "do": (f"Listen on {best['output']:.3f}, transmit 5 MHz up on {best['output'] + 5:.3f}"
+               + (f", tone {best['tone']}" if best.get("tone") else "") + f". It is {best['miles']} miles away on a "
+               f"bearing of {best['bearing']}\u00b0. Say your GMRS call, which begins with W."),
+        "why": (f"{len(rows)} GMRS machine{'' if len(rows) == 1 else 's'} within reach of here. A repeater on a "
+                f"tower turns a handheld's mile into thirty; on GMRS that costs the licence and nothing else, "
+                f"and the machines are often open to any licensee - ask the owner, whose call is on the listing."),
+        "rows": [{"output": r["output"], "call": r["call"], "where": r["where"], "miles": r["miles"],
+                  "bearing": r["bearing"], "tone": r.get("tone"), "approx": r.get("approx")} for r in rows],
+    }]
+
+
 def repeater_ways(lat, lon, gear, height_ft=6.0, conn=None):
     """The machines in range, which is where anybody should start."""
     if not _vhf(gear):
@@ -223,6 +247,8 @@ def ways(lat, lon, gear=(), license="Technician", height_ft=6.0, now=None,
     """Everything worth trying from here, best bet first."""
     gear = set(gear or [])
     out = list(repeater_ways(lat, lon, gear, height_ft, conn))
+    if "gmrs" in gear:
+        out += gmrs_repeater_ways(lat, lon, height_ft, conn)
     state = sun_state(lat, lon, now)
     day = state == "lit"
     rank = _class_rank(license)

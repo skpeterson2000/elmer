@@ -108,7 +108,26 @@ def last_position(path=None):
             "age_s": age, "written": stamp, "from": str(where)}
 
 
+# GMRS repeaters answer on exactly eight frequencies - 462.550 to 462.725
+# in 25 kHz steps, the inputs 5 MHz up (47 CFR 95.1763) - so a machine's
+# service is certain from its output alone, whatever wrote the row. It
+# has to be: a GMRS machine read as a 70 cm amateur repeater would be
+# offered to a Technician as one to key, which 95.335 and 95.1761 say an
+# amateur transmitter may never do.
+GMRS_OUTPUTS = {462.550, 462.575, 462.600, 462.625, 462.650, 462.675, 462.700, 462.725}
+
+
+def service_of(output):
+    """'gmrs' for a GMRS repeater output, else 'amateur'."""
+    try:
+        return "gmrs" if round(float(output), 3) in GMRS_OUTPUTS else "amateur"
+    except (TypeError, ValueError):
+        return "amateur"
+
+
 def _band(mhz):
+    if service_of(mhz) == "gmrs":
+        return "GMRS"
     band = bandplan.band_at(mhz)
     if isinstance(band, dict):
         return band.get("name")
@@ -129,6 +148,7 @@ def _row(call, output, **kw):
            "approx": False}
     row.update({k: v for k, v in kw.items() if k in row})
     row["band"] = _band(output)
+    row["service"] = service_of(output)
     return row
 
 
@@ -418,11 +438,14 @@ def coverage(lat, lon):
 
 
 def nearby(lat, lon, mhz=None, radius_km=None, height_ft=30.0, limit=8,
-           conn=None):
+           conn=None, service="amateur"):
     """The repeaters within reach of here, nearest first.
 
     `mhz` restricts the answer to the band being worked: somebody setting up
-    for 2 m is not helped by a list of 70 cm machines.
+    for 2 m is not helped by a list of 70 cm machines. `service` keeps the
+    amateur machines and the GMRS ones apart - an amateur radio may not
+    key a GMRS repeater and a GMRS radio cannot reach an amateur one - and
+    None asks for both.
     """
     rows, source = load()
     # Nothing known about here? Ask a TowerWitch on the network, if one has
@@ -448,6 +471,8 @@ def nearby(lat, lon, mhz=None, radius_km=None, height_ft=30.0, limit=8,
     out = []
     for row in rows:
         if want and row.get("band") != want:
+            continue
+        if service and (row.get("service") or service_of(row.get("output"))) != service:
             continue
         km, bearing = great_circle(lat, lon, row["lat"], row["lon"])
         if km > radius_km:
