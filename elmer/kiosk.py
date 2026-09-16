@@ -166,11 +166,19 @@ def tell(message):
 
 def have_display():
     """True if there is a screen to put a window on."""
+    if os.name == "nt":
+        return True            # a Windows desktop always has one
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def find_browser():
     """The first usable browser as (executable path, family), or (None, None)."""
+    if os.name == "nt":
+        # The browser ELMER's own window runs in (elmer/window.py): Edge or
+        # Chrome by their installed paths, neither of which is on PATH.
+        from . import window
+        path, _name = window.find_browser()
+        return (path, "chromium") if path else (None, None)
     for name, family in BROWSERS:
         path = shutil.which(name)
         if path:
@@ -200,12 +208,26 @@ def _command(path, family, url, profile):
 
 
 def _window_command(path, family, url, profile):
-    """A normal browser window: toolbar, back button, close button.
+    """A window beside ELMER's for the FCC or eCFR, with a close button; the
+    entire point of it is that they can get out of it again and find ELMER
+    still sitting there underneath.
 
-    Deliberately *not* kiosk mode.  This is the window that takes somebody to
-    the FCC or eCFR, and the entire point of it is that they can get out of it
-    again and find ELMER still sitting there underneath.
+    On the kiosk, a normal browser window - toolbar, back button - because
+    the kiosk itself is the whole screen and this is the one window that
+    is allowed not to be.  On Windows, where ELMER is an app window of its
+    own, a popout in the same style: title bar, back arrow, close button,
+    no tabs and no address bar - the outside site in a window of ELMER's,
+    not a browser that appears from nowhere.
     """
+    if family == "chromium" and os.name == "nt":
+        return [
+            path, f"--app={url}",
+            f"--user-data-dir={profile}",
+            "--no-first-run", "--no-default-browser-check",
+            "--disable-session-crashed-bubble", "--noerrdialogs",
+            "--disable-features=Translate",
+            "--window-size=1100,820",
+        ]
     if family == "chromium":
         return [
             path, "--new-window", url,
@@ -237,6 +259,8 @@ def open_window(url):
     command = _window_command(path, family, url, profile)
     log.debug("kiosk: external window %s", " ".join(command))
     try:
+        # Its own process group (Linux; a no-op on Windows), so closing it
+        # later cannot deliver a signal back to the server that started it.
         process = subprocess.Popen(
             command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True)
@@ -250,10 +274,18 @@ def open_window(url):
 
 
 def close_windows():
-    """Shut any external windows opened from the /away page."""
+    """Shut any external windows opened from the /away page - the ones still
+    open; one the person closed themselves is gone already."""
     for process in _windows:
         close(process)
     _windows.clear()
+
+
+def open_windows():
+    """How many windows opened from /away are still up - for the tests and
+    the log, not for anything a page shows."""
+    _windows[:] = [p for p in _windows if p.poll() is None]
+    return len(_windows)
 
 
 def launch(url):

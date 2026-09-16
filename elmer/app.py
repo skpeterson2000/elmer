@@ -2572,7 +2572,7 @@ def api_open_external():
     minted at startup.  Otherwise a page fetched over the LAN could make the
     machine in the shack open arbitrary windows.
     """
-    if not app.config["KIOSK"]:
+    if not (app.config["KIOSK"] or app.config.get("WINDOW")):
         abort(404)
     if not _is_local(request.remote_addr):
         log.warning("open-external refused: request from %s", request.remote_addr)

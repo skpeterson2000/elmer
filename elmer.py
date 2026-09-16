@@ -987,8 +987,10 @@ def main():
         # not stand empty over a stopped server.
         if own_window[0] is not None:
             window_quitting.set()
-            from elmer import window
+            from elmer import window, kiosk
             window.close(own_window[0])
+            # The popouts opened for off-site links go with it.
+            kiosk.close_windows()
         if quitting is not None:
             quitting.set()
             from elmer import kiosk

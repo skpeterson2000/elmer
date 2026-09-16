@@ -10,6 +10,7 @@ server when it ends and stays quiet when the server is already going, and
 the count of people the page's warning is built from - this table's, and
 the other tables' of a net this unit runs, practice players left out.
 """
+import os
 import subprocess
 import sys
 import threading
@@ -92,6 +93,43 @@ def run():
     check("the window is closed", proc.poll() is not None, True)
     window.close(proc)
     check("  and closing it again is nothing", proc.poll() is not None, True)
+
+    print("\n-- an off-site link: a popout of ELMER's own, closed with it --")
+    from elmer import kiosk
+    cmd = kiosk._window_command(r"C:\\edge\\msedge.exe", "chromium", "https://www.fcc.gov/", Path("p"))
+    if os.name == "nt":
+        check("on Windows the outside site opens as a popout - app style, no tabs, no address bar",
+              cmd[1], "--app=https://www.fcc.gov/")
+    else:
+        check("on the kiosk it is a normal window with a toolbar", cmd[1:3], ["--new-window", "https://www.fcc.gov/"])
+    check("  in a profile of its own, not ELMER's window's", any(a.startswith("--user-data-dir=") for a in cmd), True)
+    # The popout stood in for by a process that lasts: nothing opens on the screen.
+    real_open = kiosk._window_command
+    opened = []
+    kiosk._window_command = lambda path, family, url, profile: (opened.append(url) or [sys.executable, "-c", "import time; time.sleep(30)"])
+    real_find, real_display = kiosk.find_browser, kiosk.have_display
+    kiosk.find_browser, kiosk.have_display = (lambda: (sys.executable, "chromium")), (lambda: True)
+    was_window, was_token = appmod.app.config.get("WINDOW"), appmod.app.config["KIOSK_TOKEN"]
+    appmod.app.config["WINDOW"], appmod.app.config["KIOSK_TOKEN"] = True, "tok"
+    try:
+        client1 = appmod.app.test_client()
+        r = client1.post("/api/open-external", json={"token": "tok", "url": "https://www.fcc.gov/wireless"}, environ_base=local0)
+        check("the ELMER window's page can ask for it", (r.status_code, r.get_json()["opened"]), (200, True))
+        check("  and it opened what was asked", opened, ["https://www.fcc.gov/wireless"])
+        check("  ELMER keeps hold of it", kiosk.open_windows(), 1)
+        check("  not from the LAN", client1.post("/api/open-external", json={"token": "tok", "url": "https://www.fcc.gov/"},
+                                                 environ_base={"REMOTE_ADDR": "10.0.0.5"}).status_code, 403)
+        check("  not without the token", client1.post("/api/open-external", json={"token": "x", "url": "https://www.fcc.gov/"},
+                                                      environ_base=local0).status_code, 403)
+        page = client1.get("/away?url=https%3A%2F%2Fwww.fcc.gov%2F&from=/", environ_base=local0).get_data(as_text=True)
+        check("  the page offers it beside ELMER", "Open it beside ELMER" in page, True)
+        check("  and says Exit takes it too", "Exit closes it along with ELMER" in page, True)
+        kiosk.close_windows()
+        check("closing with ELMER closes it", kiosk.open_windows(), 0)
+    finally:
+        kiosk._window_command, kiosk.find_browser, kiosk.have_display = real_open, real_find, real_display
+        appmod.app.config["WINDOW"], appmod.app.config["KIOSK_TOKEN"] = was_window, was_token
+        kiosk.close_windows()
 
     print("\n-- who the warning counts --")
     client = appmod.app.test_client()
