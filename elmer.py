@@ -956,6 +956,11 @@ def main():
         # One small public request every twenty minutes; empty if there is
         # no route out, and nothing of the operator's goes with it.
         spotlog.watch()
+        # The FCC's licence files: whichever this unit has read are looked
+        # at again when the FCC posts a newer one - a HEAD request twice a
+        # day, the download only on the Sunday it changes.
+        from elmer import uls as _uls
+        _uls.watch()
         # A request that never answers is otherwise invisible: the log line
         # is written when it completes. This writes it down while it is
         # stuck, with where its thread is - see elmer.logs.watch_stuck.

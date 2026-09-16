@@ -37,6 +37,8 @@ os.environ["ELMER_STATE"] = str(STATE)
 # somebody's inbox is not a test passing. Empty means "no drop"; a test of
 # the drop itself points a unit-level drop.json at a stand-in.
 os.environ["ELMER_DROP_URL"] = ""
+# No test fetches the FCC's licence files - the amateur one is 200 MB.
+os.environ["ELMER_ULS"] = "off"
 
 # The guard. Not a fingerprint of data/ - a live ELMER on the same machine
 # writes its log and its database every second, and a fingerprint blames

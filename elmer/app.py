@@ -42,7 +42,7 @@ from . import (
     propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, show, smith, spotlog,
     srs, sweeps, terrain, touchstone, tournament, towerwitch,
-    track, trivia, units, update, vna, weather,
+    track, trivia, uls, units, update, vna, weather,
     whipbuild,
 )
 from .content import get_pool, load_pools, presentation
@@ -409,6 +409,7 @@ def profile_block(connection):
     if not commercial:
         tracks = {k: v for k, v in tracks.items() if k != "commercial"}
     return {"profile": prof, "standings": standings, "tracks": tracks, "commercial": commercial,
+            "uls": uls.state(),
             # Handed to every page, because the offer belongs at the start of a
             # session rather than behind the account menu.
             "offer_password": db.should_offer_password(connection,
@@ -6812,7 +6813,7 @@ def _adopt_gmrs(call, settings):
         settings.pop("gmrs", None)
         return settings
     settings["gmrs_call"] = call
-    found = callsign.lookup_gmrs(call)
+    found = callsign.lookup(call)
     if found:
         settings["gmrs"] = found
         if found.get("found"):
@@ -6825,6 +6826,23 @@ def _adopt_gmrs(call, settings):
                             "reason": "lookup unavailable - the call is kept, the dates are not known"}
         log.warning("GMRS lookup unavailable for %s", call)
     return settings
+
+
+@app.route("/api/uls")
+def api_uls():
+    """Which of the FCC's licence files this unit has read, and when."""
+    return jsonify(uls.state())
+
+
+@app.route("/api/uls/fetch", methods=["POST"])
+def api_uls_fetch():
+    """Fetch one of the FCC's files now, on a press - the amateur one is
+    two hundred megabytes, so it is never fetched on a whim."""
+    body = request.get_json(silent=True) or {}
+    service = body.get("service") or ""
+    if service not in uls.SERVICES:
+        abort(400, "which file?")
+    return jsonify({"state": uls.ensure(service, force=True), "uls": uls.state()})
 
 
 @app.route("/api/settings", methods=["POST"])

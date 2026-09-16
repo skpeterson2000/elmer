@@ -69,6 +69,12 @@ def resolve_to(text):
     call = callsign.normalise(text)
     if RE_CALLSIGN.match(call):
         rec = callsign.lookup(call)
+        if rec and rec.get("found") and rec.get("lat") is None and rec.get("place"):
+            # The FCC's file has the town and not a coordinate; the bundled
+            # places usually have the town.
+            town = geocode.resolve(rec["place"])
+            if town and town.get("lat") is not None:
+                rec = dict(rec, lat=town["lat"], lon=town["lon"], grid=town.get("grid"))
         if rec and rec.get("found") and rec.get("lat") is not None:
             return {"name": rec["callsign"], "short": rec["callsign"], "kind": "callsign",
                     "lat": rec["lat"], "lon": rec["lon"],

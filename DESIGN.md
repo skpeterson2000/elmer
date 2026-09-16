@@ -212,9 +212,9 @@ amateur ladder starts at Technician and opens as there is reason to.
 A license class opens everything up to it and the pool above — everything at or
 below, not a two-rung window, because this program is named after the people
 who run Technician classes and a General reviewing the basics needs the lower
-pools. The class can be typed in as well as looked up, since callook serves the
-FCC ULS and nothing else, and a Canadian or British operator has a perfectly
-good callsign that resolves to nothing.
+pools. The class can be typed in as well as looked up, since the FCC's files
+hold the FCC's licences and nothing else, and a Canadian or British operator
+has a perfectly good callsign that resolves to nothing.
 
 Taking Technician to Elmer opens General with no callsign at all. The rank
 ladder already demands exam evidence at that tier, so it is demonstrated
@@ -277,16 +277,39 @@ A station reference at `/bandplan`, in three layers kept deliberately apart
 because they carry very different authority:
 
 - **Privileges are law**, and they come from your actual license. Enter your
-  callsign once and ELMER reads the FCC record through callook.info: license
-  class, grant and expiry dates, and the grid square. The band plan then shows
-  *your* privileges rather than a class you picked from a list, and the page
-  tells you how long the license has left — flagging the last 90 days, and the
-  two-year grace period after expiry during which you may not transmit but can
-  still renew without re-testing. Only the class, dates and grid are kept; the
-  name and address the lookup also returns are public record but ELMER has no
-  use for them, so they are discarded. 47 CFR 97.301 and 97.305 per class.
-  Anything outside your class is hatched out on the bar and marked "no" in the
-  table, so the legal picture is never in doubt.
+  callsign once and ELMER reads the FCC's record: license class, grant and
+  expiry dates. The band plan then shows *your* privileges rather than a
+  class you picked from a list, and the page tells you how long the license
+  has left — flagging the last 90 days, and the two-year grace period after
+  expiry during which you may not transmit but can still renew without
+  re-testing. Only the class, the dates, the FRN and the town are kept; the
+  name and street address on the record are public but ELMER has no use for
+  them, so they are discarded. 47 CFR 97.301 and 97.305 per class. Anything
+  outside your class is hatched out on the bar and marked "no" in the table,
+  so the legal picture is never in doubt.
+
+  Where the record comes from: the FCC itself. Its lookup API is gone, but
+  the Universal Licensing System still publishes the whole database every
+  Sunday, one zip per service — amateur, GMRS, the commercial operator
+  licences — for anyone who will go and get it, and `elmer/uls.py` does.
+  The first time a call of a service is saved, that service's file is
+  fetched and read into an index on the unit (the amateur one is 200 MB;
+  a unit that never meets a GMRS call never fetches the GMRS file), and
+  from then on every callsign of that service is answered from the FCC's
+  own record with no network at all. The file is fetched again only when
+  the FCC has posted a newer one, checked by asking its date. Until the
+  amateur file has been read, callook.info — which reads the same file —
+  answers amateur calls; GMRS and commercial calls have no stand-in and
+  say the file is on its way. `ELMER_ULS=off` stops the fetching on a
+  metered connection; the Station panel says which files the unit holds.
+
+  The same door answers every licence a person holds: a GMRS call
+  (WRxx000) gets its dates and the fact that GMRS has no grace period; a
+  commercial call gets its class — GROL, MROP, GMDSS, the Radiotelegraph
+  certificates — and whether the Ship Radar endorsement is on it, and a
+  GROL is for life. And because the files carry the FRN, the record for
+  one call lists the other tickets under the same FRN, which is what the
+  dead API used to be asked for.
 - **Activity is convention.** 160 segments across sixteen bands, coloured by
   what happens there — CW, digital, phone, image, beacons, satellite,
   repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
