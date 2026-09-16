@@ -1042,7 +1042,7 @@ function calcAnt() {
     out('an-out', anReadyToSuggest()
       ? 'Working out what suits that\u2026'
       : 'Start with what you have to work with. ELMER will suggest an antenna from that, and the numbers follow. Or pick one from the list.');
-    ['an-pattern', 'an-plan', 'an-reach'].forEach(id => {
+    ['an-pattern', 'an-pattern-words', 'an-plan', 'an-reach'].forEach(id => {
       const el = document.getElementById(id); if (el) el.innerHTML = '';
     });
     return;
@@ -3421,36 +3421,46 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
        conductor: (COND && COND.key) || 'wire14'}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
-  box.innerHTML =
-    '<div class="grid cols-3" style="gap:1rem">' +
-      '<div><div class="panel-title">Looking down on it</div>' +
-        planPlot(d) + planWords(d) + '</div>' +
-      '<div><div class="panel-title">Elevation pattern' +
-        (d.shape === 'vertical' ? '' : ' at ' + d.height_wl + ' wavelengths up') +
-        '</div>' + polarPlot(d.elevation, {mark: d.main_lobe_deg}) +
-        '<p class="tiny muted">Strongest at <b>' + d.main_lobe_deg +
+  /* The plots in one box and their words in another, with the sliders that
+     turn the plots between the two: turned from below, watching what one
+     does, and the reading of it after. */
+  const words = document.getElementById('an-pattern-words');
+  const elevationWords = '<p class="tiny muted">Strongest at <b>' + d.main_lobe_deg +
         '&deg;</b> above the horizon. ' +
         (d.shape === 'vertical'
           ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
           : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Perfect ground assumed &mdash; real earth fills the deepest nulls and takes a degree or two off the bottom.') +
-        '</p></div>' +
+        '</p>';
+  const sharpWords = '<div class="panel-title">How sharp it is</div>' +
+        '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
+        '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
+        '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p>' +
+        '<p class="tiny muted">The trace for this, with a feedline on it and a ' +
+        'length you can drag, is at the foot of this tab.</p>';
+  if (words) {
+    words.innerHTML = '<div class="grid cols-3" style="gap:1rem"><div>' + planWords(d) + '</div><div>' + elevationWords + '</div><div>' + sharpWords + '</div></div>' +
+      positionNote(d) + repeaterList(d);
+  }
+  box.innerHTML =
+    '<div class="grid ' + (words ? 'cols-2' : 'cols-3') + '" style="gap:1rem">' +
+      '<div><div class="panel-title">Looking down on it</div>' +
+        planPlot(d) + (words ? '' : planWords(d)) + '</div>' +
+      '<div><div class="panel-title">Elevation pattern' +
+        (d.shape === 'vertical' ? '' : ' at ' + d.height_wl + ' wavelengths up') +
+        '</div>' + polarPlot(d.elevation, {mark: d.main_lobe_deg}) +
+        (words ? '' : elevationWords) + '</div>' +
       /* The SWR curve used to be drawn here too, small and static, next to
          the two patterns. It has moved to the sweep at the foot of this tab,
          where it is the same quantity with a feedline, a trim slider and a
          marker readout attached - two charts of one number on one page is one
          chart too many. What is kept is the sentence, because Q and what the
          feedpoint is fed through are not on the trace. */
-      '<div><div class="panel-title">How sharp it is</div>' +
-        '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
-        '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
-        '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p>' +
-        '<p class="tiny muted">The trace for this, with a feedline on it and a ' +
-        'length you can drag, is at the foot of this tab.</p></div>' +
+      (words ? '' : '<div>' + sharpWords + '</div>') +
     '</div>' +
     /* Full width, below the three plots: six columns of repeater do not fit in
        a third of a page, and a table you have to scroll sideways to read the
        bearing of is a table that failed at its one job. */
-    positionNote(d) + repeaterList(d);
+    (words ? '' : positionNote(d) + repeaterList(d));
 }
 
 /* ---------- the plan view ----------

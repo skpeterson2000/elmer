@@ -276,9 +276,10 @@
        value. #}
     <div class="an-figure">
       <svg id="an-svg" viewBox="0 0 620 250" style="width:100%; background:#0b1017; border:1px solid var(--line); border-radius:8px"></svg>
-      {# The plots, and the sliders that turn them, straight under the
-         figure; the numbers and the prose after. What moves is next to
-         what moves it. #}
+      {# The plots straight under the figure, the sliders that turn them
+         straight under the plots - turned from below, watching what one
+         does - and the numbers and the prose after. #}
+      <div id="an-pattern" class="mt"></div>
       <div class="an-turn">
         <div class="field an-when-heading"><label>Turn it &mdash; which way is it laid?</label>
           <input type="range" id="an-head-2" min="0" max="179" step="1" value="90">
@@ -287,7 +288,7 @@
           <input type="range" id="an-slope-2" min="0" max="70" step="1" value="0">
           <span class="sim-out" id="an-slope-2-v"></span></div>
       </div>
-      <div id="an-pattern" class="mt"></div>
+      <div id="an-pattern-words" class="mt"></div>
       <div id="an-out" class="mt small"></div>
     </div>
   </div>
