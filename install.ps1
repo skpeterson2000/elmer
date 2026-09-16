@@ -219,6 +219,23 @@ if ($Serial) {
 
 }   # not portable
 
+# ---------------------------------------------------------------- ELMER.exe
+# The thing a person double-clicks, with the program's own icon on it. A
+# .cmd cannot carry one; a small ELMER.exe that starts elmer.cmd beside it
+# can, and every Windows has the C# compiler to build it with (it ships in
+# the .NET Framework, under C:\Windows\Microsoft.NET). Source in
+# tools\launcher\ELMER.cs; built here, not committed.
+$exe = Join-Path $root 'ELMER.exe'
+$csc = Join-Path ([Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()) 'csc.exe'
+if (Test-Path $csc) {
+    & $csc /nologo /target:winexe /optimize+ "/out:$exe" "/win32icon:$(Join-Path $root 'elmer\static\elmer.ico')" `
+        /reference:System.Windows.Forms.dll (Join-Path $root 'tools\launcher\ELMER.cs') | Out-Null
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $exe)) { Ok "ELMER.exe built, with its icon - double-click that" }
+    else { Warn "ELMER.exe would not build; elmer.cmd starts ELMER just the same" }
+} else {
+    Warn "no C# compiler at $csc; elmer.cmd starts ELMER just the same"
+}
+
 # --------------------------------------------------------------- shortcut
 # ELMER on the Start Menu, with its own icon: the way a Windows program is
 # found and started. Offered, like everything else; -Shortcut says yes
@@ -235,7 +252,7 @@ if ($wantShortcut) {
     try {
         $sh = New-Object -ComObject WScript.Shell
         $s = $sh.CreateShortcut($lnk)
-        $s.TargetPath = Join-Path $root 'elmer.cmd'
+        $s.TargetPath = if (Test-Path $exe) { $exe } else { Join-Path $root 'elmer.cmd' }
         $s.WorkingDirectory = $root
         $s.Description = 'ELMER - radio study and propagation'
         $s.IconLocation = (Join-Path $root 'elmer\static\elmer.ico') + ',0'
