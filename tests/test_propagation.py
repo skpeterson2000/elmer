@@ -588,7 +588,7 @@ def main():
             "calibration": {"factor": 1.0, "m3000": 3.1}}
     noon_utc = datetime(2026, 6, 21, 18, 0, tzinfo=timezone.utc)      # midday over Minnesota, night over Asia
     m = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc)
-    check("a ten-degree grid over the globe", (m["rows"], m["cols"], len(m["cells"]), len(m["night"])), (18, 36, 648, 648))
+    check("a five-degree grid over the globe", (m["rows"], m["cols"], len(m["cells"]), len(m["night"])), (36, 72, 2592, 2592))
     def reach(mm, lat, lon):
         r = int(round((mm["lat0"] - lat) / mm["step"])); c = int(round((lon - mm["lon0"]) / mm["step"]))
         return mm["cells"][r * mm["cols"] + c], mm["night"][r * mm["cols"] + c]
