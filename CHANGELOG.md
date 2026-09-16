@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- The reach map, one way or the round trip: the sun read at both ends, the contact only as good as its worse leg
 - The reach map draws borders - countries, states, US counties - by zoom or by choice, and a finer coast when zoomed in
 - The reach map, zoomable: drag, wheel, pinch or double tap, and the model is asked again for that window in finer detail; soft edges and isolines, the way a weather map draws it
 - The band plan: where the band reaches from here, now, as a map - the path model for every cell of a grid, one hue, the night shaded

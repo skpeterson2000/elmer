@@ -1139,11 +1139,11 @@ async function bpRefine() {
   const top = Math.min(89.5, bpView.lat + spanLat * 0.6), bottom = Math.max(-89.5, bpView.lat - spanLat * 0.6);
   const left = bpView.lon - spanLon * 0.6, span = Math.min(360, spanLon * 1.2);
   const step = bpView.zoom >= 12 ? 0.25 : bpView.zoom >= 6 ? 0.5 : bpView.zoom >= 3 ? 1 : 2.5;
-  const key = bpView.band;
+  const key = bpView.band, mode = bpReachMode();
   try {
-    const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: key, top: top.toFixed(2), bottom: bottom.toFixed(2), left: left.toFixed(2), span: span.toFixed(2), step: step}), {cache: 'no-store'});
+    const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: key.split('|')[0], mode: mode, top: top.toFixed(2), bottom: bottom.toFixed(2), left: left.toFixed(2), span: span.toFixed(2), step: step}), {cache: 'no-store'});
     const w = await r.json();
-    if (!w.ok || bpView.band !== key) return;
+    if (!w.ok || bpView.band !== key || bpReachMode() !== mode) return;
     w.band = key;
     bpView.refined = w;
     bpReachDraw(false);
@@ -1211,6 +1211,14 @@ function bpReachBind() {
   });
   const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; bpView.dragging = false; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('pointerleave', up);
+  document.querySelectorAll('input[name="bp-reach-mode"]').forEach(r => r.addEventListener('change', () => {
+    remember('bandplan.reachmode', bpReachMode());
+    const band = bpData && bpData.bands.find(b => b.name === bpBand);
+    if (band) bpReach(band);
+  }));
+  const keptMode = recall('bandplan.reachmode', 'oneway');
+  const modeEl = document.querySelector('input[name="bp-reach-mode"][value="' + keptMode + '"]');
+  if (modeEl) modeEl.checked = true;
   const borders = document.getElementById('bp-reach-borders');
   if (borders) borders.addEventListener('change', () => { remember('bandplan.borders', borders.value); bpReachDraw(false); });
   if (borders) { const kept = recall('bandplan.borders', 'auto'); if ([...borders.options].some(o => o.value === kept)) borders.value = kept; }
@@ -1218,11 +1226,17 @@ function bpReachBind() {
   if (reset) reset.addEventListener('click', () => { bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null; bpReachDraw(false); });
 }
 
+/* One way or the round trip - see propagation.reach_map. */
+function bpReachMode() {
+  const el = document.querySelector('input[name="bp-reach-mode"]:checked');
+  return el && el.value === 'round' ? 'round' : 'oneway';
+}
 let bpReachCache = {};
 async function bpReach(band) {
   const box = document.getElementById('bp-reach');
   if (!box) return;
-  const key = band.name.replace(/\s+/g, '');
+  const mode = bpReachMode();
+  const key = band.name.replace(/\s+/g, '') + '|' + mode;
   const hf = band.high <= 30;
   box.hidden = !hf;
   if (!hf) return;
@@ -1231,7 +1245,7 @@ async function bpReach(band) {
   if (!d) {
     document.getElementById('bp-reach-when').textContent = 'working it out…';
     try {
-      const r = await fetch('/api/bandplan/reach?band=' + encodeURIComponent(key), {cache: 'no-store'});
+      const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: band.name.replace(/\s+/g, ''), mode: mode}), {cache: 'no-store'});
       d = await r.json();
     } catch (e) {
       document.getElementById('bp-reach-when').textContent = '';
@@ -1241,7 +1255,7 @@ async function bpReach(band) {
     if (!d.ok) { document.getElementById('bp-reach-note').textContent = d.error || 'no map just now'; return; }
     bpReachCache[key] = d;
   }
-  if (bpBand !== band.name) return;                 // the band moved on while this was fetched
+  if (bpBand !== band.name || bpReachMode() !== mode) return;   // the band or the mode moved on while this was fetched
   const fresh = bpView.band !== key;
   bpReachFor = d;
   bpView.band = key;

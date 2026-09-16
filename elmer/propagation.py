@@ -920,11 +920,18 @@ def _soft(km, edge, inside_below=True):
     return t * t * (3 - 2 * t)
 
 
-def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None):
+def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None, mode="oneway"):
     """A band's reach from here, as cells of 0-100 - over the globe, or,
     with `window` = (lat_top, lat_bottom, lon_left, lon_span), over that
     window at the step given, which is how a zoomed view gets real detail
-    rather than the coarse grid stretched."""
+    rather than the coarse grid stretched.
+
+    `mode` "oneway" rates the path with the sky read at its midpoint, the
+    stand-in the path tool uses. "round" rates the contact: the reflection
+    is the midpoint's either way, but the D layer is passed low down near
+    each end, so the sun is read at your end and at theirs and the round
+    trip is only as good as the worse leg - which, with one end in
+    daylight and the other in the dark, is where the two maps differ."""
     from . import groundwave
     from .terrain import great_circle
     when = when or datetime.now(timezone.utc)
@@ -946,6 +953,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
         lats = [90 - step / 2 - i * step for i in range(int(180 / step))]      # cell centres, pole to pole
         lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
     cells, night = [], []
+    elev_here = solar_elevation(lat, lon, when)
     for glat in lats:
         for glon in lons:
             km, _ = great_circle(lat, lon, glat, glon)
@@ -958,7 +966,12 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             else:
                 skip = skip_km(mhz, fof2, hmf2)
                 if skip is not None:
-                    rated = float(band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
+                    if mode == "round":
+                        here_leg = float(band_score(mhz, muf, elev_here, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
+                        there_leg = float(band_score(mhz, muf, solar_elevation(glat, glon, when), k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
+                        rated = min(here_leg, there_leg)
+                    else:
+                        rated = float(band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
                     if km <= far * (1 + REACH_EDGE):
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
@@ -979,7 +992,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             night.append(solar_elevation(glat, glon, when) < 0)
     sun = celestial.sun_position(when)
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
-            "window": bool(window),
+            "window": bool(window), "mode": mode,
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),

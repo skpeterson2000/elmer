@@ -1878,12 +1878,13 @@ def api_bandplan_reach():
         while ((top - bottom) / step + 1) * (span / step + 1) > 4000 and step < 5.0:
             step = allowed[allowed.index(step) - 1]
         window = (round(top, 2), round(bottom, 2), round(left, 2), round(span, 2))
-    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step)
+    mode = "round" if request.args.get("mode") == "round" else "oneway"
+    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode)
     hit = _reach_cache.get(key)
     if hit and time.time() - hit[0] < REACH_CACHE_S:
         return jsonify({"ok": True, "cached": True, **hit[1]})
     started = time.perf_counter()
-    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window)
+    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window, mode=mode)
     if len(_reach_cache) > 12:            # the world map and a few windows; not a gallery
         _reach_cache.clear()
     _reach_cache[key] = (time.time(), made)

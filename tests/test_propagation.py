@@ -604,6 +604,16 @@ def main():
     rises = [b - a for a, b in zip(profile, profile[1:]) if b != a]
     check("  the skip's edge is a slope, not a cliff - it takes more than one step to climb", len([r for r in rises if r > 0]) >= 3, True)
     check("  and nothing falls back inside the band once it has opened", all(r >= 0 for r in rises), True)
+    dusk = datetime(2026, 6, 21, 2, 0, tzinfo=timezone.utc)      # 21:00 in Minnesota - dark here, day over Asia
+    one = P.reach_map(3.5, 46.6, -94.31, snap, when=dusk)
+    rt = P.reach_map(3.5, 46.6, -94.31, snap, when=dusk, mode="round")
+    def at(mm, lat, lon):
+        r = int(round((mm["lat0"] - lat) / mm["step"])); c = int(round((lon - mm["lon0"]) / mm["step"])); return mm["cells"][r * mm["cols"] + c]
+    check("the round trip reads the sun at both ends: at dusk here, the leg out of our own twilight is the worse one, and dark Europe loses on 80 m",
+          (at(one, 47.5, 7.5) > at(rt, 47.5, 7.5), at(rt, 47.5, 7.5) > 0), (True, True))
+    check("  the two maps differ where an end is in twilight or daylight and agree where neither is",
+          sum(1 for a, b in zip(one["cells"], rt["cells"]) if a != b) > 100, True)
+    check("  the mode travels with the map", (one["mode"], rt["mode"]), ("oneway", "round"))
     check("nothing scores past a hundred or under nought", (max(m["cells"]) <= 100, min(m["cells"]) >= 0), (True, True))
     import time as _t
     t = _t.perf_counter(); P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc); took = (_t.perf_counter() - t) * 1000
