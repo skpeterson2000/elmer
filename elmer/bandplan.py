@@ -196,6 +196,36 @@ BANDS = [
 ]
 BAND_INDEX = {b["name"]: b for b in BANDS}
 
+# 11 m is not an amateur band and is not in BANDS, which everything from the
+# repeater list to the worth-the-effort chart reads as the amateur bands.
+# But it is a band, it sits between 12 m and 10 m and opens with them, and
+# the band plan page is where somebody looking at the outlook expects to
+# find it - so the page gets it as a band of its own, with the channels as
+# its activity and the same privilege for every class: none needed.
+PERSONAL_BANDS = [
+    {"name": "11 m", "low": 26.965, "high": 27.405, "group": "HF", "personal": "CB",
+     "after": "12 m", "rule": "47 CFR 95 subpart D - the Citizens Band",
+     "privilege": "AM 4 W carrier, SSB 12 W PEP, FM since 2021 - no licence needed (95.967, 95.971)"},
+]
+CB_ACTIVITY = [
+    (26.965, 27.405, "phone", "The 40 CB channels, 10 kHz apart - AM is what most radios do"),
+    (27.065, 27.065, "calling", "Channel 9 - emergency and traveller assistance, by rule (95.931)"),
+    (27.185, 27.185, "calling", "Channel 19 - the highway channel, by long custom"),
+    (27.355, 27.405, "phone", "Channels 36-40 - SSB by convention, call on 38 LSB; where the skip is worked"),
+]
+
+
+def personal_band_view(band):
+    """The page's view of a personal-service band: the whole of it usable
+    by everyone, so no gaps, and the activity marked yes for every row."""
+    return {
+        **band,
+        "privileges": [(band["low"], band["high"], band["privilege"])],
+        "gaps": [],
+        "activity": [{"low": a, "high": b, "kind": k, "label": l, "you": {"state": "yes"}}
+                     for a, b, k, l in (CB_ACTIVITY if band["personal"] == "CB" else [])],
+    }
+
 # --- what a privilege description actually permits -------------------------
 # The descriptions above are written for a person to read. These turn them
 # into something the rest of the program can check an operator's intended

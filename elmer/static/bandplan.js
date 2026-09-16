@@ -211,13 +211,13 @@ function bpRender() {
     '<div class="panel">' +
       '<div class="spread"><h2 style="margin:0">' + escapeHTML(band.name) + '</h2>' +
       '<span class="mono tiny muted">' + band.low + ' – ' + band.high + ' MHz · ' +
-        escapeHTML(band.group) + '</span></div>' +
+        escapeHTML(band.group) + (band.personal ? ' · ' + escapeHTML(band.personal) + ', no licence' : '') + '</span></div>' +
       '<div class="bandbar">' + bars + gaps + '</div>' +
       channelTicks(band) +
       '<div class="bandscale"><span>' + band.low + '</span><span>' + band.high + '</span></div>' +
-      conditionBar(band) +
+      (band.personal === 'CB' ? cbConditions() : conditionBar(band)) +
       '<div class="grid cols-2 mt">' +
-        '<div><div class="panel-title">Your privileges — 47 CFR 97.301</div>' +
+        '<div><div class="panel-title">Your privileges — ' + escapeHTML(band.rule || '47 CFR 97.301') + '</div>' +
           '<ul class="privlist">' + priv + '</ul></div>' +
         '<div><div class="panel-title">Where the activity is</div>' + key +
           '<table class="data"><tbody>' + rows + '</tbody></table></div>' +

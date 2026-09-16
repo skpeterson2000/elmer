@@ -750,6 +750,27 @@ def _usable(low, high, kind, band_name, license):
     return bandplan.usable_answer(band_name, license, low, high, kind)
 
 
+def _bands_for_page(license):
+    """The amateur bands with this class's privileges, and 11 m in its
+    place between 12 m and 10 m - a band everyone may use, on the page
+    where somebody reading the outlook looks for it."""
+    out = []
+    for band in bandplan.BANDS:
+        out.append({
+            **band,
+            "privileges": bandplan.privileges_for(band["name"], license),
+            "gaps": bandplan.gaps_for(band["name"], license),
+            "activity": [
+                {"low": a, "high": b, "kind": k, "label": l,
+                 "you": _usable(a, b, k, band["name"], license)}
+                for a, b, k, l in bandplan.activity_for(band["name"])],
+        })
+        for extra in bandplan.PERSONAL_BANDS:
+            if extra["after"] == band["name"]:
+                out.append(bandplan.personal_band_view(extra))
+    return out
+
+
 @app.route("/api/bandplan")
 def api_bandplan():
     """Privileges and activity for every band, for one license class."""
@@ -772,15 +793,7 @@ def api_bandplan():
         "above_yours": bool(
             own and bandplan.CLASS_RANK.get(license, 0)
             > bandplan.CLASS_RANK.get(own, 0)),
-        "bands": [{
-            **band,
-            "privileges": bandplan.privileges_for(band["name"], license),
-            "gaps": bandplan.gaps_for(band["name"], license),
-            "activity": [
-                {"low": a, "high": b, "kind": k, "label": l,
-                 "you": _usable(a, b, k, band["name"], license)}
-                for a, b, k, l in bandplan.activity_for(band["name"])],
-        } for band in bandplan.BANDS],
+        "bands": _bands_for_page(license),
         "channels_60m": bandplan.CHANNELS_60M,
     })
 
