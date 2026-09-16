@@ -2018,8 +2018,9 @@ setInterval(() => {
     scheduleTable();
   }
 }, 10000);
-guardedTick();
-scheduleTable();
+// After the page's scripts, which sit below this one: the first tick used
+// to run before hallshow.js and games.js had loaded, and threw on them.
+document.addEventListener('DOMContentLoaded', () => { guardedTick(); scheduleTable(); });
 </script>
 <script src="{{ asset('games.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>

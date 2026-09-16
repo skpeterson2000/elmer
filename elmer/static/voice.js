@@ -12,7 +12,7 @@
 (function () {
   const BASE = '/static/golf/voice/';
   const GAP_MS = 90;                  // between snippets
-  const PAUSE_MS = 350;               // for a token the unit has not recorded
+  const PAUSE_MS = 60;                // for a token the unit has not recorded: a breath, not a wait
   let have = null;                    // the stems on the shelf, or null for unknown
   let queue = [];
   let speaking = false;
@@ -59,13 +59,18 @@
     speaking = false;
   }
 
+  /* What is said is about what is on the screen. A line that is still
+     waiting when the next one arrives is about a moment that has gone -
+     the address of a stroke already played - so the newest line replaces
+     whatever was queued, and the narrator is never more than one line
+     behind the game. The clip playing finishes; it is short. */
   function say(tokens) {
     if (!tokens || !tokens.length) return;
     if (have && !tokens.some(t => have.has(t))) return;   // nothing of it is recorded
     const line = tokens.join(' ');
     if (line === lastLine) return;
     lastLine = line;
-    queue.push(tokens.slice());
+    queue = [tokens.filter(t => !have || have.has(t))];   // the unrecorded are skipped, not waited for
     run();
   }
 

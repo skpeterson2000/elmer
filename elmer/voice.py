@@ -387,8 +387,11 @@ AHEAD_SIDE = {"left": "on-the-left", "right": "on-the-right", "across": "across-
 def ahead(hazards):
     """What lies in the line, said: each hazard the rules found ahead, its
     yards from the ball, its side, and whether the club in hand reaches
-    it. Nothing when nothing is ahead; the pieces when they are recorded,
-    and silence for a piece that is not - the screen has the words."""
+    it. Nothing when nothing is ahead, and nothing until the pieces are on
+    the shelf - a phrase of eight unrecorded pieces was eight silences in
+    every address, and the screen has the words meanwhile."""
+    if _shelf is not None and ("ahead" not in _shelf or "in-play" not in _shelf):
+        return []
     out = []
     for z in hazards or []:
         kind = AHEAD_KIND.get(z.get("kind"))
