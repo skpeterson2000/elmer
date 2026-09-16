@@ -1165,8 +1165,16 @@ class Room:
             if self.clubhouse is None:
                 return None
             people = [p.name for p in self.players.values() if not p.bot]
+            bots = sum(1 for p in self.players.values() if p.bot)
+            # The group as booked: the people here and the practice
+            # players seated with them - two, when one companion was
+            # asked for - and never more than a foursome. It used to say
+            # "1 of 4" whatever was chosen, which reads as a party of four.
+            group = min(FOURSOME, len(people) + (self.companions if self.companions is not None
+                                                 else FOURSOME - len(people)))
             return {"tee_in": max(0.0, round(self.clubhouse["at"] - _now(), 1)),
-                     "people": people, "foursome": FOURSOME,
+                     "people": people, "foursome": FOURSOME, "group": max(group, len(people) + bots),
+                     "companions": bots,
                      "full": len(people) >= FOURSOME,
                      "backdrop": self.clubhouse.get("backdrop"),
                      "course_name": self.clubhouse["spec"].get("course_name"),

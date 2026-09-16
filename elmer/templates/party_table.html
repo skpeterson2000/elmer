@@ -1030,7 +1030,7 @@ async function tick() {
       if (painted !== key) {
         painted = key;
         stage.innerHTML = `${club.backdrop ? `<div class="clubhouse-pic" style="background-image:url(/static/golf/clubhouse/${esc(club.backdrop)}.jpg)"></div>` : ''}<div class="chip">The clubhouse${club.course_name ? ' &middot; ' + esc(club.course_name) : ''}</div>
-          <p class="narrator">Tee time in <b>${clockWords(club.tee_in)}</b> &middot; ${club.people.length} of ${club.foursome} in the group</p>
+          <p class="narrator">Tee time in <b>${clockWords(club.tee_in)}</b> &middot; ${club.people.length} of ${club.group} in the group${club.companions ? ` &middot; ${club.companions} practice player${club.companions === 1 ? '' : 's'} seated` : ''}</p>
           <div class="seats" style="margin:.4rem 0">${club.people.map(n => `<span class="seat">${esc(n)}</span>`).join('') || '<span class="empty">nobody yet</span>'}</div>
           <p class="hint" style="text-align:left">Friends scan the code to join the group. It departs when it is full, when the time is up, or when you say so; practice players make up the rest.</p>
           <div class="row" style="gap:.5rem;margin-top:.6rem">

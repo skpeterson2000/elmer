@@ -417,6 +417,12 @@ def run():
                                              "seconds": 30, "companions": 9}, environ_base=local)
     check("nine is three - the rest of a foursome", len([p for p in room.players.values() if p.bot]), 3)
     autoplay.stop(); room.round = None; room.end_golf(); room.clear_bots()
+    r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
+                                             "seconds": 30, "companions": 1, "tee_in": 60}, environ_base=local)
+    v = room.clubhouse_view()
+    check("one companion with a tee time: the clubhouse says a group of two, one practice player - not one of four",
+          (v["group"], v["companions"], len(v["people"])), (2, 1, 1))
+    autoplay.stop(); room.round = None; room.end_golf(); room.leave_clubhouse(); room.clear_bots()
     second = room.join("W0ABC")[0].id
     r = client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "back",
                                              "seconds": 30, "companions": 3}, environ_base=local)
