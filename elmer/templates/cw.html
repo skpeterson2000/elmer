@@ -10,7 +10,8 @@
     </div>
   </div>
   <div class="row" id="cw-modes">
-    <button class="btn sm primary" data-mode="learn">Learn</button>
+    <button class="btn sm primary" data-mode="today">Today</button>
+    <button class="btn sm ghost" data-mode="learn">Learn</button>
     <button class="btn sm ghost" data-mode="chart">Chart</button>
     <button class="btn sm ghost" data-mode="copy">Copy practice</button>
     <button class="btn sm ghost" data-mode="text">Send text</button>
@@ -51,8 +52,55 @@
   </div>
 </div>
 
+<!-- ------------------------------------------------------------- today -->
+{# One door. The record decides the lesson, the session is laid out, and one
+   press runs it: meet what is new, one character at a time against the
+   clock, groups, words. Nothing here needs a slider understood first. #}
+<div class="panel mt cw-pane" id="cw-today">
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Today</div>
+    <span class="tiny muted" id="cw-today-streak"></span>
+  </div>
+  <div class="grid cols-2 mt" style="gap:1rem">
+    <div>
+      <div class="small" id="cw-today-where"></div>
+      <div id="cw-today-chars" class="cw-chars" style="margin-top:.4rem"></div>
+      <div class="tiny muted" id="cw-today-weak" style="margin-top:.3rem"></div>
+    </div>
+    <div>
+      <ol class="small" id="cw-today-steps" style="margin:.2rem 0 0;padding-left:1.2rem"></ol>
+    </div>
+  </div>
+  <div class="row mt">
+    <button class="btn primary" id="cw-today-start">Start today&rsquo;s session</button>
+    <button class="btn sm" id="cw-today-stop" hidden>Stop</button>
+    <label class="tiny muted row" style="gap:.35rem;margin:0" title="each key you press is said back phonetically - Kilo, Mike - whichever key it was; the grading is separate">
+      <input type="checkbox" id="cw-sayback" checked> say each key back
+    </label>
+    <span class="tiny muted" id="cw-today-status"></span>
+  </div>
+  <div id="cw-flash" class="cw-teach mt" hidden>
+    <div class="cw-code big" id="cw-flash-code"></div>
+    <div class="cw-teach-letter" id="cw-flash-letter"></div>
+    <div class="cw-flash-word" id="cw-flash-word"></div>
+    <div class="cw-teach-hint" id="cw-flash-hint">press the key for what you hear - straight away</div>
+    <div class="row" style="justify-content:center;gap:1rem;margin-top:.4rem">
+      <span class="mono small" id="cw-flash-score"></span>
+      <span class="mono small muted" id="cw-flash-clock"></span>
+    </div>
+  </div>
+  <div id="cw-today-result" class="mt"></div>
+  <p class="tiny muted" style="margin-top:.6rem">
+    Fifteen minutes a day beats two hours on Sunday. Every character is sent at
+    full speed from the first day; what is slowed is the gap between them. A
+    character is <i>solid</i> at nine in ten over twenty sends, and the next one
+    arrives on its own. Type what you hear with your fingers on the keys and say
+    the letter as you press it &mdash; the code, the key, the word, together.
+  </p>
+</div>
+
 <!-- ------------------------------------------------------------- learn -->
-<div class="panel mt cw-pane" id="cw-learn">
+<div class="panel mt cw-pane" id="cw-learn" hidden>
   <div class="spread">
     <div class="panel-title" style="margin:0">Koch method</div>
     <span class="tiny muted">two characters at full speed, then one more at a time</span>
@@ -308,9 +356,15 @@ window.CW = {
   settings: {{ cw_settings|tojson }},
   koch: {{ koch_order|tojson }},
   progress: {{ progress|tojson }},
-  meanings: {{ meanings|tojson }}
+  meanings: {{ meanings|tojson }},
+  plan: {{ plan|tojson }},
+  session: {{ session|tojson }},
+  streak: {{ streak|tojson }},
+  voice_have: {{ voice_have|tojson }},
+  phonetic: {{ phonetic|tojson }}
 };
 </script>
+<script src="{{ asset('voice.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('cw.js') }}"></script>
 {% endblock %}

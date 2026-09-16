@@ -42,7 +42,7 @@ from . import (
     propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, show, smith, spotlog,
     srs, sweeps, terrain, touchstone, tournament, towerwitch,
-    track, trivia, uls, units, update, vna, weather,
+    track, trivia, uls, units, update, vna, voice, weather,
     whipbuild,
 )
 from .content import get_pool, load_pools, presentation
@@ -2224,10 +2224,84 @@ def cw_page():
     connection = conn()
     profile = db.get_profile(connection)
     settings = profile["settings"].get("cw") or {}
+    progress = db.cw_progress(connection)
+    the_plan = cw.plan(progress, settings.get("lesson"))
     return render_template(
         "cw.html", kinds=cw.KINDS, koch_order=cw.KOCH_ORDER,
-        cw_settings=settings, progress=db.cw_progress(connection),
+        cw_settings=settings, progress=progress, plan=the_plan,
+        session=cw.session(the_plan), streak=_cw_streak(connection), voice_have=_voice_have(),
+        phonetic={k.upper(): v for k, v in voice.PHONETIC.items()},
         meanings=cw.MEANINGS, chart=cw.chart(), **profile_block(connection))
+
+
+CW_LOG_KEY = "cw.log"                  # {date: seconds practised}
+
+
+def _cw_streak(connection):
+    """Days practised in a row, ending today or yesterday, and today's minutes."""
+    logbook = db.kv_get(connection, CW_LOG_KEY, {}) or {}
+    today = date.today()
+    minutes_today = round((logbook.get(today.isoformat()) or 0) / 60)
+    streak, day = 0, today
+    if not logbook.get(today.isoformat()):
+        day = today - timedelta(days=1)          # today not yet: count from yesterday
+    while logbook.get(day.isoformat()):
+        streak += 1
+        day -= timedelta(days=1)
+    return {"streak": streak, "minutes_today": minutes_today,
+            "days": len(logbook), "minutes_all": round(sum(logbook.values()) / 60)}
+
+
+@app.route("/api/cw/plan")
+def api_cw_plan():
+    """Where this person is on the code and what today's session is - made
+    from their record, not from a slider."""
+    connection = conn()
+    settings = db.get_profile(connection)["settings"].get("cw") or {}
+    the_plan = cw.plan(db.cw_progress(connection), settings.get("lesson"))
+    return jsonify({"plan": the_plan, "session": cw.session(the_plan), **_cw_streak(connection),
+                    "voice_have": _voice_have()})
+
+
+@app.route("/api/cw/flash")
+def api_cw_flash():
+    """The characters for a flash drill - the lesson's, the weak ones and
+    the new one weighted up - with their codes."""
+    connection = conn()
+    settings = db.get_profile(connection)["settings"].get("cw") or {}
+    the_plan = cw.plan(db.cw_progress(connection), settings.get("lesson"))
+    try:
+        count = max(5, min(200, int(request.args.get("count", 40))))
+    except ValueError:
+        count = 40
+    seq = cw.flash_sequence(the_plan, count)
+    return jsonify({"chars": [{"char": c, "code": cw.MORSE.get(c, "")} for c in seq],
+                    "lesson": the_plan["lesson"], "new": the_plan["new"]})
+
+
+@app.route("/api/cw/minutes", methods=["POST"])
+def api_cw_minutes():
+    """Time practised, added to today - the streak is made of these."""
+    body = request.get_json(silent=True) or {}
+    try:
+        seconds = max(0.0, min(3600.0, float(body.get("seconds") or 0)))
+    except (TypeError, ValueError):
+        seconds = 0.0
+    connection = conn()
+    logbook = db.kv_get(connection, CW_LOG_KEY, {}) or {}
+    key = date.today().isoformat()
+    logbook[key] = (logbook.get(key) or 0) + seconds
+    db.kv_set(connection, CW_LOG_KEY, logbook)
+    return jsonify(_cw_streak(connection))
+
+
+def _voice_have():
+    """The recorded shelf's stems, for a page that says letters back."""
+    try:
+        here = Path(__file__).resolve().parent / "static" / "golf" / "voice"
+        return sorted(p.stem for p in here.glob("*.mp3"))
+    except OSError:
+        return []
 
 
 @app.route("/api/cw/practice")

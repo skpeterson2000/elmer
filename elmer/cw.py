@@ -223,6 +223,10 @@ def practice(kind, count=5, lesson=10, seed=None, callsign=None):
     if kind == "prosigns":
         keys = rng.sample(sorted(PROSIGNS), min(count, len(PROSIGNS)))
         return [" ".join(f"<{k}>" for k in keys)]
+    if kind == "words":
+        words = words_for(koch_set(lesson), count, seed)
+        return [" ".join(words) if words else " ".join("".join(rng.choice(koch_set(lesson)) for _ in range(5))
+                                                       for _ in range(count))]
     if kind == "qso":
         me = callsign or _callsign(rng)
         return [rng.choice(QSO_TEMPLATES).format(
@@ -231,6 +235,136 @@ def practice(kind, count=5, lesson=10, seed=None, callsign=None):
             name=rng.choice(NAMES), qth=rng.choice(QTHS),
             wx=rng.choice(WX), watts=rng.choice([5, 10, 50, 100]))]
     return practice("koch", count, lesson, seed, callsign)
+
+
+# Real words, for the day the lesson's characters can spell some: the
+# commonest English words and the words a CW contact is made of. A word is
+# offered only when every character in it has been met, so the first words
+# come at about lesson eight and the list grows with the lesson.
+WORDS = (
+    "THE AND FOR ARE BUT NOT YOU ALL ANY CAN HAD HER WAS ONE OUR OUT DAY GET HAS HIM HIS HOW MAN NEW NOW OLD SEE "
+    "TWO WAY WHO BOY DID ITS LET PUT SAY SHE TOO USE THAT WITH HAVE THIS WILL YOUR FROM THEY KNOW WANT BEEN GOOD "
+    "MUCH SOME TIME VERY WHEN COME HERE JUST LIKE LONG MAKE MANY MORE ONLY OVER SUCH TAKE THAN THEM WELL WERE "
+    "WORK YEAR BACK CALL CAME EACH EVEN FIND GIVE HAND HIGH KEEP LAST LEFT LIFE LIVE LOOK MOST NAME NEXT OPEN "
+    "PART PLAY SAME SEEM SHOW SIDE TELL TURN WEEK WENT WORD ABOUT AFTER AGAIN COULD EVERY FIRST GREAT HOUSE LARGE "
+    "NEVER OTHER PLACE RIGHT SMALL SOUND STILL THEIR THERE THESE THING THINK THREE UNDER WATER WHERE WHICH WHILE "
+    "WORLD WOULD WRITE YEARS YOUNG "
+    "RAIN SNOW SUN WIND COLD WARM HOT FOG NICE FINE OK SO IS IT AT ON IN TO UP AN AS BE BY DO GO IF MY NO OF OR "
+    "AM PM AGE JOB GUY GAL TOWN CITY LAKE HILL FARM ROAD MILE WIRE POLE MAST TOWER RADIO POWER WATTS "
+    "CQ DE K R RST TU TNX ES OM YL PSE AGN ANT RIG WX QTH QSL QSO QRM QRN QSB QRP QRO QRT QRZ QSY FB HI GL GE GM GN GA "
+    "SK AR BT KN NAME HR UR VY BEST DX NET TEST HW CPY CUL 73 88 599 579 559 "
+).split()
+
+# What "solid" means: nine in ten, over enough sends that a lucky run is
+# not solid. Twenty is a session's worth of a character.
+SOLID_RATE = 0.9
+SOLID_SENT = 20
+
+
+def is_solid(stat):
+    return bool(stat) and stat.get("sent", 0) >= SOLID_SENT and stat["copied"] / stat["sent"] >= SOLID_RATE
+
+
+def plan(progress, setting=None):
+    """Where a person is on the Koch order, from their record, and what to
+    do next - the one decision the method rests on, made by the record
+    rather than by a slider.
+
+    The lesson is two characters plus every character in order that is
+    solid; the next character in the order is the new one. A slider set
+    higher is honoured - a person may push on - but the plan says if the
+    record does not back it. `weak` is every met character not yet solid,
+    worst first, with what it was heard as."""
+    progress = progress or {}
+    leading = 0
+    for ch in KOCH_ORDER:
+        if is_solid(progress.get(ch)):
+            leading += 1
+        else:
+            break
+    earned = max(2, min(len(KOCH_ORDER), leading + 1))
+    lesson = earned
+    ahead = False
+    if setting:
+        try:
+            wanted = max(2, min(len(KOCH_ORDER), int(setting)))
+        except (TypeError, ValueError):
+            wanted = earned
+        if wanted > earned:
+            lesson, ahead = wanted, True
+    chars = KOCH_ORDER[:lesson]
+    met = [c for c in chars if (progress.get(c) or {}).get("sent")]
+    new = [c for c in chars if c not in met] or ([chars[-1]] if lesson > 2 and not is_solid(progress.get(chars[-1])) else [])
+    weak = []
+    for c in met:
+        st = progress[c]
+        rate = st["copied"] / st["sent"] if st["sent"] else 0.0
+        if not is_solid(st):
+            confused = st.get("confused") or {}
+            if isinstance(confused, str):
+                import json as _json
+                try:
+                    confused = _json.loads(confused)
+                except ValueError:
+                    confused = {}
+            worst = sorted(confused.items(), key=lambda kv: -kv[1])[:2]
+            weak.append({"ch": c, "rate": round(rate, 2), "sent": st["sent"],
+                         "heard_as": [w[0] for w in worst]})
+    weak.sort(key=lambda w: (w["rate"], -w["sent"]))
+    words = [w for w in WORDS if set(w) <= set(chars)]
+    done = leading >= len(KOCH_ORDER)
+    return {"lesson": lesson, "earned": earned, "ahead": ahead, "chars": chars, "new": new,
+            "weak": weak, "words": len(words), "solid": leading, "total": len(KOCH_ORDER), "done": done}
+
+
+def session(the_plan):
+    """Today's session, in order: meet what is new, drill one character at
+    a time against the clock, copy groups, then words once there are any.
+    Fifteen minutes, and the record decides tomorrow's."""
+    steps = []
+    if the_plan["done"]:
+        steps.append({"kind": "words", "count": 8, "why": "every character is solid - the rest is speed, and words are how it comes"})
+        steps.append({"kind": "qso", "count": 1, "why": "a contact, as it would be sent"})
+        return steps
+    if the_plan["new"]:
+        steps.append({"kind": "meet", "chars": the_plan["new"],
+                      "why": "new: hear it, see it drawn, hear it again - the sound first, the name second"})
+    steps.append({"kind": "flash", "seconds": 90,
+                  "why": ("one character at a time, answer as it comes - the reflex, not the recall"
+                          + (f"; {', '.join(w['ch'] for w in the_plan['weak'][:3])} come round more often" if the_plan["weak"] else ""))})
+    steps.append({"kind": "koch", "count": 5, "why": "five groups of five at speed - copy behind, write what you heard"})
+    if the_plan["words"] >= 8:
+        steps.append({"kind": "words", "count": 6, "why": "words from the characters you have - the sound of the code as it is used"})
+    return steps
+
+
+def flash_sequence(the_plan, count=40, seed=None):
+    """The characters for a flash drill: the lesson's, the weak ones
+    weighted up and the new one in often, never three of one running."""
+    rng = random.Random(seed)
+    chars = list(the_plan["chars"])
+    weight = {c: 1.0 for c in chars}
+    for w in the_plan["weak"]:
+        weight[w["ch"]] = 3.0
+    for c in the_plan["new"]:
+        weight[c] = 4.0
+    out = []
+    for _ in range(count):
+        # Not three of the same running - with two characters "never twice"
+        # would be K M K M, answerable without listening.
+        pool = [c for c in chars if not (len(out) >= 2 and out[-1] == out[-2] == c)] or chars
+        pick = rng.choices(pool, weights=[weight[c] for c in pool])[0]
+        out.append(pick)
+    return out
+
+
+def words_for(chars, count=6, seed=None):
+    """Words spelt only from `chars`, or an empty list when there are none."""
+    rng = random.Random(seed)
+    pool = [w for w in WORDS if set(w) <= set(chars)]
+    if not pool:
+        return []
+    return rng.sample(pool, min(count, len(pool)))
 
 
 PUNCTUATION = ".,?/=+-:()\"'@!"
@@ -288,7 +422,7 @@ MEANINGS.update(ABBREVIATIONS)
 MEANINGS.update({k: v[1] for k, v in PROSIGNS.items()})
 
 KINDS = [
-    ("koch", "Koch lesson"), ("letters", "Letters"), ("numbers", "Numbers"),
+    ("koch", "Koch lesson"), ("words", "Words you can copy"), ("letters", "Letters"), ("numbers", "Numbers"),
     ("mixed", "Mixed characters"), ("callsigns", "Callsigns"),
     ("qsignals", "Q signals"), ("abbreviations", "Abbreviations"),
     ("prosigns", "Prosigns"), ("qso", "QSO fragments"),

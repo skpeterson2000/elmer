@@ -393,10 +393,14 @@ document.getElementById('cw-check').addEventListener('click', async () => {
   const res = await postJSON('/api/cw/result',
     {per_char: perChar, settings: settings}).catch(() => null);
   if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
-  if (pct >= 90 && settings.lesson < (CWS.koch || []).length &&
-      document.getElementById('cw-kind').value === 'koch') {
-    toast('Lesson passed', 'Add ' + CWS.koch[settings.lesson] +
-          ' — move the lesson slider up one.');
+  /* The record decides the lesson: when the plan moves up, the slider
+     follows and the toast says what arrived. */
+  const before = todayPlan ? todayPlan.lesson : settings.lesson;
+  await refreshPlan();
+  if (todayPlan && todayPlan.lesson > before && todayPlan.new.length) {
+    toast('Lesson ' + todayPlan.lesson, todayPlan.new.join(' ') + ' has arrived - meet it on Today.');
+  } else if (pct >= 90 && document.getElementById('cw-kind').value === 'koch' && todayPlan && !todayPlan.done) {
+    toast('Good copy', 'Nine in ten. Twenty sends of each and the next character arrives on its own.');
   }
 });
 
@@ -991,8 +995,221 @@ setKeyerMode(settings.keyer || 'straight', false);
    halfway through a Koch lesson who glances at the band plan should come back
    to the lesson, not to the top of the page. */
 showMode((location.hash || '').replace('#', '')
-         || recall('cw.mode', 'learn'));
+         || recall('cw.mode', 'today'));
 
+
+/* ------------------------------------------------------------------ today */
+/* Say a key back. Whichever key it was: the code just heard, the key the
+   fingers chose and its name, coupled - and the grading is separate. Letters
+   are the phonetic alphabet, digits their words, a prosign or a Q signal its
+   meaning, all from the recorded shelf; anything not recorded is silence. */
+const DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+if (window.Voice && CWS.voice_have) Voice.setHave(CWS.voice_have);
+function phoneticWord(key) {
+  const k = String(key || '').toUpperCase();
+  if (/^[A-Z]$/.test(k)) return (CWS.phonetic || {})[k] || k;
+  if (/^[0-9]$/.test(k)) return DIGIT_WORDS[+k];
+  if (CWS.meanings && CWS.meanings[k]) return k + ' - ' + CWS.meanings[k];
+  return k;
+}
+/* Said, and shown: the word appears where the eye already is, so the
+   sound, the key and the name land together whether the shelf has the
+   recording or not. */
+function sayBack(key, where) {
+  const box = document.getElementById('cw-sayback');
+  const word = phoneticWord(key);
+  if (where) { where.textContent = word; where.classList.add('show'); }
+  if (box && !box.checked) return word;
+  const k = String(key || '').toUpperCase();
+  let token = null;
+  if (/^[A-Z]$/.test(k)) token = 'phon-' + k.toLowerCase();
+  else if (/^[0-9]$/.test(k)) token = DIGIT_WORDS[+k];
+  else if (/^Q[A-Z]{2}$/.test(k)) token = 'q-' + k.toLowerCase();
+  else if (/^[A-Z]{2}$/.test(k)) token = 'pro-' + k.toLowerCase();
+  if (token && window.Voice) Voice.say([token]);
+  return word;
+}
+
+let todayPlan = CWS.plan || null, todaySession = CWS.session || [], todayStreak = CWS.streak || {};
+let sessionOn = false, sessionStop = false, sessionStarted = 0;
+
+function renderToday() {
+  const p = todayPlan;
+  if (!p) return;
+  const streak = todayStreak || {};
+  document.getElementById('cw-today-streak').textContent =
+    (streak.streak ? streak.streak + ' day' + (streak.streak === 1 ? '' : 's') + ' running' : 'no streak yet') +
+    (streak.minutes_today ? ' · ' + streak.minutes_today + ' min today' : '') +
+    (streak.minutes_all ? ' · ' + streak.minutes_all + ' min in all' : '');
+  document.getElementById('cw-today-where').innerHTML = p.done
+    ? '<b>Every character is solid.</b> From here it is speed, and words.'
+    : '<b>Lesson ' + p.lesson + ' of ' + p.total + '</b> - ' + p.solid + ' solid' +
+      (p.new.length ? ', new: <b class="mono">' + escapeHTML(p.new.join(' ')) + '</b>' : '') +
+      (p.ahead ? ' <span class="warntext">(the slider is ahead of the record - lesson ' + p.earned + ' is what it backs)</span>' : '') + '.';
+  document.getElementById('cw-today-chars').innerHTML = p.chars.map(c =>
+    '<span class="cw-char ' + charClass((CWS.progress || {})[c]) + (p.new.includes(c) ? ' new' : '') + '">' + escapeHTML(c) + '</span>').join('');
+  document.getElementById('cw-today-weak').textContent = p.weak.length
+    ? 'Still shaky: ' + p.weak.slice(0, 4).map(w => w.ch + (w.heard_as.length ? ' (heard as ' + w.heard_as.join(', ') + ')' : '')).join(', ')
+    : (p.solid ? 'Nothing shaky among what you have met.' : '');
+  const names = {meet: 'Meet', flash: 'One at a time', koch: 'Groups', words: 'Words', qso: 'A contact'};
+  document.getElementById('cw-today-steps').innerHTML = todaySession.map(s =>
+    '<li><b>' + names[s.kind] + (s.chars ? ' ' + escapeHTML(s.chars.join(' ')) : '') + (s.seconds ? ' - ' + s.seconds + ' s' : '') + '</b>' +
+    '<div class="tiny muted">' + escapeHTML(s.why) + '</div></li>').join('');
+}
+
+async function refreshPlan() {
+  try {
+    const d = await api('/api/cw/plan');
+    todayPlan = d.plan; todaySession = d.session; todayStreak = d;
+    if (d.voice_have && window.Voice) Voice.setHave(d.voice_have);
+    /* The lesson follows the record unless the slider was pushed ahead. */
+    if (todayPlan && settings.lesson < todayPlan.lesson) {
+      settings.lesson = todayPlan.lesson;
+      const sl = document.getElementById('cw-lesson');
+      if (sl) { sl.value = settings.lesson; sl.dispatchEvent(new Event('input')); }
+    }
+    renderToday(); renderLesson();
+  } catch (e) { /* the page's own copy stands */ }
+}
+
+/* The flash drill: one character, the key for it straight away. The
+   character sounds; the first key pressed within the window is the answer,
+   said back and marked; then the next. Slow is wrong: a second and a half is
+   the window, which is long enough to hear and press and not long enough to
+   count dits. */
+const FLASH_WINDOW_MS = 1500, FLASH_GAP_MS = 350;
+let flashKey = null;
+document.addEventListener('keydown', e => {
+  if (!flashKey) return;
+  if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toUpperCase();
+  e.preventDefault();
+  const take = flashKey; flashKey = null;
+  take(k);
+});
+
+async function flashRun(seconds) {
+  const box = document.getElementById('cw-flash');
+  const code = document.getElementById('cw-flash-code');
+  const letter = document.getElementById('cw-flash-letter');
+  const hint = document.getElementById('cw-flash-hint');
+  const score = document.getElementById('cw-flash-score');
+  const clock = document.getElementById('cw-flash-clock');
+  const word = document.getElementById('cw-flash-word');
+  box.hidden = false;
+  let seq;
+  try { seq = (await api('/api/cw/flash?count=200')).chars; } catch (e) { box.hidden = true; return null; }
+  const perChar = {}, times = [];
+  let right = 0, sent = 0, i = 0;
+  const until = Date.now() + seconds * 1000;
+  hint.textContent = 'press the key for what you hear - straight away';
+  while (Date.now() < until && !sessionStop && i < seq.length) {
+    const sym = seq[i++];
+    letter.classList.remove('show'); letter.innerHTML = '';
+    word.classList.remove('show'); word.textContent = '';
+    clock.textContent = Math.max(0, Math.round((until - Date.now()) / 1000)) + ' s';
+    const t0 = performance.now();
+    const played = playSymbol(sym, localTiming(), [code]);
+    const answer = await new Promise(resolve => {
+      const timer = setTimeout(() => { flashKey = null; resolve(null); }, FLASH_WINDOW_MS + 1200 / settings.wpm * sym.code.length * 2);
+      flashKey = k => { clearTimeout(timer); resolve(k); };
+    });
+    await played;
+    sent++;
+    const want = sym.char;
+    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}};
+    perChar[want].sent++;
+    if (answer) sayBack(answer, word);
+    const ok = answer === want;
+    word.style.color = ok ? 'var(--green)' : 'var(--red)';
+    if (ok) { right++; perChar[want].copied++; times.push(performance.now() - t0); }
+    else if (answer) perChar[want].confused[answer] = (perChar[want].confused[answer] || 0) + 1;
+    letter.innerHTML = escapeHTML(want) + (ok ? '' : ' <span class="cw-miss"><i>' + escapeHTML(answer || '·') + '</i></span>');
+    letter.style.color = ok ? 'var(--green)' : 'var(--red)';
+    letter.classList.add('show');
+    score.textContent = right + ' / ' + sent;
+    await sleep(ok ? FLASH_GAP_MS : FLASH_GAP_MS * 3);
+  }
+  flashKey = null;
+  letter.style.color = '';
+  box.hidden = true;
+  const mean = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
+  return {perChar: perChar, right: right, sent: sent, mean_ms: mean};
+}
+
+async function runSession() {
+  if (sessionOn) return;
+  sessionOn = true; sessionStop = false; sessionStarted = Date.now();
+  const status = document.getElementById('cw-today-status');
+  const result = document.getElementById('cw-today-result');
+  document.getElementById('cw-today-start').hidden = true;
+  document.getElementById('cw-today-stop').hidden = false;
+  result.innerHTML = '';
+  const lines = [];
+  for (const step of todaySession) {
+    if (sessionStop) break;
+    if (step.kind === 'meet') {
+      status.textContent = 'meet ' + step.chars.join(' ');
+      const flash = document.getElementById('cw-flash'); flash.hidden = false;
+      document.getElementById('cw-flash-hint').textContent = 'listen - the shape is drawn as it sounds, then named';
+      const syms = step.chars.map(c => ({char: c, code: CODE[c] || ''}));
+      for (let pass = 0; pass < 3 && !sessionStop; pass++) {
+        for (const sym of syms) {
+          if (sessionStop) break;
+          const letter = document.getElementById('cw-flash-letter');
+          letter.classList.remove('show'); letter.style.color = '';
+          await playSymbol(sym, localTiming(), [document.getElementById('cw-flash-code')]);
+          await sleep(500);
+          letter.innerHTML = escapeHTML(sym.char); letter.classList.add('show');
+          const w = document.getElementById('cw-flash-word'); w.style.color = '';
+          sayBack(sym.char, w);
+          await sleep(REVEAL_MS);
+        }
+      }
+      flash.hidden = true;
+      lines.push('<li>Met ' + escapeHTML(step.chars.join(' ')) + '.</li>');
+    } else if (step.kind === 'flash') {
+      status.textContent = 'one at a time - ' + step.seconds + ' seconds';
+      const r = await flashRun(step.seconds);
+      if (r && r.sent) {
+        const pct = Math.round(100 * r.right / r.sent);
+        lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') + '.</li>');
+        const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
+        if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
+      }
+    } else if (step.kind === 'koch' || step.kind === 'words' || step.kind === 'qso') {
+      status.textContent = step.kind === 'koch' ? 'groups - type what you hear, then Check' : step.kind === 'words' ? 'words - type what you hear, then Check' : 'a contact - copy it, then Check';
+      document.getElementById('cw-kind').value = step.kind;
+      showMode('copy');
+      await sendPractice(false);
+      /* The copy pane takes it from here: the person types and checks at
+         their own pace, and the Today pane is a press away. */
+      lines.push('<li>' + (step.kind === 'koch' ? 'Groups' : step.kind === 'words' ? 'Words' : 'A contact') + ' sent - check them on the Copy pane.</li>');
+      break;
+    }
+  }
+  const seconds = Math.round((Date.now() - sessionStarted) / 1000);
+  try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); } catch (e) {}
+  sessionOn = false;
+  document.getElementById('cw-today-start').hidden = false;
+  document.getElementById('cw-today-stop').hidden = true;
+  status.textContent = sessionStop ? 'stopped' : '';
+  result.innerHTML = lines.length ? '<ul class="small" style="margin:0;padding-left:1.2rem">' + lines.join('') + '</ul>' : '';
+  await refreshPlan();
+}
+
+document.getElementById('cw-today-start').addEventListener('click', runSession);
+document.getElementById('cw-today-stop').addEventListener('click', () => { sessionStop = true; flashKey = null; player.stop(); teachHalt(); });
+renderToday();
+
+/* Say back on the copy pane too, when asked for: off by default there,
+   because the code is still sounding while the fingers type and a spoken
+   letter over the next character masks it. */
+document.getElementById('cw-typed').addEventListener('keydown', e => {
+  const box = document.getElementById('cw-sayback');
+  if (!box || !box.checked || sending) return;
+  if (e.key.length === 1) document.getElementById('cw-copy-status').textContent = sayBack(e.key);
+});
 
 /* ---------------------------------------------------------------- rating */
 /* Two numbers a person can watch move: the speed they copy at and the

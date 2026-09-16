@@ -139,6 +139,42 @@ def main():
     check("the section says how to ask one rather than state it",
           "QRL?" in q["note"], True)
 
+    print("\n-- the plan: the record decides the lesson --")
+    p = cw.plan({})
+    check("nobody's record is lesson two, K and M new", (p["lesson"], p["chars"], p["new"]), (2, ["K", "M"], ["K", "M"]))
+    solid = {c: {"sent": 30, "copied": 29, "confused": "{}"} for c in "KMRSUAPT"}
+    p = cw.plan(solid)
+    check("eight solid in order is lesson nine, L new", (p["lesson"], p["new"], p["solid"]), (9, ["L"], 8))
+    check("  a character is solid at nine in ten over twenty sends, not before",
+          (cw.is_solid({"sent": 19, "copied": 19}), cw.is_solid({"sent": 20, "copied": 18}), cw.is_solid({"sent": 20, "copied": 17})), (False, True, False))
+    shaky = dict(solid, L={"sent": 12, "copied": 8, "confused": '{"R": 3, "M": 1}'})
+    p = cw.plan(shaky)
+    check("a shaky character is named, worst first, with what it was heard as", (p["weak"][0]["ch"], p["weak"][0]["heard_as"]), ("L", ["R", "M"]))
+    check("  and the lesson waits on it", (p["lesson"], p["new"]), (9, ["L"]))
+    p = cw.plan(shaky, setting=14)
+    check("a slider pushed ahead is honoured, and said to be ahead", (p["lesson"], p["ahead"], p["earned"]), (14, True, 9))
+    gap = dict(solid); del gap["R"]
+    check("a gap in the order holds the lesson at the gap", cw.plan(gap)["lesson"], 3)
+    done = {c: {"sent": 30, "copied": 30, "confused": "{}"} for c in cw.KOCH_ORDER}
+    check("every character solid is done", (cw.plan(done)["done"], cw.plan(done)["lesson"]), (True, len(cw.KOCH_ORDER)))
+
+    print("\n-- the session, and the drill --")
+    steps = [s_["kind"] for s_ in cw.session(cw.plan(shaky))]
+    check("meet the new one, one at a time, groups, then words once there are words", steps, ["meet", "flash", "koch", "words"])
+    check("  no words at lesson two", [s_["kind"] for s_ in cw.session(cw.plan({}))], ["meet", "flash", "koch"])
+    check("  and when every character is solid, words and a contact", [s_["kind"] for s_ in cw.session(cw.plan(done))], ["words", "qso"])
+    seq = cw.flash_sequence(cw.plan(shaky), 300, seed=5)
+    check("the drill draws only the lesson's characters", set(seq) <= set(cw.plan(shaky)["chars"]), True)
+    check("  never three of one running", any(seq[i] == seq[i + 1] == seq[i + 2] for i in range(len(seq) - 2)), False)
+    check("  and the shaky one comes round more often than a solid one", seq.count("L") > seq.count("K"), True)
+    check("words are spelt only from the lesson's characters",
+          all(set(w) <= set("KMRSUAPTL") for w in cw.words_for(list("KMRSUAPTL"), 20, seed=1)), True)
+    check("  from K and M alone, only the one-letter word K - over", cw.words_for(["K", "M"], 6), ["K"])
+    kept = cw.WORDS
+    cw.WORDS = ["THE", "AND"]
+    check("  and the words kind falls back to groups when there are none", len(cw.practice("words", 5, 2, seed=1)[0].split()), 5)
+    cw.WORDS = kept
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

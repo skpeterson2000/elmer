@@ -114,7 +114,7 @@ function roLadder(l) {
       ? '<ul style="margin:.25rem 0 0;padding-left:1rem">' + r.ways.map(w =>
           '<li class="small"><b>' + escapeHTML(w.band) + '</b> <span class="muted">by ' + escapeHTML(w.how) + '</span> ' +
           '<span class="tiny mono" style="color:' + (RO_TONE[w.odds] || '#8b98a5') + '">' + escapeHTML(w.odds) + '</span>' +
-          (w.mode ? '<div class="tiny muted">' + escapeHTML(w.mode) + '</div>' : '') + '</li>').join('') + '</ul>'
+          (w.mode ? '<div class="tiny muted">' + escapeHTML(w.mode) + (/CW only/.test(w.mode) ? ' &middot; <a href="/cw#today">learn the code &rarr;</a>' : '') + '</div>' : '') + '</li>').join('') + '</ul>'
       : '<div class="small muted" style="margin-top:.25rem">nothing, right now</div>';
     return '<div style="padding:.5rem;border-radius:8px;border:1px solid ' + (mine ? 'var(--amber)' : 'var(--line)') + '">' +
       '<b>' + escapeHTML(r.label) + '</b>' + (mine ? ' <span class="tiny mono" style="color:var(--amber)">you</span>' : '') +

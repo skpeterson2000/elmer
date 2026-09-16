@@ -38,6 +38,8 @@ ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "
 
 # The phonetic alphabet, for a callsign nobody recorded a name for: KC9SP
 # is Kilo Charlie nine Sierra Papa, which is how the operator says it too.
+from . import cw as _cw
+
 PHONETIC = {"a": "Alpha", "b": "Bravo", "c": "Charlie", "d": "Delta", "e": "Echo", "f": "Foxtrot",
             "g": "Golf", "h": "Hotel", "i": "India", "j": "Juliett", "k": "Kilo", "l": "Lima",
             "m": "Mike", "n": "November", "o": "Oscar", "p": "Papa", "q": "Quebec", "r": "Romeo",
@@ -50,6 +52,10 @@ VOCABULARY = {
     "hundred": "hundred", "and": "and",
     # the letters, phonetic - a callsign spelled out when there is no name file
     **{f"phon-{k}": v for k, v in PHONETIC.items()},
+    # the CW page says back what a key pressed: a prosign or a Q signal by
+    # its meaning, so the sound of the code is coupled to what it means
+    **{f"pro-{k.lower()}": f"{k} - {v[1]}" for k, v in _cw.PROSIGNS.items()},
+    **{f"q-{k.lower()}": f"{k} - {v}" for k, v in _cw.Q_SIGNALS.items()},
     # the slots on the sheet: the narrator calls the golfer by their place
     # in the group rather than by name - "Player 2 is away" - which is what
     # a starter does, and needs no file per person. Honors on the tee.
