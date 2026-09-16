@@ -334,15 +334,22 @@ async function quitElmer(button) {
     /* A dropped connection here means the server stopped before it could
        answer, which is the thing we asked for - not a failure to report. */
   }
+  /* The server closes the window itself on its way out. What is on the
+     screen for the moment that takes is the mark and nothing else - an
+     application closes when it is told to; it does not leave a page up
+     with instructions. If the window is still here after a few seconds
+     the close did not take, and only then is that said. */
   const veil = document.createElement('div');
   veil.className = 'exit-veil';
-  const again = document.body.dataset.window
-    ? 'Start it again from the Start Menu, or with <code>elmer.cmd</code>'
-    : 'Start it again with <code>./elmer.py --kiosk</code>';
-  veil.innerHTML = '<div class="mark">ELMER</div>' +
-                   '<p>Stopped. You can close this window.</p>' +
-                   '<p>' + again + '</p>';
+  veil.innerHTML = '<div class="mark">ELMER</div>';
   document.body.appendChild(veil);
+  try { window.close(); } catch (err) { /* a window a script did not open may refuse */ }
+  setTimeout(() => {
+    const again = document.body.dataset.window
+      ? 'Start it again from the Start Menu, or with <code>elmer.cmd</code>'
+      : 'Start it again with <code>./elmer.py --kiosk</code>';
+    veil.innerHTML += '<p>ELMER has stopped, and this window did not close on its own - close it.</p><p>' + again + '</p>';
+  }, 6000);
 }
 
 /* The question before stopping names who it would stop. A unit with a
