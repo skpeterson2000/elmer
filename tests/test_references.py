@@ -50,7 +50,36 @@ def main():
     # is a record of where somebody has been.
     with tempfile.TemporaryDirectory() as tmp:
         R.STORE = Path(tmp) / "references.json"
-        return run()
+        # The fetched lists on their own first: the bundled national parks
+        # sit behind them in every answer, and these checks count what a
+        # unit was asked to hold. The bundle gets its own section after.
+        bundle = R.NATIONAL
+        R.NATIONAL = Path(tmp) / "no-national.json"
+        R._national = None
+        try:
+            rc = run()
+        finally:
+            R.NATIONAL = bundle
+            R._national = None
+        return rc or bundled()
+
+
+def bundled():
+    """The National Park Service units that ship with the program, behind
+    whatever a unit fetched."""
+    print("\n-- the national parks, bundled behind the fetched lists --")
+    parks = R.national()
+    if not parks:
+        print("       (no bundle on disk - tools/build_national_parks.py makes it)")
+        return 0
+    check("a few hundred of them", 300 < len(parks) < 700, True)
+    near = R.nearby(46.60, -94.31, kind="park", limit=5)
+    check("with nothing fetched, the nearest parks to Minnesota are national ones", len(near) > 0, True)
+    check("  measured from here", all(r["km"] < 800 for r in near), True)
+    check("  and none is a summit", any(r["kind"] == "summit" for r in near), False)
+    check("a unit that fetched nothing still knows how many are bundled", R.coverage(46.60, -94.31)["national"], len(parks))
+    print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
+    return 1 if FAILS else 0
 
 
 def run():
