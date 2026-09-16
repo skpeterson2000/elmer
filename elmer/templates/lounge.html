@@ -38,6 +38,13 @@
   {% endfor %}
   <div class="lg-screen" id="lg-screen"></div>
   <div class="lg-counter" id="lg-counter"></div>
+  {# A certificate, taken down off the wall for a closer look while the
+     mouse rests on its frame - and put back the moment it leaves. On a
+     touchscreen, a tap does the same and a tap anywhere else puts it back. #}
+  <figure class="lg-peek" id="lg-peek" hidden>
+    <img id="lg-peek-img" alt="">
+    <figcaption id="lg-peek-cap"></figcaption>
+  </figure>
 </div>
 <p class="tiny muted" style="margin-top:.5rem">
   Hover a frame for the caption. The frames hold the certificates you hung from the
@@ -57,6 +64,11 @@
 .lg-frame { cursor: default; }
 .lg-frame .lg-cap { position: absolute; inset: auto 0 0 0; background: rgba(11,14,19,.85); color: #e8e8e8; font-size: .62rem; line-height: 1.25; padding: .2rem .3rem; opacity: 0; transition: opacity .15s; }
 .lg-frame:hover .lg-cap { opacity: 1; }
+.lg-peek { position: absolute; z-index: 5; margin: 0; width: 42%; max-width: 560px; padding: .5rem; background: #f4efe4; border: 6px solid #3a2f1c; border-radius: 3px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.65); pointer-events: auto; }
+.lg-peek img { display: block; width: 100%; height: auto; }
+.lg-peek figcaption { margin-top: .4rem; font: .78rem/1.35 var(--sans); color: #3a2f1c; }
+.lg-peek figcaption b { display: block; font-size: .9rem; }
 .lg-small { font: 600 clamp(.38rem, .5vw, .6rem)/1.1 var(--sans); color: #3a2f1c; text-align: center; background: #f2ecdc; padding: .05rem; word-break: break-all; }
 .lg-screen { position: absolute; left: 0; top: 0; width: 10.7%; height: 26%; background: #0b0e13; color: #cfe3ff; font: clamp(.45rem, .6vw, .68rem)/1.3 var(--mono); padding: .5rem .4rem .4rem .5rem; overflow: hidden; clip-path: polygon(0 0, 100% 0, 100% 82%, 0 100%); }
 .lg-screen b { color: #ffb454; }
@@ -81,8 +93,41 @@
     el.classList.add('hung');
     el.innerHTML = '<img src="' + escapeHTML(a.url) + '" alt="' + escapeHTML(a.title) + '" loading="lazy">' +
       '<div class="lg-cap"><b>' + escapeHTML(a.title) + '</b>' + (a.issued ? '<br>' + escapeHTML(a.issued) : '') + '</div>';
-    el.title = a.title + (a.detail ? ' - ' + a.detail : '');
+    el.dataset.peekUrl = a.url; el.dataset.peekTitle = a.title; el.dataset.peekDetail = a.detail || '';
+    el.dataset.peekIssued = (a.issued || '') + (a.number ? ' · no. ' + a.number : '');
   });
+  /* The closer look: shown while the mouse rests on a frame or on the
+     picture itself, put back when it leaves both. */
+  const room = document.getElementById('lounge'), peek = document.getElementById('lg-peek');
+  let peekTimer = null, peekFor = null;
+  function showPeek(el) {
+    clearTimeout(peekTimer);
+    if (peekFor === el && !peek.hidden) return;
+    peekFor = el;
+    document.getElementById('lg-peek-img').src = el.dataset.peekUrl;
+    document.getElementById('lg-peek-img').alt = el.dataset.peekTitle;
+    document.getElementById('lg-peek-cap').innerHTML = '<b>' + escapeHTML(el.dataset.peekTitle) + '</b>' +
+      (el.dataset.peekDetail ? escapeHTML(el.dataset.peekDetail) + '<br>' : '') + '<span class="muted">' + escapeHTML(el.dataset.peekIssued) + '</span>';
+    /* beside the frame, on whichever side has the room */
+    const rw = room.clientWidth, rh = room.clientHeight;
+    const fx = el.offsetLeft, fy = el.offsetTop, fw = el.offsetWidth;
+    const pw = Math.min(rw * 0.42, 560);
+    const left = fx + fw + 12 + pw <= rw ? fx + fw + 12 : Math.max(8, fx - pw - 12);
+    peek.style.left = left + 'px';
+    peek.style.width = pw + 'px';
+    peek.hidden = false;
+    const ph = peek.offsetHeight;
+    peek.style.top = Math.max(8, Math.min(rh - ph - 8, fy - ph * 0.2)) + 'px';
+  }
+  function hidePeek() { clearTimeout(peekTimer); peekTimer = setTimeout(() => { peek.hidden = true; peekFor = null; }, 120); }
+  room.querySelectorAll('.lg-frame.hung').forEach(el => {
+    el.addEventListener('mouseenter', () => showPeek(el));
+    el.addEventListener('mouseleave', hidePeek);
+    el.addEventListener('click', e => { e.stopPropagation(); if (peekFor === el && !peek.hidden) { peek.hidden = true; peekFor = null; } else showPeek(el); });
+  });
+  peek.addEventListener('mouseenter', () => clearTimeout(peekTimer));
+  peek.addEventListener('mouseleave', hidePeek);
+  document.addEventListener('click', e => { if (!peek.hidden && !peek.contains(e.target)) { peek.hidden = true; peekFor = null; } });
   const names = ((regs && regs.regulars) || []).slice(0, 8);
   document.querySelectorAll('.lg-small').forEach((el, i) => { if (names[i]) el.textContent = names[i]; else el.style.display = 'none'; });
   const screen = document.getElementById('lg-screen');
