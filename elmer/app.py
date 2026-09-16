@@ -37,7 +37,7 @@ from . import (
     fieldreport, forecastlog, game, gating, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, library, logs, mail, monitoring, nanovna,
-    netcontrol, netwatch, op25, party, pathto, patterns,
+    netcontrol, netwatch, op25, papers, party, pathto, patterns,
     personal, phonegps, places, pota, prints, programmes,
     propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, show, smith, spotlog,
@@ -736,6 +736,9 @@ def bandplan_page():
         # With no location, "none" is a dead end that explains nothing.
         has_location=bool((profile["settings"].get("location") or {}).get("lat")
                           is not None),
+        # Whether the person's own paper is on the unit, for a link from the strip.
+        paper_amateur=papers.paper(connection.user_id, "amateur") is not None,
+        paper_gmrs=papers.paper(connection.user_id, "gmrs") is not None,
         **profile_block(connection))
 
 
@@ -1847,7 +1850,8 @@ def prints_page():
 def library_page():
     """The shelf of manuals this operator owns, searchable to the page."""
     return render_template("library.html", shelf_path=str(library.SHELF),
-                           topics=library.TOPICS, **profile_block(conn()))
+                           topics=library.TOPICS, paper_kinds=papers.KINDS,
+                           **profile_block(conn()))
 
 
 @app.route("/api/library")
@@ -2005,6 +2009,81 @@ def library_read(name):
                            # is here) rather than trust the browser's viewer to
                            # open at it, which the Edge window does not.
                            draws=library.can_draw_pages())
+
+
+# ---- the operator's own licence papers: theirs, shown only to them
+
+def _records_for(connection):
+    """The FCC records ELMER holds for this person, by call, so a paper can
+    be laid beside the record for the same callsign."""
+    settings = db.get_profile(connection)["settings"]
+    out = {}
+    for rec in (settings.get("license"), settings.get("gmrs")):
+        if rec and rec.get("callsign"):
+            out[rec["callsign"]] = rec
+    return out
+
+
+@app.route("/api/papers")
+def api_papers():
+    connection = conn()
+    return jsonify({"kinds": papers.KINDS,
+                    "held": papers.held(connection.user_id, _records_for(connection)),
+                    "draws": library.can_draw_pages()})
+
+
+@app.route("/api/papers/add", methods=["POST"])
+def api_papers_add():
+    """Keep a licence PDF for the person signed in - and nobody else."""
+    up = request.files.get("file")
+    kind = (request.form.get("kind") or "").strip()
+    if up is None or not up.filename:
+        abort(400, "no file")
+    if kind not in papers.KINDS:
+        abort(400, "say which licence it is")
+    connection = conn()
+    ok, message = papers.add(connection.user_id, kind, up.stream)
+    if not ok:
+        abort(400, message)
+    return jsonify({"ok": True, "message": message,
+                    "held": papers.held(connection.user_id, _records_for(connection))})
+
+
+@app.route("/api/papers/remove", methods=["POST"])
+def api_papers_remove():
+    body = request.get_json(silent=True) or {}
+    connection = conn()
+    if not papers.remove(connection.user_id, body.get("kind") or ""):
+        abort(404, "no such paper")
+    return jsonify({"ok": True, "held": papers.held(connection.user_id, _records_for(connection))})
+
+
+@app.route("/papers/<kind>")
+def papers_page(kind):
+    connection = conn()
+    entry = next((e for e in papers.held(connection.user_id, _records_for(connection)) if e["kind"] == kind), None)
+    if entry is None:
+        abort(404, "no such paper of yours")
+    return render_template("papers.html", kind=kind, label=papers.KINDS[kind], entry=entry,
+                           draws=library.can_draw_pages(), **profile_block(connection))
+
+
+@app.route("/papers/file/<kind>")
+def papers_file(kind):
+    pdf = papers.paper(conn().user_id, kind)
+    if pdf is None:
+        abort(404, "no such paper of yours")
+    return send_from_directory(str(pdf.parent), pdf.name, mimetype="application/pdf", max_age=0,
+                               as_attachment=bool(request.args.get("save")),
+                               download_name=f"{kind}-licence.pdf")
+
+
+@app.route("/papers/page/<kind>/<int:n>.png")
+def papers_page_image(kind, n):
+    made = papers.page_image(conn().user_id, kind, n)
+    if made is None:
+        abort(404, "no such page, or poppler is not on this unit")
+    return send_from_directory(str(made.parent), made.name, mimetype="image/png", max_age=0)
 
 
 @app.route("/library/page/<path:name>/<int:n>.png")
@@ -7038,6 +7117,7 @@ def api_users_remove():
     name = db.get_user(connection, wanted)["display_name"]
     try:
         db.remove_user(connection, wanted)
+        papers.remove_all(wanted)
     except ValueError as exc:
         return jsonify({"ok": False, "message": str(exc)}), 409
     log.info("removed %s and everything of theirs", name)

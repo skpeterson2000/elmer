@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-15
 
+- Your licences, on paper: the FCC's PDF kept for you alone, shown back and printed from the Library, read against the record
 - A GMRS licence, by its callsign: the dates read from the FCC record, and the cards that know it is held
 - RepeaterBook, under your own token: the state's amateur and GMRS machines, fetched, credited, refreshed
 - GMRS repeaters: told from the amateur machines by frequency, offered only to a GMRS radio

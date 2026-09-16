@@ -102,8 +102,9 @@
         <span class="small">expired {{ license.expires }} &mdash; past the grace period,
           so the license must be earned again.</span>
       {% endif %}
+      {% if paper_amateur %}<a class="tiny" style="margin-left:auto" href="/papers/amateur">your licence, on paper &rarr;</a>{% endif %}
       {% if license.uls_url %}
-        <a class="tiny" style="margin-left:auto" href="{{ license.uls_url }}"
+        <a class="tiny" {% if not paper_amateur %}style="margin-left:auto"{% endif %} href="{{ license.uls_url }}"
            target="_blank" rel="noopener">FCC ULS record &rarr;</a>
       {% endif %}
     </div>
@@ -124,7 +125,8 @@
         <span class="small">expired {{ gmrs.expires }} &mdash; GMRS has no grace
           period, so it must be applied for again before you transmit.</span>
       {% endif %}
-      <span class="tiny muted" style="margin-left:auto">{{ gmrs.source }}</span>
+      {% if paper_gmrs %}<a class="tiny" style="margin-left:auto" href="/papers/gmrs">your licence, on paper &rarr;</a>{% endif %}
+      <span class="tiny muted" {% if not paper_gmrs %}style="margin-left:auto"{% endif %}>{{ gmrs.source }}</span>
     </div>
   </div>
 {% endif %}

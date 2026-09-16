@@ -20,6 +20,33 @@
   </div>
 </div>
 
+{# The person's own licences: not on the shelf, which everyone at the table
+   can read, but in a folder of their own, shown only to them. #}
+<div class="panel mt">
+  <div class="spread">
+    <div>
+      <div class="panel-title">Your licences</div>
+      <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+        The FCC issues a licence as a PDF &mdash; the official copy from ULS, the
+        certificate and the wallet cut-outs in one file. Hand yours over and it is
+        kept for you alone on this unit, shown back on a page of its own, printed
+        from there. Where the file has text under the picture, ELMER reads the
+        callsign and the dates off it and lays them beside the FCC record.
+      </p>
+    </div>
+    <div class="row" style="flex:none;white-space:nowrap;gap:.4rem">
+      <select id="pp-kind" class="sm">
+        {% for k, label in paper_kinds.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+      </select>
+      <label class="btn sm ghost" style="cursor:pointer">Add a licence
+        <input type="file" id="pp-file" accept="application/pdf,.pdf" hidden>
+      </label>
+    </div>
+  </div>
+  <div id="pp-held"><span class="small muted">Looking&hellip;</span></div>
+  <div class="tiny muted" id="pp-said"></div>
+</div>
+
 <div class="panel mt">
   <div class="panel-title">Find the page</div>
   <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
@@ -213,6 +240,49 @@
     btn.disabled = false;
   }
   document.getElementById('lib-reindex').addEventListener('click', () => reindex(false));
+
+  // ---- the person's own licence papers
+  async function papersDraw() {
+    const box = document.getElementById('pp-held');
+    let d;
+    try { d = await (await fetch('/api/papers')).json(); } catch (err) { box.innerHTML = '<span class="small muted">could not look</span>'; return; }
+    if (!d.held.length) { box.innerHTML = '<span class="small muted">None kept yet.</span>'; return; }
+    box.innerHTML = d.held.map(e => {
+      const s = e.says || {};
+      let said = '';
+      if (s.readable && s.calls && s.calls.length) {
+        said = 'names <b class="mono">' + escapeHTML(s.calls.join(', ')) + '</b>' + (s.expires ? ', runs to <b>' + escapeHTML(s.expires) + '</b>' : '');
+        if (e.record) said += ' &middot; FCC record says ' + escapeHTML(e.record.expires || '?') + (e.agrees === true ? ' &mdash; agrees' : e.agrees === false ? ' &mdash; <span class="warntext">does not agree</span>' : '');
+      } else if (s.readable === false) said = '<span class="muted">' + escapeHTML(s.note || '') + '</span>';
+      return '<div class="lib-book"><div class="meta"><b>' + escapeHTML(e.label) + '</b>' +
+        '<span class="tiny muted">' + (e.pages ? e.pages + (e.pages === 1 ? ' page' : ' pages') + ' &middot; ' : '') + 'kept ' + new Date(e.added * 1000).toLocaleDateString() + '</span>' +
+        '<a class="btn sm" href="/papers/' + encodeURIComponent(e.kind) + '">Show</a>' +
+        '<button class="btn sm ghost" data-paper-remove="' + escapeHTML(e.kind) + '" data-label="' + escapeHTML(e.label) + '">Remove</button></div>' +
+        (said ? '<div class="small" style="margin-top:.25rem">' + said + '</div>' : '') + '</div>';
+    }).join('');
+  }
+  papersDraw();
+  document.getElementById('pp-file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const said = document.getElementById('pp-said');
+    said.textContent = 'keeping ' + f.name + '\u2026';
+    const fd = new FormData(); fd.append('file', f); fd.append('kind', document.getElementById('pp-kind').value);
+    try {
+      const r = await fetch('/api/papers/add', {method: 'POST', body: fd});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || d.message || 'refused');
+      said.textContent = d.message;
+      papersDraw();
+    } catch (err) { said.textContent = err.message || 'could not keep it'; }
+    e.target.value = '';
+  });
+  document.getElementById('pp-held').addEventListener('click', async e => {
+    const b = e.target.closest('[data-paper-remove]');
+    if (!b) return;
+    if (!confirm('Remove your ' + b.dataset.label + ' from this unit? The file is deleted.')) return;
+    try { await postJSON('/api/papers/remove', {kind: b.dataset.paperRemove}); papersDraw(); } catch (err) {}
+  });
 
   document.getElementById('lib-file').addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0];

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} &middot; ELMER{% endblock %}
+{% block body %}
+
+{# A licence, shown back to the person it belongs to: the FCC's own PDF in
+   the page, printable from here, and - where poppler is on the unit - each
+   page drawn as a picture below it, for a browser with no viewer of its own.
+   Only the account that handed the paper over is ever shown it. #}
+<div class="spread">
+  <div>
+    <h1 style="margin-bottom:.2rem">{{ label }}</h1>
+    <div class="quiz-context">Yours, on this unit &mdash; kept for {{ profile.display_name }} and shown to nobody else.
+      {% if entry.says.readable and entry.says.calls %}The paper names
+        <b class="mono">{{ entry.says.calls|join(', ') }}</b>{% if entry.says.expires %} and runs to <b>{{ entry.says.expires }}</b>{% endif %}.
+        {% if entry.record %}The FCC record ELMER holds for {{ entry.record.callsign }} says <b>{{ entry.record.expires }}</b>
+          {%- if entry.agrees %} &mdash; the two agree{% elif entry.agrees == false %} &mdash; <b>which is not what the paper says</b>; one of them is out of date{% endif %}.{% endif %}
+      {% elif not entry.says.readable %}{{ entry.says.note }}.{% endif %}
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn primary" id="pp-print">Print</button>
+    <a class="btn" href="/papers/file/{{ kind }}?save=1" download="{{ entry.name }}">Save a copy</a>
+    <a class="btn ghost" href="/library">&larr; Library</a>
+  </div>
+</div>
+
+<div class="panel mt pdfframe">
+  <iframe id="pp-frame" src="/papers/file/{{ kind }}#toolbar=1&amp;navpanes=0" title="{{ label }}"></iframe>
+</div>
+
+{% if draws and entry.pages %}
+<div class="panel mt">
+  <div class="panel-title">The pages, drawn</div>
+  <p class="tiny muted">Every page of the file, as a picture &mdash; for a browser with no PDF viewer of its own. Both sides of a wallet copy are here if the FCC put both in the file.</p>
+  {% for n in range(1, entry.pages + 1) %}
+    <img src="/papers/page/{{ kind }}/{{ n }}.png" alt="page {{ n }} of the {{ label }}" style="display:block;max-width:100%;margin:.6rem auto;border:1px solid var(--line);background:#fff">
+  {% endfor %}
+</div>
+{% endif %}
+
+<p class="tiny muted mt">
+  47 CFR 97.9 and 95.1705 no longer require the paper to be carried &mdash; the FCC's
+  record is the licence &mdash; but a printed copy is what an inspector, a club or a
+  repeater owner will ask to see, and this is where yours is.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('pp-print').addEventListener('click', () => {
+  const frame = document.getElementById('pp-frame');
+  try {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  } catch (e) {
+    window.open('/papers/file/{{ kind }}', '_blank');
+  }
+});
+</script>
+{% endblock %}
