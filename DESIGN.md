@@ -342,7 +342,22 @@ because they carry very different authority:
   screen, so the two agree. It is the two-ray model with a real reflection
   coefficient, not a full model of the wire over the soil - the shape and
   the trend a log book agrees with, which is what the map is for, and real
-  terrain still moves the lobes. On the round trip the panel also says what
+  terrain still moves the lobes.
+
+  NVIS is decided by one number that the antenna cannot change: the
+  critical frequency straight up over the station. A band above it gets
+  nothing back from overhead whatever the wire, and the near zone is a
+  hole out to the skip - which is what a low inverted V on 40 m at three
+  in the morning finds, foF2 near 3 MHz and the skip twelve hundred
+  kilometres, and looked, on the map alone, like the antenna being
+  ignored. So the map now says it in words whenever the antenna is a low
+  one or the NVIS switch is on: the critical frequency over you, whether
+  this band comes back from overhead, the skip if it does not, and the
+  highest band that is under the door now (1.15 times foF2, the secant of
+  a near-vertical angle). The switch itself sets a wire a tenth of a
+  wavelength up and brings the map in to the one-hop window round the
+  station, where NVIS lives - a way of asking the question; the line is
+  the answer. On the round trip the panel also says what
   the far end needs to answer: the gear in a sentence, and in the US the
   lowest class for phone and for CW on that band (`bandplan.far_end`);
   outside the US the licence line is silent, because the map does not know

@@ -179,6 +179,7 @@
     <span class="row" style="gap:.5rem;align-items:center">
       <label class="tiny muted" title="the path rated with the sky read at its midpoint - can you be heard there"><input type="radio" name="bp-reach-mode" value="oneway" checked> one way</label>
       <label class="tiny muted" title="the contact: the reflection is the midpoint's either way, but the D layer is passed near each end, so the sun is read at your end and at theirs and the round trip is only as good as the worse leg"><input type="radio" name="bp-reach-mode" value="round"> round trip</label>
+      <label class="tiny muted" style="margin-left:.6rem" title="near vertical incidence skywave: a wire a tenth of a wavelength up, everything straight up and back down, the county and the state with no skip - if the band is under the critical frequency over you, which the line below says"><input type="checkbox" id="bp-reach-nvis"> NVIS</label>
       <label class="tiny muted" for="bp-reach-ant" style="margin-left:.6rem" title="your antenna, as the Lab remembers it - the map is weighted by the angle each hop needs and what this antenna puts there; change it here to see another">Antenna</label>
       <select class="btn sm" id="bp-reach-ant">
         <option value="dipole">a dipole</option>
@@ -219,6 +220,7 @@
     <span class="tiny muted">good</span>
     <span class="tiny muted">&middot; centred on you, the ring &middot; the night side shaded, the terminator as its twilight</span>
   </div>
+  <p class="small" style="margin:.5rem 0 0" id="bp-reach-nvis-words" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-far" hidden></p>
   <p class="tiny muted" style="margin:.5rem 0 0" id="bp-reach-note"></p>
 </div>

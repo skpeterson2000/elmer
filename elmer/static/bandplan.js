@@ -1285,6 +1285,27 @@ function bpReachSeed() {
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
   if (hd) hd.value = (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
+  /* The NVIS switch: a low wire, and the map brought in to the one-hop
+     window round the station, where NVIS lives. It is a way of asking the
+     question; the answer is the critical frequency line, which says whether
+     this band comes back from overhead at all. */
+  const nvis = document.getElementById('bp-reach-nvis');
+  if (nvis) {
+    nvis.checked = !!(own && own.nvis);
+    nvis.addEventListener('change', () => {
+      const band = bpData && bpData.bands.find(b => b.name === bpBand);
+      if (nvis.checked && band) {
+        const mhz = (band.low + band.high) / 2;
+        sel.value = 'invertedv';
+        if (h) h.value = Math.max(6, Math.round(0.1 * 983.571 / mhz));   // a tenth of a wavelength
+        const qth = bpReachFor && bpReachFor.qth;
+        if (qth) { bpView.zoom = 5; bpView.lat = qth.lat; bpView.lon = qth.lon; bpView.refined = null; }
+      }
+      remember('bandplan.reach.antenna', Object.assign(bpReachAntenna(), {nvis: nvis.checked}));
+      bpReachCache = {}; bpView.refined = null;
+      if (band) bpReach(band);
+    });
+  }
   [sel, h, w, hd, gnd].forEach(el => el && el.addEventListener('change', () => {
     remember('bandplan.reach.antenna', bpReachAntenna());
     bpReachCache = {}; bpView.refined = null;
@@ -1335,6 +1356,17 @@ async function bpReach(band) {
   /* The far end of a round trip: what the other station needs to answer -
      the gear, and in the US the licence. Shown for the contact, not for the
      one-way path, because it is about the reply. */
+  /* The critical frequency over the station decides NVIS, and the line says
+     so whenever the antenna is a low one or the switch is on - a hole in the
+     near zone is the sky's doing, not the antenna's, and it should not have
+     to be guessed at. */
+  const nvisWords = document.getElementById('bp-reach-nvis-words');
+  if (nvisWords) {
+    const low = d.antenna && d.antenna.height_wl <= 0.2;
+    const on = (document.getElementById('bp-reach-nvis') || {}).checked;
+    nvisWords.hidden = !(d.nvis && (low || on));
+    if (d.nvis) nvisWords.innerHTML = '<b>NVIS ' + (d.nvis.open ? 'open' : 'shut') + ' on ' + escapeHTML(band.name) + ':</b> ' + escapeHTML(d.nvis.words) + '.';
+  }
   const far = document.getElementById('bp-reach-far');
   if (far) {
     const fe = d.far_end;

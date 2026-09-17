@@ -645,6 +645,13 @@ def main():
     check("  so on the map Europe is better off the east-west wire's broadside and Miami off the north-south one's",
           (at(ns, 45, 5) > at(ew, 45, 5), at(ew, 25.5, -80.0) > at(ns, 25.5, -80.0)), (True, True))
     check("  and the map says which way it was laid", (ew["antenna"]["heading"], ew["antenna"]["ground"]), (90, "average"))
+    night = datetime(2026, 9, 17, 8, 0, tzinfo=timezone.utc)                  # three in the morning in Minnesota
+    low_snap = dict(snap, fof2=3.0, muf=9.4)
+    v = P.reach_map(7.0, 46.6, -94.31, low_snap, when=night, antenna={"kind": "invertedv", "height_wl": 0.13})
+    check("NVIS is decided by the critical frequency over the station, and the map says so: 40 m at 3 am under a 3 MHz foF2 is shut, the near zone a hole out to the skip",
+          (v["nvis"]["open"], v["nvis"]["skip_km"] > 1000, "nothing comes back from overhead" in v["nvis"]["words"], v["nvis"]["band"]), (False, True, True, "160m"))
+    v = P.reach_map(7.0, 46.6, -94.31, dict(snap, fof2=8.0, muf=24.8), when=night, antenna={"kind": "invertedv", "height_wl": 0.13})
+    check("  and under an 8 MHz foF2 the same band comes back from overhead, no skip", (v["nvis"]["open"], v["nvis"]["skip_km"], "no skip" in v["nvis"]["words"]), (True, 0, True))
     import time as _t
     t = _t.perf_counter(); P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc); took = (_t.perf_counter() - t) * 1000
     check("and it is cheap enough for a Pi - well under a second even on a shared runner", took < 1000, True)

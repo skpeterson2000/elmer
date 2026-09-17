@@ -1055,8 +1055,31 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             cells.append(int(round(max(0.0, min(100.0, score)))))
             night.append(solar_elevation(glat, glon, when) < 0)
     sun = celestial.sun_position(when)
+    # NVIS is decided by one number: the critical frequency straight up over
+    # the station. A band above it gets nothing back from overhead whatever
+    # the antenna, and the near zone is a hole out to the skip - which is
+    # what a low wire on 40 m at three in the morning finds, and what this
+    # says in words so the map is not taken for ignoring the antenna. Near
+    # vertical, a little over foF2 still returns (the secant of a small
+    # angle), so the door is 1.15 times foF2 for paths under a few hundred
+    # kilometres. The band to use instead is the highest one under the door.
+    fof2_here = snap.get("fof2")
+    nvis = None
+    if fof2_here:
+        door = float(fof2_here) * 1.15
+        skip_here = skip_km(mhz, float(fof2_here), hmf2)
+        below = [(n, f) for n, f, _ in BANDS if f <= 30.0 and f <= door]
+        best = max(below, key=lambda b: b[1]) if below else None
+        nvis = {"fof2": round(float(fof2_here), 1), "open": mhz <= door,
+                "skip_km": round(skip_here) if skip_here else 0,
+                "band": best[0] if best else None,
+                "words": (f"{fof2_here:.1f} MHz is the critical frequency over you now, so "
+                          + (f"this band comes back from overhead: a low wire covers the near zone with no skip"
+                             if mhz <= door else
+                             f"this band is above it and nothing comes back from overhead, whatever the antenna - the near zone is a hole out to the skip, about {round(skip_here or 0):,} km"
+                             + (f"; for NVIS now, {best[0]}" if best and best[1] < mhz else "; no HF band is under it now")))}
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
-            "window": bool(window), "mode": mode,
+            "window": bool(window), "mode": mode, "nvis": nvis,
             "antenna": ({"kind": antenna["kind"], "height_wl": round(float(antenna.get("height_wl") or 0.5), 3),
                          "heading": antenna.get("heading"), "ground": antenna.get("ground") or "average"}
                         if weigh else None),
