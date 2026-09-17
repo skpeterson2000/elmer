@@ -391,6 +391,50 @@ def privileges_for(band_name, license_class):
     return PRIVILEGES.get(band_name, {}).get(license_class, [])
 
 
+# The far end of a round trip. The reach map rates both legs of a contact;
+# this says what the other station needs to make the reply - the gear, and
+# in the US the licence - so a map that lights up a county in Ohio also
+# says who there may answer. Outside the US the licence line is silent:
+# the map does not know whose country a cell is in and must not guess.
+CLASS_ORDER = ["Technician", "General", "Advanced", "Extra"]
+
+
+def far_end(band_name):
+    """What the other end needs to answer on this band: equipment in a
+    sentence, and the lowest US class that may use phone and CW here."""
+    band = BAND_INDEX.get(band_name)
+    if not band:
+        return None
+
+    def lowest(emission):
+        for cls in CLASS_ORDER:
+            for low, high, terms in privileges_for(band_name, cls):
+                if emission in emissions_in(terms):
+                    return cls
+        return None
+
+    phone, cw, data = lowest("phone"), lowest("cw"), lowest("data")
+    high = band["high"]
+    if high <= 30:
+        gear = ("an HF transceiver and an antenna for this band - a wire at the least"
+                + (", or a vehicle whip" if band["low"] >= 14.0 else ""))
+    elif high <= 450:
+        gear = "a VHF/UHF rig - a handheld will do with a repeater or line of sight, an all-mode rig for SSB or CW"
+    else:
+        gear = "a rig for this band, which is specialist gear"
+    words = []
+    if phone:
+        words.append(f"phone: {phone}" + (" or higher" if phone != "Extra" else ""))
+    if cw:
+        words.append(f"CW: {cw}" + (" or higher" if cw != "Extra" else ""))
+    if data and data != cw:
+        words.append(f"data: {data}" + (" or higher" if data != "Extra" else ""))
+    return {"band": band_name, "equipment": gear,
+            "licence": {"phone": phone, "cw": cw, "data": data},
+            "licence_words": ("in the US, " + "; ".join(words)) if words else "in the US, no class may transmit here",
+            "abroad": "outside the US, whatever that country's licence allows on this band"}
+
+
 def may_transmit(band_name, license_class, mhz):
     """Whether this class may transmit on this frequency, and under what terms."""
     for low, high, modes in privileges_for(band_name, license_class):

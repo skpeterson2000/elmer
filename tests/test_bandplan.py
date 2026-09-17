@@ -151,6 +151,15 @@ def main():
     check("the chart carries it", "power" in B.allocation(), True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
+    print("\n-- the far end of a round trip --")
+    fe = B.far_end("20 m")
+    check("20 m: an HF station, a wire or a whip, and a General for phone or CW", (("wire" in fe["equipment"]), fe["licence"]["phone"], fe["licence"]["cw"]), (True, "General", "General"))
+    fe = B.far_end("15 m")
+    check("15 m: a Technician may answer on CW, phone needs a General", (fe["licence"]["cw"], fe["licence"]["phone"]), ("Technician", "General"))
+    check("  and it is said in words, with the US named and the rest left to their own rules", ("in the US" in fe["licence_words"], "outside the US" in fe["abroad"]), (True, True))
+    check("2 m: a VHF rig, and a Technician for everything", (("VHF" in B.far_end("2 m")["equipment"]), B.far_end("2 m")["licence"]["phone"]), (True, "Technician"))
+    check("a band that is not one is None", B.far_end("13 m"), None)
+
     return 1 if FAILS else 0
 
 

@@ -920,7 +920,62 @@ def _soft(km, edge, inside_below=True):
     return t * t * (3 - 2 * t)
 
 
-def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None, mode="oneway"):
+def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=None, ground="average"):
+    """How much of the antenna's signal leaves at the angle each hop needs.
+
+    The reach map used to score every cell by the sky alone, and so a low
+    inverted V and a dipole half a wavelength up drew the same map, which
+    is not what a log book says. The difference between them is the
+    takeoff angle: a path 300 km out leaves at about 70 degrees, one 2500
+    km out at about 8, and a low horizontal wire radiates almost all of its
+    power straight up while a high one has a lobe near 25 degrees and a
+    hole overhead. So each cell's score is scaled by the antenna's own
+    elevation pattern at the angle its first hop needs, in decibels against
+    the antenna's best angle: a loss of `db_floor` dB or more is nothing.
+
+    Returns a function of (ground distance for one hop, bearing) -> 0..1.
+    With `mhz` the ground is real earth of the kind named, the image's
+    strength and phase from the Fresnel coefficient, which is what lifts a
+    vertical's lobe off the horizon over ordinary soil; with `heading` the
+    element's own pattern toward each bearing is in it too - a wire's ends,
+    a Yagi's front. Real terrain still moves the lobes, and the note says so.
+    """
+    from . import patterns
+    curve = patterns.elevation(kind, height_wl, mhz=mhz, ground=ground)
+    # a table of hop distance against takeoff angle, so a leg can be turned
+    # back into the angle that lands it; hop_km falls as the angle rises
+    angles = [p["deg"] for p in curve]
+    fields = [p["field"] for p in curve]
+    kms = [patterns.hop_km(a, layer_km) for a in angles]
+
+    def weight(leg_km, bearing=None):
+        # the angle whose hop lands this leg: walk the table (181 rows)
+        if leg_km >= kms[0]:
+            field, deg = fields[0], angles[0]
+        elif leg_km <= kms[-1]:
+            field, deg = fields[-1], angles[-1]
+        else:
+            lo, hi = 0, len(kms) - 1
+            while hi - lo > 1:
+                mid = (lo + hi) // 2
+                if kms[mid] >= leg_km:
+                    lo = mid
+                else:
+                    hi = mid
+            t = (kms[lo] - leg_km) / max(1e-9, kms[lo] - kms[hi])
+            field = fields[lo] + (fields[hi] - fields[lo]) * t
+            deg = angles[lo] + (angles[hi] - angles[lo]) * t
+        if heading is not None and bearing is not None:
+            field *= patterns.field_toward(kind, deg, bearing, heading)
+        if field <= 0.0:
+            return 0.0
+        db = 20.0 * math.log10(field)
+        return max(0.0, min(1.0, 1.0 + db / db_floor))
+    return weight
+
+
+def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None, mode="oneway",
+              antenna=None):
     """A band's reach from here, as cells of 0-100 - over the globe, or,
     with `window` = (lat_top, lat_bottom, lon_left, lon_span), over that
     window at the step given, which is how a zoomed view gets real detail
@@ -931,7 +986,12 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     is the midpoint's either way, but the D layer is passed low down near
     each end, so the sun is read at your end and at theirs and the round
     trip is only as good as the worse leg - which, with one end in
-    daylight and the other in the dark, is where the two maps differ."""
+    daylight and the other in the dark, is where the two maps differ.
+
+    `antenna` is {"kind", "height_wl"} - the operator's own, as the Lab
+    remembers it - and weights every sky path by the takeoff angle it
+    needs, see takeoff_weights(); None is the sky alone, every angle
+    equally served, which no antenna does."""
     from . import groundwave
     from .terrain import great_circle
     when = when or datetime.now(timezone.utc)
@@ -943,6 +1003,10 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     m3000 = cal.get("m3000")
     far = one_hop_limit_km(hmf2)
     ground_km = float(groundwave.describe(mhz, watts=watts).get("km") or 0.0)
+    weigh = None
+    if antenna and antenna.get("kind"):
+        weigh = takeoff_weights(antenna["kind"], float(antenna.get("height_wl") or 0.5), hmf2, mhz=mhz,
+                                heading=antenna.get("heading"), ground=antenna.get("ground") or "average")
     if window:
         top, bottom, left, span = window
         rows = max(2, int(round((top - bottom) / step)) + 1)
@@ -956,7 +1020,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     elev_here = solar_elevation(lat, lon, when)
     for glat in lats:
         for glon in lons:
-            km, _ = great_circle(lat, lon, glat, glon)
+            km, bearing = great_circle(lat, lon, glat, glon)
             mlat, mlon = _midpoint(lat, lon, glat, glon)
             elev = solar_elevation(mlat, mlon, when)
             muf, fof2 = levels(sfi, elev, mlat, m3000, anchor, drive=f2_drive(mlat, mlon, when), when=when)
@@ -976,14 +1040,14 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
                         gate = (_soft(km, skip) if skip > 0 else 1.0) * _soft(km, far, inside_below=False)
-                        score = rated * gate
+                        score = rated * gate * (weigh(km, bearing) if weigh else 1.0)
                     if km > far * (1 - REACH_EDGE):
                         # several hops: each leg has to clear the skip and land
                         # inside a hop; each hop past the first is paid for
                         n = max(2, int(math.ceil(km / far)))
                         leg = km / n
                         gate = (_soft(leg, skip) if skip > 0 else 1.0) * _soft(leg, far, inside_below=False)
-                        multi = rated * gate * (REACH_HOP_COST ** (n - 1))
+                        multi = rated * gate * (REACH_HOP_COST ** (n - 1)) * (weigh(leg, bearing) if weigh else 1.0)
                         score = max(score, multi)
                 # ground wave fades out rather than stopping at a line
                 if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):
@@ -993,6 +1057,9 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     sun = celestial.sun_position(when)
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
             "window": bool(window), "mode": mode,
+            "antenna": ({"kind": antenna["kind"], "height_wl": round(float(antenna.get("height_wl") or 0.5), 3),
+                         "heading": antenna.get("heading"), "ground": antenna.get("ground") or "average"}
+                        if weigh else None),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),

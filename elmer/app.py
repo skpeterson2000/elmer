@@ -1434,7 +1434,8 @@ def api_pattern():
         # the table's figure - see patterns.Q_SCALES_WITH_BAND.
         "shape": spec["shape"], "q": round(patterns.base_q(kind, mhz), 1),
         "fed": spec["fed"],
-        "elevation": patterns.elevation(kind, height_wl, slope_deg=slope),
+        "elevation": patterns.elevation(kind, height_wl, slope_deg=slope, mhz=mhz),
+        "ground": "average",
         "azimuth": patterns.azimuth(kind, heading),
         "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
         "slope": slope,
@@ -1892,12 +1893,45 @@ def api_bandplan_reach():
             step = allowed[allowed.index(step) - 1]
         window = (round(top, 2), round(bottom, 2), round(left, 2), round(span, 2))
     mode = "round" if request.args.get("mode") == "round" else "oneway"
-    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode)
+    # The operator's own antenna, as the Lab remembers it - its kind and
+    # its height in feet, turned into wavelengths here for this band - and
+    # the power. None of it is required; without a kind the map is the
+    # sky alone, and says so.
+    antenna = None
+    kind = str(request.args.get("antenna") or "").strip().lower()
+    if kind and kind != "none" and kind in patterns.ANTENNA_Q:
+        try:
+            height_ft = max(0.0, min(500.0, float(request.args.get("height") or 30.0)))
+        except (TypeError, ValueError):
+            height_ft = 30.0
+        heading = None
+        if str(request.args.get("heading") or "").strip() != "":
+            try:
+                heading = float(request.args.get("heading")) % 360.0
+            except (TypeError, ValueError):
+                heading = None
+        ground = str(request.args.get("ground") or "average").lower()
+        if ground not in patterns.GROUNDS or ground == "perfect":
+            ground = "average"
+        antenna = {"kind": kind, "height_ft": height_ft, "heading": heading, "ground": ground,
+                   "height_wl": max(0.02, height_ft / antenna_advice.wavelength_ft(mhz))}
+    try:
+        watts = max(0.1, min(1500.0, float(request.args.get("watts") or 100.0)))
+    except (TypeError, ValueError):
+        watts = 100.0
+    key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode,
+           kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts),
+           (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),
+           antenna["ground"] if antenna else "")
     hit = _reach_cache.get(key)
     if hit and time.time() - hit[0] < REACH_CACHE_S:
         return jsonify({"ok": True, "cached": True, **hit[1]})
     started = time.perf_counter()
-    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window, mode=mode)
+    made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window, mode=mode,
+                                 watts=watts, antenna=antenna)
+    made["far_end"] = bandplan.far_end(next((b["name"] for b in bandplan.BANDS if b["name"].replace(" ", "") == name), name))
+    if antenna:
+        made["antenna"]["height_ft"] = antenna["height_ft"]
     if len(_reach_cache) > 12:            # the world map and a few windows; not a gallery
         _reach_cache.clear()
     _reach_cache[key] = (time.time(), made)

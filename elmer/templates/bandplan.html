@@ -179,6 +179,29 @@
     <span class="row" style="gap:.5rem;align-items:center">
       <label class="tiny muted" title="the path rated with the sky read at its midpoint - can you be heard there"><input type="radio" name="bp-reach-mode" value="oneway" checked> one way</label>
       <label class="tiny muted" title="the contact: the reflection is the midpoint's either way, but the D layer is passed near each end, so the sun is read at your end and at theirs and the round trip is only as good as the worse leg"><input type="radio" name="bp-reach-mode" value="round"> round trip</label>
+      <label class="tiny muted" for="bp-reach-ant" style="margin-left:.6rem" title="your antenna, as the Lab remembers it - the map is weighted by the angle each hop needs and what this antenna puts there; change it here to see another">Antenna</label>
+      <select class="btn sm" id="bp-reach-ant">
+        <option value="dipole">a dipole</option>
+        <option value="invertedv">an inverted V</option>
+        <option value="efhw">an end-fed half wave</option>
+        <option value="loop">a loop</option>
+        <option value="quarter">a quarter-wave vertical</option>
+        <option value="whip">a vehicle whip</option>
+        <option value="yagi">a Yagi</option>
+        <option value="none">the sky alone - any antenna</option>
+      </select>
+      <input class="btn sm" id="bp-reach-h" type="number" min="1" max="500" step="1" value="30" style="width:5.5rem" title="height above ground, in feet - a wire a tenth of a wavelength up is an NVIS antenna, half a wavelength up a DX one">
+      <span class="tiny muted">ft</span>
+      <input class="btn sm" id="bp-reach-w" type="number" min="1" max="1500" step="1" value="100" style="width:5.5rem" title="power, in watts - it sets the ground wave">
+      <span class="tiny muted">W</span>
+      <input class="btn sm" id="bp-reach-hd" type="number" min="0" max="359" step="1" placeholder="laid" style="width:5.5rem" title="which way the wire is laid, in degrees from north, or a Yagi points - blank if you do not know, and the map treats it as all round">
+      <span class="tiny muted">&deg;</span>
+      <select class="btn sm" id="bp-reach-gnd" title="the ground under the antenna: it sets how strong the reflected wave is and where a vertical's lobe sits">
+        <option value="average" selected>average ground</option>
+        <option value="poor">poor ground - city, sand, rock</option>
+        <option value="good">good ground - farmland, marsh</option>
+        <option value="sea">salt water</option>
+      </select>
       <label class="tiny muted" for="bp-reach-borders" style="margin-left:.6rem">Borders</label>
       <select class="btn sm" id="bp-reach-borders" title="which borders are drawn - auto follows the zoom: countries, then states, then US counties">
         <option value="auto" selected>auto, by zoom</option>
@@ -196,6 +219,7 @@
     <span class="tiny muted">good</span>
     <span class="tiny muted">&middot; centred on you, the ring &middot; the night side shaded, the terminator as its twilight</span>
   </div>
+  <p class="small" style="margin:.5rem 0 0" id="bp-reach-far" hidden></p>
   <p class="tiny muted" style="margin:.5rem 0 0" id="bp-reach-note"></p>
 </div>
 

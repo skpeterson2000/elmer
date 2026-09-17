@@ -314,6 +314,39 @@ because they carry very different authority:
   what happens there — CW, digital, phone, image, beacons, satellite,
   repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
   signal in the wrong place is what people complain about.
+- **The reach map knows your antenna.** It used to score every cell by the
+  sky alone, and so a low inverted V and a dipole half a wavelength up
+  drew the same map, which is not what a log book says. The difference is
+  the takeoff angle: a path 300 km out leaves at about 70 degrees, one
+  2500 km out at about 8, and a low horizontal wire puts almost all of its
+  power straight up while a high one has a lobe near 25 degrees and a hole
+  overhead. So each cell is scaled by the antenna's own elevation pattern
+  (`patterns.elevation`) at the angle its first hop needs (`patterns.hop_km`
+  inverted), in decibels against the antenna's best angle, 18 dB down being
+  nothing (`propagation.takeoff_weights`). The map opens on the antenna
+  the Lab remembers - kind, height and power ride along in the Lab's own
+  memory of the last design - with the panel's controls to look at another;
+  nothing is stored twice. The ground is real: where the frequency is
+  known, `patterns.elevation` adds the image with the Fresnel reflection
+  coefficient of the soil named - average pastoral ground by default, poor,
+  good or salt water by choice - so a ground-mounted vertical over ordinary
+  soil peaks fifteen to thirty degrees up, the pseudo-Brewster angle every
+  measurement shows, and reaches the horizon only over the sea; a low wire
+  keeps its null at the horizon. And where the wire's heading is known, the
+  element's own pattern toward each bearing is in the weight too
+  (`patterns.field_toward`): the half-wave dipole's pattern in three
+  dimensions, nothing off the ends along the ground and everything
+  overhead, which is what makes a low wire an all-round NVIS antenna; an
+  inverted V half way to round; a Yagi its forward lobe. The Lab's own
+  elevation plot draws over the same average ground at the frequency on
+  screen, so the two agree. It is the two-ray model with a real reflection
+  coefficient, not a full model of the wire over the soil - the shape and
+  the trend a log book agrees with, which is what the map is for, and real
+  terrain still moves the lobes. On the round trip the panel also says what
+  the far end needs to answer: the gear in a sentence, and in the US the
+  lowest class for phone and for CW on that band (`bandplan.far_end`);
+  outside the US the licence line is silent, because the map does not know
+  whose country a cell is in and must not guess.
 - **One colour a band, everywhere.** 20 m is the same green on the band
   buttons, on the heading, on the reach map's ramp, on the Lab's chips and
   its frequency meter, in the propagation outlook, on the home page's

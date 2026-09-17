@@ -13,10 +13,20 @@ arithmetic rather than out of an artist's impression. That is worth doing
 properly because the elevation pattern is the whole argument about antenna
 height, and a drawing that is merely suggestive teaches the wrong lesson.
 
-Perfect ground is assumed. Real earth fills the deepest nulls in and takes the
-lowest degree or two off, so treat the shape as right and the last few degrees
-above the horizon as optimistic - the more so over dry sand, the less over salt
-water.
+The ground is real earth where the frequency is known, and perfect where it
+is not. The image's strength and phase come from the Fresnel reflection
+coefficient for the soil - average pastoral ground unless told otherwise,
+a relative permittivity of 13 and a conductivity of 5 mS/m, the ARRL
+Antenna Book's "average" - and the two polarisations see it differently:
+a horizontal wire's image stays nearly reversed, so the null at the horizon
+is real; a vertical's image weakens and turns over at low angles, which is
+why a ground-mounted vertical over ordinary soil peaks fifteen to twenty
+five degrees up and not along the ground, the pseudo-Brewster angle that
+every real measurement shows and that perfect ground hides. That is the
+two-ray model with a real reflection coefficient: not a full model of the
+actual wire over the actual soil, but the shape and the trend a log book
+agrees with, which is what the reach map and the Lab are for. Over salt
+water the vertical does reach the horizon, and GROUNDS says so.
 
 **Bandwidth** is the resonant-circuit approximation: near resonance an antenna
 behaves like a series RLC, and its Q sets how fast reactance climbs as you tune
@@ -25,6 +35,7 @@ changes - two triangles instead of two wires is a lower Q, and lower Q is a
 flatter SWR curve across the band. The Q figures here are typical of the type
 rather than derived from the geometry, and are labelled that way.
 """
+import cmath
 import math
 
 # Typical loaded Q near resonance, and the feedpoint resistance to match.
@@ -111,6 +122,41 @@ def base_q(kind, mhz):
     return max(rule["floor"], spec["q"] * (ratio ** rule["power"]))
 
 
+# The soils: relative permittivity and conductivity in S/m. "perfect" is
+# the textbook conductor, kept for the curves that pre-date the ground and
+# for anybody who wants the ideal shape.
+GROUNDS = {
+    "perfect": None,
+    "average": (13.0, 0.005),      # pastoral, medium hills - the Antenna Book's default
+    "poor": (5.0, 0.001),          # city, dry sand, rock
+    "good": (20.0, 0.03),          # rich farmland, marsh
+    "sea": (80.0, 5.0),            # salt water
+}
+
+
+def fresnel(elev_rad, mhz, ground="average"):
+    """The ground's reflection coefficients at this grazing angle, for
+    horizontal and vertical polarisation - complex, so the image has a
+    strength and a phase. Perfect ground is -1 and +1."""
+    soil = GROUNDS.get(ground, GROUNDS["average"])
+    if soil is None or not mhz:
+        return complex(-1.0, 0.0), complex(1.0, 0.0)
+    er, sigma = soil
+    lam = 299.792458 / float(mhz)
+    eps = complex(er, -60.0 * lam * sigma)
+    s, c = math.sin(elev_rad), math.cos(elev_rad)
+    root = cmath.sqrt(eps - c * c)
+    r_h = (s - root) / (s + root) if abs(s + root) > 1e-12 else complex(-1.0, 0.0)
+    r_v = (eps * s - root) / (eps * s + root) if abs(eps * s + root) > 1e-12 else complex(-1.0, 0.0)
+    return r_h, r_v
+
+
+def _image(elev_rad, height_wl, reflection):
+    """The direct wave and its image, added with the path difference the
+    height sets and the reflection the ground gives."""
+    return abs(1.0 + reflection * cmath.exp(-1j * 4.0 * math.pi * height_wl * math.sin(elev_rad)))
+
+
 def _dipole_free(theta):
     """Field of a half-wave dipole at angle `theta` from its own axis."""
     s = math.sin(theta)
@@ -119,20 +165,33 @@ def _dipole_free(theta):
     return abs(math.cos(math.pi / 2 * math.cos(theta)) / s)
 
 
-def _horizontal_over_ground(rad, height_wl):
-    """A horizontal wire's ground reflection: image reversed, null at the horizon."""
-    return abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
+def _horizontal_over_ground(rad, height_wl, mhz=None, ground="perfect"):
+    """A horizontal wire's ground reflection: image reversed, null at the
+    horizon - exactly so over perfect ground, nearly so over real earth."""
+    if mhz is None or GROUNDS.get(ground) is None:
+        return abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
+    r_h, _ = fresnel(rad, mhz, ground)
+    return _image(rad, height_wl, r_h)
 
 
-def _vertical_over_ground(rad, height_wl):
-    """A vertical element's: image in phase, so no null along the ground."""
+def _vertical_over_ground(rad, height_wl, mhz=None, ground="perfect"):
+    """A vertical element's: image in phase over perfect ground, so no null
+    along the ground; over real earth the image weakens and turns at low
+    angles and the lobe lifts to the pseudo-Brewster angle."""
     c = math.cos(rad)
     element = abs(math.cos(math.pi / 2 * math.sin(rad)) / c) if abs(c) > 1e-9 else 0.0
-    return element * abs(2 * math.cos(2 * math.pi * height_wl * math.sin(rad)))
+    if mhz is None or GROUNDS.get(ground) is None:
+        return element * abs(2 * math.cos(2 * math.pi * height_wl * math.sin(rad)))
+    _, r_v = fresnel(rad, mhz, ground)
+    return element * _image(rad, height_wl, r_v)
 
 
-def elevation(kind, height_wl, points=181, slope_deg=0.0):
+def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="average"):
     """Relative field against elevation, with a slope if the wire has one.
+
+    With `mhz` the ground is real earth of the kind named (see GROUNDS);
+    without it the ground is perfect, which is the ideal shape and the
+    old behaviour.
 
     A wire tilted at an angle is neither a horizontal antenna nor a vertical
     one: it carries a horizontal component of cos(angle) and a vertical
@@ -155,17 +214,17 @@ def elevation(kind, height_wl, points=181, slope_deg=0.0):
         for n in range(points):
             deg = 90.0 * n / (points - 1)
             rad = math.radians(deg)
-            power = (h_share * _horizontal_over_ground(rad, height_wl) ** 2
-                     + v_share * _vertical_over_ground(rad, height_wl) ** 2)
+            power = (h_share * _horizontal_over_ground(rad, height_wl, mhz, ground) ** 2
+                     + v_share * _vertical_over_ground(rad, height_wl, mhz, ground) ** 2)
             out.append({"deg": round(deg, 2), "field": math.sqrt(power)})
         peak = max(p["field"] for p in out) or 1.0
         for p in out:
             p["field"] = round(p["field"] / peak, 5)
         return out
-    return _elevation_plain(kind, height_wl, points)
+    return _elevation_plain(kind, height_wl, points, mhz=mhz, ground=ground)
 
 
-def _elevation_plain(kind, height_wl, points=181):
+def _elevation_plain(kind, height_wl, points=181, mhz=None, ground="average"):
     """Relative field against elevation angle, 0 at the horizon to 90 overhead.
 
     Horizontal antennas are worked out by images: the ground reflects a second
@@ -182,15 +241,15 @@ def _elevation_plain(kind, height_wl, points=181):
         deg = 90.0 * n / (points - 1)
         rad = math.radians(deg)
         if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
-            # Quarter-wave monopole over ground: maximum along the ground,
-            # nothing straight up.
-            c = math.cos(rad)
-            field = (abs(math.cos(math.pi / 2 * math.sin(rad)) / c)
-                     if abs(c) > 1e-9 else 0.0)
+            # A monopole over ground: over a perfect one, maximum along the
+            # ground and nothing straight up; over real earth the image
+            # gives out at low angles and the lobe lifts. Its base is at
+            # the height given, which for a ground-mounted vertical is nought.
+            field = _vertical_over_ground(rad, height_wl, mhz, ground)
         else:
             # Broadside element, so the free-space term is flat in this plane;
             # the height interference is what shapes it.
-            field = abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
+            field = _horizontal_over_ground(rad, height_wl, mhz, ground)
         out.append({"deg": round(deg, 2), "field": field})
     peak = max(p["field"] for p in out) or 1.0
     for p in out:
@@ -233,6 +292,30 @@ def hop_km(elev_deg, layer_km):
     phi = math.asin(sin_phi)
     psi = math.pi / 2 - elev - phi          # earth-central angle
     return max(0.0, 2 * EARTH_R_KM * psi)
+
+
+def field_toward(kind, elev_deg, bearing, heading=None):
+    """The element's own factor toward a direction, on top of the elevation
+    curve at broadside: for a wire, the half-wave dipole's pattern in three
+    dimensions - nothing off the ends along the ground, everything overhead,
+    which is what makes a low wire an all-round NVIS antenna - an inverted
+    V half way to round because its legs slope, a Yagi its forward lobe, a
+    vertical the same all round. `heading` None means the direction is not
+    known, and the factor is one."""
+    if heading is None:
+        return 1.0
+    shape = ANTENNA_Q.get(kind, {}).get("shape")
+    if shape == "vertical":
+        return 1.0
+    if kind == "yagi":
+        return field_at(kind, bearing, heading)
+    elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
+    along = math.cos(elev) * math.cos(math.radians(bearing - heading))   # cosine of the angle from the wire's axis
+    sin_g = math.sqrt(max(0.0, 1.0 - along * along))
+    factor = abs(math.cos(math.pi / 2 * along) / sin_g) if sin_g > 1e-9 else 0.0
+    if kind in ("invertedv", "loop"):
+        return 0.5 + 0.5 * factor
+    return factor
 
 
 def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0):

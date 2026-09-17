@@ -1259,11 +1259,46 @@ function bpReachMode() {
   return el && el.value === 'round' ? 'round' : 'oneway';
 }
 let bpReachCache = {};
+/* The operator's own antenna, for the map. The Lab remembers what was last
+   designed there - kind and height - and the map opens on it, the way Make
+   Contact pre-ticks the gear on the shelf; the controls on the panel change
+   it for a look at another, and that choice is remembered here. Nothing is
+   stored twice: the Lab's memory is read, and only the panel's own choice
+   is kept by the panel. */
+function bpReachAntenna() {
+  const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
+  const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
+  if (!sel) return {};
+  return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
+          heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average'};
+}
+function bpReachSeed() {
+  const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
+  if (!sel || sel.dataset.seeded) return;
+  sel.dataset.seeded = '1';
+  const own = recall('bandplan.reach.antenna', null);
+  const lab = recall('lab.antenna', null) || {};
+  const kind = (own && own.antenna) || (lab.kind && [...sel.options].some(o => o.value === lab.kind) ? lab.kind : '') || 'dipole';
+  sel.value = [...sel.options].some(o => o.value === kind) ? kind : 'dipole';
+  if (h) h.value = (own && own.height) || (lab.height_ft > 0 ? Math.round(lab.height_ft) : 30);
+  if (w) w.value = (own && own.watts) || (lab.watts > 0 ? Math.round(lab.watts) : 100);
+  const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
+  if (hd) hd.value = (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
+  if (gnd && own && own.ground) gnd.value = own.ground;
+  [sel, h, w, hd, gnd].forEach(el => el && el.addEventListener('change', () => {
+    remember('bandplan.reach.antenna', bpReachAntenna());
+    bpReachCache = {}; bpView.refined = null;
+    const band = bpData && bpData.bands.find(b => b.name === bpBand);
+    if (band) bpReach(band);
+  }));
+}
 async function bpReach(band) {
   const box = document.getElementById('bp-reach');
   if (!box) return;
+  bpReachSeed();
   const mode = bpReachMode();
-  const key = band.name.replace(/\s+/g, '') + '|' + mode;
+  const ant = bpReachAntenna();
+  const key = band.name.replace(/\s+/g, '') + '|' + mode + '|' + ant.antenna + '|' + ant.height + '|' + ant.watts;
   const hf = band.high <= 30;
   box.hidden = !hf;
   if (!hf) return;
@@ -1273,7 +1308,7 @@ async function bpReach(band) {
   if (!d) {
     document.getElementById('bp-reach-when').textContent = 'working it out…';
     try {
-      const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: band.name.replace(/\s+/g, ''), mode: mode}), {cache: 'no-store'});
+      const r = await fetch('/api/bandplan/reach?' + new URLSearchParams(Object.assign({band: band.name.replace(/\s+/g, ''), mode: mode}, ant)), {cache: 'no-store'});
       d = await r.json();
     } catch (e) {
       document.getElementById('bp-reach-when').textContent = '';
@@ -1297,9 +1332,21 @@ async function bpReach(band) {
   if (bpView.zoom >= 1.8) bpRefine();
   document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
     (d.muf_here ? ' · MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
-  document.getElementById('bp-reach-note').textContent =
+  /* The far end of a round trip: what the other station needs to answer -
+     the gear, and in the US the licence. Shown for the contact, not for the
+     one-way path, because it is about the reply. */
+  const far = document.getElementById('bp-reach-far');
+  if (far) {
+    const fe = d.far_end;
+    far.hidden = !(mode === 'round' && fe);
+    if (fe) far.innerHTML = '<b>At the far end</b>, to answer: ' + escapeHTML(fe.equipment) + '; ' + escapeHTML(fe.licence_words) + '; ' + escapeHTML(fe.abroad) + '.';
+  }
+  const antWords = d.antenna
+    ? 'Weighted for ' + escapeHTML((document.querySelector('#bp-reach-ant option:checked') || {}).textContent || d.antenna.kind) + ' ' + Math.round(d.antenna.height_ft || 0) + ' ft up - ' + (d.antenna.height_wl || 0).toFixed(2) + ' of a wavelength - over ' + escapeHTML((document.querySelector('#bp-reach-gnd option:checked') || {}).textContent || 'average ground') + (d.antenna.heading !== null && d.antenna.heading !== undefined ? ', laid at ' + Math.round(d.antenna.heading) + '°' : ', direction unknown so all round') + ': each path by the angle its first hop leaves at, the ground\'s reflection at that angle, and what the antenna puts that way. Real terrain still moves the lobes. '
+    : 'The sky alone, every takeoff angle served equally, which no antenna does - pick yours above. ';
+  document.getElementById('bp-reach-note').textContent = antWords +
     'A model, and labelled as one: one sonde’s reading anchoring a modelled sky, read at the midpoint of each path - the sun’s angle there, not here. ' +
-    'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for, the edges soft the way the layer is - and nothing of your antenna, your power, or the far end’s. ' +
+    'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for, the edges soft the way the layer is - and nothing of the far end’s antenna. ' +
     'Ground wave to about ' + d.ground_km + ' km. Drag to look round; the wheel, a pinch or a double tap to zoom in, and the model is asked again for that window in finer detail. What it is right about is the shape.';
 }
 

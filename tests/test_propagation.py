@@ -615,6 +615,36 @@ def main():
           sum(1 for a, b in zip(one["cells"], rt["cells"]) if a != b) > 100, True)
     check("  the mode travels with the map", (one["mode"], rt["mode"]), ("oneway", "round"))
     check("nothing scores past a hundred or under nought", (max(m["cells"]) <= 100, min(m["cells"]) >= 0), (True, True))
+
+    print("\n-- the antenna: the map weighted by the angle each hop leaves at --")
+    sky = P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc)
+    nvis = P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "invertedv", "height_wl": 0.1})
+    high = P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5})
+    lit = lambda mm: sum(1 for c in mm["cells"] if c > 0)
+    check("a low inverted V and a high dipole no longer draw the same map", nvis["cells"] != high["cells"], True)
+    check("  the NVIS wire lights far fewer cells than the sky alone; the high dipole nearly all of them",
+          (lit(nvis) < lit(sky) / 2, lit(high) > lit(sky) * 0.95), (True, True))
+    check("  Miami, 2500 km out: all but gone on the NVIS wire - real ground fills a little of the null - and kept on the high dipole",
+          (at(nvis, 25.5, -80.0) <= 8, at(high, 25.5, -80.0) > 2 * at(nvis, 25.5, -80.0)), (True, True))
+    check("  Chicago, 600 km: the NVIS wire still carries it", at(nvis, 42.5, -87.5) > 0, True)
+    check("  the map says which antenna it was weighted for, and the sky alone says none", (nvis["antenna"]["kind"], sky["antenna"]), ("invertedv", None))
+    w_low, w_high = P.takeoff_weights("invertedv", 0.1, 300.0), P.takeoff_weights("dipole", 0.5, 300.0)
+    check("the weight is the antenna's pattern at the hop's angle: a low wire strong at 300 km and nothing at 2500, a high one the other way round",
+          (w_low(300) > 0.9, w_low(2500) < 0.1, w_high(2500) > w_high(300)), (True, True, True))
+    check("  and never past one or under nought", all(0.0 <= w_high(km) <= 1.0 for km in range(0, 4000, 50)), True)
+    from elmer import patterns as A
+    lobe = lambda kind, h, **kw: max(A.elevation(kind, h, **kw), key=lambda p: p["field"])["deg"]
+    check("over real ground a vertical's lobe lifts off the horizon; over salt water it stays down; over perfect ground it is on it",
+          (15 <= lobe("quarter", 0.0, mhz=14.0) <= 35, lobe("quarter", 0.0, mhz=14.0, ground="sea") <= 12, lobe("quarter", 0.0)), (True, True, 0.0))
+    check("  a wire a tenth of a wavelength up radiates overhead, half a wavelength up near 28 degrees",
+          (lobe("dipole", 0.1, mhz=7.0), 20 <= lobe("dipole", 0.5, mhz=7.0) <= 35), (90.0, True))
+    check("a wire laid east-west favours north and south; laid north-south, east and west - and overhead it does not care",
+          (A.field_toward("dipole", 10, 0, 90) > 0.9, A.field_toward("dipole", 10, 90, 90) < 0.2, A.field_toward("dipole", 85, 90, 90) > 0.9), (True, True, True))
+    ew = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5, "heading": 90})
+    ns = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5, "heading": 0})
+    check("  so on the map Europe is better off the east-west wire's broadside and Miami off the north-south one's",
+          (at(ns, 45, 5) > at(ew, 45, 5), at(ew, 25.5, -80.0) > at(ns, 25.5, -80.0)), (True, True))
+    check("  and the map says which way it was laid", (ew["antenna"]["heading"], ew["antenna"]["ground"]), (90, "average"))
     import time as _t
     t = _t.perf_counter(); P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc); took = (_t.perf_counter() - t) * 1000
     check("and it is cheap enough for a Pi - well under a second even on a shared runner", took < 1000, True)

@@ -3023,7 +3023,10 @@ if (printBtn) printBtn.addEventListener('click', async () => {
    the page to look up the MUF and come back and there was nothing to come back
    to - the tool had been set up for a band it no longer knew about. So the
    context is kept, and restored whenever the page loads without one. */
-const rememberAntenna = ctx => remember('lab.antenna', ctx);
+/* The height and the power ride along, so the band plan's reach map can
+   open on the antenna designed here without asking again. */
+const rememberAntenna = ctx => remember('lab.antenna', Object.assign(
+  {height_ft: num('an-h') || 0, watts: num('an-pw') || 0, heading_deg: num('an-head')}, ctx));
 const recallAntenna = () => recall('lab.antenna', null);
 
 (function () {
@@ -3430,7 +3433,7 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         '&deg;</b> above the horizon. ' +
         (d.shape === 'vertical'
           ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
-          : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Perfect ground assumed &mdash; real earth fills the deepest nulls and takes a degree or two off the bottom.') +
+          : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled and a vertical\'s lobe sits where a measurement puts it, up off the horizon.') +
         '</p>';
   const sharpWords = '<div class="panel-title">How sharp it is</div>' +
         '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
