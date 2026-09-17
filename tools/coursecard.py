@@ -282,6 +282,7 @@ def update_card(card_id, course, zipcode, compare=False):
             continue
         if page["par"]:
             h["par"] = page["par"]
+        was_yards = h["yards"]
         h["yards"] = yards
         h["green"] = max(8, got["green"])
         h["pins"] = got["pins"]
@@ -311,6 +312,16 @@ def update_card(card_id, course, zipcode, compare=False):
             else:
                 for z in near:
                     water.remove(z)
+        # Sand at the green the map does not mark - the 2nd's page marks
+        # none of its own; the two "greenside" flags on it are the 1st
+        # green's - stays as the card had it written, at the green's
+        # yards on the measured line.
+        near_green = yards - 30
+        if not any(g["kind"] == "bunker" and g["to"] >= near_green for g in got["hazards"]):
+            for z in h["hazards"]:
+                if z["kind"] == "bunker" and z.get("off") is None and z["to"] >= was_yards - 30:
+                    shift = yards - was_yards
+                    got["hazards"].append({**z, "from": z["from"] + shift, "to": z["to"] + shift})
         if not any(kind_of(m.get("landmarkname", "")) for m in page["marks"]):
             # The site marked nothing on this hole but the tee and the green
             # - the Old Course's pages are like that - so the card's own

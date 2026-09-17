@@ -126,6 +126,13 @@
      "side": "across",
      "off": 6,
      "name": "the barranca"
+    },
+    {
+     "kind": "bunker",
+     "from": 493,
+     "to": 511,
+     "side": "around",
+     "name": "greenside bunkers"
     }
    ],
    "slope": {

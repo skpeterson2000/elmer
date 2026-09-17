@@ -335,6 +335,13 @@
      "side": "centre",
      "off": 8,
      "name": "the fairway bunker"
+    },
+    {
+     "kind": "bunker",
+     "from": 460,
+     "to": 495,
+     "side": "right",
+     "name": "greenside"
     }
    ],
    "pins": {
@@ -363,6 +370,13 @@
      "side": "left",
      "off": -20,
      "name": "the water, left"
+    },
+    {
+     "kind": "bunker",
+     "from": 475,
+     "to": 505,
+     "side": "right",
+     "name": "greenside"
     }
    ],
    "pins": {
@@ -532,6 +546,13 @@
      "side": "across",
      "off": -2,
      "name": "the greenside lake"
+    },
+    {
+     "kind": "bunker",
+     "from": 510,
+     "to": 530,
+     "side": "right",
+     "name": "the greenside bunker"
     },
     {
      "kind": "water",
