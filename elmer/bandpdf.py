@@ -11,16 +11,14 @@ from reportlab.graphics.shapes import Drawing, Image, Line, Rect, String
 from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-from .bandplan import (BAND_INDEX, KINDS, activity_for, gaps_for,
+from .bandplan import (BAND_INDEX, KINDS, activity_for, band_colour, gaps_for,
                         privileges_for, usable_answer)
 
-KIND_COLOUR = {
-    "cw": colors.HexColor("#3d7ebf"), "digital": colors.HexColor("#7a4fbf"),
-    "phone": colors.HexColor("#1f8f4e"), "image": colors.HexColor("#b8791f"),
-    "beacon": colors.HexColor("#b03a48"), "satellite": colors.HexColor("#1f8f8f"),
-    "repeater": colors.HexColor("#c2571f"), "simplex": colors.HexColor("#8a8f3a"),
-    "calling": colors.HexColor("#111111"), "special": colors.HexColor("#666666"),
-}
+from .palette import KIND_INK
+
+# The activity colours for paper: palette.py's inks, the same hues the
+# screen shows darkened for white.
+KIND_COLOUR = {kind: colors.HexColor(ink) for kind, ink in KIND_INK.items()}
 KIND_LABEL = dict(KINDS)
 
 
@@ -373,7 +371,10 @@ def _band_row(group, x, y, width, name, license_class):
     bar_x = x + LABEL_W
     bar_w = width - LABEL_W
 
-    group.add(String(x, y + 3, name, fontName="Helvetica-Bold", fontSize=8.5))
+    # The band's name in the band's own colour - the same hue it has on the
+    # screen, darkened for paper - so the sheet and the page agree.
+    group.add(String(x, y + 3, name, fontName="Helvetica-Bold", fontSize=8.5,
+                     fillColor=colors.HexColor(band_colour(name, ink=True) or "#111111")))
     group.add(String(x, y - 6, f"{_mhz(low)}\u2013{_mhz(high)}", fontSize=5.4,
                      fillColor=colors.HexColor("#666666")))
 

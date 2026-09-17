@@ -12,6 +12,8 @@ Three layers, kept apart because they carry very different authority:
 
 Frequencies are MHz throughout.
 """
+from .palette import BAND_COLOUR, BAND_INK, band_colour, band_key  # noqa: F401
+
 
 CLASSES = ["Novice", "Technician", "General", "Advanced", "Extra"]
 CLASS_RANK = {name: n for n, name in enumerate(CLASSES)}
@@ -195,6 +197,20 @@ BANDS = [
     {"name": "23 cm", "low": 1240.000, "high": 1300.000, "group": "UHF"},
 ]
 BAND_INDEX = {b["name"]: b for b in BANDS}
+
+# One colour a band, everywhere - see palette.py, where the colours live.
+# Wherever a band's name is on the screen it is in that colour, so that
+# the colour comes to mean the band the way a callsign comes to mean a
+# person. The page head writes the palette out as CSS custom properties
+# and a JavaScript map, from here, so there is one copy.
+
+def band_palette():
+    """Every band's key and colours, in frequency order, 11 m in its place."""
+    from . import palette
+    names = [b["name"] for b in BANDS]
+    for extra in PERSONAL_BANDS:
+        names.insert(names.index(extra["after"]) + 1, extra["name"])
+    return palette.band_palette(names)
 
 # 11 m is not an amateur band and is not in BANDS, which everything from the
 # repeater list to the worth-the-effort chart reads as the amateur bands.

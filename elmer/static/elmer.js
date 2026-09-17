@@ -138,6 +138,33 @@ function escapeHTML(s) {
   return d.innerHTML;
 }
 
+/* One colour a band, everywhere. The palette is palette.py's, written into
+   the page head as --band-20m and its kin and as window.BAND_PALETTE; these
+   are the only way a page should print a band's name, so that 20 m is the
+   same green on the reach map, the band buttons, the Lab's chips and the
+   outlook. "20 m" and "20m" are the same band. The colour is never alone:
+   the name is always printed beside it. */
+const BAND_BY_KEY = {};
+(window.BAND_PALETTE || []).forEach(b => { BAND_BY_KEY[b.key] = b; });
+function bandKey(name) { return String(name || '').replace(/\s+/g, '').toLowerCase(); }
+function bandColour(name) { const b = BAND_BY_KEY[bandKey(name)]; return b ? b.colour : null; }
+/* The inline style that hands an element its band: --band and --band-rgb,
+   which .band-tag, .band-btn and .band-chip read. Nothing for a name that
+   is not a band, so the element falls back to the neutral colour. */
+function bandStyle(name) {
+  const b = BAND_BY_KEY[bandKey(name)];
+  return b ? '--band:var(--' + b.css + ');--band-rgb:var(--' + b.css + '-rgb)' : '';
+}
+function bandSwatch(name) {
+  return bandColour(name) ? '<i class="band-swatch" style="' + bandStyle(name) + '"></i>' : '';
+}
+/* The band's name, in its colour, with its swatch: what to print wherever
+   a band is named in running text. */
+function bandTag(name, extraClass) {
+  return '<span class="band-tag' + (extraClass ? ' ' + extraClass : '') + '" style="' + bandStyle(name) + '">' +
+    bandSwatch(name) + escapeHTML(name) + '</span>';
+}
+
 function fmtDuration(seconds) {
   const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
   return m + ':' + String(s).padStart(2, '0');

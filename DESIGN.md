@@ -314,6 +314,40 @@ because they carry very different authority:
   what happens there — CW, digital, phone, image, beacons, satellite,
   repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
   signal in the wrong place is what people complain about.
+- **One colour a band, everywhere.** 20 m is the same green on the band
+  buttons, on the heading, on the reach map's ramp, on the Lab's chips and
+  its frequency meter, in the propagation outlook, on the home page's
+  "good now", on the path ladder, and on the printed chart — so that the
+  colour comes to mean the band the way a callsign comes to mean a person.
+  The hues run with frequency, red at 160 m through yellow and green to
+  blue at 10 m, then violet and pink for VHF and UHF, so a band not yet
+  learnt can be placed by its neighbours; 11 m (CB) is grey and borrows no
+  amateur band's hue. Nobody publishes such a scheme — the FCC's rules
+  carry no colours and the ARRL chart colours by emission, not by band —
+  so this one is ELMER's own. The colour is never the only cue: the name
+  is always printed beside it.
+
+  The palette lives in `elmer/palette.py` and nowhere else. The page head
+  writes it out as CSS custom properties (`--band-20m`, `--band-20m-rgb`)
+  and as `window.BAND_PALETTE`; a page prints a band with `bandTag()`,
+  `bandSwatch()` or `bandStyle()` from `elmer.js`, and the PDFs take the
+  same hue darkened for paper from `band_colour(name, ink=True)`.
+
+  Four families, one a kind of thing, so a colour says what it is about
+  before its label is read. **Bands** are the saturated rainbow, tuned
+  against simulated red-green and blue-yellow colour blindness so that
+  the eight bands everyone uses (160, 80, 40, 20, 15, 10, 2 m, 70 cm)
+  stay apart by lightness where hue collapses, and every one reads on the
+  dark panel at 4.5:1 or better. **Modes** — what happens on a band, CW
+  the same colour on every band — are the pastel family: the same hues
+  lightened and softened, so a mode reads as a softer thing than a band
+  even before the label. **Licence classes** are the earth tones, the
+  strata a person climbs through. And one **attention** colour, the
+  safety orange of ANSI Z535 — the one published convention here — for
+  the thing that must be found at once and nothing else: the "you are
+  here" on the reach map. Fluorescent is not a family; seventeen neon
+  hues on a dark screen tire the eye and lose the lightness differences
+  the colour-blind depend on.
 
   Convention and law do not share their edges, so each segment is answered with
   three states rather than two, and the reason is written beside the row. The

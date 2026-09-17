@@ -39,7 +39,7 @@ from . import (
     landmarks, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
     personal, phonegps, places, pota, prints, programmes,
-    propagation, qr, ranks, reachout, references, regional,
+    palette, propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, show, smith, spotlog,
     srs, sweeps, terrain, touchstone, tournament, towerwitch,
     track, trivia, uls, units, update, vna, voice, weather,
@@ -155,6 +155,18 @@ def _build():
 @app.context_processor
 def _build_for_pages():
     return {"build": _build()}
+
+
+# One colour a band, everywhere: the page head writes these out as CSS
+# custom properties and as window.BAND_PALETTE, from palette.py, so that
+# no stylesheet or script carries a copy of its own. Worked out once.
+_BAND_PALETTE = bandplan.band_palette()
+_ATTENTION = {"colour": palette.ATTENTION, "rgb": palette.rgb(palette.ATTENTION)}
+
+
+@app.context_processor
+def _band_palette_for_pages():
+    return {"band_palette": _BAND_PALETTE, "attention": _ATTENTION}
 
 
 @app.after_request
@@ -725,6 +737,7 @@ def bandplan_page():
     profile = db.get_profile(connection)
     return render_template(
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
+        kind_colours=palette.KIND_COLOUR, class_colours=palette.CLASS_COLOUR,
         classes=bandplan.CHOICES, class_labels=bandplan.CLASS_LABELS,
         license_class=profile["settings"].get("license_class")
                        or (profile["settings"].get("license") or {}).get("license_class")

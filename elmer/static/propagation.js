@@ -84,7 +84,7 @@ async function load(force) {
      nobody else tells its users when. Marked so it is not read as a band. */
   document.getElementById('p-bands').innerHTML = d.bands.map(b =>
     '<div class="band-row">' +
-      '<span class="band-name">' + b.band +
+      '<span class="band-name">' + bandTag(b.band) +
         (b.band === '11m' ? ' <span class="tiny muted">CB</span>' : '') + '</span>' +
       ratingPill(b.rating, b.score) +
       '<span class="band-note">' + escapeHTML(b.note) + '</span>' +

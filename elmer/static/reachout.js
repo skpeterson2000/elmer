@@ -112,7 +112,7 @@ function roLadder(l) {
     const mine = l.yours && r.key === l.yours;
     const ways = r.ways.length
       ? '<ul style="margin:.25rem 0 0;padding-left:1rem">' + r.ways.map(w =>
-          '<li class="small"><b>' + escapeHTML(w.band) + '</b> <span class="muted">by ' + escapeHTML(w.how) + '</span> ' +
+          '<li class="small">' + bandTag(w.band) + ' <span class="muted">by ' + escapeHTML(w.how) + '</span> ' +
           '<span class="tiny mono" style="color:' + (RO_TONE[w.odds] || '#8b98a5') + '">' + escapeHTML(w.odds) + '</span>' +
           (w.mode ? '<div class="tiny muted">' + escapeHTML(w.mode) + (/CW only/.test(w.mode) ? ' &middot; <a href="/cw#today">learn the code &rarr;</a>' : '') + '</div>' : '') + '</li>').join('') + '</ul>'
       : '<div class="small muted" style="margin-top:.25rem">nothing, right now</div>';

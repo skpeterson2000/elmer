@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}ELMER{% endblock %}</title>
 <link rel="stylesheet" href="{{ asset('elmer.css') }}">
+{# One colour a band, everywhere - from palette.py, the only copy. #}
+<style>:root { {% for b in band_palette %}--{{ b.css }}: {{ b.colour }}; --{{ b.css }}-rgb: {{ b.rgb }}; {% endfor %}--attention: {{ attention.colour }}; --attention-rgb: {{ attention.rgb }}; }</style>
 {% if icon_file %}<link rel="icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 {% else %}<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📻</text></svg>">
@@ -268,6 +270,7 @@
    data lazily when opened, and an offer that waits for somebody to open a menu
    is not an offer made at the start of a session. */
 window.OFFER_PASSWORD = {{ offer_password|default(false)|tojson }};
+window.BAND_PALETTE = {{ band_palette|tojson }};
 </script>
 <script src="{{ asset('elmer.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>

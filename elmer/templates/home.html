@@ -311,7 +311,7 @@ api('/api/propagation').then(d => {
   const box = document.getElementById('propstrip');
   if (!d.ok) { box.querySelector('.muted').textContent = d.error; return; }
   const cls = k => k >= 5 ? 'bad' : k >= 4 ? 'warn' : 'good';
-  const best = d.bands.filter(b => b.score >= 3).map(b => b.band).join(' ') || 'none rated good';
+  const best = d.bands.filter(b => b.score >= 3).map(b => bandTag(b.band)).join(' ') || 'none rated good';
   box.innerHTML =
     '<div class="panel-title">Live space weather &mdash; ' + escapeHTML(d.updated) + '</div>' +
     '<div class="row" style="gap:1.2rem">' +

@@ -1,10 +1,10 @@
 /* Band plan: colour by activity, shade what your license class may not use. */
 
-const KIND_COLOUR = {
-  cw: '#58a6ff', digital: '#bc8cff', phone: '#3fb950', image: '#ffb454',
-  beacon: '#f85149', satellite: '#39d3d8', repeater: '#ff8f3f',
-  simplex: '#c9d13a', calling: '#ffffff', special: '#8b98a5',
-};
+/* The activity colours are palette.py's, handed over with the page, so the
+   screen and the printed chart read one copy. The same colour for a kind on
+   every band; the band's own colour is the other family, on the buttons,
+   the headings and the reach map. */
+const KIND_COLOUR = window.KIND_COLOUR || {};
 
 let bpData = null, bpRegional = null, bpBand = null, bpChannels = [];
 
@@ -80,9 +80,11 @@ async function bpLoad() {
       escapeHTML(label) + '</span>').join('') +
     '<span class="legend"><i class="legend-gap"></i>outside your privileges</span>';
 
+  /* One button a band, outlined in the band's own colour and filled with it
+     when it is the one open: the row is the palette, learnt by using it. */
   document.getElementById('bp-bands').innerHTML = bpData.bands.map(b =>
-    '<button class="btn sm ' + (b.name === bpBand ? 'primary' : 'ghost') +
-    '" data-band="' + escapeHTML(b.name) + '">' + escapeHTML(b.name) + '</button>').join('');
+    '<button class="btn sm band-btn' + (b.name === bpBand ? ' on' : '') +
+    '" style="' + bandStyle(b.name) + '" data-band="' + escapeHTML(b.name) + '">' + escapeHTML(b.name) + '</button>').join('');
   document.querySelectorAll('#bp-bands [data-band]').forEach(btn =>
     btn.addEventListener('click', () => {
       bpBand = btn.dataset.band;
@@ -148,8 +150,7 @@ function channelTicks(band) {
 
 function bpRender() {
   document.querySelectorAll('#bp-bands [data-band]').forEach(b => {
-    b.classList.toggle('primary', b.dataset.band === bpBand);
-    b.classList.toggle('ghost', b.dataset.band !== bpBand);
+    b.classList.toggle('on', b.dataset.band === bpBand);
   });
   const band = bpData.bands.find(b => b.name === bpBand);
   if (!band) return;
@@ -209,7 +210,7 @@ function bpRender() {
 
   document.getElementById('bp-out').innerHTML =
     '<div class="panel">' +
-      '<div class="spread"><h2 style="margin:0">' + escapeHTML(band.name) + '</h2>' +
+      '<div class="spread"><h2 class="band-tag" style="margin:0;' + bandStyle(band.name) + '">' + bandSwatch(band.name) + escapeHTML(band.name) + '</h2>' +
       '<span class="mono tiny muted">' + band.low + ' – ' + band.high + ' MHz · ' +
         escapeHTML(band.group) + (band.personal ? ' · ' + escapeHTML(band.personal) + ', no licence' : '') + '</span></div>' +
       '<div class="bandbar">' + bars + gaps + '</div>' +
@@ -904,7 +905,7 @@ function vhfBox(band) {
   if (met && met.now) bits.push('<span class="pill q4">' + escapeHTML(met.now.name) + ' peak' + (met.now.days ? (met.now.days > 0 ? ' in ' + met.now.days + ' d' : ' ' + (-met.now.days) + ' d ago') : ' today') + '</span>');
   return '<div class="condbox">' +
     '<div class="condhead"><span class="panel-title" style="margin:0">' +
-      'Conditions on ' + escapeHTML(band.name) + ' now</span>' + bits.join(' ') +
+      'Conditions on ' + bandTag(band.name) + ' now</span>' + bits.join(' ') +
     '</div>' +
     '<div class="tiny muted">Above about 30 MHz the F layer does not bend a ' +
       'signal back, so there is no MUF to be under and no curve we can work ' +
@@ -973,14 +974,27 @@ function bpBorderLevel() {
   return bpView.zoom >= 7 ? 'counties' : bpView.zoom >= 2.5 ? 'states' : 'countries';
 }
 
-/* A continuous ramp - one hue family, dark where the band is shut, bright
-   where it is good - so the eye reads a field and not a legend. */
-const REACH_STOPS = [[0, [12, 22, 38]], [12, [18, 58, 72]], [30, [26, 108, 92]], [55, [64, 172, 98]], [80, [156, 226, 112]], [100, [242, 250, 176]]];
-const REACH_LUT = (() => {
+/* A continuous ramp in the band's own colour - dark where the band is shut,
+   the band's hue where it is good, paling towards white at the best - so the
+   eye reads a field and not a legend, and reads which band's field it is
+   from the same colour the band has on its button. The stops are made from
+   the colour: the page's background at the bottom, the hue at 70, and the
+   hue lightened at the top. The legend's gradient is written from the same
+   stops, so it cannot drift from the map. */
+const REACH_BG = [13, 17, 23];                      // --bg
+const REACH_FALLBACK = '#4ade80';                    // a band with no colour: 20 m's
+function reachStops(hex) {
+  const c = /^#([0-9a-f]{6})$/i.test(hex || '') ? hex : REACH_FALLBACK;
+  const rgb = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  return [[0, mix(REACH_BG, rgb, 0.08)], [15, mix(REACH_BG, rgb, 0.22)], [40, mix(REACH_BG, rgb, 0.55)],
+          [70, rgb], [100, mix(rgb, [255, 255, 255], 0.6)]];
+}
+function reachLUT(stops) {
   const lut = new Uint8ClampedArray(101 * 3);
   for (let v = 0; v <= 100; v++) {
-    for (let i = 1; i < REACH_STOPS.length; i++) {
-      const [s1, c1] = REACH_STOPS[i - 1], [s2, c2] = REACH_STOPS[i];
+    for (let i = 1; i < stops.length; i++) {
+      const [s1, c1] = stops[i - 1], [s2, c2] = stops[i];
       if (v <= s2) {
         const t = (v - s1) / (s2 - s1);
         lut[v * 3] = c1[0] + (c2[0] - c1[0]) * t; lut[v * 3 + 1] = c1[1] + (c2[1] - c1[1]) * t; lut[v * 3 + 2] = c1[2] + (c2[2] - c1[2]) * t;
@@ -989,7 +1003,16 @@ const REACH_LUT = (() => {
     }
   }
   return lut;
-})();
+}
+let REACH_LUT = reachLUT(reachStops(REACH_FALLBACK));
+/* The map and its legend take the band's colour together. */
+function reachPaint(bandName) {
+  const stops = reachStops(bandColour(bandName));
+  REACH_LUT = reachLUT(stops);
+  const ramp = document.querySelector('#bp-reach .bp-reach-ramp');
+  if (ramp) ramp.style.background = 'linear-gradient(90deg, ' +
+    stops.map(([v, c]) => 'rgb(' + c.join(',') + ') ' + v + '%').join(', ') + ')';
+}
 const REACH_CONTOURS = [20, 40, 60, 80];        // the isolines, like a weather map's
 
 function cubic(p0, p1, p2, p3, t) {
@@ -1119,12 +1142,16 @@ function bpReachDraw(coarse) {
   if (d.qth) {
     const x = X(d.qth.lon), y = Y(d.qth.lat);
     if (x >= -20 && x <= full.w + 20 && y >= -20 && y <= full.h + 20) {
+      /* "You are here" is the one thing on the map that must be found at
+         once, in any band's colour - so it is the attention colour, the
+         safety orange that means look here and nothing else on the screen. */
+      const here = getComputedStyle(document.documentElement).getPropertyValue('--attention').trim() || '#ff7a00';
       ctx.save();
-      ctx.shadowColor = 'rgba(255,255,255,.9)'; ctx.shadowBlur = 14;
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+      ctx.shadowColor = here; ctx.shadowBlur = 14;
+      ctx.strokeStyle = here; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.stroke();
       ctx.restore();
-      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = here; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI); ctx.fill();
     }
   }
   const zoomEl = document.getElementById('bp-reach-zoom');
@@ -1240,7 +1267,8 @@ async function bpReach(band) {
   const hf = band.high <= 30;
   box.hidden = !hf;
   if (!hf) return;
-  document.getElementById('bp-reach-band').textContent = band.name;
+  document.getElementById('bp-reach-band').innerHTML = bandTag(band.name);
+  reachPaint(band.name);
   let d = bpReachCache[key];
   if (!d) {
     document.getElementById('bp-reach-when').textContent = 'working it out…';
@@ -1328,7 +1356,7 @@ function conditionBar(band, given) {
   return '<div class="condbox">' +
     '<div class="condhead">' +
       '<span class="panel-title" style="margin:0">Conditions on ' +
-        escapeHTML(band.name) + ' now</span>' +
+        bandTag(band.name) + ' now</span>' +
       '<span class="pill ' + QUALITY_CLASS(now.score) + '">' +
         escapeHTML(now.label) + ' &middot; ' + now.score + '/100</span>' +
       /* The wall chart beside ours. Agreement is worth a quiet line - it is
@@ -1406,7 +1434,7 @@ function segCardHTML(a, band, forPick) {
   const rate = cond && cond.now
     ? '<div class="small"><span class="pill ' + QUALITY_CLASS(cond.now.score) +
       '">' + escapeHTML(cond.now.label) + ' · ' + cond.now.score + '/100</span> ' +
-      'on ' + escapeHTML(band.name) + ' right now</div>' +
+      'on ' + bandTag(band.name) + ' right now</div>' +
       '<div class="tiny">' + escapeHTML(cond.now.modes) + '</div>' +
       '<div class="tiny muted">MUF about ' + (bpProp.muf || '?') + ' MHz · ' +
       'SFI ' + bpProp.sfi + ' · K ' + bpProp.k_index + '</div>'
@@ -1484,7 +1512,11 @@ function bindSegments(band) {
    magnitude that is the whole argument. HF and VHF/UHF are separate bars
    because a Technician already holds nearly every VHF/UHF hertz; it is
    the General step that opens HF, where the world is. */
-const WORTH_COLOUR = {phone: '#3987e5', cw: '#d95926', data: '#199e70', image: '#c98500'};
+/* The same colour for a mode as the band bar above uses - phone green, CW
+   blue, data violet, image amber - because a reader who has just learnt
+   the bar's key should not have to learn a second one three inches down. */
+const WORTH_COLOUR = {phone: KIND_COLOUR.phone || '#3fb950', cw: KIND_COLOUR.cw || '#58a6ff',
+                      data: KIND_COLOUR.digital || '#bc8cff', image: KIND_COLOUR.image || '#ffb454'};
 const WORTH_NAME = {phone: 'phone', cw: 'CW', data: 'data', image: 'image'};
 
 function worthBar(row, total, colours) {
@@ -1537,7 +1569,9 @@ function worthRender(d) {
   const DB_LO = 20, DB_HI = 62;                          // 0.1 W to 1500 W, in dBm
   const powerRows = power.map(r => {
     const w = Math.max(2, (r.dbm - DB_LO) / (DB_HI - DB_LO) * 420);
-    const colour = r.license === 'none' ? '#c98500' : r.license === 'gmrs' ? '#199e70' : '#3987e5';
+    /* the licence family - earth tones, the strata - from palette.py */
+    const CLASS_COLOUR = window.CLASS_COLOUR || {};
+    const colour = CLASS_COLOUR[r.license] || CLASS_COLOUR.ham || '#c9784a';
     const watts = r.watts >= 1000 ? (r.watts / 1000).toFixed(1) + ' kW' : r.watts + ' ' + r.unit;
     return `<tr class="${bpClass() === r.license || (bpClass() === 'Extra' && r.license === 'General') ? 'worth-me' : ''}"><th scope="row">${escapeHTML(r.label)}</th>` +
       `<td class="worth-bar"><svg viewBox="0 0 420 18" width="100%" height="18" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(r.label)} ${watts}">` +

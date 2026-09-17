@@ -253,5 +253,7 @@
 
 {% endblock %}
 {% block scripts %}
+{# The activity colours, from palette.py - the same ones the PDF prints. #}
+<script>window.KIND_COLOUR = {{ kind_colours|tojson }}; window.CLASS_COLOUR = {{ class_colours|tojson }};</script>
 <script src="{{ asset('bandplan.js') }}"></script>
 {% endblock %}

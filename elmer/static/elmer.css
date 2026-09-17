@@ -475,7 +475,7 @@ table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
              display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
 .bandmeter .dot { display: inline-block; width: .55rem; height: .55rem;
                   border-radius: 50%; flex: 0 0 auto; }
-.bandmeter .dot.in { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.bandmeter .dot.in { background: var(--band, var(--green)); box-shadow: 0 0 5px var(--band, var(--green)); }
 .bandmeter .dot.out { border: 1.5px solid var(--dimmer); }
 .bandmeter a { color: var(--amber); font-weight: 700; text-decoration: none; }
 .bandmeter a:hover { text-decoration: underline; }
@@ -487,6 +487,29 @@ table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
                    color: var(--dim); cursor: pointer; }
 .bandchips .chip:hover { border-color: var(--amber-dim); color: var(--text); }
 .bandchips .chip.on { border-color: var(--amber); background: #2a2216; color: var(--amber); }
+
+/* ---------- one colour a band ----------
+   The palette is palette.py's, in the page head as --band-20m and friends;
+   an element is handed its band as --band and --band-rgb by bandStyle() in
+   elmer.js. These are the only shapes a band's colour takes: a swatch
+   beside the name, the name itself, a button or chip outlined in it and
+   filled with it when it is the one chosen. Never the colour alone. */
+.band-swatch { display: inline-block; width: .58em; height: .58em; border-radius: 50%;
+               background: var(--band, var(--dimmer)); margin-right: .32em; vertical-align: 0;
+               box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+.band-tag { color: var(--band, inherit); font-weight: 600; white-space: nowrap; }
+.band-tag .band-swatch { background: var(--band, var(--dimmer)); }
+.btn.band-btn { --band: var(--dim); --band-rgb: 139,152,165;
+                background: transparent; color: var(--band);
+                border-color: rgba(var(--band-rgb), .55); font-weight: 600; }
+.btn.band-btn:hover { background: rgba(var(--band-rgb), .14); border-color: var(--band); color: var(--band); }
+.btn.band-btn.on { background: var(--band); border-color: var(--band); color: #0d1117; }
+.btn.band-btn.on:hover { background: var(--band); filter: brightness(1.08); }
+.bandchips .chip.band-chip { --band: var(--dim); --band-rgb: 139,152,165;
+                             color: var(--band); border-color: rgba(var(--band-rgb), .5); }
+.bandchips .chip.band-chip:hover { border-color: var(--band); color: var(--band); }
+.bandchips .chip.band-chip.on { background: rgba(var(--band-rgb), .2); border-color: var(--band); color: var(--band); }
+.bandmeter a.band-tag { color: var(--band, var(--amber)); }
 
 .sim-out { font: .9rem var(--mono); color: var(--amber); }
 .sim-out b { color: var(--text); }
@@ -698,8 +721,11 @@ table.data tr.denied td { opacity: .45; }
 .cw-char.weak  { color: var(--red); border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.08); }
 .cw-char.unmet { opacity: .4; }
 .cw-char.new { outline: 2px solid var(--amber); outline-offset: 1px; }
+/* The ramp's gradient is set by bandplan.js from the same stops the map is
+   drawn with - the band's own colour, dark to bright - so the legend cannot
+   drift from the picture. */
 .bp-reach-ramp { display: inline-block; width: 12rem; max-width: 40vw; height: .7rem; border-radius: 4px; border: 1px solid rgba(255,255,255,.15);
-  background: linear-gradient(90deg, #0c1626 0%, #123a48 12%, #1a6c5c 30%, #40ac62 55%, #9ce270 80%, #f2fab0 100%); }
+  background: var(--line); }
 /* The sliders that turn the antenna's picture sit right under it, above
    the plots they move. */
 .an-turn { margin-top: .6rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); }

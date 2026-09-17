@@ -347,7 +347,8 @@ function bandMeterHTML(mhz) {
   const band = bandAt(mhz);
   if (band) {
     const seg = segmentAt(mhz, band);
-    return '<i class="dot in"></i><a href="/bandplan#' + band.key + '" ' +
+    /* the dot that says "in a band" is the band's own colour, and so is the name */
+    return '<i class="dot in" style="' + bandStyle(band.name) + '"></i><a class="band-tag" style="' + bandStyle(band.name) + '" href="/bandplan#' + band.key + '" ' +
       'title="open the band plan on ' + escapeHTML(band.name) + '">' +
       escapeHTML(band.name) + '</a>' +
       (seg ? ' &middot; ' + escapeHTML(seg.label) : '') +
@@ -404,8 +405,8 @@ function paintBandChips() {
   if (!box) return;
   const here = bandKeyOf(num('s-f'));
   box.innerHTML = BANDS.filter(b => b.group === 'HF').map(b =>
-    '<button type="button" class="chip' + (b.key === here ? ' on' : '') +
-    '" data-band="' + b.key + '" title="' +
+    '<button type="button" class="chip band-chip' + (b.key === here ? ' on' : '') +
+    '" style="' + bandStyle(b.name) + '" data-band="' + b.key + '" title="' +
     (recall('lab.antenna.' + b.key) ? 'your last antenna for this band'
       : b.calling ? escapeHTML(b.calling_label || '') + ' - ' + b.calling.toFixed(3) : '') +
     '">' + escapeHTML(b.name) + '</button>').join('');

@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-16
 
+- One colour a band, everywhere - the reach map in the band's own hue, the band buttons, the Lab's chips and meter, the outlook, the home page, the path ladder and the printed chart; four families in one file, one a kind of thing: bands saturated and tuned so the colour-blind can tell the eight everyday bands apart, modes pastel and the same on every band, licence classes in earth tones, and one safety orange for "you are here"
 - A question answered at a table is credited to the player's account by the account's name as well as by callsign - a golf round played as Scott counts for Scott
 - The reach map, one way or the round trip: the sun read at both ends, the contact only as good as its worse leg
 - The reach map draws borders - countries, states, US counties - by zoom or by choice, and a finer coast when zoomed in
