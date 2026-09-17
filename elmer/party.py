@@ -418,6 +418,7 @@ class Round:
         self.opened_at = _now()
         self.seconds = seconds
         self.answers = {}          # player_id -> dict
+        self.extra = {}            # player_id -> dict: answered along with somebody else's stroke (golf)
         self.bot_plan = {}         # player_id -> what a practice player will do
         self.closed = False
         self.closed_at = None
@@ -927,6 +928,40 @@ class Room:
                 "ms": round(ms, 1), "order": len(rnd.answers) + 1}
             return rnd.answers[player_id], None
 
+    def submit_extra(self, player_id, chosen_index, client_ms):
+        """A watcher's answer to the golfer's question - extra credit. It
+        is recorded beside the round, never in it: it cannot close the
+        round and has no say in the stroke. Right earns the watcher a
+        little luck on their own next stroke; wrong or ignored costs
+        nothing. Counts in the study record like any question answered
+        at a table. Only a person, on their own device, watching a stroke
+        that is somebody else's."""
+        with self.lock:
+            rnd = self.round
+            if rnd is None or rnd.closed or rnd.expired():
+                return None, "no round is open"
+            if self.golf is None or rnd.to is None:
+                return None, "extra credit is golf's, on somebody else's stroke"
+            player = self.players.get(player_id)
+            if player is None or player.bot:
+                return None, "you are not in this room"
+            if player_id == rnd.to:
+                return None, "this stroke is yours - answer it"
+            if player_id in rnd.extra:
+                return None, "you have already answered"
+            try:
+                chosen_index = int(chosen_index)
+            except (TypeError, ValueError):
+                return None, "no answer chosen"
+            try:
+                ms = max(0.0, float(client_ms or 0))
+            except (TypeError, ValueError):
+                ms = 0.0
+            correct = chosen_index == rnd.answer_index
+            rnd.extra[player_id] = {"player_id": player_id, "name": player.name, "cohort": player.cohort_id,
+                                    "correct": correct, "chosen": chosen_index, "ms": round(ms, 1), "extra": True}
+            return rnd.extra[player_id], None
+
     def everyone_answered(self):
         """Whether the round may close early. Only people count.
 
@@ -1024,8 +1059,17 @@ class Room:
                            "chosen": a.get("chosen"),
                            "bot": bool(self.players[a["player_id"]].bot) if a["player_id"] in self.players else False,
                            "license": self.license_of(a.get("player_id"))}
-                          for a in rnd.answers.values()],
+                          for a in rnd.answers.values()]
+                         + [{"name": a["name"], "correct": a["correct"], "ms": a["ms"], "chosen": a.get("chosen"),
+                             "bot": False, "extra": True, "license": self.license_of(a.get("player_id"))}
+                            for a in rnd.extra.values()],
             }
+            # Extra credit, paid: luck on the next stroke for every watcher
+            # who answered right.
+            if self.golf is not None:
+                for pid, a in rnd.extra.items():
+                    if a["correct"]:
+                        self.golf.grant_luck(pid)
             # In a shootout the round is also a shot. The rules get every
             # answer, keyed by player, and somebody who never pressed anything
             # is simply not in it - which the rules read as a miss, because
@@ -1797,6 +1841,7 @@ class Room:
                     out["round"]["answer"] = _answer_text(rnd)
                 if player_id is not None:
                     out["you"] = rnd.answers.get(player_id)
+                    out["you_extra"] = rnd.extra.get(player_id)
             return out
 
 

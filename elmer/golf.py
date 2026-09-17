@@ -455,6 +455,12 @@ class Golf:
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
         self.before = {}                 # player -> the ball before their last stroke, for a mulligan
+        # Luck, earned: a player who answered along with somebody else's
+        # stroke and got it right has a little on their side for their next
+        # one - the near half of the club's spread, no leak, no bad kick,
+        # a kind bounce; on a foul ball, out of the water. One stroke, then
+        # it is spent. Ignoring the question or missing it costs nothing.
+        self.luck = set()
         self.mulligans = {}              # player -> the hole they took one on
         self._who = None               # whose stroke is being played
         # Not every golfer hits it the same. Power is a factor on every
@@ -709,7 +715,7 @@ class Golf:
         that it was right reaches here: the swing is not timed."""
         most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
         wind_yards = WIND_EFFECT.get(wind, 0.0) * self.day.gust()
-        spread = CLUB_SPREAD.get(club, AIM)
+        spread = CLUB_SPREAD.get(club, AIM) * (0.5 if getattr(self, "_lucky", False) else 1.0)
         if most + wind_yards >= abs(left):
             # Aimed - at the pin, from either side of it, within the club's spread.
             return round(left + self.swing.uniform(-spread, spread) + wind_yards * 0.25)
@@ -791,10 +797,11 @@ class Golf:
         landed = ball.at + carry
         # Across the line: at the mark's side of it, within the club's
         # spread - and, for a plain shot, the leak: a push off to one side.
-        spread = CLUB_SPREAD.get(club, AIM) * 0.6
+        lucky = getattr(self, "_lucky", False)
+        spread = CLUB_SPREAD.get(club, AIM) * 0.6 * (0.5 if lucky else 1.0)
         off = mark["off"] + (self.swing.uniform(-4, 4) if flair == "pure" else self.swing.uniform(-spread, spread))
         leaked = None
-        if not adept and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
+        if not adept and not lucky and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
             leaked = "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
             off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
             if abs(off) <= fairway_half(h):           # a leak goes off the fairway, by definition
@@ -820,7 +827,8 @@ class Golf:
         roll, spun, kicked = 0, False, None
         if flair != "pure":
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-            roll = self.expected_roll(club, came_down, wind, abs(carry), most) * self.swing.uniform(*ROLL_NOISE)
+            roll = self.expected_roll(club, came_down, wind, abs(carry), most) * (
+                self.swing.uniform(1.0, ROLL_NOISE[1]) if lucky and came_down != "green" else self.swing.uniform(*ROLL_NOISE))
             if came_down == "green":
                 # The green's fall: toward the player checks the ball, away
                 # releases it, across nudges the roll toward the fall.
@@ -834,7 +842,7 @@ class Golf:
                 if club in SPIN_ODDS and not adept and self.swing.random() < SPIN_ODDS[club]:
                     lo, hi = SPIN_BACK[club]
                     roll, spun = -self.swing.uniform(lo, hi), True
-            elif came_down in ("fairway", "rough") and self.swing.random() < KICK_ODDS:
+            elif came_down in ("fairway", "rough") and not lucky and self.swing.random() < KICK_ODDS:
                 kicked = "left" if self.swing.random() < 0.5 else "right"
                 off += (-1 if kicked == "left" else 1) * self.swing.uniform(*KICK_YARDS)
             off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
@@ -1108,6 +1116,8 @@ class Golf:
             return {"kind": "rough", "words": f"{club}, a foul ball - short and into the rough on the {'left' if side < 0 else 'right'}",
                     "carry": 0, "off": ball.off}
         weights = {"water": 2, "bunker": 3, "rough": 3}
+        if getattr(self, "_lucky", False) and any(x["kind"] != "water" for x in ahead):
+            ahead = [x for x in ahead if x["kind"] != "water"]     # luck keeps it dry
         hz = self.rng.choices(ahead, weights=[weights[x["kind"]] for x in ahead])[0]
         name = hz["name"] or hz["kind"]
         if hz["kind"] == "water":
@@ -1175,6 +1185,8 @@ class Golf:
         club = a.get("club") or self.default_club(p)
         if club not in self.clubs_for(p):
             club = self.default_club(p)
+        self._lucky = p in self.luck
+        self.luck.discard(p)              # spent on this stroke, whichever way it goes
         qid = a.get("question_id")
         if qid:
             if a.get("correct"):
@@ -1190,6 +1202,8 @@ class Golf:
         else:
             self.streak[p] = 0
             shot = self._foul(h, ball, club)
+        if self._lucky:
+            shot["luck"] = True
         flair = shot.get("flair")
         shot["call"] = ("A hole in one!" if shot.get("ace")
                         else self.rng.choice(FLAIR_CALLS[flair]) if flair in FLAIR_CALLS
@@ -1220,6 +1234,11 @@ class Golf:
             ball.log.append(shot["also"])
         self.logs.setdefault(p, {})[h["n"]] = list(ball.log)
         return shot
+
+    def grant_luck(self, player):
+        """A little luck for this player's next stroke - see self.luck."""
+        if player in self.balls:
+            self.luck.add(player)
 
     def can_mulligan(self, player):
         """Whether this golfer may take a mulligan now: their last stroke
@@ -1501,6 +1520,7 @@ class Golf:
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           "can_mulligan": self.can_mulligan(p),
+                          "luck": p in self.luck,
                           "log": list(b.log), "ahead": self.ahead(p)}
                       for p, b in self.balls.items()},
             # every stroke of every hole, in words, by player: the history a

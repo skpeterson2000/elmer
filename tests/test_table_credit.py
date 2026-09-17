@@ -62,6 +62,26 @@ def main():
     kid_card = db.get_card(connection, summary["pool"], summary["question_id"])
     check("  the cards were graded like a study answer: seen once each, the miss lapsed", (card["seen"], card["correct"], kid_card["seen"], kid_card["correct"]), (1, 1, 1, 0))
 
+    print("\n-- extra credit: a watcher's answer counts in the record and the ledger, and pays in luck --")
+    client.post("/api/party/mode", json={"mode": "golf", "difficulty": "general", "holes": "front", "seconds": 30, "companions": 0, "tee_in": 0}, environ_base=local)
+    autoplay.stop()
+    room.round = None
+    g = room.golf
+    away = g.away()
+    watcher = next(p for p in g.players if p != away)
+    rnd = appmod._ask_party("general", None, 30)
+    extra, why = room.submit_extra(watcher, rnd.answer_index, 1200)
+    check("a watcher answers along", (extra is not None, why), (True, None))
+    check("  which does not close the round", room.everyone_answered(), False)
+    room.submit(away, rnd.answer_index, 3000, 3000)
+    summary = room.close_round()
+    check("  both answers reached the difficulty ledger - two samples, not one",
+          connection.execute("SELECT COUNT(*) FROM hall_log WHERE question_id = ?", (summary["question_id"],)).fetchone()[0], 2)
+    check("  and the watcher's is in their study record too, marked as golf",
+          connection.execute("SELECT COUNT(*) FROM answer_log WHERE question_id = ? AND mode LIKE 'table:%'", (summary["question_id"],)).fetchone()[0], 2)
+    check("  and luck is theirs for their next stroke", watcher in g.luck, True)
+    autoplay.stop(); room.end_golf(); room.clear_bots()
+
     print("\n-- two accounts with one name --")
     client.post("/api/users/add", json={"name": "Sue"}, environ_base=local)   # a second Sue
     twins = [p["id"] for p in db.users(connection) if (p.get("name") or "").lower() == "sue"]

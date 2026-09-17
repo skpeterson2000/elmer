@@ -622,6 +622,36 @@ def run():
     check("  a second foul ball on the hole stands", mg.can_mulligan("b"), False)
     check("  the state carries whether one may be had", mg.as_dict()["balls"]["b"]["can_mulligan"], False)
 
+    print("\n-- luck, earned by answering along: the near half of the spread, and no leak --")
+    def drives(lucky, n=30):
+        outs = []
+        for sd in range(1, n + 1):
+            lk = golf.Golf(["a"], flat_course(), seed=sd)
+            lk.day.wind_mph = 0
+            if lucky:
+                lk.grant_luck("a")
+            s = lk.play_one("a", {"correct": True, "club": "driver", "ms": sd * 7})["shots"]["a"]
+            outs.append((abs(s["carry"] - golf.CLUBS["driver"]), bool(s.get("leak")), s.get("luck", False)))
+        return outs
+    plain, lucky = drives(False), drives(True)
+    check("luck is spent on the stroke and written on it", (all(l for _c, _k, l in lucky), any(l for _c, _k, l in plain)), (True, False))
+    check("  a lucky drive lands nearer its length than a plain one", sum(c for c, _k, _l in lucky) < sum(c for c, _k, _l in plain), True)
+    check("  and never leaks", any(k for _c, k, _l in lucky), False)
+    lk = golf.Golf(["a"], flat_course(), seed=1)
+    lk.grant_luck("a")
+    lk.play_one("a", {"correct": True, "club": "driver"})
+    check("  one stroke, then it is gone", ("a" in lk.luck, lk.as_dict()["balls"]["a"]["luck"]), (False, False))
+    wet = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 100, "to": 130, "side": "across", "name": "the pond"},
+                                               {"kind": "bunker", "from": 140, "to": 160, "side": "left", "name": "a trap"}]), seed=2)
+    dry = [wet.balls["a"].lie for _ in range(1)]
+    kinds = set()
+    for sd in range(1, 16):
+        w = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 100, "to": 130, "side": "across", "name": "the pond"},
+                                                 {"kind": "bunker", "from": 140, "to": 160, "side": "left", "name": "a trap"}]), seed=sd)
+        w.grant_luck("a")
+        kinds.add(w.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]["kind"])
+    check("  on a foul ball, luck keeps it out of the water", "water" in kinds, False)
+
     print("\n-- a hole in one, rare and real --")
     par3 = flat_course(par=3, yards=150, green=30)
     had = golf.ACE_ODDS

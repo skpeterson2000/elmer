@@ -3671,6 +3671,13 @@ def api_party_answer():
         abort(400, "need a player id")
     chosen = body.get("chosen")
     rnd = room.round
+    if body.get("extra"):
+        # Answering along with somebody else's stroke: extra credit, golf's
+        entry, why = room.submit_extra(who, chosen, body.get("ms"))
+        room.note_service((time.perf_counter() - started) * 1000.0)
+        if entry is None:
+            return jsonify({"accepted": False, "reason": why}), 409
+        return jsonify({"accepted": True, "ms": entry["ms"], "extra": True})
     server_ms = (time.monotonic() - rnd.opened_at) * 1000.0 if rnd else None
     entry, why = room.submit(who, chosen, body.get("ms"), server_ms)
     room.note_service((time.perf_counter() - started) * 1000.0)

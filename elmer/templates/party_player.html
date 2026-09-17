@@ -512,7 +512,7 @@ function golfTurnHTML(gf) {
   if (gf.over) return '';
   if (gf.away_name && !gf.your_turn && !gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>${escapeHTML(gf.away_name)}</b> addresses the ball${gf.away_club ? ', the ' + escapeHTML(gf.away_club) + ' in hand' : ''}&hellip; The question comes up in a moment; read it with them.</p>`;
   if (gf.your_tee_time) return `<p style="margin:0 0 .5rem"><b>You have a tee time.</b> The group picks you up ${gf.next_hole ? 'at the ' + gf.next_hole + ordinal(gf.next_hole) : 'at the next hole'}; watch this one with them - the questions are worth reading.</p>`;
-  if (gf.your_turn) return `<p style="margin:0 0 .5rem"><b>Your stroke.</b> ${gf.address_waits ? 'Choose a club, then press Hit - the question comes when you are ready.' : 'Take your time.'}</p>`;
+  if (gf.your_turn) return `<p style="margin:0 0 .5rem"><b>Your stroke.</b> ${gf.address_waits ? 'Choose a club, then press Hit - the question comes when you are ready.' : 'Take your time.'}${gf.you && gf.you.luck ? ' <span style="color:var(--amber)">Luck is on your side for this one.</span>' : ''}</p>`;
   if (gf.away_name) return `<p style="margin:0 0 .5rem;color:var(--dim)"><b>${escapeHTML(gf.away_name)}</b> is away &middot; ${(gf.away_lie === 'green' || gf.away_lie === 'fringe') ? (gf.away_feet || 0) + ' feet, on the ' + (gf.away_lie || 'green') : gf.away_left + ' to go, ' + escapeHTML(gf.away_lie || '')}${gf.away_club ? ' &middot; the ' + escapeHTML(gf.away_club) : ''}.<br>Read the question with them; the next one is yours.</p>`;
   return '';
 }
@@ -600,7 +600,11 @@ function paintQuestion(round, ct, gf) {
   // Out of a CutThroat, or watching somebody else's stroke: the question
   // is there to read, and no button on it counts.
   const watching = !!(gf && !gf.your_turn);
-  const seated = !!(ct && !ct.you_in) || watching;
+  // Watching somebody else's stroke on your own phone: the question is
+  // yours to answer too - extra credit. Right earns a little luck on your
+  // next stroke; wrong or skipped costs nothing.
+  const extra = watching && round.to != null && !gf.over;
+  const seated = !!(ct && !ct.you_in) || (watching && !extra);
   const choices = (q.choices || []).map((c, i) =>
     `<button class="choice" data-i="${i}"${seated ? ' disabled' : ''}>
        <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('');
@@ -616,16 +620,17 @@ function paintQuestion(round, ct, gf) {
     <div id="choices">${choices}</div>
     ${gf ? (gf.your_turn
         ? '<p style="margin:.8rem 0 .5rem"><b>Your stroke.</b> Take your time - nothing here is timed.</p>' + golfClubsHTML(gf)
+        : extra ? `<p style="margin:.8rem 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away${gf.away_club ? ' with the ' + escapeHTML(gf.away_club) : ''}. <b>Extra credit:</b> answer along. Right earns a little luck on your next stroke; wrong or skipped costs nothing.</p>`
         : `<p style="margin:.8rem 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away${gf.away_club ? ' with the ' + escapeHTML(gf.away_club) : ''}. Read it with them - what would you play?</p>`) : ''}
     ${gf ? `<p class="clock" style="margin:0 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par}${gf.you ? ((gf.you.lie === 'green' || gf.you.lie === 'fringe') ? ` &middot; ${gf.you.feet} feet, on the ${gf.you.lie}` : ` &middot; ${gf.you.left} to go, ${escapeHTML(gf.you.lie)}`) : ''}</p>` : ''}`;
   if (gf && gf.your_turn) wireClubs();
   if (seated) { answered = true; return; }
   document.querySelectorAll('.choice').forEach(b => {
-    b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b));
+    b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b, extra));
   });
 }
 
-async function send(index, button) {
+async function send(index, button, extra) {
   if (answered) return;
   answered = true;
   // The interval this phone measured, from painting the question to the tap.
@@ -634,7 +639,7 @@ async function send(index, button) {
   myChoice = index;
   document.querySelectorAll('.choice').forEach(b => { b.disabled = true; });
   button.classList.add('picked');
-  const r = await api('/api/party/answer', {player: me.id, chosen: index, ms});
+  const r = await api('/api/party/answer', {player: me.id, chosen: index, ms, extra: !!extra});
   if (!r.data.accepted) {
     answered = false;
     document.querySelectorAll('.choice').forEach(b => { b.disabled = false; });
@@ -736,10 +741,15 @@ function paintResults(round, shoot) {
     // question, what they tapped, and the right one, together.
     const q = round.question || {};
     const rightAt = (q.choices || []).indexOf(round.answer);
-    const answers = wasMine ? `<p class="big" style="margin:.6rem 0 .4rem">${escapeHTML(q.text || '')}</p>
+    // Extra credit: a watcher who answered along sees the answer with their
+    // pick, and what it earned - a little luck on their next stroke, or nothing lost.
+    const myExtra = !wasMine && s_last && s_last.you_extra ? s_last.you_extra : null;
+    const answers = (wasMine || myExtra) ? `<p class="big" style="margin:.6rem 0 .4rem">${escapeHTML(q.text || '')}</p>
       <div id="choices">${(q.choices || []).map((c, i) => `<button class="choice ${i === rightAt ? 'right' : (i === myChoice ? 'wrong' : '')}" disabled>
         <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('')}</div>` : '';
-    view.innerHTML = `${golfPlaybackHTML(gf)}${answers}${golfHeadHTML(gf)}
+    const extraLine = myExtra ? `<div class="verdict ${myExtra.correct ? 'right' : 'wrong'}"><div class="h">${myExtra.correct ? 'Extra credit' : 'Not this time'}</div>
+      <div class="t">${myExtra.correct ? 'Luck is on your side for your next stroke.' : 'Nothing lost - it was extra.'}</div></div>` : '';
+    view.innerHTML = `${golfPlaybackHTML(gf)}${extraLine}${answers}${golfHeadHTML(gf)}
       ${wasMine && !gf.over && gf.you && gf.you.can_mulligan ? `<p style="padding:.6rem 0 0"><button class="choice" id="mulligan" style="text-align:center">Mulligan &middot; take that one back, a fresh question from the same spot (once a hole)</button></p>` : ''}
       ${wasMine && !gf.over ? `<p style="padding:.6rem 0 0"><button class="choice" id="next-stroke" style="text-align:center"><b>Next stroke &rsaquo;</b></button>
         <span class="tiny muted" style="display:block;margin-top:.3rem">Read it first; the round waits for you.</span></p>` : ''}
