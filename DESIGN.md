@@ -1402,7 +1402,8 @@ play out, and the late innings faster and longer. The top pitch is a
 contact: CQ from the pitcher, the batter answers with their own call,
 report and name both ways, 73. Lives in the Gaming Center with the rest.
 
-**A person on the mound (the plan, agreed 2026-09-17; not built).** The
+**A person on the mound (agreed and built 2026-09-17; `elmer/cwball.py`,
+the presses in `elmer/app.py` under `/api/party/ball/`).** The
 machine pitches because it was the only pitcher there was. With enough
 people it should not be: a pitcher on the other side is given the code
 to send and proceeds, and every fielder has a catch and a throw to make,

@@ -1427,7 +1427,7 @@ class Room:
                 self.mode = TOURNAMENT
 
     # ------------------------------------------------------------ baseball
-    def begin_baseball(self, innings=3, base_wpm=10.0):
+    def begin_baseball(self, innings=3, base_wpm=10.0, league="little", pitcher="machine"):
         """CW Baseball over everybody at the table: the cohorts are the
         teams when there are two; one cohort is dealt out alternately, people
         first. A practice player fills an empty side."""
@@ -1445,7 +1445,7 @@ class Room:
             if not teams["A"] or not teams["B"]:
                 return None, "CW Baseball needs two sides - sit two people down, or turn the practice players on"
             self.baseball = Baseball(teams, {p: pl.name for p, pl in self.players.items()},
-                                     innings=innings, base_wpm=base_wpm,
+                                     innings=innings, base_wpm=base_wpm, league=league, pitcher=pitcher,
                                      bots={p: pl.bot for p, pl in self.players.items() if pl.bot})
             self.mode = BASEBALL
             return self.baseball, None
@@ -1474,12 +1474,27 @@ class Room:
             self.baseball.tick()
             return self.baseball.swing(player_id, typed)
 
-    def baseball_field(self, player_id, keyed):
+    def baseball_field(self, player_id, keyed, wpm=None):
         with self.lock:
             if self.baseball is None:
                 return {"error": "no game"}
             self.baseball.tick()
-            return self.baseball.field(player_id, keyed)
+            return self.baseball.throw(player_id, keyed, wpm)
+
+    def baseball_act(self, what, player_id, **kw):
+        """One door for the rest of the plays - pick, pitch, take, catch,
+        tag, copy - each the engine's method of that name, under the lock
+        and after the clock has had its say."""
+        with self.lock:
+            if self.baseball is None:
+                return {"error": "no game"}
+            self.baseball.tick()
+            method = {"pick": self.baseball.choose, "pitch": self.baseball.deliver,
+                      "take": self.baseball.take, "catch": self.baseball.catch,
+                      "tag": self.baseball.tag, "copy": self.baseball.readiness}.get(what)
+            if method is None:
+                return {"error": "no such play"}
+            return method(player_id, **kw)
 
     def cutthroat_over(self):
         with self.lock:

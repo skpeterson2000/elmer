@@ -1098,65 +1098,157 @@ function gamesGuideHTML(chosen) {
 }
 
 /* ---------------------------------------------------------- CW Baseball */
-/* Batting: the pitch sounds here too, in the batter's ear; they type what
-   they copied and swing. Fielding: a touch key - hold the big button - and
-   the decoder in morse.js reads what was keyed; Throw sends it. */
+/* Catching is receiving, throwing is sending. Every pitch sounds on every
+   phone in the game and everybody copies it: the batter's copy is the
+   swing, a fielder's is the catch when the ball comes to them, and it is
+   held on this phone - stamped by this phone's clock - until the play's
+   trigger for this device comes down with a poll (your_link). A copy whose
+   link never came is handed up once, after the play, as readiness. The
+   mound: the pitcher chooses how hard a pitch, keys it on the touch key,
+   and throws; the fielder with a grounder keys the throw the same way; the
+   baseman hears the throw and copies it for the tag. */
 const phonePlayer = (typeof CWPlayer === 'function') ? new CWPlayer() : null;
-let phonePitched = null, phoneKey = null;
+let phonePitched = null, phoneThrowHeard = null, phoneKey = null, phoneLinkSent = null;
+function ballHoldKey() { return 'ball.hold.' + (me && me.id); }
+function ballHeld() {
+  try { return JSON.parse(localStorage.getItem(ballHoldKey()) || 'null'); } catch (e) { return null; }
+}
+function ballHold(n, typed) {
+  try { localStorage.setItem(ballHoldKey(), JSON.stringify({n, typed, at: Date.now()})); } catch (e) {}
+}
+function ballForget() { try { localStorage.removeItem(ballHoldKey()); } catch (e) {} }
+function ballKeyer(buttonId, outId) {
+  const kb = document.getElementById(buttonId);
+  if (!kb) return null;
+  const k = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0};
+  const out = document.getElementById(outId);
+  const down = e => { e.preventDefault(); if (k.down) return; k.down = true; const now = performance.now();
+    if (k.lastUp) k.decoder.space(now - k.lastUp); k.downAt = now; if (phonePlayer) phonePlayer.down(); kb.classList.add('picked'); };
+  const up = e => { e.preventDefault(); if (!k.down) return; k.down = false; const now = performance.now();
+    k.decoder.mark(now - k.downAt); k.lastUp = now; if (phonePlayer) phonePlayer.up(); kb.classList.remove('picked');
+    if (out) out.textContent = k.decoder.text + k.decoder.symbols.join(''); };
+  kb.addEventListener('pointerdown', down); kb.addEventListener('pointerup', up); kb.addEventListener('pointercancel', up); kb.addEventListener('pointerleave', up);
+  k.wpm = () => Math.round(12000 / (k.decoder.dit || 60)) / 10;   // the fist's own speed, from its dits
+  return k;
+}
+const ballCopyBox = (id, placeholder) => `<input id="${id}" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="${placeholder}">`;
+const ballKeyPad = () => `<button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
+         <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>`;
+
 function paintBaseballPhone(b) {
-  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== phonePitched && phonePlayer && (b.your_swing || b.your_team === b.batting)) {
+  const inGame = !!b.your_team;
+  // the pitch sounds once on every phone in the game
+  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== phonePitched && phonePlayer && inGame) {
     phonePitched = b.pitch.n;
     try { phonePlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
   }
-  if (b.phase !== 'field') phoneKey = null;
-  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + (b.last ? b.last.n + (b.last.result || '') : '') + (b.your_swing ? 's' : '') + (b.your_throw ? 't' : '');
+  // the throw sounds for the baseman
+  if (b.your_link === 'tag' && b.pitch && b.pitch.throw_groups && phonePlayer && phoneThrowHeard !== b.pitch.n + ':' + (b.last && b.last.to)) {
+    phoneThrowHeard = b.pitch.n + ':' + (b.last && b.last.to);
+    try { phonePlayer.send(b.pitch.throw_groups, b.pitch.throw_timing, null, () => {}); } catch (e) {}
+  }
+  // a held copy whose link came: hand it up now, once
+  const held = ballHeld();
+  if (b.your_link === 'catch' && held && b.pitch && held.n === b.pitch.n && phoneLinkSent !== 'catch' + b.pitch.n) {
+    phoneLinkSent = 'catch' + b.pitch.n;
+    api('/api/party/ball/catch', {player: me.id, typed: held.typed}).then(() => { shownRound = null; tick(); });
+    return;
+  }
+  // a held copy whose link never came: readiness, once the play is over
+  if (held && b.pitch && (b.phase === 'reveal' || b.phase === 'between' || b.over || held.n < b.pitch.n) && phoneLinkSent !== 'copy' + held.n) {
+    phoneLinkSent = 'copy' + held.n;
+    api('/api/party/ball/copy', {player: me.id, n: held.n, typed: held.typed}).catch(() => {});
+    ballForget();
+  }
+  if (!['throw', 'throw_pitch'].includes(b.your_link)) phoneKey = null;
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
   if (shownRound === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
   shownRound = key;
-  const score = `<p class="clock" style="margin:0 0 .4rem">CW Baseball &middot; ${b.over ? 'final' : (b.half + ' ' + ordinal(b.inning))} &middot; A ${b.runs.A} &ndash; B ${b.runs.B} &middot; ${b.outs} out &middot; you are Side ${b.your_team || '?'}</p>`;
+  const score = `<p class="clock" style="margin:0 0 .4rem">CW Baseball &middot; ${b.over ? 'final' : (b.half + ' ' + ordinal(b.inning))} &middot; A ${b.runs.A} &ndash; B ${b.runs.B} &middot; ${b.outs} out &middot; ${b.balls}-${b.strikes} &middot; you are Side ${b.your_team || '?'}</p>`;
+  const clock = `<span id="ball-clock">${Math.ceil(b.deadline_in)}s</span>`;
   let main = '';
   if (b.over) main = `<h2>Side ${b.winner} wins, ${b.runs.A} to ${b.runs.B}.</h2>`;
-  else if (b.phase === 'between') main = `<p>${b.half === 'top' ? 'Top' : 'Bottom'} of the ${ordinal(b.inning)}. Side ${b.batting} bats. The pitch is ${escapeHTML(b.level)} at ${b.wpm} wpm.</p>`;
-  else if (b.phase === 'pitch') {
-    main = b.your_swing
-      ? `<p><b>You're up.</b> ${b.pitch && b.pitch.kind === 'contact' ? 'Somebody is calling CQ: copy their call and swing.' : 'Copy the pitch and swing.'} <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
-         <input id="ball-typed" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="what you copied">
-         <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>`
-      : `<p><b>${escapeHTML(b.batter_name)}</b> at bat. The pitch is ${escapeHTML(b.level)}, ${b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' - somebody is calling CQ' : ''}. Copy along.</p>`;
+  else if (b.phase === 'between') main = `<p>${b.half === 'top' ? 'Top' : 'Bottom'} of the ${ordinal(b.inning)}. Side ${b.batting} bats. The pitch is ${escapeHTML(b.level)} at ${b.wpm} wpm.${b.pitcher_mode === 'people' ? ' ' + escapeHTML(b.positions.P ? b.positions.P.name : '') + ' pitches.' : ''}</p>`;
+  else if (b.phase === 'windup') {
+    if (b.your_link === 'pick') {
+      const majors = b.league === 'major', top = b.pitch && b.pitch.level >= 4;
+      main = `<p><b>You're on the mound.</b> Choose the pitch: how hard a thing will you send? ${clock}</p>
+         <p><button class="choice" data-ball-pick="normal"><b>Normal</b> &mdash; plain code at ${b.wpm} wpm</button></p>` +
+        (majors ? `<p><button class="choice" data-ball-pick="hard"><b>Hard</b> &mdash; cut numbers, prosigns, punctuation, faster; pays the batter more if hit</button></p>` : '') +
+        (majors && top ? `<p>${ballCopyBox('ball-own', 'or compose your own: letters, numbers, <AR>')}<button class="choice" data-ball-pick="own" style="text-align:center">Throw your own</button></p>` : '');
+    } else if (b.your_link === 'throw_pitch') {
+      main = `<p><b>Send</b> <span class="mono" style="font-size:1.2rem">${escapeHTML(b.pitch.text || '')}</span> at ${b.pitch.wpm} wpm. ${clock}</p>${ballKeyPad()}
+         <p><button class="choice" id="ball-pitch" style="text-align:center"><b>Throw the pitch &rsaquo;</b></button></p>`;
+    } else {
+      main = `<p><b>${escapeHTML(b.pitcher_name)}</b> is on the mound, ${b.link === 'pick' ? 'choosing the pitch' : 'winding up'}. <b>${escapeHTML(b.batter_name)}</b> at bat. Get ready to copy.</p>`;
+    }
+  } else if (b.phase === 'pitch') {
+    if (b.your_link === 'swing') {
+      main = `<p><b>You're up.</b> ${b.pitch && b.pitch.kind === 'contact' ? 'Somebody is calling CQ: copy their call and swing.' : 'Copy the pitch and swing - or take it, if you think it was a ball.'} ${clock}</p>
+         ${ballCopyBox('ball-typed', 'what you copied')}
+         <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>
+         <p><button class="choice" id="ball-take" style="text-align:center">Take it</button></p>`;
+    } else if (inGame) {
+      main = `<p><b>${escapeHTML(b.batter_name)}</b> at bat. Copy the pitch and hold it - if the ball comes to you, your copy is the catch. ${clock}</p>
+         ${ballCopyBox('ball-held', 'what you copied')}
+         <p><button class="choice" id="ball-hold" style="text-align:center"><b>Hold it</b></button></p>`;
+    } else {
+      main = `<p><b>${escapeHTML(b.batter_name)}</b> at bat. The pitch is ${escapeHTML(b.level)}, ${b.wpm} wpm.</p>`;
+    }
   } else if (b.phase === 'field') {
-    main = b.your_throw
-      ? `<p><b>Your ball.</b> ${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key back'} <span class="mono">${escapeHTML(b.pitch.key || b.pitch.plain)}</span> and throw. <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>
-         <button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
-         <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>
-         <p><button class="choice" id="ball-throw" style="text-align:center"><b>Throw &rsaquo;</b></button></p>`
-      : `<p>In play - <b>${escapeHTML(b.fielder_name)}</b> keys it back.</p>`;
+    const words = (b.last && b.last.words) || 'In play';
+    if (b.your_link === 'catch') {
+      main = `<p><b>Your ball.</b> ${escapeHTML(words)}. Hand up your copy of the pitch. ${clock}</p>
+         ${ballCopyBox('ball-catch', held && b.pitch && held.n === b.pitch.n ? held.typed : 'what you copied')}
+         <p><button class="choice" id="ball-catch-go" style="text-align:center"><b>Catch &rsaquo;</b></button></p>`;
+    } else if (b.your_link === 'throw') {
+      main = `<p><b>Throw to ${escapeHTML(b.last.to || 'first')}.</b> ${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key'} <span class="mono">${escapeHTML(b.pitch.key || '')}</span>. ${clock}</p>${ballKeyPad()}
+         <p><button class="choice" id="ball-throw" style="text-align:center"><b>Throw &rsaquo;</b></button></p>`;
+    } else if (b.your_link === 'tag') {
+      main = `<p><b>The throw is coming to you at ${escapeHTML(b.last.to || 'first')}.</b> Copy it and make the tag. ${clock}</p>
+         ${ballCopyBox('ball-tag', 'what you heard')}
+         <p><button class="choice" id="ball-tag-go" style="text-align:center"><b>Tag &rsaquo;</b></button></p>`;
+    } else {
+      main = `<p>${escapeHTML(words)}.</p>`;
+    }
   } else {
     main = `<p>${escapeHTML((b.last && b.last.words) || '')}</p>` +
-      (b.last && b.last.pitch ? `<p class="tiny muted">The pitch was <span class="mono">${escapeHTML(b.last.pitch)}</span>${b.last.typed !== undefined ? ' · copied as <span class="mono">' + escapeHTML(b.last.typed || '·') + '</span>' : ''}</p>` : '');
+      (b.last && b.last.pitch ? `<p class="tiny muted">The pitch was <span class="mono">${escapeHTML(b.last.pitch)}</span>${b.last.asked && b.last.asked !== b.last.pitch ? ' (asked for: <span class="mono">' + escapeHTML(b.last.asked) + '</span>)' : ''}${b.last.call ? ' · the umpire: ' + escapeHTML(b.last.call === 'zone' ? 'in the zone' : b.last.call) : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + escapeHTML(b.last.typed || '·') + '</span>' : ''}</p>` : '');
   }
   view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">${score}${main}
     <p class="tiny muted" style="margin-top:.8rem">Bases: ${(b.bases || []).map((x, i) => x ? ordinal(i + 1) + ' ' + escapeHTML(x.name) : '').filter(Boolean).join(', ') || 'empty'}</p></div>`;
-  const sw = document.getElementById('ball-swing');
-  if (sw) {
-    const inp = document.getElementById('ball-typed');
+  const press = async (id, path, body) => { const el = document.getElementById(id); if (!el) return; el.addEventListener('click', async () => { el.disabled = true; try { await api(path, Object.assign({player: me.id}, typeof body === 'function' ? body() : body)); } catch (e) {} shownRound = null; tick(); }); };
+  const enterIs = (inputId, buttonId) => { const inp = document.getElementById(inputId); if (inp) { inp.focus(); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { const bt = document.getElementById(buttonId); if (bt) bt.click(); } }); } };
+  press('ball-swing', '/api/party/ball/swing', () => ({typed: (document.getElementById('ball-typed') || {}).value || ''}));
+  press('ball-take', '/api/party/ball/take', {});
+  enterIs('ball-typed', 'ball-swing');
+  press('ball-catch-go', '/api/party/ball/catch', () => ({typed: (document.getElementById('ball-catch') || {}).value || ''}));
+  enterIs('ball-catch', 'ball-catch-go');
+  press('ball-tag-go', '/api/party/ball/tag', () => ({typed: (document.getElementById('ball-tag') || {}).value || ''}));
+  enterIs('ball-tag', 'ball-tag-go');
+  const hold = document.getElementById('ball-hold');
+  if (hold) {
+    const inp = document.getElementById('ball-held');
+    if (held && b.pitch && held.n === b.pitch.n) inp.value = held.typed;
     inp.focus();
-    const go = async () => { sw.disabled = true; await api('/api/party/ball/swing', {player: me.id, typed: inp.value}); shownRound = null; tick(); };
-    sw.addEventListener('click', go);
+    const go = () => { ballHold(b.pitch.n, inp.value); hold.textContent = 'held'; hold.disabled = true; };
+    hold.addEventListener('click', go);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    inp.addEventListener('input', () => ballHold(b.pitch.n, inp.value));   // held as it is typed, in case the poll comes first
   }
-  const kb = document.getElementById('ball-key');
-  if (kb) {
-    phoneKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0};
-    const down = e => { e.preventDefault(); if (phoneKey.down) return; phoneKey.down = true; const now = performance.now();
-      if (phoneKey.lastUp) phoneKey.decoder.space(now - phoneKey.lastUp); phoneKey.downAt = now; if (phonePlayer) phonePlayer.down(); kb.classList.add('picked'); };
-    const up = e => { e.preventDefault(); if (!phoneKey.down) return; phoneKey.down = false; const now = performance.now();
-      phoneKey.decoder.mark(now - phoneKey.downAt); phoneKey.lastUp = now; if (phonePlayer) phonePlayer.up(); kb.classList.remove('picked');
-      document.getElementById('ball-keyed').textContent = phoneKey.decoder.text + phoneKey.decoder.symbols.join(''); };
-    kb.addEventListener('pointerdown', down); kb.addEventListener('pointerup', up); kb.addEventListener('pointercancel', up); kb.addEventListener('pointerleave', up);
-    document.getElementById('ball-throw').addEventListener('click', async () => {
-      phoneKey.decoder.flush();
-      await api('/api/party/ball/field', {player: me.id, keyed: phoneKey.decoder.text});
-      phoneKey = null; shownRound = null; tick();
-    });
+  document.querySelectorAll('[data-ball-pick]').forEach(bt => bt.addEventListener('click', async () => {
+    const own = (document.getElementById('ball-own') || {}).value || '';
+    try { await api('/api/party/ball/pick', {player: me.id, difficulty: bt.dataset.ballPick, text: own}); } catch (e) {}
+    shownRound = null; tick();
+  }));
+  if (document.getElementById('ball-key')) {
+    phoneKey = ballKeyer('ball-key', 'ball-keyed');
+    const send = async (id, path) => { const bt = document.getElementById(id); if (!bt) return; bt.addEventListener('click', async () => {
+      bt.disabled = true; phoneKey.decoder.flush();
+      try { await api(path, {player: me.id, keyed: phoneKey.decoder.text, wpm: phoneKey.wpm()}); } catch (e) {}
+      phoneKey = null; shownRound = null; tick(); }); };
+    send('ball-pitch', '/api/party/ball/pitch');
+    send('ball-throw', '/api/party/ball/field');
   }
 }
 

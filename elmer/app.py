@@ -4511,12 +4511,14 @@ def _apply_mode(room, wanted, body):
             base_wpm = max(5.0, min(30.0, float(body.get("wpm") or _cw_base_wpm())))
         except (TypeError, ValueError):
             abort(400, "check the numbers")
-        started, why = room.begin_baseball(innings, base_wpm)
+        league = str(body.get("league") or "little").lower()
+        pitcher = str(body.get("pitcher") or "machine").lower()
+        started, why = room.begin_baseball(innings, base_wpm, league, pitcher)
         if started is None:
             abort(409, why)
         _quiet_op25("CW Baseball is starting")
-        log.info("party: CW Baseball started - %d innings at %.0f wpm, %d a side",
-                 innings, base_wpm, len(started.lineups["A"]))
+        log.info("party: CW Baseball started - %d innings at %.0f wpm, %d a side, %s league, %s pitching",
+                 innings, base_wpm, len(started.lineups["A"]), started.league, started.pitcher_mode)
     elif wanted == party.CUTTHROAT:
         # Musical chairs with questions: drawn like a tournament's, no pick,
         # and the director asks until one player is left. See cutthroat.py.
@@ -4935,14 +4937,44 @@ def api_party_ball_swing():
 
 @app.route("/api/party/ball/field", methods=["POST"])
 def api_party_ball_field():
-    """The fielder's throw: what they keyed."""
+    """The fielder's throw: what they keyed, and the speed the decoder read."""
     room = _party_or_404()
     body = request.get_json(silent=True) or {}
     try:
         player = int(body.get("player"))
     except (TypeError, ValueError):
         abort(400, "need a player id")
-    play = room.baseball_field(player, str(body.get("keyed") or ""))
+    play = room.baseball_field(player, str(body.get("keyed") or ""), body.get("wpm"))
+    if play.get("error"):
+        abort(409, play["error"])
+    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})
+
+
+@app.route("/api/party/ball/<what>", methods=["POST"])
+def api_party_ball_play(what):
+    """The rest of the plays, each a press on a device. pick: the pitcher's
+    choice of how hard a pitch (difficulty, text for their own). pitch: the
+    pitcher's keying (keyed, wpm). take: the batter lets it go by. catch:
+    the fielder's held copy of the pitch (typed). tag: the baseman's copy of
+    the throw (typed). copy: anybody's copy of a pitch, handed up as
+    readiness (n, typed) - never the play, and never refused for being late."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    args = {
+        "pick": lambda: {"difficulty": str(body.get("difficulty") or "normal"), "text": body.get("text")},
+        "pitch": lambda: {"keyed": str(body.get("keyed") or ""), "wpm": body.get("wpm")},
+        "take": lambda: {},
+        "catch": lambda: {"typed": str(body.get("typed") or "")},
+        "tag": lambda: {"typed": str(body.get("typed") or "")},
+        "copy": lambda: {"n": body.get("n"), "typed": str(body.get("typed") or "")},
+    }.get(what)
+    if args is None:
+        abort(404)
+    play = room.baseball_act(what, player, **args())
     if play.get("error"):
         abort(409, play["error"])
     return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})

@@ -456,14 +456,20 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
             </div>
           </div>
           <div class="gc-tile gc-golf">
-            <button class="gc-tilebtn" id="baseball" title="The machine pitches Morse. The batting side copies it - clean is a hit, sized by the pitch. The fielding side keys it back - clean and in time is the out. Innings, runs, a diamond.">
+            <button class="gc-tilebtn" id="baseball" title="Catching is receiving, throwing is sending. The pitch is Morse - from the machine, or from the other side's pitcher on their phone - and the umpire calls it as thrown. The batter copies it and swings, or takes it. The ball goes to a fielder by position: their copy is the catch, they key the throw, the baseman copies it for the tag. Innings, runs, a diamond.">
               <span class="gc-glyph">&#9918;</span>
               <b>CW Baseball</b>
-              <span>The machine pitches code. Batting is copying, fielding is sending it back. Innings, runs, and the late innings come faster.</span>
+              <span>Catching is receiving, throwing is sending. Everybody copies every pitch; the ball goes to a fielder by position. The machine pitches, or a person does.</span>
             </button>
             <div class="gc-golfopts">
               <select class="btn sm" id="ball-innings" title="how many innings">
                 <option value="1">1 inning</option><option value="3" selected>3 innings</option><option value="6">6 innings</option><option value="9">9 innings</option>
+              </select>
+              <select class="btn sm" id="ball-league" title="little league: the take is free, speed is not judged, the machine never throws a ball. The majors: a strike taken is called, a pitch is held to its speed, hard pitches and composed ones, and the machine throws the odd ball on purpose">
+                <option value="little" selected>little league</option><option value="major">the majors</option>
+              </select>
+              <select class="btn sm" id="ball-pitcher" title="who pitches: the machine, or the fielding side's pitcher on their own phone - the text on their screen alone, keyed and thrown, the umpire calling it as thrown">
+                <option value="machine" selected>the machine pitches</option><option value="people">people pitch</option>
               </select>
               <select class="btn sm" id="ball-wpm" title="where the pitching starts; the innings speed it up">
                 <option value="">from the operator's rating</option>
@@ -1475,7 +1481,7 @@ function diamondSVG(b) {
     <circle cx="110" cy="100" r="10" fill="#c9a86a"/>
     ${base(186, 100, 0)}${base(110, 24, 1)}${base(34, 100, 2)}
     <rect x="101" y="167" width="18" height="18" transform="rotate(45 110 176)" fill="#e8e8e8" stroke="#16221a"/>
-    <text x="110" y="120" text-anchor="middle" font-size="11" fill="#e8e8e8" font-family="ui-monospace, monospace">${b.outs} out${b.outs === 1 ? '' : 's'} · ${b.strikes} strike${b.strikes === 1 ? '' : 's'}</text>
+    <text x="110" y="120" text-anchor="middle" font-size="11" fill="#e8e8e8" font-family="ui-monospace, monospace">${b.outs} out${b.outs === 1 ? '' : 's'} · ${b.balls || 0}-${b.strikes}</text>
   </svg>`;
 }
 function lineScore(b) {
@@ -1529,58 +1535,84 @@ function paintBaseball(s) {
   const b = s.baseball;
   const atScreen = seated();
   chip.textContent = b.over ? 'game over' : `${b.half} of the ${b.inning}${ordinal(b.inning)}`;
-  const mine = atScreen.find(x => x.id === b.batter), fielding = atScreen.find(x => x.id === b.fielder);
-  // The pitch sounds once, on this screen, when it is new.
+  // whose link is live, if they are seated at this screen
+  const liveId = b.phase === 'windup' ? b.pitcher : b.phase === 'pitch' ? b.batter : b.phase === 'field' ? b.fielder : null;
+  const actor = atScreen.find(x => x.id === liveId);
+  const link = actor ? (b.phase === 'pitch' ? 'swing' : b.link) : null;
+  // The pitch sounds once, on this screen, when it is new; so does a throw
+  // on its way to a base, for the baseman to copy.
   if (b.phase === 'pitch' && b.pitch && b.pitch.n !== ballPitched && ballPlayer) {
     ballPitched = b.pitch.n;
     try { ballPlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
   }
-  if (b.phase !== 'field' && ballKey) { ballKey = null; }
-  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + JSON.stringify(b.bases) + (b.last ? b.last.n + (b.last.result || '') : '') + (mine ? 'm' : '') + (fielding ? 'f' : '');
+  if (b.phase === 'field' && b.link === 'tag' && b.pitch && b.pitch.throw_groups && ballPlayer) {
+    const mark = b.pitch.n + ':' + (b.last && b.last.to);
+    if (ballThrown !== mark) { ballThrown = mark; try { ballPlayer.send(b.pitch.throw_groups, b.pitch.throw_timing, null, () => {}); } catch (e) {} }
+  }
+  if (!['throw', 'throw_pitch'].includes(link) && ballKey) { ballKey = null; }
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + b.balls + JSON.stringify(b.bases) + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (actor ? 'a' + actor.id : '') + (b.link || '');
   if (painted === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
   painted = key;
+  const clock = `<span id="ball-clock">${Math.ceil(b.deadline_in)}s</span>`;
+  const keyHint = `Hold the <b>space bar</b> as a straight key, or a paddle on the <b>arrow keys</b>: left dits, right dahs. Keyed so far: <span class="mono" id="ball-keyed"></span>`;
+  const seatBox = (id, ph) => `<input class="hs-name" id="${id}" placeholder="${ph}" autocomplete="off" style="max-width:20rem;font-family:var(--mono)">`;
   let main = '';
   if (b.over) {
     main = `<p class="narrator">That's the game: <b>Side ${b.winner}</b> wins, ${b.runs.A} to ${b.runs.B}.</p>`;
   } else if (b.phase === 'between') {
-    main = `<p class="narrator">${b.inning === 1 && b.half === 'top' && !b.line.A.length ? 'Play ball.' : 'Side retired.'} ${b.half === 'top' ? 'Top' : 'Bottom'} of the ${b.inning}${ordinal(b.inning)} - Side ${b.batting} bats, Side ${b.fielding} fields. The pitch: ${esc(b.level)} at ${b.wpm} wpm.</p>`;
+    main = `<p class="narrator">${b.inning === 1 && b.half === 'top' && !b.line.A.length ? 'Play ball.' : 'Side retired.'} ${b.half === 'top' ? 'Top' : 'Bottom'} of the ${b.inning}${ordinal(b.inning)} - Side ${b.batting} bats, Side ${b.fielding} fields${b.pitcher_mode === 'people' && b.positions.P ? ', <b>' + esc(b.positions.P.name) + '</b> on the mound' : ''}. The pitch: ${esc(b.level)} at ${b.wpm} wpm.</p>`;
+  } else if (b.phase === 'windup') {
+    main = `<p class="narrator"><b>${esc(b.pitcher_name)}</b> on the mound${b.link === 'pick' ? ', choosing the pitch' : ', winding up'} &middot; <b>${esc(b.batter_name)}</b> at bat &middot; ${clock}</p>` +
+      (link === 'pick' ? `<div class="hitrow"><button class="btn primary" data-ball-pick="normal">Normal pitch</button>${b.league === 'major' ? '<button class="btn" data-ball-pick="hard">Hard pitch</button>' : ''}</div>` :
+       link === 'throw_pitch' ? `<div class="hitrow"><p class="hint" style="text-align:left">Send <span class="mono">${esc(b.pitch.text || '')}</span> at ${b.pitch.wpm} wpm. ${keyHint}</p><button class="btn primary" data-ball-pitch="${actor.id}">Throw the pitch</button></div>` :
+       `<p class="hint" style="text-align:left">${esc(b.pitcher_name)} keys it on their phone. Everybody: get ready to copy.</p>`);
   } else if (b.phase === 'pitch') {
-    main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; the pitch is ${esc(b.level)}, ${b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' &middot; copy the call that is calling CQ' : ''} &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
-      (mine ? `<div class="hitrow"><input class="hs-name" id="ball-typed" placeholder="${b.pitch && b.pitch.kind === 'contact' ? 'the call that is calling' : 'type what you copied'}" autocomplete="off" style="max-width:20rem;font-family:var(--mono)">
-               <button class="btn primary" data-ball-swing="${mine.id}">Swing</button></div>` :
-       `<p class="hint" style="text-align:left">${b.batter_name} copies it on their phone. Everybody else: copy along.</p>`);
+    main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; ${b.balls}-${b.strikes} &middot; the pitch is ${esc(b.level)}${b.pitch && b.pitch.difficulty === 'hard' ? ', a hard one' : ''}, ${b.pitch ? b.pitch.thrown_wpm : b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' &middot; copy the call that is calling CQ' : ''} &middot; ${clock}</p>` +
+      (link === 'swing' ? `<div class="hitrow">${seatBox('ball-typed', b.pitch && b.pitch.kind === 'contact' ? 'the call that is calling' : 'type what you copied')}
+               <button class="btn primary" data-ball-swing="${actor.id}">Swing</button><button class="btn" data-ball-take="${actor.id}">Take</button></div>` :
+       `<p class="hint" style="text-align:left">${esc(b.batter_name)} copies it on their phone. Everybody else: copy along and hold it - if the ball comes to you, your copy is the catch.</p>`);
   } else if (b.phase === 'field') {
-    main = `<p class="narrator">In play! <b>${esc(b.fielder_name)}</b> has it &middot; ${b.pitch.kind === 'contact' ? 'answer the call' : 'key back'} <span class="mono">${esc(b.pitch.key || b.pitch.plain)}</span> &middot; <span id="ball-clock">${Math.ceil(b.deadline_in)}s</span></p>` +
-      (fielding ? `<div class="hitrow"><p class="hint" style="text-align:left">Hold the <b>space bar</b> as a straight key, or a paddle on the <b>arrow keys</b>: left dits, right dahs. Keyed so far: <span class="mono" id="ball-keyed"></span></p>
-                   <button class="btn primary" data-ball-throw="${fielding.id}">Throw</button></div>` :
-       `<p class="hint" style="text-align:left">${b.fielder_name} keys it on their phone.</p>`);
-    if (fielding && !ballKey) ballKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0, player: fielding.id};
+    const words = (b.last && b.last.words) || 'In play';
+    main = `<p class="narrator">${esc(words)} &middot; ${clock}</p>` +
+      (link === 'catch' ? `<div class="hitrow">${seatBox('ball-catch', 'your copy of the pitch')}<button class="btn primary" data-ball-catch="${actor.id}">Catch</button></div>` :
+       link === 'throw' ? `<div class="hitrow"><p class="hint" style="text-align:left">${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key'} <span class="mono">${esc(b.pitch.key || '')}</span> to ${esc(b.last.to || 'first')}. ${keyHint}</p><button class="btn primary" data-ball-throw="${actor.id}">Throw</button></div>` :
+       link === 'tag' ? `<div class="hitrow">${seatBox('ball-tag', 'what you heard')}<button class="btn primary" data-ball-tag="${actor.id}">Tag</button></div>` :
+       `<p class="hint" style="text-align:left">${esc(b.fielder_name || '')} ${b.link === 'catch' ? 'hands up their copy' : b.link === 'throw' ? 'keys the throw' : 'takes the throw'} on their phone.</p>`);
   } else {
     main = `<p class="narrator">${esc((b.last && b.last.words) || '')}</p>` +
-      (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.want && b.last.want !== b.last.pitch ? ' (the call: <span class="mono">' + esc(b.last.want) + '</span>)' : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.key && b.last.key !== b.last.pitch ? ' · to answer: <span class="mono">' + esc(b.last.key) + '</span>' : ''}${b.last.keyed !== undefined ? ' · keyed as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
+      (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.asked && b.last.asked !== b.last.pitch ? ' (asked for: <span class="mono">' + esc(b.last.asked) + '</span>)' : ''}${b.last.call ? ' · the umpire: ' + esc(b.last.call === 'zone' ? 'in the zone' : b.last.call) : ''}${b.last.want && b.last.want !== b.last.pitch ? ' (the call: <span class="mono">' + esc(b.last.want) + '</span>)' : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.keyed !== undefined ? ' · thrown as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
   }
+  const posn = Object.entries(b.positions || {}).map(([pos, p]) => `${pos} ${esc(p.name)}`).join(' &middot; ');
   stage.innerHTML = `<div class="golfstage golfstage-map"><div>
-      <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'}</div>
+      <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'} &middot; ${b.league === 'major' ? 'the majors' : 'little league'} &middot; ${b.pitcher_mode === 'people' ? 'people pitch' : 'the machine pitches'}</div>
       ${lineScore(b)}${main}
-      <p class="hint" style="text-align:left;margin-top:.6rem">Side A: ${b.lineups.A.map(p => esc(p.name)).join(', ')} &middot; Side B: ${b.lineups.B.map(p => esc(p.name)).join(', ')}</p>
+      <p class="hint" style="text-align:left;margin-top:.6rem">Side A: ${b.lineups.A.map(p => esc(p.name)).join(', ')} &middot; Side B: ${b.lineups.B.map(p => esc(p.name)).join(', ')}${posn ? '<br>In the field: ' + posn : ''}</p>
     </div><div>${diamondSVG(b)}</div></div>`;
-  const t = document.getElementById('ball-typed');
-  if (t) { t.focus(); t.addEventListener('keydown', e => { if (e.key === 'Enter') { const bt = document.querySelector('[data-ball-swing]'); if (bt) bt.click(); } }); }
+  const focusEnter = (inputId, sel) => { const t = document.getElementById(inputId); if (t) { t.focus(); t.addEventListener('keydown', e => { if (e.key === 'Enter') { const bt = document.querySelector(sel); if (bt) bt.click(); } }); } };
+  focusEnter('ball-typed', '[data-ball-swing]'); focusEnter('ball-catch', '[data-ball-catch]'); focusEnter('ball-tag', '[data-ball-tag]');
+  if (['throw', 'throw_pitch'].includes(link) && !ballKey) ballKey = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0, player: actor.id};
 }
+let ballThrown = null;                   // the throw this screen has sounded
 document.addEventListener('click', async e => {
-  const sw = e.target.closest('[data-ball-swing]');
-  if (sw) {
-    const typed = (document.getElementById('ball-typed') || {}).value || '';
-    await api('/api/party/ball/swing', {player: parseInt(sw.dataset.ballSwing, 10), typed});
+  const seatPress = async (attr, path, body) => {
+    const el = e.target.closest(`[data-${attr}]`);
+    if (!el) return false;
+    const player = parseInt(el.dataset[attr.replace(/-([a-z])/g, (m, c) => c.toUpperCase())], 10);
+    await api(path, Object.assign({player}, body ? body() : {}));
     painted = null; tick();
-    return;
-  }
-  const th = e.target.closest('[data-ball-throw]');
-  if (th) {
-    if (ballKey) ballKey.decoder.flush();
-    const keyed = ballKey ? ballKey.decoder.text : '';
-    ballKey = null;
-    await api('/api/party/ball/field', {player: parseInt(th.dataset.ballThrow, 10), keyed});
+    return true;
+  };
+  const typed = id => ((document.getElementById(id) || {}).value || '');
+  const keyed = () => { if (ballKey) ballKey.decoder.flush(); const out = {keyed: ballKey ? ballKey.decoder.text : '', wpm: ballKey ? Math.round(12000 / (ballKey.decoder.dit || 60)) / 10 : null}; ballKey = null; return out; };
+  if (await seatPress('ball-swing', '/api/party/ball/swing', () => ({typed: typed('ball-typed')}))) return;
+  if (await seatPress('ball-take', '/api/party/ball/take')) return;
+  if (await seatPress('ball-catch', '/api/party/ball/catch', () => ({typed: typed('ball-catch')}))) return;
+  if (await seatPress('ball-tag', '/api/party/ball/tag', () => ({typed: typed('ball-tag')}))) return;
+  if (await seatPress('ball-throw', '/api/party/ball/field', keyed)) return;
+  if (await seatPress('ball-pitch', '/api/party/ball/pitch', keyed)) return;
+  const pick = e.target.closest('[data-ball-pick]');
+  if (pick && lastTableState && lastTableState.baseball) {
+    await api('/api/party/ball/pick', {player: lastTableState.baseball.pitcher, difficulty: pick.dataset.ballPick});
     painted = null; tick();
   }
 });
@@ -1736,6 +1768,8 @@ ballBtn.addEventListener('click', async () => {
   await api('/api/party/mode', {mode: 'baseball',
     innings: parseInt(document.getElementById('ball-innings').value, 10) || 3,
     wpm: document.getElementById('ball-wpm').value || null,
+    league: document.getElementById('ball-league').value,
+    pitcher: document.getElementById('ball-pitcher').value,
     level: document.getElementById('bot-level') ? document.getElementById('bot-level').value : null});
   ballBtn.disabled = false;
   tick();
