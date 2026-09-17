@@ -1402,6 +1402,149 @@ play out, and the late innings faster and longer. The top pitch is a
 contact: CQ from the pitcher, the batter answers with their own call,
 report and name both ways, 73. Lives in the Gaming Center with the rest.
 
+**A person on the mound (the plan, agreed 2026-09-17; not built).** The
+machine pitches because it was the only pitcher there was. With enough
+people it should not be: a pitcher on the other side is given the code
+to send and proceeds, and every fielder has a catch and a throw to make,
+which is what baseball is. One to one is a turn copying and a turn
+sending; with teams it is a batting order and a pitching rotation, and
+everyone bats. The rule under all of it: catching is receiving and
+throwing is sending. Batting is receiving too. The earlier rules left too
+many people at the table with nothing to do on most plays; these give the
+outfielder a catch and a throw of their own. If that load proves too much
+for the room, the earlier approach is the one to back off to. These rules
+supersede the built ones wherever the two differ. The machine stays on
+the mound for a table without people enough for a pitcher, and pitches
+under the same rules: at the little league levels it is a competent
+pitcher, every pitch clean and in the zone, so the take is a thing a
+newcomer learns rather than a trap; at the higher levels it adds variety,
+the odd ball on purpose and a fist that is not always the same, so the
+batter's ear matters against the machine as it does against a person.
+
+*What a pitcher chooses.* A human pitcher chooses the pitch by choosing
+how hard a thing they are willing to send. A normal pitch is handed an
+easy patch of code - plain letters, a group, at the level's speed - and a
+pitcher who wants something more extravagant is handed harder code to
+throw it with: numbers and punctuation, cut numbers, 5NN for 599 and T
+for a zero, prosigns run together where letters would do, the speed at
+the top of the band, the spacing stretched or closed. The pitch's
+difficulty is the pitcher's risk and the batter's problem at once, which
+is how baseball has it: the nasty pitch is the one that gets away from
+the pitcher for a ball or a wild pitch, and the one the batter has never
+seen. So the choice needs no declaring; it is declared by what was asked
+for, and the umpire judges the pitch against the text the pitcher chose
+to be given. A harder pitch pays the batter more when it is hit, the way
+the level's bases do now, because a hanging curve gets crushed. At the
+top of the ladder the pitcher composes the text - a real exchange, in
+their own words, inside the rules - and the batter copies whatever came:
+a pitch nobody has seen, theoretically at least, which is the mound's
+oldest privilege. The little league offers the normal pitch only, which is
+simply sending it; the machine, when it pitches, climbs the same ladder
+with the level.
+
+*Pitching.* The prompt goes to the pitcher's phone and nowhere else -
+never the big screen, or the batter reads it. "Send *My QTH is EL16hq*
+at 18 WPM" is a pitch: a grid square is letters and numbers in one short
+group, which is exactly the copy that separates the leagues. The pitch is
+thrown, not streamed: the phone records the keying on its own clock, and
+when the pitcher lifts off, the table plays it once through the speaker
+with the fist exactly as keyed, so nothing on the hall's network can
+stutter it. Little league judges content only, at any speed inside a wide
+band. Major league prescribes the speed and holds the pitch to it, a tenth
+either side; faster is an illegal pitch. The umpire is the decoder, and it
+calls the pitch as thrown: clean, the right text, at speed, is in the zone;
+clean but the wrong text, or off speed, is a *ball*; a pitch that does not
+decode at all is *wild*, nobody can copy it, and the runners advance.
+
+*Batting.* Everyone copies every pitch, fielders included, because a
+fielder who was not listening cannot catch. The batter's copy is the
+swing, and it is graded against what actually went out, not what the
+pitcher was told to send: the pitcher's mistake is the pitcher's. Swing at
+a pitch in the zone and copy it clean, and the hit is sized by the level
+as now; a near miss is a foul, a strike until there are two, as the built
+game already has it; a miss is a strike. Swing at a ball and connect - copy
+exactly what the pitcher keyed, wrong letter and all - and it is a hit one
+base bigger than the level pays, capped at a home run, because the batter
+hit a pitch that was never meant to be hittable; swing at a ball and miss
+and it is only a ball, since it was never a strike. The batter may also
+*take* the pitch, sending nothing, having heard a stutter or a fist that
+was not right, and bet on the umpire's call: take a ball and it is a ball,
+four and a walk; take a strike and, in the majors, it is a called strike,
+which is what standing there costs in the real game. In the little league
+the take is free, so a nervous newcomer can listen to a few before
+committing. The batter cannot know which it will be. That is baseball, and
+it is the pressure on the pitcher that makes a clean fist worth having.
+The phone shows two buttons after the pitch plays, copy it or take it, the
+copy box under the first, and no hint of the call until the umpire speaks.
+
+*Fielding.* Where the ball goes the machine decides from the hit and a
+little chance, and names it by position: a group is a grounder to short
+or second, a word a line drive to third or through for a base hit, a call
+a fly to the outfield, an exchange over their heads. The catch is that
+fielder's copy of the same pitch. A fly ball copied clean is the out, and
+the outfielder never has to key. A grounder copied clean is a ball in the
+glove that still has to be thrown: the fielder keys the text to a baseman,
+judged as a throw by the built game's scale, nine in ten clean - the
+wrong text is a throw in the dirt, off speed or undecodable a wild throw
+and the runners advance - and the baseman's copy
+of that throw is the tag; bobble the copy and the runner is safe on an
+error charged to the baseman. The clock is the runner: each base is a set
+number of seconds at the level, so a grounder to short has to be fielded,
+thrown and caught before the runner reaches first, and with a runner on
+the double play is two throws, which is hard, which is right. Small teams
+collapse the positions - with three a side one player is the whole
+infield - and that is fine so long as the play is still named by position
+and the same person is never asked to catch, throw and catch again on one
+ball. Everyone copying every pitch gives each player a fielding percentage
+for free, and keeps the shy player at second base as busy as the star.
+
+*Innings.* A full play is pitch, copy, throw, copy - close to a minute -
+so three innings is the default, and the late innings that already pitch
+faster and longer become the seventh, eighth and ninth when a hall wants a
+whole game. Between innings is where the wait belongs: the deck from
+`elmer/trivia.py`, with a ham-and-baseball deck added for the ballgame,
+the way every ballpark fills the break. The pitch itself waits on
+nothing.
+
+*The room's load.* A hall of a hundred tables is the design, not yet a
+night that has been had; a virtual run was backed off for network load.
+The phones poll their own table's Pi, every second during a live question
+and every five otherwise, and tables poll the host every five, so the
+steady load is phones per Pi, not answers; six phones on a table is
+nothing and a hundred tables on the host is twenty requests a second. What
+to do, in order: measure a real hall with the pace ledger before building
+anything; jitter the polls by a random fraction of a second so a table's
+phones do not fall into step; slow the live poll while a pitch is playing,
+since nothing changes on the phone until it ends; and only then, if the
+ledger says round close creeps, a grading queue that acknowledges a keyed
+send at once and scores it behind the three seconds of Scoring that are
+already there.
+
+And the player's own device - phone, Pi seat or PC - holds its result
+until its part in the play is decided. A play is a series: the pitcher
+sends, the batter swings or takes, the ball goes to a fielder, the
+fielder throws, the baseman catches for the out. Every device makes its
+copy as the pitch plays and stamps it with its own clock, the way the
+tournament already times answers; but with the pitch the table sends each
+device a silent token - never shown, only held - that says *hold for the
+trigger*. A device releases its copy when the trigger for its link comes
+down with a poll: the batter's at once, the fielder's when the ball is
+sent their way, the baseman's when the throw is made. The play is
+complete *for that player* when their link is decided, and that is when
+they send. A player whose role never comes up - the seven fielders the
+ball did not reach - hold theirs to the inning break, where it is handed
+up as readiness and a fielding percentage. So a nine-a-side play is one
+submission a link, spaced by the play itself, instead of nine in the
+same second, and no request is ever made for a copy nothing is waiting
+on. The clock stamp is what keeps holding fair: a copy held for twenty
+seconds was still made in the two it took. Two consequences to build in:
+the runner's clock for a link runs from the trigger's arrival on that
+device, not from the pitch, so a second of polling is never charged to
+the fielder; and a held copy lives in the device's own storage, so a
+phone that sleeps and wakes still has it, while a device that never
+answers its trigger is a runner safe on the clock, which is the rule
+already.
+
 ### Your QTH, set once
 
 Your location is a single setting shared by everything that needs it. Set it on
@@ -1998,8 +2141,8 @@ and a timed contest mode.
 A study tool assumes one person and a quiet evening. A club night is neither.
 Every class card on the dashboard has a **Gaming Center** button, and it
 opens the table screen with that class chosen and every game the table can
-run in one panel: **Tournament**, **Shootout**, **CutThroat** and **Golf**,
-and an open slot for the next one. Pick the class and the pace at the top,
+run in one panel: **Tournament**, **Shootout**, **CutThroat**, **Golf** and
+**CW Baseball** (its rules are under CW). Pick the class and the pace at the top,
 then a game; while one is in play the tiles stand down and the readout says
 which. A game pressed with nobody at the table asks first - sit down at a
 seat, or scan the code, or start anyway and watch - because a game started

@@ -5,6 +5,10 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-17
+
+- CW Baseball with a person on the mound, planned: the pitcher on the other side keys the pitch, the umpire calls it as thrown - in the zone, a ball, or wild - the batter may swing or take, a ball hit clean is a bigger hit, and every fielder has a catch and a throw on the runner's clock; the Gaming Center's list names CW Baseball instead of an open slot
+
 ## 2026-09-16
 
 - One colour a band, everywhere - the reach map in the band's own hue, the band buttons, the Lab's chips and meter, the outlook, the home page, the path ladder and the printed chart; four families in one file, one a kind of thing: bands saturated and tuned so the colour-blind can tell the eight everyday bands apart, modes pastel and the same on every band, licence classes in earth tones, and one safety orange for "you are here"
