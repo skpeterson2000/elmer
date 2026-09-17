@@ -860,13 +860,19 @@ def main():
         def _open_when_ready(url=f"http://localhost:{args.port}/"):
             import urllib.request
             import webbrowser
-            for _ in range(150):
+            # Wait on the cheapest answer the server gives, not the home
+            # page: polling / with a one-second timeout built a full page a
+            # try, and on a day the page took longer than a second to build
+            # every try timed out - fifty-eight of them, and no window.
+            ping = f"http://127.0.0.1:{args.port}/api/ping"
+            for _ in range(300):
                 try:
-                    urllib.request.urlopen(url, timeout=1).close()
+                    urllib.request.urlopen(ping, timeout=3).close()
                     break
                 except Exception:
                     time.sleep(0.2)
             else:
+                logging.getLogger("elmer").warning("window: the server did not answer within a minute - no window opened")
                 return
             from elmer import window
             try:

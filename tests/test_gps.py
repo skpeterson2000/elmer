@@ -167,8 +167,22 @@ def main():
     started = time.monotonic()
     check("refused outright, not waited on",
           gps.read_fix("127.0.0.1", dead, timeout=3), None)
-    check("  and it did not spend the timeout doing it",
-          time.monotonic() - started < 1.0, True)
+    # Linux refuses a dead loopback port at once; Windows retries the SYN
+    # twice first and takes two seconds over it - which is why gps.fix()
+    # probes in a thread of its own rather than on a page's time.
+    import os as _os
+    check("  and it did not spend the timeout doing it" + (" (Windows takes two seconds to refuse)" if _os.name == "nt" else ""),
+          time.monotonic() - started < (3.0 if _os.name == "nt" else 1.0), True)
+
+    print("\n-- the probe is never on the caller's time --")
+    gps._last["at"] = 0.0
+    gps._last["fix"] = None
+    started = time.monotonic()
+    got = gps.fix(None)
+    check("fix() answers at once with what it last knew", (got, time.monotonic() - started < 0.2), (None, True))
+    check("  and a thread is off looking", gps._refresh["thread"] is not None and gps._refresh["thread"].name == "gps-fix", True)
+    gps._refresh["thread"].join(8)
+    check("  which comes back empty here, and says so", (gps._last["at"] > 0, gps._last["fix"]), (True, None))
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

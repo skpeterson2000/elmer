@@ -236,20 +236,43 @@ def probe(host=None, port=None, seconds=4.0):
     return out
 
 
+_refresh = {"thread": None}
+
+
 def fix(conn=None, max_age=FRESH_FOR):
-    """The current position, cached briefly so a page load is not a GPS read.
+    """The current position, as last found - never a live read on the
+    caller's time.
 
     Thirty seconds is half a mile at highway speed, which is nothing to an
     antenna pattern and everything to a page that would otherwise open a
-    socket for each of six panels.
+    socket for each of six panels. And a page that asks after the answer
+    has gone stale gets the last one at once while a thread goes looking:
+    the probe for a receiver - gpsd, TowerWitch, a phone, another ELMER -
+    took two seconds to come back empty on a laptop with none, and it was
+    landing on whichever page asked first, every half minute; the home
+    page, mostly, and the launcher waiting on it.
     """
     now = time.time()
-    if now - _last["at"] < max_age:
-        # Reuse the last answer, including "there is nothing there". A gpsd
-        # that is switched off must cost one timeout every half minute, not
-        # one per panel on every page.
-        return _last["fix"]
-    host, port = target(conn)
+    if now - _last["at"] >= max_age:
+        t = _refresh["thread"]
+        if t is None or not t.is_alive():
+            import threading
+            host, port = target(conn)
+            t = threading.Thread(target=_look, args=(host, port), name="gps-fix", daemon=True)
+            _refresh["thread"] = t
+            t.start()
+    # The last answer, including "there is nothing there" - and a fix that
+    # has gone quiet is still where you are for a few minutes; a tunnel is
+    # not a teleport. Past that, stop claiming to know.
+    if _last["fix"] and now - _last["fix"]["read_at"] >= STALE_AFTER:
+        _last["fix"] = None
+    return _last["fix"]
+
+
+def _look(host, port):
+    """One probe for a fix, off the request path: what fix() used to do
+    on the caller's time. The sources in the order they are trusted."""
+    now = time.time()
     found = read_fix(host, port)
     if not found:
         # The station's own GPS, taken off the network where TowerWitch puts
@@ -289,13 +312,9 @@ def fix(conn=None, max_age=FRESH_FOR):
     _last["at"] = now
     if found:
         _last["fix"] = found
-        return found
-    # A fix that has gone quiet is still where you are for a few minutes - a
-    # tunnel is not a teleport. Past that, stop claiming to know.
-    if _last["fix"] and now - _last["fix"]["read_at"] < STALE_AFTER:
-        return _last["fix"]
-    _last["fix"] = None
-    return None
+    elif _last["fix"] and now - _last["fix"]["read_at"] >= STALE_AFTER:
+        _last["fix"] = None
+    return _last["fix"]
 
 
 # ------------------------------------------------------------- the sleuth

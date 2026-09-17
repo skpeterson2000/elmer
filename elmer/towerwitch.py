@@ -202,14 +202,25 @@ def find():
 _started = {"proc": None, "at": 0.0}
 
 
-def processes():
+_processes = {"at": 0.0, "out": []}
+PROCESSES_FOR = 20.0            # seconds a process listing is reused: a page is not a reason to list them again
+
+
+def processes(max_age=PROCESSES_FOR):
     """Every TowerWitch process on this machine, as (pid, command line):
     a Python running one of its scripts - not a shell that names it, and
-    never this program."""
+    never this program. Listed at most every PROCESSES_FOR seconds: on
+    Windows the listing is a PowerShell that takes most of a second, and
+    it was being run for every home page."""
     import os
     import subprocess
+    import time
+    if time.time() - _processes["at"] < max_age:
+        return list(_processes["out"])
     mine = {os.getpid(), os.getppid()}
     out = []
+    _processes["at"] = time.time()
+    _processes["out"] = out
     try:
         if os.name == "nt":
             res = subprocess.run(
