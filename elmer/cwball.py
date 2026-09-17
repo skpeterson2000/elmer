@@ -181,6 +181,7 @@ class Baseball:
         self.plays = []
         self.winner = None
         self.stats = {}                   # player -> {"copies", "clean", "catches", "caught", "throws", "clean_throws"}
+        self._counted = set()             # (player, pitch n) whose copy is already in the record
         self._bot_at = None
 
     # ----------------------------------------------------------- who is who
@@ -462,6 +463,7 @@ class Baseball:
         play.update({"typed": str(typed or "")[:60], "copy_pct": pct, "swung": True})
         s = self.stat(player)
         s["copies"] += 1
+        self._counted.add((player, self.pitch["n"]))
         ball = self.pitch["call"] == "ball"
         if pct >= HIT_PCT:
             s["clean"] += 1
@@ -611,6 +613,7 @@ class Baseball:
         s = self.stat(player)
         s["copies"] += 1
         s["catches"] += 1
+        self._counted.add((player, self.pitch["n"]))
         if pct >= HIT_PCT:
             s["clean"] += 1
             s["caught"] += 1
@@ -734,20 +737,34 @@ class Baseball:
         return play
 
     def readiness(self, player, n, typed):
-        """A copy of a pitch from anybody in the field whose link never came
-        - handed up with a poll, or at the inning break. It is readiness and
-        a fielding percentage, never the play. Returns the percentage."""
-        if not self.pitch or int(n or 0) != self.pitch["n"] or not self.pitch.get("want"):
-            return {"error": "not this pitch"}
-        team = self.fielding()
-        if player not in self.lineups[team] and player not in self.lineups[self.batting()]:
+        """A copy of a pitch from anybody whose link never came - handed up
+        after the reveal if it was clean, at the inning break if it was not,
+        the device having graded it first against the pitch the reveal
+        showed. It is readiness and a fielding percentage, never the play;
+        a pitch already counted for this player is not counted twice.
+        Returns the percentage."""
+        try:
+            n = int(n or 0)
+        except (TypeError, ValueError):
+            return {"error": "not a pitch"}
+        want = None
+        if self.pitch and n == self.pitch["n"]:
+            want = self.pitch.get("want")
+        else:
+            want = next((pl.get("want") for pl in reversed(self.plays) if pl.get("n") == n), None)
+        if not want:
+            return {"error": "not a pitch of this game"}
+        if player not in self.lineups["A"] and player not in self.lineups["B"]:
             return {"error": "not in this game"}
-        pct = accuracy_any(self.pitch["want"], typed)
+        if (player, n) in self._counted:
+            return {"ok": True, "pct": accuracy_any(want, typed), "counted": False}
+        self._counted.add((player, n))
+        pct = accuracy_any(want, typed)
         s = self.stat(player)
         s["copies"] += 1
         if pct >= HIT_PCT:
             s["clean"] += 1
-        return {"ok": True, "pct": pct}
+        return {"ok": True, "pct": pct, "counted": True}
 
     # --------------------------------------------------------- the runners
     def _advance(self, bases):

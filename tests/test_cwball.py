@@ -159,7 +159,16 @@ def run():
     g = game(seed=1)
     r = g.readiness(5, g.pitch["n"], g.pitch["want"])
     check("a fielder's copy handed up with a poll counts, and is never the play", (r["pct"], g.phase, g.stats[5]["copies"], g.stats[5]["clean"]), (100, "pitch", 1, 1))
-    check("  a copy of some other pitch is not taken", "error" in g.readiness(5, 99, "x"), True)
+    check("  a copy of no pitch of this game is not taken", "error" in g.readiness(5, 99, "x"), True)
+    r = g.readiness(5, g.pitch["n"], g.pitch["want"])
+    check("  and the same pitch is not counted twice for one player", (r["counted"], g.stats[5]["copies"]), (False, 1))
+    n, want = g.pitch["n"], g.pitch["want"]
+    g.swing(1, want); g.catch(g.fielder, want)
+    catcher = g.last["fielder"]
+    check("  the catch already counted that fielder's copy", g.readiness(catcher, n, want)["counted"], False)
+    g.tick(g.deadline + 1); g.tick(g.deadline + 1)
+    r = g.readiness(2, n, want[:-1] + "?")
+    check("a wrong copy held to the break is still taken, graded against that pitch", (g.pitch["n"] != n, r["ok"], r["pct"] < 100, g.stats[2]["copies"]), (True, True, True, 1))
 
     print("\n-- a person on the mound --")
     g = people(seed=2)

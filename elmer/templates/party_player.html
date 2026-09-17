@@ -1131,6 +1131,31 @@ function ballKeyer(buttonId, outId) {
   k.wpm = () => Math.round(12000 / (k.decoder.dit || 60)) / 10;   // the fist's own speed, from its dits
   return k;
 }
+/* The phone's own umpire for a held copy: the reveal carries the pitch, so
+   the grade is the same rule the table uses - characters right, in order,
+   a cut number read either way - worked out here, for the player to see. */
+const CUT = {T: '0', N: '9', A: '1', D: '7'};
+function ballUncut(text) {
+  return String(text || '').toUpperCase().split(/\s+/).map(w =>
+    (/\d/.test(w) && /^[0-9TNAD]+$/.test(w)) ? w.replace(/[TNAD]/g, c => CUT[c]) : w).join(' ');
+}
+function ballPct(want, got) {
+  const a = String(want || '').toUpperCase().replace(/\s+/g, ''), g = String(got || '').toUpperCase().replace(/\s+/g, '');
+  if (!a.length) return 0;
+  let hits = 0;
+  for (let i = 0; i < a.length; i++) if (g[i] === a[i]) hits++;
+  return Math.round(100 * hits / a.length);
+}
+function ballGrade(b, held) {
+  if (!held || !b.last || b.last.n !== held.n || !b.last.want) return null;
+  if (!(b.phase === 'reveal' || b.phase === 'between' || b.over || (b.pitch && b.pitch.n > held.n))) return null;
+  const want = b.last.want, got = held.typed || '';
+  const pct = Math.max(ballPct(want, got), ballPct(ballUncut(want), ballUncut(got)));
+  const a = want.toUpperCase().replace(/\s+/g, ''), g = got.toUpperCase().replace(/\s+/g, '');
+  let miss = -1;
+  for (let i = 0; i < a.length; i++) if (g[i] !== a[i]) { miss = i; break; }
+  return {pct, clean: pct >= 90, want, got, miss};
+}
 const ballCopyBox = (id, placeholder) => `<input id="${id}" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="${placeholder}">`;
 const ballKeyPad = () => `<button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
          <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>`;
@@ -1154,11 +1179,19 @@ function paintBaseballPhone(b) {
     api('/api/party/ball/catch', {player: me.id, typed: held.typed}).then(() => { shownRound = null; tick(); });
     return;
   }
-  // a held copy whose link never came: readiness, once the play is over
-  if (held && b.pitch && (b.phase === 'reveal' || b.phase === 'between' || b.over || held.n < b.pitch.n) && phoneLinkSent !== 'copy' + held.n) {
-    phoneLinkSent = 'copy' + held.n;
-    api('/api/party/ball/copy', {player: me.id, n: held.n, typed: held.typed}).catch(() => {});
-    ballForget();
+  // A held copy whose link never came. The phone grades it itself the
+  // moment the reveal shows what the pitch was - the verdict is on the
+  // screen at once, no request made - and then a clean copy is handed up
+  // now, toward the fielding record, while a wrong one waits for the
+  // inning break: nothing urgent to say, and the right answers first.
+  const graded = ballGrade(b, held);
+  if (graded && phoneLinkSent !== 'copy' + held.n) {
+    const quiet = b.phase === 'between' || b.over;
+    if (graded.clean || quiet) {
+      phoneLinkSent = 'copy' + held.n;
+      api('/api/party/ball/copy', {player: me.id, n: held.n, typed: held.typed}).catch(() => {});
+      ballForget();
+    }
   }
   if (!['throw', 'throw_pitch'].includes(b.your_link)) phoneKey = null;
   const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
@@ -1212,8 +1245,14 @@ function paintBaseballPhone(b) {
       main = `<p>${escapeHTML(words)}.</p>`;
     }
   } else {
+    const mine = ballGrade(b, held);
     main = `<p>${escapeHTML((b.last && b.last.words) || '')}</p>` +
-      (b.last && b.last.pitch ? `<p class="tiny muted">The pitch was <span class="mono">${escapeHTML(b.last.pitch)}</span>${b.last.asked && b.last.asked !== b.last.pitch ? ' (asked for: <span class="mono">' + escapeHTML(b.last.asked) + '</span>)' : ''}${b.last.call ? ' · the umpire: ' + escapeHTML(b.last.call === 'zone' ? 'in the zone' : b.last.call) : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + escapeHTML(b.last.typed || '·') + '</span>' : ''}</p>` : '');
+      (b.last && b.last.pitch ? `<p class="tiny muted">The pitch was <span class="mono">${escapeHTML(b.last.pitch)}</span>${b.last.asked && b.last.asked !== b.last.pitch ? ' (asked for: <span class="mono">' + escapeHTML(b.last.asked) + '</span>)' : ''}${b.last.call ? ' · the umpire: ' + escapeHTML(b.last.call === 'zone' ? 'in the zone' : b.last.call) : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + escapeHTML(b.last.typed || '·') + '</span>' : ''}</p>` : '') +
+      (mine ? (mine.clean
+        ? `<p><b>You had it clean.</b> <span class="mono">${escapeHTML(mine.got)}</span></p>`
+        : mine.got
+          ? `<p><b>You had ${mine.pct}% of it.</b> <span class="mono">${escapeHTML(mine.got)}</span>${mine.miss >= 0 ? ' - the ' + ordinal(mine.miss + 1) + ' character went wrong' : ''}</p>`
+          : `<p class="tiny muted">You held nothing for that pitch.</p>`) : '');
   }
   view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">${score}${main}
     <p class="tiny muted" style="margin-top:.8rem">Bases: ${(b.bases || []).map((x, i) => x ? ordinal(i + 1) + ' ' + escapeHTML(x.name) : '').filter(Boolean).join(', ') || 'empty'}</p></div>`;

@@ -1533,12 +1533,20 @@ down with a poll: the batter's at once, the fielder's when the ball is
 sent their way, the baseman's when the throw is made. The play is
 complete *for that player* when their link is decided, and that is when
 they send. A player whose role never comes up - the seven fielders the
-ball did not reach - hold theirs to the inning break, where it is handed
-up as readiness and a fielding percentage. So a nine-a-side play is one
-submission a link, spaced by the play itself, instead of nine in the
-same second, and no request is ever made for a copy nothing is waiting
-on. The clock stamp is what keeps holding fair: a copy held for twenty
-seconds was still made in the two it took. Two consequences to build in:
+ball did not reach - keeps theirs, and when the reveal shows what the
+pitch was, the device grades its own copy by the table's rule and puts
+the verdict on the screen at once, no request made: *you had it clean*,
+or *you had 67% - the third character went wrong*, which is what a
+fielder who never got the ball would otherwise never learn, and is the
+proficiency the game is for. Then the right answers go first: a clean
+copy is handed up now, toward the fielding record; a wrong one has
+nothing urgent to say and waits for the inning break. Whether any of
+this shaping was ever needed is the pace ledger's to say after a real
+night - the phones learn of the reveal from their own polls, spread
+across the polling interval already - and until it says so, nothing
+more is built for load. The clock stamp is what keeps holding fair: a
+copy held for twenty seconds was still made in the two it took. Two
+consequences to build in:
 the runner's clock for a link runs from the trigger's arrival on that
 device, not from the pitch, so a second of polling is never charged to
 the fielder; and a held copy lives in the device's own storage, so a
