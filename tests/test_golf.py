@@ -202,6 +202,10 @@ def run():
     g.play_one("b", {"correct": False, "club": "driver"})     # a foul ball, short
     g.play_one("c", {"correct": True, "club": "driver"})      # 250 out
     check("  then whoever is farthest from the hole", g.away(), "b")
+    side = golf.Golf(["a", "b"], flat_course(), seed=1)
+    side.balls["a"].at, side.balls["a"].off, side.balls["a"].lie, side.balls["a"].strokes = 399, 15, "fringe", 2
+    side.balls["b"].at, side.balls["b"].off, side.balls["b"].lie, side.balls["b"].strokes = 397, 0, "green", 2
+    check("  as the crow flies: pin-high on the collar fifteen yards out is farther than three yards short on the green", side.away(), "a")
     check("a stroke by a player who is not on the hole is refused",
           "error" in g.play_one("zed", {"correct": True}), True)
     while g.hole() and g.hole()["n"] == 1 and g.away():

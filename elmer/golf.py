@@ -1145,7 +1145,14 @@ class Golf:
             last = self.history[-1] if self.history else None
             card = (last or {}).get("card") or {}
             return min(playing, key=lambda p: (card.get(p, 99), order[p]))
-        return max(playing, key=lambda p: (h["yards"] - self.balls[p].at, -order[p]))
+        # Farthest from the hole - as the crow flies, along and across
+        # both. Along alone had a ball pin-high on the collar, fifteen
+        # yards to the side, counted as nearer than one three yards short
+        # on the green, and its owner watching the other putt.
+        def from_hole(p):
+            b = self.balls[p]
+            return ((h["yards"] - b.at) ** 2 + (b.off or 0) ** 2) ** 0.5
+        return max(playing, key=lambda p: (from_hole(p), -order[p]))
 
     def _stroke(self, h, p, ball, answer):
         """One player's stroke with one answer: where the ball went, in
