@@ -92,9 +92,25 @@ dashboard and in every problem report; [CHANGELOG.md](CHANGELOG.md) is one
 line a commit, by day. The dashboard's *Update now* brings a unit to the
 current build.
 
+**Pre-release.** ELMER is in pre-release. Features will continue to appear
+and to be refined while bugs are found and taken out, and what a feature
+does today may not be precisely what the final version does, where that
+latitude exists. The changelog says what changed and when; the dashboard
+says which build a unit is running.
+
 **Who runs it.** Three Raspberry Pis and a Windows laptop on the author's
 bench, and the tests. No club has run an evening on it yet; the first that
 does gets named here, with the date.
+
+**The User's Guide.** ELMER's own manual is on the Library shelf of every
+unit, indexed and searched like any book and opened in the same reader, so
+a kiosk with no file manager still has it. It is built from
+[docs/USER-GUIDE.md](docs/USER-GUIDE.md) when ELMER starts, and rebuilt
+when the text changes with an update. Taken off the shelf by accident, it
+comes back when ELMER next starts, and the dashboard's self-check can put
+it back sooner. An operator who does not want it ticks *I decline the
+User's Guide and any future updates to it* on the Library page, and it is
+taken off and never put back.
 
 **What it fetches, and what it does not.** Space weather, the ionosonde
 record, the coordinator's plan, the weather at the golf course, the POTA

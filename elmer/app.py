@@ -1984,11 +1984,13 @@ def library_page():
 def api_library():
     """What is on the shelf and how current each index is. Reading only:
     indexing a thousand-page manual takes a while and is asked for."""
+    from . import manual
     tools = library.tools_present()
     return jsonify({"path": str(library.SHELF), "tools": tools,
                     "tools_note": None if tools["pdftotext"] else library.missing_tools_note(),
                     "shelf": library.catalogue(), "topics": library.topic_map(),
                     "mine": library.mine(conn()),
+                    "manual": manual.status(conn()),
                     "reindex_days": library.REINDEX_DAYS})
 
 
@@ -2090,7 +2092,10 @@ def api_library_gear():
 
 @app.route("/api/library/remove", methods=["POST"])
 def api_library_remove():
-    """Take a book off the shelf. Its index goes with it."""
+    """Take a book off the shelf. Its index goes with it. The User's Guide
+    comes back when ELMER next starts unless it is declined, and the reply
+    says so."""
+    from . import manual
     body = request.get_json(silent=True) or {}
     pdf = library.book(body.get("name"))
     if pdf is None:
@@ -2098,7 +2103,23 @@ def api_library_remove():
     pdf.unlink()
     library.refresh()                    # drops the orphaned index
     log.info("library: %s removed from the shelf", pdf.name)
-    return jsonify({"removed": pdf.name, "shelf": library.catalogue()})
+    note = ("The User's Guide comes back when ELMER next starts, and the doctor's Fix "
+            "brings it back sooner. To keep it off, decline it below."
+            if pdf.name == manual.NAME and not manual.declined(conn()) else "")
+    return jsonify({"removed": pdf.name, "shelf": library.catalogue(), "note": note})
+
+
+@app.route("/api/library/manual", methods=["POST"])
+def api_library_manual():
+    """The operator's word on ELMER's own guide: declined, it comes off the
+    shelf and is never put back; accepted again, it is placed now. A setting
+    of the unit, since the shelf is shared."""
+    from . import manual
+    body = request.get_json(silent=True) or {}
+    out = manual.decline(conn(), bool(body.get("declined")))
+    if not out["declined"]:
+        library.refresh(only=manual.NAME)
+    return jsonify({"manual": manual.status(conn()), "shelf": library.catalogue(), **out})
 
 
 @app.route("/library/read/<path:name>")
@@ -6701,7 +6722,20 @@ def _remedy_stop_op25():
     return True, f"stopped {stopped}" if stopped else "nothing was running"
 
 
+def _remedy_manual():
+    """Put the User's Guide back on the shelf, or bring it up to date."""
+    from . import manual
+    done = manual.place(conn(), force=True)
+    if done["did"] == "declined":
+        return False, "the guide is declined on the Library page - take that back first"
+    if done["did"] == "built":
+        library.refresh(only=manual.NAME)
+        return True, f"{manual.NAME} is on the shelf and indexed"
+    return False, done.get("why") or done["did"]
+
+
 REMEDIES = {
+    "manual": ("put the User's Guide back on the shelf", _remedy_manual),
     "start-menu": ("put ELMER on the Start Menu, with its icon", _remedy_start_menu),
     "forget-net": ("forget the net this table remembers", _remedy_forget_net),
     "leave-net": ("cut this table loose from the net it is reporting to", _remedy_leave_net),

@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-17
 
+- The User's Guide: ELMER's own manual, built from docs/USER-GUIDE.md onto the Library shelf with chapters, a contents page and screenshots, indexed and searched like any book; back when ELMER next starts if it is taken off, a Fix on the self-check, and a switch on the Library page to decline it and its updates; the README and the guide say it is pre-release
 - CW Baseball: a fielder the ball never reached learns how they copied the moment the pitch is revealed - graded on their own phone, no request made - and the right answers go home first: a clean copy now, a wrong one at the inning break
 - CW Baseball, built to the new rules: a person on the mound when the tile says so, the pitch chosen by how hard a thing to send and called by the umpire as thrown, swing or take, everybody copies every pitch and holds it on their own device until the play comes to them, the ball to a fielder by position, catch, throw and tag on the clock, the force at second and two, little league or the majors
 - CW Baseball with a person on the mound, planned: the pitcher on the other side keys the pitch, the umpire calls it as thrown - in the zone, a ball, or wild - the batter may swing or take, a ball hit clean is a bigger hit, and every fielder has a catch and a throw on the runner's clock; the Gaming Center's list names CW Baseball instead of an open slot

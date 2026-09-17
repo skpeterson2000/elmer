@@ -144,7 +144,7 @@ def collect(port=5000):
     _collected = []
     try:
         for check in (check_pools, check_figures, check_explanations,
-                      check_database, check_templates, check_tools,
+                      check_database, check_templates, check_tools, check_manual,
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
                       check_towerwitch_service, check_towerwitch_beside,
@@ -395,6 +395,27 @@ def check_library():
     else:
         _line(OK, "library", f"{len(rows)} book{'s' if len(rows) != 1 else ''}, "
               f"{pages} pages indexed")
+    return True
+
+
+def check_manual():
+    """ELMER's own guide, on the shelf with the operator's manuals."""
+    from . import db, manual
+    try:
+        st = manual.status(db.connect())
+    except Exception as exc:
+        _line(WARN, "user's guide", f"could not look: {type(exc).__name__}: {exc}")
+        return True
+    if st["declined"]:
+        _line(OK, "user's guide", "declined on the Library page - not on the shelf, and not put back")
+    elif not st["source"]:
+        _line(WARN, "user's guide", "docs/USER-GUIDE.md is not in this checkout, so there is nothing to build it from")
+    elif not st["present"]:
+        _line(WARN, "user's guide", f"not on the shelf - it comes back when ELMER next starts, or now", fix="manual")
+    elif st["stale"]:
+        _line(WARN, "user's guide", "on the shelf, but the text has changed since it was built - rebuilt when ELMER next starts, or now", fix="manual")
+    else:
+        _line(OK, "user's guide", f"{manual.NAME} on the shelf")
     return True
 
 
@@ -1148,7 +1169,7 @@ def doctor(port=5000):
 
     results = [
         check_pools(), check_figures(), check_explanations(), check_database(),
-        check_templates(), check_tools(), check_library(), check_kiosk(),
+        check_templates(), check_tools(), check_library(), check_manual(), check_kiosk(),
         check_launcher(),
         check_updates(), check_location(),
         check_gps(), check_repeaters(), check_towerwitch_service(), check_towerwitch_beside(),

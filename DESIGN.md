@@ -890,6 +890,32 @@ for search to read* on the shelf, so an empty result reads as what it is
 rather than as the word not being in the book. It opens and reads like any
 other; ELMER does not OCR it.
 
+### The User's Guide, on the same shelf
+
+ELMER's own manual is a book on the operator's shelf, not a file somewhere
+a kiosk cannot reach: built from `docs/USER-GUIDE.md` by `elmer/manual.py`
+into a PDF with real bookmarks, one a chapter, a table of contents with
+page numbers, the screenshots in `docs/screenshots/guide/`, and the build
+in the footer, and placed at `data/library/ELMER-Users-Guide.pdf` when
+ELMER starts if it is missing or the text has changed. The Library indexes
+it as it would any book, so the search finds it, the topic map places its
+chapters, and the reader opens it to the page. The markdown is a small
+subset - title, chapters, sections, paragraphs, bullets, notes, pictures,
+bold, italic, code - so the file reads plainly on GitHub and renders here
+with reportlab alone.
+
+It can be taken off the shelf like any other book, and it comes back when
+ELMER next starts; the doctor has a line for it and a *Fix* that puts it
+back sooner, because a guide deleted by accident on a kiosk is a guide
+nobody can find again. An operator who does not want it ticks *I decline
+the User's Guide and any future updates to it* on the Library page, and it
+is taken off and never put back until they untick it. That is a setting of
+the unit (`manual_declined`), not of whoever is signed in, because the
+shelf is shared. The README says the same in a paragraph, and the guide's
+front matter carries the pre-release notice: features will continue to
+appear and be refined, and what a feature does today may not be precisely
+what the final version does, where that latitude exists.
+
 ## Showing the working
 
 ELMER does not ship antenna plans. There are plenty of those, and a plan

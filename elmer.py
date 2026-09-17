@@ -949,6 +949,17 @@ def main():
         # Pi that is several seconds of nothing on screen. The browser takes a
         # moment to come up; this fills it.
         threading.Thread(target=warm, daemon=True, name="elmer-warm").start()
+        # ELMER's own User's Guide, on the Library shelf with the operator's
+        # manuals: placed if it is missing, rebuilt if the text changed with
+        # an update, left alone if the operator declined it. See manual.py.
+        def _guide():
+            try:
+                from elmer import db as _mdb, manual as _manual
+                _manual.place(_mdb.connect())
+            except Exception as _exc:
+                import logging
+                logging.getLogger("elmer").info("user's guide not placed: %s", _exc)
+        threading.Thread(target=_guide, daemon=True, name="elmer-guide").start()
         # And the sky: the ionosonde network and the space-weather feed,
         # fetched once now so the Lab and the band plan open on a measurement
         # rather than a textbook layer. Network allowed to be absent.

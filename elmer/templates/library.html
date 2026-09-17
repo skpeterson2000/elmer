@@ -115,6 +115,16 @@
     Contact starts from that.
   </p>
   <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
+  <p class="small muted" style="margin:.8rem 0 0;max-width:80ch" id="lib-manual-note">
+    ELMER's own <b>User's Guide</b> is on this shelf, indexed and searched like
+    any book. Taken off by accident, it comes back when ELMER next starts, and
+    the dashboard's self-check can put it back sooner. It is rebuilt when the
+    text changes with an update.
+  </p>
+  <label class="small" style="display:flex;align-items:flex-start;gap:.5rem;margin:.4rem 0 0;max-width:80ch;cursor:pointer">
+    <input type="checkbox" id="lib-manual-decline" style="margin-top:.2rem">
+    <span>I decline the User's Guide and any future updates to it. Take it off the shelf and do not put it back.</span>
+  </label>
 </div>
 
 {% endblock %}
@@ -190,6 +200,21 @@
       </div>`).join('');
   }
 
+  const declineBox = document.getElementById('lib-manual-decline');
+  function paintManual(d) {
+    const m = d.manual || {};
+    if (declineBox) declineBox.checked = !!m.declined;
+    const note = document.getElementById('lib-manual-note');
+    if (note && m.declined) note.innerHTML = "ELMER's own <b>User's Guide</b> is declined on this unit: not on the shelf, and not put back by a start or an update. Untick below to have it back.";
+  }
+  if (declineBox) declineBox.addEventListener('change', async () => {
+    if (declineBox.checked && !confirm("Decline the User's Guide? It is taken off the shelf now and not put back by a start or an update, until you untick this.")) { declineBox.checked = false; return; }
+    declineBox.disabled = true;
+    try { await postJSON('/api/library/manual', {declined: declineBox.checked}); await load(); }
+    catch (err) { declineBox.checked = !declineBox.checked; }
+    declineBox.disabled = false;
+  });
+
   function paintTopics(d) {
     const topics = (d.topics || []).filter(t => t.pointers && t.pointers.length);
     if (!topics.length) {
@@ -255,7 +280,7 @@
   async function load() {
     let d;
     try { d = await api('/api/library'); } catch (e) { shelfBox.innerHTML = '<div class="warntext small">Could not read the shelf.</div>'; return; }
-    paintShelf(d); paintTopics(d);
+    paintShelf(d); paintTopics(d); paintManual(d);
     // Anything new or changed is read now, and the page says so while it
     // reads: a thousand pages is a little while on a Pi.
     if ((d.shelf || []).some(b => b.stale) && d.tools && d.tools.pdftotext) await reindex(false);
@@ -390,7 +415,8 @@
     const r = e.target.closest('[data-remove]');
     if (r) {
       if (!confirm('Take ' + r.dataset.remove + ' off the shelf? The file is deleted from this unit.')) return;
-      await postJSON('/api/library/remove', {name: r.dataset.remove});
+      const gone = await postJSON('/api/library/remove', {name: r.dataset.remove});
+      if (gone && gone.note) alert(gone.note);
       load();
     }
   });
