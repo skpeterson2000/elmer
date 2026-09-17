@@ -134,6 +134,17 @@ table.res td.ms { text-align: right; font-family: var(--mono); color: var(--dim)
 .board .bc.wrong { opacity: .8; }
 .board .bc.gone { animation: bc-fall .6s ease-in forwards; pointer-events: none; }
 @keyframes bc-fall { to { opacity: 0; transform: translateY(1.2rem); max-height: 0; padding: 0 1rem; margin: 0; border-width: 0; } }
+/* A wrong answer somebody chose: lit red for a beat, shaken, and only
+   then dropped - too quick to read, long enough to see the shot went
+   wrong. The unchosen wrong ones just fall. */
+.board .bc.picked { animation: bc-miss 1.7s ease-in forwards; pointer-events: none; }
+@keyframes bc-miss {
+  0% { border-color: #e05a5a; background: #3a1a1a; box-shadow: 0 0 0 2px #e05a5a inset; transform: translateX(0); }
+  8% { transform: translateX(-6px); } 16% { transform: translateX(6px); } 24% { transform: translateX(-4px); } 32% { transform: translateX(0); }
+  60% { opacity: 1; border-color: #e05a5a; background: #3a1a1a; max-height: 8rem; }
+  100% { opacity: 0; transform: translateY(1.2rem); max-height: 0; padding: 0 1rem; margin: 0; border-width: 0; }
+}
+.soundctl { display: inline-flex; align-items: center; gap: .3rem; margin-left: .4rem; }
 .board.stand { grid-template-columns: 1fr; }
 
 /* Two seats at the screen. */
@@ -274,6 +285,7 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
     <h1>{{ name }}</h1>
     <span class="chip" id="round-chip">no round</span>
     <span class="cap" id="cap"></span>
+    <span id="soundctl" class="soundctl" title="sound"></span>
     <span class="roommark" id="roommark" data-class="{{ difficulty }}"><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
     <button class="btn sm danger" id="endtable">Close the table</button>
   </div>
@@ -935,11 +947,12 @@ const REVEAL_HOLD_S = 4;            // the right answer green among the wrong on
 /* The room's board: every choice, lettered. `answer` is the right one's
    text once the round has closed, or null while it is open; `stand` is the
    moment after the reveal, when the wrong ones have fallen away. */
-function boardHTML(q, answer, stand) {
+function boardHTML(q, answer, stand, picked) {
   const choices = q.choices || [];
   const right = answer == null ? -1 : choices.indexOf(answer);
+  const missed = new Set((picked || []).filter(i => i != null && i !== right));
   return `<div class="board ${stand ? 'stand' : ''}">${choices.map((c, i) => {
-    const cls = right < 0 ? '' : i === right ? 'right' : (stand ? 'wrong gone' : 'wrong');
+    const cls = right < 0 ? '' : i === right ? 'right' : (stand ? (missed.has(i) ? 'wrong picked' : 'wrong gone') : 'wrong');
     return `<div class="bc ${cls}"><span class="k">${String.fromCharCode(65 + i)}</span>${esc(c)}</div>`;
   }).join('')}</div>`;
 }
@@ -1215,6 +1228,8 @@ async function tick() {
         stage.innerHTML = golfHead(s.golf) + (shot
           ? `<p class="narrator"><b>${esc(shot.name)}</b>&hellip; ${esc(shot.call || '')}</p><p class="qtext">${esc(shot.words)}</p>`
           : '<p class="narrator">The ball is away&hellip;</p>');
+        // the club on the ball - or the swing that missed it - before the words
+        if (shot && window.Sfx) { Sfx.setHave(s.golf.sfx_have); Sfx.play(shot.putt ? 'putt' : (round.results || []).some(r => r.correct) ? 'strike' : 'whoosh'); }
         if (shot) narrate(`${shot.name}: ${shot.call || shot.words}`, shot.tokens);
         painted = key + ':beat';
         setTimeout(() => { painted = null; tick(); }, SHOT_BEAT_MS * ((s.golf && s.golf.tempo) || 1));
@@ -1230,18 +1245,21 @@ async function tick() {
       const next = mineHere.length
         ? `<button class="btn primary nextstroke" data-next-stroke>Next stroke &rsaquo;</button>${mulligan}<span class="hint" style="display:inline;margin-left:.6rem">Read it; the round waits for you.</span>`
         : '';
+      // what was chosen, wrong: lit for a beat before the board collapses
+      const chosen = (round.results || []).map(r => r.chosen);
+      if (window.Sfx && chosen.some(i => i != null && i !== (q.choices || []).indexOf(round.answer))) Sfx.play('boing');
       if (mineHere.length) {
         // The second beat: the answer at the top - the question, every
         // choice, theirs and the right one - the shot beside it, and the
         // hole under a rule, after the thing to learn.
         stage.innerHTML = `<div class="golfstage"><div>
-          <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` + boardHTML(q, round.answer, true) + `</div>
+          <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` + boardHTML(q, round.answer, true, chosen) + `</div>
           <div><div class="stage-seats">${mineHere.map(x => seatVerdictHTML(x, round, shoot, true)).join('')}</div>${golfPlayback(s.golf)}${next}</div></div>` +
           `<div class="golfunder">${golfHead(s.golf)}${golfBalls(s.golf)}</div>`;
       } else {
       stage.innerHTML = `
         <p class="qtext" style="margin-bottom:.4rem">${esc(q.text || '')}</p>` +
-        boardHTML(q, round.answer, true) +
+        boardHTML(q, round.answer, true, chosen) +
         `<div style="margin-top:.8rem">${golfHead(s.golf)}${golfPlayback(s.golf)}${golfBalls(s.golf)}</div>`;
       }
       return;

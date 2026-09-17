@@ -14,6 +14,7 @@ body { margin: 0; background: var(--bg); color: var(--text);
        font-family: var(--sans); -webkit-text-size-adjust: 100%; }
 .wrap { max-width: 34rem; margin: 0 auto; padding: 1rem 1rem 3rem;
         min-height: 100dvh; display: flex; flex-direction: column; }
+.soundctl { display: inline-flex; align-items: center; gap: .3rem; }
 .tablebar { display: flex; align-items: baseline; gap: .5rem;
             padding: .3rem 0 .8rem; border-bottom: 1px solid var(--line);
             margin-bottom: 1rem; }
@@ -99,6 +100,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   <div class="tablebar">
     <b>{{ name }}</b>
     <span class="who" id="who"></span>
+    <span id="soundctl" class="soundctl" title="sound"></span>
     <button class="leave" id="leave" hidden>leave</button>
     <span class="roommark" id="roommark" data-class=""><img src="{{ asset('icon.png') }}" alt="ELMER"><span class="credit">made with <b>Claude Code</b></span></span>
   </div>
@@ -723,6 +725,9 @@ function paintResults(round, shoot) {
       revealBeat[round.number] = true;
       const mine = gf.last.find(s => s.player === me.id);
       view.innerHTML = `${golfHeadHTML(gf)}<div class="verdict in"><div class="h">${escapeHTML(mine.call || '')}</div><div class="t">${escapeHTML(mine.words)}</div></div>`;
+      // the club on the ball, or the swing that missed it - the answer decides which
+      const foul = !!(s_last && s_last.you && s_last.you.correct === false);
+      if (window.Sfx) { Sfx.setHave(gf.sfx_have); Sfx.play(mine.putt ? 'putt' : foul ? 'whoosh' : 'strike'); }
       if (window.Voice) { Voice.setHave(gf.voice_have); Voice.say(mine.tokens); }
       setTimeout(() => { shownRound = null; }, 4000);
       return;

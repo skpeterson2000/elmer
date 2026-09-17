@@ -174,3 +174,9 @@ GolfTraxx (https://golftraxx.com)
   satellite photo, every landmark with a latitude and longitude - by
   tools/coursecard.py, once, by hand. Their compilation; the yards are
   the course's own facts. ELMER fetches nothing from them at play.
+
+Sound effects (Pixabay content licence)
+  The golf game's club strikes and the swing that misses, from Pixabay:
+  freesound_community (golf 1, golf 3), universfield (metallic golf
+  swing), u_sda88n6jzm (golf club swing), floraphonic (swing whoosh 4);
+  in elmer/static/golf/sound/ as strike-1..4 and whoosh.

@@ -1107,6 +1107,13 @@ class Room:
                 self.golf_clips = sorted(p.stem for p in clips_dir.glob("*.gif"))
             except OSError:
                 self.golf_clips = []
+            # And the sound effects on the unit - static/golf/sound/<name>.mp3:
+            # the club's strike, the swing that misses - read once a round.
+            sound_dir = Path(__file__).resolve().parent / "static" / "golf" / "sound"
+            try:
+                self.golf_sfx = sorted(p.stem for p in sound_dir.glob("*.mp3"))
+            except OSError:
+                self.golf_sfx = []
             # And which of the narrator's snippets are recorded - the shelf
             # the screens play from, read once a round.
             voice_dir = Path(__file__).resolve().parent / "static" / "golf" / "voice"
@@ -1325,6 +1332,7 @@ class Room:
                     "tee_times": [name(p) for p in d.get("tee_times", [])],
                     "clips": list(getattr(self, "golf_clips", []) or []),
                     "voice_have": list(getattr(self, "golf_voice", []) or []),
+                    "sfx_have": list(getattr(self, "golf_sfx", []) or []),
                     "tee_pic": (_tee_pic(d['course'], d['hole'])
                                 if d.get("hole") in (getattr(self, "golf_tees", []) or []) else None),
                     # The next stroke's figure, if it has one, for a screen
