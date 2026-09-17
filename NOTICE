@@ -22,8 +22,10 @@ Under the PolyForm Noncommercial License 1.0.0 (see LICENSE)
     elmer/static/medals/ were generated with Google Gemini at KC9SP's
     direction, not drawn by hand. The view from Pebble Beach's 1st tee
     (artwork/firefly_pb1.png, installed as elmer/static/golf/tee/
-    pebble-beach/1.jpg) was generated with Adobe Firefly from GolfTraxx's
-    map of the hole, at KC9SP's asking. They are distributed here under the same
+    pebble-beach/1.jpg) and from the 2nd (artwork/firefly_pb2.jpg, 2.jpg)
+    were generated with Adobe Firefly, and the view from the 3rd
+    (artwork/Gemini_Generated_Image_pb3.jpg, 3.jpg) with Google Gemini,
+    each from GolfTraxx's map of the hole, at KC9SP's asking. They are distributed here under the same
     terms as the rest of the project's material, with that provenance
     stated; whether a generated image carries copyright at all is a
     question the courts have not settled, and this notice does not claim
