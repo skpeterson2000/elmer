@@ -1245,7 +1245,8 @@ class Golf:
             self.aims[player] = dict(b["aim"])
         self.mulligans[player] = h["n"]
         b["foul"] = False
-        words = f"mulligan - a fresh ball from {'the tee' if ball.strokes == 0 else f'{int(round(h['yards'] - ball.at))} out'}"
+        where = "the tee" if ball.strokes == 0 else f"{int(round(h['yards'] - ball.at))} out"
+        words = f"mulligan - a fresh ball from {where}"
         ball.log.append(words)
         self.logs.setdefault(player, {})[h["n"]] = list(ball.log)
         # the history keeps the foul ball's row, with the mulligan written on it
