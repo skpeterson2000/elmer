@@ -1560,6 +1560,24 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*Calling the play, the great catch and the duel (2026-09-18).* The
+field used to be the machine's: a grounder caught clean went to the base
+the machine chose, and a rough throw ended the play. Now the play is the
+fielder's to call, ten seconds with the ball in their glove: first, the
+force at second, third or home with a runner to play on, or hold. The
+call is withheld from everybody, and the throw names the base - `2B KMR`
+- so the field learns where the ball is going only by copying the throw.
+That is the point: everybody with a play copies it, every baseman who
+could have got it and every runner, and the copy is the tag at the base
+named, readiness elsewhere, and a runner's slide. A rough throw travels
+as keyed, wrong letters and all, because the baseman who copies exactly
+what came has made the play that astounds - GREAT CATCH, the out stands -
+and copying it as it should have been is how it gets away. A clean tag
+meeting a clean slide is a close play and `elmer/duel.py` decides it:
+rounds alternate copy and send, a character longer and two words a minute
+faster each pair, first to miss is out, a round both miss to the runner.
+The duel is its own small game, and could stand on the CW page alone.
+
 *The ladder, and the season.* The first pitch used to be three letters,
 and a first pitch a newcomer cannot copy is a short game and no fun for
 anybody. Below the majors a player now climbs a ladder of their own - a

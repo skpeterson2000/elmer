@@ -44,6 +44,8 @@ def chain_out(g):
     while g.phase == "field":
         if g.link == "catch":
             g.catch(g.fielder, g.pitch["want"])
+        elif g.link == "choose":
+            g.choose_play(g.fielder, g.last.get("to") or "1B")
         elif g.link == "throw":
             g.throw(g.fielder, g.pitch["key"])
         elif g.link == "tag":
@@ -100,7 +102,9 @@ def run():
     g.swing(1, g.pitch["want"])
     f = g.fielder
     play = g.catch(f, g.pitch["want"])
-    check("a grounder caught clean goes to the throw, by the same fielder", (g.link, g.fielder, "throw" in play["words"]), ("throw", f, True))
+    check("a grounder caught clean is the fielder's play to call", (g.link, g.fielder, "theirs to call" in play["words"]), ("choose", f, True))
+    g.choose_play(f, "1B")
+    check("  called to first, it goes to the throw, by the same fielder", (g.link, g.fielder), ("throw", f))
     check("  the wrong player cannot catch or throw", ("error" in g.catch(1, "x"), "error" in g.throw(1, "x")), (True, True))
     play = g.throw(f, g.pitch["key"])
     baseman = g.fielder
@@ -119,11 +123,15 @@ def run():
     g = game(seed=4, season=THREE)
     g.swing(1, g.pitch["want"])
     g.catch(g.fielder, g.pitch["want"])
+    g.choose_play(g.fielder, g.last.get("to") or "1B")
     play = g.throw(g.fielder, g.pitch["key"][:-1] + "?")
-    check("a rough throw and the runner is safe", (play["result"], g.bases[0]), ("safe", 1))
+    check("a rough throw is in the air, as keyed - the baseman still has a play", (g.link, play.get("rough")), ("tag", True))
+    play = g.tag(g.fielder, g.pitch["key"])
+    check("  copied as it should have been, it gets away: error on the throw, the runner safe", (play["result"], g.bases[0]), ("error", 1))
     g = game(seed=4, season=THREE)
     g.swing(1, g.pitch["want"])
     g.catch(g.fielder, g.pitch["want"])
+    g.choose_play(g.fielder, g.last.get("to") or "1B")
     g.throw(g.fielder, g.pitch["key"])
     play = g.tag(g.fielder, "?")
     check("a bobbled tag is the baseman's error, the runner safe", (play["result"], g.errors["B"], g.bases[0]), ("error", 1, 1))
@@ -151,7 +159,7 @@ def run():
         if g.phase != "field":
             g.tick(g.deadline + 1)
     check("with a runner on first a grounder is a force at second", g.last["to"], "2B")
-    g.catch(g.fielder, g.pitch["want"]); g.throw(g.fielder, g.pitch["key"])
+    g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, g.last.get("to") or "1B"); g.throw(g.fielder, g.pitch["key"])
     play = g.tag(g.fielder, g.pitch["key"])
     check("  the tag there is the lead runner out, and with time to spare the throw goes on to first", (play["forced_out"], g.outs, g.link, g.last["to"]), (1, 1, "throw", "1B"))
     g.throw(g.fielder, g.pitch["key"])
@@ -169,7 +177,8 @@ def run():
     g.swing(1, want); g.catch(g.fielder, want)
     catcher = g.last["fielder"]
     check("  the catch already counted that fielder's copy", g.readiness(catcher, n, want)["counted"], False)
-    g.tick(g.deadline + 1); g.tick(g.deadline + 1)
+    while g.pitch["n"] == n and not g.over():          # the play is called, the throw is late, the reveal ends
+        g.tick(g.deadline + 1)
     r = g.readiness(2, n, want[:-1] + "?")
     check("a wrong copy held to the break is still taken, graded against that pitch", (g.pitch["n"] != n, r["ok"], r["pct"] < 100, g.stats[2]["copies"]), (True, True, True, 1))
 
@@ -320,7 +329,7 @@ def run():
     g.swing(1, g.pitch["want"])
     check("a practice fielder's catch is planned, not made at once", (g.phase, g.link, g._bot_at is not None), ("field", "catch", True))
     g.tick(g._bot_at + 0.1)
-    check("  and comes when its moment does", g.last["result"] in ("out", "safe", "error") or g.link in ("throw", "tag"), True)
+    check("  and comes when its moment does", g.last["result"] in ("out", "safe", "error") or g.link in ("choose", "throw", "tag"), True)
 
     print("\n-- at the table: the Gaming Center's tile, and the presses --")
     from elmer.app import app
@@ -370,7 +379,9 @@ def run():
     check("  the fielder's device is told it is their catch", st["your_link"], "catch")
     r = client.post("/api/party/ball/catch", json={"player": fielder, "typed": text}, environ_base=local)
     check("  the held copy handed up clean is the catch", r.status_code, 200)
-    if bb.link == "throw":
+    if bb.link == "choose":
+        r = client.post("/api/party/ball/play", json={"player": bb.fielder, "base": "1B"}, environ_base=local)
+        check("  the fielder calls the play from their device: first", (r.status_code, bb.link, bb.pitch["key"].startswith("1B ")), (200, "throw", True))
         r = client.post("/api/party/ball/field", json={"player": bb.fielder, "keyed": bb.pitch["key"], "wpm": 12}, environ_base=local)
         check("  the throw, keyed clean, goes to the tag", (r.status_code, bb.link), (200, "tag"))
         r = client.post("/api/party/ball/tag", json={"player": bb.fielder, "typed": bb.pitch["key"]}, environ_base=local)
@@ -495,6 +506,107 @@ def run():
     gm = cwball.Baseball({"A": [1], "B": [3]}, {1: "Ann", 3: "Cy"}, innings=3, base_wpm=10, seed=22, league="major")
     gm.tick(gm.deadline + 1)
     check("the majors still pitch by the inning: three letters to start", (len(gm.pitch["sent"]), gm.as_dict(1)["rung"], gm.as_dict(1)["tier"]), (3, None, "the majors"))
+
+    print("\n-- the play is the fielder's to call, and the throw names it --")
+    SIX = {"A": [1, 2], "B": [3, 4, 5, 6]}
+    NAMES = {1: "Ann", 2: "Bob", 3: "Cy", 4: "Di", 5: "Ed", 6: "Flo"}
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=31, season=THREE)
+    g.tick(g.deadline + 1)
+    g.bases[0] = 2                                          # Bob on first, so second is a play too
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"])
+    check("a grounder caught clean: the play is the fielder's to call", (g.phase, g.link, "theirs to call" in g.last["words"]), ("field", "choose", True))
+    v = g.as_dict(g.fielder)
+    check("  the fielder sees the plays: first, second with Bob on, and hold", ([p["base"] for p in v["plays"]], v["your_link"]), (["1B", "2B", "hold"], "choose"))
+    check("  a stranger cannot call it", "error" in g.choose_play(1, "1B"), True)
+    fielder = g.fielder
+    text = g.pitch["key"]
+    g.choose_play(fielder, "1B")
+    check("first: the throw names the base", (g.link, g.pitch["key"]), ("throw", "1B " + text))
+    check("  the batter is the runner played on", g.last["runner"], 1)
+    check("  the words say the play is called, not where", "coming" in g.last["words"] and "1B" not in g.last["words"], True)
+    baseman = g.fielder_at("1B", not_these=(fielder,))
+    check("  everybody with a play watches: the runner does, the thrower and the baseman do not", (baseman in g.watchers, 1 in g.watchers, fielder in g.watchers), (False, True, False))
+    g.throw(fielder, g.pitch["key"])
+    check("thrown clean, the tag is the baseman's", (g.link, g.fielder), ("tag", baseman))
+    other = next(iter(w for w in g.watchers if w not in (1, 2)))     # the baseman at second, who had a play
+    check("  a baseman elsewhere sees the throw as a copy to make, and not the base",
+          (g.as_dict(other)["your_link"], g.as_dict(other)["last"]["to"], "key" in g.as_dict(other)["pitch"]), ("copy", None, False))
+    check("  the runner too", g.as_dict(1)["your_link"], "copy")
+    check("  the table's shared screen keeps the base", g.as_dict(None)["last"]["to"], "1B")
+    r = g.copy_throw(other, g.pitch["key"])
+    check("another baseman's clean copy is readiness", (r["role"], r["clean"], g.last["ready"][str(other)]), ("baseman", True, 100))
+    r = g.copy_throw(1, "??")
+    check("  the runner's poor copy is no slide", (r["role"], r["clean"]), ("runner", False))
+    play = g.tag(baseman, g.pitch["key"])
+    check("the tag beats a runner who did not slide: out", (play["result"], g.outs), ("out", 1))
+
+    print("\n-- a rough throw travels, and a good copy of it is a GREAT CATCH --")
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=32, season=THREE)
+    g.tick(g.deadline + 1)
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, "1B")
+    rough = g.pitch["key"][:-1] + ("X" if g.pitch["key"][-1] != "X" else "Y")
+    g.throw(g.fielder, rough)
+    check("a rough throw is in the air, as keyed", (g.link, g.last["rough"], g.pitch["throw"]), ("tag", True, rough))
+    baseman = g.fielder
+    play = g.tag(baseman, rough)
+    check("copied exactly as it came: GREAT CATCH, the out", (play["great"], "GREAT CATCH" in play["words"], play["result"]), (True, True, "out"))
+    check("  and it is on the baseman's record", g.stat(baseman)["great"], 1)
+    g2 = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=33, season=THREE)
+    g2.tick(g2.deadline + 1)
+    g2.swing(1, g2.pitch["want"]); g2.catch(g2.fielder, g2.pitch["want"]); g2.choose_play(g2.fielder, "1B")
+    rough = g2.pitch["key"][:-1] + ("X" if g2.pitch["key"][-1] != "X" else "Y")
+    g2.throw(g2.fielder, rough)
+    play = g2.tag(g2.fielder, g2.pitch["key"])
+    check("copied as it should have been, not as it came: the rough throw gets away - safe, error on the throw",
+          (play["result"], "gets away" in play["words"], g2.bases[0]), ("error", True, 1))
+
+    print("\n-- the slide meets the tag: a duel --")
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=34, season=THREE)
+    g.tick(g.deadline + 1)
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, "1B"); g.throw(g.fielder, g.pitch["key"])
+    baseman = g.fielder
+    r = g.copy_throw(1, g.pitch["key"])
+    check("the runner copies the throw clean: a slide", (r["role"], r["clean"], g.stat(1)["slides"]), ("runner", True, 1))
+    play = g.tag(baseman, g.pitch["key"])
+    check("a clean tag and a clean slide is a close play: a duel", (g.phase, play["duel"]["runner"], play["duel"]["baseman"], play["duel"]["at"]), ("duel", 1, baseman, "1B"))
+    d = g.as_dict(1)
+    check("  the runner is in it, and hears round one", (d["your_link"], d["duel"]["you"], d["duel"]["role"], d["duel"]["kind"]), ("duel", True, "runner", "copy"))
+    check("  the room sees the round and no text", (g.as_dict(2)["duel"]["you"], g.as_dict(2)["duel"]["text"]), (False, None))
+    text = g.duel.text
+    g.duel_act(1, text)
+    g.duel_act(baseman, text[:-1] + "?")
+    check("the baseman misses round one: the runner wins, safe at first", (g.phase, g.last["result"], g.bases[0], g.last["duel"]["winner"]), ("reveal", "safe", 1, 1))
+    check("  and the duel is on both records", (g.stat(1)["duels"], g.stat(1)["duels_won"], g.stat(baseman)["duels"], g.stat(baseman)["duels_won"]), (1, 1, 1, 0))
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=35, season=THREE)
+    g.tick(g.deadline + 1)
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, "1B"); g.throw(g.fielder, g.pitch["key"])
+    baseman = g.fielder
+    g.copy_throw(1, g.pitch["key"]); g.tag(baseman, g.pitch["key"])
+    g.duel_act(1, g.duel.text); g.duel_act(baseman, g.duel.text)
+    check("both clean: round two, a send", (g.phase, g.duel.round, g.duel.kind), ("duel", 2, "send"))
+    g.duel_act(1, "??"); g.duel_act(baseman, g.duel.text)
+    check("the runner misses the send: the baseman wins, the out", (g.phase, g.last["result"], g.outs, "wins the duel" in g.last["words"]), ("reveal", "out", 1, True))
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=36, season=THREE)
+    g.tick(g.deadline + 1)
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, "1B"); g.throw(g.fielder, g.pitch["key"])
+    g.copy_throw(1, g.pitch["key"]); g.tag(g.fielder, g.pitch["key"])
+    g.duel_act(1, g.duel.text)
+    g.tick(g.deadline + 1)
+    check("the clock ends a round the baseman never answered: the runner wins", (g.phase, g.last["result"]), ("reveal", "safe"))
+
+    print("\n-- the force, called and withheld --")
+    g = cwball.Baseball(SIX, NAMES, innings=1, base_wpm=10, seed=37, season=THREE)
+    g.tick(g.deadline + 1)
+    g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"]); g.choose_play(g.fielder, "hold")
+    check("holding the ball: everybody is safe", (g.last["result"], g.bases[0], g.outs), ("safe", 1, 0))
+    while g.phase != "pitch" and not g.over():
+        g.tick(g.deadline + 1)
+    g.swing(g.batter, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"])
+    check("with a runner on first the plays are first, second and hold", [p["base"] for p in g.plays_open()], ["1B", "2B", "hold"])
+    check("  and second is the default the clock would call", g.last["to"], "2B")
+    g.tick(g.deadline + 1)
+    check("  the clock called it", (g.link, g.pitch["key"].startswith("2B ")), ("throw", True))
+    check("  the runner played on is the one from first", g.last["runner"], 1)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

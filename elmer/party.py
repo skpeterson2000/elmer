@@ -1495,8 +1495,10 @@ class Room:
             self.baseball.tick()
             method = {"pick": self.baseball.choose, "pitch": self.baseball.deliver,
                       "take": self.baseball.take, "again": self.baseball.again,
-                      "catch": self.baseball.catch,
-                      "tag": self.baseball.tag, "copy": self.baseball.readiness}.get(what)
+                      "catch": self.baseball.catch, "play": self.baseball.choose_play,
+                      "tag": self.baseball.tag, "copy": self.baseball.readiness,
+                      "copy_throw": self.baseball.copy_throw,
+                      "duel": self.baseball.duel_act}.get(what)
             if method is None:
                 return {"error": "no such play"}
             return method(player_id, **kw)

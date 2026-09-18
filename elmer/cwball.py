@@ -58,6 +58,7 @@ import time
 from pathlib import Path
 
 from . import cw
+from .duel import Duel
 
 # What a pitch is at each level: the kind, how many bases a clean copy is
 # worth, and a name for the screens. The level climbs with the innings.
@@ -96,6 +97,12 @@ COPY_LEAST = 12.0
 FIELD_SECONDS = 4.0             # per character, to key it
 FIELD_LEAST = 12.0
 CATCH_SECONDS = 8.0             # to hand up the held copy when the ball comes to you
+CHOOSE_SECONDS = 10.0           # the fielder holding a grounder decides where it goes
+# The bases a throw can go to, and who covers each: the play is the
+# fielder's to call, and the throw names it - "2B KMR" - so the field
+# learns where the ball is going only by copying the throw.
+BASES = ["1B", "2B", "3B", "HOME"]
+COVERS = {"1B": "1B", "2B": "2B", "3B": "3B", "HOME": "C"}
 WINDUP_SECONDS = 40.0           # the pitch clock: choose and key it, or it is a ball
 REVEAL_SECONDS = 9.0            # the play stands on the screens
 # The little league lets the batter ask for the pitch again - "?" or AGN,
@@ -249,6 +256,8 @@ class Baseball:
         self.fielder = None               # whose link is live in the field
         self.link = None                  # pick | throw_pitch | catch | throw | tag
         self.chain = []                   # the links still to come in this play
+        self.watchers = set()             # who may copy the throw in the air: basemen and runners
+        self.duel = None                  # the close play being decided, when one is
         self.last = None                  # the last play, for the screens
         self.plays = []
         self.winner = None
@@ -368,7 +377,8 @@ class Baseball:
     def stat(self, p):
         return self.stats.setdefault(p, {"copies": 0, "clean": 0, "catches": 0, "caught": 0,
                                          "throws": 0, "clean_throws": 0, "pitches": 0, "strikes": 0,
-                                         "agains": 0, "agains_keyed": 0})
+                                         "agains": 0, "agains_keyed": 0,
+                                         "great": 0, "slides": 0, "duels": 0, "duels_won": 0})
 
     # --------------------------------------------------------------- pitches
     def _text(self, level, difficulty="normal", count=None):
@@ -766,13 +776,65 @@ class Baseball:
         force = self.bases[0] is not None and not fly
         self.chain = [("catch", fielder)]
         if not fly:
-            base = "2B" if force else "1B"
-            baseman = self.fielder_at(base, not_these=(fielder,))
-            play["to"] = base
-            self.chain += [("throw", fielder), ("tag", baseman)]
+            # the default play, which the fielder may change once the
+            # ball is in their glove: the force at second, else first
+            play["to"] = "2B" if force else "1B"
+            self.chain += [("choose", fielder)]
         self.last = play
+        self.watchers = set()
         self.phase = "field"
         self._next_link()
+
+    def plays_open(self):
+        """The plays open to the fielder with the ball: first always, the
+        other bases with a runner on, and holding the ball."""
+        out = [{"base": "1B", "why": f"{self.name(self.batter)} running to first"}]
+        for i, base in enumerate(("2B", "3B", "HOME")):
+            if self.bases[i] is not None:
+                out.append({"base": base, "why": f"{self.name(self.bases[i])} on {['first', 'second', 'third'][i]}"})
+        out.append({"base": "hold", "why": "hold the ball - everybody is safe, nothing is risked"})
+        return out
+
+    def _runner_for(self, base):
+        """Who is being played on at a base: the batter at first, else the
+        runner coming from the base before."""
+        if base == "1B":
+            return self.batter
+        return self.bases[BASES.index(base) - 1]
+
+    def choose_play(self, player, base):
+        """The fielder calls the play. The throw is `base` then the text,
+        the baseman covering it is the tag, and everybody with a play -
+        every baseman who could have got it, every runner - is a watcher
+        who copies the throw. Held, and everybody is safe."""
+        if self.phase != "field" or self.link != "choose":
+            return {"error": "no play to call"}
+        if player != self.fielder:
+            return {"error": f"not your ball - {self.name(self.fielder)} has it"}
+        play = self.last
+        base = str(base or "").upper()
+        if base == "HOLD":
+            play["result"] = "safe"
+            play["to"] = None
+            play["words"] = f"{self.name(player)} holds the ball - {self.name(play['batter'])} is safe"
+            self._reach(play, play["hit_bases"])
+            return play
+        if base not in [p["base"] for p in self.plays_open()]:
+            return {"error": "no play there"}
+        play["to"] = base
+        play["runner"] = self._runner_for(base)
+        baseman = self.fielder_at(COVERS[base], not_these=(player,))
+        self.pitch["key"] = f"{base} {self.pitch['key']}"
+        play["key"] = self.pitch["key"]
+        self.watchers = {self.fielder_at(COVERS[p["base"]], not_these=(player,))
+                         for p in self.plays_open() if p["base"] != "hold"}
+        self.watchers.discard(None)
+        self.watchers |= {r for r in self.bases if r is not None} | {self.batter}
+        self.watchers.discard(baseman)
+        play["words"] = f"{self.name(player)} has called the play - the throw is coming"
+        self.chain = [("throw", player), ("tag", baseman)]
+        self._next_link()
+        return play
 
     def _next_link(self):
         if not self.chain:
@@ -785,6 +847,8 @@ class Baseball:
             self.deadline = _now() + CATCH_SECONDS
             play["words"] = (f"{'Fly ball' if play.get('fly') else 'Ground ball'} to {play['position']} - "
                              f"{self.name(who)} has the play")
+        elif link == "choose":
+            self.deadline = _now() + CHOOSE_SECONDS
         elif link == "throw":
             chars = len(_squash(self.pitch["key"]))
             self.deadline = _now() + max(FIELD_LEAST, chars * FIELD_SECONDS)
@@ -821,7 +885,7 @@ class Baseball:
                 play["words"] = f"{self.name(player)} had the pitch clean - fly ball caught, {self.name(play['batter'])} is out"
                 self._out(play)
                 return play
-            play["words"] = f"{self.name(player)} fields it clean - the throw to {play['to']}"
+            play["words"] = f"{self.name(player)} fields it clean - the play is theirs to call"
             self._next_link()
             return play
         if pct >= ERROR_PCT:
@@ -838,6 +902,9 @@ class Baseball:
     def throw(self, player, keyed, wpm=None, late=False):
         """The fielder's send to the baseman. Clean goes on to the tag; rough
         and the runner is safe; botched is an error."""
+        if self.phase == "field" and self.link == "choose" and player == self.fielder:
+            # thrown without calling it: the default play stands
+            self.choose_play(player, self.last.get("to") or "1B")
         if self.phase != "field" or self.link != "throw":
             return {"error": "nothing to throw"}
         if player != self.fielder:
@@ -860,12 +927,20 @@ class Baseball:
                 self.pitch["throw_wpm"] = float(wpm) if wpm else None
             except (TypeError, ValueError):
                 self.pitch["throw_wpm"] = None
-            play["words"] = f"{self.name(player)} keyed it clean - the throw is on its way to {play['to']}"
+            play["words"] = f"{self.name(player)} keyed it clean - the throw is in the air"
             self._next_link()
         elif pct >= ERROR_PCT:
-            play["result"] = "safe"
-            play["words"] = f"{self.name(player)} got {pct}% of the throw - {self.name(play['batter'])} is safe"
-            self._reach(play, bases)
+            # A rough throw travels as keyed, wrong letters and all. The
+            # baseman who copies exactly what came has made the play that
+            # astounds - a great catch - and does not know it until then.
+            play["rough"] = True
+            self.pitch["throw"] = str(keyed or "").upper().strip()
+            try:
+                self.pitch["throw_wpm"] = float(wpm) if wpm else None
+            except (TypeError, ValueError):
+                self.pitch["throw_wpm"] = None
+            play["words"] = f"{self.name(player)} got {pct}% of it - a rough throw, in the air"
+            self._next_link()
         else:
             play["result"] = "error"
             play["words"] = f"{self.name(player)} threw it away ({pct}%) - error, an extra base"
@@ -892,12 +967,32 @@ class Baseball:
         s["catches"] += 1
         if pct < HIT_PCT:
             play["result"] = "error"
-            play["words"] = f"{self.name(player)} bobbled the throw at {play['to']} ({pct}%) - error, {self.name(play['batter'])} is safe"
+            if play.get("rough"):
+                play["words"] = (f"the rough throw gets away from {self.name(player)} at {play['to']} ({pct}%) - "
+                                 f"error on the throw, {self.name(play['batter'])} is safe")
+            else:
+                play["words"] = f"{self.name(player)} bobbled the throw at {play['to']} ({pct}%) - error, {self.name(play['batter'])} is safe"
             self.errors[self.fielding()] += 1
             self._reach(play, play["hit_bases"])
             return play
         s["clean"] += 1
         s["caught"] += 1
+        if play.get("rough"):
+            play["great"] = True
+            s["great"] += 1
+        # The slide: the runner being played on copied the throw clean too,
+        # so the tag and the slide arrive together - a close play, and the
+        # duel decides it.
+        runner = play.get("runner")
+        if runner is not None and (play.get("slides") or {}).get(str(runner), 0) >= HIT_PCT:
+            self._start_duel(play, runner, player)
+            return play
+        return self._tag_out(player, play)
+
+    def _tag_out(self, player, play):
+        """The tag is made and the runner did not beat it: the out, the
+        force, or the two."""
+        great = " GREAT CATCH!" if play.get("great") else ""
         if play.get("to") == "2B" and self.bases[0] is not None and not play.get("forced_out"):
             # the force at second: the lead runner is out; the batter is on
             # first unless there is time to turn two
@@ -929,11 +1024,87 @@ class Baseball:
             self._reach(play, 1, forced=True, count_hit=False)
             return play
         play["result"] = "double play" if play.get("forced_out") else "out"
-        play["words"] = (f"{self.name(player)} takes the throw at {play['to']} - "
+        who = self.name(play["runner"]) if play.get("runner") is not None else self.name(play["batter"])
+        play["words"] = (f"{self.name(player)} takes the throw at {play['to']} -{great} "
                          + (f"two! {self.name(play['batter'])} is out as well" if play.get("forced_out")
-                            else f"{self.name(play['batter'])} is out"))
+                            else f"{who} is out"))
         self._out(play)
         return play
+
+    def copy_throw(self, player, typed):
+        """Anybody with a play copies the throw in the air: the baseman it
+        is going to makes the tag; another baseman's copy is readiness; a
+        runner's clean copy is the slide, which meets a clean tag in a
+        duel. Nobody is told which it was until the play resolves."""
+        if self.phase != "field" or self.link != "tag":
+            return {"error": "no throw in the air"}
+        if player == self.fielder:
+            return self.tag(player, typed)
+        if player not in self.watchers:
+            return {"error": "not your play"}
+        play = self.last
+        thrown = self.pitch.get("throw") or self.pitch["key"]
+        pct = accuracy_any(thrown, typed)
+        s = self.stat(player)
+        s["copies"] += 1
+        if pct >= HIT_PCT:
+            s["clean"] += 1
+        if player in self.lineups[self.batting()]:
+            play.setdefault("slides", {})[str(player)] = pct
+            if pct >= HIT_PCT:
+                s["slides"] += 1
+            return {"ok": True, "pct": pct, "role": "runner", "clean": pct >= HIT_PCT}
+        play.setdefault("ready", {})[str(player)] = pct
+        return {"ok": True, "pct": pct, "role": "baseman", "clean": pct >= HIT_PCT}
+
+    # ---------------------------------------------------------------- duel
+    def _start_duel(self, play, runner, baseman):
+        self.duel = Duel(runner, baseman, names=self.names, base_wpm=self.wpm(),
+                         seed=self.rng.random(),
+                         bots={p: self.bots[p] for p in (runner, baseman) if p in self.bots})
+        self.phase = "duel"
+        self.link = None
+        self.chain = []
+        self.fielder = baseman
+        for p in (runner, baseman):
+            self.stat(p)["duels"] += 1
+        play["duel"] = {"runner": runner, "runner_name": self.name(runner), "baseman": baseman,
+                        "baseman_name": self.name(baseman), "at": play["to"]}
+        play["words"] = (f"Close play at {play['to']}{' - GREAT CATCH' if play.get('great') else ''} - "
+                         f"{self.name(runner)} slides as {self.name(baseman)} takes it: a duel")
+        self.deadline = self.duel.deadline
+
+    def duel_act(self, player, answer, wpm=None):
+        """One of the two answers the round: a copy typed, or a text keyed."""
+        if self.phase != "duel" or self.duel is None:
+            return {"error": "no duel"}
+        r = self.duel.act(player, answer, wpm)
+        self._after_duel()
+        return r
+
+    def _after_duel(self):
+        d = self.duel
+        if d is None:
+            return
+        self.deadline = d.deadline
+        if not d.over():
+            return
+        play = self.last
+        play["duel"].update({"rounds": len(d.log), "winner": d.winner, "winner_name": self.name(d.winner),
+                             "log": d.log})
+        self.stat(d.winner)["duels_won"] += 1
+        runner, baseman = play["duel"]["runner"], play["duel"]["baseman"]
+        self.duel = None
+        self.phase = "field"
+        if d.winner == runner:
+            play["result"] = "safe"
+            play["words"] = (f"{self.name(runner)} wins the duel at {play['to']} in {len(d.log)} round"
+                             f"{'s' if len(d.log) != 1 else ''} - safe!")
+            self._reach(play, play["hit_bases"])
+        else:
+            lead = f"{self.name(baseman)} wins the duel at {play['to']} in {len(d.log)} round{'s' if len(d.log) != 1 else ''} -"
+            self._tag_out(baseman, play)
+            play["words"] = f"{lead} {play['words']}"
 
     def readiness(self, player, n, typed):
         """A copy of a pitch from anybody whose link never came - handed up
@@ -1129,6 +1300,8 @@ class Baseball:
                 roll = r.random()
                 odds = BOT_FIELD.get(level, 0.5)
                 self.throw(who, text if roll < odds else (text[:-1] + "?" if roll < odds + 0.3 else "??"))
+            elif self.link == "choose":
+                self.choose_play(who, self.last.get("to") or "1B")
             elif self.link == "tag":
                 want = self.pitch.get("throw") or self.pitch["key"]
                 clean = r.random() < BOT_SWING.get(level, 0.5)
@@ -1154,8 +1327,15 @@ class Baseball:
             self.last["words"] = f"{self.name(self.pitcher)} never threw it - the pitch clock, ball {self.balls}"
         elif self.phase == "pitch":
             self.take(self.batter)
+        elif self.phase == "duel":
+            self.duel.tick(now)
+            self._after_duel()
+            return
         elif self.phase == "field":
             play = self.last
+            if self.link == "choose":
+                self.choose_play(self.fielder, play.get("to") or "1B")
+                return
             if self.link == "throw":
                 self.throw(self.fielder, "", late=True)
             else:
@@ -1180,6 +1360,10 @@ class Baseball:
             return "swing"
         if self.phase == "field" and player_id == self.fielder:
             return self.link
+        if self.phase == "field" and self.link == "tag" and player_id in self.watchers:
+            return "copy"
+        if self.phase == "duel" and self.duel is not None and player_id in (self.duel.a, self.duel.b):
+            return "duel"
         return None
 
     def as_dict(self, player_id=None):
@@ -1192,15 +1376,23 @@ class Baseball:
                 pitch["text"] = p["text"]              # the prompt, to the pitcher alone
         elif p and self.phase == "pitch":
             pitch = {k: v for k, v in p.items() if k not in hidden}
-        elif p and self.phase == "field":
+        elif p and self.phase in ("field", "duel"):
             # the fielder with the ball is told what to key; the baseman hears
-            # the throw and is never shown it
+            # the throw and is never shown it - nor the base it names, which
+            # is the play, and the play is withheld from everybody but the
+            # fielder who called it (the table's shared screen sees it)
             pitch = {k: v for k, v in p.items() if k not in ("text", "call", "pitch_pct", "off_speed", "throw")}
             if self.link != "tag":
                 pitch.pop("throw_groups", None); pitch.pop("throw_timing", None)
+            if player_id is not None and player_id != self.fielder:
+                pitch.pop("key", None)
         else:
             pitch = None
         link = self.your_link(player_id)
+        last = dict(self.last) if self.last else None
+        if (last and self.phase == "field" and self.link in ("throw", "tag")
+                and player_id is not None and player_id != self.fielder):
+            last["to"] = None                     # the play, withheld until it resolves
         return {
             "inning": self.inning, "half": self.half, "innings": self.innings, "outs": self.outs,
             "strikes": self.strikes, "balls": self.balls, "phase": self.phase, "over": self.over(),
@@ -1216,7 +1408,11 @@ class Baseball:
             "positions": {pos: {"player": pl, "name": self.name(pl)} for pos, pl in self.positions().items()},
             "pitch": pitch,
             "deadline_in": max(0.0, round(self.deadline - _now(), 1)),
-            "last": self.last,
+            "last": last,
+            # the fielder calling the play: what is open to them
+            "plays": self.plays_open() if link == "choose" else None,
+            # the close play, if one is being decided
+            "duel": self.duel.as_dict(player_id) if self.duel is not None else None,
             "level": (RUNGS[self.rung_of(self.batter)][2] if self.league != "major" and self.batter is not None
                       else LEVELS[self.level()]["name"]),
             "rung": self.rung_of(self.batter) if self.league != "major" and self.batter is not None else None,

@@ -5251,7 +5251,13 @@ def api_party_ball_play(what):
         # again: the batter asks for the pitch once more, by button or keyed
         "again": lambda: {"keyed": bool(body.get("keyed")), "ask": str(body.get("ask") or "again")},
         "catch": lambda: {"typed": str(body.get("typed") or "")},
+        # play: the fielder calls it (base: 1B, 2B, 3B, HOME or hold)
+        "play": lambda: {"base": str(body.get("base") or "")},
         "tag": lambda: {"typed": str(body.get("typed") or "")},
+        # copy_throw: anybody with a play copies the throw in the air
+        "copy_throw": lambda: {"typed": str(body.get("typed") or "")},
+        # duel: a round answered - a copy typed, or a text keyed
+        "duel": lambda: {"answer": str(body.get("typed") or body.get("keyed") or ""), "wpm": body.get("wpm")},
         "copy": lambda: {"n": body.get("n"), "typed": str(body.get("typed") or "")},
     }.get(what)
     if args is None:

@@ -1217,8 +1217,12 @@ function paintBaseballPhone(b) {
     try { phonePlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
   }
   // the throw sounds for the baseman
-  if (b.your_link === 'tag' && b.pitch && b.pitch.throw_groups && phonePlayer && phoneThrowHeard !== b.pitch.n + ':' + (b.last && b.last.to)) {
-    phoneThrowHeard = b.pitch.n + ':' + (b.last && b.last.to);
+  if (b.duel && b.duel.you && b.duel.kind === 'copy' && b.duel.groups && phonePlayer && phoneThrowHeard !== 'duel' + (b.pitch ? b.pitch.n : '') + ':' + b.duel.round) {
+    phoneThrowHeard = 'duel' + (b.pitch ? b.pitch.n : '') + ':' + b.duel.round;
+    try { phonePlayer.send(b.duel.groups, b.duel.timing, null, () => {}); } catch (e) {}
+  }
+  if ((b.your_link === 'tag' || b.your_link === 'copy') && b.pitch && b.pitch.throw_groups && phonePlayer && phoneThrowHeard !== b.pitch.n + ':throw') {
+    phoneThrowHeard = b.pitch.n + ':throw';
     try { phonePlayer.send(b.pitch.throw_groups, b.pitch.throw_timing, null, () => {}); } catch (e) {}
   }
   // a held copy whose link came: hand it up now, once
@@ -1243,7 +1247,7 @@ function paintBaseballPhone(b) {
     }
   }
   if (!['throw', 'throw_pitch'].includes(b.your_link)) phoneKey = null;
-  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : '') + keyMode() + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : '') + keyMode() + (b.duel ? 'd' + b.duel.round + b.duel.kind + (b.duel.answered ? 'x' : '') + (b.duel.winner || '') : '') + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
   if (shownRound === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
   shownRound = key;
   const score = `<p class="clock" style="margin:0 0 .4rem">CW Baseball &middot; ${b.over ? 'final' : (b.half + ' ' + ordinal(b.inning))} &middot; A ${b.runs.A} &ndash; B ${b.runs.B} &middot; ${b.outs} out &middot; ${b.balls}-${b.strikes} &middot; you are Side ${b.your_team || '?'}</p>`;
@@ -1286,15 +1290,33 @@ function paintBaseballPhone(b) {
       main = `<p><b>Your ball.</b> ${escapeHTML(words)}. Hand up your copy of the pitch. ${clock}</p>
          ${ballCopyBox('ball-catch', held && b.pitch && held.n === b.pitch.n ? held.typed : 'what you copied')}
          <p><button class="choice" id="ball-catch-go" style="text-align:center"><b>Catch &rsaquo;</b></button></p>`;
+    } else if (b.your_link === 'choose') {
+      /* The play is the fielder's to call, and nobody else is told it:
+         the throw will name the base, and the field learns it by copying. */
+      main = `<p><b>Your ball - where's the play?</b> Nobody else is told; the throw names the base. ${clock}</p>` +
+        (b.plays || []).map(p => `<p><button class="choice" data-ball-play="${escapeHTML(p.base)}"><b>${p.base === 'hold' ? 'Hold the ball' : 'Throw to ' + (p.base === 'HOME' ? 'home' : p.base)}</b><br><small>${escapeHTML(p.why)}</small></button></p>`).join('');
     } else if (b.your_link === 'throw') {
       main = `<p><b>Throw to ${escapeHTML(b.last.to || 'first')}.</b> ${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key'} <span class="mono">${escapeHTML(b.pitch.key || '')}</span>. ${clock}</p>${ballKeyPad()}
          <p><button class="choice" id="ball-throw" style="text-align:center"><b>Throw &rsaquo;</b></button></p>`;
-    } else if (b.your_link === 'tag') {
-      main = `<p><b>The throw is coming to you at ${escapeHTML(b.last.to || 'first')}.</b> Copy it and make the tag. ${clock}</p>
+    } else if (b.your_link === 'tag' || b.your_link === 'copy') {
+      const running = b.your_team === b.batting;
+      main = `<p><b>The throw is in the air.</b> ${running ? 'You are running - copy it: a clean copy is your slide.' : 'Copy it - if it names your base, your copy is the tag.'} ${clock}</p>
          ${ballCopyBox('ball-tag', 'what you heard')}
-         <p><button class="choice" id="ball-tag-go" style="text-align:center"><b>Tag &rsaquo;</b></button></p>`;
+         <p><button class="choice" id="ball-tag-go" style="text-align:center"><b>${running ? 'Slide' : 'Take it'} &rsaquo;</b></button></p>`;
     } else {
       main = `<p>${escapeHTML(words)}.</p>`;
+    }
+  } else if (b.phase === 'duel' && b.duel) {
+    const d = b.duel;
+    if (d.you && !d.answered && !d.winner) {
+      main = d.kind === 'copy'
+        ? `<p><b>Duel, round ${d.round}.</b> Copy ${d.length} characters at ${d.wpm} wpm. ${clock}</p>
+           ${ballCopyBox('duel-typed', 'what you heard')}
+           <p><button class="choice" id="duel-go" style="text-align:center"><b>${d.role === 'runner' ? 'Slide' : 'Tag'} &rsaquo;</b></button></p>`
+        : `<p><b>Duel, round ${d.round}.</b> Key it back: <span class="mono" style="font-size:1.2rem">${escapeHTML(d.text || '')}</span> at ${d.wpm} wpm. ${clock}</p>${ballKeyPad()}
+           <p><button class="choice" id="duel-send" style="text-align:center"><b>Send &rsaquo;</b></button></p>`;
+    } else {
+      main = `<p>${escapeHTML(d.words)}${d.you && d.answered && !d.winner ? ' - answered, waiting on the other' : ''}. ${clock}</p>`;
     }
   } else {
     const mine = ballGrade(b, held);
@@ -1342,7 +1364,14 @@ function paintBaseballPhone(b) {
   }
   press('ball-catch-go', '/api/party/ball/catch', () => ({typed: (document.getElementById('ball-catch') || {}).value || ''}));
   enterIs('ball-catch', 'ball-catch-go');
-  press('ball-tag-go', '/api/party/ball/tag', () => ({typed: (document.getElementById('ball-tag') || {}).value || ''}));
+  press('ball-tag-go', b.your_link === 'copy' ? '/api/party/ball/copy_throw' : '/api/party/ball/tag', () => ({typed: (document.getElementById('ball-tag') || {}).value || ''}));
+  press('duel-go', '/api/party/ball/duel', () => ({typed: (document.getElementById('duel-typed') || {}).value || ''}));
+  enterIs('duel-typed', 'duel-go');
+  document.querySelectorAll('[data-ball-play]').forEach(bt => bt.addEventListener('click', async () => {
+    bt.disabled = true;
+    try { await api('/api/party/ball/play', {player: me.id, base: bt.dataset.ballPlay}); } catch (e) {}
+    shownRound = null; tick();
+  }));
   enterIs('ball-tag', 'ball-tag-go');
   const hold = document.getElementById('ball-hold');
   if (hold) {
@@ -1367,6 +1396,7 @@ function paintBaseballPhone(b) {
       phoneKey = null; shownRound = null; tick(); }); };
     send('ball-pitch', '/api/party/ball/pitch');
     send('ball-throw', '/api/party/ball/field');
+    send('duel-send', '/api/party/ball/duel');
   }
 }
 

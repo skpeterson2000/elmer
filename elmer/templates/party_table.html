@@ -1542,7 +1542,7 @@ function paintBaseball(s) {
   const atScreen = seated();
   chip.textContent = b.over ? 'game over' : `${b.half} of the ${b.inning}${ordinal(b.inning)}`;
   // whose link is live, if they are seated at this screen
-  const liveId = b.phase === 'windup' ? b.pitcher : b.phase === 'pitch' ? b.batter : b.phase === 'field' ? b.fielder : null;
+  const liveId = b.phase === 'windup' ? b.pitcher : b.phase === 'pitch' ? b.batter : (b.phase === 'field' || b.phase === 'duel') ? b.fielder : null;
   const actor = atScreen.find(x => x.id === liveId);
   const link = actor ? (b.phase === 'pitch' ? 'swing' : b.link) : null;
   // The pitch sounds once, on this screen, when it is new; so does a throw
@@ -1581,10 +1581,14 @@ function paintBaseball(s) {
   } else if (b.phase === 'field') {
     const words = (b.last && b.last.words) || 'In play';
     main = `<p class="narrator">${esc(words)} &middot; ${clock}</p>` +
-      (link === 'catch' ? `<div class="hitrow">${seatBox('ball-catch', 'your copy of the pitch')}<button class="btn primary" data-ball-catch="${actor.id}">Catch</button></div>` :
+      (link === 'choose' ? `<div class="hitrow"><p class="hint" style="text-align:left">Your ball - where's the play? The throw names the base.</p>${(b.plays || []).map(p => `<button class="btn" data-ball-play="${esc(p.base)}" data-ball-player="${actor.id}" title="${esc(p.why)}">${p.base === 'hold' ? 'Hold the ball' : 'Throw to ' + (p.base === 'HOME' ? 'home' : p.base)}</button>`).join('')}</div>` :
+       link === 'catch' ? `<div class="hitrow">${seatBox('ball-catch', 'your copy of the pitch')}<button class="btn primary" data-ball-catch="${actor.id}">Catch</button></div>` :
        link === 'throw' ? `<div class="hitrow"><p class="hint" style="text-align:left">${b.pitch.kind === 'contact' ? 'Answer the call:' : 'Key'} <span class="mono">${esc(b.pitch.key || '')}</span> to ${esc(b.last.to || 'first')}. ${keyHint}</p><button class="btn primary" data-ball-throw="${actor.id}">Throw</button></div>` :
        link === 'tag' ? `<div class="hitrow">${seatBox('ball-tag', 'what you heard')}<button class="btn primary" data-ball-tag="${actor.id}">Tag</button></div>` :
-       `<p class="hint" style="text-align:left">${esc(b.fielder_name || '')} ${b.link === 'catch' ? 'hands up their copy' : b.link === 'throw' ? 'keys the throw' : 'takes the throw'} on their phone.</p>`);
+       `<p class="hint" style="text-align:left">${esc(b.fielder_name || '')} ${b.link === 'catch' ? 'hands up their copy' : b.link === 'choose' ? 'is calling the play' : b.link === 'throw' ? 'keys the throw' : 'takes the throw - and everybody with a play copies it'} on their phone.</p>`);
+  } else if (b.phase === 'duel' && b.duel) {
+    main = `<p class="narrator">${esc((b.last && b.last.words) || '')} &middot; ${esc(b.duel.words)} &middot; ${clock}</p>` +
+      (b.duel.log || []).map(r => `<span class="pill">${r.round}: ${r.kind} ${r.length} @ ${r.wpm} &middot; ${esc(b.duel.a_name)} ${r.a}% &middot; ${esc(b.duel.b_name)} ${r.b}%</span> `).join('');
   } else {
     main = `<p class="narrator">${esc((b.last && b.last.words) || '')}</p>` +
       (b.last && b.last.pitch ? `<p class="hint" style="text-align:left">The pitch was <span class="mono">${esc(b.last.pitch)}</span>${b.last.asked && b.last.asked !== b.last.pitch ? ' (asked for: <span class="mono">' + esc(b.last.asked) + '</span>)' : ''}${b.last.call ? ' · the umpire: ' + esc(b.last.call === 'zone' ? 'in the zone' : b.last.call) : ''}${b.last.want && b.last.want !== b.last.pitch ? ' (the call: <span class="mono">' + esc(b.last.want) + '</span>)' : ''}${b.last.typed !== undefined ? ' · copied as <span class="mono">' + esc(b.last.typed || '·') + '</span>' : ''}${b.last.keyed !== undefined ? ' · thrown as <span class="mono">' + esc(b.last.keyed || '·') + '</span>' : ''}</p>` : '');
@@ -1614,6 +1618,12 @@ document.addEventListener('click', async e => {
   if (await seatPress('ball-swing', '/api/party/ball/swing', () => ({typed: typed('ball-typed')}))) return;
   if (await seatPress('ball-take', '/api/party/ball/take')) return;
   if (await seatPress('ball-again', '/api/party/ball/again', () => ({keyed: false, ask: 'again'}))) return;
+  const play = e.target.closest('[data-ball-play]');
+  if (play) {
+    await api('/api/party/ball/play', {player: parseInt(play.dataset.ballPlayer, 10), base: play.dataset.ballPlay});
+    painted = null; tick();
+    return;
+  }
   if (await seatPress('ball-slower', '/api/party/ball/again', () => ({keyed: false, ask: 'slower'}))) return;
   if (await seatPress('ball-faster', '/api/party/ball/again', () => ({keyed: false, ask: 'faster'}))) return;
   if (await seatPress('ball-catch', '/api/party/ball/catch', () => ({typed: typed('ball-catch')}))) return;
