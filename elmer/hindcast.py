@@ -24,8 +24,12 @@ Sources, each carrying its own terms:
   * NOAA SWPC: the observed 10.7 cm flux, daily (the last ~40 days).
 """
 import json
+import socket
+import ssl
 import logging
 import re
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -44,7 +48,25 @@ GFZ_KP = "https://kp.gfz.de/app/json/?start={a}&end={b}&index=Kp"
 # day since 1932, kept current to yesterday. One download answers a year.
 GFZ_ARCHIVE = "https://kp.gfz.de/app/files/Kp_ap_Ap_SN_F107_since_1932.txt"
 SWPC_F107 = "https://services.swpc.noaa.gov/json/f107_cm_flux.json"
+# Penticton's own daily table, back to 2004 - the same observed flux GFZ
+# carries, from the observatory that measures it. The second source for a
+# year of flux when GFZ does not answer.
+CANADA_F107 = "https://www.spaceweather.gc.ca/solar_flux_data/daily_flux_values/fluxtable.txt"
 ARCHIVE_MAX_AGE_H = 24
+# A request is tried this many times before it is given up on, with a pause
+# that doubles between tries; a 429 waits what the server asks, within reason.
+TRIES = 3
+FIRST_PAUSE_S = 3.0
+MAX_PAUSE_S = 60.0
+# GIRO rate-limits, and seven stations asked in one breath is what trips it.
+BETWEEN_STATIONS_S = 1.5
+# How far the flux and Kp may be carried to an hour that has none of its
+# own: a day or three of missing archive is bridged, a missing year is not.
+FLUX_REACH_DAYS = 3
+KP_REACH_DAYS = 1
+# Less of the span covered than this and the run does not start - it would
+# be forecasting a year on one number, which is what happened once.
+FLUX_COVERAGE_MIN = 0.9
 
 # The North American Digisondes that report to GIRO, as the live feed names
 # them. Several are dark for months at a time; the fetch says which answered.
@@ -67,10 +89,80 @@ ACKNOWLEDGEMENT = ("Ionosonde data from the Global Ionospheric Radio Observatory
 
 # ---------------------------------------------------------------- fetching
 
-def _get(url, timeout=60):
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read().decode("utf-8", "replace")
+class Unavailable(RuntimeError):
+    """The record could not be had, said in words for the page. Not a bug:
+    the network, a busy server, a certificate the machine cannot check."""
+
+
+def _host(url):
+    return urllib.parse.urlsplit(url).hostname or url
+
+
+def _plain(exc):
+    """A network failure in a sentence a person can act on."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return {429: "it is busy and asked us to wait", 403: "it refused the request",
+                404: "it has nothing at that address"}.get(exc.code, f"it answered HTTP {exc.code}")
+    reason = getattr(exc, "reason", exc)
+    if isinstance(reason, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in str(exc):
+        return "this machine could not check its certificate"
+    if isinstance(exc, (socket.timeout, TimeoutError)) or isinstance(reason, (socket.timeout, TimeoutError)):
+        return "it did not answer in time"
+    if isinstance(reason, socket.gaierror) or "getaddrinfo" in str(exc):
+        return "there is no route to it - is the network up?"
+    return str(reason)[:80] or exc.__class__.__name__
+
+
+def _ssl_context():
+    """A context that can check certificates when the machine's own store
+    cannot - certifi, if it is installed, carries the roots and
+    intermediates a bare Windows Python sometimes lacks."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:                # noqa: BLE001 - no certifi, no help
+        return None
+
+
+def _get(url, timeout=60, tries=TRIES, notice=None, what=None):
+    """The body at a URL, tried a few times before it is given up on.
+
+    A busy server (429) is waited for as long as it asks, within reason; a
+    timeout, a dropped connection or a certificate this machine cannot
+    check gets a pause and another go, the last with certifi's roots if
+    they are here. `notice` is told, in words, when there is a wait worth
+    knowing about, so the page can say "GFZ is busy, trying again in 20 s"
+    rather than nothing. The last failure is raised with a plain reason.
+    """
+    what = what or _host(url)
+    pause, context, last = FIRST_PAUSE_S, None, None
+    for attempt in range(1, tries + 1):
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
+                return response.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as exc:
+            last = exc
+            if exc.code not in (429, 500, 502, 503, 504):
+                break                                   # not going to change by asking again
+            if exc.code == 429:
+                try:
+                    pause = min(MAX_PAUSE_S, max(pause, float(exc.headers.get("Retry-After") or 0)))
+                except (TypeError, ValueError):
+                    pass
+        except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, ssl.SSLError) as exc:
+            last = exc
+            if "CERTIFICATE_VERIFY_FAILED" in str(exc) and context is None:
+                context = _ssl_context()                # the next try checks with certifi's roots
+        if attempt == tries:
+            break
+        reason = _plain(last)
+        log.info("hindcast: %s - %s; trying again in %.0f s (%d of %d)", what, reason, pause, attempt, tries)
+        if notice and (last is not None and getattr(last, "code", None) == 429 or pause >= 10):
+            notice(f"{what[:1].upper() + what[1:]} {reason}; trying again in {pause:.0f} s.")
+        time.sleep(pause)
+        pause = min(MAX_PAUSE_S, pause * 2)
+    raise Unavailable(f"{what}: {_plain(last)}") from last
 
 
 def parse_giro(text):
@@ -112,6 +204,44 @@ def _num(text):
     return v if v == v else None
 
 
+def parse_canada_flux(text):
+    """Penticton's daily table into flux rows, one a day at the 20:00 UT
+    reading - the noon value, which is the day's official figure and the
+    one GFZ carries. Columns: fluxdate fluxtime julian carrington obs adj ursi."""
+    by_day = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 7 or not parts[0].isdigit() or len(parts[0]) != 8:
+            continue
+        try:
+            obs = float(parts[4])
+        except ValueError:
+            continue
+        if obs <= 0:
+            continue
+        day, hhmm = parts[0], parts[1][:4]
+        # The 20:00 reading wins; failing that the first seen stands.
+        if hhmm == "2000" or day not in by_day:
+            by_day[day] = obs
+    return [[f"{d[:4]}-{d[4:6]}-{d[6:]}T20:00:00", v] for d, v in sorted(by_day.items())]
+
+
+def coverage(data, start, end, now=None):
+    """How much of [start, end] the record actually covers: the share of
+    days with a flux reading and with any Kp, and the flux's first day.
+    Today is not counted against it - the day's flux is read at noon in
+    Penticton and published after, so a span that ends now ends yesterday
+    as far as the record can be expected to go."""
+    now = now or datetime.now(timezone.utc)
+    end = min(end, now - timedelta(days=1))
+    days = max(1, int((end - start).total_seconds() // 86400) + 1)
+    lo, hi = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+    flux_days = sorted({r[0][:10] for r in data.get("f107") or [] if lo <= r[0][:10] <= hi})
+    kp_days = {r[0][:10] for r in data.get("kp") or [] if lo <= r[0][:10] <= hi}
+    return {"days": days, "f107": round(len(flux_days) / days, 3), "kp": round(len(kp_days) / days, 3),
+            "f107_from": flux_days[0] if flux_days else None, "f107_to": flux_days[-1] if flux_days else None}
+
+
 def parse_gfz_archive(text):
     """GFZ's daily lines into (kp rows, flux rows).
 
@@ -142,7 +272,7 @@ def parse_gfz_archive(text):
     return kp, flux
 
 
-def _archive():
+def _archive(notice=None):
     """The GFZ archive, fetched at most once a day."""
     CACHE.mkdir(parents=True, exist_ok=True)
     path = CACHE / "gfz-archive.txt"
@@ -152,18 +282,26 @@ def _archive():
             return path.read_text(encoding="utf-8")
     except OSError:
         pass
-    text = _get(GFZ_ARCHIVE, timeout=180)
+    text = _get(GFZ_ARCHIVE, timeout=180, notice=notice, what="GFZ")
+    if "\n19" not in text[:100000] and "\n20" not in text[:100000]:
+        raise Unavailable("GFZ: what came back was not the archive")
     path.write_text(text, encoding="utf-8")
     return text
 
 
-def fetch(start, end, codes=DEFAULT_STATIONS, force=False):
+def fetch(start, end, codes=DEFAULT_STATIONS, force=False, notice=None):
     """Everything a blind run needs for [start, end], cached under data/.
 
     Returns {"stations": {code: rows}, "kp": [[iso, kp]...], "f107": [[iso, flux]...],
-    "answered": [codes], "silent": [codes]}. The window is widened a day each
-    side so the first hours have a reading behind them and the last have
-    readings ahead to be scored against.
+    "answered": [codes], "silent": [codes], "sources": {...}, "trouble": [...]}.
+    The window is widened a day each side so the first hours have a reading
+    behind them and the last have readings ahead to be scored against.
+
+    Nothing here raises for a source that does not answer: each is tried,
+    the next source is tried behind it, and what came of it is said in
+    `sources` and, where a person should know, in `trouble` - plain
+    sentences for the page. Whether what came back is enough to run on is
+    `coverage`'s question, and the caller's.
     """
     CACHE.mkdir(parents=True, exist_ok=True)
     key = f"{start:%Y%m%d}-{end:%Y%m%d}-{'-'.join(sorted(codes))}"
@@ -176,13 +314,18 @@ def fetch(start, end, codes=DEFAULT_STATIONS, force=False):
     a = (start - timedelta(days=1)).strftime("%Y/%m/%d+00:00:00")
     b = (end + timedelta(days=2)).strftime("%Y/%m/%d+00:00:00")
     out = {"stations": {}, "kp": [], "f107": [], "answered": [], "silent": [],
+           "sources": {"kp": None, "f107": None}, "trouble": [],
            "fetched": datetime.now(timezone.utc).isoformat()}
+    first = True
     for code in codes:
         if code not in STATIONS:
             continue
+        if not first:
+            time.sleep(BETWEEN_STATIONS_S)          # GIRO's limit is per breath
+        first = False
         try:
-            rows = parse_giro(_get(GIRO.format(code=code, a=a, b=b)))
-        except Exception as exc:
+            rows = parse_giro(_get(GIRO.format(code=code, a=a, b=b), notice=notice, what=f"GIRO ({code})"))
+        except Exception as exc:                    # noqa: BLE001 - said, and the next station asked
             log.warning("hindcast: %s did not answer: %s", code, exc)
             rows = []
         if rows:
@@ -196,28 +339,50 @@ def fetch(start, end, codes=DEFAULT_STATIONS, force=False):
     lo = (start - timedelta(days=2)).isoformat()
     hi = (end + timedelta(days=2)).isoformat()
     try:
-        kp, flux = parse_gfz_archive(_archive())
+        kp, flux = parse_gfz_archive(_archive(notice=notice))
         out["kp"] = [r for r in kp if lo <= r[0].replace("Z", "+00:00") <= hi]
         out["f107"] = [r for r in flux if lo[:10] <= r[0][:10] <= hi[:10]]
-    except Exception as exc:
+        out["sources"] = {"kp": "GFZ archive", "f107": "GFZ archive"}
+    except Exception as exc:                        # noqa: BLE001 - the next sources are tried
         log.warning("hindcast: GFZ archive did not answer: %s", exc)
+        out["trouble"].append(f"GFZ's archive of Kp and flux did not answer ({_plain(exc)}).")
         try:
             kp = json.loads(_get(GFZ_KP.format(
                 a=urllib.parse.quote((start - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")),
-                b=urllib.parse.quote((end + timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")))))
+                b=urllib.parse.quote((end + timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z"))),
+                notice=notice, what="GFZ"))
             out["kp"] = [[t, v] for t, v in zip(kp.get("datetime", []), kp.get("Kp", [])) if v is not None]
-        except Exception as exc2:
+            out["sources"]["kp"] = "GFZ Kp service"
+        except Exception as exc2:                   # noqa: BLE001
             log.warning("hindcast: GFZ Kp did not answer either: %s", exc2)
+            out["trouble"].append("Kp could not be had at all; quiet geomagnetic conditions are assumed, "
+                                  "which only touches the storm days.")
+        try:
+            flux = parse_canada_flux(_get(CANADA_F107, notice=notice, what="Penticton"))
+            out["f107"] = [r for r in flux if lo[:10] <= r[0][:10] <= hi[:10]]
+            out["sources"]["f107"] = "Penticton (spaceweather.gc.ca)"
+            out["trouble"].append("The 10.7 cm flux came from the Penticton observatory's own table instead.")
+        except Exception as exc3:                   # noqa: BLE001
+            log.warning("hindcast: Penticton flux did not answer either: %s", exc3)
     try:
-        recent = json.loads(_get(SWPC_F107))
+        recent = json.loads(_get(SWPC_F107, notice=notice, what="SWPC"))
         have = {r[0][:10] for r in out["f107"]}
         out["f107"] += sorted([[r["time_tag"], float(r["flux"])] for r in recent
                                if r.get("flux") is not None and r["time_tag"][:10] not in have
                                and lo[:10] <= r["time_tag"][:10] <= hi[:10]])
         out["f107"].sort()
-    except Exception as exc:
+        if out["sources"]["f107"] is None and out["f107"]:
+            out["sources"]["f107"] = "SWPC (recent days only)"
+    except Exception as exc:                        # noqa: BLE001
         log.warning("hindcast: SWPC flux did not answer: %s", exc)
-    path.write_text(json.dumps(out), encoding="utf-8")
+    cov = coverage(out, start, end)
+    log.info("hindcast: fetched %d-%d: %d stations, flux %d%% of the span from %s, Kp %d%% from %s",
+             int(start.strftime("%Y%m%d")), int(end.strftime("%Y%m%d")), len(out["stations"]),
+             round(100 * cov["f107"]), out["sources"]["f107"], round(100 * cov["kp"]), out["sources"]["kp"])
+    # Kept only when it is worth keeping: a fetch that came back with no
+    # flux to speak of would otherwise be served from the cache for a day.
+    if cov["f107"] >= FLUX_COVERAGE_MIN and out["stations"]:
+        path.write_text(json.dumps(out), encoding="utf-8")
     return out
 
 
@@ -278,19 +443,30 @@ def sondes_at(data, when):
     return out
 
 
-def sfi_at(data, when):
-    """The most recent flux at or before the hour; the nearest if none before."""
-    rows = data.get("f107") or []
-    before = [r for r in rows if _t(r[0]) <= when]
+def _nearest(rows, when, reach_days):
+    """The most recent value at or before the hour, else the first after -
+    either within reach, or None. A reading from the far side of a gap of
+    months is no reading: a year was once run on a flux from eleven months
+    away because the fallback was "the nearest there is"."""
+    reach = timedelta(days=reach_days)
+    before = [r for r in rows if when - reach <= _t(r[0]) <= when]
     if before:
         return before[-1][1]
-    return rows[0][1] if rows else None
+    after = [r for r in rows if when < _t(r[0]) <= when + reach]
+    return after[0][1] if after else None
+
+
+def sfi_at(data, when):
+    """The most recent flux at or before the hour, within reach; None if
+    the record does not cover the hour."""
+    return _nearest(data.get("f107") or [], when, FLUX_REACH_DAYS)
 
 
 def kp_at(data, when):
-    rows = data.get("kp") or []
-    before = [r for r in rows if _t(r[0]) <= when]
-    return before[-1][1] if before else (rows[0][1] if rows else 2.0)
+    """The Kp block containing the hour, within reach; quiet (2.0) if the
+    record does not cover it - the run counts those hours and says so."""
+    v = _nearest(data.get("kp") or [], when, KP_REACH_DAYS)
+    return 2.0 if v is None else v
 
 
 def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
@@ -316,12 +492,16 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
         for p in ledger_dir.glob("*.json"):
             p.unlink()
         when = start.replace(minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
-        hours, with_reading, votes = 0, 0, []
+        hours, with_reading, votes, without_kp, stopped = 0, 0, [], 0, None
         while when <= end and not (stop and stop.is_set()):
             sfi = sfi_at(data, when)
             if sfi is None:
+                stopped = f"no flux reading within {FLUX_REACH_DAYS} days of {when:%Y-%m-%d %H:%M} UTC"
+                log.warning("hindcast: stopped - %s", stopped)
                 break
             k = kp_at(data, when)
+            if _nearest(data.get("kp") or [], when, KP_REACH_DAYS) is None:
+                without_kp += 1
             sondes = sondes_at(data, when)
             cal = propagation.calibration(sfi, lat, lon, when=when, sondes=sondes)
             elevation = propagation.solar_elevation(lat, lon, when)
@@ -378,7 +558,8 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
     finally:
         forecastlog.use(None)
     return {"start": start.isoformat(), "end": end.isoformat(), "hours": hours,
-            "hours_with_reading": with_reading,
+            "hours_with_reading": with_reading, "hours_without_kp": without_kp,
+            "stopped": stopped,
             "sondes_voting": round(sum(votes) / len(votes), 1) if votes else 0,
             "ledger": str(ledger_dir),
             "stations": list(data["stations"]), "silent": data.get("silent", []),

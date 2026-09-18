@@ -104,7 +104,30 @@ check("  and names the yardstick", "persistence" in text, True)
 print("\nthe calibration job runs the two passes and hands the forecast the table")
 import time as _time
 from elmer import calibrate as C, forecastlog as F
-H.fetch = lambda start, end, codes=None, force=False: dict(syn, answered=["AL945"], silent=[])   # offline
+
+
+def fake_fetch(flux_days=None, stations=True, trouble=None):
+    """An offline fetch: the synthetic two-day record, moved onto whatever
+    span the job asks for. `flux_days` limits the flux to that many days
+    before the end; `stations` False is a GIRO that answered nobody."""
+    def fetch(start, end, codes=None, force=False, notice=None):
+        shift = (start - datetime(2026, 9, 1, 0, 0, tzinfo=timezone.utc))
+        span = int((end - start).total_seconds() // 86400) + 3
+        rows = [dict(r, time=(datetime.fromisoformat(r["time"].replace("Z", "+00:00")) + shift)
+                     .isoformat().replace("+00:00", ".000Z")) for r in made]
+        out = {"stations": {"AL945": rows} if stations else {},
+               "kp": [[(start + timedelta(hours=3 * i)).isoformat().replace("+00:00", "Z"), 1.3]
+                      for i in range(-8, span * 8)],
+               "f107": [[(start + timedelta(days=d)).isoformat()[:19], 110.0]
+                        for d in range(-1, span)
+                        if flux_days is None or (end - (start + timedelta(days=d))).days < flux_days],
+               "answered": ["AL945"] if stations else [], "silent": [] if stations else ["AL945"],
+               "sources": {"kp": "test", "f107": "test"}, "trouble": trouble or []}
+        return out
+    return fetch
+
+
+H.fetch = fake_fetch()   # offline
 st = C.start(45.5, -84.0, days=2, build="t", place="Test")
 check("it starts", st["state"] in ("queued", "fetching", "running"), True)
 for _ in range(600):
@@ -119,6 +142,98 @@ check("  a result with before and after", sorted(st["result"]), ["after", "befor
 check("  and the table saved for the live forecast", F.calibration() is not None and "months" in F.calibration(), True)
 check("a second start while idle is a new job", C.start(45.5, -84.0, days=2, build="t", place="Test")["state"] in ("queued", "fetching", "running"), True)
 check("  stop stops it", C.stop(), True)
+
+print("\nthe record is fetched with patience, and read for what it covers")
+CANADA = """fluxdate    fluxtime    fluxjulian    fluxcarrington  fluxobsflux  fluxadjflux  fluxursi
+----------  ----------  ------------  --------------  -----------  -----------  ----------
+20250925    170000      2460944.197   2302.604        0175.3       0176.3       0158.7
+20250925    200000      2460944.322   2302.60         0170.4       0171.4       0154.2
+20250925    230000      2460944.447   2302.61         0168.2       0169.2       0152.2
+20250926    170000      2460945.197   2302.640        0166.0       0167.0       0150.3
+"""
+rows = H.parse_canada_flux(CANADA)
+check("Penticton's table gives one flux a day, the noon reading", rows, [["2025-09-25T20:00:00", 170.4], ["2025-09-26T20:00:00", 166.0]])
+cov = H.coverage(syn, start, end)
+check("the synthetic record covers its span", (cov["f107"], cov["kp"] > 0.9), (1.0, True))
+thin = dict(syn, f107=[[(end - timedelta(days=1)).isoformat()[:19], 110.0]])
+cov = H.coverage(thin, start, end)
+check("  a record with one day of flux says so", (cov["f107"] < 0.5, cov["f107_from"]), (True, (end - timedelta(days=1)).strftime("%Y-%m-%d")))
+check("a flux reading from months away is no reading",
+      H.sfi_at(syn, start + timedelta(days=200)), None)
+check("  nor is Kp - quiet is assumed", H.kp_at(syn, start + timedelta(days=200)), 2.0)
+check("  but a day or two of gap is bridged", H.sfi_at(syn, start + timedelta(days=4, hours=12)), 110.0)
+res_far = H.run(start, start + timedelta(days=300), 45.5, -84.0, syn, build="test-far", ledger=H.CACHE / "ledger-far")
+check("a run that outlives its flux stops and says why",
+      (res_far["hours"] < 24 * 10, "no flux reading" in (res_far["stopped"] or "")), (True, True))
+
+# A server that is busy twice and then answers: the request is tried
+# again, the wait is said, and the body comes back.
+import io as _io
+import urllib.error as _ue
+calls, said, slept = [], [], []
+H.time.sleep = lambda s: slept.append(s)
+
+
+def busy_then_ok(request, timeout=None, context=None):
+    calls.append(request.full_url)
+    if len(calls) < 3:
+        raise _ue.HTTPError(request.full_url, 429, "Too Many Requests", {"Retry-After": "7"}, _io.BytesIO(b""))
+
+    class R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"fine"
+    return R()
+
+
+real_urlopen = H.urllib.request.urlopen
+H.urllib.request.urlopen = busy_then_ok
+check("a busy server is asked again and answers the third time", H._get("https://example.test/x", notice=said.append, what="GIRO (AL945)"), "fine")
+check("  it waited what the server asked", slept, [7.0, 14.0])
+check("  and said so, in words", said[0], "GIRO (AL945) it is busy and asked us to wait; trying again in 7 s.")
+calls.clear()
+slept.clear()
+
+
+def never(request, timeout=None, context=None):
+    calls.append(1)
+    raise _ue.URLError("getaddrinfo failed")
+
+
+H.urllib.request.urlopen = never
+try:
+    H._get("https://example.test/x", what="GFZ")
+    check("a server that never answers is given up on", "raised", "Unavailable")
+except H.Unavailable as exc:
+    check("a server that never answers is given up on, in words", str(exc), "GFZ: there is no route to it - is the network up?")
+check("  after the tries allowed", len(calls), H.TRIES)
+H.urllib.request.urlopen = real_urlopen
+H.time.sleep = _time.sleep if "_time" in dir() else __import__("time").sleep
+
+print("\nthe calibration job runs on what the record covers, and says so when it cannot")
+from elmer import calibrate as C2
+H.fetch = fake_fetch(flux_days=1)
+st = C2.start(45.5, -84.0, days=2, build="t2", place="Test")
+for _ in range(300):
+    st = C2.status()
+    if st["state"] in ("done", "failed", "stopped"):
+        break
+    __import__("time").sleep(0.1)
+check("with one day of flux in a two-day span, the job stops in words", st["state"], "failed")
+check("  that name the trouble, not a traceback",
+      ("solar flux record could not be fetched" in (st["error"] or ""), "Traceback" in (st["error"] or "")), (True, False))
+H.fetch = fake_fetch(stations=False, trouble=["GFZ's archive of Kp and flux did not answer (it is busy and asked us to wait)."])
+C2._job = None
+C2.Job.run.__globals__["hindcast"].fetch = H.fetch
+job = C2.Job(45.5, -84.0, 2, "t3", "Test")
+job.stop.wait = lambda s: True          # the 45 s rest is skipped: the stop is pressed
+job.run()
+check("no sonde at all, and the job is stopped rather than run", job.state, "stopped")
 
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)

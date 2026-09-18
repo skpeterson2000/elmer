@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-18
 
+- Calibrate my forecast degrades instead of breaking: a source that does not answer is tried again with a pause that doubles, a busy GIRO is waited for as long as it asks and the page says so, a certificate this machine cannot check is retried with certifi's roots, the year of flux comes from Penticton's own table when GFZ is down, and a span the record does not cover is shortened to the tail it does or refused in plain words - never again a year forecast on one flux number carried from eleven months away, which is what "the model ran 8.6 MHz under" was; a failure that is the network says so as a sentence, and one that is not gets a reference for the log rather than a traceback on the page
+- The month's finding no longer blames the winter anomaly for a dense daytime layer in any month; it says how much denser or thinner the layer ran than the model's season allows, and leaves the cause unnamed, because it is not measured
 - Calibrate my forecast no longer dies a minute in on Windows with "Access is denied": the hindcast used to swap the whole program's forecast ledger to its scratch directory while it ran, so the live unit's hourly logger and the dashboard wrote their hour into the hindcast's day files on their own threads, and Windows refuses to replace a file another thread has open; the ledger is now the run's own thread's, each writer has a temporary file of its own, and a refusal is waited out rather than failed on
 
 ## 2026-09-17

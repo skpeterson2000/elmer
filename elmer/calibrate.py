@@ -13,8 +13,10 @@ Nothing leaves the unit. The record fetched is GIRO's and GFZ's, under their
 terms; the table is this unit's, about this sky.
 """
 import logging
+import secrets
 import threading
 import time
+import traceback
 from datetime import datetime, timedelta, timezone
 
 from . import forecastlog, hindcast
@@ -51,13 +53,31 @@ class Job:
             end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
             start = end - timedelta(days=self.days)
             self._end = end
-            data = hindcast.fetch(start, end)
+            data = hindcast.fetch(start, end, notice=self.say)
+            if not data["stations"] and not self.stop.is_set():
+                # GIRO refusing every station in one breath is GIRO being
+                # busy, not GIRO being down: one more go after a rest, said
+                # once, and the wait is the page's to show.
+                self.say("No sonde answered - GIRO is busy. Trying once more in 45 s.")
+                if self.stop.wait(45):
+                    self.state = "stopped"
+                    return
+                data = hindcast.fetch(start, end, force=True, notice=self.say)
             self.stations, self.silent = data.get("answered", []), data.get("silent", [])
             if not data["stations"]:
-                raise RuntimeError("no ionosonde station answered for the span - nothing to calibrate against")
+                raise hindcast.Unavailable("No ionosonde answered for the span, so there is nothing to "
+                                           "calibrate against. GIRO was busy or unreachable; try again later.")
             self.say(f"{len(self.stations)} sonde{'s' if len(self.stations) != 1 else ''} answered for the span: "
                      f"{', '.join(self.stations)}"
                      + (f"; {', '.join(self.silent)} silent" if self.silent else "") + ".")
+            for line in data.get("trouble") or []:
+                self.say(line)
+            # Enough of a record to run on? A year forecast on one flux
+            # number is worse than no run, and that is what a missing
+            # archive used to produce. The covered tail is run instead,
+            # when there is one worth running.
+            start, self.days = self._enough(data, start, end)
+            self.hours_total = self.days * 24
             if self.stop.is_set():
                 self.state = "stopped"
                 return
@@ -100,12 +120,49 @@ class Job:
             self.state = "done"
             log.info("calibration: done for %s - %d cells applied, 24h MAE %.2f -> %.2f",
                      self.place, applied, b24 or 0, a24 or 0)
-        except Exception as exc:
+        except hindcast.Unavailable as exc:
+            # The record could not be had. Said in words, logged as a
+            # warning, and not a bug: the network was the matter.
             self.state = "failed"
             self.error = str(exc)[:300]
-            log.exception("calibration failed")
+            log.warning("calibration: could not run - %s", exc)
+        except Exception as exc:                        # noqa: BLE001 - a bug, with a reference
+            ref = "e-" + secrets.token_hex(2)
+            self.state = "failed"
+            self.error = (f"Something went wrong that ELMER did not expect (reference {ref}). "
+                          "The Software panel's recent log has the details, and Send feedback "
+                          "carries them.")
+            log.error("calibration UNHANDLED %s  ref %s\n%s", type(exc).__name__, ref, traceback.format_exc())
         finally:
             self.finished = time.time()
+
+    def _enough(self, data, start, end):
+        """The span the record can honestly cover: (start, days).
+
+        Raises Unavailable when it cannot cover enough of anything; shortens
+        the span to the covered tail when that is a fortnight or more, and
+        says so, so the person knows what they got and why.
+        """
+        cov = hindcast.coverage(data, start, end)
+        if cov["f107"] >= hindcast.FLUX_COVERAGE_MIN:
+            if cov["kp"] < 0.5:
+                self.say("Kp was missing for most of the span; quiet geomagnetic conditions were "
+                         "assumed for those hours, which only touches the storm days.")
+            return start, self.days
+        if cov["f107_from"]:
+            first = datetime.strptime(cov["f107_from"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            tail_days = int((end - first).total_seconds() // 86400)
+            if tail_days >= 14:
+                src = (data.get("sources") or {}).get("f107") or "what answered"
+                self.say(f"The flux record reaches back only to {first:%d %B %Y} ({src}), so the "
+                         f"{tail_days} days it covers are calibrated and the rest left for another day.")
+                return end - timedelta(days=tail_days), tail_days
+        raise hindcast.Unavailable(
+            "The year's solar flux record could not be fetched, so there is nothing to run the "
+            "model against"
+            + (f" ({(data.get('sources') or {}).get('f107') or 'no source'} covered "
+               f"{round(100 * cov['f107'])}% of the span)" if cov["f107"] else "")
+            + ". Nothing is wrong with the model; try again when GFZ or Penticton answers.")
 
     def _progress(self, when, hours):
         self.hours_done = hours
@@ -133,11 +190,15 @@ class Job:
                 name = datetime.strptime(month, "%Y-%m").strftime("%B %Y")
                 note = ""
                 lit = (row.get("lit") or {}).get("bias")
+                # The size is measured; the cause is not, so it is not named.
+                # This used to blame the winter anomaly in any month, and
+                # once did so in September on a run fed the wrong flux.
                 if lit is not None and lit < -4:
-                    note = (" The daytime F layer over you runs denser than the model's season allows -"
-                            " the winter anomaly is stronger here than at the stations it was fitted from.")
+                    note = (" The daytime F layer over you ran denser than the model's season "
+                            "allows for this month.")
                 elif lit is not None and lit > 4:
-                    note = " The daytime layer here runs thinner than the model's season allows."
+                    note = (" The daytime F layer over you ran thinner than the model's season "
+                            "allows for this month.")
                 elif abs((row.get("dark") or {}).get("bias", 0)) > 3:
                     note = " The nights here differ from the stations the season was fitted from."
                 self.say(f"{name}: the model ran " + ", ".join(parts) + "." + note)
