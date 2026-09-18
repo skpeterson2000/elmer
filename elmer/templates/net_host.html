@@ -127,13 +127,13 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
     <div class="controls">
       <select class="btn" id="difficulty">
         <optgroup label="Amateur">
-        {% for key, label in amateur %}
-          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}>{{ label }}</option>
+        {% for key, label, closed in amateur %}
+          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}{% if closed %} disabled title="{{ closed }}"{% endif %}>{{ label }}{% if closed %} &mdash; not open yet{% endif %}</option>
         {% endfor %}
         </optgroup>
         {% if commercial %}<optgroup label="Commercial">
-        {% for key, label in commercial %}
-          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}>{{ label }}</option>
+        {% for key, label, closed in commercial %}
+          <option value="{{ key }}"{% if key == difficulty %} selected{% endif %}{% if closed %} disabled title="{{ closed }}"{% endif %}>{{ label }}</option>
         {% endfor %}
         </optgroup>{% endif %}
       </select>

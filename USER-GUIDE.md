@@ -244,7 +244,7 @@ A study tool assumes one person and a quiet evening. A club night is neither. Th
 
 Open it from any pool card, or from **Gaming Center, this table only** on the dashboard. The screen that sits on the table shows a QR code; a phone on the same wifi scans it and lands on the join page. Two people can also play at the screen itself, side by side, from the two seat rows: a name, a class if you care to say, and **Sit down**.
 
-On the right, the games. Pick the class and the seconds a question, then a tile. **practice opponents** fills the table with practice players so a game can run before the room has arrived. **Ask one question** puts a single question up without a game. **Certificates** prints one page a placing for the wall, with the event, the host, the date and the signatory as they should read.
+On the right, the games. Pick the class and the seconds a question, then a tile. The classes on offer are the ones open to the operator at the controls, the same gate the dashboard's pool cards keep: a newcomer with nothing answered and no callsign gets Technician and nothing else, and the next class opens when a licence reaches it or the one below is taken to Elmer. A table joined to somebody else's net plays the net's class and is not asked. **practice opponents** fills the table with practice players so a game can run before the room has arrived. **Ask one question** puts a single question up without a game. **Certificates** prints one page a placing for the wall, with the event, the host, the date and the signatory as they should read.
 
 ![The table screen, a tournament round in play](docs/screenshots/guide/party.png)
 

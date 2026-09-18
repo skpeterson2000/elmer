@@ -6,6 +6,9 @@ data/elmer.db-shm
 data/elmer.log
 data/elmer.log.*
 data/server-console.log
+# The baseball season - standings, the ladder, who is in the majors. A
+# station's own record of its games, not the program's.
+data/cwball-season.json
 data/explanations/
 
 # Statute text fetched from the legislature that publishes it. The citation

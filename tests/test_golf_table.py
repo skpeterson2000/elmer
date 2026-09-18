@@ -40,6 +40,14 @@ def bot_id_for_hit(room):
 def run():
     client = appmod.app.test_client()
     local = {"REMOTE_ADDR": "127.0.0.1"}
+    # The table keeps the pool gate now, and this is a golf test, not a gate
+    # test: the gate is switched off so General is open to a fresh operator.
+    from elmer import db, gating
+    _g = db.connect()
+    _st = db.get_profile(_g)["settings"]
+    _st[gating.SETTING] = "off"
+    db.save_settings(_g, _st)
+    _g.commit()
     party.close_room()
     room = party.room(create=True, cohorts=1)
     ann = room.join("KC9SP")[0].id

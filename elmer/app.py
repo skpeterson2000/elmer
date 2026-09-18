@@ -26,7 +26,7 @@ from pathlib import Path
 from markupsafe import escape
 from urllib.parse import urlsplit
 
-from flask import (Flask, Response, abort, g, jsonify, render_template,
+from flask import (Flask, Response, abort, g, has_request_context, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (
@@ -3692,16 +3692,34 @@ def api_geocode():
 POOL_DIFFICULTY = {v: k for k, v in party.DIFFICULTIES.items()}
 
 
+def _closed_why(connection, difficulty):
+    """Why the operator at the controls may not run this table on a class,
+    or None if they may. The same gate the dashboard's pool cards keep: a
+    newcomer with nothing answered and no callsign gets Technician and
+    nothing else, and the next class is a reward for a reason. A table
+    joined to somebody else's net takes the net's class and is not asked."""
+    pool_id = party.DIFFICULTIES.get(str(difficulty or "").lower())
+    if not pool_id:
+        return None
+    allowed, state = _open_pools(connection)
+    if pool_id in allowed:
+        return None
+    return gating.why_closed(pool_id, state) or "that class is not open here yet"
+
+
 def _tournament_choices(connection=None):
-    """What a tournament can be run on, grouped by track for the pickers.
-    The commercial pools only when the station has switched them on."""
+    """What a tournament can be run on, grouped by track for the pickers:
+    (key, label, why closed or None). The commercial pools only when the
+    station has switched them on; the amateur classes as the gate has them."""
     order = list(party.DIFFICULTIES)
     show = True
+    closed = {}
     if connection is not None:
         show = bool(db.get_profile(connection)["settings"].get("commercial"))
-    return ([(k, party.LABELS[k]) for k in order
+        closed = {k: _closed_why(connection, k) for k in order}
+    return ([(k, party.LABELS[k], closed.get(k)) for k in order
              if party.TRACK_OF.get(k) == "amateur"],
-            [(k, party.LABELS[k]) for k in order
+            [(k, party.LABELS[k], closed.get(k)) for k in order
              if show and party.TRACK_OF.get(k) == "commercial"])
 
 
@@ -4557,11 +4575,24 @@ def _credit_card(connection, pool_id, question_id, correct, ms):
         log.warning("credit: %s: %s", type(exc).__name__, exc)
 
 
+def _table_class_or_403(difficulty):
+    """A class this table may not run on, for the operator at the controls,
+    is refused with the gate's own sentence - the same one the dashboard
+    shows beside a closed pool. Only from a request: the director's rounds
+    were gated when the game began."""
+    if not has_request_context():
+        return
+    why = _closed_why(conn(), difficulty)
+    if why:
+        abort(403, why)
+
+
 def _ask_party(difficulty="technician", section=None, seconds=None):
     """Put one question to the table. Shared by the button and the director."""
     pool_id = party.DIFFICULTIES.get(str(difficulty).lower())
     if not pool_id:
         raise ValueError(f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
+    _table_class_or_403(difficulty)
     pool = _pool_or_404(pool_id)
     room = _party_or_404()
     _table_writes_its_rounds(room)
@@ -4677,6 +4708,7 @@ def api_party_mode():
         spec = dict(body)
         if wanted == party.GOLF:
             difficulty = str(body.get("difficulty") or _party_class()).lower()
+            _table_class_or_403(difficulty)
             course = golf.course_for_pool(difficulty) or next(iter(golf.courses().values()))
             weather.prefetch(course)
             spec.update({"course": course["id"], "course_name": course["name"],
@@ -4714,6 +4746,7 @@ def _apply_mode(room, wanted, body):
     if wanted == party.SHOOTOUT:
         _not_this_tables_part()      # the hall's shootout is the hall's
         difficulty = str(body.get("difficulty") or _party_class()).lower()
+        _table_class_or_403(difficulty)
         pool_id = party.DIFFICULTIES.get(difficulty)
         if not pool_id:
             abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
@@ -4774,6 +4807,7 @@ def _apply_mode(room, wanted, body):
         # and the director asks until one player is left. See cutthroat.py.
         _not_this_tables_part()
         difficulty = str(body.get("difficulty") or _party_class()).lower()
+        _table_class_or_403(difficulty)
         if difficulty not in party.DIFFICULTIES:
             abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
         room.fill_bots(body.get("level"))
@@ -4795,6 +4829,7 @@ def _apply_mode(room, wanted, body):
         # the first person to scan in, and the clubhouse opens for them.
         _not_this_tables_part()
         difficulty = str(body.get("difficulty") or _party_class()).lower()
+        _table_class_or_403(difficulty)
         if difficulty not in party.DIFFICULTIES:
             abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
         which = str(body.get("holes") or "front").lower()
@@ -5404,6 +5439,8 @@ def party_table(table="1"):
     if wanted not in party.DIFFICULTIES:
         wanted = "technician"
     connection = conn()
+    if _closed_why(connection, wanted):
+        wanted = "technician"
     amateur, commercial = _tournament_choices(connection)
     # The first seat at this screen defaults to whoever is signed in to
     # ELMER, by callsign where they hold one: it is theirs, it is what a
