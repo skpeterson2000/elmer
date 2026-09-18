@@ -42,6 +42,11 @@
     <div class="field" style="align-self:end">
       <button class="btn sm" id="cw-test">Test tone</button>
     </div>
+    <div class="field" style="align-self:end">
+      <label class="tiny muted row" style="gap:.35rem;margin:0" title="Every button on this page says what a contact would send - QRV, QRS, QRQ, QSM?, QSL, QRT - and keys it before it acts, so the sound and the meaning arrive together. Untick to have them act silently.">
+        <input type="checkbox" id="cw-qsay" checked> key the Q-codes
+      </label>
+    </div>
   </div>
   <div class="tiny muted" style="margin-top:.4rem">
     Characters are always sent at the character speed; lowering the effective
@@ -50,7 +55,16 @@
     unlearn later. Pick whatever tone you hear most comfortably &mdash; anywhere
     from 300 to 1200 Hz &mdash; and it is remembered.
   </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    The buttons are labelled the way a contact would put it, and each keys its
+    code before it acts: <b class="mono">QRV</b> ready, go ahead &middot;
+    <b class="mono">QRS</b> send slower &middot; <b class="mono">QRQ</b> send faster &middot;
+    <b class="mono">QSM?</b> please repeat &middot; <b class="mono">QSL</b> received, understood &middot;
+    <b class="mono">QRT</b> stop sending. Soon enough you will think QRS when you feel rushed
+    &mdash; and that is the code learnt.
+  </div>
 </div>
+<div id="cw-qsay-card" class="cw-qsay" hidden><b class="mono" id="cw-qsay-code"></b> <span id="cw-qsay-word"></span></div>
 
 <!-- ------------------------------------------------------------- today -->
 {# One door. The record decides the lesson, the session is laid out, and one
@@ -72,8 +86,8 @@
     </div>
   </div>
   <div class="row mt">
-    <button class="btn primary" id="cw-today-start">Start today&rsquo;s session</button>
-    <button class="btn sm" id="cw-today-stop" hidden>Stop</button>
+    <button class="btn primary" id="cw-today-start" data-q="QRV" title="QRV - ready, go ahead">Start today&rsquo;s session <span class="q">QRV</span></button>
+    <button class="btn sm" id="cw-today-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
     <label class="tiny muted row" style="gap:.35rem;margin:0" title="after each key: a chime or a buzz, then the character that was actually sent, phonetically - Kilo - so the sound of the code is coupled to its name and never to a mistake">
       <input type="checkbox" id="cw-sayback" checked> say what was sent
     </label>
@@ -84,6 +98,10 @@
     <div class="cw-teach-letter" id="cw-flash-letter"></div>
     <div class="cw-flash-word" id="cw-flash-word"></div>
     <div class="cw-teach-hint" id="cw-flash-hint">press the key for what you hear - straight away</div>
+    <div class="row" style="justify-content:center;margin-top:.4rem">
+      <button class="btn sm ghost" id="cw-flash-again" hidden
+              title="? - again, please. The ? key does the same; on the air a ? or AGN asks for a repeat">Resend <span class="q">?</span></button>
+    </div>
     <div class="row" style="justify-content:center;gap:1rem;margin-top:.4rem">
       <span class="mono small" id="cw-flash-score"></span>
       <span class="mono small muted" id="cw-flash-clock"></span>
@@ -127,9 +145,9 @@
   </div>
 
   <div class="row mt">
-    <button class="btn sm primary" id="cw-hear">Hear this lesson&rsquo;s characters</button>
-    <button class="btn sm" id="cw-teach-stop" hidden>Stop</button>
-    <button class="btn sm" id="cw-start-copy">Start copying it</button>
+    <button class="btn sm primary" id="cw-hear" data-q="QRV" title="QRV - ready, go ahead">Hear this lesson&rsquo;s characters <span class="q">QRV</span></button>
+    <button class="btn sm" id="cw-teach-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
+    <button class="btn sm" id="cw-start-copy" data-q="QRV" title="QRV - ready, go ahead">Start copying it <span class="q">QRV</span></button>
     <label class="tiny muted row" style="gap:.35rem;margin:0">
       <input type="checkbox" id="cw-teach-reveal" checked> name it afterwards
     </label>
@@ -143,7 +161,8 @@
   <div id="cw-progress" class="cw-chars"></div>
   <div class="tiny muted" style="margin-top:.4rem">
     Green is copied reliably, amber is shaky, red needs work, grey is not met yet.
-    Hover for the confusions &mdash; which character you actually heard it as.
+    Hover for the confusions &mdash; which character you actually heard it as &mdash;
+    and how often it had to be sent again before it was copied.
   </div>
 </div>
 
@@ -195,16 +214,19 @@
       <select id="cw-kind" class="mono">
         {% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
       </select>
-      <button class="btn sm primary" id="cw-send">Send</button>
-      <button class="btn sm" id="cw-stop" hidden>Stop</button>
-      <button class="btn sm ghost" id="cw-repeat" hidden>Repeat</button>
+      <button class="btn sm primary" id="cw-send" data-q="QRV" title="QRV - ready, go ahead">Send <span class="q">QRV</span></button>
+      <button class="btn sm" id="cw-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
+      <button class="btn sm ghost" id="cw-repeat" data-q="QSM?" hidden title="QSM? - please repeat the last message. Asked for as often as you like, and counted">Resend <span class="q">QSM?</span></button>
+      <button class="btn sm ghost" id="cw-slower" data-q="QRS" hidden title="QRS - send slower. Two words a minute off the effective speed, and the text sent again">Slower <span class="q">QRS</span></button>
+      <button class="btn sm ghost" id="cw-faster" data-q="QRQ" hidden title="QRQ - send faster. Two words a minute on, and the text sent again">Faster <span class="q">QRQ</span></button>
     </div>
   </div>
-  <p class="small muted">Type what you hear. Nothing is revealed until you check.</p>
+  <p class="small muted">Type what you hear. Nothing is revealed until you check. Ask for a resend as often
+    as you need &mdash; a contact would &mdash; and the record keeps the count beside the copy.</p>
   <textarea id="cw-typed" class="cw-input" rows="3" spellcheck="false"
             placeholder="type here as it comes"></textarea>
   <div class="row">
-    <button class="btn sm primary" id="cw-check">Check</button>
+    <button class="btn sm primary" id="cw-check" data-q="QSL" title="QSL - received and understood: here is my copy">Check <span class="q">QSL</span></button>
     <span class="tiny muted" id="cw-copy-status"></span>
   </div>
   <div id="cw-result" class="mt"></div>
@@ -225,14 +247,14 @@
   <p class="small muted">Five groups of five come at a speed. Type what you heard and check. Nine in ten right and
     the next rung is two words a minute faster; short of that, two slower. The ladder settles in a few rungs.</p>
   <div class="row" style="gap:.5rem;align-items:center">
-    <button class="btn sm primary" id="cw-ladder-start">Rate my copying</button>
-    <button class="btn sm" id="cw-ladder-repeat" hidden>Repeat</button>
-    <button class="btn sm ghost" id="cw-ladder-stop" hidden>Stop</button>
+    <button class="btn sm primary" id="cw-ladder-start" data-q="QRV" title="QRV - ready, go ahead">Rate my copying <span class="q">QRV</span></button>
+    <button class="btn sm" id="cw-ladder-repeat" data-q="QSM?" hidden title="QSM? - please repeat the last message. Counted, and said with the result">Resend <span class="q">QSM?</span></button>
+    <button class="btn sm ghost" id="cw-ladder-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
     <span class="tiny muted" id="cw-ladder-status"></span>
   </div>
   <textarea id="cw-ladder-typed" class="cw-input mt" rows="2" spellcheck="false" autocomplete="off"
             placeholder="what you heard" hidden></textarea>
-  <div class="row mt" id="cw-ladder-checkrow" hidden><button class="btn sm primary" id="cw-ladder-check">Check</button></div>
+  <div class="row mt" id="cw-ladder-checkrow" hidden><button class="btn sm primary" id="cw-ladder-check" data-q="QSL" title="QSL - received and understood: here is my copy">Check <span class="q">QSL</span></button></div>
   <div id="cw-ladder-result" class="mt"></div>
   <h3 class="mt">Sending</h3>
   <p class="small muted">On the <b>Your sending</b> pane, press <i>Rate my sending</i>: a line is shown, you key it -
@@ -246,7 +268,7 @@
     <div class="panel-title" style="margin:0">Send text</div>
     <div class="row">
       <button class="btn sm primary" id="cw-text-send">Send</button>
-      <button class="btn sm" id="cw-text-stop" hidden>Stop</button>
+      <button class="btn sm" id="cw-text-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
     </div>
   </div>
   <p class="small muted">

@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS cw_char (
     sent     INTEGER NOT NULL DEFAULT 0,
     copied   INTEGER NOT NULL DEFAULT 0,
     confused TEXT    NOT NULL DEFAULT '{}',
+    repeats  INTEGER NOT NULL DEFAULT 0,
     updated  TEXT,
     PRIMARY KEY (user_id, ch)
 );
@@ -329,9 +330,19 @@ def migrate(conn):
         for column in ("seal_salt", "seal_wrap", "seal_recovery_salt", "seal_recovery"):
             if column not in _columns(conn, "profile"):
                 conn.execute(f"ALTER TABLE profile ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+        log.info("database upgraded to version 6 - private data may be sealed with a password")
+        version = 6
+
+    if version == 6:
+        # Version 7: the CW record counts the resends - how many times a
+        # character had to be sent again before it was copied, which is
+        # the measure a contact would give you: "please repeat".
+        if "repeats" not in _columns(conn, "cw_char"):
+            conn.execute("ALTER TABLE cw_char ADD COLUMN repeats INTEGER NOT NULL DEFAULT 0")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - private data may be sealed with a password", SCHEMA_VERSION)
+        log.info("database upgraded to version %s - the CW record counts resends", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -807,8 +818,10 @@ def cw_record(conn, per_char):
     """Fold one copy session into the per-character record.
 
     ``per_char`` maps a sent character to {"sent": n, "copied": n,
-    "confused": {typed: n}} - what was actually heard as what, which is the
-    thing that tells you which pairs still need separating.
+    "confused": {typed: n}, "repeats": n} - what was actually heard as
+    what, which is the thing that tells you which pairs still need
+    separating, and how many times it had to be sent again first, which
+    is what a contact would measure: "please repeat".
     """
     import json as _json
     for ch, stats in per_char.items():
@@ -818,13 +831,14 @@ def cw_record(conn, per_char):
         for typed, n in (stats.get("confused") or {}).items():
             confused[typed] = confused.get(typed, 0) + int(n)
         conn.execute(
-            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, updated) "
-            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
+            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
             "sent = sent + excluded.sent, copied = copied + excluded.copied, "
-            "confused = excluded.confused, updated = excluded.updated",
+            "confused = excluded.confused, repeats = repeats + excluded.repeats, "
+            "updated = excluded.updated",
             (conn.user_id, ch, int(stats.get("sent", 0)),
              int(stats.get("copied", 0)), _json.dumps(confused),
-             utcnow().isoformat()))
+             int(stats.get("repeats", 0) or 0), utcnow().isoformat()))
     conn.commit()
 
 

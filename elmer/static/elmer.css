@@ -1403,3 +1403,11 @@ table.worth tr.worth-me th { color: var(--text); font-weight: bold; }
 table.worth tr.worth-me td.worth-num { color: var(--text); }
 .worth-swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; vertical-align: -1px; margin-right: .3rem; }
 @media (max-width: 700px) { table.worth td.worth-what { display: none; } table.worth td.worth-bar { width: 50%; } }
+
+/* The CW page's buttons carry their Q-code, and the card at the foot says
+   what the code being keyed means while it sounds. */
+.btn .q { font: .68rem var(--mono); letter-spacing: .08em; opacity: .72; margin-left: .3rem; }
+.cw-qsay { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%);
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px;
+  padding: .45rem .9rem; z-index: 60; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.cw-qsay b { font-size: 1.05rem; margin-right: .5rem; }

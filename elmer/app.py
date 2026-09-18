@@ -2674,8 +2674,9 @@ def api_cw_result():
         db.save_settings(connection, settings)
     total = sum(v.get("sent", 0) for v in per_char.values())
     hit = sum(v.get("copied", 0) for v in per_char.values())
-    log.info("CW copy session: %d characters, %d%% copied", total,
-             round(100 * hit / total) if total else 0)
+    again = sum(int(v.get("repeats", 0) or 0) for v in per_char.values())
+    log.info("CW copy session: %d characters, %d%% copied, %d resend%s", total,
+             round(100 * hit / total) if total else 0, again, "" if again == 1 else "s")
     return jsonify({"ok": True, "progress": db.cw_progress(connection)})
 
 

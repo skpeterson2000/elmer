@@ -51,6 +51,72 @@ function saveSettings() {
   }, 800);
 }
 
+/* -------------------------------------------------- the buttons speak CW */
+/* Immersion: every control says what a contact would send, and keys it
+   before it acts. Press Slower and QRS sounds as the gaps open; press
+   Resend and QSM? goes out first. The sound, the letters and the meaning
+   arrive together, which is how a newcomer comes to think "QRS" when they
+   feel rushed - and that is the code learnt, not looked up. The switch in
+   the settings row turns the keying off for somebody past needing it. */
+const Q_MEANING = {
+  'QRV': 'ready, go ahead', 'QRS': 'send slower', 'QRQ': 'send faster',
+  'QSM?': 'please repeat the last message', 'QSL': 'received and understood',
+  'QRT': 'stop sending', '?': 'again, please',
+};
+
+function qsayOn() { return settings.qsay !== false; }
+
+function keyQ(code) {
+  /* The code, keyed at the character speed with normal spacing, and the
+     card at the foot of the page saying what it means for as long as it
+     sounds. Resolves when done; at once when the keying is off or the
+     player is busy sending something else. */
+  const card = document.getElementById('cw-qsay-card');
+  const word = Q_MEANING[code] || '';
+  const show = ms => {
+    if (!card) return;
+    document.getElementById('cw-qsay-code').textContent = code;
+    document.getElementById('cw-qsay-word').textContent = word;
+    card.hidden = false;
+    clearTimeout(card._timer);
+    card._timer = setTimeout(() => { card.hidden = true; }, ms);
+  };
+  if (!qsayOn()) return Promise.resolve();
+  const syms = [...code].map(c => ({char: c, code: CODE[c] || ''})).filter(s => s.code);
+  if (!syms.length || sending || textSending) { show(900); return Promise.resolve(); }
+  return new Promise(resolve => {
+    const timing = localTiming();
+    let ms = 0;
+    syms.forEach(s => { for (const el of s.code) ms += (el === '-' ? timing.dah : timing.dit) + timing.symbol_gap; ms += timing.char_gap; });
+    show(Math.max(900, ms + 200));
+    try {
+      player.send([syms], timing, null, () => setTimeout(resolve, 150));
+    } catch (e) { resolve(); }
+  });
+}
+
+/* Any button with data-q says its code first, then does what it does: the
+   click is held, the code keyed, and the click let through with the
+   button marked so this does not run twice. A Stop (data-q-after) acts
+   first and says QRT after - stopping must not wait on anything. */
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-q]');
+  if (!b || b.dataset.qSung || b.disabled) return;
+  if (b.hasAttribute('data-q-after')) { setTimeout(() => keyQ(b.dataset.q), 60); return; }
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  keyQ(b.dataset.q).then(() => {
+    b.dataset.qSung = '1';
+    try { b.click(); } finally { delete b.dataset.qSung; }
+  });
+}, true);
+
+const qsayBox = document.getElementById('cw-qsay');
+if (qsayBox) {
+  qsayBox.checked = qsayOn();
+  qsayBox.addEventListener('change', () => { settings.qsay = qsayBox.checked; saveSettings(); });
+}
+
 bindSetting('cw-tone', 'tone', v => v + ' Hz');
 bindSetting('cw-vol', 'volume', v => v + '%');
 bindSetting('cw-wpm', 'wpm', v => v + ' wpm');
@@ -231,7 +297,8 @@ function renderProgress() {
       const worst = Object.entries(confused).sort((a, b) => b[1] - a[1]).slice(0, 3);
       title = c + ': copied ' + st.copied + ' of ' + st.sent +
         ' (' + Math.round(100 * st.copied / st.sent) + '%)' +
-        (worst.length ? ' — heard as ' + worst.map(w => w[0] + '×' + w[1]).join(', ') : '');
+        (worst.length ? ' — heard as ' + worst.map(w => w[0] + '×' + w[1]).join(', ') : '') +
+        (st.repeats ? ' — sent again ' + st.repeats + (st.repeats === 1 ? ' time' : ' times') : '');
     }
     return '<span class="cw-char ' + charClass(st) + '" title="' +
       escapeHTML(title) + '">' + escapeHTML(c) + '</span>';
@@ -268,6 +335,12 @@ async function teachChars(symbols) {
   document.getElementById('cw-teach-stop').hidden = false;
   document.getElementById('cw-teach-hint').textContent = 'listen';
   await teachRun(symbols, localTiming(), teachUI);
+  /* Once heard, the same button is the resend: "again, please" is the
+     most natural thing to ask for and should not need a second thought. */
+  const hear = document.getElementById('cw-hear');
+  hear.innerHTML = 'Send them again <span class="q">QSM?</span>';
+  hear.dataset.q = 'QSM?';
+  hear.title = 'QSM? - please repeat the last message';
 }
 
 document.getElementById('cw-hear').addEventListener('click', () => {
@@ -314,6 +387,11 @@ document.getElementById('cw-start-copy').addEventListener('click', () => {
 
 /* ------------------------------------------------------------------- copy */
 let currentText = '', currentData = null, sending = false;
+/* How many times this text was sent again before it was checked. A contact
+   asks for a repeat when the copy is shaky, and a learner asks more often;
+   the count is part of the record - copied first time, or copied after
+   three resends, is the difference between knowing and nearly knowing. */
+let copyResends = 0;
 
 async function sendPractice(repeat) {
   const kind = document.getElementById('cw-kind').value;
@@ -324,6 +402,9 @@ async function sendPractice(repeat) {
       kind: kind, count: kind === 'qso' ? 1 : 5, lesson: settings.lesson,
       wpm: settings.wpm, effective: settings.effective}));
     currentText = currentData.plain || currentData.text;
+    copyResends = 0;
+  } else {
+    copyResends++;
   }
   /* A repeat is a fresh copy of the same text: what was typed and what
      was marked go, so the second hearing is heard and not read. */
@@ -335,17 +416,50 @@ async function sendPractice(repeat) {
   document.getElementById('cw-repeat').hidden = true;
   status.textContent = 'sending…';
   document.getElementById('cw-typed').focus();
+  document.getElementById('cw-slower').hidden = true;
+  document.getElementById('cw-faster').hidden = true;
   player.send(currentData.groups, currentData.timing, null, () => {
     sending = false;
     document.getElementById('cw-send').hidden = false;
     document.getElementById('cw-stop').hidden = true;
     document.getElementById('cw-repeat').hidden = false;
-    status.textContent = 'sent — type what you heard, then check';
+    document.getElementById('cw-slower').hidden = false;
+    document.getElementById('cw-faster').hidden = false;
+    status.textContent = (copyResends ? 'sent again (' + copyResends + ') — ' : 'sent — ') +
+      'type what you heard, then check';
   });
 }
 
 document.getElementById('cw-send').addEventListener('click', () => sendPractice(false));
 document.getElementById('cw-repeat').addEventListener('click', () => sendPractice(true));
+
+/* QRS and QRQ: two words a minute off or on the effective speed - the gaps,
+   never the characters, which is the Farnsworth rule the settings explain -
+   and the same text sent again at the new pace. It counts as a resend, and
+   the slider follows so the new pace is what the next send uses too. */
+async function repace(delta) {
+  const eff = document.getElementById('cw-eff');
+  const was = settings.effective;
+  settings.effective = Math.max(3, Math.min(settings.wpm, settings.effective + delta));
+  eff.value = settings.effective;
+  document.getElementById('cw-eff-v').textContent = settings.effective + ' wpm';
+  saveSettings();
+  if (!currentData) return;
+  if (settings.effective === was) {
+    document.getElementById('cw-copy-status').textContent = delta < 0
+      ? 'already at the slowest spacing' : 'already as fast as the characters themselves';
+    return;
+  }
+  const kind = document.getElementById('cw-kind').value;
+  /* The same text, the new timing: re-encoded so the gaps are right. */
+  const data = await api('/api/cw/encode?' + new URLSearchParams(
+    {text: currentData.text, wpm: settings.wpm, effective: settings.effective})).catch(() => null);
+  if (data && data.groups) { currentData.groups = data.groups; currentData.timing = data.timing; }
+  void kind;
+  await sendPractice(true);
+}
+document.getElementById('cw-slower').addEventListener('click', () => repace(-2));
+document.getElementById('cw-faster').addEventListener('click', () => repace(2));
 document.getElementById('cw-stop').addEventListener('click', () => {
   player.stop(); sending = false;
   document.getElementById('cw-send').hidden = false;
@@ -367,8 +481,9 @@ document.getElementById('cw-check').addEventListener('click', async () => {
     const want = a[i], had = b[i] || '';
     const ok = want === had;
     hits += ok ? 1 : 0;
-    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}};
+    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}, repeats: 0};
     perChar[want].sent++;
+    perChar[want].repeats += copyResends;
     if (ok) perChar[want].copied++;
     else if (had) perChar[want].confused[had] = (perChar[want].confused[had] || 0) + 1;
     marks.push('<span class="' + (ok ? 'cw-hit' : 'cw-miss') + '">' +
@@ -382,10 +497,12 @@ document.getElementById('cw-check').addEventListener('click', async () => {
       ).join(' &middot; ') + '</div>'
     : '';
 
+  const heard = copyResends ? 'after ' + copyResends + ' resend' + (copyResends === 1 ? '' : 's') : 'first time through';
   document.getElementById('cw-result').innerHTML =
-    '<div class="spread"><b>' + pct + '% copied</b>' +
+    '<div class="spread"><b>' + pct + '% copied</b> <span class="tiny muted">' + heard + '</span>' +
     '<span class="pill ' + (pct >= 90 ? 'good' : pct >= 70 ? 'warn' : 'bad') + '">' +
-      (pct >= 90 ? 'ready for the next character' : pct >= 70 ? 'nearly' : 'more of this one') +
+      (pct >= 90 ? (copyResends ? 'ready, once it comes first time' : 'ready for the next character')
+        : pct >= 70 ? 'nearly' : 'more of this one') +
     '</span></div>' +
     '<div class="cw-compare mt">' + marks.join('') + '</div>' +
     '<div class="tiny muted" style="margin-top:.4rem">sent: <span class="mono">' +
@@ -1113,14 +1230,23 @@ async function refreshPlan() {
 /* After the answer: the cue and the spoken name take most of a second,
    and the next character must not start over them. */
 const FLASH_WINDOW_MS = 1500, FLASH_GAP_MS = 1000, FLASH_GAP_WRONG_MS = 1700;
+/* The answer to a flashed character is a key press; '?' is not an answer
+   but a request - "again, please" - and the button beside the card is the
+   same request for a screen with no keyboard. */
+const RESEND_KEY = '?';
 let flashKey = null;
 document.addEventListener('keydown', e => {
   if (!flashKey) return;
   if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
-  const k = e.key.toUpperCase();
+  const k = e.key === RESEND_KEY ? RESEND_KEY : e.key.toUpperCase();
   e.preventDefault();
   const take = flashKey; flashKey = null;
   take(k);
+});
+document.getElementById('cw-flash-again').addEventListener('click', () => {
+  if (!flashKey) return;
+  const take = flashKey; flashKey = null;
+  take(RESEND_KEY);
 });
 
 async function flashRun(seconds) {
@@ -1135,25 +1261,40 @@ async function flashRun(seconds) {
   let seq;
   try { seq = (await api('/api/cw/flash?count=200')).chars; } catch (e) { box.hidden = true; return null; }
   const perChar = {}, times = [];
-  let right = 0, sent = 0, i = 0;
+  let right = 0, sent = 0, i = 0, resends = 0;
   const until = Date.now() + seconds * 1000;
-  hint.textContent = 'press the key for what you hear - straight away';
+  const again = document.getElementById('cw-flash-again');
+  hint.textContent = 'press the key for what you hear - straight away; ? to hear it again';
+  again.hidden = false;
   while (Date.now() < until && !sessionStop && i < seq.length) {
     const sym = seq[i++];
     letter.classList.remove('show'); letter.innerHTML = '';
     word.classList.remove('show'); word.textContent = '';
     clock.textContent = Math.max(0, Math.round((until - Date.now()) / 1000)) + ' s';
     const t0 = performance.now();
-    const played = playSymbol(sym, localTiming(), [code]);
-    const answer = await new Promise(resolve => {
-      const timer = setTimeout(() => { flashKey = null; resolve(null); }, FLASH_WINDOW_MS + 1200 / settings.wpm * sym.code.length * 2);
-      flashKey = k => { clearTimeout(timer); resolve(k); };
-    });
-    await played;
+    /* Played, and played again for as long as ? is pressed instead of an
+       answer. Each resend is counted against the character: the clock
+       keeps running, because a contact's patience does too. */
+    let answer = null, reps = 0;
+    for (;;) {
+      const played = playSymbol(sym, localTiming(), [code]);
+      answer = await new Promise(resolve => {
+        const timer = setTimeout(() => { flashKey = null; resolve(null); }, FLASH_WINDOW_MS + 1200 / settings.wpm * sym.code.length * 2);
+        flashKey = k => { clearTimeout(timer); resolve(k); };
+      });
+      await played;
+      if (answer !== RESEND_KEY || sessionStop) break;
+      reps++;
+      hint.textContent = 'again (' + reps + ')';
+      await sleep(250);
+    }
+    hint.textContent = 'press the key for what you hear - straight away; ? to hear it again';
     sent++;
+    resends += reps;
     const want = sym.char;
-    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}};
+    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}, repeats: 0};
     perChar[want].sent++;
+    perChar[want].repeats += reps;
     const ok = answer === want;
     word.style.color = ok ? 'var(--green)' : 'var(--red)';
     sayBack(want, word, answer ? ok : undefined);
@@ -1166,10 +1307,11 @@ async function flashRun(seconds) {
     await sleep(ok ? FLASH_GAP_MS : FLASH_GAP_WRONG_MS);
   }
   flashKey = null;
+  again.hidden = true;
   letter.style.color = '';
   box.hidden = true;
   const mean = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
-  return {perChar: perChar, right: right, sent: sent, mean_ms: mean};
+  return {perChar: perChar, right: right, sent: sent, mean_ms: mean, resends: resends};
 }
 
 async function runSession() {
@@ -1213,7 +1355,8 @@ async function runSession() {
       const r = await flashRun(step.seconds);
       if (r && r.sent) {
         const pct = Math.round(100 * r.right / r.sent);
-        lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') + '.</li>');
+        lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') +
+          (r.resends ? ', ' + r.resends + ' resend' + (r.resends === 1 ? '' : 's') + ' asked for' : '') + '.</li>');
         const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
         if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
       }
@@ -1290,7 +1433,11 @@ async function ladderRung(repeat) {
     status.textContent = 'fetching ' + ladderWord(ladder.wpm) + '\u2026';
     ladder.data = await api('/api/cw/ladder?' + new URLSearchParams({wpm: ladder.wpm, count: 5}));
     ladder.text = ladder.data.plain || ladder.data.text;
+    ladder.rungResends = 0;
     document.getElementById('cw-ladder-typed').value = '';
+  } else {
+    ladder.rungResends = (ladder.rungResends || 0) + 1;
+    ladder.resends = (ladder.resends || 0) + 1;
   }
   document.getElementById('cw-ladder-typed').hidden = false;
   document.getElementById('cw-ladder-checkrow').hidden = false;
@@ -1316,7 +1463,8 @@ function ladderFinish(rated) {
     res.innerHTML = '<div class="spread"><b>Rated: you copy at ' + ladderWord(rated) + '</b>' +
       '<span class="pill good">the top rung you passed</span></div>' +
       '<div class="tiny muted mt">passed ' + (ladder.passed.map(ladderWord).join(', ') || 'none') +
-      (ladder.failed.length ? ' \u00b7 short at ' + ladder.failed.map(ladderWord).join(', ') : '') + '</div>';
+      (ladder.failed.length ? ' \u00b7 short at ' + ladder.failed.map(ladderWord).join(', ') : '') +
+      (ladder.resends ? ' \u00b7 ' + ladder.resends + ' resend' + (ladder.resends === 1 ? '' : 's') + ' asked for along the way' : '') + '</div>';
   } else {
     res.innerHTML = '<div class="small muted">No rung passed - the ladder starts at ' + ladderWord(RUNG_LOW) +
       ' next time. Keep at the lessons; it comes.</div>';
@@ -1346,7 +1494,9 @@ document.getElementById('cw-ladder-check').addEventListener('click', () => {
   const pct = a.length ? Math.round(100 * hits / a.length) : 0;
   ladder.rungs++;
   const res = document.getElementById('cw-ladder-result');
+  const rr = ladder.rungResends || 0;
   res.innerHTML = '<div class="spread"><b>' + ladderWord(ladder.wpm) + ': ' + pct + '% copied</b>' +
+    (rr ? '<span class="tiny muted">after ' + rr + ' resend' + (rr === 1 ? '' : 's') + '</span>' : '') +
     '<span class="pill ' + (pct >= PASS_PCT ? 'good' : 'warn') + '">' + (pct >= PASS_PCT ? 'passed - up two' : 'short - down two') + '</span></div>' +
     '<div class="tiny muted" style="margin-top:.3rem">sent: <span class="mono">' + escapeHTML(ladder.text) + '</span></div>';
   if (pct >= PASS_PCT) ladder.passed.push(ladder.wpm); else ladder.failed.push(ladder.wpm);

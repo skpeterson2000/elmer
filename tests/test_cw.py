@@ -176,6 +176,43 @@ def main():
     cw.WORDS = kept
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
+    print("\n-- the record counts resends, and an older database learns the column --")
+    import sqlite3
+    import tempfile
+    from elmer import db
+    old = Path(tempfile.mkdtemp(prefix="elmer-v6-")) / "old.db"
+    raw = sqlite3.connect(old)
+    raw.executescript("""
+        CREATE TABLE profile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL DEFAULT '', callsign TEXT NOT NULL DEFAULT '',
+            created TEXT NOT NULL, xp INTEGER NOT NULL DEFAULT 0,
+            streak_days INTEGER NOT NULL DEFAULT 0, best_streak INTEGER NOT NULL DEFAULT 0,
+            last_study_day TEXT, last_seen TEXT, settings TEXT NOT NULL DEFAULT '{}',
+            pw_salt TEXT NOT NULL DEFAULT '', pw_hash TEXT NOT NULL DEFAULT '',
+            seal_salt TEXT NOT NULL DEFAULT '', seal_wrap TEXT NOT NULL DEFAULT '',
+            seal_recovery_salt TEXT NOT NULL DEFAULT '', seal_recovery TEXT NOT NULL DEFAULT '');
+        INSERT INTO profile (id, name, created) VALUES (1, 'Old Timer', '2026-01-01');
+        CREATE TABLE cw_char (user_id INTEGER NOT NULL DEFAULT 1, ch TEXT NOT NULL,
+            sent INTEGER NOT NULL DEFAULT 0, copied INTEGER NOT NULL DEFAULT 0,
+            confused TEXT NOT NULL DEFAULT '{}', updated TEXT, PRIMARY KEY (user_id, ch));
+        INSERT INTO cw_char (user_id, ch, sent, copied) VALUES (1, 'K', 10, 9);
+        PRAGMA user_version = 6;""")
+    raw.commit()
+    raw.close()
+    db.DB_PATH = old
+    conn = db.connect()
+    check("a version-6 database comes up to date", conn.execute("PRAGMA user_version").fetchone()[0], db.SCHEMA_VERSION)
+    before = db.cw_progress(conn)["K"]
+    check("  the old record kept, with no resends yet", (before["sent"], before["copied"], before["repeats"]), (10, 9, 0))
+    db.cw_record(conn, {"K": {"sent": 2, "copied": 2, "confused": {}, "repeats": 3},
+                        "M": {"sent": 1, "copied": 0, "confused": {"O": 1}}})
+    after = db.cw_progress(conn)
+    check("a session's resends are folded in", (after["K"]["sent"], after["K"]["copied"], after["K"]["repeats"]), (12, 11, 3))
+    check("  a character with none said is none", after["M"]["repeats"], 0)
+    db.cw_record(conn, {"K": {"sent": 1, "copied": 1, "repeats": 1}})
+    check("  and they add up", db.cw_progress(conn)["K"]["repeats"], 4)
+
     return 1 if FAILS else 0
 
 
