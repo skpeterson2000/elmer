@@ -101,6 +101,14 @@ def main():
     callsign.lookup = lambda call, refresh=False: record("General")
     from elmer.app import app
     c = app.test_client()
+    # Nothing held: the band plan opens on No licence, which is the true
+    # answer. It used to open on Technician, which showed a newcomer
+    # privileges that are not theirs and called it their class - and the
+    # page has an honest thing to say to No licence instead, which is that
+    # every amateur band above reads no and the services below it do not.
+    page = c.get("/bandplan", environ_base=LOCAL).data.decode("utf-8")
+    check("a station holding nothing opens the band plan on No licence",
+          '<option value="none" selected>' in page, True)
     c.post("/api/settings", json={"license_class": "Extra"}, environ_base=LOCAL)
     check("an answer typed before any callsign is the operator's word",
           callsign.held(db.get_profile(db.connect())["settings"])["source"], callsign.OWN)

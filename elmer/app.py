@@ -827,7 +827,15 @@ def bandplan_page():
         # so the licence is the only thing left to open on, and one helper
         # answers "what does this station hold?" for the page, the owl and
         # anything printed with a callsign on it.
-        license_class=_class_held() or "Technician",
+        #
+        # Nothing held opens on No licence rather than on Technician, because
+        # that is the true answer and because the page has an honest thing to
+        # say to it: every amateur band reads no, and under them are the
+        # services that are theirs today - FRS, MURS, CB, GMRS for a fee and
+        # no exam - and the Technician exam that is thirty-five questions and
+        # whose pool is in this program. Opening on Technician showed a
+        # newcomer privileges that are not theirs and called it their class.
+        license_class=_class_held() or "none",
         coordinators=regional.states(),
         # The QTH decides, including a GPS fix: a state picked by hand on
         # this page stands only while the QTH is the one it was picked
