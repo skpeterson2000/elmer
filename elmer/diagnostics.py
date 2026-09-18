@@ -144,7 +144,7 @@ def collect(port=5000):
     _collected = []
     try:
         for check in (check_pools, check_figures, check_explanations,
-                      check_database, check_templates, check_tools, check_manual,
+                      check_database, check_accounts, check_templates, check_tools, check_manual,
                       check_kiosk, check_launcher, check_updates,
                       check_location, check_gps, check_repeaters,
                       check_towerwitch_service, check_towerwitch_beside,
@@ -398,6 +398,35 @@ def check_library():
     return True
 
 
+def check_accounts():
+    """Whether the unit has said it is shared, and who on it is open."""
+    from . import db
+    try:
+        conn = db.connect()
+        people = db.users(conn)
+        shared = db.shared(conn)
+    except Exception as exc:
+        _line(WARN, "accounts", f"could not look: {type(exc).__name__}: {exc}")
+        return True
+    open_ = [u for u in people if not u["locked"]]
+    n = len(people)
+    if shared:
+        if open_:
+            _line(WARN, "accounts",
+                  f"a shared unit, and {len(open_)} of {n} account{'s' if n != 1 else ''} "
+                  f"{'has' if len(open_) == 1 else 'have'} no password - anyone at the controls can "
+                  f"become them; the account menu sets one")
+        else:
+            _line(OK, "accounts", f"a shared unit, and every one of its {n} accounts has a password")
+    elif shared is None and n > 1:
+        _line(WARN, "accounts", f"{n} accounts, and the unit has not said whether it is shared - the Station dialog asks")
+    elif n == 1:
+        _line(OK, "accounts", "one account, one person's unit")
+    else:
+        _line(OK, "accounts", f"{n} accounts, the unit marked one person's")
+    return True
+
+
 def check_manual():
     """ELMER's own guide, on the shelf with the operator's manuals."""
     from . import db, manual
@@ -409,7 +438,7 @@ def check_manual():
     if st["declined"]:
         _line(OK, "user's guide", "declined on the Library page - not on the shelf, and not put back")
     elif not st["source"]:
-        _line(WARN, "user's guide", "docs/USER-GUIDE.md is not in this checkout, so there is nothing to build it from")
+        _line(WARN, "user's guide", "USER-GUIDE.md is not in this checkout, so there is nothing to build it from")
     elif not st["present"]:
         _line(WARN, "user's guide", f"not on the shelf - it comes back when ELMER next starts, or now", fix="manual")
     elif st["stale"]:

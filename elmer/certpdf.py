@@ -122,7 +122,8 @@ def _fit(c, text, font, size, width, floor=14):
     return size
 
 
-def _page(c, award, event, when, where, footer, club=None, signers=None, mode=None):
+def _page(c, award, event, when, where, footer, club=None, signers=None, mode=None,
+          thanks=None):
     W, H = landscape(LETTER)
     margin = 0.7 * 72
     place = int(award.get("place") or 1)
@@ -216,10 +217,15 @@ def _page(c, award, event, when, where, footer, club=None, signers=None, mode=No
     c.setFont("Helvetica-Oblique", 7.5)
     c.setFillColor(DIM)
     c.drawCentredString(W / 2, margin + 22, footer)
+    # And who to thank, under it: the evening's sponsors and the
+    # supporters in the hall, when the host left the line on.
+    if thanks:
+        c.setFont("Helvetica", 7.5)
+        c.drawCentredString(W / 2, margin + 10, thanks)
 
 
 def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
-          club=None, signers=None, mode=None):
+          club=None, signers=None, mode=None, thanks=None):
     """One page per award. `awards`: [{place, name, lines: [...]}, ...].
     `mode` is the game played - "shootout" brings its own medals and words."""
     when = when or f"{date.today().day} {date.today():%B %Y}"
@@ -232,7 +238,8 @@ def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
     c.setTitle(f"{event} - certificates")
     c.setAuthor("ELMER")
     for award in awards:
-        _page(c, award, event, when, where, footer, club=club, signers=signers, mode=mode)
+        _page(c, award, event, when, where, footer, club=club, signers=signers, mode=mode,
+              thanks=thanks)
         c.showPage()
     c.save()
     return buffer.getvalue()

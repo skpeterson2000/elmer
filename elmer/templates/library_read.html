@@ -62,6 +62,13 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
   {% if draws %}
   <button class="btn sm ghost" id="mode" title="ELMER draws the page; the browser's viewer can select text and search the file, but may not open at the page">Browser viewer</button>
   {% endif %}
+  {# The file itself, for printing and saving: the browser's own viewer has
+     both, and in a tab of its own it has room. The kiosk has no tabs, so
+     there the same button shows the file in this frame, where Back still
+     works, and the viewer's print is a keypress away. #}
+  <a class="btn sm ghost" id="asfile" href="/library/book/{{ name|urlencode }}#page={{ page }}"
+     {% if not kiosk_token %}target="_blank" rel="noopener"{% endif %}
+     title="{% if kiosk_token %}the file itself in the browser's viewer, here - its print and save are on its own toolbar{% else %}the file itself in a tab of its own - the browser's viewer, with print and save{% endif %}">Open as PDF</a>
   <label class="tiny muted" style="display:flex;align-items:center;gap:.3rem">page
     <input class="pg" id="pg" type="number" min="1" max="{{ pages }}" value="{{ page }}">
   </label>
@@ -107,6 +114,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 const NAME = {{ name|tojson }};
 const PAGES = {{ pages|tojson }};
 const DRAWS = {{ draws|tojson }};
+const KIOSK = {{ (kiosk_token is not none)|tojson }};
+const asfile = document.getElementById('asfile');
 const frame = document.getElementById('pdf');
 const img = document.getElementById('pageimg');
 let browserViewer = false;               // the browser's viewer, chosen by the button
@@ -130,6 +139,7 @@ function show(page) {
     if (page < (PAGES || 99999)) { const pre = new Image(); pre.src = pageURL(page + 1); }
   } else if (!PHONE) frame.src = '/library/book/' + encodeURIComponent(NAME) + '?p=' + page + '#page=' + page + '&navpanes=0&view=FitH';
   pg.value = page;
+  if (asfile) asfile.href = '/library/book/' + encodeURIComponent(NAME) + '#page=' + page;   // the file opens at this page
   document.querySelectorAll('.rail a').forEach(a => a.classList.toggle('on', +a.dataset.page === page));
   try { history.replaceState(null, '', location.pathname + '?page=' + page + (QUERY ? '&q=' + encodeURIComponent(QUERY) : '')); } catch (e) {}
 }
@@ -146,14 +156,20 @@ if (DRAWS) {
   img.addEventListener('error', () => {
     img.alt = 'This page could not be drawn - the browser viewer may still show it.';
   });
-  document.getElementById('mode').addEventListener('click', () => {
-    browserViewer = !browserViewer;
+  const setViewer = on => {
+    browserViewer = on;
     img.hidden = browserViewer; document.getElementById('prev').hidden = browserViewer;
     document.getElementById('next').hidden = browserViewer;
     frame.hidden = !browserViewer;
     document.getElementById('mode').textContent = browserViewer ? 'Drawn pages' : 'Browser viewer';
     const p = current; current = 0; show(p);
-  });
+  };
+  document.getElementById('mode').addEventListener('click', () => setViewer(!browserViewer));
+  /* No tabs on the kiosk: the file is shown here, in the browser's viewer,
+     with ELMER's bar and its Back still above it. */
+  if (KIOSK && asfile) asfile.addEventListener('click', e => { e.preventDefault(); setViewer(true); });
+} else if (KIOSK && asfile) {
+  asfile.addEventListener('click', e => e.preventDefault());   // the frame below already is the browser's viewer
 }
 if (PHONE && !DRAWS) {
   frame.hidden = true;

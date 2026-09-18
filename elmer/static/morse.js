@@ -8,8 +8,33 @@
    wide sidebands E8D asks about - so the envelope is shaped instead. */
 const RISE = 0.005;                    // 5 ms rise and fall
 
+/* Where the tone and the volume come from. The CW page has its own
+   settings (cw.js); the Gaming Center pages have no such object, only the
+   page's one sound control (voice.js: window.Sound), and a page with
+   neither gets a plain 600 Hz sidetone at a sensible level. Read at play
+   time, not at load, so the order the scripts arrive in does not matter. */
+const CW_TONE = 600, CW_VOLUME = 35;
+function cwPrefs() {
+  if (typeof settings !== 'undefined' && settings && settings.tone) return {tone: settings.tone, volume: settings.volume};
+  const snd = window.Sound;
+  if (snd) return {tone: CW_TONE, volume: snd.muted ? 0 : Math.round(snd.level * 100)};
+  return {tone: CW_TONE, volume: CW_VOLUME};
+}
+
 class CWPlayer {
   constructor() { this.ctx = null; this.osc = null; this.gain = null; }
+
+  /* Browsers keep an AudioContext silent until the page has had a touch or
+     a key. A pitch that arrives with a poll is not one, so the first press
+     on the page - a join, a seat, a tap on the screen - brings the audio up
+     early, and the pitch that follows has a running context to land in. */
+  arm() {
+    if (this.armed) return this;
+    this.armed = true;
+    const wake = () => { try { this.ensure(); } catch (e) {} };
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, wake, {capture: true, passive: true}));
+    return this;
+  }
 
   ensure() {
     if (!this.ctx) {
@@ -19,17 +44,17 @@ class CWPlayer {
       this.gain.gain.value = 0;
       this.osc = this.ctx.createOscillator();
       this.osc.type = 'sine';
-      this.osc.frequency.value = settings.tone;
+      this.osc.frequency.value = cwPrefs().tone;
       this.osc.connect(this.gain);
       this.gain.connect(this.ctx.destination);
       this.osc.start();
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
-    this.osc.frequency.setTargetAtTime(settings.tone, this.ctx.currentTime, 0.01);
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    this.osc.frequency.setTargetAtTime(cwPrefs().tone, this.ctx.currentTime, 0.01);
     return this.ctx;
   }
 
-  get level() { return Math.pow(settings.volume / 100, 2) * 0.6; }
+  get level() { return Math.pow(cwPrefs().volume / 100, 2) * 0.6; }
 
   /* Schedule one tone. Times are AudioContext seconds. */
   mark(at, seconds) {

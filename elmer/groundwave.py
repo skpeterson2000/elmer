@@ -170,8 +170,29 @@ NOISE_SITES = {
     "city": (76.8, 27.7, "Business or industrial"),
 }
 
-# What a mode needs above the noise to be copied.
-MODE_SNR = {"ssb": 10.0, "cw": 3.0, "ft8": -18.0}
+# What a mode needs above the noise to be copied, and the bandwidth it is
+# copied in - the noise is so much per hertz, so a narrow mode hears deeper.
+# SSB is the reference: 10 dB in a 2.4 kHz slot. CW is copied by ear through
+# a 500 Hz filter at a few dB. FT8 decodes at minus 18 in the 2.5 kHz the
+# software listens to. AM is the wide one: a 6 kHz receiver, and the watts
+# handed in are the carrier - the voice rides on the sidebands, which at
+# full modulation carry half again as much, so a readable AM signal wants
+# the carrier a couple of dB further above the noise than SSB does. FM is
+# wider still and is what VHF runs; on the ground wave below 30 MHz it is
+# 10 m and 11 m only.
+MODES = {
+    "ssb": {"snr": 10.0, "bandwidth_hz": 2400.0, "label": "SSB"},
+    "am": {"snr": 12.0, "bandwidth_hz": 6000.0, "label": "AM"},
+    "fm": {"snr": 12.0, "bandwidth_hz": 12000.0, "label": "FM"},
+    "cw": {"snr": 3.0, "bandwidth_hz": 500.0, "label": "CW"},
+    "ft8": {"snr": -18.0, "bandwidth_hz": 2400.0, "label": "FT8"},
+}
+MODE_SNR = {k: v["snr"] for k, v in MODES.items()}
+
+
+def mode_of(name):
+    """A mode's entry, SSB for a name this does not know."""
+    return MODES.get(str(name or "").lower(), MODES["ssb"])
 
 
 def noise_floor_dbuv(mhz, site="rural", bandwidth_hz=2400.0):
@@ -236,18 +257,20 @@ NOT_THE_MECHANISM = (
 
 
 def useful_range_km(mhz, watts=100.0, ground="average", site="rural",
-                    mode="ssb", gain_dbi=0.0, bandwidth_hz=2400.0,
+                    mode="ssb", gain_dbi=0.0, bandwidth_hz=None,
                     polarization="vertical"):
     """How far the ground wave stays readable. None if it never does.
 
     Solved rather than tabulated: the field falls monotonically with distance,
-    so the crossing with the noise floor is found by bisection.
+    so the crossing with the noise floor is found by bisection. The bandwidth
+    is the mode's unless one is given.
     """
     if polarization == "horizontal":
         return None
     if float(mhz) > SURFACE_WAVE_MAX_MHZ:
         return None                       # not this mechanism up here
-    needed = noise_floor_dbuv(mhz, site, bandwidth_hz) + MODE_SNR.get(mode, 10.0)
+    m = mode_of(mode)
+    needed = noise_floor_dbuv(mhz, site, bandwidth_hz or m["bandwidth_hz"]) + m["snr"]
     close = field_strength(0.5, mhz, watts, ground, gain_dbi)["dbuv_per_m"]
     if close < needed:
         return None                       # not readable even next door
@@ -283,12 +306,16 @@ def describe(mhz, watts=100.0, ground="average", site="rural", mode="ssb",
                          polarization=polarization)
     out["km"] = None if km is None else round(km, 1)
     out["miles"] = None if km is None else round(km / 1.609)
+    out["mode_label"] = mode_of(mode)["label"]
     out["note"] = (
         "Nothing readable even close in, on this power over this ground."
         if km is None else
-        "About %d miles of ground wave from a vertical, over %s, at %g W to "
-        "a %s receiver in a %s setting. This is the part of the signal that "
-        "never goes near the ionosphere, so it works when the band is shut "
-        "and it fills the near end of a skip zone."
-        % (round(km / 1.609), soil["label"].lower(), watts, mode.upper(), site))
+        "About %d miles of ground wave from a vertical, over %s, at %g W%s "
+        "to a%s %s receiver in a %s setting. This is the part of the signal "
+        "that never goes near the ionosphere, so it works when the band is "
+        "shut and it fills the near end of a skip zone."
+        % (round(km / 1.609), soil["label"].lower(), watts,
+           " carrier" if mode == "am" else "",
+           "n" if out["mode_label"][0] in "AEFIOS" else "",
+           out["mode_label"], site))
     return out

@@ -45,7 +45,56 @@ FMT = "%(asctime)s %(levelname)-7s %(name)-12s %(message)s"
 DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
-class ColourFormatter(logging.Formatter):
+# ------------------------------------------------ what never reaches the log
+# The problem report used to take the station out of the log on the way out:
+# the callsign, the grid, the town the QTH was named as, the home folder, a
+# token. That protected the report and nothing else - the log itself, on the
+# disk, in a backup, on a shared unit's screen, still said whose it was. So
+# the same redaction is done at the moment a line is written, in the
+# formatter, where the traceback passes through as well. A line that never
+# held the station cannot give it away, whoever reads it.
+#
+# The patterns find callsigns, grids, coordinates, addresses, home folders
+# and tokens on their own. A town is an ordinary word, so the names this
+# unit actually holds are registered here as they are learned - the QTH's
+# town, an account's callsign - and taken out by name.
+_private = set()
+_private_lock = threading.Lock()
+
+
+def remember_private(*words):
+    """Names this unit holds that a log line must not: the QTH's town, a
+    callsign. Short words are left alone - "Ely" is a town and a syllable."""
+    with _private_lock:
+        for w in words:
+            w = str(w or "").strip()
+            if len(w) > 3:
+                _private.add(w)
+
+
+def private_words():
+    with _private_lock:
+        return list(_private)
+
+
+def clean(text):
+    """The text with the station taken out of it."""
+    try:
+        from . import bugreport
+        return bugreport.redact(text, places=private_words())
+    except Exception:        # the log must never fail for the sake of its filter
+        return text
+
+
+class CleanFormatter(logging.Formatter):
+    """A formatter whose every line - the message and any traceback - has
+    been through the redaction before it reaches a handler."""
+
+    def format(self, record):
+        return clean(super().format(record))
+
+
+class ColourFormatter(CleanFormatter):
     """Console formatter - colours only when stderr is a terminal."""
 
     COLOURS = {"DEBUG": "\033[36m", "INFO": "\033[32m", "WARNING": "\033[33m",
@@ -84,7 +133,7 @@ def setup(level="INFO", to_file=True):
     rotating = logging.handlers.RotatingFileHandler(
         LOG_PATH, maxBytes=5_000_000, backupCount=5, encoding="utf-8")
     rotating.setLevel(logging.DEBUG)          # the file always keeps everything
-    rotating.setFormatter(logging.Formatter(FMT, DATEFMT))
+    rotating.setFormatter(CleanFormatter(FMT, DATEFMT))
     root.addHandler(rotating)
 
     # Werkzeug logs its own request lines; ours carry more, so silence its

@@ -498,6 +498,8 @@ table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
                background: var(--band, var(--dimmer)); margin-right: .32em; vertical-align: 0;
                box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
 .band-tag { color: var(--band, inherit); font-weight: 600; white-space: nowrap; }
+a.band-tag { color: var(--band, var(--amber)); }
+a.band-tag:hover { text-decoration: underline; }
 .band-tag .band-swatch { background: var(--band, var(--dimmer)); }
 .btn.band-btn { --band: var(--dim); --band-rgb: 139,152,165;
                 background: transparent; color: var(--band);

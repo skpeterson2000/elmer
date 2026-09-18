@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The User's Guide: built from docs/USER-GUIDE.md onto the Library shelf,
+"""The User's Guide: built from USER-GUIDE.md onto the Library shelf,
 put back when it goes missing, and kept off when the operator says so.
 
     python3 tests/test_manual.py
@@ -38,7 +38,7 @@ def run():
           'a <b>b</b> <i>c</i> <font face="Courier">d</font> &amp; &lt;e&gt;')
 
     print("\n-- the source, and the book --")
-    check("docs/USER-GUIDE.md is in the checkout", manual.SOURCE.is_file(), True)
+    check("USER-GUIDE.md is in the checkout, at the top where a person looks", (manual.SOURCE.is_file(), manual.SOURCE.parent == manual.paths.ROOT), (True, True))
     text = manual.SOURCE.read_text(encoding="utf-8")
     heads = [ln for ln in text.splitlines() if ln.startswith("## ")]
     check("  with chapters to make a table of contents from", len(heads) >= 8, True)

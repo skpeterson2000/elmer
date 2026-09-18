@@ -941,7 +941,9 @@ other; ELMER does not OCR it.
 ### The User's Guide, on the same shelf
 
 ELMER's own manual is a book on the operator's shelf, not a file somewhere
-a kiosk cannot reach: built from `docs/USER-GUIDE.md` by `elmer/manual.py`
+a kiosk cannot reach - and a file at the top of the checkout too, beside
+the README, for the person who has just unzipped it and would not think to
+look on a shelf: built from `USER-GUIDE.md` by `elmer/manual.py`
 into a PDF with real bookmarks, one a chapter, a table of contents with
 page numbers, the screenshots in `docs/screenshots/guide/`, and the build
 in the footer, and placed at `data/library/ELMER-Users-Guide.pdf` when
@@ -4029,9 +4031,9 @@ page is told is only whether an account is locked.
 **Be clear about what this is.** It stops a clubmate deleting somebody's
 progress or answering questions as them. It is not protection against somebody
 on the network who means harm: ELMER speaks plain HTTP, so a password crosses
-the wire in clear, and anybody holding the Pi holds the database anyway. It is
-a lock on a cupboard, not a safe - so use a password you do not use anywhere
-else.
+the wire in clear, and anybody holding the Pi holds the database - though
+since the seal below, not the private fields in it. It is a lock on a
+cupboard, not a safe - so use a password you do not use anywhere else.
 
 **A callsign is what ELMER calls you.** Somebody who has one earned it in front
 of volunteer examiners, so that is the name the program uses — the same respect
@@ -4051,6 +4053,117 @@ Existing installs need nothing done. The first time ELMER opens a database from
 before it could be shared it migrates it in one transaction — every card, answer,
 exam, title and achievement carried over — and whoever was using it becomes the
 first user on the unit.
+
+### The seal: private data under the password
+
+A password on an account also seals its private data: the QTH, any token
+(RepeaterBook's is the first), and the notes on questions. Sealed means the
+database file gives them to nobody - not somebody with the disk, not a
+backup, not the SD card image passed round a club - because the key is the
+password's and ELMER keeps it only in memory while the person is signed in.
+The shape is in `elmer/seal.py`: a random data key per account, wrapped
+under a key scrypt makes from the password, and wrapped a second time under
+a recovery code shown once when the seal is made. Each field is encrypted on
+its own under the data key. Changing the password re-wraps the key and
+touches no data; taking the password off unseals everything back to plain.
+
+The cipher is HMAC-SHA256 in counter mode with an HMAC tag, because the
+standard library has HMAC and not AES, and a cipher dependency on every Pi
+in a shack was a worse trade than a construction that is sound as long as
+the nonce is fresh - and it is sixteen random bytes every time.
+
+What stays plain, on purpose: the name, the callsign, the rank, the streak
+and XP, because the room's boards show them and a callsign is a public
+record; and the study record itself, because the streak and the scheduler
+count from it, it is the least sensitive thing on the unit, and a forgotten
+password should never be able to take it away.
+
+**The moderator opens the account, not the seal.** A moderator reset takes
+the password wrap away and leaves the sealed fields behind the recovery
+code; the account works, and its QTH and notes wait for the code. That is a
+real consequence and the dialog says it in one sentence when the password is
+set. It would have been nicer to let the moderator key open the seal too,
+and it cannot be done honestly without public-key cryptography, which the
+standard library also has not got: the moderator's key is not present when a
+member sets their password, so nothing can be wrapped under it then.
+
+**Why not the whole database.** SQLCipher would need a library the standard
+install has not got; the key problem would stay exactly as it is, since a
+program that runs unattended - the kiosk, the weekly mail, the GPS - must be
+able to open its own database with nobody present, which means the key on
+the same disk as the data; and the record it would protect is the one whose
+loss to a forgotten password matters most. The seal covers what a person
+would not want read, at the cost of it being unavailable while they are
+away, which is the cost a person choosing a password has chosen.
+
+**The key in flight.** A browser that gives the password gets an HttpOnly
+token for the key, held in the server's memory against that token and never
+written anywhere. A restart forgets every key; the account menu then offers
+**Unlock**, and the password opens the account and the seal together.
+
+### The bank shot off a soft cushion
+
+The reach map banks every ray off the F layer like a ball off a cushion:
+the launch angle sets the angle of incidence on a curved earth, the
+reflection lands the ball a known distance out. It used to bank off a
+mirror at the F2 peak and rate every cell, near or far, against the 3000
+km hop's ceiling with the 3000 km hop's absorption, which is right for DX
+and wrong for the county: at noon on 40 m under a critical frequency of
+8 MHz the near cells went dark, when they are the best on the map.
+
+The cushion is soft. The ionosphere refracts rather than reflects, and
+Breit and Tuve's theorem says the ray lands where a mirror at the *virtual*
+height would land, Martyn's that the virtual height for an oblique ray is
+a vertical ray's at the equivalent frequency f cos(phi). A parabolic layer
+has that virtual height in closed form, climbing with frequency and running
+away at the critical frequency, and the sonde gives its numbers: the peak
+height, the critical frequency, and M(3000)F2. `patterns.py` carries the
+layer; its semi-thickness is a third of its height, because fitting it to
+the sonde's M(3000) gave absurd layers when a sonde's own two numbers
+disagreed slightly, and the sonde's factor is honoured instead by scaling
+the curve to pass through 1 straight up and the station's own factor at
+3000 km. The shape is the layer's, the level is the sonde's.
+
+So each cell is rated against its own hop's ceiling - foF2 times the factor
+for that distance - with the D-layer absorption scaled by how obliquely the
+hop crosses it, near-vertical paying a quarter of a long hop. The NVIS door
+is the same factor at a few hundred kilometres, so the words and the map
+cannot disagree. And the antenna's weighting keeps the level of the two-ray
+pattern - 1.0 is the element alone in free space - so a wire a fifth of a
+wave up is credited the image's reinforcement overhead, up to the 6 dB it
+can give, and a wire half a wave up is charged the dip there, which over
+real ground is a seven-decibel dip and not the null perfect ground promised.
+
+What is still not modelled: tilts in the layer at dawn and dusk, the
+ordinary and extraordinary rays, sporadic E, and the outlook's band-level
+score, which stays against MUF(3000) because that is what a MUF is and
+what the DX rating is read for.
+
+### A shared unit asks first
+
+The lock above had a hole in its timing. An open account can be switched
+into by anyone and given a password by anyone, and whoever does that first
+owns it - and the offer of a password went to whoever held the controls
+after a second account was made, which is the second person. So the unit is
+now asked whether it is shared, once, the first time a second account is
+about to be made, and on a shared unit the person at the controls is asked
+to lock their own account before the second one exists. That is the one
+moment its owner is certainly the one at the controls. The server refuses
+the add until the questions are answered, so no page can skip them; leaving
+the account open is a real answer and is not asked again. On a shared unit a
+token needs a password on the account, and the self-check names any account
+left open.
+
+### The log never holds the station
+
+The problem report used to take the callsign, the grid, the town and the
+home folder out of the log on the way out. That protected the report and
+nothing else: the log on the disk still said whose unit it was. The same
+redaction now runs in the log's formatter, on every line as it is written,
+tracebacks included, so the file never holds the station whoever reads it.
+A town is an ordinary word no pattern finds, so the names the unit holds -
+the QTH's town, a callsign - are registered with the log as they are learned
+and taken out by name.
 
 ## Running the installer again
 
@@ -4317,6 +4430,55 @@ having been told.
 `tests/test_host.py` passes on both, and forces each machine's rules on the
 other - a rule only ever run where it was written is a habit rather than a
 rule.
+
+## The cup of coffee
+
+ELMER is a gift to the amateur radio community, which has given its author
+a great deal, and it is free for everyone. Some people will want to thank
+the developer with a cup of coffee, and the program should notice that
+without ever turning into a toll gate. The rules, and why:
+
+**A person who has is thanked; a person who has not is asked once.** A
+supporter enters a key under Station and from then on the dashboard says
+thank you, once a day, and says what the coffee meant: how many times ELMER
+has changed since it was bought, read off the changelog, with the latest
+three lines. Watching the thing you fed grow is the reward, and it is true
+every time it is shown. Without a key the dashboard offers a coffee once,
+after ten hours of actually answering questions - the meter is the answers'
+recorded times, each capped at five minutes so a walk-away does not clock an
+afternoon - and then not again for a hundred hours more. The card is a panel
+in the dashboard's flow, never a modal, never inside a question, an exam or
+a hall's show, and it says plainly that ELMER stays free either way. The
+wording is an observation, not a bill: the developer has several hobbies
+competing for their evenings, and a coffee is how this one wins a few more
+of them.
+
+**The meter is the person's, not the machine's.** A club's shared Pi has
+accounts on it; each has its own hours and its own answer, so the unit does
+not nag every visitor on behalf of the first one.
+
+**The key is cut from the callsign.** `ELMER-KC9SP-XXXXXX`: the callsign and
+six letters that are a keyed hash of it, with the salt in the source. That is
+a check against typos and casual passing-around, not cryptography, and it is
+meant to be: anyone who reads the source can cut one, and all a forged key
+earns is being thanked for a coffee that was never bought. The key carries
+the callsign it was cut for, so a key passed around thanks its original
+owner on somebody else's screen. Nothing needs registering or tracking: the
+same callsign always cuts the same key (`elmer.py --supporter-key KC9SP`), a
+lost one is cut again, and SUPPORTERS.md is the roster of who chose to be
+named. The key opens nothing and its absence closes nothing - that is what
+keeps it a gift.
+
+**In a hall, the thanks is honorary.** A supporter who ticked "name me"
+has their callsign carried to net control in the check-in their table
+already sends once a second. On that table, ELMER's own card in the
+rotation becomes theirs for its dwell - "This shootout is brought to you by
+the generous contribution of KC9SP", the game named from what is running -
+and a roll-of-thanks card lists the evening's sponsors and the supporters
+in the room, net control's own first. The same roll goes on a line under
+the certificates and a line on the join page. A supporter who would rather
+not be named is not, anywhere, and the host can leave the thanks card out
+of the deck like any other.
 
 ## Requirements
 

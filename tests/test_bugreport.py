@@ -89,6 +89,27 @@ def run():
     text, _ = bugreport.build(conn, lines=20, said="y" * (bugreport.SAID_MOST + 500))
     check("cut to the most", text.count("y" * 100) * 100 <= bugreport.SAID_MOST, True)
 
+    print("\n-- four kinds, and only a problem carries the log --")
+    sugg, red = bugreport.build(conn, lines=20, said="the reach map could show the county's mean score", kind="suggestion")
+    check("a suggestion opens as one", (sugg.startswith("ELMER suggestion"), "kind       suggestion" in sugg), (True, True))
+    check("  carries the words and the build", ("reach map could" in sugg, "build      " in sugg), (True, True))
+    check("  and nothing from the log", ("self-check" in sugg, "log lines" in sugg, "errors and warnings" in sugg), (False, False, False))
+    check("  redacted like any other", red, True)
+    prob, _ = bugreport.build(conn, lines=20, said="it went blank", kind="problem")
+    check("a problem still carries the log", ("self-check" in prob, "log lines" in prob), (True, True))
+    check("a kind the page never named is a problem", bugreport.kind_of("wishlist"), "problem")
+    empty, _ = bugreport.build(conn, lines=20, kind="comment")
+    check("a comment with nothing written says so", "a comment with nothing written in it" in empty, True)
+    from elmer import app as elmer_app
+    client = elmer_app.app.test_client()
+    local = {"REMOTE_ADDR": "127.0.0.1"}
+    r = client.post("/api/report", json={"kind": "question", "said": "why is 30 m shut at noon?"}, environ_base=local)
+    d = r.get_json()
+    check("the route writes a question", (r.status_code, d["text"].startswith("ELMER question"), "log lines" in d["text"]), (200, True, False))
+    written = __import__("pathlib").Path(d["path"])
+    if written.exists():
+        written.unlink()
+
     print("\n-- and it is written, where the page can open it --")
     path, redacted, text = bugreport.write(conn, lines=20, said="it went blank")
     check("written", path.exists(), True)

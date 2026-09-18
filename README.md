@@ -102,11 +102,12 @@ says which build a unit is running.
 bench, and the tests. No club has run an evening on it yet; the first that
 does gets named here, with the date.
 
-**The User's Guide.** ELMER's own manual is on the Library shelf of every
-unit, indexed and searched like any book and opened in the same reader, so
-a kiosk with no file manager still has it. It is built from
-[docs/USER-GUIDE.md](docs/USER-GUIDE.md) when ELMER starts, and rebuilt
-when the text changes with an update. Taken off the shelf by accident, it
+**The User's Guide.** ELMER's own manual is [USER-GUIDE.md](USER-GUIDE.md),
+at the top of this folder beside this file, where a person who has just
+unzipped it looks. The same text is on the Library shelf of every unit,
+indexed and searched like any book and opened in the same reader, so a
+kiosk with no file manager still has it: built from the file when ELMER
+starts, and rebuilt when the text changes with an update. Taken off the shelf by accident, it
 comes back when ELMER next starts, and the dashboard's self-check can put
 it back sooner. An operator who does not want it ticks *I decline the
 User's Guide and any future updates to it* on the Library page, and it is
@@ -192,6 +193,10 @@ the tests that cannot reach your data, the Windows build — is in
 ## Made with
 
 Written by KC9SP with Claude Code; the credits and the provenance of the
-artwork are in [NOTICE](NOTICE). Question pools are the current public
+artwork are in [NOTICE](NOTICE). ELMER is a gift to the amateur radio
+community; the people who have thanked the developer with a cup of coffee
+are named in [SUPPORTERS.md](SUPPORTERS.md) and on the dashboard's Software
+panel of every unit, and [github.com/sponsors/skpeterson2000](https://github.com/sponsors/skpeterson2000)
+is where to join them. Question pools are the current public
 releases of the NCVEC and the FCC. Sources for everything else are listed at
 the foot of [DESIGN.md](DESIGN.md#a-note-on-the-sources).

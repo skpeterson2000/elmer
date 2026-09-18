@@ -42,6 +42,27 @@ BANDS = [
 # Bands in the list that are not amateur bands: rated like the others,
 # never offered to an amateur as the band that fills a gap or wins a path.
 PERSONAL = {"11m": "CB"}
+# What a personal-service band may run, by emission - 47 CFR 95.967: 4 W
+# carrier on AM or FM, 12 W PEP on SSB, no amplifier ever. The amateur's
+# hundred watts is the wrong number on 11 m however it got into the box,
+# and CW and data are not CB emissions at all, so an ask for them is
+# answered as what most CB radios do, which is AM.
+PERSONAL_WATTS = {"11m": {"am": 4.0, "fm": 4.0, "ssb": 12.0}}
+PERSONAL_MODE = {"11m": "am"}
+
+
+def lawful(band, watts, emission="ssb"):
+    """The power and the emission the rules allow on this band, given what
+    was asked for: (watts, emission, cap) - the cap None where the amateur
+    limit is the only one and the asked-for figure stands."""
+    key = str(band).replace(" ", "")
+    caps = PERSONAL_WATTS.get(key)
+    em = str(emission or "ssb").lower()
+    if not caps:
+        return float(watts), em, None
+    if em not in caps:
+        em = PERSONAL_MODE[key]
+    return min(float(watts), caps[em]), em, caps[em]
 RATING_SCORE = {"Poor": 1, "Fair": 2, "Good": 3, "Band Closed": 0}
 
 # Keyed on where as well as when. It always held the sun angle for one QTH;
@@ -769,7 +790,7 @@ def one_hop_limit_km(hmf2=HMF2_DEFAULT):
 
 def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
                k_index=2.0,
-               muf=None, watts=100.0):
+               muf=None, watts=100.0, emission="ssb"):
     """Which bands could carry a contact over this distance, right now.
 
     The line-of-sight tool answers a different question and answers it well:
@@ -807,7 +828,10 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
     blind = not fof2
     for name, mhz, _group in BANDS:
         skip = None if blind else skip_km(mhz, fof2, hmf2)
-        ground = groundwave.describe(mhz, watts=watts)
+        # the ground wave is the one part of this that power and mode decide,
+        # and on 11 m the power is the law's, not the operator's
+        row_watts, row_emission, _cap = lawful(name, watts, emission)
+        ground = groundwave.describe(mhz, watts=row_watts, mode=row_emission)
         ground_km = ground.get("km") or 0.0
         by_ground = ground_km >= km
         if skip is None:
@@ -836,6 +860,7 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
             "hops": hops if sky and hops > 1 else (1 if sky else None),
             "skip_km": None if skip is None else round(skip),
             "ground_km": round(ground_km),
+            "watts": row_watts, "emission": row_emission,
             "one_hop_km": round(far),
         }
         if muf is not None:
@@ -941,7 +966,13 @@ def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=
     a Yagi's front. Real terrain still moves the lobes, and the note says so.
     """
     from . import patterns
-    curve = patterns.elevation(kind, height_wl, mhz=mhz, ground=ground)
+    # The level is kept: 1.0 is the element alone in free space, so a wire
+    # a fifth of a wave up shows the image's reinforcement overhead as gain
+    # and a wire half a wave up shows the cancellation there as a hole - in
+    # decibels against one reference, not against each antenna's own peak,
+    # so that moving the height on the panel moves the map by the right
+    # amount and not only into the right shape.
+    curve = patterns.elevation_raw(kind, height_wl, mhz=mhz, ground=ground)
     # a table of hop distance against takeoff angle, so a leg can be turned
     # back into the angle that lands it; hop_km falls as the angle rises
     angles = [p["deg"] for p in curve]
@@ -970,12 +1001,18 @@ def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=
         if field <= 0.0:
             return 0.0
         db = 20.0 * math.log10(field)
-        return max(0.0, min(1.0, 1.0 + db / db_floor))
+        return max(0.0, min(WEIGHT_CAP, 1.0 + db / db_floor))
     return weight
 
 
+# The most the ground's reinforcement may lift a cell: the image in phase
+# adds 6 dB over the element alone, and a third of the way up an 18 dB floor
+# is what 6 dB is worth on that scale.
+WEIGHT_CAP = 1.0 + 6.0 / 18.0
+
+
 def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None, mode="oneway",
-              antenna=None):
+              antenna=None, emission="ssb"):
     """A band's reach from here, as cells of 0-100 - over the globe, or,
     with `window` = (lat_top, lat_bottom, lon_left, lon_span), over that
     window at the step given, which is how a zoomed view gets real detail
@@ -991,8 +1028,12 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     `antenna` is {"kind", "height_wl"} - the operator's own, as the Lab
     remembers it - and weights every sky path by the takeoff angle it
     needs, see takeoff_weights(); None is the sky alone, every angle
-    equally served, which no antenna does."""
-    from . import groundwave
+    equally served, which no antenna does.
+
+    `emission` is the mode - ssb, am, fm, cw, ft8 - and, with the watts,
+    decides the ground wave's reach and nothing else: the sky does not
+    care what is modulated onto what it reflects."""
+    from . import groundwave, patterns
     from .terrain import great_circle
     when = when or datetime.now(timezone.utc)
     sfi = float(snap.get("sfi") or 100.0)
@@ -1002,7 +1043,20 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     anchor = float(cal.get("factor") or 1.0)
     m3000 = cal.get("m3000")
     far = one_hop_limit_km(hmf2)
-    ground_km = float(groundwave.describe(mhz, watts=watts).get("km") or 0.0)
+    ground_km = float(groundwave.describe(mhz, watts=watts, mode=emission).get("km") or 0.0)
+    # The layer's shape, from the sonde's three numbers: the ceiling for a
+    # hop of any length is foF2 times this factor - 1 straight up, the
+    # station's own M(3000) at 3000 km - and a near-vertical hop crosses
+    # the D layer once, straight, and pays that much less absorption.
+    ym = patterns.layer_thickness(hmf2)
+    factor = patterns.muf_factor_table(hmf2, ym, m3000=m3000)
+    long_secant = patterns.absorption_secant(3000.0, hmf2)
+
+    def hop_muf(fof2_mid, leg_km):
+        return max(1.0, fof2_mid * factor(leg_km))
+
+    def absorb_scale(leg_km):
+        return patterns.absorption_secant(leg_km, hmf2) / long_secant
     weigh = None
     if antenna and antenna.get("kind"):
         weigh = takeoff_weights(antenna["kind"], float(antenna.get("height_wl") or 0.5), hmf2, mhz=mhz,
@@ -1030,24 +1084,30 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             else:
                 skip = skip_km(mhz, fof2, hmf2)
                 if skip is not None:
-                    if mode == "round":
-                        here_leg = float(band_score(mhz, muf, elev_here, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
-                        there_leg = float(band_score(mhz, muf, solar_elevation(glat, glon, when), k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
-                        rated = min(here_leg, there_leg)
-                    else:
-                        rated = float(band_score(mhz, muf, elev, k, fof2=fof2, hmf2=hmf2).get("score") or 0.0)
+                    # the ceiling and the absorption are the hop's own, not
+                    # the 3000 km hop's: a cell 200 km out is rated against
+                    # foF2 nearly itself, crossing the D layer once and
+                    # nearly straight, which is the whole of what NVIS is
+                    def rate(leg_km):
+                        ceiling = hop_muf(fof2, leg_km)
+                        scale = absorb_scale(leg_km)
+                        if mode == "round":
+                            here_leg = float(band_score(mhz, ceiling, elev_here, k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
+                            there_leg = float(band_score(mhz, ceiling, solar_elevation(glat, glon, when), k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
+                            return min(here_leg, there_leg)
+                        return float(band_score(mhz, ceiling, elev, k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
                     if km <= far * (1 + REACH_EDGE):
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
                         gate = (_soft(km, skip) if skip > 0 else 1.0) * _soft(km, far, inside_below=False)
-                        score = rated * gate * (weigh(km, bearing) if weigh else 1.0)
+                        score = rate(km) * gate * (weigh(km, bearing) if weigh else 1.0)
                     if km > far * (1 - REACH_EDGE):
                         # several hops: each leg has to clear the skip and land
                         # inside a hop; each hop past the first is paid for
                         n = max(2, int(math.ceil(km / far)))
                         leg = km / n
                         gate = (_soft(leg, skip) if skip > 0 else 1.0) * _soft(leg, far, inside_below=False)
-                        multi = rated * gate * (REACH_HOP_COST ** (n - 1)) * (weigh(leg, bearing) if weigh else 1.0)
+                        multi = rate(leg) * gate * (REACH_HOP_COST ** (n - 1)) * (weigh(leg, bearing) if weigh else 1.0)
                         score = max(score, multi)
                 # ground wave fades out rather than stopping at a line
                 if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):
@@ -1066,7 +1126,10 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     fof2_here = snap.get("fof2")
     nvis = None
     if fof2_here:
-        door = float(fof2_here) * 1.15
+        # the door is the ceiling for the near zone - a hop of a few hundred
+        # kilometres, which a little over foF2 still makes - from the same
+        # factor the cells are rated by, so the words and the map agree
+        door = float(fof2_here) * factor(NVIS_REACH_KM / 2.0)
         skip_here = skip_km(mhz, float(fof2_here), hmf2)
         below = [(n, f) for n, f, _ in BANDS if f <= 30.0 and f <= door]
         best = max(below, key=lambda b: b[1]) if below else None
@@ -1074,16 +1137,21 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                 "skip_km": round(skip_here) if skip_here else 0,
                 "band": best[0] if best else None,
                 "words": (f"{fof2_here:.1f} MHz is the critical frequency over you now, so "
-                          + (f"this band comes back from overhead: a low wire covers the near zone with no skip"
+                          + (f"this band comes back from overhead - the near zone's ceiling is {door:.1f} MHz - and a low wire covers it with no skip"
                              if mhz <= door else
                              f"this band is above it and nothing comes back from overhead, whatever the antenna - the near zone is a hole out to the skip, about {round(skip_here or 0):,} km"
-                             + (f"; for NVIS now, {best[0]}" if best and best[1] < mhz else "; no HF band is under it now")))}
+                             + (f"; for NVIS now, {best[0]}" if best and best[1] < mhz else "; no HF band is under it now"))),
+                "door_mhz": round(door, 1), "ym_km": round(ym), "m3000_of_layer": round(factor(3000.0), 2)}
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
             "window": bool(window), "mode": mode, "nvis": nvis,
             "antenna": ({"kind": antenna["kind"], "height_wl": round(float(antenna.get("height_wl") or 0.5), 3),
-                         "heading": antenna.get("heading"), "ground": antenna.get("ground") or "average"}
+                         "heading": antenna.get("heading"), "ground": antenna.get("ground") or "average",
+                         # the height's effect in numbers, since the colours run out at the top
+                         "gain": patterns.height_gains(antenna["kind"], float(antenna.get("height_wl") or 0.5),
+                                                       mhz=mhz, ground=antenna.get("ground") or "average")}
                         if weigh else None),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
+            "watts": round(float(watts), 1), "emission": emission,
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),
             "at": when.isoformat()}
@@ -1091,8 +1159,13 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
 
 def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
                hmf2=HMF2_DEFAULT,
-               geomag_lat=None, aurora_lat=None):
+               geomag_lat=None, aurora_lat=None, absorb_scale=1.0):
     """0-100 for one band at one moment, with the reason in words.
+
+    `absorb_scale` is how the path crosses the D layer against the full
+    hop this score was written for: a near-vertical ray crosses it once,
+    straight, and pays a quarter of what a long hop pays - which is why
+    40 m at noon is a county band and not a dead one.
 
     `elevation` is the sun's angle at the operator's QTH: negative is night,
     which is when the D layer is gone and the MUF is at its lowest.
@@ -1191,7 +1264,7 @@ def band_score(mhz, muf, elevation, k_index=2.0, fof2=None,
     # exponent is the textbook inverse-square softened for the fact that this
     # is a rating and not a link budget.
     absorb = D_ABSORPTION * (sun ** 0.6) * (3.5 / max(mhz, 1.0)) ** 1.6
-    absorb = min(absorb, D_ABSORPTION_CAP)
+    absorb = min(absorb, D_ABSORPTION_CAP) * max(0.0, float(absorb_scale))
     if absorb > 6:
         if elevation < 0:
             why += ("; the sun has set here but not on the D layer 80 km up, "
@@ -1279,6 +1352,9 @@ CALIBRATION_HALF_KM = 1500.0   # the distance at which a station's vote halves
 # this is a broken station or a different planet, and the curve it would
 # produce is worse than the plain model.
 ANCHOR_RANGE = (0.5, 2.0)
+# A reading's vote fades with its age: full at the moment it was taken, half
+# at ninety minutes, a fifth at three hours, when it ages out altogether.
+AGE_HALF_MINUTES = 90.0
 
 
 def _weighted_median(pairs):
@@ -1311,7 +1387,7 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
     if not sondes:
         return None
     when = when or datetime.now(timezone.utc)
-    votes, factors, suns, nearest, closest = [], [], [], None, None
+    votes, factors, suns, nearest, closest, voters = [], [], [], None, None, []
     for station in sondes:
         km = ionosonde.great_circle(lat, lon, station["lat"], station["lon"])
         if km > CALIBRATION_KM:
@@ -1325,8 +1401,13 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
                          f2_drive(station["lat"], station["lon"], when), when)
         if modelled <= 0:
             continue
-        weight = 1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
+        age = float(station.get("age_minutes") or 0.0)
+        weight = (1.0 / (1.0 + (km / CALIBRATION_HALF_KM) ** 2)
+                  * 1.0 / (1.0 + (age / AGE_HALF_MINUTES) ** 2))
         votes.append((station["fof2"] / modelled, weight))
+        voters.append({"name": station["name"], "km": round(km), "age_minutes": round(age),
+                       "fof2": station["fof2"], "vote": round(station["fof2"] / modelled, 3),
+                       "weight": round(weight, 3), "held": bool(station.get("held"))})
         suns.append((sun, weight))
         if station.get("m3000"):
             factors.append((station["m3000"], weight))
@@ -1337,8 +1418,21 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
     low, high = ANCHOR_RANGE
     raw = _weighted_median(votes)
     factor = max(low, min(high, raw))
+    # How fragile the answer is: the most it would move if any one voter
+    # dropped out. Said on the page and kept in the ledger, because two
+    # units side by side once disagreed by a third and nothing on either
+    # screen said why.
+    fragility = 0.0
+    if len(votes) > 1:
+        for i in range(len(votes)):
+            others = votes[:i] + votes[i + 1:]
+            without = max(low, min(high, _weighted_median(others)))
+            fragility = max(fragility, abs(without - factor) / factor)
     return {
         "factor": round(factor, 3),
+        "voters": sorted(voters, key=lambda v: v["km"]),
+        "held": sum(1 for v in voters if v["held"]),
+        "fragility_pct": round(100.0 * fragility, 1),
         # The sun angle this was measured under. An anchor is evidence about
         # the ionosphere that was overhead the sondes at the time, and the sun
         # is most of what decides that - so carrying it to an hour with a

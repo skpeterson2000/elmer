@@ -164,6 +164,18 @@ function bandTag(name, extraClass) {
   return '<span class="band-tag' + (extraClass ? ' ' + extraClass : '') + '" style="' + bandStyle(name) + '">' +
     bandSwatch(name) + escapeHTML(name) + '</span>';
 }
+/* The same tag as a link into the band plan, opened on that band: a band
+   rated good on the wall chart is a band somebody wants to go and look at.
+   The band plan reads the band from the address (#20m), and has 11 m as a
+   band of its own, so CB links too. A name the palette does not know stays
+   a plain tag. */
+function bandLink(name, extraClass) {
+  const b = BAND_BY_KEY[bandKey(name)];
+  if (!b) return bandTag(name, extraClass);
+  return '<a class="band-tag' + (extraClass ? ' ' + extraClass : '') + '" style="' + bandStyle(name) +
+    '" href="/bandplan#' + encodeURIComponent(b.key) + '" title="open the band plan on ' + escapeHTML(name) + '">' +
+    bandSwatch(name) + escapeHTML(name) + '</a>';
+}
 
 function fmtDuration(seconds) {
   const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);

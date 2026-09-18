@@ -213,6 +213,9 @@ def main():
     ap.add_argument("--build", action="store_true", help="rebuild pools from data/raw")
     ap.add_argument("--fetch", action="store_true", help="re-download sources, then rebuild")
     ap.add_argument("--stats", action="store_true", help="print progress and exit")
+    ap.add_argument("--supporter-key", metavar="CALLSIGN",
+                    help="cut the supporter key for a callsign, for the "
+                         "developer to send back with the thanks")
     ap.add_argument("--user", metavar="NAME",
                     help="with --stats, whose progress to print on a shared unit")
     ap.add_argument("--update", action="store_true",
@@ -359,6 +362,12 @@ def main():
         build_all()
         if not args.stats:
             return
+
+    if args.supporter_key:
+        from elmer import supporter
+        key = supporter.make_key(args.supporter_key)
+        print(key if key else f"{args.supporter_key!r} is not a callsign")
+        return
 
     if args.stats:
         from elmer.report import print_stats

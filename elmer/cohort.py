@@ -35,6 +35,7 @@ import uuid
 from pathlib import Path
 
 from . import party
+from . import supporter
 
 log = logging.getLogger("elmer")
 
@@ -127,6 +128,10 @@ class Bridge:
         # The id is for machines to tell apart; the name is for people to read
         # off a board, so it falls back to the hostname without the mark.
         self.name = (name or default_unit_name())[:60]
+        # The supporter whose unit this is, when they chose to be named:
+        # carried up with every check-in so the hall can thank them on the
+        # card between rounds. '' says nothing. See elmer/supporter.py.
+        self.supporter = ""
         self.stop = threading.Event()
         self.thread = None
         self.state = "starting"
@@ -214,6 +219,7 @@ class Bridge:
                             "players": players, "showing": self.showing,
                             "names": names, "ready": self.ready,
                             "instance": self.instance,
+                            "supporter": self.supporter,
                             "rtt": self.rtt_ms, "room": self.rtt_room,
                             "host": self._host_load()})
         rtt = (time.monotonic() - started) * 1000.0
@@ -514,6 +520,7 @@ def connect(url, unit_id=None, name=None, conn=None, token=None):
         _bridge = Bridge(url, unit_id, name, token).start()
     if conn is not None:
         remember(conn, _bridge)
+        _bridge.supporter = supporter.named_callsign(conn)
     return _bridge
 
 

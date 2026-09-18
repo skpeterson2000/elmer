@@ -179,7 +179,7 @@
     <span class="row" style="gap:.5rem;align-items:center">
       <label class="tiny muted" title="the path rated with the sky read at its midpoint - can you be heard there"><input type="radio" name="bp-reach-mode" value="oneway" checked> one way</label>
       <label class="tiny muted" title="the contact: the reflection is the midpoint's either way, but the D layer is passed near each end, so the sun is read at your end and at theirs and the round trip is only as good as the worse leg"><input type="radio" name="bp-reach-mode" value="round"> round trip</label>
-      <label class="tiny muted" style="margin-left:.6rem" title="near vertical incidence skywave: a wire a tenth of a wavelength up, everything straight up and back down, the county and the state with no skip - if the band is under the critical frequency over you, which the line below says"><input type="checkbox" id="bp-reach-nvis"> NVIS</label>
+      <label class="tiny muted" style="margin-left:.6rem" title="near vertical incidence skywave: a wire a fifth of a wavelength up, where the ground's reflection adds most straight up, everything up and back down, the county and the state with no skip - if the band is under the critical frequency over you, which the line below says"><input type="checkbox" id="bp-reach-nvis"> NVIS</label>
       <label class="tiny muted" for="bp-reach-ant" style="margin-left:.6rem" title="your antenna, as the Lab remembers it - the map is weighted by the angle each hop needs and what this antenna puts there; change it here to see another">Antenna</label>
       <select class="btn sm" id="bp-reach-ant">
         <option value="dipole">a dipole</option>
@@ -191,10 +191,18 @@
         <option value="yagi">a Yagi</option>
         <option value="none">the sky alone - any antenna</option>
       </select>
-      <input class="btn sm" id="bp-reach-h" type="number" min="1" max="500" step="1" value="30" style="width:5.5rem" title="height above ground, in feet - a wire a tenth of a wavelength up is an NVIS antenna, half a wavelength up a DX one">
+      <input class="btn sm" id="bp-reach-h" type="number" min="1" max="500" step="1" value="30" style="width:5.5rem" title="height above ground, in feet - a wire a fifth of a wavelength up is an NVIS antenna, its reflection adding straight up; half a wavelength up it is a DX antenna with a dip overhead">
       <span class="tiny muted">ft</span>
-      <input class="btn sm" id="bp-reach-w" type="number" min="1" max="1500" step="1" value="100" style="width:5.5rem" title="power, in watts - it sets the ground wave">
+      <input class="btn sm" id="bp-reach-w" type="number" min="1" max="1500" step="1" value="100" style="width:5.5rem" title="power, in watts - it sets the ground wave; on 11 m the law sets it: 4 W carrier on AM or FM, 12 W PEP on SSB">
       <span class="tiny muted">W</span>
+      <span class="row" style="gap:.35rem;align-items:center;margin-left:.6rem" id="bp-reach-em" title="the mode: it sets what the far end needs above the noise, and so how far the ground wave stays readable - a narrow mode hears deeper, AM is the widest and its watts are the carrier. The sky does not care what is modulated onto it.">
+        <span class="tiny muted">Mode</span>
+        <label class="tiny muted"><input type="radio" name="bp-reach-em" value="ssb" checked> SSB</label>
+        <label class="tiny muted"><input type="radio" name="bp-reach-em" value="am"> AM</label>
+        <label class="tiny muted"><input type="radio" name="bp-reach-em" value="fm"> FM</label>
+        <label class="tiny muted"><input type="radio" name="bp-reach-em" value="cw"> CW</label>
+        <label class="tiny muted"><input type="radio" name="bp-reach-em" value="ft8"> FT8</label>
+      </span>
       <input class="btn sm" id="bp-reach-hd" type="number" min="0" max="359" step="1" placeholder="laid" style="width:5.5rem" title="which way the wire is laid, in degrees from north, or a Yagi points - blank if you do not know, and the map treats it as all round">
       <span class="tiny muted">&deg;</span>
       <select class="btn sm" id="bp-reach-gnd" title="the ground under the antenna: it sets how strong the reflected wave is and where a vertical's lobe sits">
@@ -220,6 +228,7 @@
     <span class="tiny muted">good</span>
     <span class="tiny muted">&middot; centred on you, the ring &middot; the night side shaded, the terminator as its twilight</span>
   </div>
+  <p class="small" style="margin:.5rem 0 0" id="bp-reach-gain" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-nvis-words" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-far" hidden></p>
   <p class="tiny muted" style="margin:.5rem 0 0" id="bp-reach-note"></p>

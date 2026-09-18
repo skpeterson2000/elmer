@@ -1107,7 +1107,7 @@ function gamesGuideHTML(chosen) {
    mound: the pitcher chooses how hard a pitch, keys it on the touch key,
    and throws; the fielder with a grounder keys the throw the same way; the
    baseman hears the throw and copies it for the tag. */
-const phonePlayer = (typeof CWPlayer === 'function') ? new CWPlayer() : null;
+const phonePlayer = (typeof CWPlayer === 'function') ? new CWPlayer().arm() : null;
 let phonePitched = null, phoneThrowHeard = null, phoneKey = null, phoneLinkSent = null;
 function ballHoldKey() { return 'ball.hold.' + (me && me.id); }
 function ballHeld() {

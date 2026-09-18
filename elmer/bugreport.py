@@ -120,21 +120,45 @@ def headline(said):
     return ""
 
 
-def build(conn=None, lines=400, include_station=False, said=""):
+# The kinds of thing a person may send. A problem carries the machine's
+# own account beside the person's - the self-check, the errors, the tail of
+# the log - because that is what finds the fault. A comment, a question or
+# a suggestion is the person's words and the build they were looking at,
+# and nothing from the log, since none of it is needed and sending less is
+# the polite default. The same redaction and the same "nothing leaves until
+# you press send" apply to all four.
+KINDS = {
+    "problem": "problem report",
+    "comment": "comment",
+    "question": "question",
+    "suggestion": "suggestion",
+}
+
+
+def kind_of(value):
+    """A kind as the page sent it, or a problem for anything it did not name."""
+    value = str(value or "").strip().lower()
+    return value if value in KINDS else "problem"
+
+
+def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
     """The report, as text, ready to be read before it is sent.
 
     `said` is the operator's own account of what happened, if they gave
     one. `include_station` puts the callsign on the report and leaves the
     text unredacted - their choice, made so a reply can reach them; without
     it nothing on the report says whose it is, the operator's words
-    included, since a callsign typed into them is still a callsign.
+    included, since a callsign typed into them is still a callsign. `kind`
+    is one of KINDS; only a problem carries the log.
     """
+    kind = kind_of(kind)
     stamp = build_stamp()
     out = []
     add = out.append
 
-    add("ELMER problem report")
+    add(f"ELMER {KINDS[kind]}")
     add("=" * 60)
+    add(f"kind       {kind}")
     add(f"written    {time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     if include_station and conn is not None:
         try:
@@ -204,9 +228,13 @@ def build(conn=None, lines=400, include_station=False, said=""):
     said = str(said or "").strip()[:SAID_MOST]
     if said:
         add("")
-        add("what happened, in the operator's words")
+        add("what happened, in the operator's words" if kind == "problem"
+            else f"the {kind}, in the operator's words")
         add("-" * 60)
         out.extend(said.splitlines())
+    elif kind != "problem":
+        add("")
+        add(f"(a {kind} with nothing written in it)")
 
     callsign, places = None, []
     if conn is not None and not include_station:
@@ -218,6 +246,14 @@ def build(conn=None, lines=400, include_station=False, said=""):
             places = [spot.get("short"), spot.get("name"), spot.get("grid")]
         except Exception:
             callsign, places = None, []
+
+    if kind != "problem":
+        # A comment, a question or a suggestion: the words and the build
+        # they were looking at. Nothing from the log leaves for these.
+        text = "\n".join(out) + "\n"
+        if include_station:
+            return text, False
+        return redact(text, callsign, places), True
 
     # The self-check, embedded. A report that made somebody read four hundred
     # log lines to find what one line of the doctor already knew was a report
@@ -290,9 +326,9 @@ def locate(name):
     return path if path.is_file() else None
 
 
-def write(conn=None, lines=400, include_station=False, said=""):
+def write(conn=None, lines=400, include_station=False, said="", kind="problem"):
     """Save the report where somebody can find it. Returns (path, redacted)."""
-    text, redacted = build(conn, lines, include_station, said)
+    text, redacted = build(conn, lines, include_station, said, kind=kind)
     # Beside the log it was cut from: the state directory, which is data/
     # on a unit and somewhere else only when a test moved it.
     folder = paths.STATE

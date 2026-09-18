@@ -44,6 +44,7 @@ from pathlib import Path
 
 from . import trivia
 from .paths import STATE
+from .supporter import honour_line
 
 log = logging.getLogger("elmer")
 
@@ -61,7 +62,7 @@ MIN_DWELL, MAX_DWELL = 5.0, 60.0
 # The kinds of card the deck can hold, and which are on by default. Trivia
 # decks are the ones in trivia.DECKS; the rest are the hall's own.
 TRIVIA_DECKS = list(trivia.DECKS)
-CARD_KINDS = ["standings", "sponsor", "notice", "join", "programme"]
+CARD_KINDS = ["standings", "sponsor", "notice", "join", "programme", "thanks"]
 DEFAULT_DECK = {**{d: True for d in TRIVIA_DECKS},
                 **{k: True for k in CARD_KINDS}}
 
@@ -146,6 +147,10 @@ class Show:
         # -- the event's own content
         self.sponsors = []               # {"id","name","blurb","url","file","weight"}
         self.notices = []                # {"id","title","text","url"}
+        # The supporters in the hall tonight - net control's and the
+        # tables' - set by the net on each check-in; see elmer/supporter.py.
+        # Not saved: they are whoever is here.
+        self.supporters = []
         # -- mode and focus
         self.mode = PLAY
         self.focus = None                # {"section","title","text","until"}
@@ -306,6 +311,11 @@ class Show:
             others.append(("programme", None))
         if self.house and self._due(self.house, pass_no):
             others.append(("house", None))
+        # The roll of thanks: the supporters in the room, with the event's
+        # sponsors beside them, on one card once a pass. Only when there is
+        # a supporter to name - the sponsors have cards of their own.
+        if self.deck.get("thanks") and self.supporters:
+            others.append(("thanks", None))
         # Sponsors, each as often as its presence says, spread evenly.
         due = []
         if self.deck.get("sponsor"):
@@ -353,6 +363,9 @@ class Show:
             self._house_at += 1
             card.update({"name": HOUSE_WHO, "text": line, "url": HOUSE_WHERE,
                          "image": f"/static/house/{icon}"})
+        elif kind == "thanks":
+            card.update({"sponsors": [s["name"] for s in self.sponsors],
+                         "supporters": list(self.supporters)})
         elif kind == "notice":
             n = self.notices[self._notice_at % len(self.notices)]
             self._notice_at += 1
@@ -617,10 +630,21 @@ class Show:
 
     # ------------------------------------------------------------ for units
 
-    def for_unit(self, unit=None, standings=None, join=None, now=None):
-        """Everything one unit's screens need, in one check-in reply."""
+    def for_unit(self, unit=None, standings=None, join=None, now=None,
+                 supporter=None, game=None):
+        """Everything one unit's screens need, in one check-in reply.
+
+        `supporter` is the callsign whose unit this is, when they chose to
+        be named: on that table ELMER's own card becomes the honorary one -
+        "This shootout is brought to you by the generous contribution of
+        KC9SP" - the same card, the same moment, one table's own words.
+        """
         now = _now() if now is None else now
         with self.lock:
+            card = self.card(now, standings, join)
+            if supporter and card and card.get("kind") == "house":
+                card = dict(card, honour=supporter,
+                            text=honour_line(supporter, game))
             return {
                 "mode": self.mode,
                 "focus": self.focus_view(now),
@@ -628,7 +652,7 @@ class Show:
                 # A unit gets its seats' lines too and hands them out itself;
                 # the board (no unit) gets none of them.
                 "announcements": self.announcements_for(unit, "*" if unit else None, now),
-                "card": self.card(now, standings, join),
+                "card": card,
                 "programme": self.programme_view(now) if self.programme else None,
             }
 
@@ -644,6 +668,7 @@ class Show:
                 "presences": [{"value": v, "label": l} for v, l in PRESENCES],
                 "decks": TRIVIA_DECKS, "kinds": CARD_KINDS,
                 "sponsors": [dict(s) for s in self.sponsors],
+                "supporters": list(self.supporters),
                 "notices": [dict(n) for n in self.notices],
                 "programme": self.programme_view(now),
                 "steps": [dict(s) for s in self.programme],

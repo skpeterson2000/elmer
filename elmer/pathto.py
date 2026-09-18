@@ -20,7 +20,7 @@ gazetteer.
 import math
 import re
 
-from . import bandplan, callsign, geocode, propagation, reachout, terrain
+from . import bandplan, callsign, geocode, linkbudget, propagation, reachout, terrain
 
 # Past this a path is the ionosphere's, whatever the antennas: the radio
 # horizon from a hundred feet up is about thirty miles, and nobody is asking
@@ -264,6 +264,19 @@ def ladder(km, sight, sky, license=None):
                         "Each column needs its far end too."),
             "yours": you if you in ("none", "Technician", "General") else
             ("General" if reachout._class_rank(you) >= bandplan.CLASS_RANK.get("General", 2) else you)}
+
+
+def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, site="residential"):
+    """The same path by the numbers on VHF or UHF: the link budget along
+    the ground between, for a radio at each end off the shelf. The sight
+    test says whether the ground clears; this says what the ground costs
+    and whether these two radios have it to spend."""
+    km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
+    out = linkbudget.for_path(here, there, km, band=band, mode=mode, radio_here=radio_here,
+                              radio_there=radio_there, site=site)
+    out["bearing"] = round(bearing)
+    out["to"] = {"short": there.get("short") or there.get("name"), "grid": there.get("grid")}
+    return out
 
 
 def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):

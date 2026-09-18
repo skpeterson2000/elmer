@@ -4,7 +4,7 @@ The Library reads the operator's manuals and answers "where does it say
 that?" with the page. This program's own guide belongs on that shelf too,
 read by the same index, found by the same search, opened in the same reader
 - rather than as a file somewhere a kiosk cannot reach. So the guide is
-built from `docs/USER-GUIDE.md` into a PDF with real bookmarks, one a
+built from `USER-GUIDE.md` into a PDF with real bookmarks, one a
 chapter, and placed at `data/library/` when ELMER starts if it is not
 there or the text has changed. The Library indexes it on the next visit as
 it would any book.
@@ -36,7 +36,10 @@ from . import db, paths
 
 log = logging.getLogger("elmer")
 
-SOURCE = paths.ROOT / "docs" / "USER-GUIDE.md"
+# At the top of the checkout, beside the README, because that is where a
+# person who has just unzipped ELMER looks for the manual - and the shelf is
+# easy to lose a book on once it fills up. The screenshots stay in docs/.
+SOURCE = paths.ROOT / "USER-GUIDE.md"
 NAME = "ELMER-Users-Guide.pdf"
 DECLINED_KEY = "manual_declined"
 _MARK = ".manual.json"                  # beside the shelf's index: what was built, from what

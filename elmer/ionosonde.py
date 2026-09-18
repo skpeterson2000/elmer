@@ -89,8 +89,53 @@ def _clean(rows, now):
     return out
 
 
+MEMORY = CACHE / "stations-memory.json"
+
+
+def _with_memory(fresh, now, write=False):
+    """The fresh list, plus every station remembered from an earlier fetch
+    whose reading is still young enough to vote.
+
+    Two units in one vehicle disagreed by a third on foF2 because one had
+    fetched in a minute when a third sonde was in the feed and the other in
+    a minute when it was not - a station dropping out of a list of three
+    moved the median by one whole vote. So a station that misses a cycle is
+    not gone: its last reading is kept, marked held, and ages out at the
+    same three hours a fresh reading would, its weight falling with its age
+    the whole way. A voter should fade, not vanish."""
+    fresh = list(fresh or [])
+    try:
+        memory = json.loads(MEMORY.read_text()) if MEMORY.is_file() else {}
+    except (OSError, ValueError):
+        memory = {}
+    seen = {s["name"] for s in fresh}
+    for s in fresh:
+        memory[s["name"]] = {k: s[k] for k in ("name", "lat", "lon", "fof2", "hmf2", "mufd", "m3000", "confidence", "time")}
+    out = list(fresh)
+    for name, row in list(memory.items()):
+        try:
+            when = datetime.fromisoformat(row["time"])
+        except (KeyError, ValueError, TypeError):
+            memory.pop(name, None)
+            continue
+        age = (now - when).total_seconds() / 3600.0
+        if age < 0 or age > MAX_AGE_HOURS:
+            memory.pop(name, None)
+            continue
+        if name not in seen:
+            out.append(dict(row, age_minutes=round(age * 60), held=True))
+    if write:
+        try:
+            MEMORY.write_text(json.dumps(memory))
+        except OSError:
+            pass
+    return out
+
+
 def stations(force=False, offline=False):
-    """Every station reporting recently, or None when unreachable.
+    """Every station reporting recently, or None when unreachable - with any
+    station remembered from the last few hours that this fetch did not
+    carry, held at the weight its age earns (see _with_memory).
 
     `offline` answers from the cache or not at all. A page that only wants to
     sharpen a number it already has should never be the page that waits on the
@@ -104,7 +149,7 @@ def stations(force=False, offline=False):
         age = (time.time() - path.stat().st_mtime) / 60.0
         if age < CACHE_MINUTES or offline:
             try:
-                return _clean(json.loads(path.read_text()), now)
+                return _with_memory(_clean(json.loads(path.read_text()), now), now)
             except ValueError:
                 pass
     if offline:
@@ -114,12 +159,12 @@ def stations(force=False, offline=False):
     except Exception:
         if path.is_file():                     # stale beats nothing
             try:
-                return _clean(json.loads(path.read_text()), now)
+                return _with_memory(_clean(json.loads(path.read_text()), now), now)
             except ValueError:
                 pass
         return None
     path.write_text(json.dumps(raw))
-    return _clean(raw, now)
+    return _with_memory(_clean(raw, now), now, write=True)
 
 
 def great_circle(lat1, lon1, lat2, lon2):

@@ -89,17 +89,28 @@ function renderWho(d) {
         escapeHTML(me.name || me.display_name || 'this user') + '</button>' +
       '<button class="btn sm ghost" data-who="password">' +
         (me.locked ? 'Change password' : 'Set a password') + '</button>' +
+      (d.sealed && !d.unlocked
+        ? '<button class="btn sm primary" data-who="unlock">Unlock</button>' : '') +
+      (d.recoverable && !d.unlocked
+        ? '<button class="btn sm ghost" data-who="recover">Recovery code&hellip;</button>' : '') +
       (d.local && d.users.length > 1
         ? '<button class="btn sm ghost danger" data-who="remove">Remove&hellip;</button>'
         : '') +
     '</div>' +
-    '<div class="tiny muted who-note">' + (me.locked
+    '<div class="tiny muted who-note">' + (d.shared ? 'This unit is marked shared. ' : '') + (me.locked
       ? 'This account is locked: your password is needed to switch to it, ' +
         'rename it or remove it.'
       : 'A password stops somebody else on this unit answering questions as ' +
         'you, or deleting what you have done.') +
       ' It travels over the network in clear, so choose one you do not use ' +
-      'elsewhere.</div>';
+      'elsewhere.' +
+      (d.sealed
+        ? (d.unlocked
+            ? ' Your QTH, tokens and notes are sealed with your password; this browser has the key.'
+            : ' Your QTH, tokens and notes are sealed with your password and are locked just now - ' +
+              'Unlock with your password' + (d.recoverable ? ', or the recovery code if the password is gone' : '') + '.')
+        : (me.locked ? '' : ' With a password, your QTH, tokens and notes are sealed so the database file gives them to nobody.')) +
+      '</div>';
   if (wasOpen) placeWhoMenu();          // its height just changed
 }
 
@@ -169,12 +180,13 @@ function askPassword(opts) {
 async function switchUser(id) {
   /* A locked account asks. Answering questions as somebody else quietly
      corrupts the one record they came here to build, so picking their name
-     off a list is deliberately not enough. */
+     off a list is deliberately not enough. The same password opens the
+     seal, so this is also how a sealed account is unlocked. */
   const who = (whoData && whoData.users || []).find(u => u.id === id);
   let password = '';
   if (who && who.locked) {
     password = await askPassword(
-      {title: 'Switch to ' + who.display_name,
+      {title: (whoData && id === whoData.current ? 'Unlock ' : 'Switch to ') + who.display_name,
        label: 'Password for ' + who.display_name}) || '';
     if (!password) return;
   }
@@ -187,7 +199,38 @@ async function switchUser(id) {
     return;
   }
   renderWho(r);
+  if (r.recovery) showRecovery(r.recovery);
   location.reload();          // every number on the page belongs to somebody
+}
+
+/* The recovery code, shown once. It is the only way back into the seal
+   when the password is gone: the moderator key opens the account and not
+   the seal. Blocking on purpose - a code that scrolls away unread is no
+   code at all. */
+function showRecovery(code) {
+  alert('Your private data is now sealed with your password.\n\n' +
+        'Write this recovery code down and keep it somewhere safe:\n\n' +
+        '    ' + code + '\n\n' +
+        'It is the only way back in if the password is forgotten - the moderator key ' +
+        'opens the account, not the seal. ELMER does not keep a copy and will not show it again.');
+}
+
+/* The recovery code opens the seal and the account takes a new password. */
+async function recoverAccount(me) {
+  const code = await askPassword({title: 'Recovery code', label: 'The code you wrote down for ' + me.display_name,
+                                  note: 'Five groups of four; dashes and case do not matter.'}) || '';
+  if (!code) return;
+  const wanted = await askPassword({title: 'A new password', label: 'New password for ' + me.display_name,
+                                    note: 'The seal is wrapped under it again.', confirm: true}) || '';
+  if (!wanted) return;
+  try {
+    const r = await postJSON('/api/users/recover', {id: me.id, code: code, password: wanted});
+    renderWho(r);
+    toast('Recovered', 'The seal is open and the new password is set.');
+    setTimeout(() => location.reload(), 600);
+  } catch (err) {
+    if (!err.refusal) toast('Not recovered', 'That code does not open this account.');
+  }
 }
 
 /* Setting or changing a password. Changing one needs the old one, so an open
@@ -241,9 +284,12 @@ async function setPassword(me) {
     const r = await postJSON('/api/users/password',
                              {id: me.id, password: wanted, current: current});
     renderWho(r.users);
+    if (r.recovery) showRecovery(r.recovery);
     toast(wanted ? 'Password set' : 'Password removed',
-          wanted ? 'This account now asks for it.'
-                 : 'This account is open again.');
+          wanted ? (r.lost ? 'This account now asks for it. The sealed data stayed behind the recovery code - use it from the account menu.'
+                           : 'This account now asks for it' + (r.sealed ? ', and your private data is sealed with it.' : '.'))
+                 : (r.lost ? 'This account is open again. Its sealed data stayed behind the recovery code.'
+                           : 'This account is open again, and its data is plain again.'));
   } catch (err) {
     /* A refusal has already been shown, in the server's own words. Adding
        "that password was not right" on top of "that account already has a
@@ -266,7 +312,10 @@ document.addEventListener('click', async e => {
   const row = e.target.closest('.who-row');
   if (row) {
     const id = +row.dataset.user;
-    if (whoData && id === whoData.current) { openWhoMenu(false); return; }
+    if (whoData && id === whoData.current) {
+      if (whoData.sealed && !whoData.unlocked) return switchUser(id);    // your own row, locked: unlock
+      openWhoMenu(false); return;
+    }
     return switchUser(id);
   }
   const action = e.target.closest('[data-who]');
@@ -292,6 +341,12 @@ document.addEventListener('click', async e => {
     if (action.dataset.who === 'password') {
       const me = whoData.users.find(u => u.id === whoData.current) || {};
       await setPassword(me);
+      return;
+    }
+    if (action.dataset.who === 'unlock') { return switchUser(whoData.current); }
+    if (action.dataset.who === 'recover') {
+      const me = whoData.users.find(u => u.id === whoData.current) || {};
+      await recoverAccount(me);
       return;
     }
     if (action.dataset.who === 'remove') {
@@ -323,14 +378,46 @@ document.addEventListener('submit', async e => {
   if (e.target.id !== 'who-add') return;
   e.preventDefault();
   const form = e.target;
-  const body = {name: form.name.value, callsign: form.callsign.value};
+  await addUser({name: form.name.value, callsign: form.callsign.value});
+});
+
+/* Adding somebody: the server may ask two things first, in order, and it
+   asks them whatever page the request came from. Is the unit shared - once,
+   the first time a second account is about to be made. And on a shared
+   unit, will the person at the controls lock their own account before the
+   next one exists - the one moment they are certainly the one holding the
+   controls. Leaving it open is a real answer, and is not asked again. */
+async function addUser(body) {
   const res = await fetch('/api/users/add', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)});
   const d = await res.json().catch(() => ({}));
+  if (res.status === 409 && d.ask === 'shared') {
+    const shared = confirm(
+      'Is this ELMER shared - will more than one person use it?\n\n' +
+      'On a shared unit ELMER asks you to put a password on your account before ' +
+      'the next account is made, so nobody can take an open account and lock its ' +
+      'owner out; and a saved token needs a password on the account.\n\n' +
+      'OK for shared. Cancel for one person\'s. The Station dialog can change it.');
+    return addUser(Object.assign({}, body, {shared: shared}));
+  }
+  if (res.status === 409 && d.ask === 'password') {
+    const me = ((whoData && whoData.users) || []).find(u => u.id === whoData.current) || {};
+    const yes = confirm(
+      'Before a second account is made: put a password on your own account?\n\n' +
+      'Without one, whoever comes next can switch into it and lock you out.\n\n' +
+      'OK to set one now. Cancel to leave yours open - which is not asked again.');
+    if (yes) {
+      await setPassword(me);
+      const now = ((whoData && whoData.users) || []).find(u => u.id === whoData.current);
+      if (!now || !now.locked) return;          // backed out of the password: nothing added
+      return addUser(body);
+    }
+    return addUser(Object.assign({}, body, {leave_open: true}));
+  }
   if (!res.ok) { alert(d.message || 'Could not add that user.'); return; }
   location.reload();
-});
+}
 
 /* ---------- the shack: everyone on this unit, side by side ---------- */
 

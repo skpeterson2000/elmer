@@ -42,6 +42,27 @@
         ${card.url ? `<div class="hs-about">${esc(card.url)}</div>` : ''}
       </div>`;
     }
+    if (k === 'house' && card.honour) {
+      /* The honorary card: this table's unit is a supporter's, and ELMER's
+         own card becomes theirs for the dwell. */
+      return `<div class="hs-card hs-sponsor">
+        <div class="hs-kicker">With thanks</div>
+        <div class="hs-sponsor-name">${esc(card.honour)}</div>
+        <p class="hs-text">${esc(card.text)}</p>
+        <div class="hs-about">${esc(card.name)} &middot; ${esc(card.url)}</div>
+      </div>`;
+    }
+    if (k === 'thanks') {
+      /* The roll: the evening's sponsors and the supporters in the room. */
+      const names = [...(card.sponsors || []), ...(card.supporters || [])];
+      const shown = names.slice(0, 8);
+      return `<div class="hs-card hs-sponsor">
+        <div class="hs-kicker">With thanks to</div>
+        <div class="hs-sponsor-name">${esc(shown.join(' \u00b7 '))}</div>
+        ${names.length > shown.length ? `<div class="hs-about" style="text-align:center">and ${names.length - shown.length} more</div>` : ''}
+        <p class="hs-text hs-blurb">${(card.sponsors || []).length ? 'The evening&rsquo;s sponsors, and ' : ''}the people whose cup of coffee keeps ELMER free for everyone.</p>
+      </div>`;
+    }
     if (k === 'house') {
       /* ELMER's own card: the icon, one line, where to find it. */
       const img = card.image

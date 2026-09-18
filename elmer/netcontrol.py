@@ -174,6 +174,10 @@ class Unit:
         # the host can tell a table that is choking (its Pi overfed) from one
         # that is merely far (its wifi slow) - the same slowness, two cures.
         self.host = {}
+        # The supporter whose unit this is, if they chose to be named - see
+        # elmer/supporter.py. The table's own card says thank you to them,
+        # and the hall's thanks card lists them with the event's sponsors.
+        self.supporter = ""
 
     @property
     def quiet_for(self):
@@ -191,7 +195,7 @@ class Unit:
                 "simulated": self.simulated, "showing": self.showing,
                 "ready": self.ready, "cloned": self.cloned,
                 "rtt_ms": self.rtt_ms, "rtt_room": self.rtt_room,
-                "host": self.host}
+                "host": self.host, "supporter": self.supporter}
 
 
 class Net:
@@ -224,6 +228,8 @@ class Net:
         self.since = _now()
         self._service = deque(maxlen=HEALTH_WINDOW)
         self.units = {}
+        # Net control's own supporter, named first on the thanks card.
+        self.host_supporter = ""
         self.round_number = 0
         self.round = None          # dict: the question every unit is showing
         self.opened_at = 0.0
@@ -322,12 +328,32 @@ class Net:
 
     # ---------------------------------------------------------------- show
 
+    def _supporters(self):
+        seen, out = set(), []
+        for name in [self.host_supporter] + [u.supporter for u in self.units.values()
+                                             if u.present and not u.simulated]:
+            if name and name not in seen:
+                seen.add(name)
+                out.append(name)
+        return out
+
+    def supporters(self):
+        """Who the hall thanks: net control's own supporter, then each
+        present table's, once each - see elmer/supporter.py."""
+        with self.lock:
+            return self._supporters()
+
     def show_for(self, unit_id):
         """The hall's show as one unit should see it, for its check-in reply."""
         with self.lock:
             standings = [{"name": r["name"], "score": r["score"],
                           "gained": r["gained"]} for r in self.standings(6)]
-        view = self.show.for_unit(unit_id, standings=standings, join=True)
+            unit = self.units.get(unit_id)
+            table = unit.supporter if unit else ""
+            game = self.mode
+            self.show.supporters = self._supporters()
+        view = self.show.for_unit(unit_id, standings=standings, join=True,
+                                  supporter=table, game=game)
         view["lead_in"] = self.lead_in_view()
         return view
 
@@ -1301,6 +1327,10 @@ class Net:
             units = sorted((u.as_dict() for u in self.units.values()),
                            key=lambda u: (-u["score"], u["name"]))
             present = [u for u in units if u["present"]]
+            # The board may be the first screen up, before any table has
+            # checked in: net control's own supporter is on the roll from
+            # the start.
+            self.show.supporters = self._supporters()
             return {
                 "name": self.name,
                 "token": self.token,

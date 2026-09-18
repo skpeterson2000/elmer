@@ -50,6 +50,19 @@ function renderUpdate(d) {
     '</div>' +
     (st.subject ? '<div class="small" style="margin-top:.3rem">' +
                   escapeHTML(st.subject) + '</div>' : '') +
+    /* The supporters, under the build: the people who have bought the
+       developer a coffee, from SUPPORTERS.md at the top of the checkout.
+       Nothing is printed while the list is empty. */
+    (d.supporter_words ? '<div class="tiny muted" style="margin-top:.3rem">With thanks to <b>' +
+                  escapeHTML(d.supporter_words) + '</b>. The list is SUPPORTERS.md, beside the README.</div>' : '') +
+    /* And how to join them. Always printed, because the promise of a name
+       in the credits has to be findable before anyone is on the list. */
+    '<div class="tiny muted" style="margin-top:.3rem">ELMER is a gift to the amateur radio ' +
+      'community, free for everyone. If you like it, thank the developer with a cup of coffee ' +
+      '&mdash; or something more generous to fuel the next release &mdash; at ' +
+      '<a href="https://github.com/sponsors/skpeterson2000" target="_blank" rel="noopener">' +
+      'github.com/sponsors/skpeterson2000</a>. Supporters are named here and in SUPPORTERS.md, ' +
+      'or not, as they prefer.</div>' +
     '<div class="small ' + (tone === 'warn' ? 'warntext' : 'muted') +
       '" style="margin-top:.5rem">' + line + '</div>' +
     (d.blocked && waiting
@@ -57,10 +70,11 @@ function renderUpdate(d) {
         escapeHTML(d.blocked) + '</div>' : '') +
     (d.local ? updateControls(d, waiting) : '') +
     (d.local ? '<div class="row" style="gap:.6rem;margin-top:.6rem;align-items:center">' +
-        '<button class="btn sm" data-report="1">Report a problem</button>' +
-        '<span class="tiny muted">Writes a file with the versions, the recent ' +
-        'errors and the tail of the log &mdash; with your callsign, QTH and ' +
-        'network addresses taken out. Nothing is sent until you press send.</span>' +
+        '<button class="btn sm" data-report="1">Send feedback</button>' +
+        '<span class="tiny muted">A comment, a question, a suggestion or a problem. ' +
+        'A problem carries the versions, the recent errors and the tail of the log; the ' +
+        'others carry your words and the build. Your callsign, QTH and network addresses ' +
+        'are taken out. Nothing is sent until you press send.</span>' +
       '</div><div id="report-out"></div>' +
       /* Mail home: the unit's own outgoing-mail settings, and the weekly
          field report, which is off until switched on and says what it
@@ -255,15 +269,33 @@ api('/api/update').then(renderUpdate).catch(() => {});
    happened - the one thing the log cannot - and a box to put the callsign
    on it so a reply can reach them. The second writes the file and shows it.
    The third sends what was just read. Nothing leaves on the first two. */
+/* What kind of thing this is, and the prompt that fits it. The machine's
+   own account - the log - goes with a problem and nothing else. */
+const REPORT_KINDS = [
+  ['problem', 'a problem', 'What happened? What were you doing when it went wrong? (optional, but it is the one thing the log cannot say)'],
+  ['question', 'a question', 'What would you like to know? Where in ELMER were you when the question came up?'],
+  ['suggestion', 'a suggestion', 'What would make ELMER better, and what would it do for you?'],
+  ['comment', 'a comment', 'Anything at all - what worked, what did not, what you thought.'],
+];
+function reportKind() {
+  const el = document.querySelector('input[name="report-kind"]:checked');
+  return el ? el.value : 'problem';
+}
 function reportForm() {
   return '<div style="margin:.5rem 0">' +
-    '<textarea id="report-said" rows="3" placeholder="What happened? What were you doing when it went wrong? (optional, but it is the one thing the log cannot say)" ' +
+    '<div class="row" style="gap:.9rem;flex-wrap:wrap;margin-bottom:.4rem">' +
+      '<span class="tiny muted">This is</span>' +
+      REPORT_KINDS.map(([k, label]) =>
+        '<label class="tiny" style="display:flex;gap:.3rem;align-items:center;cursor:pointer;color:var(--text)">' +
+          '<input type="radio" name="report-kind" value="' + k + '"' + (k === 'problem' ? ' checked' : '') + '> ' + label + '</label>').join('') +
+    '</div>' +
+    '<textarea id="report-said" rows="3" placeholder="' + escapeHTML(REPORT_KINDS[0][2]) + '" ' +
       'style="width:100%;max-width:44rem;box-sizing:border-box;padding:.4rem .5rem;border-radius:7px;border:1px solid var(--line-2);background:var(--panel);color:var(--text);font:inherit;font-size:.85em"></textarea>' +
     '<div class="row" style="gap:.7rem;align-items:center;flex-wrap:wrap;margin-top:.4rem">' +
       '<label class="tiny" style="display:flex;gap:.4rem;align-items:center;cursor:pointer;color:var(--text)">' +
         '<input type="checkbox" id="report-station"> Put my callsign on it, so a reply can reach me</label>' +
-      '<button class="btn sm" data-report-write="1">Write the report</button>' +
-      '<span class="tiny muted">Written to a file first and shown here. Nothing is sent until you press send.</span>' +
+      '<button class="btn sm" data-report-write="1">Write it</button>' +
+      '<span class="tiny muted" id="report-carries">Written to a file first and shown here. A problem carries the log; the rest carry your words and the build. Nothing is sent until you press send.</span>' +
     '</div>' +
     '<div id="report-result"></div>' +
   '</div>';
@@ -272,9 +304,19 @@ function reportForm() {
 function reportBody(send) {
   const said = document.getElementById('report-said');
   const station = document.getElementById('report-station');
-  return JSON.stringify({said: said ? said.value : '',
+  return JSON.stringify({said: said ? said.value : '', kind: reportKind(),
                          station: !!(station && station.checked), send: !!send});
 }
+
+/* The prompt follows the kind: "what went wrong" is the wrong question to
+   put under a suggestion. */
+document.addEventListener('change', e => {
+  const r = e.target.closest('input[name="report-kind"]');
+  if (!r) return;
+  const said = document.getElementById('report-said');
+  const row = REPORT_KINDS.find(k => k[0] === r.value);
+  if (said && row) said.placeholder = row[2];
+});
 
 document.addEventListener('click', e => {
   const btn = e.target.closest('[data-report]');

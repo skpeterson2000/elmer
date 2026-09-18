@@ -603,7 +603,13 @@ def main():
     profile = [w["cells"][20 * w["cols"] + j] for j in range(0, w["cols"], 3)]
     rises = [b - a for a, b in zip(profile, profile[1:]) if b != a]
     check("  the skip's edge is a slope, not a cliff - it takes more than one step to climb", len([r for r in rises if r > 0]) >= 3, True)
-    check("  and nothing falls back inside the band once it has opened", all(r >= 0 for r in rises), True)
+    # Every cell is now rated against its own hop's ceiling, so a row out
+    # from the skip climbs to the sweet spot under that ceiling and then
+    # eases as the band falls further under it - a peak, not a plateau.
+    # What must not happen is a fall before the climb is done, or a cliff.
+    top = profile.index(max(profile))
+    check("  and nothing falls back before the sweet spot, and nothing after it is a cliff",
+          (all(b >= a for a, b in zip(profile[:top], profile[1:top + 1])), all(a - b <= 25 for a, b in zip(profile[top:], profile[top + 1:]))), (True, True))
     dusk = datetime(2026, 6, 21, 2, 0, tzinfo=timezone.utc)      # 21:00 in Minnesota - dark here, day over Asia
     one = P.reach_map(3.5, 46.6, -94.31, snap, when=dusk)
     rt = P.reach_map(3.5, 46.6, -94.31, snap, when=dusk, mode="round")
@@ -622,16 +628,27 @@ def main():
     high = P.reach_map(7.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5})
     lit = lambda mm: sum(1 for c in mm["cells"] if c > 0)
     check("a low inverted V and a high dipole no longer draw the same map", nvis["cells"] != high["cells"], True)
-    check("  the NVIS wire lights far fewer cells than the sky alone; the high dipole nearly all of them",
-          (lit(nvis) < lit(sky) / 2, lit(high) > lit(sky) * 0.95), (True, True))
-    check("  Miami, 2500 km out: all but gone on the NVIS wire - real ground fills a little of the null - and kept on the high dipole",
-          (at(nvis, 25.5, -80.0) <= 8, at(high, 25.5, -80.0) > 2 * at(nvis, 25.5, -80.0)), (True, True))
+    def mean_at(mm, near):
+        vals = []
+        for i in range(mm["rows"]):
+            for j in range(mm["cols"]):
+                glat, glon = mm["lat0"] - i * mm["step"], mm["lon0"] + j * mm["step"]
+                km = math.hypot((glat - 46.6) * 111.0, (glon + 94.31) * 111.0 * math.cos(math.radians(46.6)))
+                if (km < 500) if near else (2000 < km < 3500):
+                    vals.append(mm["cells"][i * mm["cols"] + j])
+        return sum(vals) / max(1, len(vals))
+    check("  the NVIS wire is dimmer than the sky far out and no dimmer near; the high dipole the other way about",
+          # a tenth of a wave up the image adds nothing straight up over real ground - a fifth is where it adds - so "no dimmer" is within a few points
+          (mean_at(nvis, False) < 0.6 * mean_at(sky, False), mean_at(nvis, True) >= mean_at(sky, True) - 4, mean_at(high, True) < mean_at(nvis, True)), (True, True, True))
+    check("  the high dipole lights nearly every cell the sky does", lit(high) > lit(sky) * 0.95, True)
+    check("  Miami, 2500 km out: dim on the NVIS wire - some nine decibels down at that angle, which real ground does not make a null - and kept on the high dipole",
+          (at(nvis, 25.5, -80.0) < 0.6 * at(sky, 25.5, -80.0), at(high, 25.5, -80.0) > 1.5 * at(nvis, 25.5, -80.0)), (True, True))
     check("  Chicago, 600 km: the NVIS wire still carries it", at(nvis, 42.5, -87.5) > 0, True)
     check("  the map says which antenna it was weighted for, and the sky alone says none", (nvis["antenna"]["kind"], sky["antenna"]), ("invertedv", None))
     w_low, w_high = P.takeoff_weights("invertedv", 0.1, 300.0), P.takeoff_weights("dipole", 0.5, 300.0)
     check("the weight is the antenna's pattern at the hop's angle: a low wire strong at 300 km and nothing at 2500, a high one the other way round",
-          (w_low(300) > 0.9, w_low(2500) < 0.1, w_high(2500) > w_high(300)), (True, True, True))
-    check("  and never past one or under nought", all(0.0 <= w_high(km) <= 1.0 for km in range(0, 4000, 50)), True)
+          (w_low(300) > 0.9, w_low(2500) < 0.6, w_high(2500) > w_high(300)), (True, True, True))
+    check("  and never past the ground's 6 dB or under nought", all(0.0 <= w_high(km) <= P.WEIGHT_CAP for km in range(0, 4000, 50)), True)
     from elmer import patterns as A
     lobe = lambda kind, h, **kw: max(A.elevation(kind, h, **kw), key=lambda p: p["field"])["deg"]
     check("over real ground a vertical's lobe lifts off the horizon; over salt water it stays down; over perfect ground it is on it",

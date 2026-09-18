@@ -107,6 +107,16 @@
       answer something it otherwise has to ask about or guess at.
     </p>
 
+    <label class="setup-label">This unit is</label>
+    <div class="row" style="gap:1rem;flex-wrap:wrap" id="setup-shared">
+      <label class="tiny" style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="setup-shared" value="one" {% if unit_shared is sameas false %}checked{% endif %}> one person&rsquo;s</label>
+      <label class="tiny" style="display:flex;align-items:center;gap:.3rem"><input type="radio" name="setup-shared" value="shared" {% if unit_shared %}checked{% endif %}> shared &mdash; more than one person uses it</label>
+    </div>
+    <p class="tiny muted">On a shared unit ELMER asks the person at the controls to put a
+      password on their account before a second account is made, so nobody can take an
+      open account and lock its owner out; a token saved on an account needs the account
+      to have a password; and the self-check names any account left open.</p>
+
     <label class="setup-label" for="setup-name">What ELMER calls you</label>
     <input id="setup-name" type="text" autocomplete="off" maxlength="40"
            value="{{ profile.name or profile.display_name or '' }}">
@@ -197,19 +207,38 @@
       rank. Off the front by default; the pools are always there.</p>
 
     <label class="setup-label" for="setup-rb">RepeaterBook token</label>
-    <input id="setup-rb" type="password" autocomplete="off" spellcheck="false"
-           placeholder="rbuapp_&hellip;" value="{{ profile.settings.repeaterbook_token or '' }}">
+    <input id="setup-rb" type="password" autocomplete="new-password" spellcheck="false"
+           placeholder="{% if profile.settings.has_repeaterbook_token %}saved &mdash; type a new one to replace it{% else %}rbuapp_&hellip;{% endif %}" value="">
     <p class="tiny muted">Your own, made for ELMER under <b>My Account &rarr;
       API apps</b> at RepeaterBook.com (ELMER has to be on RepeaterBook&rsquo;s
       list of apps for that page to offer it). With it, the amateur and GMRS
       repeaters for the state your QTH is in are fetched straight from
       RepeaterBook under your account, kept on this unit for your own use, and
       asked for again when the QTH moves to another state or a month has
-      passed. The token goes to RepeaterBook and nowhere else. Without one,
-      ELMER reads TowerWitch&rsquo;s list or an import.
+      passed. The token goes to RepeaterBook and nowhere else, and once saved
+      it is never shown again, here or anywhere. Without one, ELMER reads
+      TowerWitch&rsquo;s list or an import.
       <button type="button" class="btn sm ghost" id="setup-rb-fetch"
-              {% if not profile.settings.repeaterbook_token %}hidden{% endif %}>Fetch now</button>
+              {% if not profile.settings.has_repeaterbook_token %}hidden{% endif %}>Fetch now</button>
+      <button type="button" class="btn sm ghost" id="setup-rb-forget"
+              {% if not profile.settings.has_repeaterbook_token %}hidden{% endif %}>Forget the token</button>
       <span id="setup-rb-said"></span></p>
+
+    {%- set sup = profile.settings.supporter or {} %}
+    <label class="setup-label" for="setup-supporter">Supporter key</label>
+    <input id="setup-supporter" autocomplete="off" spellcheck="false"
+           placeholder="ELMER-CALLSIGN-XXXXXX" value="{{ sup.key or '' }}">
+    <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
+      <input type="checkbox" id="setup-supporter-named" {% if sup.named %}checked{% endif %}>
+      Name me on the hall&rsquo;s thanks card
+    </label>
+    <p class="tiny muted">ELMER is a gift to the amateur radio community, free for
+      everyone. Somebody who thanks the developer with a cup of coffee at
+      <b>github.com/sponsors/skpeterson2000</b> and gives their callsign in the note
+      gets a key back. With it ELMER says thank you instead of asking, and a hall
+      this unit plays in can put the callsign on the card between rounds &mdash;
+      only if the box above is ticked. The key opens nothing and its absence
+      closes nothing.</p>
 
     <label class="setup-label" for="setup-units">Distances in</label>
     <select id="setup-units">
@@ -230,7 +259,9 @@
     <div class="place-results" id="setup-qth-results" hidden></div>
     <p class="tiny muted" id="setup-qth-hint">
       {%- set here = profile.settings.location or {} -%}
-      {%- if here.grid %}<b>{{ here.short or here.name }}</b> &middot; {{ here.grid }}{% endif -%}
+      {%- if here.grid %}<b>{{ here.short or here.name }}</b> &middot; {{ here.grid }}
+      {%- elif 'location' in (profile.settings.sealed_fields or []) %}<b>Sealed</b> with your password &mdash;
+        unlock this account from the account menu to see or change it{% endif -%}
     </p>
     <button type="button" class="btn sm ghost" id="setup-here">Use this
       unit&rsquo;s position</button>

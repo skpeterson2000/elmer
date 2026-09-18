@@ -95,6 +95,7 @@ function roPathCard(d) {
         (d.sky.fof2 ? '; foF2 ' + d.sky.fof2 + ' MHz' : '') + (d.sky.muf ? ', MUF ' + d.sky.muf : '') + '.</span></p>'
       : '') +
     (d.when ? '<p class="small" style="margin:.3rem 0"><b>When:</b> ' + escapeHTML(d.when) + '</p>' : '') +
+    '<div id="ro-link"></div>' +
     '<div class="panel-title" style="margin-top:.6rem">The approach</div>' +
     '<ol style="margin:.2rem 0 0;padding-left:1.2rem">' + steps + '</ol>' +
     roLadder(d.ladder) +
@@ -151,6 +152,166 @@ async function roPath() {
   }
   box.innerHTML = roPathCard(d);
   try { localStorage.setItem('elmer_reach_to', to); } catch (e) {}
+  roLink(to, d);
+}
+
+/* The same path by the numbers on VHF and UHF: a radio off the shelf at
+   each end, a band, a mode and the noise of the site, and the budget
+   along the ground between - what leaves, what the path costs, what
+   arrives, what the receiver needs, the margin, and the odds that margin
+   buys once real paths' scatter is allowed for. The sight verdict above
+   says whether the ground clears; this says what it costs when it does
+   not, which is the difference between a handheld and a base rig. */
+const RO_GEAR_RADIO = {vhf_ssb: 'base', mobile_vhf: 'mobile', ht: 'ht'};
+let roLinkState = null;
+function roLinkSeed() {
+  if (roLinkState) return roLinkState;
+  let kept = null;
+  try { kept = JSON.parse(localStorage.getItem('elmer_reach_link') || 'null'); } catch (e) {}
+  const gear = roGear();
+  const mine = ['vhf_ssb', 'mobile_vhf', 'ht'].find(g => gear.includes(g));
+  roLinkState = Object.assign({band: '2m', mode: 'fm', here: mine ? RO_GEAR_RADIO[mine] : 'ht', there: null, site: 'residential'}, kept || {});
+  if (!kept && mine) roLinkState.here = RO_GEAR_RADIO[mine];
+  return roLinkState;
+}
+function roLinkRemember() {
+  try { localStorage.setItem('elmer_reach_link', JSON.stringify(roLinkState)); } catch (e) {}
+}
+/* The path as a picture: the ground along it, the line between the two
+   antennas sagging with the earth's bulge, the first Fresnel zone as a
+   band about the line, and the worst of the ground marked. The vertical
+   is stretched - metres against kilometres - and says so. A hover reads
+   the ground, the line and the clearance at that point. */
+const RO_FT = m => Math.round(m * 3.28084);
+function roProfileSVG(d) {
+  const pts = d.profile || [];
+  if (pts.length < 3) return '';
+  const W = 640, H = 220, L = 52, R = 14, T = 14, B = 30;
+  const km = pts[pts.length - 1].km || 1;
+  const ha = d.here.height_m, hb = d.there.height_m;
+  /* The scale is the ground's and the line's: the Fresnel zone on 2 m is
+     hundreds of feet wide at a few miles and would flatten every hill to a
+     ripple if it set the picture. It is shown out to most of the relief
+     and runs off the top and bottom where it must - which is itself the
+     point: the signal wants a zone that wide clear, and the ground is in it. */
+  const lows = pts.map(p => Math.min(p.ground, p.line));
+  const highs = pts.map(p => Math.max(p.ground, p.line));
+  let y0 = Math.min(...lows), y1 = Math.max(...highs, pts[0].ground + ha, pts[pts.length - 1].ground + hb);
+  const relief = Math.max(10, y1 - y0);
+  const room = Math.min(Math.max(...pts.map(p => p.r1)), relief * 0.8);
+  y0 -= Math.max(room, relief * 0.12); y1 += Math.max(room, relief * 0.12);
+  const x = k => L + (k / km) * (W - L - R);
+  const y = m => T + (1 - (m - y0) / (y1 - y0)) * (H - T - B);
+  const ground = 'M' + x(0) + ',' + y(pts[0].ground) + pts.slice(1).map(p => 'L' + x(p.km).toFixed(1) + ',' + y(p.ground).toFixed(1)).join('') +
+    'L' + x(km).toFixed(1) + ',' + (H - B) + 'L' + x(0) + ',' + (H - B) + 'Z';
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + x(p.km).toFixed(1) + ',' + y(p.line).toFixed(1)).join('');
+  const zone = pts.map((p, i) => (i ? 'L' : 'M') + x(p.km).toFixed(1) + ',' + y(p.line + p.r1).toFixed(1)).join('') +
+    pts.slice().reverse().map(p => 'L' + x(p.km).toFixed(1) + ',' + y(p.line - p.r1).toFixed(1)).join('') + 'Z';
+  const worst = d.loss && d.loss.worst;
+  const wp = worst ? pts.reduce((b, p) => Math.abs(p.km - worst.km) < Math.abs(b.km - worst.km) ? p : b, pts[0]) : null;
+  const intrudes = worst && worst.above_line_m > 0;
+  /* a few y ticks in feet, x ticks in miles - the units the page speaks */
+  const ticks = [];
+  const span = y1 - y0, stepM = span > 600 ? 200 : span > 300 ? 100 : span > 120 ? 50 : span > 40 ? 20 : 10;
+  for (let m = Math.ceil(y0 / stepM) * stepM; m <= y1; m += stepM) ticks.push(m);
+  const miles = km * 0.621371, xs = [], stepMi = miles > 60 ? 20 : miles > 25 ? 10 : miles > 12 ? 5 : miles > 5 ? 2 : 1;
+  for (let mi = 0; mi <= miles + 1e-6; mi += stepMi) xs.push(mi);
+  const halo = ' stroke="var(--panel, #161b22)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"';
+  return '<div class="ro-profile" style="position:relative;margin:.4rem 0">' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="the ground along the path, the line between the antennas and the first Fresnel zone">' +
+      '<defs><clipPath id="ro-prof-clip"><rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '"/></clipPath></defs>' +
+      ticks.map(m => '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(m).toFixed(1) + '" y2="' + y(m).toFixed(1) + '" stroke="var(--line)" stroke-width="1"/>' +
+        '<text x="' + (L - 6) + '" y="' + (y(m) + 3.5).toFixed(1) + '" text-anchor="end" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">' + RO_FT(m).toLocaleString() + '</text>').join('') +
+      xs.map(mi => '<text x="' + x(mi / 0.621371).toFixed(1) + '" y="' + (H - B + 14) + '" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">' + mi + '</text>').join('') +
+      '<text x="' + (W - R) + '" y="' + (H - B + 26) + '" text-anchor="end" font-size="10" fill="var(--muted)">miles &middot; height in feet, the vertical stretched</text>' +
+      '<g clip-path="url(#ro-prof-clip)">' +
+      '<path d="' + zone + '" fill="var(--amber)" fill-opacity=".16" stroke="var(--amber)" stroke-opacity=".5" stroke-width="1" stroke-dasharray="4 3"/>' +
+      '<path d="' + ground + '" fill="#8b98a5" fill-opacity=".38" stroke="var(--dimmer)" stroke-width="1"/>' +
+      '<path d="' + line + '" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linejoin="round"/>' +
+      '</g>' +
+      '<line x1="' + x(0) + '" x2="' + x(0) + '" y1="' + y(pts[0].ground).toFixed(1) + '" y2="' + y(pts[0].ground + ha).toFixed(1) + '" stroke="var(--text)" stroke-width="2"/>' +
+      '<line x1="' + x(km) + '" x2="' + x(km) + '" y1="' + y(pts[pts.length - 1].ground).toFixed(1) + '" y2="' + y(pts[pts.length - 1].ground + hb).toFixed(1) + '" stroke="var(--text)" stroke-width="2"/>' +
+      '<text x="' + (x(0) + 4) + '" y="' + (T + 10) + '" font-size="10" fill="var(--text)">you</text>' +
+      '<text x="' + (x(km) - 4) + '" y="' + (T + 10) + '" text-anchor="end" font-size="10" fill="var(--text)">them</text>' +
+      (wp ? '<circle cx="' + x(wp.km).toFixed(1) + '" cy="' + y(wp.ground).toFixed(1) + '" r="4.5" fill="' + (intrudes ? 'var(--red)' : 'var(--green)') + '" stroke="var(--bg, #0d1117)" stroke-width="2"/>' +
+        '<text x="' + x(wp.km).toFixed(1) + '" y="' + (y(Math.max(wp.ground, wp.line)) - 9).toFixed(1) + '" text-anchor="' + (wp.km < km * 0.15 ? 'start' : wp.km > km * 0.85 ? 'end' : 'middle') + '" font-size="10" fill="var(--text)"' + halo + '>' +
+          (intrudes ? RO_FT(worst.above_line_m) + ' ft above the line' : RO_FT(-worst.above_line_m) + ' ft clear at the tightest') + '</text>' : '') +
+      '<line id="ro-prof-x" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--text)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>' +
+      '<text id="ro-prof-read" x="' + (L + 6) + '" y="' + (H - B - 6) + '" font-size="10" fill="var(--text)" font-family="ui-monospace, monospace"' + halo + '></text>' +
+      '<rect id="ro-prof-hit" x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent" style="cursor:crosshair"/>' +
+    '</svg>' +
+    '<div class="tiny muted" style="display:flex;gap:1rem;flex-wrap:wrap"><span><i style="display:inline-block;width:14px;height:0;border-top:2px solid var(--amber);vertical-align:middle"></i> the line between the antennas, sagging with the earth</span>' +
+      '<span><i style="display:inline-block;width:14px;height:8px;background:var(--amber);opacity:.3;vertical-align:middle"></i> the first Fresnel zone - the signal wants most of it clear</span>' +
+      '<span><i style="display:inline-block;width:14px;height:8px;background:#8b98a5;opacity:.5;vertical-align:middle"></i> the ground</span></div>' +
+    '</div>';
+}
+function roProfileBind(d) {
+  const hit = document.getElementById('ro-prof-hit'), xl = document.getElementById('ro-prof-x'), read = document.getElementById('ro-prof-read');
+  if (!hit || !xl || !read) return;
+  const pts = d.profile, svg = hit.ownerSVGElement;
+  const km = pts[pts.length - 1].km || 1, L = +hit.getAttribute('x'), Wp = +hit.getAttribute('width');
+  const show = e => {
+    const r = svg.getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width * 640;
+    const k = Math.max(0, Math.min(km, (fx - L) / Wp * km));
+    const p = pts.reduce((b, q) => Math.abs(q.km - k) < Math.abs(b.km - k) ? q : b, pts[0]);
+    xl.setAttribute('x1', fx.toFixed(1)); xl.setAttribute('x2', fx.toFixed(1)); xl.setAttribute('opacity', '1');
+    const clear = p.line - p.ground;
+    read.textContent = (p.km * 0.621371).toFixed(1) + ' mi · ground ' + RO_FT(p.ground).toLocaleString() + ' ft · line ' + RO_FT(p.line).toLocaleString() + ' ft · ' +
+      (clear >= 0 ? RO_FT(clear) + ' ft clear' : RO_FT(-clear) + ' ft in the way') + (p.r1 ? ' · zone ±' + RO_FT(p.r1) + ' ft' : '');
+  };
+  hit.addEventListener('mousemove', show);
+  hit.addEventListener('touchmove', e => { if (e.touches[0]) show(e.touches[0]); }, {passive: true});
+  hit.addEventListener('mouseleave', () => { xl.setAttribute('opacity', '0'); read.textContent = ''; });
+}
+
+async function roLink(to, path) {
+  const box = document.getElementById('ro-link');
+  if (!box || !to) return;
+  const st = roLinkSeed();
+  box.innerHTML = '<div class="panel-title" style="margin-top:.6rem">By the numbers on VHF and UHF</div><p class="tiny muted">Adding up the path...</p>';
+  let d;
+  try {
+    d = await api('/api/path-link?' + new URLSearchParams({to: to, band: st.band, mode: st.mode, here: st.here, there: st.there || st.here, site: st.site}));
+  } catch (e) { box.innerHTML = ''; return; }
+  if (!d.ok) { box.innerHTML = ''; return; }
+  const sel = (id, list, value, title) => '<select class="btn sm" id="' + id + '" title="' + escapeHTML(title) + '">' +
+    list.map(o => '<option value="' + escapeHTML(o.key) + '"' + (o.key === value ? ' selected' : '') + '>' + escapeHTML(o.label) + '</option>').join('') + '</select>';
+  const tone = RO_TONE[d.verdict === 'likely' ? 'good' : d.verdict === 'no' ? 'the rule' : d.verdict] || '#8b98a5';
+  const pct = Math.round(100 * d.odds);
+  const leg = (name, l) => '<tr><td>' + name + '</td><td class="mono">' + l.leaves_dbm + '</td><td class="mono">' + l.arrives_dbm + '</td><td class="mono">' + l.needed_dbm + '</td><td class="mono">' + (l.margin_db >= 0 ? '+' : '') + l.margin_db + ' dB</td><td class="mono">' + Math.round(100 * l.odds) + '%</td></tr>';
+  const loss = d.loss || {};
+  box.innerHTML =
+    '<div class="panel-title" style="margin-top:.6rem">By the numbers on VHF and UHF</div>' +
+    '<div class="row" style="flex-wrap:wrap;gap:.5rem;align-items:center;margin:.3rem 0">' +
+      '<span class="tiny muted">You</span>' + sel('ro-link-here', d.shelf, d.here.key, 'the radio and antenna at your end, off the shelf - the next entry down the list is the next thing to buy') +
+      '<span class="tiny muted">them</span>' + sel('ro-link-there', d.shelf, d.there.key, 'the radio at the far end') +
+      sel('ro-link-band', d.bands, d.band, 'the band') +
+      sel('ro-link-mode', d.modes, d.mode, 'the mode: what the receiver needs above the noise - FM the most, FT8 the least') +
+      sel('ro-link-site', d.sites, d.site, 'the noise where the receiving end is: a residential street is well above a receiver\'s own noise at 2 m') +
+    '</div>' +
+    '<div class="spread" style="align-items:baseline;flex-wrap:wrap;gap:.4rem">' +
+      '<b>' + escapeHTML(d.band_label) + ' ' + escapeHTML(d.mode_label) + ', ' + d.miles + ' miles</b>' +
+      '<span class="tiny mono" style="color:' + tone + '">' + pct + '% &middot; ' + escapeHTML(d.verdict) + '</span>' +
+    '</div>' +
+    '<div class="meter thin" style="margin:.3rem 0"><i class="' + (pct >= 60 ? 'fill-high' : pct >= 35 ? 'fill-mid' : 'fill-low') + '" style="width:' + pct + '%"></i></div>' +
+    '<p class="small" style="margin:.3rem 0">' + escapeHTML(d.words) + '</p>' +
+    roProfileSVG(d) +
+    '<table class="data tiny" style="margin:.3rem 0"><tr><th></th><th>leaves</th><th>arrives</th><th>needs</th><th>margin</th><th>odds</th></tr>' +
+      leg('you, heard there', d.forward) + leg('them, heard here', d.back) + '</table>' +
+    '<p class="tiny muted" style="margin:.2rem 0">dBm throughout. The path: free space ' + loss.free_space_db + ' dB' +
+      (loss.diffraction_db >= 0.5 ? ', over the ground ' + loss.diffraction_db + ' dB more' : '') +
+      ', two low antennas over the ground ' + loss.plane_earth_db + ' dB - the greater account is paid, ' + loss.total_db + ' dB' +
+      (loss.worst && loss.worst.above_line_m > 0 ? '; the ground stands ' + loss.worst.above_line_m + ' m above the line ' + loss.worst.km + ' km along, against a Fresnel zone ' + loss.worst.fresnel_m + ' m wide there' : '') +
+      (d.terrain ? '. Terrain: ' + escapeHTML(d.source || '') : '. The ground was not asked - a flat earth with its bulge, and real ground can only cost more') + '.</p>' +
+    (d.step_up ? '<p class="small" style="margin:.3rem 0"><b>The step up:</b> ' + escapeHTML(d.step_up.words) + '</p>' : '') +
+    (d.beyond ? '<p class="tiny" style="color:var(--amber);margin:.2rem 0">Past a couple of hundred kilometres the weather decides - tropospheric bending and ducts - and this model does not do weather.</p>' : '') +
+    '<p class="tiny muted" style="margin:.2rem 0 .4rem">A teaching-grade model: the terrain between, the heights, the gains, the watts and the mode. It knows nothing of the trees in either yard or the building the far end is standing behind, which is why the answer is odds and not a promise.</p>';
+  roProfileBind(d);
+  ['here', 'there', 'band', 'mode', 'site'].forEach(k => {
+    const el = document.getElementById('ro-link-' + k);
+    if (el) el.addEventListener('change', () => { roLinkState[k] = el.value; roLinkRemember(); roLink(to, path); });
+  });
 }
 
 async function roAsk() {

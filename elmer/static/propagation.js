@@ -84,7 +84,7 @@ async function load(force) {
      nobody else tells its users when. Marked so it is not read as a band. */
   document.getElementById('p-bands').innerHTML = d.bands.map(b =>
     '<div class="band-row">' +
-      '<span class="band-name">' + bandTag(b.band) +
+      '<span class="band-name">' + bandLink(b.band) +
         (b.band === '11m' ? ' <span class="tiny muted">CB</span>' : '') + '</span>' +
       ratingPill(b.rating, b.score) +
       '<span class="band-note">' + escapeHTML(b.note) + '</span>' +
@@ -106,7 +106,18 @@ async function load(force) {
              escapeHTML(cal.nearest) + '</b>, ' + cal.nearest_km + ' km away, reading foF2 ' +
              cal.measured_fof2 + ' MHz ' + cal.age_minutes + ' min ago. ' +
              'Each reading is compared with what the model says at <i>that station\'s</i> ' +
-             'sun angle, so the correction travels without carrying the station\'s daylight with it.'
+             'sun angle, so the correction travels without carrying the station\'s daylight with it.' +
+             /* Who voted, and how fragile the answer is. Two units side by side
+                once disagreed by a third on foF2 and nothing on either screen
+                said why: one had a third sonde in its list and the other did
+                not. Now the voters are named, a held vote is marked, and the
+                most one dropping out would move the answer is said. */
+             (cal.voters && cal.voters.length
+               ? ' The sondes voting: ' + cal.voters.map(v => escapeHTML(v.name) + ' (' + v.km + ' km, ' + v.age_minutes + ' min' + (v.held ? ', held from an earlier fetch' : '') + ')').join(', ') + '.' +
+                 (cal.voters.length > 1
+                   ? ' If any one of them dropped out the correction would move by up to <b>' + cal.fragility_pct + '%</b>' + (cal.fragility_pct >= 15 ? ' - a thin panel, so treat the figure as the neighbourhood rather than the number' : '') + '.'
+                   : ' One voter: the figure is that station\'s reading carried here, and nothing checks it.')
+               : '')
           : '. No ionosonde within ' + Math.round(PROP_CAL_KM) + ' km, so that figure is ' +
             'the plain model.') +
       /* The grey line is a state the model names, not a caption fired by a

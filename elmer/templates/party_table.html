@@ -340,6 +340,9 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
           </div>
         </div>
       </div>
+      {% if thanks %}
+      <p class="tiny muted" style="margin:.8rem 0 0">With thanks to {{ thanks }}.</p>
+      {% endif %}
       {# A net this table cannot hear - the master on another subnet, or
          behind a firewall that eats the broadcast - is joined by address.
          Only offered while the table is on its own: a node has a net, and a
@@ -1466,7 +1469,10 @@ document.getElementById('endtable').addEventListener('click', async () => {
    the board the line score. A seated batter types in the seat's box; a
    seated fielder holds the space bar as a straight key and the decoder in
    morse.js reads it. Phones do the same on their own screens. */
-const ballPlayer = (typeof CWPlayer === 'function') ? new CWPlayer() : null;
+/* morse.js is loaded below this script, so the player is made once the
+   page's scripts are in - the same moment the first tick runs. */
+let ballPlayer = null;
+document.addEventListener('DOMContentLoaded', () => { if (typeof CWPlayer === 'function') ballPlayer = new CWPlayer().arm(); });
 let ballPitched = null;                  // the pitch number this screen has sounded
 let ballKey = null;                      // {decoder, downAt, lastUp, player} while a seat is fielding
 

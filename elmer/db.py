@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -45,7 +45,11 @@ CREATE TABLE IF NOT EXISTS profile (
     last_seen       TEXT,
     settings        TEXT    NOT NULL DEFAULT '{}',
     pw_salt         TEXT    NOT NULL DEFAULT '',
-    pw_hash         TEXT    NOT NULL DEFAULT ''
+    pw_hash         TEXT    NOT NULL DEFAULT '',
+    seal_salt       TEXT    NOT NULL DEFAULT '',
+    seal_wrap       TEXT    NOT NULL DEFAULT '',
+    seal_recovery_salt TEXT NOT NULL DEFAULT '',
+    seal_recovery   TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS card (
@@ -200,6 +204,9 @@ class Connection(sqlite3.Connection):
     """
 
     user_id = 1
+    # The signed-in person's data key, handed over by the request that knows
+    # them, or None: whatever is sealed stays sealed for this connection.
+    data_key = None
 
 
 def _columns(conn, table):
@@ -310,9 +317,21 @@ def migrate(conn):
         # use and the difficulty measure can read every game alike.
         if "mode" not in _columns(conn, "hall_log"):
             conn.execute("ALTER TABLE hall_log ADD COLUMN mode TEXT NOT NULL DEFAULT 'hall'")
+        conn.commit()
+        log.info("database upgraded to version 5 - the log says which game")
+        version = 5
+
+    if version == 5:
+        # Version 6 is the seal: an account with a password may have its
+        # private data sealed under a key the password wraps. Four columns,
+        # all empty, so every account carries on exactly as it was - open,
+        # and plain - until its owner sets a password.
+        for column in ("seal_salt", "seal_wrap", "seal_recovery_salt", "seal_recovery"):
+            if column not in _columns(conn, "profile"):
+                conn.execute(f"ALTER TABLE profile ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the log says which game", SCHEMA_VERSION)
+        log.info("database upgraded to version %s - private data may be sealed with a password", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -431,6 +450,17 @@ def _row_to_profile(row):
     # to know is only whether the account is locked.
     prof["locked"] = bool(prof.pop("pw_hash", ""))
     prof.pop("pw_salt", None)
+    # The seal's columns are wrapped keys and never useful to a page; what a
+    # page needs is whether the seal is on, and whether a recovery code can
+    # still open it after a moderator reset took the password wrap away.
+    prof["sealed"] = bool(prof.pop("seal_wrap", "")) or bool(prof.get("seal_recovery"))
+    prof["recoverable"] = bool(prof.pop("seal_recovery", ""))
+    prof.pop("seal_salt", None)
+    prof.pop("seal_recovery_salt", None)
+    sealed = (prof["settings"].get("sealed") or {}) if isinstance(prof["settings"].get("sealed"), dict) else {}
+    prof["settings"].pop("sealed", None)
+    if sealed:
+        prof["settings"]["sealed_fields"] = sorted(sealed)
     return prof
 
 
@@ -499,10 +529,73 @@ def get_profile(conn):
         conn.user_id = first_user_id(conn)
         row = conn.execute("SELECT * FROM profile WHERE id = ?",
                            (conn.user_id,)).fetchone()
-    return _row_to_profile(row)
+    prof = _row_to_profile(row)
+    # With the key in hand the sealed fields come back as plain settings,
+    # exactly as they were saved; without it they are named and nothing more.
+    if conn.data_key and prof["sealed"]:
+        from . import seal
+        blobs = (json.loads(row["settings"] or "{}").get("sealed") or {})
+        for key, blob in blobs.items():
+            try:
+                prof["settings"][key] = json.loads(seal.unseal_text(conn.data_key, blob))
+            except (seal.Broken, ValueError):
+                pass                       # the wrong key: stays sealed, and named
+            else:
+                prof["settings"].get("sealed_fields", []).remove(key) if key in prof["settings"].get("sealed_fields", []) else None
+        if not prof["settings"].get("sealed_fields"):
+            prof["settings"].pop("sealed_fields", None)
+    return prof
+
+
+# The settings a password seals: where the station is, and any secret. The
+# name, the callsign and the licence stay plain - the room's boards show them
+# and the callsign is a public record.
+SEALED_KEYS = ("location", "repeaterbook_token")
+
+
+class Locked(ValueError):
+    """The account's private data is sealed and this connection has no key."""
+
+
+def _sealed_row(conn, user_id=None):
+    return conn.execute("SELECT seal_wrap, seal_recovery, settings FROM profile WHERE id = ?",
+                        (user_id or conn.user_id,)).fetchone()
 
 
 def save_settings(conn, settings):
+    """Write the settings, sealing what the account seals.
+
+    On a sealed account the private fields go into the blob under the
+    data key when the connection has it. Without the key the stored blobs
+    are kept exactly as they are and a plain private field is refused,
+    since it could be neither sealed nor honestly left in the clear.
+    """
+    settings = dict(settings)
+    settings.pop("sealed_fields", None)
+    row = _sealed_row(conn)
+    if row and (row["seal_wrap"] or row["seal_recovery"]):
+        stored = (json.loads(row["settings"] or "{}").get("sealed") or {})
+        if conn.data_key:
+            from . import seal
+            blobs = {}
+            for key in SEALED_KEYS:
+                value = settings.pop(key, None)
+                if value not in (None, "", {}, []):
+                    blobs[key] = seal.seal_text(conn.data_key, json.dumps(value))
+            # a field the key could not open earlier is carried, not dropped
+            for key, blob in stored.items():
+                if key not in blobs and key not in SEALED_KEYS:
+                    blobs[key] = blob
+        else:
+            if any(settings.get(k) not in (None, "", {}, []) for k in SEALED_KEYS):
+                raise Locked("this account's private data is sealed - sign in to change it")
+            for key in SEALED_KEYS:
+                settings.pop(key, None)
+            blobs = dict(stored)
+        if blobs:
+            settings["sealed"] = blobs
+        else:
+            settings.pop("sealed", None)
     conn.execute("UPDATE profile SET settings = ? WHERE id = ?",
                  (json.dumps(settings), conn.user_id))
     conn.commit()
@@ -641,24 +734,55 @@ def log_answer(conn, pool_id, question_id, section, correct, chosen, ms, mode):
     )
 
 
+def _note_out(conn, body):
+    """A stored note as its owner reads it: unsealed with the key, or None
+    while it is sealed and the key is not here."""
+    from . import seal
+    if not seal.is_sealed(body):
+        return body
+    if not conn.data_key:
+        return None
+    try:
+        return seal.unseal_text(conn.data_key, body)
+    except seal.Broken:
+        return None
+
+
 def get_note(conn, pool_id, question_id):
     row = conn.execute(
         "SELECT body FROM user_note "
         "WHERE user_id = ? AND pool_id = ? AND question_id = ?",
         (conn.user_id, pool_id, question_id),
     ).fetchone()
-    return row["body"] if row else None
+    return _note_out(conn, row["body"]) if row else None
 
 
 def notes_for_pool(conn, pool_id):
-    return {r["question_id"]: r["body"] for r in conn.execute(
-        "SELECT question_id, body FROM user_note WHERE user_id = ? AND pool_id = ?",
-        (conn.user_id, pool_id))}
+    out = {}
+    for r in conn.execute(
+            "SELECT question_id, body FROM user_note WHERE user_id = ? AND pool_id = ?",
+            (conn.user_id, pool_id)):
+        body = _note_out(conn, r["body"])
+        if body is not None:
+            out[r["question_id"]] = body
+    return out
+
+
+def is_sealed_account(conn, user_id=None):
+    row = _sealed_row(conn, user_id)
+    return bool(row and (row["seal_wrap"] or row["seal_recovery"]))
 
 
 def save_note(conn, pool_id, question_id, body):
-    """Empty body deletes the note, so clearing the box removes it."""
+    """Empty body deletes the note, so clearing the box removes it. On a
+    sealed account the note is stored sealed, and refused without the key."""
     body = (body or "").strip()
+    stored = body[:4000]
+    if body and is_sealed_account(conn):
+        if not conn.data_key:
+            raise Locked("this account's notes are sealed - sign in to write one")
+        from . import seal
+        stored = seal.seal_text(conn.data_key, stored)
     if not body:
         conn.execute("DELETE FROM user_note "
                      "WHERE user_id = ? AND pool_id = ? AND question_id = ?",
@@ -668,7 +792,7 @@ def save_note(conn, pool_id, question_id, body):
             "INSERT INTO user_note (user_id, pool_id, question_id, body, updated) "
             "VALUES (?, ?, ?, ?, ?) ON CONFLICT (user_id, pool_id, question_id) "
             "DO UPDATE SET body = excluded.body, updated = excluded.updated",
-            (conn.user_id, pool_id, question_id, body[:4000],
+            (conn.user_id, pool_id, question_id, stored,
              utcnow().isoformat()))
     conn.commit()
     return body or None
@@ -769,6 +893,168 @@ def has_password(conn, user_id):
     return bool(row and row["pw_hash"])
 
 
+# ------------------------------------------------------------------ the seal
+# An account with a password may have its private data sealed under a data
+# key the password wraps - see seal.py for the shape and the reasoning. The
+# functions here move an account between plain and sealed, hand the key to
+# a request that has proved the password, and re-wrap it when the password
+# changes. Nothing here keeps a key: it is returned to the caller, who holds
+# it in memory for the session and no longer.
+
+def data_key_for(conn, user_id, password):
+    """The account's data key, for the right password; None otherwise, and
+    None for an account that is not sealed."""
+    from . import seal
+    row = conn.execute("SELECT seal_salt, seal_wrap FROM profile WHERE id = ?",
+                       (user_id,)).fetchone()
+    if not row or not row["seal_wrap"] or not password:
+        return None
+    try:
+        return seal.unwrap(password, bytes.fromhex(row["seal_salt"]), bytes.fromhex(row["seal_wrap"]))
+    except (seal.Broken, ValueError):
+        return None
+
+
+def recover_key(conn, user_id, code):
+    """The data key, for the right recovery code; None otherwise."""
+    from . import seal
+    row = conn.execute("SELECT seal_recovery_salt, seal_recovery FROM profile WHERE id = ?",
+                       (user_id,)).fetchone()
+    if not row or not row["seal_recovery"]:
+        return None
+    try:
+        return seal.unwrap(seal.normalise_code(code), bytes.fromhex(row["seal_recovery_salt"]),
+                           bytes.fromhex(row["seal_recovery"]))
+    except (seal.Broken, ValueError):
+        return None
+
+
+def _write_wraps(conn, user_id, key, password=None, code=None):
+    from . import seal
+    sets, vals = [], []
+    if password is not None:
+        salt, wrapped = seal.wrap(key, password)
+        sets += ["seal_salt = ?", "seal_wrap = ?"]
+        vals += [salt.hex(), wrapped.hex()]
+    if code is not None:
+        salt, wrapped = seal.wrap(key, seal.normalise_code(code))
+        sets += ["seal_recovery_salt = ?", "seal_recovery = ?"]
+        vals += [salt.hex(), wrapped.hex()]
+    if sets:
+        conn.execute(f"UPDATE profile SET {', '.join(sets)} WHERE id = ?", vals + [user_id])
+
+
+def seal_account(conn, user_id, password):
+    """Seal an account that has just taken a password: a new data key,
+    wrapped under the password and under a recovery code; every private
+    field and every note sealed under it. Returns (key, recovery code)."""
+    from . import seal
+    key = seal.new_key()
+    code = seal.recovery_code()
+    _write_wraps(conn, user_id, key, password=password, code=code)
+    # the settings, private fields into the blob
+    row = conn.execute("SELECT settings FROM profile WHERE id = ?", (user_id,)).fetchone()
+    settings = json.loads(row["settings"] or "{}")
+    blobs = {}
+    for k in SEALED_KEYS:
+        value = settings.pop(k, None)
+        if value not in (None, "", {}, []):
+            blobs[k] = seal.seal_text(key, json.dumps(value))
+    if blobs:
+        settings["sealed"] = blobs
+    conn.execute("UPDATE profile SET settings = ? WHERE id = ?", (json.dumps(settings), user_id))
+    # the notes, each under the key
+    for r in conn.execute("SELECT pool_id, question_id, body FROM user_note WHERE user_id = ?",
+                          (user_id,)).fetchall():
+        if not seal.is_sealed(r["body"]):
+            conn.execute("UPDATE user_note SET body = ? WHERE user_id = ? AND pool_id = ? AND question_id = ?",
+                         (seal.seal_text(key, r["body"]), user_id, r["pool_id"], r["question_id"]))
+    conn.commit()
+    return key, code
+
+
+def unseal_account(conn, user_id, key):
+    """Everything back to plain: the password is being taken off."""
+    from . import seal
+    row = conn.execute("SELECT settings FROM profile WHERE id = ?", (user_id,)).fetchone()
+    settings = json.loads(row["settings"] or "{}")
+    blobs = settings.pop("sealed", None) or {}
+    for k, blob in blobs.items():
+        try:
+            settings[k] = json.loads(seal.unseal_text(key, blob))
+        except (seal.Broken, ValueError):
+            pass
+    conn.execute("UPDATE profile SET settings = ?, seal_salt = '', seal_wrap = '', "
+                 "seal_recovery_salt = '', seal_recovery = '' WHERE id = ?",
+                 (json.dumps(settings), user_id))
+    for r in conn.execute("SELECT pool_id, question_id, body FROM user_note WHERE user_id = ?",
+                          (user_id,)).fetchall():
+        if seal.is_sealed(r["body"]):
+            try:
+                plain = seal.unseal_text(key, r["body"])
+            except seal.Broken:
+                continue
+            conn.execute("UPDATE user_note SET body = ? WHERE user_id = ? AND pool_id = ? AND question_id = ?",
+                         (plain, user_id, r["pool_id"], r["question_id"]))
+    conn.commit()
+
+
+def drop_seal(conn, user_id):
+    """A moderator reset with no key: the password wrap goes, the recovery
+    wrap and the sealed data stay, for the day the code turns up."""
+    conn.execute("UPDATE profile SET seal_salt = '', seal_wrap = '' WHERE id = ?", (user_id,))
+    conn.commit()
+
+
+def change_password(conn, user_id, new, current="", data_key=None):
+    """Set, change or clear an account's password, carrying the seal with it.
+
+    Returns {"locked", "sealed", "key", "recovery", "lost"}: the key for the
+    session that made the change, the recovery code when a seal was just
+    made (shown once), and "lost" when a moderator reset had to leave the
+    sealed data behind the recovery code alone.
+    """
+    out = {"locked": bool(new), "sealed": False, "key": None, "recovery": None, "lost": False}
+    key = data_key or data_key_for(conn, user_id, current)
+    was_sealed = is_sealed_account(conn, user_id)
+    if not new:
+        if was_sealed:
+            if key:
+                unseal_account(conn, user_id, key)
+            else:
+                # the moderator opened it: the data stays behind the code
+                drop_seal(conn, user_id)
+                out["lost"] = True
+                out["sealed"] = True
+        set_password(conn, user_id, "")
+        return out
+    set_password(conn, user_id, new)
+    if was_sealed and key:
+        _write_wraps(conn, user_id, key, password=new)
+        conn.commit()
+        out.update(sealed=True, key=key)
+    elif was_sealed:
+        drop_seal(conn, user_id)              # the recovery code is the way back
+        out.update(sealed=True, lost=True)
+    else:
+        key, code = seal_account(conn, user_id, new)
+        out.update(sealed=True, key=key, recovery=code)
+    return out
+
+
+def recover_account(conn, user_id, code, new_password):
+    """The recovery code opens the seal and the account takes a new
+    password, with the key wrapped under it again. Returns the key, or
+    None for a code that does not open it."""
+    key = recover_key(conn, user_id, code)
+    if key is None:
+        return None
+    set_password(conn, user_id, new_password)
+    _write_wraps(conn, user_id, key, password=new_password)
+    conn.commit()
+    return key
+
+
 def check_password(conn, user_id, password):
     """Whether this password opens that account.
 
@@ -808,6 +1094,47 @@ def check_password(conn, user_id, password):
 # betrayal, and would make the honest answer to "should I bother" a matter of
 # who else had bothered.
 OFFERED_KEY = "password_offered"
+
+# Whether this unit is one person's or shared. Not asked until a second
+# account is about to be made; answered once, and kept as the unit's own
+# setting. On a shared unit the person at the controls is asked to lock
+# their account *before* the second account exists - the one moment they
+# are certainly the one holding the controls - and a secret saved on an
+# account needs the account to have a password.
+SHARED_KEY = "shared_unit"
+
+
+def shared(conn):
+    """True, False, or None for not yet asked."""
+    return unit_get(conn, SHARED_KEY, None)
+
+
+def set_shared(conn, flag):
+    unit_set(conn, SHARED_KEY, None if flag is None else bool(flag))
+    conn.commit()
+
+
+def password_offered(conn, user_id):
+    """Whether this account has been asked about a password, either answer."""
+    row = conn.execute("SELECT v FROM kv WHERE user_id = ? AND k = ?",
+                       (user_id, OFFERED_KEY)).fetchone()
+    return bool(row and json.loads(row["v"]))
+
+
+# Settings that are secrets: kept, used, and never sent back to a page. A
+# page is told that one is saved, and nothing more.
+SECRET_KEYS = ("repeaterbook_token",)
+
+
+def public_profile(profile):
+    """The profile as a page may see it: every secret replaced by whether
+    it is there."""
+    out = dict(profile)
+    settings = dict(out.get("settings") or {})
+    for key in SECRET_KEYS:
+        settings["has_" + key] = bool(settings.pop(key, None))
+    out["settings"] = settings
+    return out
 
 
 def should_offer_password(conn, user_id):

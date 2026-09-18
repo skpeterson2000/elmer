@@ -1258,6 +1258,43 @@ function bpReachMode() {
   const el = document.querySelector('input[name="bp-reach-mode"]:checked');
   return el && el.value === 'round' ? 'round' : 'oneway';
 }
+/* The emission - SSB, AM, FM, CW, FT8. It decides what the far end needs
+   above the noise, so it decides the ground wave's reach, and on 11 m the
+   lawful power with it. The sky does not care. */
+const EMISSIONS = {ssb: 'SSB', am: 'AM', fm: 'FM', cw: 'CW', ft8: 'FT8'};
+const CB_EMISSIONS = {am: 4, fm: 4, ssb: 12};      // 47 CFR 95.967: the watts each may run
+function bpReachEmission() {
+  const el = document.querySelector('input[name="bp-reach-em"]:checked');
+  return el && EMISSIONS[el.value] ? el.value : 'ssb';
+}
+function bpSetEmission(em) {
+  const r = document.querySelector('input[name="bp-reach-em"][value="' + em + '"]');
+  if (r) r.checked = true;
+}
+/* 11 m is CB, and CB is 4 W carrier on AM or FM and 12 W PEP on SSB, with
+   no CW or data. So on that band the mode is held to those three, the
+   watts box is set to the ceiling for the mode and capped there, and the
+   operator's own figure is kept to one side and put back on leaving. */
+function bpReachLaw(band) {
+  const w = document.getElementById('bp-reach-w');
+  const cb = !!(band && band.personal === 'CB');
+  document.querySelectorAll('input[name="bp-reach-em"]').forEach(r => { r.disabled = cb && !(r.value in CB_EMISSIONS); });
+  if (cb) {
+    let em = bpReachEmission();
+    if (!(em in CB_EMISSIONS)) { em = 'am'; bpSetEmission(em); }
+    const cap = CB_EMISSIONS[em];
+    if (w) {
+      if (!w.dataset.cb) { w.dataset.cb = '1'; w.dataset.was = w.value; }
+      w.max = cap;
+      if (+w.value > cap || w.dataset.cap !== String(cap)) w.value = cap;
+      w.dataset.cap = String(cap);
+    }
+  } else if (w && w.dataset.cb) {
+    w.max = 1500;
+    if (w.dataset.was) w.value = w.dataset.was;
+    delete w.dataset.cb; delete w.dataset.cap; delete w.dataset.was;
+  }
+}
 let bpReachCache = {};
 /* The operator's own antenna, for the map. The Lab remembers what was last
    designed there - kind and height - and the map opens on it, the way Make
@@ -1270,7 +1307,16 @@ function bpReachAntenna() {
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
   if (!sel) return {};
   return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
-          heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average'};
+          heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
+          emission: bpReachEmission()};
+}
+/* What the panel keeps between visits: the choices, with the operator's
+   own watts rather than the CB ceiling standing in for them. */
+function bpReachRemember(extra) {
+  const w = document.getElementById('bp-reach-w');
+  const own = bpReachAntenna();
+  if (w && w.dataset.cb && w.dataset.was) own.watts = w.dataset.was;
+  remember('bandplan.reach.antenna', Object.assign(own, extra || {}));
 }
 function bpReachSeed() {
   const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
@@ -1282,6 +1328,7 @@ function bpReachSeed() {
   sel.value = [...sel.options].some(o => o.value === kind) ? kind : 'dipole';
   if (h) h.value = (own && own.height) || (lab.height_ft > 0 ? Math.round(lab.height_ft) : 30);
   if (w) w.value = (own && own.watts) || (lab.watts > 0 ? Math.round(lab.watts) : 100);
+  if (own && own.emission) bpSetEmission(own.emission);
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
   if (hd) hd.value = (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
@@ -1297,19 +1344,21 @@ function bpReachSeed() {
       if (nvis.checked && band) {
         const mhz = (band.low + band.high) / 2;
         sel.value = 'invertedv';
-        if (h) h.value = Math.max(6, Math.round(0.1 * 983.571 / mhz));   // a tenth of a wavelength
+        if (h) h.value = Math.max(6, Math.round(0.2 * 983.571 / mhz));   // a fifth of a wavelength: where the image adds most straight up
         const qth = bpReachFor && bpReachFor.qth;
         if (qth) { bpView.zoom = 5; bpView.lat = qth.lat; bpView.lon = qth.lon; bpView.refined = null; }
       }
-      remember('bandplan.reach.antenna', Object.assign(bpReachAntenna(), {nvis: nvis.checked}));
+      bpReachRemember({nvis: nvis.checked});
       bpReachCache = {}; bpView.refined = null;
       if (band) bpReach(band);
     });
   }
-  [sel, h, w, hd, gnd].forEach(el => el && el.addEventListener('change', () => {
-    remember('bandplan.reach.antenna', bpReachAntenna());
-    bpReachCache = {}; bpView.refined = null;
+  const ems = Array.from(document.querySelectorAll('input[name="bp-reach-em"]'));
+  [sel, h, w, hd, gnd].concat(ems).forEach(el => el && el.addEventListener('change', () => {
     const band = bpData && bpData.bands.find(b => b.name === bpBand);
+    if (el.name === 'bp-reach-em') bpReachLaw(band);    // a new mode on CB moves the ceiling
+    bpReachRemember();
+    bpReachCache = {}; bpView.refined = null;
     if (band) bpReach(band);
   }));
 }
@@ -1317,9 +1366,10 @@ async function bpReach(band) {
   const box = document.getElementById('bp-reach');
   if (!box) return;
   bpReachSeed();
+  bpReachLaw(band);
   const mode = bpReachMode();
   const ant = bpReachAntenna();
-  const key = band.name.replace(/\s+/g, '') + '|' + mode + '|' + ant.antenna + '|' + ant.height + '|' + ant.watts;
+  const key = band.name.replace(/\s+/g, '') + '|' + mode + '|' + ant.antenna + '|' + ant.height + '|' + ant.watts + '|' + ant.emission;
   const hf = band.high <= 30;
   box.hidden = !hf;
   if (!hf) return;
@@ -1367,6 +1417,25 @@ async function bpReach(band) {
     nvisWords.hidden = !(d.nvis && (low || on));
     if (d.nvis) nvisWords.innerHTML = '<b>NVIS ' + (d.nvis.open ? 'open' : 'shut') + ' on ' + escapeHTML(band.name) + ':</b> ' + escapeHTML(d.nvis.words) + '.';
   }
+  /* The height's effect in numbers. The map's colours saturate over much of
+     the near zone, so a wire raised from a quarter wave to a half looks the
+     same shade while the model has moved it eleven decibels overhead; this
+     line says so, against a dipole in free space, at three angles. */
+  const gainLine = document.getElementById('bp-reach-gain');
+  if (gainLine) {
+    const g = d.antenna && d.antenna.gain;
+    gainLine.hidden = !g;
+    if (g) {
+      const sgn = x => (x >= 0 ? '+' : '\u2212') + Math.abs(x).toFixed(1) + ' dB';
+      const ft = Math.round(d.antenna.height_ft || 0);
+      gainLine.innerHTML = '<b>This antenna at ' + ft + ' ft is ' + (g.height_wl || 0).toFixed(2) + ' of a wavelength up on ' + escapeHTML(band.name) + ':</b> ' +
+        sgn(g.overhead_db) + ' straight up, ' + sgn(g.steep_db) + ' at 45\u00b0, ' + sgn(g.low_db) + ' at 20\u00b0, against a dipole in free space; ' +
+        'its best angle is ' + g.best_deg + '\u00b0 at ' + sgn(g.best_db) + '. ' +
+        (g.overhead_db >= 2 ? 'The ground\u2019s reflection is adding straight up: the county\u2019s height.'
+         : g.overhead_db <= -4 ? 'The reflection is cancelling straight up: a DX height, with a dip over the county.'
+         : 'Neither adding nor cancelling much straight up.');
+    }
+  }
   const far = document.getElementById('bp-reach-far');
   if (far) {
     const fe = d.far_end;
@@ -1379,7 +1448,10 @@ async function bpReach(band) {
   document.getElementById('bp-reach-note').textContent = antWords +
     'A model, and labelled as one: one sonde’s reading anchoring a modelled sky, read at the midpoint of each path - the sun’s angle there, not here. ' +
     'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for, the edges soft the way the layer is - and nothing of the far end’s antenna. ' +
-    'Ground wave to about ' + d.ground_km + ' km. Drag to look round; the wheel, a pinch or a double tap to zoom in, and the model is asked again for that window in finer detail. What it is right about is the shape.';
+    'Each cell is rated against its own hop’s ceiling, from the layer’s shape' + (d.nvis && d.nvis.m3000_of_layer ? ' (M(3000) ' + d.nvis.m3000_of_layer + ')' : '') + ': straight up the ceiling is the critical frequency itself, and a near hop crosses the D layer once and nearly straight, so the county is rated as the county and not as a long path. ' +
+    'Ground wave to about ' + d.ground_km + ' km on ' + (EMISSIONS[d.emission] || 'SSB') + ' at ' + d.watts + ' W' + (d.emission === 'am' ? ' carrier' : '') +
+    (d.watts_cap ? ' - the lawful ceiling on this band, whatever the box says (47 CFR 95.967)' : '') +
+    '; the mode and the watts decide that and nothing else here. Drag to look round; the wheel, a pinch or a double tap to zoom in, and the model is asked again for that window in finer detail. What it is right about is the shape.';
 }
 
 function conditionBar(band, given) {
@@ -1486,7 +1558,8 @@ function conditionBar(band, given) {
               ? ' Ground wave covers the first <b>' + now.ground_wave.miles +
                 ' miles</b> of it on this band &mdash; from a vertical, over ' +
                 escapeHTML(now.ground_wave.ground_label.toLowerCase()) +
-                ', at 100 W. A horizontal antenna has almost none.'
+                ', at ' + now.ground_wave.watts + ' W' + (now.ground_wave.mode === 'am' ? ' carrier' : '') +
+                ' on ' + escapeHTML(now.ground_wave.mode_label || 'SSB') + '. A horizontal antenna has almost none.'
               : '') +
             '</div>') +
     '<div class="small condmode"><b>' + escapeHTML(now.modes) + '</b></div>' +

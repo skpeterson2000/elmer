@@ -186,6 +186,38 @@ def _vertical_over_ground(rad, height_wl, mhz=None, ground="perfect"):
     return element * _image(rad, height_wl, r_v)
 
 
+def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
+    """The elevation pattern with its level kept: 1.0 is the element alone
+    in free space, so the image's reinforcement shows as up to 2.0 and its
+    cancellation as 0. `elevation` below normalises to the peak, which is
+    the shape; this is the shape and the gain the ground gives."""
+    out = []
+    for n in range(points):
+        deg = 90.0 * n / (points - 1)
+        rad = math.radians(deg)
+        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
+            field = _vertical_over_ground(rad, height_wl, mhz, ground)
+        else:
+            field = _horizontal_over_ground(rad, height_wl, mhz, ground)
+        out.append({"deg": round(deg, 2), "field": field})
+    return out
+
+
+def height_gains(kind, height_wl, mhz=None, ground="average"):
+    """What this height buys, in decibels against the element alone in free
+    space: straight up, at 45 degrees, at 20 degrees, and the best angle
+    with its gain. The map's colours saturate near the top; these do not."""
+    curve = elevation_raw(kind, height_wl, mhz=mhz, ground=ground)
+    by_deg = {p["deg"]: p["field"] for p in curve}
+
+    def db(field):
+        return round(20.0 * math.log10(field), 1) if field > 1e-6 else -40.0
+    best = max(curve, key=lambda p: p["field"])
+    return {"overhead_db": db(by_deg[90.0]), "steep_db": db(by_deg[45.0]), "low_db": db(by_deg[20.0]),
+            "best_deg": round(best["deg"]), "best_db": db(best["field"]),
+            "height_wl": round(float(height_wl), 3)}
+
+
 def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="average"):
     """Relative field against elevation, with a slope if the wire has one.
 
@@ -411,6 +443,157 @@ def _hop_km(elev_deg, h_km):
     """Ground distance covered by one hop leaving at this takeoff angle."""
     psi = 90.0 - elev_deg - _incidence(elev_deg, h_km)
     return 2.0 * EARTH_R_KM * math.radians(max(0.0, psi))
+
+
+# ---- the layer as the ray sees it -------------------------------------------
+#
+# The bank shot: a ray leaves at some angle, meets the layer, and comes back
+# to land a known distance out. The geometry above treats the layer as a
+# mirror at the height of the F2 peak, and for a long hop well under the
+# ceiling that is right. But the ionosphere refracts rather than reflects:
+# the ray bends gradually and turns back at a depth that depends on its
+# frequency and its angle. Breit and Tuve's theorem rescues the mirror -
+# the ray lands exactly where a mirror at the *virtual* height would land -
+# and Martyn's says the virtual height for an oblique ray is the one a
+# vertical ray at the equivalent frequency f cos(phi) would see. So the
+# mirror moves with the frequency, and near the critical frequency it runs
+# away: the ball sinks deep into the cushion and comes out late and long.
+#
+# A parabolic layer - a peak at hmF2, a semi-thickness ym, the critical
+# frequency at the peak - has that virtual height in closed form, and the
+# sonde gives two of its three numbers straight out and pins the third:
+# ym is whatever makes the layer's own MUF(3000) come out at the station's
+# measured M(3000)F2. Three numbers every fifteen minutes, and the cushion
+# has a shape.
+YM_DEFAULT_KM = 100.0           # a typical F2 semi-thickness when nothing pins it
+YM_RANGE_KM = (40.0, 260.0)
+D_LAYER_KM = 90.0               # where the absorbing layer sits, for the angle a ray crosses it
+
+
+def virtual_height_km(ratio, hmf2, ym=YM_DEFAULT_KM):
+    """The mirror's height for a ray whose equivalent vertical frequency is
+    `ratio` of the critical frequency: the parabolic layer's virtual height,
+    the base of the layer at ratio 0, climbing without limit toward 1."""
+    r = max(0.0, min(0.9995, float(ratio)))
+    base = hmf2 - ym
+    if r <= 0.0:
+        return base
+    return base + (ym / 2.0) * r * math.log((1.0 + r) / (1.0 - r))
+
+
+def hop_for(elev_deg, mhz, fof2, hmf2, ym=YM_DEFAULT_KM):
+    """(ground km, mirror height) for a ray leaving at this angle on this
+    frequency, or None where it goes through: the mirror at the virtual
+    height for the ray's own equivalent vertical frequency, which depends
+    on the angle it meets the layer at, which depends on the height - so a
+    few rounds, and it settles."""
+    h = float(hmf2)
+    for _ in range(8):
+        phi = _incidence(elev_deg, h)
+        fv = float(mhz) * math.cos(math.radians(phi))
+        if fv >= fof2:
+            return None
+        h_new = virtual_height_km(fv / fof2, hmf2, ym)
+        if abs(h_new - h) < 0.5:
+            h = h_new
+            break
+        h = h_new
+    return _hop_km(elev_deg, h), h
+
+
+def _land_angle(km, h):
+    """The takeoff angle whose hop off a mirror at h lands `km`, by
+    bisection - the hop shortens as the angle steepens."""
+    lo, hi = 0.0, 90.0
+    if _hop_km(lo, h) < km:
+        return None                       # further than one hop off this mirror
+    for _ in range(40):
+        mid = (lo + hi) / 2.0
+        if _hop_km(mid, h) > km:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
+
+
+def muf_factor(km, hmf2, ym=YM_DEFAULT_KM):
+    """MUF(km) / foF2: the highest frequency, as a multiple of the critical
+    frequency, that one hop can land at this distance. Straight up it is 1;
+    at 3000 km it is the sonde's M(3000)F2. The ray that sets it is the
+    one whose equivalent vertical frequency, and so whose mirror height,
+    makes f = fv / cos(phi) largest for a hop that still lands here."""
+    km = max(0.0, float(km))
+    if km <= 1.0:
+        return 1.0
+    best = 1.0
+    r = 0.30
+    while r < 0.999:
+        h = virtual_height_km(r, hmf2, ym)
+        a = _land_angle(km, h)
+        if a is not None:
+            phi = _incidence(a, h)
+            best = max(best, r / max(1e-6, math.cos(math.radians(phi))))
+        r += 0.01 if r < 0.9 else 0.002
+    return best
+
+
+def layer_thickness(hmf2):
+    """The layer's semi-thickness: about a third of its height, the shape
+    the F2 layer usually has, and never so thick that its base falls out
+    of the F region. Fitting it to the sonde's M(3000) was tried and gave
+    absurd layers when the two numbers disagreed slightly, as a sonde's
+    own two numbers can; the sonde's factor is honoured by scaling
+    instead, below."""
+    return max(YM_RANGE_KM[0], min(0.35 * float(hmf2), float(hmf2) - 150.0))
+
+
+_factor_cache = {}
+
+
+def muf_factor_table(hmf2, ym=None, m3000=None, step_km=50.0, far_km=4500.0):
+    """MUF(km)/foF2 as a function of distance, tabulated once for a layer
+    shape and interpolated - a map asks for thousands of cells.
+
+    The shape is the parabolic layer's; the level is the sonde's: with an
+    M(3000) given, the curve is scaled so that it passes through 1 straight
+    up and through the station's own factor at 3000 km."""
+    ym = ym or layer_thickness(hmf2)
+    key = (round(hmf2), round(ym), step_km)
+    table = _factor_cache.get(key)
+    if table is None:
+        table = [(d, muf_factor(d, hmf2, ym)) for d in [0.0] + [step_km * i for i in range(1, int(far_km / step_km) + 1)]]
+        if len(_factor_cache) > 16:
+            _factor_cache.clear()
+        _factor_cache[key] = table
+    scale = 1.0
+    if m3000 and m3000 > 1.0:
+        own = muf_factor(3000.0, hmf2, ym)
+        if own > 1.0:
+            scale = (float(m3000) - 1.0) / (own - 1.0)
+
+    def factor(km):
+        km = max(0.0, float(km))
+        if km >= table[-1][0]:
+            raw = table[-1][1]
+        else:
+            i = int(km / step_km)
+            d0, f0 = table[i]
+            d1, f1 = table[min(i + 1, len(table) - 1)]
+            t = (km - d0) / max(1e-9, d1 - d0)
+            raw = f0 + (f1 - f0) * t
+        return 1.0 + (raw - 1.0) * scale
+    return factor
+
+
+def absorption_secant(km, hmf2):
+    """How obliquely the ray that lands `km` crosses the D layer: the
+    secant of its angle of incidence there. Straight up is 1; a long hop is
+    four or five, and pays that much more absorption on each pass."""
+    a = _land_angle(max(0.0, float(km)), hmf2)
+    if a is None:
+        a = 0.0
+    phi = _incidence(a, D_LAYER_KM)
+    return 1.0 / max(0.2, math.cos(math.radians(phi)))
 
 
 def _max_takeoff(mhz, fof2, h_km):

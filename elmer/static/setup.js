@@ -126,7 +126,13 @@
       const commercialBox = document.getElementById('setup-commercial');
       if (commercialBox) body.commercial = commercialBox.checked;
       const rbBox = document.getElementById('setup-rb');
-      if (rbBox && rbBox.value.trim() !== (rbBox.defaultValue || '').trim()) body.repeaterbook_token = rbBox.value.trim();
+      if (rbBox && rbBox.value.trim()) body.repeaterbook_token = rbBox.value.trim();   // the box is never pre-filled: typing is the only way a token arrives
+      const supBox = document.getElementById('setup-supporter');
+      if (supBox) body.supporter_key = supBox.value.trim();        // blank clears it
+      const supNamed = document.getElementById('setup-supporter-named');
+      if (supNamed) body.supporter_named = supNamed.checked;
+      const sharedPick = document.querySelector('input[name="setup-shared"]:checked');
+      if (sharedPick) body.shared = sharedPick.value === 'shared';
       if (picked) body.location = picked;
       await postJSON('/api/settings', body);
 
@@ -145,3 +151,13 @@
     }
   });
 })();
+
+
+/* The saved token is never shown; this is the one way to take it off. */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('#setup-rb-forget');
+  if (!b) return;
+  b.disabled = true;
+  try { await postJSON('/api/settings', {repeaterbook_token: ''}); location.reload(); }
+  catch (err) { b.disabled = false; }
+});

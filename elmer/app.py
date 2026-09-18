@@ -45,6 +45,7 @@ from . import (
     track, trivia, uls, units, update, vna, voice, weather,
     whipbuild,
 )
+from . import supporter
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
 # because home() is the front page a few thousand lines down.
@@ -81,9 +82,44 @@ def _wanted_user():
         return None
 
 
+# The data key of a signed-in person, held in this process's memory against
+# a token the browser carries, and nowhere else: a restart forgets every
+# one, and the sealed data waits for its owner to sign in again. The token
+# is not the user cookie - that one is a name tag, this one is proof the
+# password was given, and it is HttpOnly so a script on the page never
+# sees it.
+KEY_COOKIE = "elmer_key"
+_SESSIONS = {}
+
+
+def _session_key(user_id):
+    token = request.cookies.get(KEY_COOKIE)
+    entry = _SESSIONS.get(token) if token else None
+    return entry[1] if entry and entry[0] == user_id else None
+
+
+def _open_session(response, user_id, key):
+    """Hand this browser a token for the key, or take the token away."""
+    import secrets
+    old = request.cookies.get(KEY_COOKIE)
+    if old:
+        _SESSIONS.pop(old, None)
+    if key is None:
+        response.delete_cookie(KEY_COOKIE)
+        return response
+    token = secrets.token_urlsafe(24)
+    _SESSIONS[token] = (user_id, key)
+    response.set_cookie(KEY_COOKIE, token, max_age=COOKIE_YEARS, samesite="Lax", httponly=True)
+    return response
+
+
 def conn():
     if "db" not in g:
         g.db = db.connect(user_id=_wanted_user())
+        try:
+            g.db.data_key = _session_key(g.db.user_id)
+        except Exception:
+            g.db.data_key = None
     return g.db
 
 
@@ -136,6 +172,20 @@ def asset(filename):
     except OSError:
         return url
     return f"{url}?v={stamp}"
+
+
+def _remember_private_names(connection=None):
+    """Hand the log the names it must never print: every account's callsign
+    and the town each QTH was named as. Called at start and whenever one of
+    them is saved; the log's patterns find the rest on their own."""
+    try:
+        from . import logs
+        connection = connection or db.connect()
+        for u in db.users(connection):
+            place = (u.get("settings") or {}).get("location") or {}
+            logs.remember_private(u.get("callsign"), place.get("short"), place.get("name"))
+    except Exception:
+        pass
 
 
 def _build():
@@ -220,6 +270,27 @@ def _units():
     except Exception:
         chosen = None
     return {"units": units.system(chosen), "unit_systems": units.SYSTEMS}
+
+
+@app.context_processor
+def _shared():
+    """Whether the unit is shared, for the Station dialog."""
+    try:
+        return {"unit_shared": db.shared(conn())}
+    except Exception:
+        return {"unit_shared": None}
+
+
+_private_names_done = False
+
+
+@app.before_request
+def _private_names_once():
+    """The first request hands the log the names it must never print."""
+    global _private_names_done
+    if not _private_names_done:
+        _private_names_done = True
+        _remember_private_names()
 
 
 @app.context_processor
@@ -397,12 +468,13 @@ def _saved_qth(connection, profile):
     settings = profile["settings"]
     settings["location"] = place
     db.save_settings(connection, settings)
+    logs.remember_private(place.get("short"), place.get("name"))
     log.info("named the saved QTH %s as %s", place.get("grid"), place["short"])
     return place
 
 
 def profile_block(connection):
-    prof = db.get_profile(connection)
+    prof = db.public_profile(db.get_profile(connection))
     standings = all_standings(connection)
     tracks = ranks.overall(standings)
     answered = connection.execute(
@@ -937,6 +1009,39 @@ def api_path_to():
     except ValueError:
         watts = 100.0
     out = pathto.predict(place, there, gear, license, watts)
+    out["ok"] = True
+    out["located"] = True
+    return jsonify(out)
+
+
+@app.route("/api/path-link")
+def api_path_link():
+    """The path to somewhere, by the numbers on VHF or UHF: a link budget
+    along the terrain between, for a radio off the shelf at each end - the
+    alternate view of the point-to-point answer, for the radios that are
+    considerably weaker than a barefoot base rig, and for the ones that are
+    not."""
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    if place.get("lat") is None:
+        return jsonify({"ok": False, "located": False,
+                        "note": "ELMER does not know where you are yet - set a QTH on the propagation page."})
+    text = (request.args.get("to") or "").strip()
+    if not text:
+        abort(400, "where to?")
+    there = pathto.resolve_to(text)
+    if not there or there.get("lat") is None:
+        return jsonify({"ok": False, "located": True,
+                        "note": (there or {}).get("error") or f"ELMER could not place \"{text}\""})
+    band = request.args.get("band") or "2m"
+    mode = (request.args.get("mode") or "fm").lower()
+    here_r = request.args.get("here") or "ht"
+    there_r = request.args.get("there") or here_r
+    site = request.args.get("site") or "residential"
+    if site not in groundwave.NOISE_SITES:
+        site = "residential"
+    out = pathto.link(place, there, band=band, mode=mode, radio_here=here_r, radio_there=there_r, site=site)
     out["ok"] = True
     out["located"] = True
     return jsonify(out)
@@ -1919,8 +2024,15 @@ def api_bandplan_reach():
         watts = max(0.1, min(1500.0, float(request.args.get("watts") or 100.0)))
     except (TypeError, ValueError):
         watts = 100.0
+    # The mode sets what the far end needs above the noise, so it sets the
+    # ground wave's reach; and on 11 m it sets the lawful power too - 4 W
+    # carrier on AM or FM, 12 W PEP on SSB - whatever the box said.
+    emission = str(request.args.get("emission") or "ssb").lower()
+    if emission not in groundwave.MODES:
+        emission = "ssb"
+    watts, emission, watts_cap = propagation.lawful(name, watts, emission)
     key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode,
-           kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts),
+           kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts, 1), emission,
            (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),
            antenna["ground"] if antenna else "")
     hit = _reach_cache.get(key)
@@ -1928,7 +2040,8 @@ def api_bandplan_reach():
         return jsonify({"ok": True, "cached": True, **hit[1]})
     started = time.perf_counter()
     made = propagation.reach_map(mhz, place["lat"], place["lon"], snap, step=step, window=window, mode=mode,
-                                 watts=watts, antenna=antenna)
+                                 watts=watts, antenna=antenna, emission=emission)
+    made["watts_cap"] = watts_cap
     made["far_end"] = bandplan.far_end(next((b["name"] for b in bandplan.BANDS if b["name"].replace(" ", "") == name), name))
     if antenna:
         made["antenna"]["height_ft"] = antenna["height_ft"]
@@ -3077,6 +3190,9 @@ def api_path_bands():
         watts = max(1.0, min(1500.0, float(request.args.get("watts", "100"))))
     except (TypeError, ValueError):
         watts = 100.0
+    emission = str(request.args.get("emission") or "ssb").lower()
+    if emission not in groundwave.MODES:
+        emission = "ssb"
     # The height comes off the snapshot with everything else. It used to be
     # looked up separately here, which is a second fetch and a second chance
     # for this page to disagree with the band conditions page about what the
@@ -3085,7 +3201,7 @@ def api_path_bands():
         km, fof2=snap.get("fof2"),
         hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
         elevation=snap.get("elevation") or 0.0,
-        k_index=snap.get("k_index") or 2.0, muf=snap.get("muf"), watts=watts)
+        k_index=snap.get("k_index") or 2.0, muf=snap.get("muf"), watts=watts, emission=emission)
     out["ok"] = True
     out["muf"] = snap.get("muf")
     out["hmf2_measured"] = bool(snap.get("hmf2_measured"))
@@ -3237,7 +3353,9 @@ def api_propagation_outlook():
         # is the only thing that reaches into a skip zone, and it is the one
         # kind of propagation the antenna really does decide.
         if now.get("skip_km"):
-            now["ground_wave"] = groundwave.describe(mhz, watts=100.0)
+            # a hundred watts of SSB, which on 11 m the law makes 4 W of AM
+            gw_watts, gw_mode, _cap = propagation.lawful(name, 100.0, "ssb")
+            now["ground_wave"] = groundwave.describe(mhz, watts=gw_watts, mode=gw_mode)
         hours, when = [], []
         if lat is not None:
             when = propagation.outlook(mhz, lat, lon, snap["sfi"], k_index,
@@ -3397,7 +3515,10 @@ def api_note():
     question_id = body.get("question_id")
     if question_id not in pool.by_id:
         abort(400, "unknown question")
-    saved = db.save_note(conn(), pool.pool_id, question_id, body.get("body", ""))
+    try:
+        saved = db.save_note(conn(), pool.pool_id, question_id, body.get("body", ""))
+    except db.Locked as exc:
+        return jsonify({"saved": False, "sealed": True, "message": str(exc)}), 423
     return jsonify({"saved": True, "body": saved})
 
 
@@ -5180,6 +5301,7 @@ def party_table(table="1"):
         "party_table.html", table=table, name=_table_name(table),
         difficulty=wanted, join_url=url, amateur=amateur, commercial=commercial,
         seat_name=seat_name, seat_class=seat_class if seat_class in ("Technician", "General", "Extra") else "",
+        thanks=supporter.words(_thanks_names(connection)),
         qr_svg=qr.as_svg(url, module=7, quiet=3))
 
 
@@ -5256,6 +5378,7 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     cohort.disconnect(connection)
     running = netcontrol.net(create=True, difficulty=wanted,
                              name=str(name or _net_name_for(wanted))[:60])
+    running.host_supporter = supporter.named_callsign(connection)
     log.info("net control opened: %s", running.name)
     # Every round the hall closes is written to this unit's hall log: each
     # person's answer with its question and its time, which is the difficulty
@@ -5372,6 +5495,8 @@ def api_net_checkin():
     unit.showing = str(body.get("showing") or "")[:40]
     unit.names = [str(n)[:60] for n in (body.get("names") or [])
                   if isinstance(n, str)][:16]
+    # The supporter whose unit it is, if they chose to be named.
+    unit.supporter = supporter.normalise(body.get("supporter"))[:16]
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
                     # The name is what the net is called tonight; the token
                     # is which net it is - see Net.token and Bridge.net_token.
@@ -6339,6 +6464,23 @@ def _certificate_awards(scope, places):
 CERT_SETTING = "certificates.event"
 
 
+def _thanks_names(connection):
+    """Who a certificate's foot or a join page thanks: with a net open, the
+    event's sponsors and the supporters in the hall; on a unit by itself,
+    its own supporter, if they chose to be named."""
+    running = netcontrol.net()
+    if running is not None:
+        names = [s["name"] for s in running.show.sponsors] + running.supporters()
+    else:
+        names = [supporter.named_callsign(connection)]
+    seen, out = set(), []
+    for n in names:
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
 def _certificate_details(connection, body=None):
     """The event as the host described it, saved on the unit between prints.
 
@@ -6436,7 +6578,9 @@ def api_tournament_certificates():
         where=details["where"], club=details["club"],
         signers={"net_control": details["net_control"],
                  "club": details["club_signer"]},
-        mode=game.get("mode"))
+        mode=game.get("mode"),
+        thanks=(("With thanks to " + supporter.words(_thanks_names(connection)) + ".")
+                if _thanks_names(connection) and not body.get("no_thanks") else None))
     name = "certificates-" + re.sub(r"[^a-z0-9]+", "-", event.lower()).strip("-") + ".pdf"
     row = prints.keep(pdf, name, "certificates", f"Certificates - {event}",
                       {"scope": scope, "awarded": [a["name"] for a in awards],
@@ -6613,10 +6757,47 @@ def api_users_password():
     # it refuses the nine year old at a club night who wants to be "ab".
     # An empty password is not a short one - it means take the lock off.
     wanted = body.get("password") or ""
-    db.set_password(connection, target, wanted)
-    log.info("account %s: password %s", target, "set" if wanted else "cleared")
-    return jsonify({"ok": True, "locked": bool(wanted),
-                    "users": _user_block(connection)})
+    mine = target == connection.user_id
+    got = db.change_password(connection, target, wanted, current=body.get("current") or "",
+                             data_key=connection.data_key if mine else None)
+    log.info("account %s: password %s%s", target, "set" if wanted else "cleared",
+             " - sealed data left behind the recovery code" if got["lost"] else "")
+    if mine:
+        connection.data_key = got["key"]
+    payload = {"ok": True, "locked": got["locked"], "sealed": got["sealed"], "lost": got["lost"],
+               "users": _user_block(connection)}
+    if got["recovery"]:
+        payload["recovery"] = got["recovery"]        # shown once, never stored
+    response = jsonify(payload)
+    if mine:
+        _open_session(response, target, got["key"])
+    return response
+
+
+@app.route("/api/users/recover", methods=["POST"])
+def api_users_recover():
+    """The recovery code opens a seal the password no longer can - after a
+    moderator reset, or a forgotten password - and the account takes a new
+    password with the key wrapped under it again."""
+    connection = conn()
+    body = request.get_json(silent=True) or {}
+    try:
+        target = int(body.get("id")) if body.get("id") is not None else connection.user_id
+    except (TypeError, ValueError):
+        abort(400)
+    if not db.user_exists(connection, target):
+        abort(404)
+    password = body.get("password") or ""
+    if not password:
+        return jsonify({"ok": False, "message": "a new password is needed to wrap the key again"}), 400
+    key = db.recover_account(connection, target, body.get("code") or "", password)
+    if key is None:
+        log.info("recovery for account %s refused: the code does not open it", target)
+        return jsonify({"ok": False, "message": "that code does not open this account"}), 403
+    log.info("account %s recovered with its code and given a new password", target)
+    connection.user_id = target
+    connection.data_key = key
+    return _open_session(_with_user_cookie({"ok": True, **_user_block(connection)}, target), target, key)
 
 
 @app.route("/api/users/offered", methods=["POST"])
@@ -7337,6 +7518,11 @@ def api_uls_fetch():
 def api_settings():
     body = request.get_json(force=True)
     connection = conn()
+    if (db.is_sealed_account(connection) and not connection.data_key
+            and any(k in body for k in db.SEALED_KEYS)):
+        return jsonify({"ok": False, "sealed": True,
+                        "message": "This account's private data is sealed - unlock it with your "
+                                   "password from the account menu, then save."}), 423
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         settings = _adopt_license(connection, body["callsign"] or "", settings)
@@ -7361,12 +7547,34 @@ def api_settings():
             settings[key] = body[key]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
+    if "shared" in body:
+        # The unit's own answer, not this account's; None puts the question back.
+        db.set_shared(connection, None if body["shared"] is None else bool(body["shared"]))
+        log.info("unit marked %s", {None: "not asked", True: "shared", False: "one person's"}[db.shared(connection)])
+    if "supporter_key" in body or "supporter_named" in body:
+        # A supporter's key and whether to be named - see elmer/supporter.py.
+        # Applied to the same dict as the rest, so a callsign changed in the
+        # same save is kept.
+        why = supporter.apply(settings, body.get("supporter_key"),
+                              body.get("supporter_named"))
+        if why:
+            return jsonify({"ok": False, "message": why}), 400
+        link = cohort.bridge()
+        if link is not None:
+            rec = settings.get(supporter.SETTING) or {}
+            link.supporter = rec.get("callsign", "") if rec.get("named") else ""
     if "repeaterbook_token" in body:
         # The operator's own RepeaterBook token: theirs, on this unit, for
         # RepeaterBook and nobody else. Never logged - see repeaters.py.
         token = str(body["repeaterbook_token"] or "").strip()
         if token and not repeaters.token_looks_right(token):
             abort(400, "that does not look like a RepeaterBook token - they begin rbuapp_")
+        if token and db.shared(connection) and not db.has_password(connection, connection.user_id):
+            # On a shared unit an open account is anybody's, and a secret on
+            # it is anybody's too. The lock comes first.
+            return jsonify({"ok": False, "locked_wanted": True,
+                            "message": "On a shared unit a token needs a password on the account first - "
+                                       "set one from the account menu, then save the token."}), 403
         if token:
             settings["repeaterbook_token"] = token
         else:
@@ -7381,16 +7589,20 @@ def api_settings():
         if place.get("lat") is not None and place.get("lon") is not None:
             place.setdefault("grid", geocode.to_grid(place["lat"], place["lon"]))
         settings["location"] = place
+        logs.remember_private(place.get("short"), place.get("name"))
         log.info("QTH set to %s (%s)", place.get("grid"), place.get("short") or "unnamed")
         # The coordinator's plan for wherever this is, fetched now while
         # there is a network so the band plan opens on it. Quiet if there
         # is no plan to read or no route out.
         _prefetch_regional(place)
-    db.save_settings(connection, settings)
+    try:
+        db.save_settings(connection, settings)
+    except db.Locked as exc:
+        return jsonify({"ok": False, "sealed": True, "message": str(exc)}), 423
     if settings.get("repeaterbook_token") and ("location" in body or "repeaterbook_token" in body):
         # The machines for wherever this is, under the operator's own token.
         _prefetch_repeaterbook(qth_for(connection, {"settings": settings}), settings["repeaterbook_token"])
-    return jsonify({"ok": True, **db.get_profile(connection)})
+    return jsonify({"ok": True, **db.public_profile(db.get_profile(connection))})
 
 
 def _prefetch_repeaterbook(place, token):
@@ -7525,6 +7737,13 @@ def _user_block(connection):
             "display_name": current["display_name"],
             "locked": db.has_password(connection, current["id"]),
             "moderator": db.has_moderator(connection),
+            "shared": db.shared(connection),
+            # The seal: on, and whether this browser holds the key. What is
+            # sealed is named so a page can say "unlock to see your QTH".
+            "sealed": bool(current.get("sealed")),
+            "recoverable": bool(current.get("recoverable")),
+            "unlocked": bool(connection.data_key),
+            "sealed_fields": list(current["settings"].get("sealed_fields") or []),
             # Offered once, when the unit stops being one person's. Computed
             # from this account alone, so it reveals nothing about anybody
             # else's - see the note in db.py.
@@ -7563,17 +7782,59 @@ def api_users_switch():
         abort(400)
     if not db.user_exists(connection, wanted):
         abort(404)
-    if not db.may_alter(connection, wanted, body.get("password") or ""):
+    password = body.get("password") or ""
+    if not db.may_alter(connection, wanted, password):
         log.info("switch to user %s refused: wrong or missing password", wanted)
         return jsonify({"ok": False, "locked": True,
                         "message": "that account has a password"}), 403
-    return _with_user_cookie(_user_block(connection), wanted)
+    # The password that opens the account opens the seal: the key comes out
+    # for this browser's session. An account locked before the seal existed
+    # is sealed now, at sign-in, and told its recovery code once.
+    key, recovery = None, None
+    if db.has_password(connection, wanted) and db.check_password(connection, wanted, password):
+        key = db.data_key_for(connection, wanted, password)
+        if key is None and not db.is_sealed_account(connection, wanted):
+            key, recovery = db.seal_account(connection, wanted, password)
+            log.info("account %s sealed at sign-in", wanted)
+    connection.user_id = wanted
+    connection.data_key = key
+    payload = _user_block(connection)
+    if recovery:
+        payload["recovery"] = recovery
+    return _open_session(_with_user_cookie(payload, wanted), wanted, key)
 
 
 @app.route("/api/users/add", methods=["POST"])
 def api_users_add():
+    """Somebody new on the unit - after two questions the unit has to
+    settle first, and settles here rather than in the page, so no client
+    can skip them.
+
+    The first time a second account is about to be made, the unit is asked
+    whether it is shared; the answer is kept. On a shared unit the account
+    at the controls is asked to lock itself before the new one exists. That
+    is the one moment its owner is certainly the one at the controls: an
+    open account can be switched into by anyone and given a password by
+    anyone, and the person who did that first would own it. "Leave mine
+    open" is a real answer and is not asked again.
+    """
     connection = conn()
     body = request.get_json(silent=True) or {}
+    count = len(db.users(connection))
+    shared = db.shared(connection)
+    if count == 1 and shared is None:
+        if "shared" not in body:
+            return jsonify({"ok": False, "ask": "shared",
+                            "message": "Is this unit shared? Say so first."}), 409
+        shared = bool(body["shared"])
+        db.set_shared(connection, shared)
+        log.info("unit marked %s", "shared" if shared else "one person's")
+    if (shared and not db.has_password(connection, connection.user_id)
+            and not db.password_offered(connection, connection.user_id)):
+        if not body.get("leave_open"):
+            return jsonify({"ok": False, "ask": "password",
+                            "message": "Put a password on your own account first, or say to leave it open."}), 409
+        db.mark_password_offered(connection, connection.user_id)
     try:
         profile = db.add_user(connection, body.get("name", ""),
                               body.get("callsign", ""))
@@ -7707,6 +7968,8 @@ def _local_json_or_403():
 def _update_payload(status):
     """What the dashboard needs, in one object."""
     connection = conn()
+    from . import credits
+    named = credits.supporters()
     return {
         "policy": update.policy(connection),
         "policies": list(update.POLICIES),
@@ -7714,7 +7977,28 @@ def _update_payload(status):
         "status": status,
         "blocked": update.blocked(status),
         "local": _is_local(request.remote_addr),
+        # the people who have thanked the developer with a coffee, under the build
+        "supporters": named,
+        "supporter_words": credits.words(named),
     }
+
+
+@app.route("/api/coffee")
+def api_coffee():
+    """The dashboard's card, if there is one today: thanks to a supporter,
+    or the offer of a coffee to somebody who has used ELMER for a while.
+    See elmer/supporter.py for when each is shown."""
+    return jsonify(supporter.card(conn()))
+
+
+@app.route("/api/coffee/shown", methods=["POST"])
+def api_coffee_shown():
+    body = request.get_json(silent=True) or {}
+    kind = str(body.get("kind") or "")
+    if kind not in ("coffee", "thanks"):
+        abort(400, "which card?")
+    supporter.shown(conn(), kind)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/report", methods=["POST"])
@@ -7731,8 +8015,9 @@ def api_report():
     body = request.get_json(silent=True) or {}
     include = body.get("station") is True
     said = str(body.get("said") or "")[:bugreport.SAID_MOST]
-    path, redacted, text = bugreport.write(conn(), include_station=include, said=said)
-    log.info("problem report written to %s (%s%s)", path.name,
+    kind = bugreport.kind_of(body.get("kind"))
+    path, redacted, text = bugreport.write(conn(), include_station=include, said=said, kind=kind)
+    log.info("%s written to %s (%s%s)", bugreport.KINDS[kind], path.name,
              "redacted" if redacted else "with station detail",
              ", with the operator's account" if said.strip() else "")
     out = {"path": str(path), "redacted": redacted, "text": text,
@@ -7748,9 +8033,10 @@ def api_report():
     if body.get("send"):
         stamp = bugreport.build_stamp().get("commit") or "unknown"
         head = bugreport.headline(said)
-        subject = (f"problem report - {head} - build {stamp}" if head
-                   else f"problem report - build {stamp} - {time.strftime('%Y-%m-%d')}")
-        ok, detail = wayhome.deliver(subject, text, kind="problem")
+        label = bugreport.KINDS[kind]
+        subject = (f"{label} - {head} - build {stamp}" if head
+                   else f"{label} - build {stamp} - {time.strftime('%Y-%m-%d')}")
+        ok, detail = wayhome.deliver(subject, text, kind=kind)
         out["sent"], out["detail"] = ok, detail
     return jsonify(out)
 

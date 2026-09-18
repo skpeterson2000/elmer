@@ -15,7 +15,7 @@
   }
 
   const DECK_WORDS = {history: 'history', quotes: 'quotes', hams: 'famous hams', technique: 'on the air',
-                      equipment: 'the gear', standings: 'standings', sponsor: 'sponsors', notice: 'notices',
+                      equipment: 'the gear', standings: 'standings', sponsor: 'sponsors', thanks: 'with thanks to', notice: 'notices',
                       join: 'join code', programme: 'programme'};
   let view = null;
 

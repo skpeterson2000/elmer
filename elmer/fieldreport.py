@@ -47,7 +47,10 @@ WHAT_IT_SENDS = (
     "Once a week ELMER sends the project a field report: which build and "
     "machine, how the forecast did against the sondes this week (error by "
     "lead and by sky, with persistence as the yardstick), the correction "
-    "this unit has learned and whether it is applying it, how many rounds "
+    "this unit has learned and whether it is applying it, how steady the "
+    "panel of sondes it corrects against was (how many voted, how often the "
+    "set changed and how far the correction moved when it did; no station "
+    "named), how many rounds "
     "of each game and study answers there were - as counts - how each "
     "question went for the people who met it for the first time (its id, "
     "how many, the miss rate and a time index; no names), how long each "
@@ -174,6 +177,24 @@ def build(conn=None, now=None):
                     + ("" if cell.get("applied") else "  (not applied)"))
         else:
             add("  never calibrated")
+    except Exception as exc:
+        add(f"  could not be read ({type(exc).__name__}: {exc})")
+
+    add("")
+    add("the panel of sondes that vote, last 7 days")
+    add("-" * 60)
+    try:
+        v = forecastlog.voter_stability(7, now)
+        if not v.get("readings"):
+            add("  no readings with voters yet")
+        else:
+            add(f"  {v['readings']} readings; typically {v['voters_typical']} sonde(s) voting; "
+                f"{v['held_readings']} readings carried a held vote")
+            add(f"  the set of voters changed {v['set_changes']} time(s); the correction moved "
+                f"{v['swing_pct_when_changed'] if v['swing_pct_when_changed'] is not None else '-'}% when it did, "
+                f"{v['swing_pct_otherwise'] if v['swing_pct_otherwise'] is not None else '-'}% otherwise (medians)")
+            add(f"  fragility: one voter dropping would typically move the correction "
+                f"{v['fragility_pct_typical'] if v['fragility_pct_typical'] is not None else '-'}%")
     except Exception as exc:
         add(f"  could not be read ({type(exc).__name__}: {exc})")
 

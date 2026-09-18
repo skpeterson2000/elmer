@@ -170,12 +170,23 @@ def measured(snap, now=None):
     Only a reading - a modelled MUF written here would be the model
     grading its own homework.
     """
+    now = now or datetime.now(timezone.utc)
+    cal = (snap or {}).get("calibration") or {}
+    # The voters are written down whenever there were any - measured,
+    # regional or bounded - so the week can say how steady the panel of
+    # sondes was, which is a different question from how good the model was.
+    if cal.get("voters") is not None:
+        day = _day(now)
+        data = _load(day)
+        data.setdefault("voters", {})[_hour(now.isoformat())] = {
+            "names": sorted(v["name"] for v in cal["voters"]), "n": len(cal["voters"]),
+            "held": cal.get("held", 0), "factor": cal.get("factor"),
+            "fragility_pct": cal.get("fragility_pct"), "source": snap.get("muf_source")}
+        _save(day, data)
     if not snap or snap.get("muf_source") != "measured" or not snap.get("muf"):
         return False
-    now = now or datetime.now(timezone.utc)
     day = _day(now)
     data = _load(day)
-    cal = snap.get("calibration") or {}
     data["measured"][_hour(now.isoformat())] = {
         "muf": snap["muf"], "fof2": snap.get("fof2"),
         "hmf2": snap.get("hmf2") if snap.get("hmf2_measured") else None,
@@ -184,6 +195,42 @@ def measured(snap, now=None):
     }
     _save(day, data)
     return True
+
+
+def voter_stability(days=7, now=None):
+    """How steady the panel of sondes was: over the days asked, how many
+    readings, how many voters a reading typically had, how often the set
+    of voters changed from one reading to the next, and how far the
+    correction moved when it did against when it did not - the number that
+    says whether a change in the answer was the sky's or the panel's."""
+    now = now or datetime.now(timezone.utc)
+    rows = []
+    for day in _days_back(days, now):
+        data = _load(day)
+        for hour in sorted((data.get("voters") or {}).keys()):
+            rows.append(data["voters"][hour])
+    if not rows:
+        return {"readings": 0}
+
+    def median(values):
+        values = sorted(v for v in values if v is not None)
+        return values[len(values) // 2] if values else None
+    changed, same, changes = [], [], 0
+    for a, b in zip(rows, rows[1:]):
+        if not a.get("factor") or not b.get("factor"):
+            continue
+        swing = abs(b["factor"] - a["factor"]) / a["factor"]
+        if a.get("names") != b.get("names"):
+            changes += 1
+            changed.append(swing)
+        else:
+            same.append(swing)
+    return {"readings": len(rows), "voters_typical": median(r.get("n") for r in rows),
+            "held_readings": sum(1 for r in rows if r.get("held")),
+            "set_changes": changes,
+            "swing_pct_when_changed": round(100.0 * (median(changed) or 0.0), 1) if changed else None,
+            "swing_pct_otherwise": round(100.0 * (median(same) or 0.0), 1) if same else None,
+            "fragility_pct_typical": median(r.get("fragility_pct") for r in rows)}
 
 
 def _prune(now):
