@@ -7786,10 +7786,16 @@ def api_settings():
         record = (settings.get("license") or {})
         record_class = str(record.get("licence_class")
                            or record.get("license_class") or "") if record.get("found") else ""
-        if record_class and str(body["license_class"] or "").strip().title() != record_class.strip().title():
-            settings[callsign.SOURCE] = callsign.OWN
+        said = str(body["license_class"] or "").strip().title()
+        if record_class and said == record_class.strip().title():
+            settings.pop(callsign.SOURCE, None)     # this is the record's word
         else:
-            settings.pop(callsign.SOURCE, None)
+            # Somebody's own answer: either there is no record to check it
+            # against, or there is one and it says something else. Marked
+            # either way, and the mark is what tells a deliberate answer
+            # from a value some other page left lying in the profile - see
+            # the version 8 migration in db.py.
+            settings[callsign.SOURCE] = callsign.OWN
     if "state" in body:
         settings["state"] = body["state"]
     if "commercial" in body:

@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -340,9 +340,49 @@ def migrate(conn):
         # the measure a contact would give you: "please repeat".
         if "repeats" not in _columns(conn, "cw_char"):
             conn.execute("ALTER TABLE cw_char ADD COLUMN repeats INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+        log.info("database upgraded to version 7 - the CW record counts resends")
+        version = 7
+
+    if version == 7:
+        # Version 8 undoes a silent write.
+        #
+        # The band plan's licence-class picker used to save the class being
+        # *read* into the profile, and the profile's class is the one thing
+        # the pool gate reads. So anybody who ever looked at Amateur Extra
+        # on that page had every study pool opened to them, on the dashboard
+        # and at the table, and was never told. The picker was fixed; the
+        # values it left behind were not.
+        #
+        # A value it left cannot be told from one somebody typed on purpose,
+        # except by what is missing: no mark saying whose word it is - see
+        # callsign.SOURCE, written by every save from here on - and no FCC
+        # record behind it. Those are cleared, so the station is asked once
+        # rather than quietly believed. Nothing else is touched: a class the
+        # FCC record answers for stays, and so does one marked as the
+        # operator's own, which is how a licence from outside the US or an
+        # upgrade the published file has not caught up with survives this.
+        cleared = 0
+        for row in conn.execute("SELECT id, settings FROM profile").fetchall():
+            try:
+                settings = json.loads(row["settings"] or "{}")
+            except ValueError:
+                continue
+            if not isinstance(settings, dict) or not settings.get("license_class"):
+                continue
+            if settings.get("license_class_source"):
+                continue                     # somebody's own word, deliberately
+            if (settings.get("license") or {}).get("found"):
+                continue                     # the FCC answers for this one
+            settings.pop("license_class", None)
+            conn.execute("UPDATE profile SET settings = ? WHERE id = ?",
+                         (json.dumps(settings), row["id"]))
+            cleared += 1
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the CW record counts resends", SCHEMA_VERSION)
+        log.info("database upgraded to version %s - %d unverified licence class(es) "
+                 "cleared, which the band plan used to set without asking",
+                 SCHEMA_VERSION, cleared)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
