@@ -272,10 +272,21 @@ function bpRender() {
     '</div>';
 }
 
-document.getElementById('bp-class').addEventListener('change', async () => {
-  await postJSON('/api/settings', {license_class: bpClass()}).catch(() => {});
-  bpLoad();
-});
+/* The picker is a view, not a claim.
+ *
+ * Reading another class's privileges is the point of this page - it is how
+ * somebody decides whether the upgrade is worth sitting for - so the list
+ * offers every class to everybody. What it must not do is tell the rest of
+ * the program that this station holds the class being read. It used to save
+ * the choice to the profile on every change, and that one line had two
+ * quiet consequences: the study pools are gated on the licence, so looking
+ * at Extra here opened every pool on the dashboard and at the table; and
+ * the owl above compares the class being read with the class held, so with
+ * the setting chasing the dropdown the two were never different and the
+ * owl could not appear. A licence is set where a licence is set - the setup
+ * page, or the FCC record behind a callsign - and this page opens on it
+ * every time, whatever was looked at last. */
+document.getElementById('bp-class').addEventListener('change', () => { bpLoad(); });
 document.getElementById('bp-state').addEventListener('change', async () => {
   await postJSON('/api/settings', {state: bpState()}).catch(() => {});
   await bpLoadRegional(); bpRender();

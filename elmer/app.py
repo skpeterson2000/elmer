@@ -811,9 +811,12 @@ def bandplan_page():
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
         kind_colours=palette.KIND_COLOUR, class_colours=palette.CLASS_COLOUR,
         classes=bandplan.CHOICES, class_labels=bandplan.CLASS_LABELS,
-        license_class=profile["settings"].get("license_class")
-                       or (profile["settings"].get("license") or {}).get("license_class")
-                       or "Technician",
+        # The page opens on the class this station holds, every time. Not
+        # the class looked at last: the picker is a view and saves nothing,
+        # so the licence is the only thing left to open on, and one helper
+        # answers "what does this station hold?" for the page, the owl and
+        # anything printed with a callsign on it.
+        license_class=_own_class() or "Technician",
         coordinators=regional.states(),
         # The QTH decides, including a GPS fix: a state picked by hand on
         # this page stands only while the QTH is the one it was picked

@@ -1560,6 +1560,21 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*A view is not a claim (2026-09-18).* The band plan's class picker
+wrote the class being read into the profile, which is the single setting
+the pool gate reads. Two things followed, neither of them visible at the
+picker: a person who looked at Amateur Extra on the band plan had every
+study pool opened to them, on the dashboard and, once the table kept the
+gate, there too; and the owl that appears when you read privileges above
+the ones you hold could never fire, because the setting it compares
+against had just been set to the class being read. A warning defeated by
+the page it warns on is worse than no warning. The rule now: reading is
+free and claiming is deliberate. The picker persists nothing, the page
+opens on `_own_class()` every time, and a licence is set where a licence
+is set - a callsign the FCC record answers for, or the setup page. The
+gate, the owl and the printed sheet all ask one helper what this station
+holds, which is the parsimony that was missing.
+
 *Calling the play, the great catch and the duel (2026-09-18).* The
 field used to be the machine's: a grounder caught clean went to the base
 the machine chose, and a rough throw ended the play. Now the play is the

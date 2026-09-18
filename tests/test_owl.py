@@ -89,6 +89,34 @@ try:
 finally:
     appmod._own_class = real
 
+print("\nthe class picker is a view, and not a claim")
+BANDPLAN = (ROOT / "elmer" / "static" / "bandplan.js").read_text()
+# It used to save the choice to the profile on every change, and that one
+# line had two quiet consequences. The study pools are gated on the licence,
+# so reading Extra here opened every pool on the dashboard and at the table.
+# And the owl just above compares the class being read with the class held,
+# so with the setting chasing the dropdown the two were never different and
+# the owl could not appear at all - the warning defeated by the page it
+# warns on.
+check("choosing a class to read writes no licence anywhere",
+      "license_class" in BANDPLAN, False)
+LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
+with app.test_client() as client:
+    from elmer import db
+    before = db.get_profile(db.connect())["settings"].get("license_class")
+    client.get("/api/bandplan?class=Extra")
+    after = db.get_profile(db.connect())["settings"].get("license_class")
+    check("  reading Amateur Extra leaves the stored licence alone",
+          (before, after), (None, None))
+    client.post("/api/settings", json={"license_class": "General"}, environ_base=LOCAL)
+    client.get("/api/bandplan?class=Extra")
+    page = client.get("/bandplan", environ_base=LOCAL).data.decode("utf-8")
+    check("  and the page opens on the class held, not the one last read",
+          ('<option value="General" selected>' in page,
+           '<option value="Extra" selected>' in page), (True, False))
+    check("  which is what leaves the owl something to compare",
+          client.get("/api/bandplan?class=Extra").get_json()["above_yours"], True)
+
 print()
 if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
