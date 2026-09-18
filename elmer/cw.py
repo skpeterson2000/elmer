@@ -113,6 +113,43 @@ def timing(wpm, effective_wpm=None):
 PROSIGN_ANY = re.compile(r"<([A-Z]{2,3})>")
 
 
+# The most characters worth keying after DE in the opening announcement. A
+# callsign is five or six; a club name can be anything, and a room listening
+# to a station identify itself will wait for a callsign and not for a
+# paragraph. Whole words only, so nothing is cut off mid-name.
+ANNOUNCE_MOST = 14
+
+# What a callsign or a name is made of. The code can send a full stop and a
+# comma, but a name is not punctuation: "ST. PAUL ARC" reads better keyed
+# without the stop than with six more elements in the middle of it, and a
+# holder field that is nothing but punctuation should key nothing at all.
+KEYABLE = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/")
+
+
+def keyable(text, most=ANNOUNCE_MOST):
+    """A name reduced to what a keyer can actually send, or ''.
+
+    Upper case, and only the characters the code has: letters, digits, the
+    slant a portable callsign carries, and single spaces between words. Words
+    are kept whole and dropped from the end until the rest fits, because a
+    name cut off in the middle is worse than a name left out - this is
+    somebody's callsign being read out to a room.
+    """
+    kept = []
+    for word in str(text or "").upper().split():
+        clean = "".join(c for c in word if c in KEYABLE)
+        if clean:
+            kept.append(clean)
+    out, used = [], 0
+    for word in kept:
+        need = len(word) + (1 if out else 0)
+        if used + need > most:
+            break
+        out.append(word)
+        used += need
+    return " ".join(out)
+
+
 def encode(text):
     """Text to a list of words, each a list of {char, code}.
 

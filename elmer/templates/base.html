@@ -215,13 +215,19 @@
 
     <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
       <input type="checkbox" id="setup-announce" {% if profile.settings.get('announce', True) %}checked{% endif %}>
-      Say ELMER in code when the program opens
+      The announcement &mdash; key <b class="mono">{% if announce.de %}ELMER DE {{ announce.de }}{% else %}ELMER{% endif %}</b> when the program opens
     </label>
-    <p class="tiny muted">Five characters at twenty words a minute when ELMER
-      opens, which is the station identifying itself and a plain way of hearing
-      that the unit is up and the sound works. Turn it off where it would not be
-      welcome &mdash; a net in progress, a classroom, a field site at night.
-      Being quiet is sometimes what being in a community asks of a station.</p>
+    <p class="tiny muted">The station identifying itself, at twenty words a
+      minute, once when ELMER opens. It is a plain way of hearing that the unit
+      is up and the sound works &mdash; and in a room where somebody else knows
+      the program, it is an invitation to a game.
+      {% if announce.de %}Your name goes out with it, because you are a supporter
+      who asked to be named: the room hears whose unit this is.
+      {% else %}Supporters who ask to be named have their own callsign keyed
+      after ELMER&rsquo;s, so the room hears whose unit it is.{% endif %}
+      Turn it off where it would not be welcome &mdash; a net in progress, a
+      classroom, a field site at night. Being quiet is sometimes what being in a
+      community asks of a station.</p>
 
     <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
       <input type="checkbox" id="setup-commercial" {% if profile.settings.commercial %}checked{% endif %}>
@@ -334,9 +340,9 @@
    is not an offer made at the start of a session. */
 window.OFFER_PASSWORD = {{ offer_password|default(false)|tojson }};
 window.BAND_PALETTE = {{ band_palette|tojson }};
-/* Whether the unit says its own name in code when it opens - see
-   announce.js, and the switch for it in the Station panel. */
-window.ELMER_ANNOUNCE = {{ profile.settings.get('announce', True)|tojson }};
+/* The opening announcement - see announce.js, and the switch for it in the
+   Station panel. {on, de}: whether to key it, and the name keyed after DE. */
+window.ELMER_ANNOUNCE = {{ announce|tojson }};
 </script>
 <script src="{{ asset('elmer.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>

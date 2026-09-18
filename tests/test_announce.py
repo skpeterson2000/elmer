@@ -29,6 +29,7 @@ for the autoplay policy that lets an audio clock run without a click.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -74,7 +75,7 @@ HOME = f"http://127.0.0.1:{PORT}/"
 SPEAKING_JS = r"""(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const out = {};
-  out.sending = {flag: window.ELMER_ANNOUNCE, hold: toneHold, tone: cwPrefs().tone,
+  out.sending = {flag: window.ELMER_ANNOUNCE.on, hold: toneHold, tone: cwPrefs().tone,
                  state: player.ctx ? player.ctx.state : null,
                  playing: !!player.playingUntil,
                  marked: sessionStorage.getItem('elmer.announced')};
@@ -91,11 +92,20 @@ SPEAKING_JS = r"""(async () => {
 
 # With the switch off there is nothing to hear and nothing opened to hear
 # it with.
-QUIET_JS = r"""JSON.stringify({flag: window.ELMER_ANNOUNCE,
+QUIET_JS = r"""JSON.stringify({flag: window.ELMER_ANNOUNCE.on,
                                ctx: player.ctx ? player.ctx.state : null,
                                playing: !!player.playingUntil,
                                marked: sessionStorage.getItem('elmer.announced'),
                                box: document.getElementById('setup-announce').checked})"""
+
+
+LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
+
+
+def told(page):
+    """What the page tells announce.js to do: {on, de}."""
+    found = re.search(r"window[.]ELMER_ANNOUNCE = ([{].*?[}]);", page)
+    return json.loads(found.group(1)) if found else {}
 
 
 def settings(**body):
@@ -138,6 +148,37 @@ def main():
     check("switched back on", settings(announce=True), 200)
     got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS))
     check("it speaks again", (got["flag"], got["playing"], got["box"]), (True, True, True))
+
+    print("\n-- a supporter's own callsign goes out with it --")
+    from elmer import cw, supporter
+    import elmer.app as appmod
+    check("a callsign is keyable as it stands", cw.keyable("KC9SP"), "KC9SP")
+    check("  lower case is raised", cw.keyable("kc9sp"), "KC9SP")
+    check("  a portable callsign keeps its slant", cw.keyable("KC9SP/M"), "KC9SP/M")
+    check("  what the code has no letter for is dropped", cw.keyable("K.C9-SP!"), "KC9SP")
+    # Whole words only. A club name cut off in the middle is worse than a
+    # short one: this is somebody's name being read out to a room.
+    check("  a club name is kept whole while it fits", cw.keyable("PINE COUNTY ARC"), "PINE COUNTY")
+    check("  and a name with nothing keyable in it is left out", cw.keyable("..."), "")
+
+    client = appmod.app.test_client()
+    check("a station that is nobody in particular keys ELMER alone",
+          told(client.get("/", environ_base=LOCAL).data.decode("utf-8")).get("de"), "")
+    real = supporter.named_holder
+    try:
+        supporter.named_holder = lambda conn: "KC9SP"
+        page = client.get("/", environ_base=LOCAL).data.decode("utf-8")
+        check("a supporter who asked to be named has their callsign keyed after DE",
+              told(page).get("de"), "KC9SP")
+        check("  and the Station panel says what will go out",
+              "ELMER DE KC9SP" in page, True)
+        # The same consent the hall's thanks card keeps: a supporter who
+        # would rather not be named is not named, here as anywhere else.
+        supporter.named_holder = lambda conn: ""
+        check("a supporter who would rather not be named is not",
+              told(client.get("/", environ_base=LOCAL).data.decode("utf-8")).get("de"), "")
+    finally:
+        supporter.named_holder = real
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

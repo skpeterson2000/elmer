@@ -506,6 +506,13 @@ def profile_block(connection):
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
             "license": prof["settings"].get("license") or {},
+            # The opening announcement: whether to key it at all, and the
+            # name to key after DE. A supporter who asked to be named has
+            # their own callsign read out with the program's, which is the
+            # point of it - the room hears who keeps this going. Anybody who
+            # would rather not be named is not, here as anywhere else.
+            "announce": {"on": prof["settings"].get("announce", True) is not False,
+                         "de": cw.keyable(supporter.named_holder(connection))},
             # What class this station holds and whose word that is, handed to
             # every page: one answer, so a class shown on one screen cannot
             # disagree with the same class shown on another.
