@@ -108,6 +108,8 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 **The sondes that vote.** The critical frequency over you is the model's figure corrected to meet the sondes within five thousand kilometres, each with a vote weighted by its distance and by the age of its reading. The line under the numbers names them, marks any whose reading was held from an earlier fetch after the feed missed a cycle, and says how far the correction would move if any one of them dropped out. That last figure is the one to read when two units side by side disagree: a thin panel far from the nearest sounder can swing by a third on one vote, and the page now says so instead of leaving two screens to argue. The weekly field report, if you have switched it on, carries how steady the panel was over the week and nothing that names your station.
 
+**Calibrate my forecast**, at the foot of this page, runs the propagation model blind over the last quarter, half year or year against the ionosonde record and grades it, so you can see how much to trust the band plan's verdicts. It needs the network for the first minute; nothing leaves the unit.
+
 ## The band plan
 
 What the law allows, and what convention puts where. Pick the **licence class** at the top, or enter your callsign in the strip below it and ELMER uses your actual privileges and tells you when the licence expires. Each band is a button; the chosen band shows its bar coloured by activity, with the parts your class may not transmit on hatched out, the privileges for your class beside the rule that grants them, and a table of what happens where and whether you may use it in that mode.
@@ -168,7 +170,6 @@ The instruments and the settings. The Lab is the material the exams ask about; t
 - **VNA.** A simulator for learning what a sweep looks like, and the real instrument: **Look for a VNA** finds a NanoVNA on a USB port, **Sweep it** reads it, **Export .s1p** saves the sweep. Calibrate it one standard at a time, and calibrate at the far end of the coax you will use; the page has the drill folded under a heading.
 - **Sextant.** A sun sight when nothing else knows where you are. What one looks like and what you see through it, then the sights table: reading, time, limb. It needs the time to be right; four seconds of clock error is a nautical mile of longitude.
 - **RF exposure.** Since 2021 every amateur station must evaluate its RF exposure and be able to show the result. Add a band, the power, the antenna and the distance, press **Evaluate**, and **Station record (PDF)** writes the record for the Printouts shelf.
-- **Calibrate my forecast.** Runs the propagation model blind over the last quarter, half year or year against the ionosonde record and grades it, so you can see how much to trust the band plan's verdicts. It needs the network for the first minute; nothing leaves the unit.
 
 There is a panel at the foot of this page headed **Developer, reset this unit**. It is for the author's bench, it only works from the unit's own screen, and it is not undoable. Leave it alone.
 

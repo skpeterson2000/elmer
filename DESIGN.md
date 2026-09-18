@@ -2338,7 +2338,7 @@ month; the grey line — the weakest sky — 3.58 → 1.97; night 2.57 → 1.62;
 shape between, and the strip says when the record is speaking. A unit's first
 day has no record and runs on the model; by the fourth it has all three.
 
-**Calibrate my forecast**, on the Tools page, is the same thing for *this*
+**Calibrate my forecast**, on the Propagation page, is the same thing for *this*
 place: the nearest sondes' readings, the forecast run blind over them hour by
 hour, and a correction fitted by month and by sky and applied where no fresh
 reading holds. Three depths — **Quick**, the last quarter, about a minute and
