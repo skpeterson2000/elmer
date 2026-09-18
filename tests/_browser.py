@@ -54,7 +54,7 @@ def _free_port():
         return s.getsockname()[1]
 
 
-def evaluate(url, js, width=1024, height=600, settle=2.0, port=None):
+def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=()):
     """Load `url` in a headless Chromium, wait `settle` seconds, return `js`.
 
     A fresh debugging port each time: the last Chromium is still letting go
@@ -73,7 +73,7 @@ def evaluate(url, js, width=1024, height=600, settle=2.0, port=None):
     for attempt in range(3):
         try:
             return _run(chromium, url, None, width, height, js, settle,
-                        port or _free_port())
+                        port or _free_port(), flags)
         except _LaunchFlake as exc:
             last = exc
             time.sleep(0.5)
@@ -84,7 +84,7 @@ class _LaunchFlake(Exception):
     """Chromium did not come up this time; the launch is worth retrying."""
 
 
-def _run(chromium, url, out, w, h, js, settle, port):
+def _run(chromium, url, out, w, h, js, settle, port, flags=()):
   # A profile of its own, thrown away after: a headless browser sharing the
   # profile of the one the person is using would be a tab in their face on
   # Windows, and a locked profile elsewhere.
@@ -93,7 +93,7 @@ def _run(chromium, url, out, w, h, js, settle, port):
       [chromium, "--headless=new", "--disable-gpu", "--no-sandbox",
        "--disable-dev-shm-usage", f"--remote-debugging-port={port}",
        f"--user-data-dir={profile}", "--no-first-run",
-       f"--window-size={w},{h}", "about:blank"],
+       f"--window-size={w},{h}", *flags, "about:blank"],
       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   try:
       for _ in range(200):          # a cold Chromium on a Pi can take 30 s to answer

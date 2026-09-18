@@ -227,8 +227,15 @@ async function teachRun(symbols, timing, ui, opts) {
         ui.letter.innerHTML = escapeHTML(sym.char) +
           (sym.meaning ? '<small>' + escapeHTML(sym.meaning) + '</small>' : '');
         ui.letter.classList.add('show');
+        /* Named, not just shown. "Name it afterwards" used to put the bare
+           letter on the screen, which is not what naming a character means
+           to anybody learning one: the name is Kilo, said out loud, the way
+           the Today session has always done it. One function does that for
+           the whole page. */
+        if (ui.word) sayBack(sym.char, ui.word);
         await sleep(REVEAL_MS);
         ui.letter.classList.remove('show');
+        if (ui.word) ui.word.classList.remove('show');
       }
       await sleep(settle);
     }
@@ -260,6 +267,7 @@ function showMode(name) {
   });
   if (name !== 'decode') stopMic();
   teachHalt();
+  if (learnOn) learnEnd(false);
   if (name !== 'copy') player.stop();
   history.replaceState(null, '', '#' + name);
   remember('cw.mode', name);
@@ -321,6 +329,7 @@ function localTiming() {
 const teachUI = {
   code: document.getElementById('cw-teach-code'),
   letter: document.getElementById('cw-teach-letter'),
+  word: document.getElementById('cw-teach-word'),
   reveal: () => document.getElementById('cw-teach-reveal').checked,
   onDone: () => {
     document.getElementById('cw-hear').hidden = false;
@@ -356,6 +365,112 @@ document.getElementById('cw-teach-stop').addEventListener('click', () => {
   teachHalt();
   teachUI.onDone();
 });
+
+/* ------------------------------------------ one at a time, at your own pace */
+/* Crawl, then walk, then run. Koch's full speed is about the sound of a
+   character - the shape of it, heard whole, rather than counted - and that
+   argument says nothing at all about the gap between one character and the
+   next. A beginner is still comparing what they just heard against the
+   shapes on the screen, and how long that takes is their business and not
+   the program's. Everybody's is different and none of them is wrong.
+
+   So this runner sounds one character and then stops. Nothing is timed,
+   nothing is scored, and the lesson's characters stay above with their code
+   the whole way through, to be compared against and clicked on. The learner
+   asks for it again as often as they like. When they have it, it is named -
+   shown, spelled in the phonetic alphabet and said aloud - and only then
+   does the next one sound.
+
+   That is the whole of it, and it is deliberately the smallest game on the
+   page: telling two sounds apart is the ability everything else is built
+   on, and the copying speed that ends up on a rating, or in a job, is what
+   this turns into once the characters are known. T-ball first. */
+const LEARN_LEAD_MS = 900;          // a breath after "ready" and before the first one
+const LEARN_NAMED_MS = 1500;        // the name stands this long before the next sounds
+let learnOn = false, learnAt = 0, learnList = [];
+
+function learnShow(state) {
+  const set = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
+  set('cw-learn-begin', !learnOn);
+  set('cw-hear', !learnOn && !teaching);
+  set('cw-start-copy', !learnOn);
+  set('cw-learn-again', learnOn && state === 'wait');
+  set('cw-learn-got', learnOn && state === 'wait');
+  set('cw-learn-stop', learnOn);
+  const n = document.getElementById('cw-learn-count');
+  if (n) n.textContent = learnOn ? (learnAt + 1) + ' of ' + learnList.length : '';
+}
+
+function learnHint(text) {
+  const h = document.getElementById('cw-teach-hint');
+  if (h) h.textContent = text;
+}
+
+function learnClear() {
+  const letter = document.getElementById('cw-teach-letter');
+  const word = document.getElementById('cw-teach-word');
+  if (letter) letter.classList.remove('show');
+  if (word) { word.textContent = ''; word.classList.remove('show'); }
+}
+
+async function learnSound() {
+  if (!learnOn) return;
+  learnClear();
+  learnShow('sounding');
+  learnHint('listen');
+  teachStop = false;                       // a Stop earlier must not silence this
+  const c = learnList[learnAt];
+  await playSymbol({char: c, code: CODE[c] || ''}, localTiming(),
+                   document.getElementById('cw-teach-code'));
+  if (!learnOn) return;
+  learnShow('wait');
+  learnHint('no rush - compare it with the shapes above');
+}
+
+async function learnGot() {
+  if (!learnOn) return;
+  const c = learnList[learnAt];
+  const letter = document.getElementById('cw-teach-letter');
+  letter.innerHTML = escapeHTML(c);
+  letter.classList.add('show');
+  learnShow('named');
+  learnHint('');
+  if (teachUI.reveal()) sayBack(c, document.getElementById('cw-teach-word'));
+  await sleep(LEARN_NAMED_MS);
+  if (!learnOn) return;
+  learnAt += 1;
+  if (learnAt >= learnList.length) { learnEnd(true); return; }
+  await learnSound();
+}
+
+function learnEnd(finished) {
+  learnOn = false;
+  teachHalt();
+  learnClear();
+  learnShow('');
+  learnHint(finished
+    ? 'that is the lesson - hear them run together, or start copying'
+    : 'Press below and each character is drawn as it sounds, then named.');
+}
+
+async function learnBegin() {
+  if (learnOn) return;
+  learnList = (CWS.koch || []).slice(0, settings.lesson);
+  if (!learnList.length) return;
+  teachHalt();
+  learnOn = true;
+  learnAt = 0;
+  learnClear();
+  learnShow('sounding');
+  learnHint('here comes the first one');
+  await sleep(LEARN_LEAD_MS);
+  await learnSound();
+}
+
+document.getElementById('cw-learn-begin').addEventListener('click', learnBegin);
+document.getElementById('cw-learn-again').addEventListener('click', () => { if (learnOn) learnSound(); });
+document.getElementById('cw-learn-got').addEventListener('click', learnGot);
+document.getElementById('cw-learn-stop').addEventListener('click', () => learnEnd(false));
 
 /* Anything drawn as a code cell plays when clicked - the chart, and the
    lesson's own characters. */

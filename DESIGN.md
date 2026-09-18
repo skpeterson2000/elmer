@@ -1560,6 +1560,30 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*Crawl, walk, run - the lesson has no clock on it (2026-09-18).* The
+learn pane had one way through a lesson: every character in a row, each
+held on the screen for a couple of seconds, at whatever pace the loop ran
+at. That is a fine way to review characters you know and a poor way to
+meet one. Koch's argument for full character speed is about the sound of
+a character - heard whole, not counted - and it says nothing whatever
+about the gap between one character and the next. Somebody still
+comparing what they just heard against the shapes on the screen is not on
+a clock, and how long that takes is theirs and not the program's.
+
+So `learnBegin` sounds one character and stops. Again as often as they
+like; named only when they say they have it; the next one after that.
+The lesson's characters stay above with their code the whole way through,
+to be compared against and clicked. Nothing is timed and nothing is
+scored, deliberately: this is the smallest game on the page, and the one
+everything else is built on. The rating, the copying speed, the games -
+all of that is what this turns into once the characters are known.
+T-ball first, and the major league is the same sport.
+
+Naming moved into `sayBack` at the same time, which was the whole of the
+bug behind it: "name it afterwards" put the bare letter on the screen,
+and naming a character means saying what it is called. One function names
+a character for the whole page now - shown, spelled phonetically, said.
+
 *One source of truth for a licence class (2026-09-18).* Three places
 asked what class this station holds and two of them disagreed about how to
 answer. `gating.reach` took `settings["license_class"]` first and the FCC

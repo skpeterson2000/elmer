@@ -139,9 +139,29 @@
   <div class="cw-teach" id="cw-teach">
     <div class="cw-code big" id="cw-teach-code"></div>
     <div class="cw-teach-letter" id="cw-teach-letter"></div>
+    <div class="cw-flash-word" id="cw-teach-word"></div>
     <div class="cw-teach-hint" id="cw-teach-hint">
       Press below and each character is drawn as it sounds, then named.
     </div>
+  </div>
+
+  <!-- One at a time, at the learner's pace. No clock on it: the machine
+       sounds a character and then waits, for as long as it takes, with the
+       lesson's shapes on the screen above to compare against. -->
+  <div class="row mt">
+    <button class="btn sm primary" id="cw-learn-begin" data-q="QRV" title="QRV - ready, go ahead">Learn them one at a time <span class="q">QRV</span></button>
+    <button class="btn sm" id="cw-learn-again" data-q="QSM?" title="QSM? - please repeat the last message" hidden>Again <span class="q">QSM?</span></button>
+    <button class="btn sm primary" id="cw-learn-got" data-q="QSL" title="QSL - received and understood" hidden>I have it <span class="q">QSL</span></button>
+    <button class="btn sm" id="cw-learn-stop" data-q="QRT" data-q-after="1" title="QRT - stop sending" hidden>Stop <span class="q">QRT</span></button>
+    <span class="tiny muted" id="cw-learn-count"></span>
+  </div>
+  <div class="tiny muted" style="margin-top:.4rem">
+    One character sounds, and then nothing happens until you say so. Compare
+    what you heard against the shapes above, ask for it <b>Again</b> as often
+    as you like, and press <b>I have it</b> when you have it &mdash; the
+    character is then shown, named in the phonetic alphabet and said aloud
+    before the next one sounds. Nothing here is timed and nothing is scored.
+    Copying at speed comes later; this is learning to tell them apart.
   </div>
 
   <div class="row mt">
@@ -153,9 +173,11 @@
     </label>
   </div>
   <div class="tiny muted" style="margin-top:.4rem">
-    The shape is drawn while the character sounds and the letter appears two
-    seconds later &mdash; the sound first, the name second, which is the order
-    you want them learnt in. Turn the naming off once you no longer need it.
+    Run them together once you know them. The shape is drawn while the
+    character sounds and the name follows a couple of seconds later &mdash;
+    the sound first, the name second, which is the order you want them learnt
+    in. <b>Name it afterwards</b> governs both ways of running the lesson;
+    turn it off once you no longer need it.
   </div>
   <div class="panel-title" style="margin-top:1.3rem">Where you stand</div>
   <div id="cw-progress" class="cw-chars"></div>
