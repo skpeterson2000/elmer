@@ -37,6 +37,49 @@ function bpNotYours(d) {
       'program.</div>';
     return;
   }
+  /* A licence from somewhere else, being used here. 47 CFR 97.107 lets a
+     visitor holding their own government's amateur authorisation be the
+     control operator of a station in the US where there is a reciprocal
+     arrangement, and caps what they may do at what an Amateur Extra may do.
+     That cap is what the chart above draws, and it is only half the answer:
+     the other half is their own licence, which this program has never seen.
+     Saying the first half without the second would be the dangerous half. */
+  /* The charts print a class, and "visiting" is not one. A sheet headed
+     that way, with a callsign on it, would read as a claim about an
+     operator's authority in a country whose licence they do not hold -
+     and the chart they actually want exists already, because the ceiling
+     they are drawn at is the Amateur Extra one. So the buttons say that
+     rather than failing at the server. */
+  ['bp-card', 'bp-pdf'].forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    const off = !!(d && d.reciprocal);
+    b.disabled = off;
+    b.title = off ? 'Print the Amateur Extra chart instead - it is the same ceiling. '
+                  + 'A sheet headed "visiting" with a callsign on it would read as a claim.' : '';
+  });
+  if (d && d.reciprocal) {
+    box.hidden = false;
+    box.className = 'notice';
+    box.innerHTML =
+      '<div><b>Visiting, on your own licence.</b> Under ' +
+      '<a href="https://www.ecfr.gov/current/title-47/section-97.107" target="_blank" rel="noopener">47 CFR 97.107</a> ' +
+      'an operator holding an amateur authorisation from their own government may be ' +
+      'the control operator of a station here, wherever a reciprocal arrangement ' +
+      'reaches - CEPT, the IARP, or a bilateral one, and Canada&rsquo;s is written into ' +
+      'the rule itself. <b>The chart above is the ceiling, not your privileges.</b> ' +
+      'What you may do here is the terms of your own licence and the FCC&rsquo;s rules ' +
+      'together, and in no case more than an Amateur Extra may do - so read this ' +
+      'against your own licence and take whichever is the narrower of the two. ' +
+      'ELMER has never seen your licence and is not guessing at it.' +
+      '<br><br>Identify under ' +
+      '<a href="https://www.ecfr.gov/current/title-47/section-97.119" target="_blank" rel="noopener">97.119(g)</a>: ' +
+      'a Canadian licensee puts the indicator for the US call sign area after their ' +
+      'own call, and everybody else puts it before, separated by a slant. ' +
+      'None of this is for a US citizen or for anybody already holding an FCC ' +
+      'licence - that is their FCC licence, and it is the class above.</div>';
+    return;
+  }
   box.className = 'lapse';
   if (!d || !d.above_yours) { box.hidden = true; return; }
   box.hidden = false;

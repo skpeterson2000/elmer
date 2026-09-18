@@ -24,9 +24,32 @@ CLASS_RANK = {name: n for n, name in enumerate(CLASSES)}
 # below Novice so that "may this class..." answers no, and it stays out of
 # CLASSES so that "which classes permit..." never names it.
 NO_LICENSE = "none"
-CHOICES = [NO_LICENSE] + CLASSES              # what a page may be asked for
-CLASS_LABELS = {NO_LICENSE: "No licence"}
+
+# A licence from somewhere else, being used here.
+#
+# 47 CFR 97.107 lets a visitor holding an amateur authorisation from their
+# own government be the control operator of a station in the US, where there
+# is a reciprocal arrangement - CEPT, the IARP, or a bilateral one, and
+# Canada's is written into the section itself. What they may do is the terms
+# of their own licence and the FCC's rules together, and in no case more
+# than an Amateur Extra may do.
+#
+# So the ceiling is Extra and this ranks as Extra, which is what the page
+# draws. It is deliberately not their class: the other half of the answer is
+# their own licence, which this program has never seen and must not pretend
+# to. The page says so in as many words beside the chart.
+#
+# It is a view and not a claim, so it is not in CLASSES: nothing offers it
+# as a licence to hold, it opens no study pool, and it is not a thing the
+# Station panel can be set to. A visitor to this country is not a person
+# with a US licence, and the program should not quietly record them as one.
+RECIPROCAL = "reciprocal"
+
+CHOICES = [NO_LICENSE] + CLASSES + [RECIPROCAL]   # what a page may be asked for
+CLASS_LABELS = {NO_LICENSE: "No licence",
+                RECIPROCAL: "Visiting under reciprocity"}
 CLASS_RANK[NO_LICENSE] = CLASS_RANK["None"] = -1
+CLASS_RANK[RECIPROCAL] = CLASS_RANK["Extra"]
 
 # Activity kinds drive the colouring; the order here is the legend order.
 KINDS = [
@@ -388,6 +411,11 @@ def privilege_table(license_class):
 
 
 def privileges_for(band_name, license_class):
+    # A visiting operator is drawn at the ceiling 97.107 sets on them, which
+    # is what an Amateur Extra may do. Their own licence is the other half
+    # and is not ours to know; the page says so.
+    if license_class == RECIPROCAL:
+        license_class = "Extra"
     return PRIVILEGES.get(band_name, {}).get(license_class, [])
 
 

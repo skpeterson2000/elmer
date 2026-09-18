@@ -902,8 +902,15 @@ def api_bandplan():
         # Technician reading Extra is looking at what they do not, and that is
         # the sheet that must never be mistaken for a licence.
         "above_yours": bool(
-            own and bandplan.CLASS_RANK.get(license, 0)
+            own and license != bandplan.RECIPROCAL
+            and bandplan.CLASS_RANK.get(license, 0)
             > bandplan.CLASS_RANK.get(own, 0)),
+        # A visiting operator under 47 CFR 97.107: what is drawn is the
+        # ceiling the rule sets, not a class anybody holds. The page says
+        # the rest of it - that their own licence binds them too, and how
+        # they identify here - because half an answer about the law is the
+        # dangerous half.
+        "reciprocal": license == bandplan.RECIPROCAL,
         "bands": _bands_for_page(license),
         "channels_60m": bandplan.CHANNELS_60M,
     })
@@ -7782,7 +7789,16 @@ def api_settings():
         # station. What it cannot do is pass itself off as the record: it is
         # marked as the operator's word unless it agrees with what the FCC
         # has on file, and every screen that shows the class says which.
-        settings["license_class"] = body["license_class"]
+        #
+        # A class somebody holds, though, or none - not every string the band
+        # plan can be asked to draw. "Visiting under reciprocity" is a view of
+        # the ceiling the FCC puts on a visitor, not a licence anybody holds,
+        # and a profile that recorded it as one would be saying something
+        # untrue about that operator on every screen that shows a class.
+        said = str(body["license_class"] or "")
+        if said and said not in bandplan.CLASSES and said != bandplan.NO_LICENSE:
+            abort(400, "that is not a licence class")
+        settings["license_class"] = said
         record = (settings.get("license") or {})
         record_class = str(record.get("licence_class")
                            or record.get("license_class") or "") if record.get("found") else ""
