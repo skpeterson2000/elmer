@@ -76,7 +76,7 @@ Python 3.11 or later with Flask, Pillow and reportlab (`requirements.txt`);
 `install.sh` fetches them with apt on Raspberry Pi OS and a virtual
 environment elsewhere, `install.ps1` on Windows. Optional, and named by the
 self-check when missing: poppler-utils to rebuild the pools or read PDFs on
-the library shelf; pyserial to talk to a NanoVNA. Serving needs no network;
+the library shelf; pyserial to talk to a NanoVNA. Serving needs no network (a new supporter key is looked up once);
 the band-conditions page, the callsign lookup, the gazetteer, the parks and
 summits, the golf course's weather, the spot feed and the updater reach out,
 and *What leaves a unit* under [Fidelity](DESIGN.md#fidelity) in DESIGN.md

@@ -520,7 +520,7 @@ def connect(url, unit_id=None, name=None, conn=None, token=None):
         _bridge = Bridge(url, unit_id, name, token).start()
     if conn is not None:
         remember(conn, _bridge)
-        _bridge.supporter = supporter.named_callsign(conn)
+        _bridge.supporter = supporter.named_holder(conn)
     return _bridge
 
 

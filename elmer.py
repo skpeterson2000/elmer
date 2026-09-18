@@ -213,9 +213,12 @@ def main():
     ap.add_argument("--build", action="store_true", help="rebuild pools from data/raw")
     ap.add_argument("--fetch", action="store_true", help="re-download sources, then rebuild")
     ap.add_argument("--stats", action="store_true", help="print progress and exit")
-    ap.add_argument("--supporter-key", metavar="CALLSIGN",
-                    help="cut the supporter key for a callsign, for the "
-                         "developer to send back with the thanks")
+    # The issuer's tool, not a menu item: cuts the supporter key for the
+    # name to be printed, for the developer to send back with the thanks.
+    # Kept out of --help on purpose - see elmer/supporter.py.
+    ap.add_argument("--supporter-key", metavar="NAME", help=argparse.SUPPRESS)
+    ap.add_argument("--revoke-key", nargs=2, metavar=("KEY", "NAME"), help=argparse.SUPPRESS)
+    ap.add_argument("--issuer-init", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--user", metavar="NAME",
                     help="with --stats, whose progress to print on a shared unit")
     ap.add_argument("--update", action="store_true",
@@ -363,10 +366,32 @@ def main():
         if not args.stats:
             return
 
-    if args.supporter_key:
-        from elmer import supporter
-        key = supporter.make_key(args.supporter_key)
-        print(key if key else f"{args.supporter_key!r} is not a callsign")
+    if args.issuer_init:
+        from elmer import roster
+        try:
+            pk = roster.init_issuer()
+        except FileExistsError as err:
+            print(err)
+            return
+        print(f"issuer key kept at {roster.ISSUER_KEY} - back it up, and keep it out of the repository")
+        print(f"public key, for PUBLIC_KEY_HEX in elmer/roster.py:\n  {pk}")
+        return
+
+    if args.supporter_key or args.revoke_key:
+        from elmer import roster, supporter
+        try:
+            if args.supporter_key:
+                key, count = supporter.issue(args.supporter_key)
+                print(f"{key}  {args.supporter_key.strip()}")
+            else:
+                was = roster.revoke(args.revoke_key[0], args.revoke_key[1])
+                count = roster.load()["count"]
+                print("taken off the roster" if was else "was not on the roster")
+        except (FileNotFoundError, ValueError) as err:
+            print(err)
+            return
+        print(f"{roster.FILE.name}: {count} key{'s' if count != 1 else ''} - commit and push it, "
+              "and send the key back with the thanks")
         return
 
     if args.stats:

@@ -129,6 +129,8 @@
       if (rbBox && rbBox.value.trim()) body.repeaterbook_token = rbBox.value.trim();   // the box is never pre-filled: typing is the only way a token arrives
       const supBox = document.getElementById('setup-supporter');
       if (supBox) body.supporter_key = supBox.value.trim();        // blank clears it
+      const supHolder = document.getElementById('setup-supporter-holder');
+      if (supHolder) body.supporter_holder = supHolder.value.trim();
       const supNamed = document.getElementById('setup-supporter-named');
       if (supNamed) body.supporter_named = supNamed.checked;
       const sharedPick = document.querySelector('input[name="setup-shared"]:checked');

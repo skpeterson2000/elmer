@@ -5378,7 +5378,7 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     cohort.disconnect(connection)
     running = netcontrol.net(create=True, difficulty=wanted,
                              name=str(name or _net_name_for(wanted))[:60])
-    running.host_supporter = supporter.named_callsign(connection)
+    running.host_supporter = supporter.named_holder(connection)
     log.info("net control opened: %s", running.name)
     # Every round the hall closes is written to this unit's hall log: each
     # person's answer with its question and its time, which is the difficulty
@@ -5496,7 +5496,7 @@ def api_net_checkin():
     unit.names = [str(n)[:60] for n in (body.get("names") or [])
                   if isinstance(n, str)][:16]
     # The supporter whose unit it is, if they chose to be named.
-    unit.supporter = supporter.normalise(body.get("supporter"))[:16]
+    unit.supporter = str(body.get("supporter") or "").strip()[:supporter.MAX_HOLDER]
     return jsonify({"checked_in": True, "unit": unit.as_dict(),
                     # The name is what the net is called tonight; the token
                     # is which net it is - see Net.token and Bridge.net_token.
@@ -6472,7 +6472,7 @@ def _thanks_names(connection):
     if running is not None:
         names = [s["name"] for s in running.show.sponsors] + running.supporters()
     else:
-        names = [supporter.named_callsign(connection)]
+        names = [supporter.named_holder(connection)]
     seen, out = set(), []
     for n in names:
         if n and n not in seen:
@@ -7551,18 +7551,19 @@ def api_settings():
         # The unit's own answer, not this account's; None puts the question back.
         db.set_shared(connection, None if body["shared"] is None else bool(body["shared"]))
         log.info("unit marked %s", {None: "not asked", True: "shared", False: "one person's"}[db.shared(connection)])
-    if "supporter_key" in body or "supporter_named" in body:
+    if any(k in body for k in ("supporter_key", "supporter_holder", "supporter_named")):
         # A supporter's key and whether to be named - see elmer/supporter.py.
         # Applied to the same dict as the rest, so a callsign changed in the
         # same save is kept.
         why = supporter.apply(settings, body.get("supporter_key"),
-                              body.get("supporter_named"))
+                              body.get("supporter_holder"), body.get("supporter_named"),
+                              check=lambda k, h: supporter.verify(k, h, fetch=True))
         if why:
             return jsonify({"ok": False, "message": why}), 400
         link = cohort.bridge()
         if link is not None:
             rec = settings.get(supporter.SETTING) or {}
-            link.supporter = rec.get("callsign", "") if rec.get("named") else ""
+            link.supporter = rec.get("holder", "") if rec.get("named") else ""
     if "repeaterbook_token" in body:
         # The operator's own RepeaterBook token: theirs, on this unit, for
         # RepeaterBook and nobody else. Never logged - see repeaters.py.

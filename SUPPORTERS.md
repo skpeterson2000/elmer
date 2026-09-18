@@ -14,9 +14,13 @@ would rather not be named here is not.
 To join them: [github.com/sponsors/skpeterson2000](https://github.com/sponsors/skpeterson2000)
 &mdash; a coffee once, or one a month. Say in the note what you would like
 printed beside your callsign, or that you would rather not be printed at all.
-Give your callsign and a supporter key comes back: typed into ELMER under
-Station, it turns the coffee card into a thank-you, and lets a hall you play
-in put your callsign on the card between rounds, if you tick the box.
+Say what you would like printed - a callsign, a name, a club - and an
+eight-character key cut for that name comes back. Typed into ELMER under
+Station with the name, it turns the coffee card into a thank-you, and lets
+a hall you play in put the name on the card between rounds, if you tick
+the box. A key is checked against the signed roster that ships with ELMER
+(`supporters.roster`, hashes only, nobody named); a brand-new key wants a
+network for a moment, or the next update, before a unit accepts it.
 
 ## Supporters
 

@@ -226,18 +226,25 @@
 
     {%- set sup = profile.settings.supporter or {} %}
     <label class="setup-label" for="setup-supporter">Supporter key</label>
-    <input id="setup-supporter" autocomplete="off" spellcheck="false"
-           placeholder="ELMER-CALLSIGN-XXXXXX" value="{{ sup.key or '' }}">
+    <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:center">
+      <input id="setup-supporter" autocomplete="off" spellcheck="false" class="mono"
+             placeholder="XXXX-XXXX" maxlength="9" style="width:8.5rem"
+             value="{{ sup.key or '' }}">
+      <input id="setup-supporter-holder" autocomplete="off" spellcheck="false"
+             placeholder="the name it was cut for" maxlength="40" style="flex:1;min-width:12rem"
+             value="{{ sup.holder or '' }}">
+    </div>
     <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
       <input type="checkbox" id="setup-supporter-named" {% if sup.named %}checked{% endif %}>
       Name me on the hall&rsquo;s thanks card
     </label>
     <p class="tiny muted">ELMER is a gift to the amateur radio community, free for
       everyone. Somebody who thanks the developer with a cup of coffee at
-      <b>github.com/sponsors/skpeterson2000</b> and gives their callsign in the note
-      gets a key back. With it ELMER says thank you instead of asking, and a hall
-      this unit plays in can put the callsign on the card between rounds &mdash;
-      only if the box above is ticked. The key opens nothing and its absence
+      <b>github.com/sponsors/skpeterson2000</b> and says in the note what they would
+      like printed &mdash; a callsign, a name, a club &mdash; gets an eight-character
+      key back, cut for that name. With it ELMER says thank you instead of asking,
+      and a hall this unit plays in can put the name on the card between rounds
+      &mdash; only if the box above is ticked. The key opens nothing and its absence
       closes nothing.</p>
 
     <label class="setup-label" for="setup-units">Distances in</label>

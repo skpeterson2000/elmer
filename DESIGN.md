@@ -4457,17 +4457,41 @@ of them.
 accounts on it; each has its own hours and its own answer, so the unit does
 not nag every visitor on behalf of the first one.
 
-**The key is cut from the callsign.** `ELMER-KC9SP-XXXXXX`: the callsign and
-six letters that are a keyed hash of it, with the salt in the source. That is
-a check against typos and casual passing-around, not cryptography, and it is
-meant to be: anyone who reads the source can cut one, and all a forged key
-earns is being thanked for a coffee that was never bought. The key carries
-the callsign it was cut for, so a key passed around thanks its original
-owner on somebody else's screen. Nothing needs registering or tracking: the
-same callsign always cuts the same key (`elmer.py --supporter-key KC9SP`), a
-lost one is cut again, and SUPPORTERS.md is the roster of who chose to be
-named. The key opens nothing and its absence closes nothing - that is what
-keeps it a gift.
+**The key is eight characters, bound to a name, and real only on the
+roster.** `XXXX-XXXX`, from an alphabet with no 0, O, 1 or I. The first
+four are the registration part, a tier letter and three characters drawn
+at random when the key is cut; the last four are the validation part, a
+keyed hash of the first four and the holder's name, so a typo or a key
+typed under somebody else's name is caught on the unit before anything is
+looked up. The holder is whatever the sponsor asked to have printed - a
+callsign, a name, a club - so a supporter with no callsign is no special
+case.
+
+Eight characters cannot carry a signature, and a program that verifies
+offline cannot keep a secret from whoever reads it, so the first draft of
+this - a keyed hash alone - was a lock whose key was in the source. What
+makes a key real is the roster: every key the developer cuts goes onto
+`supporters.roster` beside the README, a list of hashes of key and name
+signed with the developer's private key. The private key never leaves the
+developer's machine (`elmer.py --issuer-init` makes it; it lives at
+`~/.elmer/issuer.key`, outside the repository); the public key is in
+`elmer/roster.py`; a unit accepts a typed key only when it is on a roster
+whose signature checks, in plain-Python Ed25519 (`elmer/ed25519.py`,
+against the RFC's own test vectors). Reading the source gives a would-be
+counterfeiter the typo check and not the signature, so nobody cuts keys
+for their friends; a key that was issued can be taken off the roster
+again (`--revoke-key`); and the roster names nobody, so it can be public.
+Who chose to be named is SUPPORTERS.md, a different list.
+
+A key cut tonight is on tonight's roster, which ships with the next
+update. A unit that has not updated fetches the current roster from the
+repository once, when a key is typed in and not found here - the one
+request ELMER makes that is not the propagation page - and keeps the copy
+under its state directory; a unit with no network accepts the key after
+its next update, and says so. Only the developer cuts keys, by hand
+(`elmer.py --supporter-key "John Doe"`, kept out of `--help`), and sends
+them back in reply to the sponsorship note. The key opens nothing and its
+absence closes nothing - that is what keeps it a gift.
 
 **In a hall, the thanks is honorary.** A supporter who ticked "name me"
 has their callsign carried to net control in the check-in their table

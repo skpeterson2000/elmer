@@ -1,0 +1,9 @@
+{
+ "issued": "2026-09-18",
+ "count": 1,
+ "public_key": "34bcb9c9e996e6d76e42111fb9c744658b80197279a0066b671582a4bbbce74a",
+ "entries": [
+  "3856eed2d522a24502c00129bf1eaa4f7ed106128587f012eac2e6273daac834"
+ ],
+ "signature": "7fb85c426d4d005d19ea178a851d9a9dd12ce5264b4de4b120320b77d2fc5fff95a4bd82c152adb3c0bc2ef5a62fc32584affe92f87cdee1b76d0722a4ec2208"
+}
