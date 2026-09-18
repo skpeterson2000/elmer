@@ -382,11 +382,17 @@ because they carry very different authority:
   same hue darkened for paper from `band_colour(name, ink=True)`.
 
   Four families, one a kind of thing, so a colour says what it is about
-  before its label is read. **Bands** are the saturated rainbow, tuned
-  against simulated red-green and blue-yellow colour blindness so that
-  the eight bands everyone uses (160, 80, 40, 20, 15, 10, 2 m, 70 cm)
-  stay apart by lightness where hue collapses, and every one reads on the
-  dark panel at 4.5:1 or better. **Modes** — what happens on a band, CW
+  before its label is read. **Bands** each have a colour of their own, chosen
+  so that neighbours are far apart - warm beside cool, light beside dark,
+  the way a box of coloured pencils is told apart, with no order in the
+  hues to be read as anything. They used to run the rainbow in frequency
+  order, which put the nearest colours on the adjacent bands, the very
+  ones that have to be told apart, and made the row of band buttons read
+  as a pride flag on the dashboard. Chosen against simulated red-green
+  and blue-yellow colour blindness so that the eight bands everyone uses
+  (160, 80, 40, 20, 15, 10, 2 m, 70 cm) stay apart by hue and lightness
+  both, every adjacent pair close to 30 units apart in CIELAB or more, and every
+  one reads on the dark panel at 4.5:1 or better. **Modes** — what happens on a band, CW
   the same colour on every band — are the pastel family: the same hues
   lightened and softened, so a mode reads as a softer thing than a band
   even before the label. **Licence classes** are the earth tones, the

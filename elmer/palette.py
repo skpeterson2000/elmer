@@ -3,16 +3,16 @@
 Four families, one a kind of thing, so that a colour on any page can be
 read for what it is about before the label is read:
 
-- BANDS, the saturated rainbow in frequency order. The family that has to
-  be told apart at a glance and remembered: a band's colour is the same
+- BANDS, one distinct colour a band, neighbours far apart. The family that
+  has to be told apart at a glance and remembered: a band's colour is the same
   wherever its name appears - the reach map, the band buttons, the Lab's
   chips, the outlook rows, the printed chart.
 - KIND_COLOUR, for what happens on a band - CW, digital, phone, image,
   beacons, satellite, repeaters, simplex, calling, special - the same
-  colour for a kind on every band. The pastel family: the same hues
-  lightened and softened, so that a mode reads as a softer thing than a
-  band even before the label is read, and the two rainbows stay out of
-  each other's way.
+  colour for a kind on every band. The pastel family: lightened and
+  softened, so that a mode reads as a softer thing than a band even
+  before the label is read, and the two families stay out of each
+  other's way.
 - CLASS_COLOUR, for the licence classes and the licence-free services:
   the earth tones, the strata a person climbs through, older and quieter
   than the spectrum.
@@ -23,21 +23,27 @@ read for what it is about before the label is read:
 
 Nobody publishes a colour a band: the FCC's rules carry none, and the
 ARRL's band chart colours its bars by what may be sent there - CW, data,
-phone, image - not by which band it is. So the band hues are ELMER's
-own, and they are chosen so the order of the spectrum is the order of the
-rainbow: red at 160 m, through yellow and green to blue at 10 m, then
-violet and pink for VHF and UHF. A band not yet learnt can be placed by
-its neighbours. 11 m is CB, not amateur, and is grey on purpose: it
-borrows no hue from a band. The colour is never the only cue; the name is
-always printed beside it.
+phone, image - not by which band it is. So the band hues are ELMER's own.
+They used to run the rainbow in frequency order, red at 160 m through to
+violet at UHF, and that had two faults: adjacent bands, which are the ones
+that have to be told apart, were the nearest colours of all, and the whole
+row read as a pride flag on the dashboard rather than as a set of things.
+Now each band has a colour of its own, chosen so that its neighbours are
+far from it - warm beside cool, light beside dark - the way a set of
+resistors or a box of coloured pencils is told apart, with no order in the
+hues to be read as anything. 11 m is CB, not amateur, and is grey on
+purpose: it borrows no hue from a band. The colour is never the only cue;
+the name is always printed beside it.
 
-Tuned against simulated colour blindness (Machado 2009, deutan, protan
-and tritan) with the eight bands everyone uses - 160, 80, 40, 20, 15,
-10, 2 m and 70 cm - kept apart by lightness where hue collapses: red-green
-blindness turns every pink into a blue and every green into a yellow, so
-those bands step light and dark along the spectrum rather than only round
-it. The rarer bands may sit near their neighbours. Every band reads on the
-dark panel at 4.5:1 or better, because a band's name is printed in it.
+Chosen against simulated colour blindness (Machado 2009, deutan, protan
+and tritan) with the eight bands everyone uses - 160, 80, 40, 20, 15, 10,
+2 m and 70 cm - kept apart under each by hue and by lightness both, so
+that red-green blindness, which turns every pink into a blue and every
+green into a yellow, still finds them distinct; every adjacent pair of
+bands is close to 30 units apart in CIELAB or more, where 10 is plainly
+different. The rarer bands sit where they do not crowd a common one. Every
+band reads on the dark panel at 4.5:1 or better, because a band's name is
+printed in it.
 
 Each band has two values: the colour for the dark screen, and the same
 hue darkened into an ink for white paper. Keyed by the canonical name
@@ -47,23 +53,23 @@ the propagation model and every URL write it without the space.
 
 # The band family. Frequency order; the screen colour, then the ink.
 BANDS = {
-    "160 m": ("#ff3b3b", "#c11f25"),
-    "80 m": ("#f5871a", "#9f4c00"),
-    "60 m": ("#d9b25a", "#7a6018"),
-    "40 m": ("#ffe14d", "#726300"),
-    "30 m": ("#aef03c", "#377100"),
-    "20 m": ("#52e888", "#00752e"),
-    "17 m": ("#35d0b8", "#007361"),
-    "15 m": ("#5cc0f8", "#006b96"),
-    "12 m": ("#7a9cff", "#3f60ad"),
-    "11 m": ("#9aa5b1", "#5b646d"),
-    "10 m": ("#5570ff", "#4258cd"),
-    "6 m": ("#a070ff", "#724cbf"),
-    "2 m": ("#ff5ebe", "#b02c7e"),
-    "1.25 m": ("#d68af0", "#864b9b"),
-    "70 cm": ("#ffcbea", "#7e586f"),
-    "33 cm": ("#dc94c0", "#895174"),
-    "23 cm": ("#ffd9c9", "#785d52"),
+    "160 m": ("#ef5a4c", "#ea1805"),
+    "80 m": ("#74b9f2", "#0575d2"),
+    "60 m": ("#a9a95a", "#797939"),
+    "40 m": ("#f6c445", "#986d00"),
+    "30 m": ("#9d9470", "#7e7552"),
+    "20 m": ("#3dd6ae", "#138568"),
+    "17 m": ("#f4b183", "#c65304"),
+    "15 m": ("#c7b0ff", "#824fff"),
+    "12 m": ("#f7c1b3", "#db3308"),
+    "11 m": ("#9aa5b1", "#667789"),
+    "10 m": ("#5b7cff", "#4268ff"),
+    "6 m": ("#fff08a", "#857400"),
+    "2 m": ("#ff5ec8", "#dd0092"),
+    "1.25 m": ("#a3cf8c", "#4c842f"),
+    "70 cm": ("#8ff0f5", "#038187"),
+    "33 cm": ("#d8b78e", "#9c6a2c"),
+    "23 cm": ("#dff5d8", "#34871a"),
 }
 
 # The mode family: pastel on the screen, the same hues as ink on paper.
