@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-18
 
+- The User's Guide's first-start picture is a first start: the Start here panel and its three steps, from the artwork folder's screenshot; the settled dashboard it showed before now illustrates the status strip
 - The User's Guide catches up with the day: the coffee card and the supporter key, Resend and the Q-codes on the CW page, the audio key, the ladder, the tiers and the season in CW Baseball, again, QRS and QRQ at the plate, the paddle on the phone, the achievements and the printable awards, and the Library's games topic; the shelf's copy is rebuilt from it when ELMER next starts
 - The Library's topics have a Games and the table entry, so the User's Guide's chapters on the Gaming Center, the tournament, the shootout, CutThroat, golf, CW Baseball, net control and the Lounge are listed there; they were bookmarked and searchable all along, but no topic named them, so only CW Baseball showed, and only under CW
 - ELMER's awards can be printed: the badges an account holds sit as plaques on the Library's bottom shelf and on a shelf in the Lounge, a tap takes one down for a closer look, and Open builds it as a page for the wall - the certificates' own shape, a star for the medal, the badge's name, whose and when - on the print shelf, open in the browser's viewer where the print button is; only a badge held is printed, because the page says it was earned

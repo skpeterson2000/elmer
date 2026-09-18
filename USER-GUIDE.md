@@ -31,7 +31,7 @@ Here is what that screen is, so the choice is yours and an informed one.
 
 The dashboard opens with a panel headed **Start here**, three numbered steps: answer some questions, add your callsign, and set where you are. The second and third are optional, and the panel goes away after your first answered question. On a Pi, the unit prints its address on the network when it starts, and other people on the same wifi can open ELMER at that address in their own browser.
 
-![The dashboard on a first start: the Start here panel, the class cards below it](docs/screenshots/guide/dashboard.png)
+![The dashboard on a first start: the Start here panel and its three steps](docs/screenshots/guide/first-start.png)
 
 **Kiosk mode and the Exit button.** Started with `--kiosk` on a Pi, or as its own window on Windows, ELMER fills the screen and shows an **Exit** button in the top corner. Exit stops ELMER and closes the window, after asking if anyone is playing on the unit from another device. Links that lead outside ELMER open a page that says so first, with a way back, so a full-screen browser with no back button never strands you.
 
@@ -42,6 +42,8 @@ The dashboard opens with a panel headed **Start here**, three numbered steps: an
 ### The status strip
 
 To the right of the tabs: the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best.
+
+![The dashboard a few days in: the space weather strip, the standing, and the tracks](docs/screenshots/guide/dashboard.png)
 
 **Achievements.** Lower on the dashboard, thirty-four of them, filled in as they are earned: the study milestones, the mock exams passed, and twelve for the code - from First Dit to The Whole Code, the rating's rungs, and CW Baseball's Base Hit, Big League and QSM?, the first resend ever asked for in code and answered. Any badge held can be printed as a page for the wall from the Library's bottom shelf.
 
