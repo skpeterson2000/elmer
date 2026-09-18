@@ -46,7 +46,13 @@ PUBLIC_KEY_HEX = "34bcb9c9e996e6d76e42111fb9c744658b80197279a0066b671582a4bbbce7
 PRODUCT = "elmer-supporter"
 FILE = paths.ROOT / "supporters.roster"           # ships with the program
 CACHE = paths.STATE / "supporters.roster"         # fetched, kept on the unit
-URL = "https://raw.githubusercontent.com/skpeterson2000/elmer/main/supporters.roster"
+# Where the current roster is fetched from: the repository's raw file, and
+# the API's copy of the same file behind it, because the raw host is a
+# cache that can lag a push by minutes and a person typing a key that was
+# cut for them an hour ago should not be told to wait.
+URLS = ["https://raw.githubusercontent.com/skpeterson2000/elmer/main/supporters.roster",
+        "https://api.github.com/repos/skpeterson2000/elmer/contents/supporters.roster?ref=main"]
+URL = URLS[0]                                     # tests set this to "" for no network
 FETCH_TIMEOUT = 8
 ISSUER_KEY = Path(os.environ.get("ELMER_ISSUER_KEY") or (Path.home() / ".elmer" / "issuer.key"))
 
@@ -144,19 +150,30 @@ def contains(key, holder, fetch=False, pubkey=None):
     return False
 
 
+def _get(url, timeout):
+    """The roster's text from one address; the API's copy is asked for raw."""
+    req = urllib.request.Request(url, headers={"User-Agent": "ELMER",
+                                               "Accept": "application/vnd.github.raw+json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read(1 << 20).decode("utf-8")
+
+
 def fetch_current(pubkey=None, url=None, timeout=FETCH_TIMEOUT):
     """The roster as the repository has it now, kept on the unit when it
     is newer than what is here. (roster, None) or (None, reason)."""
-    url = url or URL
-    if not url:
+    if url is None and not URL:
         return None, "no roster to fetch from"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "ELMER"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            text = resp.read(1 << 20).decode("utf-8")
-    except Exception as err:            # noqa: BLE001 - any failure is "no network"
-        return None, f"could not fetch the roster: {err.__class__.__name__}"
-    roster, why = parse(text, pubkey)
+    urls = [url] if url else list(URLS)
+    roster, why = None, "no roster to fetch from"
+    for candidate in urls:
+        try:
+            text = _get(candidate, timeout)
+        except Exception as err:        # noqa: BLE001 - any failure is "no network"
+            why = f"could not fetch the roster: {err.__class__.__name__}"
+            continue
+        roster, why = parse(text, pubkey)
+        if roster is not None:
+            break
     if roster is None:
         return None, why
     have = load(pubkey)
