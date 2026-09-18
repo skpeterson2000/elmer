@@ -18,6 +18,13 @@ copying rather than a way of learning to tell two sounds apart. So this
 presses Begin, waits well past any plausible interval, and checks that
 nothing has moved.
 
+The answer. The letter that goes on the screen is the one the learner picked,
+green when it was right and red when it was not; the name that is said is the
+character that was actually sent, either way. A wrong pick must not be able to
+put a wrong name against a sound - that is the one thing this pane could do
+that would teach the wrong thing - so the test picks wrong on purpose and
+checks what was said.
+
 This test requires Chromium and fails - not skips - without it, and it asks
 for the autoplay policy that lets an audio clock run without a click: a
 headless browser suspends its AudioContext otherwise, and a lesson driven by
@@ -72,6 +79,7 @@ URL = f"http://127.0.0.1:{PORT}/cw#learn"
 LESSON_JS = r"""(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const $ = id => document.getElementById(id);
+  const chip = c => [...$('cw-lesson-chars').children].find(b => b.dataset.char === c);
   const out = {};
   $('cw-qsay').click();                       // no Q keying before each press
   const slider = $('cw-lesson');
@@ -80,25 +88,49 @@ LESSON_JS = r"""(async () => {
   out.review_has_code = !!$('cw-lesson-chars').querySelector('.cw-code i');
   $('cw-learn-begin').click();
   await sleep(2500);
+  const sent = learnList[learnAt];
   out.sounded = {count: $('cw-learn-count').textContent,
                  again: !$('cw-learn-again').hidden,
-                 got: !$('cw-learn-got').hidden,
                  begin_gone: $('cw-learn-begin').hidden,
+                 answering: $('cw-lesson-chars').classList.contains('picking'),
                  named_yet: $('cw-teach-word').textContent};
   await sleep(3500);
   out.still = $('cw-learn-count').textContent;
-  $('cw-learn-got').click();
+
+  // Wrong on purpose: the letter shown is theirs, in red; the word is the
+  // truth, and the same character comes round again.
+  const wrong = learnList.find(c => c !== sent);
+  chip(wrong).click();
   await sleep(500);
-  out.named = {letter: $('cw-teach-letter').textContent,
-               word: $('cw-teach-word').textContent,
-               shown: $('cw-teach-word').classList.contains('show')};
+  const letter = $('cw-teach-letter');
+  out.missed = {shown: letter.textContent, red: letter.classList.contains('wrong'),
+                green: letter.classList.contains('right'),
+                word: $('cw-teach-word').textContent, was: phoneticWord(sent)};
+  await sleep(3000);
+  out.again_same = {count: $('cw-learn-count').textContent, sent: learnList[learnAt] === sent};
+
+  // Right this time, by clicking it.
+  chip(sent).click();
+  await sleep(500);
+  out.got = {shown: letter.textContent, green: letter.classList.contains('right'),
+             red: letter.classList.contains('wrong'), word: $('cw-teach-word').textContent};
   await sleep(3000);
   out.moved_on = {count: $('cw-learn-count').textContent,
                   waiting: !$('cw-learn-again').hidden};
+
+  // And by typing it, for anybody with a keyboard under their hands.
+  const second = learnList[learnAt];
+  document.dispatchEvent(new KeyboardEvent('keydown', {key: second, bubbles: true}));
+  await sleep(500);
+  out.typed = {shown: letter.textContent, green: letter.classList.contains('right')};
+  await sleep(3000);
+  out.after_typed = $('cw-learn-count').textContent;
+
   $('cw-learn-stop').click();
   await sleep(500);
   out.stopped = {begin_back: !$('cw-learn-begin').hidden,
-                 again_gone: $('cw-learn-again').hidden};
+                 again_gone: $('cw-learn-again').hidden,
+                 answering: $('cw-lesson-chars').classList.contains('picking')};
   return JSON.stringify(out);
 })()"""
 
@@ -129,24 +161,41 @@ def main():
         except Exception:
             time.sleep(0.2)
 
-    print("\n-- one at a time, and the machine waits --")
+    print("\n-- one at a time, and the machine waits on an answer --")
     got = json.loads(_browser.evaluate(URL, LESSON_JS, settle=3.0, flags=FLAGS))
     check("the lesson's characters are on the screen to compare against", got["review"], 3)
     check("  drawn as shapes, not written as dots", got["review_has_code"], True)
     check("Begin sounds the first one and hands over the controls",
-          (got["sounded"]["count"], got["sounded"]["again"], got["sounded"]["got"],
-           got["sounded"]["begin_gone"]), ("1 of 3", True, True, True))
-    check("  and does not name it yet - that is what the thinking is for",
+          (got["sounded"]["count"], got["sounded"]["again"], got["sounded"]["begin_gone"]),
+          ("1 of 3", True, True))
+    check("  the row above becomes the answer buttons", got["sounded"]["answering"], True)
+    check("  and nothing is named yet - that is what the thinking is for",
           got["sounded"]["named_yet"], "")
     # The heart of it. Nothing moves on its own.
     check("left alone, it is still on the same character", got["still"], "1 of 3")
-    check("'I have it' names the character, phonetically",
-          (got["named"]["letter"], got["named"]["word"], got["named"]["shown"]),
-          ("K", "Kilo", True))
+
+    print("\n-- a wrong answer: their letter in red, the true name spoken --")
+    check("the letter shown is the one they picked, and it is red",
+          (got["missed"]["shown"] == got["missed"]["was"][0], got["missed"]["red"],
+           got["missed"]["green"]), (False, True, False))
+    check("  the word said is the character that was sent, not the mistake",
+          got["missed"]["word"], got["missed"]["was"])
+    check("  and the same character comes round again",
+          (got["again_same"]["count"], got["again_same"]["sent"]), ("1 of 3", True))
+
+    print("\n-- a right answer: their letter in green, and the same name --")
+    check("the letter shown is green",
+          (got["got"]["green"], got["got"]["red"]), (True, False))
+    check("  named the same way it is named when they miss it",
+          got["got"]["word"], got["missed"]["word"])
     check("  and only then does the next one sound, and wait in its turn",
           (got["moved_on"]["count"], got["moved_on"]["waiting"]), ("2 of 3", True))
+    check("typed rather than clicked, it is the same answer",
+          got["typed"]["green"], True)
+    check("  and moves on the same way", got["after_typed"], "3 of 3")
     check("Stop puts the lesson away",
-          (got["stopped"]["begin_back"], got["stopped"]["again_gone"]), (True, True))
+          (got["stopped"]["begin_back"], got["stopped"]["again_gone"],
+           got["stopped"]["answering"]), (True, True, False))
 
     print("\n-- run together, each one named as it goes by --")
     got = json.loads(_browser.evaluate(URL, TOGETHER_JS, settle=3.0, flags=FLAGS))

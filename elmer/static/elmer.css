@@ -798,6 +798,16 @@ table.data tr.denied td { opacity: .45; }
   min-height: 3.2rem; opacity: 0; transition: opacity .18s ease;
 }
 .cw-teach-letter.show { opacity: 1; }
+/* The learner's own pick, in the lesson: green when it was right, red when
+   it was not. The letter shown is always the one they chose - the voice says
+   the one that was sent - so the colour is about their answer and the word is
+   about the truth, and the two are never confused with each other. */
+.cw-teach-letter.right { color: var(--green); }
+/* The lesson's characters while they are the answer buttons: the row says so
+   without a label, and the cursor agrees with it. */
+.cw-chars.picking .cw-chart-cell { border-color: rgba(255,180,84,.45); cursor: pointer; }
+.cw-chars.picking .cw-chart-cell:hover { border-color: var(--amber); }
+.cw-teach-letter.wrong { color: var(--red); }
 .cw-teach-letter small { display: block; font: .8rem var(--sans); color: var(--dim);
   letter-spacing: 0; margin-top: .3rem; }
 .cw-teach-hint { font: .78rem var(--sans); color: var(--dimmer); }

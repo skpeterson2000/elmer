@@ -406,7 +406,7 @@ document.getElementById('cw-teach-stop').addEventListener('click', () => {
    this turns into once the characters are known. T-ball first. */
 const LEARN_LEAD_MS = 900;          // a breath after "ready" and before the first one
 const LEARN_NAMED_MS = 1500;        // the name stands this long before the next sounds
-let learnOn = false, learnAt = 0, learnList = [];
+let learnOn = false, learnAt = 0, learnList = [], learnWaiting = false;
 
 function learnShow(state) {
   const set = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
@@ -414,8 +414,12 @@ function learnShow(state) {
   set('cw-hear', !learnOn && !teaching);
   set('cw-start-copy', !learnOn);
   set('cw-learn-again', learnOn && state === 'wait');
-  set('cw-learn-got', learnOn && state === 'wait');
   set('cw-learn-stop', learnOn);
+  /* The lesson's characters are the answer buttons while one is in the air,
+     and they are lit as such: this is the only time clicking one does not
+     simply play it. */
+  const row = document.getElementById('cw-lesson-chars');
+  if (row) row.classList.toggle('picking', learnOn && state === 'wait');
   const n = document.getElementById('cw-learn-count');
   if (n) n.textContent = learnOn ? (learnAt + 1) + ' of ' + learnList.length : '';
 }
@@ -428,7 +432,7 @@ function learnHint(text) {
 function learnClear() {
   const letter = document.getElementById('cw-teach-letter');
   const word = document.getElementById('cw-teach-word');
-  if (letter) letter.classList.remove('show');
+  if (letter) letter.classList.remove('show', 'right', 'wrong');
   if (word) { word.textContent = ''; word.classList.remove('show'); }
 }
 
@@ -442,21 +446,42 @@ async function learnSound() {
   await playSymbol({char: c, code: CODE[c] || ''}, localTiming(),
                    document.getElementById('cw-teach-code'));
   if (!learnOn) return;
+  learnWaiting = true;
   learnShow('wait');
-  learnHint('no rush - compare it with the shapes above');
+  learnHint('no rush - which one was it? pick it from the row above, or type it');
 }
 
-async function learnGot() {
-  if (!learnOn) return;
-  const c = learnList[learnAt];
+/* The answer, and what is done with it.
+ *
+ * The letter put on the screen is the one the learner picked, in green if it
+ * was right and red if it was not. The voice says the character that was
+ * actually sent, either way: "Kilo" after a chime when they picked K, and
+ * "Kilo" after a buzz when they picked R. That is the same rule the rest of
+ * the page keys on - the word is always the truth, so the sound of a
+ * character is coupled to its name and never to somebody's mistake - and it
+ * is what makes a wrong answer worth having rather than just wrong.
+ *
+ * A miss brings the same character round again. Nothing is scored and
+ * nothing is recorded here: this is the one place on the page where a person
+ * is finding out what a sound is, and a record of how many times it took
+ * would turn that into a test. The drills upstairs keep the numbers.
+ */
+async function learnPick(picked) {
+  if (!learnOn || !learnWaiting) return;
+  learnWaiting = false;
+  const actual = learnList[learnAt];
+  const right = picked === actual;
   const letter = document.getElementById('cw-teach-letter');
-  letter.innerHTML = escapeHTML(c);
-  letter.classList.add('show');
+  letter.innerHTML = escapeHTML(picked);
+  letter.classList.remove('right', 'wrong');
+  letter.classList.add('show', right ? 'right' : 'wrong');
   learnShow('named');
-  learnHint('');
-  if (teachUI.reveal()) sayBack(c, document.getElementById('cw-teach-word'));
+  learnHint(right ? 'that is the one' : 'that was ' + phoneticWord(actual) + ' - here it is again');
+  if (teachUI.reveal()) sayBack(actual, document.getElementById('cw-teach-word'), right);
+  else cue(right);
   await sleep(LEARN_NAMED_MS);
   if (!learnOn) return;
+  if (!right) { await learnSound(); return; }     // round again, at their pace
   learnAt += 1;
   if (learnAt >= learnList.length) { learnEnd(true); return; }
   await learnSound();
@@ -464,6 +489,7 @@ async function learnGot() {
 
 function learnEnd(finished) {
   learnOn = false;
+  learnWaiting = false;
   teachHalt();
   learnClear();
   learnShow('');
@@ -478,6 +504,7 @@ async function learnBegin() {
   if (!learnList.length) return;
   teachHalt();
   learnOn = true;
+  learnWaiting = false;
   learnAt = 0;
   learnClear();
   learnShow('sounding');
@@ -488,14 +515,35 @@ async function learnBegin() {
 
 document.getElementById('cw-learn-begin').addEventListener('click', learnBegin);
 document.getElementById('cw-learn-again').addEventListener('click', () => { if (learnOn) learnSound(); });
-document.getElementById('cw-learn-got').addEventListener('click', learnGot);
 document.getElementById('cw-learn-stop').addEventListener('click', () => learnEnd(false));
+
+/* Typed, for anybody with a keyboard under their hands - the same answer as
+   clicking it. Only the lesson's own characters count: the row above is the
+   menu, and a stray key is a stray key and not a wrong answer. */
+document.addEventListener('keydown', e => {
+  if (!learnOn || !learnWaiting) return;
+  if (e.metaKey || e.ctrlKey || e.altKey || e.key.length !== 1) return;
+  const k = e.key.toUpperCase();
+  if (!learnList.includes(k)) return;
+  e.preventDefault();
+  learnPick(k);
+});
 
 /* Anything drawn as a code cell plays when clicked - the chart, and the
    lesson's own characters. */
 document.addEventListener('click', e => {
   const cell = e.target.closest('.cw-chart-cell');
   if (!cell || !cell.dataset.code) return;
+  /* While the lesson is waiting on an answer, the lesson's own characters
+     are the answer buttons rather than a way of hearing them: the character
+     in the air is the question, and playing the answer aloud before choosing
+     it would be a different exercise. Again is there to hear the question
+     once more, and the chart pane is there to browse. */
+  if (learnOn && learnWaiting && cell.closest('#cw-lesson-chars')) {
+    e.preventDefault();
+    learnPick(cell.dataset.char);
+    return;
+  }
   document.querySelectorAll('.cw-chart-cell.playing')
     .forEach(c => c.classList.remove('playing'));
   cell.classList.add('playing');

@@ -1571,13 +1571,40 @@ comparing what they just heard against the shapes on the screen is not on
 a clock, and how long that takes is theirs and not the program's.
 
 So `learnBegin` sounds one character and stops. Again as often as they
-like; named only when they say they have it; the next one after that.
-The lesson's characters stay above with their code the whole way through,
-to be compared against and clicked. Nothing is timed and nothing is
-scored, deliberately: this is the smallest game on the page, and the one
-everything else is built on. The rating, the copying speed, the games -
-all of that is what this turns into once the characters are known.
-T-ball first, and the major league is the same sport.
+like; then they answer, by clicking the character in the row above or by
+typing it. The lesson's characters stay above with their code the whole
+way through, to be compared against: the answer is deducible from the
+screen rather than from memory, which is what makes guessing a reasonable
+thing to ask of somebody meeting a character for the first time. Nothing
+is timed and nothing is scored, deliberately: this is the smallest game
+on the page, and the one everything else is built on. The rating, the
+copying speed, the games - all of that is what this turns into once the
+characters are known. T-ball first, and the major league is the same
+sport.
+
+What the answer does, and why it is built this way. The letter on the
+screen is the learner's own, green when right and red when wrong, and
+the name said aloud is always the character that was sent. Two different
+things are happening and they are deliberately not the same thing. The
+colour is about their answer: a right one is affirmed, a wrong one is
+marked, and a mark that costs nothing but is unmistakable is enough to
+make the next attempt more careful - positive punishment in the plain
+sense, something added rather than taken away. The spoken name is about
+the sound: it arrives right after the tone, every time, right or wrong,
+so the tone and the word are paired on every single presentation and the
+pairing is never weakened by a miss. Naming the learner's mistake instead
+would pair a sound with the wrong word, which is the one thing this pane
+could do that would teach something that has to be unlearnt later. A miss
+brings the same character round again, so the pairing repeats while the
+attention is on it.
+
+None of that is on the screen and none of it needs to be. The learner
+sees a red letter and hears the right name. The mechanism is the
+program's business; the effect is theirs. It is also confined to this
+pane: the drills above keep scores and say nothing about right and wrong
+in colour, because a learner who still needs the scaffolding is not the
+same person as one being timed, and leaving it up would turn a measure
+into a crutch.
 
 Naming moved into `sayBack` at the same time, which was the whole of the
 bug behind it: "name it afterwards" put the bare letter on the screen,
