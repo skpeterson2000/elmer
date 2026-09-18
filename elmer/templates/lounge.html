@@ -53,8 +53,24 @@
   the tee time when the clubhouse has one booked.
 </p>
 
+{# ELMER's own badges, on the shelf under the wall - the same plaques the
+   Library shows, taken down for a look or printed from here. #}
+{% if awards.earned %}
+<div class="panel mt" data-award-who="{{ profile.display_name or profile.callsign }}{% if profile.callsign and profile.callsign not in (profile.display_name or '') %}, {{ profile.callsign }}{% endif %}">
+  <div class="panel-title">On the shelf &mdash; ELMER&rsquo;s awards</div>
+    <div class="aw-badges">
+      {% for a in awards.earned %}
+        <button type="button" class="aw-badge" data-award='{{ a|tojson|forceescape }}' title="{{ a.description }} &mdash; {{ a.when }}">
+          <span class="aw-star">&#9733;</span><b>{{ a.name }}</b><small>{{ a.when }}</small>
+        </button>
+      {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 {% block scripts %}
+<script src="{{ asset('awardcard.js') }}"></script>
 <style>
 .lounge { position: relative; width: 100%; max-width: 1400px; margin: 0 auto; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
 .lg-room { display: block; width: 100%; height: auto; }

@@ -30,7 +30,7 @@ from flask import (Flask, Response, abort, g, jsonify, render_template,
                    request, send_from_directory, url_for)
 
 from . import (
-    activations, activationspdf, antenna_advice, antennapdf, autoplay, awards, bandpdf,
+    activations, activationspdf, antenna_advice, antennapdf, autoplay, awardpdf, awards, bandpdf,
     bandplan, bench, bugreport, calibrate, callsign, celestial,
     certpdf, cohort, conductors, cw, db, devreset,
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
@@ -2119,12 +2119,65 @@ def prints_page():
 # the library: the operator's own manuals, indexed
 # --------------------------------------------------------------------------
 
+def _my_awards(connection):
+    """The badges this account holds, named and dated, oldest first, and
+    how many are still to earn - for the Library's bottom shelf and the
+    Lounge."""
+    held = game.earned(connection)
+    mine = [{"code": code, "name": name, "description": desc, "when": _award_when(held[code])}
+            for code, name, desc in game.ACHIEVEMENTS if code in held]
+    return {"earned": mine, "more": len(game.ACHIEVEMENTS) - len(mine)}
+
+
+def _award_when(stamp):
+    try:
+        d = date.fromisoformat(str(stamp)[:10])
+        return f"{d.day} {d:%B %Y}"
+    except ValueError:
+        return str(stamp or "")
+
+
 @app.route("/library")
 def library_page():
     """The shelf of manuals this operator owns, searchable to the page."""
+    connection = conn()
     return render_template("library.html", shelf_path=str(library.SHELF),
                            topics=library.TOPICS, paper_kinds=papers.KINDS,
-                           **profile_block(conn()))
+                           awards=_my_awards(connection),
+                           **profile_block(connection))
+
+
+@app.route("/api/awards/mine")
+def api_awards_mine():
+    """ELMER's own badges this account holds, for the shelf and the lounge."""
+    return jsonify(_my_awards(conn()))
+
+
+@app.route("/api/awards/print", methods=["POST"])
+def api_awards_print():
+    """One badge as a page for the wall, built on demand and kept on the
+    print shelf; the reply says where it is. Only a badge held is printed:
+    the page says it was earned, so it is."""
+    body = request.get_json(silent=True) or {}
+    code = str(body.get("code") or "").strip()
+    if code not in game.ACHIEVEMENT_INDEX:
+        abort(404, "no such badge")
+    connection = conn()
+    held = game.earned(connection)
+    if code not in held:
+        return jsonify({"ok": False, "message": "not earned yet - it is printed when it is"}), 409
+    name, desc = game.ACHIEVEMENT_INDEX[code]
+    profile = db.get_profile(connection)
+    who = (profile.get("display_name") or profile.get("name") or "").strip()
+    call = (profile.get("callsign") or "").strip()
+    pdf = awardpdf.build(name, desc, who or call or "the operator", callsign=call,
+                         when=_award_when(held[code]), code=code)
+    row = prints.keep(pdf, f"award-{code}.pdf", "award", f"Award - {name}",
+                      {"code": code, "who": who, "callsign": call})
+    log.info("award printed: %s for %s", name, who or call or "the operator")
+    return jsonify({"ok": True, "id": row["id"], "name": row["name"], "title": row["title"],
+                    "view": url_for("print_view", print_id=row["id"]),
+                    "pdf": url_for("print_file", print_id=row["id"])})
 
 
 @app.route("/api/library")
@@ -4262,7 +4315,9 @@ LOUNGE_SMALL = [
 @app.route("/lounge")
 def lounge_page():
     """A room with the operator's own things in it - the wall as decor."""
-    return render_template("lounge.html", frames=LOUNGE_FRAMES, small=LOUNGE_SMALL, **profile_block(conn()))
+    connection = conn()
+    return render_template("lounge.html", frames=LOUNGE_FRAMES, small=LOUNGE_SMALL,
+                           awards=_my_awards(connection), **profile_block(connection))
 
 
 @app.route("/api/awards")

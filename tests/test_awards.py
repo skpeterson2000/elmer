@@ -84,6 +84,30 @@ def main():
                              cwd=str(Path(__file__).resolve().parents[1]), capture_output=True, text=True).stdout.split()
     check("the program carries nobody's wall", tracked, [])
 
+    print("\n-- ELMER's own badges, printed for the wall --")
+    from elmer import db, game
+    c.post("/api/users/switch", json={"id": 1})
+    r = c.post("/api/awards/print", json={"code": "cw_whole"})
+    check("a badge not held is not printed", (r.status_code, r.get_json()["ok"]), (409, False))
+    r = c.post("/api/awards/print", json={"code": "nope"})
+    check("  nor one that is not a badge", r.status_code, 404)
+    dbc = db.connect()
+    dbc.user_id = 1
+    game.award(dbc, ["cw_first", "first_light"])
+    dbc.commit()
+    mine = c.get("/api/awards/mine").get_json()
+    check("the shelf lists what is held, in the list's order", [a["name"] for a in mine["earned"]], ["First Light", "First Dit"])
+    check("  and how many are left", mine["more"], len(game.ACHIEVEMENTS) - 2)
+    r = c.post("/api/awards/print", json={"code": "cw_first"})
+    d = r.get_json()
+    check("a badge held is printed to the shelf", (r.status_code, d["ok"], d["name"], d["title"]), (200, True, "award-cw_first.pdf", "Award - First Dit"))
+    pdf = c.get(d["pdf"])
+    check("  and the page opens inline as a PDF", (pdf.status_code, pdf.mimetype, pdf.data[:4]), (200, "application/pdf", b"%PDF"))
+    r = c.get("/library")
+    check("the Library's bottom shelf shows the plaque", (r.status_code, b"First Dit" in r.data, b"awardcard.js" in r.data), (200, True, True))
+    r = c.get("/lounge")
+    check("  and so does the Lounge", (r.status_code, b"First Dit" in r.data), (200, True))
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

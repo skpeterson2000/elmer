@@ -1411,3 +1411,33 @@ table.worth tr.worth-me td.worth-num { color: var(--text); }
   background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px;
   padding: .45rem .9rem; z-index: 60; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
 .cw-qsay b { font-size: 1.05rem; margin-right: .5rem; }
+
+/* ELMER's own awards: the plaques on the Library's bottom shelf and in the
+   Lounge, and the card a plaque becomes when it is taken down for a look -
+   laid out the way the printed page is. */
+.aw-badges { display: flex; flex-wrap: wrap; gap: .5rem; }
+.aw-badge { display: flex; flex-direction: column; align-items: center; gap: .1rem; min-width: 8.5rem;
+  padding: .55rem .7rem; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2);
+  color: var(--text); cursor: pointer; font: inherit; }
+.aw-badge:hover { border-color: var(--amber); }
+.aw-badge .aw-star { color: var(--amber); font-size: 1.3rem; line-height: 1; }
+.aw-badge b { font-size: .9rem; }
+.aw-badge small { font-size: .7rem; color: var(--dimmer); }
+.award-peek { border: none; border-radius: 12px; padding: 1rem; background: var(--panel); color: var(--text);
+  max-width: min(92vw, 52rem); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.award-peek::backdrop { background: rgba(0,0,0,.55); }
+.award-page { background: #fbf8f1; color: #1b2430; border: 3px solid #c8a24a; outline: 1px solid #c8a24a; outline-offset: -8px;
+  padding: 1.4rem 1.6rem; aspect-ratio: 11 / 8.5; display: flex; flex-direction: column; justify-content: space-between; }
+.award-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.award-mark { font-weight: 800; letter-spacing: .1em; }
+.award-mark small { display: block; font-weight: 400; letter-spacing: 0; color: #5a6572; font-size: .7rem; }
+.award-kind { text-align: right; font-weight: 700; }
+.award-kind small { font-weight: 400; color: #5a6572; }
+.award-body { display: flex; align-items: center; gap: 1.6rem; }
+.award-star { font-size: 7rem; line-height: 1; color: #e0b23c; flex: none; }
+.award-name { font-size: 2rem; font-weight: 800; }
+.award-to { color: #5a6572; margin-top: .3rem; }
+.award-who { font-size: 2rem; font-weight: 800; margin: .2rem 0 .6rem; }
+.award-for { font-size: .95rem; }
+.award-foot { font-size: .7rem; font-style: italic; color: #5a6572; text-align: center; }
+@media (max-width: 640px) { .award-star { font-size: 4rem; } .award-name, .award-who { font-size: 1.3rem; } }

@@ -127,9 +127,32 @@
   </label>
 </div>
 
+{# ELMER's own badges, on the bottom shelf: collapsed to a row of plaques,
+   each taken down for a closer look with a tap, and printed from there. #}
+<div class="panel mt" id="elmer-awards" data-award-who="{{ profile.display_name or profile.callsign }}{% if profile.callsign and profile.callsign not in (profile.display_name or '') %}, {{ profile.callsign }}{% endif %}">
+  <details open>
+    <summary class="panel-title" style="cursor:pointer;display:inline-block">ELMER&rsquo;s awards &mdash; {{ awards.earned|length }} of {{ awards.earned|length + awards.more }}</summary>
+    <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+      The badges this account has earned, as pages for the wall. Tap one for a
+      closer look; Open builds it as a PDF on the print shelf and opens it where
+      the print button is. {% if awards.more %}{{ awards.more }} more to earn &mdash; the dashboard lists them.{% endif %}
+    </p>
+    <div class="aw-badges">
+      {% for a in awards.earned %}
+        <button type="button" class="aw-badge" data-award='{{ a|tojson|forceescape }}' title="{{ a.description }} &mdash; {{ a.when }}">
+          <span class="aw-star">&#9733;</span><b>{{ a.name }}</b><small>{{ a.when }}</small>
+        </button>
+      {% else %}
+        <span class="small muted">Nothing on this shelf yet. The first question answered puts First Light on it.</span>
+      {% endfor %}
+    </div>
+  </details>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ asset('awardcard.js') }}"></script>
 <style>
 .lib-hit { padding: .55rem 0; border-bottom: 1px solid var(--line); }
 .lib-hit .where { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
