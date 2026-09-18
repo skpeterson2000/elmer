@@ -5,6 +5,10 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-18
+
+- Calibrate my forecast no longer dies a minute in on Windows with "Access is denied": the hindcast used to swap the whole program's forecast ledger to its scratch directory while it ran, so the live unit's hourly logger and the dashboard wrote their hour into the hindcast's day files on their own threads, and Windows refuses to replace a file another thread has open; the ledger is now the run's own thread's, each writer has a temporary file of its own, and a refusal is waited out rather than failed on
+
 ## 2026-09-17
 
 - The supporter's key is eight characters, XXXX-XXXX, bound to the name to be printed - a callsign, a person or a club - and real only on the signed roster: every key cut goes onto supporters.roster, a list of hashes signed with the developer's private key and checked on the unit in plain-Python Ed25519, so nobody cuts keys for their friends by reading the source and an issued key can be revoked; a brand-new key is fetched from the repository once, or waits for the next update

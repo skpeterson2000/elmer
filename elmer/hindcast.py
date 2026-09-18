@@ -306,12 +306,12 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
     ledger, plus what was and was not available to it.
     """
     ledger_dir = ledger or (CACHE / f"ledger-{start:%Y%m%d}-{end:%Y%m%d}-{build}")
-    saved = forecastlog.LEDGER, forecastlog.KEEP_DAYS
-    forecastlog.LEDGER = ledger_dir
-    # A hindcast ledger is never pruned: the live unit keeps sixty days, and
-    # a year run under that rule quietly graded only its last two months -
-    # the same numbers as the quarter, which is how it was noticed.
-    forecastlog.KEEP_DAYS = 100000
+    # This thread's ledger, and this thread's alone - the live unit's
+    # logger keeps writing its own. A hindcast ledger is never pruned: the
+    # live unit keeps sixty days, and a year run under that rule quietly
+    # graded only its last two months - the same numbers as the quarter,
+    # which is how it was noticed.
+    forecastlog.use(ledger_dir, keep_days=100000)
     try:
         for p in ledger_dir.glob("*.json"):
             p.unlink()
@@ -376,7 +376,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
             days, end, build=build, stations=list(data["stations"]),
             acknowledgement=ACKNOWLEDGEMENT.format(codes=", ".join(data["stations"]) or "no station"))
     finally:
-        forecastlog.LEDGER, forecastlog.KEEP_DAYS = saved
+        forecastlog.use(None)
     return {"start": start.isoformat(), "end": end.isoformat(), "hours": hours,
             "hours_with_reading": with_reading,
             "sondes_voting": round(sum(votes) / len(votes), 1) if votes else 0,

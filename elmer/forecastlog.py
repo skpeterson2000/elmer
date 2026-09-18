@@ -36,6 +36,8 @@ a tenth of a degree, for the sun's sake, and numbers.
 """
 import json
 import logging
+import os
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -46,6 +48,55 @@ log = logging.getLogger("elmer")
 
 LEDGER = paths.STATE / "forecasts"
 KEEP_DAYS = 60
+
+# A run that wants a ledger of its own - the hindcast, replaying a year
+# into a scratch directory - says so for its thread alone. It used to
+# swap the module's LEDGER, and the live unit's hourly logger and the
+# dashboard, on their own threads, wrote their hour into the hindcast's
+# day files while it ran; on Windows two threads replacing the same file
+# is "Access is denied", and the run died a minute in.
+_local = threading.local()
+
+
+def use(ledger=None, keep_days=None):
+    """Point this thread at another ledger, or back at the unit's (None)."""
+    _local.ledger = Path(ledger) if ledger else None
+    _local.keep_days = keep_days
+
+
+def ledger():
+    return getattr(_local, "ledger", None) or LEDGER
+
+
+def keep_days():
+    return getattr(_local, "keep_days", None) or KEEP_DAYS
+
+
+def _replace(tmp, path):
+    """tmp over path, the way a write is made whole. Windows refuses to
+    replace a file another thread or a virus scanner has open, for a
+    moment; that moment is waited out rather than failed on."""
+    delay = 0.05
+    for attempt in range(8):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 7:
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 1.0)
+
+
+def _tmp(path):
+    """A temporary file of this thread's own beside the target, so two
+    writers of the same day never share one."""
+    return path.with_name(f"{path.name}.{os.getpid()}-{threading.get_ident()}.tmp")
+
 
 # Leads at which the anchor has let go and the model is speaking alone -
 # the hours whose error says something about the model rather than about
@@ -82,7 +133,7 @@ def _day(when):
 
 
 def _path(day):
-    return LEDGER / f"{day}.json"
+    return ledger() / f"{day}.json"
 
 
 def _load(day):
@@ -94,11 +145,11 @@ def _load(day):
 
 
 def _save(day, data):
-    LEDGER.mkdir(parents=True, exist_ok=True)
-    tmp = _path(day).with_suffix(".json.tmp")
+    ledger().mkdir(parents=True, exist_ok=True)
+    tmp = _tmp(_path(day))
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f)
-    tmp.replace(_path(day))
+    _replace(tmp, _path(day))
 
 
 def _hour(iso):
@@ -236,10 +287,10 @@ def voter_stability(days=7, now=None):
 def _prune(now):
     """Drop days older than the keep window. Only older: a day the clock
     has not reached is never anybody's to delete, whatever `now` says."""
-    if not LEDGER.is_dir():
+    if not ledger().is_dir():
         return
-    oldest = _day(now - timedelta(days=KEEP_DAYS - 1))
-    for p in LEDGER.glob("????-??-??.json"):
+    oldest = _day(now - timedelta(days=keep_days() - 1))
+    for p in ledger().glob("????-??-??.json"):
         if p.stem < oldest:
             try:
                 p.unlink()
@@ -549,8 +600,8 @@ def save_calibration(table, merge=True):
     run had measured. Every month carries the date and span of the run it
     came from, so the page can say which is which.
     """
-    LEDGER.mkdir(parents=True, exist_ok=True)
-    path = LEDGER / CALIBRATION_FILE
+    ledger().mkdir(parents=True, exist_ok=True)
+    path = ledger() / CALIBRATION_FILE
     fresh = dict(table)
     months = {}
     for m, cells in (table.get("months") or {}).items():
@@ -563,10 +614,10 @@ def save_calibration(table, merge=True):
                 months[m] = cells
     fresh["months"] = dict(sorted(months.items()))
     fresh["refreshed"] = sorted(table.get("months") or {})
-    tmp = path.with_suffix(".json.tmp")
+    tmp = _tmp(path)
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(fresh, f, indent=1)
-    tmp.replace(path)
+    _replace(tmp, path)
     _cal_cache.clear()
     return path
 
@@ -576,7 +627,7 @@ _cal_cache = {}
 
 def calibration():
     """The unit's calibration table, or None if it has never calibrated."""
-    path = LEDGER / CALIBRATION_FILE
+    path = ledger() / CALIBRATION_FILE
     try:
         stamp = path.stat().st_mtime
     except OSError:

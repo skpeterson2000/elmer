@@ -245,5 +245,52 @@ check("nothing older than the keep window survives",
       all((NOW - datetime.strptime(p.stem, "%Y-%m-%d").replace(tzinfo=timezone.utc)).days <= F.KEEP_DAYS + 1
           for p in F.LEDGER.glob("????-??-??.json") if p.stem < F._day(NOW)), True)
 
+print("\nanother ledger is one thread's own, and two writers of a day do not collide")
+import tempfile  # noqa: E402
+import threading  # noqa: E402
+scratch = Path(tempfile.mkdtemp(prefix="elmer-ledger-"))
+seen = {}
+
+
+def elsewhere():
+    F.use(scratch, keep_days=100000)
+    try:
+        seen["there"] = (F.ledger(), F.keep_days())
+        F._save("2030-01-01", {"day": "2030-01-01", "forecasts": [], "measured": {}})
+    finally:
+        F.use(None)
+        seen["after"] = F.ledger()
+
+
+t = threading.Thread(target=elsewhere)
+t.start()
+t.join()
+check("the other thread wrote to its own ledger", seen["there"], (scratch, 100000))
+check("  and the file is there", (scratch / "2030-01-01.json").is_file(), True)
+check("  this thread never left the unit's", F.ledger(), F.LEDGER)
+check("  nor did that one, once done", seen["after"], F.LEDGER)
+check("  nothing of the other ledger's landed here", (F.LEDGER / "2030-01-01.json").exists(), False)
+errors = []
+
+
+def hammer(n):
+    try:
+        for i in range(150):
+            F._save("2030-02-02", {"day": "2030-02-02", "forecasts": [n, i], "measured": {}})
+            F._load("2030-02-02")
+    except OSError as err:
+        errors.append(repr(err))
+
+
+workers = [threading.Thread(target=hammer, args=(n,)) for n in range(4)]
+for w in workers:
+    w.start()
+for w in workers:
+    w.join()
+check("four threads writing and reading one day, six hundred times, without a refusal", errors, [])
+check("  and the day reads whole afterwards", F._load("2030-02-02")["day"], "2030-02-02")
+check("  with no temporary files left behind", list(F.LEDGER.glob("*.tmp")), [])
+(F.LEDGER / "2030-02-02.json").unlink()
+
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)
