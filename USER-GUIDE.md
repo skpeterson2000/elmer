@@ -33,11 +33,11 @@ The dashboard opens with a panel headed **Start here**, three numbered steps: an
 
 ![The dashboard on a first start: the Start here panel and its three steps](docs/screenshots/guide/first-start.png)
 
-Scroll down and the rest of the first screen is already there, waiting for a record to fill it: the live space weather strip, then **Standing** - the study ranks, with the plain statement that they are ELMER's own and not licences - the amateur track with its three classes not yet started, and below that the class cards themselves and the Gaming Center.
+Scroll down and the rest of the first screen is already there, waiting for a record to fill it: the live space weather strip, then **Standing** - the study ranks, with the plain statement that they are ELMER's own and not licences - the amateur track with its three classes not yet started, and below that the Gaming Center, where only Technician is open to play: the games follow the rules, and without a callsign to say what you hold, Technician is the class every game starts in.
 
 ![Further down on a first start: standing, and the amateur track](docs/screenshots/guide/first-start-2.png)
 
-![Further still: the class cards, one a licence, and the Gaming Center](docs/screenshots/guide/first-start-3.png)
+![Further still: the Gaming Center on a fresh unit, with only Technician open to play until a callsign says otherwise](docs/screenshots/guide/first-start-3.png)
 
 **Kiosk mode and the Exit button.** Started with `--kiosk` on a Pi, or as its own window on Windows, ELMER fills the screen and shows an **Exit** button in the top corner. Exit stops ELMER and closes the window, after asking if anyone is playing on the unit from another device. Links that lead outside ELMER open a page that says so first, with a way back, so a full-screen browser with no back button never strands you.
 
