@@ -1554,6 +1554,21 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*The ladder, and the season.* The first pitch used to be three letters,
+and a first pitch a newcomer cannot copy is a short game and no fun for
+anybody. Below the majors a player now climbs a ladder of their own - a
+letter, two, three, a group, a word, a call, the exchange, a contact - a
+rung after three clean copies in a row, a rung back after three misses,
+never in the first inning, which is played where they stand. The tiers cap
+it: **T-Ball** is one letter a pitch, always; the **little league**'s
+season climbs to a five-character play, a group; its **championship** to
+eight, a word; the **majors** pitch by the inning as before and reach the
+contact on their own. The rung is the player's, by name, and the unit
+keeps it between games in `cwball-season.json` - a season - so proficiency
+is built over weeks at the table rather than innings, and a player who
+comes back next month starts where they left off. The play says when the
+ladder moves; practice players are not remembered.
+
 *Again, and the machine knows CW.* In the little league, from the first
 inning, with the machine on the mound, the batter may ask for the pitch
 again - three times at most, then the umpire says play ball. A button

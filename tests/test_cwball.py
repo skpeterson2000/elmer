@@ -36,6 +36,9 @@ def people(seed=1, league="little", lineups=None, **kw):
     return g
 
 
+THREE = {n: {"rung": 2} for n in ("ANN", "BOB", "CY", "DI", "ED")}   # a season record: everybody starts at three letters
+
+
 def chain_out(g):
     """Run a clean chain from the fielder's catch to the tag."""
     while g.phase == "field":
@@ -52,7 +55,7 @@ def run():
     print("\n-- the pitch, from the machine --")
     g = game()
     p = g.pitch
-    check("the first inning pitches letters, three of them, at the base speed", (p["kind"], len(p["sent"]), p["thrown_wpm"]), ("letters", 3, 10.0))
+    check("the little league's first pitch is one letter, at the base speed", (p["kind"], len(p["sent"]), p["thrown_wpm"], p["name"]), ("letters", 1, 10.0, "a letter"))
     check("  to A's first batter, in the top of the first", (g.batter, g.half, g.batting()), (1, "top", "A"))
     check("  the machine in the little league is a competent pitcher: in the zone", p["call"], "zone")
     check("  with the code to sound it and a window to type it", (bool(p["groups"]), p["window"] >= cwball.COPY_LEAST), (True, True))
@@ -68,7 +71,7 @@ def run():
     play = g.swing(1, p["want"])
     check("a clean copy is in play, and the ball goes somewhere by position", (play["result"], g.phase, play["position"] in cwball.INFIELD, g.link), ("in play", "field", True, "catch"))
     check("  a stranger cannot swing", "error" in g.swing(2, "x"), True)
-    g2 = game()
+    g2 = game(season={"ANN": {"rung": 2}})            # three letters, from the season
     text = g2.pitch["want"]
     play = g2.swing(1, text[:2] + "?")
     check("two of three is a foul: a strike, the count stands at one", (play["result"], g2.strikes, g2.phase), ("foul", 1, "reveal"))
@@ -105,30 +108,30 @@ def run():
     check("  the baseman's device is told it is their tag, and hears the throw - never shown it", (g.as_dict(baseman)["your_link"], bool(g.as_dict(baseman)["pitch"]["throw_groups"]), "throw" in g.as_dict(baseman)["pitch"]), ("tag", True, False))
     play = g.tag(baseman, g.pitch["key"])
     check("  the tag copied clean is the out", (play["result"], g.outs, g.bases), ("out", 1, [None, None, None]))
-    g = game(seed=2)
+    g = game(seed=2, season=THREE)
     g.swing(1, g.pitch["want"])
     play = g.catch(g.fielder, g.pitch["want"][:-1] + "?")
     check("a bobbled catch and the runner is safe on first", (play["result"], g.bases[0], g.runs["A"]), ("safe", 1, 0))
-    g = game(seed=3)
+    g = game(seed=3, season=THREE)
     g.swing(1, g.pitch["want"])
     play = g.catch(g.fielder, "?")
     check("a catch never made is an error: an extra base", (play["result"], g.bases[1], g.errors["B"]), ("error", 1, 1))
-    g = game(seed=4)
+    g = game(seed=4, season=THREE)
     g.swing(1, g.pitch["want"])
     g.catch(g.fielder, g.pitch["want"])
     play = g.throw(g.fielder, g.pitch["key"][:-1] + "?")
     check("a rough throw and the runner is safe", (play["result"], g.bases[0]), ("safe", 1))
-    g = game(seed=4)
+    g = game(seed=4, season=THREE)
     g.swing(1, g.pitch["want"])
     g.catch(g.fielder, g.pitch["want"])
     g.throw(g.fielder, g.pitch["key"])
     play = g.tag(g.fielder, "?")
     check("a bobbled tag is the baseman's error, the runner safe", (play["result"], g.errors["B"], g.bases[0]), ("error", 1, 1))
-    g = game(seed=4)
+    g = game(seed=4, season=THREE)
     g.swing(1, g.pitch["want"])
     g.tick(g.deadline + 1)
     check("  a catch never made in time is the runner safe", (g.last["result"], g.bases[0]), ("safe", 1))
-    g = cwball.Baseball({"A": [1], "B": [3, 4, 5]}, {1: "Ann", 3: "Cy", 4: "Di", 5: "Ed"}, innings=4, base_wpm=10, seed=9)
+    g = cwball.Baseball({"A": [1], "B": [3, 4, 5]}, {1: "Ann", 3: "Cy", 4: "Di", 5: "Ed"}, innings=4, base_wpm=10, seed=9, league="major")
     g.inning = 4
     g.tick(g.deadline + 1)
     while g.pitch["kind"] not in cwball.FLIES:
@@ -140,7 +143,7 @@ def run():
     check("  the fielder's copies are counted toward a fielding record", g.stats[g.last["fielder"]]["caught"], 1)
 
     print("\n-- the force at second, and two --")
-    g = game(seed=1)
+    g = game(seed=1, season=THREE)
     g.swing(1, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"][:-1] + "?")     # Ann safe on first
     g.tick(g.deadline + 1)
     while g.last.get("fly") is not False or g.phase != "field":
@@ -171,7 +174,7 @@ def run():
     check("a wrong copy held to the break is still taken, graded against that pitch", (g.pitch["n"] != n, r["ok"], r["pct"] < 100, g.stats[2]["copies"]), (True, True, True, 1))
 
     print("\n-- a person on the mound --")
-    g = people(seed=2)
+    g = people(seed=2, season=THREE)
     check("the fielding side's pitcher is on the mound, choosing", (g.phase, g.link, g.pitcher, g.as_dict(3)["your_link"]), ("windup", "pick", 3, "pick"))
     check("  the batter is told nothing yet", (g.as_dict(1)["your_link"], g.as_dict(1)["pitch"].get("text")), (None, None))
     r = g.choose(3, "normal")
@@ -183,7 +186,7 @@ def run():
     check("  the pitch sounds as keyed, at the speed it was keyed", (g.pitch["sent"], g.pitch["thrown_wpm"]), (text, 10.0))
     play = g.swing(1, text)
     check("  and a clean copy is a hit sized by the level", (play["result"], play["hit_bases"]), ("in play", 1))
-    g = people(seed=3)
+    g = people(seed=3, season=THREE)
     g.choose(3, "normal")
     text = plain(g.pitch["text"])
     wrong = text[:-1] + ("X" if text[-1] != "X" else "Y")
@@ -191,7 +194,7 @@ def run():
     check("keyed clean but the wrong text is a ball", g.pitch["call"], "ball")
     play = g.swing(1, wrong)
     check("  swing at a ball and connect - copy what was keyed, wrong letter and all - a hit one base bigger", (play["result"], play["hit_bases"], play["asked"] == text), ("in play", 2, True))
-    g = people(seed=3)
+    g = people(seed=3, season=THREE)
     g.choose(3, "normal"); text = plain(g.pitch["text"]); wrong = text[:-1] + ("X" if text[-1] != "X" else "Y")
     g.deliver(3, wrong, 10)
     play = g.swing(1, text)
@@ -261,7 +264,7 @@ def run():
     check("  and in the little league never a ball", calls, {"zone"})
 
     print("\n-- runs, innings, the game --")
-    g = game(innings=1, seed=5)
+    g = game(innings=1, seed=5, season=THREE)
     for _ in range(3):                        # three runners on: three bobbled catches
         g.swing(g.batter, g.pitch["want"]); g.catch(g.fielder, g.pitch["want"][:-1] + "?"); g.tick(g.deadline + 1)
     check("three singles load the bases", all(b is not None for b in g.bases), True)
@@ -280,13 +283,13 @@ def run():
         if g.phase == "reveal":
             g.tick(g.deadline + 1)
     check("B goes down in order in a one-inning game: A wins 1-0", (g.over(), g.winner, g.runs), (True, "A", {"A": 1, "B": 0}))
-    g = game(innings=6, seed=6)
+    g = game(innings=6, seed=6, league="major")
     g.inning = 3
     g.new_pitch()
-    check("the third inning of six: a word, two bases, three wpm faster", (g.pitch["kind"], g.pitch["bases"], g.pitch["thrown_wpm"]), ("word", 2, 13.0))
+    check("the majors' third inning of six: a word, two bases, three wpm faster", (g.pitch["kind"], g.pitch["bases"], g.pitch["thrown_wpm"]), ("word", 2, 13.0))
 
     print("\n-- the contact: the top pitch of the last inning --")
-    g = cwball.Baseball({"A": [1], "B": [3]}, {1: "KC9SP", 3: "W1AW"}, innings=2, seed=11)
+    g = cwball.Baseball({"A": [1], "B": [3]}, {1: "KC9SP", 3: "W1AW"}, innings=2, seed=11, league="major")
     g.inning = 2
     kinds = set()
     for sd in range(30):
@@ -379,7 +382,7 @@ def run():
     party.close_room()
 
     print("\n-- the little league's again: ? or AGN, and the machine pitches it again --")
-    g = game(seed=3)
+    g = game(seed=3, season=THREE)
     n0, deadline0 = g.pitch["n"], g.deadline
     r = g.again(1)
     check("the batter asks and is answered", (r.get("ok"), r["again"], r["left"]), (True, 1, cwball.AGAIN_MOST - 1))
@@ -425,6 +428,73 @@ def run():
         if g5.again(1, ask="slower").get("error"):
             break
     check("slower has a floor", g5.pitch["thrown_wpm"] >= cwball.WPM_LEAST, True)
+
+    print("\n-- the ladder and the season --")
+    g = cwball.Baseball({"A": [1], "B": [3, 4, 5]}, {1: "Ann", 3: "Cy", 4: "Di", 5: "Ed"}, innings=6, base_wpm=10, seed=21)
+    g.tick(g.deadline + 1)
+    d = g.as_dict(1)
+    check("one letter to begin, and the screens are told so", (len(g.pitch["sent"]), d["level"], d["rung"], d["tier"]), (1, "a letter", 0, "little league"))
+    check("  every player on the ladder", d["ladder"], {"1": "a letter", "3": "a letter", "4": "a letter", "5": "a letter"})
+    climbs = []
+    for _ in range(3):
+        play = g.swing(1, g.pitch["want"])
+        while g.phase != "pitch" and not g.over():
+            g.tick(g.deadline + 1)
+        climbs.append(play.get("climb"))
+    check("three clean copies in the first inning do not climb - it is played where you stand", (climbs, g.rung_of(1)), ([None, None, None], 0))
+    g.inning = 2
+    g.recent[1].clear()
+    plays, said = [], []
+    for _ in range(3):
+        plays.append(g.swing(1, g.pitch["want"]))
+        said.append(plays[-1]["words"])             # read now: the clock rewrites the play's words later
+        while g.phase != "pitch" and not g.over():
+            g.tick(g.deadline + 1)
+    check("from the second inning, three clean in a row climb a rung", (plays[-1].get("climb"), g.rung_of(1)), ("two letters", 1))
+    check("  and the words say so", "copying reliably: next time up, two letters" in said[-1], True)
+    check("  the next pitch is two letters", (len(g.pitch["sent"]), g.pitch["name"]), (2, "two letters"))
+    check("  the season remembers Ann's rung and her copies", (g.season["ANN"]["rung"], g.season["ANN"]["copies"], g.season["ANN"]["clean"]), (1, 6, 6))
+    misses = []
+    for _ in range(3):
+        misses.append(g.swing(1, "ZZZZ") if g.phase == "pitch" else None)
+        while g.phase != "pitch" and not g.over():
+            g.tick(g.deadline + 1)
+    dropped = [m for m in misses if m and m.get("drop")]
+    check("three misses in a row drop back to a letter", (bool(dropped), g.rung_of(1)), (True, 0))
+    check("  said plainly", dropped[0]["words"].endswith("back to a letter") if dropped else None, True)
+    check("  the others are where they were", g.rung_of(3), 0)
+    gs = cwball.Baseball({"A": [1], "B": [3]}, {1: "Ann", 3: "Cy"}, innings=3, base_wpm=10, seed=22,
+                         season={"ANN": {"rung": 4, "copies": 40, "clean": 36}, "CY": {"rung": 9}})
+    gs.tick(gs.deadline + 1)
+    check("a player brings her rung in from the season", (gs.rung_of(1), gs.pitch["name"]), (3, "a group"))
+    check("  capped by the tier - the little league's season stops at a group", gs.rung_cap(), 3)
+    check("  as is a rung the file says is past the top", gs.rung_of(3), 3)
+    gc = cwball.Baseball({"A": [1], "B": [3]}, {1: "Ann", 3: "Cy"}, innings=3, base_wpm=10, seed=23, league="champ",
+                         season={"ANN": {"rung": 7}})
+    gc.tick(gc.deadline + 1)
+    check("the championship reaches a word, and no further", (gc.rung_of(1), gc.pitch["name"], gc.as_dict(1)["tier"]), (4, "a word", "the championship"))
+    gt = cwball.Baseball({"A": [1], "B": [3]}, {1: "Ann", 3: "Cy"}, innings=3, base_wpm=10, seed=24, league="tball",
+                         season={"ANN": {"rung": 3}})
+    gt.tick(gt.deadline + 1)
+    gt.inning = 2
+    for _ in range(4):
+        if gt.phase == "pitch":
+            gt.swing(1, gt.pitch["want"])
+        while gt.phase != "pitch" and not gt.over():
+            gt.tick(gt.deadline + 1)
+    check("T-Ball is one letter, always, whatever the season says", (gt.rung_of(1), gt.as_dict(1)["tier"], gt.again_most if hasattr(gt, "again_most") else gt.as_dict(1)["again_most"]), (0, "T-Ball", cwball.AGAIN_MOST))
+    import tempfile
+    sp = Path(tempfile.mkdtemp(prefix="elmer-season-")) / "cwball-season.json"
+    gp = cwball.Baseball({"A": [1], "B": [9]}, {1: "Ann", 9: "Sparks"}, innings=2, base_wpm=10, seed=25, bots={9: "Elmer"},
+                         season=cwball.load_season(sp), season_path=sp)
+    gp.tick(gp.deadline + 1)
+    gp.swing(1, gp.pitch["want"])
+    kept = cwball.load_season(sp)
+    check("the season is written to the unit as it goes", (sorted(kept), kept["ANN"]["copies"]), (["ANN"], 1))
+    check("  and a practice player is not remembered", "SPARKS" in kept, False)
+    gm = cwball.Baseball({"A": [1], "B": [3]}, {1: "Ann", 3: "Cy"}, innings=3, base_wpm=10, seed=22, league="major")
+    gm.tick(gm.deadline + 1)
+    check("the majors still pitch by the inning: three letters to start", (len(gm.pitch["sent"]), gm.as_dict(1)["rung"], gm.as_dict(1)["tier"]), (3, None, "the majors"))
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

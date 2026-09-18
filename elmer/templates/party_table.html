@@ -469,7 +469,7 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
                 <option value="1">1 inning</option><option value="3" selected>3 innings</option><option value="6">6 innings</option><option value="9">9 innings</option>
               </select>
               <select class="btn sm" id="ball-league" title="little league: the take is free, speed is not judged, the machine never throws a ball. The majors: a strike taken is called, a pitch is held to its speed, hard pitches and composed ones, and the machine throws the odd ball on purpose">
-                <option value="little" selected>little league</option><option value="major">the majors</option>
+                <option value="tball">T-Ball &mdash; one letter a pitch</option><option value="little" selected>little league &mdash; up to a group</option><option value="champ">the championship &mdash; up to a word</option><option value="major">the majors</option>
               </select>
               <select class="btn sm" id="ball-pitcher" title="who pitches: the machine, or the fielding side's pitcher on their own phone - the text on their screen alone, keyed and thrown, the umpire calling it as thrown">
                 <option value="machine" selected>the machine pitches</option><option value="people">people pitch</option>
@@ -1591,7 +1591,7 @@ function paintBaseball(s) {
   }
   const posn = Object.entries(b.positions || {}).map(([pos, p]) => `${pos} ${esc(p.name)}`).join(' &middot; ');
   stage.innerHTML = `<div class="golfstage golfstage-map"><div>
-      <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'} &middot; ${b.league === 'major' ? 'the majors' : 'little league'} &middot; ${b.pitcher_mode === 'people' ? 'people pitch' : 'the machine pitches'}</div>
+      <div class="chip">CW Baseball &middot; ${b.innings} inning${b.innings === 1 ? '' : 's'} &middot; ${esc(b.tier || (b.league === 'major' ? 'the majors' : 'little league'))} &middot; ${b.pitcher_mode === 'people' ? 'people pitch' : 'the machine pitches'}</div>
       ${lineScore(b)}${main}
       <p class="hint" style="text-align:left;margin-top:.6rem">Side A: ${b.lineups.A.map(p => esc(p.name)).join(', ')} &middot; Side B: ${b.lineups.B.map(p => esc(p.name)).join(', ')}${posn ? '<br>In the field: ' + posn : ''}</p>
     </div><div>${diamondSVG(b)}</div></div>`;

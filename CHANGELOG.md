@@ -7,6 +7,7 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-18
 
+- CW Baseball has a ladder and a season: below the majors every player climbs their own ladder - a letter, two, three, a group, a word, a call, the exchange, a contact - a rung after three clean copies in a row, back a rung after three misses, never in the first inning; T-Ball is one letter a pitch always, the little league's season climbs to a group, its championship to a word, the majors pitch by the inning as before; the rung is kept by name on the unit between games, so proficiency is built over weeks, and a first pitch a newcomer could not copy is no longer the first thing they meet
 - CW Baseball, little league: the batter can ask for the pitch again, three times at most - a button on the phone and at the table, and the phone's key too, when what it hears ends in ? or AGN, which is how a contact asks; the machine answers by pitching it again, the play says "after asking for it twice, in code", and the asks are on the batter's record. The phone's key is now a straight key or a paddle, chosen once and remembered - dits left, dahs right, each a made element at the game's speed
 - The machine knows CW, from the first inning: key QRS at the plate and it sends the pitch again slower, QRQ and it sends it faster, as a contact would - buttons for the same beside Again?, on the phone and at the table
 - Calibrate my forecast moved from Tools to the foot of the Propagation page: a calibration of the forecast belongs beside the forecast, and the guide and the design notes say so

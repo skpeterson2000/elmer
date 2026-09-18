@@ -47,8 +47,8 @@ from collections import deque
 
 from . import trivia
 from .cutthroat import CutThroat
-from . import golfmap, weather
-from .cwball import Baseball
+from . import golfmap, paths, weather
+from .cwball import Baseball, load_season
 from .golf import Golf
 from .shootout import Shootout
 
@@ -1444,9 +1444,13 @@ class Room:
                 teams = {"A": (people + bots)[0::2], "B": (people + bots)[1::2]}
             if not teams["A"] or not teams["B"]:
                 return None, "CW Baseball needs two sides - sit two people down, or turn the practice players on"
+            # The season: where each player stands on the ladder, by name,
+            # kept on the unit between games.
+            season_path = paths.STATE / "cwball-season.json"
             self.baseball = Baseball(teams, {p: pl.name for p, pl in self.players.items()},
                                      innings=innings, base_wpm=base_wpm, league=league, pitcher=pitcher,
-                                     bots={p: pl.bot for p, pl in self.players.items() if pl.bot})
+                                     bots={p: pl.bot for p, pl in self.players.items() if pl.bot},
+                                     season=load_season(season_path), season_path=season_path)
             self.mode = BASEBALL
             return self.baseball, None
 

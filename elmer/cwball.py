@@ -51,9 +51,11 @@ device holds and when it is triggered is the state's `your_link`; the rules
 accept a copy of the pitch from any fielder at any time as readiness, and
 count it toward a fielding percentage.
 """
+import json
 import random
 import re
 import time
+from pathlib import Path
 
 from . import cw
 
@@ -69,6 +71,17 @@ LEVELS = [
     # fielder answers it - their own call - which is the ritual of the air
     {"kind": "contact", "bases": 4, "name": "a contact"},
 ]
+# The ladder a player climbs, below the majors: one letter a pitch to begin
+# - a first pitch a newcomer cannot copy is a short game and no fun for
+# anybody - then a rung up after three clean copies in a row, a rung down
+# after three misses, never past the tier's cap, and never in the first
+# inning, which is played at the rung the player brought to the game.
+RUNGS = [("letters", 1, "a letter"), ("letters", 2, "two letters"), ("letters", 3, "three letters"),
+         ("group", 0, "a group"), ("word", 0, "a word"), ("call", 0, "a call and a report"),
+         ("exchange", 0, "the exchange"), ("contact", 0, "a contact")]
+CLIMB_AFTER = 3                 # clean copies in a row, by the player at bat
+DROP_AFTER = 3                  # misses in a row
+CLIMB_FROM_INNING = 2           # the first inning is played where the player stands
 WORDS = ["RADIO", "ANTENNA", "SIGNAL", "REPEAT", "STATION", "COPY", "TOWER", "GROUND", "TUNER", "BAND",
          "FILTER", "POWER", "METER", "NIGHT", "MORNING", "COAX", "DIPOLE", "BEACON", "QSL", "RIG"]
 PREFIXES = ["W1", "W2", "K3", "N4", "W5", "K6", "N7", "K8", "W9", "K0", "VE3", "G4", "DL1", "JA1"]
@@ -101,7 +114,16 @@ DOUBLE_PLAY_SPARE = 0.5         # the force turned with this much of the clock l
 BOT_SWING = {"Listener": 0.4, "Learner": 0.55, "Operator": 0.72, "Elmer": 0.86}   # a practice player's copy
 BOT_FIELD = {"Listener": 0.35, "Learner": 0.5, "Operator": 0.68, "Elmer": 0.82}   # and its send
 MACHINE_BALLS = {1: 0.0, 2: 0.08, 3: 0.14, 4: 0.2, 5: 0.25}                        # the majors: the machine's balls on purpose, by inning
-LEAGUES = ("little", "major")
+# T-Ball is one letter a pitch, always. The little league's season climbs
+# to a five-character play, a group; its championship to eight, a word.
+# The majors pitch by the inning and reach the contact on their own. A
+# rung is the player's own and lasts across games - a season - so
+# proficiency is built over weeks at the table, not innings.
+LEAGUES = ("tball", "little", "champ", "major")
+TIERS = {"tball": {"cap": 0, "name": "T-Ball"},
+         "little": {"cap": 3, "name": "little league"},
+         "champ": {"cap": 4, "name": "the championship"},
+         "major": {"cap": None, "name": "the majors"}}
 PITCHERS = ("machine", "people")
 DIFFICULTIES = ("normal", "hard", "own")
 # Where a ball goes, by what was hit: a grounder to the infield or a fly to
@@ -112,6 +134,37 @@ OUTFIELD = ["LF", "CF", "RF"]
 FLIES = {"call", "exchange", "contact"}
 CUT = {"T": "0", "N": "9", "A": "1", "D": "7"}       # cut numbers the air actually uses
 OWN_OK = re.compile(r"^[A-Z0-9 ?/.,<>]{1,48}$")
+
+
+def _level_of(kind):
+    return next(i for i, lv in enumerate(LEVELS) if lv["kind"] == kind)
+
+
+# ------------------------------------------------------------- the season
+
+def season_key(name):
+    """A player's name as the season keeps it: upper case, letters and digits."""
+    return re.sub(r"[^A-Z0-9]", "", str(name or "").upper())
+
+
+def load_season(path):
+    """The unit's season record: name -> {"rung", "copies", "clean", "when"}."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_season(path, season):
+    path = Path(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(season, indent=1), encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        pass                                    # a season that will not save is still played
 
 
 def _now():
@@ -152,7 +205,7 @@ def accuracy_any(want, got):
 class Baseball:
 
     def __init__(self, lineups, names=None, innings=3, base_wpm=10.0, seed=None, bots=None,
-                 league="little", pitcher="machine"):
+                 league="little", pitcher="machine", season=None, season_path=None):
         """`lineups` {"A": [player ids], "B": [...]} in batting order; A bats
         first. `names` player -> name. `bots` player -> level for practice
         players, who copy and key by their level's odds. `league` little or
@@ -177,6 +230,17 @@ class Baseball:
         self.hits = {"A": 0, "B": 0}
         self.errors = {"A": 0, "B": 0}
         self.next_up = {"A": 0, "B": 0}
+        # Each player's rung on the ladder, brought in from the season by
+        # name and capped by the tier, and their last few copies.
+        self.season = season if season is not None else {}
+        self.season_path = season_path
+        self.recent = {}
+        self.rung = {}
+        cap = TIERS[self.league]["cap"]
+        if cap is not None:
+            for p in lineups["A"] + lineups["B"]:
+                had = self.season.get(season_key(self.names.get(p))) if self.names.get(p) else None
+                self.rung[p] = min(cap, int((had or {}).get("rung", 0) or 0))
         self.phase = "between"            # windup | pitch | field | reveal | between | over
         self.deadline = _now() + 3.0
         self.pitch = None
@@ -212,9 +276,57 @@ class Baseball:
         """The pitch's level: the inning's, capped below the top - and the
         last inning of the game, whatever number it is, pitches the contact
         every other time, so the end-game is the air itself."""
+        if self.league != "major":
+            return _level_of(RUNGS[self.rung_of(self.batter)][0])
         if self.inning >= self.innings and self.inning > 1 and self.rng.random() < 0.5:
             return len(LEVELS) - 1
         return min(len(LEVELS) - 2, self.inning - 1)
+
+    def rung_of(self, player):
+        return self.rung.get(player, 0)
+
+    def rung_cap(self):
+        """The tier's ceiling on the ladder: T-Ball a letter, the season a
+        group, the championship a word."""
+        cap = TIERS[self.league]["cap"]
+        return len(RUNGS) - 1 if cap is None else cap
+
+    def _note_copy(self, player, clean, play):
+        """A copy at the plate moves the player's rung: up after three
+        clean in a row, from the second inning and within the tier's cap;
+        down after three misses. The play carries the change so the words
+        can say it, and the season remembers where the player stands."""
+        if self.league == "major":
+            return
+        r = self.recent.setdefault(player, [])
+        r.append(bool(clean))
+        del r[:-5]
+        rung = self.rung_of(player)
+        if (len(r) >= CLIMB_AFTER and all(r[-CLIMB_AFTER:]) and rung < self.rung_cap()
+                and self.inning >= CLIMB_FROM_INNING):
+            self.rung[player] = rung + 1
+            r.clear()
+            play["climb"] = RUNGS[rung + 1][2]
+        elif len(r) >= DROP_AFTER and not any(r[-DROP_AFTER:]) and rung > 0:
+            self.rung[player] = rung - 1
+            r.clear()
+            play["drop"] = RUNGS[rung - 1][2]
+        self._remember(player, clean)
+
+    def _remember(self, player, clean):
+        """The season's line for a player: their rung, and the copies that
+        got them there. Practice players are not remembered."""
+        name = self.names.get(player)
+        if not name or player in self.bots:
+            return
+        key = season_key(name)
+        row = self.season.setdefault(key, {"name": name, "rung": 0, "copies": 0, "clean": 0})
+        row["rung"] = self.rung_of(player)
+        row["copies"] = int(row.get("copies", 0)) + 1
+        row["clean"] = int(row.get("clean", 0)) + (1 if clean else 0)
+        row["when"] = time.strftime("%Y-%m-%d")
+        if self.season_path:
+            save_season(self.season_path, self.season)
 
     def wpm(self):
         return round(self.base_wpm + INNING_WPM * (self.inning - 1), 1)
@@ -259,13 +371,13 @@ class Baseball:
                                          "agains": 0, "agains_keyed": 0})
 
     # --------------------------------------------------------------- pitches
-    def _text(self, level, difficulty="normal"):
+    def _text(self, level, difficulty="normal", count=None):
         kind = LEVELS[level]["kind"]
         r = self.rng
         letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         hard = difficulty == "hard"
         if kind == "letters":
-            return "".join(r.choice(letters) for _ in range(3)) + (r.choice("0123456789") if hard else "")
+            return "".join(r.choice(letters) for _ in range(count or 3)) + (r.choice("0123456789") if hard else "")
         if kind == "group":
             pool = letters + "0123456789" + ("?/." if hard else "")
             return "".join(r.choice(pool) for _ in range(6 if hard else 5))
@@ -314,11 +426,14 @@ class Baseball:
             return None
         self.batter = order[self.next_up[team] % len(order)]
         level = self.level()
+        step = RUNGS[self.rung_of(self.batter)] if self.league != "major" else None
         self.fielder = None
         self.link = None
         self.chain = []
         self.pitch = {"n": len(self.plays) + 1, "level": level, "kind": LEVELS[level]["kind"],
-                      "name": LEVELS[level]["name"], "bases": LEVELS[level]["bases"],
+                      "name": step[2] if step else LEVELS[level]["name"], "bases": LEVELS[level]["bases"],
+                      "count": (step[1] or None) if step else None,
+                      "rung": self.rung_of(self.batter) if step else None,
                       "wpm": self.wpm(), "difficulty": None, "text": None, "sent": None, "call": None,
                       "again": 0, "again_keyed": 0}
         if self.people_pitch():
@@ -331,7 +446,7 @@ class Baseball:
             return self.pitch
         self.pitcher = None
         self.pitch["difficulty"] = "normal"
-        text = self._text(level)
+        text = self._text(level, count=self.pitch["count"])
         self.pitch["text"] = text
         sent, call = self._machine_call(text)
         self._throw_pitch(sent, call, self.wpm())
@@ -356,7 +471,7 @@ class Baseball:
                 return {"error": "the pitch must be letters, numbers, punctuation and prosigns, up to 48"}
             self.pitch["text"] = own
         else:
-            self.pitch["text"] = self._text(level, difficulty)
+            self.pitch["text"] = self._text(level, difficulty, count=self.pitch.get("count"))
         self.pitch["difficulty"] = difficulty
         self.pitch["wpm"] = round(self.wpm() * (HARD_WPM if difficulty != "normal" else 1.0), 1)
         self.link = "throw_pitch"
@@ -478,7 +593,7 @@ class Baseball:
             return {"error": "no pitch to ask for again"}
         if player != self.batter:
             return {"error": f"not your at-bat - {self.name(self.batter)} is up"}
-        if self.league != "little":
+        if self.league == "major":
             return {"error": "the majors pitch it once"}
         if self.pitcher is not None:
             return {"error": f"{self.name(self.pitcher)} is on the mound - a person is not asked to key it twice"}
@@ -522,6 +637,10 @@ class Baseball:
         if isinstance(play, dict) and not play.get("error") and p and p.get("again"):
             how = "again" if p["again"] == 1 else "twice" if p["again"] == 2 else f"{p['again']} times"
             play["words"] += f" - after asking for it {how}" + (", in code" if p.get("again_keyed") else "")
+        if isinstance(play, dict) and play.get("climb"):
+            play["words"] += f" - copying reliably: next time up, {play['climb']}"
+        elif isinstance(play, dict) and play.get("drop"):
+            play["words"] += f" - back to {play['drop']}"
         return play
 
     def _swing(self, player, typed):
@@ -535,6 +654,7 @@ class Baseball:
         s = self.stat(player)
         s["copies"] += 1
         self._counted.add((player, self.pitch["n"]))
+        self._note_copy(player, pct >= HIT_PCT, play)
         ball = self.pitch["call"] == "ball"
         if pct >= HIT_PCT:
             s["clean"] += 1
@@ -1096,14 +1216,21 @@ class Baseball:
             "positions": {pos: {"player": pl, "name": self.name(pl)} for pos, pl in self.positions().items()},
             "pitch": pitch,
             "deadline_in": max(0.0, round(self.deadline - _now(), 1)),
-            "last": self.last, "level": LEVELS[self.level()]["name"], "wpm": self.wpm(),
+            "last": self.last,
+            "level": (RUNGS[self.rung_of(self.batter)][2] if self.league != "major" and self.batter is not None
+                      else LEVELS[self.level()]["name"]),
+            "rung": self.rung_of(self.batter) if self.league != "major" and self.batter is not None else None,
+            "tier": TIERS[self.league]["name"],
+            "ladder": ({str(p): RUNGS[self.rung_of(p)][2] for p in self.lineups["A"] + self.lineups["B"]}
+                       if self.league != "major" else {}),
+            "wpm": self.wpm(),
             "lineups": {k: [{"player": pl, "name": self.name(pl)} for pl in v] for k, v in self.lineups.items()},
             "stats": {str(k): dict(v) for k, v in self.stats.items()},
             "your_link": link,
             "your_swing": link == "swing",
             # the little league's "again": offered to the batter while the
             # machine pitches, this many at most
-            "again_most": AGAIN_MOST if self.league == "little" and self.pitcher is None else 0,
+            "again_most": AGAIN_MOST if self.league != "major" and self.pitcher is None else 0,
             "your_throw": link in ("throw",),
             "your_team": next((k for k, v in self.lineups.items() if player_id in v), None),
             # everybody copies every pitch and holds it: the token is the pitch
