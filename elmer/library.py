@@ -72,6 +72,12 @@ TOPICS = {
     "cw": {"label": "CW and keying",
            "words": ["cw", "morse", "keyer", "paddle", "sidetone", "pitch",
                      "break-in", "qsk"]},
+    # The games and the room they are played in: the guide's own chapters,
+    # which no radio manual has - so this is the topic that lists them.
+    "games": {"label": "Games and the table",
+              "words": ["game", "gaming", "tournament", "shootout", "cutthroat",
+                        "golf", "baseball", "table screen", "net control",
+                        "big board", "club night", "lounge"]},
     "digital": {"label": "Digital modes",
                 "words": ["digital", "ft8", "ft4", "wsjt", "js8", "jt65",
                           "msk144", "psk", "rtty", "packet", "aprs",

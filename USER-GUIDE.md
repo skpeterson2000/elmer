@@ -43,6 +43,12 @@ The dashboard opens with a panel headed **Start here**, three numbered steps: an
 
 To the right of the tabs: the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best.
 
+**Achievements.** Lower on the dashboard, thirty-four of them, filled in as they are earned: the study milestones, the mock exams passed, and twelve for the code - from First Dit to The Whole Code, the rating's rungs, and CW Baseball's Base Hit, Big League and QSM?, the first resend ever asked for in code and answered. Any badge held can be printed as a page for the wall from the Library's bottom shelf.
+
+### A cup of coffee
+
+ELMER is a gift to the amateur radio community and free for everyone. After about ten hours of actually answering questions the dashboard offers, once, a cup of coffee for the developer at github.com/sponsors/skpeterson2000, and then not again for a hundred hours more; **Thanks, not now** puts it away. A supporter who sends their callsign or name in the sponsorship note gets an eight-character key back, entered under Station with that name. With the key the dashboard says thank you instead, once a day, and says what the coffee meant: how many times ELMER has changed since, with the latest lines. The key opens nothing and its absence closes nothing; it is a thank-you, not a licence. A brand-new key is checked once against the signed roster in the repository, so it wants a network for a moment or the next update before a unit accepts it.
+
 ### Your station
 
 The **Station** button in the corner opens a dialog headed **Your station**. Nothing in it is required. The fields, in order:
@@ -54,6 +60,7 @@ The **Station** button in the corner opens a dialog headed **Your station**. Not
 - **Licence class.** Not licensed yet, or the class held. Verified when it came from the FCC record.
 - **Show the commercial pools.** Three more cards on the dashboard and a second rank. Off by default; the pools are always there.
 - **RepeaterBook token.** Your own token from RepeaterBook's My Account, API apps. With it, the repeaters for your state are fetched under your account and asked again when the QTH crosses a state line or a month passes. The token goes to RepeaterBook and nowhere else. Without one, ELMER reads TowerWitch's list or an import.
+- **Supporter key.** The eight-character key that came back with the developer's thanks, `XXXX-XXXX`, and beside it the name it was cut for - a callsign, a name, a club - exactly as you asked to have it printed. Tick **Name me on the hall's thanks card** and a hall this unit plays in puts that name on the card between rounds; untick it and you are thanked quietly. Leave the key blank to be an operator like any other.
 - **Distances in.** Kilometres, miles or nautical miles, for how far away things are. Wavelengths stay in metres and wire stays in feet, because that is what the bands are named in and how wire is sold.
 - **Where you operate from.** A town, a grid square, or coordinates. A grid or a pair of coordinates is understood on the spot; a town name needs a network to look up.
 - **Use this unit's position.** Asks the unit's GPS if one is talking, else the browser. A browser only offers its position on the unit's own screen, not over the network, so on another device the button stays hidden rather than failing.
@@ -108,7 +115,7 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 **The sondes that vote.** The critical frequency over you is the model's figure corrected to meet the sondes within five thousand kilometres, each with a vote weighted by its distance and by the age of its reading. The line under the numbers names them, marks any whose reading was held from an earlier fetch after the feed missed a cycle, and says how far the correction would move if any one of them dropped out. That last figure is the one to read when two units side by side disagree: a thin panel far from the nearest sounder can swing by a third on one vote, and the page now says so instead of leaving two screens to argue. The weekly field report, if you have switched it on, carries how steady the panel was over the week and nothing that names your station.
 
-**Calibrate my forecast**, at the foot of this page, runs the propagation model blind over the last quarter, half year or year against the ionosonde record and grades it, so you can see how much to trust the band plan's verdicts. It needs the network for the first minute; nothing leaves the unit.
+**Calibrate my forecast**, at the foot of this page, waits out a busy server and says so, fetches the year of flux from Penticton when GFZ is down, shortens the span to what the record covers rather than running on one number, and says in plain words when it cannot run at all - nothing is wrong with the model then, only the network. It runs the propagation model blind over the last quarter, half year or year against the ionosonde record and grades it, so you can see how much to trust the band plan's verdicts. It needs the network for the first minute; nothing leaves the unit.
 
 ## The band plan
 
@@ -134,13 +141,15 @@ Every band has its own colour, the same wherever its name appears in ELMER: on t
 
 Learn it, copy it, send it, and decode what is coming out of the receiver. The settings bar at the top is always in view: tone, volume, character speed and effective speed. The two speeds are Farnsworth timing, characters sent fast with the gaps stretched, so you learn the sound of a letter at the speed you will eventually copy it.
 
-- **Today** is the door. Your record decides the lesson and one press runs the session: meet a character, copy against the clock, groups, words. After each key a chime or a buzz, and if you tick **say what was sent**, the phonetic name of what it was.
-- **Learn** is the Koch method: a lesson slider from two characters to forty, hear this lesson's characters, start copying them, and a grid of where you stand, green for copied reliably, amber for shaky, red for needs work, grey for not met yet.
+- **Today** is the door. Your record decides the lesson and one press runs the session: meet a character, copy against the clock, groups, words. After each key a chime or a buzz, and if you tick **say what was sent**, the phonetic name of what it was. In the one-at-a-time drill, press **?** (or the Resend button under the card) to hear a character again before you answer; the clock keeps running, the way a contact's patience does.
+- **Learn** is the Koch method: a lesson slider from two characters to forty, hear this lesson's characters (the button becomes **Send them again** once you have), start copying them, and a grid of where you stand, green for copied reliably, amber for shaky, red for needs work, grey for not met yet. Hover a character for what it was confused with, and how often it had to be sent again.
 - **Chart** is the whole code, click anything to hear it, with the dits and dahs drawn to length and the prosigns run together.
-- **Copy practice** and **Send text** are what they say. Prosigns go in angle brackets, `<AR>`, `<SK>`, `<BT>`.
-- **Your sending** is a keyer: straight key, iambic A or B, a big hold-to-key button, and two levers you can bind to any keys. A keyboard is a poor paddle, because most cannot report two arbitrary keys held at once; the Ctrls or the Shifts work, and so do the on-screen levers. A real paddle wired to the bound keys works best.
-- **Your rating** measures your copying and your sending in words per minute and keeps both with your account. The CW games set their level from it.
+- **Copy practice** and **Send text** are what they say. Prosigns go in angle brackets, `<AR>`, `<SK>`, `<BT>`. Ask for a **Resend** as often as you need - a contact would - or **Slower** and **Faster**, which send the same text again two words a minute off or on the effective speed. The resends are counted beside the copy: "87% copied, after two resends" and "first time through" are different things to know, and the record keeps the count per character.
+- **Your sending** is a keyer: straight key, iambic A or B, a big hold-to-key button, and two levers you can bind to any keys - click the key label under a lever and press the one you want. A keyboard is a poor paddle, because most cannot report two arbitrary keys held at once; the Ctrls or the Shifts work, and so do the on-screen levers. A real paddle wired to the bound keys works best. The readout shows the element in the making while the key is down, a dit until it has been held long enough to be a dah. **Key from an audio input** takes a real key wired the way it is on the bench - through a SignalLink, a rig's sidetone on Line-In, or any USB sound device carrying a keyed tone - and works the straight key from the tone's coming and going, so the timing chart measures your fist on the bench. Pick the input once; it is remembered.
+- **Your rating** measures your copying and your sending in words per minute and keeps both with your account. The CW games set their level from it. Resends on the ladder are counted and said with the result.
 - **Decode off air** listens through the microphone and decodes what it hears. Point the microphone at the receiver's speaker; the page asks for microphone permission the first time.
+
+**The buttons speak CW.** Every control on the page is labelled the way a contact would put it and keys its code before it acts, with a card at the foot of the page naming it while it sounds: QRV go ahead, QRS send slower, QRQ send faster, QSM? please repeat, QSL received and understood, QRT stop. The sound, the letters and the meaning arrive together, which is how you come to think "QRS" when the code feels rushed - and that is the code learnt. **Key the Q-codes** in the settings row turns the keying off once you are past needing it.
 
 ![CW: the page opens on Today](docs/screenshots/guide/cw.png)
 
@@ -209,6 +218,8 @@ The page needs poppler, a set of PDF tools. Without it the page says so, and on 
 
 **Your wall.** Hang a certificate, a picture with a title, a line about it, who issued it and when, and it appears framed in the Lounge.
 
+**ELMER's topics** list the chapters of every book on the shelf under the subject they belong to, matched from the publisher's bookmarks - antennas, propagation, CW and keying, and Games and the table, which is where this guide's own chapters on the Gaming Center, the games, net control and the Lounge are found.
+
 **ELMER's awards.** At the foot of the Library, and on a shelf in the Lounge, the badges this account has earned sit as small plaques. Tap one for a closer look, and **Open the PDF** builds it as a page for the wall, on the print shelf, in the browser's own viewer where the print button is. The page says what it is: a mark of practice, not a licence.
 
 ### This guide
@@ -269,7 +280,15 @@ Catching is receiving, throwing is sending, and batting is receiving too. A pitc
 
 ![CW Baseball: a ground ball to short](docs/screenshots/guide/baseball.png)
 
-A fielder the ball never reached learns how they copied the moment the pitch is revealed, on their own phone. Under the tile: innings; little league or the majors; the machine pitches or people pitch; and the starting speed, from the operator's CW rating or chosen.
+A fielder the ball never reached learns how they copied the moment the pitch is revealed, on their own phone.
+
+**The ladder, the tiers and the season.** Below the majors every player climbs a ladder of their own: a letter, two, three, a group, a word, a call, the exchange, a contact. The first pitch anyone meets is one letter, because a first pitch a newcomer cannot copy is a short game and no fun for anybody. A rung up after three clean copies in a row, a rung back after three misses, and never in the first inning, which is played where you stand. The tiers cap it: **T-Ball** is one letter a pitch, always; the **little league**'s season climbs to a group; its **championship** to a word; the **majors** pitch by the inning as before and reach the contact on their own. The rung is yours, by name, and the unit keeps it between games - a season - so proficiency is built over weeks at the table, and a player who comes back next month starts where they left off. The play says when the ladder moves.
+
+**Again, and the machine knows CW.** Below the majors, with the machine on the mound, the batter may ask for the pitch again, three times at most, then the umpire says play ball. A button asks; so does the phone's key, when what it has heard ends in **?** or **AGN**, which is how a contact asks. Key **QRS** and the machine sends the pitch again slower; **QRQ** and it sends it faster, as a contact would. The play says "after asking for it twice, in code", and the asks are on your record. Somewhere mid-count a newcomer keys a question mark, hears the machine pitch it again, and has sent the first thing that was ever answered.
+
+**The key on the phone.** A straight key, hold to key, or a paddle: two levers, dits left and dahs right, each a made element at the game's speed that repeats while the lever is held. Chosen once with **Your key** on the key pad and remembered on the phone, so a hand that has only ever known one competes with it and can try the other where nothing is at stake but the inning. At the table's own seat the space bar is the straight key and the arrow keys the paddle.
+
+Under the tile: innings; T-Ball, the little league, the championship or the majors; the machine pitches or people pitch; and the starting speed, from the operator's CW rating or chosen.
 
 ## A club night
 
