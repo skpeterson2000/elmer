@@ -19,11 +19,24 @@ const RISE = 0.005;                    // 5 ms rise and fall
    UHF set keys for a DF steer. A pitch that changed between the lesson and
    the ball game would be teaching two sounds for one thing. */
 const CW_TONE = 1020, CW_VOLUME = 92;
-function cwPrefs() {
+/* A pitch the program insists on for the length of one sending, whatever
+   the operator keeps for practice. The start-up announcement uses it: that
+   is ELMER identifying itself, not a sidetone somebody is learning at, and
+   it should sound the same on every unit. Set before the sending and put
+   back when it is done. */
+let toneHold = null;
+function holdTone(hz) { toneHold = hz || null; }
+
+function basePrefs() {
   if (typeof settings !== 'undefined' && settings && settings.tone) return {tone: settings.tone, volume: settings.volume};
   const snd = window.Sound;
   if (snd) return {tone: CW_TONE, volume: snd.muted ? 0 : Math.round(snd.level * 100)};
   return {tone: CW_TONE, volume: CW_VOLUME};
+}
+
+function cwPrefs() {
+  const prefs = basePrefs();
+  return toneHold ? {tone: toneHold, volume: prefs.volume} : prefs;
 }
 
 class CWPlayer {

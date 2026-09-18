@@ -125,6 +125,8 @@
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');
       if (commercialBox) body.commercial = commercialBox.checked;
+      const announceBox = document.getElementById('setup-announce');
+      if (announceBox) body.announce = announceBox.checked;
       const rbBox = document.getElementById('setup-rb');
       if (rbBox && rbBox.value.trim()) body.repeaterbook_token = rbBox.value.trim();   // the box is never pre-filled: typing is the only way a token arrives
       const supBox = document.getElementById('setup-supporter');

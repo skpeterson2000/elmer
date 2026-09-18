@@ -429,6 +429,8 @@ window.CW = {
 };
 </script>
 <script src="{{ asset('voice.js') }}"></script>
-<script src="{{ asset('morse.js') }}"></script>
+{# morse.js comes with base.html now, for the start-up announcement; loading
+   it twice would redeclare the keyer and take the page's script down with
+   it. #}
 <script src="{{ asset('cw.js') }}"></script>
 {% endblock %}

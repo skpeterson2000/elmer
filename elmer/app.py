@@ -7756,6 +7756,10 @@ def api_settings():
         settings["state"] = body["state"]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
+    if "announce" in body:
+        # Whether the unit says its own name in code when it opens. Absent
+        # means yes; a station that wants quiet says so once and is quiet.
+        settings["announce"] = bool(body["announce"])
     if "shared" in body:
         # The unit's own answer, not this account's; None puts the question back.
         db.set_shared(connection, None if body["shared"] is None else bool(body["shared"]))
