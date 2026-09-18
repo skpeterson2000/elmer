@@ -25,11 +25,11 @@
   <div class="cw-settings">
     <div class="field">
       <label>Tone (Hz) <span class="tiny muted" id="cw-tone-v"></span></label>
-      <input type="range" id="cw-tone" min="300" max="1200" step="10" value="600">
+      <input type="range" id="cw-tone" min="300" max="1200" step="10" value="1020">
     </div>
     <div class="field">
       <label>Volume <span class="tiny muted" id="cw-vol-v"></span></label>
-      <input type="range" id="cw-vol" min="0" max="100" step="1" value="35">
+      <input type="range" id="cw-vol" min="0" max="100" step="1" value="92">
     </div>
     <div class="field">
       <label>Character speed (wpm) <span class="tiny muted" id="cw-wpm-v"></span></label>
@@ -52,8 +52,12 @@
     Characters are always sent at the character speed; lowering the effective
     speed stretches the gaps between them, not the characters themselves
     (Farnsworth). Learning a slowed-down character teaches a sound you have to
-    unlearn later. Pick whatever tone you hear most comfortably &mdash; anywhere
-    from 300 to 1200 Hz &mdash; and it is remembered.
+    unlearn later. The tone starts at 1020 Hz, which is the pitch aviation
+    already identifies in code on &mdash; ICAO gives VOR, ILS and NDB stations
+    1020 Hz for their idents, and the TONE switch on a military UHF set keys
+    1020 Hz for a direction-finding steer. Pick whatever you hear most
+    comfortably, though &mdash; anywhere from 300 to 1200 Hz, and many
+    operators settle lower. It is remembered.
   </div>
   <div class="tiny muted" style="margin-top:.4rem">
     The buttons are labelled the way a contact would put it, and each keys its

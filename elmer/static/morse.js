@@ -11,9 +11,14 @@ const RISE = 0.005;                    // 5 ms rise and fall
 /* Where the tone and the volume come from. The CW page has its own
    settings (cw.js); the Gaming Center pages have no such object, only the
    page's one sound control (voice.js: window.Sound), and a page with
-   neither gets a plain 600 Hz sidetone at a sensible level. Read at play
-   time, not at load, so the order the scripts arrive in does not matter. */
-const CW_TONE = 600, CW_VOLUME = 35;
+   neither gets a plain sidetone at a sensible level. Read at play time, not
+   at load, so the order the scripts arrive in does not matter.
+
+   The same 1020 Hz the CW page starts on - the identification tone ICAO
+   gives VOR, ILS and NDB stations, and what the TONE switch on a military
+   UHF set keys for a DF steer. A pitch that changed between the lesson and
+   the ball game would be teaching two sounds for one thing. */
+const CW_TONE = 1020, CW_VOLUME = 92;
 function cwPrefs() {
   if (typeof settings !== 'undefined' && settings && settings.tone) return {tone: settings.tone, volume: settings.volume};
   const snd = window.Sound;

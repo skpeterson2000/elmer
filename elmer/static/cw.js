@@ -8,8 +8,27 @@ const MORSE_UI = {};   // filled from the server's encode endpoint as needed
 /* The tone player and the decoder are in morse.js, loaded before this. */
 
 /* --------------------------------------------------------------- settings */
+/* 1020 Hz to start on. It is the tone the aviation world already agrees on:
+   ICAO has VOR, ILS and NDB stations identify themselves in Morse at 1020 Hz,
+   and the TONE position on a military UHF set - the AN/ARC-164 in most of the
+   cockpits anybody has sat in - keys 1020 Hz for a DF steer. So it is the
+   pitch a great many people have actually heard code on, which is a better
+   reason for a default than any number picked for being round. It is only a
+   default: the slider runs from 300 to 1200 Hz and remembers where it is put,
+   and plenty of operators settle lower. */
+const CW_TONE_DEFAULT = 1020;
+
+/* Loud enough to be heard on a unit with nothing else to turn up. This
+   slider is ELMER's own and sits under the system volume, which is the right
+   way round - but a Raspberry Pi wired to a monitor may have no volume
+   button anywhere on it, and a first run that is inaudible reads as a
+   program that does not make a sound rather than one turned down. So it
+   starts most of the way up and is turned down by anybody who wants it
+   quieter, which is the easier direction to discover. */
+const CW_VOLUME_DEFAULT = 92;
+
 const settings = Object.assign(
-  {tone: 600, volume: 35, wpm: 20, effective: 10, lesson: 2,
+  {tone: CW_TONE_DEFAULT, volume: CW_VOLUME_DEFAULT, wpm: 20, effective: 10, lesson: 2,
    /* Which keys are the paddles, and which instrument you were last using.
       Arrows to begin with because they are where a hand already is, but the
       right pair depends on the keyboard and on the operator, so they are
