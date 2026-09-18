@@ -90,6 +90,25 @@ Click the operator chip for the menu **Who is at the controls?** It lists every 
 
 ## Studying for the exam
 
+### If you read one thing, read this
+
+**Come back tomorrow.** ELMER decides when to show you a question again by working out when you are about to forget it, and aiming to catch you just before you do - it picks the gap so that you have about a nine-in-ten chance of still knowing the answer when it comes round. That is the whole mechanism, and it cannot work on somebody who appears once a week. Twenty minutes a day beats three hours on a Sunday, and it is not close.
+
+**A short session is a real session.** Open the pool, press **Study**, answer what it gives you, stop when you want to. There is no session length to complete. The dashboard keeps a day streak for exactly this reason.
+
+**Getting one wrong is not a setback, it is the point.** A question you miss comes back in about ten minutes, and then keeps a share of the spacing it had already earned rather than starting again from nothing. Pressing `?` to reveal an answer counts as wrong on purpose: guessing right teaches the program that you knew it, and then it will not show you that question again for a month.
+
+**A week of this is worth more than the week before the exam.** A question you have known for a while can space out as far as six months, so the pool quietly gets smaller as you go and the daily session gets shorter, not longer.
+
+### A first week
+
+1. **Pick your pool.** Technician if you hold nothing yet. The card is on the dashboard.
+2. **Press Study and answer thirty or forty questions.** You will get a lot wrong. Everybody does; nothing has been measured about you yet.
+3. **Read the explanations as they open.** That is where the actual teaching is, not in the question.
+4. **Come back the next day and press Study again.** It will start with what you are about to forget and then bring you new material. This is the loop, and it stays this way to the end.
+5. **After three or four sessions, take a mock exam.** Not to pass it. It marks the sections you are weakest in, and it feeds everything you answer back into the schedule, so nothing about it is wasted time.
+6. **Then follow the numbers on the card,** below.
+
 ### The cards
 
 Each question pool has a card on the dashboard: Technician, General and Extra under **Amateur radio**, and with the switch on, the Marine Radio Operator Permit, the GROL and the Ship Radar endorsement under **Commercial**. A card shows three numbers. **Mastery** is ELMER's estimate of your chance of knowing an average question right now. **Exam odds** is your chance of passing, from thousands of simulated exams against your record, and it stays deliberately pessimistic while more than a third of the pool is unseen. **Coverage** is how much of the pool you have met. Five buttons: **Study**, **Weak spots**, **Mock exam**, **Progress** and **Browse**.
@@ -98,7 +117,13 @@ Some pools are gated until you have shown something in the one before. A gated c
 
 ### The drill
 
-One question at a time. Five modes across the top: **Drill** puts due reviews first and then new material; **Weak spots** starts with the lowest mastery; **New** shows only what you have never seen; **Lapses** returns to what you have got wrong; **Contest** is a fast random round against a clock.
+One question at a time. Five modes across the top, and the short answer is that **Drill** is the one to use almost always:
+
+- **Drill** puts what is due for review first, then new material. This is the default and the one the schedule is built around. If you are not sure, press this.
+- **New** shows only what you have never seen. Use it early, when you want to get round the pool faster than the drill will take you, and accept that you are meeting questions rather than learning them.
+- **Weak spots** starts with your lowest mastery. Use it after a mock exam has told you where you are thin, or in the last fortnight before a test.
+- **Lapses** returns to what you have got wrong. Use it when the same few questions keep catching you and you want them dealt with in one sitting.
+- **Contest** is a fast random round against a clock. It is for the evening you do not feel like studying, and it still counts.
 
 The keys: `1` to `4` or `a` to `d` answer, `space` or `Enter` moves on, `?` reveals the answer and counts as wrong, which is the honest thing to do. After you commit, the card opens: whether you were right, the XP, when it will come round again, and underneath, why this is the answer, what to watch out for, the concept it belongs to with a link to try it in the Lab where one exists, and the FCC rule with a link to the section. There is a box for your own note on any question, saved with the account.
 
@@ -111,6 +136,14 @@ Built the way the real one is: the right number of questions, exactly one drawn 
 ### Progress, and browsing the pool
 
 **Progress** is where you stand in one pool: mastery, pass probability, likely score with its range, coverage, the weakest sections to drill first, your recent mock exams, and thirty days of study as a bar chart. Below that, for somebody running a class, **Where people on this unit get lost**: the hardest questions measured from how everyone on the unit went, nobody named.
+
+**So when do I book the test?** Read three numbers together rather than any one of them.
+
+- **Coverage** first. Until you have met most of the pool, the other two are guesses dressed as numbers, and ELMER holds its estimate down on purpose while a third of the pool is still unseen.
+- **Exam odds** next, and take the **range** on the Progress page more seriously than the single figure. A likely score whose lower end is comfortably above the pass mark is a different thing from one whose average is.
+- **Your recent mock exams** last, because they are the only number here that is not a model. Three mock exams in a row, on different days, all clear of the pass mark with a margin, is the honest signal.
+
+None of this is a threshold ELMER will announce, because the program does not know what a bad day at the test session looks like. What it can tell you is whether you are still improving: if the last few mock exams are flat and the drill is mostly showing you reviews rather than new questions, you have got what this pool has to give you.
 
 **Browse** is the pool as a book: every question in a section with the key marked and the explanation under it. Choices are in their published order here; in drills and exams they are shuffled, as they are on the real test.
 
