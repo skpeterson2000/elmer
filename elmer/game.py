@@ -36,6 +36,22 @@ ACHIEVEMENTS = [
     ("pool_master", "Pool Master", "Reach 90% mastery of a whole pool"),
     ("propagation", "Band Watcher", "Check live propagation conditions"),
     ("night_owl", "Grey Line", "Study between 0300 and 0500 local"),
+    # The code. Slow to feel progress in, so the record's milestones are
+    # named: the characters copied reliably, the first copy that needed no
+    # resend, the rating's rungs, and the ballgame's first hit - and the
+    # first thing keyed that was answered, which is the one worth having.
+    ("cw_first", "First Dit", "Copy your first character"),
+    ("cw_five", "Five Solid", "Copy five characters reliably"),
+    ("cw_half", "Half the Code", "Copy twenty characters reliably"),
+    ("cw_whole", "The Whole Code", "Copy all forty characters reliably"),
+    ("cw_first_time", "First Time Through", "Copy a block at 90% with no resend"),
+    ("cw_streak_7", "Daily Code", "Practise CW 7 days running"),
+    ("cw_copy_10", "Ten Words", "Rated copying at 10 wpm"),
+    ("cw_copy_20", "Twenty Words", "Rated copying at 20 wpm"),
+    ("cw_fist", "Clean Fist", "Rated sending at 90% accuracy"),
+    ("cw_qsm", "QSM?", "Ask for a resend in code, and be answered"),
+    ("cw_hit", "Base Hit", "Copy a pitch clean in CW Baseball"),
+    ("cw_majors", "Big League", "Copy a pitch clean in the majors"),
 ]
 ACHIEVEMENT_INDEX = {code: (name, desc) for code, name, desc in ACHIEVEMENTS}
 
@@ -193,6 +209,44 @@ def check_exam_achievements(conn, pool_id, passed, perfect):
             codes.append(EXAM_BADGE[pool_id])
     if perfect:
         codes.append("perfect_exam")
+    return award(conn, codes)
+
+
+def check_cw_achievements(conn, progress, session_pct=None, resends=None, streak=None, rating=None):
+    """The code's badges, from whatever the caller has just learnt: the
+    per-character record after a copy session (with that session's score
+    and how many resends it took), the practice streak, or the rating."""
+    from . import cw
+    codes = []
+    if any(int(s.get("sent") or 0) for s in (progress or {}).values()):
+        codes.append("cw_first")
+    solid = sum(1 for s in (progress or {}).values() if cw.is_solid(s))
+    for n, code in ((5, "cw_five"), (20, "cw_half"), (40, "cw_whole")):
+        if solid >= n:
+            codes.append(code)
+    if session_pct is not None and session_pct >= 90 and not resends:
+        codes.append("cw_first_time")
+    if streak is not None and streak >= 7:
+        codes.append("cw_streak_7")
+    rating = rating or {}
+    for n, code in ((10, "cw_copy_10"), (20, "cw_copy_20")):
+        if (rating.get("copy_wpm") or 0) >= n:
+            codes.append(code)
+    if (rating.get("send_accuracy") or 0) >= 90:
+        codes.append("cw_fist")
+    return award(conn, codes)
+
+
+def check_ballgame_achievements(conn, hit=False, majors=False, keyed_ask=False):
+    """CW Baseball's badges: a clean copy of a pitch, one in the majors,
+    and a resend asked for in code that the machine answered."""
+    codes = []
+    if hit:
+        codes.append("cw_hit")
+        if majors:
+            codes.append("cw_majors")
+    if keyed_ask:
+        codes.append("cw_qsm")
     return award(conn, codes)
 
 

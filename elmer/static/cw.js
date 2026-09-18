@@ -117,6 +117,11 @@ if (qsayBox) {
   qsayBox.addEventListener('change', () => { settings.qsay = qsayBox.checked; saveSettings(); });
 }
 
+/* A badge earned on this page is said here, the moment it is earned. */
+function freshBadges(res) {
+  ((res && res.fresh) || []).forEach(a => toast('\u2605 ' + a.name, a.description));
+}
+
 bindSetting('cw-tone', 'tone', v => v + ' Hz');
 bindSetting('cw-vol', 'volume', v => v + '%');
 bindSetting('cw-wpm', 'wpm', v => v + ' wpm');
@@ -512,6 +517,7 @@ document.getElementById('cw-check').addEventListener('click', async () => {
   const res = await postJSON('/api/cw/result',
     {per_char: perChar, settings: settings}).catch(() => null);
   if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
+  freshBadges(res);
   /* The record decides the lesson: when the plan moves up, the slider
      follows and the toast says what arrived. */
   const before = todayPlan ? todayPlan.lesson : settings.lesson;
@@ -1464,6 +1470,7 @@ async function runSession() {
           (r.resends ? ', ' + r.resends + ' resend' + (r.resends === 1 ? '' : 's') + ' asked for' : '') + '.</li>');
         const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
         if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
+        freshBadges(res);
       }
     } else if (step.kind === 'koch' || step.kind === 'words' || step.kind === 'qso') {
       status.textContent = step.kind === 'koch' ? 'groups - type what you hear, then Check' : step.kind === 'words' ? 'words - type what you hear, then Check' : 'a contact - copy it, then Check';
@@ -1477,7 +1484,7 @@ async function runSession() {
     }
   }
   const seconds = Math.round((Date.now() - sessionStarted) / 1000);
-  try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); } catch (e) {}
+  try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); freshBadges(todayStreak); } catch (e) {}
   sessionOn = false;
   document.getElementById('cw-today-start').hidden = false;
   document.getElementById('cw-today-stop').hidden = true;
@@ -1564,7 +1571,7 @@ function ladderFinish(rated) {
   document.getElementById('cw-ladder-checkrow').hidden = true;
   document.getElementById('cw-ladder-status').textContent = '';
   if (rated) {
-    postJSON('/api/cw/rating', {copy_wpm: rated}).then(paintRating).catch(() => null);
+    postJSON('/api/cw/rating', {copy_wpm: rated}).then(r => { paintRating(r); freshBadges(r); }).catch(() => null);
     res.innerHTML = '<div class="spread"><b>Rated: you copy at ' + ladderWord(rated) + '</b>' +
       '<span class="pill good">the top rung you passed</span></div>' +
       '<div class="tiny muted mt">passed ' + (ladder.passed.map(ladderWord).join(', ') || 'none') +
@@ -1641,7 +1648,7 @@ document.getElementById('cw-send-rate-done').addEventListener('click', async () 
     '<span class="pill ' + (rated ? 'good' : 'warn') + '">' + (rated ? 'rated' : 'nine in ten to rate it') + '</span></div>' +
     '<div class="tiny muted" style="margin-top:.3rem">asked: <span class="mono">' + escapeHTML(sendRate.text) +
     '</span> \u00b7 heard: <span class="mono">' + escapeHTML(keyDecoder.text || '\u2014') + '</span></div>' + box.innerHTML;
-  if (rated) postJSON('/api/cw/rating', {send_wpm: wpm, send_accuracy: pct}).then(paintRating).catch(() => null);
+  if (rated) postJSON('/api/cw/rating', {send_wpm: wpm, send_accuracy: pct}).then(r => { paintRating(r); freshBadges(r); }).catch(() => null);
   else if (wpm) postJSON('/api/cw/rating', {send_accuracy: pct}).then(paintRating).catch(() => null);
   sendRate = null;
   document.getElementById('cw-send-prompt').textContent = '';

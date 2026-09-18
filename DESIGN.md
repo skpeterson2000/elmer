@@ -2258,7 +2258,7 @@ one.
 XP is kept as a pure effort meter and no longer confers any title. It is
 weighted so the answers worth the most are the ones that teach you the
 most — a hard, overdue, previously-failed question pays several times what a
-question you already own does. Alongside it sit daily streaks, 22 achievements
+question you already own does. Alongside it sit daily streaks, 34 achievements
 and a timed contest mode.
 
 ---

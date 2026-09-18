@@ -2558,7 +2558,10 @@ def api_cw_minutes():
     key = date.today().isoformat()
     logbook[key] = (logbook.get(key) or 0) + seconds
     db.kv_set(connection, CW_LOG_KEY, logbook)
-    return jsonify(_cw_streak(connection))
+    out = _cw_streak(connection)
+    out["fresh"] = game.check_cw_achievements(connection, {}, streak=out["streak"])
+    connection.commit()
+    return jsonify(out)
 
 
 def _voice_have():
@@ -2656,6 +2659,8 @@ def api_cw_rating():
         settings["cw_rating"] = rating
         db.save_settings(connection, settings)
         log.info("CW rating: %s", ", ".join(f"{k} {v}" for k, v in rating.items()))
+        rating = dict(rating, fresh=game.check_cw_achievements(connection, {}, rating=rating))
+        connection.commit()
     return jsonify(rating)
 
 
@@ -2675,9 +2680,15 @@ def api_cw_result():
     total = sum(v.get("sent", 0) for v in per_char.values())
     hit = sum(v.get("copied", 0) for v in per_char.values())
     again = sum(int(v.get("repeats", 0) or 0) for v in per_char.values())
-    log.info("CW copy session: %d characters, %d%% copied, %d resend%s", total,
-             round(100 * hit / total) if total else 0, again, "" if again == 1 else "s")
-    return jsonify({"ok": True, "progress": db.cw_progress(connection)})
+    if total:
+        log.info("CW copy session: %d characters, %d%% copied, %d resend%s", total,
+                 round(100 * hit / total), again, "" if again == 1 else "s")
+    progress = db.cw_progress(connection)
+    fresh = game.check_cw_achievements(connection, progress,
+                                       session_pct=round(100 * hit / total) if total else None,
+                                       resends=again)
+    connection.commit()
+    return jsonify({"ok": True, "progress": progress, "fresh": fresh})
 
 
 @app.route("/lab")
@@ -4407,6 +4418,25 @@ def _table_writes_its_rounds(room):
     room.on_round_closed.append(_records)
 
 
+def _accounts_by_name(connection):
+    """The unit's accounts by callsign and by name, for crediting a seat:
+    {CALL: id}, {name: id}. A name two accounts share names neither."""
+    by_call, by_name, dupes = {}, {}, set()
+    for prof in db.users(connection):
+        call = (prof.get("callsign") or "").strip().upper()
+        if call:
+            by_call[call] = prof["id"]
+        for name in {(prof.get("name") or "").strip().lower(), (prof.get("display_name") or "").strip().lower()}:
+            if not name:
+                continue
+            if name in by_name and by_name[name] != prof["id"]:
+                dupes.add(name)
+            by_name.setdefault(name, prof["id"])
+    for name in dupes:
+        by_name.pop(name, None)          # two accounts with one name: neither is credited by it
+    return by_call, by_name
+
+
 def _credit_players(connection, summary, rows):
     """A person who sat down under their callsign gets the answer in their
     own study record, on the machine they sat at.
@@ -4423,19 +4453,7 @@ def _credit_players(connection, summary, rows):
     nowhere - the record belongs to a person, and only their account says
     who that is.
     """
-    by_call, by_name, dupes = {}, {}, set()
-    for prof in db.users(connection):
-        call = (prof.get("callsign") or "").strip().upper()
-        if call:
-            by_call[call] = prof["id"]
-        for name in {(prof.get("name") or "").strip().lower(), (prof.get("display_name") or "").strip().lower()}:
-            if not name:
-                continue
-            if name in by_name and by_name[name] != prof["id"]:
-                dupes.add(name)
-            by_name.setdefault(name, prof["id"])
-    for name in dupes:
-        by_name.pop(name, None)          # two accounts with one name: neither is credited by it
+    by_call, by_name = _accounts_by_name(connection)
     if not by_call and not by_name:
         return
     mode = f"table:{summary.get('mode') or 'tournament'}" if summary.get("tag") is None else "hall"
@@ -5097,6 +5115,32 @@ def _cw_base_wpm():
     return max(5.0, copy - 2.0) if copy else 10.0
 
 
+def _credit_cw(connection, name, **what):
+    """A CW Baseball moment credited to the account a seat's name belongs
+    to, by callsign or by account name, the way a round's answers are - so
+    a hit, or the first thing keyed that was answered, goes home with the
+    person. A name that is nobody's here earns nothing, and the connection
+    is put back on whoever it was on."""
+    by_call, by_name = _accounts_by_name(connection)
+    call = party.callsign_of(name)
+    user_id = by_call.get(call) if call else None
+    if user_id is None:
+        user_id = by_name.get(str(name or "").strip().lower())
+    if user_id is None:
+        return []
+    was = connection.user_id
+    try:
+        connection.user_id = user_id
+        fresh = game.check_ballgame_achievements(connection, **what)
+        connection.commit()
+        return fresh
+    except Exception as exc:                                 # credit must never break a play
+        log.warning("credit: %s: %s", type(exc).__name__, exc)
+        return []
+    finally:
+        connection.user_id = was
+
+
 @app.route("/api/party/ball/swing", methods=["POST"])
 def api_party_ball_swing():
     """The batter's copy of the pitch."""
@@ -5109,7 +5153,11 @@ def api_party_ball_swing():
     play = room.baseball_swing(player, str(body.get("typed") or ""))
     if play.get("error"):
         abort(409, play["error"])
-    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})
+    fresh = []
+    if play.get("result") == "in play" and room.baseball is not None:
+        fresh = _credit_cw(conn(), room.baseball.name(player), hit=True,
+                           majors=room.baseball.league == "major")
+    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player), "fresh": fresh})
 
 
 @app.route("/api/party/ball/field", methods=["POST"])
@@ -5156,7 +5204,10 @@ def api_party_ball_play(what):
     play = room.baseball_act(what, player, **args())
     if play.get("error"):
         abort(409, play["error"])
-    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player)})
+    fresh = []
+    if what == "again" and play.get("keyed") and room.baseball is not None:
+        fresh = _credit_cw(conn(), room.baseball.name(player), keyed_ask=True)
+    return jsonify({"ok": True, "play": play, "baseball": room.baseball_view(player), "fresh": fresh})
 
 
 @app.route("/api/party/aim", methods=["POST"])

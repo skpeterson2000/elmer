@@ -213,6 +213,30 @@ def main():
     db.cw_record(conn, {"K": {"sent": 1, "copied": 1, "repeats": 1}})
     check("  and they add up", db.cw_progress(conn)["K"]["repeats"], 4)
 
+    print("\n-- the code's badges --")
+    from elmer import game
+    names = lambda fresh: [a["name"] for a in fresh]
+    conn2 = db.connect()
+    check("nothing yet, nothing earned", game.check_cw_achievements(conn2, {}), [])
+    solid = lambda n: {c: {"sent": 20, "copied": 19, "confused": "{}"} for c in cw.KOCH_ORDER[:n]}
+    check("the first character copied is First Dit", names(game.check_cw_achievements(conn2, {"K": {"sent": 1, "copied": 0}})), ["First Dit"])
+    check("  five solid is Five Solid", names(game.check_cw_achievements(conn2, solid(5))), ["Five Solid"])
+    check("  twenty is Half the Code", names(game.check_cw_achievements(conn2, solid(20))), ["Half the Code"])
+    check("  all forty is The Whole Code", names(game.check_cw_achievements(conn2, solid(40))), ["The Whole Code"])
+    check("  and none of them twice", game.check_cw_achievements(conn2, solid(40)), [])
+    check("a block at 90% after a resend is not First Time Through", game.check_cw_achievements(conn2, {}, session_pct=95, resends=2), [])
+    check("  with no resend it is", names(game.check_cw_achievements(conn2, {}, session_pct=90, resends=0)), ["First Time Through"])
+    check("six days running is not yet Daily Code", game.check_cw_achievements(conn2, {}, streak=6), [])
+    check("  seven is", names(game.check_cw_achievements(conn2, {}, streak=7)), ["Daily Code"])
+    check("the rating: copying at 12 wpm is Ten Words", names(game.check_cw_achievements(conn2, {}, rating={"copy_wpm": 12})), ["Ten Words"])
+    check("  at 20, Twenty Words too", names(game.check_cw_achievements(conn2, {}, rating={"copy_wpm": 20, "send_accuracy": 88})), ["Twenty Words"])
+    check("  sending at 90% is Clean Fist", names(game.check_cw_achievements(conn2, {}, rating={"send_accuracy": 90})), ["Clean Fist"])
+    check("the ballgame: a hit in the little league is Base Hit", names(game.check_ballgame_achievements(conn2, hit=True)), ["Base Hit"])
+    check("  one in the majors is Big League as well", names(game.check_ballgame_achievements(conn2, hit=True, majors=True)), ["Big League"])
+    check("  a resend asked for in code and answered is QSM?", names(game.check_ballgame_achievements(conn2, keyed_ask=True)), ["QSM?"])
+    check("all twelve are on the list", sum(1 for c, _, _ in game.ACHIEVEMENTS if c.startswith("cw_")), 12)
+    check("  and every one earned here is held", len([c for c in game.earned(conn2) if c.startswith("cw_")]), 12)
+
     return 1 if FAILS else 0
 
 
