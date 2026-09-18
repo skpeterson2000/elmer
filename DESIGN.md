@@ -1560,6 +1560,37 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*Immersion, and the operator who walks in (2026-09-18).* The reason the
+buttons are labelled QRV and QSM? and the reason net control keys QRT at
+a room are the same reason, and it is worth stating once so that nobody
+later decides the labels are clutter and tidies them away.
+
+A language is learnt by being surrounded by it. So the program speaks the
+language it teaches: a control is labelled the way a contact would put
+it, and it keys its own code before it acts. QRS is not a legend beside a
+Slower button; it is what Slower is called, and after a few evenings of
+feeling rushed a person thinks QRS before they think slower. That is the
+whole mechanism, and it costs nothing, because the plain words are
+printed beside every one of them.
+
+The test for whether it is working is the operator who walks in. An
+experienced hand steps into the room, hears a unit identify itself, sees
+controls labelled in Q-signals with the meanings spelled out next to
+them, and reads the situation instantly: correct, unnecessary labels,
+this is a classroom. That recognition is the thing being designed for.
+A competent speaker of a language walking into a class of its learners
+does not need the room explained to them, and will often rather enjoy
+how it is arranged. The hall, the announcement and the net control pings
+are all built to be read that way from the doorway.
+
+The line this must not cross: immersion is never a barrier. Every code
+carries its meaning in plain words at the same moment - on the card that
+stands while a Q-signal sounds, in the title on every button, in the
+words that go up on the screens beside a keyed ping. Somebody who cannot
+read a word of it yet is never told less than everybody else, only told
+it twice. An immersion that withheld the meaning would be a puzzle, and a
+puzzle in front of a beginner is a door.
+
 *Crawl, walk, run - the lesson has no clock on it (2026-09-18).* The
 learn pane had one way through a lesson: every character in a row, each
 held on the screen for a couple of seconds, at whatever pace the loop ran
