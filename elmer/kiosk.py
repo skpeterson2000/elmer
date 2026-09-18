@@ -203,6 +203,15 @@ def _command(path, family, url, profile):
             # kiosk with no way past it.  ELMER never asks the browser to save
             # a password, so its own basic store has nothing to protect.
             "--password-store=basic",
+            # A browser keeps audio silent until somebody has clicked the
+            # page, which is the right default for the web and the wrong one
+            # for an appliance: the opening announcement is the unit saying
+            # it is awake, and a unit that will only say so after it is
+            # touched has not told anybody anything. Nothing here plays
+            # audio the operator did not ask for - the announcement has its
+            # own switch in the Station panel, and everything else is a
+            # button being pressed.
+            "--autoplay-policy=no-user-gesture-required",
         ]
     return [path, "--kiosk", "--new-instance", "--profile", str(profile), url]
 
@@ -288,6 +297,22 @@ def open_windows():
     return len(_windows)
 
 
+def _allow_sound(profile):
+    """Let the appliance make a sound before anybody has touched it.
+
+    Firefox blocks audio until a page has been clicked, the same as
+    Chromium, and says so with a preference rather than a flag. Written
+    into the kiosk's own profile, which is ELMER's and nobody else's, so
+    this cannot change how the operator's own browser behaves.
+    """
+    try:
+        (profile / "user.js").write_text(
+            'user_pref("media.autoplay.default", 0);\n'
+            'user_pref("media.autoplay.blocking_policy", 0);\n', encoding="utf-8")
+    except OSError as exc:                       # a read-only profile; not fatal
+        log.debug("kiosk: could not write autoplay preferences (%s)", exc)
+
+
 def launch(url):
     """Start a full-screen browser on `url`.  Returns the process, or None.
 
@@ -304,6 +329,8 @@ def launch(url):
 
     profile = PROFILE_DIR / family
     profile.mkdir(parents=True, exist_ok=True)
+    if family == "firefox":
+        _allow_sound(profile)
     command = _command(path, family, url, profile)
     log.debug("kiosk: %s", " ".join(command))
     try:
