@@ -61,7 +61,7 @@ def main():
     check("the wall is theirs", (p["whose"], len(p["wall"])), ("KC9SP", 3))
 
     print("\n-- another person at the table --")
-    c.post("/api/users/add", json={"name": "Second"})
+    c.post("/api/users/add", json={"name": "Second", "shared": False})
     check("has a wall of their own, empty", c.get("/api/awards").get_json()["wall"], [])
     check("  the pro shop shows theirs, not the first person's", len(c.get("/api/golf/proshop").get_json()["wall"]), 0)
     check("  may look at the first person's certificate - a wall is for looking at", c.get(a["url"]).status_code, 200)

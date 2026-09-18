@@ -77,7 +77,7 @@ def main():
     check("nothing of it on the shelf", library.shelf(), [])
 
     print("\n-- theirs alone --")
-    r = cl.post("/api/users/add", json={"name": "Second"})
+    r = cl.post("/api/users/add", json={"name": "Second", "shared": False})
     check("a second person joins the unit", r.status_code, 200)
     check("  and sees no papers", cl.get("/api/papers").get_json()["held"], [])
     check("  nor the page, nor the file, nor a page image",

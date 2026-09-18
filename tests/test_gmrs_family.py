@@ -51,7 +51,7 @@ def main():
     r = c.post("/api/settings", json={"gmrs_call": "WRMP909", "name": "Scott", **QTH})
     check("holds WRMP909", r.get_json()["settings"]["gmrs"]["found"], True)
     r = c.post("/api/users/rename", json={"id": 1, "name": "Scott"})
-    r = c.post("/api/users/add", json={"name": "Grandkid"})
+    r = c.post("/api/users/add", json={"name": "Grandkid", "shared": False})
     check("a grandchild joins the unit", r.status_code, 200)
     c.post("/api/settings", json=QTH)
     d = c.get("/api/ways-out?gear=gmrs").get_json()

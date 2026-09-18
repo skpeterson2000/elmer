@@ -409,6 +409,23 @@ def run():
     check("a person on the mound is not asked to key it twice",
           "not asked to key it twice" in (g4.again(g4.batter).get("error") or "") if g4.phase == "pitch" else True, True)
 
+    print("\n-- the machine knows CW: QRS and QRQ at the plate --")
+    g = game(seed=12)
+    was = g.pitch["thrown_wpm"]
+    r = g.again(1, keyed=True, ask="slower")
+    check("QRS: the same pitch comes again, slower", (r["ask"], r["wpm"] < was, g.pitch["thrown_wpm"] == r["wpm"], g.pitch["n"]), ("slower", True, True, 1))
+    check("  re-encoded at that speed", g.pitch["timing"]["wpm"] == r["wpm"], True)
+    check("  and said so", "QRS - the machine sends it again, slower" in r["words"] and "in code" in r["words"], True)
+    r = g.again(1, ask="faster")
+    check("QRQ: faster than that", (r["ask"], r["wpm"] > g.pitch["thrown_wpm"] * 0.9), ("faster", True))
+    check("  both counted as asks", (g.pitch["again"], g.stat(1)["agains"], g.stat(1)["agains_keyed"]), (2, 2, 1))
+    check("an ask the game does not know is a plain again", g.again(1, ask="louder")["ask"], "again")
+    g5 = game(seed=13)
+    for _ in range(12):
+        if g5.again(1, ask="slower").get("error"):
+            break
+    check("slower has a floor", g5.pitch["thrown_wpm"] >= cwball.WPM_LEAST, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

@@ -1270,9 +1270,9 @@ function paintBaseballPhone(b) {
          ${ballCopyBox('ball-typed', 'what you copied')}
          <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>
          <p><button class="choice" id="ball-take" style="text-align:center">Take it</button></p>` +
-        (b.again_most ? `<p class="tiny muted" style="margin:.9rem 0 .2rem">Didn't get it? Ask the way a contact would: key <span class="mono">?</span> or <span class="mono">AGN</span> and the machine pitches it again${b.pitch && b.pitch.again ? ` (asked ${b.pitch.again} of ${b.again_most})` : ''}.</p>
+        (b.again_most ? `<p class="tiny muted" style="margin:.9rem 0 .2rem">Didn't get it? Ask the way a contact would, and the machine answers: key <span class="mono">?</span> or <span class="mono">AGN</span> for it again, <span class="mono">QRS</span> for slower, <span class="mono">QRQ</span> for faster${b.pitch && b.pitch.again ? ` (asked ${b.pitch.again} of ${b.again_most})` : ''}.</p>
          ${ballKeyPad('again')}
-         <p><button class="choice" id="ball-again" style="text-align:center">Again? <span class="mono" style="opacity:.7">QSM?</span></button></p>` : '');
+         <p style="display:flex;gap:.4rem"><button class="choice" id="ball-again" style="text-align:center">Again? <span class="mono" style="opacity:.7">QSM?</span></button><button class="choice" id="ball-slower" style="text-align:center">Slower <span class="mono" style="opacity:.7">QRS</span></button><button class="choice" id="ball-faster" style="text-align:center">Faster <span class="mono" style="opacity:.7">QRQ</span></button></p>` : '');
     } else if (inGame) {
       main = `<p><b>${escapeHTML(b.batter_name)}</b> at bat. Copy the pitch and hold it - if the ball comes to you, your copy is the catch. ${clock}</p>
          ${ballCopyBox('ball-held', 'what you copied')}
@@ -1316,20 +1316,27 @@ function paintBaseballPhone(b) {
   /* The little league's again: the button asks; so does the key, when what
      it has heard ends in ? or AGN - the first request many will ever send
      and have answered, and the machine answers by pitching it again. */
-  const askAgain = async keyed => {
-    try { await api('/api/party/ball/again', {player: me.id, keyed: !!keyed}); } catch (e) {}
+  const askAgain = async (keyed, ask) => {
+    try { await api('/api/party/ball/again', {player: me.id, keyed: !!keyed, ask: ask || 'again'}); } catch (e) {}
     shownRound = null; tick();
   };
-  const againBtn = document.getElementById('ball-again');
-  if (againBtn) againBtn.addEventListener('click', () => { againBtn.disabled = true; askAgain(false); });
+  [['ball-again', 'again'], ['ball-slower', 'slower'], ['ball-faster', 'faster']].forEach(([id, ask]) => {
+    const bt = document.getElementById(id);
+    if (bt) bt.addEventListener('click', () => { bt.disabled = true; askAgain(false, ask); });
+  });
   if (document.getElementById('again-key') || document.getElementById('again-dit')) {
+    /* The machine knows CW: what the key has heard, once it settles, is
+       read for the asks a contact makes. QSM? and AGN and a bare ? are
+       "again"; QRS is slower; QRQ is faster. */
     let settle = null;
     ballKeyer('again', k => {
       clearTimeout(settle);
       settle = setTimeout(() => {
         k.decoder.flush();
         const heard = k.decoder.text.replace(/\s+/g, '').toUpperCase();
-        if (/(\?|AGN|QSM\??)$/.test(heard)) { k.decoder.text = ''; askAgain(true); }
+        const ask = /QRS$/.test(heard) ? 'slower' : /QRQ$/.test(heard) ? 'faster'
+          : /(\?|AGN|QSM\??)$/.test(heard) ? 'again' : null;
+        if (ask) { k.decoder.text = ''; askAgain(true, ask); }
       }, Math.max(500, (k.decoder.dit || 100) * 7));
     });
   }

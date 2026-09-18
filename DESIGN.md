@@ -1554,15 +1554,18 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
-*Again.* In the little league, with the machine on the mound, the batter
-may ask for the pitch again - three times at most, then the umpire says
-play ball. A button asks; so does the phone's key, when what it has heard
-ends in **?** or **AGN**, which is how a contact asks. That is the point of
-it: somewhere mid-count a newcomer keys a question mark, hears the machine
-pitch it again, and has sent their first thing that was answered. The ask
-is counted on the pitch, so the play says "after asking for it twice, in
-code", and on the batter's record. The majors pitch it once, and a person
-on the mound is never asked to key it twice.
+*Again, and the machine knows CW.* In the little league, from the first
+inning, with the machine on the mound, the batter may ask for the pitch
+again - three times at most, then the umpire says play ball. A button
+asks; so does the phone's key, when what it has heard ends in **?** or
+**AGN**, which is how a contact asks - and the machine answers **QRS** by
+sending it again slower and **QRQ** by sending it faster, as a contact
+would. That is the point of it: somewhere mid-count a newcomer keys a
+question mark, hears the machine pitch it again, and has sent their first
+thing that was answered; a real fist keys QRS and finds the game knows the
+code. The ask is counted on the pitch, so the play says "after asking for
+it twice, in code", and on the batter's record. The majors pitch it once,
+and a person on the mound is never asked to key it twice.
 
 *The key.* A phone's key is a straight key - hold to key - or a paddle,
 two levers, dits left and dahs right, each a made element at the game's

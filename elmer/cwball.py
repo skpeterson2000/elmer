@@ -86,8 +86,13 @@ CATCH_SECONDS = 8.0             # to hand up the held copy when the ball comes t
 WINDUP_SECONDS = 40.0           # the pitch clock: choose and key it, or it is a ball
 REVEAL_SECONDS = 9.0            # the play stands on the screens
 # The little league lets the batter ask for the pitch again - "?" or AGN,
-# as a contact would - this many times before the umpire says play ball.
+# as a contact would, or QRS and QRQ for slower and faster - this many
+# times before the umpire says play ball. Slower and faster move the
+# speed by a fifth and a quarter, within what the game will send.
 AGAIN_MOST = 3
+ASKS = {"again": "QSM?", "slower": "QRS", "faster": "QRQ"}
+SLOWER, FASTER = 0.8, 1.25
+WPM_LEAST, WPM_MOST = 5.0, 40.0
 BETWEEN_SECONDS = 12.0          # the side retires; the board is read
 INNING_WPM = 1.5                # faster each inning
 HARD_WPM = 1.15                 # a hard pitch is thrown at the top of the band
@@ -457,16 +462,18 @@ class Baseball:
             bases += 1
         return min(4, bases)
 
-    def again(self, player, keyed=False):
+    def again(self, player, keyed=False, ask="again"):
         """The batter asks for the pitch again - "?" or AGN, as a contact
-        would. The little league only, and only with the machine on the
-        mound: a person is not asked to key it twice, and the majors pitch
-        it once. The pitch sounds again on every screen, the clock restarts,
-        and the ask is counted - against the pitch, so the play can say
-        "after asking twice", and for the batter, in the record. `keyed`
-        says it was asked in code rather than by a button, which the words
-        mark: for many that will be the first thing they ever send that is
-        answered, and it should feel like it."""
+        would - or slower (QRS) or faster (QRQ), and the machine answers in
+        kind. The little league only, from the first inning, and only with
+        the machine on the mound: a person is not asked to key it twice, and
+        the majors pitch it once. The pitch sounds again on every screen at
+        the speed asked for, the clock restarts, and the ask is counted -
+        against the pitch, so the play can say "after asking twice", and for
+        the batter, in the record. `keyed` says it was asked in code rather
+        than by a button, which the words mark: for many that will be the
+        first thing they ever send that is answered, and it should feel
+        like it - the machine knows CW."""
         if self.phase != "pitch":
             return {"error": "no pitch to ask for again"}
         if player != self.batter:
@@ -478,6 +485,7 @@ class Baseball:
         p = self.pitch
         if p.get("again", 0) >= AGAIN_MOST:
             return {"error": f"the umpire says play ball - {AGAIN_MOST} is the most the little league allows"}
+        ask = ask if ask in ASKS else "again"
         p["again"] = p.get("again", 0) + 1
         if keyed:
             p["again_keyed"] = p.get("again_keyed", 0) + 1
@@ -485,10 +493,25 @@ class Baseball:
         s["agains"] += 1
         if keyed:
             s["agains_keyed"] += 1
-        self.deadline = _now() + p["sounds"] + p["window"]
-        self._plan_bot()
+        was = p["thrown_wpm"]
+        wpm = was
+        if ask == "slower":
+            wpm = max(WPM_LEAST, round(was * SLOWER, 1))
+        elif ask == "faster":
+            wpm = min(WPM_MOST, round(was * FASTER, 1))
+        if wpm != was:
+            # the same pitch, re-sounded at the new speed; the clock restarts inside
+            self._throw_pitch(p["sent"], p["call"], wpm)
+        else:
+            self.deadline = _now() + p["sounds"] + p["window"]
+            self._plan_bot()
+        said = ("asked for it again" if ask == "again" else
+                f"asked {ASKS[ask]} - the machine sends it again, {ask}, at {wpm} wpm"
+                if wpm != was else
+                f"asked {ASKS[ask]} - it is already as {'slow' if ask == 'slower' else 'fast'} as the game sends")
         return {"ok": True, "again": p["again"], "left": AGAIN_MOST - p["again"], "keyed": bool(keyed),
-                "words": (f"{self.name(player)} asked for it again"
+                "ask": ask, "wpm": wpm,
+                "words": (f"{self.name(player)} {said}"
                           + (" - in code, and the machine answered" if keyed else "")
                           + f" ({p['again']} of {AGAIN_MOST})")}
 

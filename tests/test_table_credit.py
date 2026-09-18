@@ -36,7 +36,7 @@ def main():
     local = {"REMOTE_ADDR": "127.0.0.1"}
     client.post("/api/settings", json={"callsign": "KC9SP", "license_class": "General"}, environ_base=local)
     client.post("/api/users/rename", json={"id": 1, "name": "Scott"}, environ_base=local)
-    client.post("/api/users/add", json={"name": "Grandkid"}, environ_base=local)
+    client.post("/api/users/add", json={"name": "Grandkid", "shared": False}, environ_base=local)
     client.post("/api/users/add", json={"name": "Sue"}, environ_base=local)
     client.post("/api/users/switch", json={"id": 1}, environ_base=local)
 
