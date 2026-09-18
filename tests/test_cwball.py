@@ -378,6 +378,37 @@ def run():
     check("back to a tournament puts the game away", room.baseball, None)
     party.close_room()
 
+    print("\n-- the little league's again: ? or AGN, and the machine pitches it again --")
+    g = game(seed=3)
+    n0, deadline0 = g.pitch["n"], g.deadline
+    r = g.again(1)
+    check("the batter asks and is answered", (r.get("ok"), r["again"], r["left"]), (True, 1, cwball.AGAIN_MOST - 1))
+    check("  the same pitch, sounded again: the count on it moves, the number does not", (g.pitch["n"], g.pitch["again"]), (n0, 1))
+    check("  the clock restarts", g.deadline >= deadline0, True)
+    check("  and the ask is on the batter's record", g.stat(1)["agains"], 1)
+    r = g.again(1, keyed=True)
+    check("asked in code, it says the machine answered", "in code, and the machine answered" in r["words"], True)
+    check("  and that is remembered apart", (g.pitch["again_keyed"], g.stat(1)["agains_keyed"]), (1, 1))
+    check("somebody else cannot ask for it", "not your at-bat" in g.again(3)["error"], True)
+    d = g.as_dict(1)
+    check("the phone is told how many it may ask for", d["again_most"], cwball.AGAIN_MOST)
+    check("  and how many it has", d["pitch"]["again"], 2)
+    g.again(1)
+    check("three is the most", "the umpire says play ball" in g.again(1)["error"], True)
+    play = g.swing(1, g.pitch["want"])
+    check("the play says how it was asked for", play["words"].endswith("after asking for it 3 times, in code"), True)
+    g2 = game(seed=4)
+    play = g2.take(1)
+    check("a take with no asking says nothing of it", "asking" in play["words"], False)
+    g3 = game(seed=5, league="major")
+    check("the majors pitch it once", g3.again(g3.batter)["error"], "the majors pitch it once")
+    check("  and the phone is not offered it", g3.as_dict(g3.batter)["again_most"], 0)
+    g4 = people(seed=6)
+    g4.choose(g4.pitcher, "normal")
+    g4.deliver(g4.pitcher, g4.pitch["text"])
+    check("a person on the mound is not asked to key it twice",
+          "not asked to key it twice" in (g4.again(g4.batter).get("error") or "") if g4.phase == "pitch" else True, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

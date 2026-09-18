@@ -1554,6 +1554,24 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*Again.* In the little league, with the machine on the mound, the batter
+may ask for the pitch again - three times at most, then the umpire says
+play ball. A button asks; so does the phone's key, when what it has heard
+ends in **?** or **AGN**, which is how a contact asks. That is the point of
+it: somewhere mid-count a newcomer keys a question mark, hears the machine
+pitch it again, and has sent their first thing that was answered. The ask
+is counted on the pitch, so the play says "after asking for it twice, in
+code", and on the batter's record. The majors pitch it once, and a person
+on the mound is never asked to key it twice.
+
+*The key.* A phone's key is a straight key - hold to key - or a paddle,
+two levers, dits left and dahs right, each a made element at the game's
+speed, repeating while the lever is held, no squeeze. Chosen once and
+remembered on the phone. A hand that has only ever known one should
+compete with it, and can try the other here, where nothing is at stake but
+the inning; the table's seat has had both since the start, the space bar
+and the arrow keys.
+
 *Fielding.* Where the ball goes the machine decides from the hit and a
 little chance, and names it by position: a group is a grounder to short
 or second, a word a line drive to third or through for a base hit, a call

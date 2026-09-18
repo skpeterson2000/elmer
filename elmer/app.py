@@ -5145,6 +5145,8 @@ def api_party_ball_play(what):
         "pick": lambda: {"difficulty": str(body.get("difficulty") or "normal"), "text": body.get("text")},
         "pitch": lambda: {"keyed": str(body.get("keyed") or ""), "wpm": body.get("wpm")},
         "take": lambda: {},
+        # again: the batter asks for the pitch once more, by button or keyed
+        "again": lambda: {"keyed": bool(body.get("keyed"))},
         "catch": lambda: {"typed": str(body.get("typed") or "")},
         "tag": lambda: {"typed": str(body.get("typed") or "")},
         "copy": lambda: {"n": body.get("n"), "typed": str(body.get("typed") or "")},

@@ -85,6 +85,9 @@ FIELD_LEAST = 12.0
 CATCH_SECONDS = 8.0             # to hand up the held copy when the ball comes to you
 WINDUP_SECONDS = 40.0           # the pitch clock: choose and key it, or it is a ball
 REVEAL_SECONDS = 9.0            # the play stands on the screens
+# The little league lets the batter ask for the pitch again - "?" or AGN,
+# as a contact would - this many times before the umpire says play ball.
+AGAIN_MOST = 3
 BETWEEN_SECONDS = 12.0          # the side retires; the board is read
 INNING_WPM = 1.5                # faster each inning
 HARD_WPM = 1.15                 # a hard pitch is thrown at the top of the band
@@ -247,7 +250,8 @@ class Baseball:
 
     def stat(self, p):
         return self.stats.setdefault(p, {"copies": 0, "clean": 0, "catches": 0, "caught": 0,
-                                         "throws": 0, "clean_throws": 0, "pitches": 0, "strikes": 0})
+                                         "throws": 0, "clean_throws": 0, "pitches": 0, "strikes": 0,
+                                         "agains": 0, "agains_keyed": 0})
 
     # --------------------------------------------------------------- pitches
     def _text(self, level, difficulty="normal"):
@@ -310,7 +314,8 @@ class Baseball:
         self.chain = []
         self.pitch = {"n": len(self.plays) + 1, "level": level, "kind": LEVELS[level]["kind"],
                       "name": LEVELS[level]["name"], "bases": LEVELS[level]["bases"],
-                      "wpm": self.wpm(), "difficulty": None, "text": None, "sent": None, "call": None}
+                      "wpm": self.wpm(), "difficulty": None, "text": None, "sent": None, "call": None,
+                      "again": 0, "again_keyed": 0}
         if self.people_pitch():
             self.pitcher = self.positions()["P"]
             self.stat(self.pitcher)["pitches"] += 1
@@ -452,8 +457,51 @@ class Baseball:
             bases += 1
         return min(4, bases)
 
+    def again(self, player, keyed=False):
+        """The batter asks for the pitch again - "?" or AGN, as a contact
+        would. The little league only, and only with the machine on the
+        mound: a person is not asked to key it twice, and the majors pitch
+        it once. The pitch sounds again on every screen, the clock restarts,
+        and the ask is counted - against the pitch, so the play can say
+        "after asking twice", and for the batter, in the record. `keyed`
+        says it was asked in code rather than by a button, which the words
+        mark: for many that will be the first thing they ever send that is
+        answered, and it should feel like it."""
+        if self.phase != "pitch":
+            return {"error": "no pitch to ask for again"}
+        if player != self.batter:
+            return {"error": f"not your at-bat - {self.name(self.batter)} is up"}
+        if self.league != "little":
+            return {"error": "the majors pitch it once"}
+        if self.pitcher is not None:
+            return {"error": f"{self.name(self.pitcher)} is on the mound - a person is not asked to key it twice"}
+        p = self.pitch
+        if p.get("again", 0) >= AGAIN_MOST:
+            return {"error": f"the umpire says play ball - {AGAIN_MOST} is the most the little league allows"}
+        p["again"] = p.get("again", 0) + 1
+        if keyed:
+            p["again_keyed"] = p.get("again_keyed", 0) + 1
+        s = self.stat(player)
+        s["agains"] += 1
+        if keyed:
+            s["agains_keyed"] += 1
+        self.deadline = _now() + p["sounds"] + p["window"]
+        self._plan_bot()
+        return {"ok": True, "again": p["again"], "left": AGAIN_MOST - p["again"], "keyed": bool(keyed),
+                "words": (f"{self.name(player)} asked for it again"
+                          + (" - in code, and the machine answered" if keyed else "")
+                          + f" ({p['again']} of {AGAIN_MOST})")}
+
     def swing(self, player, typed):
         """The batter's copy. Returns the play, or an error."""
+        p = self.pitch
+        play = self._swing(player, typed)
+        if isinstance(play, dict) and not play.get("error") and p and p.get("again"):
+            how = "again" if p["again"] == 1 else "twice" if p["again"] == 2 else f"{p['again']} times"
+            play["words"] += f" - after asking for it {how}" + (", in code" if p.get("again_keyed") else "")
+        return play
+
+    def _swing(self, player, typed):
         if self.phase != "pitch":
             return {"error": "no pitch to swing at"}
         if player != self.batter:
@@ -496,6 +544,14 @@ class Baseball:
 
     def take(self, player):
         """The batter lets it go by and bets on the umpire's call."""
+        p = self.pitch
+        play = self._take(player)
+        if isinstance(play, dict) and not play.get("error") and p and p.get("again"):
+            how = "again" if p["again"] == 1 else "twice" if p["again"] == 2 else f"{p['again']} times"
+            play["words"] += f" - after asking for it {how}" + (", in code" if p.get("again_keyed") else "")
+        return play
+
+    def _take(self, player):
         if self.phase != "pitch":
             return {"error": "no pitch to take"}
         if player != self.batter:
@@ -1022,6 +1078,9 @@ class Baseball:
             "stats": {str(k): dict(v) for k, v in self.stats.items()},
             "your_link": link,
             "your_swing": link == "swing",
+            # the little league's "again": offered to the batter while the
+            # machine pitches, this many at most
+            "again_most": AGAIN_MOST if self.league == "little" and self.pitcher is None else 0,
             "your_throw": link in ("throw",),
             "your_team": next((k for k, v in self.lineups.items() if player_id in v), None),
             # everybody copies every pitch and holds it: the token is the pitch

@@ -1117,18 +1117,57 @@ function ballHold(n, typed) {
   try { localStorage.setItem(ballHoldKey(), JSON.stringify({n, typed, at: Date.now()})); } catch (e) {}
 }
 function ballForget() { try { localStorage.removeItem(ballHoldKey()); } catch (e) {} }
-function ballKeyer(buttonId, outId) {
-  const kb = document.getElementById(buttonId);
-  if (!kb) return null;
-  const k = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0};
-  const out = document.getElementById(outId);
-  const down = e => { e.preventDefault(); if (k.down) return; k.down = true; const now = performance.now();
-    if (k.lastUp) k.decoder.space(now - k.lastUp); k.downAt = now; if (phonePlayer) phonePlayer.down(); kb.classList.add('picked'); };
-  const up = e => { e.preventDefault(); if (!k.down) return; k.down = false; const now = performance.now();
-    k.decoder.mark(now - k.downAt); k.lastUp = now; if (phonePlayer) phonePlayer.up(); kb.classList.remove('picked');
-    if (out) out.textContent = k.decoder.text + k.decoder.symbols.join(''); };
-  kb.addEventListener('pointerdown', down); kb.addEventListener('pointerup', up); kb.addEventListener('pointercancel', up); kb.addEventListener('pointerleave', up);
-  k.wpm = () => Math.round(12000 / (k.decoder.dit || 60)) / 10;   // the fist's own speed, from its dits
+/* The phone's key is a straight key - hold to key - or a paddle: two
+   levers, dits left and dahs right, each a made element at the game's
+   speed that repeats while the lever is held, no squeeze. Chosen once and
+   remembered on this phone, because a hand that has only ever known one
+   should compete with it, and try the other here, where nothing is at
+   stake but the inning. */
+let phoneWpm = 12;
+function keyMode() { try { return localStorage.getItem('cw-key') === 'paddle' ? 'paddle' : 'straight'; } catch (e) { return 'straight'; } }
+function setKeyMode(m) { try { localStorage.setItem('cw-key', m); } catch (e) {} }
+document.addEventListener('click', e => {
+  const m = e.target.closest('[data-key-mode]');
+  if (!m) return;
+  setKeyMode(m.dataset.keyMode);
+  shownRound = null; tick();
+});
+
+function ballKeyer(prefix, onUp) {
+  const out = document.getElementById(prefix + '-keyed');
+  const k = {decoder: new MorseDecoder(null), down: false, downAt: 0, lastUp: 0, mode: keyMode()};
+  const show = () => { if (out) out.textContent = k.decoder.text + k.decoder.symbols.join(''); };
+  const kb = document.getElementById(prefix + '-key');
+  const dit = document.getElementById(prefix + '-dit'), dah = document.getElementById(prefix + '-dah');
+  if (!kb && !(dit && dah)) return null;
+  if (kb) {
+    const down = e => { e.preventDefault(); if (k.down) return; k.down = true; const now = performance.now();
+      if (k.lastUp) k.decoder.space(now - k.lastUp); k.downAt = now; if (phonePlayer) phonePlayer.down(); kb.classList.add('picked'); };
+    const up = e => { e.preventDefault(); if (!k.down) return; k.down = false; const now = performance.now();
+      k.decoder.mark(now - k.downAt); k.lastUp = now; if (phonePlayer) phonePlayer.up(); kb.classList.remove('picked');
+      show(); if (onUp) onUp(k); };
+    kb.addEventListener('pointerdown', down); kb.addEventListener('pointerup', up); kb.addEventListener('pointercancel', up); kb.addEventListener('pointerleave', up);
+  } else {
+    // the elements are made, so the decoder is told the speed rather than left to measure it
+    k.decoder = new MorseDecoder(1200 / phoneWpm);
+    const element = isDah => {
+      const d = 1200 / phoneWpm, ms = isDah ? d * 3 : d, now = performance.now();
+      if (k.lastUp) k.decoder.space(now - k.lastUp);
+      k.decoder.mark(ms);
+      k.lastUp = now + ms;
+      if (phonePlayer) { phonePlayer.down(); setTimeout(() => { if (phonePlayer) phonePlayer.up(); }, ms); }
+      show(); if (onUp) onUp(k);
+    };
+    const wire = (btn, isDah) => {
+      let rep = null;
+      const start = e => { e.preventDefault(); if (rep) return; btn.classList.add('picked'); element(isDah);
+        rep = setInterval(() => element(isDah), (isDah ? 4 : 2) * 1200 / phoneWpm); };
+      const stop = e => { e.preventDefault(); btn.classList.remove('picked'); clearInterval(rep); rep = null; };
+      btn.addEventListener('pointerdown', start); btn.addEventListener('pointerup', stop); btn.addEventListener('pointercancel', stop); btn.addEventListener('pointerleave', stop);
+    };
+    wire(dit, false); wire(dah, true);
+  }
+  k.wpm = () => k.mode === 'paddle' ? phoneWpm : Math.round(12000 / (k.decoder.dit || 60)) / 10;   // the fist's own speed, from its dits
   return k;
 }
 /* The phone's own umpire for a held copy: the reveal carries the pitch, so
@@ -1157,14 +1196,24 @@ function ballGrade(b, held) {
   return {pct, clean: pct >= 90, want, got, miss};
 }
 const ballCopyBox = (id, placeholder) => `<input id="${id}" class="cw-input" style="width:100%;font-family:var(--mono);font-size:1.2rem;padding:.6rem" autocomplete="off" autocapitalize="characters" placeholder="${placeholder}">`;
-const ballKeyPad = () => `<button class="choice" id="ball-key" style="height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none">hold to key</button>
-         <p class="mono" id="ball-keyed" style="min-height:1.4rem">&nbsp;</p>`;
+const LEVER = 'height:6rem;font-size:1.2rem;text-align:center;user-select:none;-webkit-user-select:none;touch-action:none';
+const ballKeyPad = (prefix = 'ball') => {
+  const paddle = keyMode() === 'paddle';
+  const pick = m => `<button class="choice" data-key-mode="${m}" style="width:auto;padding:.15rem .6rem;font-size:.85rem;${keyMode() === m ? 'font-weight:700' : 'opacity:.55'}">${m}</button>`;
+  return `<p class="tiny muted" style="margin:.3rem 0 .3rem;display:flex;gap:.5rem;align-items:center">Your key: ${pick('straight')} ${pick('paddle')}</p>` +
+    (paddle
+      ? `<div style="display:flex;gap:.5rem"><button class="choice" id="${prefix}-dit" style="${LEVER}">dit</button><button class="choice" id="${prefix}-dah" style="${LEVER}">dah</button></div>`
+      : `<button class="choice" id="${prefix}-key" style="${LEVER}">hold to key</button>`) +
+    `<p class="mono" id="${prefix}-keyed" style="min-height:1.4rem">&nbsp;</p>`;
+};
 
 function paintBaseballPhone(b) {
   const inGame = !!b.your_team;
   // the pitch sounds once on every phone in the game
-  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== phonePitched && phonePlayer && inGame) {
-    phonePitched = b.pitch.n;
+  phoneWpm = (b.pitch && b.pitch.wpm) || b.wpm || 12;
+  const pitchToken = b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : null;
+  if (b.phase === 'pitch' && b.pitch && pitchToken !== phonePitched && phonePlayer && inGame) {
+    phonePitched = pitchToken;
     try { phonePlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
   }
   // the throw sounds for the baseman
@@ -1194,7 +1243,7 @@ function paintBaseballPhone(b) {
     }
   }
   if (!['throw', 'throw_pitch'].includes(b.your_link)) phoneKey = null;
-  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : '') + keyMode() + b.outs + b.strikes + b.balls + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (b.your_link || '') + (b.link || '');
   if (shownRound === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
   shownRound = key;
   const score = `<p class="clock" style="margin:0 0 .4rem">CW Baseball &middot; ${b.over ? 'final' : (b.half + ' ' + ordinal(b.inning))} &middot; A ${b.runs.A} &ndash; B ${b.runs.B} &middot; ${b.outs} out &middot; ${b.balls}-${b.strikes} &middot; you are Side ${b.your_team || '?'}</p>`;
@@ -1220,7 +1269,10 @@ function paintBaseballPhone(b) {
       main = `<p><b>You're up.</b> ${b.pitch && b.pitch.kind === 'contact' ? 'Somebody is calling CQ: copy their call and swing.' : 'Copy the pitch and swing - or take it, if you think it was a ball.'} ${clock}</p>
          ${ballCopyBox('ball-typed', 'what you copied')}
          <p><button class="choice" id="ball-swing" style="text-align:center"><b>Swing &rsaquo;</b></button></p>
-         <p><button class="choice" id="ball-take" style="text-align:center">Take it</button></p>`;
+         <p><button class="choice" id="ball-take" style="text-align:center">Take it</button></p>` +
+        (b.again_most ? `<p class="tiny muted" style="margin:.9rem 0 .2rem">Didn't get it? Ask the way a contact would: key <span class="mono">?</span> or <span class="mono">AGN</span> and the machine pitches it again${b.pitch && b.pitch.again ? ` (asked ${b.pitch.again} of ${b.again_most})` : ''}.</p>
+         ${ballKeyPad('again')}
+         <p><button class="choice" id="ball-again" style="text-align:center">Again? <span class="mono" style="opacity:.7">QSM?</span></button></p>` : '');
     } else if (inGame) {
       main = `<p><b>${escapeHTML(b.batter_name)}</b> at bat. Copy the pitch and hold it - if the ball comes to you, your copy is the catch. ${clock}</p>
          ${ballCopyBox('ball-held', 'what you copied')}
@@ -1261,6 +1313,26 @@ function paintBaseballPhone(b) {
   press('ball-swing', '/api/party/ball/swing', () => ({typed: (document.getElementById('ball-typed') || {}).value || ''}));
   press('ball-take', '/api/party/ball/take', {});
   enterIs('ball-typed', 'ball-swing');
+  /* The little league's again: the button asks; so does the key, when what
+     it has heard ends in ? or AGN - the first request many will ever send
+     and have answered, and the machine answers by pitching it again. */
+  const askAgain = async keyed => {
+    try { await api('/api/party/ball/again', {player: me.id, keyed: !!keyed}); } catch (e) {}
+    shownRound = null; tick();
+  };
+  const againBtn = document.getElementById('ball-again');
+  if (againBtn) againBtn.addEventListener('click', () => { againBtn.disabled = true; askAgain(false); });
+  if (document.getElementById('again-key') || document.getElementById('again-dit')) {
+    let settle = null;
+    ballKeyer('again', k => {
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        k.decoder.flush();
+        const heard = k.decoder.text.replace(/\s+/g, '').toUpperCase();
+        if (/(\?|AGN|QSM\??)$/.test(heard)) { k.decoder.text = ''; askAgain(true); }
+      }, Math.max(500, (k.decoder.dit || 100) * 7));
+    });
+  }
   press('ball-catch-go', '/api/party/ball/catch', () => ({typed: (document.getElementById('ball-catch') || {}).value || ''}));
   enterIs('ball-catch', 'ball-catch-go');
   press('ball-tag-go', '/api/party/ball/tag', () => ({typed: (document.getElementById('ball-tag') || {}).value || ''}));
@@ -1280,8 +1352,8 @@ function paintBaseballPhone(b) {
     try { await api('/api/party/ball/pick', {player: me.id, difficulty: bt.dataset.ballPick, text: own}); } catch (e) {}
     shownRound = null; tick();
   }));
-  if (document.getElementById('ball-key')) {
-    phoneKey = ballKeyer('ball-key', 'ball-keyed');
+  if (document.getElementById('ball-key') || document.getElementById('ball-dit')) {
+    phoneKey = ballKeyer('ball');
     const send = async (id, path) => { const bt = document.getElementById(id); if (!bt) return; bt.addEventListener('click', async () => {
       bt.disabled = true; phoneKey.decoder.flush();
       try { await api(path, {player: me.id, keyed: phoneKey.decoder.text, wpm: phoneKey.wpm()}); } catch (e) {}

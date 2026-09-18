@@ -1547,8 +1547,9 @@ function paintBaseball(s) {
   const link = actor ? (b.phase === 'pitch' ? 'swing' : b.link) : null;
   // The pitch sounds once, on this screen, when it is new; so does a throw
   // on its way to a base, for the baseman to copy.
-  if (b.phase === 'pitch' && b.pitch && b.pitch.n !== ballPitched && ballPlayer) {
-    ballPitched = b.pitch.n;
+  const pitchToken = b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : null;
+  if (b.phase === 'pitch' && b.pitch && pitchToken !== ballPitched && ballPlayer) {
+    ballPitched = pitchToken;
     try { ballPlayer.send(b.pitch.groups, b.pitch.timing, null, () => {}); } catch (e) {}
   }
   if (b.phase === 'field' && b.link === 'tag' && b.pitch && b.pitch.throw_groups && ballPlayer) {
@@ -1556,7 +1557,7 @@ function paintBaseball(s) {
     if (ballThrown !== mark) { ballThrown = mark; try { ballPlayer.send(b.pitch.throw_groups, b.pitch.throw_timing, null, () => {}); } catch (e) {} }
   }
   if (!['throw', 'throw_pitch'].includes(link) && ballKey) { ballKey = null; }
-  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n : '') + b.outs + b.strikes + b.balls + JSON.stringify(b.bases) + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (actor ? 'a' + actor.id : '') + (b.link || '');
+  const key = 'ball' + b.phase + (b.pitch ? b.pitch.n + ':' + (b.pitch.again || 0) : '') + b.outs + b.strikes + b.balls + JSON.stringify(b.bases) + (b.last ? b.last.n + (b.last.result || '') + (b.last.to || '') : '') + (actor ? 'a' + actor.id : '') + (b.link || '');
   if (painted === key) { const dl = document.getElementById('ball-clock'); if (dl) dl.textContent = Math.ceil(b.deadline_in) + 's'; return; }
   painted = key;
   const clock = `<span id="ball-clock">${Math.ceil(b.deadline_in)}s</span>`;
@@ -1575,7 +1576,7 @@ function paintBaseball(s) {
   } else if (b.phase === 'pitch') {
     main = `<p class="narrator"><b>${esc(b.batter_name)}</b> at bat &middot; ${b.balls}-${b.strikes} &middot; the pitch is ${esc(b.level)}${b.pitch && b.pitch.difficulty === 'hard' ? ', a hard one' : ''}, ${b.pitch ? b.pitch.thrown_wpm : b.wpm} wpm${b.pitch && b.pitch.kind === 'contact' ? ' &middot; copy the call that is calling CQ' : ''} &middot; ${clock}</p>` +
       (link === 'swing' ? `<div class="hitrow">${seatBox('ball-typed', b.pitch && b.pitch.kind === 'contact' ? 'the call that is calling' : 'type what you copied')}
-               <button class="btn primary" data-ball-swing="${actor.id}">Swing</button><button class="btn" data-ball-take="${actor.id}">Take</button></div>` :
+               <button class="btn primary" data-ball-swing="${actor.id}">Swing</button><button class="btn" data-ball-take="${actor.id}">Take</button>${b.again_most ? `<button class="btn ghost" data-ball-again="${actor.id}" title="QSM? - the machine pitches it again; the little league allows ${b.again_most}">Again? <span class="mono" style="opacity:.7">QSM?</span></button>` : ''}</div>` :
        `<p class="hint" style="text-align:left">${esc(b.batter_name)} copies it on their phone. Everybody else: copy along and hold it - if the ball comes to you, your copy is the catch.</p>`);
   } else if (b.phase === 'field') {
     const words = (b.last && b.last.words) || 'In play';
@@ -1612,6 +1613,7 @@ document.addEventListener('click', async e => {
   const keyed = () => { if (ballKey) ballKey.decoder.flush(); const out = {keyed: ballKey ? ballKey.decoder.text : '', wpm: ballKey ? Math.round(12000 / (ballKey.decoder.dit || 60)) / 10 : null}; ballKey = null; return out; };
   if (await seatPress('ball-swing', '/api/party/ball/swing', () => ({typed: typed('ball-typed')}))) return;
   if (await seatPress('ball-take', '/api/party/ball/take')) return;
+  if (await seatPress('ball-again', '/api/party/ball/again', () => ({keyed: false}))) return;
   if (await seatPress('ball-catch', '/api/party/ball/catch', () => ({typed: typed('ball-catch')}))) return;
   if (await seatPress('ball-tag', '/api/party/ball/tag', () => ({typed: typed('ball-tag')}))) return;
   if (await seatPress('ball-throw', '/api/party/ball/field', keyed)) return;
