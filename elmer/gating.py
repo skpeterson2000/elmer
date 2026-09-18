@@ -85,14 +85,21 @@ def reach(settings=None, standings=None):
     if not gate_on(settings):
         return {"rung": len(AMATEUR_LADDER) - 1, "reason": "off", "gated": False}
 
-    license = (settings.get("license_class")
-               or (settings.get("license") or {}).get("license_class"))
+    # What class this station holds is one question with one answer, and
+    # callsign.held is where it is answered - the FCC record where there is
+    # one, the operator's own word where there is not. Imported here rather
+    # than at the top because that module opens the licence cache under the
+    # state directory, and the gate is pure arithmetic that tests exercise
+    # on its own.
+    from . import callsign as _callsign
+    holds = _callsign.held(settings)
+    license = holds["class"]
     from_class = _rung_from_class(license)
     from_rank = _rung_from_standings(standings)
 
     if from_class is not None and (from_rank is None or from_class >= from_rank):
         return {"rung": from_class, "reason": "license", "license": license,
-                "gated": True}
+                "verified": holds["verified"], "gated": True}
     if from_rank is not None:
         return {"rung": from_rank, "reason": "rank", "gated": True}
     return {"rung": 0, "reason": "start", "gated": True}

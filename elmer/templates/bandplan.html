@@ -13,8 +13,10 @@
   <div class="row">
     <div class="field" style="margin-bottom:0">
       <label>License class
-        {% if license.get('license_class') %}
+        {% if held.verified %}
           <span class="verified" title="from the FCC record for {{ license.callsign }}">verified</span>
+        {% elif held.record %}
+          <span class="pill warn" title="the FCC record for {{ license.callsign }} reads {{ held.record }}">your own word</span>
         {% endif %}
       </label>
       <select id="bp-class">

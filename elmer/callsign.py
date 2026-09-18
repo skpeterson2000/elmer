@@ -48,6 +48,56 @@ CLASS_NAMES = {
 }
 
 
+# Where a class claim rests. The FCC's record is the one anybody can check;
+# anything else is the operator's own word. Both are allowed - callook serves
+# the ULS and nothing else, so a Canadian or a British operator holds a
+# perfectly good licence that resolves to nothing here, and an upgrade granted
+# this week is not in the published file yet - but the two must never be
+# mistaken for each other on a screen.
+FCC = "fcc"
+OWN = "own"
+SOURCE = "license_class_source"
+
+
+def held(settings):
+    """The licence class this station holds, and whose word that rests on.
+
+    One answer, for the whole program. Everything that asks what class this
+    operator holds asks here: the pool gate, the band plan, the class pickers
+    at a table, the printed chart. They used to ask in two different orders -
+    the gate took the typed setting first and the print path took the record
+    first - which meant a value left in the profile by something else could
+    outrank the FCC and open pools that the record did not.
+
+    The record decides wherever there is one. It is read on lookup, stored
+    with the licence, and carried to every screen that offers a class, so
+    nobody is asked to tell ELMER something the Commission already published.
+
+    An operator may still answer for themselves, and that answer is kept and
+    used - but it is marked as theirs, `SOURCE` set to `OWN`, and a screen
+    showing the class says which of the two it is looking at. What an own
+    answer cannot do is put a claim on paper: see the print path, which asks
+    for `record` and falls back to the class only when there is no record.
+
+    Returns {"class", "source", "record", "verified"}.
+    """
+    settings = settings or {}
+    record = settings.get("license") or {}
+    record_class = ""
+    if record.get("found"):
+        record_class = str(record.get("licence_class")
+                           or record.get("license_class") or "")
+    own = str(settings.get("license_class") or "")
+    same = (own.strip().title() == record_class.strip().title())
+    if record_class and (not own or same or settings.get(SOURCE) != OWN):
+        return {"class": record_class, "source": FCC, "record": record_class,
+                "verified": True}
+    if own:
+        return {"class": own, "source": OWN, "record": record_class,
+                "verified": False}
+    return {"class": "", "source": "", "record": record_class, "verified": False}
+
+
 def normalise(call):
     return re.sub(r"[^A-Za-z0-9]", "", call or "").upper()
 

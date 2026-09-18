@@ -188,7 +188,22 @@
         dashboard with it.{% endif -%}
     </p>
 
-    <label class="setup-label" for="setup-class">Licence class</label>
+    <label class="setup-label" for="setup-class">Licence class
+      {%- if held.verified %}
+        <span class="verified" title="from the FCC record for {{ license.callsign }}">verified</span>
+      {%- elif held.record %}
+        <span class="pill warn" title="the FCC record for {{ license.callsign }} reads {{ held.record }}">your own word</span>
+      {%- endif %}
+    </label>
+    <p class="setup-note tiny muted">
+      {%- if held.verified %}
+        Read from the FCC record and kept up to date by it. Every screen that offers a class opens on this one.
+      {%- elif held.record %}
+        The FCC record for {{ license.callsign }} reads <b>{{ held.record }}</b>. Yours stands where you study and where the pickers open; anything printed beside your callsign uses the record.
+      {%- else %}
+        Set it here, or enter a callsign above and the FCC record fills it in. Every screen that offers a class opens on it.
+      {%- endif %}
+    </p>
     <select id="setup-class">
       <option value="none" {% if (profile.settings.license_class or '') == 'none' %}selected{% endif %}>Not licensed yet</option>
       {% for name in license_classes %}

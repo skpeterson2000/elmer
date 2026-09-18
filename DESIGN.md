@@ -1560,6 +1560,27 @@ it is the pressure on the pitcher that makes a clean fist worth having.
 The phone shows two buttons after the pitch plays, copy it or take it, the
 copy box under the first, and no hint of the call until the umpire speaks.
 
+*One source of truth for a licence class (2026-09-18).* Three places
+asked what class this station holds and two of them disagreed about how to
+answer. `gating.reach` took `settings["license_class"]` first and the FCC
+record second; `_own_class` took the record first. The band plan's picker
+wrote the first of those on every change, so the disagreement was not
+theoretical - it was how a station with no callsign came to hold Extra.
+`callsign.held` is the answer now, and everything asks it. The record
+decides wherever there is one, which is also the ethical answer: the
+Commission publishes the file, the operator does not have to be taken at
+their word, and nobody is asked for something already published.
+
+An own answer stays possible, because callook serves the ULS and nothing
+else and a Canadian licence resolves to nothing here, and because an
+upgrade granted this week is not in the weekly file yet. It is marked
+`SOURCE = OWN` and every screen showing the class says which word it is
+looking at. The line it may not cross is paper: the print path asks for
+`record` and falls back to the class only when there is no record, so a
+chart with a callsign on it cannot claim a class the Commission has on
+file differently. Study is the operator's own business; a claim about a
+station is not.
+
 *A view is not a claim (2026-09-18).* The band plan's class picker
 wrote the class being read into the profile, which is the single setting
 the pool gate reads. Two things followed, neither of them visible at the

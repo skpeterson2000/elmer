@@ -506,6 +506,10 @@ def profile_block(connection):
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
             "license": prof["settings"].get("license") or {},
+            # What class this station holds and whose word that is, handed to
+            # every page: one answer, so a class shown on one screen cannot
+            # disagree with the same class shown on another.
+            "held": callsign.held(prof["settings"]),
             "gmrs": gmrs_licence_for(connection, prof["settings"]) or {},
             "gmrs_covers": prof["settings"].get("gmrs_covers") or [],
             "others_here": [{"id": p["id"], "name": p["display_name"]}
@@ -816,7 +820,7 @@ def bandplan_page():
         # so the licence is the only thing left to open on, and one helper
         # answers "what does this station hold?" for the page, the owl and
         # anything printed with a callsign on it.
-        license_class=_own_class() or "Technician",
+        license_class=_class_held() or "Technician",
         coordinators=regional.states(),
         # The QTH decides, including a GPS fix: a state picked by hand on
         # this page stands only while the QTH is the one it was picked
@@ -2489,22 +2493,35 @@ def api_prints_delete(print_id):
     return jsonify({"deleted": prints.forget(print_id)})
 
 
+def _held():
+    """What class this station holds and whose word it rests on - the FCC
+    record where there is one. See callsign.held; this is the same answer
+    every screen in the program gets."""
+    return callsign.held(db.get_profile(conn())["settings"])
+
+
+def _class_held():
+    """The class to open a picker on, and to gate the pools with."""
+    return _held()["class"]
+
+
 def _own_class():
-    """The class this station actually holds, from the FCC record where there
-    is one.
+    """The class this station may put its callsign next to on paper.
 
     Deliberately not the class being *looked at*. The band plan lets anybody
     read any class's privileges, which is worth having and is how somebody
     decides whether the upgrade is worth sitting for - but a printed sheet
     with a callsign on it is read as a claim about that station, and those two
     questions must not be allowed to produce the same document.
+
+    Deliberately not the operator's own word either, where the FCC has a
+    record. Answering for yourself opens your own study pools and sets the
+    class your screens open on, which costs nobody anything; putting that
+    answer on a chart beside a callsign the Commission has on file at another
+    class is a different act, and the record governs it.
     """
-    settings = db.get_profile(conn())["settings"]
-    record = settings.get("license") or {}
-    if record.get("found"):
-        return str(record.get("licence_class")
-                   or record.get("license_class") or "")
-    return str(settings.get("license_class") or "")
+    holds = _held()
+    return holds["record"] or holds["class"]
 
 
 @app.route("/api/bandplan/pdf", methods=["POST"])
@@ -3693,6 +3710,22 @@ def api_geocode():
 # round is running - see elmer/party.py for why.
 
 POOL_DIFFICULTY = {v: k for k, v in party.DIFFICULTIES.items()}
+
+
+def _class_difficulty():
+    """The table difficulty that goes with the class this station holds.
+
+    A picker should open where the operator actually lives. A General running
+    a table is running it on General unless they say otherwise, and being
+    handed Technician every time is the program asking a question it already
+    knows the answer to. Novice and Advanced are not issued any more but are
+    still held, and map onto the modern pool they most nearly resemble, the
+    same way the gate maps them.
+    """
+    rung = gating.CLASS_RUNG.get((_class_held() or "").strip().title())
+    if rung is None:
+        return "technician"
+    return ["technician", "general", "extra"][rung]
 
 
 def _closed_why(connection, difficulty):
@@ -5440,7 +5473,11 @@ def party_table(table="1"):
     url = _join_url(table)
     wanted = str(request.args.get("difficulty", "")).lower()
     if wanted not in party.DIFFICULTIES:
-        wanted = "technician"
+        # Nothing asked for: the class this station holds, which the FCC
+        # record fills in where there is one. The gate has the last word -
+        # a class not open here falls back to Technician, so the two rules
+        # cannot disagree about what the picker shows.
+        wanted = _class_difficulty()
     connection = conn()
     if _closed_why(connection, wanted):
         wanted = "technician"
@@ -7570,7 +7607,11 @@ def _adopt_license(connection, call, settings=None):
     if found and found.get("found"):
         settings["license"] = found
         if found.get("license_class"):
+            # The record, pre-populated so that no screen has to ask for
+            # something the Commission has already published - and marked as
+            # the record's, which clears any earlier answer of the operator's.
             settings["license_class"] = found["license_class"]
+            settings.pop(callsign.SOURCE, None)
         log.info("license for %s: %s, expires %s (%s)", found["callsign"],
                  found.get("license_class") or found.get("type"),
                  found.get("expires"), found["status"]["state"])
@@ -7697,9 +7738,22 @@ def api_settings():
         # Narrow on purpose - see elmer/units.py. This is how far away a thing
         # is, not a request to rename the 40 m band.
         settings["units"] = units.system(body["units"])["key"]
-    for key in ("license_class", "state"):
-        if key in body:
-            settings[key] = body[key]
+    if "license_class" in body:
+        # Saying a class by hand is allowed and kept - a licence outside the
+        # US, an upgrade the published file has not caught up with, a club
+        # station. What it cannot do is pass itself off as the record: it is
+        # marked as the operator's word unless it agrees with what the FCC
+        # has on file, and every screen that shows the class says which.
+        settings["license_class"] = body["license_class"]
+        record = (settings.get("license") or {})
+        record_class = str(record.get("licence_class")
+                           or record.get("license_class") or "") if record.get("found") else ""
+        if record_class and str(body["license_class"] or "").strip().title() != record_class.strip().title():
+            settings[callsign.SOURCE] = callsign.OWN
+        else:
+            settings.pop(callsign.SOURCE, None)
+    if "state" in body:
+        settings["state"] = body["state"]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
     if "shared" in body:
