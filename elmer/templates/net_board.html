@@ -230,6 +230,9 @@ tr.outrow td.word { color: var(--red); opacity: .8; }
   <div id="foot" class="foot" hidden></div>
 </div>
 
+{# The keyer, for net control's pings: the board is a screen in the room
+   and should sound like one. #}
+<script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
 const PAGE_BUILD = "{{ build }}";

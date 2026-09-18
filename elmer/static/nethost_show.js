@@ -45,6 +45,23 @@
     refresh();
   });
 
+  /* Net control speaking in code. The target picker above chooses who
+     hears it, the same as a notice: everyone, one table, or one seat.
+     Finding a unit is the one that earns its place - a hall is a room with
+     boxes in it, and asking table four to say its own name out loud is
+     faster than reading labels off the backs of them. */
+  $('sh-pings').addEventListener('click', async e => {
+    const b = e.target.closest('[data-ping]');
+    if (!b) return;
+    const target = $('sh-target').value;
+    const [unit, seat] = target ? target.split('|') : ['', ''];
+    b.disabled = true;
+    try {
+      await post('/api/net/ping', {say: b.dataset.ping, unit: unit || null, seat: seat || null});
+      refresh();
+    } finally { b.disabled = false; }
+  });
+
   function paintPending(v) {
     const box = $('sh-pending');
     const items = v.announcements || [];

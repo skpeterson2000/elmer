@@ -222,8 +222,36 @@
   /* Announcements and attention, laid over whatever the screen is doing.
      Urgent ones are red and stay; notices are amber and time out by
      themselves on the server side, so this draws what it is given. */
+  /* A message keyed from net control. It arrives as an ordinary
+     announcement with a `cw` on it - see /api/net/ping - so the words go up
+     the way any notice does and the code is in the air at the same moment.
+     Once per announcement, because the overlay is painted on every poll;
+     and only where there is a keyer, which is every screen that shows the
+     hall. Twenty words a minute on 1020 Hz, the same as everything else
+     this program keys, so the hall sounds like one station. */
+  const sounded = new Set();
+  function keyAloud(anns) {
+    if (typeof player === 'undefined' || typeof CODE === 'undefined') return;
+    anns.forEach(a => {
+      if (!a.cw || sounded.has(a.id)) return;
+      sounded.add(a.id);
+      const words = String(a.cw).split(' ')
+        .map(w => [...w].map(c => ({char: c, code: CODE[c] || ''})).filter(x => x.code))
+        .filter(w => w.length);
+      if (!words.length) return;
+      const dit = 1200 / 20;
+      try {
+        if (typeof holdTone === 'function') holdTone(1020);
+        player.send(words, {dit: dit, dah: 3 * dit, symbol_gap: dit,
+                            char_gap: 3 * dit, word_gap: 7 * dit},
+                    null, () => { if (typeof holdTone === 'function') holdTone(null); });
+      } catch (e) { /* no audio here; the words are on the screen */ }
+    });
+  }
+
   function overlay(show) {
     take(show);
+    keyAloud((show && show.announcements) || []);
     let box = document.getElementById('hs-overlay');
     if (!box) {
       box = document.createElement('div');

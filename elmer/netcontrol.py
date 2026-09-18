@@ -119,6 +119,51 @@ def _now():
     return time.monotonic()
 
 
+# What net control can key to the room, and to one table.
+#
+# A hall is a room with units in it and people standing between them, and
+# the host has always been able to put words on a screen. Words are no use
+# for two of the things a host actually needs: finding which box in the
+# room is table four, and inviting a room that is not looking at a screen.
+# A sound does both, and the sound this program has is code.
+#
+# They are the Q-signals the CW page already teaches - QRV, QSL, QRT - so
+# the hall speaks the language the lessons are teaching, and somebody who
+# has been through a lesson this week can read what net control just said.
+# That is the point of doing it in code rather than with a chime.
+#
+# `code` is keyed; `{unit}` is the table's own name and `{net}` the net's,
+# both reduced to what a keyer can send. `words` go on the screen at the
+# same time, because a room that cannot read code yet must not be left out
+# of what it is being told.
+PINGS = {
+    "ping": {"code": "DE {unit}",
+             "words": "Net control is looking for this unit."},
+    "cq": {"code": "CQ CQ DE {net}",
+           "words": "Net control: come and play."},
+    "qrv": {"code": "QRV?", "words": "Net control asks: ready there?"},
+    "qsl": {"code": "QSL", "words": "Net control: received, understood."},
+    "qrt": {"code": "QRT", "words": "Net control: finish up."},
+}
+
+
+def ping(kind, unit_name="", net_name=""):
+    """What to key and what to say for one of net control's pings.
+
+    Returns (code, words), or (None, None) for a kind nobody offers. The
+    names are reduced to keyable characters first: a table called "Scott's
+    kitchen" keys SCOTTS KITCHEN, and one whose name has nothing sendable
+    in it keys the program's own name rather than silence.
+    """
+    from . import cw as _cw
+    said = PINGS.get(str(kind or "").lower())
+    if not said:
+        return None, None
+    unit = _cw.keyable(unit_name) or "ELMER"
+    net = _cw.keyable(net_name) or "ELMER"
+    return said["code"].format(unit=unit, net=net), said["words"]
+
+
 class Unit:
     """One cohort Pi, checked in to the net."""
 

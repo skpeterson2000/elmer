@@ -6072,6 +6072,29 @@ def api_net_attention():
     return jsonify({"attention": held})
 
 
+@app.route("/api/net/ping", methods=["POST"])
+def api_net_ping():
+    """Key a short message to one table, or to the whole room.
+
+    The words go on the screens the way any notice does and the code is in
+    the air at the same moment, so a hall that cannot read it yet is told
+    anyway and a hall that can has just been spoken to in the language it is
+    learning. netcontrol.PINGS is the vocabulary.
+    """
+    running = _net_or_404()
+    body = request.get_json(silent=True) or {}
+    unit_id = str(body.get("unit") or "") or None
+    unit = running.units.get(unit_id) if unit_id else None
+    code, words = netcontrol.ping(body.get("say"),
+                                  unit.name if unit else running.name,
+                                  running.name)
+    if not code:
+        abort(400, "nothing to key - try " + ", ".join(sorted(netcontrol.PINGS)))
+    item = running.show.announce(words, show.NOTICE, unit=unit_id,
+                                 seat=str(body.get("seat") or "") or None, cw=code)
+    return jsonify({"pinged": item, "pending": running.show.pending()})
+
+
 @app.route("/api/net/deck", methods=["POST"])
 def api_net_deck():
     running = _net_or_404()

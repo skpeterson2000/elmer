@@ -162,7 +162,7 @@ class Show:
     # ------------------------------------------------------- announcements
 
     def announce(self, text, weight=NOTICE, unit=None, seat=None,
-                 seconds=None, repeat=None, now=None):
+                 seconds=None, repeat=None, now=None, cw=None):
         """Say something to everyone, to one table, or to one seat.
 
         A notice stands for `seconds` (default NOTICE_SECONDS). An urgent one
@@ -178,6 +178,11 @@ class Show:
         with self.lock:
             item = {
                 "id": self._next_id, "text": text, "weight": weight,
+                # Keyed aloud on the screens this reaches, once, as the
+                # words go up: net control speaking in code - see
+                # netcontrol.PINGS and hallshow.js. Most announcements
+                # have none and are silent.
+                "cw": (str(cw)[:60] or None) if cw else None,
                 "unit": (str(unit)[:40] if unit else None),
                 "seat": (_clean(seat, 60) if seat else None),
                 "at": now,

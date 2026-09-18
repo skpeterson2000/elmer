@@ -192,6 +192,16 @@ td.r { text-align: right; font-family: var(--mono); color: var(--dim); }
           <button class="btn sm primary" id="sh-send">Send</button>
           <button class="btn sm" id="sh-attention" title="Blank every table to a message while you talk">&#9995; Attention</button>
         </div>
+        <!-- Keyed, to whoever the target above says: the words go up on the
+             screens and the code goes into the room at the same moment. -->
+        <div class="controls" style="margin-top:.4rem" id="sh-pings">
+          <span class="tiny muted">Key it:</span>
+          <button class="btn sm" data-ping="ping" title="The table keys its own name - which box in this room is that one">Find a unit</button>
+          <button class="btn sm" data-ping="cq" title="CQ - come and play">CQ</button>
+          <button class="btn sm" data-ping="qrv" title="QRV? - ready there?">QRV?</button>
+          <button class="btn sm" data-ping="qsl" title="QSL - received, understood">QSL</button>
+          <button class="btn sm" data-ping="qrt" title="QRT - finish up">QRT</button>
+        </div>
         <div id="sh-pending" class="pending"></div>
       </div>
 
