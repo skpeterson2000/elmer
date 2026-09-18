@@ -120,13 +120,37 @@ The **Propagation** page is the live sky. Set your QTH at the top of it, a grid,
 
 The wall chart is N0NBH's, and the page says what it is and is not: eight figures, not hourly, not for your location, one word covering a whole group of bands. The band plan asks the same question band by band and hour by hour from the reading nearest you, and the two sometimes disagree; when they do, the band plan says so and explains why. Under the chart, **What these numbers mean** explains each indicator with its live value beside it, and **Take it to the pool** goes straight to the exam sections about propagation.
 
-![Band conditions: the verdict, the numbers and the wall chart](docs/screenshots/guide/propagation.png)
-
 The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cached for fifteen minutes, and the ionosonde readings through prop.kc2g.com. Where the page says *Est.*, no sounder was in range and the model is standing on its own. Without a network the strip says so.
 
 **The sondes that vote.** The critical frequency over you is the model's figure corrected to meet the sondes within five thousand kilometres, each with a vote weighted by its distance and by the age of its reading. The line under the numbers names them, marks any whose reading was held from an earlier fetch after the feed missed a cycle, and says how far the correction would move if any one of them dropped out. That last figure is the one to read when two units side by side disagree: a thin panel far from the nearest sounder can swing by a third on one vote, and the page now says so instead of leaving two screens to argue. The weekly field report, if you have switched it on, carries how steady the panel was over the week and nothing that names your station.
 
-**Calibrate my forecast**, at the foot of this page, waits out a busy server and says so, fetches the year of flux from Penticton when GFZ is down, shortens the span to what the record covers rather than running on one number, and says in plain words when it cannot run at all - nothing is wrong with the model then, only the network. It runs the propagation model blind over the last quarter, half year or year against the ionosonde record and grades it, so you can see how much to trust the band plan's verdicts. It needs the network for the first minute; nothing leaves the unit.
+### Calibrate my forecast
+
+**What it is for.** ELMER's forecast knows the sun and the flux. It does not know that the F layer over your town runs denser on a winter noon than the sun angle says, or by how much, and that error is different at every latitude. Calibrating measures your own, and makes every forecast this unit gives you more accurate from then on. It is the single biggest thing you can do to improve the band plan's verdicts and the reach map, and most people never need to do it more than a few times a year.
+
+**Before you can run it.** Set your QTH first, at the top of the Propagation page. The forecast is about a place and so is its correction, and the button will tell you so rather than run on a guess. You also need a network for the first minute or so, while it fetches the record. Run it from the unit's own screen: a phone on the table cannot start it, because it is this unit's processor doing the work and this unit's table at the end of it.
+
+**Where it is.** At the foot of the **Propagation** page, under the wall chart.
+
+**How long, and what you see.** About five minutes on a Raspberry Pi. You are not left looking at a frozen screen: it reports what it finds as it goes, a month at a time, with a card or two in between, and you can stop it.
+
+**What it actually does.** It fetches the last year of readings from the ionosondes nearest you, then runs ELMER's own forecast blind across that year, hour by hour, each hour given only what it would have known at the time. It compares every one of those forecasts against what the sondes actually recorded, and fits a correction month by month and sky by sky. Then it runs the whole year again with the correction switched on, so you can see what it bought. The line it prints at the end is the plain answer: the 24-hour forecast's average error before, and after, in megahertz, with "same as yesterday" beside it for comparison.
+
+**Do you have to apply it? No.** The correction is saved when the run finishes and every forecast this unit makes for this place uses it from that moment on. There is no switch to throw and nothing to accept. You will see it in the band plan's hour-by-hour verdicts, in the reach map and in the propagation outlook, without doing anything else.
+
+**Choose a depth.** A quarter, a half year or a full year. Each depth refreshes the months it actually covers and leaves the rest exactly as the last run that saw them measured. So a quick run in September sharpens the autumn and leaves December standing on the full year you ran in the spring. Deeper is better and slower; the year is the one to run first.
+
+**When to run it.**
+
+- Once, after you set your QTH for the first time. Until then the forecast carries a general correction rather than yours.
+- Again when you move the station far enough to matter. The correction is fitted for a place and its weight falls away with distance, and past five thousand kilometres it is a different ionosphere and is not used at all.
+- Every few months, as a quarter run, to keep the current season measured on recent sky. There is no harm in running it more often and no benefit in running it daily.
+
+**When it cannot run.** If the archive it needs is unreachable it says so in plain words and stops. Nothing is wrong with the model then, only the network. It waits out a server that is merely busy, and where one source is down it takes the flux from the observatory at Penticton instead. If the record covers less of the year than it should, it shortens the span to what it actually has rather than forecasting a year from one number.
+
+**What leaves the unit.** Nothing. It reads the public record from GIRO and GFZ and keeps the result here.
+
+![Band conditions: the verdict, the numbers and the wall chart](docs/screenshots/guide/propagation.png)
 
 ## The band plan
 
