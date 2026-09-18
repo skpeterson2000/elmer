@@ -765,6 +765,7 @@ function keyStart() {
   player.down();
   document.getElementById('cw-paddle').classList.add('down');
   renderKey();
+  if (!keyLive) keyLive = requestAnimationFrame(liveKey);
 }
 function keyEnd() {
   if (!keyDown) return;
@@ -893,11 +894,28 @@ class IambicKeyer {
 
 const keyer = new IambicKeyer(keyDecoder);
 
+/* The raw line: the symbols of the character so far, and - while the key
+   is down - the element in the making, a dit until it has been held long
+   enough to be a dah. It used to print a middle dot as a placeholder when
+   there was nothing to show, which read as a dit sitting at the head of
+   every transmission and made a press look like a dah and a release like
+   a dit. Nothing is shown when nothing has been sent. */
+function rawLine() {
+  let s = keyDecoder.symbols.join('');
+  if (keyDown) s += (performance.now() - keyDownAt) < keyDecoder.dit * 2 ? '.' : '-';
+  return s;
+}
+
+let keyLive = null;
+function liveKey() {
+  document.getElementById('cw-key-raw').textContent = rawLine() || '\u00a0';
+  if (keyDown) keyLive = requestAnimationFrame(liveKey); else keyLive = null;
+}
+
 function renderKey() {
-  document.getElementById('cw-key-raw').textContent =
-    keyDecoder.symbols.join('') || '\u00b7';
+  document.getElementById('cw-key-raw').textContent = rawLine() || '\u00a0';
   document.getElementById('cw-key-decoded').textContent =
-    keyDecoder.text || '\u2014';
+    keyDecoder.text || '\u00a0';
   const box = document.getElementById('cw-key-timing');
   if (keyerMode === 'straight') {
     box.innerHTML = timingReport(keyDecoder.stats(), 1200 / settings.wpm);
@@ -1004,6 +1022,93 @@ document.addEventListener('keyup', e => {
   if (e.code === settings.keyDit) { e.preventDefault(); keyer.release('dit'); }
   else if (e.code === settings.keyDah) { e.preventDefault(); keyer.release('dah'); }
 });
+
+/* ----------------------------------------------------------- audio key */
+/* A real key, wired the way it is on the bench: through a SignalLink or a
+   rig's sidetone into Line-In, or any USB sound device that carries a keyed
+   tone. The tone's coming and going is the key's down and up, read every
+   eight milliseconds from the input, and it drives the same straight key
+   as the space bar - so the timing chart measures the fist on the bench,
+   not a keyboard's idea of it. */
+let akStream = null, akCtx = null, akTimer = null;
+
+async function listAudioInputs() {
+  const sel = document.getElementById('cw-audio-device');
+  if (!sel || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  let devs = [];
+  try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) { devs = []; }
+  let chosen = '';
+  try { chosen = localStorage.getItem('cw-audio-key-device') || ''; } catch (e) {}
+  sel.innerHTML = '<option value="">default input</option>' + devs.map((d, i) =>
+    '<option value="' + escapeHTML(d.deviceId) + '"' + (d.deviceId === chosen ? ' selected' : '') + '>' +
+    escapeHTML(d.label || ('input ' + (i + 1))) + '</option>').join('');
+  sel.hidden = false;
+}
+
+async function startAudioKey() {
+  const status = document.getElementById('cw-audio-key-status');
+  const sel = document.getElementById('cw-audio-device');
+  const device = sel && sel.value ? {deviceId: {exact: sel.value}} : {};
+  try {
+    akStream = await navigator.mediaDevices.getUserMedia({audio: Object.assign({
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false}, device)});
+  } catch (e) {
+    status.innerHTML = '<span style="color:var(--red)">no audio input \u2014 ' +
+      escapeHTML(e.name === 'NotAllowedError' ? 'permission refused' : e.message) + '</span>';
+    return;
+  }
+  try { localStorage.setItem('cw-audio-key-device', sel ? sel.value : ''); } catch (e) {}
+  await listAudioInputs();                       // labels arrive once permission has
+  if (keyerMode !== 'straight') setKeyerMode('straight');
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  akCtx = new Ctx();
+  const source = akCtx.createMediaStreamSource(akStream);
+  const analyser = akCtx.createAnalyser();
+  analyser.fftSize = 1024;                       // shorter than the off-air decoder's: this is a key, and 8 ms matters
+  analyser.smoothingTimeConstant = 0.0;
+  source.connect(analyser);
+  const bins = new Float32Array(analyser.frequencyBinCount);
+  const hz = akCtx.sampleRate / analyser.fftSize;
+  const lo = Math.floor(250 / hz), hi = Math.ceil(1400 / hz);
+  const st = {on: false, floor: 1e-4, peak: 1e-3};
+  document.getElementById('cw-audio-key').hidden = true;
+  document.getElementById('cw-audio-key-stop').hidden = false;
+  status.textContent = 'listening for a keyed tone';
+  akTimer = setInterval(() => {
+    analyser.getFloatFrequencyData(bins);
+    let bestDb = -Infinity, best = lo;
+    for (let i = lo; i <= hi && i < bins.length; i++) if (bins[i] > bestDb) { bestDb = bins[i]; best = i; }
+    const level = Math.pow(10, bestDb / 20);
+    st.peak = Math.max(st.peak * 0.995, level);
+    st.floor = Math.min(st.floor * 1.005 + 1e-7, level);
+    const on = level > st.floor + (st.peak - st.floor) * 0.35 && st.peak > st.floor * 3;
+    if (on !== st.on) {
+      st.on = on;
+      if (on) keyStart(); else keyEnd();
+      status.textContent = 'keyed tone at about ' + Math.round(best * hz) + ' Hz';
+    }
+  }, 8);
+}
+
+function stopAudioKey() {
+  clearInterval(akTimer); akTimer = null;
+  if (keyDown) keyEnd();
+  if (akStream) akStream.getTracks().forEach(t => t.stop());
+  if (akCtx) akCtx.close();
+  akStream = null; akCtx = null;
+  const start = document.getElementById('cw-audio-key');
+  if (start) { start.hidden = false; document.getElementById('cw-audio-key-stop').hidden = true; }
+}
+
+const akBtn = document.getElementById('cw-audio-key');
+if (akBtn) {
+  akBtn.addEventListener('click', startAudioKey);
+  document.getElementById('cw-audio-key-stop').addEventListener('click', () => {
+    stopAudioKey();
+    document.getElementById('cw-audio-key-status').textContent = 'stopped';
+  });
+  listAudioInputs();
+}
 
 /* --------------------------------------------------------- off-air decode */
 let micStream = null, micCtx = null, micTimer = null, micDecoder = null;

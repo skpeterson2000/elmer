@@ -339,6 +339,20 @@
   <div class="cw-readout mt"><span id="cw-key-raw" class="mono"></span></div>
   <div id="cw-key-decoded" class="cw-decoded"></div>
   <div id="cw-key-timing" class="mt"></div>
+
+  <div class="row mt" style="gap:.5rem;align-items:center;flex-wrap:wrap">
+    <button class="btn sm ghost" id="cw-audio-key">Key from an audio input</button>
+    <button class="btn sm" id="cw-audio-key-stop" hidden>Stop</button>
+    <select id="cw-audio-device" class="mono" hidden></select>
+    <span class="tiny muted" id="cw-audio-key-status"></span>
+  </div>
+  <div class="tiny muted" style="margin-top:.3rem">
+    Your own key, wired the way it is on the bench: through a SignalLink, a rig&rsquo;s
+    sidetone on Line-In, or any USB sound device that carries a keyed tone. The
+    tone&rsquo;s coming and going is the key&rsquo;s down and up, read every eight
+    milliseconds, and it works the straight key above &mdash; so the chart measures
+    the fist on the bench. Pick the input once it is listed; the choice is remembered.
+  </div>
 </div>
 
 <!-- ------------------------------------------------------------ decode -->
