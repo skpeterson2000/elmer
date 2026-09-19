@@ -822,6 +822,7 @@ SKY_GAIN_DBI = 2.0                # a wire at a useful angle, each end, when no 
 SKY_SOLID_DB = 15.0
 SKY_WORKABLE_DB = 5.0
 LEGAL_WATTS = 1500.0              # the amateur limit; past it "more power" is not advice
+REACH_SHORT_DB = 20.0             # on the reach map, this far short is dark; ten short is a long shot, and shows as one
 
 
 def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DEFAULT,
@@ -1152,8 +1153,15 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     equally served, which no antenna does.
 
     `emission` is the mode - ssb, am, fm, cw, ft8 - and, with the watts,
-    decides the ground wave's reach and nothing else: the sky does not
-    care what is modulated onto what it reflects."""
+    decides the ground wave's reach and, since the map learnt to add up a
+    skywave path, how far the sky's reach can actually be heard. The sky
+    does not care what is modulated onto what it reflects; the far end's
+    receiver does. This map used to say so in the first half of that
+    sentence and stop, so 12 W of SSB on 11 m lit the South Atlantic
+    exactly as a kilowatt would - and was reported as looking too
+    optimistic, which it was. Every sky cell is gated now by the same
+    budget Make Contact runs: solid stays as bright as the sky makes it,
+    the edge of copy is dim, and twenty decibels short is dark, and ten is the faint long shot it is."""
     from . import groundwave, patterns
     from .terrain import great_circle
     when = when or datetime.now(timezone.utc)
@@ -1165,6 +1173,13 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     m3000 = cal.get("m3000")
     far = one_hop_limit_km(hmf2)
     ground_km = float(groundwave.describe(mhz, watts=watts, mode=emission).get("km") or 0.0)
+
+    def heard(path_km, hops, elev_mid):
+        """How much of the sky's reach these watts can be heard over: one
+        at a solid margin, nought at REACH_SHORT_DB short, straight between."""
+        margin = sky_budget(mhz, path_km, hops, watts, emission, elevation=elev_mid,
+                            hmf2=hmf2)["margin_db"]
+        return max(0.0, min(1.0, (margin + REACH_SHORT_DB) / (SKY_SOLID_DB + REACH_SHORT_DB)))
     # The layer's shape, from the sonde's three numbers: the ceiling for a
     # hop of any length is foF2 times this factor - 1 straight up, the
     # station's own M(3000) at 3000 km - and a near-vertical hop crosses
@@ -1221,14 +1236,15 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
                         gate = (_soft(km, skip) if skip > 0 else 1.0) * _soft(km, far, inside_below=False)
-                        score = rate(km) * gate * (weigh(km, bearing) if weigh else 1.0)
+                        score = rate(km) * gate * (weigh(km, bearing) if weigh else 1.0) * heard(km, 1, elev)
                     if km > far * (1 - REACH_EDGE):
                         # several hops: each leg has to clear the skip and land
                         # inside a hop; each hop past the first is paid for
                         n = max(2, int(math.ceil(km / far)))
                         leg = km / n
                         gate = (_soft(leg, skip) if skip > 0 else 1.0) * _soft(leg, far, inside_below=False)
-                        multi = rate(leg) * gate * (REACH_HOP_COST ** (n - 1)) * (weigh(leg, bearing) if weigh else 1.0)
+                        multi = (rate(leg) * gate * (REACH_HOP_COST ** (n - 1))
+                                 * (weigh(leg, bearing) if weigh else 1.0) * heard(km, n, elev))
                         score = max(score, multi)
                 # ground wave fades out rather than stopping at a line
                 if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):

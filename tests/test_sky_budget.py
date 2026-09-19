@@ -119,6 +119,29 @@ def main():
     check("on a sky shut to them, the kilowatt is no better than 12 W - neither comes back",
           (cb2["sky"], ten2["sky"], cb2["budget"], ten2["budget"]), (False, False, None, None))
 
+    print("\n-- the reach map dims with the watts, and hears deeper on a narrow mode --")
+    # The third copy of the same fault: the map on the band plan lit the
+    # South Atlantic for 12 W of SSB on 11 m exactly as for a kilowatt, and
+    # its own docstring said the watts set "the ground wave's reach and
+    # nothing else". Reported as looking too optimistic. It was.
+    from datetime import datetime, timezone
+    snap = {"sfi": 120.0, "k_index": 2.0, "hmf2": 300.0, "calibration": None}
+    noon = datetime(2026, 6, 21, 18, 0, tzinfo=timezone.utc)      # midday over Minnesota
+
+    def lit(watts, mode):
+        cells = P.reach_map(27.2, 46.6, -94.3, snap, step=6.0, when=noon, watts=watts,
+                            mode="round", emission=mode)["cells"]
+        return sum(1 for c in cells if c > 0), sum(c for c in cells)
+
+    n12, s12 = lit(12, "ssb")
+    n100, s100 = lit(100, "ssb")
+    n1500, s1500 = lit(1500, "ssb")
+    ncw, scw = lit(12, "cw")
+    check("a kilowatt lights more of the map than a hundred watts, which lights more than twelve",
+          (n12 < n100 < n1500, s12 < s100 < s1500), (True, True))
+    check("  and twelve watts of CW reaches further than twelve of SSB", (ncw > n12, scw > s12), (True, True))
+    check("  the whole map is never dark at a kilowatt at noon on an open sky", n1500 > 0, True)
+
     print("\n-- the page's request carries the watts, and FM is never charged on HF --")
     from elmer.app import app
     from elmer import db

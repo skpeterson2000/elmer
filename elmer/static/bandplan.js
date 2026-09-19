@@ -1313,8 +1313,10 @@ function bpReachMode() {
   return el && el.value === 'round' ? 'round' : 'oneway';
 }
 /* The emission - SSB, AM, FM, CW, FT8. It decides what the far end needs
-   above the noise, so it decides the ground wave's reach, and on 11 m the
-   lawful power with it. The sky does not care. */
+   above the noise, so it decides the ground wave's reach, on 11 m the
+   lawful power with it, and - since the map learnt to add up a skywave
+   path - how much of the sky's reach can actually be heard. The sky does
+   not care what is modulated onto it; the far end's receiver does. */
 const EMISSIONS = {ssb: 'SSB', am: 'AM', fm: 'FM', cw: 'CW', ft8: 'FT8'};
 const CB_EMISSIONS = {am: 4, fm: 4, ssb: 12};      // 47 CFR 95.967: the watts each may run
 function bpReachEmission() {

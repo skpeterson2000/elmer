@@ -121,6 +121,21 @@ QUIET_JS = r"""JSON.stringify((() => {
 })())"""
 
 
+def evaluate(url, js, **kw):
+    """The page's answer as JSON - asked twice, because under a full suite
+    Chromium has answered a slow page with nothing, and nothing is not a
+    verdict on the icon."""
+    for attempt in (1, 2):
+        got = _browser.evaluate(url, js, **kw)
+        try:
+            return json.loads(got)
+        except (TypeError, ValueError):
+            if attempt == 2:
+                raise
+            print(f"    (no answer from the page on the first try: {str(got)[:60]!r}; asking again)")
+            time.sleep(2.0)
+
+
 def settings(**body):
     req = urllib.request.Request(
         HOME + "api/settings", data=json.dumps(body).encode(),
@@ -137,8 +152,7 @@ def main():
             time.sleep(0.2)
 
     print("\n-- the icon keys the name, and stays on the page --")
-    got = json.loads(_browser.evaluate(HOME, PRESS_JS, settle=1.0, flags=FLAGS,
-                                       cookies={'elmer_user': '1'}))
+    got = evaluate(HOME, PRESS_JS, settle=1.0, flags=FLAGS, cookies={'elmer_user': '1'})
     check("the icon is wired", got["bound"], "1")
     check("  and says so on hover", got["title"], "ELMER, in code")
     check("  and the sender is reachable by name too", got["exposed"], "function")
@@ -151,8 +165,7 @@ def main():
           (got["mark"]["bound"], got["mark"]["inLink"]), (None, True))
 
     print("\n-- the name is the Dashboard button, and the only one --")
-    got = json.loads(_browser.evaluate(HOME, NAME_JS, settle=1.0, flags=FLAGS,
-                                       cookies={'elmer_user': '1'}))
+    got = evaluate(HOME, NAME_JS, settle=1.0, flags=FLAGS, cookies={'elmer_user': '1'})
     check("the name goes home and says so", (got["href"], got["title"]), ("/", "Dashboard"))
     check("  it is marked current on the dashboard", got["on_home"], True)
     check("  a press marks it on its way, like a tab", got["going"], True)
@@ -164,8 +177,7 @@ def main():
 
     print("\n-- switched off, the icon is a plain link --")
     check("the switch saves", settings(announce=False), 200)
-    got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS,
-                                       cookies={'elmer_user': '1'}))
+    got = evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS, cookies={'elmer_user': '1'})
     check("the page is told not to", got["flag"], False)
     check("  the icon is untouched", (got["bound"], got["title"]), (None, ""))
     check("  nothing is exposed to press", got["exposed"], "undefined")
