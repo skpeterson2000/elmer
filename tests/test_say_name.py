@@ -11,9 +11,9 @@ icon is a touch.
 What is held here:
 
   - a press on the icon keys the name, and does not leave the page: the
-    wordmark beside it is still the way home, so are the words Dashboard
-    in the bar, and turning the logo into something that leaves would take
-    a habit away from everybody for one person's sake;
+    name beside it is the Dashboard button, and turning the whole logo
+    into something that leaves would take a habit away from everybody for
+    one person's sake;
   - a second press restarts it rather than keying two names at once;
   - with the announcement switched off in the Station panel, the icon is a
     plain link and keys nothing, because the room where the announcement
@@ -94,6 +94,24 @@ PRESS_JS = r"""(async () => {
   return JSON.stringify(out);
 })()"""
 
+# The name is the Dashboard button, and behaves like one: a press marks it
+# "on its way" the way a tab in the bar is marked while its page loads. The
+# navigation itself is stopped by a listener added after the page's own,
+# so the mark can be read without the page going anywhere.
+NAME_JS = r"""(() => {
+  const brand = document.querySelector('a.brand');
+  const mark = document.querySelector('.brand-mark');
+  document.addEventListener('click', e => { if (e.target.closest('a.brand')) e.preventDefault(); });
+  mark.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+  return JSON.stringify({
+    title: brand.title, href: brand.getAttribute('href'),
+    on_home: brand.classList.contains('on'),
+    going: brand.classList.contains('going'),
+    dashboard_links: [...document.querySelectorAll('.nav a')].filter(a => /dashboard/i.test(a.textContent)).length,
+    tabs: [...document.querySelectorAll('.nav a')].map(a => a.textContent.trim())
+  });
+})()"""
+
 # Switched off: the icon has not been touched by the script at all.
 QUIET_JS = r"""JSON.stringify((() => {
   const icon = document.querySelector('.brand-icon') || document.querySelector('.brand-mark');
@@ -131,6 +149,18 @@ def main():
     check("and the pitch is put back when it is done", got["after"]["hold"], None)
     check("the wordmark is not wired - it is still the way home",
           (got["mark"]["bound"], got["mark"]["inLink"]), (None, True))
+
+    print("\n-- the name is the Dashboard button, and the only one --")
+    got = json.loads(_browser.evaluate(HOME, NAME_JS, settle=1.0, flags=FLAGS,
+                                       cookies={'elmer_user': '1'}))
+    check("the name goes home and says so", (got["href"], got["title"]), ("/", "Dashboard"))
+    check("  it is marked current on the dashboard", got["on_home"], True)
+    check("  a press marks it on its way, like a tab", got["going"], True)
+    check("there is no Dashboard tab in the bar any more", got["dashboard_links"], 0)
+    check("  and the bar starts with Propagation", got["tabs"][:1], ["Propagation"])
+    away = urllib.request.urlopen(HOME + "propagation", timeout=10).read().decode("utf-8", "replace")
+    check("off the dashboard, the name is not marked current",
+          'class="brand on"' in away, False)
 
     print("\n-- switched off, the icon is a plain link --")
     check("the switch saves", settings(announce=False), 200)

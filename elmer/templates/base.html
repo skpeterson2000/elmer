@@ -16,7 +16,11 @@
 {# The corner is wider when there is an Exit button in it, and only a kiosk
    has one - so the room the bar sets aside knows which it is. #}
 <header class="topbar{% if kiosk_token %} has-exit{% endif %}">
-  <a class="brand" href="/">
+  {#- The name is the Dashboard button. There used to be a Dashboard link
+      first in the bar as well, which was the same door twice; the bar is
+      long, and the name has always gone home. The icon beside it keys
+      ELMER's name in code - see announce.js. -#}
+  <a class="brand{% if request.path == '/' %} on{% endif %}" href="/" title="Dashboard">
 {% if icon_file %}    <img class="brand-icon" alt=""
          src="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 {% endif %}    <span class="brand-text">
@@ -25,7 +29,6 @@
     </span>
   </a>
   <nav class="nav">
-    <a href="/" {% if request.path == '/' %}class="on"{% endif %}>Dashboard</a>
     <a href="/propagation" {% if request.path.startswith('/propagation') %}class="on"{% endif %}>Propagation</a>
     <a href="/cw" {% if request.path.startswith('/cw') %}class="on"{% endif %}>CW</a>
     <a href="/bandplan" {% if request.path.startswith('/bandplan') %}class="on"{% endif %}>Band Plan</a>

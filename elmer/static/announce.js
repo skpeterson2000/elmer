@@ -19,9 +19,9 @@
    each time rather than never, which is the better way round for something
    whose whole job is to say the unit is awake.
 
-   And on demand, from the icon in the corner. The wordmark beside it is
-   still the way home - Dashboard in the bar goes there too - but the icon
-   itself keys the name again. That is a plain thing to want (hear it again;
+   And on demand, from the icon in the corner. The name beside it is the
+   Dashboard button - the only one, now - but the icon itself keys the
+   name again. That is a plain thing to want (hear it again;
    check the sound; show somebody) and it costs nothing, because browsers
    keep audio silent until a page has been touched and a press on the icon
    is a touch. A second press restarts it rather than keying two names on
@@ -95,7 +95,7 @@
     knob.title = 'ELMER, in code';
     knob.style.cursor = 'pointer';
     knob.addEventListener('click', e => {
-      e.preventDefault();                  // the wordmark beside it still goes home
+      e.preventDefault();                  // the name beside it is what goes home
       e.stopPropagation();
       unwait();                            // this press is the touch; do not also wake
       try { player.ensure(); } catch (err) { return; }

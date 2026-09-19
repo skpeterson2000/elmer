@@ -700,7 +700,10 @@ let goingTab = null, goingAt = 0;
 const TAB_REPEAT_MS = 1500;
 
 document.addEventListener('click', e => {
-  const tab = e.target.closest('.nav a');
+  /* A tab in the bar, or the name in the corner, which is the Dashboard
+     button. The icon inside the name is not: announce.js takes that press
+     for itself and cancels it, so it never gets this far. */
+  const tab = e.target.closest('.nav a, a.brand');
   if (!tab || e.defaultPrevented) return;
   if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   if (tab.target && tab.target !== '_self') return;
@@ -709,7 +712,7 @@ document.addEventListener('click', e => {
     e.preventDefault();               // already on its way; asking again is
     return;                           // how it gets slower, not faster
   }
-  document.querySelectorAll('.nav a.going').forEach(a =>
+  document.querySelectorAll('.nav a.going, a.brand.going').forEach(a =>
     a.classList.remove('going'));
   tab.classList.add('going');
   goingTab = tab;
@@ -720,7 +723,7 @@ document.addEventListener('click', e => {
    The load it was announcing finished long ago, so it comes off. */
 window.addEventListener('pageshow', e => {
   if (!e.persisted) return;
-  document.querySelectorAll('.nav a.going').forEach(a =>
+  document.querySelectorAll('.nav a.going, a.brand.going').forEach(a =>
     a.classList.remove('going'));
   goingTab = null;
 });

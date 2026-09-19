@@ -66,6 +66,10 @@ p { margin: 0 0 .8rem; }
 }
 .brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; }
 .brand:hover { text-decoration: none; }
+/* The name is the Dashboard button, and gets the same "on its way" pulse a
+   tab in the bar gets while its page loads - see .nav a.going below. */
+.brand.going .brand-mark { color: var(--amber-dim); animation: tab-going 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .brand.going .brand-mark { animation: none; } }
 .brand-text { display: flex; flex-direction: column; }
 /* The app icon, where it is actually visible - a kiosk has no tab bar to
    show a favicon in. */
