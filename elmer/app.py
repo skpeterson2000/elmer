@@ -511,6 +511,10 @@ def profile_block(connection):
             # their own callsign read out with the program's, which is the
             # point of it - the room hears who keeps this going. Anybody who
             # would rather not be named is not, here as anywhere else.
+            # A licence class this unit cleared on an upgrade and has not
+            # been given again. Shown until it is, because taking it in
+            # silence was the mistake.
+            "class_cleared": prof["settings"].get("license_class_cleared") or "",
             "announce": {"on": prof["settings"].get("announce", True) is not False,
                          "de": cw.keyable(supporter.named_holder(connection))},
             # What class this station holds and whose word that is, handed to
@@ -7661,6 +7665,7 @@ def _adopt_license(connection, call, settings=None):
             # the record's, which clears any earlier answer of the operator's.
             settings["license_class"] = found["license_class"]
             settings.pop(callsign.SOURCE, None)
+            settings.pop("license_class_cleared", None)
         log.info("license for %s: %s, expires %s (%s)", found["callsign"],
                  found.get("license_class") or found.get("type"),
                  found.get("expires"), found["status"]["state"])
@@ -7803,6 +7808,8 @@ def api_settings():
         if said and said not in bandplan.CLASSES and said != bandplan.NO_LICENSE:
             abort(400, "that is not a licence class")
         settings["license_class"] = said
+        if said:
+            settings.pop("license_class_cleared", None)
         record = (settings.get("license") or {})
         record_class = str(record.get("licence_class")
                            or record.get("license_class") or "") if record.get("found") else ""

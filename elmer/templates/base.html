@@ -213,6 +213,19 @@
       {% endfor %}
     </select>
 
+    {%- if class_cleared %}
+    <p class="tiny" style="margin:.1rem 0 .7rem;padding:.5rem .6rem;border-radius:6px;
+              border:1px solid rgba(255,180,84,.4);background:rgba(255,180,84,.08)">
+      This unit held <b>{{ class_cleared }}</b> and cleared it on an update.
+      The band plan&rsquo;s class picker used to save whatever class you were
+      <i>reading</i> into your profile, so a class with no callsign and no FCC
+      record behind it could not be told from one you had actually typed, and
+      those were taken out. If it was right, set it again above &mdash; or
+      enter your callsign and the FCC record fills it in and marks it verified.
+      Sorry for the trouble.
+    </p>
+    {%- endif %}
+
     <label class="setup-label" style="display:flex;align-items:center;gap:.4rem">
       <input type="checkbox" id="setup-announce" {% if profile.settings.get('announce', True) %}checked{% endif %}>
       The announcement &mdash; key <b class="mono">{% if announce.de %}ELMER DE {{ announce.de }}{% else %}ELMER{% endif %}</b> when the program opens

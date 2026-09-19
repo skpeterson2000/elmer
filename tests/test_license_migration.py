@@ -81,6 +81,28 @@ def main():
     check("  and a station that never touched it is left alone",
           settings_of(conn, 4), {"name": "nobody in particular"})
 
+    print("\n-- and it says what it took --")
+    # Clearing a class and saying nothing is how a licensed operator opens
+    # ELMER the next morning to find it treating them as though they hold
+    # nothing, with no way to learn why. The value is left behind by name.
+    check("the class it cleared is remembered, to be said",
+          settings_of(conn, 1).get("license_class_cleared"), "Extra")
+    check("  and a station it did not touch has nothing to say",
+          settings_of(conn, 4).get("license_class_cleared"), None)
+    from elmer.app import app
+    client = app.test_client()
+    page = client.get("/", environ_base=LOCAL).data.decode("utf-8")
+    check("  the Station panel says so, and what to do about it",
+          ("cleared it on an update" in page, "enter your callsign" in page), (True, True))
+    # Setting a class again is the end of it, by hand or from the record.
+    client.post("/api/settings", json={"license_class": "General"}, environ_base=LOCAL)
+    check("  giving it a class again takes the notice away",
+          db.get_profile(db.connect())["settings"].get("license_class_cleared"), None)
+    check("  and the page stops saying it",
+          "cleared it on an update" in client.get("/", environ_base=LOCAL).data.decode("utf-8"),
+          False)
+    client.post("/api/settings", json={"license_class": ""}, environ_base=LOCAL)
+
     print("\n-- what the cleared station sees now --")
     holds = callsign.held(settings_of(conn, 1))
     check("it holds nothing, and claims nothing", (holds["class"], holds["source"]), ("", ""))

@@ -374,6 +374,14 @@ def migrate(conn):
                 continue                     # somebody's own word, deliberately
             if (settings.get("license") or {}).get("found"):
                 continue                     # the FCC answers for this one
+            # Say what was taken. Clearing a class on an upgrade and saying
+            # nothing is how a licensed operator opens ELMER the next morning
+            # and finds it treating them as though they hold nothing - no
+            # HF on Make Contact, the pools shut - with no way to know why.
+            # The program is not entitled to delete somebody's statement
+            # about themselves in silence; it leaves this behind and the
+            # Station panel says so until the class is set again.
+            settings["license_class_cleared"] = str(settings["license_class"])
             settings.pop("license_class", None)
             conn.execute("UPDATE profile SET settings = ? WHERE id = ?",
                          (json.dumps(settings), row["id"]))
