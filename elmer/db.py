@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS cw_char (
     copied   INTEGER NOT NULL DEFAULT 0,
     confused TEXT    NOT NULL DEFAULT '{}',
     repeats  INTEGER NOT NULL DEFAULT 0,
+    recent   TEXT    NOT NULL DEFAULT '',
     updated  TEXT,
     PRIMARY KEY (user_id, ch)
 );
@@ -386,11 +387,26 @@ def migrate(conn):
             conn.execute("UPDATE profile SET settings = ? WHERE id = ?",
                          (json.dumps(settings), row["id"]))
             cleared += 1
+        conn.execute("PRAGMA user_version = 8")
+        conn.commit()
+        log.info("database upgraded to version 8 - %d unverified licence class(es) "
+                 "cleared, which the band plan used to set without asking", cleared)
+        version = 8
+
+    if version == 8:
+        # Version 9: the CW record remembers its recent sends, not only the
+        # totals. "Solid" was nine in ten over everything ever sent, so a
+        # rough first twenty on a character dragged its ratio for a long
+        # time after the sound was known, and the next character waited on
+        # arithmetic rather than on the person. A window of the last thirty
+        # is what a Koch trainer actually judges. The totals stay; they are
+        # the record, and this is the recent past.
+        if "recent" not in _columns(conn, "cw_char"):
+            conn.execute("ALTER TABLE cw_char ADD COLUMN recent TEXT NOT NULL DEFAULT ''")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - %d unverified licence class(es) "
-                 "cleared, which the band plan used to set without asking",
-                 SCHEMA_VERSION, cleared)
+        log.info("database upgraded to version %s - the CW record keeps its recent sends",
+                 SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -913,6 +929,11 @@ def cw_progress(conn):
         "SELECT * FROM cw_char WHERE user_id = ?", (conn.user_id,))}
 
 
+# How much of the recent past the record keeps per character: enough for
+# the window "solid" is judged over (cw.RECENT_WINDOW) with room to spare.
+RECENT_KEEP = 40
+
+
 def cw_record(conn, per_char):
     """Fold one copy session into the per-character record.
 
@@ -921,6 +942,12 @@ def cw_record(conn, per_char):
     what, which is the thing that tells you which pairs still need
     separating, and how many times it had to be sent again first, which
     is what a contact would measure: "please repeat".
+
+    ``outcomes``, if given, is the same session in order - a string of 1
+    for copied and 0 for missed, one per send - and it is what the recent
+    window is built from. A session that sends only totals still feeds the
+    window, as its copies followed by its misses, which is the right shape
+    when the order is not known and exactly right when there is one send.
     """
     import json as _json
     for ch, stats in per_char.items():
@@ -929,15 +956,20 @@ def cw_record(conn, per_char):
         confused = _json.loads(row["confused"]) if row else {}
         for typed, n in (stats.get("confused") or {}).items():
             confused[typed] = confused.get(typed, 0) + int(n)
+        sent, copied = int(stats.get("sent", 0)), int(stats.get("copied", 0))
+        outcomes = str(stats.get("outcomes") or "")
+        if not outcomes or set(outcomes) - {"0", "1"} or len(outcomes) != sent:
+            outcomes = "1" * copied + "0" * max(0, sent - copied)
+        recent = ((row["recent"] if row and "recent" in row.keys() else "") or "") + outcomes
+        recent = recent[-RECENT_KEEP:]
         conn.execute(
-            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, updated) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
+            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, recent, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
             "sent = sent + excluded.sent, copied = copied + excluded.copied, "
             "confused = excluded.confused, repeats = repeats + excluded.repeats, "
-            "updated = excluded.updated",
-            (conn.user_id, ch, int(stats.get("sent", 0)),
-             int(stats.get("copied", 0)), _json.dumps(confused),
-             int(stats.get("repeats", 0) or 0), utcnow().isoformat()))
+            "recent = excluded.recent, updated = excluded.updated",
+            (conn.user_id, ch, sent, copied, _json.dumps(confused),
+             int(stats.get("repeats", 0) or 0), recent, utcnow().isoformat()))
     conn.commit()
 
 

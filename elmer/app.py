@@ -2722,9 +2722,13 @@ def api_cw_plan():
     from their record, not from a slider."""
     connection = conn()
     settings = db.get_profile(connection)["settings"].get("cw") or {}
-    the_plan = cw.plan(db.cw_progress(connection), settings.get("lesson"))
-    return jsonify({"plan": the_plan, "session": cw.session(the_plan), **_cw_streak(connection),
-                    "voice_have": _voice_have()})
+    progress = db.cw_progress(connection)
+    the_plan = cw.plan(progress, settings.get("lesson"))
+    # `learn` is the plan with no slider on it: what the record has earned
+    # and nothing more. The self-paced lesson draws from this one, because
+    # the whole point of that lesson is that the record decides.
+    return jsonify({"plan": the_plan, "session": cw.session(the_plan), "learn": cw.plan(progress),
+                    **_cw_streak(connection), "voice_have": _voice_have()})
 
 
 @app.route("/api/cw/flash")
@@ -2886,7 +2890,9 @@ def api_cw_result():
                                        session_pct=round(100 * hit / total) if total else None,
                                        resends=again)
     connection.commit()
-    return jsonify({"ok": True, "progress": progress, "fresh": fresh})
+    # The plan the record has earned, after this, so a lesson that records
+    # one pick at a time learns on the spot that a character just went solid.
+    return jsonify({"ok": True, "progress": progress, "fresh": fresh, "learn": cw.plan(progress)})
 
 
 @app.route("/lab")

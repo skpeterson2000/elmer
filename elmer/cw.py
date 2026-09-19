@@ -296,10 +296,58 @@ WORDS = (
 # not solid. Twenty is a session's worth of a character.
 SOLID_RATE = 0.9
 SOLID_SENT = 20
+# Judged over the recent past where there is one - the last thirty sends -
+# rather than over everything ever sent. A rough first twenty on a character
+# used to drag its lifetime ratio for a long time after the sound was known,
+# and the next character waited on arithmetic rather than on the person.
+# Twenty sends in the window is still the least that counts.
+RECENT_WINDOW = 30
+
+# How the drill is dealt. The newest character takes a third of the sends
+# and the shakiest a fifth, with the rest sharing what is left: at ten
+# characters an even deal gives the new one a tenth of the drill, and a
+# character heard once in ten takes weeks to learn.
+DRAW_NEW = 0.35
+DRAW_WEAK = 0.20
 
 
 def is_solid(stat):
-    return bool(stat) and stat.get("sent", 0) >= SOLID_SENT and stat["copied"] / stat["sent"] >= SOLID_RATE
+    if not stat:
+        return False
+    recent = str(stat.get("recent") or "")
+    if len(recent) >= SOLID_SENT:
+        window = recent[-RECENT_WINDOW:]
+        return window.count("1") / len(window) >= SOLID_RATE
+    return stat.get("sent", 0) >= SOLID_SENT and stat["copied"] / stat["sent"] >= SOLID_RATE
+
+
+def draw(chars, new, weak):
+    """How often each character in a drill should come up, as shares that
+    sum to one. `new` is the character(s) not yet met, `weak` the met ones
+    not yet solid, worst first, as plan() gives them."""
+    chars = list(chars)
+    if not chars:
+        return {}
+    # The first two are both new and neither is newer; deal them evenly.
+    if set(chars) <= set(new):
+        return {c: round(1.0 / len(chars), 4) for c in chars}
+    fresh = next((c for c in reversed(chars) if c in set(new)), None)
+    shaky = next((w["ch"] for w in weak if w["ch"] in chars and w["ch"] != fresh), None)
+    rest = [c for c in chars if c not in (fresh, shaky)]
+    shares = {}
+    left = 1.0
+    if fresh:
+        shares[fresh] = DRAW_NEW
+        left -= DRAW_NEW
+    if shaky:
+        shares[shaky] = DRAW_WEAK
+        left -= DRAW_WEAK
+    for c in rest:
+        shares[c] = left / len(rest)
+    if not rest:                             # two characters, both special
+        total = sum(shares.values())
+        shares = {c: v / total for c, v in shares.items()}
+    return {c: round(v, 4) for c, v in shares.items()}
 
 
 def plan(progress, setting=None):
@@ -351,7 +399,8 @@ def plan(progress, setting=None):
     words = [w for w in WORDS if set(w) <= set(chars)]
     done = leading >= len(KOCH_ORDER)
     return {"lesson": lesson, "earned": earned, "ahead": ahead, "chars": chars, "new": new,
-            "weak": weak, "words": len(words), "solid": leading, "total": len(KOCH_ORDER), "done": done}
+            "weak": weak, "words": len(words), "solid": leading, "total": len(KOCH_ORDER), "done": done,
+            "draw": draw(chars, new, weak)}
 
 
 def session(the_plan):

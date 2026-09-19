@@ -147,6 +147,28 @@ def main():
     check("eight solid in order is lesson nine, L new", (p["lesson"], p["new"], p["solid"]), (9, ["L"], 8))
     check("  a character is solid at nine in ten over twenty sends, not before",
           (cw.is_solid({"sent": 19, "copied": 19}), cw.is_solid({"sent": 20, "copied": 18}), cw.is_solid({"sent": 20, "copied": 17})), (False, True, False))
+    # Judged over the recent past where there is one. A rough first day on
+    # a character used to drag its lifetime ratio long after the sound was
+    # known; the window forgives it. And the window catches slipping that
+    # the lifetime ratio would hide.
+    check("  ten misses then thirty hits is solid by the window, though lifetime says 75%",
+          (cw.is_solid({"sent": 40, "copied": 30, "recent": "0" * 10 + "1" * 30}),
+           cw.is_solid({"sent": 40, "copied": 30})), (True, False))
+    check("  thirty hits then ten misses is not, though lifetime says 90%",
+          cw.is_solid({"sent": 40, "copied": 36, "recent": "1" * 30 + "0" * 10}), False)
+    check("  and a window shorter than twenty does not count yet",
+          cw.is_solid({"sent": 19, "copied": 19, "recent": "1" * 19}), False)
+    # The deal: the newest a third, the shakiest a fifth, the rest even.
+    check("two fresh characters are dealt evenly", cw.plan({})["draw"], {"K": 0.5, "M": 0.5})
+    d = cw.plan(dict(solid, L={"sent": 3, "copied": 2, "recent": "110"}))["draw"]
+    check("  the newest takes a third", d["L"], 0.35)
+    check("  and the rest share the remainder evenly",
+          (len(set(round(v, 4) for c, v in d.items() if c != "L")), round(sum(d.values()), 3)), (1, 1.0))
+    two_weak = dict(solid, L={"sent": 25, "copied": 20, "recent": "1" * 20 + "0" * 5},
+                    O={"sent": 3, "copied": 1, "recent": "100"})
+    d = cw.plan(two_weak, setting=10)["draw"]
+    check("  with a new one and a shaky one, the shaky takes a fifth",
+          (d["O"], d["L"]), (0.35, 0.2))
     shaky = dict(solid, L={"sent": 12, "copied": 8, "confused": '{"R": 3, "M": 1}'})
     p = cw.plan(shaky)
     check("a shaky character is named, worst first, with what it was heard as", (p["weak"][0]["ch"], p["weak"][0]["heard_as"]), ("L", ["R", "M"]))

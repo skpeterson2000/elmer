@@ -82,36 +82,44 @@ LESSON_JS = r"""(async () => {
   const chip = c => [...$('cw-lesson-chars').children].find(b => b.dataset.char === c);
   const out = {};
   $('cw-qsay').click();                       // no Q keying before each press
+  // The slider is pushed up on purpose. The lesson must ignore it: a fresh
+  // record has earned two characters, and two is what it gets.
   const slider = $('cw-lesson');
-  slider.value = 3; slider.dispatchEvent(new Event('input'));
-  out.review = $('cw-lesson-chars').children.length;
-  out.review_has_code = !!$('cw-lesson-chars').querySelector('.cw-code i');
+  slider.value = 6; slider.dispatchEvent(new Event('input'));
   $('cw-learn-begin').click();
-  await sleep(2500);
-  const sent = learnList[learnAt];
+  // Two characters never heard are met first - sounded, drawn, named, with
+  // nothing asked - and only then is the first one sent as a question.
+  await sleep(1200);
+  out.meeting = {hint: $('cw-teach-hint').textContent, waiting: !$('cw-learn-again').hidden,
+                 chars: learnChars.slice()};
+  await sleep(8500);
+  const sent = learnCur;
   out.sounded = {count: $('cw-learn-count').textContent,
                  again: !$('cw-learn-again').hidden,
                  begin_gone: $('cw-learn-begin').hidden,
                  answering: $('cw-lesson-chars').classList.contains('picking'),
-                 named_yet: $('cw-teach-word').textContent};
+                 named_yet: $('cw-teach-word').textContent,
+                 review: $('cw-lesson-chars').children.length,
+                 review_has_code: !!$('cw-lesson-chars').querySelector('.cw-code i'),
+                 in_set: learnChars.includes(sent)};
   await sleep(3500);
-  out.still = $('cw-learn-count').textContent;
+  out.still = {count: $('cw-learn-count').textContent, same: learnCur === sent};
 
   // Wrong on purpose: the letter shown is theirs, in red; the word is the
   // truth, and the same character comes round again.
-  const wrong = learnList.find(c => c !== sent);
+  const wrong = learnChars.find(c => c !== sent);
   chip(wrong).click();
-  await sleep(500);
+  await sleep(600);
   const letter = $('cw-teach-letter');
   out.missed = {shown: letter.textContent, red: letter.classList.contains('wrong'),
                 green: letter.classList.contains('right'),
                 word: $('cw-teach-word').textContent, was: phoneticWord(sent)};
   await sleep(3000);
-  out.again_same = {count: $('cw-learn-count').textContent, sent: learnList[learnAt] === sent};
+  out.again_same = {count: $('cw-learn-count').textContent, sent: learnCur === sent};
 
   // Right this time, by clicking it.
   chip(sent).click();
-  await sleep(500);
+  await sleep(600);
   out.got = {shown: letter.textContent, green: letter.classList.contains('right'),
              red: letter.classList.contains('wrong'), word: $('cw-teach-word').textContent};
   await sleep(3000);
@@ -119,9 +127,9 @@ LESSON_JS = r"""(async () => {
                   waiting: !$('cw-learn-again').hidden};
 
   // And by typing it, for anybody with a keyboard under their hands.
-  const second = learnList[learnAt];
+  const second = learnCur;
   document.dispatchEvent(new KeyboardEvent('keydown', {key: second, bubbles: true}));
-  await sleep(500);
+  await sleep(600);
   out.typed = {shown: letter.textContent, green: letter.classList.contains('right')};
   await sleep(3000);
   out.after_typed = $('cw-learn-count').textContent;
@@ -131,6 +139,10 @@ LESSON_JS = r"""(async () => {
   out.stopped = {begin_back: !$('cw-learn-begin').hidden,
                  again_gone: $('cw-learn-again').hidden,
                  answering: $('cw-lesson-chars').classList.contains('picking')};
+  // What the record now holds: every answer, and nothing from the meetings.
+  const prog = CWS.progress || {};
+  out.record = Object.fromEntries(learnChars.map(c => [c, {sent: (prog[c] || {}).sent || 0,
+                                                            copied: (prog[c] || {}).copied || 0}]));
   return JSON.stringify(out);
 })()"""
 
@@ -161,18 +173,24 @@ def main():
         except Exception:
             time.sleep(0.2)
 
-    print("\n-- one at a time, and the machine waits on an answer --")
+    print("\n-- the record decides what is in the lesson, not the slider --")
     got = json.loads(_browser.evaluate(URL, LESSON_JS, settle=3.0, flags=FLAGS, cookies={'elmer_user': '1'}))
-    check("the lesson's characters are on the screen to compare against", got["review"], 3)
-    check("  drawn as shapes, not written as dots", got["review_has_code"], True)
-    check("Begin sounds the first one and hands over the controls",
+    check("a fresh record earns two characters, whatever the slider says",
+          got["meeting"]["chars"], ["K", "M"])
+    check("  and a character never heard is met first - named, nothing asked",
+          (got["meeting"]["hint"].startswith("new: "), got["meeting"]["waiting"]), (True, False))
+    check("the lesson's characters are on the screen to compare against", got["sounded"]["review"], 2)
+    check("  drawn as shapes, not written as dots", got["sounded"]["review_has_code"], True)
+    check("then the first one is sent, and the controls are handed over",
           (got["sounded"]["count"], got["sounded"]["again"], got["sounded"]["begin_gone"]),
-          ("1 of 3", True, True))
+          ("1 heard \u00b7 0 of 40 solid", True, True))
+    check("  it is one of the lesson's own", got["sounded"]["in_set"], True)
     check("  the row above becomes the answer buttons", got["sounded"]["answering"], True)
     check("  and nothing is named yet - that is what the thinking is for",
           got["sounded"]["named_yet"], "")
     # The heart of it. Nothing moves on its own.
-    check("left alone, it is still on the same character", got["still"], "1 of 3")
+    check("left alone, it is still on the same character",
+          (got["still"]["count"], got["still"]["same"]), ("1 heard \u00b7 0 of 40 solid", True))
 
     print("\n-- a wrong answer: their letter in red, the true name spoken --")
     check("the letter shown is the one they picked, and it is red",
@@ -181,7 +199,7 @@ def main():
     check("  the word said is the character that was sent, not the mistake",
           got["missed"]["word"], got["missed"]["was"])
     check("  and the same character comes round again",
-          (got["again_same"]["count"], got["again_same"]["sent"]), ("1 of 3", True))
+          (got["again_same"]["count"], got["again_same"]["sent"]), ("1 heard \u00b7 0 of 40 solid", True))
 
     print("\n-- a right answer: their letter in green, and the same name --")
     check("the letter shown is green",
@@ -189,13 +207,66 @@ def main():
     check("  named the same way it is named when they miss it",
           got["got"]["word"], got["missed"]["word"])
     check("  and only then does the next one sound, and wait in its turn",
-          (got["moved_on"]["count"], got["moved_on"]["waiting"]), ("2 of 3", True))
+          (got["moved_on"]["count"], got["moved_on"]["waiting"]), ("2 heard \u00b7 0 of 40 solid", True))
     check("typed rather than clicked, it is the same answer",
           got["typed"]["green"], True)
-    check("  and moves on the same way", got["after_typed"], "3 of 3")
+    check("  and moves on the same way", got["after_typed"], "3 heard \u00b7 0 of 40 solid")
     check("Stop puts the lesson away",
           (got["stopped"]["begin_back"], got["stopped"]["again_gone"],
            got["stopped"]["answering"]), (True, True, False))
+
+    print("\n-- and every answer went into the record --")
+    # Three sends were answered: one miss, two hits. The two meetings were
+    # not sends and left nothing behind.
+    rec = got["record"]
+    check("three sends recorded, no more",
+          sum(v["sent"] for v in rec.values()), 3)
+    check("  two of them copied", sum(v["copied"] for v in rec.values()), 2)
+
+    print("\n-- the record earns the next character, one at a time --")
+    # No browser for this part: a learner is walked through the record the
+    # way the lesson writes it, one send at a time, and the plan is asked
+    # what it has earned after each step.
+    # A second account with a fresh record, made in the same isolated state
+    # the server is reading, so the browser's few sends on the first do not
+    # muddy the count.
+    from elmer import db as _db
+    walker = _db.add_user(_db.connect(), "Walker")
+    walker = walker["id"] if isinstance(walker, dict) else walker
+
+    def send(ch, hit):
+        body = json.dumps({"per_char": {ch: {"sent": 1, "copied": 1 if hit else 0,
+                                             "confused": {} if hit else {"M": 1},
+                                             "outcomes": "1" if hit else "0"}}}).encode()
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}/api/cw/result", data=body,
+                                     headers={"Content-Type": "application/json",
+                                              "Cookie": f"elmer_user={walker}"}, method="POST")
+        return json.loads(urllib.request.urlopen(req, timeout=10).read())["learn"]
+
+    learn = None
+    for _ in range(19):
+        learn = send("K", True)
+    check("nineteen in a row is not yet solid - twenty is the least that counts",
+          (learn["solid"], learn["chars"]), (0, ["K", "M"]))
+    for _ in range(19):
+        learn = send("M", True)
+    learn = send("K", True)
+    check("  the twentieth makes K solid, but M is not yet, so nothing joins",
+          (learn["solid"], learn["chars"]), (1, ["K", "M"]))
+    learn = send("M", True)
+    check("both solid: R is earned, named as new, and takes a third of the deal",
+          (learn["solid"], learn["chars"], learn["new"], learn["draw"].get("R")),
+          (2, ["K", "M", "R"], ["R"], 0.35))
+    # A bad start on R, then a good run: the window forgives what the
+    # lifetime ratio would not.
+    for _ in range(10):
+        learn = send("R", False)
+    for _ in range(30):
+        learn = send("R", True)
+    check("ten misses then thirty hits is solid by the window (lifetime says 75%)",
+          (learn["solid"], learn["chars"][-1]), (3, "S"))
+    check("  and S, the newest, takes a third of the deal",
+          learn["draw"].get("S"), 0.35)
 
     print("\n-- run together, each one named as it goes by --")
     got = json.loads(_browser.evaluate(URL, TOGETHER_JS, settle=3.0, flags=FLAGS, cookies={'elmer_user': '1'}))

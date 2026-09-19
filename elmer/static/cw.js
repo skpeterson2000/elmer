@@ -301,8 +301,8 @@ function charClass(stat) {
   return rate >= 0.9 ? 'solid' : rate >= 0.7 ? 'shaky' : 'weak';
 }
 
-function renderLesson() {
-  const chars = (CWS.koch || []).slice(0, settings.lesson);
+function renderLesson(only) {
+  const chars = only || (CWS.koch || []).slice(0, settings.lesson);
   const box = document.getElementById('cw-lesson-chars');
   if (box) {
     /* The lesson's characters with their shapes beside them, and clickable:
@@ -393,12 +393,31 @@ document.getElementById('cw-teach-stop').addEventListener('click', () => {
    shapes on the screen, and how long that takes is their business and not
    the program's. Everybody's is different and none of them is wrong.
 
-   So this runner sounds one character and then stops. Nothing is timed,
-   nothing is scored, and the lesson's characters stay above with their code
-   the whole way through, to be compared against and clicked on. The learner
-   asks for it again as often as they like. When they have it, it is named -
-   shown, spelled in the phonetic alphabet and said aloud - and only then
-   does the next one sound.
+   So this runner sounds one character and then stops. Nothing is timed.
+   The learner asks for it again as often as they like. When they have it,
+   it is named - shown, spelled in the phonetic alphabet and said aloud -
+   and only then does the next one sound.
+
+   What decides which characters are in it is the record, and only the
+   record. This used to take its characters from the slider - pick eight,
+   press Begin, meet eight - and recorded nothing, so it could not know what
+   anybody had earned and could not give them the next one when they had.
+   It is the Koch method now, the same one the copy drill runs on:
+
+     - two characters to start, because with one there is nothing to tell
+       apart and every answer is right;
+     - a new character is met first - sounded, drawn, named - with nothing
+       asked, because finding out what a sound is comes before being asked
+       which sound it was;
+     - then it joins the drill, and every pick is recorded, so the record
+       can say when it is solid: nine in ten over the last thirty;
+     - the newest character takes a third of the sends and the shakiest a
+       fifth, because dealt evenly among ten the new one comes round once
+       in ten and takes weeks;
+     - when the whole set is solid the next character in the order is met
+       and joins, and the lesson says so;
+     - nothing is ever taken away. Not advancing says the same thing
+       kindly.
 
    That is the whole of it, and it is deliberately the smallest game on the
    page: telling two sounds apart is the ability everything else is built
@@ -406,7 +425,12 @@ document.getElementById('cw-teach-stop').addEventListener('click', () => {
    this turns into once the characters are known. T-ball first. */
 const LEARN_LEAD_MS = 900;          // a breath after "ready" and before the first one
 const LEARN_NAMED_MS = 1500;        // the name stands this long before the next sounds
-let learnOn = false, learnAt = 0, learnList = [], learnWaiting = false;
+const LEARN_MEET_MS = 2200;         // a new character, met: drawn and named, then a pause
+let learnOn = false, learnWaiting = false;
+let learnPlan = null;               // the record's plan: chars, new, weak, draw, solid, total
+let learnChars = [];                // what is in the drill right now
+let learnCur = null;                // the character in the air
+let learnHeard = 0;                 // sends this sitting
 
 function learnShow(state) {
   const set = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
@@ -415,13 +439,14 @@ function learnShow(state) {
   set('cw-start-copy', !learnOn);
   set('cw-learn-again', learnOn && state === 'wait');
   set('cw-learn-stop', learnOn);
-  /* The lesson's characters are the answer buttons while one is in the air,
-     and they are lit as such: this is the only time clicking one does not
-     simply play it. */
+  const t = document.getElementById('cw-teach');
+  if (t) t.classList.toggle('learning', learnOn);
   const row = document.getElementById('cw-lesson-chars');
   if (row) row.classList.toggle('picking', learnOn && state === 'wait');
   const n = document.getElementById('cw-learn-count');
-  if (n) n.textContent = learnOn ? (learnAt + 1) + ' of ' + learnList.length : '';
+  if (n) n.textContent = learnOn && learnPlan
+    ? learnHeard + ' heard · ' + learnPlan.solid + ' of ' + learnPlan.total + ' solid'
+    : '';
 }
 
 function learnHint(text) {
@@ -436,19 +461,79 @@ function learnClear() {
   if (word) { word.textContent = ''; word.classList.remove('show'); }
 }
 
-async function learnSound() {
+/* The deal: which character sounds next, by the record's shares. */
+function learnDraw() {
+  const shares = (learnPlan && learnPlan.draw) || {};
+  const pool = learnChars.filter(c => shares[c] > 0);
+  if (!pool.length) return learnChars[Math.floor(Math.random() * learnChars.length)];
+  let r = Math.random() * pool.reduce((s, c) => s + shares[c], 0);
+  for (const c of pool) { r -= shares[c]; if (r <= 0) return c; }
+  return pool[pool.length - 1];
+}
+
+/* Meeting a character: it sounds, it is drawn, it is named, and nothing is
+   asked. This is the one-letter moment, and it is an introduction and not
+   a test - which is why it is not recorded. The drill after it is. */
+async function learnMeet(c) {
   if (!learnOn) return;
+  learnClear();
+  learnShow('sounding');
+  learnHint('new: ' + c + ' is ' + phoneticWord(c) + ' - listen');
+  teachStop = false;
+  await playSymbol({char: c, code: CODE[c] || ''}, localTiming(),
+                   document.getElementById('cw-teach-code'));
+  if (!learnOn) return;
+  const letter = document.getElementById('cw-teach-letter');
+  if (letter) { letter.innerHTML = escapeHTML(c); letter.classList.add('show'); }
+  if (teachUI.reveal()) sayBack(c, document.getElementById('cw-teach-word'), true);
+  await sleep(LEARN_MEET_MS);
+}
+
+async function learnSound() {
+  if (!learnOn || !learnCur) return;
   learnClear();
   learnShow('sounding');
   learnHint('listen');
   teachStop = false;                       // a Stop earlier must not silence this
-  const c = learnList[learnAt];
+  const c = learnCur;
   await playSymbol({char: c, code: CODE[c] || ''}, localTiming(),
                    document.getElementById('cw-teach-code'));
   if (!learnOn) return;
   learnWaiting = true;
   learnShow('wait');
   learnHint('no rush - which one was it? pick it from the row above, or type it');
+}
+
+async function learnNext() {
+  if (!learnOn) return;
+  learnCur = learnDraw();
+  learnHeard += 1;
+  await learnSound();
+}
+
+/* The record has moved. If the set grew, a character went solid and the
+   next in the order has been earned: say so, meet it, and carry on. If it
+   did not, the shares have still shifted with the record, and the deal
+   follows them. */
+async function learnAdvance(fresh) {
+  if (!fresh || !learnOn) return;
+  const before = learnPlan ? learnPlan.chars : [];
+  learnPlan = fresh;
+  const joined = fresh.chars.filter(c => !before.includes(c));
+  learnChars = fresh.chars;
+  renderLesson(learnChars);
+  learnShow('sounding');
+  if (fresh.done) {
+    learnHint('every character is solid - that is the whole code. Go and copy.');
+    learnEnd(true);
+    return;
+  }
+  for (const c of joined) {
+    const earned = before.length ? before[before.length - 1] : null;
+    learnHint((earned ? earned + ' is solid - ' : '') + c + ' joins');
+    await sleep(LEARN_NAMED_MS);
+    await learnMeet(c);
+  }
 }
 
 /* The answer, and what is done with it.
@@ -461,15 +546,15 @@ async function learnSound() {
  * character is coupled to its name and never to somebody's mistake - and it
  * is what makes a wrong answer worth having rather than just wrong.
  *
- * A miss brings the same character round again. Nothing is scored and
- * nothing is recorded here: this is the one place on the page where a person
- * is finding out what a sound is, and a record of how many times it took
- * would turn that into a test. The drills upstairs keep the numbers.
+ * A miss brings the same character round again. And every answer is
+ * recorded - one send, copied or not, and what it was heard as - because
+ * the record is what decides when the next character is earned, and a
+ * lesson that recorded nothing could only ever offer what a slider said.
  */
 async function learnPick(picked) {
   if (!learnOn || !learnWaiting) return;
   learnWaiting = false;
-  const actual = learnList[learnAt];
+  const actual = learnCur;
   const right = picked === actual;
   const letter = document.getElementById('cw-teach-letter');
   letter.innerHTML = escapeHTML(picked);
@@ -479,20 +564,29 @@ async function learnPick(picked) {
   learnHint(right ? 'that is the one' : 'that was ' + phoneticWord(actual) + ' - here it is again');
   if (teachUI.reveal()) sayBack(actual, document.getElementById('cw-teach-word'), right);
   else cue(right);
+  /* Recorded on the spot, one send at a time, so nothing is lost if they
+     stop mid-lesson and so the record can answer straight away. */
+  const per = {}; per[actual] = {sent: 1, copied: right ? 1 : 0,
+                                 confused: right ? {} : {[picked]: 1},
+                                 outcomes: right ? '1' : '0'};
+  const res = await postJSON('/api/cw/result', {per_char: per}).catch(() => null);
+  if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
   await sleep(LEARN_NAMED_MS);
   if (!learnOn) return;
+  if (res && res.learn) await learnAdvance(res.learn);
+  if (!learnOn) return;
   if (!right) { await learnSound(); return; }     // round again, at their pace
-  learnAt += 1;
-  if (learnAt >= learnList.length) { learnEnd(true); return; }
-  await learnSound();
+  await learnNext();
 }
 
 function learnEnd(finished) {
   learnOn = false;
   learnWaiting = false;
+  learnCur = null;
   teachHalt();
   learnClear();
   learnShow('');
+  renderLesson();                                 // the copy drill's row again
   learnHint(finished
     ? 'that is the lesson - hear them run together, or start copying'
     : 'Press below and each character is drawn as it sounds, then named.');
@@ -500,17 +594,28 @@ function learnEnd(finished) {
 
 async function learnBegin() {
   if (learnOn) return;
-  learnList = (CWS.koch || []).slice(0, settings.lesson);
-  if (!learnList.length) return;
+  let d = null;
+  try { d = await api('/api/cw/plan'); } catch (e) { return; }
+  learnPlan = d.learn || d.plan;
+  if (!learnPlan || !learnPlan.chars || !learnPlan.chars.length) return;
+  if (learnPlan.done) {
+    learnHint('every character is solid - that is the whole code. Go and copy.');
+    return;
+  }
+  learnChars = learnPlan.chars;
+  renderLesson(learnChars);
   teachHalt();
   learnOn = true;
   learnWaiting = false;
-  learnAt = 0;
+  learnHeard = 0;
   learnClear();
   learnShow('sounding');
-  learnHint('here comes the first one');
+  learnHint('here they come');
   await sleep(LEARN_LEAD_MS);
-  await learnSound();
+  /* Anything never heard is met before it is asked about. */
+  const unmet = learnChars.filter(c => !((CWS.progress || {})[c] || {}).sent);
+  for (const c of unmet) { if (!learnOn) return; await learnMeet(c); }
+  await learnNext();
 }
 
 document.getElementById('cw-learn-begin').addEventListener('click', learnBegin);
@@ -524,7 +629,7 @@ document.addEventListener('keydown', e => {
   if (!learnOn || !learnWaiting) return;
   if (e.metaKey || e.ctrlKey || e.altKey || e.key.length !== 1) return;
   const k = e.key.toUpperCase();
-  if (!learnList.includes(k)) return;
+  if (!learnChars.includes(k)) return;
   e.preventDefault();
   learnPick(k);
 });
