@@ -219,11 +219,21 @@ print("\nthe calibration job runs on what the record covers, and says so when it
 from elmer import calibrate as C2
 H.fetch = fake_fetch(flux_days=1)
 st = C2.start(45.5, -84.0, days=2, build="t2", place="Test")
-for _ in range(300):
+# The job is a real hindcast on a thread, and this waits for it to reach a
+# terminal state. Thirty seconds was enough on any machine anybody runs this
+# on by hand and not enough on a loaded CI runner, where it failed once with
+# the job still fetching - a red build that said nothing about the code. Two
+# minutes is past anything the work takes and still bounded, and the state it
+# was stuck in is reported rather than compared against.
+_t = __import__("time")
+_deadline = _t.time() + 120
+while _t.time() < _deadline:
     st = C2.status()
     if st["state"] in ("done", "failed", "stopped"):
         break
-    __import__("time").sleep(0.1)
+    _t.sleep(0.1)
+else:
+    print(f"  note  the job never finished; it was {st['state']!r} after 120 s")
 check("with one day of flux in a two-day span, the job stops in words", st["state"], "failed")
 check("  that name the trouble, not a traceback",
       ("solar flux record could not be fetched" in (st["error"] or ""), "Traceback" in (st["error"] or "")), (True, False))
