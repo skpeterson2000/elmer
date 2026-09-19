@@ -514,11 +514,52 @@ def _modernise(settings):
     return settings
 
 
+def standing(callsign, settings):
+    """Where the licence behind an account stands, from the FCC record kept
+    with it and today's date - never from the callsign field alone.
+
+    The account menu used to pin a "licensed" pill on anybody with anything
+    typed in the callsign box: type XYZZY and you were licensed. It was
+    reported from a real one - KA7EVD, once Donny Osmond's, lapsed decades
+    ago and gone from the FCC's file - which came up "licensed" for the
+    same reason. What the record says is what is shown:
+
+      None        no callsign on the account
+      unchecked   a callsign, and no record looked up yet
+      unfound     looked up, and the FCC has no record of it - lapsed long
+                  enough to have been dropped from the file, or foreign,
+                  or a slip; the file cannot tell these apart
+      cancelled   the FCC still lists it, as cancelled or terminated
+      current     in force
+      grace       expired, in the two-year window to renew without retesting;
+                  may not be used on the air
+      expired     past that, gone
+
+    Computed now, not when the record was fetched: a record's own status
+    was worked out on the day of the lookup and frozen, so a licence that
+    was current then would read current years after it ran out.
+    """
+    if not (callsign or "").strip():
+        return None
+    record = (settings or {}).get("license")
+    if not isinstance(record, dict):
+        return "unchecked"
+    if not record.get("found"):
+        if record.get("fcc_status") in ("cancelled", "terminated"):
+            return "cancelled"
+        return "unfound"
+    from . import callsign as _callsign
+    state = _callsign.status_for(_callsign._parse_date(record.get("expires"))).get("state")
+    return state if state in ("current", "grace", "expired") else "current"
+
+
 def _row_to_profile(row):
     prof = dict(row)
     prof["settings"] = _modernise(json.loads(prof["settings"] or "{}"))
     prof["display_name"] = display_name(prof)
-    prof["licensed"] = bool((prof.get("callsign") or "").strip())
+    prof["standing"] = standing(prof.get("callsign"), prof["settings"])
+    # "Licensed" is a claim the FCC has to back. In force, today.
+    prof["licensed"] = prof["standing"] == "current"
     # The salt and the hash never leave here. This dict is what /api/users
     # answers with, and a stored hash served to the network is a stored hash
     # somebody can work on at their leisure. What a caller legitimately needs

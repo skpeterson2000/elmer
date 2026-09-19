@@ -593,7 +593,12 @@ def profile_block(connection):
             "rank_rules": {"current_days": ranks.CURRENT_DAYS,
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
-            "license": prof["settings"].get("license") or {},
+            # The record, with its standing worked out today. The stored
+            # record carries the status it had on the day it was fetched,
+            # and a page that read that raw showed "2046 days" for ever and
+            # never saw a licence run out until somebody looked it up again.
+            "license": _license_now(prof),
+            "standing": prof.get("standing"),
             # The opening announcement: whether to key it at all, and the
             # name to key after DE. A supporter who asked to be named has
             # their own callsign read out with the program's, which is the
@@ -7738,6 +7743,15 @@ def api_client_error():
     return jsonify({"logged": True})
 
 
+def _license_now(prof):
+    """The amateur record kept with the profile, its status recomputed from
+    the expiry date as of today rather than the day it was fetched."""
+    record = dict((prof.get("settings") or {}).get("license") or {})
+    if record.get("found") and record.get("expires"):
+        record["status"] = callsign.status_for(callsign._parse_date(record["expires"]))
+    return record
+
+
 def _adopt_license(connection, call, settings=None):
     """Record a callsign on the current user and read its license.
 
@@ -8130,6 +8144,7 @@ def _user_block(connection):
     current = db.get_profile(connection)
     return {"users": [{"id": u["id"], "name": u["name"],
                        "callsign": u["callsign"], "licensed": u["licensed"],
+                       "standing": u.get("standing"),
                        "display_name": u["display_name"],
                        # Whether an account is locked, never anything about
                        # what it is locked with.
@@ -8347,6 +8362,7 @@ def api_scoreboard():
                 "id": user["id"],
                 "name": user["display_name"],
                 "licensed": user["licensed"],
+                "standing": user.get("standing"),
                 "titles": {k: t["title"] for k, t in tracks.items()},
                 "xp": user["xp"],
                 "streak": user["streak_days"],
