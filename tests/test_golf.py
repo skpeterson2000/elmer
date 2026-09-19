@@ -311,10 +311,34 @@ def run():
     check("  and the driver lands short of it, on the fairway", (s["kind"], s["carry"], creek.balls["a"].lie), ("fairway", 225, "fairway"))
     check("  a mark is for one stroke", creek.aims, {})
     check("  the next is at the pin again", creek.aim("a")["set"], False)
-    bunker = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 230, "to": 260, "side": "left", "name": "the left trap"}]), seed=1)
+    # A hazard is somewhere across the hole as well as along it, and the
+    # ball has to be at both. A side hazard's stated offset is measured from
+    # the fairway's edge, so this trap sits twelve yards into the left rough
+    # - thirty yards off the line, on a fairway eighteen yards to a side.
+    trap = [{"kind": "bunker", "from": 230, "to": 260, "side": "left",
+             "off": -12, "name": "the left trap"}]
+    check("a side hazard's offset is read from the fairway's edge",
+          [(round(c), round(w)) for c, w in golf.hazard_spans(flat_course()["holes"][0], trap[0])],
+          [(-30, 8)])
+    bunker = golf.Golf(["a"], flat_course(hazards=trap), seed=1)
     bunker.set_aim("a", 250, -30)
     s = bunker.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
-    check("aimed thirty yards left, into the left trap's yards: in the sand", (s["kind"], s["hazard"], bunker.balls["a"].off), ("sand", "the left trap", -30))
+    check("  aimed at it: in the sand", (s["kind"], s["hazard"], bunker.balls["a"].off), ("sand", "the left trap", -30))
+    # The bug this was reported as: a drive down the middle, called on the
+    # fairway, drawn in the bunker - because the rule asked only which side
+    # of the line the ball was on and every left-hand hazard caught it.
+    middle = golf.Golf(["a"], flat_course(hazards=trap), seed=1)
+    middle.set_aim("a", 250, -10)
+    s = middle.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    check("  ten yards left of the line, inside the fairway, past nothing: the fairway",
+          (s["kind"], middle.balls["a"].lie), ("fairway", "fairway"))
+    # And the other half of it: a ball far wider than the trap is wider than
+    # the trap, and used to be called into it anyway.
+    past = golf.Golf(["a"], flat_course(hazards=trap), seed=1)
+    past.set_aim("a", 250, -46)
+    s = past.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
+    check("  forty-six yards left, well past it: the rough, not the sand",
+          (s["kind"], past.balls["a"].lie), ("rough", "rough"))
     wide = golf.Golf(["a"], flat_course(), seed=1)
     wide.set_aim("a", 250, 30)
     s = wide.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]

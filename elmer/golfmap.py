@@ -448,19 +448,13 @@ def _plan_hazard(parts, h, hz, plan, i, k):
     ry = (hi - lo) / 2 * k
     if side in ("across", "front", "centre", "") and hz.get("off") is None:
         offs, rx = [0.0], half * k * (0.75 if side == "centre" else 1.0)
-    elif side == "beyond" and hz.get("off") is None:
-        offs, rx = [0.0], (golf.green_half(h) + 6) * k
-    elif side == "around" and hz.get("off") is None:
-        offs, rx = [-(golf.green_half(h) + 8), golf.green_half(h) + 8], 7 * k
     else:
-        off = golf.hazard_off(h, hz)
-        if hz["kind"] == "water" and side in ("left", "right") and hi - lo > 80:
-            # water down one side of the hole, the length of it: a band out to the edge
-            offs, rx = [off + (18 if off > 0 else -18)], 24 * k
-        elif hz["kind"] == "water" and side in ("across", "front"):
-            offs, rx = [off], half * k
-        else:
-            offs, rx = [off], (8 if hz["kind"] == "bunker" else 12) * k
+        # Where the rules put it, across the hole: golf.hazard_spans is the
+        # one statement of a hazard's shape, and the ball is tested against
+        # the same numbers this draws. Drawn and obeyed are the same thing.
+        spans = golf.hazard_spans(h, hz)
+        offs = [centre for centre, _ in spans]
+        rx = spans[0][1] * k
     if hi - lo > 60:
         # A hazard the length of a leg or more - the bay down the 18th, a
         # creek along the hole, a run of bunkers - follows the line, as a

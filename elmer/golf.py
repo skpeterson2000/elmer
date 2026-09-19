@@ -191,10 +191,22 @@ def hazard_off(h, hz):
     positive: as measured where the card has it, else where its side
     puts it - beside the fairway for left and right, on the line for the
     rest. "around" is two: this returns the right one; the caller mirrors."""
-    if hz.get("off") is not None:
-        return float(hz["off"])
     half = fairway_half(h)
     side = hz.get("side", "")
+    if hz.get("off") is not None:
+        off = float(hz["off"])
+        if side in ("left", "right"):
+            # A side hazard's stated offset is measured from the fairway's
+            # edge, not from the line of play: nought is at the edge and the
+            # rest is out into the rough. Read as centre-line yards instead,
+            # fifty-three of the ninety side hazards on the shipped courses
+            # would sit *inside* their own fairway, which is not how a course
+            # is built - and the card drew them there, which is what made a
+            # drive down the middle come to rest in a bunker.
+            return (-1 if off < 0 or side == "left" else 1) * (half + abs(off))
+        return off
+    # No stated offset: twelve yards into the rough, which is the same
+    # reading the stated ones get and sits it where the ones beside it sit.
     if side == "left":
         return -(half + 12)
     if side == "right":
@@ -202,6 +214,45 @@ def hazard_off(h, hz):
     if side == "around":
         return green_half(h) + 8
     return 0.0
+
+
+def hazard_spans(h, hz):
+    """Where a hazard lies across the hole: a list of (centre, half-width)
+    in yards off the line, right positive. Usually one; "around" is two,
+    one either side of the green.
+
+    This is the whole of a hazard's shape across the line, and it is what
+    the map draws and what a ball is tested against. It used to be drawn
+    from these numbers and decided from the side label alone, so the two
+    could disagree and did: a ball down the middle of the fairway was
+    called into a bunker that is drawn beside it, and a ball forty yards
+    right was called into a bunker drawn at thirty. What is drawn is what
+    the ball obeys, and this is the one place that says so.
+    """
+    side = hz.get("side", "")
+    half = fairway_half(h)
+    if hz.get("off") is None:
+        if side in ("across", "front", "centre"):
+            # Straight across the line of play: the fairway's width, and a
+            # little narrower for one sitting in the middle of it.
+            return [(0.0, half * (0.75 if side == "centre" else 1.0))]
+        if side == "beyond":
+            return [(0.0, green_half(h) + 6)]
+        if side == "around":
+            return [(-(green_half(h) + 8), 7.0), (green_half(h) + 8, 7.0)]
+    off = hazard_off(h, hz)
+    if hz["kind"] == "water" and side in ("left", "right") and (hz["to"] - hz["from"]) > 80:
+        # Water down the length of one side: a band running out to the edge.
+        return [(off + (18 if off > 0 else -18), 24.0)]
+    if hz["kind"] == "water" and side in ("across", "front"):
+        return [(off, half)]
+    return [(off, 8.0 if hz["kind"] == "bunker" else 12.0)]
+
+
+def hazard_covers(h, hz, off):
+    """Whether a ball this far off the line is across the hazard at all."""
+    across = float(off or 0)
+    return any(abs(across - centre) <= width for centre, width in hazard_spans(h, hz))
 
 
 def on_the_green(h, at, off):
@@ -624,7 +675,7 @@ class Golf:
             # with room for the club's spread and a lively bounce
             far = (ball.at + self.reach(player, club) + CLUB_SPREAD.get(club, AIM)
                    + self.expected_roll(club, "fairway", self.wind_on(h)) * ROLL_NOISE[1])
-            water = self._in_band(h, int(far), kinds=("water",), sides=SIDE_BANDS[""])
+            water = self._in_band(h, int(far), kinds=("water",))
             crossing = [hz for hz in h.get("hazards", []) if hz["kind"] == "water"
                         and hz.get("side", "") in SIDE_BANDS[""] and ball.at < hz["from"] <= far]
             if not water and not crossing:
@@ -722,16 +773,26 @@ class Golf:
         # A full swing: the club's length, give or take its spread.
         return max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
 
-    def _in_band(self, h, at, kinds=("water", "bunker", "rough"), sides=None):
-        """The hazard a ball at `at` yards is in, if any, of these kinds and
-        on these sides of the line - None means any side."""
+    def _in_band(self, h, at, off=None, kinds=("water", "bunker", "rough")):
+        """The hazard a ball at these yards is in, if any, of these kinds.
+
+        Along the hole and across it both. `off` is the ball's yards off the
+        line; None asks only "is there one at this distance", which is what
+        the caddie's look-ahead wants.
+
+        This used to take a set of side labels instead of the ball's actual
+        line, which is how the picture and the play came apart: every ball
+        whose label matched was in the hazard however far from it it was,
+        and every ball whose label did not could sit in the middle of one.
+        """
         for hz in h.get("hazards", []):
             if hz["kind"] not in kinds:
                 continue
-            if sides is not None and hz.get("side", "") not in sides:
+            if not (hz["from"] <= at <= hz["to"]):
                 continue
-            if hz["from"] <= at <= hz["to"]:
-                return hz
+            if off is not None and not hazard_covers(h, hz, off):
+                continue
+            return hz
         return None
 
     def _fair(self, h, ball, club, adept=False):
@@ -822,8 +883,8 @@ class Golf:
         # trickle on - the chip through the collar every golfer plays.
         half = fairway_half(h)
         came_down = on_the_green(h, landed, off) or \
-            ("sand" if (self._in_band(h, landed, kinds=("bunker",), sides=SIDE_BANDS[side_of(off, half)])) else
-             "rough" if (side_of(off, half) or self._in_band(h, landed, kinds=("rough",), sides=SIDE_BANDS[""])) else "fairway")
+            ("sand" if (self._in_band(h, landed, off, kinds=("bunker",))) else
+             "rough" if (side_of(off, half) or self._in_band(h, landed, off, kinds=("rough",))) else "fairway")
         roll, spun, kicked = 0, False, None
         if flair != "pure":
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
@@ -850,7 +911,7 @@ class Golf:
         ran_through = None
         if roll > 0:
             for y in range(landed + 1, landed + roll + 1):
-                hz_on_the_way = self._in_band(h, y, kinds=("water", "bunker"), sides=SIDE_BANDS[side_of(off, half)])
+                hz_on_the_way = self._in_band(h, y, off, kinds=("water", "bunker"))
                 # The card puts the water beyond a green at the pin's own
                 # yardage; the green runs on past the pin, and a ball still
                 # on it has not gone in.
@@ -880,7 +941,7 @@ class Golf:
         # across the fairway, a bunker in front of the green, the ocean
         # beyond it; off to a side, that side's trouble - or the first cut,
         # when the card has nothing there.
-        hz = ran_through or (None if rests_on or flair == "worked" else self._in_band(h, rest, sides=SIDE_BANDS[side]))
+        hz = ran_through or (None if rests_on or flair == "worked" else self._in_band(h, rest, off))
         landed = rest
         ran = (f", spun back {-roll * 3} feet" if spun and roll < 0
                else f", released {roll}" if (came_down == "green" and roll >= 3)
@@ -1128,13 +1189,16 @@ class Golf:
             left = int(round(h["yards"] - ball.at))
             return {"kind": "water", "words": f"{club}, a foul ball - into {name}; {dropped}, and a penalty stroke - {left} to go",
                     "carry": 0, "hazard": name, "left": left, "off": ball.off}
-        ball.at = max(ball.at + 10, hz["from"])
+        # In the hazard it just named, and in the part of it the card draws.
+        # This used to push the ball ten yards on whatever that overran, and
+        # set it beside the fairway whatever side of the hole the hazard was
+        # actually on - so a ball "in the bunker" could come to rest past the
+        # end of it, or thirty yards away from it across the hole.
+        ball.at = int(min(max(ball.at + 10, hz["from"]), hz["to"]))
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
-        if hz.get("side") in ("left", "right"):
-            ball.off = (-1 if hz["side"] == "left" else 1) * (fairway_half(h) + LEAK_PUSH)
-        elif hz["kind"] == "rough":
-            # a band of rough across the hole: in it, and off the middle a little
-            ball.off = int(round(self.swing.uniform(-fairway_half(h) / 2, fairway_half(h) / 2)))
+        spans = hazard_spans(h, hz)
+        centre, width = min(spans, key=lambda s: abs(s[0] - ball.off))
+        ball.off = int(round(centre + self.swing.uniform(-width / 2, width / 2)))
         return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 
