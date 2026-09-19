@@ -111,10 +111,16 @@ function paintMap() {
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(glyph, x + 1, y + 1);
     ctx.fillStyle = colour; ctx.fillText(glyph, x, y);
   };
+  /* Colour on this map means a sky condition and nothing else; a glyph
+     means a thing. The far end used to be drawn in the cyan the key gives
+     to "they see it, you do not", so the marker for a place you had just
+     clicked looked like it was reporting a condition. The two stations are
+     the same pale ink now and the shape tells them apart: a circle for you,
+     a diamond for them. */
   mark(s.sun_dec, -s.sun_gha, '☀', '#ffd66b');
   mark(s.dec, -s.gha, '☽', '#f3f6ff');
   if (emeData.located) mark(emeData.lat, emeData.lon, '◯', '#ffffff');
-  if (emeFar) mark(emeFar.lat, emeFar.lon, '◆', '#39d3d8');
+  if (emeFar) mark(emeFar.lat, emeFar.lon, '◆', '#dbe4f0');
 
   document.getElementById('eme-clock').textContent = dayClock(s.t) +
     (home === null ? '' : ' · moon ' + (home > 0 ? Math.round(home) + '° up' : 'down') + ' at your QTH');

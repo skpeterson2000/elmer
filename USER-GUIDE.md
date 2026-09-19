@@ -237,7 +237,9 @@ Nothing on this page needs a network.
 
 ## EME
 
-The moon, from a clock and a place, nothing fetched. Where the moon is from your QTH, whether the moonbounce window is open, and a map of the world showing who else can see it: drag the slider through the next four days and watch the window sweep, tap a place for its opening and closing times. Beneath it, what the numbers mean: distance, which is about two decibels between perigee and apogee, declination and the sky noise behind it, and separation from the sun. The meteor calendar is here too, with the showers and what they are good for. Point a dish with a real ephemeris; decide whether to bother tonight with this.
+The moon, from a clock and a place, nothing fetched. Where the moon is from your QTH, whether the moonbounce window is open, and a map of the world showing who else can see it: drag the slider through the next four days and watch the window sweep, and click anywhere on the map for that place's opening and closing times. A QTH has to be set first, since a window needs both ends, and the page says so if it is not.
+
+**Reading the map.** The colours are sky conditions and only that: green where both ends have the moon twenty degrees up or better, amber where the lower end is between eight and twenty, dark red where one end is under eight, cyan where they can see it and you cannot, grey where the moon is down. The symbols are things, not conditions: a circle is you, a diamond is the spot you clicked, and the moon and sun glyphs are the points those are directly overhead. Beneath it, what the numbers mean: distance, which is about two decibels between perigee and apogee, declination and the sky noise behind it, and separation from the sun. The meteor calendar is here too, with the showers and what they are good for. Point a dish with a real ephemeris; decide whether to bother tonight with this.
 
 ## The Lab
 
