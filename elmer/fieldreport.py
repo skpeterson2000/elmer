@@ -282,6 +282,33 @@ def build(conn=None, now=None):
     out.extend(warnings[-10:])
     out.extend(drifts[-3:])
 
+    # -- the faults, with what actually went wrong
+    # An UNHANDLED line names a reference and says "the details are in the
+    # log" - which the person reading this report does not have. The
+    # traceback is the lines after it with no timestamp of their own, and
+    # its last line is the one that says what the fault was. Reported from
+    # one that read only "TypeError on GET /progress/tech2026" and left out
+    # "got multiple values for keyword argument 'standing'".
+    import re as _re
+    stamped = _re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} ")
+    faults = [i for i, ln in enumerate(body) if "UNHANDLED" in ln]
+    if faults:
+        add("")
+        add("the faults above, with their tracebacks")
+        add("-" * 60)
+        for i in faults[-3:]:
+            add(body[i].strip())
+            j = i + 1
+            frames = []
+            while j < len(body) and not stamped.match(body[j]):
+                frames.append(body[j].rstrip())
+                j += 1
+            # The whole thing where it is short; the head and the tail where
+            # it is not, because the tail is where the fault is named.
+            if len(frames) > 24:
+                frames = frames[:6] + ["   ..."] + frames[-16:]
+            out.extend("   " + f for f in frames)
+
     text = "\n".join(out) + "\n"
     callsign, places = None, []
     if conn is not None:

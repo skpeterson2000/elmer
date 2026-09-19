@@ -370,21 +370,40 @@ def install_request_logging(app):
         if isinstance(exc, HTTPException):
             return exc                      # 404s and friends are already logged
         ref = "e-" + secrets.token_hex(2)
-        log.error("UNHANDLED %s on %s %s  ref %s\n%s", type(exc).__name__,
-                  request.method, request.path, ref, traceback.format_exc())
+        tb = traceback.format_exc()
+        kind = type(exc).__name__
+        log.error("UNHANDLED %s on %s %s  ref %s\n%s", kind, request.method, request.path, ref, tb)
         stale = changed_since_start()
+        # Changed files are a likely cause only when the failure ran through
+        # them: a template frame in the traceback, or the changed file's own
+        # name in it. A TypeError raised in app.py with bandplan.html changed
+        # on disk was blamed on bandplan.html, and the page told somebody to
+        # restart for a fault a restart could not touch. The files still
+        # changed, and a restart is still right so they and the program
+        # agree - but it is not the answer to *this*, and the page says so.
+        involved = bool(stale) and (
+            "jinja2" in tb or "/templates/" in tb.replace("\\", "/")
+            or any(part.strip().rsplit("/", 1)[-1] in tb for part in stale.split(",")))
         if stale:
-            log.warning("ELMER's files changed since it started (%s) - a restart is what this needs", stale)
+            log.warning("ELMER's files changed since it started (%s) - %s", stale,
+                        "which is what this looks like; a restart is what it needs" if involved
+                        else "but this %s did not come from them; restart anyway, and it is a fault" % kind)
         if request.path.startswith("/api/"):
-            body = jsonify({"error": "ELMER hit an error", "ref": ref,
+            body = jsonify({"error": "ELMER hit an error", "ref": ref, "type": kind,
                             "where": f"{request.method} {request.path}",
-                            "restart": bool(stale)})
+                            "restart": bool(stale), "fault": not involved})
             return body, 500
-        note = ""
-        if stale:
+        if stale and involved:
             note = (f"<p><b>ELMER's own files have changed since it started</b> ({stale}) - "
                     f"a page read from the new files is meeting the old program. "
                     f"Restart ELMER and try again; if it happens again after that, it is a fault.</p>")
+        elif stale:
+            note = (f"<p><b>This is a fault</b> - a {kind} - and not the files: ELMER's own files "
+                    f"have changed since it started ({stale}), which is worth a restart so the "
+                    f"files and the program agree, but this error did not come from them and a "
+                    f"restart will not clear it.</p>")
+        else:
+            note = f"<p><b>This is a fault</b> - a {kind}.</p>"
         return (f"<h1>ELMER hit an error</h1>{note}<p>Reference <code>{ref}</code> - "
                 f"the details are in <code>data/elmer.log</code> under that "
                 f"reference.</p>", 500)

@@ -598,7 +598,12 @@ def profile_block(connection):
             # and a page that read that raw showed "2046 days" for ever and
             # never saw a licence run out until somebody looked it up again.
             "license": _license_now(prof),
-            "standing": prof.get("standing"),
+            # The licence's standing, under a name of its own: this block is
+            # also splatted into routes with **, and /progress already hands
+            # its template a `standing` - the study rank - so the plain name
+            # collided and the progress page died with "multiple values for
+            # keyword argument 'standing'".
+            "licence_standing": prof.get("standing"),
             # The opening announcement: whether to key it at all, and the
             # name to key after DE. A supporter who asked to be named has
             # their own callsign read out with the program's, which is the

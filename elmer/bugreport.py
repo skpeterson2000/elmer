@@ -39,7 +39,10 @@ RE_CALL = re.compile(r"\b[AKNW][A-Z]?\d[A-Z]{1,3}\b")
 # An account name is often somebody's actual name, and a log is full of paths.
 # /home/jsmith/ELMER/data/elmer.log says more about a person than the grid
 # square that was so carefully cut down two lines above it.
-RE_HOME = re.compile(r"(/home/|/Users/|\\Users\\)[^/\\ \t\n\"',;:)\]]+")
+# A name already scrubbed - "[user]" - is left alone: the log scrubs as it
+# writes, the report scrubs as it reads, and the second pass used to turn
+# [user] into [user]] by matching up to the bracket and putting one back.
+RE_HOME = re.compile(r"(/home/|/Users/|\\Users\\)[^/\\ \t\n\"',;:)\]\[]+")
 # A service token - RepeaterBook's begin rbuapp_ - is a password by another
 # name. Nothing here logs one, and this makes sure of it anyway.
 RE_TOKEN = re.compile(r"\b(?:rbuapp|app)_[A-Za-z0-9._-]{6,}")

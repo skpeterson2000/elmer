@@ -73,20 +73,20 @@
         record, so no two screens can disagree about it. -#}
     {%- if profile.callsign %}
     <p class="small licence-line
-        {%- if standing in ('grace', 'expired', 'cancelled') %} warntext{% endif %}">
+        {%- if licence_standing in ('grace', 'expired', 'cancelled') %} warntext{% endif %}">
       <b class="mono">{{ profile.callsign }}</b>
       {%- if license.license_class %} &middot; {{ license.license_class }}{% endif %}
-      {%- if standing == 'current' %} &middot; expires <b>{{ license.expires }}</b>, {{ license.status.days }} days
+      {%- if licence_standing == 'current' %} &middot; expires <b>{{ license.expires }}</b>, {{ license.status.days }} days
         {%- if license.status.days < 90 %} &mdash; <b>renew soon</b>:
           <a href="{{ renew_url }}" target="_blank" rel="noopener">renew at ULS &rarr;</a>{% endif %}
-      {%- elif standing == 'grace' %} &middot; <b>expired {{ license.expires }}</b> &mdash;
+      {%- elif licence_standing == 'grace' %} &middot; <b>expired {{ license.expires }}</b> &mdash;
         {{ license.status.renew_within }} days left to renew without re-testing; not to be used on the air until it is
-      {%- elif standing == 'expired' %} &middot; <b>expired {{ license.expires }}</b> &mdash; past the grace period
-      {%- elif standing == 'cancelled' %} &middot; <b>cancelled</b> on the FCC's record
-      {%- elif standing == 'unfound' %} &middot; <b>no FCC record</b> under this callsign
-      {%- elif standing == 'unchecked' %} &middot; not checked against the FCC record yet
+      {%- elif licence_standing == 'expired' %} &middot; <b>expired {{ license.expires }}</b> &mdash; past the grace period
+      {%- elif licence_standing == 'cancelled' %} &middot; <b>cancelled</b> on the FCC's record
+      {%- elif licence_standing == 'unfound' %} &middot; <b>no FCC record</b> under this callsign
+      {%- elif licence_standing == 'unchecked' %} &middot; not checked against the FCC record yet
       {%- endif %}
-      {%- if license.uls_url and standing not in ('unfound', 'unchecked') %}
+      {%- if license.uls_url and licence_standing not in ('unfound', 'unchecked') %}
         &middot; <a class="tiny" href="{{ license.uls_url }}" target="_blank" rel="noopener">FCC ULS record &rarr;</a>{% endif %}
     </p>
     {%- endif %}
