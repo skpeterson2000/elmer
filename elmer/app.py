@@ -2173,6 +2173,10 @@ def library_page():
     return render_template("library.html", shelf_path=str(library.SHELF),
                            topics=library.TOPICS, paper_kinds=papers.KINDS,
                            awards=_my_awards(connection),
+                           # What this unit has built for somebody: the sheets
+                           # lead the page, because a thing you made yourself
+                           # is the thing most likely to be wanted again.
+                           prints=prints.shelf(), keep=prints.KEEP,
                            **profile_block(connection))
 
 
@@ -4406,7 +4410,7 @@ def api_awards_add():
     """Hang a certificate on the wall of the person signed in."""
     up = request.files.get("file")
     if up is None or not up.filename:
-        abort(400, "no picture")
+        abort(400, "no file")
     caption = {k: request.form.get(k, "") for k in awards.FIELDS}
     connection = conn()
     ok, message = awards.add(connection.user_id, up.stream, up.filename, caption)

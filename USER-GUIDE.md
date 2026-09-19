@@ -331,6 +331,10 @@ Everything this unit has built as a PDF, kept here so it can be read and printed
 
 ## The Library
 
+**The page, top to bottom.** What this unit has printed for you, when there is any. Then the two ways of finding something, the search and the index. Then the books. Then awards, ELMER's own and anybody else's together. Then your licence papers, which are private and are not library.
+
+**What you have printed** leads the page whenever there is anything on it, and is not there at all when there is not. Band charts, the RF exposure record, an antenna evaluation: the sheets this unit built for you, with **Open** to read one and **Save** to take the file. The newest thirty stand, and the whole shelf is the Printouts page.
+
 Your own manuals, read once and indexed to the page. Then **Find the page** answers a question at a campsite from your own copy: the file, the page, and the lines around it. Nothing is summarised or guessed. Every word must be on the page, a quoted phrase is kept whole, and nothing is stemmed, so that the search can never be found to have invented a match.
 
 The page needs poppler, a set of PDF tools. Without it the page says so, and on Windows the dashboard's self-check offers to install it.
@@ -370,7 +374,7 @@ The chapter list has a similar order of preference: the publisher's own bookmark
 
 **Who can see it.** You, on this account, and nobody else. It is not on the shared shelf with the manuals, it does not appear for other people using this unit, and it never leaves the machine.
 
-**Your wall.** Hang a certificate, a picture with a title, a line about it, who issued it and when, and it appears framed in the Lounge.
+**From elsewhere.** Under the same heading, the awards somebody else gave you: an eWAC, an eDX, a contest plaque, a first-contact certificate. Hand over the file eQSL, LoTW or the contest organiser sent, as a **PDF, a PNG or a JPEG**, write the caption and who issued it, and it hangs beside ELMER's own badges. A PDF is hung as its first page, which is the certificate; it is rendered with poppler, the same tool the shelf reads manuals with, so a unit that can index a book can hang one of these. Yours alone, and it leaves with your account.
 
 **ELMER's topics** list the chapters of every book on the shelf under the subject they belong to, matched from the publisher's bookmarks - antennas, propagation, CW and keying, and Games and the table, which is where this guide's own chapters on the Gaming Center, the games, net control and the Lounge are found.
 

@@ -17,7 +17,10 @@ take them down, and they leave with the account.
 import json
 import logging
 import re
+import subprocess
+import tempfile
 import time
+from pathlib import Path
 
 from . import paths
 
@@ -25,6 +28,11 @@ log = logging.getLogger("elmer")
 
 AWARDS = paths.STATE / "awards"
 MAX_MB = 20
+# A certificate arrives as a PDF at least as often as a picture: that is what
+# a contest organiser emails and what LoTW prints. The wall hangs pictures, so
+# a PDF is rendered to one at the door - its first page, which is the
+# certificate; nobody issues a two-page award.
+PDF_DPI = 150
 WIDTH = 1400                    # sized to the wall once, not on every look
 CAPTIONS = "captions.json"
 FIELDS = ("title", "detail", "issued", "number")
@@ -69,6 +77,31 @@ def _slug(text):
     return slug[:40] or "certificate"
 
 
+def _first_page(data):
+    """A PDF's first page as PNG bytes, or None when it cannot be rendered.
+
+    Rendered with poppler, the same tool the Library reads manuals with, so a
+    unit that can index a book can hang a certificate and one that cannot is
+    told plainly rather than shown a broken frame.
+    """
+    from . import library
+    render = library.tool("pdftoppm")
+    if not render:
+        return None
+    with tempfile.TemporaryDirectory(prefix="elmer-award-") as tmp:
+        src = Path(tmp) / "in.pdf"
+        src.write_bytes(data)
+        stem = Path(tmp) / "page"
+        try:
+            subprocess.run([render, "-f", "1", "-l", "1", "-r", str(PDF_DPI),
+                            "-png", "-singlefile", str(src), str(stem)],
+                           capture_output=True, timeout=60, check=True)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        made = stem.with_suffix(".png")
+        return made.read_bytes() if made.is_file() else None
+
+
 def add(user_id, stream, filename, caption):
     """Hang one. The picture is read by PIL, sized to the wall, and kept as
     a JPEG; anything PIL cannot open is refused. Returns (ok, message)."""
@@ -80,11 +113,18 @@ def add(user_id, stream, filename, caption):
     data = stream.read(MAX_MB * 1024 * 1024 + 1)
     if len(data) > MAX_MB * 1024 * 1024:
         return False, f"larger than {MAX_MB} MB"
+    if data[:5] == b"%PDF-":
+        page = _first_page(data)
+        if page is None:
+            return False, ("that is a PDF and this unit has no poppler to render "
+                           "one - install it from the dashboard's self-check, or "
+                           "hang a PNG or a JPEG instead")
+        data = page
     try:
         im = Image.open(BytesIO(data))
         im.load()
     except Exception:
-        return False, "that is not a picture ELMER can read - a PNG or a JPEG is"
+        return False, "that is not something ELMER can read - a PDF, a PNG or a JPEG is"
     if im.mode not in ("RGB", "L"):
         # a transparent certificate on a white sheet, as it would be printed
         bg = Image.new("RGB", im.size, (255, 255, 255))

@@ -20,6 +20,160 @@
   </div>
 </div>
 
+{# What this operator has made: band charts, the RF exposure record, an
+   antenna sheet. User-generated and the most likely thing to be wanted
+   again, so it leads the page when there is anything on it - and is not
+   there at all when there is not, because an empty shelf at the top of a
+   library is furniture. #}
+{% if prints %}
+<div class="panel mt">
+  <div class="spread">
+    <div>
+      <div class="panel-title">What you have printed
+        <a class="tiny" href="/printouts" style="margin-left:.6rem">the whole shelf &rarr;</a></div>
+      <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+        Sheets this unit built for you &mdash; a band chart, an RF exposure
+        record, an antenna evaluation. <b>Open</b> reads one here;
+        <b>Save</b> hands you the file. They are kept on the unit and the
+        newest {{ keep }} stand.
+      </p>
+    </div>
+  </div>
+  {% for row in prints[:6] %}
+  <div class="lib-book">
+    <div class="meta">
+      <b>{{ row.title }}</b>
+      <span class="tiny muted">{{ (row.bytes / 1024)|round|int }} KB</span>
+      <a class="btn sm" href="/prints/{{ row.id }}">Open</a>
+      <a class="btn sm ghost" href="/prints/{{ row.id }}.pdf?save=1" download>Save</a>
+    </div>
+  </div>
+  {% endfor %}
+  {% if prints|length > 6 %}
+  <p class="tiny muted" style="margin-top:.5rem">
+    and {{ prints|length - 6 }} more on <a href="/printouts">the Printouts shelf</a>.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="panel mt">
+  <div class="panel-title">Find the page</div>
+  <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
+  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match.</div>
+  <div id="lib-results" class="mt"></div>
+</div>
+
+
+{# The door: ELMER's own topics, each pointing into the operator's books.
+   Above the shelf on purpose - a question arrives as a topic, not as a file
+   name, and the shelf itself is the deeper look, further down. #}
+<div class="panel mt">
+  <div class="panel-title">ELMER's topics, in your books</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    Matched from the bookmarks the publisher put in each file &mdash; a
+    chapter is an antenna chapter because its title says so. A file with no
+    bookmarks gives up its printed chapter headings where they are numbered
+    in order, or the chapters you list yourself in a text file beside it
+    (<span class="mono">Book.pdf.toc.txt</span>: a page number, a space, the
+    title, one to a line). A book with none of the three is placed by its
+    own title or file name, whole. Nothing is inferred beyond that; search
+    reaches into every page regardless.
+  </p>
+  <div id="lib-topics" class="lib-topics"></div>
+</div>
+
+
+<div class="panel mt">
+  <div class="panel-title">On the shelf</div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    The shelf is <span class="mono">{{ shelf_path }}</span>. Copy a PDF in
+    &mdash; a radio's manual, the Antenna Book, anything you own &mdash; or
+    hand one over from a phone with <i>Add a manual</i>. The index is rebuilt
+    when a file changes. Page numbers are the file's own, which is not always
+    what the publisher printed in the corner. The shelf is shared by everyone
+    on this unit; <i>mine</i> marks whose radio a manual is for, and Make
+    Contact starts from that.
+  </p>
+  <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
+  <p class="small muted" style="margin:.8rem 0 0;max-width:80ch" id="lib-manual-note">
+    ELMER's own <b>User's Guide</b> is on this shelf, indexed and searched like
+    any book. Taken off by accident, it comes back when ELMER next starts, and
+    the dashboard's self-check can put it back sooner. It is rebuilt when the
+    text changes with an update.
+  </p>
+  <label class="small" style="display:flex;align-items:flex-start;gap:.5rem;margin:.4rem 0 0;max-width:80ch;cursor:pointer">
+    <input type="checkbox" id="lib-manual-decline" style="margin-top:.2rem">
+    <span>I decline the User's Guide and any future updates to it. Take it off the shelf and do not put it back.</span>
+  </label>
+</div>
+
+{# Awards, in one place: the ones this program hands out and the ones
+   somebody else did. Both hang on the same wall in the lounge, so they
+   belong beside each other here rather than at opposite ends of the page. #}
+<div class="panel-title mt" style="margin-top:1.6rem">Awards and certificates
+  <a class="tiny" href="/lounge" style="margin-left:.6rem">see them in the lounge &rarr;</a></div>
+<p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+  What you have earned here, and what you have been given elsewhere. Both hang
+  on your wall in the lounge, under your own call, whenever you are the one at
+  the table.
+</p>
+
+
+{# ELMER's own badges, on the bottom shelf: collapsed to a row of plaques,
+   each taken down for a closer look with a tap, and printed from there. #}
+<div class="panel mt" id="elmer-awards" data-award-who="{{ profile.display_name or profile.callsign }}{% if profile.callsign and profile.callsign not in (profile.display_name or '') %}, {{ profile.callsign }}{% endif %}">
+  <details open>
+    <summary class="panel-title" style="cursor:pointer;display:inline-block">ELMER&rsquo;s awards &mdash; {{ awards.earned|length }} of {{ awards.earned|length + awards.more }}</summary>
+    <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+      The badges this account has earned, as pages for the wall. Tap one for a
+      closer look; Open builds it as a PDF on the print shelf and opens it where
+      the print button is. {% if awards.more %}{{ awards.more }} more to earn &mdash; the dashboard lists them.{% endif %}
+    </p>
+    <div class="aw-badges">
+      {% for a in awards.earned %}
+        <button type="button" class="aw-badge" data-award='{{ a|tojson|forceescape }}' title="{{ a.description }} &mdash; {{ a.when }}">
+          <span class="aw-star">&#9733;</span><b>{{ a.name }}</b><small>{{ a.when }}</small>
+        </button>
+      {% else %}
+        <span class="small muted">Nothing on this shelf yet. The first question answered puts First Light on it.</span>
+      {% endfor %}
+    </div>
+  </details>
+</div>
+
+
+{# The wall: the person's own certificates, hung from here and shown in
+   the pro shop under their call. Theirs, on their account; the program
+   carries nobody's. #}
+<div class="panel mt">
+  <div class="spread">
+    <div>
+      <div class="panel-title" id="wall">From elsewhere</div>
+      <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+        What somebody else gave you &mdash; an eWAC, an eDX, a contest plaque, a
+        first-contact certificate. Hand over the file eQSL, LoTW or the contest
+        organiser sent you, as a <b>PDF, a PNG or a JPEG</b>, write the caption,
+        and it hangs beside ELMER&rsquo;s own under your call. A PDF is hung as
+        its first page. Yours alone; it leaves with your account.
+      </p>
+    </div>
+  </div>
+  <div class="grid cols-2" style="gap:.5rem 1rem;max-width:60rem">
+    <div class="field"><label>Title</label><input id="aw-title" placeholder="eWAC &middot; Worked All Continents" maxlength="200"></div>
+    <div class="field"><label>A line about it</label><input id="aw-detail" placeholder="Two-way contact with radio amateurs on six continents" maxlength="200"></div>
+    <div class="field"><label>Issued by, and when</label><input id="aw-issued" placeholder="eQSL.cc, 16 August 2022" maxlength="200"></div>
+    <div class="field"><label>Number</label><input id="aw-number" placeholder="477016" maxlength="200"></div>
+  </div>
+  <div class="row mt" style="gap:.5rem">
+    <label class="btn sm ghost" style="cursor:pointer">Hang a certificate
+      <input type="file" id="aw-file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" hidden>
+    </label>
+    <span class="tiny muted" id="aw-said"></span>
+  </div>
+  <div id="aw-wall" class="mt"><span class="small muted">Looking&hellip;</span></div>
+</div>
+
+
 {# The person's own licences: not on the shelf, which everyone at the table
    can read, but in a folder of their own, shown only to them. #}
 <div class="panel mt">
@@ -47,107 +201,6 @@
   <div class="tiny muted" id="pp-said"></div>
 </div>
 
-{# The wall: the person's own certificates, hung from here and shown in
-   the pro shop under their call. Theirs, on their account; the program
-   carries nobody's. #}
-<div class="panel mt">
-  <div class="spread">
-    <div>
-      <div class="panel-title" id="wall">Your wall <a class="tiny" href="/lounge" style="margin-left:.6rem">see it in the lounge &rarr;</a></div>
-      <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-        What a radio operator hangs up &mdash; an eWAC, an eDX, a contest plaque, a
-        first-contact certificate. Hand over the picture eQSL or LoTW gave you
-        (a PNG or a JPEG), write the caption, and it hangs in the pro shop under
-        your own call whenever you are the one at the table. Yours alone; it
-        leaves with your account.
-      </p>
-    </div>
-  </div>
-  <div class="grid cols-2" style="gap:.5rem 1rem;max-width:60rem">
-    <div class="field"><label>Title</label><input id="aw-title" placeholder="eWAC &middot; Worked All Continents" maxlength="200"></div>
-    <div class="field"><label>A line about it</label><input id="aw-detail" placeholder="Two-way contact with radio amateurs on six continents" maxlength="200"></div>
-    <div class="field"><label>Issued by, and when</label><input id="aw-issued" placeholder="eQSL.cc, 16 August 2022" maxlength="200"></div>
-    <div class="field"><label>Number</label><input id="aw-number" placeholder="477016" maxlength="200"></div>
-  </div>
-  <div class="row mt" style="gap:.5rem">
-    <label class="btn sm ghost" style="cursor:pointer">Hang a certificate
-      <input type="file" id="aw-file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden>
-    </label>
-    <span class="tiny muted" id="aw-said"></span>
-  </div>
-  <div id="aw-wall" class="mt"><span class="small muted">Looking&hellip;</span></div>
-</div>
-
-<div class="panel mt">
-  <div class="panel-title">Find the page</div>
-  <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
-  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match.</div>
-  <div id="lib-results" class="mt"></div>
-</div>
-
-{# The door: ELMER's own topics, each pointing into the operator's books.
-   Above the shelf on purpose - a question arrives as a topic, not as a file
-   name, and the shelf itself is the deeper look, further down. #}
-<div class="panel mt">
-  <div class="panel-title">ELMER's topics, in your books</div>
-  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-    Matched from the bookmarks the publisher put in each file &mdash; a
-    chapter is an antenna chapter because its title says so. A file with no
-    bookmarks gives up its printed chapter headings where they are numbered
-    in order, or the chapters you list yourself in a text file beside it
-    (<span class="mono">Book.pdf.toc.txt</span>: a page number, a space, the
-    title, one to a line). A book with none of the three is placed by its
-    own title or file name, whole. Nothing is inferred beyond that; search
-    reaches into every page regardless.
-  </p>
-  <div id="lib-topics" class="lib-topics"></div>
-</div>
-
-<div class="panel mt">
-  <div class="panel-title">On the shelf</div>
-  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-    The shelf is <span class="mono">{{ shelf_path }}</span>. Copy a PDF in
-    &mdash; a radio's manual, the Antenna Book, anything you own &mdash; or
-    hand one over from a phone with <i>Add a manual</i>. The index is rebuilt
-    when a file changes. Page numbers are the file's own, which is not always
-    what the publisher printed in the corner. The shelf is shared by everyone
-    on this unit; <i>mine</i> marks whose radio a manual is for, and Make
-    Contact starts from that.
-  </p>
-  <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
-  <p class="small muted" style="margin:.8rem 0 0;max-width:80ch" id="lib-manual-note">
-    ELMER's own <b>User's Guide</b> is on this shelf, indexed and searched like
-    any book. Taken off by accident, it comes back when ELMER next starts, and
-    the dashboard's self-check can put it back sooner. It is rebuilt when the
-    text changes with an update.
-  </p>
-  <label class="small" style="display:flex;align-items:flex-start;gap:.5rem;margin:.4rem 0 0;max-width:80ch;cursor:pointer">
-    <input type="checkbox" id="lib-manual-decline" style="margin-top:.2rem">
-    <span>I decline the User's Guide and any future updates to it. Take it off the shelf and do not put it back.</span>
-  </label>
-</div>
-
-{# ELMER's own badges, on the bottom shelf: collapsed to a row of plaques,
-   each taken down for a closer look with a tap, and printed from there. #}
-<div class="panel mt" id="elmer-awards" data-award-who="{{ profile.display_name or profile.callsign }}{% if profile.callsign and profile.callsign not in (profile.display_name or '') %}, {{ profile.callsign }}{% endif %}">
-  <details open>
-    <summary class="panel-title" style="cursor:pointer;display:inline-block">ELMER&rsquo;s awards &mdash; {{ awards.earned|length }} of {{ awards.earned|length + awards.more }}</summary>
-    <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-      The badges this account has earned, as pages for the wall. Tap one for a
-      closer look; Open builds it as a PDF on the print shelf and opens it where
-      the print button is. {% if awards.more %}{{ awards.more }} more to earn &mdash; the dashboard lists them.{% endif %}
-    </p>
-    <div class="aw-badges">
-      {% for a in awards.earned %}
-        <button type="button" class="aw-badge" data-award='{{ a|tojson|forceescape }}' title="{{ a.description }} &mdash; {{ a.when }}">
-          <span class="aw-star">&#9733;</span><b>{{ a.name }}</b><small>{{ a.when }}</small>
-        </button>
-      {% else %}
-        <span class="small muted">Nothing on this shelf yet. The first question answered puts First Light on it.</span>
-      {% endfor %}
-    </div>
-  </details>
-</div>
 
 {% endblock %}
 
