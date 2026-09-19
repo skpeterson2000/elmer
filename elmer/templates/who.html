@@ -1,0 +1,118 @@
+<!doctype html>
+{# The door. The only page in ELMER that assumes nothing about who is here.
+
+   It deliberately does not extend base.html: that shell carries the operator
+   chip, the rank strip and the account menu, all of which are somebody's, and
+   drawing them for a browser that has not said who it is was the whole
+   problem. ELMER used to fall back to the first account on the unit, so the
+   corner showed a name nobody had chosen - and on a sealed account it showed
+   that name while signed out, which is how a licensed operator came to find
+   the program treating them as though they held nothing and telling them it
+   did not know where they were.
+
+   A name here is not a credential. An account with a password is asked for
+   it, and that same password opens the seal on the private data for as long
+   as the window stays open. #}
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who is at the controls &middot; ELMER</title>
+<link rel="icon" href="{{ url_for('favicon') }}">
+<link rel="stylesheet" href="{{ asset('elmer.css') }}">
+<style>
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+.door { width: min(38rem, 92vw); padding: 1.2rem 0; }
+.door h1 { margin: 0 0 .2rem; }
+.who { border: 1px solid var(--line); border-radius: 9px; padding: .7rem .9rem; margin-top: .5rem; }
+.who .top { display: flex; gap: .8rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.who input { max-width: 16rem; }
+.mark { width: 2rem; height: 2rem; border-radius: 50%; background: var(--amber); color: #1b1200;
+        font: 700 .8rem var(--mono); display: inline-flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="door">
+  <h1>Who is at the controls?</h1>
+  <p class="small muted" style="margin:.2rem 0 1rem">
+    Your record, your streak, your licence and your place are yours, so ELMER
+    asks rather than guesses. It holds until you close this window or sign out.
+  </p>
+
+  <div id="who-list">
+    {% for person in people %}
+    <div class="who">
+      <div class="top">
+        <div class="row" style="gap:.6rem;align-items:center">
+          <span class="mark">{{ (person.callsign or person.name)[:2]|upper }}</span>
+          <div>
+            <b>{{ person.name }}</b>
+            {% if person.callsign %}<span class="mono tiny muted" style="margin-left:.4rem">{{ person.callsign }}</span>{% endif %}
+            {% if person.locked %}<div class="tiny muted">password</div>{% endif %}
+          </div>
+        </div>
+        <button class="btn sm primary" data-who="{{ person.id }}"
+                data-locked="{{ 1 if person.locked else 0 }}">This is me</button>
+      </div>
+      {% if person.locked %}
+      <div class="row" style="gap:.4rem;margin-top:.5rem" id="pw-{{ person.id }}" hidden>
+        <input type="password" id="pwbox-{{ person.id }}" placeholder="password"
+               autocomplete="current-password">
+        <button class="btn sm primary" data-go="{{ person.id }}">Sign in</button>
+        <span class="tiny muted" id="pwsaid-{{ person.id }}"></span>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if not people %}
+  <p class="small muted">There is nobody on this unit yet, which should not be
+    possible: ELMER makes the first account on its first start.</p>
+  {% endif %}
+
+  <p class="tiny muted" style="margin-top:1rem">
+    Somebody new? Sign in as anyone and add them from the account menu in the
+    corner. A guest at a club night needs no account here: they join a table on
+    their own phone and put their name in there.
+  </p>
+</div>
+
+<script>
+(() => {
+  const where = {{ where|tojson }};
+  const go = async (id, password) => {
+    const said = document.getElementById('pwsaid-' + id);
+    if (said) said.textContent = '';
+    let r;
+    try {
+      r = await fetch('/api/users/switch', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: +id, password: password || ''})});
+    } catch (e) { if (said) said.textContent = 'could not reach ELMER'; return; }
+    if (r.ok) { location.href = where || '/'; return; }
+    if (said) said.textContent = r.status === 403 ? 'that is not the password' : 'could not sign in';
+  };
+  const list = document.getElementById('who-list');
+  list.addEventListener('click', e => {
+    const pick = e.target.closest('[data-who]');
+    if (pick) {
+      const id = pick.dataset.who;
+      if (pick.dataset.locked === '1') {
+        document.getElementById('pw-' + id).hidden = false;
+        document.getElementById('pwbox-' + id).focus();
+      } else { go(id, ''); }
+      return;
+    }
+    const send = e.target.closest('[data-go]');
+    if (send) go(send.dataset.go, document.getElementById('pwbox-' + send.dataset.go).value);
+  });
+  list.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const box = e.target.closest('input[type=password]');
+    if (box) { e.preventDefault(); go(box.id.replace('pwbox-', ''), box.value); }
+  });
+})();
+</script>
+</body>
+</html>

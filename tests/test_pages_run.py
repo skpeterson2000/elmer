@@ -87,7 +87,7 @@ try:
             "new Promise(r => { const t0 = Date.now(); const f = () => {"
             f" if (typeof {name} === 'function' || Date.now() - t0 > 8000) r(typeof {name});"
             " else setTimeout(f, 200); }; f(); })",
-            settle=0.5, port=9341)
+            settle=0.5, port=9341, cookies={'elmer_user': '1'})
         check(f"{path} defines {name}()", got, "function")
 
     # Every choice in the antenna selector, through the calculator. The
@@ -101,7 +101,7 @@ try:
         " for (const o of [...sel.options].map(o => o.value)) { sel.value = o;"
         "  try { antennaFields(o); calcAnt(); out[o] = 'ok'; }"
         "  catch (e) { out[o] = String(e).slice(0, 80); } } return JSON.stringify(out); })()",
-        settle=1.5, port=9341)
+        settle=1.5, port=9341, cookies={'elmer_user': '1'})
     import json as _json
     results = _json.loads(got or "{}")
     check("the selector has its antennas", len(results) >= 12, True)

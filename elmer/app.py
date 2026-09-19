@@ -26,8 +26,8 @@ from pathlib import Path
 from markupsafe import escape
 from urllib.parse import urlsplit
 
-from flask import (Flask, Response, abort, g, has_request_context, jsonify, render_template,
-                   request, send_from_directory, url_for)
+from flask import (Flask, Response, abort, g, has_request_context, jsonify, redirect,
+                   render_template, request, send_from_directory, url_for)
 
 from . import (
     activations, activationspdf, antenna_advice, antennapdf, autoplay, awardpdf, awards, bandpdf,
@@ -68,8 +68,68 @@ USER_COOKIE = "elmer_user"
 COOKIE_YEARS = 5 * 365 * 24 * 3600
 
 
+# The pages that are somebody's: they read a person's record, answer as that
+# person, and write to their account. None of them may be opened by a browser
+# that has not said who it is.
+#
+# Everything else is deliberately outside this. The table screen, the phone a
+# guest joins on, the hall's big board and the net control page are shared
+# screens and guest screens - a visitor at a club night is not an account on
+# this unit and must never be asked to be one - and the files a signed-in page
+# has already opened are fetched by that page.
+MINE = frozenset((
+    "home", "activations_page", "bandplan_page", "browse", "cw_page", "eme_page",
+    "exam_page", "lab", "library_page", "library_read", "lounge_page",
+    "papers_page", "papers_file", "papers_page_image", "prints_page", "progress",
+    "propagation_page", "reachout_page", "study", "tools",
+))
+
+
+@app.before_request
+def _ask_who():
+    """Nobody is assumed. A page of somebody's, opened by a browser that has
+    not signed in, asks who is at the controls first.
+
+    ELMER used to fall back to the first account on the unit whenever the
+    cookie was missing, so the corner showed a name nobody had chosen - and
+    on a unit where that account is sealed, showed it signed out without
+    saying so, which is worse than showing nothing at all.
+    """
+    if request.endpoint not in MINE:
+        return None
+    who = _wanted_user()
+    if who is not None and db.user_exists(db.connect(), who):
+        return None
+    return redirect(url_for("who_page", next=request.full_path.rstrip("?")))
+
+
+@app.route("/who")
+def who_page():
+    """Who is at the controls. The door, and the only page that assumes
+    nothing."""
+    connection = db.connect()
+    people = []
+    for person in db.users(connection):
+        people.append({
+            "id": person["id"], "name": person["display_name"],
+            "callsign": person["callsign"] or "",
+            "locked": bool(db.has_password(connection, person["id"])),
+        })
+    return render_template("who.html", people=people,
+                           where=request.args.get("next") or "/")
+
+
+@app.route("/api/users/signout", methods=["POST"])
+def api_users_signout():
+    """Put the unit back to nobody: this browser forgets who it was, and the
+    key that opened any sealed data goes with it."""
+    response = jsonify({"ok": True})
+    response.delete_cookie(USER_COOKIE, samesite="Lax")
+    return _open_session(response, None, None)
+
+
 def _wanted_user():
-    """Who this browser last said it was.  None means "whoever is first".
+    """Who this browser said it was this session.  None means nobody yet.
 
     The current user rides in a cookie rather than on the server, so the unit
     in the shack and a phone on the sofa can be two different people at the
@@ -448,6 +508,26 @@ def qth_for(connection, profile):
             live = dict(live, short=saved["short"],
                         name=saved.get("name") or saved["short"])
     return live
+
+
+def _qth_note(connection, profile):
+    """What to say when there is no place to work from.
+
+    There are two of those and they are not the same thing, and ELMER said
+    the first one for both: "does not know where you are yet, set a QTH".
+    For a sealed account that already has one, every word of that is wrong -
+    the QTH is there, the program can see that it is there, and the advice
+    sends the operator to type in again something it is holding. The right
+    answer is on the saving side already and was never put on the reading
+    side.
+    """
+    sealed = list(profile["settings"].get("sealed_fields") or [])
+    if "location" in sealed and not getattr(connection, "data_key", None):
+        return ("Your QTH is sealed with this account's password. Unlock the "
+                "account from the menu in the corner and it comes back - "
+                "nothing has been lost.")
+    return ("ELMER does not know where you are yet. Set a QTH on the "
+            "propagation page - a grid square is enough.")
 
 
 def _saved_qth(connection, profile):
@@ -1025,8 +1105,7 @@ def api_path_to():
     place = qth_for(connection, profile)
     if place.get("lat") is None:
         return jsonify({"ok": False, "located": False,
-                        "note": "ELMER does not know where you are yet. Set a QTH on the "
-                                "propagation page - a grid square is enough."})
+                        "note": _qth_note(connection, profile)})
     text = (request.args.get("to") or "").strip()
     if not text:
         abort(400, "where to?")
@@ -1059,7 +1138,7 @@ def api_path_link():
     place = qth_for(connection, profile)
     if place.get("lat") is None:
         return jsonify({"ok": False, "located": False,
-                        "note": "ELMER does not know where you are yet - set a QTH on the propagation page."})
+                        "note": _qth_note(connection, profile)})
     text = (request.args.get("to") or "").strip()
     if not text:
         abort(400, "where to?")
@@ -1111,11 +1190,8 @@ def api_ways_out():
     if place.get("lat") is None:
         return jsonify({"ways": [], "coverage": None, "qth": "",
                         "located": False,
-                        "note": "ELMER does not know where you are yet, and "
-                                "every answer on this page is an answer about "
-                                "a place. Set a QTH on the propagation page - "
-                                "a grid square is enough - or let a GPS "
-                                "answer."})
+                        "note": _qth_note(connection, profile)
+                        })
     gear = [g for g in (request.args.get("gear") or "").split(",")
             if g in reachout.GEAR]
     license = request.args.get("license") or \
@@ -1352,7 +1428,7 @@ def api_activations_print():
         place = qth_for(connection, profile)
     lat, lon = place.get("lat"), place.get("lon")
     if lat is None:
-        abort(400, "ELMER does not know where you are yet")
+        abort(400, _qth_note(connection, profile))
 
     parks = _in_band(references.nearby(lat, lon, kind="park", limit=None),
                      inner_km, outer_km)
@@ -1426,8 +1502,7 @@ def api_activations_prepare():
         place = qth_for(connection, profile)
     if place.get("lat") is None:
         return jsonify({"ok": False,
-                        "error": "ELMER does not know where you are yet - "
-                                 "set a QTH on the propagation page"}), 409
+                        "error": _qth_note(connection, profile)}), 409
     area = references.fetch(place["lat"], place["lon"],
                             label=place.get("short") or place.get("grid") or asked or "here")
     return jsonify({"ok": True, "area": {
@@ -8040,8 +8115,10 @@ def _user_block(connection):
 def _with_user_cookie(payload, user_id):
     """Answer, and remember on this browser who that was."""
     response = jsonify(payload)
-    response.set_cookie(USER_COOKIE, str(user_id), max_age=COOKIE_YEARS,
-                        samesite="Lax")
+    # No max-age: who is at the controls lasts until the window closes or
+    # they sign out, which is what "logged in" means. It used to be a year,
+    # so a unit reopened next morning was still whoever last touched it.
+    response.set_cookie(USER_COOKIE, str(user_id), samesite="Lax")
     return response
 
 

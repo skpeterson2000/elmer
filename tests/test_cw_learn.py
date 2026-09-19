@@ -162,7 +162,7 @@ def main():
             time.sleep(0.2)
 
     print("\n-- one at a time, and the machine waits on an answer --")
-    got = json.loads(_browser.evaluate(URL, LESSON_JS, settle=3.0, flags=FLAGS))
+    got = json.loads(_browser.evaluate(URL, LESSON_JS, settle=3.0, flags=FLAGS, cookies={'elmer_user': '1'}))
     check("the lesson's characters are on the screen to compare against", got["review"], 3)
     check("  drawn as shapes, not written as dots", got["review_has_code"], True)
     check("Begin sounds the first one and hands over the controls",
@@ -198,7 +198,7 @@ def main():
            got["stopped"]["answering"]), (True, True, False))
 
     print("\n-- run together, each one named as it goes by --")
-    got = json.loads(_browser.evaluate(URL, TOGETHER_JS, settle=3.0, flags=FLAGS))
+    got = json.loads(_browser.evaluate(URL, TOGETHER_JS, settle=3.0, flags=FLAGS, cookies={'elmer_user': '1'}))
     check("the character is named, not just shown", (got["letter"], got["word"]), ("K", "Kilo"))
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

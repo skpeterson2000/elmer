@@ -63,6 +63,8 @@ check("and it does not send anybody to a Settings page",
       "Settings" in (why or ""), False)
 
 with app.test_client() as client:
+    # Who is at the controls, before a page of theirs is asked for.
+    client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     print("\na closed pool is refused, and the refusal is a page")
     page = client.get("/study/gen2023")
     body = page.get_data(as_text=True)

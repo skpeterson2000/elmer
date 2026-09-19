@@ -54,7 +54,7 @@ def _free_port():
         return s.getsockname()[1]
 
 
-def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=()):
+def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=(), cookies=None):
     """Load `url` in a headless Chromium, wait `settle` seconds, return `js`.
 
     A fresh debugging port each time: the last Chromium is still letting go
@@ -73,7 +73,7 @@ def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=()):
     for attempt in range(3):
         try:
             return _run(chromium, url, None, width, height, js, settle,
-                        port or _free_port(), flags)
+                        port or _free_port(), flags, cookies)
         except _LaunchFlake as exc:
             last = exc
             time.sleep(0.5)
@@ -84,7 +84,7 @@ class _LaunchFlake(Exception):
     """Chromium did not come up this time; the launch is worth retrying."""
 
 
-def _run(chromium, url, out, w, h, js, settle, port, flags=()):
+def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None):
   # A profile of its own, thrown away after: a headless browser sharing the
   # profile of the one the person is using would be a tab in their face on
   # Windows, and a locked profile elsewhere.
@@ -149,6 +149,12 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=()):
       call(1, "Page.enable")
       call(2, "Emulation.setDeviceMetricsOverride", width=w, height=h,
            deviceScaleFactor=1, mobile=False)
+      # Signed in before the page is asked for. ELMER's own pages send a
+      # browser that has not said who it is to the door at /who, which is the
+      # point of that door - so a test driving a page says who it is first,
+      # the same as a person.
+      for n, (name, value) in enumerate(sorted((cookies or {}).items())):
+          call(30 + n, "Network.setCookie", name=name, value=str(value), url=url)
       call(3, "Page.navigate", url=url)
       time.sleep(settle)
       value = None

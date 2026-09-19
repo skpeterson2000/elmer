@@ -393,7 +393,7 @@ try:
     # a second apart - so both are waited for, not sampled.
     got = json.loads(_browser.evaluate(
         url, settle_then(shape(), "!offer.hidden && /Check in/.test(stage.textContent)"),
-        settle=0.5) or "{}")
+        settle=0.5, cookies={'elmer_user': '1'}) or "{}")
     check("hearing a net: the offer is up", got.get("offer"), True)
     check("  and the host's controls are not", got.get("own"), False)
     check("  nor the address box", got.get("byaddress"), False)
@@ -411,7 +411,7 @@ try:
         "  else setTimeout(f, 200); }; f(); }).then(() => " +
         settle_then(shape(), "!node.hidden && document.querySelector('#node .ready')"
                              " && /net control/.test(stage.textContent)") + ")",
-        settle=0.5) or "{}")
+        settle=0.5, cookies={'elmer_user': '1'}) or "{}")
     check("checked in: the node card is up", got.get("node"), True)
     check("  marked ready", got.get("ready"), True)
     check("  no Start tournament", got.get("own"), False)
@@ -429,7 +429,7 @@ try:
         "  if (b) { b.click(); res(true); } else if (Date.now() - t0 > 12000) res(false);"
         "  else setTimeout(f, 200); }; f(); }).then(() => " +
         settle_then(shape(), "!owncontrols.hidden") + ")",
-        settle=0.5) or "{}")
+        settle=0.5, cookies={'elmer_user': '1'}) or "{}")
     check("left: the host's controls are back", got.get("own"), True)
     check("  with Start tournament", got.get("tourney"), True)
     check("  and the offer stays down", got.get("offer"), False)

@@ -54,7 +54,11 @@ check("  and it is inside the band",
 
 print("\nwhat the Lab is told")
 app.config["TESTING"] = True
-reply = app.test_client().get("/api/bands")
+# Signed in: a page of somebody's does not open for a browser that has not
+# said who it is, which is what the door at /who is for.
+_client = app.test_client()
+_client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
+reply = _client.get("/api/bands")
 check("the endpoint answers", reply.status_code, 200)
 bands = reply.get_json()["bands"]
 check("every band is there", len(bands), len(bandplan.BANDS))
@@ -91,7 +95,7 @@ check("the rgb triple matches the hex",
 check("the activity family has every kind, the same on every band",
       set(palette.KIND_COLOUR), {k for k, _ in bandplan.KINDS})
 check("  and an ink for each", set(palette.KIND_INK), set(palette.KIND_COLOUR))
-page = app.test_client().get("/bandplan").get_data(as_text=True)
+page = _client.get("/bandplan").get_data(as_text=True)
 check("the page head carries the tokens", "--band-20m: " + palette.band_colour("20m") + ";" in page, True)
 check("  and the map for the scripts", "window.BAND_PALETTE" in page, True)
 check("  and the activity colours for the band plan", '"cw": "#a6caff"' in page, True)

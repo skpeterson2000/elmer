@@ -97,7 +97,7 @@ def main():
             time.sleep(0.2)
 
     print("\n-- the way through a book is visible --")
-    got = json.loads(_browser.evaluate(URL, JS, settle=3.0))
+    got = json.loads(_browser.evaluate(URL, JS, settle=3.0, cookies={'elmer_user': '1'}))
     check("the reader opens where it was pointed", got["opened_on"], str(between - 1))
     check("  and the page turns can be seen without hovering over them",
           (got["next_rests_visible"], got["prev_rests_visible"]), (True, True))

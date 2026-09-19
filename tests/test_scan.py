@@ -191,7 +191,7 @@ try:
     url = f"http://127.0.0.1:{PORT}/party"
     got = json.loads(_browser.evaluate(
         url, settle_then(SHAPE, "!owncontrols.hidden && !netbyaddress.hidden"),
-        settle=0.5) or "{}")
+        settle=0.5, cookies={'elmer_user': '1'}) or "{}")
     check("on its own: the host's controls", got.get("own"), True)
     check("  no offer", got.get("offer"), False)
     check("  and a button to look", got.get("scanButtons", 0) >= 1, True)
@@ -202,7 +202,7 @@ try:
         "  const b = document.querySelector('#netbyaddress [data-scan]');"
         "  if (b && typeof scanForGames === 'function') { b.click(); res(true); } else if (Date.now() - t0 > 12000) res(false);"
         "  else setTimeout(f, 200); }; f(); }).then(() => " +
-        settle_then(SHAPE, "!offer.hidden") + ")", settle=0.5) or "{}")
+        settle_then(SHAPE, "!offer.hidden") + ")", settle=0.5, cookies={'elmer_user': '1'}) or "{}")
     check("after looking: the offer is back", got.get("offer"), True)
     check("  naming the net found", "Technician net" in got.get("offerText", ""), True)
     check("  and saying what it is doing",
@@ -223,7 +223,7 @@ try:
                     # table screen's look a moment ago is remembered - so the
                     # wait is on the button's own word, not on the panel.
                     "/found/.test((document.getElementById('scan-said') || {}).textContent || '')") + ")",
-        settle=2.5) or "{}")
+        settle=2.5, cookies={'elmer_user': '1'}) or "{}")
     check("the dashboard's button brings the panel up", got.get("panel"), True)
     check("  with a Join button for the net",
           "Join Technician net" in (got.get("text") or ""), True)

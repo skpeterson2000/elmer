@@ -190,7 +190,7 @@ try:
       })()
     """
     got = json.loads(_browser.evaluate(f"http://127.0.0.1:{PORT}/party", script,
-                                       settle=1.5) or "{}")
+                                       settle=1.5, cookies={'elmer_user': '1'}) or "{}")
     check("the corner clock reads the step's time", got.get("clock"),
           "Intermission4:32")
     check("  and there is no run-up on the screen", got.get("noLead"), None)

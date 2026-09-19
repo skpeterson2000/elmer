@@ -124,7 +124,7 @@ def main():
             time.sleep(0.2)
 
     print("\n-- it says its name when it opens --")
-    got = json.loads(_browser.evaluate(HOME, SPEAKING_JS, settle=1.0, flags=FLAGS))
+    got = json.loads(_browser.evaluate(HOME, SPEAKING_JS, settle=1.0, flags=FLAGS, cookies={'elmer_user': '1'}))
     check("a station with nothing set announces - it is on unless turned off",
           got["sending"]["flag"], True)
     check("  and it is keying while the page is still new",
@@ -140,13 +140,13 @@ def main():
 
     print("\n-- and stops when the station asks for quiet --")
     check("the switch saves", settings(announce=False), 200)
-    got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS))
+    got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS, cookies={'elmer_user': '1'}))
     check("the page is told not to", got["flag"], False)
     check("  nothing sounds, and nothing is opened to sound it with",
           (got["ctx"], got["playing"], got["marked"]), (None, False, None))
     check("  and the Station panel shows it off", got["box"], False)
     check("switched back on", settings(announce=True), 200)
-    got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS))
+    got = json.loads(_browser.evaluate(HOME, QUIET_JS, settle=1.5, flags=FLAGS, cookies={'elmer_user': '1'}))
     check("it speaks again", (got["flag"], got["playing"], got["box"]), (True, True, True))
 
     print("\n-- a supporter's own callsign goes out with it --")
@@ -162,6 +162,9 @@ def main():
     check("  and a name with nothing keyable in it is left out", cw.keyable("..."), "")
 
     client = appmod.app.test_client()
+    # ELMER's own pages ask who is at the controls first; a test driving one
+    # says so, the same as a person would.
+    client.post("/api/users/switch", json={"id": 1}, environ_base=LOCAL)
     check("a station that is nobody in particular keys ELMER alone",
           told(client.get("/", environ_base=LOCAL).data.decode("utf-8")).get("de"), "")
     real = supporter.named_holder
