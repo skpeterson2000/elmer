@@ -292,14 +292,17 @@ def _band_choices(ground):
     return out
 
 
-def _sky_link(here, there, band):
-    """The ionosphere's answer for one band on this path.
+def _sky_link(here, there, band, watts=100.0, mode="ssb", site="residential"):
+    """The ionosphere's answer for one band on this path, and then the
+    budget's.
 
-    Not a link budget. On these bands the ground between the two stations
-    is not the path, so what is measured is the sky at the midpoint of it:
-    the critical frequency there, the MUF along the path, whether this band
-    comes back at all, and in how many hops. The same reading the rest of
-    the page runs on, asked one band at a time.
+    On these bands the ground between the two stations is not the path, so
+    the first thing measured is the sky at the midpoint of it: the critical
+    frequency there, the MUF along the path, whether this band comes back at
+    all, and in how many hops. The same reading the rest of the page runs
+    on, asked one band at a time. Then, for a band that does come back, what
+    these watts in this mode put at the far end against what it needs -
+    which is the part five watts and a kilowatt disagree about.
     """
     km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     # The same midpoint the panel above reads at. Two panels on one page
@@ -311,17 +314,21 @@ def _sky_link(here, there, band):
     sky = propagation.path_bands(
         km, fof2=snap.get("fof2"), hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
         elevation=snap.get("elevation") or 0.0, k_index=snap.get("k_index") or 2.0,
-        muf=snap.get("muf"))
+        muf=snap.get("muf"), watts=watts, emission=mode, site=site)
     row = next((r for r in sky["bands"] if r["band"] == band), None)
     return {
         "kind": "sky", "band": band, "km": round(km), "miles": round(km * 0.621371),
         "bearing": round(bearing),
         "works": bool(row and row["works"]),
+        "sky": bool(row and row.get("sky")),
         "how": (row or {}).get("how"),
         "hops": (row or {}).get("hops"),
         "score": (row or {}).get("score"),
         "label": (row or {}).get("label"),
         "why": (row or {}).get("why"),
+        "budget": (row or {}).get("budget"),
+        "watts": (row or {}).get("watts"), "emission": (row or {}).get("emission"),
+        "site": site,
         # The MUF is the snapshot's, the same as the panel above reads:
         # path_bands returns the critical frequency and not the maximum
         # usable one.
@@ -333,7 +340,8 @@ def _sky_link(here, there, band):
     }
 
 
-def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, site="residential"):
+def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, site="residential",
+         watts=100.0):
     """The same path by the numbers: a link budget along the ground on the
     bands that travel along it, and the ionosphere's own verdict on the
     bands that do not.
@@ -345,7 +353,12 @@ def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, s
     frequency, the MUF along the path and how many hops it takes.
     """
     if band in SKY_BANDS:
-        out = _sky_link(here, there, band)
+        # FM is the VHF page's default and is not an HF mode below 10 m; a
+        # sky band asked about in FM is asked about in SSB, or the budget
+        # would charge FM's 12 kHz against a band nobody runs it on.
+        if mode == "fm":
+            mode = "ssb"
+        out = _sky_link(here, there, band, watts=watts, mode=mode, site=site)
         out["bands"] = _band_choices(linkbudget.for_bands()
                                      if hasattr(linkbudget, "for_bands") else None)
         return out
@@ -396,16 +409,43 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
             rows = [r for r in rows if r["how"] in ("ground wave", "straight up and back")][:2]
         # Best first: fewer hops, then the band's own rating, then the
         # nearest to the middle of HF - the middle bands are the easy ones.
-        rows.sort(key=lambda r: ((r.get("hops") or 1), -(r.get("score") or 0)))
+        # Best first: the most in hand at these watts, then fewer hops, then
+        # the band's own rating - the margin is the thing power moves.
+        rows.sort(key=lambda r: (-((r.get("budget") or {}).get("margin_db") or 0.0),
+                                 (r.get("hops") or 1), -(r.get("score") or 0)))
         for r in rows:
             ok, mode = _allowed(r["band"], license)
             if not ok:
                 continue
-            odds = ("good" if (r.get("hops") or 1) == 1 and (r.get("score") or 50) >= 50
-                    else "worth trying" if (r.get("hops") or 1) <= 2 else "long shot")
+            b = r.get("budget") or {}
+            # The odds are the margin's where there is one - the thing power
+            # moves - and the geometry's where the path is ground wave.
+            if b:
+                odds = ("good" if b["verdict"] == "solid"
+                        else "worth trying" if b["verdict"] == "workable" else "long shot")
+                why = (f"carries {km:.0f} km by {r['how']}; at {b['watts']:g} W {b['emission'].upper()} "
+                       f"it arrives {b['margin_db']:+.0f} dB against what the far end needs")
+            else:
+                odds = ("good" if (r.get("hops") or 1) == 1 and (r.get("score") or 50) >= 50
+                        else "worth trying" if (r.get("hops") or 1) <= 2 else "long shot")
+                why = r.get("cost") or f"carries {km:.0f} km by {r['how']} right now"
             approach.append({"band": r["band"], "how": r["how"], "odds": odds, "mode": mode,
                              "antenna": _antenna_note(r["how"], bearing),
-                             "why": r.get("cost") or f"carries {km:.0f} km by {r['how']} right now"})
+                             "why": why, "margin_db": b.get("margin_db")})
+        # Bands the sky carries and these watts do not: worth a line, because
+        # the fix is an amplifier or a narrower mode and not a different day.
+        short = [r for r in sky["bands"] if r.get("sky") and not r["works"]
+                 and _allowed(r["band"], license)[0]]
+        for r in short[:2]:
+            b = r["budget"]
+            fix = (f"about {b['watts_for']:.0f} W would do, or a mode that hears deeper - CW, or FT8"
+                   if b.get("legal") else
+                   ("wait for dark - the D layer has it by day" if b.get("daylight")
+                    else "a mode that hears deeper - CW, or FT8"))
+            approach.append({"band": r["band"], "how": r["how"], "odds": "not at this power",
+                             "mode": fix,
+                             "antenna": _antenna_note(r["how"], bearing),
+                             "why": r.get("why"), "margin_db": b.get("margin_db")})
         if not rows:
             reasons = [r for r in sky["bands"] if r.get("why")]
             approach.append({"band": "HF", "how": None, "odds": "long shot",

@@ -9,6 +9,13 @@ const RO_TONE = {
   'long shot': '#8b98a5', 'the rule': 'var(--red)',
 };
 
+/* The HF power, from the box, clamped to what the rules allow anybody. */
+function roWatts() {
+  const el = document.getElementById('ro-watts');
+  const w = el ? parseFloat(el.value) : NaN;
+  return Math.max(1, Math.min(1500, isFinite(w) ? w : 100));
+}
+
 function roGear() {
   return Array.from(document.querySelectorAll('#ro-gear input:checked'))
     .map(el => el.value);
@@ -140,7 +147,8 @@ async function roPath() {
   try {
     d = await api('/api/path-to?' + new URLSearchParams({
       to: to, gear: roGear().join(','),
-      license: document.getElementById('ro-class').value}));
+      license: document.getElementById('ro-class').value,
+      watts: roWatts()}));
   } catch (e) {
     box.innerHTML = '<p class="tiny" style="color:var(--red)">Could not work that out just now.</p>';
     return;
@@ -170,7 +178,8 @@ function roLinkSeed() {
   try { kept = JSON.parse(localStorage.getItem('elmer_reach_link') || 'null'); } catch (e) {}
   const gear = roGear();
   const mine = ['vhf_ssb', 'mobile_vhf', 'ht'].find(g => gear.includes(g));
-  roLinkState = Object.assign({band: '2m', mode: 'fm', here: mine ? RO_GEAR_RADIO[mine] : 'ht', there: null, site: 'residential'}, kept || {});
+  roLinkState = Object.assign({band: '2m', mode: 'fm', here: mine ? RO_GEAR_RADIO[mine] : 'ht', there: null, site: 'residential',
+                               watts: roWatts()}, kept || {});
   if (!kept && mine) roLinkState.here = RO_GEAR_RADIO[mine];
   return roLinkState;
 }
@@ -270,6 +279,39 @@ function roProfileBind(d) {
   hit.addEventListener('mouseleave', () => { xl.setAttribute('opacity', '0'); read.textContent = ''; });
 }
 
+/* The skywave budget, said the way the ground-wave one is: what arrives,
+   what is needed, and the difference - and when the difference is the wrong
+   way, the watts that would put it right, because "more power" is only
+   advice when it comes with a number. */
+function roSkyBudget(d) {
+  const b = d.budget;
+  const w = b.watts, m = (b.emission || 'ssb').toUpperCase();
+  const tone = b.verdict === 'solid' ? 'var(--green)' : b.verdict === 'workable' ? 'var(--green)'
+             : b.verdict === 'marginal' ? 'var(--amber)' : 'var(--red)';
+  const word = {solid: 'solid', workable: 'workable', marginal: 'marginal', short: 'short'}[b.verdict] || b.verdict;
+  let says = '<p class="small" style="margin:.3rem 0">At <b>' + w + ' W ' + escapeHTML(m) + '</b> it arrives at ' +
+    '<b>' + b.arrives_dbm + ' dBm</b> against the <b>' + b.needed_dbm + '</b> the far end needs for ' + escapeHTML(m) +
+    ' - <b style="color:' + tone + '">' + (b.margin_db >= 0 ? '+' : '') + b.margin_db + ' dB, ' + word + '</b>.';
+  if (b.verdict === 'short' || b.verdict === 'marginal') {
+    if (b.legal) {
+      says += ' About <b>' + b.watts_for + ' W</b> would make it workable';
+      if (m === 'SSB' || m === 'AM') says += ', or a narrower mode at these watts: CW hears about 14 dB deeper than SSB, FT8 about 28';
+      says += '.';
+    } else if (b.daylight) {
+      says += ' No legal power would: the D layer is taking <b>' + b.absorb_db + ' dB</b> by day, and after dark this band is a different band.';
+    } else {
+      says += ' No legal power would; a mode that hears deeper might - CW about 14 dB deeper than SSB, FT8 about 28.';
+    }
+  }
+  says += '</p>';
+  says += '<p class="tiny muted" style="margin:.2rem 0">Free space over the ' + awayText(b.ray_km) + ' the ray actually travels: ' +
+    b.fspl_db + ' dB' + (b.absorb_db >= 0.5 ? '; the D layer by day: ' + b.absorb_db + ' dB' : '') +
+    (b.extra_db ? '; turns, ground touches and polarisation: ' + b.extra_db + ' dB' : '') +
+    '. A wire at a useful angle assumed at both ends. The ionosphere decides whether the band comes back; ' +
+    'the watts decide whether it is heard, and this is the second half of the answer.</p>';
+  return says;
+}
+
 async function roLink(to, path) {
   const box = document.getElementById('ro-link');
   if (!box || !to) return;
@@ -277,7 +319,8 @@ async function roLink(to, path) {
   box.innerHTML = '<div class="panel-title" style="margin-top:.6rem">By the numbers</div><p class="tiny muted">Adding up the path...</p>';
   let d;
   try {
-    d = await api('/api/path-link?' + new URLSearchParams({to: to, band: st.band, mode: st.mode, here: st.here, there: st.there || st.here, site: st.site}));
+    d = await api('/api/path-link?' + new URLSearchParams({to: to, band: st.band, mode: st.mode, here: st.here, there: st.there || st.here, site: st.site,
+                                                             watts: st.watts || 100}));
   } catch (e) { box.innerHTML = ''; return; }
   if (!d.ok) { box.innerHTML = ''; return; }
   const sel = (id, list, value, title) => '<select class="btn sm" id="' + id + '" title="' + escapeHTML(title) + '">' +
@@ -291,6 +334,11 @@ async function roLink(to, path) {
      20 m over a thousand miles would print a confident 0% for a path that
      is wide open, which is worse than declining to answer. */
   if (d.kind === 'sky') {
+    /* The watts and the mode are the operator's to change here, the same
+       as on the ground-wave budget - they are the two knobs that move the
+       margin. */
+    const wattsBox = '<label class="tiny muted">watts <input id="ro-link-watts" type="number" min="1" max="1500" step="1" ' +
+      'value="' + (roLinkState.watts || d.watts || 100) + '" style="width:5.5rem"></label>';
     const works = !!d.works;
     const pct = Math.max(0, Math.min(100, d.score == null ? (works ? 60 : 0) : d.score));
     const colour = works ? (pct >= 70 ? 'var(--green)' : 'var(--amber)') : 'var(--red)';
@@ -298,9 +346,12 @@ async function roLink(to, path) {
       '<div class="panel-title" style="margin-top:.6rem">By the numbers</div>' +
       '<div class="row" style="flex-wrap:wrap;gap:.5rem;align-items:center;margin:.3rem 0">' +
         sel('ro-link-band', d.bands, d.band, 'the band') +
+        sel('ro-link-mode', [{key: 'ssb', label: 'SSB'}, {key: 'cw', label: 'CW'}, {key: 'ft8', label: 'FT8'}, {key: 'am', label: 'AM'}],
+            roLinkState.mode && roLinkState.mode !== 'fm' ? roLinkState.mode : (d.emission || 'ssb'), 'the mode') +
+        wattsBox +
       '</div>' +
       '<div class="spread" style="align-items:baseline;flex-wrap:wrap;gap:.4rem">' +
-        '<b>' + escapeHTML(d.band) + ', ' + d.miles + ' miles</b>' +
+        '<b>' + escapeHTML(d.band) + ', ' + awayText(d.km) + '</b>' +
         '<span class="tiny mono" style="color:' + colour + '">' +
           escapeHTML(d.label || (works ? 'open' : 'closed')) + '</span>' +
       '</div>' +
@@ -313,11 +364,16 @@ async function roLink(to, path) {
             escapeHTML(d.how || 'by skywave') + '.'
           : escapeHTML(d.why || 'This band does not come back from the ionosphere on this path just now.')) +
       '</p>' +
+      /* The half of the answer that power decides. The sky says whether the
+         band comes back; this says whether what comes back can be copied at
+         the far end at these watts in this mode - which is where five watts
+         and a kilowatt part company, and what this panel used to leave out. */
+      (d.budget ? roSkyBudget(d) : '') +
       '<table class="data tiny" style="margin:.3rem 0">' +
         '<tr><th>critical frequency</th><th>MUF along the path</th><th>one hop reaches</th></tr>' +
         '<tr><td class="mono">' + (d.fof2 == null ? '?' : d.fof2 + ' MHz') + '</td>' +
         '<td class="mono">' + (d.muf == null ? '?' : d.muf + ' MHz') + '</td>' +
-        '<td class="mono">' + (d.one_hop_km == null ? '?' : d.one_hop_km + ' km') + '</td></tr>' +
+        '<td class="mono">' + (d.one_hop_km == null ? '?' : awayText(d.one_hop_km)) + '</td></tr>' +
       '</table>' +
       '<p class="tiny muted" style="margin:.2rem 0 0">This is the sky, not the ground. ' +
         'On these bands the signal leaves at an angle, turns in the ionosphere and comes ' +
@@ -328,6 +384,18 @@ async function roLink(to, path) {
     const pick = document.getElementById('ro-link-band');
     if (pick) pick.addEventListener('change', () => {
       roLinkState.band = pick.value; roLinkRemember(); roLink(to, path);
+    });
+    /* Landing here from a VHF band with FM still set: the selector shows
+       SSB, and the state follows so the next request asks for it. */
+    if (roLinkState.mode === 'fm') { roLinkState.mode = d.emission || 'ssb'; roLinkRemember(); }
+    const modePick = document.getElementById('ro-link-mode');
+    if (modePick) modePick.addEventListener('change', () => {
+      roLinkState.mode = modePick.value; roLinkRemember(); roLink(to, path);
+    });
+    const wattsPick = document.getElementById('ro-link-watts');
+    if (wattsPick) wattsPick.addEventListener('change', () => {
+      const w = Math.max(1, Math.min(1500, parseFloat(wattsPick.value) || 100));
+      roLinkState.watts = w; roLinkRemember(); roLink(to, path);
     });
     return;
   }
@@ -526,9 +594,18 @@ document.getElementById('ro-to-clear').addEventListener('click', () => {
   try { localStorage.removeItem('elmer_reach_to'); } catch (e) {}
   roPath();
 });
-document.querySelectorAll('#ro-gear input, #ro-class').forEach(
-  el => el.addEventListener('change', () => { if (document.getElementById('ro-to').value.trim()) roPath(); }));
+document.querySelectorAll('#ro-gear input, #ro-class, #ro-watts').forEach(
+  el => el.addEventListener('change', () => {
+    if (el.id === 'ro-watts') {
+      try { localStorage.setItem('elmer_reach_watts', String(roWatts())); } catch (e) {}
+      /* The by-the-numbers panel runs at the same watts, so one box moves both. */
+      if (roLinkState) { roLinkState.watts = roWatts(); roLinkRemember(); }
+    }
+    if (document.getElementById('ro-to').value.trim()) roPath();
+  }));
 try {
+  const keptWatts = localStorage.getItem('elmer_reach_watts');
+  if (keptWatts && document.getElementById('ro-watts')) document.getElementById('ro-watts').value = keptWatts;
   const kept = localStorage.getItem('elmer_reach_to');
   if (kept) { document.getElementById('ro-to').value = kept; roPath(); }
 } catch (e) {}

@@ -788,9 +788,91 @@ def one_hop_limit_km(hmf2=HMF2_DEFAULT):
     return patterns._hop_km(LOWEST_TAKEOFF_DEG, hmf2)
 
 
+# The skywave link budget: what power decides.
+#
+# Whether a band comes back at all is the ionosphere's decision and no amount
+# of power changes it - above the MUF a kilowatt goes through to space the
+# same as five watts. But whether what comes back can be *copied* at the far
+# end is power against loss against noise, and that is where five watts and a
+# kilowatt are twenty-five decibels apart. path_bands() used to answer the
+# first question and call it the whole answer: 20 m over 1500 km read
+# "Excellent 85" at 5 W and at 1500 W alike. Reported, rightly, as not
+# considering power. This is the second half.
+#
+# Free space over the actual ray - two slant legs to the layer per hop - plus
+# the D layer by day, a ground reflection for every hop after the first, a
+# little at each turn in the layer, and a fixed few dB for the polarisation
+# that a wave never quite keeps through the ionosphere. Against it, the same
+# noise floor and the same per-mode requirement the ground-wave and VHF
+# budgets already use, so a mode hears the same depth on every page.
+#
+# Absorption: at noon under an overhead sun a single hop costs about 20 dB on
+# 80 m, 6 on 40, 1.5 on 20 and next to nothing on 10 - the textbook inverse
+# square in the frequency, scaled by how high the sun is over the D layer,
+# and gone at night. This is the budget's own figure, in decibels; the
+# rating's "absorb" a few hundred lines down is a penalty in points and was
+# softened on purpose for being a rating and not this.
+D_ABSORB_NOON_DB = 300.0          # per hop, divided by MHz squared, at an overhead sun
+GROUND_HOP_LOSS_DB = 3.0          # each touch on the ground between hops
+IONO_TURN_LOSS_DB = 1.0           # each turn in the layer
+POLARISATION_LOSS_DB = 3.0        # Faraday rotation, taken as a median
+SKY_GAIN_DBI = 2.0                # a wire at a useful angle, each end, when no antenna is known
+# What the margin means. Fifteen decibels in hand is a signal that stays
+# copyable through the fading a skywave path always has; nought is the edge.
+SKY_SOLID_DB = 15.0
+SKY_WORKABLE_DB = 5.0
+LEGAL_WATTS = 1500.0              # the amateur limit; past it "more power" is not advice
+
+
+def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DEFAULT,
+               site="residential", gain_dbi=SKY_GAIN_DBI):
+    """What arrives at the far end of a skywave path, against what the mode
+    needs there. `km` is the ground distance, `hops` how many hops the path
+    takes, `elevation` the sun's at the path's midpoint. Everything in dB
+    and dBm, and the answer as a margin: positive is in hand, negative is
+    short by that much - with the power that would close it."""
+    from . import linkbudget
+    hops = max(1, int(hops or 1))
+    leg = max(1.0, float(km) / hops)
+    slant = 2.0 * math.hypot(leg / 2.0, float(hmf2 or HMF2_DEFAULT))
+    ray_km = hops * slant
+    fspl = 32.45 + 20.0 * math.log10(max(1.0, float(mhz))) + 20.0 * math.log10(ray_km)
+    sun = max(0.0, math.sin(math.radians(float(elevation or 0.0) + D_LAYER_DIP))) ** 0.75
+    absorb = hops * D_ABSORB_NOON_DB * sun / (max(1.0, float(mhz)) ** 2)
+    extra = ((hops - 1) * GROUND_HOP_LOSS_DB + hops * IONO_TURN_LOSS_DB
+             + POLARISATION_LOSS_DB)
+    tx_dbm = 10.0 * math.log10(max(0.001, float(watts)) * 1000.0)
+    arrives = tx_dbm + 2.0 * gain_dbi - fspl - absorb - extra
+    needed = linkbudget.needed_dbm(mhz, emission, site)
+    margin = arrives - needed
+    if margin >= SKY_SOLID_DB:
+        verdict = "solid"
+    elif margin >= SKY_WORKABLE_DB:
+        verdict = "workable"
+    elif margin >= 0.0:
+        verdict = "marginal"
+    else:
+        verdict = "short"
+    # The power that would put the margin at the workable line, for a row
+    # that is short: what "get an amplifier" means in a number.
+    watts_for = float(watts) * 10.0 ** ((SKY_WORKABLE_DB - margin) / 10.0) if margin < SKY_WORKABLE_DB else None
+    # Past the legal limit, "more power" is not the advice. What is short by
+    # that much is usually the D layer by day, and the answer is nightfall -
+    # or a mode that hears deeper - and the row says so instead of naming a
+    # number nobody may run.
+    legal = watts_for is None or watts_for <= LEGAL_WATTS
+    return {"margin_db": round(margin, 1), "verdict": verdict,
+            "arrives_dbm": round(arrives, 1), "needed_dbm": round(needed, 1),
+            "fspl_db": round(fspl, 1), "absorb_db": round(absorb, 1), "extra_db": round(extra, 1),
+            "ray_km": round(ray_km), "watts": round(float(watts), 1), "emission": emission,
+            "watts_for": None if watts_for is None else round(watts_for, 0),
+            "legal": legal,
+            "daylight": absorb >= 6.0}
+
+
 def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
                k_index=2.0,
-               muf=None, watts=100.0, emission="ssb"):
+               muf=None, watts=100.0, emission="ssb", site="residential"):
     """Which bands could carry a contact over this distance, right now.
 
     The line-of-sight tool answers a different question and answers it well:
@@ -813,7 +895,11 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
       the band is deaf however loud you are.
 
     A band is reported as carrying the path when the distance falls between the
-    nearest it reaches and the furthest, or when ground wave alone covers it.
+    nearest it reaches and the furthest, or when ground wave alone covers it -
+    and, for a skywave path, when what arrives at the far end at these watts
+    in this mode clears what the mode needs there. See sky_budget(): the sky
+    decides whether a band comes back, the watts decide whether it is heard,
+    and a row says which of the two it failed on.
     """
     from . import groundwave
 
@@ -853,21 +939,54 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
             leg = km / hops
             if (skip <= 0 and leg <= far) or (skip is not None and skip <= leg <= far):
                 sky, how = True, "%d hops" % hops
+        # The sky has said whether it comes back; the budget says whether
+        # it is heard. Both have to hold for the band to carry the contact.
+        budget = None
+        heard = True
+        if sky and not by_ground:
+            budget = sky_budget(mhz, km, hops if hops > 1 else 1, row_watts, row_emission,
+                                elevation=elevation, hmf2=hmf2, site=site)
+            heard = budget["margin_db"] >= 0.0
         row = {
             "band": name, "mhz": mhz,
-            "works": bool(sky or by_ground),
+            "works": bool((sky and heard) or by_ground),
+            "sky": bool(sky),
             "how": ("ground wave" if by_ground and not sky else how),
             "hops": hops if sky and hops > 1 else (1 if sky else None),
             "skip_km": None if skip is None else round(skip),
             "ground_km": round(ground_km),
             "watts": row_watts, "emission": row_emission,
             "one_hop_km": round(far),
+            "budget": budget,
         }
         if muf is not None:
             rated = band_score(mhz, muf, elevation, k_index, fof2=fof2,
                                hmf2=hmf2)
             row["score"] = rated.get("score")
             row["label"] = rated.get("label")
+            # The rating is the band's - how open the sky is on it. The row
+            # is the path's. Where they disagree the path wins the label:
+            # 17 m used to read "Excellent" over a distance inside its own
+            # skip zone, and "Excellent" at five watts over two hops of 40 m.
+            if sky and not heard:
+                row["label"] = "Open, short at %g W" % row_watts
+                row["score"] = 0
+                if budget["legal"]:
+                    fix = "about %.0f W would do" % budget["watts_for"]
+                elif budget["daylight"]:
+                    fix = ("no legal power would - the D layer is taking %.0f dB by day; "
+                           "after dark this band is a different band" % budget["absorb_db"])
+                else:
+                    fix = "no legal power would; a mode that hears deeper - CW, or FT8 - might"
+                row["why"] = ("%s comes back on this path, but %g W %s arrives %.0f dB short of what "
+                              "the far end needs to copy it; %s"
+                              % (name, row_watts, row_emission.upper(), -budget["margin_db"], fix))
+            elif not sky and not by_ground and skip is not None and 0 < km < skip:
+                row["label"] = "Inside the skip zone"
+                row["score"] = 0
+                row["why"] = ("%s comes back no nearer than %.0f km on this sky; %.0f km is inside "
+                              "the skip zone, and neither power nor antenna crosses it"
+                              % (name, skip, km))
         if sky and hops > 1:
             # Geometry says yes; the path still has to be paid for. Each
             # reflection puts the signal through the D layer twice more and
@@ -877,7 +996,9 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
             row["cost"] = ("%d hops means %d more trips through the absorbing "
                            "layer and %d ground reflections - possible rather "
                            "than easy" % (hops, 2 * (hops - 1), hops - 1))
-        if not row["works"]:
+        # A row the budget already explained - the sky carries it and the
+        # watts do not - keeps that explanation; these are the geometry's.
+        if not row["works"] and not row.get("why"):
             if blind:
                 row["why"] = ("no critical frequency in hand, so ELMER cannot "
                               "say what the sky is doing - fetch an ionosonde "

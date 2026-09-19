@@ -1166,7 +1166,12 @@ def api_path_link():
     site = request.args.get("site") or "residential"
     if site not in groundwave.NOISE_SITES:
         site = "residential"
-    out = pathto.link(place, there, band=band, mode=mode, radio_here=here_r, radio_there=there_r, site=site)
+    try:
+        watts = max(0.1, min(1500.0, float(request.args.get("watts") or 100)))
+    except ValueError:
+        watts = 100.0
+    out = pathto.link(place, there, band=band, mode=mode, radio_here=here_r, radio_there=there_r,
+                      site=site, watts=watts)
     out["ok"] = True
     out["located"] = True
     return jsonify(out)
