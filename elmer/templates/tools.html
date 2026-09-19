@@ -399,11 +399,35 @@
 <div class="panel mt lab-pane" id="pane-rf" hidden>
   <div class="panel-title">RF exposure evaluation &mdash; required of every station</div>
   <p class="small muted">
-    Since 2021 every amateur station must evaluate its RF exposure and be able to
-    show the result &mdash; 47 CFR 97.13(c), against the limits in 47 CFR 1.1310.
-    Enter each band you actually run, and ELMER produces a station record you can
-    print and post in the shack.
+    Since 2021 every amateur station must either qualify for an exemption or
+    evaluate its RF exposure, and must operate within the limits either way
+    &mdash; 47 CFR 97.13(c), against the limits in 47 CFR 1.1310. Enter each band
+    you actually run and ELMER works it out and produces a station record.
   </p>
+  {# What is actually required, because the panel used to say "and be able to
+     show the result", which is good practice stated as law. The duty is to
+     evaluate and to comply. The FCC does not ask for the evaluation to be
+     filed, posted or even kept - see the ARRL's RF exposure FAQ and the FCC's
+     own RF safety FAQ. Keeping it is for the operator's own protection, and a
+     program that teaches the rules must not invent one. #}
+  <details class="small" style="margin:.2rem 0 .6rem">
+    <summary style="cursor:pointer">What you actually have to do with this sheet</summary>
+    <div class="small muted" style="max-width:80ch;margin-top:.4rem">
+      <p><b>Required:</b> that the evaluation is done, and that the station
+      operates within the limits. That is all 97.13(c) asks of you.</p>
+      <p><b>Not required:</b> filing it with the FCC, posting it in the shack,
+      or keeping it at all. There is no form, no submission and no display
+      rule for an amateur station.</p>
+      <p><b>Worth doing anyway:</b> keep it. If a neighbour complains or an
+      inspector asks, the difference between a conversation and a problem is
+      being able to show the work you did and the date you did it. Nothing
+      says it has to be paper &mdash; there is no prescribed form, so this
+      file on this unit is as good as a sheet on the wall, and easier to
+      redo when the station changes.</p>
+      <p><b>Redo it</b> when anything in it changes: a new antenna, a
+      different height, more power, or a band you did not run before.</p>
+    </div>
+  </details>
 
   <div class="grid cols-3" style="gap:.6rem">
     <div class="field"><label>Callsign</label>

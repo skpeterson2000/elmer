@@ -289,6 +289,18 @@ Two of those cards carry a calculator, and they are the two where getting it wro
 
 **The meter** is a multimeter at each point of a station and what it ought to read there, with the arithmetic beside it: **Volts at the supply, volts at the radio**, **The fuse**, **Coax, connectors, and the dummy load**, **The battery**, and **Measuring safely**. It is the fastest route from "the radio is behaving oddly" to a number that says why.
 
+### RF exposure evaluation
+
+**Every amateur station has to deal with this, and most people are not sure how.** Since 2021 the blanket exemption amateurs used to enjoy is gone. Your station either qualifies for an exemption under the current rules or you evaluate it, and either way you have to operate within the limits in 47 CFR 1.1310. Put in the bands you actually run, with the antenna, its height and the power, and ELMER does the arithmetic and produces a station record.
+
+**What you must do with the result: nothing.** This is the part worth knowing rather than guessing at, because the obligation is smaller than people assume and the rumours run in both directions. The rule requires that the evaluation is done and that the station complies. It does not require you to file it with the FCC, to post it in the shack, or to keep it at all. There is no form and no submission.
+
+**Keep it anyway, and a file is fine.** If a neighbour complains or an inspector asks, the difference between a short conversation and a long problem is being able to show what you worked out and when. Because nothing prescribes a form, the sheet on this unit is as good as a sheet pinned to the wall, and far easier to redo. So no, you are not out of compliance for keeping it digitally, and you would not be in compliance merely by pinning it up either: compliance is the station being within the limits, not the paperwork.
+
+**Redo it when the station changes** - a new antenna, a different height, more power, or a band you had not run before. That is the moment the old sheet stops describing your station, and it is the only moment any of this really matters.
+
+The sheet goes to the Printouts shelf, where it can be printed or opened again later.
+
 - **VNA.** A simulator for learning what a sweep looks like, and the real instrument: **Look for a VNA** finds a NanoVNA on a USB port, **Sweep it** reads it, **Export .s1p** saves the sweep. Calibrate it one standard at a time, and calibrate at the far end of the coax you will use; the page has the drill folded under a heading.
 - **Sextant.** A sun sight when nothing else knows where you are. What one looks like and what you see through it, then the sights table: reading, time, limb. It needs the time to be right; four seconds of clock error is a nautical mile of longitude.
 - **RF exposure.** Since 2021 every amateur station must evaluate its RF exposure and be able to show the result. Add a band, the power, the antenna and the distance, press **Evaluate**, and **Station record (PDF)** writes the record for the Printouts shelf.
