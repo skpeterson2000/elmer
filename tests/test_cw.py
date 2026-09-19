@@ -158,17 +158,30 @@ def main():
           cw.is_solid({"sent": 40, "copied": 36, "recent": "1" * 30 + "0" * 10}), False)
     check("  and a window shorter than twenty does not count yet",
           cw.is_solid({"sent": 19, "copied": 19, "recent": "1" * 19}), False)
-    # The deal: the newest a third, the shakiest a fifth, the rest even.
+    # The deal is by how much work a character still needs: the newest
+    # most, each shaky one more the shakier it is, the known ones least
+    # and never none. It used to boost only the single worst, so a second
+    # shaky character came round no more often than the ones known cold.
     check("two fresh characters are dealt evenly", cw.plan({})["draw"], {"K": 0.5, "M": 0.5})
     d = cw.plan(dict(solid, L={"sent": 3, "copied": 2, "recent": "110"}))["draw"]
-    check("  the newest takes a third", d["L"], 0.35)
-    check("  and the rest share the remainder evenly",
-          (len(set(round(v, 4) for c, v in d.items() if c != "L")), round(sum(d.values()), 3)), (1, 1.0))
-    two_weak = dict(solid, L={"sent": 25, "copied": 20, "recent": "1" * 20 + "0" * 5},
-                    O={"sent": 3, "copied": 1, "recent": "100"})
-    d = cw.plan(two_weak, setting=10)["draw"]
-    check("  with a new one and a shaky one, the shaky takes a fifth",
-          (d["O"], d["L"]), (0.35, 0.2))
+    known = [v for c, v in d.items() if c != "L"]
+    check("  the newest comes round most - four times a known one",
+          round(d["L"] / known[0], 1), 4.0)
+    check("  and the known ones share evenly, never none",
+          (len(set(known)), min(known) > 0, round(sum(d.values()), 3)), (1, True, 1.0))
+    two_weak = dict(solid, R={"sent": 30, "copied": 18, "recent": "1" * 12 + "0" * 18},   # 40%
+                    A={"sent": 30, "copied": 24, "recent": "1" * 24 + "0" * 6})           # 80%
+    p = cw.plan(two_weak)
+    d = p["draw"]
+    check("  two shaky characters are both in the lesson - nothing is taken away",
+          ("R" in p["chars"], "A" in p["chars"], len(p["chars"])), (True, True, 8))
+    check("  and both come round more than a known one, the shakier the more",
+          (d["R"] > d["A"] > d["K"], round(d["R"] / d["K"], 1), round(d["A"] / d["K"], 1)),
+          (True, 3.4, 1.8))
+    slipped = dict(solid, M={"sent": 40, "copied": 30, "recent": "1" * 20 + "0" * 10})   # M, second in, slips
+    p = cw.plan(slipped)
+    check("  a character slipping does not shrink the lesson behind it",
+          (len(p["chars"]), p["chars"][-1], p["earned"]), (8, "T", 8))
     shaky = dict(solid, L={"sent": 12, "copied": 8, "confused": '{"R": 3, "M": 1}'})
     p = cw.plan(shaky)
     check("a shaky character is named, worst first, with what it was heard as", (p["weak"][0]["ch"], p["weak"][0]["heard_as"]), ("L", ["R", "M"]))

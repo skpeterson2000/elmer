@@ -303,12 +303,21 @@ SOLID_SENT = 20
 # Twenty sends in the window is still the least that counts.
 RECENT_WINDOW = 30
 
-# How the drill is dealt. The newest character takes a third of the sends
-# and the shakiest a fifth, with the rest sharing what is left: at ten
-# characters an even deal gives the new one a tenth of the drill, and a
-# character heard once in ten takes weeks to learn.
-DRAW_NEW = 0.35
-DRAW_WEAK = 0.20
+# How the drill is dealt: by weight, and the weight is how much work a
+# character still needs. A character never met is the heaviest, because it
+# is the one being learnt. A met character that is not yet solid weighs
+# more the worse its recent copy is - one copied half the time comes round
+# about three times as often as one that is known. A solid character has
+# the least weight, and never none: what is known has to keep being asked
+# or it stops being known.
+#
+# This used to give the newest a third, the single worst a fifth, and deal
+# the rest evenly - which meant a second and third shaky character came
+# round no more often than the ones the person had cold. Reported, rightly,
+# as not what was intended.
+WEIGHT_NEW = 4.0
+WEIGHT_KNOWN = 1.0
+WEIGHT_WEAK_SPAN = 4.0        # a character copied 0% of the time weighs KNOWN + this
 
 
 def is_solid(stat):
@@ -321,33 +330,39 @@ def is_solid(stat):
     return stat.get("sent", 0) >= SOLID_SENT and stat["copied"] / stat["sent"] >= SOLID_RATE
 
 
-def draw(chars, new, weak):
+def recent_rate(stat):
+    """How much of a character's recent past was copied, or of its whole
+    past where there is no window yet; None for a character never sent."""
+    if not stat or not stat.get("sent"):
+        return None
+    recent = str(stat.get("recent") or "")
+    if recent:
+        return recent[-RECENT_WINDOW:].count("1") / len(recent[-RECENT_WINDOW:])
+    return stat["copied"] / stat["sent"]
+
+
+def draw(chars, new, weak, progress=None):
     """How often each character in a drill should come up, as shares that
     sum to one. `new` is the character(s) not yet met, `weak` the met ones
-    not yet solid, worst first, as plan() gives them."""
+    not yet solid, worst first, as plan() gives them; `progress` is the
+    record, for how weak each one is."""
     chars = list(chars)
     if not chars:
         return {}
-    # The first two are both new and neither is newer; deal them evenly.
-    if set(chars) <= set(new):
-        return {c: round(1.0 / len(chars), 4) for c in chars}
-    fresh = next((c for c in reversed(chars) if c in set(new)), None)
-    shaky = next((w["ch"] for w in weak if w["ch"] in chars and w["ch"] != fresh), None)
-    rest = [c for c in chars if c not in (fresh, shaky)]
-    shares = {}
-    left = 1.0
-    if fresh:
-        shares[fresh] = DRAW_NEW
-        left -= DRAW_NEW
-    if shaky:
-        shares[shaky] = DRAW_WEAK
-        left -= DRAW_WEAK
-    for c in rest:
-        shares[c] = left / len(rest)
-    if not rest:                             # two characters, both special
-        total = sum(shares.values())
-        shares = {c: v / total for c, v in shares.items()}
-    return {c: round(v, 4) for c, v in shares.items()}
+    progress = progress or {}
+    shaky = {w["ch"] for w in weak}
+    weights = {}
+    for c in chars:
+        if c in new:
+            weights[c] = WEIGHT_NEW
+        elif c in shaky:
+            rate = recent_rate(progress.get(c))
+            rate = 0.0 if rate is None else rate
+            weights[c] = WEIGHT_KNOWN + WEIGHT_WEAK_SPAN * (1.0 - rate)
+        else:
+            weights[c] = WEIGHT_KNOWN
+    total = sum(weights.values())
+    return {c: round(w / total, 4) for c, w in weights.items()}
 
 
 def plan(progress, setting=None):
@@ -367,7 +382,22 @@ def plan(progress, setting=None):
             leading += 1
         else:
             break
-    earned = max(2, min(len(KOCH_ORDER), leading + 1))
+    # What has been met stays in the lesson. This used to be the leading
+    # run of solid characters plus one, which took characters away: with
+    # eight met and the third of them slipping, the lesson fell back to
+    # three and five earned characters vanished - the two that were shaky
+    # among them, which were the two that most needed drilling. The set is
+    # every character met so far, and one more only when all of them are
+    # solid. Nothing is ever taken away; not advancing is the whole of the
+    # message.
+    met = 0
+    for ch in KOCH_ORDER:
+        if (progress.get(ch) or {}).get("sent"):
+            met += 1
+        else:
+            break
+    all_solid = met > 0 and all(is_solid(progress.get(c)) for c in KOCH_ORDER[:met])
+    earned = max(2, min(len(KOCH_ORDER), met + 1 if all_solid else met))
     lesson = earned
     ahead = False
     if setting:
@@ -400,7 +430,7 @@ def plan(progress, setting=None):
     done = leading >= len(KOCH_ORDER)
     return {"lesson": lesson, "earned": earned, "ahead": ahead, "chars": chars, "new": new,
             "weak": weak, "words": len(words), "solid": leading, "total": len(KOCH_ORDER), "done": done,
-            "draw": draw(chars, new, weak)}
+            "draw": draw(chars, new, weak, progress)}
 
 
 def session(the_plan):

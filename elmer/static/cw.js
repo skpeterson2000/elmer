@@ -411,9 +411,11 @@ document.getElementById('cw-teach-stop').addEventListener('click', () => {
        which sound it was;
      - then it joins the drill, and every pick is recorded, so the record
        can say when it is solid: nine in ten over the last thirty;
-     - the newest character takes a third of the sends and the shakiest a
-       fifth, because dealt evenly among ten the new one comes round once
-       in ten and takes weeks;
+     - the deal is by weight: the newest character most, each shaky one
+       more the shakier it is, the known ones least and never none - and a
+       character just missed is put back in the air within a few sends,
+       because the long-run deal alone lets a miss go cold before it comes
+       round again;
      - when the whole set is solid the next character in the order is met
        and joins, and the lesson says so;
      - nothing is ever taken away. Not advancing says the same thing
@@ -431,6 +433,13 @@ let learnPlan = null;               // the record's plan: chars, new, weak, draw
 let learnChars = [];                // what is in the drill right now
 let learnCur = null;                // the character in the air
 let learnHeard = 0;                 // sends this sitting
+/* A character just missed comes back soon, not only more often. Once it is
+   answered right it goes here with a short countdown of other sends, and
+   when the countdown is up it is the next one out whatever the deal says.
+   Two to four sends later: far enough not to be the same sound again,
+   close enough that the miss is still warm. */
+let learnRecycle = [];              // [{ch, after}]
+const RECYCLE_MIN = 2, RECYCLE_MAX = 4;
 
 function learnShow(state) {
   const set = (id, on) => { const el = document.getElementById(id); if (el) el.hidden = !on; };
@@ -461,14 +470,26 @@ function learnClear() {
   if (word) { word.textContent = ''; word.classList.remove('show'); }
 }
 
-/* The deal: which character sounds next, by the record's shares. */
+/* The deal: which character sounds next. A recycled miss whose turn has
+   come goes first; otherwise the record's shares decide. */
 function learnDraw() {
+  learnRecycle.forEach(r => { r.after -= 1; });
+  const due = learnRecycle.find(r => r.after <= 0 && learnChars.includes(r.ch));
+  if (due) {
+    learnRecycle = learnRecycle.filter(r => r !== due);
+    return due.ch;
+  }
   const shares = (learnPlan && learnPlan.draw) || {};
   const pool = learnChars.filter(c => shares[c] > 0);
   if (!pool.length) return learnChars[Math.floor(Math.random() * learnChars.length)];
   let r = Math.random() * pool.reduce((s, c) => s + shares[c], 0);
   for (const c of pool) { r -= shares[c]; if (r <= 0) return c; }
   return pool[pool.length - 1];
+}
+
+function learnRecycleSoon(ch) {
+  if (learnRecycle.some(r => r.ch === ch)) return;
+  learnRecycle.push({ch: ch, after: RECYCLE_MIN + Math.floor(Math.random() * (RECYCLE_MAX - RECYCLE_MIN + 1))});
 }
 
 /* Meeting a character: it sounds, it is drawn, it is named, and nothing is
@@ -575,7 +596,11 @@ async function learnPick(picked) {
   if (!learnOn) return;
   if (res && res.learn) await learnAdvance(res.learn);
   if (!learnOn) return;
-  if (!right) { await learnSound(); return; }     // round again, at their pace
+  if (!right) {
+    learnRecycleSoon(actual);                     // and again in a few sends' time
+    await learnSound();                           // round again now, at their pace
+    return;
+  }
   await learnNext();
 }
 
@@ -583,6 +608,7 @@ function learnEnd(finished) {
   learnOn = false;
   learnWaiting = false;
   learnCur = null;
+  learnRecycle = [];
   teachHalt();
   learnClear();
   learnShow('');
@@ -608,6 +634,7 @@ async function learnBegin() {
   learnOn = true;
   learnWaiting = false;
   learnHeard = 0;
+  learnRecycle = [];
   learnClear();
   learnShow('sounding');
   learnHint('here they come');

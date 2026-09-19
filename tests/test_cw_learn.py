@@ -134,6 +134,18 @@ LESSON_JS = r"""(async () => {
   await sleep(3000);
   out.after_typed = $('cw-learn-count').textContent;
 
+  // The character missed earlier is owed a return within a few sends,
+  // whatever the deal would have drawn. Answer whatever comes, right, and
+  // watch for it: the one typed above was its first draw after the miss.
+  out.recycle = {queued: learnRecycle.map(r => r.ch), came_back_at: null, seen: []};
+  for (let i = 0; i < 5 && learnOn; i++) {
+    const now = learnCur;
+    out.recycle.seen.push(now);
+    if (now === sent && out.recycle.came_back_at === null) { out.recycle.came_back_at = i + 2; break; }
+    chip(now).click();
+    await sleep(3200);
+  }
+
   $('cw-learn-stop').click();
   await sleep(500);
   out.stopped = {begin_back: !$('cw-learn-begin').hidden,
@@ -215,13 +227,21 @@ def main():
           (got["stopped"]["begin_back"], got["stopped"]["again_gone"],
            got["stopped"]["answering"]), (True, True, False))
 
+    print("\n-- a miss comes back soon, not only more often --")
+    check("the missed character was put down to come back",
+          got["recycle"]["queued"], [got["missed"]["was"][0]])
+    check("  and it did, within four sends of being got right",
+          got["recycle"]["came_back_at"] is not None and got["recycle"]["came_back_at"] <= 4, True)
+
     print("\n-- and every answer went into the record --")
-    # Three sends were answered: one miss, two hits. The two meetings were
-    # not sends and left nothing behind.
+    # One miss and every hit after it, including the ones answered while
+    # waiting for the recycled character. The two meetings were not sends
+    # and left nothing behind.
     rec = got["record"]
-    check("three sends recorded, no more",
-          sum(v["sent"] for v in rec.values()), 3)
-    check("  two of them copied", sum(v["copied"] for v in rec.values()), 2)
+    answered = 3 + max(0, len(got["recycle"]["seen"]) - 1)
+    check("every send answered is recorded, and only those",
+          sum(v["sent"] for v in rec.values()), answered)
+    check("  all but the one miss copied", sum(v["copied"] for v in rec.values()), answered - 1)
 
     print("\n-- the record earns the next character, one at a time --")
     # No browser for this part: a learner is walked through the record the
@@ -254,19 +274,24 @@ def main():
     check("  the twentieth makes K solid, but M is not yet, so nothing joins",
           (learn["solid"], learn["chars"]), (1, ["K", "M"]))
     learn = send("M", True)
-    check("both solid: R is earned, named as new, and takes a third of the deal",
-          (learn["solid"], learn["chars"], learn["new"], learn["draw"].get("R")),
-          (2, ["K", "M", "R"], ["R"], 0.35))
+    check("both solid: R is earned, named as new, and comes round most",
+          (learn["solid"], learn["chars"], learn["new"],
+           learn["draw"]["R"] > learn["draw"]["K"] == learn["draw"]["M"]),
+          (2, ["K", "M", "R"], ["R"], True))
+    # And with R in the air and missed, the lesson does not fall back to two.
+    learn = send("R", False)
+    check("  a miss on the new one does not take it away again",
+          (learn["chars"], learn["new"]), (["K", "M", "R"], ["R"]))
     # A bad start on R, then a good run: the window forgives what the
     # lifetime ratio would not.
-    for _ in range(10):
+    for _ in range(9):
         learn = send("R", False)
     for _ in range(30):
         learn = send("R", True)
     check("ten misses then thirty hits is solid by the window (lifetime says 75%)",
           (learn["solid"], learn["chars"][-1]), (3, "S"))
-    check("  and S, the newest, takes a third of the deal",
-          learn["draw"].get("S"), 0.35)
+    check("  and S, the newest, comes round four times as often as a known one",
+          round(learn["draw"]["S"] / learn["draw"]["K"], 1), 4.0)
 
     print("\n-- run together, each one named as it goes by --")
     got = json.loads(_browser.evaluate(URL, TOGETHER_JS, settle=3.0, flags=FLAGS, cookies={'elmer_user': '1'}))
