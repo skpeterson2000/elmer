@@ -323,7 +323,10 @@
 
     <div class="setup-row">
       <button type="button" class="btn primary" id="setup-save">Save</button>
-      <button class="btn ghost" value="cancel">Close</button>
+      {# Not a submit button either: Enter anywhere in this panel used to
+         activate it and close the panel, losing whatever had just been
+         typed. setup.js binds Enter to Save. #}
+      <button type="button" class="btn ghost" id="setup-close">Close</button>
       <span class="tiny muted" id="setup-said"></span>
     </div>
   </form>
@@ -343,7 +346,10 @@
     <label class="pw-show"><input type="checkbox" id="pw-show"> Show what I am typing</label>
     <div class="pw-note tiny muted" id="pw-note"></div>
     <div class="pw-buttons">
-      <button class="btn sm" value="cancel" id="pw-cancel">Cancel</button>
+      {# Cancel is not a submit button, so Enter in the password box reaches
+         OK below it rather than throwing the password away. It closes the
+         dialog from its own handler instead - see askPassword in users.js. #}
+      <button class="btn sm" type="button" value="cancel" id="pw-cancel">Cancel</button>
       <button class="btn sm primary" value="ok" id="pw-ok">OK</button>
     </div>
   </form>

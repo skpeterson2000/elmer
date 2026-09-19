@@ -91,6 +91,23 @@
     }
   });
 
+  /* Close, and Enter.
+
+     Close used to be the form's first submit button, so Enter anywhere in
+     this panel activated it: the panel shut and whatever had just been typed
+     went with it. Neither button submits now, and Enter is bound to Save -
+     which is what a person pressing it in a settings field means. A textarea
+     keeps Enter for itself, being somewhere a newline is wanted. */
+  const closer = document.getElementById('setup-close');
+  if (closer) closer.addEventListener('click', () => dlg.close());
+  dlg.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const el = e.target;
+    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON')) return;
+    e.preventDefault();
+    document.getElementById('setup-save').click();
+  });
+
   document.getElementById('setup-save').addEventListener('click', async e => {
     const btn = e.currentTarget;
     btn.disabled = true;

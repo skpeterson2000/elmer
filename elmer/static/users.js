@@ -96,6 +96,11 @@ function renderWho(d) {
       (d.local && d.users.length > 1
         ? '<button class="btn sm ghost danger" data-who="remove">Remove&hellip;</button>'
         : '') +
+      /* Sign out: the unit goes back to nobody and asks who is there. The
+         key that opens any sealed data goes with it, which is the point -
+         a shack anybody walks into should not stay open on one person's
+         record because they forgot to close the window. */
+      '<button class="btn sm ghost" data-who="signout">Sign out</button>' +
     '</div>' +
     '<div class="tiny muted who-note">' + (d.shared ? 'This unit is marked shared. ' : '') + (me.locked
       ? 'This account is locked: your password is needed to switch to it, ' +
@@ -156,11 +161,16 @@ function askPassword(opts) {
 
   return new Promise(resolve => {
     const ok = document.getElementById('pw-ok');
+    const cancel = document.getElementById('pw-cancel');
     const finish = value => {
       dlg.onclose = null; ok.onclick = null; show.onchange = null;
+      if (cancel) cancel.onclick = null;
       dlg.close();
       resolve(value);
     };
+    // Cancel stopped being a submit button so that Enter would reach OK; it
+    // closes from here instead.
+    if (cancel) cancel.onclick = e => { e.preventDefault(); finish(null); };
     ok.onclick = e => {
       if (opts.confirm && input.value !== again.value) {
         e.preventDefault();
@@ -344,6 +354,11 @@ document.addEventListener('click', async e => {
       return;
     }
     if (action.dataset.who === 'unlock') { return switchUser(whoData.current); }
+    if (action.dataset.who === 'signout') {
+      await fetch('/api/users/signout', {method: 'POST'}).catch(() => {});
+      location.href = '/who';
+      return;
+    }
     if (action.dataset.who === 'recover') {
       const me = whoData.users.find(u => u.id === whoData.current) || {};
       await recoverAccount(me);
