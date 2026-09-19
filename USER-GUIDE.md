@@ -327,7 +327,7 @@ The page needs poppler, a set of PDF tools. Without it the page says so, and on 
 
 There are two ways, and they end up in the same place.
 
-- **From the machine ELMER runs on**, copy the PDF into the `library` folder inside ELMER's own data folder. On a default install that is `data/library` in the folder you unpacked ELMER into; if you moved the state folder, it is `library` inside wherever you moved it to. Create the folder if it is not there yet.
+- **From the machine ELMER runs on**, copy the PDF into the shelf folder. You do not have to work out where that is: the Library page prints the exact path for your install, at the top of **On the shelf**. On a default install it is `data/library` inside the folder you unpacked ELMER into, and it follows the state folder if you moved that. You will find `ELMER-Users-Guide.pdf` already sitting there, because this guide lives on the shelf like any other book, which is a convenient way to be sure you are in the right folder.
 - **From anywhere else, including a phone**, press **Add a manual** on the Library page and hand the file over.
 
 The next visit to the Library reads anything new, once. A big manual takes a moment the first time and is instant afterwards. Two hundred megabytes is the most it will take for one file, which is generous for a manual and refuses a disc image. The shelf is shared by everyone on the unit, so a club radio's manual only has to be put on once.
