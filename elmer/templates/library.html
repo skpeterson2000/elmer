@@ -292,9 +292,23 @@
   });
 
   function paintTopics(d) {
-    const topics = (d.topics || []).filter(t => t.pointers && t.pointers.length);
+    const all = d.topics || [];
+    const topics = all.filter(t => t.pointers && t.pointers.length);
+    /* The subjects nobody has put a book on yet. They used to be dropped in
+       silence, so a fresh unit showed a short list and read as a thin
+       feature rather than an empty shelf - and there is nothing wrong with
+       an empty shelf if it says what fills it. */
+    const waiting = all.filter(t => !(t.pointers && t.pointers.length)).map(t => t.label);
+    const waitingLine = waiting.length
+      ? `<p class="tiny muted" style="grid-column:1/-1;margin:.6rem 0 0">
+           Nothing here yet on <b>${waiting.map(escapeHTML).join('</b>, <b>')}</b>.
+           Put a radio's manual on the shelf and its chapters file themselves
+           under these on the next visit.</p>`
+      : '';
     if (!topics.length) {
-      topicsBox.innerHTML = '<p class="small muted">No bookmarked chapters match yet.</p>';
+      topicsBox.innerHTML = '<p class="small muted">No bookmarked chapters match yet. ' +
+        'ELMER&rsquo;s own guide is on the shelf and fills several of these; ' +
+        'a radio&rsquo;s manual fills the rest.</p>';
       return;
     }
     /* A pointer is a chapter in a book; a whole book placed by its title is
@@ -313,7 +327,7 @@
         <ul class="tiny">${first.map(item).join('')}</ul>
         ${rest.length ? `<details><summary>and ${rest.length} more&hellip;</summary><ul class="tiny">${rest.map(item).join('')}</ul></details>` : ''}
       </div>`;
-    }).join('');
+    }).join('') + waitingLine;
   }
 
   function mark(s) {

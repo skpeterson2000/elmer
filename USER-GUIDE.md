@@ -247,28 +247,42 @@ The moon, from a clock and a place, nothing fetched. Where the moon is from your
 
 **Nothing here needs a network** except where it is said. The defaults on the hop tool come from the nearest ionosonde when there is one, and the path tool fetches terrain when it can; everything else is arithmetic done on the unit.
 
-### The tabs
+### Ionospheric hop - why a band opens, and where the skip zone falls
 
-**Ionospheric hop - why a band opens, and where the skip zone falls.** Put in a band or a frequency, and the critical frequency and layer height, which arrive filled in from the sounder nearest you when there is a network. Out comes a drawing of the rays: the ones that bend back to earth and the ones that punch through and are gone, with the skip zone marked between where the ground wave stops and the first hop lands. Reach for it when a band is open to somewhere far away and dead to the next county, which is the thing the picture explains in one look.
+Put in a band or a frequency, and the critical frequency and layer height, which arrive filled in from the sounder nearest you when there is a network. Out comes a drawing of the rays: the ones that bend back to earth and the ones that punch through and are gone, with the skip zone marked between where the ground wave stops and the first hop lands. Reach for it when a band is open to somewhere far away and dead to the next county, which is the thing the picture explains in one look.
 
-**Ohm's law and power.** Fill in any two of volts, amps, ohms and watts and press **Solve** for the other two. **Clear** empties it. It is the tab to keep open while working the electrical questions, because the exam asks the same relationship a dozen ways.
+### Ohm's law and power
 
-**Reactance and resonance.** Frequency, inductance and capacitance, and a plot of how the reactances cross. Use it to see why a circuit is resonant at one frequency and not another, and why the two reactances cancel there.
+Fill in any two of volts, amps, ohms and watts and press **Solve** for the other two. **Clear** empties it. It is the tab to keep open while working the electrical questions, because the exam asks the same relationship a dozen ways.
 
-**SWR, reflection and what it actually costs you.** Line impedance, load impedance and transmitter power. It answers the question the exam never quite asks plainly: what a standing wave ratio actually loses you in watts, which for a mismatch that sounds alarming is often less than people expect, and for a long lossy line is more.
+### Reactance and resonance
 
-**Antennas - dimensions, impedance and gain.** The long one, and the order of the questions is deliberate. It starts with what you have got to work with, which is a mast, a garden, an attic, a balcony, a vehicle, or nothing at home at all. Then what you want to do with it, the frequency, and the power you will run. Then the antenna itself, its height, its slope and its droop.
+Frequency, inductance and capacitance, and a plot of how the reactances cross. Use it to see why a circuit is resonant at one frequency and not another, and why the two reactances cancel there.
+
+### SWR, reflection and what it actually costs you
+
+Line impedance, load impedance and transmitter power. It answers the question the exam never quite asks plainly: what a standing wave ratio actually loses you in watts, which for a mismatch that sounds alarming is often less than people expect, and for a long lossy line is more.
+
+### Antennas - dimensions, impedance and gain
+
+The long one, and the order of the questions is deliberate. It starts with what you have got to work with, which is a mast, a garden, an attic, a balcony, a vehicle, or nothing at home at all. Then what you want to do with it, the frequency, and the power you will run. Then the antenna itself, its height, its slope and its droop.
 
 - **Evaluate this setup** draws it: the radiation pattern, what the height is doing to it, the feedpoint impedance, and a reading in words of what the setup is good for and what it will disappoint you at.
 - **Not sure, suggest one** picks an antenna for the answers you have already given, which is the button to use the first time.
 - **Print the sheet (PDF)** puts the whole evaluation on the Printouts shelf, to take out to the garden.
 - The sliders that turn the picture sit under the plot they move, so you can see the pattern change as the height does.
 
-**Smith chart - what the feedline does to your antenna.** Antenna resistance and reactance, the frequency, the feedline type and its length, and the power. The presets are worth pressing before anything else: a resonant dipole, a quarter-wave vertical, and then **Too long**, **Too short** and **Off-resonance**, which show you what each kind of wrongness looks like on the chart, so you can recognise your own antenna's fault later. **Use the antenna I designed** carries the antenna tab's result straight in, and a measured sweep from the VNA on the Tools page appears here when there is one.
+### Smith chart - what the feedline does to your antenna
 
-**Decibels.** A reference power and a resulting power gives you the decibels between them; a decibel figure works it the other way. Small tab, constantly needed.
+Antenna resistance and reactance, the frequency, the feedline type and its length, and the power. The presets are worth pressing before anything else: a resonant dipole, a quarter-wave vertical, and then **Too long**, **Too short** and **Off-resonance**, which show you what each kind of wrongness looks like on the chart, so you can recognise your own antenna's fault later. **Use the antenna I designed** carries the antenna tab's result straight in, and a measured sweep from the VNA on the Tools page appears here when there is one.
 
-**Path and line of sight - will this link actually work?** Both ends as a grid, a latitude and longitude, or a place name, with **use my QTH** and **locate me** to fill one end in. Then each end's height above ground, antenna gain and line loss, the frequency, the transmit power and the receiver's sensitivity. **Analyse path** gives you the terrain between the two, taken from a thirty-metre elevation model when there is a network, and says whether the link closes. Without a network it still does the smooth-earth arithmetic and tells you that is what it has done. This is the tool for a repeater you cannot hit, a simplex path across a county, or a link to the next building.
+### Decibels
+
+A reference power and a resulting power gives you the decibels between them; a decibel figure works it the other way. Small tab, constantly needed.
+
+### Path and line of sight - will this link actually work?
+
+Both ends as a grid, a latitude and longitude, or a place name, with **use my QTH** and **locate me** to fill one end in. Then each end's height above ground, antenna gain and line loss, the frequency, the transmit power and the receiver's sensitivity. **Analyse path** gives you the terrain between the two, taken from a thirty-metre elevation model when there is a network, and says whether the link closes. Without a network it still does the smooth-earth arithmetic and tells you that is what it has done. This is the tool for a repeater you cannot hit, a simplex path across a county, or a link to the next building.
 
 ![The Lab: the ionospheric hop](docs/screenshots/guide/lab.png)
 
@@ -287,9 +301,13 @@ Two of those cards carry a calculator, and they are the two where getting it wro
 
 **What it is for.** The instruments, and the knowledge of instruments. The Lab is the material the exams ask about; this is everything else a bench needs, including two benches of written cards with the pool questions gathered under them, the same shape as the Lab's safety bench.
 
-**Analysers and detectors** is what each instrument can and cannot tell you, which is the part nobody writes down: **The SWR meter, the one you already have**, **The antenna analyser**, **The field strength meter**, **The RF sniffer and the RF probe**, and **The spectrum analyser**. Read it before buying the second instrument.
+### Analysers and detectors
 
-**The meter** is a multimeter at each point of a station and what it ought to read there, with the arithmetic beside it: **Volts at the supply, volts at the radio**, **The fuse**, **Coax, connectors, and the dummy load**, **The battery**, and **Measuring safely**. It is the fastest route from "the radio is behaving oddly" to a number that says why.
+What each instrument can and cannot tell you, which is the part nobody writes down: **The SWR meter, the one you already have**, **The antenna analyser**, **The field strength meter**, **The RF sniffer and the RF probe**, and **The spectrum analyser**. Read it before buying the second instrument.
+
+### The meter
+
+A multimeter at each point of a station and what it ought to read there, with the arithmetic beside it: **Volts at the supply, volts at the radio**, **The fuse**, **Coax, connectors, and the dummy load**, **The battery**, and **Measuring safely**. It is the fastest route from "the radio is behaving oddly" to a number that says why.
 
 ### RF exposure evaluation
 

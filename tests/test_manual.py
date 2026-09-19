@@ -104,6 +104,29 @@ def run():
     r = client.post("/api/library/remove", json={"name": manual.NAME})
     check("removing the guide by hand says it will be back", (r.status_code, "comes back" in (r.get_json().get("note") or "")), (200, True))
 
+    print("\n-- placed means readable, on the first visit --")
+    # Building the guide only put a file on the shelf. Until it is indexed the
+    # search cannot see into it and ELMER's topics have nothing of it to file,
+    # so a fresh unit opened its Library on an empty index directly under a
+    # paragraph promising the guide was there. The page heals itself on a
+    # later visit, which is one visit too late for the only visit that
+    # forms an impression.
+    library.SHELF.mkdir(parents=True, exist_ok=True)
+    for stale in library.SHELF.glob(manual.NAME + "*"):
+        stale.unlink()
+    import shutil as _sh
+    _sh.rmtree(library.INDEX_DIR, ignore_errors=True)
+    done = manual.place(db.connect(), force=True)
+    check("the guide is built", done["did"], "built")
+    check("  and indexed by the same act, not by the next page view",
+          len(library.outline(manual.NAME)) > 20, True)
+    filed = {t["label"]: len(t["pointers"]) for t in library.topic_map() if t["pointers"]}
+    check("  so a fresh unit's topic index is not empty", len(filed) >= 6, True)
+    # The guide covers these at length; if it files nothing under them the
+    # index is the thing at fault, not the shelf.
+    for label in ("Antennas", "Propagation", "CW and keying", "Games and the table"):
+        check(f"  {label.lower()} has something in it", filed.get(label, 0) > 0, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

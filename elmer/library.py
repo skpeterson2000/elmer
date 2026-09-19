@@ -61,14 +61,16 @@ TOPICS = {
                  "words": ["antenna", "dipole", "yagi", "vertical", "beam",
                            "feed line", "feedline", "transmission line",
                            "coax", "swr", "tuner", "balun", "radial",
-                           "whip", "hamstick"]},
+                           "whip", "hamstick", "smith chart", "impedance",
+                           "reflection"]},
     "propagation": {"label": "Propagation",
                     # "skip" alone matched "Skip Memory Channels" and "skips
                     # Tx 1"; the propagation sense always comes with its noun.
                     "words": ["propagation", "ionosphere", "ionospheric",
                               "skip zone", "skip distance", "sunspot", "solar",
                               "muf", "nvis", "grey line", "gray line",
-                              "sporadic"]},
+                              "sporadic", "band conditions", "forecast",
+                              "line of sight", "critical frequency"]},
     "cw": {"label": "CW and keying",
            "words": ["cw", "morse", "keyer", "paddle", "sidetone", "pitch",
                      "break-in", "qsk"]},
@@ -88,7 +90,8 @@ TOPICS = {
                 "words": ["modulation", "waveform", "error correction",
                           "source encoding", "bandwidth", "spectrum",
                           "sideband", "harmonic", "intermodulation",
-                          "signal-to-noise", "snr"]},
+                          "signal-to-noise", "snr", "decibel", "reactance",
+                          "resonance", "ohm's law"]},
     "repeaters": {"label": "Repeaters and FM",
                   "words": ["repeater", "offset", "ctcss", "dcs", "tone",
                             "squelch", "memory channel", "memories", "fm"]},
@@ -109,9 +112,9 @@ TOPICS = {
               "words": ["menu", "setting", "set mode", "configuration",
                         "reset", "firmware", "function list"]},
     "test": {"label": "Test equipment",
-             "words": ["vna", "antenna analyzer", "analyzer", "swr meter",
-                       "oscilloscope", "dummy load", "wattmeter",
-                       "measurement"]},
+             "words": ["vna", "antenna analyzer", "analyzer", "analyser",
+                       "swr meter", "oscilloscope", "dummy load", "wattmeter",
+                       "measurement", "multimeter", "meter", "sextant"]},
 }
 
 

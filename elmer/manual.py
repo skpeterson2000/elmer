@@ -108,6 +108,17 @@ def place(conn=None, force=False):
     except Exception as exc:                       # reportlab missing, disk full
         log.warning("user's guide: not built: %s: %s", type(exc).__name__, exc)
         return {"did": "failed", "why": f"{type(exc).__name__}: {exc}"}
+    # Read it while we are here. Building it only put a file on the shelf;
+    # until it is indexed the search cannot see into it and ELMER's topics
+    # have nothing of it to file, so a fresh unit opened its Library on an
+    # empty index and a shelf that said "nothing here yet" directly above a
+    # paragraph promising the guide was on it. The Library page does heal
+    # itself on a later visit, which is exactly one visit too late.
+    try:
+        from . import library          # imported here, as shelf() does
+        library.refresh(only=NAME)
+    except Exception as exc:                       # no poppler on this unit
+        log.info("user's guide: on the shelf but not indexed yet: %s", exc)
     log.info("user's guide: %s on the shelf", "rebuilt" if st["present"] else "placed")
     return {"did": "built"}
 
