@@ -319,15 +319,44 @@ Everything this unit has built as a PDF, kept here so it can be read and printed
 
 ## The Library
 
-Your own manuals, read once and indexed to the page. Copy a PDF into the shelf folder, or hand one over from a phone with **Add a manual**, and the next visit to this page reads it. Then **Find the page** answers a question at a campsite from your own copy: the file, the page, and the lines around it. Nothing is summarised or guessed. Every word must be on the page, a quoted phrase is kept whole, and nothing is stemmed, so that the search can never be found to have invented a match.
+Your own manuals, read once and indexed to the page. Then **Find the page** answers a question at a campsite from your own copy: the file, the page, and the lines around it. Nothing is summarised or guessed. Every word must be on the page, a quoted phrase is kept whole, and nothing is stemmed, so that the search can never be found to have invented a match.
 
 The page needs poppler, a set of PDF tools. Without it the page says so, and on Windows the dashboard's self-check offers to install it.
+
+### Putting a manual on the shelf
+
+There are two ways, and they end up in the same place.
+
+- **From the machine ELMER runs on**, copy the PDF into the `library` folder inside ELMER's own data folder. On a default install that is `data/library` in the folder you unpacked ELMER into; if you moved the state folder, it is `library` inside wherever you moved it to. Create the folder if it is not there yet.
+- **From anywhere else, including a phone**, press **Add a manual** on the Library page and hand the file over.
+
+The next visit to the Library reads anything new, once. A big manual takes a moment the first time and is instant afterwards. Two hundred megabytes is the most it will take for one file, which is generous for a manual and refuses a disc image. The shelf is shared by everyone on the unit, so a club radio's manual only has to be put on once.
+
+### Not every PDF searches, and the difference is large
+
+**A PDF with real text in it** is what you want. ELMER reads the words, `Find the page` searches them, and the chapters come from the file's own bookmarks.
+
+**A scan is pictures of pages.** There is no text underneath for anything to read, so search cannot see inside it at all, and a question you know is answered on page 40 will come back with nothing. The book still opens, still turns pages, still reads perfectly well, and you can still go to page 40 yourself.
+
+ELMER tells you which you have got rather than leaving you to wonder why the search is useless: a scanned book is marked on the shelf as **a scan, nothing for search to read**. Check that line after adding a manual. If a manual matters to you and the copy you have is a scan, it is worth looking for a text copy from the maker, because the difference is not a matter of degree.
+
+The chapter list has a similar order of preference: the publisher's own bookmarks first, then a list you wrote beside the book, then the numbered headings ELMER could find in the text. The shelf says which of the three it used, and says so when a file's bookmarks could not be read.
 
 ![The Library: the shelf, with the User's Guide on it](docs/screenshots/guide/library.png)
 
 **Open** reads a book inside ELMER, with the chapters down the side, search hits highlighted, page turns by click or arrow key, and Escape to come back. **Open as PDF** in the reader's bar hands the file itself to your browser's own viewer, in a tab of its own, opened at the page you were on; that viewer's toolbar has print and save, so any page of any book on the shelf, this guide included, can be printed from there. On the kiosk, which has no tabs, the same button shows the file in the reader's frame with Back still above it. **Chapters** lists the publisher's bookmarks, or a list you wrote beside the book, or the numbered headings ELMER found. **mine** marks whose radio a manual is for, and Make Contact starts from that. The shelf is shared by everyone on the unit.
 
-**Your licences.** Hand over the PDF of your licence and it is kept for you alone, compared with the FCC record, and shown back to you on the Papers page with a **Print** button. The FCC's record is the licence and the paper need not be carried, but a printed copy is what an inspector or a repeater owner will ask to see, and this is where yours is.
+### Keep a copy of your licence here
+
+**Worth doing, and it takes a minute.** Your licence is the FCC's record and you are not required to carry paper. But a printed copy is what a repeater owner, a site manager, a contest organiser or an inspector will actually ask to see, and the moment you want it is never the moment you are sitting at a desk with a printer and a password for the FCC's site.
+
+**How.** On the Library page, under **Your licences**, hand over the PDF. Six kinds are recognised: the amateur licence, a GMRS licence, a General Radiotelephone Operator License, a Marine Radio Operator Permit, a Ship Radar endorsement, and anything else you want kept.
+
+**What ELMER does with it.** It reads the callsigns and the expiry date off the page and shows them back to you, then compares them against the FCC's own record and says whether the two agree. That check is worth more than the copy: a licence that expired while you were not looking, or a record that does not say what your paper says, is the kind of thing found at the worst possible moment otherwise.
+
+**Getting it back.** **Show** opens it with a **Print** button. **Remove** takes it off.
+
+**Who can see it.** You, on this account, and nobody else. It is not on the shared shelf with the manuals, it does not appear for other people using this unit, and it never leaves the machine.
 
 **Your wall.** Hang a certificate, a picture with a title, a line about it, who issued it and when, and it appears framed in the Lounge.
 
