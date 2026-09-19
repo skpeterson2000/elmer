@@ -459,7 +459,16 @@ The slow game. A real course from its own card, Pebble Beach, the Old Course, Au
 
 ![Golf: a hole on the table screen](docs/screenshots/guide/golf.png)
 
-Under the tile: the front nine, the back nine or all eighteen; a tee time so friends can join before the group departs; up to three practice companions, whose strokes are questions put in front of you for free; and the handicap switch. A watcher can answer along with somebody else's stroke on their own phone; right earns a little luck on their next stroke, and wrong costs nothing. The pro shop keeps the record board.
+**Your first round, step by step.** Golf is a table game: the course is on the big screen and each player plays from their own phone. It goes in this order, and the order is the whole trick.
+
+1. **On the table screen, under the Golf tile, choose the group before anything else.** Three things: which holes (the front nine to start), when the group tees off (*play now* if it is just you, or a tee time so friends have a few minutes to join), and how many **practice players** ride along - three makes a foursome, none gives you the course to yourself. The practice players are stand-ins the unit plays on the same terms as you, never on the record board; every one of their strokes is a question and its answer put in front of you, free, which is what they are for. You can change all of this in the clubhouse too, and it takes effect the moment you change it, so if you find yourself in a group you did not mean to be in, fix it there - you are not stuck. The unit remembers your choices for next time.
+2. **Press Golf.** The clubhouse opens on the table screen and counts down to tee time, with the seats and who is in them.
+3. **Everyone playing scans the code on their own phone**, including you, and takes a seat. The group departs when it is full, when the countdown ends, or when you press **Play now**. If you chose *play now* at step 1 there is no waiting.
+4. **On the first tee the honour is decided and the first player is away.** On that player's phone: *Your stroke.* Choose a club - the club decides how far a good shot goes, and the hole's card is right there - then press **Hit**. Only then does the question come, so nobody is rushed: the machine waits on your Hit, and on your answer, for as long as you like. Right and the ball flies the club's distance, less what the wind and the lie take. Wrong is a foul ball into the nearest trouble the club could have reached - water is a drop and a penalty stroke, sand means you play out of it, rough is a short one that did go forward. On the green a right answer holes it.
+5. **While somebody else is away, read their question with them.** Your phone shows it. Answer along if you like: right earns a little luck on your next stroke, wrong or skipped costs nothing. A practice player's stroke is the same - their question and its answer, free, in front of everyone.
+6. **After your result, press Next stroke** and the honour passes to whoever is furthest from the hole. Scoring is real golf, lowest total wins, and the handicap, if you switched it on, comes off at the end from each player's own study on this unit - nine in ten plays scratch.
+
+The pro shop, from the clubhouse or the tile, keeps the record board and the course's own card for each hole. If you are ever unsure what to do, look at your phone: it says whose stroke it is and what is wanted of you.
 
 ### CW Baseball
 

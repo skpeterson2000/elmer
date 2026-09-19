@@ -4400,8 +4400,7 @@ def _party_arm_start(room):
             return
     difficulty = _party_class()
     room.arm_start(AUTO_START_SECONDS)
-    threading.Timer(AUTO_START_SECONDS + 0.25,
-                    lambda: _party_begin(room, difficulty, True)).start()
+    _later(AUTO_START_SECONDS + 0.25, lambda: _party_begin(room, difficulty, True))
 
 
 # The people who play at this table, and how they have done at golf: a list
@@ -5042,7 +5041,7 @@ def _apply_mode(room, wanted, body):
         if tee_in > 0 and room.people_here() < party.FOURSOME:
             room.book_clubhouse(spec, tee_in)
             room.fill_bots(body.get("level"), companions)   # after the booking, so it is a foursome
-            threading.Timer(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True)).start()
+            _later(tee_in + 0.25, lambda: _golf_depart(room, armed_only=True))
             log.info("party: tee time in %.0fs at %s (%s, %d holes) - %d practice player(s) seated, companions %s",
                      tee_in, difficulty, which, len(holes), sum(1 for p in room.players.values() if p.bot),
                      "the foursome rule" if companions is None else companions)
@@ -5283,13 +5282,45 @@ def api_party_pick():
                     "shootout": room.shootout_view(who)})
 
 
+def _later(seconds, what):
+    """Run `what` after `seconds`, on a timer that dies with the process.
+
+    A tee time is a countdown of up to ten minutes. On a timer that is not
+    a daemon, the interpreter waits for it before it will exit - so an
+    ELMER with a tee time booked took up to ten minutes to shut down, and
+    a test that booked one hung for that long after it had printed its
+    last line. The party the timer was for does not survive the process
+    either way, so there is nothing for the wait to protect.
+    """
+    t = threading.Timer(seconds, what)
+    t.daemon = True
+    t.start()
+    return t
+
+
 @app.route("/api/party/bots", methods=["POST"])
 def api_party_bots():
-    """Switch practice opponents on or off for this table."""
+    """Switch practice opponents on or off for this table - and, for golf,
+    set how many are in the group.
+
+    `companions` is golf's count, 0 to 3, and it takes effect now: the
+    table used to read it only when the Golf button was pressed, so a
+    count changed after that did nothing, and a person who pressed Golf
+    and then chose "the course to yourself" teed off in a foursome. The
+    room already knew how to seat or send home practice players wherever
+    golf is in its life; the page just never asked it to.
+    """
     room = _party_or_404()
     body = request.get_json(silent=True) or {}
+    companions = body.get("companions")
+    try:
+        companions = None if companions in (None, "") else max(0, min(3, int(companions)))
+    except (TypeError, ValueError):
+        companions = None
     if body.get("on", True):
-        room.fill_bots(body.get("level"))
+        room.fill_bots(body.get("level"), companions)
+        if companions is not None:
+            log.info("party: golf group set to %d practice player(s)", companions)
     else:
         room.clear_bots()
     return jsonify(room.state())

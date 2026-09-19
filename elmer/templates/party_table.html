@@ -89,6 +89,8 @@ button.gc-tile:disabled, .gc-tilebtn:disabled { opacity: .5; cursor: default; tr
 .gc-golfopts { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; padding: .4rem .6rem .5rem;
                border-top: 1px dashed var(--line-2); }
 .gc-golfopts label { color: var(--dim); display: inline-flex; align-items: center; gap: .25rem; }
+.gc-howto { flex-basis: 100%; margin: .25rem 0 0; line-height: 1.45; }
+.gc-howto b { color: var(--amber); }
 .gc-open { border-style: dashed; cursor: default; opacity: .55; }
 .qtext { font-size: 1.15rem; line-height: 1.5; margin: .3rem 0 1rem; }
 .chip { font-family: var(--mono); font-size: .8rem; color: var(--dim);
@@ -456,6 +458,17 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
               </select>
               <label class="small" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
                 <input type="checkbox" id="golf-handicap"> handicap</label>
+              {# How a round goes, on the screen and not in a tooltip - a
+                 tooltip is invisible on a touchscreen and unread on any
+                 other, and the first press of Golf used to land somebody in
+                 a five-minute countdown with three strangers seated and
+                 nothing on the screen saying why. #}
+              <p class="tiny muted gc-howto">
+                <b>1</b> Choose who plays with you and when the group tees off &mdash; you can change both in the clubhouse.
+                <b>2</b> Press <b>Golf</b>: the clubhouse opens and waits for tee time.
+                <b>3</b> Everyone playing scans the code on their own phone. At tee time the group departs, or press <b>Play now</b>.
+                Then each stroke is a question: right and the ball flies, wrong is a foul ball, and every practice player&rsquo;s stroke is a question you see answered, free.
+              </p>
             </div>
           </div>
           <div class="gc-tile gc-golf">
@@ -1067,7 +1080,11 @@ async function tick() {
         stage.innerHTML = `${club.backdrop ? `<div class="clubhouse-pic" style="background-image:url(/static/golf/clubhouse/${esc(club.backdrop)}.jpg)"></div>` : ''}<div class="chip">The clubhouse${club.course_name ? ' &middot; ' + esc(club.course_name) : ''}</div>
           <p class="narrator">Tee time in <b>${clockWords(club.tee_in)}</b> &middot; ${club.people.length} of ${club.group} in the group${club.companions ? ` &middot; ${club.companions} practice player${club.companions === 1 ? '' : 's'} seated` : ''}</p>
           <div class="seats" style="margin:.4rem 0">${club.people.map(n => `<span class="seat">${esc(n)}</span>`).join('') || '<span class="empty">nobody yet</span>'}</div>
-          <p class="hint" style="text-align:left">Friends scan the code to join the group. It departs when it is full, when the time is up, or when you say so; practice players make up the rest.</p>
+          <p class="hint" style="text-align:left">Friends scan the code to join the group. It departs when it is full, when the time is up, or when you press <b>Play now</b>.
+            Practice players in the group:
+            <select class="btn sm" data-club-companions title="stand-ins played by the unit on the same terms, never on the record board - change it here any time before you tee off">
+              ${[3, 2, 1, 0].map(n => `<option value="${n}"${(club.companions == null ? 3 : club.companions) === n ? ' selected' : ''}>${n === 3 ? 'a foursome - 3' : n === 0 ? 'none - the course to yourself' : n}</option>`).join('')}
+            </select></p>
           <div class="row" style="gap:.5rem;margin-top:.6rem">
             <button class="btn primary" data-tee-off>Play now &rsaquo;</button>
             <button class="btn sm ghost" data-proshop>The pro shop</button>
@@ -1826,6 +1843,44 @@ stopt.addEventListener('click', async () => {
 document.getElementById('botson').addEventListener('change', async e => {
   await api('/api/party/bots', {on: e.target.checked});
   tick();
+});
+
+/* The size of the golf group, live and remembered.
+   The count used to be read once, when the Golf button was pressed, so
+   choosing it afterwards did nothing - press Golf, then pick "the course
+   to yourself", and tee off in a foursome. It is sent the moment it is
+   changed now, from the tile or from the clubhouse, and the room seats or
+   sends home practice players to match. And the choice is kept on this
+   browser, so the default is what you chose last time and not always a
+   foursome. */
+const GOLF_KEPT = {companions: 'golf-companions', tee: 'golf-tee', holes: 'golf-holes'};
+function golfRemember() {
+  try {
+    const kept = {};
+    for (const k in GOLF_KEPT) kept[k] = document.getElementById(GOLF_KEPT[k]).value;
+    localStorage.setItem('elmer_golf_setup', JSON.stringify(kept));
+  } catch (e) {}
+}
+try {
+  const kept = JSON.parse(localStorage.getItem('elmer_golf_setup') || 'null');
+  if (kept) for (const k in GOLF_KEPT) {
+    const el = document.getElementById(GOLF_KEPT[k]);
+    if (el && kept[k] != null && [...el.options].some(o => o.value === String(kept[k]))) el.value = kept[k];
+  }
+} catch (e) {}
+async function golfGroup(n) {
+  const sel = document.getElementById('golf-companions');
+  if (sel && sel.value !== String(n)) sel.value = String(n);
+  golfRemember();
+  await api('/api/party/bots', {on: true, companions: n});
+  painted = null;                      // the clubhouse repaints with the new seats
+  tick();
+}
+document.getElementById('golf-companions').addEventListener('change', e => golfGroup(parseInt(e.target.value, 10) || 0));
+['golf-tee', 'golf-holes'].forEach(id => document.getElementById(id).addEventListener('change', golfRemember));
+document.addEventListener('change', e => {
+  const sel = e.target.closest('[data-club-companions]');
+  if (sel) golfGroup(parseInt(sel.value, 10) || 0);
 });
 
 async function autoTick() {
