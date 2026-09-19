@@ -106,9 +106,18 @@ def main():
     check("the ground was asked, once", len(asked), 1)
     check("  and the terrain is named", (d["terrain"], d["source"]), (True, "a hill in the middle"))
     check("  the far end is the same radio unless said", d["there"]["key"], "ht")
-    check("  the shelf, the bands, the modes and the sites come with it for the page",
-          (len(d["shelf"]), [b["key"] for b in d["bands"]], [m["key"] for m in d["modes"]], len(d["sites"])),
-          (6, ["6m", "2m", "1.25m", "70cm"], ["fm", "ssb", "cw", "ft8"], 4))
+    # The band list carries the ionosphere's bands as well now, marked, so
+    # the page can offer them and say which kind of answer each will give.
+    # The four the budget itself works along the ground come first.
+    check("  the shelf, the modes and the sites come with it for the page",
+          (len(d["shelf"]), [m["key"] for m in d["modes"]], len(d["sites"])),
+          (6, ["fm", "ssb", "cw", "ft8"], 4))
+    check("  the bands begin with the ones a signal travels the ground on",
+          [b["key"] for b in d["bands"]][:4], ["6m", "2m", "1.25m", "70cm"])
+    check("  and go on to the ones it does not",
+          ([b["key"] for b in d["bands"] if b.get("kind") == "sky"][:3],
+           all(b.get("kind") == "ground" for b in d["bands"][:4])),
+          (["160m", "80m", "60m"], True))
     check("  bearing and distance", (0 <= d["bearing"] < 360, 5 < d["km"] < 15), (True, True))
     check("  the odds are a fraction and the verdict a word", (0 <= d["odds"] <= 1, d["verdict"] in ("good", "likely", "worth trying", "long shot", "no")), (True, True))
     far = {"lat": 44.9, "lon": -93.2, "grid": "EN34", "short": "the cities"}

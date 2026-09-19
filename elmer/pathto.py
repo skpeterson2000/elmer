@@ -266,15 +266,94 @@ def ladder(km, sight, sky, license=None):
             ("General" if reachout._class_rank(you) >= bandplan.CLASS_RANK.get("General", 2) else you)}
 
 
+# The bands this panel will answer for, in the order a band list runs. The
+# four at the top are the line-of-sight ones, worked as a link budget along
+# the ground; the rest are the ionosphere's, and are answered by the sky
+# rather than by the terrain.
+#
+# The list used to be the four alone, so a selector that started at 6 m and
+# offered nothing below it read as a tool that had given up - and the HF
+# answer, which this program computes in full, was in a different panel that
+# nobody had been pointed at. Asking about 20 m gets the ionosphere's answer
+# now, and says that is what it is.
+SKY_BANDS = ("160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "11m", "10m")
+
+
+def _band_choices(ground):
+    """Every band this panel answers for, the line-of-sight ones first.
+
+    `ground` is the link budget's own list, which is the four bands it can
+    work along the terrain. The sky's bands follow, marked, so the page can
+    say which kind of answer a choice will get before it is made.
+    """
+    out = [dict(row, kind="ground") for row in (ground or [])]
+    out += [{"key": key, "label": key.replace("m", " m"), "kind": "sky"}
+            for key in SKY_BANDS]
+    return out
+
+
+def _sky_link(here, there, band):
+    """The ionosphere's answer for one band on this path.
+
+    Not a link budget. On these bands the ground between the two stations
+    is not the path, so what is measured is the sky at the midpoint of it:
+    the critical frequency there, the MUF along the path, whether this band
+    comes back at all, and in how many hops. The same reading the rest of
+    the page runs on, asked one band at a time.
+    """
+    km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
+    # The same midpoint the panel above reads at. Two panels on one page
+    # disagreeing about the sky over the same path is the kind of thing this
+    # program has been caught doing before.
+    mid_lat = (here["lat"] + there["lat"]) / 2.0
+    mid_lon = (here["lon"] + there["lon"]) / 2.0
+    snap = propagation.snapshot(lat=mid_lat, lon=mid_lon)
+    sky = propagation.path_bands(
+        km, fof2=snap.get("fof2"), hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
+        elevation=snap.get("elevation") or 0.0, k_index=snap.get("k_index") or 2.0,
+        muf=snap.get("muf"))
+    row = next((r for r in sky["bands"] if r["band"] == band), None)
+    return {
+        "kind": "sky", "band": band, "km": round(km), "miles": round(km * 0.621371),
+        "bearing": round(bearing),
+        "works": bool(row and row["works"]),
+        "how": (row or {}).get("how"),
+        "hops": (row or {}).get("hops"),
+        "score": (row or {}).get("score"),
+        "label": (row or {}).get("label"),
+        "why": (row or {}).get("why"),
+        # The MUF is the snapshot's, the same as the panel above reads:
+        # path_bands returns the critical frequency and not the maximum
+        # usable one.
+        "fof2": sky.get("fof2"), "muf": snap.get("muf"),
+        "one_hop_km": sky.get("one_hop_km"),
+        "read_at": sky.get("read_at"),
+        "bands": _band_choices(None) if False else None,   # filled by link()
+        "to": {"short": there.get("short") or there.get("name"), "grid": there.get("grid")},
+    }
+
+
 def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, site="residential"):
-    """The same path by the numbers on VHF or UHF: the link budget along
-    the ground between, for a radio at each end off the shelf. The sight
-    test says whether the ground clears; this says what the ground costs
-    and whether these two radios have it to spend."""
+    """The same path by the numbers: a link budget along the ground on the
+    bands that travel along it, and the ionosphere's own verdict on the
+    bands that do not.
+
+    The sight test says whether the ground clears; the budget says what the
+    ground costs and whether these two radios have it to spend. Neither
+    question means anything on 20 m over a thousand miles - the signal goes
+    up and comes back, and the numbers that matter are the critical
+    frequency, the MUF along the path and how many hops it takes.
+    """
+    if band in SKY_BANDS:
+        out = _sky_link(here, there, band)
+        out["bands"] = _band_choices(linkbudget.for_bands()
+                                     if hasattr(linkbudget, "for_bands") else None)
+        return out
     km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     out = linkbudget.for_path(here, there, km, band=band, mode=mode, radio_here=radio_here,
                               radio_there=radio_there, site=site)
     out["bearing"] = round(bearing)
+    out["bands"] = _band_choices(out.get("bands"))
     out["to"] = {"short": there.get("short") or there.get("name"), "grid": there.get("grid")}
     return out
 

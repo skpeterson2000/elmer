@@ -49,6 +49,12 @@ from . import groundwave, terrain
 
 # The bands, and the frequency the budget is worked at.
 BANDS = {"6m": 50.2, "2m": 146.0, "1.25m": 223.5, "70cm": 446.0}
+
+
+def for_bands():
+    """The bands this budget can work: the ones a signal travels the ground
+    on. Asked for by the page's band list, which also offers the sky's."""
+    return [{"key": k, "label": BAND_LABELS[k]} for k in BANDS]
 BAND_LABELS = {"6m": "6 m", "2m": "2 m", "1.25m": "1.25 m", "70cm": "70 cm"}
 
 # The shelf. Each is a radio and the antenna that goes with it as people
@@ -405,7 +411,7 @@ def for_path(here, there, km, prof=None, band="2m", mode="fm", radio_here="ht", 
     out["step_up"] = step_up(km, pts, band, mode, out["here"]["key"], out["there"]["key"], site)
     out["source"] = (prof or {}).get("source") if pts else None
     out["shelf"] = [{"key": k, "label": RADIOS[k]["label"], "short": RADIOS[k]["short"]} for k in SHELF]
-    out["bands"] = [{"key": k, "label": BAND_LABELS[k]} for k in BANDS]
+    out["bands"] = for_bands()
     out["modes"] = [{"key": k, "label": groundwave.MODES[k]["label"]} for k in ("fm", "ssb", "cw", "ft8")]
     out["sites"] = [{"key": k, "label": v[2]} for k, v in groundwave.NOISE_SITES.items()]
     return out

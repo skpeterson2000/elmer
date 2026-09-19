@@ -269,7 +269,7 @@ async function roLink(to, path) {
   const box = document.getElementById('ro-link');
   if (!box || !to) return;
   const st = roLinkSeed();
-  box.innerHTML = '<div class="panel-title" style="margin-top:.6rem">By the numbers on VHF and UHF</div><p class="tiny muted">Adding up the path...</p>';
+  box.innerHTML = '<div class="panel-title" style="margin-top:.6rem">By the numbers</div><p class="tiny muted">Adding up the path...</p>';
   let d;
   try {
     d = await api('/api/path-link?' + new URLSearchParams({to: to, band: st.band, mode: st.mode, here: st.here, there: st.there || st.here, site: st.site}));
@@ -277,12 +277,61 @@ async function roLink(to, path) {
   if (!d.ok) { box.innerHTML = ''; return; }
   const sel = (id, list, value, title) => '<select class="btn sm" id="' + id + '" title="' + escapeHTML(title) + '">' +
     list.map(o => '<option value="' + escapeHTML(o.key) + '"' + (o.key === value ? ' selected' : '') + '>' + escapeHTML(o.label) + '</option>').join('') + '</select>';
+  /* An HF band answers with the ionosphere, not with the terrain.
+     The band list used to stop at 6 m, so a selector that offered nothing
+     below it read as a tool that had given up - while the page computed the
+     HF answer in full, four lines higher up, in a panel nobody had been
+     pointed at. Choosing 20 m now gets that answer here, said as numbers,
+     and says which kind of answer it is. Running a ground-wave budget on
+     20 m over a thousand miles would print a confident 0% for a path that
+     is wide open, which is worse than declining to answer. */
+  if (d.kind === 'sky') {
+    const works = !!d.works;
+    const pct = Math.max(0, Math.min(100, d.score == null ? (works ? 60 : 0) : d.score));
+    const colour = works ? (pct >= 70 ? 'var(--green)' : 'var(--amber)') : 'var(--red)';
+    box.innerHTML =
+      '<div class="panel-title" style="margin-top:.6rem">By the numbers</div>' +
+      '<div class="row" style="flex-wrap:wrap;gap:.5rem;align-items:center;margin:.3rem 0">' +
+        sel('ro-link-band', d.bands, d.band, 'the band') +
+      '</div>' +
+      '<div class="spread" style="align-items:baseline;flex-wrap:wrap;gap:.4rem">' +
+        '<b>' + escapeHTML(d.band) + ', ' + d.miles + ' miles</b>' +
+        '<span class="tiny mono" style="color:' + colour + '">' +
+          escapeHTML(d.label || (works ? 'open' : 'closed')) + '</span>' +
+      '</div>' +
+      '<div class="meter thin" style="margin:.3rem 0"><i class="' +
+        (pct >= 60 ? 'fill-high' : pct >= 35 ? 'fill-mid' : 'fill-low') +
+        '" style="width:' + pct + '%"></i></div>' +
+      '<p class="small" style="margin:.3rem 0">' +
+        (works
+          ? 'The ionosphere carries this path on ' + escapeHTML(d.band) + ' right now, ' +
+            escapeHTML(d.how || 'by skywave') + '.'
+          : escapeHTML(d.why || 'This band does not come back from the ionosphere on this path just now.')) +
+      '</p>' +
+      '<table class="data tiny" style="margin:.3rem 0">' +
+        '<tr><th>critical frequency</th><th>MUF along the path</th><th>one hop reaches</th></tr>' +
+        '<tr><td class="mono">' + (d.fof2 == null ? '?' : d.fof2 + ' MHz') + '</td>' +
+        '<td class="mono">' + (d.muf == null ? '?' : d.muf + ' MHz') + '</td>' +
+        '<td class="mono">' + (d.one_hop_km == null ? '?' : d.one_hop_km + ' km') + '</td></tr>' +
+      '</table>' +
+      '<p class="tiny muted" style="margin:.2rem 0 0">This is the sky, not the ground. ' +
+        'On these bands the signal leaves at an angle, turns in the ionosphere and comes ' +
+        'down again, so the terrain between you is not the path and there is no line of ' +
+        'sight to draw. Read at the middle of the path, where a hop is reflected - the ' +
+        'same reading the bands line above runs on. Pick 6 m or higher for a link budget ' +
+        'along the ground.</p>';
+    const pick = document.getElementById('ro-link-band');
+    if (pick) pick.addEventListener('change', () => {
+      roLinkState.band = pick.value; roLinkRemember(); roLink(to, path);
+    });
+    return;
+  }
   const tone = RO_TONE[d.verdict === 'likely' ? 'good' : d.verdict === 'no' ? 'the rule' : d.verdict] || '#8b98a5';
   const pct = Math.round(100 * d.odds);
   const leg = (name, l) => '<tr><td>' + name + '</td><td class="mono">' + l.leaves_dbm + '</td><td class="mono">' + l.arrives_dbm + '</td><td class="mono">' + l.needed_dbm + '</td><td class="mono">' + (l.margin_db >= 0 ? '+' : '') + l.margin_db + ' dB</td><td class="mono">' + Math.round(100 * l.odds) + '%</td></tr>';
   const loss = d.loss || {};
   box.innerHTML =
-    '<div class="panel-title" style="margin-top:.6rem">By the numbers on VHF and UHF</div>' +
+    '<div class="panel-title" style="margin-top:.6rem">By the numbers</div>' +
     '<div class="row" style="flex-wrap:wrap;gap:.5rem;align-items:center;margin:.3rem 0">' +
       '<span class="tiny muted">You</span>' + sel('ro-link-here', d.shelf, d.here.key, 'the radio and antenna at your end, off the shelf - the next entry down the list is the next thing to buy') +
       '<span class="tiny muted">them</span>' + sel('ro-link-there', d.shelf, d.there.key, 'the radio at the far end') +
