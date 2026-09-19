@@ -97,8 +97,16 @@ def _ask_who():
     """
     if request.endpoint not in MINE:
         return None
+    connection = db.connect()
     who = _wanted_user()
-    if who is not None and db.user_exists(db.connect(), who):
+    if who is not None and db.user_exists(connection, who):
+        return None
+    # One person, no password: there is nobody to choose between and nothing
+    # to protect, so there is nothing to ask. Somebody alone at home should
+    # not have to sign in to their own bench every morning, and a door that
+    # asks a question with one answer teaches people to click past doors.
+    people = db.users(connection)
+    if len(people) == 1 and not db.has_password(connection, people[0]["id"]):
         return None
     return redirect(url_for("who_page", next=request.full_path.rstrip("?")))
 
@@ -7845,9 +7853,10 @@ def api_settings():
     connection = conn()
     if (db.is_sealed_account(connection) and not connection.data_key
             and any(k in body for k in db.SEALED_KEYS)):
-        return jsonify({"ok": False, "sealed": True,
-                        "message": "This account's private data is sealed - unlock it with your "
-                                   "password from the account menu, then save."}), 423
+        return jsonify({"ok": False, "sealed": True, "locked": True,
+                        "user": connection.user_id,
+                        "name": db.get_profile(connection)["display_name"],
+                        "message": "Your password unlocks this."}), 423
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         settings = _adopt_license(connection, body["callsign"] or "", settings)
@@ -8112,13 +8121,23 @@ def _user_block(connection):
             "local": _is_local(request.remote_addr)}
 
 
-def _with_user_cookie(payload, user_id):
-    """Answer, and remember on this browser who that was."""
+def _with_user_cookie(payload, user_id, remember=False):
+    """Answer, and remember on this browser who that was.
+
+    `remember` is the operator saying this machine is theirs: the choice
+    outlives the window rather than ending with it. The key to any sealed
+    data is not kept that way and never will be - it lives in this process
+    and dies with it - so a remembered station still asks for the password
+    the first time it needs to read something sealed, once, where it needs
+    it. Who you are is a convenience; what is sealed is a secret.
+    """
     response = jsonify(payload)
-    # No max-age: who is at the controls lasts until the window closes or
-    # they sign out, which is what "logged in" means. It used to be a year,
-    # so a unit reopened next morning was still whoever last touched it.
-    response.set_cookie(USER_COOKIE, str(user_id), samesite="Lax")
+    if remember:
+        response.set_cookie(USER_COOKIE, str(user_id), max_age=COOKIE_YEARS, samesite="Lax")
+    else:
+        # Until the window closes or they sign out, which is what being
+        # logged in means on a unit other people also use.
+        response.set_cookie(USER_COOKIE, str(user_id), samesite="Lax")
     return response
 
 
@@ -8163,7 +8182,8 @@ def api_users_switch():
     payload = _user_block(connection)
     if recovery:
         payload["recovery"] = recovery
-    return _open_session(_with_user_cookie(payload, wanted), wanted, key)
+    return _open_session(_with_user_cookie(payload, wanted, bool(body.get("remember"))),
+                         wanted, key)
 
 
 @app.route("/api/users/add", methods=["POST"])

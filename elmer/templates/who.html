@@ -71,6 +71,16 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
     possible: ELMER makes the first account on its first start.</p>
   {% endif %}
 
+  <label class="small" style="display:flex;align-items:center;gap:.4rem;margin-top:1rem">
+    <input type="checkbox" id="who-stay" checked> Stay signed in on this machine
+  </label>
+  <p class="tiny muted" style="margin:.2rem 0 0">
+    For a bench of your own. ELMER will open as you until you sign out. A
+    password, if you have one, is still asked once when something sealed is
+    needed &mdash; who you are is a convenience, what is sealed is a secret.
+    Untick it on a unit other people use.
+  </p>
+
   <p class="tiny muted" style="margin-top:1rem">
     Somebody new? Sign in as anyone and add them from the account menu in the
     corner. A guest at a club night needs no account here: they join a table on
@@ -88,7 +98,8 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
     try {
       r = await fetch('/api/users/switch', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({id: +id, password: password || ''})});
+        body: JSON.stringify({id: +id, password: password || '',
+                              remember: !!(document.getElementById('who-stay') || {}).checked})});
     } catch (e) { if (said) said.textContent = 'could not reach ELMER'; return; }
     if (r.ok) { location.href = where || '/'; return; }
     if (said) said.textContent = r.status === 403 ? 'that is not the password' : 'could not sign in';

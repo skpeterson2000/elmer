@@ -39,6 +39,7 @@ function banner(text) {
 }
 
 async function api(url, options) {
+  const opts = options || {};
   let res;
   try {
     res = await fetch(url, Object.assign({
@@ -76,6 +77,36 @@ async function api(url, options) {
         const sentence = said && (said.message || said.error);
         if (typeof sentence === 'string') refused = sentence.trim();
       } catch (err) { /* not JSON, so not a sentence anybody wrote */ }
+    }
+    /* Locked, rather than refused.
+     *
+     * A sealed account cannot save its QTH until somebody gives the
+     * password. ELMER used to answer that with "Not done" and a sentence
+     * telling the operator to go and find a menu - which is a refusal, a
+     * lecture and an errand, for something that could be asked for on the
+     * spot. It asks here instead, and when the password opens the account
+     * the request that was refused is simply made again, so the thing the
+     * person was doing finishes rather than having to be started over. */
+    if (res.status === 423 && typeof askPassword === 'function' && !opts._retried) {
+      let said = null;
+      try { said = JSON.parse(body); } catch (err) { /* not JSON */ }
+      if (said && said.locked && said.user) {
+        const password = await askPassword({
+          title: 'Unlock ' + (said.name || 'this account'),
+          label: 'Your password',
+          note: said.message || 'This is kept with your account and sealed with your password.',
+        });
+        if (password) {
+          const opened = await fetch('/api/users/switch', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: said.user, password: password})}).catch(() => null);
+          if (opened && opened.ok) return api(url, Object.assign({}, opts, {_retried: true}));
+          toast('Not this time', 'That password does not open this account.');
+          const err = new Error('locked');
+          err.refusal = true; err.status = 423;
+          throw err;
+        }
+      }
     }
     if (refused) {
       if (document.getElementById('toaster')) toast('Not done', refused);
