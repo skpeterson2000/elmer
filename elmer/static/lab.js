@@ -1462,7 +1462,25 @@ function calcAnt() {
   const slopeWire = rows['Wire length'] || rows['Overall length'] || 0;
   const slopeDrop = slopeWire * Math.sin(slope * Math.PI / 180) /
                     (type === 'dipole' ? 2 : 1);
-  const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2) : heightFt;
+  /* An inverted-V does not radiate from its apex, and the ground reflection
+     that sets the takeoff angle is interfering with a wire whose current is
+     spread down two sloping legs. The pattern follows the current-weighted
+     mean height, which is V_CENTROID of the way out along each leg - the
+     same number the NVIS panel below has always shown and the same one
+     antenna_advice.py picks an NVIS apex with.
+
+     The pattern plot used to be handed the apex, so an inverted-V drew the
+     identical elevation lobe to a flat dipole at the same height, and the
+     droop slider moved the drawing of the antenna and the NVIS figures
+     while the radiation pattern sat still. At a thirty-five degree droop
+     that flattered the antenna by about seven degrees of takeoff angle on
+     the heights people actually hang wire at, always in the direction of
+     making it look better for distance than it is. */
+  const vDrop = type === 'invertedv'
+    ? V_CENTROID * legFt * Math.sin(num('an-droop') * Math.PI / 180) : 0;
+  const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2)
+    : vDrop ? Math.max(1, heightFt - vDrop)
+      : heightFt;
   const heading = num('an-head');
   const headWords = type === 'yagi'
     ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
@@ -3429,8 +3447,12 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
      turn the plots between the two: turned from below, watching what one
      does, and the reading of it after. */
   const words = document.getElementById('an-pattern-words');
+  const vNote = (type === 'invertedv' && effHeight && heightFt && effHeight < heightFt - 0.5)
+    ? ' Taken from the <b>' + effHeight.toFixed(0) + ' ft</b> this V radiates from rather than its ' +
+      heightFt.toFixed(0) + ' ft apex: the current is spread down the legs, so the mean height is lower and the angle higher.'
+    : '';
   const elevationWords = '<p class="tiny muted">Strongest at <b>' + d.main_lobe_deg +
-        '&deg;</b> above the horizon. ' +
+        '&deg;</b> above the horizon.' + vNote + ' ' +
         (d.shape === 'vertical'
           ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
           : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled and a vertical\'s lobe sits where a measurement puts it, up off the horizon.') +
