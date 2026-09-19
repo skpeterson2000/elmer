@@ -1,4 +1,4 @@
-/* ELMER says its own name, in code, when it opens.
+/* ELMER says its own name, in code, when it opens - and whenever asked.
 
    Twenty words a minute, no Farnsworth stretch, on the 1020 Hz the rest of
    the program keys on. It is the station identifying itself, which is the
@@ -19,25 +19,28 @@
    each time rather than never, which is the better way round for something
    whose whole job is to say the unit is awake.
 
-   Off is a switch in the Station panel, because a room where this would be
-   unwelcome is easy to picture: a net in progress, a classroom, a hospital,
-   a field site at night. Being quiet is sometimes what being in a community
-   asks of a station.
+   And on demand, from the icon in the corner. The wordmark beside it is
+   still the way home - Dashboard in the bar goes there too - but the icon
+   itself keys the name again. That is a plain thing to want (hear it again;
+   check the sound; show somebody) and it costs nothing, because browsers
+   keep audio silent until a page has been touched and a press on the icon
+   is a touch. A second press restarts it rather than keying two names on
+   top of each other.
+
+   Off is a switch in the Station panel, and off means off: the icon is a
+   plain link then, because a room where the announcement would be
+   unwelcome - a net in progress, a classroom, a hospital, a field site at
+   night - is exactly the room where a stray click must not key a tone.
+   Being quiet is sometimes what being in a community asks of a station.
 
    Browsers keep audio silent until a page has been touched. Where that
-   applies the announcement waits for the first press or key and goes then,
-   which on a kiosk that allows audio is not needed at all and everywhere
-   else costs one click nobody notices making. */
+   applies the opening announcement waits for the first press or key and
+   goes then, which on a kiosk that allows audio is not needed at all and
+   everywhere else costs one click nobody notices making. */
 (() => {
   const cfg = window.ELMER_ANNOUNCE;
   if (!cfg || !cfg.on) return;
   if (typeof player === 'undefined' || typeof CODE === 'undefined') return;
-
-  const MARK = 'elmer.announced';
-  try {
-    if (sessionStorage.getItem(MARK)) return;
-    sessionStorage.setItem(MARK, '1');
-  } catch (e) { /* no storage: say it, rather than never say it */ }
 
   /* Twenty words a minute both ways. The lessons stretch the gaps because a
      learner needs the thinking time; a station identifying itself does not,
@@ -61,26 +64,57 @@
 
   const say = () => {
     try {
+      player.stop();                       // a name half sent is not a name
       if (typeof holdTone === 'function') holdTone(TONE);
       player.send(words, TIMING, null, () => {
         if (typeof holdTone === 'function') holdTone(null);
       });
     } catch (e) { /* no audio on this machine; nothing to report */ }
   };
+  window.elmerSayName = say;
+
+  /* The opening announcement's wait for a first touch, if one is needed.
+     Defined up here so the icon's press can stand in for that touch and
+     not key the name twice - once for the press, once for the wake. */
+  const TOUCH = ['pointerdown', 'keydown', 'touchstart'];
+  let waiting = false;
+  const unwait = () => {
+    if (!waiting) return false;
+    waiting = false;
+    TOUCH.forEach(ev => document.removeEventListener(ev, wake, true));
+    return true;
+  };
+  const wake = () => {
+    if (unwait()) setTimeout(say, 120);    // let the press do its own job first
+  };
+
+  /* The icon, or the wordmark where a unit has no icon file. */
+  const knob = document.querySelector('.brand-icon') || document.querySelector('.brand-mark');
+  if (knob && !knob.dataset.cwBound) {
+    knob.dataset.cwBound = '1';
+    knob.title = 'ELMER, in code';
+    knob.style.cursor = 'pointer';
+    knob.addEventListener('click', e => {
+      e.preventDefault();                  // the wordmark beside it still goes home
+      e.stopPropagation();
+      unwait();                            // this press is the touch; do not also wake
+      try { player.ensure(); } catch (err) { return; }
+      say();
+    });
+  }
+
+  /* Once when the program opens. */
+  const MARK = 'elmer.announced';
+  try {
+    if (sessionStorage.getItem(MARK)) return;
+    sessionStorage.setItem(MARK, '1');
+  } catch (e) { /* no storage: say it, rather than never say it */ }
 
   let ctx = null;
   try { ctx = player.ensure(); } catch (e) { return; }
   if (ctx && ctx.state === 'running') { say(); return; }
 
   /* Silenced until the page is touched. Wait for that, once. */
-  let waiting = true;
-  const wake = () => {
-    if (!waiting) return;
-    waiting = false;
-    ['pointerdown', 'keydown', 'touchstart']
-      .forEach(ev => document.removeEventListener(ev, wake, true));
-    setTimeout(say, 120);            // let the press do its own job first
-  };
-  ['pointerdown', 'keydown', 'touchstart']
-    .forEach(ev => document.addEventListener(ev, wake, {capture: true, passive: true}));
+  waiting = true;
+  TOUCH.forEach(ev => document.addEventListener(ev, wake, {capture: true, passive: true}));
 })();
