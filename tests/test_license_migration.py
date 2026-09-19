@@ -70,7 +70,11 @@ def main():
     conn.commit()
 
     print("\n-- the upgrade --")
-    check("the database says it is version 8 afterwards", db.migrate(conn), 8)
+    # Whatever the current version is: this test is about what the version 8
+    # step does to the licence class, not about 8 being the last step. It
+    # said "8" and went red the day a version 9 was added behind it.
+    check("the database is brought all the way up to date", db.migrate(conn), db.SCHEMA_VERSION)
+    check("  which is past the step under test", db.SCHEMA_VERSION >= 8, True)
     check("a class with nothing behind it is gone",
           settings_of(conn, 1).get("license_class"), None)
     check("  a class the operator said was theirs stays, and stays marked",
