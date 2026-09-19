@@ -139,10 +139,28 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None):
               payload, buf = buf[off:off + n], buf[off + n:]
               return json.loads(payload)
 
+      # A native dialog - alert(), confirm(), prompt() - with nobody to answer
+      # it. Headless Chromium closes it on its own and, in the builds this
+      # has been seen on, takes the renderer down with it; after that the
+      # Runtime.evaluate in flight is never answered and the test hangs for
+      # ever with nothing printed. Found the first time a page was driven
+      # with two accounts on the unit, which is when ELMER offers a password
+      # in a confirm(). Answered here, with Cancel, the moment it opens: the
+      # dialog closes cleanly and the page goes on. Cancel is the answer that
+      # changes nothing.
+      dialogs = [0]
+
       def call(ident, method, **params):
           send({"id": ident, "method": method, "params": params})
           while True:
               msg = recv()
+              if msg.get("method") == "Page.javascriptDialogOpening":
+                  dialogs[0] += 1
+                  send({"id": 9000 + dialogs[0], "method": "Page.handleJavaScriptDialog",
+                        "params": {"accept": False}})
+                  continue
+              if msg.get("method") == "Inspector.targetCrashed":
+                  raise RuntimeError("the page crashed under the test")
               if msg.get("id") == ident:
                   return msg.get("result", msg)
 
