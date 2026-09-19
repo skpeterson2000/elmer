@@ -58,7 +58,7 @@ function renderUpdate(d) {
     /* And how to join them. Always printed, because the promise of a name
        in the credits has to be findable before anyone is on the list. */
     '<div class="tiny muted" style="margin-top:.3rem">ELMER is a gift to the amateur radio ' +
-      'community, free for everyone. If you like it, thank the developer with a cup of coffee ' +
+      'community, free for noncommercial use. If you like it, thank the developer with a cup of coffee ' +
       '&mdash; or something more generous to fuel the next release &mdash; at ' +
       '<a href="https://github.com/sponsors/skpeterson2000" target="_blank" rel="noopener">' +
       'github.com/sponsors/skpeterson2000</a>. Supporters are named here and in SUPPORTERS.md, ' +

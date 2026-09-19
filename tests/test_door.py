@@ -80,8 +80,13 @@ def main():
     # shut, because the key lives in the process and the process has gone.
     cold = app.test_client()
     cold.set_cookie("elmer_user", "1")
+    # Where the station stands is not what this is about any more: that is
+    # saved by anybody, signed in or not, because every answer is built on
+    # it. What needs the key is a credential for somebody else's service.
     r = cold.post("/api/settings", json={"location": {"lat": 45.0, "lon": -93.0, "grid": "EN35"}},
                   environ_base=LOCAL)
+    check("the QTH saves with no password at all", r.status_code, 200)
+    r = cold.post("/api/settings", json={"repeaterbook_token": "rbuapp_secret"}, environ_base=LOCAL)
     said = r.get_json()
     check("the save is refused", r.status_code, 423)
     check("  and says it is a lock, not a fault", said.get("locked"), True)
@@ -94,8 +99,7 @@ def main():
     print("\n-- and the password finishes the job --")
     check("it opens", cold.post("/api/users/switch", json={"id": 1, "password": "hunter2"},
                                 environ_base=LOCAL).status_code, 200)
-    r = cold.post("/api/settings", json={"location": {"lat": 45.0, "lon": -93.0, "grid": "EN35"}},
-                  environ_base=LOCAL)
+    r = cold.post("/api/settings", json={"repeaterbook_token": "rbuapp_secret"}, environ_base=LOCAL)
     check("  and the save that was refused now goes through", r.status_code, 200)
     # Read the way a page reads it: through the session that holds the key.
     # A connection without one sees the sealed blob and not the place, which

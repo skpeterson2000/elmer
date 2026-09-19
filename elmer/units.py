@@ -7,15 +7,31 @@ distinction matters more than it looks.
 Nobody calls it the forty yard band. Wavelength is metres because the bands
 are named in metres, wire is cut in feet because that is how wire is sold and
 how every table in every handbook prints it, heights above ground are feet for
-the same reason, hmF2 and skip distance are kilometres because that is what
-ionosondes report and what every propagation paper uses. Converting those
-would not be respectful of a preference, it would be vandalism - an operator
-who sets "imperial" is telling ELMER how they think about a drive to a park,
-not asking for the 40 m band to be renamed.
+the same reason, and the height of the F2 layer is kilometres because that is
+what an ionosonde reports and what every propagation paper prints. Converting
+those would not be respectful of a preference, it would be vandalism - an
+operator who sets "imperial" is telling ELMER how they think about a drive to
+a park, not asking for the 40 m band to be renamed.
 
 So what moves is the answer to "how far is that": parks and summits, repeaters,
 the distance to a place. Three systems, because a maritime operator thinks in
 nautical miles and has as much right to their own units as anybody else.
+
+Skip distance belongs on the moving side, and this file used to say it did
+not. The reasoning was that an ionosonde reports in kilometres, which is true
+and beside the point: hmF2 is a property of the layer, and skip distance is
+the distance across the ground to the nearest person who can hear you. That
+is the same question as how far the next park is. Naming it alongside hmF2
+put it on the wrong side of the line, and the line is not about what a paper
+prints - it is about whether the number answers "how far is that".
+
+What made it worse than a wrong label: nothing in the app read this file.
+The preference reached one page. Everywhere else picked a unit and hardcoded
+it, so the skip zone came out in kilometres on the Lab page and in miles on
+the band plan, and an operator who had chosen either one was being ignored in
+one place or the other. The helpers below have a counterpart in elmer.js -
+away(), awayText() - and any distance on a screen should come through one of
+them rather than a multiplication written in place.
 """
 
 KM_PER_MI = 1.609344

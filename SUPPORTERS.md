@@ -1,7 +1,8 @@
 # Supporters
 
 ELMER is a gift to the amateur radio community, which has given its
-author a great deal, and it is free for everyone, supporter or not. The
+author a great deal, and it is free for noncommercial use, supporter or
+not. The
 people on this list liked it enough to thank the developer with a cup of
 coffee, or something more generous to fuel the next release. This is where
 the thanks go back.

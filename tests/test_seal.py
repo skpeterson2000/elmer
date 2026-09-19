@@ -4,11 +4,18 @@
     python3 tests/test_seal.py
 
 The cipher round-trips, refuses a wrong key and a touched blob, and never
-repeats itself. An account that takes a password has its QTH, its token
-and its notes sealed in the database file - readable with the key, named
-and nothing more without it - carried through a password change, given
-back plain when the password comes off, and opened by the recovery code
-when the password is gone. Runs against a throwaway database.
+repeats itself. An account that takes a password has its token and its
+notes sealed in the database file - readable with the key, named and
+nothing more without it - carried through a password change, given back
+plain when the password comes off, and opened by the recovery code when
+the password is gone. Runs against a throwaway database.
+
+The QTH is deliberately not among them. It was, for two days, and the cost
+was out of all proportion to the secret: the data key dies with the process,
+so every restart left the station unable to say where it stood, and every
+answer built on the QTH went quiet at once. A grid square is on every card
+that ever left the shack. Somebody else's API token is a real credential.
+That is the line, and test_qth_unsealed.py holds the other side of it.
 """
 import json
 import sys
@@ -71,8 +78,9 @@ def main():
     check("the change reports a seal, a key and a recovery code",
           (got["locked"], got["sealed"], len(got["key"] or b""), bool(got["recovery"])), (True, True, 32, True))
     row = raw(conn, alice)
-    check("the file holds no plain QTH", ("EN26uo" in row["settings"], "Pequot" in row["settings"]), (False, False))
-    check("  nor the token", "rbuapp_secret" in row["settings"], False)
+    check("the file holds no plain token", "rbuapp_secret" in row["settings"], False)
+    check("  but the QTH stays readable - it is not a secret, and everything needs it",
+          ("EN26uo" in row["settings"], "Pequot" in row["settings"]), (True, True))
     check("  the licence class stays plain - the room's boards show it", json.loads(row["settings"]).get("license_class"), "General")
     note = conn.execute("SELECT body FROM user_note WHERE user_id = ?", (alice,)).fetchone()["body"]
     check("  the note is sealed", (note.startswith("sealed:"), "ohm" in note), (True, False))
@@ -80,17 +88,23 @@ def main():
     print("\n-- without the key: named, and nothing more --")
     cold = db.connect()
     prof = db.get_profile(cold)
-    check("the profile says what is sealed", sorted(prof["settings"].get("sealed_fields") or []), ["location", "repeaterbook_token"])
-    check("  and does not carry it", ("location" in prof["settings"], "repeaterbook_token" in prof["settings"]), (False, False))
+    check("the profile says what is sealed", sorted(prof["settings"].get("sealed_fields") or []), ["repeaterbook_token"])
+    check("  and does not carry it", "repeaterbook_token" in prof["settings"], False)
+    check("  while the QTH is simply there, on a unit nobody has signed in to",
+          prof["settings"]["location"]["grid"], "EN26uo")
     check("  the note reads as nothing", db.get_note(cold, "tech2026", "T1A01"), None)
     try:
-        db.save_settings(cold, dict(prof["settings"], location={"lat": 1, "lon": 2}))
-        check("a plain QTH cannot be written over a seal without the key", False, True)
+        db.save_settings(cold, dict(prof["settings"], repeaterbook_token="new_secret"))
+        check("a plain token cannot be written over a seal without the key", False, True)
     except db.Locked:
-        check("a plain QTH cannot be written over a seal without the key", True, True)
-    db.save_settings(cold, dict(prof["settings"], license_class="Extra"))
+        check("a plain token cannot be written over a seal without the key", True, True)
+    # The QTH is the case that used to raise, and must not: somebody who has
+    # not typed a password still gets to tell ELMER where they are standing.
+    db.save_settings(cold, dict(prof["settings"], location={"lat": 1.0, "lon": 2.0, "grid": "AA00"}))
+    check("a QTH can, with nobody signed in", db.get_profile(db.connect())["settings"]["location"]["grid"], "AA00")
+    db.save_settings(cold, dict(db.get_profile(db.connect())["settings"], license_class="Extra"))
     check("  a plain setting can, and the blobs are kept", (json.loads(raw(conn, alice)["settings"]).get("license_class"),
-          sorted(json.loads(raw(conn, alice)["settings"]).get("sealed") or [])), ("Extra", ["location", "repeaterbook_token"]))
+          sorted(json.loads(raw(conn, alice)["settings"]).get("sealed") or [])), ("Extra", ["repeaterbook_token"]))
 
     print("\n-- with the key: exactly as saved --")
     warm = db.connect()
@@ -98,11 +112,10 @@ def main():
     check("the right password hands over the key", warm.data_key, got["key"])
     check("  a wrong one does not", db.data_key_for(warm, alice, "correct horst"), None)
     prof = db.get_profile(warm)
-    check("the QTH comes back", prof["settings"]["location"]["grid"], "EN26uo")
-    check("  and the token", prof["settings"]["repeaterbook_token"], "rbuapp_secret_token_1234")
+    check("the token comes back", prof["settings"]["repeaterbook_token"], "rbuapp_secret_token_1234")
     check("  and the note", db.get_note(warm, "tech2026", "T1A01"), "remember the ohm's law triangle")
     db.save_settings(warm, dict(prof["settings"], location={"lat": 44.9, "lon": -93.2, "grid": "EN34", "short": "Minneapolis"}))
-    check("a new QTH is sealed on the way in", "EN34" in raw(conn, alice)["settings"], False)
+    check("a new QTH goes in plain even with the key in hand", "EN34" in raw(conn, alice)["settings"], True)
     check("  and read back", db.get_profile(warm)["settings"]["location"]["grid"], "EN34")
     db.save_note(warm, "tech2026", "T1A02", "a second note")
     check("a new note is sealed too", conn.execute("SELECT body FROM user_note WHERE question_id = 'T1A02'").fetchone()["body"].startswith("sealed:"), True)
@@ -113,7 +126,8 @@ def main():
     check("the key is the same key, re-wrapped", got2["key"], got["key"])
     check("  the old password no longer opens it", db.data_key_for(conn, alice, "correct horse"), None)
     check("  the new one does", db.data_key_for(conn, alice, "battery staple"), got["key"])
-    check("  and the data is untouched", "EN34" in raw(conn, alice)["settings"], False)
+    check("  and the sealed data is untouched", "rbuapp_secret" in raw(conn, alice)["settings"], False)
+    check("  the QTH along with it", db.get_profile(db.connect())["settings"]["location"]["grid"], "EN34")
 
     print("\n-- the moderator opens the account, not the seal --")
     db.set_moderator(conn, "club-night")

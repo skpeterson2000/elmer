@@ -1628,7 +1628,10 @@ def api_pattern():
 
     dx = []
     if place.get("lat") is not None and place.get("lon") is not None:
-        dx = patterns.targets(place["lat"], place["lon"], kind, heading, span)
+        # With the layer height, so each place is scored at the angle that
+        # actually reaches it rather than along the ground.
+        dx = patterns.targets(place["lat"], place["lon"], kind, heading, span,
+                              hmf2=hmf2)
         # Ask OpenStreetMap what is really around this QTH, once, for next
         # time. In the background: a pattern is not worth waiting on a web
         # service for, and the bundled list answers well enough meanwhile.
@@ -1657,8 +1660,17 @@ def api_pattern():
         "fed": spec["fed"],
         "elevation": patterns.elevation(kind, height_wl, slope_deg=slope, mhz=mhz),
         "ground": "average",
+        # Two slices of the same pattern, because one of them on its own
+        # has been misleading people. "azimuth" is along the ground, which
+        # is where a wire's nulls are deepest and where a low wire radiates
+        # least; "azimuth_lobe" is cut at the angle this antenna actually
+        # works at. For a low NVIS wire the first is a figure-of-eight and
+        # the second is very nearly a circle, and that gap is the answer to
+        # "which way should I string it".
         "azimuth": patterns.azimuth(kind, heading),
         "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
+        "azimuth_lobe": patterns.azimuth(
+            kind, heading, elev_deg=patterns.main_lobe(kind, height_wl, slope)),
         "slope": slope,
         "swr": patterns.swr_curve(kind, mhz, q=patterns.base_q(kind, mhz)),
         "bandwidth": patterns.usable_bandwidth(
@@ -3715,8 +3727,9 @@ def api_note():
         abort(400, "unknown question")
     try:
         saved = db.save_note(conn(), pool.pool_id, question_id, body.get("body", ""))
-    except db.Locked as exc:
-        return jsonify({"saved": False, "sealed": True, "message": str(exc)}), 423
+    except db.Locked:
+        return _locked(conn(), saved=False,
+                       message="Your password unlocks your notes.")
     return jsonify({"saved": True, "body": saved})
 
 
@@ -7847,16 +7860,31 @@ def api_uls_fetch():
     return jsonify({"state": uls.ensure(service, force=True), "uls": uls.state()})
 
 
+def _locked(connection, **extra):
+    """The one answer for "this needs the password", in the shape the page
+    can act on.
+
+    A 423 has to name whose account it is, because the page asks for that
+    person's password where the work is rather than sending anybody off to
+    find a menu. There used to be three of these and only one of them said
+    so, which meant the same lock produced a prompt in one place and a
+    refusal with a lecture in the other two.
+    """
+    payload = {"ok": False, "sealed": True, "locked": True,
+               "user": connection.user_id,
+               "name": db.get_profile(connection)["display_name"],
+               "message": "Your password unlocks this."}
+    payload.update(extra)
+    return jsonify(payload), 423
+
+
 @app.route("/api/settings", methods=["POST"])
 def api_settings():
     body = request.get_json(force=True)
     connection = conn()
     if (db.is_sealed_account(connection) and not connection.data_key
             and any(k in body for k in db.SEALED_KEYS)):
-        return jsonify({"ok": False, "sealed": True, "locked": True,
-                        "user": connection.user_id,
-                        "name": db.get_profile(connection)["display_name"],
-                        "message": "Your password unlocks this."}), 423
+        return _locked(connection)
     settings = db.get_profile(connection)["settings"]
     if "callsign" in body:
         settings = _adopt_license(connection, body["callsign"] or "", settings)
@@ -7966,8 +7994,8 @@ def api_settings():
         _prefetch_regional(place)
     try:
         db.save_settings(connection, settings)
-    except db.Locked as exc:
-        return jsonify({"ok": False, "sealed": True, "message": str(exc)}), 423
+    except db.Locked:
+        return _locked(connection)
     if settings.get("repeaterbook_token") and ("location" in body or "repeaterbook_token" in body):
         # The machines for wherever this is, under the operator's own token.
         _prefetch_repeaterbook(qth_for(connection, {"settings": settings}), settings["repeaterbook_token"])

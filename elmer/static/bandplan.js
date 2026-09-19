@@ -1596,7 +1596,7 @@ function conditionBar(band, given) {
             'local included &mdash; this band is under the critical frequency, ' +
             'so it comes back from straight overhead.</div>'
           : '<div class="small" style="color:var(--amber)">Nothing closer than ' +
-            '<b>' + Math.round(now.skip_km / 1.609) + ' miles</b>. The rating ' +
+            '<b>' + awayText(now.skip_km) + '</b>. The rating ' +
             'is for a long path; inside that is a skip zone, and neither power ' +
             'nor a different antenna crosses it &mdash; the antenna decides ' +
             'what you launch, the ionosphere decides what comes back, and it ' +

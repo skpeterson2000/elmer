@@ -593,23 +593,69 @@ def get_profile(conn):
     # exactly as they were saved; without it they are named and nothing more.
     if conn.data_key and prof["sealed"]:
         from . import seal
-        blobs = (json.loads(row["settings"] or "{}").get("sealed") or {})
+        stored = json.loads(row["settings"] or "{}")
+        blobs = (stored.get("sealed") or {})
+        freed = {}
         for key, blob in blobs.items():
             try:
-                prof["settings"][key] = json.loads(seal.unseal_text(conn.data_key, blob))
+                value = json.loads(seal.unseal_text(conn.data_key, blob))
             except (seal.Broken, ValueError):
                 pass                       # the wrong key: stays sealed, and named
             else:
+                prof["settings"][key] = value
+                if key in RETIRED_SEALED_KEYS:
+                    freed[key] = value
                 prof["settings"].get("sealed_fields", []).remove(key) if key in prof["settings"].get("sealed_fields", []) else None
         if not prof["settings"].get("sealed_fields"):
             prof["settings"].pop("sealed_fields", None)
+        # The key is in hand, which is the only time this can be done at all.
+        if freed:
+            _free_retired(conn, stored, freed)
     return prof
 
 
-# The settings a password seals: where the station is, and any secret. The
-# name, the callsign and the licence stay plain - the room's boards show them
-# and the callsign is a public record.
-SEALED_KEYS = ("location", "repeaterbook_token")
+def _free_retired(conn, stored, freed):
+    """Write a no-longer-sealed field back in the clear, once.
+
+    Called from the read path, which is not where writes belong, but the
+    data key exists only while its owner is signed in and this is the one
+    moment it is certain to be here. It happens once per account: the blob
+    goes, the plain value stays, and every later start can read it.
+    """
+    blobs = dict(stored.get("sealed") or {})
+    for key, value in freed.items():
+        blobs.pop(key, None)
+        stored[key] = value
+    if blobs:
+        stored["sealed"] = blobs
+    else:
+        stored.pop("sealed", None)
+    stored.pop("sealed_fields", None)
+    conn.execute("UPDATE profile SET settings = ? WHERE id = ?",
+                 (json.dumps(stored), conn.user_id))
+    conn.commit()
+
+
+# The settings a password seals: secrets, and nothing else. The name, the
+# callsign and the licence stay plain - the room's boards show them and the
+# callsign is a public record.
+#
+# The QTH used to be on this list and it should not have been. A grid square
+# is not a credential: it is the one input almost every answer in ELMER is
+# built on. The data key lives in this process and dies with it, so sealing
+# the QTH meant that every restart left the station with no idea where it
+# was until somebody typed a password - and it said so by answering "located:
+# false" with a cheerful 200, which is not an error anybody can act on. What
+# that cost: no path to anywhere, no sky above the station, HF missing from
+# Make Contact entirely, "Locate me" refused outright. A secret earns a seal
+# by being a secret. Where the antenna is standing is on every QSL card that
+# ever left the shack.
+SEALED_KEYS = ("repeaterbook_token",)
+
+# What used to be sealed and is not any more. A blob under one of these is
+# opened and written back in the clear the next time its owner signs in -
+# there is no other moment, because there is no other moment the key exists.
+RETIRED_SEALED_KEYS = ("location",)
 
 
 class Locked(ValueError):
@@ -641,10 +687,15 @@ def save_settings(conn, settings):
                 value = settings.pop(key, None)
                 if value not in (None, "", {}, []):
                     blobs[key] = seal.seal_text(conn.data_key, json.dumps(value))
-            # a field the key could not open earlier is carried, not dropped
+            # a field the key could not open earlier is carried, not dropped -
+            # unless it is one the seal has let go of and it is already here in
+            # the clear, in which case carrying it would put it back under lock
             for key, blob in stored.items():
-                if key not in blobs and key not in SEALED_KEYS:
-                    blobs[key] = blob
+                if key in blobs or key in SEALED_KEYS:
+                    continue
+                if key in RETIRED_SEALED_KEYS and settings.get(key) not in (None, "", {}, []):
+                    continue
+                blobs[key] = blob
         else:
             if any(settings.get(k) not in (None, "", {}, []) for k in SEALED_KEYS):
                 raise Locked("this account's private data is sealed - sign in to change it")

@@ -165,7 +165,7 @@ function drawSkip() {
       '" stroke="#f85149" stroke-width="1.5"/>' +
       '<text x="' + ((x(0) + x(skipKm)) / 2) + '" y="' + (ground + 31) +
       '" fill="#f85149" font-size="11" text-anchor="middle" font-family="monospace">skip zone ' +
-      Math.round(skipKm) + ' km</text>'
+      awayText(skipKm) + '</text>'
     : '<text x="' + x(0) + '" y="' + (ground + 31) + '" font-size="11" font-family="monospace" fill="' +
       (closed ? '#f85149' : '#3fb950') + '">' +
       (closed ? 'above the MUF at every angle — nothing comes back'
@@ -185,9 +185,13 @@ function drawSkip() {
     '<circle cx="' + x(0) + '" cy="' + ground + '" r="4" fill="#ffb454"/>' +
     '<text x="' + (x(0) - 6) + '" y="' + (ground - 8) + '" fill="#ffb454" font-size="11" font-family="monospace">TX</text>' +
     skipMark +
+    /* The scale along the ground is a distance like any other, so it is
+       ruled in whatever the operator reads. The ticks stay on round numbers
+       of kilometres because that is where the hop geometry is computed; what
+       changes is the number printed under them. */
     [1000, 2000, 3000, 4000].map(d =>
       '<text x="' + x(d) + '" y="' + (ground + 46) + '" fill="#626e7b" font-size="10" ' +
-      'text-anchor="middle" font-family="monospace">' + d + ' km</text>').join('');
+      'text-anchor="middle" font-family="monospace">' + awayText(d) + '</text>').join('');
 
   out('s-out',
     '<div class="row" style="gap:1.4rem">' +
@@ -205,8 +209,8 @@ function drawSkip() {
         ' MHz), so every ray passes through the layer and out into space. The band is closed on this path — ' +
         'this is exactly what "10 metres is dead" means at low solar flux.'
       : sig(f) + ' MHz is above foF2, so only rays leaving below <b>' + thetaMax.toFixed(1) +
-        '&deg;</b> bend back. The shortest hop lands about <b>' + Math.round(skipKm) +
-        ' km</b> out; closer than that you are in the skip zone, reachable only by ground wave. ' +
+        '&deg;</b> bend back. The shortest hop lands about <b>' + awayText(skipKm) +
+        '</b> out; closer than that you are in the skip zone, reachable only by ground wave. ' +
         'Raise foF2 (more solar flux) or drop frequency and the skip zone shrinks.') +
     '</p>');
 }
@@ -311,7 +315,7 @@ const bandMeters = [];
 
 api('/api/bands').then(d => {
   BANDS = d.bands || [];
-  bandMeters.forEach(m => m());
+  repaintBandMeters();
   paintBandChips();
 }).catch(() => {});
 
@@ -381,6 +385,30 @@ function attachBandMeter(id, scale) {
   paint();
 }
 
+/* Repaint every band tag on the page.
+ *
+ * Typing in a frequency box fires `input` and the tag under it follows.
+ * Assigning `.value` from code fires nothing at all, so the tag keeps
+ * showing the band of whatever was there before - which is how 3.695 MHz
+ * came to sit under a tag reading "20 m". Nothing was wrong with the
+ * antenna: it was cut for 80 m, the elevation pattern was drawn for 80 m,
+ * and only the label had been left behind. One number, two renderings,
+ * disagreeing.
+ *
+ * Every place in this file that sets a frequency from code goes through
+ * setFrequency() below, so a sixth one added later cannot reintroduce it. */
+function repaintBandMeters() {
+  bandMeters.forEach(m => m());
+}
+
+function setFrequency(el, value) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (!el) return null;
+  el.value = value;
+  repaintBandMeters();
+  return el;
+}
+
 attachBandMeter('s-f');
 attachBandMeter('an-f');
 attachBandMeter('sm-f');
@@ -444,8 +472,8 @@ document.addEventListener('click', e => {
   const freq = document.getElementById('s-f');
   const wanted = parseFloat(link.dataset.skipF);
   if (freq && isFinite(wanted)) {
-    freq.value = Math.max(parseFloat(freq.min),
-                          Math.min(parseFloat(freq.max), wanted));
+    setFrequency(freq, Math.max(parseFloat(freq.min),
+                                Math.min(parseFloat(freq.max), wanted)));
   }
   selectTab('skip');
   history.replaceState(null, '', location.pathname + '#skip');
@@ -1887,7 +1915,7 @@ if (toPath) toPath.addEventListener('click', () => {
   const a = window.LAB_ANTENNA;
   if (!a) return;
   document.getElementById('p-ag').value = a.gain.toFixed(1);
-  document.getElementById('p-f').value = a.f;
+  setFrequency('p-f', a.f);
   selectTab('path');
   history.replaceState(null, '', '#path');
   toast('Carried over', a.label + ' at ' + a.gain.toFixed(1) + ' dBd on ' + a.f + ' MHz');
@@ -2054,7 +2082,7 @@ async function calcPath() {
 
   document.getElementById('p-summary').innerHTML =
     '<div class="row" style="gap:1.4rem">' +
-      '<span>Path <b>' + dKm.toFixed(1) + ' km</b> (' + (dKm * 0.6214).toFixed(1) + ' mi)</span>' +
+      '<span>Path <b>' + awayText(dKm, 1) + '</b></span>' +
       '<span>Bearing <b>' + bearing.toFixed(0) + '&deg;</b> out, ' +
         ((bearing + 180) % 360).toFixed(0) + '&deg; back</span>' +
       '<span>Smooth-earth horizon <b>' + combined.toFixed(1) + ' km</b> ' +
@@ -2799,8 +2827,7 @@ async function antennaPrivilege(mhz) {
   });
   const go = document.getElementById('an-priv-go');
   if (go) go.addEventListener('click', () => {
-    const f = document.getElementById('an-f');
-    f.value = d.suggest_mhz;
+    const f = setFrequency('an-f', d.suggest_mhz);
     f.dispatchEvent(new Event('change', {bubbles: true}));
     antennaAdvice(d.suggest_mhz, document.getElementById('an-use').value,
                   document.getElementById('an-type').value, true);
@@ -2827,7 +2854,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
      changed to "dipole" underneath them. */
   if (!quiet) {
     document.getElementById('an-type').value = d.type;
-    document.getElementById('an-f').value = d.mhz;
+    setFrequency('an-f', d.mhz);
     const h = document.getElementById('an-h');
     if (h) { h.value = d.height_ft; anHeightSuggested = true; }
     const nvis = document.getElementById('an-nvis');
@@ -3315,7 +3342,7 @@ async function calcSmith() {
        A resistance below zero is not a thing a feedline can be walked down,
        and it is what a point outside the circle means; it is floored here and
        named underneath rather than sent to the server to be refused. */
-    document.getElementById('sm-f').value = point.mhz.toFixed(3);
+    setFrequency('sm-f', point.mhz.toFixed(3));
     document.getElementById('sm-r').value =
       Math.max(0, point.r === null ? 50 : point.r).toFixed(1);
     document.getElementById('sm-x').value =
@@ -3382,7 +3409,7 @@ if (document.getElementById('sm-chart')) {
     if (!a) { toast('Design one first', 'Build an antenna in the Antennas tab'); return; }
     document.getElementById('sm-r').value = a.z || 50;
     document.getElementById('sm-x').value = 0;
-    document.getElementById('sm-f').value = a.f;
+    setFrequency('sm-f', a.f);
     calcSmith();
     toast('Carried over', a.label + ' at ' + a.f + ' MHz');
   });
@@ -3541,9 +3568,35 @@ function planPlot(d) {
     g.push('<text x="' + x + '" y="' + (+y + 4) + '" fill="#8b98a5" font-size="10" ' +
            'text-anchor="middle">' + c + '</text>');
   });
-  /* The pattern itself, as laid. */
-  const pts = d.azimuth.map(p => at(p.bearing, R * p.field).join(',')).join(' ');
-  g.push('<polygon points="' + pts + '" fill="rgba(63,185,80,.22)" ' +
+  /* The pattern itself, as laid - both slices of it.
+   *
+   * The filled shape is the slice at the angle this antenna actually works
+   * at; the dashed outline is the same pattern along the ground. For a beam
+   * or a high wire the two nearly coincide and the outline just sits under
+   * the fill. For a low NVIS wire they are a circle and a figure-of-eight,
+   * and the gap between them is the whole point: the deep nulls everybody
+   * knows a dipole has are a ground-level phenomenon, and a wire at a
+   * sixteenth of a wavelength is not radiating along the ground at all.
+   *
+   * Drawing only the ground slice - which is what this did - told an
+   * operator their 30 ft inverted V on 80 m was deaf east and west. At its
+   * own main lobe it is within a tenth of a decibel of round. */
+  const lobeDeg = (typeof d.main_lobe_deg === 'number') ? d.main_lobe_deg : null;
+  const ground = d.azimuth || [];
+  /* No working slice means the program behind this page is older than the
+     page - which happens exactly once, to whoever updated ELMER without
+     restarting it, and used to show them the old figure-of-eight with the
+     new confident words underneath. Fall back to the ground slice, and say
+     that is what it is, rather than letting it pass for the other one. */
+  const lobe = d.azimuth_lobe || ground;
+  const poly = rows => rows.map(p => at(p.bearing, R * p.field).join(',')).join(' ');
+  const apart = lobeDeg !== null && ground.length === lobe.length &&
+    ground.some((p, i) => Math.abs(p.field - lobe[i].field) > 0.03);
+  if (apart) {
+    g.push('<polygon points="' + poly(ground) + '" fill="none" ' +
+           'stroke="#8b98a5" stroke-width="1.2" stroke-dasharray="4 3" opacity=".85"/>');
+  }
+  g.push('<polygon points="' + poly(lobe) + '" fill="rgba(63,185,80,.22)" ' +
          'stroke="#3fb950" stroke-width="1.6"/>');
   /* The antenna drawn on top, so the shape and the hardware line up. */
   if (d.shape !== 'vertical') {
@@ -3573,7 +3626,15 @@ function planPlot(d) {
   if (d.reach && d.reach.radius_km) {
     g.push('<text x="' + cx + '" y="' + (cy + R + 42) +
            '" fill="#626e7b" font-size="9" text-anchor="middle">reach about ' +
-           Math.round(d.reach.radius_km * 0.6214) + ' miles</text>');
+           awayText(d.reach.radius_km) + '</text>');
+  }
+  /* Which trace is which. Only when they differ enough to be worth telling
+     apart - on a beam they lie on top of each other and a legend would be
+     two labels for one shape. */
+  if (apart) {
+    g.push('<text x="' + cx + '" y="' + (cy + R + 30) + '" text-anchor="middle" font-size="9">' +
+           '<tspan fill="#3fb950">▰ at ' + Math.round(lobeDeg) + '°, where it works</tspan>' +
+           '<tspan fill="#8b98a5">   ▱ along the ground</tspan></text>');
   }
   /* Real places, at their real bearings. Every one gets its spoke; the names
      are thinned where two sit close together, because four labels on top of
@@ -3624,12 +3685,45 @@ function planWords(d) {
     ? [(d.heading + 180) % 360]
     : [d.heading % 360, (d.heading + 180) % 360];
   const say = a => a.map(b => Math.round(b) + '&deg; ' + compass(b)).join(' and ');
-  let html = '<p class="tiny muted">Strongest toward <b>' + say(best) +
-    '</b>, deaf toward <b>' + say(nulls) + '</b>. ' +
-    (d.type === 'yagi'
-      ? 'Turn the boom and the whole pattern turns with it.'
-      : 'A wire radiates across itself, not along itself &mdash; so the ' +
-        'direction it is strung decides the direction it hears.') + '</p>';
+  /* How much direction there actually is at the angle this antenna works at.
+     A wire's nulls are a ground-level thing; at a high takeoff angle they are
+     filled in, and at the zenith there is no direction at all. Calling a low
+     NVIS wire "deaf" east and west - which this did, flatly, whatever the
+     height - is false in the only sense that matters to somebody deciding
+     which way to string it. */
+  if (!d.azimuth_lobe) {
+    return '<p class="tiny" style="color:var(--amber)">This is the pattern ' +
+      '<b>along the ground</b> only. The slice at the angle the antenna works ' +
+      'at comes from the program behind this page, and that program is older ' +
+      'than this page &mdash; <b>restart ELMER</b> and it will be drawn.</p>';
+  }
+  const lobeRows = d.azimuth_lobe || d.azimuth || [];
+  const deepest = lobeRows.length
+    ? lobeRows.reduce((m, p) => Math.min(m, p.field), 1) : 0;
+  const downDb = deepest > 0 ? -20 * Math.log10(deepest) : 99;
+  const lobeDeg = Math.round(d.main_lobe_deg || 0);
+  let html;
+  if (d.type !== 'yagi' && downDb < 3) {
+    /* Under 3 dB there is no useful direction, and saying there is sends
+       somebody up a tower to turn a wire for nothing. */
+    html = '<p class="tiny muted">At the <b>' + lobeDeg + '&deg;</b> this ' +
+      'antenna actually radiates at, it is <b>within ' +
+      (downDb < 0.5 ? 'half a decibel' : downDb.toFixed(1) + ' dB') +
+      ' of the same in every direction</b> &mdash; so which way you string it ' +
+      'barely matters. The dashed outline is the figure-of-eight it would have ' +
+      'along the ground, where a wire this low radiates almost nothing. The ' +
+      'deep nulls a dipole is famous for live in that outline, not in the ' +
+      'sky you are using.</p>';
+  } else {
+    html = '<p class="tiny muted">Strongest toward <b>' + say(best) +
+      '</b>, weakest toward <b>' + say(nulls) + '</b> &mdash; <b>' +
+      (downDb > 30 ? 'a deep null' : downDb.toFixed(1) + ' dB down') +
+      '</b> at the <b>' + lobeDeg + '&deg;</b> it works at. ' +
+      (d.type === 'yagi'
+        ? 'Turn the boom and the whole pattern turns with it.'
+        : 'A wire radiates across itself, not along itself &mdash; so the ' +
+          'direction it is strung decides the direction it hears.') + '</p>';
+  }
   if (d.reach && d.reach.note) {
     html += '<p class="tiny muted">' + escapeHTML(d.reach.note) + '</p>';
   }
@@ -3706,8 +3800,8 @@ function repeaterList(d) {
       return '<p class="tiny" style="color:var(--amber)">' +
         (cov.nearest_km === null
           ? 'ELMER has no repeater list at all yet. '
-          : 'ELMER knows no repeaters within ' + Math.round(cov.nearest_km * 0.6214) +
-            ' miles of here &mdash; that is a gap in what it has been told, ' +
+          : 'ELMER knows no repeaters within ' + awayText(cov.nearest_km) +
+            ' of here &mdash; that is a gap in what it has been told, ' +
             'not a quiet band. ') +
         'TowerWitch can look this position up; ELMER reads what it writes. ' +
         'Do it while you have a signal, and the list keeps working after ' +
@@ -3716,13 +3810,13 @@ function repeaterList(d) {
     if (cov && cov.known) {
       return '<p class="tiny muted">No repeaters on this band within reach, ' +
         'though ELMER does know this area &mdash; the nearest it has is ' +
-        Math.round(cov.nearest_km * 0.6214) + ' miles off.</p>';
+        awayText(cov.nearest_km) + ' off.</p>';
     }
     return '';
   }
   const approx = reps.some(r => r.approx);
   let out = '<div class="rep-list"><p class="tiny"><b>Repeaters within about ' +
-    Math.round((d.repeater_radius_km || 0) * 0.6214) + ' miles</b> ' +
+    awayText(d.repeater_radius_km || 0) + '</b> ' +
     '<span class="muted">&mdash; a machine on a tower reaches much further ' +
     'than your antenna reaches another like it, which is the whole point of ' +
     'one.</span></p><table class="data rep-table"><tr>' +

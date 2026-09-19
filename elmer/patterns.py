@@ -326,6 +326,32 @@ def hop_km(elev_deg, layer_km):
     return max(0.0, 2 * EARTH_R_KM * psi)
 
 
+def _wire_factor(along):
+    """The half-wave dipole's own pattern, for a direction whose cosine from
+    the wire's axis is `along`: one broadside, nothing off the ends."""
+    sin_g = math.sqrt(max(0.0, 1.0 - along * along))
+    return abs(math.cos(math.pi / 2 * along) / sin_g) if sin_g > 1e-9 else 0.0
+
+
+def _element_shape(kind, factor):
+    """What the antenna's own geometry does to a straight wire's pattern.
+
+    An inverted V and a full-wave loop are half way to round: the current is
+    not all in one straight line, so the deep nulls a dipole has off its ends
+    are filled in. This used to be stated in field_toward() and nowhere else,
+    while field_at() - which is what draws the plan view, what the DX bearing
+    table reads and what the sheet prints - returned the plain dipole shape.
+    So a V was half way to round when ELMER worked out whether you could hear
+    somebody, and a pinched figure-of-eight in the picture of the same antenna
+    on the same page. One antenna, two models, disagreeing: the same fault as
+    the golf card and as the V's own elevation pattern, which was corrected
+    without anybody noticing that the plan view had it too.
+    """
+    if kind in ("invertedv", "loop"):
+        return 0.5 + 0.5 * factor
+    return factor
+
+
 def field_toward(kind, elev_deg, bearing, heading=None):
     """The element's own factor toward a direction, on top of the elevation
     curve at broadside: for a wire, the half-wave dipole's pattern in three
@@ -343,11 +369,7 @@ def field_toward(kind, elev_deg, bearing, heading=None):
         return field_at(kind, bearing, heading)
     elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
     along = math.cos(elev) * math.cos(math.radians(bearing - heading))   # cosine of the angle from the wire's axis
-    sin_g = math.sqrt(max(0.0, 1.0 - along * along))
-    factor = abs(math.cos(math.pi / 2 * along) / sin_g) if sin_g > 1e-9 else 0.0
-    if kind in ("invertedv", "loop"):
-        return 0.5 + 0.5 * factor
-    return factor
+    return _element_shape(kind, _wire_factor(along))
 
 
 def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0):
@@ -916,8 +938,42 @@ def nearby(lat, lon, radius_km, limit=8, inner_km=0.0, spread=False):
     return sorted(found, key=lambda r: r["bearing"]), source
 
 
-def targets(lat, lon, kind, heading, reach_info):
-    """What to draw on the compass: whatever this antenna can actually work."""
+# Reaches whose signal leaves the ground and comes back. For these the
+# takeoff angle to a place is set by how far away it is, and the antenna
+# must be asked about that angle. The others - line of sight, tropo, a
+# repeater on a hill - really do travel along the ground, and there the
+# ground slice is the right one and a wire's end null is real.
+SKY_REACH = ("regional", "dx")
+
+
+def _reach_angle(km, hmf2, sky):
+    """The takeoff angle that gets to something `km` away.
+
+    Along the ground for a line-of-sight path. For a skywave path it is
+    whatever angle lands there off the layer: steep for the next county,
+    shallow for the far side of the country. Falls back to the ground when
+    a place is further than one hop, where a single angle is the wrong
+    question anyway.
+    """
+    if not sky or not km:
+        return 0.0
+    # TYPICAL_HMF2 is this module's own stand-in when nothing was measured;
+    # the night figure, because an unmeasured layer is usually an unmeasured
+    # evening and the steeper answer is the conservative one here.
+    angle = _land_angle(float(km), float(hmf2 or TYPICAL_HMF2[False]))
+    return 0.0 if angle is None else angle
+
+
+def targets(lat, lon, kind, heading, reach_info, hmf2=None):
+    """What to draw on the compass: whatever this antenna can actually work.
+
+    Each place is scored at the angle needed to reach *it*. Scoring them all
+    along the ground - which is what this did - put a deep null across the
+    ends of the wire and marked the towns there as unworkable, on an antenna
+    whose whole output leaves at seventy degrees and which is within a
+    decibel of round up there. Duluth was called unreachable from a hundred
+    miles away because the wire happened to point at it.
+    """
     if reach_info["kind"] == "satellite":
         return []
 
@@ -926,7 +982,7 @@ def targets(lat, lon, kind, heading, reach_info):
         # points a beam at - but the compass now also carries the towns that
         # actually fall in the ring this antenna reaches. "Somewhere in
         # Europe" is a direction; Denver at 1,400 km is a contact.
-        reach_info["world"] = dx_bearings(lat, lon, kind, heading)
+        reach_info["world"] = dx_bearings(lat, lon, kind, heading, hmf2=hmf2)
         if not reach_info.get("outer_km"):
             return reach_info["world"]
         rows, source = nearby(lat, lon, reach_info["outer_km"],
@@ -941,10 +997,13 @@ def targets(lat, lon, kind, heading, reach_info):
                               inner_km=reach_info.get("inner_km") or 0.0)
         reach_info["places_from"] = source
 
+    sky = reach_info["kind"] in SKY_REACH
     for row in rows:
-        field = field_at(kind, row["bearing"], heading)
+        elev = _reach_angle(row.get("km"), hmf2, sky)
+        field = field_toward(kind, elev, row["bearing"], heading)
         row["field"] = round(field, 4)
         row["db"] = db(field)
+        row["takeoff_deg"] = round(elev, 1)
     return rows
 
 
@@ -962,13 +1021,31 @@ def field_at(kind, bearing, heading=0.0):
         off = math.radians((bearing - heading + 180) % 360 - 180)
         return abs(0.5 + 0.5 * math.cos(off)) ** 1.6
     # A wire radiates broadside: strongest across itself, nothing off the ends.
-    off = math.radians((bearing - (heading + 90) + 180) % 360 - 180)
-    return abs(math.cos(off))
+    # Along the ground, which is what a plan view is, so this is field_toward
+    # at nought degrees of elevation and must stay equal to it - it used to be
+    # a plain cosine, which is a rounder curve than a dipole's and took no
+    # account of an inverted V's sloping legs at all.
+    along = math.cos(math.radians(bearing - heading))
+    return _element_shape(kind, _wire_factor(along))
 
 
-def azimuth(kind, heading=0.0, points=361):
-    """Relative field around the compass, as the antenna is actually laid."""
-    return [{"bearing": n, "field": round(field_at(kind, n, heading), 5)}
+def azimuth(kind, heading=0.0, points=361, elev_deg=0.0):
+    """Relative field around the compass, as the antenna is actually laid.
+
+    `elev_deg` is the takeoff angle the slice is cut at, and it matters more
+    than anything else on the plot. At nought degrees - along the ground -
+    a wire has its deepest nulls off the ends, and that is the slice this
+    used to be, always, whatever the antenna. But a low wire radiates almost
+    nothing along the ground: at the angle it actually works at, those nulls
+    have filled in, and by the zenith there is no direction to it at all.
+
+    So a 30 ft inverted V on 80 m was being drawn as a pinched figure-of-eight
+    and described as "deaf" east and west, when at its own main lobe - straight
+    up - it is within a tenth of a decibel of round. The page now draws both
+    slices, because the difference between them is the lesson.
+    """
+    return [{"bearing": n,
+             "field": round(field_toward(kind, elev_deg, n, heading), 5)}
             for n in range(points)]
 
 
@@ -979,18 +1056,20 @@ def db(field):
     return round(20 * math.log10(field), 1)
 
 
-def dx_bearings(lat, lon, kind=None, heading=0.0):
+def dx_bearings(lat, lon, kind=None, heading=0.0, hmf2=None):
     """Where the well-known parts of the world are, and what the antenna does
-    toward each of them."""
+    toward each of them - at the angle each one actually needs."""
     from .terrain import great_circle
     out = []
     for name, tlat, tlon in DX_TARGETS:
         km, bearing = great_circle(lat, lon, tlat, tlon)
         row = {"name": name, "bearing": round(bearing), "km": round(km)}
         if kind:
-            field = field_at(kind, bearing, heading)
+            elev = _reach_angle(km, hmf2, True)
+            field = field_toward(kind, elev, bearing, heading)
             row["field"] = round(field, 4)
             row["db"] = db(field)
+            row["takeoff_deg"] = round(elev, 1)
         out.append(row)
     return sorted(out, key=lambda r: r["bearing"])
 

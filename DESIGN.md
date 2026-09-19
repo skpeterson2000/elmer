@@ -4612,7 +4612,10 @@ rule.
 ## The cup of coffee
 
 ELMER is a gift to the amateur radio community, which has given its author
-a great deal, and it is free for everyone. Some people will want to thank
+a great deal, and it is free for noncommercial use - the same words the
+licence uses, because a sentence about the coffee that said "free for
+everyone" was making a wider promise than the licence does. Some people
+will want to thank
 the developer with a cup of coffee, and the program should notice that
 without ever turning into a toll gate. The rules, and why:
 

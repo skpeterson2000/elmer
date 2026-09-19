@@ -132,6 +132,39 @@ function postJSON(url, body) {
   return api(url, { method: 'POST', body: JSON.stringify(body) });
 }
 
+/* -------------------------------------------------------------- distance
+ * How far away a thing is, in the operator's units.
+ *
+ * One preference, read at the moment of use rather than at load, because
+ * the Station panel can change it without a reload. It governs distances
+ * across the ground and nothing else: a band is still 40 metres, wire is
+ * still cut in feet, and the F2 layer is still 300 km up, because those
+ * are names and measurements rather than answers to "how far is that".
+ *
+ * A skip zone is an answer to "how far is that" - it is the distance to
+ * the nearest station who can hear you - so it moves with this.
+ */
+function unitSystem() {
+  return window.UNITS || {short: 'km', per_km: 1, long: 'kilometres'};
+}
+
+function away(km, digits) {
+  /* The number alone, for a caller placing its own unit. */
+  if (km === null || km === undefined || isNaN(km)) return null;
+  const value = km * unitSystem().per_km;
+  return digits ? +value.toFixed(digits) : Math.round(value);
+}
+
+function awayText(km, digits) {
+  /* The number with its unit on it, the way a screen or a sheet wants it. */
+  const value = away(km, digits);
+  return value === null ? '\u2014' : value + ' ' + unitSystem().short;
+}
+
+function awayUnit() {
+  return unitSystem().short;
+}
+
 function toast(title, text, ms) {
   const box = document.getElementById('toaster');
   if (!box) return;

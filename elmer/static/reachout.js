@@ -210,20 +210,25 @@ function roProfileSVG(d) {
   const worst = d.loss && d.loss.worst;
   const wp = worst ? pts.reduce((b, p) => Math.abs(p.km - worst.km) < Math.abs(b.km - worst.km) ? p : b, pts[0]) : null;
   const intrudes = worst && worst.above_line_m > 0;
-  /* a few y ticks in feet, x ticks in miles - the units the page speaks */
+  /* A few y ticks in feet, because that is how antenna height is sold and
+     printed; x ticks along the ground in whatever the operator reads, because
+     how far away the far end is standing is the question this preference is
+     for. The chart used to be in miles whoever was looking at it. */
   const ticks = [];
   const span = y1 - y0, stepM = span > 600 ? 200 : span > 300 ? 100 : span > 120 ? 50 : span > 40 ? 20 : 10;
   for (let m = Math.ceil(y0 / stepM) * stepM; m <= y1; m += stepM) ticks.push(m);
-  const miles = km * 0.621371, xs = [], stepMi = miles > 60 ? 20 : miles > 25 ? 10 : miles > 12 ? 5 : miles > 5 ? 2 : 1;
-  for (let mi = 0; mi <= miles + 1e-6; mi += stepMi) xs.push(mi);
+  const far = away(km, 2), xs = [];
+  const stepFar = far > 60 ? 20 : far > 25 ? 10 : far > 12 ? 5 : far > 5 ? 2 : 1;
+  for (let d = 0; d <= far + 1e-6; d += stepFar) xs.push(d);
+  const perKm = unitSystem().per_km;
   const halo = ' stroke="var(--panel, #161b22)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"';
   return '<div class="ro-profile" style="position:relative;margin:.4rem 0">' +
     '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block" role="img" aria-label="the ground along the path, the line between the antennas and the first Fresnel zone">' +
       '<defs><clipPath id="ro-prof-clip"><rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '"/></clipPath></defs>' +
       ticks.map(m => '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(m).toFixed(1) + '" y2="' + y(m).toFixed(1) + '" stroke="var(--line)" stroke-width="1"/>' +
         '<text x="' + (L - 6) + '" y="' + (y(m) + 3.5).toFixed(1) + '" text-anchor="end" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">' + RO_FT(m).toLocaleString() + '</text>').join('') +
-      xs.map(mi => '<text x="' + x(mi / 0.621371).toFixed(1) + '" y="' + (H - B + 14) + '" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">' + mi + '</text>').join('') +
-      '<text x="' + (W - R) + '" y="' + (H - B + 26) + '" text-anchor="end" font-size="10" fill="var(--muted)">miles &middot; height in feet, the vertical stretched</text>' +
+      xs.map(d => '<text x="' + x(d / perKm).toFixed(1) + '" y="' + (H - B + 14) + '" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="ui-monospace, monospace">' + d + '</text>').join('') +
+      '<text x="' + (W - R) + '" y="' + (H - B + 26) + '" text-anchor="end" font-size="10" fill="var(--muted)">' + unitSystem().long + ' &middot; height in feet, the vertical stretched</text>' +
       '<g clip-path="url(#ro-prof-clip)">' +
       '<path d="' + zone + '" fill="var(--amber)" fill-opacity=".16" stroke="var(--amber)" stroke-opacity=".5" stroke-width="1" stroke-dasharray="4 3"/>' +
       '<path d="' + ground + '" fill="#8b98a5" fill-opacity=".38" stroke="var(--dimmer)" stroke-width="1"/>' +
@@ -257,7 +262,7 @@ function roProfileBind(d) {
     const p = pts.reduce((b, q) => Math.abs(q.km - k) < Math.abs(b.km - k) ? q : b, pts[0]);
     xl.setAttribute('x1', fx.toFixed(1)); xl.setAttribute('x2', fx.toFixed(1)); xl.setAttribute('opacity', '1');
     const clear = p.line - p.ground;
-    read.textContent = (p.km * 0.621371).toFixed(1) + ' mi · ground ' + RO_FT(p.ground).toLocaleString() + ' ft · line ' + RO_FT(p.line).toLocaleString() + ' ft · ' +
+    read.textContent = awayText(p.km, 1) + ' · ground ' + RO_FT(p.ground).toLocaleString() + ' ft · line ' + RO_FT(p.line).toLocaleString() + ' ft · ' +
       (clear >= 0 ? RO_FT(clear) + ' ft clear' : RO_FT(-clear) + ' ft in the way') + (p.r1 ? ' · zone ±' + RO_FT(p.r1) + ' ft' : '');
   };
   hit.addEventListener('mousemove', show);

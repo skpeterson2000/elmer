@@ -287,7 +287,7 @@
       Name me on the hall&rsquo;s thanks card
     </label>
     <p class="tiny muted">ELMER is a gift to the amateur radio community, free for
-      everyone. Somebody who thanks the developer with a cup of coffee at
+      noncommercial use. Somebody who thanks the developer with a cup of coffee at
       <b>github.com/sponsors/skpeterson2000</b> and says in the note what they would
       like printed &mdash; a callsign, a name, a club &mdash; gets an eight-character
       key back, cut for that name. With it ELMER says thank you instead of asking,
@@ -366,6 +366,12 @@ window.BAND_PALETTE = {{ band_palette|tojson }};
 /* The opening announcement - see announce.js, and the switch for it in the
    Station panel. {on, de}: whether to key it, and the name keyed after DE. */
 window.ELMER_ANNOUNCE = {{ announce|tojson }};
+/* How far away a thing is, in the units this operator reads. It used to go
+   only to the Activations page, so every other page picked a unit and kept
+   it: the skip zone came out in kilometres on the Lab page and in miles on
+   the band plan, and neither of them was asking. See units.py for what this
+   preference governs and, just as deliberately, what it does not. */
+window.UNITS = {{ units|tojson }};
 </script>
 <script src="{{ asset('elmer.js') }}"></script>
 <script src="{{ asset('figure.js') }}"></script>

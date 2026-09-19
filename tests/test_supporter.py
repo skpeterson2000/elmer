@@ -194,7 +194,10 @@ def main():
     check("  the hours on it", card["hours"], 10)
     check("  the title says so", card["title"], "ELMER has your 10 hours.")
     check("  the observation, not a bill", "competing for their evenings" in card["line"], True)
-    check("  and that it stays free", card["foot"], "It stays free for everyone, coffee or no coffee.")
+    # "Free for everyone" was the wording here, and it was wider than the
+    # licence: PolyForm Noncommercial. The point of the line is that the
+    # coffee is not a toll, and that survives without the overclaim.
+    check("  and that it stays free", card["foot"], "It stays free, coffee or no coffee.")
     check("  where the coffee goes", card["url"], "https://github.com/sponsors/skpeterson2000")
     supporter.shown(conn, "coffee")
     check("put away, it stays away", supporter.card(conn, supporters=[])["kind"], "none")

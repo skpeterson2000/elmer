@@ -60,7 +60,7 @@
         <div class="hs-kicker">With thanks to</div>
         <div class="hs-sponsor-name">${esc(shown.join(' \u00b7 '))}</div>
         ${names.length > shown.length ? `<div class="hs-about" style="text-align:center">and ${names.length - shown.length} more</div>` : ''}
-        <p class="hs-text hs-blurb">${(card.sponsors || []).length ? 'The evening&rsquo;s sponsors, and ' : ''}the people whose cup of coffee keeps ELMER free for everyone.</p>
+        <p class="hs-text hs-blurb">${(card.sponsors || []).length ? 'The evening&rsquo;s sponsors, and ' : ''}the people whose cup of coffee keeps ELMER free for the community.</p>
       </div>`;
     }
     if (k === 'house') {
