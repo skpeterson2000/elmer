@@ -254,6 +254,9 @@ print("\nand through the program's own routes")
 from elmer.app import app  # noqa: E402
 app.config["TESTING"] = True
 client = app.test_client()
+# A page of somebody's asks who is at the controls before it opens,
+# so a test that fetches one says who it is first.
+client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
 check("the page renders", client.get("/library").status_code, 200)
 d = client.get("/api/library").get_json()
 check("the shelf is served", [b["name"] for b in d["shelf"]], ["FT-991A Operating Manual.pdf"])

@@ -50,6 +50,9 @@ def main():
         "source": "test"}
     from elmer.app import app
     cl = app.test_client()
+    # A page of somebody's asks who is at the controls before it opens,
+    # so a test that fetches one says who it is first.
+    cl.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     cl.post("/api/settings", json={"callsign": "KC9SP"})
 
     print("\n-- kept, and read --")

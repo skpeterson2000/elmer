@@ -101,6 +101,9 @@ def main():
     callsign.lookup = lambda call, refresh=False: record("General")
     from elmer.app import app
     c = app.test_client()
+    # A page of somebody's asks who is at the controls before it opens,
+    # so a test that fetches one says who it is first.
+    c.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     # Nothing held: the band plan opens on No licence, which is the true
     # answer. It used to open on Technician, which showed a newcomer
     # privileges that are not theirs and called it their class - and the

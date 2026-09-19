@@ -91,6 +91,9 @@ def main():
           settings_of(conn, 4).get("license_class_cleared"), None)
     from elmer.app import app
     client = app.test_client()
+    # A page of somebody's asks who is at the controls before it opens,
+    # so a test that fetches one says who it is first.
+    client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     page = client.get("/", environ_base=LOCAL).data.decode("utf-8")
     check("  the Station panel says so, and what to do about it",
           ("cleared it on an update" in page, "enter your callsign" in page), (True, True))
@@ -129,6 +132,7 @@ def main():
     print("\n-- and a class typed today carries the mark --")
     from elmer.app import app
     client = app.test_client()
+    client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     client.post("/api/settings", json={"license_class": "Extra"}, environ_base=LOCAL)
     fresh = db.get_profile(db.connect())["settings"]
     check("typed with no record to check it against, it is the operator's word",

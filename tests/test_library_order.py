@@ -57,6 +57,9 @@ def order_of(page):
 def main():
     from elmer.app import app
     client = app.test_client()
+    # A page of somebody's asks who is at the controls before it opens,
+    # so a test that fetches one says who it is first.
+    client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
 
     print("\n-- with nothing printed yet --")
     page = client.get("/library", environ_base=LOCAL).data.decode("utf-8")

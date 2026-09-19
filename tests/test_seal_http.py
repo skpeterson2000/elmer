@@ -35,6 +35,9 @@ def main():
     from elmer import app as appmod
     app = appmod.app
     a = app.test_client()
+    # Both of these are the same person at two browsers - the point of the
+    # test - so both sign in, and only one of them gives the password.
+    a.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
 
     print("\n-- an open account: plain, as ever --")
     r = a.post("/api/settings", json={"location": QTH})
@@ -57,7 +60,13 @@ def main():
     check("the file holds neither the old QTH nor the new", ("EN26uo" in row["settings"], "EN34" in row["settings"]), (False, False))
 
     print("\n-- another browser, same account, no password given --")
+    # The same person, at a browser that signed in before ELMER was last
+    # restarted: the cookie saying who they are outlives the process, and
+    # the key that opens their sealed data does not - it is held in the
+    # server's memory and nowhere else. So this browser is signed in and
+    # locked, which is the state an operator meets every morning.
     b = app.test_client()
+    b.set_cookie("elmer_user", "1")
     d = b.get("/api/users").get_json()
     check("it sees the seal and no key", (d["sealed"], d["unlocked"], d["sealed_fields"]), (True, False, ["location"]))
     r = b.post("/api/settings", json={"location": QTH})

@@ -102,6 +102,8 @@ check("choosing a class to read writes no licence anywhere",
       "license_class" in BANDPLAN, False)
 LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
 with app.test_client() as client:
+    # A page of somebody's asks who is at the controls before it opens.
+    client.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     from elmer import db
     before = db.get_profile(db.connect())["settings"].get("license_class")
     client.get("/api/bandplan?class=Extra")

@@ -115,6 +115,9 @@ def main():
     print("\n-- the three boxes on the Station panel --")
     from elmer.app import app
     c = app.test_client()
+    # A page of somebody's asks who is at the controls before it opens,
+    # so a test that fetches one says who it is first.
+    c.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
     r = c.post("/api/settings", json={"callsign": "KC9SP", "gmrs_call": "WRMP909", "commercial_call": "PG1136564"})
     d = r.get_json()
     check("an operator with all three, each filed under its own", (d["callsign"], d["settings"]["gmrs_call"], d["settings"]["commercial_call"]),
