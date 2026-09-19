@@ -228,9 +228,13 @@ def main():
            got["stopped"]["answering"]), (True, True, False))
 
     print("\n-- a miss comes back soon, not only more often --")
-    check("the missed character was put down to come back",
-          got["recycle"]["queued"], [got["missed"]["was"][0]])
-    check("  and it did, within four sends of being got right",
+    # The countdown is two to four sends, and two of them have been drawn by
+    # the time the driver looks, so the character is either still queued or
+    # already back in the air - CI drew a two and caught the second case.
+    missed = got["missed"]["was"][0]
+    check("the missed character was put down to come back, or is already back",
+          got["recycle"]["queued"] == [missed] or got["recycle"]["seen"][:1] == [missed], True)
+    check("  and it came back within four sends of being got right",
           got["recycle"]["came_back_at"] is not None and got["recycle"]["came_back_at"] <= 4, True)
 
     print("\n-- and every answer went into the record --")
