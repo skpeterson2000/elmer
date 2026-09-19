@@ -380,7 +380,16 @@ The chapter list has a similar order of preference: the publisher's own bookmark
 
 ![The Library: the shelf, with the User's Guide on it](docs/screenshots/guide/library.png)
 
-**Open** reads a book inside ELMER, with the chapters down the side, search hits highlighted, page turns by click or arrow key, and Escape to come back. **Open as PDF** in the reader's bar hands the file itself to your browser's own viewer, in a tab of its own, opened at the page you were on; that viewer's toolbar has print and save, so any page of any book on the shelf, this guide included, can be printed from there. On the kiosk, which has no tabs, the same button shows the file in the reader's frame with Back still above it. **Chapters** lists the publisher's bookmarks, or a list you wrote beside the book, or the numbered headings ELMER found. **mine** marks whose radio a manual is for, and Make Contact starts from that. The shelf is shared by everyone on the unit.
+**Open** reads a book inside ELMER, with the chapters down the side and search hits highlighted.
+
+**Moving through a book.** Four ways, and the chapter list is only one of them.
+
+- **The arrow keys.** Left and right turn the page, and Page Up and Page Down do the same. This is the quickest way, and it is the one to reach for when the page you want is between two chapters.
+- **The edges of the page.** A chevron sits at each side of the sheet. Click or tap it to turn. On a touchscreen this is the one to use, because there is no keyboard to reach for.
+- **The page number**, top right. Type a number and press Enter to go straight there.
+- **The chapter list**, down the side. It lists where each chapter *begins*. So a chapter that opens on page 13 followed by one that opens on page 15 does not mean page 14 is missing: it means page 14 is the middle of the first chapter, and one press of the right arrow is where it lives.
+
+**Escape** comes back to the Library. **Open as PDF** in the reader's bar hands the file itself to your browser's own viewer, in a tab of its own, opened at the page you were on; that viewer's toolbar has print and save, so any page of any book on the shelf, this guide included, can be printed from there. On the kiosk, which has no tabs, the same button shows the file in the reader's frame with Back still above it. **Chapters** lists the publisher's bookmarks, or a list you wrote beside the book, or the numbered headings ELMER found. **mine** marks whose radio a manual is for, and Make Contact starts from that. The shelf is shared by everyone on the unit.
 
 ### Keep a copy of your licence here
 

@@ -44,10 +44,20 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .viewer iframe { width: 100%; height: 100%; border: 0; display: block; }
 .viewer .pageimg { display: block; margin: 0 auto; max-width: 100%; background: #fff;
                    box-shadow: 0 0 18px rgba(0,0,0,.5); }
-.viewer .turn { position: absolute; top: 0; bottom: 0; width: 18%; cursor: pointer; opacity: 0;
+/* The page turns. These used to sit at opacity 0 and appear on hover, which
+   hid the only way through a book from anybody who was not already moving a
+   mouse across it - and on the kiosk's touchscreen there is no hover at all,
+   so they never appeared. A reader could open a chapter on page 13 and find
+   the chapter list offering nothing between it and page 15, with no visible
+   means of reaching page 14. They rest visible now, and brighten under the
+   pointer; a touch screen, having no hover to discover them with, gets a
+   little more to begin with. */
+.viewer .turn { position: absolute; top: 0; bottom: 0; width: 18%; cursor: pointer; opacity: .3;
                 transition: opacity .15s; display: flex; align-items: center; justify-content: center;
                 font-size: 2.2rem; color: #fff; text-shadow: 0 0 8px #000; user-select: none; }
-.viewer .turn:hover { opacity: .8; } .viewer .turn.prev { left: 0; } .viewer .turn.next { right: 0; }
+.viewer .turn:hover, .viewer .turn:active, .viewer .turn:focus-visible { opacity: .95; }
+@media (hover: none) { .viewer .turn { opacity: .5; } }
+.viewer .turn.prev { left: 0; } .viewer .turn.next { right: 0; }
 .viewer .missing { padding: 1.2rem; max-width: 36rem; }
 .esc { position: fixed; right: .7rem; bottom: .5rem; font-size: .72rem; color: var(--dimmer);
        pointer-events: none; }
@@ -108,7 +118,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
     </div>
   </div>
 </div>
-<div class="esc">Esc: back</div>
+<div class="esc">&larr; &rarr; turn the page &middot; Esc: back</div>
 <script src="{{ asset('elmer.js') }}"></script>
 <script>
 const NAME = {{ name|tojson }};
