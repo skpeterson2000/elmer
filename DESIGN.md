@@ -2925,6 +2925,30 @@ The certificates ELMER's own games hand out are a different thing and
 are said to be - see the tournaments - and a wall of them would be a
 wall of a program praising itself.
 
+**The pictures.** A hole can have three, each at `static/golf/<kind>/
+<course>/<hole>.jpg` and each appearing when the unit has it: the view
+from the **tee**, which the address is spoken over while the group is on
+it; the **green**, once the ball that is away is on it or its fringe -
+where you are going, after where you stand; and the **map** of the hole,
+the club's routing exported from OpenStreetMap, which is a document
+rather than scenery and is shown whole and credited. A course may also
+have `map/<course>/course.jpg`, the whole routing, and that hangs in a
+frame in the clubhouse while the tee time counts down. The pictures are
+sized once to a couple of hundred kilobytes each, because a Pi hands them
+to four phones; the originals stay out of the repository. The screens
+fetch this hole's green and the next hole's tee and map while the current
+stroke is read, the same way they already fetched the next tee.
+
+**The clubhouse meets everyone.** Somebody who scans in mid-round used to
+be dropped onto the course with one sentence - you have a tee time, the
+group picks you up at the 5th. Now their phone is the clubhouse: the
+room, their tee time, and the frame on the wall showing the hole the
+group is playing *now* - the map of it, the card, who is away and where
+every ball lies, the standings so far - updating as they play, so the
+group picks them up at the next tee with the round already in their
+head. The table goes on showing the group. What a person waiting at a
+real course does is watch the group ahead; this is that.
+
 **The lounge** (`/lounge`) is the same wall as decor rather than subject:
 a picture of a room - shelves of silverware, a fire, a window on the
 course, a counter - with the operator's own things put into it by the

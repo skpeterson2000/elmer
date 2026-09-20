@@ -143,16 +143,53 @@ PERSON_REVEAL = 120.0
 SOLO_LINES = 2          # a hole's colour, to a player with nobody to share it with
 
 
-def _tee_pic(course, hole):
-    """The tee picture's address, with the file's own time on it: a
-    picture replaced on disk is fetched again, not served from the
-    window's cache under the same name for the rest of the day."""
-    path = Path(__file__).resolve().parent / "static" / "golf" / "tee" / str(course) / f"{hole}.jpg"
+# The pictures a hole can have, each at static/golf/<kind>/<course>/<hole>.jpg:
+# the view from the tee, spoken over while the group is on it; the green,
+# once the ball that is away is on it; and the map of the hole, the club's
+# routing from OpenStreetMap, which is the frame in the clubhouse while
+# somebody waits for their tee time. A course may also have map/<course>/
+# course.jpg, the whole routing, for the clubhouse before a round.
+PIC_KINDS = ("tee", "green", "map")
+
+
+def _pic(kind, course, hole):
+    """A picture's address, with the file's own time on it: a picture
+    replaced on disk is fetched again, not served from the window's cache
+    under the same name for the rest of the day."""
+    path = Path(__file__).resolve().parent / "static" / "golf" / kind / str(course) / f"{hole}.jpg"
     try:
         stamp = int(path.stat().st_mtime)
     except OSError:
         stamp = 0
-    return f"/static/golf/tee/{course}/{hole}.jpg?v={stamp}"
+    return f"/static/golf/{kind}/{course}/{hole}.jpg?v={stamp}"
+
+
+def _tee_pic(course, hole):
+    return _pic("tee", course, hole)
+
+
+def _course_map(course):
+    """The whole course's map, if the unit has it, or None."""
+    course = str(course or "")
+    if not course:
+        return None
+    path = Path(__file__).resolve().parent / "static" / "golf" / "map" / course / "course.jpg"
+    try:
+        return f"/static/golf/map/{course}/course.jpg?v={int(path.stat().st_mtime)}"
+    except OSError:
+        return None
+
+
+def _pics_on_shelf(course):
+    """Which holes have which pictures on this unit: {kind: [hole, ...]}."""
+    static = Path(__file__).resolve().parent / "static" / "golf"
+    have = {}
+    for kind in PIC_KINDS:
+        try:
+            have[kind] = sorted(int(p.stem) for p in (static / kind / str(course)).glob("*.jpg") if p.stem.isdigit())
+        except OSError:
+            have[kind] = []
+    return have
 
 
 def _lie_notes(g, d, ball, player=None):
@@ -1167,13 +1204,11 @@ class Room:
                 self.golf_voice = []
             from . import voice
             voice.set_shelf(self.golf_voice)      # so a whole number is said whole
-            # And which holes have a picture from the tee: static/golf/tee/
-            # <course>/<hole>.jpg - the view the address is spoken over.
-            tee_dir = Path(__file__).resolve().parent / "static" / "golf" / "tee" / course["id"]
-            try:
-                self.golf_tees = sorted(int(p.stem) for p in tee_dir.glob("*.jpg") if p.stem.isdigit())
-            except OSError:
-                self.golf_tees = []
+            # And which holes have which pictures - from the tee, of the
+            # green, the map of the hole - read once a round so the screens
+            # ask only for what is there.
+            self.golf_pics = _pics_on_shelf(course["id"])
+            self.golf_tees = self.golf_pics["tee"]
             self.mode = GOLF
             self.rebalance_bots()          # a foursome, not a field
             return self.golf, None
@@ -1208,7 +1243,8 @@ class Room:
             has_pic = bool(course) and (Path(__file__).resolve().parent / "static" / "golf"
                                         / "clubhouse" / f"{course}.jpg").is_file()
             self.clubhouse = {"at": _now() + max(0.0, float(seconds)), "spec": dict(spec),
-                              "booked": _now(), "backdrop": (course if has_pic else None)}
+                              "booked": _now(), "backdrop": (course if has_pic else None),
+                              "course_map": _course_map(course)}
             return self.clubhouse["at"]
 
     def leave_clubhouse(self):
@@ -1234,6 +1270,7 @@ class Room:
             spec = self.standing["spec"]
             return {"mode": self.standing["mode"], "tee_in": self.standing["tee_in"],
                     "course_name": spec.get("course_name"), "course": spec.get("course"),
+                    "course_map": _course_map(spec.get("course")),
                     "holes": spec.get("holes_word"), "difficulty": spec.get("difficulty"),
                     "innings": spec.get("innings")}
 
@@ -1254,6 +1291,8 @@ class Room:
                      "companions": bots,
                      "full": len(people) >= FOURSOME,
                      "backdrop": self.clubhouse.get("backdrop"),
+                     # the frame on the clubhouse wall: the whole course, when the unit has its map
+                     "course_map": self.clubhouse.get("course_map"),
                      "course_name": self.clubhouse["spec"].get("course_name"),
                      "holes": self.clubhouse["spec"].get("holes_word"),
                      "difficulty": self.clubhouse["spec"].get("difficulty")}
@@ -1379,6 +1418,16 @@ class Room:
                     "sfx_have": list(getattr(self, "golf_sfx", []) or []),
                     "tee_pic": (_tee_pic(d['course'], d['hole'])
                                 if d.get("hole") in (getattr(self, "golf_tees", []) or []) else None),
+                    # The green, shown once the ball that is away is on it;
+                    # and the hole's map, the frame in the clubhouse for
+                    # whoever is waiting on a tee time. Both this hole's,
+                    # so a screen can fetch them from the tee.
+                    "green_pic": (_pic("green", d['course'], d['hole'])
+                                  if d.get("hole") in (getattr(self, "golf_pics", {}) or {}).get("green", []) else None),
+                    "map_pic": (_pic("map", d['course'], d['hole'])
+                                if d.get("hole") in (getattr(self, "golf_pics", {}) or {}).get("map", []) else None),
+                    "clubhouse_backdrop": (d['course'] if (Path(__file__).resolve().parent / "static" / "golf"
+                                                           / "clubhouse" / f"{d['course']}.jpg").is_file() else None),
                     # The next stroke's figure, if it has one, for a screen
                     # to fetch while this stroke's result is read.
                     "next_figure": ((self.golf_next or {}).get("figure") if self.golf_next else None),
@@ -1386,6 +1435,10 @@ class Room:
                     "next_tee_pic": (_tee_pic(d['course'], self.golf.holes[self.golf.hole_index + 1])
                                      if self.golf.hole_index + 1 < len(self.golf.holes)
                                      and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_tees", []) or [])
+                                     else None),
+                    "next_map_pic": (_pic("map", d['course'], self.golf.holes[self.golf.hole_index + 1])
+                                     if self.golf.hole_index + 1 < len(self.golf.holes)
+                                     and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_pics", {}) or {}).get("map", [])
                                      else None),
                     "address_tokens": (_voice_address(name(away), away_ball,
                                                       slot=(g.players.index(away) + 1 if away in g.players else None),

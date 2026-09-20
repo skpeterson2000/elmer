@@ -229,6 +229,13 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
 @media (max-width: 60rem) { .golfstage-map { grid-template-columns: 1fr; } .holemap { width: 9rem; justify-self: center; } }
 /* The clubhouse's picture, when the unit has one - static/golf/clubhouse.jpg. */
 .clubhouse-pic.teepic { aspect-ratio: 16 / 6; max-height: 34vh; background-position: center 55%; }
+.clubhouse-pic.greenpic { aspect-ratio: 16 / 6; max-height: 34vh; background-position: center 45%; }
+/* A frame on the clubhouse wall: the course's map, or the hole the group is
+   on. A map is a document, not scenery: shown whole, not cropped, credited. */
+.frame { margin: .2rem 0 .8rem; }
+.frame img { display: block; width: 100%; height: auto; max-height: 38vh; object-fit: contain;
+             border-radius: 8px; background: #0f1115; }
+.frame .credit { font-size: 11px; color: var(--dim); text-align: right; margin: .15rem 0 0; }
 .clubhouse-pic { width: 100%; aspect-ratio: 16 / 7; max-height: 40vh; border-radius: 12px; margin-bottom: .8rem;
                  background-size: cover; background-position: center 40%;
                  box-shadow: inset 0 -70px 70px -40px rgba(0,0,0,.75); }
@@ -1033,7 +1040,7 @@ async function tick() {
   document.body.classList.toggle('golfing', golfOn || !!(s.baseball && !s.baseball.over));
   if (golfOn && window.Warm) {
     Warm.round();
-    if (s.golf) Warm.warm([s.golf.next_figure, s.golf.next_tee_pic]);
+    if (s.golf) Warm.warm([s.golf.next_figure, s.golf.next_tee_pic, s.golf.green_pic, s.golf.next_map_pic]);
   }
   const jh = document.getElementById('joinhint');
   if (jh) jh.textContent = golfOn ? 'Scan to arrange a tee time - the group picks you up at the next hole'
@@ -1085,6 +1092,7 @@ async function tick() {
             <select class="btn sm" data-club-companions title="stand-ins played by the unit on the same terms, never on the record board - change it here any time before you tee off">
               ${[3, 2, 1, 0].map(n => `<option value="${n}"${(club.companions == null ? 3 : club.companions) === n ? ' selected' : ''}>${n === 3 ? 'a foursome - 3' : n === 0 ? 'none - the course to yourself' : n}</option>`).join('')}
             </select></p>
+          ${club.course_map ? `<div class="frame"><img src="${esc(club.course_map)}" alt="the course, mapped"><p class="credit">Map &copy; OpenStreetMap contributors</p></div>` : ''}
           <div class="row" style="gap:.5rem;margin-top:.6rem">
             <button class="btn primary" data-tee-off>Play now &rsaquo;</button>
             <button class="btn sm ghost" data-proshop>The pro shop</button>
@@ -1122,6 +1130,10 @@ async function tick() {
         // is spoken over it while the group is on the tee.
         const teePic = onTheTee && gf.tee_pic && !gf.over
           ? `<div class="clubhouse-pic teepic" style="background-image:url(${esc(gf.tee_pic)})"></div>` : '';
+        // And the green, once the ball that is away is on it or its fringe.
+        const onTheGreen = !onTheTee && (gf.away_lie === 'green' || gf.away_lie === 'fringe');
+        const greenPic = onTheGreen && gf.green_pic && !gf.over
+          ? `<div class="clubhouse-pic greenpic" style="background-image:url(${esc(gf.green_pic)})"></div>` : '';
         // The hole, drawn from the card, with every ball where it lies -
         // beside the words, so the yards mean something.
         const awayAim = gf.away != null && gf.balls && gf.balls[gf.away] ? gf.balls[gf.away].aim : null;
@@ -1141,7 +1153,7 @@ async function tick() {
                `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.gross}</td><td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>
              ${gf.away_name ? `<p class="narrator"><b>${esc(gf.away_name)}</b> has the honour on the ${gf.hole}${ordinal(gf.hole)}.</p>` : ''}</div>`
           : '';
-        stage.innerHTML = teePic + `<div class="golfstage golfstage-map"><div>` + standings +
+        stage.innerHTML = teePic + greenPic + `<div class="golfstage golfstage-map"><div>` + standings +
           (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +
           address + (address ? '' : `<p class="empty" style="font-style:normal;color:var(--text)">${golfLine(gf)}</p>`) +
           golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '') +

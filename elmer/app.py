@@ -5232,9 +5232,12 @@ def api_party_golf_assets():
     urls = []
     if (static / "clubhouse" / f"{course_id}.jpg").is_file():
         urls.append(f"/static/golf/clubhouse/{course_id}.jpg")
+    if (static / "map" / course_id / "course.jpg").is_file():
+        urls.append(f"/static/golf/map/{course_id}/course.jpg")
     for n in holes:
-        if (static / "tee" / course_id / f"{n}.jpg").is_file():
-            urls.append(f"/static/golf/tee/{course_id}/{n}.jpg")
+        for kind in party.PIC_KINDS:
+            if (static / kind / course_id / f"{n}.jpg").is_file():
+                urls.append(f"/static/golf/{kind}/{course_id}/{n}.jpg")
     for p in sorted((static / "clips").glob("*.gif")) if (static / "clips").is_dir() else []:
         urls.append(f"/static/golf/clips/{p.name}")
     for p in sorted((static / "voice").glob("*.mp3")) if (static / "voice").is_dir() else []:

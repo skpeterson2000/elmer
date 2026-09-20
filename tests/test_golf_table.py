@@ -152,6 +152,18 @@ def run():
     v = client.get(f"/api/party/state?player={late}", environ_base=local).get_json()["golf"]
     check("  and the phone is told so", (v["your_tee_time"], "W9LATE" in v["tee_times"]), (True, True))
     check("  and the group is still a foursome at most", len(room.players) <= party.FOURSOME, True)
+    # The clubhouse they wait in has a frame on the wall: the club's map of
+    # the hole the group is on, when the unit has it, and the clubhouse's
+    # own picture behind - both by path, stamped like the tee's picture.
+    hole = v["hole"]
+    have_map = hole in party._pics_on_shelf(v["course"])["map"]
+    check("  the frame shows the hole the group is on, when the unit has its map",
+          (v["map_pic"] or "").startswith(f"/static/golf/map/{v['course']}/{hole}.jpg?v=") if have_map else v["map_pic"] is None, True)
+    from pathlib import Path as _P
+    has_club = (_P(party.__file__).resolve().parent / "static" / "golf" / "clubhouse" / f"{v['course']}.jpg").is_file()
+    check("  behind it, the clubhouse - when the unit has this course's", v["clubhouse_backdrop"], v["course"] if has_club else None)
+    check("  the 1st at Pebble Beach is on the shelf: its green and its map", party._pics_on_shelf("pebble-beach")["green"][:1]
+          + party._pics_on_shelf("pebble-beach")["map"][:1], [1, 1])
     room.leave(late)
     check("leaving takes the ball", late in room.golf.balls, False)
 
@@ -251,10 +263,22 @@ def run():
           (True, ["KC9SP"]))
     check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),
           ("pebble-beach", "Pebble Beach Golf Links"))
+    check("  and the whole course mapped in a frame, credited by path",
+          (st["clubhouse"]["course_map"] or "").startswith("/static/golf/map/pebble-beach/course.jpg?v="), True)
     r = client.post("/api/party/tee-off", json={}, environ_base=local)
     pic = r.get_json()["golf"]["tee_pic"] or ""
     check("  and, on the first tee, the view from it - stamped with the file's time, so a replaced picture is fetched fresh",
           (pic.startswith("/static/golf/tee/pebble-beach/1.jpg?v="), pic.endswith("?v=0")), (True, False))
+    g1 = r.get_json()["golf"]
+    check("  the 1st green's picture is offered from the tee, for the screen to fetch ahead; the screen shows it on the green",
+          (g1["green_pic"] or "").startswith("/static/golf/green/pebble-beach/1.jpg?v="), True)
+    check("  and the 1st's map, and the 2nd's to fetch ahead",
+          ((g1["map_pic"] or "").startswith("/static/golf/map/pebble-beach/1.jpg?v="),
+           (g1["next_map_pic"] or "").startswith("/static/golf/map/pebble-beach/2.jpg?v=")), (True, True))
+    urls = client.get("/api/party/golf-assets", environ_base=local).get_json().get("urls", [])
+    check("  the screens' shopping list carries the maps and the green, to fetch before they are wanted",
+          all(u in urls for u in ("/static/golf/map/pebble-beach/course.jpg", "/static/golf/map/pebble-beach/1.jpg",
+                                  "/static/golf/green/pebble-beach/1.jpg")), True)
     autoplay.stop()
     for n in ("W1AW", "N0CALL", "K9XYZ"):
         client.post("/api/party/join", json={"name": n, "device": "phone"}, environ_base=local)
