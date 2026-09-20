@@ -2925,19 +2925,40 @@ The certificates ELMER's own games hand out are a different thing and
 are said to be - see the tournaments - and a wall of them would be a
 wall of a program praising itself.
 
-**The pictures.** A hole can have three, each at `static/golf/<kind>/
-<course>/<hole>.jpg` and each appearing when the unit has it: the view
-from the **tee**, which the address is spoken over while the group is on
-it; the **green**, once the ball that is away is on it or its fringe -
-where you are going, after where you stand; and the **map** of the hole,
-the club's routing exported from OpenStreetMap, which is a document
-rather than scenery and is shown whole and credited. A course may also
-have `map/<course>/course.jpg`, the whole routing, and that hangs in a
-frame in the clubhouse while the tee time counts down. The pictures are
-sized once to a couple of hundred kilobytes each, because a Pi hands them
-to four phones; the originals stay out of the repository. The screens
-fetch this hole's green and the next hole's tee and map while the current
-stroke is read, the same way they already fetched the next tee.
+**The pictures.** A hole can have two on the shelf, each at
+`static/golf/<kind>/<course>/<hole>.jpg` and each appearing when the unit
+has it: the view from the **tee**, which the address is spoken over while
+the group is on it, and the **green**, once the ball that is away is on it
+or its fringe - where you are going, after where you stand. They are sized
+once to a couple of hundred kilobytes, because a Pi hands them to four
+phones; the originals stay out of the repository. The screens fetch this
+hole's green and the next hole's tee while the current stroke is read.
+
+**The course, drawn** (`coursemap.py`). The strip is the hole as the
+rules see it, because the game had no routing. Now it has: the club's own
+- fairways, greens, tees, bunkers, water, the coastline and the eighteen
+hole lines with their numbers - as OpenStreetMap contributors mapped it,
+fetched once by `tools/fetch_golf_map.py` into `data/golf/<course>.map.json`
+(metres about the course's centre, rounded to the half metre, sixty to a
+hundred and seventy kilobytes a course, ODbL and credited on every
+picture) and drawn from there in the strip's colours, never from the
+network. The first attempt was screenshots of the OSM tiles, and they were
+terrible: somebody else's scale, colours and labels, cropped by a frame
+that did not fit them. This is the same facts in ELMER's hand. The whole
+course is the frame on the clubhouse wall while a tee time counts down;
+one hole, turned tee-at-the-foot like the strip with the balls placed
+along its line, is the frame a person waiting on a tee time watches the
+group on. A frame is *filled*: the course is fitted to whatever width and
+height the screen has and the ground may stretch to fill it, up to one and
+a half to one, past which it is centred with margins rather than squashed
+into nonsense; the stretch is done to the geometry, not by the browser to
+the picture, so the numbers, flags and line widths stay true while the
+ground gives. The sea is the water on the right hand of the coastline, by
+OSM's rule, closed round the frame's edge; which way the chain runs is
+decided by a vote of every segment against the course's outline, because
+in a cove the shore runs every way and one segment cannot be trusted. A
+course draws in a few milliseconds and is cached a day; the live frame
+with the balls is not cached and the page keys it by them.
 
 **The clubhouse meets everyone.** Somebody who scans in mid-round used to
 be dropped onto the course with one sentence - you have a tee time, the

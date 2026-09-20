@@ -355,6 +355,8 @@ def courses():
     """Every course shipped, by id, friendliest first."""
     out = {}
     for path in sorted(COURSES_DIR.glob("*.json")):
+        if path.name.endswith(".map.json"):
+            continue                      # a course's routing (coursemap.py), not a card
         c = json.loads(path.read_text(encoding="utf-8"))
         out[c["id"]] = c
     order = {"technician": 0, "general": 1, "extra": 2}

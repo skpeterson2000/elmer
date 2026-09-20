@@ -144,12 +144,11 @@ SOLO_LINES = 2          # a hole's colour, to a player with nobody to share it w
 
 
 # The pictures a hole can have, each at static/golf/<kind>/<course>/<hole>.jpg:
-# the view from the tee, spoken over while the group is on it; the green,
-# once the ball that is away is on it; and the map of the hole, the club's
-# routing from OpenStreetMap, which is the frame in the clubhouse while
-# somebody waits for their tee time. A course may also have map/<course>/
-# course.jpg, the whole routing, for the clubhouse before a round.
-PIC_KINDS = ("tee", "green", "map")
+# the view from the tee, spoken over while the group is on it, and the
+# green, once the ball that is away is on it. The map of a hole and of the
+# course are not pictures on a shelf: they are drawn, from the routing in
+# data/golf/<course>.map.json, by coursemap.py, at whatever size a frame is.
+PIC_KINDS = ("tee", "green")
 
 
 def _pic(kind, course, hole):
@@ -169,15 +168,13 @@ def _tee_pic(course, hole):
 
 
 def _course_map(course):
-    """The whole course's map, if the unit has it, or None."""
+    """The whole course drawn from its routing, if the unit has it, or None.
+    The frame asks for its own size: the address takes w and h."""
+    from . import coursemap
     course = str(course or "")
-    if not course:
-        return None
-    path = Path(__file__).resolve().parent / "static" / "golf" / "map" / course / "course.jpg"
-    try:
-        return f"/static/golf/map/{course}/course.jpg?v={int(path.stat().st_mtime)}"
-    except OSError:
-        return None
+    if course and coursemap.has_map(course):
+        return f"/golf/course/{course}.svg"
+    return None
 
 
 def _pics_on_shelf(course):
@@ -1424,8 +1421,9 @@ class Room:
                     # so a screen can fetch them from the tee.
                     "green_pic": (_pic("green", d['course'], d['hole'])
                                   if d.get("hole") in (getattr(self, "golf_pics", {}) or {}).get("green", []) else None),
-                    "map_pic": (_pic("map", d['course'], d['hole'])
-                                if d.get("hole") in (getattr(self, "golf_pics", {}) or {}).get("map", []) else None),
+                    # the hole the group is on, drawn from the routing with the balls on it - the
+                    # frame for whoever waits in the clubhouse; the page adds its size and a key
+                    "map_pic": ("/api/party/golf/hole-map.svg" if _course_map(d['course']) else None),
                     "clubhouse_backdrop": (d['course'] if (Path(__file__).resolve().parent / "static" / "golf"
                                                            / "clubhouse" / f"{d['course']}.jpg").is_file() else None),
                     # The next stroke's figure, if it has one, for a screen
@@ -1436,9 +1434,8 @@ class Room:
                                      if self.golf.hole_index + 1 < len(self.golf.holes)
                                      and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_tees", []) or [])
                                      else None),
-                    "next_map_pic": (_pic("map", d['course'], self.golf.holes[self.golf.hole_index + 1])
-                                     if self.golf.hole_index + 1 < len(self.golf.holes)
-                                     and self.golf.holes[self.golf.hole_index + 1] in (getattr(self, "golf_pics", {}) or {}).get("map", [])
+                    "next_map_pic": (f"/golf/course/{d['course']}/{self.golf.holes[self.golf.hole_index + 1]}.svg?w=300&h=400"
+                                     if self.golf.hole_index + 1 < len(self.golf.holes) and _course_map(d['course'])
                                      else None),
                     "address_tokens": (_voice_address(name(away), away_ball,
                                                       slot=(g.players.index(away) + 1 if away in g.players else None),

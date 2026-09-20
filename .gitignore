@@ -143,3 +143,4 @@ ELMER.exe
 # GolfTraxx pages the cards were measured from - theirs, kept for re-runs, not shipped
 data/golf/.golftraxx/
 data/fieldreport.json
+data/golf/.osm/

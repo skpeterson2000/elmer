@@ -2,6 +2,8 @@
  "id": "st-andrews-old",
  "name": "The Old Course at St Andrews",
  "where": "St Andrews, Fife, Scotland",
+ "lat": 56.3433,
+ "lon": -2.803,
  "pool": "general",
  "par": 72,
  "wind": {

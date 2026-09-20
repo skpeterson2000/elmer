@@ -2,6 +2,8 @@
  "id": "augusta-national",
  "name": "Augusta National Golf Club",
  "where": "Augusta, Georgia",
+ "lat": 33.503,
+ "lon": -82.0232,
  "pool": "extra",
  "par": 72,
  "wind": {

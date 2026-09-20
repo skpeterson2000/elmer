@@ -155,15 +155,29 @@ def run():
     # The clubhouse they wait in has a frame on the wall: the club's map of
     # the hole the group is on, when the unit has it, and the clubhouse's
     # own picture behind - both by path, stamped like the tee's picture.
-    hole = v["hole"]
-    have_map = hole in party._pics_on_shelf(v["course"])["map"]
-    check("  the frame shows the hole the group is on, when the unit has its map",
-          (v["map_pic"] or "").startswith(f"/static/golf/map/{v['course']}/{hole}.jpg?v=") if have_map else v["map_pic"] is None, True)
+    from elmer import coursemap
+    have_map = coursemap.has_map(v["course"])
+    check("  the frame shows the hole the group is on, drawn from the routing, when the unit has it",
+          v["map_pic"] == "/api/party/golf/hole-map.svg" if have_map else v["map_pic"] is None, True)
+    if have_map:
+        r = client.get("/api/party/golf/hole-map.svg?w=300&h=400", environ_base=local)
+        check("  and the frame is served, with the balls on it, uncached",
+              (r.status_code, r.mimetype, r.headers.get("Cache-Control"), b"<svg" in r.data, b"OpenStreetMap" in r.data),
+              (200, "image/svg+xml", "no-store", True, True))
     from pathlib import Path as _P
     has_club = (_P(party.__file__).resolve().parent / "static" / "golf" / "clubhouse" / f"{v['course']}.jpg").is_file()
     check("  behind it, the clubhouse - when the unit has this course's", v["clubhouse_backdrop"], v["course"] if has_club else None)
-    check("  the 1st at Pebble Beach is on the shelf: its green and its map", party._pics_on_shelf("pebble-beach")["green"][:1]
-          + party._pics_on_shelf("pebble-beach")["map"][:1], [1, 1])
+    check("  the 1st at Pebble Beach is on the shelf: its green", party._pics_on_shelf("pebble-beach")["green"][:1], [1])
+    check("  and all three courses have their routing", [coursemap.has_map(c) for c in ("pebble-beach", "st-andrews-old", "augusta-national")],
+          [True, True, True])
+    for cid in ("pebble-beach", "st-andrews-old", "augusta-national"):
+        r = client.get(f"/golf/course/{cid}.svg?w=960&h=420", environ_base=local)
+        check(f"  {cid} draws whole, at the frame's size, credited, cached a day",
+              (r.status_code, r.headers.get("Cache-Control"), b'width="960" height="420"' in r.data, b"OpenStreetMap" in r.data),
+              (200, "public, max-age=86400", True, True))
+    r = client.get("/golf/course/pebble-beach/7.svg?w=300&h=400", environ_base=local)
+    check("  and a hole draws on its own, tee at the foot", (r.status_code, b"the 7th" in r.data), (200, True))
+    check("  a course without routing says so", client.get("/golf/course/nowhere.svg", environ_base=local).status_code, 404)
     room.leave(late)
     check("leaving takes the ball", late in room.golf.balls, False)
 
@@ -263,8 +277,7 @@ def run():
           (True, ["KC9SP"]))
     check("  with the course's clubhouse on the wall", (st["clubhouse"]["backdrop"], st["clubhouse"]["course_name"]),
           ("pebble-beach", "Pebble Beach Golf Links"))
-    check("  and the whole course mapped in a frame, credited by path",
-          (st["clubhouse"]["course_map"] or "").startswith("/static/golf/map/pebble-beach/course.jpg?v="), True)
+    check("  and the whole course drawn in a frame on the wall", st["clubhouse"]["course_map"], "/golf/course/pebble-beach.svg")
     r = client.post("/api/party/tee-off", json={}, environ_base=local)
     pic = r.get_json()["golf"]["tee_pic"] or ""
     check("  and, on the first tee, the view from it - stamped with the file's time, so a replaced picture is fetched fresh",
@@ -272,12 +285,11 @@ def run():
     g1 = r.get_json()["golf"]
     check("  the 1st green's picture is offered from the tee, for the screen to fetch ahead; the screen shows it on the green",
           (g1["green_pic"] or "").startswith("/static/golf/green/pebble-beach/1.jpg?v="), True)
-    check("  and the 1st's map, and the 2nd's to fetch ahead",
-          ((g1["map_pic"] or "").startswith("/static/golf/map/pebble-beach/1.jpg?v="),
-           (g1["next_map_pic"] or "").startswith("/static/golf/map/pebble-beach/2.jpg?v=")), (True, True))
+    check("  and the hole's map live, and the 2nd's to fetch ahead",
+          (g1["map_pic"], g1["next_map_pic"]), ("/api/party/golf/hole-map.svg", "/golf/course/pebble-beach/2.svg?w=300&h=400"))
     urls = client.get("/api/party/golf-assets", environ_base=local).get_json().get("urls", [])
     check("  the screens' shopping list carries the maps and the green, to fetch before they are wanted",
-          all(u in urls for u in ("/static/golf/map/pebble-beach/course.jpg", "/static/golf/map/pebble-beach/1.jpg",
+          all(u in urls for u in ("/golf/course/pebble-beach.svg?w=960&h=420", "/golf/course/pebble-beach/1.svg?w=300&h=400",
                                   "/static/golf/green/pebble-beach/1.jpg")), True)
     autoplay.stop()
     for n in ("W1AW", "N0CALL", "K9XYZ"):

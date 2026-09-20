@@ -32,7 +32,7 @@ from flask import (Flask, Response, abort, g, has_request_context, jsonify, redi
 from . import (
     activations, activationspdf, antenna_advice, antennapdf, autoplay, awardpdf, awards, bandpdf,
     bandplan, bench, bugreport, calibrate, callsign, celestial,
-    certpdf, cohort, conductors, cw, db, devreset,
+    certpdf, cohort, conductors, coursemap, cw, db, devreset,
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
     fieldreport, forecastlog, game, gating, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
@@ -5152,6 +5152,71 @@ def golf_hole_map(course_id, n):
     return resp
 
 
+def _th(n):
+    """1st, 2nd, 3rd, 4th ... the suffix alone."""
+    n = int(n)
+    return "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+
+
+@app.route("/golf/course/<course_id>.svg")
+def golf_course_map(course_id):
+    """The whole course, drawn from its OpenStreetMap routing, filling the
+    width and height asked for (the clubhouse frame's). Static: cached a day."""
+    w = max(200, min(2000, int(request.args.get("w", 960) or 960)))
+    h = max(120, min(2000, int(request.args.get("h", 420) or 420)))
+    try:
+        course = golf.course(course_id)
+    except KeyError:
+        abort(404)
+    svg = coursemap.course_svg(course_id, w, h, title=course["name"])
+    if svg is None:
+        abort(404, "no map for this course")
+    resp = app.response_class(svg, mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/golf/course/<course_id>/<int:n>.svg")
+def golf_course_hole_map(course_id, n):
+    """One hole from the routing, tee at the foot, no balls. Static: cached a day."""
+    w = max(120, min(1200, int(request.args.get("w", 300) or 300)))
+    h = max(160, min(1600, int(request.args.get("h", 400) or 400)))
+    if not coursemap.has_map(course_id):
+        abort(404, "no map for this course")
+    svg = coursemap.hole_svg(course_id, n, w, h, title=f"the {n}{_th(n)}")
+    if svg is None:
+        abort(404)
+    resp = app.response_class(svg, mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/api/party/golf/hole-map.svg")
+def api_party_golf_hole_map():
+    """The hole the group is on, from the routing, with every ball where it
+    lies: the frame on the clubhouse wall for whoever is waiting on a tee
+    time. Not cached; the page keys it by the balls."""
+    room = _party_or_404()
+    g = room.golf
+    if g is None or g.hole() is None:
+        abort(404, "no hole is being played")
+    course_id = g.course["id"]
+    if not coursemap.has_map(course_id):
+        abort(404, "no map for this course")
+    w = max(120, min(1200, int(request.args.get("w", 300) or 300)))
+    h = max(160, min(1600, int(request.args.get("h", 400) or 400)))
+    view = room.golf_view(None) or {}
+    balls = [{"name": b["name"], "at": b["at"], "off": b.get("off", 0), "lie": b["lie"]}
+             for b in (view.get("balls") or {}).values() if not b.get("holed") and not b.get("picked_up")]
+    h_ = g.hole()
+    svg = coursemap.hole_svg(course_id, h_["n"], w, h, balls=balls, title=f"the {h_['n']}{_th(h_['n'])}, par {h_['par']}")
+    if svg is None:
+        abort(404)
+    resp = app.response_class(svg, mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/api/party/golf/map.svg")
 def api_party_golf_map():
     """The hole the table is on, with every ball where it lies - and the
@@ -5232,8 +5297,9 @@ def api_party_golf_assets():
     urls = []
     if (static / "clubhouse" / f"{course_id}.jpg").is_file():
         urls.append(f"/static/golf/clubhouse/{course_id}.jpg")
-    if (static / "map" / course_id / "course.jpg").is_file():
-        urls.append(f"/static/golf/map/{course_id}/course.jpg")
+    if coursemap.has_map(course_id):
+        urls.append(f"/golf/course/{course_id}.svg?w=960&h=420")
+        urls += [f"/golf/course/{course_id}/{n}.svg?w=300&h=400" for n in holes]
     for n in holes:
         for kind in party.PIC_KINDS:
             if (static / kind / course_id / f"{n}.jpg").is_file():
