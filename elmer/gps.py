@@ -266,6 +266,18 @@ def fix(conn=None, max_age=FRESH_FOR):
     # not a teleport. Past that, stop claiming to know.
     if _last["fix"] and now - _last["fix"]["read_at"] >= STALE_AFTER:
         _last["fix"] = None
+    # With no answer in hand, the sources that cost nothing to ask are asked
+    # now: TowerWitch's broadcast and a phone's stream are already in memory,
+    # read by their own threads. Without this the first "locate me" after a
+    # start lost: the probe ran a second in, before TowerWitch's first packet,
+    # and every ask for the next half minute repeated its empty answer while
+    # the position sat in the listener. gpsd still outranks them - the probe
+    # replaces this with the receiver's own fix as soon as it has one.
+    if not _last["fix"]:
+        from . import towerwitch, phonegps
+        cheap = towerwitch.current() or phonegps.current()
+        if cheap:
+            _last["fix"] = cheap
     return _last["fix"]
 
 
