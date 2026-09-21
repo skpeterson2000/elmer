@@ -456,10 +456,10 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
                  its answer put in front of the person, free - no penalty for a guess on
                  somebody else's question - and that is what the questions are for. #}
               <select class="btn sm" id="golf-companions" title="practice players in the group - stand-ins, played by the unit on the same terms, never on the record board. Every one of their strokes is a question and its answer in front of you, free">
-                <option value="3" selected>a foursome - 3 companions</option>
-                <option value="2">2 companions</option>
-                <option value="1">1 companion</option>
-                <option value="0">no companions - the course to yourself</option>
+                <option value="3" selected>a foursome - you and 3 practice players</option>
+                <option value="2">a threesome - you and 2 practice players</option>
+                <option value="1">a twosome - you and 1 practice player</option>
+                <option value="0">the course to yourself - no practice players</option>
               </select>
               <label class="small" title="strokes given, from each player's own study on this unit; nine in ten plays scratch">
                 <input type="checkbox" id="golf-handicap"> handicap</label>
@@ -1086,9 +1086,10 @@ async function tick() {
           <p class="narrator">Tee time in <b>${clockWords(club.tee_in)}</b> &middot; ${club.people.length} of ${club.group} in the group${club.companions ? ` &middot; ${club.companions} practice player${club.companions === 1 ? '' : 's'} seated` : ''}</p>
           <div class="seats" style="margin:.4rem 0">${club.people.map(n => `<span class="seat">${esc(n)}</span>`).join('') || '<span class="empty">nobody yet</span>'}</div>
           <p class="hint" style="text-align:left">Friends scan the code to join the group. It departs when it is full, when the time is up, or when you press <b>Play now</b>.
-            Practice players in the group:
+            The group:
             <select class="btn sm" data-club-companions title="stand-ins played by the unit on the same terms, never on the record board - change it here any time before you tee off">
-              ${[3, 2, 1, 0].map(n => `<option value="${n}"${(club.companions == null ? 3 : club.companions) === n ? ' selected' : ''}>${n === 3 ? 'a foursome - 3' : n === 0 ? 'none - the course to yourself' : n}</option>`).join('')}
+              ${[3, 2, 1, 0].map(n => `<option value="${n}"${(club.companions == null ? 3 : club.companions) === n ? ' selected' : ''}>${
+                  ['the course to yourself - no practice players', 'a twosome - 1 practice player', 'a threesome - 2 practice players', 'a foursome - 3 practice players'][n]}</option>`).join('')}
             </select></p>
           ${club.course_map ? `<div class="frame"><img src="${esc(club.course_map)}?w=960&h=420" alt="the course, mapped"></div>` : ''}
           <div class="row" style="gap:.5rem;margin-top:.6rem">
