@@ -116,6 +116,49 @@
 <div id="peers" class="mt"></div>
 <div id="selfcheck" class="mt"></div>
 
+{#- No licence on this account's record, and this account's own evidence says
+    it would pass. The program has spent the whole time measuring readiness
+    and had no way to say the next thing, which is: go and do it. Shown once
+    the evidence is there and not before, so it is news rather than furniture.
+    See ticket.py - including why the wording is about ELMER's record and
+    never about whether somebody is licensed. -#}
+{% if go_and_sit %}
+<div class="panel mt go-sit">
+  <div class="spread">
+    <div class="panel-title">{{ go_and_sit.headline }}</div>
+    <span class="pill {% if go_and_sit.stage == 'ready' %}good{% else %}info{% endif %}">
+      {{ go_and_sit.class_name }} &middot; {{ (100 * go_and_sit.odds)|round(0)|int }}% odds
+    </span>
+  </div>
+  <p>{{ go_and_sit.reading }}</p>
+
+  <ol>
+    {% for step in go_and_sit.steps %}
+    <li>
+      <b>{{ step.title }}</b> &mdash; {{ step.detail }}
+      {%- if step.url %}
+        <a href="{{ step.url }}" target="_blank" rel="noopener">{{ step.link }} &rarr;</a>
+      {%- endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="tiny muted">
+    The Commission's application fee was ${{ go_and_sit.fee }} when this was
+    written &mdash; {{ go_and_sit.fee_note }}. Fees and forms change and ELMER
+    does not watch them.
+  </p>
+
+  <div class="charge">{{ go_and_sit.charge }}</div>
+
+  <div class="row mt">
+    <a class="btn primary sm" href="{{ go_and_sit.finder }}" target="_blank" rel="noopener">Find a session &rarr;</a>
+    <a class="btn sm" href="/exam/{{ go_and_sit.pool_id }}">One more mock exam</a>
+    <a class="btn sm ghost" href="/study/{{ go_and_sit.pool_id }}?mode=weak">Drill the weak spots</a>
+  </div>
+  <p class="tiny muted mt">{{ go_and_sit.record_note }}</p>
+</div>
+{% endif %}
+
 {% if first_run.show %}
 <div class="panel mt welcome">
   <div class="panel-title">Start here</div>

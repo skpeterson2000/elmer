@@ -202,6 +202,52 @@ A three-day streak still resets — the slack has to be earned before it can be
 spent. A streak that one missed evening destroys stops being a reason to study
 and becomes a reason to dread missing one.
 
+**Ten in a row, from one pool.** A person drilling a pool breaks their run at
+four, then at six, then at eight, and one evening they do not break it at all.
+That progression is the learning, and the HUD used to hide it: the run counted
+up and then quietly went back to nought, so the only thing a miss said was that
+the number was gone. Each pool now keeps its own run, alongside the longest
+ever, the bar being worked toward, and where the last few runs actually broke —
+printed in order, `12 → 4 → 6 → 9`, with the trend named once there are enough
+of them to name it.
+
+The bar starts at three, which almost anybody clears in a first sitting, and
+moves up a rung each time it is reached: 3, 5, 10, 15, 20, 25, 35, 50. **It
+never comes down.** A run that ends short of it costs nothing. This is meant to
+be a reason to keep answering, and a bar that retreats on a miss teaches people
+to stop while they are ahead. The bar is also printed rather than hidden: a
+schedule that pays out on a varying, secret number of answers holds attention
+better — that is the whole finding — but a study tool doing that to somebody is
+manipulating them rather than teaching them, so the next rung is named and can
+be aimed at.
+
+Ten is the number the whole thing points at, because ten consecutive right
+answers drawn from a whole pool is roughly what the real paper feels like. Ten
+*once* is partly the draw, so it is counted rather than celebrated and finished
+with: three separate runs of ten is what counts as having it, and until then
+the page says how many times it has happened. It is per pool and not global — a
+run built by bouncing between Technician and General says nothing about
+readiness in either.
+
+**The sounds are off until you ask for them.** A speaker switch in the study
+HUD, remembered per browser, and silent until pressed: a study tool that starts
+beeping in a quiet house on the first answer of the evening is one that gets
+closed. Switched on, a right answer gets a short blip, a rung gets a rising
+figure, and a badge or a rank promotion gets a longer one. A miss gets a tone
+too, but not a buzzer — low, short and flat. Missing is the signal the scheduler
+runs on, the same reasoning as the owl that appears only on a real lapse, and
+the sound for it marks that the answer landed rather than passing a verdict on
+the person who gave it. The chime keeps its own audio context rather than
+borrowing the CW sidetone, so a right answer cannot drag the pitch somebody is
+learning the code at.
+
+**What an answer earned stays on the screen.** A badge used to arrive as a
+toast and be gone in seven seconds, which is fine for "you have studied three
+days running" and not fine for one somebody worked a fortnight for. Badges are
+now written into the answer's verdict as well, where they stay until the next
+question is asked for — and so is a step on the rank ladder, which the server
+had been reporting all along while the page threw it away.
+
 ### Where a newcomer starts
 
 Somebody who has just downloaded this and holds no license is looking at 2,475
@@ -270,6 +316,112 @@ where the marks went.
 **Exam readiness** is a Monte-Carlo simulation: 4,000 exams drawn under the real
 blueprint against your per-question estimates, reported as a pass probability
 and a likely score range.
+
+**Nothing is marked until you hand it in.** Everywhere else ELMER is generous —
+a verdict on every answer, an explanation, a run counter that moves, a rank
+ladder, badges, a sound. The mock exam withholds all of it, because that is
+what makes it a facsimile: the real paper tells you nothing until it is marked.
+No verdict, no running score, no sound, no streak; you may change any answer
+and move in any order right up to the moment you submit, and everything is
+graded at once after that. The exam page loads no sound script at all, and the
+run ladder is deliberately left alone by an exam — it is a practice instrument,
+and a measurement that moved the instrument would not be a measurement.
+
+That is an easy thing to break by accident and the breakage would be invisible,
+since the exam would still work, so `tests/test_exam_silence.py` holds it: no
+answer key in what the browser is handed, nothing moved by starting one, no
+sound loaded, and a complete marking when the paper is in. Writing that test
+turned up a real leak — the shuffle permutation was being sent to the browser
+under `order`, and the pool's own answer index is on the Browse page for anyone
+to read, so `order.index()` of it was the key to the paper. The exam page never
+used it. It is no longer sent.
+
+### Reading the wire
+
+The drill sends that same `order` with every question, and always will. That
+is deliberate, and it is worth writing down so it does not look like the same
+oversight left half-fixed.
+
+The exam is a measurement, and a measurement somebody can reach into is not
+one, so it is sealed. The drill is not a measurement. It is about to give the
+answer away — not eventually, but in about a second, for free, with the
+explanation under it, the FCC rule it comes from and a link to try it in the
+Lab. And the card is coming back regardless: the scheduler's whole job is to
+keep returning a question until it is answered right on a Tuesday three weeks
+from now, and there is no answering it hard enough to make it stop. Somebody
+decoding the payload has done strictly more work, to learn strictly less, in
+the one place that was about to hand it over anyway. Closing that would mean
+server-side state on every question asked, to defend something not worth
+defending.
+
+So ELMER notices instead. An answer that is **correct**, on a question this
+account has **never seen**, given **faster than anybody reads four choices**
+is arithmetic rather than study — any two of those three is an ordinary
+evening, and all three together is not. One is a lucky stab at four options,
+so nothing is said until the third, which puts a false positive around one in
+sixty-four and costs nothing anyway. Then the owl turns up — the same one the
+RF exposure tool keeps for a limit exceeded and a licence exceeded, which are
+otherwise the only two places in the program that earn a raised eyebrow — and
+points out that the answer was a second away for nothing, that the scheduler
+now believes them and will therefore hand the card back in nine days to
+somebody who has still never read the question, and that the exam is the one
+that is sealed because that one is a measurement. Then it gives them a badge
+for it: **Read the Wire**.
+
+Nothing is punished. The answer counts, which is the joke — the system
+corrects itself without any help, and that is the part they have not thought
+about. The badge is kept off the achievements wall until it is earned, and the
+count beside the wall is taken from the same filtered list, because a hollow
+star reading "answer the drill from the payload" is not a joke about the
+person who went digging, it is an instruction to everybody who had not thought
+of it.
+
+And it is beatable: the timing comes from the browser, so anybody who reads
+this far can send a plausible `ms` and never be seen. The point at which
+somebody is forging timings to avoid being teased by an owl, about a study
+tool that was going to give them the answer, is well past anything worth
+worrying about.
+
+### And then go and sit the real one
+
+ELMER could say, with a Monte Carlo over the actual pool and a run of mock
+exams behind it, that somebody would very probably pass — and had no way of
+saying the next thing, which is *go and do it*. The program would happily have
+let a person drill a pool to ninety-five per cent for a year.
+
+So when there is no licence on the account's record and a pool's own evidence
+says ready, the dashboard says so, and says what the day actually involves: an
+FRN from the FCC's CORES system before you go, a session to find, a VE team
+that sets its own fee, and the Commission's application fee afterwards. Those
+are the four things that stop people, and none of them is the exam. The fee is
+printed as a figure to confirm rather than one to trust, because fees change
+and ELMER does not watch them.
+
+Two stages, because "nearly" is worth hearing too. *Approaching* is good odds
+with at least one mock exam actually passed — the point where it is worth
+finding out when the local team next sits. *Ready* is the class tier in the
+rank ladder, which already asks for ninety per cent of the pool seen,
+eighty-five per cent odds, and two of the last three mock exams passed. That is
+evidence rather than encouragement. Nothing appears before one of the two is
+true, so the panel is news and not furniture.
+
+The wording is careful in the same way the rank titles are, and in the same
+direction: it never says anybody is unlicensed. ELMER does not know that. It
+knows only that no licence is on this account's record — an operator licensed
+for thirty years who has never typed their callsign in is not unlicensed, they
+are unrecorded — and that is the sentence the panel prints.
+
+And it says what the ticket is for, once, on the screen where somebody has just
+been told they are ready:
+
+> A licence is more than a privilege that carries legal and ethical
+> obligations. It is knowledge, and knowledge carries its own imperative: to be
+> a generous ambassador for the craft, to demonstrate competence, and to share
+> that competence with the developing operator in kindness. The person who
+> helps you at your first session was helped at theirs.
+
+That is the moment for it, because a person who has just been told they will
+pass is about to become the operator a newcomer asks.
 
 ### Band plan
 

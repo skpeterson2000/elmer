@@ -7,6 +7,7 @@ const card = document.getElementById('card');
 const state = {
   q: null, shownAt: 0, answered: false,
   count: 0, right: 0, run: 0, recent: [],
+  ladder: S.ladder || null,
   startedAt: Date.now()
 };
 
@@ -36,11 +37,159 @@ function lapseNote(res) {
 }
 
 
+/* ------------------------------------------------------------ run ladder */
+/* The bar, the run against it, and where the last few runs broke.
+ *
+ * The breaks are the part worth printing. Somebody learning a pool breaks at
+ * four, then six, then eight, and one evening not at all - and the number
+ * going back to nought, which is all the HUD used to do, hid exactly that.
+ * So the recent breaks are shown in order, the trend is named when there are
+ * enough of them to name it, and the bar only ever goes up. A run that ends
+ * short of the bar costs nothing: see runladder.py. */
+
+function trendOf(breaks) {
+  const kept = (breaks || []).filter(b => b);
+  if (kept.length < 4) return null;
+  const half = Math.floor(kept.length / 2);
+  const older = kept.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const newer = kept.slice(half).reduce((a, b) => a + b, 0) / (kept.length - half);
+  if (newer >= older + 1) return 'rising';
+  if (newer <= older - 1) return 'falling';
+  return 'level';
+}
+
+function paintLadder() {
+  const L = state.ladder;
+  if (!L || !document.getElementById('ladder')) return;
+
+  document.getElementById('h-run').textContent = L.run;
+  document.getElementById('h-bar').textContent = L.bar;
+  document.getElementById('l-best').textContent = L.best;
+  document.getElementById('l-hits').textContent = L.hits;
+
+  const fill = document.getElementById('l-fill');
+  fill.style.width = Math.min(100, 100 * L.run / Math.max(1, L.bar)).toFixed(0) + '%';
+  fill.className = L.run >= L.target ? 'fill-high' : L.run ? 'fill-mid' : 'fill-low';
+
+  document.getElementById('l-goal').textContent = L.settled
+    ? 'ten in a row is yours — working at ' + L.bar
+    : L.to_bar === 0 ? 'next rung ' + L.bar
+    : L.to_bar + ' more for ' + L.bar +
+      (L.hits ? '' : ', then ' + L.target + ' is the one that counts');
+
+  const breaks = document.getElementById('l-breaks');
+  breaks.innerHTML = L.breaks.length
+    ? 'broke at ' + L.breaks.map(b =>
+        '<b>' + b + '</b>').join(' → ')
+    : '';
+
+  const trend = trendOf(L.breaks);
+  document.getElementById('l-trend').innerHTML = trend === 'rising'
+    ? '<span style="color:var(--green)">getting further each time</span>'
+    : trend === 'falling'
+    ? '<span class="muted">not getting as far lately</span>' : '';
+}
+
+/* What the ladder did on this answer, for the verdict. Silent on the
+ * ordinary case - most answers move the run by one and that is already in
+ * the HUD - and says something only when a rung is reached, a best is set,
+ * or a run ends, because a note that appears on every answer is wallpaper
+ * by Thursday. */
+function ladderNote(L) {
+  if (!L) return '';
+  /* Ten in a row is announced every time it happens, not only the first:
+     the bar has moved past ten by the second one, so `reached` is null
+     there, and those later tens are precisely the ones that turn a lucky
+     draw into having it. See _event() in runladder.py. */
+  if (L.hit_target) {
+    return '<div class="rung">▲ <b>' + L.target + ' in a row.</b> ' + (L.settled
+      ? 'That is ' + L.hits + ' times you have had ten from ' +
+        escapeHTML(S.pool_name) + ' — it is not the draw any more.'
+      : 'Ten from one pool is roughly what the real paper feels like. ' +
+        (L.hits_needed === 1 ? 'Once more' : L.hits_needed + ' more times') +
+        ' and it counts as reliable.') + '</div>';
+  }
+  if (L.reached) {
+    return '<div class="rung">▲ <b>' + L.reached + ' in a row.</b> ' +
+      'The bar moves to ' + L.bar + '.</div>';
+  }
+  if (L.broke) {
+    const before = L.previous_break
+      ? ' Last one ended at ' + L.previous_break + '.' : '';
+    return '<div class="tiny muted" style="margin-top:.35rem">' +
+      'Run of ' + L.broke + ' ended.' + before +
+      (L.improved ? ' <span style="color:var(--green)">Further than last time.</span>'
+                  : '') + '</div>';
+  }
+  if (L.new_best && L.run > 1) {
+    return '<div class="tiny" style="margin-top:.35rem;color:var(--amber)">' +
+      'Longest run yet in ' + escapeHTML(S.pool_name) + ': ' + L.run + '.</div>';
+  }
+  return '';
+}
+
+/* A step on the rank ladder is the rarest thing that happens on this page,
+ * and it was being thrown away: /api/answer has returned `promoted` all
+ * along and nothing rendered it. */
+function promotionNote(promoted) {
+  if (!promoted) return '';
+  return '<div class="promoted">' +
+    '<div><b>' + escapeHTML(promoted.step_name) + '</b></div>' +
+    '<div class="small muted">Your standing in ' + escapeHTML(promoted.class_name) +
+    (promoted.next_name
+      ? '. Next is ' + escapeHTML(promoted.next_name) + '.'
+      : '. That is the top of this ladder.') +
+    ' ELMER’s own standing, against ELMER’s own copy of the pool.</div></div>';
+}
+
+/* Somebody answering out of the network tab.
+ *
+ * The drill sends `order` with every question and always will - the answer
+ * is a second away, for free, and the card comes back until it is actually
+ * known, so there is nothing here worth defending. What there is, is
+ * something worth saying. The stern owl, which the program otherwise keeps
+ * for an exposure limit and a licence claim, because this is the third
+ * thing on the list of raised-eyebrow moments and it is a much funnier one.
+ * See peeking.py. */
+function wireNote(wire) {
+  if (!wire) return '';
+  return '<div class="wire">' +
+    '<img src="/static/owl-mind.png" alt="" class="lapse-owl">' +
+    '<div>' + wire.lines.map(line =>
+      '<p>' + escapeHTML(line) + '</p>').join('') + '</div></div>';
+}
+
+/* Badges toast, and the toast is gone in seven seconds - which is fine for
+ * "you have studied three days running" and not fine for the ones somebody
+ * worked a fortnight for. So they are also written into the verdict, where
+ * they stay until the next question is asked for. */
+function badgeNote(list) {
+  if (!list || !list.length) return '';
+  return '<div class="badges">' + list.map(a =>
+    '<div><span class="badge-mark">\u{1F3C5}</span> <b>' + escapeHTML(a.name) +
+    '</b> <span class="small muted">' + escapeHTML(a.description) + '</span></div>'
+  ).join('') + '</div>';
+}
+
+/* The sounds, in order of what they are worth. One per answer at most: a
+ * rung and a badge on the same answer plays the badge, because the rarer
+ * thing is the one worth hearing. Off unless the operator switched it on -
+ * chime.js holds that, and every call here is a no-op while it is off. */
+function sound(res) {
+  if (typeof Chime === 'undefined') return;
+  const L = res.ladder;
+  if (res.promoted) return Chime.promoted();
+  if (res.achievements && res.achievements.length) return Chime.badge();
+  if (L && (L.hit_target || L.reached)) return Chime.rung(L.hit_target ? L.target : L.reached);
+  if (L && L.improved) return Chime.further();
+  return res.correct ? Chime.right() : Chime.wrong();
+}
+
 function hud() {
   document.getElementById('h-count').textContent = state.count;
   document.getElementById('h-acc').textContent =
     state.count ? Math.round(100 * state.right / state.count) + '%' : '-';
-  document.getElementById('h-run').textContent = state.run;
+  paintLadder();
   if (S.rapid) {
     const left = Math.max(0, 300 - (Date.now() - state.startedAt) / 1000);
     document.getElementById('h-timer').textContent = 'contest ' + fmtDuration(left);
@@ -101,9 +250,11 @@ async function answer(index) {
 
   state.count++; state.right += res.correct ? 1 : 0;
   state.run = res.run; state.recent.push(q.question_id);
+  if (res.ladder) state.ladder = res.ladder;
   document.getElementById('h-xp').textContent = res.total_xp;
   hud();
   showAchievements(res.achievements);
+  sound(res);
 
   const nextDue = res.interval_days >= 1
     ? 'next review in ' + Math.round(res.interval_days) + ' day' + (res.interval_days >= 1.5 ? 's' : '')
@@ -115,6 +266,10 @@ async function answer(index) {
                      : '<span style="color:var(--red)">&#10007; Not quite</span>') +
         '<span class="xp">+' + res.xp + ' XP</span></div>' +
       lapseNote(res) +
+      wireNote(res.wire) +
+      ladderNote(res.ladder) +
+      badgeNote(res.achievements) +
+      promotionNote(res.promoted) +
       '<div class="small muted">' + res.explain.map(escapeHTML).join(' &middot; ') + '</div>' +
       '<div class="tiny muted" style="margin-top:.35rem">' + nextDue + '</div>' +
       explanationHTML(res.explanation, { pool: S.pool }) +
@@ -153,5 +308,14 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* The sound switch, put in the HUD by the page that has sounds rather than
+   baked into the template, so a build without chime.js simply has no
+   button instead of a dead one. */
+(function mountSound() {
+  const slot = document.getElementById('h-sound');
+  if (slot && typeof chimeControl === 'function') slot.appendChild(chimeControl());
+})();
+
+paintLadder();
 setInterval(hud, 1000);
 nextQuestion();

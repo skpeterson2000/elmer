@@ -39,9 +39,9 @@ from . import (
     landmarks, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
     personal, phonegps, places, pota, prints, programmes,
-    palette, propagation, qr, ranks, reachout, references, regional,
-    repeaters, rfexposure, rfpdf, show, smith, spotlog,
-    srs, sweeps, terrain, touchstone, tournament, towerwitch,
+    palette, peeking, propagation, qr, ranks, reachout, references, regional,
+    repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
+    srs, sweeps, terrain, ticket, touchstone, tournament, towerwitch,
     track, trivia, uls, units, update, vna, voice, weather,
     whipbuild,
 )
@@ -589,7 +589,10 @@ def profile_block(connection):
                                                        connection.user_id),
             "answered": answered, "today": today_count,
             "achievements": game.earned(connection),
-            "all_achievements": game.ACHIEVEMENTS,
+            # The wall, not the whole list: a badge that is a joke about
+            # somebody who went digging must not be printed as a hollow star
+            # telling everybody else where to dig. See game.SECRET.
+            "all_achievements": game.wall(game.earned(connection)),
             "rank_rules": {"current_days": ranks.CURRENT_DAYS,
                            "grace_days": ranks.GRACE_DAYS},
             "qth": qth_for(connection, prof),
@@ -738,6 +741,16 @@ def home():
         })
     connection.commit()
     profile = db.get_profile(connection)
+    # Somebody with no licence on record whose own evidence says they would
+    # pass is told so, and told what the day involves. Never raised at the
+    # dashboard's expense: a panel that cannot be built is a panel that is
+    # not shown. See ticket.py.
+    try:
+        go_and_sit = ticket.call_to_action(profile["settings"],
+                                           all_standings(connection))
+    except Exception:
+        log.exception("readiness panel")
+        go_and_sit = None
     answered = connection.execute(
         "SELECT COUNT(*) c FROM answer_log").fetchone()["c"]
     first_run = {
@@ -746,7 +759,7 @@ def home():
         "qth": bool((profile["settings"].get("location") or {}).get("lat")),
     }
     return render_template("home.html", summary=summary, greeting=greeting(),
-                           first_run=first_run,
+                           first_run=first_run, go_and_sit=go_and_sit,
                            # The button to the other dashboard: greyed when
                            # TowerWitch is not on this unit, or this is not
                            # the unit's own screen - a desktop program is
@@ -780,6 +793,10 @@ def study(pool_id):
     section = request.args.get("section")
     return render_template("study.html", pool=pool, mode=mode, section=section,
                            section_title=pool.section_title(section) if section else None,
+                           # The page opens on the run ladder as it stands,
+                           # not on noughts: somebody coming back to a pool
+                           # they have taken to eight should see the eight.
+                           ladder=runladder.view(conn(), pool.pool_id),
                            **profile_block(conn()))
 
 
@@ -3209,11 +3226,26 @@ def api_answer():
     game.add_xp(connection, points)
     streak_days = game.touch_streak(connection)
     run, best_run = game.bump_run(connection, correct)
+    # The run that belongs to this pool, and the bar it is working against.
+    # Separate from the global run above: that one feeds the badges, this
+    # one is the claim "ten in a row from this pool" that the study page
+    # shows and that means something about readiness. See runladder.py.
+    ladder = runladder.record(connection, pool.pool_id, correct)
     total = connection.execute(
         "SELECT COUNT(*) c FROM answer_log WHERE user_id = ?",
         (connection.user_id,)).fetchone()["c"]
     fresh = game.check_answer_achievements(
         connection, best_run, total, streak_days, datetime.now().hour)
+
+    # An answer that cannot have been read off the screen: correct, on a
+    # question never seen, faster than anybody reads four choices. The drill
+    # sends the shuffle and always will - it is about to give the answer
+    # away anyway - so this is not defended, it is remarked upon. See
+    # peeking.py. The answer still counts, which is the joke: the scheduler
+    # believes it and spaces the card out accordingly.
+    wire = peeking.note(connection, correct, ms, card)
+    if wire:
+        fresh = fresh + game.award(connection, [peeking.BADGE])
 
     # The lower rungs move with coverage and mastery, so refresh occasionally
     # rather than on every answer - the Monte Carlo is too costly per keystroke.
@@ -3238,7 +3270,8 @@ def api_answer():
         "explanation": explain.for_question(
             pool, question, db.get_note(connection, pool.pool_id, question["id"])),
         "xp": points, "total_xp": prof["xp"], "promoted": promoted,
-        "streak_days": streak_days, "run": run,
+        "streak_days": streak_days, "run": run, "ladder": ladder,
+        "wire": wire,
         "interval_days": fields["interval"],
         # Forgetting something you had learned is a different event from
         # missing something new, and only the first is worth remarking on.
@@ -3281,7 +3314,15 @@ def api_exam_start():
                        (json.dumps({"exam": exam}), exam["exam_id"]))
     connection.commit()
     client = dict(exam)
-    client["items"] = [{k: v for k, v in item.items() if k != "answer"}
+    # The answer key, and the shuffle it was derived from. "answer" was
+    # already withheld; "order" was not, and it is the same secret written
+    # another way - the pool's own answer index is on /browse for anybody to
+    # read, and order.index() of it is the key to this paper. The exam page
+    # never used it (the server grades against the copy it kept in `detail`),
+    # so it was leaking the marking scheme for nothing. See tests/
+    # test_exam_silence.py, which holds this.
+    client["items"] = [{k: v for k, v in item.items()
+                        if k not in ("answer", "order")}
                        for item in exam["items"]]
     return jsonify(client)
 
@@ -4489,26 +4530,20 @@ def api_golf_proshop():
 # ones take certificates in this order - the two beside the window first,
 # the far wall, then the shelves; the small ones take the regulars' names.
 LOUNGE_FRAMES = [
-    (50.21, 19.79, 4.12, 10.42),
-    (50.21, 32.81, 4.12, 11.2),
-    (87.0, 24.35, 4.62, 6.38),
-    (29.97, 34.9, 2.7, 6.77),
-    (19.53, 35.16, 2.63, 6.25),
-    (25.71, 35.16, 2.7, 6.51),
-    (39.77, 35.81, 2.63, 5.86),
-    (32.81, 44.92, 2.56, 6.51),
-    (36.01, 44.92, 2.7, 6.51),
-    (25.71, 26.69, 2.2, 5.21),
-    (45.17, 36.46, 2.27, 4.95),
-    (12.78, 46.22, 2.13, 5.21),
-    (12.64, 36.72, 1.92, 4.95),
+    (3.41, 16.67, 3.69, 17.45),
+    (9.59, 19.79, 3.05, 15.1),
+    (14.77, 21.88, 2.49, 13.54),
+    (19.03, 23.7, 2.06, 12.24),
+    (3.41, 41.41, 3.69, 15.89),
+    (9.59, 41.93, 3.05, 14.06),
+    (14.77, 42.45, 2.49, 12.24),
+    (19.03, 42.97, 2.06, 11.07),
 ]
+# The regulars' names: the two frames the left edge cuts, and the picture above the screen.
 LOUNGE_SMALL = [
-    (3.91, 26.3, 2.84, 5.6),
-    (7.6, 26.69, 2.7, 5.47),
-    (0.0, 23.44, 2.49, 7.81),
-    (86.29, 33.85, 2.13, 4.17),
-    (89.63, 33.85, 2.13, 4.17),
+    (0.0, 15.36, 1.42, 18.75),
+    (0.0, 41.15, 1.07, 16.15),
+    (34.52, 29.43, 4.97, 8.07),
 ]
 
 

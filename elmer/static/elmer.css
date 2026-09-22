@@ -301,6 +301,59 @@ input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
 .lapse-owl { width: 34px; height: 34px; flex: 0 0 34px; }
 .stern-owl { width: 26px; height: 26px; vertical-align: -7px; margin-right: .45rem; }
 
+/* ---------- read off the wire, not the screen ---------- */
+/* The owl again, and the only other place it appears in the drill. Cyan
+   rather than amber: this is not a warning and nobody is in trouble - it is
+   the program noticing something and being dry about it. See peeking.py. */
+.wire {
+  display: flex; gap: .7rem; align-items: flex-start;
+  margin: .5rem 0 .6rem; padding: .6rem .75rem;
+  border: 1px solid rgba(57, 211, 216, .4); border-radius: 8px;
+  background: rgba(57, 211, 216, .07); font-size: .86rem;
+}
+.wire p { margin: 0 0 .5rem; }
+.wire p:last-child { margin-bottom: 0; }
+
+/* ---------- what a study answer earned ---------- */
+/* A rung on the run ladder, a badge, a step on the rank ladder. Green, and
+   only on the answers that reached one - the ordinary right answer already
+   has its tick and its XP, and a second congratulation on every question
+   teaches somebody to stop reading the verdict. */
+.rung {
+  margin: .5rem 0 .6rem; padding: .5rem .7rem; font-size: .86rem;
+  border: 1px solid rgba(63, 185, 80, .45); border-radius: 8px;
+  background: rgba(63, 185, 80, .08); color: var(--text);
+}
+.badges {
+  margin: .5rem 0 .6rem; padding: .5rem .7rem; font-size: .86rem;
+  border: 1px solid var(--amber-dim); border-radius: 8px;
+  background: rgba(255, 180, 84, .08);
+}
+.badges > div + div { margin-top: .3rem; }
+.badge-mark { font-size: .95rem; }
+.promoted {
+  margin: .5rem 0 .6rem; padding: .55rem .7rem;
+  border: 1px solid var(--amber); border-radius: 8px;
+  background: rgba(255, 180, 84, .12);
+}
+.promoted b { color: var(--amber); letter-spacing: .01em; }
+.chime-btn { font-size: .9rem; line-height: 1; padding: .2rem .4rem; }
+
+/* ---------- go and sit the real exam ---------- */
+/* The dashboard panel for somebody with no licence on record whose own
+   evidence says they would pass. Green rather than amber: this is not a
+   warning, it is the program getting out of the way. See ticket.py. */
+.go-sit { border-left: 3px solid var(--green); }
+.go-sit .panel-title { color: var(--green); }
+.go-sit ol { margin: .6rem 0 0; padding-left: 1.2rem; }
+.go-sit li { margin-bottom: .55rem; }
+.go-sit li b { color: var(--text); }
+.go-sit .charge {
+  margin-top: .8rem; padding: .6rem .8rem; font-size: .89rem;
+  border-left: 2px solid var(--amber-dim); background: var(--panel-2);
+  border-radius: 0 6px 6px 0;
+}
+
 /* ---------- meters ---------- */
 .meter { height: 8px; background: #0c1116; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 4px; transition: width .5s ease; }

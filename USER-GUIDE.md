@@ -127,13 +127,21 @@ One question at a time. Five modes across the top, and the short answer is that 
 - **Lapses** returns to what you have got wrong. Use it when the same few questions keep catching you and you want them dealt with in one sitting.
 - **Contest** is a fast random round against a clock. It is for the evening you do not feel like studying, and it still counts.
 
-The keys: `1` to `4` or `a` to `d` answer, `space` or `Enter` moves on, `?` reveals the answer and counts as wrong, which is the honest thing to do. After you commit, the card opens: whether you were right, the XP, when it will come round again, and underneath, why this is the answer, what to watch out for, the concept it belongs to with a link to try it in the Lab where one exists, and the FCC rule with a link to the section. There is a box for your own note on any question, saved with the account.
+The keys: `1` to `4` or `a` to `d` answer, `space` or `Enter` moves on, `?` reveals the answer and counts as wrong, which is the honest thing to do. After you commit, the card opens: whether you were right, the XP, when it will come round again, and underneath, why this is the answer, what to watch out for, the concept it belongs to with a link to try it in the Lab where one exists, and the FCC rule with a link to the section. There is a box for your own note on any question, saved with the account. A badge earned, or a step up the rank ladder, is written into the card as well as sliding past as a toast, so it is still there when you come back to the screen.
+
+**The run panel, under the drill.** Your run of right answers in this pool, the bar you are working against, your longest ever, and — the part worth watching — where the last few runs actually broke. It will read something like `broke at 4 → 6 → 9`, and that sequence is what learning a pool looks like from the inside. The bar starts at three and moves up a rung each time you reach it: three, five, ten, fifteen and on. **It never moves back down.** Breaking a run short of it costs you nothing at all.
+
+Ten is the number to aim at. Ten right in a row drawn from a whole pool is about what the real paper feels like, and doing it once is partly luck — so ELMER counts them and calls it settled at three. If you can get ten in a row out of a pool on most evenings you sit down, you know that pool.
+
+**Sound is off until you switch it on.** The speaker button at the right of the HUD turns it on and remembers your choice in that browser. You get a short blip for a right answer, a rising figure when you reach a rung, and a longer one for a badge or a promotion. A miss makes a sound too, but a low flat one rather than a buzzer — getting one wrong is how the scheduler finds what to show you again, and it is not a thing to be told off for.
 
 ![The drill, a question answered and its explanation open](docs/screenshots/guide/drill.png)
 
 ### The mock exam
 
-Built the way the real one is: the right number of questions, exactly one drawn at random from each section of the syllabus, choices shuffled, and the pass mark the real exam uses. The timer is a pace target you set yourself, not an official limit. Flag a question with `f` and come back to it from the question map; **Submit exam** scores it. The result shows the score by subelement and lets you review every question you missed, with the right answer in green and yours in red, then offers to drill the weak spots. Every answer here also feeds your review schedule.
+Built the way the real one is: the right number of questions, exactly one drawn at random from each section of the syllabus, choices shuffled, and the pass mark the real exam uses. The timer is a pace target you set yourself, not an official limit. Flag a question with `f` and come back to it from the question map; **Submit exam** scores it.
+
+**Nothing is marked until you submit.** This is the one place in ELMER that tells you nothing while you work — no verdict on an answer, no running score, no sound, no run counter — because the real paper does not either, and the whole point of a mock is to feel like the real thing. Change any answer and move in any order right up to the moment you hand it in. The result shows the score by subelement and lets you review every question you missed, with the right answer in green and yours in red, then offers to drill the weak spots. Every answer here also feeds your review schedule.
 
 ### Progress, and browsing the pool
 
@@ -145,7 +153,9 @@ Built the way the real one is: the right number of questions, exactly one drawn 
 - **Exam odds** next, and take the **range** on the Progress page more seriously than the single figure. A likely score whose lower end is comfortably above the pass mark is a different thing from one whose average is.
 - **Your recent mock exams** last, because they are the only number here that is not a model. Three mock exams in a row, on different days, all clear of the pass mark with a margin, is the honest signal.
 
-None of this is a threshold ELMER will announce, because the program does not know what a bad day at the test session looks like. What it can tell you is whether you are still improving: if the last few mock exams are flat and the drill is mostly showing you reviews rather than new questions, you have got what this pool has to give you.
+If no licence is on your account's record, ELMER will say something when those numbers line up: a panel on the dashboard once a class is within reach, and again when the evidence says you are ready, with what the day actually involves — get an FRN from the FCC's CORES system beforehand, find a session, what the team will ask you for, and the Commission's fee that comes after you pass. Those are the four things that catch people out, and none of them is the exam.
+
+It is still your call, not the program's, because ELMER does not know what a bad day at the test session looks like. What it can also tell you is whether you are still improving: if the last few mock exams are flat and the drill is mostly showing you reviews rather than new questions, you have got what this pool has to give you.
 
 **Browse** is the pool as a book: every question in a section with the key marked and the explanation under it. Choices are in their published order here; in drills and exams they are shuffled, as they are on the real test.
 

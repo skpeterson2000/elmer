@@ -52,8 +52,30 @@ ACHIEVEMENTS = [
     ("cw_qsm", "QSM?", "Ask for a resend in code, and be answered"),
     ("cw_hit", "Base Hit", "Copy a pitch clean in CW Baseball"),
     ("cw_majors", "Big League", "Copy a pitch clean in the majors"),
+    # Earned by answering the drill out of the network tab rather than off
+    # the screen. See peeking.py for why that is left open and why this is
+    # the response to it.
+    ("peeked", "Read the Wire", "Answer the drill from the payload rather "
+                                "than the screen"),
 ]
 ACHIEVEMENT_INDEX = {code: (name, desc) for code, name, desc in ACHIEVEMENTS}
+
+# Badges that are not on the wall until they are earned. A hollow star
+# reading "Answer the drill from the payload rather than the screen" is not a
+# joke about somebody who went looking, it is an instruction to everybody
+# else - and the count beside the wall would give it away on its own, so the
+# denominator is taken from the same filtered list.
+SECRET = {"peeked"}
+
+
+def wall(have):
+    """The achievements to print, given what this account has earned.
+
+    A secret one appears only once it is held. ``have`` is whatever
+    :func:`earned` returned, or any container that answers ``in``.
+    """
+    return [row for row in ACHIEVEMENTS
+            if row[0] not in SECRET or row[0] in (have or ())]
 
 
 def xp_for_answer(correct, ms, card, was_due):

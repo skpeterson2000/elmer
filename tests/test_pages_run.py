@@ -76,6 +76,12 @@ try:
         ("/lab", "calcAnt"),
         ("/bandplan", "bpRender"),
         ("/", "api"),
+        # The drill loop, and the two scripts that hang off it: the run
+        # ladder's painter and the sound switch. chime.js is loaded only
+        # here, so a page that lost it would still drill and would silently
+        # answer nothing when the operator pressed the speaker.
+        ("/study/tech2026", "paintLadder"),
+        ("/study/tech2026", "chimeControl"),
     ]
     print("\nevery page's script runs")
     # Waited for, not sampled: a Pi with something else running took longer

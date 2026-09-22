@@ -33,14 +33,35 @@
     <div class="hud" id="hud">
       <span>session <b id="h-count">0</b></span>
       <span>correct <b id="h-acc">-</b></span>
-      <span>run <b id="h-run">0</b></span>
+      <span>run <b id="h-run">{{ ladder.run }}</b> / <b id="h-bar">{{ ladder.bar }}</b></span>
       <span>XP <b id="h-xp">{{ profile.xp }}</b></span>
       <span id="h-timer" class="mono"></span>
-      <span style="margin-left:auto">
-        <span class="kbd">1</span>-<span class="kbd">4</span> answer &middot;
-        <span class="kbd">space</span> next &middot;
-        <span class="kbd">?</span> reveal
+      <span class="row" style="margin-left:auto;gap:.5rem">
+        <span class="tiny muted">
+          <span class="kbd">1</span>-<span class="kbd">4</span> answer &middot;
+          <span class="kbd">space</span> next &middot;
+          <span class="kbd">?</span> reveal
+        </span>
+        <span id="h-sound"></span>
       </span>
+    </div>
+  </div>
+
+  {#- The run ladder: the run going, the bar it is working against, and
+      where the last few runs actually broke. The breaks are the point -
+      four, then six, then eight is what learning this pool looks like,
+      and until this panel existed nothing showed it. See runladder.py. -#}
+  <div class="panel tight mt" id="ladder">
+    <div class="spread">
+      <div class="panel-title" style="margin:0">Run &mdash; {{ pool.name }}</div>
+      <span class="tiny muted" id="l-goal"></span>
+    </div>
+    <div class="meter thin mt"><i class="fill-mid" id="l-fill" style="width:0%"></i></div>
+    <div class="row tiny muted mt" style="gap:.6rem;flex-wrap:wrap">
+      <span>best <b id="l-best">{{ ladder.best }}</b></span>
+      <span>ten in a row <b id="l-hits">{{ ladder.hits }}</b>&times;</span>
+      <span id="l-breaks"></span>
+      <span id="l-trend"></span>
     </div>
   </div>
 
@@ -56,10 +77,16 @@
 <script>
 window.STUDY = {
   pool: {{ pool.pool_id|tojson }},
+  pool_name: {{ pool.name|tojson }},
   mode: {{ mode|tojson }},
   section: {{ section|tojson }},
-  rapid: {{ (mode == 'rapid')|tojson }}
+  rapid: {{ (mode == 'rapid')|tojson }},
+  ladder: {{ ladder|tojson }}
 };
 </script>
+{#- The sounds, on the one page that has them. Deliberately not in
+    base.html: the mock exam runs on a page of its own and gets no sound,
+    because the real one does not. -#}
+<script src="{{ asset('chime.js') }}"></script>
 <script src="{{ asset('study.js') }}"></script>
 {% endblock %}
