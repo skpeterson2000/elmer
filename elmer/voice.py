@@ -89,6 +89,14 @@ VOCABULARY = {
     # older reading and stand in until they are.
     "the-wind-is": "The wind is,", "from-behind-you": "from behind you.", "in-your-face": "in your face.",
     "across-the-hole": "across the hole.", "and-swirling": "and swirling.",
+    # The wind by the clock, which is how a caddie and a pilot both say it:
+    # twelve is straight down the hole, three off the right. Better than the
+    # four phrases above because it is the fact the game now models - see
+    # golf.wind_parts - rather than a bucket it was sorted into, and a
+    # quartering wind has somewhere to be said.
+    **{f"out-of-{w}-oclock": f"Out of {w} o'clock."
+       for w in ("one", "two", "three", "four", "five", "six",
+                 "seven", "eight", "nine", "ten", "eleven", "twelve")},
     # the address
     "the-player": "the player", "addresses-the-ball": "addresses the ball",
     "in-hand": "in hand",
@@ -193,16 +201,39 @@ WIND_TOKENS = {"with": "the-breeze-is-behind-you", "into": "into-the-breeze",
                "across": "a-crosswind", "swirling": "the-wind-swirls-here"}
 WIND_FROM = {"with": "from-behind-you", "into": "in-your-face",
              "across": "across-the-hole", "swirling": "and-swirling"}
+CLOCK_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+               7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve"}
+WIND_CLOCK = {h: f"out-of-{w}-oclock" for h, w in CLOCK_WORDS.items()}
 
 
-def wind(kind, mph=None):
-    """The wind, read: "The wind is, twelve miles per hour, from behind
-    you" when those pieces are on the shelf, and the older "the breeze is
-    behind you, twelve miles an hour" when they are not."""
+def clock(hour):
+    """The token for a wind out of one hour of the clock, or None."""
+    return WIND_CLOCK.get(int(hour) % 12 or 12) if hour is not None else None
+
+
+def wind(kind, mph=None, hour=None):
+    """The wind, read - in the best words this unit has recordings for.
+
+    Three readings, newest first, each standing in for the one before it
+    until somebody records the pieces:
+
+    1. by the clock - "The wind is, twelve miles an hour, out of eight
+       o'clock" - which is what the game actually models now, so the
+       narrator and the ball agree about a quartering wind;
+    2. "The wind is, twelve miles an hour, in your face";
+    3. the oldest, "into the breeze, twelve miles an hour".
+
+    A swirling hole has no one hour to be out of and is never given one:
+    it is drawn afresh every shot, and saying a bearing for it would be
+    claiming something the game does not mean.
+    """
     if kind not in WIND_TOKENS:
         return []
-    new = _shelf is not None and "the-wind-is" in _shelf and WIND_FROM[kind] in _shelf
-    if new and mph:
+    said = clock(hour) if kind != "swirling" else None
+    have = _shelf is not None and "the-wind-is" in _shelf
+    if said and mph and have and said in _shelf:
+        return ["the-wind-is"] + number(mph) + ["miles-an-hour", said]
+    if mph and have and WIND_FROM[kind] in _shelf:
         return ["the-wind-is"] + number(mph) + ["miles-an-hour", WIND_FROM[kind]]
     out = [WIND_TOKENS[kind]]
     if mph:
@@ -327,7 +358,7 @@ def name_tokens(name):
     return out
 
 
-def hole(n, par, yards, wind=None, wind_mph=None, course=None):
+def hole(n, par, yards, wind=None, wind_mph=None, course=None, wind_hour=None):
     """The hole read out at the tee: the course once, the hole, par, yards,
     and the breeze."""
     out = []
@@ -341,7 +372,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
     whole = random.choice(reads) if reads else None
     if whole:
         out.append(whole)
-        out += globals()["wind"](wind, wind_mph)
+        out += globals()["wind"](wind, wind_mph, wind_hour)
         # the tee's colour is not here: it comes a line at a time, one to
         # each player's address on the tee - see party._lie_notes
         return out
@@ -353,7 +384,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None):
         out += _say(first[0], "hole", number(n), *(["is"] if _shelf and "is" in _shelf else []))
     out += ["par"] + number(par)
     out += number(yards) + ["yards"]
-    out += globals()["wind"](wind, wind_mph)
+    out += globals()["wind"](wind, wind_mph, wind_hour)
     return out
 
 

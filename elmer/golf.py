@@ -149,8 +149,48 @@ FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right":
 # on scales it, the wind, and the day.
 ROLL = {"driver": 24, "wood": 19, "iron": 11, "wedge": 6}
 SURFACE_ROLL = {"fairway": 1.0, "green": 1.35, "fringe": 0.7, "rough": 0.35, "sand": 0.0, "tee": 1.0}
-WIND_ROLL = {"with": 1.25, "into": 0.7, "across": 1.0}
-WIND_DRIFT = 0.35               # yards of sideways drift per mile an hour, across
+# The wind, by the clock. A caddie says where it is out of the way a pilot
+# does - "out of eight o'clock" - twelve being straight down the hole and
+# three off the right, and that is one fact with a head component and a
+# cross component in it rather than four categories that cannot be mixed.
+# The card still says with, into or across; the hour is drawn inside that
+# arc, seeded by the hole, so a hole plays the same way every round.
+#
+# theta is measured clockwise from twelve, so the tail component is
+# -cos(theta) - full headwind out of twelve, full tail out of six - and the
+# cross component is sin(theta), positive off the right. At the four
+# cardinal hours these reproduce the old numbers exactly; in between they
+# give what the hour actually implies, which is the point of saying it.
+WIND_ARC = {"into": (11, 12, 1), "with": (5, 6, 7),
+            "across-left": (8, 9, 10), "across-right": (2, 3, 4)}
+WIND_ROLL_TAIL = 0.25           # roll multiplier added downwind, at full tail
+WIND_ROLL_HEAD = 0.30           # and taken off into it, so 0.70 out of twelve
+WIND_CARRY_TAIL = 0.6           # yards a mile an hour, running before it
+WIND_CARRY_HEAD = 0.8           # and against it, which costs more than it gives
+WIND_CARRY_CROSS = 0.2          # what a pure crosswind costs in carry anyway
+# Sideways drift is a matter of how long the ball is up there. A crosswind
+# does not push a ball a fixed distance - it accelerates it sideways for as
+# long as the ball is in the air, so a driver that hangs six seconds is
+# moved several yards and a pitching wedge laid up forty yards is barely
+# touched. Drifting both the same, which is what a flat yards-per-mile-an-
+# hour did, is the thing that surprises a golfer: they know the wedge holds
+# its line and the game did not.
+#
+# Flight time is the club's full-swing hang, scaled by how much of its
+# length this particular shot was - roughly the square root, a half-length
+# iron being up about seven tenths as long, which is near enough for a game.
+# The wind at which a day gusts its full spread. Ten, not twenty: eight
+# miles an hour gusting to eleven is an ordinary afternoon, and damping
+# that made a breeze sit far stiller than one does. What is being caught
+# here is the light air below it - three or four miles an hour, which
+# genuinely just sits there - not a moderate wind.
+GUST_FULL = 10
+WIND_DRIFT_PER_SECOND = 0.06    # yards a mile an hour, for each second aloft
+FLIGHT_SECONDS = {"driver": 6.0, "wood": 5.4, "iron": 4.6, "wedge": 3.6, "putter": 0.0}
+STINGER_HANG = 0.4              # a punched ball is under it and down early
+# A full driver in a fifteen mile an hour crosswind moves about five yards,
+# which is what it does; the old flat figure was 0.35 a mile an hour for
+# everything, and this reproduces it for a driver and nothing else.
 ROLL_NOISE = (0.7, 1.3)         # the bounce: the roll, times somewhere in here
 ROLL_SPEED = 1.2                # the roll goes as the landing speed to this power
 # The day - see Day. The ground's firmness comes from how wet it is, and
@@ -288,8 +328,71 @@ def side_of(off, half=None):
         return "right"
     return ""
 LEAK_CALLS = ["Leaked it.", "Pushed it a touch.", "Pulled it a hair.", "That got away from him."]
-# Yards per mile an hour, by how the wind sits on the line.
-WIND_EFFECT = {"with": 0.6, "into": -0.8, "across": -0.2}
+def wind_parts(hour):
+    """A clock hour as (tail, cross): how much of the wind is behind you,
+    and how much is across you. ``None`` is no wind at all, which is what a
+    stinger is played to earn.
+
+    Twelve is dead ahead, so out of twelve is a full headwind and tail is
+    -1; out of six it is +1. Cross is positive when the wind is off the
+    right, which pushes the ball left. Both are cosine and sine of the same
+    angle, which is why a quartering wind is most of a headwind and a bit
+    of a crosswind rather than having to be called one or the other.
+    """
+    if hour is None:
+        return 0.0, 0.0
+    theta = math.radians((int(hour) % 12) * 30.0)
+    return -math.cos(theta), math.sin(theta)
+
+
+def wind_carry(hour):
+    """Yards a mile an hour, by where the wind is out of.
+
+    A headwind costs more than the same tailwind gives, which is the oldest
+    complaint in the game, and a crosswind costs a little whatever else it
+    is doing. At twelve, three, six and nine this is -0.8, -0.2, +0.6 and
+    -0.2, the four numbers this replaced.
+    """
+    tail, cross = wind_parts(hour)
+    gain = WIND_CARRY_TAIL if tail >= 0 else WIND_CARRY_HEAD
+    return tail * gain - WIND_CARRY_CROSS * abs(cross)
+
+
+def wind_roll(hour):
+    """The roll multiplier: a ball run on downwind, held up into it."""
+    tail, _ = wind_parts(hour)
+    return 1.0 + tail * (WIND_ROLL_TAIL if tail >= 0 else WIND_ROLL_HEAD)
+
+
+def flight_seconds(club, carry=None, most=None, flair=None):
+    """How long this shot is in the air, near enough for a game.
+
+    The club's full-swing hang, scaled by the root of how much of its
+    length the shot actually was - a wedge dropped forty yards is up about
+    two seconds, a driver flushed is up six. A stinger is punched under the
+    wind and is down early, which is the whole reason anybody hits one.
+    """
+    hang = FLIGHT_SECONDS.get(club, 4.6)
+    if carry and most:
+        hang *= max(0.25, min(1.15, (abs(carry) / float(most)) ** 0.5))
+    if flair == "stinger":
+        hang *= STINGER_HANG
+    return hang
+
+
+def wind_drift(hour, mph, club=None, carry=None, most=None, flair=None):
+    """Yards the wind carries the ball sideways, off the side it blows from.
+
+    Positive is to the right of the line. A wind out of nine o'clock - off
+    the left - pushes the ball right, which is the sign the crosswind case
+    has always used. How far depends on how long the ball is up: see
+    :func:`flight_seconds` and the note on WIND_DRIFT_PER_SECOND.
+    """
+    _, cross = wind_parts(hour)
+    if not cross:
+        return 0.0
+    seconds = flight_seconds(club, carry, most, flair) if club else FLIGHT_SECONDS["driver"]
+    return -WIND_DRIFT_PER_SECOND * float(mph or 0) * cross * seconds
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
 # The shots worth making. Golf is about the shots - good, bad and regular -
@@ -451,8 +554,27 @@ class Day:
         self.moisture = max(0.0, min(1.0, self.moisture))
 
     def gust(self):
-        """This shot's wind: the hole's, gusting or lulling."""
-        return self.wind_mph * self.rng.uniform(*self.GUST)
+        """This shot's wind: the hole's, gusting or lulling.
+
+        Two things a flat draw between the bounds got wrong. Light air is
+        steady - four miles an hour does not gust to six and drop to three,
+        it just sits there - so the spread opens as the wind gets up and is
+        nearly nothing below a breeze. And a gust is not as likely as the
+        lull between gusts: most shots are played in about the wind that is
+        blowing, and now and then one is caught. So the draw is triangular
+        with its mode at the hole's own wind rather than uniform across the
+        range, which is the shape of the thing rather than a box.
+
+        Bounds equal - GUST set to (1.0, 1.0) - is the wind held still, and
+        is how the shot tests take the day's life out of a swing.
+        """
+        low, high = self.GUST
+        if low == high:
+            return self.wind_mph * low
+        share = min(1.0, self.wind_mph / GUST_FULL)
+        low = 1.0 - (1.0 - low) * share
+        high = 1.0 + (high - 1.0) * share
+        return self.wind_mph * self.rng.triangular(low, high, 1.0)
 
     @property
     def firmness(self):
@@ -592,6 +714,29 @@ class Golf:
             w = self.rng.choice(("with", "into", "across"))
         return w
 
+    def wind_clock(self, h, kind=None):
+        """Which hour of the clock this hole's wind is out of.
+
+        The card gives the arc - with, into or across, and across off the
+        side the course plays it - and the hour is drawn inside that arc
+        from the hole's own number rather than from the round's generator,
+        so the same hole is the same wind every round while the eighteen
+        are not all quartering the same way. `kind` is the wind as it was
+        resolved for this shot, which matters on a swirling hole where it
+        is drawn afresh each time.
+        """
+        kind = kind or h.get("wind", "across")
+        if kind == "across":
+            kind = f"across-{self.wind_from(h)}"
+        arc = WIND_ARC.get(kind)
+        if not arc:
+            return None
+        # Seeded by the hole's own number - "n" on the card - and the arc,
+        # not by self.rng: the generator is the round's, and advancing it
+        # here would move every later draw in the round.
+        seed = (int(h.get("n") or 0) * 31 + sum(ord(c) for c in kind)) % len(arc)
+        return arc[seed]
+
     def over(self):
         return self._winner is not None or (self.hole() is None and not self.playoff)
 
@@ -629,7 +774,7 @@ class Golf:
         if not club or club == "putter":
             return []
         mark = self.aim(player) or {"at": h["yards"], "off": 0}
-        reach = self.reach(player, club) + self.expected_roll(club, "fairway", self.wind_on(h)) * ROLL_NOISE[1]
+        reach = self.reach(player, club) + self.expected_roll(club, "fairway", self.wind_clock(h)) * ROLL_NOISE[1]
         half = fairway_half(h)
         # the sides the line runs through: the ball's, the mark's, and the
         # middle when either is near it
@@ -676,7 +821,7 @@ class Golf:
         for club in allowed:
             # with room for the club's spread and a lively bounce
             far = (ball.at + self.reach(player, club) + CLUB_SPREAD.get(club, AIM)
-                   + self.expected_roll(club, "fairway", self.wind_on(h)) * ROLL_NOISE[1])
+                   + self.expected_roll(club, "fairway", self.wind_clock(h)) * ROLL_NOISE[1])
             water = self._in_band(h, int(far), kinds=("water",))
             crossing = [hz for hz in h.get("hazards", []) if hz["kind"] == "water"
                         and hz.get("side", "") in SIDE_BANDS[""] and ball.at < hz["from"] <= far]
@@ -753,21 +898,30 @@ class Golf:
         club = self.default_club(player)
         return bool(club and club != "putter" and self.reach(player, club) >= left)
 
-    def expected_roll(self, club, lie="fairway", wind="across", carry=None, most=None):
+    def expected_roll(self, club, lie="fairway", hour=None, carry=None, most=None):
         """How far a ball with this club is expected to run on after it
         lands there: what a golfer allows for when landing it short. A
-        full swing unless the carry is given against the club's most."""
+        full swing unless the carry is given against the club's most.
+
+        ``hour`` is the clock the wind is out of; downwind the ball runs on
+        and into it the ball sits down, which is the tail component of it.
+        """
         speed = 1.0 if not carry or not most else max(0.3, min(1.15, (abs(carry) / float(most)) ** ROLL_SPEED))
-        return (ROLL.get(club, 0) * speed * SURFACE_ROLL.get(lie, 1.0) * WIND_ROLL.get(wind, 1.0)
+        return (ROLL.get(club, 0) * speed * SURFACE_ROLL.get(lie, 1.0) * wind_roll(hour)
                 * self.day.firmness)
 
-    def _carry(self, ball, club, wind, left):
+    def _carry(self, ball, club, hour, left, mph=None):
         """How far the ball goes. A club that can reach the mark is hit at
         it and lands near it; one that cannot is a full swing and goes its
         length. The wind has its say on both. Nothing about the answer but
-        that it was right reaches here: the swing is not timed."""
+        that it was right reaches here: the swing is not timed.
+
+        ``mph`` is this stroke's wind - one gust, drawn once by the caller
+        and handed to the carry, the roll and the drift alike, because a
+        ball cannot be carried by one wind and blown sideways by another.
+        """
         most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-        wind_yards = WIND_EFFECT.get(wind, 0.0) * self.day.gust()
+        wind_yards = wind_carry(hour) * (self.day.gust() if mph is None else mph)
         spread = CLUB_SPREAD.get(club, AIM) * (0.5 if getattr(self, "_lucky", False) else 1.0)
         if most + wind_yards >= abs(left):
             # Aimed - at the pin, from either side of it, within the club's spread.
@@ -802,6 +956,13 @@ class Golf:
         adept answer gets the shot a good golfer would have played from
         there - see FLAIR_CALLS."""
         wind = self.wind_on(h)
+        # One wind, for everything this stroke does. The carry used to draw
+        # its own gust while the drift read the hole's steady wind, so a
+        # ball could be held up by twenty-five and blown sideways by
+        # fifteen on the same swing. The hour it is out of, and the mph it
+        # is blowing at this instant, are settled here and handed on.
+        hour = self.wind_clock(h, wind)
+        mph = self.day.gust()
         if club == "putter" or ball.lie == "green":
             return self._putt(h, ball, right=True, adept=adept)
         if ball.lie == "fringe":
@@ -819,7 +980,7 @@ class Golf:
             # and the run does the rest. A golfer who set a mark gets it.
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
             if most >= to_mark:
-                to_mark -= int(round(self.expected_roll(club, "green", wind, to_mark, most) * 0.8))
+                to_mark -= int(round(self.expected_roll(club, "green", hour, to_mark, most) * 0.8))
         flair = None
         if adept:
             if left_before <= HOLE_OUT_FROM and self.rng.random() < HOLE_OUT_ODDS:
@@ -843,20 +1004,20 @@ class Golf:
         if flair == "worked":
             lie_was = ball.lie
             ball.lie = "fairway"
-            carry = self._carry(ball, club, wind, to_mark)
+            carry = self._carry(ball, club, hour, to_mark, mph)
             ball.lie = lie_was
         elif flair == "stinger":
-            carry = self._carry(ball, club, None, to_mark)       # the wind's say, taken away
+            carry = self._carry(ball, club, None, to_mark, mph)  # the wind's say, taken away
         elif flair == "launched":
-            carry = round(self._carry(ball, club, wind, to_mark) * 1.12)
+            carry = round(self._carry(ball, club, hour, to_mark, mph) * 1.12)
         elif adept and self.reach(self._who, club) >= to_mark:
             flair = "pure"                    # the club reaches: stiff, all over the mark
             carry = round(to_mark + self.rng.uniform(-4, 4))
         elif adept:
             flair = "launched"                # a full swing with everything in it
-            carry = round(self._carry(ball, club, wind, to_mark) * 1.12)
+            carry = round(self._carry(ball, club, hour, to_mark, mph) * 1.12)
         else:
-            carry = self._carry(ball, club, wind, to_mark)
+            carry = self._carry(ball, club, hour, to_mark, mph)
         landed = ball.at + carry
         # Across the line: at the mark's side of it, within the club's
         # spread - and, for a plain shot, the leak: a push off to one side.
@@ -869,10 +1030,14 @@ class Golf:
             off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
             if abs(off) <= fairway_half(h):           # a leak goes off the fairway, by definition
                 off = (-1 if leaked == "left" else 1) * (fairway_half(h) + 3)
-        # A crosswind drifts the ball in flight, off the side it blows from.
-        if wind == "across" and self.day.wind_mph:
-            drift = WIND_DRIFT * self.day.wind_mph * (1 if self.wind_from(h) == "left" else -1)
-            off += drift * (0.4 if flair == "stinger" else 1.0)
+        # A crosswind drifts the ball in flight, off the side it blows from,
+        # by as much as the ball is up there to be pushed - this stroke's
+        # gust, this club, this much of a swing. Any hour with a sideways
+        # component in it drifts, not only a dead crosswind: a wind out of
+        # ten o'clock is mostly in your face and still moves the ball.
+        if hour is not None and mph:
+            most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+            off += wind_drift(hour, mph, club, carry, most, flair)
         off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         from_the_tee = ball.strokes == 0
         ball.strokes += 1
@@ -890,7 +1055,7 @@ class Golf:
         roll, spun, kicked = 0, False, None
         if flair != "pure":
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-            roll = self.expected_roll(club, came_down, wind, abs(carry), most) * (
+            roll = self.expected_roll(club, came_down, hour, abs(carry), most) * (
                 self.swing.uniform(1.0, ROLL_NOISE[1]) if lucky and came_down != "green" else self.swing.uniform(*ROLL_NOISE))
             if came_down == "green":
                 # The green's fall: toward the player checks the ball, away

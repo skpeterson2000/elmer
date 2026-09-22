@@ -49,8 +49,28 @@ def main():
     check("  and the words say so", day.ground_words in ("soft underfoot", "wet - nothing runs"), True)
     day.moisture = 0.1
     check("dry ground is firm and running", day.ground_words, "firm and running")
-    gusts = {round(day.gust()) for _ in range(50)}
-    check("a shot's wind gusts and lulls around the hole's", len(gusts) > 3, True)
+    # Counting distinct whole miles an hour was the old way of asking this,
+    # and it measured the rounding as much as the gust: the day is down to
+    # six miles an hour by here, where a real spread of five to seven is
+    # only three whole numbers. Ask for the behaviour instead - that shots
+    # are played in more wind than the hole's and in less - and ask
+    # separately for the part that is actually modelled, which is that a
+    # blow is lumpy and light air is not.
+    gusts = [day.gust() for _ in range(200)]
+    check("a shot's wind gusts and lulls around the hole's",
+          (min(gusts) < day.wind_mph < max(gusts)), True)
+    check("  and stays within the day's bounds",
+          all(day.wind_mph * golf.Day.GUST[0] <= g <= day.wind_mph * golf.Day.GUST[1]
+              for g in gusts), True)
+
+    def spread(mph):
+        d = golf.Day(random.Random(3), typical_mph=mph)
+        d.wind_mph = mph
+        drawn = [d.gust() for _ in range(2000)]
+        return (max(drawn) - min(drawn)) / mph
+
+    check("a blow gusts wider than a breeze does", spread(25) > spread(8), True)
+    check("  and light air barely gusts at all", spread(3) < 0.25, True)
 
     print("\n-- from a forecast --")
     day = golf.Day(random.Random(1), 12, {"wind_mph": 8, "sky": "sun", "rain_chance": 0.0, "raining": False})

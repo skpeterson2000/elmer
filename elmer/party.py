@@ -246,7 +246,12 @@ def _voice_hole(d, g):
     if d.get("hole") is None:
         return []
     h = g.hole() or {}
-    return voice.hole(d["hole"], d.get("par"), d.get("yards"), h.get("wind"), d.get("wind_mph"), d.get("course"))
+    # The hour the wind is out of, from the same place the ball's flight
+    # takes it, so the narrator cannot say eight o'clock while the ball is
+    # drifted by nine.
+    return voice.hole(d["hole"], d.get("par"), d.get("yards"), h.get("wind"),
+                      d.get("wind_mph"), d.get("course"),
+                      wind_hour=g.wind_clock(h) if h else None)
 
 
 def bot_swing_seconds(payload, pace=None, tempo=1.0):
