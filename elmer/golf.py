@@ -522,7 +522,16 @@ class Day:
         self.rng = rng
         self.forecast = forecast or None
         if forecast:
-            self.mean = float(forecast.get("wind_mph") or typical_mph)
+            # The day's wind, not the minute's. The forecast's current hour
+            # is a single sample, and somebody teeing off in a lull on a
+            # blowy day was handed a dead round - the course's whole
+            # character gone because of when they happened to sit down. The
+            # round starts from the highest wind of the day instead, which
+            # is what "playing Pebble Beach in the afternoon" means. See
+            # weather.PEAK_HOURS. A forecast from an older build has no
+            # peak in it and falls back to the hour, as it always did.
+            self.mean = float(forecast.get("peak_mph")
+                              or forecast.get("wind_mph") or typical_mph)
             self.sky = forecast.get("sky") or "sun"
             self.rain_chance = float(forecast.get("rain_chance") or 0.0)
             self.moisture = 0.7 if forecast.get("raining") else 0.3 + 0.3 * self.rain_chance

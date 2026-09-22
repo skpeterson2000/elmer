@@ -34,7 +34,10 @@ no hand-rated questions. See stage 7.
 
 ---
 
-## Stage 1 — the day's wind, from the day rather than the minute
+## Stage 1 — the day's wind, from the day rather than the minute — **LANDED 2026-09-22**
+
+*Folded into DESIGN.md under "The day, and the wind it is played in".
+Kept here as the record of what was agreed and why.*
 
 Today `weather.read()` takes `periods[0]` — the current hour. Somebody who
 tees off in a calm hour plays a dead round on a day that blew twenty-five
@@ -399,7 +402,7 @@ Hole 7's lore lives here and nowhere else.
 
 | # | Stage | Needs | Audio? |
 |---|---|---|---|
-| 1 | Weather peak | — | no |
+| ~~1~~ | ~~Weather peak~~ **landed** | — | no |
 | 2 | Landing model + skip + `golf_roll.py` | — | no |
 | 3 | Route data + hole tilt | — | no |
 | 4 | `read_mark()` | 3 | no |

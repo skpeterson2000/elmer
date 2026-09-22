@@ -3206,6 +3206,33 @@ but the same swing lands the same way and every stroke lands a little
 differently, which is what a golfer means by luck. It is what puts four
 tee shots in four places, and so decides who is away.
 
+**The day, and the wind it is played in.** A round is four hours, and in
+four hours the wind gets up and backs round, a shower comes through, and
+the ground that was running at the first is holding at the ninth. So the
+day is a small model rather than a number (`golf.Day`): the wind walks
+around the day's mean from hole to hole and gusts from shot to shot, the
+sky steps between sun, cloud and shower, and the ground's moisture — what
+the roll is multiplied by — rises under a shower and dries in sun and
+wind. Where the unit has a network it starts from the real weather at the
+course, from the National Weather Service, fetched in the background when
+a game is chosen so a tee-off never waits on it; where it has not, from
+the card's typical wind, exactly as before.
+
+**And it starts from the day, not the minute.** The forecast's current
+hour is one sample, and somebody teeing off in a lull on a day that blew
+twenty-five all afternoon was handed a dead round — Pebble Beach without
+its sea breeze, because of when they happened to sit down. The round now
+starts from the highest wind of the last twenty-four hours. Only the
+observation stations publish the past, so that is two more hops than the
+forecast needed, and every way they can fail — a point with no station
+near it, an empty station list, a station silent for a day, the nulls
+that are ordinary in that feed, a unit nobody has heard of, a stuck
+anemometer reporting nine hundred — ends in the forecast's own peak
+instead, with a line in the log saying what failed and what was used. The
+wind *now* is still kept and still shown, because it is the honest answer
+to what it is doing out there; it simply is not what the round is built
+on. Rounds play windier than they did, on purpose.
+
 **The green.** On the green the wind stops mattering and the slope
 starts, and everyone wants the cup. The strip becomes the green: the
 whole of it, the cup at the centre, rings every ten feet, every ball on
