@@ -32,42 +32,69 @@ def check(label, got, want):
 
 
 def unmatched(src):
-    """The first unmatched bracket as (char, line), or what is left open."""
+    """The first unmatched bracket as (char, line), or what is left open.
+
+    A template literal is not scanned as one lump any more. It used to be:
+    the scanner ran from the opening backtick to the closing one, counting
+    `${` as a level down and *any* `}` as a level back up. That is wrong the
+    moment an expression inside a literal contains a brace of its own -
+    ``${Object.values(gf.balls || {})}`` closed the expression on the `{}`'s
+    own brace, and everything after it was read in the wrong mode: real code
+    taken for literal text, closing tags like `</h3>` taken for regexes, and
+    eventually a perfectly matched `}` reported as unmatched. party_player.html
+    was failing on exactly that while the browser compiled it without
+    complaint, which is the tell - the two passes below disagreeing means the
+    walker is wrong, not the page.
+
+    So the two modes are tracked properly instead. In *text* mode only `${`
+    and the closing backtick mean anything; `${` pushes a marker and returns
+    to *code* mode, where strings, comments, regexes, nested template
+    literals and ordinary brackets all work as they do anywhere else, and the
+    `}` that pops the marker goes back into text. Nesting falls out of the
+    stack, which is what a stack is for.
+    """
     stack, i, line, n = [], 0, 1, len(src)
+    text = False                    # inside a template literal's text, not its code
     while i < n:
         c, nxt = src[i], src[i + 1] if i + 1 < n else ""
         if c == "\n":
             line += 1
+
+        if text:
+            if c == "\\":           # an escape, including a line continuation
+                line += src[i + 1:i + 2] == "\n"
+                i += 2
+                continue
+            if c == "$" and nxt == "{":
+                stack.append(("${", line))
+                text = False
+                i += 2
+                continue
+            if c == "`":
+                stack.pop()         # the backtick that opened this literal
+                # Back to code, always: a literal only ever sits in code
+                # position, so one nested inside another is nested inside
+                # that one's `${ }` and returns to it.
+                text = False
+                i += 1
+                continue
+            i += 1
+            continue
+
         if c in "'\"":
             j = i + 1
             while j < n and src[j] != c:
                 if src[j] == "\\":
                     j += 1
-                if src[j] == "\n":
-                    break               # an unterminated string: let it fall out
+                if j < n and src[j] == "\n":
+                    break           # an unterminated string: let it fall out
                 j += 1
             i = j + 1
             continue
         if c == "`":
-            j, depth = i + 1, 0
-            while j < n:
-                if src[j] == "\\":
-                    j += 2
-                    continue
-                if src[j] == "$" and src[j + 1:j + 2] == "{":
-                    depth += 1
-                    j += 2
-                    continue
-                if src[j] == "}" and depth:
-                    depth -= 1
-                    j += 1
-                    continue
-                if src[j] == "`" and depth == 0:
-                    break
-                if src[j] == "\n":
-                    line += 1
-                j += 1
-            i = j + 1
+            stack.append(("`", line))
+            text = True
+            i += 1
             continue
         if c == "/" and nxt == "/":
             while i < n and src[i] != "\n":
@@ -111,10 +138,70 @@ def unmatched(src):
             if not stack:
                 return (c, line)
             opened, _ = stack.pop()
+            if opened == "${":
+                # The brace that ends a template expression. Anything else
+                # closing here is a bracket opened outside the literal and
+                # closed inside it, which is not something that parses.
+                if c != "}":
+                    return (c, line)
+                text = True
+                i += 1
+                continue
+            if opened == "`":
+                return (c, line)    # a bracket closed across a template literal
             if "({[".index(opened) != ")}]".index(c):
                 return (c, line)
         i += 1
     return stack[-1] if stack else None
+
+
+# The walker itself, first. It had no test of its own, which is how it came
+# to call a good page broken for two days: it reported an unmatched brace in
+# party_player.html on a line that reads `} catch (err) {`, and the only
+# reason anybody knew better was the browser pass below compiling the same
+# script without complaint. A checker nobody checks is a checker that gets
+# believed when it is wrong, so the constructs that actually fooled it are
+# pinned here alongside the faults it exists to find.
+print("\nthe walker knows a balanced script from a broken one")
+
+GOOD = [
+    ("a plain object", "const a = {b: 1};"),
+    ("a template literal", "const s = `plain text`;"),
+    # The one that broke it: a brace inside a template expression.
+    ("an object literal inside a template expression",
+     "const s = `x${Object.values(o || {}).length}y`;"),
+    ("a template literal nested in its own expression",
+     "const s = `a${xs.map(x => `<b>${x}</b>`).join('')}b`;"),
+    ("a closing brace inside a string inside an expression",
+     "const s = `a${f('}')}b`;"),
+    ("a closing tag inside a template literal",
+     "const s = `<h3>the card</h3>${board(g)}`;"),
+    ("a ternary inside an expression",
+     "const s = `${g.over ? `<p>${name(g)}</p>` : clubs(g)}`;"),
+    ("a regex with a count in it", "const r = /\\d{3}/;"),
+    ("division that is not a regex", "const x = (a) / 2 / 3;"),
+    ("a brace in a line comment", "// }\nconst a = 1;"),
+    ("a brace in a block comment", "/* } */ const a = 1;"),
+    ("an apostrophe in a line comment", "// don't\nconst a = {b: 1};"),
+    ("a brace in a string", "const a = '}';"),
+]
+for label, src in GOOD:
+    check("  " + label, unmatched(src), None)
+
+BAD = [
+    ("a bracket left open", "function f() { return 1;", "{"),
+    ("one closing brace too many", "const a = {b: 1}};", "}"),
+    # The fault this whole file was written for: a "});" left behind by an
+    # edit. The brace is what is reported, being the first thing with
+    # nothing open to match it.
+    ("a stray close from a bad edit", "poll();\n});", "}"),
+    ("the wrong closer", "const a = [1, 2};", "}"),
+    ("a brace left open inside a template expression",
+     "const s = `a${ f({ b: 1 ) }`;", ")"),
+]
+for label, src, want in BAD:
+    got = unmatched(src)
+    check("  " + label, got[0] if got else None, want)
 
 
 print("\nevery inline script balances")
