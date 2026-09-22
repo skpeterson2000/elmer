@@ -70,7 +70,10 @@ too stiff on the Pi the knob is a single named scale factor.
 
 ---
 
-## Stage 2 — the landing model
+## Stage 2 — the landing model — **LANDED 2026-09-22**
+
+*Folded into DESIGN.md. The fringe was deliberately NOT changed: see
+"Still undecided" and `tools/golf_roll.py --fringe`.*
 
 One constant does two jobs today:
 
@@ -403,7 +406,7 @@ Hole 7's lore lives here and nowhere else.
 | # | Stage | Needs | Audio? |
 |---|---|---|---|
 | ~~1~~ | ~~Weather peak~~ **landed** | — | no |
-| 2 | Landing model + skip + `golf_roll.py` | — | no |
+| ~~2~~ | ~~Landing model + skip + `golf_roll.py`~~ **landed** | — | no |
 | 3 | Route data + hole tilt | — | no |
 | 4 | `read_mark()` | 3 | no |
 | 5 | Nerve + chooser | 3 | no |

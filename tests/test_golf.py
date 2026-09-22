@@ -59,10 +59,14 @@ def run():
     # The rules, pinned: these sections read the physics exactly - the
     # club's length, the wind's yards, the creek - so the club's spread and
     # leak are off for them and on again for the section that is about them.
-    SPREAD, LEAK, RUN = dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK), dict(golf.ROLL)
+    # The roll is taken out at its root now rather than club by club: it
+    # used to be a yards-per-club table, and is the one scale factor on
+    # the arrival-against-friction model that replaced it. Same intent -
+    # no run, so a carry can be asserted exactly.
+    SPREAD, LEAK, RUN = dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK), golf.ROLL_BASE
     golf.CLUB_SPREAD = {c: 0 for c in SPREAD}
     golf.CLUB_LEAK = {c: 0.0 for c in LEAK}
-    golf.ROLL = {c: 0 for c in RUN}
+    golf.ROLL_BASE = 0.0
     # And the day's life - the gust, the kick, the spin - off with them,
     # and on again for the section about the ground.
     GUST, KICK, SPIN = golf.Day.GUST, golf.KICK_ODDS, dict(golf.SPIN_ODDS)
@@ -383,7 +387,7 @@ def run():
     check("  clamped at the ends", [party_mod.spread_level("Elmer", i) for i in range(3)], ["Elmer", "Operator", "Elmer"])
 
     print("\n-- carry, then roll: a ball does not stick where it lands --")
-    golf.ROLL = RUN
+    golf.ROLL_BASE = RUN
     def rolled(club, lie="fairway", at=0, wind="with", mph=10, seed=1, aim=None):
         g = golf.Golf(["a"], flat_course(wind=wind), seed=seed)
         g.wind_mph = mph
@@ -433,10 +437,10 @@ def run():
     check("a crosswind off the left drifts the ball right", s["off"] > 0, True)
     check("  a golfer allows for the run: what a driver is expected to run on the fairway",
           golf.Golf(["a"], flat_course(), seed=1).expected_roll("driver") > 15, True)
-    golf.ROLL = {c: 0 for c in RUN}
+    golf.ROLL_BASE = 0.0
 
     print("\n-- the club's say: a right answer still varies --")
-    golf.CLUB_SPREAD, golf.CLUB_LEAK, golf.ROLL = SPREAD, LEAK, RUN
+    golf.CLUB_SPREAD, golf.CLUB_LEAK, golf.ROLL_BASE = SPREAD, LEAK, RUN
     golf.Day.GUST, golf.KICK_ODDS, golf.SPIN_ODDS = GUST, KICK, SPIN
     pb = golf.course("pebble-beach")
     def tee_shots(club, n=300):

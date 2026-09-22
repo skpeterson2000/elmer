@@ -63,9 +63,17 @@ which club they chose and whether they were right; this says where the
 ball went, in yards and in words - the playback - and who is winning.
 """
 import json
+import logging
 import math
 import random
 from pathlib import Path
+
+# The one logger, as every module here takes it. Golf had none until the
+# landing model arrived, having never had anything to say; now a surface
+# nobody has heard of, a club that is not on the list, a run that works
+# out absurd and a ball that skips off the water all have somewhere to be
+# said, and the operator can read afterwards what the round actually did.
+log = logging.getLogger("elmer")
 
 COURSES_DIR = Path(__file__).resolve().parents[1] / "data" / "golf"
 
@@ -147,8 +155,69 @@ FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right":
 # releases a few and stops. ROLL is a full swing on a fairway of ordinary
 # firmness; the speed of a lesser swing scales it, the surface it came down
 # on scales it, the wind, and the day.
-ROLL = {"driver": 24, "wood": 19, "iron": 11, "wedge": 6}
-SURFACE_ROLL = {"fairway": 1.0, "green": 1.35, "fringe": 0.7, "rough": 0.35, "sand": 0.0, "tee": 1.0}
+# How the ball arrives, and how the ground answers - which used to be one
+# number each and could not be asked the interesting question.
+#
+# ROLL was a yard figure per club that quietly bundled three different
+# things: how fast the ball was going when it landed, how steeply it came
+# down, and how much it was spinning. SURFACE_ROLL was a multiplier rather
+# than a friction. Between them there was no way to ask "what if it arrives
+# shallow and fast" - so a thinned iron and a flushed one landed the same
+# way, and a ball could not skip off water because nothing knew the angle
+# it hit at.
+#
+# Now: the arrival is the club's (speed, descent, spin), the ground's answer
+# is a friction, and the run falls out of the two.
+#
+#     run = BASE · v² · cos(descent) · spin_check / friction · firmness
+#
+# DESCENT and SPIN are the physical figures - a driver comes in shallow and
+# barely turning, a wedge steep and spinning hard. V_LAND is then *solved*
+# so that a full swing on a fairway reproduces the 24 / 19 / 11 / 6 this
+# replaced, exactly: the same discipline as the wind becoming a bearing,
+# where the four cardinal hours came out unchanged. The feel is kept and
+# the knobs now mean something. tools/golf_roll.py prints the table these
+# produce, which is how they get retuned from play rather than from memory.
+DESCENT = {"driver": 38.0, "wood": 43.0, "iron": 48.0, "wedge": 55.0}   # degrees
+V_LAND = {"driver": 1.000, "wood": 0.930, "iron": 0.756, "wedge": 0.620}
+SPIN_RATE = {"driver": 0.05, "wood": 0.12, "iron": 0.34, "wedge": 0.62}
+SPIN_CHECK = 0.186              # how much of the spin figure actually checks it
+ROLL_BASE = 9.838               # solved; see the derivation above
+STINGER_DESCENT = 0.35          # a punched ball comes in this much flatter
+
+# What the ground does about it. A friction, so a bigger number is a
+# surface that stops the ball sooner, and the run goes as one over it.
+# Every one of these is set to reproduce the multiplier it had, so this
+# stage changes the *shape* of the model and none of its behaviour:
+# x1.33 on the green, x1.00 on the fairway, x0.70 on the fringe, x0.36 in
+# the rough, and a ball landing in sand stopping where it pitched.
+#
+# The fringe is under argument and is deliberately NOT changed here.
+# KC9SP reads a collar as intermediate between fairway and green; this
+# table has it braking harder than the fairway, which is a deliberate and
+# tested ordering (test_golf.py pins green > fairway > fringe > rough).
+# Installing a contested number while re-shaping the model would mean two
+# changes riding on one commit and no way to tell which moved the game.
+# tools/golf_roll.py prints the table under either value; the argument is
+# settled there. See docs/golf-plan.md.
+FRICTION = {"green": 0.24, "fringe": 0.457, "fairway": 0.32, "tee": 0.32,
+            "rough": 0.90, "sand": 40.0}
+# What the fringe would be if a collar ran a touch faster than the fairway,
+# which is the other reading. Not used; here so the tool can show both.
+FRINGE_IF_FAST = 0.30
+FRICTION_DEFAULT = "fairway"    # what an unknown surface is charged
+
+# The skip. Not a special case and not a shot anybody is offered: once the
+# descent angle is a real quantity, a ball that arrives at water shallow
+# enough and fast enough skips off it, the way a flat stone does. Every
+# ordinary shot comes down between 38 and 55 degrees and never qualifies. A
+# stinger - which is an *earned* flair, punched under the wind - comes in
+# at about a third of that, and can. So the trick shot is reachable only
+# through a shot somebody earned, and is never promised.
+SKIP_ANGLE = 20.0               # degrees; steeper than this and it goes in
+SKIP_SPEED = 0.70               # and slower than this it has not the pace
+SKIP_ODDS = 0.45                # at the flattest and fastest; less as it steepens
+SKIP_RUN = (18, 34)             # yards it carries on across the water
 # The wind, by the clock. A caddie says where it is out of the way a pilot
 # does - "out of eight o'clock" - twelve being straight down the hole and
 # three off the right, and that is one fact with a head component and a
@@ -193,6 +262,7 @@ STINGER_HANG = 0.4              # a punched ball is under it and down early
 # everything, and this reproduces it for a driver and nothing else.
 ROLL_NOISE = (0.7, 1.3)         # the bounce: the roll, times somewhere in here
 ROLL_SPEED = 1.2                # the roll goes as the landing speed to this power
+RUN_MOST = 80                   # yards; past this the arithmetic has gone wrong, not the ball
 # The day - see Day. The ground's firmness comes from how wet it is, and
 # how wet it is comes from the sky, hole by hole.
 GROUND_WORDS = ((0.25, "firm and running"), (0.55, ""), (0.8, "soft underfoot"), (1.01, "wet - nothing runs"))
@@ -364,6 +434,73 @@ def wind_roll(hour):
     return 1.0 + tail * (WIND_ROLL_TAIL if tail >= 0 else WIND_ROLL_HEAD)
 
 
+def descent_angle(club, flair=None):
+    """The angle the ball comes down at, in degrees.
+
+    The club's, flattened by a stinger. This is the quantity the skip turns
+    on, and the reason the skip needs no special case of its own.
+    """
+    angle = DESCENT.get(club)
+    if angle is None:
+        if club:                            # a putter has no flight; anything else is a bug
+            log.warning("golf: no descent angle for club %r - using the "
+                        "iron's %.0f degrees", club, DESCENT["iron"])
+        angle = DESCENT["iron"]
+    return angle * (STINGER_DESCENT if flair == "stinger" else 1.0)
+
+
+def landing_speed(club, carry=None, most=None):
+    """How fast the ball is going when it lands, 0..1 against a flushed
+    driver. A part swing arrives slower, which is most of why it runs less."""
+    speed = V_LAND.get(club, V_LAND["iron"])
+    if carry and most:
+        speed *= max(0.3, min(1.15, (abs(carry) / float(most)) ** (ROLL_SPEED / 2)))
+    return speed
+
+
+def friction_of(lie):
+    """What the surface charges the ball. Bigger stops it sooner."""
+    known = FRICTION.get(lie)
+    if known is None:
+        log.warning("golf: no friction for a ball on %r - charging it the "
+                    "%s's %.2f", lie, FRICTION_DEFAULT, FRICTION[FRICTION_DEFAULT])
+        return FRICTION[FRICTION_DEFAULT]
+    return known
+
+
+def run_yards(club, lie, hour=None, carry=None, most=None, flair=None, firmness=1.0):
+    """How far the ball runs on after it pitches.
+
+    The arrival against the ground: speed squared, flattened by how steeply
+    it came in, checked by its spin, divided by what the surface charges,
+    and scaled by how firm the day has left it.
+    """
+    speed = landing_speed(club, carry, most)
+    angle = descent_angle(club, flair)
+    check = 1.0 - SPIN_CHECK * SPIN_RATE.get(club, SPIN_RATE["iron"])
+    run = (ROLL_BASE * speed * speed * math.cos(math.radians(angle)) * check
+           / friction_of(lie) * float(firmness) * wind_roll(hour))
+    if run < 0 or run > RUN_MOST:
+        log.warning("golf: a %s on the %s worked out at %.1f yards of run "
+                    "(speed %.2f, descent %.0f deg, firmness %.2f) - "
+                    "holding it to %d", club, lie, run, speed, angle,
+                    firmness, 0 if run < 0 else RUN_MOST)
+        run = 0.0 if run < 0 else float(RUN_MOST)
+    return run
+
+
+def skips(angle, speed, rng):
+    """Whether a ball arriving at water at this angle and pace skips off it.
+
+    Flat and fast, or it goes in. The odds fall away as it steepens, so a
+    ball just under the angle usually still gets wet.
+    """
+    if angle >= SKIP_ANGLE or speed < SKIP_SPEED:
+        return False
+    odds = SKIP_ODDS * (1.0 - angle / SKIP_ANGLE)
+    return rng.random() < odds
+
+
 def flight_seconds(club, carry=None, most=None, flair=None):
     """How long this shot is in the air, near enough for a game.
 
@@ -420,6 +557,11 @@ FLAIR_CALLS = {
     "holed-out": ["Holed it from the fairway!", "It's IN. From out there.", "Walked it in from the fairway."],
     "launched": ["Launched it.", "That one's still going.", "Nuked it."],
     "pure": ["Pured it. Stiff.", "All over the flag.", "Pin high, and close."],
+    # The one nobody is offered. It is never chosen by the game the way the
+    # others are - it falls out of arriving at water flat and fast - so it
+    # is said loudly, or a ball coming out of the water reads as a fault.
+    "skipped": ["Skipped it! That's still dry.", "It BOUNCED. Off the water, and out.",
+                "Three skips and dry land. Nobody meant that."],
 }
 
 # A hole in one. Real on a par 3 - about one in twelve thousand for an
@@ -907,7 +1049,7 @@ class Golf:
         club = self.default_club(player)
         return bool(club and club != "putter" and self.reach(player, club) >= left)
 
-    def expected_roll(self, club, lie="fairway", hour=None, carry=None, most=None):
+    def expected_roll(self, club, lie="fairway", hour=None, carry=None, most=None, flair=None):
         """How far a ball with this club is expected to run on after it
         lands there: what a golfer allows for when landing it short. A
         full swing unless the carry is given against the club's most.
@@ -915,9 +1057,7 @@ class Golf:
         ``hour`` is the clock the wind is out of; downwind the ball runs on
         and into it the ball sits down, which is the tail component of it.
         """
-        speed = 1.0 if not carry or not most else max(0.3, min(1.15, (abs(carry) / float(most)) ** ROLL_SPEED))
-        return (ROLL.get(club, 0) * speed * SURFACE_ROLL.get(lie, 1.0) * wind_roll(hour)
-                * self.day.firmness)
+        return run_yards(club, lie, hour, carry, most, flair, self.day.firmness)
 
     def _carry(self, ball, club, hour, left, mph=None):
         """How far the ball goes. A club that can reach the mark is hit at
@@ -1064,7 +1204,7 @@ class Golf:
         roll, spun, kicked = 0, False, None
         if flair != "pure":
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-            roll = self.expected_roll(club, came_down, hour, abs(carry), most) * (
+            roll = self.expected_roll(club, came_down, hour, abs(carry), most, flair) * (
                 self.swing.uniform(1.0, ROLL_NOISE[1]) if lucky and came_down != "green" else self.swing.uniform(*ROLL_NOISE))
             if came_down == "green":
                 # The green's fall: toward the player checks the ball, away
@@ -1128,6 +1268,32 @@ class Golf:
         if kicked:
             ran = f", kicked {kicked}" + ran
         wide = f" {side}" if side else ""
+        # A ball that arrives at water flat and fast skips off it, the way
+        # a stone does. Never offered and never aimable - see SKIP_ANGLE -
+        # and loud when it happens, because a ball that goes in the water
+        # and comes out reads as a fault unless the game says otherwise.
+        if hz and hz["kind"] == "water" and not side:
+            angle = descent_angle(club, flair)
+            pace = landing_speed(club, abs(carry), most if flair != "pure" else None)
+            if skips(angle, pace, self.swing):
+                wet_name = hz["name"] or "the water"
+                skipped = self.swing.randint(*SKIP_RUN)
+                landed = min(landed + skipped, h["yards"] + edge)
+                log.info("golf: skipped one off %s - %s in at %.0f degrees, "
+                         "%d yards on", wet_name, club, angle, skipped)
+                hz = self._in_band(h, landed, off)
+                if not (hz and hz["kind"] == "water"):
+                    ball.at, ball.off = landed, off
+                    rests_on = on_the_green(h, landed, off)
+                    ball.lie = rests_on or (hz["kind"] if hz else "fairway")
+                    left = int(round(h["yards"] - landed))
+                    return {"kind": ball.lie, "flair": "skipped",
+                            "words": f"{club}, {carry} yards - skipped off "
+                                     f"{wet_name} and came out "
+                                     f"{skipped} on, {left} to go",
+                            "carry": carry, "wind": wind, "skipped": skipped,
+                            "left": left, "off": off}
+                log.debug("golf: the skip came down in %s again - wet after all", wet_name)
         if hz and hz["kind"] == "water":
             if side:
                 # A right answer that drifted stops on the bank: no penalty,

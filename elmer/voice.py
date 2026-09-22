@@ -147,6 +147,13 @@ VOCABULARY = {
     "call-stinger-3": "Kept it low. That's the shot.",
     "call-flop-1": "Flopped it to a tap-in.", "call-flop-2": "Straight up, straight down. Kick-in.",
     "call-flop-3": "That's a touch shot.",
+    # The skip. Nobody is offered this shot and the game never chooses it -
+    # it falls out of arriving at water flat and fast - so it is said
+    # loudly, or a ball coming out of the water reads as a fault. See
+    # golf.SKIP_ANGLE.
+    "call-skip-1": "Skipped it! That's still dry.",
+    "call-skip-2": "It BOUNCED. Off the water, and out.",
+    "call-skip-3": "Three skips and dry land. Nobody meant that.",
     "call-holed-out-1": "Holed it from the fairway!", "call-holed-out-2": "It's IN. From out there.",
     "call-holed-out-3": "Walked it in from the fairway.",
     "call-launched-1": "Launched it.", "call-launched-2": "That one's still going.", "call-launched-3": "Nuked it.",
@@ -184,6 +191,9 @@ CALL_TOKENS = {
     "Kept it low. That's the shot.": "call-stinger-3",
     "Flopped it to a tap-in.": "call-flop-1", "Straight up, straight down. Kick-in.": "call-flop-2",
     "That's a touch shot.": "call-flop-3",
+    "Skipped it! That's still dry.": "call-skip-1",
+    "It BOUNCED. Off the water, and out.": "call-skip-2",
+    "Three skips and dry land. Nobody meant that.": "call-skip-3",
     "Holed it from the fairway!": "call-holed-out-1", "It's IN. From out there.": "call-holed-out-2",
     "Walked it in from the fairway.": "call-holed-out-3",
     "Launched it.": "call-launched-1", "That one's still going.": "call-launched-2", "Nuked it.": "call-launched-3",
