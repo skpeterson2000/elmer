@@ -299,18 +299,38 @@ def status():
             "running": running_here() if path else False}
 
 
+# Which build to start on Windows, in order. The Tk one first: it is the
+# build KC9SP actually runs, it is what the Pis run, and it is the one
+# being worked on - a button that opened the other one showed a TowerWitch
+# without the day's changes in it, which reads as the changes not having
+# landed.
+#
+# It used to be the other way round, for a good reason that has since
+# stopped being true: the Tk build imported fcntl at the top of the file,
+# which is POSIX only, so on Windows it died before a window could appear.
+# That import is guarded now and the single-instance lock is kept through
+# msvcrt, so the Tk build starts here. It also asks less of the machine
+# than the Qt one - stdlib and its own modules, where TowerWitch-P wants
+# PyQt5, requests, utm, maidenhead and mgrs.
+WINDOWS_BUILDS = ("TowerWitch_Tkinter.py", "TowerWitch-P.py")
+
+
 def launch(path):
     """Start TowerWitch from its folder. Returns (ok, said). Its own
-    launcher where it has one; on Windows the PyQt build, since the Tk
-    build wants fcntl."""
+    launcher where it has one; on Windows the first of WINDOWS_BUILDS
+    that is actually in the folder."""
     import os
     import subprocess
     import sys
     path = Path(path)
     if os.name == "nt":
-        script = path / "TowerWitch-P.py"
-        if not script.is_file():
-            return False, "TowerWitch-P.py is not in that folder"
+        for name in WINDOWS_BUILDS:
+            script = path / name
+            if script.is_file():
+                break
+        else:
+            return False, ("none of " + ", ".join(WINDOWS_BUILDS)
+                           + " is in that folder")
         cmd = [sys.executable, str(script)]
         flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         try:
