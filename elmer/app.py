@@ -2531,7 +2531,7 @@ def _records_for(connection):
     out = {}
     for rec in (settings.get("license"), settings.get("gmrs"), settings.get("commercial_license")):
         if rec and rec.get("callsign"):
-            out[rec["callsign"]] = rec
+            out[rec["callsign"]] = callsign.refresh_status(rec)
     return out
 
 
@@ -7901,10 +7901,7 @@ def api_client_error():
 def _license_now(prof):
     """The amateur record kept with the profile, its status recomputed from
     the expiry date as of today rather than the day it was fetched."""
-    record = dict((prof.get("settings") or {}).get("license") or {})
-    if record.get("found") and record.get("expires"):
-        record["status"] = callsign.status_for(callsign._parse_date(record["expires"]))
-    return record
+    return callsign.refresh_status(dict((prof.get("settings") or {}).get("license") or {}))
 
 
 def _adopt_license(connection, call, settings=None):
@@ -7978,13 +7975,15 @@ def gmrs_licence_for(connection, settings=None):
     95.1705(c) - a licensee's on this unit who has marked them as family.
     The licensee marks, on their own account; nobody can claim cover."""
     settings = settings if settings is not None else db.get_profile(connection)["settings"]
-    own = settings.get("gmrs")
+    # As of today, not as of the day the call was typed in: a GMRS term
+    # runs ten years and the day count stored with it goes stale at once.
+    own = callsign.refresh_status(settings.get("gmrs"))
     if own and own.get("found"):
         return own
     for prof in db.users(connection):
         if prof["id"] == connection.user_id:
             continue
-        theirs = prof["settings"].get("gmrs")
+        theirs = callsign.refresh_status(prof["settings"].get("gmrs"))
         if theirs and theirs.get("found") and connection.user_id in (prof["settings"].get("gmrs_covers") or []):
             return dict(theirs, covered_by=prof["display_name"], via="family")
     return own

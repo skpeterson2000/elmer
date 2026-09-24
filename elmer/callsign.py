@@ -119,13 +119,44 @@ def status_for(expiry, grace_days=GRACE_DAYS):
     today = date.today()
     days = (expiry - today).days
     if days >= 0:
-        return {"state": "current", "days": days,
-                "grace_ends": (expiry + timedelta(days=grace_days)).isoformat()}
+        # No grace means no date to name: GMRS would otherwise report a
+        # "grace_ends" equal to its own expiry, which reads like a grace
+        # period to anybody who meets it later.
+        out = {"state": "current", "days": days}
+        if grace_days:
+            out["grace_ends"] = (expiry + timedelta(days=grace_days)).isoformat()
+        return out
     if grace_days and -days <= grace_days:
         return {"state": "grace", "days": days,
                 "renew_within": grace_days + days,
                 "grace_ends": (expiry + timedelta(days=grace_days)).isoformat()}
     return {"state": "expired", "days": days}
+
+
+def refresh_status(record):
+    """A licence record with its status worked out as of today.
+
+    The record is kept with the profile and a licence term runs for years -
+    ten, for GMRS - so the day count written into it goes stale the moment
+    it is stored. The amateur record was already being recomputed on its way
+    to the page and the others were not, which is how a GMRS licence
+    thirty-five days from expiry went on reporting four hundred days and
+    never tripped the renew-soon warning the band plan draws.
+
+    Each service keeps its own grace: two years for amateur under 47 CFR
+    97.21(b), none at all for GMRS, where past the date the licence is
+    simply gone. A lifetime permit has no expiry and is handed back as it
+    is, and so is a record that was never found.
+    """
+    if not record or not record.get("found"):
+        return record
+    if (record.get("status") or {}).get("lifetime") or not record.get("expires"):
+        return record
+    # callook answers for amateur calls only, and its records carry no
+    # service, so the absent case is the amateur one.
+    service = (record.get("service") or "amateur").lower()
+    grace = (uls.SERVICES.get(service) or {}).get("grace_days", GRACE_DAYS)
+    return dict(record, status=status_for(_parse_date(record["expires"]), grace))
 
 
 def is_gmrs(call):
