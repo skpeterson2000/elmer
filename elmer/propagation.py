@@ -826,7 +826,8 @@ REACH_SHORT_DB = 20.0             # on the reach map, this far short is dark; te
 
 
 def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DEFAULT,
-               site="residential", gain_dbi=SKY_GAIN_DBI):
+               site="residential", gain_dbi=SKY_GAIN_DBI, noise_sun_deg=None,
+               when=None, lat=None):
     """What arrives at the far end of a skywave path, against what the mode
     needs there. `km` is the ground distance, `hops` how many hops the path
     takes, `elevation` the sun's at the path's midpoint. Everything in dB
@@ -844,7 +845,13 @@ def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DE
              + POLARISATION_LOSS_DB)
     tx_dbm = 10.0 * math.log10(max(0.001, float(watts)) * 1000.0)
     arrives = tx_dbm + 2.0 * gain_dbi - fspl - absorb - extra
-    needed = linkbudget.needed_dbm(mhz, emission, site)
+    # The noise is heard where the signal lands, so the sun that matters to
+    # it is the far end's, not the reflection's. Left out, the path's own
+    # midpoint stands in - better than assuming noon everywhere, which is
+    # what a figure with no sun in it at all amounts to.
+    needed = linkbudget.needed_dbm(mhz, emission, site,
+                                   sun_deg=elevation if noise_sun_deg is None else noise_sun_deg,
+                                   when=when, lat=lat)
     margin = arrives - needed
     if margin >= SKY_SOLID_DB:
         verdict = "solid"
@@ -1174,11 +1181,17 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     far = one_hop_limit_km(hmf2)
     ground_km = float(groundwave.describe(mhz, watts=watts, mode=emission).get("km") or 0.0)
 
-    def heard(path_km, hops, elev_mid):
+    def heard(path_km, hops, elev_mid, elev_far=None, far_lat=None):
         """How much of the sky's reach these watts can be heard over: one
-        at a solid margin, nought at REACH_SHORT_DB short, straight between."""
+        at a solid margin, nought at REACH_SHORT_DB short, straight between.
+
+        `elev_far` is the sun where the signal lands, which is what sets the
+        atmospheric noise it has to be heard over - a path into the dark on
+        80 m arrives at a far noisier receiver than the same path into the
+        afternoon."""
         margin = sky_budget(mhz, path_km, hops, watts, emission, elevation=elev_mid,
-                            hmf2=hmf2)["margin_db"]
+                            hmf2=hmf2, noise_sun_deg=elev_far, when=when,
+                            lat=far_lat)["margin_db"]
         return max(0.0, min(1.0, (margin + REACH_SHORT_DB) / (SKY_SOLID_DB + REACH_SHORT_DB)))
     # The layer's shape, from the sonde's three numbers: the ceiling for a
     # hop of any length is foF2 times this factor - 1 straight up, the
@@ -1214,6 +1227,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             mlat, mlon = _midpoint(lat, lon, glat, glon)
             elev = solar_elevation(mlat, mlon, when)
             muf, fof2 = levels(sfi, elev, mlat, m3000, anchor, drive=f2_drive(mlat, mlon, when), when=when)
+            elev_far = solar_elevation(glat, glon, when)
             score = 0.0
             if km <= ground_km:
                 score = 100.0
@@ -1236,7 +1250,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
                         gate = (_soft(km, skip) if skip > 0 else 1.0) * _soft(km, far, inside_below=False)
-                        score = rate(km) * gate * (weigh(km, bearing) if weigh else 1.0) * heard(km, 1, elev)
+                        score = rate(km) * gate * (weigh(km, bearing) if weigh else 1.0) * heard(km, 1, elev, elev_far, glat)
                     if km > far * (1 - REACH_EDGE):
                         # several hops: each leg has to clear the skip and land
                         # inside a hop; each hop past the first is paid for
@@ -1244,7 +1258,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                         leg = km / n
                         gate = (_soft(leg, skip) if skip > 0 else 1.0) * _soft(leg, far, inside_below=False)
                         multi = (rate(leg) * gate * (REACH_HOP_COST ** (n - 1))
-                                 * (weigh(leg, bearing) if weigh else 1.0) * heard(km, n, elev))
+                                 * (weigh(leg, bearing) if weigh else 1.0) * heard(km, n, elev, elev_far, glat))
                         score = max(score, multi)
                 # ground wave fades out rather than stopping at a line
                 if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):

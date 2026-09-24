@@ -213,21 +213,77 @@ def deygout_db(pts, ha_m, hb_m, mhz, depth=0):
     return loss, edges
 
 
-def noise_floor_dbm(mhz, bandwidth_hz, site="residential"):
+# Atmospheric noise: lightning, somewhere in the world, arriving the same way
+# everything else on the low bands arrives. ITU-R P.372 gives the man-made
+# figures above as two constants each, and gives this one as a book of maps -
+# it depends on frequency, on the hour, on the season and on how far you are
+# from the tropics, because that is where the storms are.
+#
+# What follows is a straight line through those maps for a mid-latitude
+# station, not the maps themselves: Fa = A - B log10(MHz), fitted to their
+# shape rather than read off them. It is the part this calculation had
+# missing altogether, and leaving it out flattered a quiet site enormously -
+# man-made noise alone says a rural station hears 80 m at about S4, and no
+# rural station has ever heard 80 m at S4 on a summer night. You cannot get
+# away from lightning by moving out of town.
+#
+# These being a fit and not a table, they are meant to be argued with: an
+# operator who knows what their own bands sound like can move them, and
+# tools/noise_floor.py prints the S-meter readings they produce.
+ATMOSPHERIC_NIGHT = (83.0, 49.0)      # A, B - after dark, storms propagating in
+ATMOSPHERIC_DAY = (71.0, 49.0)        # by day: the D layer absorbs it as it does everything
+ATMOSPHERIC_WINTER_DB = -10.0         # fewer storms, and further away
+ATMOSPHERIC_DAY_DEG = 0.0             # sun elevation that counts as daylight
+
+
+def atmospheric_fa(mhz, sun_deg=None, when=None, lat=None):
+    """Atmospheric noise in dB above kTB at this frequency.
+
+    `sun_deg` is the sun's elevation where the noise is being heard; None
+    means unknown and takes the mean of day and night, which is the honest
+    answer when nobody has said what time it is. `when` and `lat` give the
+    season - summer is the noisy half, and which half that is depends on
+    the hemisphere.
+    """
+    night_a, night_b = ATMOSPHERIC_NIGHT
+    day_a, day_b = ATMOSPHERIC_DAY
+    lf = math.log10(max(0.1, float(mhz)))
+    night = night_a - night_b * lf
+    day = day_a - day_b * lf
+    if sun_deg is None:
+        fa = (night + day) / 2.0
+    else:
+        fa = day if float(sun_deg) > ATMOSPHERIC_DAY_DEG else night
+    if when is not None:
+        month = getattr(when, "month", None)
+        if month:
+            southern = lat is not None and float(lat) < 0
+            summer = month in ((11, 12, 1, 2, 3, 4) if southern else (5, 6, 7, 8, 9, 10))
+            if not summer:
+                fa += ATMOSPHERIC_WINTER_DB
+    return fa
+
+
+def noise_floor_dbm(mhz, bandwidth_hz, site="residential", sun_deg=None, when=None, lat=None):
     """The receiver's floor in dBm: thermal noise in the bandwidth, plus
-    the greater part of the receiver's own noise and the site's man-made
-    noise, added as powers. At 2 m in a residential street the site wins."""
+    the greater part of the receiver's own noise, the site's man-made noise
+    and the sky's own, added as powers. At 2 m in a residential street the
+    site wins; on 80 m after dark the sky does, wherever the site is."""
     c, d, _ = groundwave.NOISE_SITES.get(site) or groundwave.NOISE_SITES["residential"]
     fa = c - d * math.log10(max(1.0, mhz))            # dB above kTB, ITU-R P.372
     external = 10.0 ** (max(0.0, fa) / 10.0)
+    # Above 30 MHz the storms are below the horizon and stay there; what is
+    # left up here is the galaxy, which the site figures already stand in for.
+    if mhz <= 30.0:
+        external += 10.0 ** (max(0.0, atmospheric_fa(mhz, sun_deg, when, lat)) / 10.0)
     internal = 10.0 ** (NOISE_FIGURE_DB / 10.0)
     return -174.0 + 10.0 * math.log10(max(1.0, bandwidth_hz)) + 10.0 * math.log10(external + internal)
 
 
-def needed_dbm(mhz, mode="fm", site="residential"):
+def needed_dbm(mhz, mode="fm", site="residential", sun_deg=None, when=None, lat=None):
     """What has to arrive for this mode to be copied at this site."""
     m = groundwave.mode_of(mode)
-    return noise_floor_dbm(mhz, m["bandwidth_hz"], site) + m["snr"]
+    return noise_floor_dbm(mhz, m["bandwidth_hz"], site, sun_deg, when, lat) + m["snr"]
 
 
 def odds(margin_db):
