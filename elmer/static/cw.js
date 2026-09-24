@@ -27,8 +27,16 @@ const CW_TONE_DEFAULT = 1020;
    quieter, which is the easier direction to discover. */
 const CW_VOLUME_DEFAULT = 92;
 
+/* Seconds counted down before copy practice sends. Pressing Send puts a
+   hand on the mouse, and the copy wants it on the keyboard or a pencil;
+   without a moment to get there the first group is lost to the setup, and
+   the score says so as if it were the ear. Three is enough to settle and
+   short enough not to be a wait. 0 turns it off. */
+const CW_COUNTDOWN_DEFAULT = 3;
+
 const settings = Object.assign(
   {tone: CW_TONE_DEFAULT, volume: CW_VOLUME_DEFAULT, wpm: 20, effective: 10, lesson: 2,
+   countdown: CW_COUNTDOWN_DEFAULT,
    /* Which keys are the paddles, and which instrument you were last using.
       Arrows to begin with because they are where a hand already is, but the
       right pair depends on the keyboard and on the operator, so they are
@@ -146,6 +154,7 @@ bindSetting('cw-vol', 'volume', v => v + '%');
 bindSetting('cw-wpm', 'wpm', v => v + ' wpm');
 bindSetting('cw-eff', 'effective', v => v + ' wpm');
 bindSetting('cw-lesson', 'lesson', v => 'characters 1–' + v);
+bindSetting('cw-countdown', 'countdown', v => v ? v + ' s' : 'off');
 
 /* ------------------------------------------------------- the code, drawn */
 /* A dit is a short sound and a dah is a long one, three times over. Printed as
@@ -287,6 +296,7 @@ function showMode(name) {
   if (name !== 'decode') stopMic();
   teachHalt();
   if (learnOn) learnEnd(false);
+  cancelCountdown();
   if (name !== 'copy') player.stop();
   history.replaceState(null, '', '#' + name);
   remember('cw.mode', name);
@@ -723,6 +733,65 @@ document.getElementById('cw-start-copy').addEventListener('click', () => {
   sendPractice();
 });
 
+/* -------------------------------------------------------------- countdown */
+/* Before a copy is sent: 3, 2, 1 in the status line and a tick with each,
+   so somebody looking down at a pad hears it as well. The tick is a click
+   high above the tone slider's range and gone in a few milliseconds - not a
+   shaped tone at the sidetone pitch - so it cannot be copied as a dit. Any
+   key starts the sending at once: the hand arriving on the keyboard is the
+   operator saying ready. Resolves true to send, false if Stop called it off. */
+let countdownCancel = null;
+
+function countdownTick() {
+  try {
+    const ctx = player.ensure();
+    const t = ctx.currentTime + 0.01;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = 1900;
+    o.connect(g); g.connect(ctx.destination);
+    const v = Math.pow(settings.volume / 100, 2) * 0.4;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+    o.start(t); o.stop(t + 0.03);
+  } catch (e) {}
+}
+
+function countdown(status) {
+  const secs = Math.max(0, Math.min(5, Math.round(+settings.countdown || 0)));
+  if (!secs) return Promise.resolve(true);
+  return new Promise(resolve => {
+    let n = secs, timer = null;
+    const finish = go => {
+      clearTimeout(timer);
+      document.removeEventListener('keydown', onKey, true);
+      countdownCancel = null;
+      resolve(go);
+    };
+    /* Caught first and kept, so the key that says ready is not also typed
+       into the copy or taken as an answer somewhere else on the page. */
+    const onKey = e => {
+      if (e.metaKey || e.ctrlKey || e.altKey ||
+          ['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      finish(true);
+    };
+    const step = () => {
+      if (!n) { finish(true); return; }
+      status.textContent = n + '\u2026 any key to start now';
+      countdownTick();
+      n--;
+      timer = setTimeout(step, 1000);
+    };
+    countdownCancel = () => finish(false);
+    document.addEventListener('keydown', onKey, true);
+    step();
+  });
+}
+
+function cancelCountdown() { if (countdownCancel) countdownCancel(); }
+
 /* ------------------------------------------------------------------- copy */
 let currentText = '', currentData = null, sending = false;
 /* How many times this text was sent again before it was checked. A contact
@@ -741,8 +810,6 @@ async function sendPractice(repeat) {
       wpm: settings.wpm, effective: settings.effective}));
     currentText = currentData.plain || currentData.text;
     copyResends = 0;
-  } else {
-    copyResends++;
   }
   /* A repeat is a fresh copy of the same text: what was typed and what
      was marked go, so the second hearing is heard and not read. */
@@ -752,10 +819,22 @@ async function sendPractice(repeat) {
   document.getElementById('cw-send').hidden = true;
   document.getElementById('cw-stop').hidden = false;
   document.getElementById('cw-repeat').hidden = true;
-  status.textContent = 'sending…';
   document.getElementById('cw-typed').focus();
   document.getElementById('cw-slower').hidden = true;
   document.getElementById('cw-faster').hidden = true;
+  if (!await countdown(status)) {
+    /* Called off before a sound: Stop has already put the buttons back, a
+       change of pane has not. */
+    sending = false;
+    document.getElementById('cw-send').hidden = false;
+    document.getElementById('cw-stop').hidden = true;
+    if (!status.textContent || /start now$/.test(status.textContent)) status.textContent = 'stopped';
+    return;
+  }
+  /* Counted once it goes out: a resend called off in the countdown was
+     never heard, so it is not a resend. */
+  if (repeat) copyResends++;
+  status.textContent = 'sending…';
   player.send(currentData.groups, currentData.timing, null, () => {
     sending = false;
     document.getElementById('cw-send').hidden = false;
@@ -799,6 +878,7 @@ async function repace(delta) {
 document.getElementById('cw-slower').addEventListener('click', () => repace(-2));
 document.getElementById('cw-faster').addEventListener('click', () => repace(2));
 document.getElementById('cw-stop').addEventListener('click', () => {
+  cancelCountdown();
   player.stop(); sending = false;
   document.getElementById('cw-send').hidden = false;
   document.getElementById('cw-stop').hidden = true;
@@ -1894,15 +1974,29 @@ async function ladderRung(repeat) {
     ladder.text = ladder.data.plain || ladder.data.text;
     ladder.rungResends = 0;
     document.getElementById('cw-ladder-typed').value = '';
-  } else {
-    ladder.rungResends = (ladder.rungResends || 0) + 1;
-    ladder.resends = (ladder.resends || 0) + 1;
   }
   document.getElementById('cw-ladder-typed').hidden = false;
   document.getElementById('cw-ladder-checkrow').hidden = false;
   document.getElementById('cw-ladder-repeat').hidden = true;
-  status.textContent = 'rung ' + (ladder.rungs + 1) + ' \u00b7 ' + ladderWord(ladder.wpm) + ' \u2026';
   document.getElementById('cw-ladder-typed').focus();
+  if (!await countdown(status)) {
+    /* Stop ends the ladder; a change of pane only pauses it, and Resend
+       picks the rung up again. */
+    if (ladder) {
+      ladder.paused = true;
+      document.getElementById('cw-ladder-repeat').hidden = false;
+      status.textContent = 'paused \u2014 Resend when ready';
+    }
+    return;
+  }
+  if (!ladder) return;
+  /* A rung picked up after a pause was never heard, so it is not a resend. */
+  if (repeat && !ladder.paused) {
+    ladder.rungResends = (ladder.rungResends || 0) + 1;
+    ladder.resends = (ladder.resends || 0) + 1;
+  }
+  ladder.paused = false;
+  status.textContent = 'rung ' + (ladder.rungs + 1) + ' \u00b7 ' + ladderWord(ladder.wpm) + ' \u2026';
   player.send(ladder.data.groups, ladder.data.timing, null, () => {
     status.textContent = ladderWord(ladder.wpm) + ' \u2014 type what you heard, then check';
     document.getElementById('cw-ladder-repeat').hidden = false;
@@ -1941,6 +2035,7 @@ document.getElementById('cw-ladder-start').addEventListener('click', async () =>
 });
 document.getElementById('cw-ladder-repeat').addEventListener('click', () => ladder && ladderRung(true));
 document.getElementById('cw-ladder-stop').addEventListener('click', () => {
+  cancelCountdown();
   player.stop();
   if (ladder) ladderFinish(ladder.passed.length ? Math.max(...ladder.passed) : null);
 });
