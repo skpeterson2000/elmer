@@ -1140,6 +1140,41 @@ def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=
 WEIGHT_CAP = 1.0 + 6.0 / 18.0
 
 
+def _antenna_block(antenna, mhz):
+    """What the map says about the antenna it was drawn for.
+
+    The height in feet as well as in wavelengths, because feet is what the
+    operator climbed with - the line on the page printed "at 0 ft" for as
+    long as this carried only the wavelengths.
+
+    And whether it is an NVIS antenna, which is not a setting anybody
+    chooses. An inverted V at 35 feet is an eighth of a wave up on 80 m and
+    has its whole lobe overhead; the same wire is a wavelength up on 10 m
+    and works DX. The switch on the page can ask for an NVIS antenna but it
+    cannot make one stop being one - only height can, and only by this
+    much, so the height that would is named here rather than left for
+    somebody to find by trial.
+    """
+    # antenna_advice owns the ideal NVIS height; taking it from there rather
+    # than writing 0.2 again is what stops the two drifting apart.
+    from . import antenna_advice, patterns
+    kind = antenna["kind"]
+    height_wl = float(antenna.get("height_wl") or 0.5)
+    ground = antenna.get("ground") or "average"
+    lam_ft = 983.571 / max(0.001, float(mhz))
+    low_wl = patterns.low_angle_height_wl(kind, mhz=mhz, ground=ground)
+    return {"kind": kind, "height_wl": round(height_wl, 3),
+            "height_ft": round(height_wl * lam_ft, 1),
+            "heading": antenna.get("heading"), "ground": ground,
+            "wavelength_ft": round(lam_ft, 1),
+            # the height's effect in numbers, since the colours run out at the top
+            "gain": patterns.height_gains(kind, height_wl, mhz=mhz, ground=ground),
+            "nvis": patterns.is_nvis(kind, height_wl, mhz=mhz, ground=ground),
+            "low_angle_wl": low_wl,
+            "low_angle_ft": round(low_wl * lam_ft) if low_wl else None,
+            "nvis_ft": round(antenna_advice.NVIS_TARGET * lam_ft)}
+
+
 def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, window=None, mode="oneway",
               antenna=None, emission="ssb"):
     """A band's reach from here, as cells of 0-100 - over the globe, or,
@@ -1295,12 +1330,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                 "door_mhz": round(door, 1), "ym_km": round(ym), "m3000_of_layer": round(factor(3000.0), 2)}
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
             "window": bool(window), "mode": mode, "nvis": nvis,
-            "antenna": ({"kind": antenna["kind"], "height_wl": round(float(antenna.get("height_wl") or 0.5), 3),
-                         "heading": antenna.get("heading"), "ground": antenna.get("ground") or "average",
-                         # the height's effect in numbers, since the colours run out at the top
-                         "gain": patterns.height_gains(antenna["kind"], float(antenna.get("height_wl") or 0.5),
-                                                       mhz=mhz, ground=antenna.get("ground") or "average")}
-                        if weigh else None),
+            "antenna": (_antenna_block(antenna, mhz) if weigh else None),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
             "watts": round(float(watts), 1), "emission": emission,
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},

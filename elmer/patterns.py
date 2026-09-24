@@ -218,6 +218,43 @@ def height_gains(kind, height_wl, mhz=None, ground="average"):
             "height_wl": round(float(height_wl), 3)}
 
 
+# Where the main lobe has to sit before a wire is an NVIS antenna whatever
+# anybody calls it. With the lobe this steep there is no low-angle path out
+# of it: the signal goes up, comes down inside a few hundred kilometres, and
+# that is the whole of what the antenna can do.
+NVIS_LOBE_DEG = 60.0
+
+
+def is_nvis(kind, height_wl, mhz=None, ground="average"):
+    """Whether this antenna, at this height on this band, is an NVIS antenna.
+
+    Not a setting somebody chooses - a fact about the wire and the band it
+    is being used on. An inverted V at 35 feet is an eighth of a wavelength
+    up on 80 m and puts its whole lobe overhead; the same wire is a
+    wavelength up on 10 m and is a DX antenna. Nothing on a screen changes
+    that. Height does, and so does which band you tuned to.
+    """
+    return height_gains(kind, height_wl, mhz=mhz, ground=ground)["best_deg"] >= NVIS_LOBE_DEG
+
+
+def low_angle_height_wl(kind, mhz=None, ground="average", most=1.2, step=0.02):
+    """The lowest height, in wavelengths, whose main lobe has left the
+    zenith - what it would take to stop being an NVIS antenna here.
+
+    Walked rather than solved. The ground's reflection puts the lobes on a
+    cycle, so there is no single root to find; the first height that clears
+    the bar is the one worth telling somebody about, because it is the one
+    they would build. None when nothing up to `most` wavelengths does it,
+    which is the honest answer for an antenna that cannot get there.
+    """
+    steps = int(round(most / step))
+    for i in range(1, steps + 1):
+        h = i * step
+        if height_gains(kind, h, mhz=mhz, ground=ground)["best_deg"] < NVIS_LOBE_DEG:
+            return round(h, 3)
+    return None
+
+
 def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="average"):
     """Relative field against elevation, with a slope if the wire has one.
 

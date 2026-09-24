@@ -1477,6 +1477,15 @@ async function bpReach(band) {
   if (bpView.zoom >= 1.8) bpRefine();
   document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
     (d.muf_here ? ' · MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
+  /* The switch reports what the antenna is, rather than what was last
+     asked for. NVIS is not a mode anybody selects: an inverted V at 35 feet
+     is an eighth of a wave up on 80 m and has its whole lobe overhead, and
+     the same wire is a wavelength up on 10 m and works DX. So the box
+     follows the height and the band, and if it ticks itself back on after
+     being turned off, that is the answer - the line below names the height
+     that would change it. */
+  const nvisBox = document.getElementById('bp-reach-nvis');
+  if (nvisBox && d.antenna) nvisBox.checked = !!d.antenna.nvis;
   /* The far end of a round trip: what the other station needs to answer -
      the gear, and in the US the licence. Shown for the contact, not for the
      one-way path, because it is about the reply. */
@@ -1507,7 +1516,13 @@ async function bpReach(band) {
         'its best angle is ' + g.best_deg + '\u00b0 at ' + sgn(g.best_db) + '. ' +
         (g.overhead_db >= 2 ? 'The ground\u2019s reflection is adding straight up: the county\u2019s height.'
          : g.overhead_db <= -4 ? 'The reflection is cancelling straight up: a DX height, with a dip over the county.'
-         : 'Neither adding nor cancelling much straight up.');
+         : 'Neither adding nor cancelling much straight up.')
+        + (d.antenna.nvis
+           ? ' <b>At this height on this band that is an NVIS antenna</b>, whatever the switch says - the lobe is overhead and there is no low-angle way out of it. '
+             + (d.antenna.low_angle_ft
+                ? 'About ' + d.antenna.low_angle_ft + ' ft is where the lobe leaves the zenith on ' + escapeHTML(band.name) + '.'
+                : 'No sensible height moves the lobe off the zenith on this band.')
+           : ' For NVIS on ' + escapeHTML(band.name) + ' you would come down to about ' + d.antenna.nvis_ft + ' ft.');
     }
   }
   const far = document.getElementById('bp-reach-far');
