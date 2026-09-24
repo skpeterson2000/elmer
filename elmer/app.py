@@ -1950,11 +1950,15 @@ def api_antenna_advice():
     # does something at, marked reachable or not by what the site allows.
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
         site = request.args.get("site") or ""
-        reach = antenna_advice.site_cap(site, floor)
-        out["heights"] = antenna_advice.matching_heights(
-            mhz, reach if reach not in (None, 0) else None)
-        out["height_curve"] = antenna_advice.height_curve(mhz)
-        out["reach_ft"] = reach if reach not in (None, 0) else None
+        # How high this person can actually get a wire. With no site said
+        # this used to be no ceiling at all, so the table offered 276 ft on
+        # 80 m as an ordinary choice and the graph spent four fifths of its
+        # width above anything anybody builds. See reach_for().
+        reach = antenna_advice.reach_for(site, floor)
+        out["heights"] = antenna_advice.matching_heights(mhz, reach)
+        out["height_curve"] = antenna_advice.height_curve(mhz, top_ft=reach)
+        out["reach_ft"] = reach
+        out["reach_assumed"] = not site or site == "apartment" and not floor
     # What the power asks of the parts. The conductor's diameter and material
     # come along so the heat in the wire is this wire's, not the default's.
     try:

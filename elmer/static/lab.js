@@ -2641,7 +2641,20 @@ function matchingHeightsHTML(d) {
     heightGraphSVG(d) +
     '<div class="panel-title" style="margin-top:.6rem">Heights where the feed does something</div>' +
     '<table class="facts small heights">' + near.map(line).join('') +
-    (far.length && near.length ? '<tr class="far sep"><td colspan="5">beyond what the site allows</td></tr>' : '') +
+    (far.length && near.length
+      ? '<tr class="far sep"><td colspan="5">'
+        + (d.reach_assumed
+           /* Nothing was said about the site, so this is not the site's
+              ruling - it is the plain fact that most gardens stop around
+              the top of a tall tree. The heights above it are real and
+              somebody has them; they are a tower, a silo, a rooftop, and
+              they are not a choice this reader has unless they say so. */
+           ? 'above ' + Math.round(d.reach_ft) + ' ft - a tower, a silo or a rooftop, '
+             + 'and not what most people can hang. Say where the wire is going and '
+             + 'the table follows it.'
+           : 'beyond what the site allows')
+        + '</td></tr>'
+      : '') +
     far.slice(0, 3).map(line).join('') + '</table>' +
     '<p class="tiny muted">The feedpoint swings with height because the wire sees its own ' +
     'reflection in the ground; the period is half a wavelength. Perfect-ground figures - real ' +

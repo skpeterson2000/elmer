@@ -958,6 +958,37 @@ def site_cap(site, floor=None):
     return spec["max_ft"]
 
 
+# The lowest a wire is worth hanging at all. Twelve to sixteen feet is
+# what most people actually manage between two supports; eight is below
+# that and still somebody's real garden, and under it the table would be
+# offering heights nobody builds.
+LOWEST_WORTH_HANGING_FT = 8.0
+
+
+def reach_for(site, floor=None):
+    """How high this person can actually get a wire, in feet.
+
+    None only where there genuinely is no ceiling, which is one site: a
+    mast or a tower, chosen deliberately by somebody who has one.
+
+    With nothing said, the answer is not "the sky". It is DIPOLE_REACH_FT -
+    the far edge of what tall trees give - because a table of heights is
+    something an operator builds from, and a landmark at two hundred and
+    seventy-six feet is not a choice they have. It is somebody else's grain
+    bin. A rooftop in Manhattan is higher than any of this and is reached
+    the honest way, by saying so: the flat's floor picker puts the tenth
+    storey near a hundred feet.
+
+    A cap of nought - a flat with no floor named yet - used to read as no
+    cap at all, so the one person with the least height in the world was
+    shown the most.
+    """
+    if site == "tower":
+        return None
+    cap = site_cap(site, floor)
+    return cap if cap else DIPOLE_REACH_FT
+
+
 def reality(kind, mhz, wanted_ft, site, floor=None):
     """What that height means where somebody actually lives.
 
@@ -1316,21 +1347,55 @@ def mismatch_loss_db(swr):
     return -10.0 * math.log10(1.0 - rho * rho)
 
 
-def height_curve(mhz, step=0.01, top=1.0):
+def height_curve(mhz, step=0.01, top=1.0, top_ft=None):
     """The whole story against height, for a graph: the feedpoint
     resistance, the SWR that means into 50 ohm coax, and where the main
-    lobe points - every hundredth of a wave from the ground to a full
-    wavelength up."""
+    lobe points, every hundredth of a wave up.
+
+    `top_ft` ends it a little above the height this operator can reach,
+    rather than at a full wavelength. On 80 m a wavelength is two hundred
+    and seventy-eight feet, and a graph drawn to there spends four fifths
+    of its width on heights nobody is going to build, squeezing the part
+    that matters into the first inch.
+
+    It starts at LOWEST_WORTH_HANGING_FT for the same reason: a hundredth
+    of a wave is a foot and a half on 10 m, which is not a height, it is a
+    trip hazard.
+    """
     lam = wavelength_ft(mhz)
+    if top_ft:
+        # a third again above the reach, so the ground beyond it can be
+        # shaded and seen to be shaded rather than simply missing
+        top = min(top, max(2.0 * step, (float(top_ft) * 1.33) / lam))
+    start = max(0.04, LOWEST_WORTH_HANGING_FT / lam)
+    if top <= start:
+        # The reach is below anything worth hanging - a wire on the car, or
+        # a balcony rail. Draw what there is rather than nothing: that the
+        # whole of the available height sits down here is the finding.
+        start = max(0.005, top * 0.25)
+    # A hundredth of a wave is nearly three feet on 80 m, so a short garden
+    # capped at twenty-two would be drawn from half a dozen points and look
+    # like a decision rather than a curve. The step follows the range.
+    span = max(0.0, top - start)
+    while span / step < 24 and step > 0.0005:
+        step /= 2.0
+    # Walked by index rather than by adding: accumulating a hundredth of a
+    # wave ninety-two times drifts, and the last point came out at 0.99 of
+    # a wavelength instead of the whole one it was asked for.
+    # Starting at a height rather than at a round fraction leaves the grid
+    # offset, so the last step lands short of the top: the curve is drawn
+    # to the height it was asked for, not to the nearest step below it.
+    heights = [start + i * step
+               for i in range(int(math.floor((top - start) / step + 1e-9)) + 1)]
+    if heights and top - heights[-1] > step / 8.0:
+        heights.append(top)
     out = []
-    h = 0.04
-    while h <= top + 1e-9:
+    for h in heights:
         r = feedpoint_resistance(h)
         if r is not None:
             out.append({"wavelengths": round(h, 2), "ft": round(h * lam, 1),
                         "ohms": round(r, 1), "swr": round(_swr_into_50(r), 2),
                         "takeoff": round(takeoff_deg(h * lam, mhz), 1)})
-        h += step
     return out
 
 

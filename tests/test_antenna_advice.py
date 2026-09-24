@@ -432,7 +432,14 @@ def main():
     check("  and that receiving goes the same way", "receives exactly the way it transmits" in why, True)
     check("  which the dipole advice carries", any("Why not the" in w for w in A.recommend(10.136, use="dx")["why"]), True)
     curve = A.height_curve(10.136)
-    check("a curve for the graph, up to a wavelength", (curve[0]["wavelengths"], curve[-1]["wavelengths"]), (0.04, 1.0))
+    # It starts at the lowest height worth hanging a wire at - eight feet,
+    # which is 0.08 of a wave on 30 m - rather than at a round fraction. A
+    # hundredth of a wave is under four feet here, and on 10 m it is under
+    # two: heights the table would be offering and nobody builds.
+    check("a curve for the graph, up to a wavelength",
+          (curve[0]["wavelengths"], curve[-1]["wavelengths"]), (0.08, 1.0))
+    check("  starting at the lowest height worth hanging",
+          curve[0]["ft"], A.LOWEST_WORTH_HANGING_FT)
     check("  with the angle falling as the wire rises", curve[-1]["takeoff"] < curve[0]["takeoff"], True)
 
     print("\n-- a balcony is on a floor, and the tenth is not the first --")
