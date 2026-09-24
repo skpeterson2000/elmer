@@ -1155,9 +1155,12 @@ def _mode_depth(mhz, emission, watts):
     to noise it needs there, and it does not move with the band or with how
     noisy the night is, because both modes are listening to the same sky.
     """
-    from . import linkbudget
+    from . import groundwave, linkbudget
     need = linkbudget.needed_dbm(mhz, emission)
     deeper = linkbudget.needed_dbm(mhz, "ssb") - need
+    # The two numbers the difference is made of, so the line can say what a
+    # mode actually asks for rather than only how it compares.
+    shape = groundwave.mode_of(emission)
     times = 10.0 ** (deeper / 10.0)
     # The other modes too, so an SSB operator can be told what changing to
     # one would buy without changing to it first. The gap is the same on
@@ -1170,6 +1173,7 @@ def _mode_depth(mhz, emission, watts):
             gap = linkbudget.needed_dbm(mhz, "ssb") - linkbudget.needed_dbm(mhz, other)
             others[other] = {"db": round(gap, 1), "times": round(10.0 ** (gap / 10.0))}
     return {"mode": emission, "needed_dbm": round(need, 1),
+            "bandwidth_hz": int(shape["bandwidth_hz"]), "snr_db": round(shape["snr"], 1),
             "vs_ssb_db": round(deeper, 1), "times": round(times, 1),
             "as_ssb_watts": round(float(watts) * times),
             "legal_watts": LEGAL_WATTS, "others": others}

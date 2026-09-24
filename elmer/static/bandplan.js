@@ -1543,6 +1543,14 @@ async function bpReach(band) {
       const round1 = x => x >= 10 ? Math.round(x).toLocaleString() : x.toFixed(1);
       const asWatts = round1(equal);
       const asTimes = round1(md.times);
+      /* What the mode itself asks for, in the two numbers the comparison is
+         made of: the slot it is copied in and how far above the noise it
+         has to sit there. */
+      const asks = escapeHTML(name) + ' is copied in ' + (md.bandwidth_hz >= 1000
+          ? (md.bandwidth_hz / 1000).toFixed(1).replace(/\.0$/, '') + ' kHz'
+          : md.bandwidth_hz + ' Hz')
+        + ' and needs to sit ' + (md.snr_db >= 0 ? md.snr_db + ' dB above' : Math.abs(md.snr_db) + ' dB below')
+        + ' the noise there';
       let s;
       if (md.vs_ssb_db > 0.5) {
         s = '<b>' + escapeHTML(name) + ' hears ' + md.vs_ssb_db.toFixed(1) + ' dB deeper than SSB</b> - '
@@ -1554,12 +1562,19 @@ async function bpReach(band) {
           + 'it is copied in a wider slot. The ' + (d.watts || 0) + ' W on the panel reaches like '
           + asWatts + ' W of SSB would.';
       } else {
-        s = '<b>SSB is the reference here.</b>';
+        /* The default view, and the one most people will never change. Say
+           what it is a picture of before saying what the others would be. */
+        s = '<b>This map is a phone signal.</b> ' + asks
+          + ', and that is what the colours are worked out from.';
       }
       const alts = Object.keys(md.others || {}).map(k =>
         k.toUpperCase() + ' hears ' + md.others[k].db.toFixed(1) + ' dB deeper ('
         + md.others[k].times.toLocaleString() + 'x the power)');
-      if (alts.length) s += ' ' + alts.join(', ') + '. The same gap on every band: it is the width the mode is copied in and what it needs above the noise, and neither moves with frequency.';
+      if (alts.length) {
+        s += ' The other modes are copied in different widths and need different margins: '
+          + alts.join(', ') + '. Press one and the map is worked out again for it.'
+          + ' The same gap on every band - it is the mode’s own, and does not move with frequency.';
+      }
       modeLine.innerHTML = s;
     }
   }

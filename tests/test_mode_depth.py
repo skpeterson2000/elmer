@@ -44,6 +44,18 @@ def main():
     check("  and FM more again", _mode_depth(14.2, "fm", 1)["vs_ssb_db"]
           < _mode_depth(14.2, "am", 1)["vs_ssb_db"], True)
 
+    print("")
+    print("-- and what each mode asks for, which the line now states --")
+    # The default view is phone, and the page says so rather than leaving
+    # somebody to assume the map is true of whatever they happen to run.
+    ssb_shape = _mode_depth(14.2, "ssb", 1)
+    check("SSB is copied in 2.4 kHz", ssb_shape["bandwidth_hz"], 2400)
+    check("  and has to sit above the noise there", ssb_shape["snr_db"] > 0, True)
+    check("  CW is copied in a narrower slot",
+          _mode_depth(14.2, "cw", 1)["bandwidth_hz"] < ssb_shape["bandwidth_hz"], True)
+    check("  and FT8 is decoded below the noise, not above it",
+          _mode_depth(14.2, "ft8", 1)["snr_db"] < 0, True)
+
     print("\n-- the gap is the mode's own, not the band's --")
     # It is the width a mode is copied in and what it needs above the noise.
     # Neither moves with frequency, so the page may say so plainly.
