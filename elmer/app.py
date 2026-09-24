@@ -5307,11 +5307,13 @@ def api_party_golf_map():
         aimed = last["aim"]
     if ball and ball.get("approaching"):
         # The green is the target: the last hundred yards, a yard a yard.
-        resp = app.response_class(golfmap.approach_svg(h, h.get("wind"), view.get("wind_mph"), balls, mark, aimed),
+        resp = app.response_class(golfmap.approach_svg(h, h.get("wind"), view.get("wind_mph"), balls, mark, aimed,
+                                                      (ball or {}).get("reading") if mark else None),
                                   mimetype="image/svg+xml")
         resp.headers["Cache-Control"] = "no-store"
         return resp
-    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark, aimed),
+    resp = app.response_class(golfmap.hole_svg(h, h.get("wind"), view.get("wind_mph"), balls, view.get("course_name"), mark, aimed,
+                                               (ball or {}).get("reading") if mark else None),
                               mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "no-store"
     return resp

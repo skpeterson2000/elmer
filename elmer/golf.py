@@ -14,11 +14,13 @@ of golf is timed: a golfer rushed at the tee is not playing golf, so the
 clock has no say in the shot and no screen shows one. The room waits on
 the player who is away for as long as they take.
 
-**The shot.** With the question the player chooses a club - driver,
-wood, iron, wedge; on the green it is the putter and nothing else - and
-the club sets how far the ball goes. A club that can reach the pin is
-hit at it and lands within a few yards of it, either side; one that
-cannot is a full swing and goes its length. The wind adds or takes
+**The shot.** With the question the player chooses a club from the bag -
+driver, 3- and 5-wood, 4- to 9-iron, pitching and sand wedge; on the
+green it is the putter and nothing else - and the club sets how far the
+ball goes and how it behaves when it lands. A club that can reach the
+mark is hit at it and lands within its spread, either side; one that
+cannot is a full swing and goes its length. The mark reads the shot
+before it is played - see read_mark. The wind adds or takes
 yards, and the lie the ball was in takes some too: rough costs a fifth,
 sand allows only a wedge and costs more. Where the ball lands is checked
 against the course. A correct driver that carries into Rae's Creek is
@@ -77,13 +79,57 @@ log = logging.getLogger("elmer")
 
 COURSES_DIR = Path(__file__).resolve().parents[1] / "data" / "golf"
 
-# The most a club can carry, in yards, from a good lie with a fast answer.
-CLUBS = {"driver": 250, "wood": 210, "iron": 165, "wedge": 105}
-CLUB_ORDER = ("driver", "wood", "iron", "wedge")
+# The bag: eleven clubs and the putter, longest first, and everything each
+# one does to a ball in the one row. It was four - driver, wood, iron,
+# wedge - which could not say "the 7-iron", and a golfer picks a club by
+# the yards in front of them. The four it was are kept, number for number,
+# as the driver, the 5-wood, the 7-iron and the sand wedge: the landing
+# model was solved against them, and a round hit with those four plays as
+# it always did. The clubs between are laid in between, a club's loft
+# being a steady walk from one to the next - about ten yards a club
+# through the irons, which is what a bag is built to give.
+#
+#   carry    the most it carries, in yards, from a good lie
+#   descent  the angle it comes down at, in degrees - see DESCENT below
+#   v_land   landing speed, 0..1 against a flushed driver - see V_LAND
+#   spin     the spin figure that checks it - see SPIN_RATE
+#   spread   yards long or short of the mark a fair ball lands - CLUB_SPREAD
+#   leak     the chance a plain shot drifts off the line - CLUB_LEAK
+#   hang     seconds in the air on a full swing - FLIGHT_SECONDS
+BAG = (
+    # club              carry descent v_land  spin spread  leak  hang
+    ("driver",           250,  38.0,  1.000,  0.05,  18,  0.18,  6.0),
+    ("3-wood",           230,  40.5,  0.965,  0.09,  16,  0.15,  5.7),
+    ("5-wood",           210,  43.0,  0.930,  0.12,  14,  0.12,  5.4),
+    ("4-iron",           195,  44.5,  0.850,  0.22,  12,  0.10,  5.1),
+    ("5-iron",           185,  45.5,  0.815,  0.26,  11,  0.09,  4.9),
+    ("6-iron",           175,  46.5,  0.785,  0.30,  10,  0.07,  4.75),
+    ("7-iron",           165,  48.0,  0.756,  0.34,   9,  0.06,  4.6),
+    ("8-iron",           153,  49.5,  0.715,  0.41,   8,  0.05,  4.35),
+    ("9-iron",           141,  51.0,  0.685,  0.48,   7,  0.04,  4.1),
+    ("pitching-wedge",   126,  53.0,  0.650,  0.55,   6,  0.03,  3.85),
+    ("sand-wedge",       105,  55.0,  0.620,  0.62,   5,  0.02,  3.6),
+)
+CLUBS = {row[0]: row[1] for row in BAG}
+CLUB_ORDER = tuple(row[0] for row in BAG)
+WEDGES = ("pitching-wedge", "sand-wedge")
+# What a club is called in words, and on a button too small for that.
+CLUB_NAMES = {c: c.replace("-wedge", " wedge") for c in CLUB_ORDER} | {"putter": "putter"}
+CLUB_LABELS = {"driver": "Dr", "3-wood": "3W", "5-wood": "5W", "4-iron": "4i", "5-iron": "5i",
+               "6-iron": "6i", "7-iron": "7i", "8-iron": "8i", "9-iron": "9i",
+               "pitching-wedge": "PW", "sand-wedge": "SW", "putter": "P"}
+
+
+def club_name(club):
+    return CLUB_NAMES.get(club, club or "")
+
+
 # What the lie costs: a factor on the carry, and the longest club allowed.
+# Out of the rough nothing longer than the 5-wood will get the ball up;
+# out of the sand, a wedge. The fringe is its own case - see clubs_for.
 LIES = {
     "tee": (1.0, "driver"), "fairway": (1.0, "driver"),
-    "rough": (0.8, "wood"), "sand": (0.6, "wedge"), "fringe": (1.0, "wedge"),
+    "rough": (0.8, "5-wood"), "sand": (0.6, "pitching-wedge"), "fringe": (1.0, "7-iron"),
 }
 # A shot the club can reach the pin with is aimed at it, and lands within
 # this many yards of it, either side. Full swings are for when the club
@@ -101,8 +147,29 @@ AIM = 12
 # a quick answer is no straighter than a slow one - but the same swing
 # twice lands the same way, and every stroke lands a little differently,
 # which is what a golfer means by luck.
-CLUB_SPREAD = {"driver": 18, "wood": 14, "iron": 9, "wedge": 5}
-CLUB_LEAK = {"driver": 0.18, "wood": 0.12, "iron": 0.06, "wedge": 0.02}
+CLUB_SPREAD = {row[0]: row[5] for row in BAG}
+CLUB_LEAK = {row[0]: row[6] for row in BAG}
+# Too much club. A club that reaches the mark is swung at it, and taking
+# something off one club more than the yards want is what golfers do all
+# day. Taking three clubs off it is not: a driver dropped a hundred yards
+# is a swing nobody practises, and it lands wherever it likes. Past the one
+# club of grace, each club too many widens the spread by this much, to the
+# cap - which is also what the aiming mark shows, so the price is seen
+# before it is paid.
+OVERCLUB_SPREAD = 0.25
+OVERCLUB_MOST = 2.5
+# Round the green nobody swings a club full, and the club is chosen for how
+# the ball should behave, not how far it could go: a wedge to pitch it up
+# and stop it, a 7-iron to bump it low and let it run. So inside this many
+# yards the chipping clubs carry no cost for being "too much" - that is the
+# shot - and only the woods and long irons, which nobody chips with, do.
+CHIP_RANGE = 50
+# And a chip lands closer to where it was meant than a full swing does: the
+# spread shrinks with the yards inside CHIP_RANGE, to no less than this
+# much of the club's own. A 7-iron bumped fifteen yards is not nine yards
+# either way.
+CHIP_TIGHTEST = 0.4
+CHIPPERS = ("7-iron", "8-iron", "9-iron") + ("pitching-wedge", "sand-wedge")
 # The hole has a width. A ball is so many yards along the line and so many
 # off it - left negative, right positive. Inside FAIRWAY_HALF either side
 # is the fairway (or whatever band crosses it); beyond it are the sides,
@@ -178,9 +245,9 @@ FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right":
 # where the four cardinal hours came out unchanged. The feel is kept and
 # the knobs now mean something. tools/golf_roll.py prints the table these
 # produce, which is how they get retuned from play rather than from memory.
-DESCENT = {"driver": 38.0, "wood": 43.0, "iron": 48.0, "wedge": 55.0}   # degrees
-V_LAND = {"driver": 1.000, "wood": 0.930, "iron": 0.756, "wedge": 0.620}
-SPIN_RATE = {"driver": 0.05, "wood": 0.12, "iron": 0.34, "wedge": 0.62}
+DESCENT = {row[0]: row[2] for row in BAG}       # degrees
+V_LAND = {row[0]: row[3] for row in BAG}
+SPIN_RATE = {row[0]: row[4] for row in BAG}
 SPIN_CHECK = 0.186              # how much of the spin figure actually checks it
 ROLL_BASE = 9.838               # solved; see the derivation above
 STINGER_DESCENT = 0.35          # a punched ball comes in this much flatter
@@ -255,7 +322,7 @@ WIND_CARRY_CROSS = 0.2          # what a pure crosswind costs in carry anyway
 # genuinely just sits there - not a moderate wind.
 GUST_FULL = 10
 WIND_DRIFT_PER_SECOND = 0.06    # yards a mile an hour, for each second aloft
-FLIGHT_SECONDS = {"driver": 6.0, "wood": 5.4, "iron": 4.6, "wedge": 3.6, "putter": 0.0}
+FLIGHT_SECONDS = {row[0]: row[7] for row in BAG} | {"putter": 0.0}
 STINGER_HANG = 0.4              # a punched ball is under it and down early
 # A full driver in a fifteen mile an hour crosswind moves about five yards,
 # which is what it does; the old flat figure was 0.35 a mile an hour for
@@ -271,9 +338,15 @@ SKY_WORDS = {"sun": "sun out", "cloud": "overcast", "shower": "a shower coming t
 # away releases it; one that falls across nudges the roll toward the fall.
 SLOPE_RELEASE = 0.1             # per percent of grade, on the roll
 SLOPE_DRIFT = 0.15              # of the roll, per percent of grade, across
-# Spin: a wedge into a green can bite and come back; an iron now and then.
-SPIN_ODDS = {"wedge": 0.35, "iron": 0.15}
-SPIN_BACK = {"wedge": (1, 4), "iron": (0, 2)}
+# Spin. A wedge pitched onto a green checks: that is what the loft and the
+# grooves are for, and a golfer who wants the ball to stop by the flag takes
+# one. So a wedge's run on a green is cut to WEDGE_CHECK of what the speed
+# alone would give - a yard or two - and half the time it bites and comes
+# back. The irons are the other way to play it, landed short and let run;
+# a short iron checks now and then, and a long one does not.
+WEDGE_CHECK = 0.2
+SPIN_ODDS = {"pitching-wedge": 0.5, "sand-wedge": 0.5, "9-iron": 0.3, "8-iron": 0.2, "7-iron": 0.15}
+SPIN_BACK = {"pitching-wedge": (1, 4), "sand-wedge": (1, 4), "9-iron": (0, 2), "8-iron": (0, 2), "7-iron": (0, 2)}
 # The bounce that kicks: ground is not flat, and one landing in eight goes
 # sideways a few yards off what it hit.
 KICK_ODDS = 0.12
@@ -444,15 +517,15 @@ def descent_angle(club, flair=None):
     if angle is None:
         if club:                            # a putter has no flight; anything else is a bug
             log.warning("golf: no descent angle for club %r - using the "
-                        "iron's %.0f degrees", club, DESCENT["iron"])
-        angle = DESCENT["iron"]
+                        "7-iron's %.0f degrees", club, DESCENT["7-iron"])
+        angle = DESCENT["7-iron"]
     return angle * (STINGER_DESCENT if flair == "stinger" else 1.0)
 
 
 def landing_speed(club, carry=None, most=None):
     """How fast the ball is going when it lands, 0..1 against a flushed
     driver. A part swing arrives slower, which is most of why it runs less."""
-    speed = V_LAND.get(club, V_LAND["iron"])
+    speed = V_LAND.get(club, V_LAND["7-iron"])
     if carry and most:
         speed *= max(0.3, min(1.15, (abs(carry) / float(most)) ** (ROLL_SPEED / 2)))
     return speed
@@ -477,9 +550,11 @@ def run_yards(club, lie, hour=None, carry=None, most=None, flair=None, firmness=
     """
     speed = landing_speed(club, carry, most)
     angle = descent_angle(club, flair)
-    check = 1.0 - SPIN_CHECK * SPIN_RATE.get(club, SPIN_RATE["iron"])
+    check = 1.0 - SPIN_CHECK * SPIN_RATE.get(club, SPIN_RATE["7-iron"])
     run = (ROLL_BASE * speed * speed * math.cos(math.radians(angle)) * check
            / friction_of(lie) * float(firmness) * wind_roll(hour))
+    if lie == "green" and club in WEDGES:
+        run *= WEDGE_CHECK                 # it bites - see WEDGE_CHECK
     if run < 0 or run > RUN_MOST:
         log.warning("golf: a %s on the %s worked out at %.1f yards of run "
                     "(speed %.2f, descent %.0f deg, firmness %.2f) - "
@@ -904,10 +979,13 @@ class Golf:
             return []
         if ball.lie == "green":
             return ["putter"]
-        if ball.lie == "fringe":
-            return ["wedge", "putter"]
         longest = LIES[ball.lie][1]
-        return list(CLUB_ORDER[CLUB_ORDER.index(longest):])
+        clubs = list(CLUB_ORDER[CLUB_ORDER.index(longest):])
+        if ball.lie == "fringe":
+            # Off the collar: putt it, chip it with a wedge to stop, or
+            # bump a 7-iron and let it run - the three shots there are.
+            return clubs + ["putter"]
+        return clubs
 
     def ahead(self, player, club=None):
         """What lies in the line of this player's next shot, as a caddie
@@ -962,6 +1040,11 @@ class Golf:
         ball = self.balls[player]
         if ball.lie == "fringe":
             return "putter"                 # through the collar: the Texas wedge; the wedge is there to choose
+        mark = self.aims.get(player)
+        if mark:
+            # The golfer said where: the club for those yards, which is what
+            # the mark reads and what an unchosen club is swung with.
+            return self.club_for(player, max(0, float(mark["at"]) - ball.at))
         left = abs(h["yards"] - ball.at)
         for club in reversed(allowed):
             if self.reach(player, club) >= left:
@@ -992,6 +1075,97 @@ class Golf:
         """How far this golfer's club goes from this lie."""
         lie = lie or self.balls[player].lie
         return CLUBS[club] * LIES[lie][0] * self.power.get(player, 1.0)
+
+    def plays(self, player, club, lie=None):
+        """How far this club gets from here in today's wind - the steady
+        wind, not a gust, since this is what a golfer reckons at address."""
+        h = self.hole()
+        hour = self.wind_clock(h) if h else None
+        return self.reach(player, club, lie) + wind_carry(hour) * float(self.wind_mph or 0)
+
+    def club_for(self, player, yards):
+        """The club for these yards: the shortest this lie allows that gets
+        there, or the longest when none does."""
+        allowed = [c for c in self.clubs_for(player) if c != "putter"]
+        for club in reversed(allowed):
+            if self.plays(player, club) >= yards:
+                return club
+        return allowed[0] if allowed else None
+
+    def overclub(self, player, club, yards):
+        """The spread's multiplier for swinging this club at these yards:
+        1 for the right club or one more, wider for each club past that."""
+        right = self.club_for(player, yards)
+        if club not in CLUB_ORDER or right not in CLUB_ORDER:
+            return 1.0
+        if yards <= CHIP_RANGE and club in CHIPPERS:
+            return 1.0                    # a chip or a bump - see CHIP_RANGE
+        over = CLUB_ORDER.index(right) - CLUB_ORDER.index(club)
+        return min(OVERCLUB_MOST, 1.0 + OVERCLUB_SPREAD * max(0, over - 1))
+
+    def spread_for(self, player, club, yards):
+        """Yards long or short of the mark a fair ball with this club lands,
+        aimed at these yards: the club's spread, wider for too much club,
+        tighter for a chip. The one figure the carry, the drift across the
+        line and the mark's drawn patch are all given."""
+        base = CLUB_SPREAD.get(club, AIM)
+        if self.plays(player, club) < yards:
+            return base                   # a full swing; it goes its length
+        chip = yards <= CHIP_RANGE and club in CHIPPERS
+        tight = max(CHIP_TIGHTEST, yards / float(CHIP_RANGE)) if chip else 1.0
+        return base * self.overclub(player, club, yards) * tight
+
+    def read_mark(self, player, club=None):
+        """What the aiming mark says about the shot at it with this club:
+        the club the yards want, how far the club in hand gets, where it
+        comes down when that is short, and the patch a fair ball lands in.
+        One reading for the map and the words both, so the drawing and the
+        sentence cannot disagree. None on the green, where it is a putt.
+
+        {"club", "yards", "plays", "reaches", "short", "suggest", "over",
+         "long", "wide", "comes_down": {"at", "off"} | None, "says"}
+        """
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie == "green":
+            return None
+        club = club or self.default_club(player)
+        if not club or club == "putter":
+            return None
+        mark = self.aim(player)
+        yards = max(0, int(round(float(mark["at"]) - ball.at)))
+        plays = int(round(self.plays(player, club)))
+        reaches = plays >= yards
+        suggest = self.club_for(player, yards)
+        nothing = suggest is not None and self.plays(player, suggest) < yards
+        over = (CLUB_ORDER.index(suggest) - CLUB_ORDER.index(club)
+                if suggest in CLUB_ORDER and club in CLUB_ORDER else 0)
+        spread = self.spread_for(player, club, yards)
+        comes_down = None
+        if not reaches:
+            # Along the line to the mark, as far as the club gets.
+            frac = plays / float(yards) if yards else 1.0
+            comes_down = {"at": int(round(ball.at + plays)),
+                          "off": int(round(ball.off + (float(mark["off"]) - ball.off) * frac))}
+        held, want = club_name(club), club_name(suggest)
+        chip = reaches and yards <= CHIP_RANGE and club in CHIPPERS
+        if chip and club in WEDGES:
+            says = f"{yards} to the mark - a chip with the {held}; it checks where it lands"
+        elif chip:
+            says = f"{yards} to the mark - a bump and run with the {held}; land it short and let it roll"
+        elif nothing:
+            says = f"{yards} to the mark - nothing in the bag gets there from here; the {held} gets {plays}"
+        elif not reaches:
+            says = f"{yards} to the mark - the {held} gets {plays}, {yards - plays} short; it is a {want}"
+        elif over >= 2:
+            says = f"{yards} to the mark - a {want}; the {held} is {over} clubs too much, a part swing and wider"
+        elif club == suggest:
+            says = f"{yards} to the mark - the {held}"
+        else:
+            says = f"{yards} to the mark - a {want}, or the {held} taking a little off"
+        return {"club": club, "yards": yards, "plays": plays, "reaches": reaches, "short": max(0, yards - plays),
+                "suggest": suggest, "over": 0 if chip else max(0, over), "chip": chip, "long": round(spread, 1),
+                "wide": round(spread * 0.6, 1), "comes_down": comes_down, "says": says}
 
     def set_aim(self, player, at, off=0):
         """The golfer's mark: where they mean the ball to land, in yards
@@ -1073,7 +1247,9 @@ class Golf:
         wind_yards = wind_carry(hour) * (self.day.gust() if mph is None else mph)
         spread = CLUB_SPREAD.get(club, AIM) * (0.5 if getattr(self, "_lucky", False) else 1.0)
         if most + wind_yards >= abs(left):
-            # Aimed - at the pin, from either side of it, within the club's spread.
+            # Aimed - at the pin, from either side of it, within the club's
+            # spread, and wider for a club too many - see OVERCLUB_SPREAD.
+            spread = self.spread_for(self._who, club, abs(left)) * (0.5 if getattr(self, "_lucky", False) else 1.0)
             return round(left + self.swing.uniform(-spread, spread) + wind_yards * 0.25)
         # A full swing: the club's length, give or take its spread.
         return max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
@@ -1136,13 +1312,13 @@ class Golf:
                 ball.strokes += 1
                 ball.at = h["yards"]
                 ball.holed = True
-                return {"kind": "holed", "words": f"{club}, {left_before} yards - holed it from the fairway",
+                return {"kind": "holed", "words": f"{club_name(club)}, {left_before} yards - holed it from the fairway",
                         "carry": left_before, "wind": wind, "flair": "holed-out"}
-            if club == "wedge" and left_before <= 40:
+            if club in WEDGES and left_before <= 40:
                 ball.strokes += 1
                 ball.at = h["yards"] - 1
                 ball.lie = "green"
-                return {"kind": "green", "words": f"wedge, {left_before} yards - flopped it, to a tap-in, 3 feet",
+                return {"kind": "green", "words": f"{club_name(club)}, {left_before} yards - flopped it, to a tap-in, 3 feet",
                         "carry": left_before, "wind": wind, "feet": 3, "flair": "flop"}
             if ball.lie in ("rough", "sand"):
                 flair = "worked"              # the lie does not cost: shaped out of it
@@ -1171,7 +1347,7 @@ class Golf:
         # Across the line: at the mark's side of it, within the club's
         # spread - and, for a plain shot, the leak: a push off to one side.
         lucky = getattr(self, "_lucky", False)
-        spread = CLUB_SPREAD.get(club, AIM) * 0.6 * (0.5 if lucky else 1.0)
+        spread = self.spread_for(self._who, club, to_mark) * 0.6 * (0.5 if lucky else 1.0)
         off = mark["off"] + (self.swing.uniform(-4, 4) if flair == "pure" else self.swing.uniform(-spread, spread))
         leaked = None
         if not adept and not lucky and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
@@ -1216,7 +1392,7 @@ class Golf:
                     roll *= 1 + SLOPE_RELEASE * s["grade"]
                 else:
                     off += (-1 if s["falls"] == "left" else 1) * SLOPE_DRIFT * s["grade"] * roll
-                if club in SPIN_ODDS and not adept and self.swing.random() < SPIN_ODDS[club]:
+                if club in SPIN_ODDS and self.swing.random() < SPIN_ODDS[club]:
                     lo, hi = SPIN_BACK[club]
                     roll, spun = -self.swing.uniform(lo, hi), True
             elif came_down in ("fairway", "rough") and not lucky and self.swing.random() < KICK_ODDS:
@@ -1242,7 +1418,7 @@ class Golf:
         if from_the_tee and h["par"] == 3 and self.rng.random() < ACE_ODDS:
             ball.at = h["yards"]
             ball.holed = True
-            return {"kind": "holed", "words": f"{club}, {h['yards']} yards - IN THE HOLE. An ace.",
+            return {"kind": "holed", "words": f"{club_name(club)}, {h['yards']} yards - IN THE HOLE. An ace.",
                     "carry": h["yards"], "wind": wind, "ace": True}
         side = side_of(off, half)
         rests_on = on_the_green(h, rest, off)
@@ -1263,7 +1439,7 @@ class Golf:
                else f", released {roll}" if (came_down == "green" and roll >= 3)
                else f", took the fringe and trickled {roll * 3} feet" if (came_down == "fringe" and 1 <= roll <= 3)
                else f", ran {roll} more" if roll >= 4
-               else ", checked up" if (came_down == "green" and roll <= 1 and club in ("iron", "wedge"))
+               else ", checked up" if (came_down == "green" and roll <= 1 and club in WEDGES + ("7-iron", "8-iron", "9-iron"))
                else ", the fringe checked it" if (came_down == "fringe" and roll < 1) else "")
         if kicked:
             ran = f", kicked {kicked}" + ran
@@ -1288,7 +1464,7 @@ class Golf:
                     ball.lie = rests_on or (hz["kind"] if hz else "fairway")
                     left = int(round(h["yards"] - landed))
                     return {"kind": ball.lie, "flair": "skipped",
-                            "words": f"{club}, {carry} yards - skipped off "
+                            "words": f"{club_name(club)}, {carry} yards - skipped off "
                                      f"{wet_name} and came out "
                                      f"{skipped} on, {left} to go",
                             "carry": carry, "wind": wind, "skipped": skipped,
@@ -1299,7 +1475,7 @@ class Golf:
                 # A right answer that drifted stops on the bank: no penalty,
                 # a bad lie. The water is a wrong answer's to find.
                 ball.at, ball.off, ball.lie = landed, off, "rough"
-                return {"kind": "rough", "words": f"{club}, {carry} yards - out to the {side}, stopped on the bank of "
+                return {"kind": "rough", "words": f"{club_name(club)}, {carry} yards - out to the {side}, stopped on the bank of "
                                                   f"{hz['name'] or 'the water'} - {left} to go, from the rough",
                         "carry": carry, "wind": wind, "leak": leaked, "left": left, "off": off}
             how = "ran into" if ran_through else "into"
@@ -1308,7 +1484,7 @@ class Golf:
             dropped = self._drop(h, ball, hz, side)
             ball.at = max(ball.at, at_before)
             left = int(round(h["yards"] - ball.at))
-            return {"kind": "water", "words": f"{club}, {carry} yards - {how} {hz['name'] or 'the water'}; "
+            return {"kind": "water", "words": f"{club_name(club)}, {carry} yards - {how} {hz['name'] or 'the water'}; "
                                               f"{dropped}, and a penalty stroke - {left} to go",
                     "carry": carry, "roll": roll, "wind": wind, "hazard": hz["name"], "left": left, "off": ball.off}
         if on_green:
@@ -1319,7 +1495,7 @@ class Golf:
                     else " - ran onto the green" if came_down != "green" and roll >= 4 else f"{ran} - on the green")
             if came_down == "green" and left < 0 and not spun and roll >= 3:
                 onto = f", released {roll} past the pin - on the green"
-            return {"kind": "green", "words": f"{club}, {abs(carry)} yards{onto}, {feet} feet",
+            return {"kind": "green", "words": f"{club_name(club)}, {abs(carry)} yards{onto}, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off,
                     "via": "fringe" if came_down == "fringe" else None}
         if rests_on == "fringe":
@@ -1329,42 +1505,42 @@ class Golf:
             feet = max(3, int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3)))
             where = ("short" if left > 0 and abs(off) <= green_half(h) else "long" if left < 0 and abs(off) <= green_half(h)
                      else "left" if off < 0 else "right")
-            return {"kind": "fringe", "words": f"{club}, {abs(carry)} yards{ran} - on the fringe, {where}, {feet} feet",
+            return {"kind": "fringe", "words": f"{club_name(club)}, {abs(carry)} yards{ran} - on the fringe, {where}, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "feet": feet, "flair": flair, "off": off}
         if beside_green and not hz:
             # Off the collar, beside the green: the rough that borders it.
             ball.at, ball.off, ball.lie = landed, off, "rough"
             feet = int(round((abs(left) ** 2 + off ** 2) ** 0.5 * 3))
-            return {"kind": "rough", "words": f"{club}, {abs(carry)} yards{ran} - {side} of the green, in the rough beside it, {feet} feet",
+            return {"kind": "rough", "words": f"{club_name(club)}, {abs(carry)} yards{ran} - {side} of the green, in the rough beside it, {feet} feet",
                     "carry": carry, "roll": roll, "wind": wind, "leak": leaked, "left": left, "off": off}
         if side and not hz and abs(left) > edge:
             # Off the fairway's width, into the first cut - by the golfer's
             # own mark, or the club's leak.
             ball.at, ball.off, ball.lie = landed, off, "rough"
             how = f"leaked {side}" if leaked else f"out to the {side}"
-            return {"kind": "rough", "words": f"{club}, {carry} yards{ran} - {how}, into the first cut - {left} to go",
+            return {"kind": "rough", "words": f"{club_name(club)}, {carry} yards{ran} - {how}, into the first cut - {left} to go",
                     "carry": carry, "roll": roll, "wind": wind, "leak": leaked, "left": left, "off": off}
         if left < -edge:
             # Over the back: rough beyond, or whatever is there.
             ball.at, ball.off = h["yards"], off
             ball.lie = "rough"
             how = "ran through the green" if came_down == "green" else "through the green"
-            return {"kind": "long", "words": f"{club}, {carry} yards - {how}, into the rough behind",
+            return {"kind": "long", "words": f"{club_name(club)}, {carry} yards - {how}, into the rough behind",
                     "carry": carry, "roll": roll, "wind": wind, "off": off}
         ball.at, ball.off = landed, off
         if hz and hz["kind"] == "bunker":
             ball.lie = "sand"
             how = "ran into" if ran_through else (f"leaked {side}, into" if leaked else "into")
-            return {"kind": "sand", "words": f"{club}, {carry} yards - {how} {hz['name'] or 'the sand'}",
+            return {"kind": "sand", "words": f"{club_name(club)}, {carry} yards - {how} {hz['name'] or 'the sand'}",
                     "carry": carry, "roll": roll, "wind": wind, "hazard": hz["name"], "leak": leaked, "off": off}
         if hz and hz["kind"] == "rough":
             ball.lie = "rough"
             how = f"leaked {side}, " if leaked else ""
-            return {"kind": "rough", "words": f"{club}, {carry} yards{ran} - {how}into {hz['name'] or 'the rough'}",
+            return {"kind": "rough", "words": f"{club_name(club)}, {carry} yards{ran} - {how}into {hz['name'] or 'the rough'}",
                     "carry": carry, "roll": roll, "wind": wind, "hazard": hz["name"], "leak": leaked, "off": off}
         ball.lie = "fairway"
         where = "fairway" if abs(off) <= half / 2 else f"{side_of(off, half) or ('left' if off < 0 else 'right')} side of the fairway"
-        return {"kind": "fairway", "words": f"{club}, {carry} yards{ran}, {where} - {left} to go",
+        return {"kind": "fairway", "words": f"{club_name(club)}, {carry} yards{ran}, {where} - {left} to go",
                 "carry": carry, "roll": roll, "wind": wind, "left": left, "flair": flair, "off": off}
 
     def slope(self, h):
@@ -1516,7 +1692,7 @@ class Golf:
             ball.lie = "rough"
             side = -1 if ball.off < 0 else 1 if ball.off > 0 else self.swing.choice((-1, 1))
             ball.off = side * int(round(fairway_half(h) + self.swing.uniform(4, 12)))
-            return {"kind": "rough", "words": f"{club}, a foul ball - short and into the rough on the {'left' if side < 0 else 'right'}",
+            return {"kind": "rough", "words": f"{club_name(club)}, a foul ball - short and into the rough on the {'left' if side < 0 else 'right'}",
                     "carry": 0, "off": ball.off}
         weights = {"water": 2, "bunker": 3, "rough": 3}
         if getattr(self, "_lucky", False) and any(x["kind"] != "water" for x in ahead):
@@ -1529,7 +1705,7 @@ class Golf:
             dropped = self._drop(h, ball, hz)
             ball.at = max(ball.at, at_before)
             left = int(round(h["yards"] - ball.at))
-            return {"kind": "water", "words": f"{club}, a foul ball - into {name}; {dropped}, and a penalty stroke - {left} to go",
+            return {"kind": "water", "words": f"{club_name(club)}, a foul ball - into {name}; {dropped}, and a penalty stroke - {left} to go",
                     "carry": 0, "hazard": name, "left": left, "off": ball.off}
         # In the hazard it just named, and in the part of it the card draws.
         # This used to push the ball ten yards on whatever that overran, and
@@ -1541,7 +1717,7 @@ class Golf:
         spans = hazard_spans(h, hz)
         centre, width = min(spans, key=lambda s: abs(s[0] - ball.off))
         ball.off = int(round(centre + self.swing.uniform(-width / 2, width / 2)))
-        return {"kind": ball.lie, "words": f"{club}, a foul ball - into {name}", "carry": 0, "hazard": name,
+        return {"kind": ball.lie, "words": f"{club_name(club)}, a foul ball - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 
     def away(self):
@@ -1925,6 +2101,8 @@ class Golf:
                           "approaching": self.approaching(p),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
+                          # what each club gets from here today, for the picker
+                          "club_yards": {c: int(round(self.plays(p, c))) for c in self.clubs_for(p) if c != "putter"},
                           "can_mulligan": self.can_mulligan(p),
                           "luck": p in self.luck,
                           "log": list(b.log), "ahead": self.ahead(p)}
@@ -1941,4 +2119,5 @@ class Golf:
             "tee_times": list(self.tee_times),
             "asked": sum(self.asked.values()), "missed": len(self.missed),
             "winner": self._winner, "over": self.over(),
+            "club_names": dict(CLUB_NAMES), "club_labels": dict(CLUB_LABELS),
         }

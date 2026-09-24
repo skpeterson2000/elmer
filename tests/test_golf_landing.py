@@ -65,20 +65,20 @@ logging.getLogger("elmer").setLevel(logging.DEBUG)
 
 print("\nthe calibration point: what this model replaced, exactly")
 # The old ROLL table, full swing on a fairway at firmness 1.0.
-for club, was in (("driver", 24), ("wood", 19), ("iron", 11), ("wedge", 6)):
+for club, was in (("driver", 24), ("5-wood", 19), ("7-iron", 11), ("sand-wedge", 6)):
     near(f"a {club} runs {was} yards as it always did",
          golf.run_yards(club, "fairway", firmness=1.0), was, 0.06)
 
 print("\n  and the landing speeds that solves for are physically ordered")
-speeds = [golf.V_LAND[c] for c in ("driver", "wood", "iron", "wedge")]
+speeds = [golf.V_LAND[c] for c in golf.CLUB_ORDER]
 check("driver fastest down to wedge slowest", speeds == sorted(speeds, reverse=True), True)
 check("  and the descent angles the other way",
-      [golf.DESCENT[c] for c in ("driver", "wood", "iron", "wedge")]
+      [golf.DESCENT[c] for c in golf.CLUB_ORDER]
       == sorted(golf.DESCENT.values()), True)
 
 
 print("\nthe surfaces keep the order the game has always had")
-run = {lie: golf.run_yards("wood", lie) for lie in
+run = {lie: golf.run_yards("5-wood", lie) for lie in
        ("green", "fairway", "fringe", "rough", "sand")}
 check("green > fairway > fringe > rough > sand",
       run["green"] > run["fairway"] > run["fringe"] > run["rough"] > run["sand"], True)
@@ -101,26 +101,26 @@ near("  and it is straight proportion", baked / soaked, 1.35 / 0.65, 0.01)
 
 
 print("\na part swing runs less, because it arrives slower")
-full = golf.run_yards("iron", "fairway", carry=165, most=165)
-half = golf.run_yards("iron", "fairway", carry=80, most=165)
+full = golf.run_yards("7-iron", "fairway", carry=165, most=165)
+half = golf.run_yards("7-iron", "fairway", carry=80, most=165)
 check("a full iron runs further than a half one", full > half, True)
 check("  and the speed is what did it",
-      golf.landing_speed("iron", 80, 165) < golf.landing_speed("iron", 165, 165), True)
+      golf.landing_speed("7-iron", 80, 165) < golf.landing_speed("7-iron", 165, 165), True)
 
 
 print("\nthe descent angle is a real quantity now")
 check("a stinger comes in far flatter than the same club struck",
-      golf.descent_angle("iron", "stinger") < golf.descent_angle("iron"), True)
+      golf.descent_angle("7-iron", "stinger") < golf.descent_angle("7-iron"), True)
 near("  by the figure that says so",
-     golf.descent_angle("iron", "stinger") / golf.descent_angle("iron"),
+     golf.descent_angle("7-iron", "stinger") / golf.descent_angle("7-iron"),
      golf.STINGER_DESCENT, 0.001)
 check("  and no club at all is read as an iron, quietly",
-      golf.descent_angle(None), golf.DESCENT["iron"])
+      golf.descent_angle(None), golf.DESCENT["7-iron"])
 
 
 print("\nthe skip is never an ordinary shot's")
 rng = random.Random(3)
-for club in ("driver", "wood", "iron", "wedge"):
+for club in ("driver", "5-wood", "7-iron", "sand-wedge"):
     angle, pace = golf.descent_angle(club), golf.landing_speed(club)
     check(f"  a struck {club} never skips",
           any(golf.skips(angle, pace, rng) for _ in range(5000)), False)
@@ -133,10 +133,10 @@ check("  but not often", hits / 5000 < 0.30, True)
 
 print("\n  a ball too slow to plane never does, however flat")
 check("a stinger wedge is under the angle",
-      golf.descent_angle("wedge", "stinger") < golf.SKIP_ANGLE, True)
+      golf.descent_angle("sand-wedge", "stinger") < golf.SKIP_ANGLE, True)
 check("  and still cannot, being too slow",
-      any(golf.skips(golf.descent_angle("wedge", "stinger"),
-                     golf.landing_speed("wedge"), rng) for _ in range(5000)), False)
+      any(golf.skips(golf.descent_angle("sand-wedge", "stinger"),
+                     golf.landing_speed("sand-wedge"), rng) for _ in range(5000)), False)
 
 
 print("\nand it is wired into the water, loudly")
@@ -200,7 +200,7 @@ near("a surface nobody has heard of is charged the fairway's",
 check("  and says so", caught.said("no friction", "casual water"), True)
 caught.lines.clear()
 near("a club nobody has heard of is read as an iron",
-     golf.run_yards("mashie", "fairway"), golf.run_yards("iron", "fairway"), 0.01)
+     golf.run_yards("mashie", "fairway"), golf.run_yards("7-iron", "fairway"), 0.01)
 check("  and says so", caught.said("no descent angle", "mashie"), True)
 
 caught.lines.clear()

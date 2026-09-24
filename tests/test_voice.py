@@ -74,9 +74,9 @@ def run():
           voice.address("Scott", "putter", 0, "green", green_notes=voice.notes("pebble-beach", 1, "green"))[-2:],
           ["hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2"])
     check("  but not with every putt", voice.address("Scott", "putter", 0, "green")[-1], "on-the-green")
-    voice.set_shelf(["hole-pebble-beach-1-sand-1", "the-wedge", "in-hand", "to-go", "from-the-sand"])
+    voice.set_shelf(["hole-pebble-beach-1-sand-1", "the-sand-wedge", "in-hand", "to-go", "from-the-sand"])
     check("  the sand's colour comes after the lie, when asked for",
-          voice.address("Scott", "wedge", 40, "sand", green_notes=voice.notes("pebble-beach", 1, "sand"))[-2:], ["from-the-sand", "hole-pebble-beach-1-sand-1"])
+          voice.address("Scott", "sand-wedge", 40, "sand", green_notes=voice.notes("pebble-beach", 1, "sand"))[-2:], ["from-the-sand", "hole-pebble-beach-1-sand-1"])
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
     check("  and a stroke into the rough says 'rough' when the phrase is not there",
@@ -96,7 +96,7 @@ def run():
     check("Scott addresses the ball, the driver in hand, 377 yards to go, from the tee - the shelf unknown, the fuller piece", a,
           ["name-scott", "addresses-the-ball", "the-driver", "in-hand",
            "three", "hundred", "and", "seventy", "seven", "yards-to-go", "from-the-tee"])
-    check("  inside a hundred it is 'to go'", voice.address("Scott", "wedge", 80, "fairway")[-2:], ["to-go", "from-the-fairway"])
+    check("  inside a hundred it is 'to go'", voice.address("Scott", "sand-wedge", 80, "fairway")[-2:], ["to-go", "from-the-fairway"])
     voice.set_shelf(["to-go", "from-the-tee", "the-driver", "in-hand", "addresses-the-ball", "name-scott",
                      "three", "hundred", "and", "seventy", "seven"])
     check("  and 'to go' throughout when 'yards to go' is not recorded", voice.address("Scott", "driver", 377, "tee")[-2:], ["to-go", "from-the-tee"])
@@ -117,23 +117,23 @@ def run():
            "one", "hundred", "and", "twenty", "two", "yards-to-go"])
     check("a foul ball into the sand", voice.shot({"kind": "sand", "club": "driver", "carry": 0}),
           ["the-driver", "a-foul-ball", "into-the-sand"])
-    check("on the green, nine feet", voice.shot({"kind": "green", "club": "iron", "carry": 122, "feet": 9}),
-          ["the-iron", "one", "hundred", "and", "twenty", "two", "yards", "on-the-green", "nine", "feet"])
+    check("on the green, nine feet", voice.shot({"kind": "green", "club": "7-iron", "carry": 122, "feet": 9}),
+          ["the-7-iron", "one", "hundred", "and", "twenty", "two", "yards", "on-the-green", "nine", "feet"])
     check("holed, three for a birdie", voice.shot({"kind": "holed", "holed": True, "strokes": 3, "score": "birdie"}),
           ["putt-holed", "three", "for-a-birdie"])
-    check("an ace", voice.shot({"kind": "holed", "holed": True, "ace": True, "club": "iron", "carry": 150,
+    check("an ace", voice.shot({"kind": "holed", "holed": True, "ace": True, "club": "7-iron", "carry": 150,
                                 "strokes": 1, "score": "eagle"}),
-          ["the-iron", "one", "hundred", "and", "fifty", "yards", "in-the-hole", "an-ace", "one", "for-an-eagle"])
-    check("picked up, a triple", voice.shot({"kind": "rough", "club": "wedge", "carry": 0, "picked_up": True,
+          ["the-7-iron", "one", "hundred", "and", "fifty", "yards", "in-the-hole", "an-ace", "one", "for-an-eagle"])
+    check("picked up, a triple", voice.shot({"kind": "rough", "club": "sand-wedge", "carry": 0, "picked_up": True,
                                              "score": "triple bogey"}),
-          ["the-wedge", "a-foul-ball", "short-and-into-the-rough", "picked-up", "for-a-triple-bogey"])
+          ["the-sand-wedge", "a-foul-ball", "short-and-into-the-rough", "picked-up", "for-a-triple-bogey"])
 
     print("\n-- the calls --")
     check("every call the rules make has a file", [c for cs in golf.CALLS.values() for c in cs if not voice.call(c)], [])
     check("  and every shot worth making", [c for cs in golf.FLAIR_CALLS.values() for c in cs if not voice.call(c)], [])
     check("holed it from the fairway, in words",
-          voice.shot({"kind": "holed", "holed": True, "flair": "holed-out", "club": "iron", "carry": 100, "strokes": 3, "score": "birdie"}),
-          ["the-iron", "one", "hundred", "yards", "holed-it-from-the-fairway", "three", "for-a-birdie"])
+          voice.shot({"kind": "holed", "holed": True, "flair": "holed-out", "club": "7-iron", "carry": 100, "strokes": 3, "score": "birdie"}),
+          ["the-7-iron", "one", "hundred", "yards", "holed-it-from-the-fairway", "three", "for-a-birdie"])
     check("  and the ace", voice.call("A hole in one!"), ["call-ace"])
 
     print("\n-- the card --")
@@ -142,11 +142,11 @@ def run():
           ["thats-the-hole", "name-scott", "for-a-bogey", "name-ann", "for-par", "on-to-the-next"])
 
     print("\n-- everything composed is on the script --")
-    lines = [voice.address("x", c, n, lie) for c in ("driver", "wood", "iron", "wedge", "putter")
+    lines = [voice.address("x", c, n, lie) for c in ("driver", "5-wood", "7-iron", "sand-wedge", "putter")
              for n in (0, 7, 15, 99, 100, 377, 999) for lie in voice.LIE_TOKENS]
     lines += [voice.hole(n, p, y, w, 17, c) for n in range(1, 19) for p in (3, 4, 5) for y in (150, 377, 555)
               for w in voice.WIND_TOKENS for c in voice.COURSE_TOKENS]
-    lines += [voice.shot({"kind": k, "club": "iron", "carry": 42, "left": 8, "feet": 12, "holed": k == "holed",
+    lines += [voice.shot({"kind": k, "club": "7-iron", "carry": 42, "left": 8, "feet": 12, "holed": k == "holed",
                           "strokes": 4, "score": s, "picked_up": k == "rough"})
               for k in ("fairway", "green", "long", "sand", "water", "rough", "missed", "holed")
               for s in voice.SCORE_TOKENS]

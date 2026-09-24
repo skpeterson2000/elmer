@@ -3036,11 +3036,13 @@ two play the same. The 12th at Augusta swirls, which means it is drawn for
 every shot. Nothing is taken from a video game: real yardages, real hazards
 and the real names of real places are facts.
 
-With the question the player chooses a club - driver, wood, iron, wedge;
-the putter alone on the green - and may change it up to the swing. A club
-that can reach the pin is *aimed* at it and lands within a dozen yards,
-either side; one that cannot is a full swing and goes its length. The wind
-adds or takes; the lie costs (rough a fifth, sand more, and only a wedge).
+With the question the player chooses a club from a real bag - driver,
+3- and 5-wood, 4- to 9-iron, pitching and sand wedge; the putter alone on
+the green - and may change it up to the swing. A club that can reach the
+mark is *aimed* at it and lands within its spread, either side; one that
+cannot is a full swing and goes its length. The wind adds or takes; the
+lie costs (rough a fifth and nothing longer than the 5-wood, sand more
+and only the wedges).
 Where the ball lands is checked against the course: a correct driver that
 carries into Rae's Creek is golf, and the player chose the driver. A foul
 ball finds the nearest trouble the club could have reached - water most
@@ -3307,6 +3309,33 @@ for one stroke; with none set the aim is the pin, down the line, and
 nobody has to aim who does not want to. The tap's geometry travels in
 the state (`golf.map`) so the screens turn a pixel into yards the same
 way the strip drew it (`elmer/golfmap.py`).
+
+**The bag, and the mark that reads it.** Eleven clubs and the putter, in
+one table (`golf.BAG`): each club's carry, descent, landing speed, spin,
+spread, leak and hang. The four clubs the game had - driver, wood, iron,
+wedge - are kept number for number as the driver, the 5-wood, the 7-iron
+and the sand wedge, because the landing model was solved against them;
+the rest are laid in between, each step down the bag shorter, steeper,
+straighter and spinning more. The mark reads the shot with the club in
+hand (`Golf.read_mark`): the club the yards want, whether the one held
+gets there, where it comes down when it does not, and the patch a fair
+ball lands in. The map draws the same reading round the cross - a white
+patch in range, amber and wider for too much club, a red cross and a
+white one where the ball does come down when the club is short - with
+the club and yards written beside it, and the phone says it in a
+sentence with the suggested club a tap away. One figure,
+`Golf.spread_for`, is the drawn patch, the carry's spread and the drift
+across the line alike, so the picture cannot promise what the swing
+does not deliver. Too much club costs: past one club of grace each club
+more widens the spread a quarter, to two and a half times. Round the
+green it does not - inside fifty yards the 7-iron down through the
+wedges are chipping clubs, chosen for how the ball behaves rather than
+how far it could go, and a chip lands tighter the shorter it is. The
+choice is the shot: a wedge pitched onto a green checks (its run there is
+a fifth of what its speed would give, and half the time it spins back),
+and an iron landed short runs on to the flag. With a mark set, the
+sensible club is the mark's, and it is what an unchosen club is swung
+with. The practice players carry the same bag.
 
 **The address, on the screens.** While the director addresses the next
 stroke the closed round before it is still on the table, and the screens

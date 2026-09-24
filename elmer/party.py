@@ -1370,8 +1370,11 @@ class Room:
             name = lambda p: self.players[p].name if p in self.players else "(left)"  # noqa: E731
             balls = {}
             for p, b in d["balls"].items():
+                club = self.clubs.get(p) or b["default_club"]
                 balls[p] = {**b, "name": name(p), "bot": bool(self.players[p].bot) if p in self.players else False,
-                            "club": self.clubs.get(p) or b["default_club"]}
+                            "club": club,
+                            # what the aiming mark says with that club in hand
+                            "reading": g.read_mark(p, club)}
             last = g.history[-1] if g.history else None
             shots = []
             if last:

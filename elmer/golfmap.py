@@ -312,9 +312,9 @@ def _hazard(parts, h, hz, x0, x1, y0, y1, i):
         _rough_patch(parts, x0, x1, y0, y1, seed, title)
 
 
-def _cross(parts, x, y, cls, r, width, opacity, dash, title):
+def _cross(parts, x, y, cls, r, width, opacity, dash, title, color="#ffb454"):
     extra = f' stroke-dasharray="{dash}"' if dash else ""
-    parts.append(f'<g class="{cls}" stroke="#ffb454" stroke-width="{width}" fill="none" opacity="{opacity}"{extra}>'
+    parts.append(f'<g class="{cls}" stroke="{color}" stroke-width="{width}" fill="none" opacity="{opacity}"{extra}>'
                  f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r}"/><line x1="{x - r - 5:.1f}" y1="{y:.1f}" x2="{x + r + 5:.1f}" y2="{y:.1f}"/>'
                  f'<line x1="{x:.1f}" y1="{y - r - 5:.1f}" x2="{x:.1f}" y2="{y + r + 5:.1f}"/><title>{escape(title)}</title></g>')
 
@@ -332,6 +332,73 @@ def _flag(parts, x, y):
     parts.append(f'<polygon points="{x:.1f},{y - 22:.1f} {x + 12:.1f},{y - 17:.1f} {x:.1f},{y - 12:.1f}" fill="#e05a5a"/>')
 
 
+# The aiming mark, read: golf.read_mark's reading drawn round the cross.
+# Where a fair ball with the club in hand comes down is a patch, long and
+# short by the club's spread and narrower across, so a driver's is a field
+# and a wedge's a table-top - white, which reads on fairway and green alike.
+# Too much club widens it and turns it amber. A
+# club that does not get there turns the cross red and puts a second,
+# white one where the ball does come down, on the line to the mark. And the
+# words go beside it every time - the colour is never alone.
+READ_OK, READ_WIDE, READ_SHORT = "#f3f3f3", "#ffb454", "#ff6b6b"
+
+
+def _reading_label(reading):
+    """Short, because the strip is 260 wide and shown smaller than that on
+    a phone: the club's button label and the yards. The whole sentence is
+    in the words under the map."""
+    from .golf import CLUB_LABELS
+    held = CLUB_LABELS.get(reading["club"], reading["club"])
+    if not reading["reaches"]:
+        return f'{held} {reading["plays"]} · {reading["short"]} short'
+    if reading.get("over", 0) >= 2:
+        return f'{held} · too much club'
+    return f'{held} · {reading["yards"]}'
+
+
+def _reading(parts, pt, mark, reading):
+    """Draw the reading about the mark. `pt(at, off)` is the view's own
+    yards-to-pixels, so the plan's curve and the approach's scale both
+    hold. Returns the colour the mark itself should be drawn in."""
+    from .golf import club_name
+    if not reading or not mark:
+        return "#ffb454"
+    at, off = float(mark["at"]), float(mark.get("off") or 0)
+    if reading["reaches"]:
+        color = READ_WIDE if reading.get("over", 0) >= 2 else READ_OK
+        ring = [pt(at + reading["long"] * math.cos(t), off + reading["wide"] * math.sin(t))
+                for t in (i * math.pi / 12 for i in range(24))]
+        d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in ring) + " Z"
+        dash = ' stroke-dasharray="4 3"' if color == READ_WIDE else ""
+        parts.append(f'<path class="landing" d="{d}" fill="{color}" fill-opacity="0.16" stroke="{color}" '
+                     f'stroke-width="1.2" stroke-opacity="0.8"{dash}>'
+                     f'<title>{escape(reading["says"])}</title></path>')
+    else:
+        color = READ_SHORT
+        cd = reading.get("comes_down")
+        if cd:
+            (x0, y0), (x1, y1) = pt(cd["at"], cd["off"]), pt(at, off)
+            parts.append(f'<line x1="{x0:.1f}" y1="{y0:.1f}" x2="{x1:.1f}" y2="{y1:.1f}" stroke="{READ_SHORT}" '
+                         f'stroke-width="1.5" stroke-dasharray="3 3" opacity="0.8"/>')
+            _cross(parts, x0, y0, "comes-down", 6, 1.8, 0.95, "", f'the {club_name(reading["club"])} comes down here', "#f3f3f3")
+    x, y = pt(at, off)
+    label = _reading_label(reading)
+    # Beside the mark where it fits, the other side where it does not, and
+    # above it, held inside the frame, when neither does.
+    wide = len(label) * 7.2
+    if x + 16 + wide <= W - 6:
+        tx, anchor = x + 16, "start"
+    elif x - 16 - wide >= 6:
+        tx, anchor = x - 16, "end"
+    else:
+        tx, anchor = max(6 + wide / 2, min(W - 6 - wide / 2, x)), "middle"
+    parts.append(f'<text class="reading" x="{tx:.1f}" y="{y - (18 if anchor == "middle" else 12):.1f}" '
+                 f'text-anchor="{anchor}" font-size="13" font-weight="700" fill="{color}" '
+                 f'stroke="{GROUND}" stroke-width="3" paint-order="stroke" '
+                 f'font-family="system-ui, sans-serif">{escape(label)}</text>')
+    return color
+
+
 def _mark_title(mark, total):
     short = total - float(mark["at"])
     where = (f"{abs(int(round(short)))} short of the pin" if short > 0 else f"{abs(int(round(short)))} past the pin" if short < 0 else "at the pin")
@@ -341,7 +408,7 @@ def _mark_title(mark, total):
 
 # --------------------------------------------------------------- the hole
 
-def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None, aimed=None):
+def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=None, aimed=None, reading=None):
     """One hole as an SVG string, in plan. `h` is the card's hole; `balls`
     a list of {name, at, off, lie, holed, picked_up, you}; `mark` the
     golfer's aim, {at, off}, drawn as a cross; `aimed` where the last
@@ -417,8 +484,9 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         ax, ay = plan.at(min(float(aimed["at"]), total + 20), aimed.get("off"))
         _cross(parts, ax, ay, "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("at") is not None:
+        color = _reading(parts, lambda a, o: plan.at(min(float(a), total + 20), o), mark, reading)
         mx, my = plan.at(min(float(mark["at"]), total + 20), mark.get("off"))
-        _cross(parts, mx, my, "mark", 9, 2, 1, "", f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""))
+        _cross(parts, mx, my, "mark", 9, 2, 1, "", (reading or {}).get("says") or f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""), color)
     # the balls, where they lie - the one that is you ringed, the holed at the cup
     on_the_tee = [b for b in (balls or []) if not b.get("holed") and float(b.get("at") or 0) == 0]
     for b in balls or []:
@@ -652,7 +720,7 @@ def approach_geometry(h):
             "top": top, "yards": h["yards"], "from": top - shows}
 
 
-def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None):
+def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None, reading=None):
     """The last hundred yards, drawn: `balls`, `mark` and `aimed` as
     hole_svg takes them. A ball short of the view is shown at its foot
     with its yards, so the golfer knows where they are hitting from."""
@@ -748,7 +816,9 @@ def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None)
     if aimed and aimed.get("at") is not None:
         _cross(parts, x_off(aimed.get("off")), y_at(min(float(aimed["at"]), top)), "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("at") is not None:
-        _cross(parts, x_off(mark.get("off")), y_at(min(float(mark["at"]), top)), "mark", 9, 2, 1, "", _mark_title(mark, total))
+        color = _reading(parts, lambda a, o: (x_off(o), y_at(min(float(a), top))), mark, reading)
+        _cross(parts, x_off(mark.get("off")), y_at(min(float(mark["at"]), top)), "mark", 9, 2, 1, "",
+               _mark_title(mark, total) + (f' - {reading["says"]}' if reading else ""), color)
     # the balls: on the view where they lie; short of it, at its foot with the yards
     for b in balls or []:
         if b.get("holed"):

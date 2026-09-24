@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _isolate  # noqa: E402,F401  - before anything from elmer
-from elmer import app as appmod, autoplay, party  # noqa: E402
+from elmer import app as appmod, autoplay, golf, party  # noqa: E402
 
 FAILS = []
 
@@ -68,10 +68,10 @@ def run():
     print("\n-- whose stroke it is --")
     v = client.get(f"/api/party/state?player={ann}", environ_base=local).get_json()["golf"]
     check("on the first tee the person is away - people first", (v["away"], v["your_turn"]), (ann, True))
-    check("every club from the tee", v["you"]["clubs"], ["driver", "wood", "iron", "wedge"])
+    check("every club from the tee", v["you"]["clubs"], list(golf.CLUB_ORDER))
     check("  the sensible one lit until chosen", (v["your_club"], v["you"]["default_club"]), (None, "driver"))
-    r = client.post("/api/party/club", json={"player": ann, "club": "iron"}, environ_base=local)
-    check("an iron", (r.status_code, r.get_json()["club"]), (200, "iron"))
+    r = client.post("/api/party/club", json={"player": ann, "club": "7-iron"}, environ_base=local)
+    check("an iron", (r.status_code, r.get_json()["club"]), (200, "7-iron"))
     r = client.post("/api/party/club", json={"player": ann, "club": "putter"}, environ_base=local)
     check("a putter from the tee is refused, naming the clubs", (r.status_code, "driver" in r.get_json()["message"]),
           (409, True))
@@ -95,20 +95,20 @@ def run():
     check("a practice player cannot play it", room.submit(bot.id, 0, 1000)[1], "not your stroke - KC9SP is away")
     check("  and none is planning to", room.round.bot_plan, {})
     check("  and only the person's answer closes it", room.everyone_answered(), False)
-    r = client.post("/api/party/club", json={"player": ann, "club": "wedge"}, environ_base=local)
+    r = client.post("/api/party/club", json={"player": ann, "club": "sand-wedge"}, environ_base=local)
     check("the club can still change with the question open - up to the swing", r.status_code, 200)
     room.submit(ann, rnd.answer_index, 90000)          # a minute and a half of thinking
     check("  the person's answer closes it", room.everyone_answered(), True)
     summary = room.close_round()
     shots = summary["golf"]["shots"]
-    check("the stroke was the person's alone, with the wedge", (list(shots), shots[ann]["club"]), ([ann], "wedge"))
+    check("the stroke was the person's alone, with the wedge", (list(shots), shots[ann]["club"]), ([ann], "sand-wedge"))
     check("  a right answer flew it, however long it took", "foul" in shots[ann]["words"], False)
     check("  and the club is cleared for the next", ann in room.clubs, False)
     check("  a stroke by a person stands until they have read it", room.reveal_seconds(summary, 8.0), party.PERSON_REVEAL)
     r = client.post("/api/party/next", json={}, environ_base=local)
     check("  and Next stroke is a press the table can make", r.status_code, 200)
     v = client.get(f"/api/party/state?player={ann}", environ_base=local).get_json()["golf"]
-    check("the phone reads the playback", any(s["player"] == ann and "wedge" in s["words"] for s in v["last"]), True)
+    check("the phone reads the playback", any(s["player"] == ann and "sand wedge" in s["words"] for s in v["last"]), True)
     check("  and the card", [r["name"] for r in v["leaderboard"]][:1] != [], True)
     check("  and who is away now: a practice player, still on the tee", (v["away"] != ann, v["your_turn"]), (True, False))
 

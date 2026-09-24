@@ -74,7 +74,7 @@ def run():
 
     print("\n-- the shot --")
     g = golf.Golf(["a"], flat_course(), seed=1, seconds=30)
-    check("from the tee, every club", g.clubs_for("a"), ["driver", "wood", "iron", "wedge"])
+    check("from the tee, every club", g.clubs_for("a"), list(golf.CLUB_ORDER))
     check("  the sensible one on a 400-yard hole is the driver", g.default_club("a"), "driver")
     row = g.play({"a": R(True, ms=2000, club="driver")})
     s = row["shots"]["a"]
@@ -89,7 +89,7 @@ def run():
     check("ten into the wind takes eight yards", row["shots"]["a"]["carry"], 242)
     g = golf.Golf(["a"], flat_course(wind="with"), seed=1, seconds=30)
     g.wind_mph = 10
-    row = g.play({"a": R(True, ms=1000, club="wood")})
+    row = g.play({"a": R(True, ms=1000, club="5-wood")})
     check("ten behind gives six", row["shots"]["a"]["carry"], 216)
 
     print("\n-- the course has its say --")
@@ -106,24 +106,24 @@ def run():
     check("a bunker off to the right does not catch a fair ball down the middle", row["shots"]["a"]["kind"], "fairway")
     side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
                                                     "side": "right", "name": "a bunker"}]), seed=1)
-    row = side.play({"a": R(False, club="wood")})
+    row = side.play({"a": R(False, club="5-wood")})
     check("a foul wood cannot reach a bunker at 240", row["shots"]["a"]["kind"], "rough")
     side = golf.Golf(["a"], flat_course(hazards=[{"kind": "bunker", "from": 240, "to": 260,
                                                     "side": "right", "name": "a bunker"}]), seed=1)
     row = side.play({"a": R(False, club="driver")})
     check("but a foul driver finds it", (row["shots"]["a"]["kind"], side.balls["a"].lie), ("sand", "sand"))
-    check("  from where only a wedge is allowed", side.clubs_for("a"), ["wedge"])
-    row = side.play({"a": R(True, ms=1000, club="wedge")})
+    check("  from where only a wedge is allowed", side.clubs_for("a"), ["pitching-wedge", "sand-wedge"])
+    row = side.play({"a": R(True, ms=1000, club="sand-wedge")})
     check("  and a wedge from sand is sixty percent of one", row["shots"]["a"]["carry"], 63)
     far = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 300, "to": 320,
                                                    "side": "across", "name": "a pond"}]), seed=1)
-    row = far.play({"a": R(False, club="wedge")})
+    row = far.play({"a": R(False, club="sand-wedge")})
     check("a foul wedge cannot find a pond two hundred yards on", row["shots"]["a"]["kind"], "rough")
     check("  it went forward a little", far.balls["a"].at > 0, True)
 
     print("\n-- the green, and holing out --")
     g = golf.Golf(["a"], flat_course(par=3, yards=150, green=30), seed=1)
-    row = g.play({"a": R(True, ms=1000, club="iron")})
+    row = g.play({"a": R(True, ms=1000, club="7-iron")})
     check("an iron to a 150-yard hole is on the green", (row["shots"]["a"]["kind"], g.balls["a"].lie), ("green", "green"))
     check("  where the only club is the putter", g.clubs_for("a"), ["putter"])
     row = g.play({"a": R(False)})
@@ -139,7 +139,7 @@ def run():
     for _ in range(6):
         if g.over():
             break
-        row = g.play({"a": R(False, club="wedge")})
+        row = g.play({"a": R(False, club="sand-wedge")})
     check("fouls on a par three: picked up at six", row["card"]["a"], 6)
     check("  which is a triple bogey", golf.score_name(6, 3), "triple bogey")
     check("  and a two under is an eagle", golf.score_name(3, 5), "eagle")
@@ -189,7 +189,7 @@ def run():
     print("\n-- the playback --")
     g = golf.Golf(["a"], flat_course(par=4, yards=370), seed=1, seconds=30)
     g.play({"a": R(True, ms=1000, club="driver")})            # 250, fairway, 120 to go
-    row = g.play({"a": R(True, ms=3000, club="iron")})        # the iron can reach: aimed at the pin
+    row = g.play({"a": R(True, ms=3000, club="7-iron")})        # the iron can reach: aimed at the pin
     check("an iron from 120 out is aimed, and on the green", row["shots"]["a"]["kind"], "green")
     check("  within a dozen yards of the hole", int(row["shots"]["a"]["words"].split(", ")[-1].split()[0]) <= 12 * 3, True)
     row = g.play({"a": R(True, ms=5000)})
@@ -220,8 +220,8 @@ def run():
         {"n": 1, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []},
         {"n": 2, "par": 3, "yards": 150, "name": "", "wind": "across", "green": 30, "hazards": []}]},
         holes=[1, 2], seed=3)
-    g2.play_one("a", {"correct": False, "club": "iron"})      # a into the rough
-    g2.play_one("b", {"correct": True, "club": "iron"})       # b on the green
+    g2.play_one("a", {"correct": False, "club": "7-iron"})      # a into the rough
+    g2.play_one("b", {"correct": True, "club": "7-iron"})       # b on the green
     while g2.hole() and g2.hole()["n"] == 1:
         g2.play_one(g2.away(), {"correct": True})
     check("the honour on the next tee goes to the better score", (g2.cards["a"][1] > g2.cards["b"][1], g2.away()), (True, "b"))
@@ -236,7 +236,7 @@ def run():
     q1, sec1 = g.draw(pool, ids, "a")
     g.note_asked(q1)
     check("the first hole takes an area", (q1 in pool[sec1], g.hole_section), (True, sec1))
-    g.play_one("a", {"correct": False, "club": "iron", "question_id": q1})     # a miss, into the rough
+    g.play_one("a", {"correct": False, "club": "7-iron", "question_id": q1})     # a miss, into the rough
     q2, sec2 = g.draw(pool, ids, "a")
     g.note_asked(q2)
     check("  and stays on it while it has questions, or moves when it is dry",
@@ -285,19 +285,19 @@ def run():
     check("  and the call says so", row["shots"]["a"]["call"] in golf.FLAIR_CALLS["stinger"], True)
     g = golf.Golf(["a"], flat_course(par=4, yards=400, hazards=[{"kind": "bunker", "from": 200, "to": 260, "side": "across", "name": "sand"}]), seed=2)
     g.balls["a"].at = 100; g.balls["a"].lie = "rough"; g.balls["a"].strokes = 1
-    row = g.play_one("a", {"correct": True, "club": "wood", "adept": True})
+    row = g.play_one("a", {"correct": True, "club": "5-wood", "adept": True})
     check("from the rough, adept: worked out of it, the lie not costing, the sand not catching",
           (row["shots"]["a"].get("flair"), row["shots"]["a"]["kind"]), ("worked", "fairway"))
     g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=2)
     g.balls["a"].at = 370; g.balls["a"].lie = "fairway"; g.balls["a"].strokes = 2
-    row = g.play_one("a", {"correct": True, "club": "wedge", "adept": True})
+    row = g.play_one("a", {"correct": True, "club": "sand-wedge", "adept": True})
     check("a wedge from thirty out, adept: a flop to a tap-in, or holed",
           row["shots"]["a"].get("flair") in ("flop", "holed-out"), True)
     holed = 0
     for seed in range(40):
         g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=seed)
         g.balls["a"].at = 300; g.balls["a"].lie = "fairway"; g.balls["a"].strokes = 1
-        if g.play_one("a", {"correct": True, "club": "iron", "adept": True})["shots"]["a"].get("flair") == "holed-out":
+        if g.play_one("a", {"correct": True, "club": "7-iron", "adept": True})["shots"]["a"].get("flair") == "holed-out":
             holed += 1
     check("an adept approach from a hundred out goes in now and then, not always", 0 < holed < 20, True)
     g = golf.Golf(["a"], flat_course(par=5, yards=560), seed=4)
@@ -347,14 +347,14 @@ def run():
     wide.set_aim("a", 250, 30)
     s = wide.play_one("a", {"correct": True, "club": "driver"})["shots"]["a"]
     check("aimed thirty right with nothing there: the first cut", (s["kind"], wide.balls["a"].lie, wide.balls["a"].off), ("rough", "rough", 30))
-    check("  and the next club is the rough's longest", wide.clubs_for("a")[0], "wood")
+    check("  and the next club is the rough's longest", wide.clubs_for("a")[0], "5-wood")
     wide.set_aim("a", 400, 0)
-    s = wide.play_one("a", {"correct": True, "club": "wood"})["shots"]["a"]
+    s = wide.play_one("a", {"correct": True, "club": "5-wood"})["shots"]["a"]
     check("  back at the pin: on the line, and the wood reaches from there", (s["off"], s["kind"]), (0, "green"))
     edge = golf.Golf(["a"], flat_course(), seed=1)
     edge.balls["a"].at, edge.balls["a"].lie, edge.balls["a"].strokes = 300, "fairway", 1
     edge.set_aim("a", 400, 20)
-    s = edge.play_one("a", {"correct": True, "club": "iron"})["shots"]["a"]
+    s = edge.play_one("a", {"correct": True, "club": "7-iron"})["shots"]["a"]
     check("pin-high but twenty yards wide of a green fourteen wide: not on it", s["kind"] != "green", True)
     check("a mark behind the ball is moved ahead of it", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", -50, 0)["at"], 10)
     check("  and one off the property is brought in", golf.Golf(["a"], flat_course(), seed=1).set_aim("a", 200, 900)["off"], golf.OFF_MOST)
@@ -363,7 +363,7 @@ def run():
     s = foul.play_one("a", {"correct": False, "club": "driver"})["shots"]["a"]
     check("a foul ball into a side trap is off on that side", (s["kind"], foul.balls["a"].off > golf.FAIRWAY_HALF), ("sand", True))
     short = golf.Golf(["a"], flat_course(), seed=5)
-    s = short.play_one("a", {"correct": False, "club": "wedge"})["shots"]["a"]
+    s = short.play_one("a", {"correct": False, "club": "sand-wedge"})["shots"]["a"]
     check("a foul ball short into the rough is beside the fairway, not down the middle of it",
           (s["kind"], abs(short.balls["a"].off) > golf.FAIRWAY_HALF, ("left" in s["words"]) != ("right" in s["words"])), ("rough", True, True))
 
@@ -380,7 +380,7 @@ def run():
     for pp in ("a", "b"):
         h2.balls[pp].at, h2.balls[pp].lie, h2.balls[pp].strokes = 200, "fairway", 1
     check("  the sensible club allows for it: 200 out, the person takes a wood, the short hitter the driver",
-          (h2.default_club("a"), h2.default_club("b")), ("wood", "driver"))
+          (h2.default_club("a"), h2.default_club("b")), ("5-wood", "driver"))
     from elmer import party as party_mod
     check("a spread of levels around the one chosen", [party_mod.spread_level("Operator", i) for i in range(4)],
           ["Operator", "Learner", "Elmer", "Listener"])
@@ -395,11 +395,11 @@ def run():
         if aim:
             g.set_aim("a", *aim)
         return g.play_one("a", {"correct": True, "club": club, "ms": 1000 * seed})["shots"]["a"]
-    runs = {club: [rolled(club, seed=s)["roll"] for s in range(1, 21)] for club in ("driver", "wood", "iron", "wedge")}
+    runs = {club: [rolled(club, seed=s)["roll"] for s in range(1, 21)] for club in ("driver", "5-wood", "7-iron", "sand-wedge")}
     avg = {c: sum(v) / len(v) for c, v in runs.items()}
     check("a driver runs on after it lands", avg["driver"] > 15, True)
     check("  a wood a little less, an iron less again, a wedge hardly at all",
-          avg["driver"] > avg["wood"] > avg["iron"] > avg["wedge"], True)
+          avg["driver"] > avg["5-wood"] > avg["7-iron"] > avg["sand-wedge"], True)
     check("  and the words say so", "ran" in rolled("driver")["words"], True)
     check("  the ball lies where it stopped, not where it came down", rolled("driver")["at"] - rolled("driver")["carry"] == rolled("driver")["roll"], True)
     d_with = sum(rolled("driver", wind="with", seed=s)["roll"] for s in range(1, 21))
@@ -409,20 +409,20 @@ def run():
     r.wind_mph = 0
     s = r.play_one("a", {"correct": True, "club": "driver", "ms": 1000})["shots"]["a"]
     check("into the rough it stops quickly", s["roll"] < 12, True)
-    green = rolled("wedge", lie="fairway", at=310, wind="across", mph=0)
+    green = rolled("sand-wedge", lie="fairway", at=310, wind="across", mph=0)
     check("a wedge onto the green releases a little, or bites and comes back - a green is clipped to nothing", (green["kind"], -5 <= green["roll"] <= 8), ("green", True))
     fast = golf.Golf(["a"], flat_course(), seed=1)
     check("  the green runs faster than the fairway, and the fringe is between",
-          (fast.expected_roll("wood", "green") > fast.expected_roll("wood", "fairway") > fast.expected_roll("wood", "fringe") > fast.expected_roll("wood", "rough")), True)
+          (fast.expected_roll("5-wood", "green") > fast.expected_roll("5-wood", "fairway") > fast.expected_roll("5-wood", "fringe") > fast.expected_roll("5-wood", "rough")), True)
     golf.CLUB_SPREAD, golf.KICK_ODDS = {c: 0 for c in SPREAD}, 0.0
     beside = golf.Golf(["a"], flat_course(), seed=1)
     beside.day.wind_mph = 0
     beside.balls["a"].at, beside.balls["a"].lie, beside.balls["a"].strokes = 320, "fairway", 1
     beside.set_aim("a", 395, 18)
-    b = beside.play_one("a", {"correct": True, "club": "wedge", "ms": 3})["shots"]["a"]
+    b = beside.play_one("a", {"correct": True, "club": "sand-wedge", "ms": 3})["shots"]["a"]
     golf.CLUB_SPREAD, golf.KICK_ODDS = SPREAD, KICK
     check("  beside the green, off its collar, is rough - the fringe is bordered by it", (b["kind"], beside.balls["a"].lie), ("rough", "rough"))
-    bumps = [rolled("iron", lie="fairway", at=240, wind="across", mph=0, seed=sd, aim=(371, 0)) for sd in range(1, 13)]
+    bumps = [rolled("7-iron", lie="fairway", at=240, wind="across", mph=0, seed=sd, aim=(371, 0)) for sd in range(1, 13)]
     check("an iron landed nine short of the green can run onto it - the bump and run",
           any(b["kind"] == "green" and "ran onto" in b["words"] for b in bumps), True)
     check("  and can stop short of it too - that is the gamble", any(b["kind"] != "green" for b in bumps), True)
@@ -449,7 +449,7 @@ def run():
             g = golf.Golf(["a"], pb, holes=[1], seed=seed)
             out.append(g.play_one("a", {"correct": True, "club": club})["shots"]["a"])
         return out
-    drives, irons = tee_shots("driver"), tee_shots("iron")
+    drives, irons = tee_shots("driver"), tee_shots("7-iron")
     check("a driver's carries vary - not one number", len({s["carry"] for s in drives}) > 10, True)
     check("  and land in the fairway most of the time", sum(s["kind"] == "fairway" for s in drives) / len(drives) > 0.7, True)
     leaks = [s for s in drives if s.get("leak")]
@@ -581,15 +581,16 @@ def run():
         g.balls["a"].at, g.balls["a"].lie, g.balls["a"].strokes = at, "fairway", 1
         g.set_aim("a", *mark)
         return g, g.play_one("a", {"correct": True, "club": club, "ms": ms})["shots"]["a"]
-    g, s = from_(320, "wedge", (378, 0))
+    g, s = from_(320, "sand-wedge", (378, 0))
     check("a wedge chipped onto the collar stops on it, in feet from the cup", (s["kind"], g.balls["a"].lie, s["feet"] > 0, "fringe" in s["words"]), ("fringe", "fringe", True, True))
-    check("  from there the clubs are the wedge and the putter", g.clubs_for("a"), ["wedge", "putter"])
+    check("  from there: bump a 7-iron, chip a wedge, or putt", g.clubs_for("a"),
+          ["7-iron", "8-iron", "9-iron", "pitching-wedge", "sand-wedge", "putter"])
     check("  and the putter, through the collar, is the sensible one", g.default_club("a"), "putter")
     check("  and the hazards in the line are nobody's business from there", g.ahead("a"), [])
     rolls = {}
     for ms in (1, 2, 3):
-        _, on = from_(210, "wood", (378, 0), ms)
-        _, short = from_(210, "wood", (374, 0), ms)
+        _, on = from_(210, "5-wood", (378, 0), ms)
+        _, short = from_(210, "5-wood", (374, 0), ms)
         rolls[ms] = (on["roll"], short["roll"], on["kind"], on.get("via"))
     check("a wood landed on the fringe runs less than one landed on the fairway just short of it",
           all(a < b for a, b, _k, _v in rolls.values()), True)
@@ -607,7 +608,7 @@ def run():
     app = golf.Golf(["a"], flat_course(), seed=2)
     check("off the tee, no", app.approaching("a"), False)
     app.balls["a"].at, app.balls["a"].lie = 240, "fairway"
-    check("  an iron's length out, with the iron in hand: yes", (app.default_club("a"), app.approaching("a")), ("iron", True))
+    check("  an iron's length out, with the iron in hand: yes", (app.default_club("a"), app.approaching("a")), ("7-iron", True))
     app.balls["a"].at = 100
     check("  three hundred out, a full swing: no", app.approaching("a"), False)
     app.balls["a"].at, app.balls["a"].lie = 330, "rough"
@@ -685,7 +686,7 @@ def run():
     had = golf.ACE_ODDS
     golf.ACE_ODDS = 1.0
     g = golf.Golf(["a"], par3, seed=1)
-    row = g.play_one("a", {"correct": True, "club": "iron"})
+    row = g.play_one("a", {"correct": True, "club": "7-iron"})
     check("from the tee of a par 3, a right answer can drop", (row["shots"]["a"]["holed"], row["shots"]["a"].get("ace")), (True, True))
     check("  and the call says so", row["shots"]["a"]["call"], "A hole in one!")
     g = golf.Golf(["a"], flat_course(par=4, yards=400), seed=1)
@@ -693,7 +694,7 @@ def run():
     check("never on a par 4", row["shots"]["a"].get("ace"), None)
     golf.ACE_ODDS = 0.0
     g = golf.Golf(["a"], par3, seed=1)
-    row = g.play_one("a", {"correct": True, "club": "iron"})
+    row = g.play_one("a", {"correct": True, "club": "7-iron"})
     check("and at no odds, none", row["shots"]["a"].get("ace"), None)
     golf.ACE_ODDS = had
 
@@ -704,7 +705,7 @@ def run():
     g = golf.Golf(["a", "b"], two, holes=[1, 2], seed=3)
     g.add_player("early")
     check("arriving while the group is still on the tee: in it now", "early" in g.balls, True)
-    g.play_one("a", {"correct": True, "club": "iron"})
+    g.play_one("a", {"correct": True, "club": "7-iron"})
     g.add_player("late")
     check("arriving mid-hole: a tee time, not a ball", ("late" in g.balls, g.tee_times), (False, ["late"]))
     check("  and not away", g.away() != "late", True)
@@ -730,7 +731,7 @@ def run():
     check("from the first tee with the driver, the first fairway bunker on the left is in play",
           [(z["name"], z["side"], z["where"]) for z in line][:1], [("the 1st fairway bunker, left", "left", "in-play")])
     check("  said with its yards", "at 245 yards, on the left, in play" in voice.ahead_words(line), True)
-    check("  and the wedge, which cannot spray that far, sees nothing", g.ahead("a", "wedge"), [])
+    check("  and the wedge, which cannot spray that far, sees nothing", g.ahead("a", "sand-wedge"), [])
     g.hole_index, g.balls["a"] = 6, golf.Ball()
     line = g.ahead("a")
     check("the seventh: the bunker in front in play, and the Pacific beyond the green on the card",

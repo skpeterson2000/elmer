@@ -656,7 +656,7 @@ function seatColumnHTML(seat, round, shoot, gf) {
   }
   const ball = gf && gf.balls ? gf.balls[me] : null;
   const clubs = ball && !done ? `<div class="clubrow" data-clubrow="${me}">${(ball.clubs || []).map(c =>
-      `<button class="btn sm ${c === ball.club ? 'on' : ''}" data-seat-club="${me}" data-club="${c}">${c}</button>`).join('')}</div>` : '';
+      `<button class="btn sm ${c === ball.club ? 'on' : ''}" data-seat-club="${me}" data-club="${c}" title="${esc(clubName(gf, c))}${(ball.club_yards || {})[c] ? ' - gets ' + ball.club_yards[c] + ' from here' : ''}">${esc((gf.club_labels || {})[c] || c)}</button>`).join('')}</div>` : '';
   return `<div class="seatcol ${done ? 'done' : ''}" data-seatcol="${me}">
       <div class="who"><b>${esc(seat.name)}</b>${gf ? '' : `<span class="clk" data-seatclk="${me}"></span>`}</div>
       ${clubs}
@@ -858,7 +858,7 @@ function golfLine(gf) {
   if (gf.over) return `<b>${esc(gf.winner_name || 'Somebody')}</b> wins the round.`;
   if (gf.playoff && gf.playoff.length) return 'Playoff &mdash; sudden death, hole by hole.';
   if (gf.away_name) return `<b>${esc(gf.away_name)}</b> is away &middot; ${(gf.away_lie === 'green' || gf.away_lie === 'fringe') ? (gf.away_feet || 0) + ' feet, on the ' + (gf.away_lie || 'green') : gf.away_left + ' to go, ' + esc(gf.away_lie || '')}` +
-    (gf.away_club ? ` &middot; the ${esc(gf.away_club)}` : '') +
+    (gf.away_club ? ` &middot; the ${esc(clubName(gf, gf.away_club))}` : '') +
     (gf.away_bot ? '<br><span class="hint" style="display:inline">The question comes up in a moment. Read it with them: the next one is yours.</span>' : '');
   return 'Next stroke coming.';
 }
@@ -868,7 +868,7 @@ function golfAwayLine(gf) {
   const b = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
   if (!b) return '';
   return `<p class="narrator" style="margin:.2rem 0 .5rem">
-    <b>${esc(b.name)}</b> is away &middot; ${(b.lie === 'green' || b.lie === 'fringe') ? b.feet + ' feet, on the ' + b.lie : b.left + ' to go, ' + esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(b.club) : ''}</p>`;
+    <b>${esc(b.name)}</b> is away &middot; ${(b.lie === 'green' || b.lie === 'fringe') ? b.feet + ' feet, on the ' + b.lie : b.left + ' to go, ' + esc(b.lie)} &middot; ${b.strokes} played${b.club ? ' &middot; the ' + esc(clubName(gf, b.club)) : ''}</p>`;
 }
 
 /* Where a CutThroat is, in a sentence the room can read - and the chairs:
@@ -912,6 +912,8 @@ function paintPickClock(shoot) {
 
 
 
+/* A club by its name - 'pitching wedge', not the key it is kept under. */
+function clubName(gf, c) { return ((gf && gf.club_names) || {})[c] || c || ''; }
 function esc(s) { const d = document.createElement('div');
                   d.textContent = s == null ? '' : s; return d.innerHTML; }
 
@@ -1114,7 +1116,7 @@ async function tick() {
         const awayHere = gf.address_waits && atScreen.some(x => String(x.id) === String(gf.away));
         const awayBall = gf.away != null && gf.balls ? gf.balls[gf.away] : null;
         const address = gf.away_name && !gf.over
-          ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(gf.away_club) + ' in hand' : ''}${
+          ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the ' + esc(clubName(gf, gf.away_club)) + ' in hand' : ''}${
               (gf.away_lie === 'green' || gf.away_lie === 'fringe') ? `, ${gf.away_feet || 0} feet` : gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}${gf.away_ahead ? ` <span class="hint" style="display:inline">${esc(gf.away_ahead)}</span>` : ''}</p>` +
             (awayHere && awayBall
               ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club, then press Hit. The question is yours when you are ready - nothing here is timed.</p>

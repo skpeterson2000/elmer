@@ -187,7 +187,17 @@ at all.
 
 ---
 
-## Stage 4 — `read_mark()`
+## Stage 4 — `read_mark()` — **club and reach LANDED 2026-09-24; routes to come**
+
+*The club half is built and folded into DESIGN.md under "The bag, and the
+mark that reads it": a twelve-club bag, and `read_mark(player, club)`
+returning the club the yards want, the reach of the club in hand, where a
+short club comes down, and the landing patch - drawn on the map and said on
+the phone. It landed ahead of stage 3 because it needs no route data. What
+remains of this stage is the route half: `kind`, `route` and the gold ring,
+once stage 3's routes exist. The colours below are the plan for that; in
+range is drawn white rather than green, because green does not read on a
+green.*
 
 The route is discovered by aiming at it. No buttons.
 

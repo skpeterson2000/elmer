@@ -85,8 +85,8 @@ check("  and no drift", golf.wind_drift(None, 30, "driver"), 0.0)
 print("\ndrift follows how long the ball is up there")
 MPH = 20
 driver = golf.wind_drift(9, MPH, "driver", 250, 250)
-wedge = golf.wind_drift(9, MPH, "wedge", 100, 100)
-laid = golf.wind_drift(9, MPH, "wedge", 40, 100)
+wedge = golf.wind_drift(9, MPH, "sand-wedge", 100, 100)
+laid = golf.wind_drift(9, MPH, "sand-wedge", 40, 100)
 check("a full driver in twenty across moves several yards",
       4 <= driver <= 8, True)
 # A full wedge is still up there a good while - three and a half seconds
@@ -101,8 +101,8 @@ near("  a driver is about what the flat figure used to give for everything",
      driver, golf.WIND_DRIFT_PER_SECOND * 20 * golf.FLIGHT_SECONDS["driver"], 0.01)
 
 print("\n  and a stinger is punched under it")
-straight = golf.wind_drift(9, MPH, "iron", 180, 180)
-punched = golf.wind_drift(9, MPH, "iron", 180, 180, flair="stinger")
+straight = golf.wind_drift(9, MPH, "7-iron", 180, 180)
+punched = golf.wind_drift(9, MPH, "7-iron", 180, 180, flair="stinger")
 check("a punched iron drifts less than a struck one", punched < straight, True)
 near("  by the hang it gives up", punched / straight, golf.STINGER_HANG)
 

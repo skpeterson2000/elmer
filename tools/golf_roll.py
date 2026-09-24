@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from elmer import golf  # noqa: E402
 
-CLUBS = ("driver", "wood", "iron", "wedge")
+CLUBS = golf.CLUB_ORDER
 SURFACES = ("green", "fringe", "fairway", "rough", "sand")
 
 
@@ -33,10 +33,10 @@ def table(firmness=1.0, friction=None, note=""):
         golf.FRICTION.update(friction)
     try:
         print(f"\n  run in yards - full swing, no wind, firmness {firmness:.2f}{note}")
-        print("  " + "surface".ljust(10) + "".join(c.rjust(9) for c in CLUBS))
+        print("  " + "surface".ljust(10) + "".join(golf.CLUB_LABELS[c].rjust(7) for c in CLUBS))
         for lie in SURFACES:
             row = [golf.run_yards(c, lie, firmness=firmness) for c in CLUBS]
-            print("  " + lie.ljust(10) + "".join(f"{v:9.1f}" for v in row))
+            print("  " + lie.ljust(10) + "".join(f"{v:7.1f}" for v in row))
     finally:
         golf.FRICTION.clear()
         golf.FRICTION.update(was)
@@ -55,13 +55,13 @@ def fringe():
     table(friction={"fringe": golf.FRICTION["fringe"]}, note="  [fringe as shipped]")
     print("\n  the other reading - a collar runs a touch faster than the fairway")
     table(friction={"fringe": golf.FRINGE_IF_FAST}, note="  [fringe if fast]")
-    a = golf.run_yards("wedge", "fringe")
-    b = golf.run_yards("wedge", "fairway")
+    a = golf.run_yards("sand-wedge", "fringe")
+    b = golf.run_yards("sand-wedge", "fairway")
     print(f"\n  as shipped, a wedge onto the collar runs {a:.1f} yards "
           f"against {b:.1f} on the fairway.")
     was = golf.FRICTION["fringe"]
     golf.FRICTION["fringe"] = golf.FRINGE_IF_FAST
-    c = golf.run_yards("wedge", "fringe")
+    c = golf.run_yards("sand-wedge", "fringe")
     golf.FRICTION["fringe"] = was
     print(f"  the other way it runs {c:.1f}, which is {c - b:+.1f} against the fairway.")
     print("\n  A chip that has to stop on the collar is the shot to judge it by.")
@@ -71,14 +71,14 @@ def skip(trials=20000):
     """How often a ball arriving at water actually comes out of it."""
     rng = random.Random(7)
     print("\nTHE SKIP - how often a ball at water comes out of it\n")
-    print("  " + "club".ljust(9) + "shot".ljust(12) + "descent".rjust(9)
+    print("  " + "club".ljust(16) + "shot".ljust(12) + "descent".rjust(9)
           + "pace".rjust(7) + "skips".rjust(9))
     for club in CLUBS:
         for flair in (None, "stinger"):
             angle = golf.descent_angle(club, flair)
             pace = golf.landing_speed(club)
             hits = sum(golf.skips(angle, pace, rng) for _ in range(trials))
-            print("  " + club.ljust(9) + (flair or "ordinary").ljust(12)
+            print("  " + club.ljust(16) + (flair or "ordinary").ljust(12)
                   + f"{angle:7.1f}   " + f"{pace:7.2f}"
                   + f"{100.0 * hits / trials:8.1f}%")
     print(f"\n  Skips need flatter than {golf.SKIP_ANGLE:.0f} deg and quicker than "
@@ -115,14 +115,14 @@ def main():
         return wind()
 
     print("THE LANDING MODEL, AS IT STANDS")
-    print(f"\n  {'club':9}{'descent':>9}{'lands at':>10}{'spin':>7}")
+    print(f"\n  {'club':16}{'descent':>9}{'lands at':>10}{'spin':>7}")
     for c in CLUBS:
-        print(f"  {c:9}{golf.DESCENT[c]:8.0f} deg{golf.V_LAND[c]:10.3f}"
+        print(f"  {c:16}{golf.DESCENT[c]:8.0f} deg{golf.V_LAND[c]:10.3f}"
               f"{golf.SPIN_RATE[c]:7.2f}")
     for firm in (0.65, 1.0, 1.35):
         table(firmness=firm)
     print("\n  Firmness runs 0.65 (soaked) to 1.35 (bone dry); a fairway at 1.00 is "
-          "the calibration\n  point, where the four clubs reproduce the 24 / 19 / 11 / 6 "
+          "the calibration\n  point, where the driver, 5-wood, 7-iron and sand wedge reproduce the 24 / 19 / 11 / 6 "
           "this model replaced.")
     print("\n  --fringe, --skip and --wind show the rest.")
 

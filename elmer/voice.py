@@ -100,8 +100,12 @@ VOCABULARY = {
     # the address
     "the-player": "the player", "addresses-the-ball": "addresses the ball",
     "in-hand": "in hand",
-    "the-driver": "the driver", "the-wood": "the wood", "the-iron": "the iron",
-    "the-wedge": "the wedge", "the-putter": "the putter",
+    # the bag, as golf.CLUB_ORDER keeps it: "the-7-iron" is said "the seven iron"
+    "the-driver": "the driver", "the-3-wood": "the three wood", "the-5-wood": "the five wood",
+    "the-4-iron": "the four iron", "the-5-iron": "the five iron", "the-6-iron": "the six iron",
+    "the-7-iron": "the seven iron", "the-8-iron": "the eight iron", "the-9-iron": "the nine iron",
+    "the-pitching-wedge": "the pitching wedge", "the-sand-wedge": "the sand wedge",
+    "the-putter": "the putter",
     "from-the-tee": "from the tee", "from-the-fairway": "from the fairway",
     "from-the-rough": "from the rough", "from-the-sand": "from the sand",
     "on-the-green": "on the green",
@@ -505,7 +509,7 @@ def shot(s):
         out += [f"the-{club}"] if club else []
         out += number(s.get("carry") or 0) + ["yards", "holed-it-from-the-fairway"]
     elif s.get("flair") == "flop":
-        out += ["the-wedge"] + number(s.get("carry") or 0) + ["yards", "flopped-it-to-a-tap-in"]
+        out += [f"the-{club or 'sand-wedge'}"] + number(s.get("carry") or 0) + ["yards", "flopped-it-to-a-tap-in"]
     elif s.get("putt"):
         # a putt: holed, or how much is left
         if kind == "holed":
