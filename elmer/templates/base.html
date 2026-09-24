@@ -146,7 +146,7 @@
            spellcheck="false" autocapitalize="characters" placeholder="WRxx000"
            value="{{ profile.settings.gmrs_call or '' }}">
     <p class="tiny muted" id="setup-gmrs-hint">
-      {%- set g = profile.settings.gmrs or {} -%}
+      {%- set g = gmrs_own or {} -%}
       {%- if g.found %}Granted {{ g.granted }}, expires <b>{{ g.expires }}</b>
         {%- if g.status.state == 'expired' %} &mdash; <b>expired</b>, and GMRS has no grace period{% endif %}
         {%- if g.status.state == 'current' and g.status.days < 90 %} &mdash; <b>{{ g.status.days }} days left</b>, and no grace period after:
@@ -157,7 +157,7 @@
         Make Contact and the band plan treat a GMRS radio as licensed.{% endif -%}
     </p>
 
-    {%- set g = profile.settings.gmrs or {} -%}
+    {%- set g = gmrs_own or {} -%}
     {%- if g.found and others_here %}
     <p class="tiny muted" style="margin-top:.4rem">Your GMRS licence covers your immediate family
       &mdash; 47 CFR 95.1705(c): they operate under <b class="mono">{{ g.callsign }}</b>. Mark

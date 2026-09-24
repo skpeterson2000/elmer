@@ -623,6 +623,13 @@ def profile_block(connection):
             # disagree with the same class shown on another.
             "held": callsign.held(prof["settings"]),
             "gmrs": gmrs_licence_for(connection, prof["settings"]) or {},
+            # This person's own GMRS record, worked out as of today. `gmrs`
+            # above may be somebody else's - a licensee on this unit who has
+            # marked them as family - and the Station panel is asking about
+            # the box it sits under, which is theirs. Read straight off
+            # profile.settings it would carry the day count it had when the
+            # call was first typed in, which is the thing that was wrong.
+            "gmrs_own": callsign.refresh_status(prof["settings"].get("gmrs")) or {},
             "gmrs_covers": prof["settings"].get("gmrs_covers") or [],
             "others_here": [{"id": p["id"], "name": p["display_name"]}
                             for p in db.users(connection) if p["id"] != connection.user_id],

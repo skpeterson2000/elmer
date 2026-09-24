@@ -85,6 +85,23 @@ def main():
     check("  (papers go through refresh_status too)",
           "refresh_status" in __import__("inspect").getsource(_records_for), True)
 
+    print("")
+    print("-- and the pages that draw it read the fresh one --")
+    # The Station panel used to read profile.settings.gmrs straight off the
+    # record, which is the raw one: the fix above reached the band plan and
+    # the papers view and went round this. A source check, because what is
+    # wrong here is which variable a template names.
+    here = Path(__file__).resolve().parents[1] / "elmer" / "templates"
+    base = (here / "base.html").read_text(encoding="utf-8")
+    home = (here / "home.html").read_text(encoding="utf-8")
+    check("the Station panel does not read the raw record",
+          "profile.settings.gmrs or {}" in base, False)
+    check("  it reads the one worked out today", "gmrs_own" in base, True)
+    check("  and the home page shows a GMRS licence at all",
+          "gmrs.callsign" in home, True)
+    check("  saying there is no grace period after it",
+          "no grace period" in home, True)
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

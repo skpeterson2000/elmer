@@ -90,6 +90,26 @@
         &middot; <a class="tiny" href="{{ license.uls_url }}" target="_blank" rel="noopener">FCC ULS record &rarr;</a>{% endif %}
     </p>
     {%- endif %}
+
+    {#- The GMRS licence, beside the amateur one. It was drawn on the band
+        plan and in the Station panel and nowhere anybody would look first,
+        which is here. Outside the callsign test above on purpose: somebody
+        may hold a GMRS licence and no amateur one, and that is the person
+        most likely to be wondering where the program keeps it. A GMRS term
+        runs ten years and has no grace period at all, so the date is worth
+        more here than the amateur one, not less. -#}
+    {%- if gmrs.found %}
+    <p class="small licence-line
+        {%- if gmrs.status.state != 'current' %} warntext{% endif %}">
+      <b class="mono">{{ gmrs.callsign }}</b> &middot; GMRS
+      {%- if gmrs.covered_by %} &middot; {{ gmrs.covered_by }}&rsquo;s licence, you under it as family (47 CFR 95.1705(c)){% endif %}
+      {%- if gmrs.status.state == 'current' %} &middot; expires <b>{{ gmrs.expires }}</b>, {{ gmrs.status.days }} days
+        {%- if gmrs.status.days < 90 %} &mdash; <b>renew soon</b>, and there is no grace period after:
+          <a href="{{ renew_url }}" target="_blank" rel="noopener">renew at ULS &rarr;</a>{% endif %}
+      {%- else %} &middot; <b>expired {{ gmrs.expires }}</b> &mdash; GMRS has no grace period, so it is not to be used on the air
+      {%- endif %}
+    </p>
+    {%- endif %}
     <p class="muted small">
       {{ answered }} questions answered all-time &middot; {{ today }} today &middot;
       {{ profile.streak_days }}-day streak (best {{ profile.best_streak }}) &middot;
