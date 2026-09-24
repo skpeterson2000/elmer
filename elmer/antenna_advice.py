@@ -1297,14 +1297,59 @@ def _mutual_r(d_wavelengths, half_length=0.5):
                    - _ci(k * (r + half_length)) - _ci(k * (r - half_length)))
 
 
-def feedpoint_resistance(height_wavelengths):
-    """A horizontal half-wave's feedpoint resistance at this height, ohms.
+# An inverted V is not a dipole hung crooked, and the program says so in two
+# places already - patterns.py, "the droop pulls the feedpoint down to about
+# 50 ohms", and the Lab's own note, "the droop changes the pattern and the
+# feedpoint". The heights table then printed the flat dipole's 73 ohms under
+# a heading that said inverted V.
+#
+# These are the textbook figures for a half-wave V in free space: 73 ohms
+# flat, near 50 at 45 degrees of droop, near 40 at 60. A smooth curve through
+# the three, the same way radialZ() in the Lab does it for drooping radials,
+# and for the same reason - so the slider moves the number the note claims,
+# rather than the note asserting one thing beside a table that says another.
+# It is a fit through published values, not a modelled result, and the
+# comment is here so nobody mistakes it for one.
+def v_free_space_ohms(droop_deg):
+    """A half-wave inverted V's free-space feedpoint resistance, ohms."""
+    x = max(0.0, min(90.0, float(droop_deg))) / 90.0
+    return FREE_SPACE_OHMS - 36.0 * x - 21.0 * x * x
 
-    Over perfect ground. None if the height is too low to mean anything.
+
+# Half of 468/f is the length each leg actually is: 234/f feet against a
+# wavelength of 983.571/f, so a leg is this fraction of a wave whatever the
+# band, and the drop below the apex is too.
+V_LEG_WL = 234.0 / 983.571
+
+
+def v_centroid_drop_wl(droop_deg):
+    """How far below its apex an inverted V behaves as though it hangs.
+
+    The pattern follows the current-weighted mean height and current is
+    greatest at the centre, so the mean sits V_CENTROID of the way out
+    along each sloping leg. At the Lab's default droop this is about a
+    twentieth of a wavelength - fifteen feet on 80 m, which is the whole
+    difference between a wire that works and one that does not.
+    """
+    return V_CENTROID * V_LEG_WL * math.sin(math.radians(max(0.0, min(90.0, float(droop_deg)))))
+
+
+def feedpoint_resistance(height_wavelengths, droop_deg=0.0):
+    """A half-wave's feedpoint resistance at this height, ohms.
+
+    `height_wavelengths` is the height of the wire itself - for a V, the
+    height it behaves as though it hangs at, which is not its apex; see
+    v_centroid_drop_wl(). Over perfect ground. None if the height is too
+    low to mean anything.
+
+    The droop lowers the free-space figure, and the ground's own term is
+    scaled with it: the image couples to a drooping wire more weakly than
+    to a flat one, and in the same proportion to a first approximation.
     """
     if height_wavelengths <= 0.02:
         return None
-    return FREE_SPACE_OHMS - _mutual_r(2.0 * height_wavelengths)
+    base = v_free_space_ohms(droop_deg) if droop_deg else FREE_SPACE_OHMS
+    return base - _mutual_r(2.0 * height_wavelengths) * (base / FREE_SPACE_OHMS)
 
 
 def _swr_into_50(r):
@@ -1313,16 +1358,25 @@ def _swr_into_50(r):
 
 # Where the curve does something worth knowing, in wavelengths. Found once by
 # scanning the curve rather than typed in, so they cannot drift from it.
-def _landmarks():
+def _landmarks(droop_deg=0.0):
+    """Where the curve does something, in wavelengths of *wire* height.
+
+    A V's droop moves all of them: the free-space figure it returns to is
+    lower, so "back at its free-space 73 ohms" is not 73 and the crossings
+    are not in the same places. Scanned for the droop asked about rather
+    than taken from the flat one.
+    """
     hs = [i / 1000.0 for i in range(40, 1001)]
-    rs = [feedpoint_resistance(h) for h in hs]
+    rs = [feedpoint_resistance(h, droop_deg) for h in hs]
+    natural = v_free_space_ohms(droop_deg) if droop_deg else FREE_SPACE_OHMS
     marks = []
     for i in range(1, len(hs) - 1):
         a, b, c = rs[i - 1], rs[i], rs[i + 1]
         if (a - 50.0) * (b - 50.0) <= 0 and a != b:
             marks.append(("match", hs[i], b, "feed near 50 ohms - coax matches it with nothing in between"))
-        if (a - FREE_SPACE_OHMS) * (b - FREE_SPACE_OHMS) <= 0 and a != b:
-            marks.append(("natural", hs[i], b, "back at its free-space 73 ohms"))
+        if (a - natural) * (b - natural) <= 0 and a != b:
+            marks.append(("natural", hs[i], b,
+                          f"back at its free-space {round(natural)} ohms"))
         if b > a and b > c:
             marks.append(("peak", hs[i], b, "the high point: the worst match to 50 ohm coax on the way up"))
         if b < a and b < c:
@@ -1337,6 +1391,16 @@ def _landmarks():
 
 
 _LANDMARKS = _landmarks()
+# Scanning is a thousand evaluations; the slider moves a degree at a time and
+# the table is drawn on every move, so each droop is scanned once.
+_LANDMARK_CACHE = {0: _LANDMARKS}
+
+
+def landmarks_for(droop_deg=0.0):
+    key = int(round(float(droop_deg or 0)))
+    if key not in _LANDMARK_CACHE:
+        _LANDMARK_CACHE[key] = _landmarks(key)
+    return _LANDMARK_CACHE[key]
 
 
 def mismatch_loss_db(swr):
@@ -1347,7 +1411,7 @@ def mismatch_loss_db(swr):
     return -10.0 * math.log10(1.0 - rho * rho)
 
 
-def height_curve(mhz, step=0.01, top=1.0, top_ft=None):
+def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0):
     """The whole story against height, for a graph: the feedpoint
     resistance, the SWR that means into 50 ohm coax, and where the main
     lobe points, every hundredth of a wave up.
@@ -1363,10 +1427,13 @@ def height_curve(mhz, step=0.01, top=1.0, top_ft=None):
     trip hazard.
     """
     lam = wavelength_ft(mhz)
+    drop = v_centroid_drop_wl(droop_deg) if droop_deg else 0.0
     if top_ft:
         # a third again above the reach, so the ground beyond it can be
-        # shaded and seen to be shaded rather than simply missing
-        top = min(top, max(2.0 * step, (float(top_ft) * 1.33) / lam))
+        # shaded and seen to be shaded rather than simply missing. The
+        # reach is an apex height - it is what the trees give - so the
+        # drop comes off it before it becomes a wire height.
+        top = min(top, max(2.0 * step, (float(top_ft) * 1.33) / lam - drop))
     start = max(0.04, LOWEST_WORTH_HANGING_FT / lam)
     if top <= start:
         # The reach is below anything worth hanging - a wire on the car, or
@@ -1391,9 +1458,14 @@ def height_curve(mhz, step=0.01, top=1.0, top_ft=None):
         heights.append(top)
     out = []
     for h in heights:
-        r = feedpoint_resistance(h)
+        r = feedpoint_resistance(h, droop_deg)
         if r is not None:
-            out.append({"wavelengths": round(h, 2), "ft": round(h * lam, 1),
+            # Plotted against the apex, because that is the height on the
+            # slider and the one somebody can measure; the resistance and
+            # the angle are the wire's own, at the height it behaves at.
+            out.append({"wavelengths": round(h + drop, 2),
+                        "ft": round((h + drop) * lam, 1),
+                        "wire_ft": round(h * lam, 1),
                         "ohms": round(r, 1), "swr": round(_swr_into_50(r), 2),
                         "takeoff": round(takeoff_deg(h * lam, mhz), 1)})
     return out
@@ -1428,22 +1500,39 @@ def match_versus_height(mhz, wanted_ft):
             f"height; let the SWR be {swr_wanted:.1f}.")
 
 
-def matching_heights(mhz, reach_ft=None):
+def matching_heights(mhz, reach_ft=None, droop_deg=0.0):
     """The heights worth knowing about for a horizontal wire on this band.
 
     Each with the feedpoint resistance there, the SWR that means into 50 ohm
     coax, and whether it is within what the site allows - because a height
     the garden cannot reach is worth knowing about and not worth aiming at.
+
+    `droop_deg` makes it an inverted V's table rather than a flat dipole's,
+    and the two are not the same list. The heights given are the *apex* -
+    what somebody hauls up and can measure from the ground - while the
+    resistance at each is the wire's own, worked out at the height the V
+    behaves as though it hangs at, which is the apex less the centroid
+    drop. Hand a V a flat dipole's table and every figure in it is for an
+    antenna nobody has.
     """
     lam = wavelength_ft(mhz)
+    drop = v_centroid_drop_wl(droop_deg) if droop_deg else 0.0
     out = []
-    for what, h, r, note in _LANDMARKS:
-        ft = round(h * lam)
+    for what, h, r, note in landmarks_for(droop_deg):
+        # Two heights, and the difference between them is the point: the
+        # apex is what somebody hauls up and can measure from the ground,
+        # and the wire height is where the antenna behaves as though it
+        # is - which is what sets the impedance and the takeoff angle.
+        # They are the same number for a flat dipole and are not for a V.
+        apex_wl = h + drop
+        ft = round(apex_wl * lam)
+        wire_ft = round(h * lam, 1)
         out.append({
-            "what": what, "wavelengths": round(h, 2), "ft": ft,
+            "what": what, "wavelengths": round(apex_wl, 2), "ft": ft,
+            "wire_ft": wire_ft, "wire_wavelengths": round(h, 2),
             "ohms": round(r), "swr": round(_swr_into_50(r), 1),
             "loss_db": round(mismatch_loss_db(_swr_into_50(r)), 2),
-            "takeoff": round(takeoff_deg(ft, mhz)),
+            "takeoff": round(takeoff_deg(wire_ft, mhz)),
             "note": note,
             "reachable": (reach_ft is None) or (ft <= reach_ft),
         })

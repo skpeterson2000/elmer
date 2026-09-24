@@ -1950,14 +1950,43 @@ def api_antenna_advice():
     # does something at, marked reachable or not by what the site allows.
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
         site = request.args.get("site") or ""
+        # The droop, for a V, and nothing for anything else. A V's legs
+        # lower its free-space resistance and hang the wire below its own
+        # apex, so its table is not a dipole's with a different heading -
+        # at 35 degrees the 50 ohm height is a 69 ft apex where a flat
+        # wire wants 45, and the 73 ohm landmark does not exist at all.
+        # Taken from the Lab's own slider, so somebody can set the angle
+        # they will actually tie and read the heights for it.
+        try:
+            droop = max(0.0, min(60.0, float(request.args.get("droop") or 0.0)))
+        except ValueError:
+            droop = 0.0
+        if out.get("type") != "invertedv":
+            droop = 0.0
+        elif not request.args.get("droop"):
+            droop = antenna_advice.DEFAULT_DROOP_DEG
         # How high this person can actually get a wire. With no site said
         # this used to be no ceiling at all, so the table offered 276 ft on
         # 80 m as an ordinary choice and the graph spent four fifths of its
         # width above anything anybody builds. See reach_for().
         reach = antenna_advice.reach_for(site, floor)
-        out["heights"] = antenna_advice.matching_heights(mhz, reach)
-        out["height_curve"] = antenna_advice.height_curve(mhz, top_ft=reach)
+        out["heights"] = antenna_advice.matching_heights(mhz, reach, droop)
+        out["height_curve"] = antenna_advice.height_curve(mhz, top_ft=reach,
+                                                          droop_deg=droop)
         out["reach_ft"] = reach
+        out["droop_deg"] = droop
+        out["free_space_ohms"] = round(
+            antenna_advice.v_free_space_ohms(droop) if droop
+            else antenna_advice.FREE_SPACE_OHMS)
+        out["centroid_drop_ft"] = round(
+            antenna_advice.v_centroid_drop_wl(droop)
+            * antenna_advice.wavelength_ft(mhz), 1) if droop else 0.0
+        # Drooped to about 45 degrees a V's free-space resistance is 50 ohms
+        # already, so the ground can only move it a few either way and the
+        # coax matches at any height at all. The landmark table then has
+        # nothing to say, and the absence is the finding rather than a gap:
+        # this is the whole reason 45 degrees is the angle people tie.
+        out["match_anywhere"] = bool(droop) and abs(out["free_space_ohms"] - 50) <= 4
         out["reach_assumed"] = not site or site == "apartment" and not floor
     # What the power asks of the parts. The conductor's diameter and material
     # come along so the heat in the wire is this wire's, not the default's.

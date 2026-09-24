@@ -1771,6 +1771,13 @@ function drawAntenna(shape, rows, type) {
         return;
       }
       if (id === 'an-pw') { refreshAdvice(); calcAnt(); return; }
+      /* The droop is part of the antenna, not a drawing option. It lowers
+         the V's free-space resistance and hangs the wire below its apex,
+         so the heights table and the curve are different lists at 20
+         degrees and at 45 - which is the whole use of setting the angle on
+         the ground before going out with it. The panel follows the slider
+         rather than describing the angle it was last asked about. */
+      if (id === 'an-droop') { refreshAdvice(); calcAnt(); return; }
       if (id === 'an-site' || id === 'an-use') {
         // The questions changed. A suggested antenna follows them; a chosen
         // one stays, and only the advice about it is refreshed.
@@ -2637,6 +2644,16 @@ function matchingHeightsHTML(d) {
     '<td class="mono">' + r.ft + ' ft</td><td class="mono">' + r.wavelengths.toFixed(2) + ' \u03bb</td>' +
     '<td class="mono">' + r.ohms + ' \u03a9</td><td class="mono">SWR ' + r.swr.toFixed(1) + '</td>' +
     '<td>' + WORD[r.what] + (r.what === 'match' ? ' \u2014 coax matches it with nothing in between' : '') + '</td></tr>';
+  /* A V droops its way to 50 ohms on its own: at about 45 degrees the
+     free-space figure is 50 already, the ground moves it a few either way,
+     and there is no height where the match is worth choosing. An empty
+     landmark table would read as a gap, so it says so instead. */
+  const anywhere = d.match_anywhere
+    ? '<p class="tiny muted">At this droop the V is about ' + d.free_space_ohms +
+      '&nbsp;&Omega; in free space, so the coax matches it at <b>any</b> height ' +
+      '&mdash; which is why 45&deg; is the angle people tie. There is no match ' +
+      'height to pick; hang it for the angle you want and let the SWR be.</p>'
+    : '';
   return '<div class="panel-title" style="margin-top:.9rem">The feed and the angle, against height</div>' +
     heightGraphSVG(d) +
     '<div class="panel-title" style="margin-top:.6rem">Heights where the feed does something</div>' +
@@ -2655,7 +2672,7 @@ function matchingHeightsHTML(d) {
            : 'beyond what the site allows')
         + '</td></tr>'
       : '') +
-    far.slice(0, 3).map(line).join('') + '</table>' +
+    far.slice(0, 3).map(line).join('') + '</table>' + anywhere +
     '<p class="tiny muted">The feedpoint swings with height because the wire sees its own ' +
     'reflection in the ground; the period is half a wavelength. Perfect-ground figures - real ' +
     'ground damps the swings and shifts them a little. None of these is a height to stop at: ' +
@@ -2855,6 +2872,13 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     d = await api('/api/antenna-advice?' + new URLSearchParams(
       Object.entries({mhz: mhz, use: use || '', kind: kind || '',
                       site: anSiteValue(), floor: anFloorValue(),
+                      /* The droop the slider is actually set to. A V's legs
+                         lower its free-space resistance and hang the wire
+                         below its apex, so the heights table is its own and
+                         not a flat dipole's - and it follows the angle
+                         somebody is going to tie, so they can set it on the
+                         ground and deploy knowing what to expect. */
+                      droop: kind === 'invertedv' ? num('an-droop') : '',
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
                       conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));
