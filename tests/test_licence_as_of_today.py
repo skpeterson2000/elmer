@@ -110,6 +110,51 @@ def main():
     check("  and not hidden when the FCC file is not here yet",
           "if gmrs.found %}" in home, False)
 
+    print("")
+    print("-- a licence asked for too early settles itself --")
+    # Entering a GMRS call starts the FCC file downloading and answers at
+    # once: "being fetched, look again in a few minutes". The answer was
+    # kept as the record and nothing ever went back for it, so looking
+    # again showed the same sentence for ever - on the machine that found
+    # this, fifteen seconds after the file had landed with the operator's
+    # own licence in it.
+    import elmer.app as elmer_app
+    from elmer import db as edb
+
+    pending = {"callsign": "WRMP909", "found": False, "service": "gmrs",
+               "pending": True, "reason": "the FCC's GMRS file is being fetched"}
+    settled = {"callsign": "WRMP909", "found": True, "service": "gmrs",
+               "granted": "05/14/2021", "expires": "05/14/2031",
+               "status": {"state": "current", "days": 1693}}
+
+    class FakeConn:
+        pass
+
+    saved = {}
+    have_answer = {"gmrs": False}
+    real = (elmer_app.uls.have, elmer_app.callsign.lookup,
+            edb.get_profile, edb.save_settings)
+    try:
+        elmer_app.uls.have = lambda s: have_answer.get(s)
+        elmer_app.callsign.lookup = lambda c, refresh=False: dict(settled)
+        edb.get_profile = lambda conn: {"settings": {"gmrs": dict(pending),
+                                                     "gmrs_call": "WRMP909"}}
+        edb.save_settings = lambda conn, s: saved.update(s)
+
+        elmer_app._settle_pending_licences(FakeConn())
+        check("with the file still absent, nothing is asked and nothing saved",
+              saved, {})
+
+        have_answer["gmrs"] = True
+        elmer_app._settle_pending_licences(FakeConn())
+        check("once the file is here, the record is read again",
+              (saved.get("gmrs") or {}).get("found"), True)
+        check("  and kept, with its dates",
+              (saved.get("gmrs") or {}).get("expires"), "05/14/2031")
+    finally:
+        (elmer_app.uls.have, elmer_app.callsign.lookup,
+         edb.get_profile, edb.save_settings) = real
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

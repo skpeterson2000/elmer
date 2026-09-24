@@ -561,7 +561,47 @@ def _saved_qth(connection, profile):
     return place
 
 
+def _settle_pending_licences(connection):
+    """Read again a licence that was asked for before its FCC file arrived.
+
+    Entering a GMRS callsign starts that file downloading and answers at
+    once - "the FCC's GMRS file is being fetched, look again in a few
+    minutes" - which is sound advice the program could not take. The
+    answer was kept as the record, and nothing ever went back for it once
+    the file landed. On the machine that found this the file was read
+    fifteen seconds later, six hundred thousand licences of it, with the
+    operator's own among them; the page went on saying "being fetched"
+    until the call was typed in again.
+
+    So a record still marked pending is looked up again as soon as the
+    file it was waiting on is on the unit, and kept. Only then: without
+    the file this would ask the FCC on every page load, and the answer
+    would be the same one.
+    """
+    settings = db.get_profile(connection)["settings"]
+    changed = False
+    for key in ("gmrs", "license", "commercial_license"):
+        record = settings.get(key) or {}
+        if record.get("found") or not record.get("pending") or not record.get("callsign"):
+            continue
+        service = (record.get("service") or "").lower()
+        if service and not uls.have(service):
+            continue                      # still waiting; nothing to ask yet
+        fresh = callsign.lookup(record["callsign"])
+        if fresh and fresh.get("found"):
+            settings[key] = fresh
+            changed = True
+            log.info("licence %s settled from the %s file: expires %s (%s)",
+                     record["callsign"], service or "FCC", fresh.get("expires"),
+                     (fresh.get("status") or {}).get("state"))
+    if changed:
+        db.save_settings(connection, settings)
+
+
 def profile_block(connection):
+    # Before anything is read out of the profile: a licence that was still
+    # being fetched when it was asked for has its answer by now.
+    _settle_pending_licences(connection)
     prof = db.public_profile(db.get_profile(connection))
     standings = all_standings(connection)
     tracks = ranks.overall(standings)
