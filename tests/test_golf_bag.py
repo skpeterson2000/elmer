@@ -131,21 +131,61 @@ check("  and where it comes down instead - along the line, at the wedge's length
       r["comes_down"], {"at": 105, "off": 0})
 check("  in words", r["says"], "160 to the mark - the sand wedge gets 105, 55 short; it is a 7-iron")
 r = g.read_mark("a", "driver")
-check("with the driver: six clubs too much, and the patch two and a quarter times as wide",
-      (r["reaches"], r["over"], r["long"]), (True, 6, 40.5))
+check("with the driver at 160 - a long club at two thirds of itself - the patch widens a little",
+      (r["reaches"], r["widen"], r["long"]), (True, 1.24, 22.3))
 g.set_aim("a", 50, 0)
-check("  and never more than the cap, however much too much", g.read_mark("a", "driver")["long"],
+check("  and never more than the cap, however short it is swung", g.read_mark("a", "driver")["long"],
       round(18 * golf.OVERCLUB_MOST, 1))
 g.set_aim("a", 160, 0)
-check("  the right club and one more cost nothing",
-      (g.overclub("a", "7-iron", 160), g.overclub("a", "6-iron", 160), g.overclub("a", "5-iron", 160)), (1.0, 1.0, 1.25))
+check("a long club at seven tenths of itself or more costs nothing: a 4-iron at 160",
+      (g.overclub("a", "7-iron", 160), g.overclub("a", "4-iron", 160), round(g.overclub("a", "driver", 100), 2)), (1.0, 1.0, 2.2))
+
+print("\n-- more club, softer: a shot, not a mistake --")
+k = calm()
+k.balls["a"].at, k.balls["a"].strokes = 335, 1
+k.set_aim("a", 400, 0)
+nine = k.read_mark("a", "9-iron")
+check("a 9-iron at 65 yards is a soft swing - nothing wider, and said as a shot",
+      (nine["reaches"], nine["soft"], nine["widen"], nine["says"].startswith("65 to the mark - a soft 9-iron")),
+      (True, True, 1.0, True))
+check("  the scoring clubs are never too much club, however soft",
+      [k.overclub("a", c, 65) for c in ("6-iron", "8-iron", "9-iron", "pitching-wedge")], [1.0, 1.0, 1.0, 1.0])
+full, soft = golf.run_yards("9-iron", "fairway"), golf.run_yards("9-iron", "fairway", carry=65, most=141)
+check("a soft 9-iron comes down flatter, spins less, and keeps its pace: it runs most of a full one's way",
+      (golf.descent_angle("9-iron", carry=65, most=141) < golf.descent_angle("9-iron") - 10, soft > 0.75 * full),
+      (True, True))
+check("  where a wedge's part swing is high and soft as ever - its loft is the point",
+      golf.descent_angle("sand-wedge", carry=40, most=105), golf.descent_angle("sand-wedge"))
+
+
+def roll_up(club, mark_at, n=200, frm=335):
+    """n strokes from `frm` at a mark short of a 400-yard hole's green;
+    how many end on the green."""
+    on = 0
+    for seed in range(n):
+        g = golf.Golf(["a"], flat_course(yards=400, green=30), seed=seed, seconds=30)
+        g.wind_mph = 0
+        g.balls["a"].at, g.balls["a"].strokes = frm, 1
+        g.set_aim("a", mark_at, 0)
+        s = g.play({"a": {"correct": True, "ms": 9000 + seed, "club": club}})["shots"]["a"]
+        on += s["kind"] == "green"
+    return on
+
+
+edge = golf.green_edge(flat_course(green=30)["holes"][0])
+short_of_green = int(400 - edge - golf.FRINGE - 4)
+nine_on = roll_up("9-iron", short_of_green, frm=short_of_green - 65)
+check("from 65 yards, a soft 9-iron landed four short of the collar runs up onto the green most of the time",
+      nine_on > 110, True)
+check("  where a wedge landed there checks and stays off it",
+      roll_up("sand-wedge", short_of_green, frm=short_of_green - 65) < nine_on // 3, True)
 c = calm()
 c.balls["a"].at = 360
 c.set_aim("a", 385, 0)
 bump, pitch, wood = c.read_mark("a", "7-iron"), c.read_mark("a", "sand-wedge"), c.read_mark("a", "5-wood")
-check("inside fifty yards a 7-iron is a bump and run, not too much club",
-      (bump["chip"], bump["over"], c.overclub("a", "7-iron", 25), bump["says"]),
-      (True, 0, 1.0, "25 to the mark - a bump and run with the 7-iron; land it short and let it roll"))
+check("inside fifty yards a 7-iron is a bump and run, and says how far it runs",
+      (bump["chip"], bump["widen"], bump["says"].startswith("25 to the mark - a bump and run with the 7-iron; it runs about")),
+      (True, 1.0, True))
 check("  a wedge there is a chip that checks", pitch["says"], "25 to the mark - a chip with the sand wedge; it checks where it lands")
 check("  and a chip lands tighter than a full swing: half the 7-iron's spread at 25 yards",
       (bump["long"], c.spread_for("a", "7-iron", 10)), (4.5, 9 * golf.CHIP_TIGHTEST))
@@ -157,7 +197,7 @@ for seed in range(200):
     carries.append(b.play({"a": {"correct": True, "ms": 7000 + seed, "club": "7-iron"}})["shots"]["a"]["carry"])
 check("  and in play it does: every bump carries within the patch the mark drew",
       (min(carries) >= 25 - 5, max(carries) <= 25 + 5), (True, True))
-check("  and a 5-wood is still too much club", (wood["chip"], wood["over"] >= 2, c.overclub("a", "5-wood", 25) > 1), (False, True, True))
+check("  and a 5-wood chipped 25 yards is a long club at a tenth of itself: wide", (wood["chip"], wood["widen"] > 2), (False, True))
 g.balls["a"].lie = "green"
 check("on the green it is a putt, and there is nothing to read", g.read_mark("a", "putter"), None)
 w = golf.Golf(["a"], flat_course(wind="with"), seed=1, seconds=30)
@@ -172,7 +212,7 @@ m.set_aim("a", 160, 0)
 check("  with a mark at 160 it is the mark's - and that is what an unchosen club is swung with",
       (m.default_club("a"), m.play({"a": {"correct": True, "ms": 3000}})["shots"]["a"]["club"]), ("7-iron", "7-iron"))
 
-print("\n-- too much club costs what the mark said --")
+print("\n-- a long club swung short costs what the mark said --")
 
 
 def spread_of(club, mark_at, n=300):
@@ -187,6 +227,22 @@ def spread_of(club, mark_at, n=300):
 
 check("a driver dropped 110 yards scatters far wider than the wedge made for it",
       spread_of("driver", 110) > 3 * spread_of("pitching-wedge", 110), True)
+
+print("\n-- a bad swing finds the trouble by the target --")
+two_traps = [{"kind": "bunker", "from": 95, "to": 110, "side": "", "name": "the cross bunker"},
+             {"kind": "bunker", "from": 225, "to": 245, "side": "", "name": "the greenside bunker"}]
+by_green, rest = 0, []
+for seed in range(300):
+    f = golf.Golf(["a"], flat_course(yards=250, hazards=two_traps, green=24), seed=seed, seconds=30)
+    f.wind_mph = 0
+    f.set_aim("a", 240, 0)
+    s = f.play({"a": {"correct": False, "ms": 4000 + seed, "club": "driver"}})["shots"]["a"]
+    if s.get("hazard") == "the greenside bunker":
+        by_green += 1
+        rest.append(f.balls["a"].at)
+check("aimed at the green, a foul ball finds the greenside bunker most of the time, not the one on the way",
+      by_green > 0.75 * 300, True)
+check("  and comes to rest in the part of it by the mark", (min(rest), max(rest)), (240, 240))
 
 print("\n-- the map draws the reading --")
 h = flat_course()["holes"][0]

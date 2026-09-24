@@ -336,7 +336,8 @@ def _flag(parts, x, y):
 # Where a fair ball with the club in hand comes down is a patch, long and
 # short by the club's spread and narrower across, so a driver's is a field
 # and a wedge's a table-top - white, which reads on fairway and green alike.
-# Too much club widens it and turns it amber. A
+# A long club swung at a fraction of itself widens it and turns it amber;
+# a soft swing with a scoring club is a shot, and stays white. A
 # club that does not get there turns the cross red and puts a second,
 # white one where the ball does come down, on the line to the mark. And the
 # words go beside it every time - the colour is never alone.
@@ -351,8 +352,10 @@ def _reading_label(reading):
     held = CLUB_LABELS.get(reading["club"], reading["club"])
     if not reading["reaches"]:
         return f'{held} {reading["plays"]} · {reading["short"]} short'
-    if reading.get("over", 0) >= 2:
+    if reading.get("widen", 1) > 1:
         return f'{held} · too much club'
+    if reading.get("soft"):
+        return f'{held} · {reading["yards"]} soft'
     return f'{held} · {reading["yards"]}'
 
 
@@ -365,7 +368,7 @@ def _reading(parts, pt, mark, reading):
         return "#ffb454"
     at, off = float(mark["at"]), float(mark.get("off") or 0)
     if reading["reaches"]:
-        color = READ_WIDE if reading.get("over", 0) >= 2 else READ_OK
+        color = READ_WIDE if reading.get("widen", 1) > 1 else READ_OK
         ring = [pt(at + reading["long"] * math.cos(t), off + reading["wide"] * math.sin(t))
                 for t in (i * math.pi / 12 for i in range(24))]
         d = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in ring) + " Z"

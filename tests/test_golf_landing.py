@@ -100,10 +100,13 @@ check("soft ground holds it, bone dry runs it", soaked < 24 < baked, True)
 near("  and it is straight proportion", baked / soaked, 1.35 / 0.65, 0.01)
 
 
-print("\na part swing runs less, because it arrives slower")
+print("\na part swing is a lower, softer ball, and keeps its run")
 full = golf.run_yards("7-iron", "fairway", carry=165, most=165)
 half = golf.run_yards("7-iron", "fairway", carry=80, most=165)
-check("a full iron runs further than a half one", full > half, True)
+check("a half 7-iron runs on at least as far as a full one - it comes in low", half >= full, True)
+check("  so for the yards it carries it runs far more", half / 80 > 1.8 * full / 165, True)
+check("  a wedge's part swing is the exception: it arrives slower and runs less",
+      golf.run_yards("sand-wedge", "fairway", carry=50, most=105) < golf.run_yards("sand-wedge", "fairway"), True)
 check("  and the speed is what did it",
       golf.landing_speed("7-iron", 80, 165) < golf.landing_speed("7-iron", 165, 165), True)
 

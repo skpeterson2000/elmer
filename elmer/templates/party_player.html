@@ -561,22 +561,29 @@ function golfReadingHTML(gf) {
   const you = gf.you, r = you && you.reading;
   if (!r || !(you.aim && you.aim.set)) return '';
   const names = gf.club_names || {};
-  const tone = !r.reaches ? 'var(--red)' : r.over >= 2 ? 'var(--amber)' : 'var(--green)';
-  const take = r.suggest && r.suggest !== r.club && (you.clubs || []).includes(r.suggest)
+  const tone = !r.reaches ? 'var(--red)' : r.widen > 1 ? 'var(--amber)' : 'var(--green)';
+  // A soft swing is a shot, not a mistake: the caddie's club is offered
+  // only when the one in hand is short or a long club swung at a fraction.
+  const take = r.suggest && r.suggest !== r.club && (you.clubs || []).includes(r.suggest) && (!r.reaches || r.widen > 1)
     ? ` <a href="#" data-take-club="${escapeHTML(r.suggest)}">take the ${escapeHTML(names[r.suggest] || r.suggest)}</a>` : '';
-  return `<p class="tiny" style="margin:0 0 .4rem;color:${tone}"><b>${!r.reaches ? 'Short' : r.over >= 2 ? 'Too much club' : 'In range'}</b> &middot; ${escapeHTML(r.says)}.${take}</p>`;
+  return `<p class="tiny" style="margin:0 0 .4rem;color:${tone}"><b>${!r.reaches ? 'Short' : r.widen > 1 ? 'Too much club' : r.chip ? 'A chip' : r.soft ? 'A soft swing' : 'In range'}</b> &middot; ${escapeHTML(r.says)}.${take}</p>`;
 }
 function golfClubsHTML(gf) {
   const you = gf.you;
   if (!you || !you.clubs || !you.clubs.length || you.holed || you.picked_up) return '';
   const chosen = gf.your_club || you.default_club;
   const labels = gf.club_labels || {}, names = gf.club_names || {}, yards = you.club_yards || {};
+  // The club in hand is the one chosen; the caddie's is said beside it, and
+  // is the one swung if nothing is chosen.
+  const caddie = you.default_club && you.default_club !== chosen
+    ? `<p class="tiny muted" style="margin:0 0 .4rem">&#9733; The caddie would take the <b>${escapeHTML(names[you.default_club] || you.default_club)}</b>.</p>`
+    : `<p class="tiny muted" style="margin:0 0 .4rem">&#9733; The caddie's club too.</p>`;
   return `<div class="pick" style="margin:.4rem 0">
-    <h3 style="margin:0 0 .4rem">Your club</h3>
+    <h3 style="margin:0 0 .2rem">Your club: the ${escapeHTML(names[chosen] || chosen)} in hand</h3>${caddie}
     <div id="clubs" class="bag">${you.clubs.map(c => `<button class="choice club ${c === chosen ? 'picked' : ''}${c === you.default_club ? ' sensible' : ''}" data-club="${c}"
-      title="${escapeHTML(names[c] || c)}${yards[c] ? ' - gets ' + yards[c] + ' from here today' : ''}${c === you.default_club ? ' - the sensible club' : ''}">
+      title="${escapeHTML(names[c] || c)}${yards[c] ? ' - gets ' + yards[c] + ' from here today' : ''}${c === you.default_club ? ' - the caddie\'s club' : ''}">
       <b>${c === 'putter' ? '&#9971;' : escapeHTML(labels[c] || c)}${c === you.default_club ? '<sup>&#9733;</sup>' : ''}</b><span>${c === 'putter' ? 'putter' : (yards[c] || '') + ' yd'}</span></button>`).join('')}</div>
-    <p class="tiny muted" style="margin:.2rem 0 0">&#9733; the sensible club &middot; yards are what each one gets from here today</p></div>`;
+    <p class="tiny muted" style="margin:.2rem 0 0">&#9733; the caddie's club &middot; yards are what each one gets from here today</p></div>`;
 }
 async function takeClub(club) {
   const r = await api('/api/party/club', {player: me.id, club});

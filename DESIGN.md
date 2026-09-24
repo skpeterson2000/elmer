@@ -3323,19 +3323,31 @@ ball lands in. The map draws the same reading round the cross - a white
 patch in range, amber and wider for too much club, a red cross and a
 white one where the ball does come down when the club is short - with
 the club and yards written beside it, and the phone says it in a
-sentence with the suggested club a tap away. One figure,
-`Golf.spread_for`, is the drawn patch, the carry's spread and the drift
-across the line alike, so the picture cannot promise what the swing
-does not deliver. Too much club costs: past one club of grace each club
-more widens the spread a quarter, to two and a half times. Round the
-green it does not - inside fifty yards the 7-iron down through the
-wedges are chipping clubs, chosen for how the ball behaves rather than
-how far it could go, and a chip lands tighter the shorter it is. The
-choice is the shot: a wedge pitched onto a green checks (its run there is
-a fifth of what its speed would give, and half the time it spins back),
-and an iron landed short runs on to the flag. With a mark set, the
-sensible club is the mark's, and it is what an unchosen club is swung
-with. The practice players carry the same bag.
+sentence. One figure, `Golf.spread_for`, is the drawn patch, the
+carry's spread and the drift across the line alike, so the picture
+cannot promise what the swing does not deliver.
+
+More club, softer, is a shot and not a mistake - into the wind, to keep
+it low, to run it up onto a green. A part swing is a lower ball, not a
+full one with less in it: the less of the club is used, the flatter it
+comes down (to 45% of the club's descent), the less it spins, and the
+more of its pace it keeps across the ground (`SOFT_*`), so a 9-iron
+played at 65 yards comes down at about 36 degrees and runs ten yards or
+more where a full 9-iron runs five. The wedges are the exception: their
+loft is what makes a part swing land soft, so a wedge chipped or pitched
+comes down as steep and spinning as ever, and checks. Nothing costs for
+it but a long club - driver, woods, 4- and 5-iron - swung below seven
+tenths of itself, which widens the spread 40% a tenth past that, to two
+and a half times; the scoring clubs are swung at any length. The mark
+calls it a soft swing, in white; only the long club swung short is
+amber and "too much club". Inside fifty yards a chip lands tighter the
+shorter it is. With a mark set, the caddie's club (the starred one) is
+the mark's, and it is what an unchosen club is swung with; the phone and
+the table say the club in hand and the caddie's beside it. A foul ball
+finds the trouble nearest where it was aimed most of the time - a hazard
+twenty yards from the target half as likely as one at it (`FOUL_NEAR`) -
+and comes to rest in the part of it nearest the mark. The practice
+players carry the same bag.
 
 **The address, on the screens.** While the director addresses the next
 stroke the closed round before it is still on the table, and the screens
