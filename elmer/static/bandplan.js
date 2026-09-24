@@ -1397,14 +1397,32 @@ function bpReachSeed() {
     nvis.checked = !!(own && own.nvis);
     nvis.addEventListener('change', () => {
       const band = bpData && bpData.bands.find(b => b.name === bpBand);
+      const extra = {nvis: nvis.checked};
       if (nvis.checked && band) {
+        /* What was on the panel before the switch took it. Ticking this
+           sets an inverted V a fifth of a wave up, and unticking used to
+           set nothing back - so the panel kept the NVIS wire and the map
+           drew the same picture either way. The whole point of the switch
+           is the comparison, and there was none: a vertical and a low wire
+           are 17 dB apart at the angle a hundred-kilometre hop needs, and
+           the map was being asked to show that difference against itself.
+           Kept in the remembered settings rather than on the element, so
+           it survives a reload with the box already ticked. */
+        extra.before = {antenna: sel.value, height: h ? h.value : null};
         const mhz = (band.low + band.high) / 2;
         sel.value = 'invertedv';
         if (h) h.value = Math.max(6, Math.round(0.2 * 983.571 / mhz));   // a fifth of a wavelength: where the image adds most straight up
         const qth = bpReachFor && bpReachFor.qth;
         if (qth) { bpView.zoom = 5; bpView.lat = qth.lat; bpView.lon = qth.lon; bpView.refined = null; }
+      } else {
+        const before = (recall('bandplan.reach.antenna', null) || {}).before;
+        if (before) {
+          if (before.antenna) sel.value = before.antenna;
+          if (h && before.height) h.value = before.height;
+        }
+        extra.before = null;
       }
-      bpReachRemember({nvis: nvis.checked});
+      bpReachRemember(extra);
       bpReachCache = {}; bpView.refined = null;
       if (band) bpReach(band);
     });
