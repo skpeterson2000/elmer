@@ -204,6 +204,25 @@ def parse(md):
     return out
 
 
+# What the last build left stranded: see stranded(). A test reads it.
+last_stranded = []
+
+
+def stranded(placed):
+    """Headings that are the last thing on their page, as (page, text).
+
+    `placed` is every flowable in the order it was laid out, as (page,
+    kind, text). A heading belongs at the top of what it names; one at the
+    foot of a page, with its section over the leaf, is a heading nobody
+    can read with its text.
+    """
+    out = []
+    for (page, kind, text), nxt in zip(placed, placed[1:] + [None]):
+        if kind in ("h1", "h2") and nxt is not None and nxt[0] != page:
+            out.append((page, text))
+    return out
+
+
 def build(source, target, build_id=None):
     """Render the markdown at `source` into the PDF at `target`, with a table
     of contents, bookmarks and page numbers. Returns the page count."""
@@ -231,10 +250,14 @@ def build(source, target, build_id=None):
     st = {
         "title": ParagraphStyle("t", parent=base["Title"], fontSize=26, leading=32, spaceAfter=18, alignment=TA_LEFT),
         "sub": ParagraphStyle("s", parent=base["Normal"], fontSize=11, leading=15, textColor=colors.HexColor("#555555")),
+        # A heading is kept with what follows it: never the last thing on
+        # a page, which is a heading read without its text. When what comes
+        # next will not fit under it, the page is left short and the heading
+        # starts the next one, at the top of the section it names.
         "h1": ParagraphStyle("h1", parent=base["Heading1"], fontSize=17, leading=21, spaceBefore=18, spaceAfter=8,
-                             textColor=colors.HexColor("#1a1a1a")),
+                             textColor=colors.HexColor("#1a1a1a"), keepWithNext=1),
         "h2": ParagraphStyle("h2", parent=base["Heading2"], fontSize=12.5, leading=16, spaceBefore=12, spaceAfter=4,
-                             textColor=colors.HexColor("#1a1a1a")),
+                             textColor=colors.HexColor("#1a1a1a"), keepWithNext=1),
         "p": ParagraphStyle("p", parent=base["Normal"], fontSize=10.2, leading=14, spaceAfter=6),
         "li": ParagraphStyle("li", parent=base["Normal"], fontSize=10.2, leading=14, leftIndent=16, bulletIndent=5,
                              spaceAfter=3, bulletFontName="Helvetica"),
@@ -271,6 +294,10 @@ def build(source, target, build_id=None):
         list opens on the page the contents say."""
 
         def afterFlowable(self, flowable):
+            # where everything landed, on the last pass: kept so a heading
+            # left alone at the foot of a page can be found - see stranded
+            if getattr(flowable, "_kind", None):
+                self.placed.append((self.page, flowable._kind, getattr(flowable, "_plain", "")))
             level = getattr(flowable, "_level", None)
             if level is None:
                 return
@@ -327,6 +354,7 @@ def build(source, target, build_id=None):
             para = Paragraph(_inline(text), st[kind])
             para._level = 0 if kind == "h1" else 1
             para._plain = text
+            para._kind = kind
             flow.append(para)
         elif kind == "li":
             flow.append(Paragraph(_inline(text), st["li"], bulletText="•"))
@@ -336,7 +364,22 @@ def build(source, target, build_id=None):
             flow.extend(picture(*text))
         else:
             flow.append(Paragraph(_inline(text), st["p"]))
+        if kind not in ("h1", "h2") and flow and not getattr(flow[-1], "_kind", None):
+            flow[-1]._kind = kind
+
+    # multiBuild lays the book out more than once, until the contents'
+    # page numbers settle; only the last pass is the book as printed.
+    real_build = doc.build
+
+    def one_pass(*a, **kw):
+        doc.placed = []
+        return real_build(*a, **kw)
+    doc.build = one_pass
     doc.multiBuild(flow)
+    global last_stranded
+    last_stranded = stranded(doc.placed)
+    for page, text in last_stranded:
+        log.warning("guide: the heading %r is the last thing on page %d", text, page)
     tmp.replace(target)
     mark = {"source": source_hash(source), "built": time.time(), "build": build_id,
             "name": target.name}

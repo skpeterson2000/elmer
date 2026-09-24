@@ -47,6 +47,11 @@ def run():
     check("built onto the shelf, more than a few pages", (manual.path().is_file(), pages > 5), (True, True))
     head = manual.path().read_bytes()[:5]
     check("  a PDF", head, b"%PDF-")
+    # A heading is never the last thing on a page: it goes to the top of
+    # the next, with its section, and the page before is left short.
+    check("  no heading is left at the foot of a page", manual.last_stranded, [])
+    check("  and the check can see one when there is one",
+          manual.stranded([(3, "p", ""), (3, "h2", "Golf"), (4, "p", "")]), [(3, "Golf")])
     st = manual.status(conn)
     check("  present, current, not declined", (st["present"], st["stale"], st["declined"], st["build"]), (True, False, False, "test"))
 
