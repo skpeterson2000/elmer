@@ -1140,6 +1140,41 @@ def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=
 WEIGHT_CAP = 1.0 + 6.0 / 18.0
 
 
+def _mode_depth(mhz, emission, watts):
+    """How much deeper this mode hears than SSB, and what that is worth.
+
+    The reach map shows the effect and never said where it came from: one
+    watt of FT8 draws the picture a hundred watts of SSB draws, which looks
+    like a fault until somebody knows that FT8 decodes twenty-eight
+    decibels below where SSB is readable. The figure was on the page
+    already, in the mode selector's hover text, which is invisible on a
+    touchscreen and unread on any.
+
+    SSB is the reference because it is the mode most people start on. The
+    difference is the mode's own: the width it is copied in and the signal
+    to noise it needs there, and it does not move with the band or with how
+    noisy the night is, because both modes are listening to the same sky.
+    """
+    from . import linkbudget
+    need = linkbudget.needed_dbm(mhz, emission)
+    deeper = linkbudget.needed_dbm(mhz, "ssb") - need
+    times = 10.0 ** (deeper / 10.0)
+    # The other modes too, so an SSB operator can be told what changing to
+    # one would buy without changing to it first. The gap is the same on
+    # every band - it is the width a mode is copied in and the signal to
+    # noise it needs there, and neither moves with frequency - so it can be
+    # stated plainly rather than hedged.
+    others = {}
+    for other in ("cw", "ft8"):
+        if other != emission:
+            gap = linkbudget.needed_dbm(mhz, "ssb") - linkbudget.needed_dbm(mhz, other)
+            others[other] = {"db": round(gap, 1), "times": round(10.0 ** (gap / 10.0))}
+    return {"mode": emission, "needed_dbm": round(need, 1),
+            "vs_ssb_db": round(deeper, 1), "times": round(times, 1),
+            "as_ssb_watts": round(float(watts) * times),
+            "legal_watts": LEGAL_WATTS, "others": others}
+
+
 def _antenna_block(antenna, mhz):
     """What the map says about the antenna it was drawn for.
 
@@ -1331,6 +1366,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     return {"mhz": mhz, "step": step, "lat0": lats[0], "lon0": lons[0], "rows": len(lats), "cols": len(lons),
             "window": bool(window), "mode": mode, "nvis": nvis,
             "antenna": (_antenna_block(antenna, mhz) if weigh else None),
+            "emission_depth": _mode_depth(mhz, emission, watts),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
             "watts": round(float(watts), 1), "emission": emission,
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},

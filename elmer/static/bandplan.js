@@ -1525,6 +1525,44 @@ async function bpReach(band) {
            : ' For NVIS on ' + escapeHTML(band.name) + ' you would come down to about ' + d.antenna.nvis_ft + ' ft.');
     }
   }
+  /* Why the modes draw such different pictures. The map showed the effect
+     and never said where it came from: one watt of FT8 draws what a hundred
+     watts of SSB draws, which reads as a fault until somebody knows FT8
+     decodes twenty-eight decibels below where SSB is readable. The figure
+     was already on the page, in the mode selector's hover text, which is
+     invisible on a touchscreen and unread on any. */
+  const modeLine = document.getElementById('bp-reach-mode');
+  if (modeLine) {
+    const md = d.emission_depth;
+    modeLine.hidden = !md;
+    if (md) {
+      const name = String(md.mode || '').toUpperCase();
+      const equal = (d.watts || 0) * md.times;
+      /* Whole numbers once they are big enough for a fraction to be noise:
+         "631x" and not "631.0x", but "0.3 W" and not "0 W". */
+      const round1 = x => x >= 10 ? Math.round(x).toLocaleString() : x.toFixed(1);
+      const asWatts = round1(equal);
+      const asTimes = round1(md.times);
+      let s;
+      if (md.vs_ssb_db > 0.5) {
+        s = '<b>' + escapeHTML(name) + ' hears ' + md.vs_ssb_db.toFixed(1) + ' dB deeper than SSB</b> - '
+          + asTimes + 'x in power. The ' + (d.watts || 0) + ' W on the panel reaches like '
+          + asWatts + ' W of SSB would'
+          + (equal > md.legal_watts ? ', which is past the legal limit - a mode can buy what an amplifier may not.' : '.');
+      } else if (md.vs_ssb_db < -0.5) {
+        s = '<b>' + escapeHTML(name) + ' needs ' + Math.abs(md.vs_ssb_db).toFixed(1) + ' dB more than SSB</b> - '
+          + 'it is copied in a wider slot. The ' + (d.watts || 0) + ' W on the panel reaches like '
+          + asWatts + ' W of SSB would.';
+      } else {
+        s = '<b>SSB is the reference here.</b>';
+      }
+      const alts = Object.keys(md.others || {}).map(k =>
+        k.toUpperCase() + ' hears ' + md.others[k].db.toFixed(1) + ' dB deeper ('
+        + md.others[k].times.toLocaleString() + 'x the power)');
+      if (alts.length) s += ' ' + alts.join(', ') + '. The same gap on every band: it is the width the mode is copied in and what it needs above the noise, and neither moves with frequency.';
+      modeLine.innerHTML = s;
+    }
+  }
   const far = document.getElementById('bp-reach-far');
   if (far) {
     const fe = d.far_end;
