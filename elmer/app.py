@@ -2769,14 +2769,22 @@ def api_cw_flash():
     the new one weighted up - with their codes."""
     connection = conn()
     settings = db.get_profile(connection)["settings"].get("cw") or {}
-    the_plan = cw.plan(db.cw_progress(connection), settings.get("lesson"))
+    progress = db.cw_progress(connection)
+    the_plan = cw.plan(progress, settings.get("lesson"))
     try:
         count = max(5, min(200, int(request.args.get("count", 40))))
     except ValueError:
         count = 40
     seq = cw.flash_sequence(the_plan, count)
-    return jsonify({"chars": [{"char": c, "code": cw.MORSE.get(c, "")} for c in seq],
-                    "lesson": the_plan["lesson"], "new": the_plan["new"]})
+    # `print` says whether this character still has its shape drawn while it
+    # sounds. Decided here, per character, rather than on the page: it is a
+    # fact about the record and the page should not be keeping a second copy
+    # of the record to work it out from.
+    drawn = {c: not cw.weaned(progress.get(c)) for c in set(seq)}
+    return jsonify({"chars": [{"char": c, "code": cw.MORSE.get(c, ""),
+                               "print": drawn.get(c, True)} for c in seq],
+                    "lesson": the_plan["lesson"], "new": the_plan["new"],
+                    "weaned": the_plan["weaned"]})
 
 
 @app.route("/api/cw/minutes", methods=["POST"])

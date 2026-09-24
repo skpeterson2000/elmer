@@ -341,6 +341,49 @@ def recent_rate(stat):
     return stat["copied"] / stat["sent"]
 
 
+# When the drawn shape comes down.
+#
+# The dits and dahs drawn on screen are how a character is met, and they
+# are what shows a mistaken copyist what the sound actually was. During
+# the drill they are something else: the eye reads the shape off the
+# screen while it is still being sounded, and the answer comes from
+# reading rather than from hearing. What that trains is fluency at a
+# thing nobody does on the air, and it has to be unlearnt afterwards -
+# the same argument Farnsworth makes about slowing a character down.
+#
+# So the shape comes down once a character has been heard right several
+# times running, and goes back up if it stops being copied, because a
+# character that has gone shaky is being met again. Four in a row, not
+# three: with two characters in the lesson, three can be had by guessing
+# often enough, and four is still inside a minute of the drill.
+WEAN_RUN = 4
+WEAN_FLOOR = 0.7
+
+
+def weaned(stat):
+    """Whether this character should now be heard without its shape drawn.
+
+    Asked of the record as it stands rather than stored: a clean run of
+    WEAN_RUN inside the recent window means the sound has been heard for
+    itself, and recent copy below WEAN_FLOOR puts the shape back up until
+    that run is earned again. Nothing here is one-way - a person who
+    comes back after a month and starts missing K gets K drawn again
+    without having to ask for it.
+
+    A record from before the window was kept has no run to find, so a
+    character already solid is taken at the record's word.
+    """
+    if not stat:
+        return False
+    recent = str(stat.get("recent") or "")[-RECENT_WINDOW:]
+    if not recent:
+        return is_solid(stat)
+    if "1" * WEAN_RUN not in recent:
+        return False
+    rate = recent_rate(stat)
+    return rate is not None and rate >= WEAN_FLOOR
+
+
 def draw(chars, new, weak, progress=None):
     """How often each character in a drill should come up, as shares that
     sum to one. `new` is the character(s) not yet met, `weak` the met ones
@@ -430,7 +473,12 @@ def plan(progress, setting=None):
     done = leading >= len(KOCH_ORDER)
     return {"lesson": lesson, "earned": earned, "ahead": ahead, "chars": chars, "new": new,
             "weak": weak, "words": len(words), "solid": leading, "total": len(KOCH_ORDER), "done": done,
-            "draw": draw(chars, new, weak, progress)}
+            "draw": draw(chars, new, weak, progress),
+            # The ones heard without their shape now, and the ones still
+            # drawn - said plainly so the page does not have to work it
+            # out twice and the day's note can say what came down.
+            "weaned": [c for c in chars if weaned(progress.get(c))],
+            "drawn": [c for c in chars if not weaned(progress.get(c))]}
 
 
 def session(the_plan):
@@ -445,9 +493,20 @@ def session(the_plan):
     if the_plan["new"]:
         steps.append({"kind": "meet", "chars": the_plan["new"],
                       "why": "new: hear it, see it drawn, hear it again - the sound first, the name second"})
-    steps.append({"kind": "flash", "seconds": 90,
-                  "why": ("one character at a time, answer as it comes - the reflex, not the recall"
-                          + (f"; {', '.join(w['ch'] for w in the_plan['weak'][:3])} come round more often" if the_plan["weak"] else ""))})
+    # The shape coming down is said out loud. A screen that quietly stops
+    # drawing the dits looks broken to the person it is helping, and the
+    # reason is worth hearing anyway: it is the point of the whole drill.
+    weak = [w["ch"] for w in the_plan["weak"][:3]]
+    down = (the_plan.get("weaned") or [])[:6]
+    why = "one character at a time, answer as it comes - the reflex, not the recall"
+    if weak:
+        why += "; " + ", ".join(weak) + (" come" if len(weak) > 1 else " comes") + " round more often"
+    if down:
+        why += ("; " + ", ".join(down)
+                + (" are heard without the shape drawn now - you have them by ear"
+                   if len(down) > 1 else
+                   " is heard without the shape drawn now - you have it by ear"))
+    steps.append({"kind": "flash", "seconds": 90, "why": why})
     steps.append({"kind": "koch", "count": 5, "why": "five groups of five at speed - copy behind, write what you heard"})
     if the_plan["words"] >= 8:
         steps.append({"kind": "words", "count": 6, "why": "words from the characters you have - the sound of the code as it is used"})

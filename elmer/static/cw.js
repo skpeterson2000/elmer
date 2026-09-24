@@ -429,6 +429,10 @@ const LEARN_LEAD_MS = 900;          // a breath after "ready" and before the fir
 const LEARN_NAMED_MS = 1500;        // the name stands this long before the next sounds
 const LEARN_MEET_MS = 2200;         // a new character, met: drawn and named, then a pause
 let learnOn = false, learnWaiting = false;
+/* Set when a character has just been missed: the shape goes up for the
+   naming and stays up for the replay that follows, whatever the record
+   says about it. Cleared by the replay that uses it. */
+let learnShowNext = false;
 let learnPlan = null;               // the record's plan: chars, new, weak, draw, solid, total
 let learnChars = [];                // what is in the drill right now
 let learnCur = null;                // the character in the air
@@ -517,8 +521,17 @@ async function learnSound() {
   learnHint('listen');
   teachStop = false;                       // a Stop earlier must not silence this
   const c = learnCur;
+  /* "Which one was it?" is not a fair question with the answer drawn
+     beside it. So the shape sounds bare once the record says this
+     character is known by ear - and comes back the moment it is missed,
+     which is the one time the drawing is teaching something. */
+  const box = document.getElementById('cw-teach-code');
+  const known = ((learnPlan && learnPlan.weaned) || []).indexOf(c) >= 0;
+  const show = learnShowNext || !known;
+  learnShowNext = false;
+  if (!show) box.innerHTML = '';
   await playSymbol({char: c, code: CODE[c] || ''}, localTiming(),
-                   document.getElementById('cw-teach-code'));
+                   show ? box : []);
   if (!learnOn) return;
   learnWaiting = true;
   learnShow('wait');
@@ -583,6 +596,12 @@ async function learnPick(picked) {
   letter.classList.add('show', right ? 'right' : 'wrong');
   learnShow('named');
   learnHint(right ? 'that is the one' : 'that was ' + phoneticWord(actual) + ' - here it is again');
+  /* Missed: here is what that sound actually was, drawn, and drawn again
+     for the replay below - a copyist who got it wrong is owed the shape. */
+  if (!right) {
+    document.getElementById('cw-teach-code').innerHTML = codeHTML(CODE[actual] || '');
+    learnShowNext = true;
+  }
   if (teachUI.reveal()) sayBack(actual, document.getElementById('cw-teach-word'), right);
   else cue(right);
   /* Recorded on the spot, one send at a time, so nothing is lost if they
@@ -1700,9 +1719,18 @@ async function flashRun(seconds) {
     /* Played, and played again for as long as ? is pressed instead of an
        answer. Each resend is counted against the character: the clock
        keeps running, because a contact's patience does too. */
+    /* The shape is drawn while the character sounds only until the
+       character has been heard right four times running - the server
+       decides that from the record and says so per character. After
+       that the sound has to stand on its own, because a shape read off
+       the screen while it is still sounding is answered by the eye. A
+       resend does not bring it back: asking to hear it again is asking
+       to hear it, and the miss below will show it soon enough. */
+    const showCode = sym.print !== false;
+    if (!showCode) code.innerHTML = '';
     let answer = null, reps = 0;
     for (;;) {
-      const played = playSymbol(sym, localTiming(), [code]);
+      const played = playSymbol(sym, localTiming(), showCode ? [code] : []);
       answer = await new Promise(resolve => {
         const timer = setTimeout(() => { flashKey = null; resolve(null); }, FLASH_WINDOW_MS + 1200 / settings.wpm * sym.code.length * 2);
         flashKey = k => { clearTimeout(timer); resolve(k); };
@@ -1725,6 +1753,11 @@ async function flashRun(seconds) {
     sayBack(want, word, answer ? ok : undefined);
     if (ok) { right++; perChar[want].copied++; times.push(performance.now() - t0); }
     else if (answer) perChar[want].confused[answer] = (perChar[want].confused[answer] || 0) + 1;
+    /* Wrong, or nothing at all: here the shape earns its keep. Whatever
+       else is on screen, a copyist who missed is shown what the sound
+       actually was, weaned or not - that is the one moment the drawing
+       teaches instead of standing in the way. */
+    if (!ok) code.innerHTML = codeHTML(sym.code);
     letter.innerHTML = escapeHTML(want) + (ok ? '' : ' <span class="cw-miss"><i>' + escapeHTML(answer || '·') + '</i></span>');
     letter.style.color = ok ? 'var(--green)' : 'var(--red)';
     letter.classList.add('show');
