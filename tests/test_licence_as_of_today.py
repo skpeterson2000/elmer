@@ -101,6 +101,14 @@ def main():
           "gmrs.callsign" in home, True)
     check("  saying there is no grace period after it",
           "no grace period" in home, True)
+    # Guarded on the record rather than the callsign, the line printed
+    # nothing for somebody who had just typed their call in and whose FCC
+    # file had not been read yet - which is the one person most entitled to
+    # see something back. The acknowledgement is owed to the callsign.
+    check("  shown for the callsign, not for the record",
+          "if gmrs.callsign" in home, True)
+    check("  and not hidden when the FCC file is not here yet",
+          "if gmrs.found %}" in home, False)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
