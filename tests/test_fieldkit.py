@@ -3,8 +3,8 @@
 
     python3 tests/test_fieldkit.py
 
-Most of what that page says is judgement, and judgement cannot be tested. Two
-parts of it are not judgement.
+Most of what that page says is judgment, and judgment cannot be tested. Two
+parts of it are not judgment.
 
 The first is which metals take solder. Copper does, and the whole reason the
 plumbing entries are there is that they solder. Zinc, aluminium oxide and the

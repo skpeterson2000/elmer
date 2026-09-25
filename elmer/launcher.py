@@ -29,7 +29,7 @@ ICON_SIZES = (48, 64, 128, 256, 512)
 
 
 def _home_share():
-    """XDG data home, honouring the environment if it is set."""
+    """XDG data home, honoring the environment if it is set."""
     return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
 
 

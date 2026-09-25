@@ -15,7 +15,7 @@ answer their own pick turns it back into "something I know and you do not",
 which is the game that was asked for.
 
 **The pick is a subject, not a question.** You cannot read four hundred
-questions on a phone with a clock running, and the judgement being made is a
+questions on a phone with a clock running, and the judgment being made is a
 subject-level one anyway: I am good at feed lines, they went blank on feed
 lines during the last net. So the picker chooses a section of the pool and a
 question is drawn from it.

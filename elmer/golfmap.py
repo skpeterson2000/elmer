@@ -13,7 +13,7 @@ bunker is drawn inside its band, never beyond it). The shapes come from
 the card's numbers seeded by the hole, so a hole looks the same every
 round and no two holes look alike.
 
-SVG, in the page's own colours, drawn small enough for a phone and clear
+SVG, in the page's own colors, drawn small enough for a phone and clear
 enough for the table.
 """
 import math
@@ -28,7 +28,7 @@ PAD_TOP, PAD_BOT = 58, 46       # room for the green's cup and the tee's box
 # is a mark on the back of the green, not one out in the hayfield.
 PAST_PIN = 20
 FAIR_L, FAIR_R = 95, 165        # the fairway's edges
-CENTRE = (FAIR_L + FAIR_R) / 2
+CENTER = (FAIR_L + FAIR_R) / 2
 # Across the hole: the fairway's half-width in the rules (golf.FAIRWAY_HALF,
 # 18 yards) is the fairway's half-width here, so a ball's yards off the
 # line and a mark's are the same yards on the strip.
@@ -85,7 +85,7 @@ class Plan:
                     xs.append(px); ys.append(py)
         span_x, span_y = max(xs) - min(xs), max(ys) - min(ys)
         self.scale = min(self.PX_MOST, (H - PAD_TOP - PAD_BOT) / max(span_y, 1.0), (W - 8) / max(span_x, 1.0))
-        # centre it, both ways, in the room the paddings leave
+        # center it, both ways, in the room the paddings leave
         self.ox = W / 2 - (min(xs) + max(xs)) / 2 * self.scale
         self.oy = (PAD_TOP + (H - PAD_BOT)) / 2 + (min(ys) + max(ys)) / 2 * self.scale
 
@@ -154,7 +154,7 @@ def bend_of(h):
 
 SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
         "across": (FAIR_L, FAIR_R), "front": (FAIR_L, FAIR_R),
-        "centre": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
+        "center": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
         "beyond": (FAIR_L - 10, FAIR_R + 10), "": (FAIR_L, FAIR_R)}
 FILL = {"water": "#2f6f9f", "bunker": "#d9c48a", "rough": "#4c6b2f"}
 WIND_ARROW = {"with": "↑", "into": "↓", "across": "→", "swirling": "↻"}
@@ -358,7 +358,7 @@ def _flag(parts, x, y):
 # a soft swing with a scoring club is a shot, and stays white. A
 # club that does not get there turns the cross red and puts a second,
 # white one where the ball does come down, on the line to the mark. And the
-# words go beside it every time - the colour is never alone.
+# words go beside it every time - the color is never alone.
 READ_OK, READ_WIDE, READ_SHORT = "#f3f3f3", "#ffb454", "#ff6b6b"
 
 
@@ -380,7 +380,7 @@ def _reading_label(reading):
 def _reading(parts, pt, mark, reading):
     """Draw the reading about the mark. `pt(at, off)` is the view's own
     yards-to-pixels, so the plan's curve and the approach's scale both
-    hold. Returns the colour the mark itself should be drawn in."""
+    hold. Returns the color the mark itself should be drawn in."""
     from .golf import club_name
     if not reading or not mark:
         return "#ffb454"
@@ -539,14 +539,14 @@ def _plan_hazard(parts, h, hz, plan, i, k):
     side = hz.get("side", "")
     rot = plan.heading(mid)
     ry = (hi - lo) / 2 * k
-    if side in ("across", "front", "centre", "") and hz.get("off") is None:
-        offs, rx = [0.0], half * k * (0.75 if side == "centre" else 1.0)
+    if side in ("across", "front", "center", "") and hz.get("off") is None:
+        offs, rx = [0.0], half * k * (0.75 if side == "center" else 1.0)
     else:
         # Where the rules put it, across the hole: golf.hazard_spans is the
         # one statement of a hazard's shape, and the ball is tested against
         # the same numbers this draws. Drawn and obeyed are the same thing.
         spans = golf.hazard_spans(h, hz)
-        offs = [centre for centre, _ in spans]
+        offs = [center for center, _ in spans]
         rx = spans[0][1] * k
     if hi - lo > 60:
         # A hazard the length of a leg or more - the bay down the 18th, a
@@ -588,7 +588,7 @@ def _plan_hazard(parts, h, hz, plan, i, k):
 
 # ------------------------------------------------------------- the green
 # On the green the strip is the green: the whole of it, the cup at its
-# centre, every ball on it at its feet from the cup, the way it falls as
+# center, every ball on it at its feet from the cup, the way it falls as
 # shading and contours, the sand beside it, and the golfer's mark. The
 # wind is not on it - on the green the wind stops mattering and the slope
 # starts.
@@ -646,7 +646,7 @@ def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
             boxes.append((cx - rx - fr - 26, cx - rx - fr - 2, cy + dy - 22, cy + dy + 22))
         if side in ("right", "around"):
             boxes.append((cx + rx + fr + 2, cx + rx + fr + 26, cy + dy - 22, cy + dy + 22))
-        if side in ("front", "across", "", "centre"):
+        if side in ("front", "across", "", "center"):
             boxes.append((cx - 30, cx + 30, cy + ry + fr + 2, cy + ry + fr + 22))
         if side == "beyond":
             boxes.append((cx - 40, cx + 40, cy - ry - fr - 24, cy - ry - fr - 2))
@@ -805,7 +805,7 @@ def approach_svg(h, wind=None, wind_mph=None, balls=None, mark=None, aimed=None,
             o0, o1 = -half_yd - 16, half_yd + 16
         elif side == "beyond":
             o0, o1 = -half_yd - 6, half_yd + 6
-        elif side == "centre":
+        elif side == "center":
             o0, o1 = -half_yd + 5, half_yd - 5
         else:
             o0, o1 = -half_yd, half_yd

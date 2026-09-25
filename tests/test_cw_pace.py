@@ -76,7 +76,7 @@ def main():
           steady["faster"], False)
     check("  nothing at all", cw.pace(None), None)
 
-    print("\n-- only what was recognised is timed --")
+    print("\n-- only what was recognized is timed --")
     # The client sends times for right answers only; the record also refuses
     # anything absurd, because a tab left open overnight is not a reaction.
     got = record("M", [800, 0, -5, 900, 999999])

@@ -42,12 +42,12 @@
         ${card.url ? `<div class="hs-about">${esc(card.url)}</div>` : ''}
       </div>`;
     }
-    if (k === 'house' && card.honour) {
+    if (k === 'house' && card.honor) {
       /* The honorary card: this table's unit is a supporter's, and ELMER's
          own card becomes theirs for the dwell. */
       return `<div class="hs-card hs-sponsor">
         <div class="hs-kicker">With thanks</div>
-        <div class="hs-sponsor-name">${esc(card.honour)}</div>
+        <div class="hs-sponsor-name">${esc(card.honor)}</div>
         <p class="hs-text">${esc(card.text)}</p>
         <div class="hs-about">${esc(card.name)} &middot; ${esc(card.url)}</div>
       </div>`;
@@ -100,8 +100,8 @@
         ${opts.join || '<p class="hs-text">Scan the code on any table to join.</p>'}
       </div>`;
     }
-    if (k === 'programme') {
-      return `<div class="hs-card hs-programme">
+    if (k === 'program') {
+      return `<div class="hs-card hs-program">
         <div class="hs-kicker">Tonight</div>
         <ol class="hs-steps">${(card.steps || []).map((s, i) =>
           `<li class="${i + 1 === card.step ? 'now' : (i + 1 < card.step ? 'done' : '')}">${esc(s)}</li>`).join('')}</ol>
@@ -124,7 +124,7 @@
      room: what this screen is showing right now. */
   function showingWord(card) { return card ? 'card:' + card.kind : 'idle'; }
 
-  /* The clocks: the programme step's, small in the corner, and the run-up
+  /* The clocks: the program step's, small in the corner, and the run-up
      to a question, over everything.
 
      Both arrive as seconds remaining, read on the master and carried to
@@ -149,7 +149,7 @@
   }
 
   function take(show) {
-    const p = show && show.programme;
+    const p = show && show.program;
     if (p && p.remaining != null && show.mode !== 'play') {
       const key = 'step' + p.step;
       const at = performance.now() + p.remaining * 1000;

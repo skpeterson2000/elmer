@@ -6,7 +6,7 @@
 Reported plainly: "when Imperial is selected, why is a skip zone measured in
 km?" The answer was worse than the question assumed. The preference existed,
 it was correct, and it reached exactly one page. Everywhere else a unit was
-picked and written into the string, so the skip zone came out in kilometres
+picked and written into the string, so the skip zone came out in kilometers
 on the Lab page and in miles on the band plan - and an operator who had
 chosen either one was being overruled in one place or the other. Two
 renderings of one number that do not agree is a fault this program keeps
@@ -18,7 +18,7 @@ What this holds down:
   - nothing renders a distance by multiplying in place;
   - what is a name or a measurement rather than a distance does not move:
     the 40 m band is still 40 m, wire is still cut in feet, and the F2
-    layer is still a few hundred kilometres up however anybody drives.
+    layer is still a few hundred kilometers up however anybody drives.
 """
 import re
 import sys
@@ -56,7 +56,7 @@ def main():
     # can hear you is standing is the same question as how far the next
     # park is, and moves with the preference.
     check("the module no longer calls skip distance a thing that stays in km",
-          "skip distance are kilometres" in units.__doc__, False)
+          "skip distance are kilometers" in units.__doc__, False)
     check("  and says so where somebody will read it",
           "Skip distance belongs on the moving side" in units.__doc__, True)
 
@@ -102,7 +102,7 @@ def main():
     print("\n-- what is a name or a measurement does not move --")
     check("the F2 layer is still reported in km, because that is its height",
           "' km, foF2 '" in lab, True)
-    check("  and a band is still named in metres",
+    check("  and a band is still named in meters",
           units.system("imperial")["short"], "mi")
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

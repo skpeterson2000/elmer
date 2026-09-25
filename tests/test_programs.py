@@ -2,7 +2,7 @@
 """Checks for what has worked for others at a park or summit, and for the
 bundled national parks - all without the network.
 
-    python3 tests/test_programmes.py
+    python3 tests/test_programs.py
 """
 import json
 import sys
@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _isolate  # noqa: E402,F401  - before anything from elmer
-from elmer import programmes as P, references as R  # noqa: E402
+from elmer import programs as P, references as R  # noqa: E402
 
 FAILS = []
 
@@ -64,7 +64,7 @@ def main():
     (P.CACHE / "US-0690.json").write_text(json.dumps(old), encoding="utf-8")
     P.POTA_PARK = "http://127.0.0.1:9/park/{ref}"           # nobody home
     got = P.lookup("US-0690")
-    check("a stale record comes back when the programme cannot be reached", got.get("name"),
+    check("a stale record comes back when the program cannot be reached", got.get("name"),
           "Padre Island National Seashore")
     check("  marked stale", got.get("stale"), True)
     check("  with the reason", "could not reach" in got.get("error", ""), True)
@@ -79,7 +79,7 @@ def main():
         check("Padre Island National Seashore is one of them", pais and pais["name"], "Padre Island National Seashore")
         check("  and it is found by name", any(r["ref"] == "US-0690" for r in R.search("padre island")), True)
         near = R.nearby(27.42, -97.30, kind="park", limit=3)
-        check("  and it is the nearest park to its own visitor centre", near and near[0]["ref"], "US-0690")
+        check("  and it is the nearest park to its own visitor center", near and near[0]["ref"], "US-0690")
         check("no national forest slipped in", any("National Forest" in p["name"] for p in parks), False)
         check("  nor a wildlife refuge", any("Wildlife Refuge" in p["name"] for p in parks), False)
         check("coverage says how many are bundled", R.coverage(27.42, -97.30).get("national"), len(parks))

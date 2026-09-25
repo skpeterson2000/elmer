@@ -184,8 +184,8 @@ def current():
 
 # ------------------------------------------------------- the other dashboard
 # ELMER and TowerWitch are two programs on one bench, and each has a button
-# to the other - greyed when the other is not installed, the way TowerWitch
-# greys its OP25 button. This side finds TowerWitch beside ELMER, says
+# to the other - grayed when the other is not installed, the way TowerWitch
+# grays its OP25 button. This side finds TowerWitch beside ELMER, says
 # whether it is running (it announces itself on the network, and a
 # broadcast from this machine is it), and starts it when pressed on the
 # unit's own screen. Nothing over the network can start a desktop program.

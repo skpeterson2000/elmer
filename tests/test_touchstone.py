@@ -114,7 +114,7 @@ def main():
           len(stripped["rows"]), len(rows))
 
     print("-- the other formats a file may arrive in --")
-    # Written only in RI, but the reader honours what the options line says,
+    # Written only in RI, but the reader honors what the options line says,
     # so a file from another program still comes in correctly.
     ma = ("!from somewhere else\n# MHZ S MA R 75\n"
           "14.2 0.5 90.0\n14.3 1.0 180.0\n")

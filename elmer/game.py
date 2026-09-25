@@ -35,7 +35,7 @@ ACHIEVEMENTS = [
     ("pool_half", "Halfway House", "Reach 50% mastery of a whole pool"),
     ("pool_master", "Pool Master", "Reach 90% mastery of a whole pool"),
     ("propagation", "Band Watcher", "Check live propagation conditions"),
-    ("night_owl", "Grey Line", "Study between 0300 and 0500 local"),
+    ("night_owl", "Gray Line", "Study between 0300 and 0500 local"),
     # The code. Slow to feel progress in, so the record's milestones are
     # named: the characters copied reliably, the first copy that needed no
     # resend, the rating's rungs, and the ballgame's first hit - and the
@@ -45,7 +45,7 @@ ACHIEVEMENTS = [
     ("cw_half", "Half the Code", "Copy twenty characters reliably"),
     ("cw_whole", "The Whole Code", "Copy all forty characters reliably"),
     ("cw_first_time", "First Time Through", "Copy a block at 90% with no resend"),
-    ("cw_streak_7", "Daily Code", "Practise CW 7 days running"),
+    ("cw_streak_7", "Daily Code", "Practice CW 7 days running"),
     ("cw_copy_10", "Ten Words", "Rated copying at 10 wpm"),
     ("cw_copy_20", "Twenty Words", "Rated copying at 20 wpm"),
     ("cw_fist", "Clean Fist", "Rated sending at 90% accuracy"),
@@ -235,7 +235,7 @@ def check_exam_achievements(conn, pool_id, passed, perfect):
 
 
 def check_cw_achievements(conn, progress, session_pct=None, resends=None, streak=None, rating=None):
-    """The code's badges, from whatever the caller has just learnt: the
+    """The code's badges, from whatever the caller has just learned: the
     per-character record after a copy session (with that session's score
     and how many resends it took), the practice streak, or the rating."""
     from . import cw

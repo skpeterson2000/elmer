@@ -152,7 +152,7 @@
       <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
         What somebody else gave you &mdash; an eWAC, an eDX, a contest plaque, a
         first-contact certificate. Hand over the file eQSL, LoTW or the contest
-        organiser sent you, as a <b>PDF, a PNG or a JPEG</b>, write the caption,
+        organizer sent you, as a <b>PDF, a PNG or a JPEG</b>, write the caption,
         and it hangs beside ELMER&rsquo;s own under your call. A PDF is hung as
         its first page. Yours alone; it leaves with your account.
       </p>
@@ -174,14 +174,14 @@
 </div>
 
 
-{# The person's own licences: not on the shelf, which everyone at the table
+{# The person's own licenses: not on the shelf, which everyone at the table
    can read, but in a folder of their own, shown only to them. #}
 <div class="panel mt">
   <div class="spread">
     <div>
-      <div class="panel-title">Your licences</div>
+      <div class="panel-title">Your licenses</div>
       <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-        The FCC issues a licence as a PDF &mdash; the official copy from ULS, the
+        The FCC issues a license as a PDF &mdash; the official copy from ULS, the
         certificate and the wallet cut-outs in one file. Hand yours over and it is
         kept for you alone on this unit, shown back on a page of its own, printed
         from there. Where the file has text under the picture, ELMER reads the
@@ -192,7 +192,7 @@
       <select id="pp-kind" class="sm">
         {% for k, label in paper_kinds.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
       </select>
-      <label class="btn sm ghost" style="cursor:pointer">Add a licence
+      <label class="btn sm ghost" style="cursor:pointer">Add a license
         <input type="file" id="pp-file" accept="application/pdf,.pdf" hidden>
       </label>
     </div>
@@ -429,7 +429,7 @@
     try { await postJSON('/api/awards/remove', {name: b.dataset.awardRemove}); wallDraw(); } catch (err) {}
   });
 
-  // ---- the person's own licence papers
+  // ---- the person's own license papers
   async function papersDraw() {
     const box = document.getElementById('pp-held');
     let d;

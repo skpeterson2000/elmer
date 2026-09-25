@@ -140,7 +140,7 @@ PERSON_ADDRESS = 180.0
 PERSON_REVEAL = 120.0
 
 
-SOLO_LINES = 2          # a hole's colour, to a player with nobody to share it with
+SOLO_LINES = 2          # a hole's color, to a player with nobody to share it with
 
 
 # The pictures a hole can have, each at static/golf/<kind>/<course>/<hole>.jpg:
@@ -190,7 +190,7 @@ def _pics_on_shelf(course):
 
 
 def _lie_notes(g, d, ball, player=None):
-    """The colour a hole was given for a lie - hole-<course>-<n>-<lie>-<k>
+    """The color a hole was given for a lie - hole-<course>-<n>-<lie>-<k>
     - revealed a line at a time: the first player to address the ball
     from that lie on the hole hears the first line, the second player the
     second, and so on, so that by the end of the group's first time round
@@ -198,11 +198,11 @@ def _lie_notes(g, d, ball, player=None):
     learned. A player's second stroke from the same lie gets nothing
     more. The tee's and the green's everyone reaches; the fairway's, the
     sand's and the rough's are situational, and a player who never finds
-    the sand never hears its colour. Water's comes with the splash.
+    the sand never hears its color. Water's comes with the splash.
 
     A player alone, or a pair, has nobody to share the hole with, so the
     rule turns round for them: two lines a stroke, on every stroke from
-    the lie, until that lie's colour is used up."""
+    the lie, until that lie's color is used up."""
     from . import voice
     lie = ball.get("lie")
     if lie not in ("tee", "green", "fairway", "rough", "sand"):
@@ -220,7 +220,7 @@ def _lie_notes(g, d, ball, player=None):
     if len(g.players) <= 2:
         # Alone, or a pair: nobody else is going to hear the rest of the
         # hole, so the course is told to them - two lines a stroke, on
-        # every stroke from the lie, until the lie's colour runs out.
+        # every stroke from the lie, until the lie's color runs out.
         strokes = sum(1 for row in g.history if row.get("hole") == hole
                       for s in (row.get("shots") or {}).values()
                       if ("green" if s.get("putt") else s.get("from")) == lie)
@@ -281,7 +281,7 @@ REVEAL_SECONDS = 8.0
 # Admission stops before the room is unpleasant, not after. These are the
 # service times the unit is actually delivering, not a guess at its capacity.
 SLOW_MS = 900.0          # a round-serving time that is starting to be felt
-HEALTH_WINDOW = 40       # how many recent services the judgement is made on
+HEALTH_WINDOW = 40       # how many recent services the judgment is made on
 
 # Devices poll rather than hold a socket open, so a player can first see the
 # question up to one poll interval after the round opened, plus the network.
@@ -1035,7 +1035,7 @@ class Room:
 
         A cohort's round score is its members' points added up, so eight
         people each answering steadily beats one person answering brilliantly
-        while seven guess - which is the behaviour a study party wants.
+        while seven guess - which is the behavior a study party wants.
         """
         summary = self._close_round()
         if summary is not None:
@@ -1227,7 +1227,7 @@ class Room:
                 # A person's stroke: the reveal stands until they have read
                 # it and pressed, hole done or not. It used to go on the
                 # hole-done clock when the putt finished the hole, and the
-                # next tee's "has the honour" was said over a person still
+                # next tee's "has the honor" was said over a person still
                 # reading their card, thirty seconds in.
                 return PERSON_REVEAL
             if summary["golf"].get("hole_done"):
@@ -1448,7 +1448,7 @@ class Room:
                     "address_tokens": (_voice_address(name(away), away_ball,
                                                       slot=(g.players.index(away) + 1 if away in g.players else None),
                                                       honors=all(b["strokes"] == 0 for b in d["balls"].values()),
-                                                      # the lie's colour - the green's, the fairway's, the
+                                                      # the lie's color - the green's, the fairway's, the
                                                       # sand's, the rough's - the first time anybody plays
                                                       # from it on this hole
                                                       green_notes=_lie_notes(g, d, away_ball, away))

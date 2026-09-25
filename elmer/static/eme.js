@@ -12,7 +12,10 @@ const EME_W = 720, EME_H = 360;
 const D2R = Math.PI / 180;
 let emeData = null, emeCoast = null, emeIndex = 0, emeFar = null;
 
-initPlace('q-place', {onPick: place => { if (place) saveAndGo(place); }});
+const qthPicker = initPlace('q-place', {onPick: place => { if (place) saveAndGo(place); }});
+// The Set QTH button on this page had no listener on it at all: pressing it
+// did nothing, said nothing, and looked exactly like pressing one that works.
+wireSetQTH('q-save', qthPicker, saveAndGo);
 
 async function saveAndGo(place) {
   await saveQTH(place);
@@ -59,7 +62,7 @@ function paintMap() {
       const lon = (x + 0.5) * (360 / EME_W) - 180;
       const moon = sl * sd + cl * cd * Math.cos((s.gha + lon) * D2R);
       const night = (sl * ssd + cl * csd * Math.cos((s.sun_gha + lon) * D2R)) < 0;
-      let r = 58, g = 66, b = 80;                       // moon down: grey
+      let r = 58, g = 66, b = 80;                       // moon down: gray
       if (moon > 0) {
         if (sinHome <= 0) { r = 57; g = 160; b = 170; }   // they see it, you do not
         else {
@@ -105,13 +108,13 @@ function paintMap() {
   }
 
   // the sub-solar and sub-lunar points, and the stations
-  const mark = (lat, lon, glyph, colour) => {
+  const mark = (lat, lon, glyph, color) => {
     const x = (((lon + 180) % 360 + 360) % 360) * 2, y = (90 - lat) * 2;
     ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(glyph, x + 1, y + 1);
-    ctx.fillStyle = colour; ctx.fillText(glyph, x, y);
+    ctx.fillStyle = color; ctx.fillText(glyph, x, y);
   };
-  /* Colour on this map means a sky condition and nothing else; a glyph
+  /* Color on this map means a sky condition and nothing else; a glyph
      means a thing. The far end used to be drawn in the cyan the key gives
      to "they see it, you do not", so the marker for a place you had just
      clicked looked like it was reporting a condition. The two stations are

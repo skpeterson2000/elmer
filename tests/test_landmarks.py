@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Checks for the held landmarks: the spots inside a place that resolve with
-no network - a beach's mile markers, a summit, a visitor centre.
+no network - a beach's mile markers, a summit, a visitor center.
 
     python3 tests/test_landmarks.py
 """
@@ -46,7 +46,7 @@ def main():
     check("'mile 5' is mile 5, not mile 50", L.search("mile 5")[0]["short"], "Padre Island mile 5")
     check("  and resolves to it, the whole word beating the prefix", L.resolve("mile 5")["short"], "Padre Island mile 5")
     check("'Padre Island mile' alone is not one spot", L.resolve("Padre Island mile"), None)
-    check("'park office' is the visitor centre", L.resolve("park office")["short"], "Malaquite Visitor Center")
+    check("'park office' is the visitor center", L.resolve("park office")["short"], "Malaquite Visitor Center")
     check("'Harney Peak' is the summit", L.resolve("Harney Peak")["short"], "Black Elk Peak summit")
     check("  carrying its SOTA reference", L.resolve("Harney Peak")["sota"], "W0D/BB-001")
     check("  at SOTA's own fix, not an eyeballed one", L.resolve("Harney Peak")["about"], False)
@@ -60,7 +60,7 @@ def main():
           "Padre Island mile 55")
     check("  a grid square still wins", geocode.resolve("EN26", allow_lookup=False)["kind"], "grid")
     far = pathto.resolve_to("Malaquite")
-    check("the far end of a path can be the visitor centre", far and far["short"], "Malaquite Visitor Center")
+    check("the far end of a path can be the visitor center", far and far["short"], "Malaquite Visitor Center")
     km = great_circle(hit["lat"], hit["lon"], far["lat"], far["lon"])[0]
     check("mile 55 to the office is a little under 55 miles in a straight line", 48 < km / 1.609 < 55, True)
     print(f"       ({km / 1.609:.1f} miles, {km:.0f} km)")

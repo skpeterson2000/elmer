@@ -27,7 +27,7 @@ is as much as anybody needs to decide whether to bother.
 """
 import math
 
-# Conductivity in siemens per metre and relative permittivity, from the ITU's
+# Conductivity in siemens per meter and relative permittivity, from the ITU's
 # standard ground types. The spread is enormous - sea water conducts five
 # thousand times better than dry sand - and it is the single biggest thing
 # deciding how far a ground wave goes.
@@ -74,7 +74,7 @@ def complex_permittivity(mhz, ground="average"):
     same soil looks progressively less like a conductor the higher you go.
     """
     soil = GROUND.get(ground) or GROUND["average"]
-    lam = 299.792458 / float(mhz)                    # metres
+    lam = 299.792458 / float(mhz)                    # meters
     return soil["epsilon"], 60.0 * lam * soil["sigma"], lam
 
 
@@ -101,7 +101,7 @@ def flat_attenuation(km, mhz, ground="average"):
 # Sommerfeld's answer is for a flat earth, and over land that hardly matters:
 # the ground itself kills the wave long before the horizon does. Over sea it
 # matters completely. Sea water is such a good conductor that the attenuation
-# function is still 0.84 at a thousand kilometres, so nothing in the flat model
+# function is still 0.84 at a thousand kilometers, so nothing in the flat model
 # stops the wave at all - it was claiming a readable 160m signal three thousand
 # miles out, which is a skywave answer arrived at by accident.
 #
@@ -138,12 +138,12 @@ def attenuation(km, mhz, ground="average"):
 
 
 # A radiated kilowatt from a short vertical over perfect ground makes 300 mV/m
-# at a kilometre. Everything else is scaled from that.
+# at a kilometer. Everything else is scaled from that.
 REFERENCE_MV_PER_M = 300.0
 
 
 def field_strength(km, mhz, watts=100.0, ground="average", gain_dbi=0.0):
-    """Field strength at a distance, in microvolts per metre and dB above one.
+    """Field strength at a distance, in microvolts per meter and dB above one.
 
     `gain_dbi` is the transmitting antenna's gain over an isotrope in the
     direction that matters here, which is along the ground. A quarter-wave

@@ -13,7 +13,7 @@ written down as it arrives. From those two the unit can answer, on its own
 and with numbers rather than impressions:
 
 **Skill.** Yesterday at this hour the forecast said 12.4 MHz; the sondes
-read 14.2. Kept by lead time and by sky - lit, grey, dark - so "the model
+read 14.2. Kept by lead time and by sky - lit, gray, dark - so "the model
 runs 1.8 MHz low at night" is a measured sentence with an n behind it.
 
 **Adjustment.** Where the record shows a steady bias by sky, the unit

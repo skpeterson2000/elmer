@@ -94,22 +94,22 @@ class CleanFormatter(logging.Formatter):
         return clean(super().format(record))
 
 
-class ColourFormatter(CleanFormatter):
-    """Console formatter - colours only when stderr is a terminal."""
+class ColorFormatter(CleanFormatter):
+    """Console formatter - colors only when stderr is a terminal."""
 
-    COLOURS = {"DEBUG": "\033[36m", "INFO": "\033[32m", "WARNING": "\033[33m",
+    COLORS = {"DEBUG": "\033[36m", "INFO": "\033[32m", "WARNING": "\033[33m",
                "ERROR": "\033[31m", "CRITICAL": "\033[1;31m"}
     RESET = "\033[0m"
 
-    def __init__(self, colour):
+    def __init__(self, color):
         super().__init__(FMT, DATEFMT)
-        self.colour = colour
+        self.color = color
 
     def format(self, record):
         text = super().format(record)
-        if not self.colour:
+        if not self.color:
             return text
-        return f"{self.COLOURS.get(record.levelname, '')}{text}{self.RESET}"
+        return f"{self.COLORS.get(record.levelname, '')}{text}{self.RESET}"
 
 
 def setup(level="INFO", to_file=True):
@@ -121,7 +121,7 @@ def setup(level="INFO", to_file=True):
 
     console = logging.StreamHandler()
     console.setLevel(getattr(logging, str(level).upper(), logging.INFO))
-    console.setFormatter(ColourFormatter(os.isatty(2)))
+    console.setFormatter(ColorFormatter(os.isatty(2)))
     root.addHandler(console)
 
     if not to_file:

@@ -11,9 +11,9 @@ record beside it.
 
 What is held here:
 
-  - "licensed" is reserved for a licence in force today;
+  - "licensed" is reserved for a license in force today;
   - a record's status is worked out on the day of the lookup and frozen, so
-    the standing is recomputed from the expiry date on read - a licence that
+    the standing is recomputed from the expiry date on read - a license that
     was current when fetched and has since run out reads expired;
   - expired within the two-year window says so and says renew; past it says
     expired; cancelled or terminated says so where the FCC still lists it;
@@ -102,35 +102,35 @@ def main():
     import re
     from html import unescape
 
-    def licence_line():
+    def license_line():
         page = client.get("/", environ_base=LOCAL).get_data(as_text=True)
-        m = re.search(r'<p class="small licence-line[^>]*>(.*?)</p>', page, re.S)
+        m = re.search(r'<p class="small license-line[^>]*>(.*?)</p>', page, re.S)
         return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", m.group(1)))).strip() if m else ""
 
     settings["license"] = {"callsign": "KA7EVD", "found": False}
     db.save_settings(conn, settings)
-    check("no record: says so", "KA7EVD · no FCC record" in licence_line(), True)
+    check("no record: says so", "KA7EVD · no FCC record" in license_line(), True)
     settings["license"] = {"callsign": "KA7EVD", "found": True, "license_class": "General",
                            "expires": on(-1100), "uls_url": "https://example.test/uls",
                            # frozen as current on the day it was fetched
                            "status": {"state": "current", "days": 400}}
     db.save_settings(conn, settings)
-    line = licence_line()
+    line = license_line()
     check("expired past grace: says expired and past the grace period, whatever the frozen status said",
           ("expired" in line, "past the grace period" in line, "400 days" in line), (True, True, False))
     settings["license"]["expires"] = on(-30)
     db.save_settings(conn, settings)
-    line = licence_line()
+    line = license_line()
     check("expired within the window: says how long is left to renew, and not to transmit",
           ("left to renew" in line, "not to be used on the air" in line), (True, True))
     settings["license"]["expires"] = on(45)
     db.save_settings(conn, settings)
-    line = licence_line()
+    line = license_line()
     check("in force with under ninety days: expiry, the days, and renew soon",
           ("expires" in line, "45 days" in line, "renew soon" in line), (True, True, True))
     settings["license"]["expires"] = on(2000)
     db.save_settings(conn, settings)
-    line = licence_line()
+    line = license_line()
     check("in force with years to go: expiry and the days, no alarm",
           ("expires" in line, "2000 days" in line, "renew soon" in line), (True, True, False))
     settings["license"] = {"callsign": "KA7EVD", "found": False}

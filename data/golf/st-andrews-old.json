@@ -336,7 +336,7 @@
      "kind": "bunker",
      "from": 200,
      "to": 260,
-     "side": "centre",
+     "side": "center",
      "name": "the hidden bunkers"
     }
    ],
@@ -401,7 +401,7 @@
      "kind": "bunker",
      "from": 430,
      "to": 470,
-     "side": "centre",
+     "side": "center",
      "name": "Hell bunker"
     },
     {
@@ -437,7 +437,7 @@
      "kind": "bunker",
      "from": 235,
      "to": 260,
-     "side": "centre",
+     "side": "center",
      "name": "Sutherland bunker"
     }
    ],
@@ -464,7 +464,7 @@
      "kind": "bunker",
      "from": 230,
      "to": 260,
-     "side": "centre",
+     "side": "center",
      "name": "the Principal's Nose"
     },
     {

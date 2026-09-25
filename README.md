@@ -24,8 +24,8 @@ deliberately not an OSI open-source license.
 |---|---|
 | ![The dashboard: standing, band conditions, the class cards](docs/screenshots/dashboard.png) | ![A drill question answered, with the explanation and the concept beneath it](docs/screenshots/drill.png) |
 | The dashboard — your standing by class, live band conditions, every pool a card. | A drill: the answer, the explanation, the concept it belongs to, and a note of your own. |
-| ![The band plan on 20 m, coloured by activity, hatched outside your privileges](docs/screenshots/bandplan.png) | ![Band conditions: the live figures and the wall chart, with the hour-by-hour verdict](docs/screenshots/propagation.png) |
-| The band plan — privileges from 47 CFR, activity by colour, and what the band is doing this hour. | Band conditions — the live figures, and where this hour's measured sky disagrees with the wall chart, it says so. |
+| ![The band plan on 20 m, colored by activity, hatched outside your privileges](docs/screenshots/bandplan.png) | ![Band conditions: the live figures and the wall chart, with the hour-by-hour verdict](docs/screenshots/propagation.png) |
+| The band plan — privileges from 47 CFR, activity by color, and what the band is doing this hour. | Band conditions — the live figures, and where this hour's measured sky disagrees with the wall chart, it says so. |
 | ![The tournament board mid-evening: the question, the tables, the round's top five](docs/screenshots/board.png) | |
 | The hall's big board, six tables in, round five. | |
 
@@ -115,7 +115,7 @@ taken off and never put back.
 
 **What it fetches, and what it does not.** Space weather, the ionosonde
 record, the coordinator's plan, the weather at the golf course, the POTA
-spot feed, a picked park's record, and the FCC's own licence files — one
+spot feed, a picked park's record, and the FCC's own license files — one
 zip per service, read into an index on the unit the first time a callsign
 of that kind is saved, so every callsign after is answered with no network
 — come over the network when there is one; the moon, the meteor calendar,
@@ -132,7 +132,7 @@ weather that moves — seeded from the National Weather Service's forecast at
 the course when a unit has a network — and a narrator whose voice is being
 recorded a hole at a time; CW Baseball joined the Gaming Center; an EME page
 paints the moon's window on a world map; 11 m got a forecast beside its
-neighbours; "no licence" is a class the band plan can be asked for; Make
+neighbours; "no license" is a class the band plan can be asked for; Make
 Contact gained a first-contact track; parks and summits have a card of what
 has worked for others, with the National Park Service units bundled, and a
 trip can be planned around a place typed rather than around home; the
@@ -141,10 +141,10 @@ asks, and a card on noise and the near field. The band plan draws where a
 band reaches from your station right now — the path model asked for every
 cell of a grid, a field with soft edges and isolines, one way or the round
 trip, zoomable with borders that follow the zoom — and asks the same path
-three ways on the path tool: with no licence, as a Technician, as a
-General, saying what the far end needs too. Licences come from the FCC's
+three ways on the path tool: with no license, as a Technician, as a
+General, saying what the far end needs too. Licenses come from the FCC's
 own files — amateur, GMRS and commercial alike, with the FRN's other
-tickets — a GMRS licence covers the family it covers, and the paper copy
+tickets — a GMRS license covers the family it covers, and the paper copy
 and the certificates a person has earned live on their own account: the
 papers on the Library page, the wall in the pro shop and the lounge. CW
 opens on Today, where the record decides the lesson and one press runs the
@@ -176,7 +176,7 @@ pins.
 - Sound effects for golf are on the bench, unwired.
 - A player's record and awards do not yet travel between units.
 - RepeaterBook's API route is built and waits on RepeaterBook listing ELMER
-  as an app; until then the CSV import is the way in. The FCC licence files
+  as an app; until then the CSV import is the way in. The FCC license files
   have been read on the laptop and not yet timed on a Pi.
 - LoRa: not started. The design is in [DESIGN.md](DESIGN.md), the radios are
   not on the bench.

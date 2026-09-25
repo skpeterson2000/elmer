@@ -594,12 +594,12 @@ def report(result):
     if len(months) > 1:
         lines.append("")
         lines.append("  month by month (model leads 6-24 h; persistence at 24 h):")
-        lines.append("    month    dark bias/mae     grey bias/mae     lit bias/mae      all mae   persist mae")
+        lines.append("    month    dark bias/mae     gray bias/mae     lit bias/mae      all mae   persist mae")
         for m, row in months.items():
             def cell(r):
                 v = row.get(r) or {}
                 return f"{v['bias']:+5.2f}/{v['mae']:4.2f}" if v.get("n") else "     -     "
-            lines.append(f"    {m}  {cell('dark'):>15s}  {cell('grey'):>15s}  {cell('lit'):>15s}   "
+            lines.append(f"    {m}  {cell('dark'):>15s}  {cell('gray'):>15s}  {cell('lit'):>15s}   "
                          f"{(row.get('all') or {}).get('mae', 0) or 0:5.2f}     "
                          f"{(row.get('persistence') or {}).get('mae', 0) or 0:5.2f}")
     lines.append("")
@@ -613,7 +613,7 @@ def report(result):
     if table.get("months"):
         lines.append("")
         lines.append("  the calibration this run teaches - the sondes' MUF over the model's, by month and sky:")
-        lines.append("    month     dark          grey          lit")
+        lines.append("    month     dark          gray          lit")
         for m, regs in table["months"].items():
             regs = forecastlog.month_cells(regs)
 
@@ -623,7 +623,7 @@ def report(result):
                     return "     -      "
                 mark = "" if v["applied"] else ("=" if v.get("small") else "?")
                 return f"x{v['measured']:.2f} n{v['n']:<4d}{mark}"
-            lines.append(f"    {m}      {cell('dark'):13s} {cell('grey'):13s} {cell('lit'):13s}")
+            lines.append(f"    {m}      {cell('dark'):13s} {cell('gray'):13s} {cell('lit'):13s}")
         lines.append("    (= : within 10% of the model, left alone; ? : too few hours; applied factors are bounded 0.5-2.0)")
     lines.append("")
     lines.append("  " + result["acknowledgement"])

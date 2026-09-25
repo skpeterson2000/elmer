@@ -224,7 +224,7 @@ def run():
     g2.play_one("b", {"correct": True, "club": "7-iron"})       # b on the green
     while g2.hole() and g2.hole()["n"] == 1:
         g2.play_one(g2.away(), {"correct": True})
-    check("the honour on the next tee goes to the better score", (g2.cards["a"][1] > g2.cards["b"][1], g2.away()), (True, "b"))
+    check("the honor on the next tee goes to the better score", (g2.cards["a"][1] > g2.cards["b"][1], g2.away()), (True, "b"))
 
     print("\n-- the thread of questions --")
     two = {**flat_course(par=3, yards=150), "holes": [

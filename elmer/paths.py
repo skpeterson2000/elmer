@@ -11,7 +11,7 @@ The distinction matters most to the tests. A test that imports the app and
 asks it a question used to do so against the operator's own database, shelf
 and log - and four of them, in one day, wrote a stranger's club name into a
 unit setting, left a certificate on the real shelf, set a password on a real
-account, or read the operator's licence class and failed the day it changed.
+account, or read the operator's license class and failed the day it changed.
 Patching each one is how the fifth happens. So the operator's state has one
 root, and the tests move it: ELMER_STATE names a directory, set before any
 part of the program is imported, and everything that writes goes there while

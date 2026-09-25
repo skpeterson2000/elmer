@@ -186,7 +186,7 @@ def main():
     print("\n-- the moon, against Meeus example 47.a --")
     # 1992 April 12, 0h TD: apparent RA 134.688470, Dec 13.768368, distance
     # 368409.7 km. The low-precision series is promised to a third of a
-    # degree and a few hundred kilometres, and that is what it delivers.
+    # degree and a few hundred kilometers, and that is what it delivers.
     moon = C.moon_position(datetime(1992, 4, 12, 0, 0, tzinfo=timezone.utc))
     check("right ascension within 0.2 degrees", abs(moon["ra"] - 134.688) < 0.2, True)
     check("declination within 0.2 degrees", abs(moon["dec"] - 13.768) < 0.2, True)

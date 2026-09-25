@@ -9,7 +9,7 @@
   ]
  },
  "T1B": {
-  "note": "Your licence class sets which slices of each band you may use, and the mode matters as much as the frequency: the whole transmitted signal, sidebands included, must stay inside the sub-band. Set your dial far enough from the edge that no part of your emission spills over \u2014 for SSB that means roughly 3 kHz of clearance.",
+  "note": "Your license class sets which slices of each band you may use, and the mode matters as much as the frequency: the whole transmitted signal, sidebands included, must stay inside the sub-band. Set your dial far enough from the edge that no part of your emission spills over \u2014 for SSB that means roughly 3 kHz of clearance.",
   "key_facts": [
    "The entire emission must stay inside the authorized sub-band",
    "SSB occupies about 3 kHz, so leave that much room at a band edge",
@@ -18,9 +18,9 @@
   ]
  },
  "T1C": {
-  "note": "There are three licence classes still issued: Technician, General and Amateur Extra. A licence runs ten years and there is a two-year grace period to renew \u2014 during the grace period the licence is expired, so you may not transmit until it is renewed. Call signs come sequentially by default; a vanity call is requested.",
+  "note": "There are three license classes still issued: Technician, General and Amateur Extra. A license runs ten years and there is a two-year grace period to renew \u2014 during the grace period the license is expired, so you may not transmit until it is renewed. Call signs come sequentially by default; a vanity call is requested.",
   "key_facts": [
-   "Licence term: 10 years, with a 2-year grace period to renew",
+   "License term: 10 years, with a 2-year grace period to renew",
    "You may not transmit during the grace period",
    "Novice and Advanced classes still exist but are no longer issued",
    "US amateur rules apply anywhere the FCC regulates, including US territories and vessels"
@@ -36,7 +36,7 @@
   ]
  },
  "T1E": {
-  "note": "The control operator is the licensed amateur responsible for a transmission, and there is always one. Privileges are limited to those of the control operator's licence class, not the station licensee's. The station licensee and the control operator are jointly responsible. The control point is wherever the control operator function is performed.",
+  "note": "The control operator is the licensed amateur responsible for a transmission, and there is always one. Privileges are limited to those of the control operator's license class, not the station licensee's. The station licensee and the control operator are jointly responsible. The control point is wherever the control operator function is performed.",
   "key_facts": [
    "Transmissions are limited to the control operator's privileges",
    "Station licensee and control operator are jointly responsible",
@@ -67,12 +67,12 @@
   "key_facts": [
    "CTCSS is a sub-audible tone that opens a repeater's squelch",
    "Reverse split listens on the repeater's input to hear the other station directly",
-   "DMR uses talkgroups and colour codes on a two-slot TDMA channel",
+   "DMR uses talkgroups and color codes on a two-slot TDMA channel",
    "If you can work simplex, do \u2014 it frees the repeater"
   ]
  },
  "T2C": {
-  "note": "In an emergency the normal rules still apply, with one large exception: to protect immediate safety of life or property you may use any means of radio at your disposal. RACES and ARES are the two organised responses; ARES is ARRL-sponsored and open, RACES is a civil-defence activation. In a net, transmit only when directed by net control.",
+  "note": "In an emergency the normal rules still apply, with one large exception: to protect immediate safety of life or property you may use any means of radio at your disposal. RACES and ARES are the two organized responses; ARES is ARRL-sponsored and open, RACES is a civil-defence activation. In a net, transmit only when directed by net control.",
   "key_facts": [
    "FCC rules always apply except when life or property is in immediate danger",
    "ARES is open to any licensed amateur; RACES requires civil-defence enrolment",
@@ -92,7 +92,7 @@
  "T3B": {
   "note": "Radio waves are electromagnetic: an electric field and a magnetic field at right angles to each other and to the direction of travel, moving at the speed of light. Because velocity is fixed, frequency and wavelength are locked together \u2014 as one rises the other falls.",
   "key_facts": [
-   "Wavelength in metres = 300 / frequency in MHz",
+   "Wavelength in meters = 300 / frequency in MHz",
    "Radio waves travel at the speed of light, 300,000,000 m/s",
    "The electric and magnetic fields are perpendicular to each other",
    "Polarisation is defined by the orientation of the electric field"
@@ -104,7 +104,7 @@
   "key_facts": [
    "Sporadic E is the most common cause of long-distance 6 m and 10 m openings",
    "Tropospheric ducting mainly helps VHF and UHF",
-   "Auroral propagation adds a harsh buzz and favours CW",
+   "Auroral propagation adds a harsh buzz and favors CW",
    "VHF line-of-sight reaches slightly past visual horizon due to refraction"
   ],
   "lab": "skip"
@@ -259,7 +259,7 @@
   ]
  },
  "T8C": {
-  "note": "Things to actually do with a licence. Radio direction finding uses a directional antenna and signal strength to locate a transmitter. Grid squares (Maidenhead locators) give a compact position exchange. Internet linking \u2014 EchoLink, IRLP \u2014 bridges repeaters worldwide, and requires proof of licence to use.",
+  "note": "Things to actually do with a license. Radio direction finding uses a directional antenna and signal strength to locate a transmitter. Grid squares (Maidenhead locators) give a compact position exchange. Internet linking \u2014 EchoLink, IRLP \u2014 bridges repeaters worldwide, and requires proof of license to use.",
   "key_facts": [
    "A directional antenna and attenuator are the RDF basics",
    "Maidenhead grid squares are the standard VHF/UHF position exchange",

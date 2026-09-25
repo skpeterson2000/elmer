@@ -9,11 +9,11 @@
   "sponsor": true,
   "notice": true,
   "join": true,
-  "programme": true
+  "program": true
  },
  "dwell": 20.0,
  "sponsors": [],
  "notices": [],
- "programme": [],
+ "program": [],
  "next_id": 1
 }

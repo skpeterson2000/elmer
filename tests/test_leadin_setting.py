@@ -5,7 +5,7 @@
 
 The hall always had five seconds of "Get ready" before the first question.
 Now the host chooses how many, on the Playing press, and the unit
-remembers; the programme's own hand-over from an intermission uses the
+remembers; the program's own hand-over from an intermission uses the
 same number; and the run-up says which it is - the first question of the
 evening or the next one - so a screen can put words on the clock.
 """

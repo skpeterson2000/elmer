@@ -88,7 +88,7 @@ def reach(settings=None, standings=None):
     # What class this station holds is one question with one answer, and
     # callsign.held is where it is answered - the FCC record where there is
     # one, the operator's own word where there is not. Imported here rather
-    # than at the top because that module opens the licence cache under the
+    # than at the top because that module opens the license cache under the
     # state directory, and the gate is pure arithmetic that tests exercise
     # on its own.
     from . import callsign as _callsign

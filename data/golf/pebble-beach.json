@@ -83,7 +83,7 @@
      "kind": "bunker",
      "from": 201,
      "to": 205,
-     "side": "centre",
+     "side": "center",
      "off": 4,
      "name": "the fairway bunker"
     },
@@ -231,7 +231,7 @@
      "kind": "bunker",
      "from": 170,
      "to": 174,
-     "side": "centre",
+     "side": "center",
      "off": -11,
      "name": "the 1st fairway bunker"
     },
@@ -490,7 +490,7 @@
      "kind": "bunker",
      "from": 367,
      "to": 386,
-     "side": "centre",
+     "side": "center",
      "off": -9,
      "name": "the fairway bunker"
     },
@@ -926,7 +926,7 @@
      "kind": "bunker",
      "from": 162,
      "to": 166,
-     "side": "centre",
+     "side": "center",
      "off": 1,
      "name": "the island bunker"
     },
@@ -949,7 +949,7 @@
      "kind": "bunker",
      "from": 343,
      "to": 347,
-     "side": "centre",
+     "side": "center",
      "off": 7,
      "name": "the greenside bunkers"
     },
@@ -998,7 +998,7 @@
      "kind": "bunker",
      "from": 146,
      "to": 169,
-     "side": "centre",
+     "side": "center",
      "off": 1,
      "name": "the greenside bunker"
     },
@@ -1006,7 +1006,7 @@
      "kind": "bunker",
      "from": 177,
      "to": 181,
-     "side": "centre",
+     "side": "center",
      "off": -5,
      "name": "the greenside bunker"
     },
@@ -1072,7 +1072,7 @@
      "kind": "rough",
      "from": 277,
      "to": 281,
-     "side": "centre",
+     "side": "center",
      "off": 9,
      "name": "the trees"
     },

@@ -125,7 +125,7 @@ def prepare(where, radius_km=DEFAULT_RADIUS_KM, progress=None):
     # The reference radius is a drive rather than a footprint, so it is not
     # the town radius: what matters here is what somebody would get in the car
     # for once they have arrived, which is a different circle drawn from the
-    # same centre.
+    # same center.
     try:
         say("asking POTA and SOTA what is worth activating from there ...")
         area = references.fetch(
@@ -134,7 +134,7 @@ def prepare(where, radius_km=DEFAULT_RADIUS_KM, progress=None):
         for name, rows in (("POTA park", area.get("parks")),
                            ("SOTA summit", area.get("summits"))):
             if rows is None:
-                missing.append(f"{name}s could not be fetched - the programme "
+                missing.append(f"{name}s could not be fetched - the program "
                                f"did not answer")
             else:
                 got.append(f"{len(rows)} {name}"

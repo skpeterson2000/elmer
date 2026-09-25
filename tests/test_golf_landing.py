@@ -159,7 +159,7 @@ lake = {**hole, "holes": [{**hole["holes"][0],
 # The physics is tested above; this is the wiring. The spread and the leak
 # go off with it, or the ball is pushed out to the side every time and
 # never reaches water that lies across the fairway - which is itself the
-# right behaviour, and not what is being checked here.
+# right behavior, and not what is being checked here.
 was, spread, leak = golf.skips, dict(golf.CLUB_SPREAD), dict(golf.CLUB_LEAK)
 golf.skips = lambda *a, **k: True
 golf.CLUB_SPREAD = {c: 0 for c in spread}

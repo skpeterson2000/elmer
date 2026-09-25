@@ -181,7 +181,7 @@ class Job:
             if not row:
                 return
             parts = []
-            for regime, word in (("lit", "by day"), ("dark", "at night"), ("grey", "at the grey line")):
+            for regime, word in (("lit", "by day"), ("dark", "at night"), ("gray", "at the gray line")):
                 v = row.get(regime) or {}
                 if v.get("n"):
                     b = v["bias"]

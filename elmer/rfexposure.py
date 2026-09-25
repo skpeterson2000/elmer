@@ -83,18 +83,18 @@ def dbd_to_dbi(dbd):
     return dbd + 2.15
 
 
-def power_density(avg_watts, gain_dbi, metres, reflection=True):
+def power_density(avg_watts, gain_dbi, meters, reflection=True):
     """Far-field power density in mW/cm^2 at a distance."""
-    if metres <= 0:
+    if meters <= 0:
         return float("inf")
     gain = 10 ** (gain_dbi / 10.0)
     factor = REFLECTION_POWER if reflection else 1.0
     # W/m^2 -> mW/cm^2 is a factor of 0.1
-    return 0.1 * factor * avg_watts * gain / (4 * math.pi * metres * metres)
+    return 0.1 * factor * avg_watts * gain / (4 * math.pi * meters * meters)
 
 
 def compliance_distance(avg_watts, gain_dbi, limit, reflection=True):
-    """The distance at which power density falls to the limit, in metres."""
+    """The distance at which power density falls to the limit, in meters."""
     if limit is None or limit <= 0 or avg_watts <= 0:
         return None
     gain = 10 ** (gain_dbi / 10.0)
@@ -241,8 +241,8 @@ def evaluate_case(case):
         limit = mpe_limit(f, controlled)
         distance_ft = float(case.get("distance_controlled_ft" if controlled
                                      else "distance_uncontrolled_ft", 0) or 0)
-        metres = distance_ft / FT_PER_M
-        density = power_density(avg, gain_dbi, metres) if metres > 0 else None
+        meters = distance_ft / FT_PER_M
+        density = power_density(avg, gain_dbi, meters) if meters > 0 else None
         safe_m = compliance_distance(avg, gain_dbi, limit)
         boundary = near_field_boundary(f, case.get("aperture_m"))
         rows.append({
@@ -252,14 +252,14 @@ def evaluate_case(case):
             "averaging_minutes": AVERAGING_MINUTES[controlled],
             "limit": limit,
             "distance_ft": distance_ft,
-            "distance_m": round(metres, 3) if metres else 0.0,
+            "distance_m": round(meters, 3) if meters else 0.0,
             "density": density,
             "margin_ratio": (density / limit) if (density and limit) else None,
             "compliant": (density is not None and limit is not None
                           and density <= limit),
             "compliance_distance_m": safe_m,
             "compliance_distance_ft": (safe_m * FT_PER_M) if safe_m else None,
-            "near_field": bool(metres and metres < boundary),
+            "near_field": bool(meters and meters < boundary),
             "near_field_boundary_ft": boundary * FT_PER_M,
         })
 

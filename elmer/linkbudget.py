@@ -111,7 +111,7 @@ SPREAD_DB = 8.0
 EARTH_KM = 8495.0
 
 # Past this the budget is not the question: what carries a VHF signal two
-# hundred kilometres is the weather - tropospheric bending and ducting -
+# hundred kilometers is the weather - tropospheric bending and ducting -
 # and this model does not do weather.
 MAX_KM = 200.0
 
@@ -143,7 +143,7 @@ def knife_edge_db(nu):
 
 def fresnel_radius_m(d1_km, d2_km, mhz):
     """The first Fresnel zone's radius at a point d1 from one end and d2
-    from the other, metres."""
+    from the other, meters."""
     d = d1_km + d2_km
     if d <= 0 or d1_km <= 0 or d2_km <= 0:
         return 0.0
@@ -174,7 +174,7 @@ def _clearances(pts, ha_m, hb_m, mhz):
 def series(pts, ha_m, hb_m, mhz):
     """The profile as the page draws it: at each sample, the ground, the
     line between the antennas sagging by the earth's bulge, and the first
-    Fresnel zone's radius there - all in metres, distance in km."""
+    Fresnel zone's radius there - all in meters, distance in km."""
     d = pts[-1][0]
     a = pts[0][1] + ha_m
     b = pts[-1][1] + hb_m
@@ -321,7 +321,7 @@ def _radio(key, band):
 
 def budget(km, profile_pts, band="2m", mode="fm", here="ht", there="ht", site="residential"):
     """The whole sum, both ways. `profile_pts` is a list of (km, elevation
-    in metres) from here to there, ends included, or None for a path the
+    in meters) from here to there, ends included, or None for a path the
     ground could not be asked about, which is then taken as flat."""
     band = band if band in BANDS else "2m"
     mhz = BANDS[band]
@@ -341,7 +341,7 @@ def budget(km, profile_pts, band="2m", mode="fm", here="ht", there="ht", site="r
     # stands in its way, or the ground's reflection cancelling it between
     # two low antennas. The path pays the greater, not both - charging the
     # bulge on top of the two-ray loss had a pair of base stations forty
-    # kilometres apart on open ground rated a long shot, which every club
+    # kilometers apart on open ground rated a long shot, which every club
     # net on 2 m disproves on a Tuesday night.
     over = fspl + diff_db
     loss = max(over, plane)
@@ -414,7 +414,7 @@ def _words(km, a, b, band, mode, site, loss, mechanism, diff_db, edge, fwd, back
               f"receiver needs in a {site} setting: {back['margin_db']:+.0f} dB in hand, yours {fwd['margin_db']:+.0f} going out")
     s += f". Real paths scatter about a figure like this by some {SPREAD_DB:.0f} dB, so call it {100 * p:.0f}% odds."
     if km > MAX_KM:
-        s += " Past a couple of hundred kilometres the weather decides - tropospheric bending and ducts - and this model does not do weather."
+        s += " Past a couple of hundred kilometers the weather decides - tropospheric bending and ducts - and this model does not do weather."
     return s
 
 

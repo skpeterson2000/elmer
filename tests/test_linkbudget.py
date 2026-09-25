@@ -5,8 +5,8 @@
 
 The pieces come out where the textbooks put them - free space, the knife
 edge, the plane earth - and the whole comes out where experience puts it:
-two base stations forty kilometres apart on open ground talk on 2 m FM,
-two handhelds ten kilometres apart are a long shot, and a hill between
+two base stations forty kilometers apart on open ground talk on 2 m FM,
+two handhelds ten kilometers apart are a long shot, and a hill between
 two handhelds is a wall that a base rig into a Yagi gets over. Nothing
 here reaches the network: the ground is stood in for.
 """

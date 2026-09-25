@@ -81,7 +81,7 @@ def main():
     check("the file holds no plain token", "rbuapp_secret" in row["settings"], False)
     check("  but the QTH stays readable - it is not a secret, and everything needs it",
           ("EN26uo" in row["settings"], "Pequot" in row["settings"]), (True, True))
-    check("  the licence class stays plain - the room's boards show it", json.loads(row["settings"]).get("license_class"), "General")
+    check("  the license class stays plain - the room's boards show it", json.loads(row["settings"]).get("license_class"), "General")
     note = conn.execute("SELECT body FROM user_note WHERE user_id = ?", (alice,)).fetchone()["body"]
     check("  the note is sealed", (note.startswith("sealed:"), "ohm" in note), (True, False))
 

@@ -96,7 +96,7 @@ NOT_CUT = {
     "whipdipole": "Two mobile whips, bought by band, on a dipole mount - about "
                   "sixteen feet tip to tip, and nothing to cut. Tune by "
                   "sliding both stingers the same amount, phone end to CW "
-                  "end; fit 3/8-24 quick-disconnects and colour-code the "
+                  "end; fit 3/8-24 quick-disconnects and color-code the "
                   "whips by band. Put a 1:1 current balun at the mount, "
                   "choke the coax (six turns a foot across, or four or five "
                   "Fair-Rite 2643102002 cores) and keep the top mast section "
@@ -134,7 +134,7 @@ def _styles():
 
 # The card's bar height rather than the chart's, because like the card's it
 # appears once here instead of repeating down a page. Not enlarged: what makes
-# one of these recognisable is the pattern of the segments, not their size -
+# one of these recognizable is the pattern of the segments, not their size -
 # 60 m is five channels and could not be mistaken for anything at any scale -
 # and that recognition comes from having seen the bar before. It needs no
 # help from the layout and none from the page pointing at it.
@@ -176,13 +176,13 @@ def _band_strip(mhz, span, license_class, width):
     if not covers_whole(span, band) and span.get("low") is not None:
         x0, x1 = at(span["low"]), at(span["high"])
         # Outlined twice, pale over dark, so it reads on any of the segment
-        # colours underneath rather than only on the light ones.
-        for colour, inset, wide in ((colors.white, 0.0, 2.4),
+        # colors underneath rather than only on the light ones.
+        for color, inset, wide in ((colors.white, 0.0, 2.4),
                                     (colors.black, 1.2, 1.0)):
             drawing.add(Rect(x0 + inset, base + inset,
                              max(1.5, x1 - x0 - 2 * inset),
                              STRIP_H - 2 * inset,
-                             fillColor=None, strokeColor=colour,
+                             fillColor=None, strokeColor=color,
                              strokeWidth=wide))
     tick = at(mhz)
     drawing.add(Line(tick, base - 2, tick, base + STRIP_H + 2,
@@ -193,7 +193,7 @@ def _band_strip(mhz, span, license_class, width):
 
 
 def _band_legend(name, style):
-    """What the colours in that band mean - only the ones actually in it."""
+    """What the colors in that band mean - only the ones actually in it."""
     seen = []
     for _low, _high, kind, _label in bandplan.activity_for(name):
         if kind not in seen:
@@ -202,8 +202,8 @@ def _band_legend(name, style):
         return None
     parts = []
     for kind in seen:
-        colour = bandpdf.KIND_COLOUR.get(kind, colors.grey)
-        parts.append(f'<font color="#{colour.hexval()[2:]}">&#9608;</font> '
+        color = bandpdf.KIND_COLOR.get(kind, colors.gray)
+        parts.append(f'<font color="#{color.hexval()[2:]}">&#9608;</font> '
                      f'{bandpdf.KIND_LABEL.get(kind, kind)}')
     return Paragraph(" &nbsp;".join(parts), style)
 
@@ -331,7 +331,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
         elif span.get("low") is not None:
             # Quoted inside the band, because a window that runs off the end
             # of it is not usable width - it is width spent somewhere the
-            # licence does not go.
+            # license does not go.
             low = max(span["low"], band["low"])
             high = min(span["high"], band["high"])
             khz = round((high - low) * 1000)
@@ -350,7 +350,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     # --- what to cut --------------------------------------------------------
     flow.append(Paragraph("What to cut", st["h"]))
     if dims:
-        rows = [["", "Length", "In metres"]]
+        rows = [["", "Length", "In meters"]]
         if dims["legs"] > 1:
             rows.append([dims["leg_name"].capitalize(),
                          _feet_inches(dims["leg_ft"]),
@@ -446,7 +446,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     if span:
         flow.append(Paragraph(
             f"That is {span['low']:.3f} to {span['high']:.3f} MHz "
-            f"({span['percent']:.1f}% of centre) — which is what says whether "
+            f"({span['percent']:.1f}% of center) — which is what says whether "
             f"one antenna covers the whole band or only the end of it you cut "
             f"it for.", st["body"]))
     flow.append(Paragraph(

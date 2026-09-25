@@ -7,7 +7,7 @@ The picture exists to answer a question the table cannot - what is this band
 for, and how much of it is mine - so what is checked here is that it keeps
 saying that as the band plan changes underneath it.
 
-Labels are the part with judgement in them. Every boundary cannot be numbered
+Labels are the part with judgment in them. Every boundary cannot be numbered
 without the numbers colliding, and a number that collides with its neighbour
 is worse than one that is absent: the reader cannot tell which tick either
 belongs to. So there is a ranking, and these checks pin down what it is for -
@@ -63,7 +63,7 @@ def main():
     # stops is the number they came for, and it sits close enough to the band
     # edge that an even-handed rule would have dropped it - it did, once.
     tech = labels("80 m", "Technician")
-    check("the start of the licence's own window is numbered",
+    check("the start of the license's own window is numbered",
           "3.525" in tech, True)
     check("  and the end of it", "3.56" in tech, True)
     check("  with the band edges still there",

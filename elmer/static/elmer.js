@@ -1,4 +1,4 @@
-/* Shared helpers: JSON calls, achievement toasts, meter colouring. */
+/* Shared helpers: JSON calls, achievement toasts, meter coloring. */
 
 /* Anything that goes wrong in the browser gets shipped to the server log, so
    a page that "just sits there" leaves a trace in data/elmer.log instead of
@@ -137,7 +137,7 @@ function postJSON(url, body) {
  *
  * One preference, read at the moment of use rather than at load, because
  * the Station panel can change it without a reload. It governs distances
- * across the ground and nothing else: a band is still 40 metres, wire is
+ * across the ground and nothing else: a band is still 40 meters, wire is
  * still cut in feet, and the F2 layer is still 300 km up, because those
  * are names and measurements rather than answers to "how far is that".
  *
@@ -145,7 +145,7 @@ function postJSON(url, body) {
  * the nearest station who can hear you - so it moves with this.
  */
 function unitSystem() {
-  return window.UNITS || {short: 'km', per_km: 1, long: 'kilometres'};
+  return window.UNITS || {short: 'km', per_km: 1, long: 'kilometers'};
 }
 
 function away(km, digits) {
@@ -181,7 +181,7 @@ function showAchievements(list) {
   (list || []).forEach(a => toast('🏅 ' + a.name, a.description, 7000));
 }
 
-/* Mastery colour bands: red below 50%, amber to 80%, green above. */
+/* Mastery color bands: red below 50%, amber to 80%, green above. */
 function fillClass(value) {
   return value >= 0.8 ? 'fill-high' : value >= 0.5 ? 'fill-mid' : 'fill-low';
 }
@@ -202,27 +202,27 @@ function escapeHTML(s) {
   return d.innerHTML;
 }
 
-/* One colour a band, everywhere. The palette is palette.py's, written into
+/* One color a band, everywhere. The palette is palette.py's, written into
    the page head as --band-20m and its kin and as window.BAND_PALETTE; these
    are the only way a page should print a band's name, so that 20 m is the
    same green on the reach map, the band buttons, the Lab's chips and the
-   outlook. "20 m" and "20m" are the same band. The colour is never alone:
+   outlook. "20 m" and "20m" are the same band. The color is never alone:
    the name is always printed beside it. */
 const BAND_BY_KEY = {};
 (window.BAND_PALETTE || []).forEach(b => { BAND_BY_KEY[b.key] = b; });
 function bandKey(name) { return String(name || '').replace(/\s+/g, '').toLowerCase(); }
-function bandColour(name) { const b = BAND_BY_KEY[bandKey(name)]; return b ? b.colour : null; }
+function bandColor(name) { const b = BAND_BY_KEY[bandKey(name)]; return b ? b.color : null; }
 /* The inline style that hands an element its band: --band and --band-rgb,
    which .band-tag, .band-btn and .band-chip read. Nothing for a name that
-   is not a band, so the element falls back to the neutral colour. */
+   is not a band, so the element falls back to the neutral color. */
 function bandStyle(name) {
   const b = BAND_BY_KEY[bandKey(name)];
   return b ? '--band:var(--' + b.css + ');--band-rgb:var(--' + b.css + '-rgb)' : '';
 }
 function bandSwatch(name) {
-  return bandColour(name) ? '<i class="band-swatch" style="' + bandStyle(name) + '"></i>' : '';
+  return bandColor(name) ? '<i class="band-swatch" style="' + bandStyle(name) + '"></i>' : '';
 }
-/* The band's name, in its colour, with its swatch: what to print wherever
+/* The band's name, in its color, with its swatch: what to print wherever
    a band is named in running text. */
 function bandTag(name, extraClass) {
   return '<span class="band-tag' + (extraClass ? ' ' + extraClass : '') + '" style="' + bandStyle(name) + '">' +
@@ -261,7 +261,7 @@ function figureHTML(url, highlight) {
   return '<div class="figure-wrap">' + tag + '</div>';
 }
 
-/* Maidenhead locator -> latitude/longitude at the centre of the square. */
+/* Maidenhead locator -> latitude/longitude at the center of the square. */
 function gridToLatLon(loc) {
   const g = (loc || '').trim().toUpperCase();
   if (!/^[A-R]{2}[0-9]{2}([A-X]{2})?$/.test(g)) return null;
@@ -529,7 +529,7 @@ function placeLocal(text) {
   return null;
 }
 
-/* Attach search behaviour to one input. `onPick` fires with the chosen place. */
+/* Attach search behavior to one input. `onPick` fires with the chosen place. */
 function initPlace(inputId, opts) {
   const input = document.getElementById(inputId);
   if (!input) return null;
@@ -552,11 +552,19 @@ function initPlace(inputId, opts) {
     if (!quiet && opts.onPick) opts.onPick(place);
   }
 
+  /* What the lookup came to, so whoever called it can say something true:
+     'picked' (a place is set, and onPick has already run), 'choose' (several
+     matches are on screen and the person has to pick), 'none' (nothing
+     matched) or 'empty' (there was nothing to look for).
+
+     It used to return nothing at all, which is how the Set QTH button came to
+     report "Not found" for an empty box and for a box with six matches showing
+     under it - and to report nothing whatsoever when a lookup failed. */
   async function lookup() {
     const text = input.value;
     const local = placeLocal(text);
-    if (local) { setPlace(local); return; }
-    if (!text.trim()) { setPlace(null); return; }
+    if (local) { setPlace(local); return 'picked'; }
+    if (!text.trim()) { setPlace(null); return 'empty'; }
     if (hint) hint.textContent = 'searching…';
     let results = [];
     try {
@@ -565,9 +573,11 @@ function initPlace(inputId, opts) {
     if (!results.length) {
       if (hint) hint.innerHTML = '<span style="color:var(--red)">no place found &mdash; ' +
         'try adding a state or county, or use a grid square</span>';
-      return;
+      // A list left over from the last search is not an answer to this one.
+      if (list) { list.hidden = true; list.innerHTML = ''; }
+      return 'none';
     }
-    if (results.length === 1) { setPlace(results[0]); input.value = results[0].short; return; }
+    if (results.length === 1) { setPlace(results[0]); input.value = results[0].short; return 'picked'; }
     if (hint) hint.textContent = results.length + ' matches — pick one';
     if (list) {
       list.hidden = false;
@@ -584,6 +594,7 @@ function initPlace(inputId, opts) {
         setPlace(chosen);
       }));
     }
+    return 'choose';
   }
 
   input.addEventListener('keydown', e => {
@@ -591,8 +602,68 @@ function initPlace(inputId, opts) {
   });
   input.addEventListener('blur', () => { if (!input._place) lookup(); });
   input.addEventListener('input', () => { input._place = null; });
+  /* A place the server already knows about, handed over in data attributes.
+     Without this the box arrived showing "Pequot Lakes" while the page held
+     no place at all, so the first press of Set QTH had to go and geocode the
+     name it had just been given - which on a unit with no network meant the
+     QTH on screen was the one QTH that could not be set. */
+  if (input.dataset.lat && input.dataset.lon && !input._place) {
+    setPlace({lat: parseFloat(input.dataset.lat), lon: parseFloat(input.dataset.lon),
+              grid: input.dataset.grid || '', short: input.dataset.short || input.value,
+              name: input.dataset.name || input.dataset.short || input.value}, true);
+  }
   return {input: input, lookup: lookup, set: setPlace,
           get: () => input._place || placeLocal(input.value)};
+}
+
+
+/* The Set QTH button, wired the same way wherever there is one.
+
+   Every branch here was a way of pretending. An empty box reported "Not
+   found", which is not what happens when nothing was looked for. Six matches
+   on screen reported "Not found" as well. A typo changed a line of small grey
+   text and nothing else, so the press looked like it had worked. A town name
+   was saved twice, once by the picker and once by the caller. And on the EME
+   page the button had no handler attached at all - it was a button that did
+   nothing, quietly, forever.
+
+   `save` is called exactly once, and only with a real place. */
+function wireSetQTH(buttonId, picker, save) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  if (!picker) {
+    // No box to read a place out of. Say so on the button rather than leaving
+    // something that looks pressable and is not.
+    btn.disabled = true;
+    btn.title = 'the place box is missing from this page';
+    return;
+  }
+  btn.addEventListener('click', async () => {
+    const already = picker.get();
+    if (already) {
+      // Show what is being set, so the line under the box is about this press
+      // and not about whatever the last one failed to find. Quietly, because
+      // onPick would otherwise save it a second time.
+      picker.set(already, true);
+      save(already);
+      return;
+    }
+    const how = await picker.lookup();
+    // 'picked' means the picker set it, and setting it is what runs onPick -
+    // which has already saved. Saving here too is the double save.
+    if (how === 'picked') return;
+    if (how === 'empty') {
+      picker.input.focus();
+      toast('Nothing to set yet',
+            'Type a town, a grid square like EN34kp, or coordinates such as 46.60, -94.31.');
+      return;
+    }
+    if (how === 'choose') {
+      toast('More than one place matches', 'Pick the right one from the list below the box.');
+      return;
+    }
+    toast('No place found', 'Try adding a state or county, or use a grid square.');
+  });
 }
 
 /* Browser geolocation. Only offered where it can actually work: browsers

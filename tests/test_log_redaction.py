@@ -72,9 +72,9 @@ def main():
     check("a traceback goes through the same cleaning", ("KC9SP" in text, "scott" in text, "RuntimeError" in text), (False, False, True))
 
     print("\n-- the console formatter is the same cleaning --")
-    colour = logs.ColourFormatter(False)
+    color = logs.ColorFormatter(False)
     rec = logging.LogRecord("x", logging.INFO, __file__, 1, "hello W1AW", (), None)
-    check("the coloured console line is clean too", "W1AW" in colour.format(rec), False)
+    check("the colored console line is clean too", "W1AW" in color.format(rec), False)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

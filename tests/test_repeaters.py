@@ -60,13 +60,13 @@ def run():
     check("  whose card lists only amateur machines", [r["call"] for r in rep["rows"]], ["W0ABC"])
     ways = reachout.ways(46.60, -94.31, ["gmrs"], "none")
     keys = [w["key"] for w in ways]
-    check("a GMRS radio with no amateur licence is offered the GMRS repeater", "gmrs-repeater" in keys, True)
+    check("a GMRS radio with no amateur license is offered the GMRS repeater", "gmrs-repeater" in keys, True)
     check("  and no amateur machine", "repeater" in keys, False)
     g = next(w for w in ways if w["key"] == "gmrs-repeater")
     check("  with the input 5 MHz up and the tone", "467.675" in g["do"] and "141.3" in g["do"], True)
-    check("  and the licence named as a fee and a form", "no exam" in g["needs"], True)
+    check("  and the license named as a fee and a form", "no exam" in g["needs"], True)
 
-    print("\n-- the GMRS licence, held --")
+    print("\n-- the GMRS license, held --")
     check("a GMRS call is known by its shape", (callsign.is_gmrs("WRMP909"), callsign.is_gmrs("KAB1234"), callsign.is_gmrs("KC9SP")), (True, True, False))
     # The FCC's GMRS file, in miniature, read into the unit's index.
     import io
@@ -85,11 +85,11 @@ def run():
     check("looked up through the one door, from the FCC's file, filed as GMRS", (rec["found"], rec["service"], rec["expires"]), (True, "gmrs", "05/14/2031"))
     check("  the name and street the record carries are not kept", any("name" in k or "street" in k for k in rec), False)
     check("  and it is current", rec["status"]["state"], "current")
-    check("a GMRS licence past its date has no grace period", callsign.status_for(callsign._parse_date("2020-01-01"), 0)["state"], "expired")
+    check("a GMRS license past its date has no grace period", callsign.status_for(callsign._parse_date("2020-01-01"), 0)["state"], "expired")
     check("  where an amateur one would", callsign.status_for(callsign._parse_date("2025-01-01"))["state"], "grace")
     ways = reachout.ways(46.60, -94.31, ["gmrs"], "none", gmrs=rec)
     g = next(w for w in ways if w["key"] == "gmrs-repeater")
-    check("the repeater card knows the licence is held", "you hold WRMP909" in g["needs"] and "Say WRMP909" in g["do"], True)
+    check("the repeater card knows the license is held", "you hold WRMP909" in g["needs"] and "Say WRMP909" in g["do"], True)
     f = next(w for w in ways if w["key"] == "frs-gmrs")
     check("  and so does the FRS/GMRS card", "you hold WRMP909, good until 05/14/2031" in f["needs"], True)
 

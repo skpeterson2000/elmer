@@ -8,8 +8,8 @@ The card in data/golf/<course>.json has the course's coordinates. This asks
 the Overpass API for everything tagged golf within a mile and a half of
 them, plus the coastline and the water, keeps what lies inside the named
 golf course's own polygon (a radius that size takes in the neighbours'
-holes too, and Pebble Beach has three), projects it to metres about the
-course's centre, rounds it to the half metre, and writes
+holes too, and Pebble Beach has three), projects it to meters about the
+course's center, rounds it to the half meter, and writes
 data/golf/<course>.map.json. The renderer, elmer/coursemap.py, draws the
 course from that and never touches the network; the file ships with the
 program the way the card does.
@@ -62,8 +62,8 @@ out body;"""
 
 
 def project(lat0, lon0):
-    """Equirectangular about the course: metres east and north. A course is
-    a couple of kilometres across; the error is centimetres."""
+    """Equirectangular about the course: meters east and north. A course is
+    a couple of kilometers across; the error is centimeters."""
     k = 111_320.0
     cx = math.cos(math.radians(lat0))
 
@@ -238,7 +238,7 @@ def build(card, refresh=False):
 
     out = {
         "course": card["id"], "name": card["name"], "lat": lat, "lon": lon,
-        "units": "metres east and north of lat/lon",
+        "units": "meters east and north of lat/lon",
         "attribution": "Map data (c) OpenStreetMap contributors, ODbL 1.0; fetched by tools/fetch_golf_map.py",
         "outline": rounded(outline) if outline else None,
         "holes": {str(n): rounded(p) for n, p in sorted(holes.items())},

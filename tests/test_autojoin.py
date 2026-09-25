@@ -51,7 +51,7 @@ check("a Technician unit takes the Technician net",
 print("\nwith nothing matching, the busiest net rather than none")
 # A General at a Technician table answers Technician questions - material
 # they have already passed, asked at speed, which is practice and not a
-# misjudgement of their class.
+# misjudgment of their class.
 check("an Extra unit still joins in",
       appmod._party_pick_net([UNNAMED, GENERAL], "extra")["name"], "a net")
 check("and the fullest is the one offered first",

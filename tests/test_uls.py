@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks for the FCC's own licence files: read into the unit's index and
+"""Checks for the FCC's own license files: read into the unit's index and
 answering callsigns of every kind - amateur, GMRS, commercial - with the
 class, the dates, the status, the FRN's other tickets, and nothing of the
 name or the street.
@@ -69,7 +69,7 @@ def main():
         "HS.dat": "HS|1||WRMP909|05/14/2021|LIISS\r\n"}))
     check("three rows read", n, 3)
     r = uls.lookup("WRMP909")
-    check("the licence: found, active, the dates", (r["found"], r["fcc_status"], r["granted"], r["expires"]), (True, "active", "05/14/2021", "05/14/2031"))
+    check("the license: found, active, the dates", (r["found"], r["fcc_status"], r["granted"], r["expires"]), (True, "active", "05/14/2021", "05/14/2031"))
     check("  current, with no grace period on GMRS", (r["status"]["state"], r["status"]["grace_ends"]), ("current", "2031-05-14"))
     check("  the FRN kept", r["frn"], "0030807051")
     check("  the town kept, for placing a far station", (r["place"], r["zip"]), ("Pequot Lakes, MN", "56472"))
@@ -77,7 +77,7 @@ def main():
     check("  the source names the FCC and the file's date", r["source"].startswith("FCC ULS, the GMRS file of "), True)
     check("an expired one is found and said to be expired, past any grace", (uls.lookup("WROL001")["found"], uls.lookup("WROL001")["status"]["state"]), (True, "expired"))
     g = uls.lookup("WRGO002")
-    check("a cancelled one is not a licence, and says why", (g["found"], g["reason"]), (False, "the FCC record is cancelled as of 06/01/2022"))
+    check("a cancelled one is not a license, and says why", (g["found"], g["reason"]), (False, "the FCC record is cancelled as of 06/01/2022"))
     check("one not in the file", uls.lookup("WRZZ000")["reason"], "no FCC GMRS record for this callsign")
 
     print("\n-- the amateur file, with the class --")

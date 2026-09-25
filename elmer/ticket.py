@@ -5,7 +5,7 @@ exams behind it, that a person would very probably pass. What it had no way
 of saying was the next thing: go and do it. The program would happily have
 let somebody drill a pool to ninety-five per cent for a year.
 
-So when there is no licence on this account's record and a pool's evidence
+So when there is no license on this account's record and a pool's evidence
 says ready, the dashboard says so, and says what the day actually involves -
 an FRN before you go, a session to book, a team that sets its own fee, and
 the Commission's application fee afterwards. Those are the four things that
@@ -18,8 +18,8 @@ the point where it is worth finding out when the local team next sits.
 ninety per cent of the pool seen, eighty-five per cent odds, and two of the
 last three mock exams passed. That is evidence, not encouragement.
 
-**What is said about the licence itself.** Not "you are unlicensed" - ELMER
-does not know that, it knows only that no licence is on record for this
+**What is said about the license itself.** Not "you are unlicensed" - ELMER
+does not know that, it knows only that no license is on record for this
 account, which is a different sentence and the only one it is entitled to.
 The same care :mod:`elmer.ranks` takes in the other direction: nothing here
 may leave anybody with the impression that the program has licensed them, or
@@ -79,7 +79,7 @@ STEPS = [
 # The paragraph that is the point of the panel. Said once, on the screen
 # where somebody has just been told they are ready.
 CHARGE = (
-    "A licence is more than a privilege that carries legal and ethical "
+    "A license is more than a privilege that carries legal and ethical "
     "obligations. It is knowledge, and knowledge carries its own imperative: "
     "to be a generous ambassador for the craft, to demonstrate competence, "
     "and to share that competence with the developing operator in kindness. "
@@ -91,7 +91,7 @@ CLASS_NAMES = {"tech2026": "Technician", "gen2023": "General",
 
 
 def on_record(settings):
-    """Whether a licence class is known for this account, and whose word it is.
+    """Whether a license class is known for this account, and whose word it is.
 
     Deliberately not named ``licensed``. The answer is about ELMER's record,
     not about the person: an operator licensed for thirty years who has never
@@ -114,7 +114,7 @@ def _stage(standing):
 def call_to_action(settings, standings):
     """The dashboard panel, or None when there is nothing to say.
 
-    Nothing is said when a licence class is already on record, and nothing is
+    Nothing is said when a license class is already on record, and nothing is
     said until a pool's own evidence has reached at least "approaching" - so
     the panel arrives once, at the moment it is true, rather than sitting on
     the dashboard from the first evening as one more thing to read past.
@@ -176,7 +176,7 @@ def call_to_action(settings, standings):
         "fee": FCC_FEE, "fee_note": FEE_NOTE,
         "finder": SESSION_FINDER, "cores": CORES,
         # Said on the panel itself, so the one sentence ELMER is entitled to
-        # about somebody's licence is the one printed.
-        "record_note": ("No licence is on record for this account. If you "
+        # about somebody's license is the one printed.
+        "record_note": ("No license is on record for this account. If you "
                         "hold one, put your callsign in and this goes away."),
     }

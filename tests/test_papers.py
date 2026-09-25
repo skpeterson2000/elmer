@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Checks for the operator's own licence papers: kept for the account that
+"""Checks for the operator's own license papers: kept for the account that
 handed them over and shown to nobody else, read for the callsign and the
 dates where the file has text, and laid beside the FCC record.
 
     python3 tests/test_papers.py
 
-Needs reportlab (to make a licence-shaped PDF) and poppler (to read it), as
+Needs reportlab (to make a license-shaped PDF) and poppler (to read it), as
 the Library does.
 """
 import io
@@ -27,7 +27,7 @@ def check(label, got, want):
         FAILS.append(label)
 
 
-def licence_pdf(call, granted, expires):
+def license_pdf(call, granted, expires):
     from reportlab.pdfgen import canvas
     buf = io.BytesIO()
     c = canvas.Canvas(buf)
@@ -56,10 +56,10 @@ def main():
     cl.post("/api/settings", json={"callsign": "KC9SP"})
 
     print("\n-- kept, and read --")
-    r = cl.post("/api/papers/add", data={"kind": "amateur", "file": (io.BytesIO(licence_pdf("KC9SP", "05-14-2021", "05-14-2031")), "l.pdf")},
+    r = cl.post("/api/papers/add", data={"kind": "amateur", "file": (io.BytesIO(license_pdf("KC9SP", "05-14-2021", "05-14-2031")), "l.pdf")},
                 content_type="multipart/form-data")
     d = r.get_json()
-    check("the licence is kept", (r.status_code, d["message"]), (200, "Amateur licence kept"))
+    check("the license is kept", (r.status_code, d["message"]), (200, "Amateur license kept"))
     held = d["held"][0]
     check("  the paper's callsign and dates read off it", (held["says"]["calls"], held["says"]["granted"], held["says"]["expires"]),
           (["KC9SP"], "2021-05-14", "2031-05-14"))
@@ -67,7 +67,7 @@ def main():
     check("  laid beside the FCC record, which it agrees with", (held["record"]["callsign"], held["agrees"]), ("KC9SP", True))
     r = cl.post("/api/papers/add", data={"kind": "gmrs", "file": (io.BytesIO(b"hello there"), "x.pdf")}, content_type="multipart/form-data")
     check("something that is not a PDF is refused", r.status_code, 400)
-    r = cl.post("/api/papers/add", data={"kind": "passport", "file": (io.BytesIO(licence_pdf("KC9SP", "1", "2")), "x.pdf")}, content_type="multipart/form-data")
+    r = cl.post("/api/papers/add", data={"kind": "passport", "file": (io.BytesIO(license_pdf("KC9SP", "1", "2")), "x.pdf")}, content_type="multipart/form-data")
     check("  and so is a kind ELMER does not keep", r.status_code, 400)
 
     print("\n-- shown back --")
@@ -76,7 +76,7 @@ def main():
     if library.can_draw_pages():
         check("  the pages, drawn", (cl.get("/papers/page/amateur/1.png").status_code, cl.get("/papers/page/amateur/2.png").status_code), (200, 200))
         check("  and not a third", cl.get("/papers/page/amateur/3.png").status_code, 404)
-    check("the Library carries the card", "Your licences" in cl.get("/library").get_data(as_text=True), True)
+    check("the Library carries the card", "Your licenses" in cl.get("/library").get_data(as_text=True), True)
     check("nothing of it on the shelf", library.shelf(), [])
 
     print("\n-- theirs alone --")

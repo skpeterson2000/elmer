@@ -148,7 +148,7 @@ function promotionNote(promoted) {
  * is a second away, for free, and the card comes back until it is actually
  * known, so there is nothing here worth defending. What there is, is
  * something worth saying. The stern owl, which the program otherwise keeps
- * for an exposure limit and a licence claim, because this is the third
+ * for an exposure limit and a license claim, because this is the third
  * thing on the list of raised-eyebrow moments and it is a much funnier one.
  * See peeking.py. */
 function wireNote(wire) {

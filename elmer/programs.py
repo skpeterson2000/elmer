@@ -2,7 +2,7 @@
 
 Somebody planning a Saturday at a park wants three things a rule book does
 not carry: whether people actually make their ten there, what they make it
-on, and when. Both programmes publish that - POTA keeps every activation
+on, and when. Both programs publish that - POTA keeps every activation
 with its CW, data and phone counts, and SOTA keeps every activation with
 its QSO count - keyed by the reference, with no login. So this fetches a
 place's record, reads a story out of it, and keeps it on disk so that the
@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 from . import activations, paths
 
-CACHE = paths.STATE / "programmes"
+CACHE = paths.STATE / "programs"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 TIMEOUT = 20
 MAX_AGE_SECONDS = 24 * 3600
@@ -59,7 +59,7 @@ def _get(url):
 def _story(rows, qualifies):
     """The record read out: how many made it, on what, when, and lately.
     `rows` are (date, qsos, cw, data, phone) with the mode counts None where
-    the programme does not keep them."""
+    the program does not keep them."""
     if not rows:
         return None
     rows = sorted(rows, key=lambda r: r[0], reverse=True)
@@ -135,7 +135,7 @@ def _sota(ref):
 
 def lookup(ref, refresh=False):
     """A park's or a summit's record, from disk where it is fresh enough,
-    else from the programme; what is on disk beats nothing when the network
+    else from the program; what is on disk beats nothing when the network
     is gone, and says how old it is."""
     ref = (ref or "").strip().upper()
     kind = kind_of(ref)
@@ -157,10 +157,10 @@ def lookup(ref, refresh=False):
         out = _pota(ref) if kind == "park" else _sota(ref)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            return {"ok": False, "found": False, "ref": ref, "error": f"no {kind} {ref} in the programme's list"}
-        return _fallback(cached, ref, f"the programme answered {exc.code}")
+            return {"ok": False, "found": False, "ref": ref, "error": f"no {kind} {ref} in the program's list"}
+        return _fallback(cached, ref, f"the program answered {exc.code}")
     except Exception as exc:                       # network, timeout, garbage
-        return _fallback(cached, ref, f"could not reach the programme ({exc})")
+        return _fallback(cached, ref, f"could not reach the program ({exc})")
     out["ref"] = out.get("ref") or ref
     out["fetched_at"] = time.time()
     try:

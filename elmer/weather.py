@@ -54,7 +54,7 @@ PEAK_MOST = 100                 # mph; past this the reading is bad data, not we
 # What the observation feed reports wind in. It is SI by default and the
 # unit is named on every value, so it is read rather than assumed - a
 # station that answers in knots must not be taken for one answering in
-# kilometres an hour.
+# kilometers an hour.
 TO_MPH = {
     "wmoUnit:km_h-1": 0.621371, "wmoUnit:m_s-1": 2.236936,
     "wmoUnit:mi_h-1": 1.0, "wmoUnit:kn": 1.150779,

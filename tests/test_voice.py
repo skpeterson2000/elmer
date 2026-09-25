@@ -64,18 +64,18 @@ def run():
           voice.hole(1, 4, 377, "with", 12, "pebble-beach"), ["hole-pebble-beach-1", "the-breeze-is-behind-you", "twelve", "miles-an-hour"])
     check("  and the second, with no such file, from the pieces", voice.hole(2, 5, 502, None, None, "pebble-beach")[:2], ["pebble-beach", "hole"] if False else voice.hole(2, 5, 502, None, None, "pebble-beach")[:2])
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1", "hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2", "the-putter", "in-hand", "on-the-green"])
-    check("a hole's colour is not in the read - it comes a line at a time, to each player's address",
+    check("a hole's color is not in the read - it comes a line at a time, to each player's address",
           voice.hole(1, 4, 377, None, None, "pebble-beach"), ["hole-pebble-beach-1"])
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-read-2"])
     reads = {voice.hole(1, 4, 377, None, None, "pebble-beach")[0] for _ in range(40)}
     check("  a hole with two reads is read either way, over an evening", reads, {"hole-pebble-beach-1", "hole-pebble-beach-1-read-2"})
     voice.set_shelf(["hole-pebble-beach-1", "hole-pebble-beach-1-tee-1", "hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2", "the-putter", "in-hand", "on-the-green"])
-    check("  and the green's colour comes with the first putt, when it is asked for",
+    check("  and the green's color comes with the first putt, when it is asked for",
           voice.address("Scott", "putter", 0, "green", green_notes=voice.notes("pebble-beach", 1, "green"))[-2:],
           ["hole-pebble-beach-1-green-1", "hole-pebble-beach-1-green-2"])
     check("  but not with every putt", voice.address("Scott", "putter", 0, "green")[-1], "on-the-green")
     voice.set_shelf(["hole-pebble-beach-1-sand-1", "the-sand-wedge", "in-hand", "to-go", "from-the-sand"])
-    check("  the sand's colour comes after the lie, when asked for",
+    check("  the sand's color comes after the lie, when asked for",
           voice.address("Scott", "sand-wedge", 40, "sand", green_notes=voice.notes("pebble-beach", 1, "sand"))[-2:], ["from-the-sand", "hole-pebble-beach-1-sand-1"])
     voice.set_shelf(["hole", "one", "is", "par", "four", "rough", "green", "bunker", "the-driver", "two", "yards"])
     check("with 'the first' unrecorded, the pieces say it: hole, one, is", voice.hole(1, 4, 377)[:5], ["hole", "one", "is", "par", "four"])
@@ -154,7 +154,7 @@ def run():
     check("no token outside the vocabulary", stray, [])
     check("the script has a line for every snippet", len(voice.script_lines()), len(voice.VOCABULARY))
 
-    print("\n-- the colour, a line at a time, one to each player --")
+    print("\n-- the color, a line at a time, one to each player --")
     from elmer.party import _lie_notes
     shelf_was = voice._shelf
     voice.set_shelf({"hole-pebble-beach-2", "hole-pebble-beach-2-tee-1", "hole-pebble-beach-2-tee-2",

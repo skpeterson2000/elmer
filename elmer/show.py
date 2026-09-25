@@ -15,13 +15,13 @@ else to do. This is the host's hand on all of them at once:
   talks. Cleared by the host, not by a clock.
 * **The deck**: what plays when no round is up - trivia from the decks in
   :mod:`elmer.trivia`, the standings, the sponsors' cards, the club's
-  notices, the join code, what is next on the programme. Net control picks
+  notices, the join code, what is next on the program. Net control picks
   the card and every screen shows the same card at the same moment, which
   is what makes it a show rather than a screensaver.
 * **Mode**: whether the hall is playing, studying or between things. In
   study mode the host names a focus - "everyone: T5 for ten minutes" - and
   the screens carry it.
-* **The programme**: the evening as a list of steps the host walks with one
+* **The program**: the evening as a list of steps the host walks with one
   button.
 
 Nothing here decides a question or scores an answer; that stays in
@@ -44,7 +44,7 @@ from pathlib import Path
 
 from . import trivia
 from .paths import STATE
-from .supporter import honour_line
+from .supporter import honor_line
 
 log = logging.getLogger("elmer")
 
@@ -62,7 +62,7 @@ MIN_DWELL, MAX_DWELL = 5.0, 60.0
 # The kinds of card the deck can hold, and which are on by default. Trivia
 # decks are the ones in trivia.DECKS; the rest are the hall's own.
 TRIVIA_DECKS = list(trivia.DECKS)
-CARD_KINDS = ["standings", "sponsor", "notice", "join", "programme", "thanks"]
+CARD_KINDS = ["standings", "sponsor", "notice", "join", "program", "thanks"]
 DEFAULT_DECK = {**{d: True for d in TRIVIA_DECKS},
                 **{k: True for k in CARD_KINDS}}
 
@@ -154,8 +154,8 @@ class Show:
         # -- mode and focus
         self.mode = PLAY
         self.focus = None                # {"section","title","text","until"}
-        # -- the programme
-        self.programme = []
+        # -- the program
+        self.program = []
         self.step = -1
         self._step_at = 0.0
 
@@ -312,8 +312,8 @@ class Show:
             others.append(("notice", None))
         if self.deck.get("join") and join:
             others.append(("join", None))
-        if self.deck.get("programme") and self.programme:
-            others.append(("programme", None))
+        if self.deck.get("program") and self.program:
+            others.append(("program", None))
         if self.house and self._due(self.house, pass_no):
             others.append(("house", None))
         # The roll of thanks: the supporters in the room, with the event's
@@ -380,8 +380,8 @@ class Show:
             card.update({"rows": standings[:6]})
         elif kind == "join":
             card.update({"join": join})
-        elif kind == "programme":
-            card.update(self.programme_view())
+        elif kind == "program":
+            card.update(self.program_view())
         elif kind == "focus":
             card.update({"focus": dict(self.focus)})
         return card
@@ -420,7 +420,7 @@ class Show:
 
     def _cycle_key(self, standings, join):
         return (bool(standings), bool(join), self.mode, len(self.sponsors),
-                len(self.notices), len(self.programme), self.house)
+                len(self.notices), len(self.program), self.house)
 
     # ---------------------------------------------- sponsors and notices
 
@@ -527,9 +527,9 @@ class Show:
             f["remaining"] = (max(0, int(f["until"] - now)) if f["until"] else None)
             return f
 
-    # ----------------------------------------------------------- programme
+    # ----------------------------------------------------------- program
 
-    def set_programme(self, steps):
+    def set_program(self, steps):
         """The evening as a list. Each step is {"kind", ...}; see STEP_KINDS."""
         clean = []
         for s in steps or []:
@@ -549,7 +549,7 @@ class Show:
                     step[key] = _clean(s[key])
             clean.append(step)
         with self.lock:
-            self.programme = clean
+            self.program = clean
             self.step = -1
             self._card = None
             return list(clean)
@@ -558,19 +558,19 @@ class Show:
         """Move to the next step and return it, or None past the end."""
         now = _now() if now is None else now
         with self.lock:
-            if self.step + 1 >= len(self.programme):
-                self.step = len(self.programme)
+            if self.step + 1 >= len(self.program):
+                self.step = len(self.program)
                 return None
             self.step += 1
             self._step_at = now
             self._card = None
-            step = dict(self.programme[self.step])
-            log.info("show: programme step %d/%d - %s", self.step + 1,
-                     len(self.programme), step["label"])
+            step = dict(self.program[self.step])
+            log.info("show: program step %d/%d - %s", self.step + 1,
+                     len(self.program), step["label"])
             return step
 
     def advance_from(self, index, now=None):
-        """Advance, but only if the programme is still on step `index`.
+        """Advance, but only if the program is still on step `index`.
 
         For the timekeeper, which decides a step is due and then acts on it
         a moment later: if the host pressed Next in between, the step it
@@ -584,14 +584,14 @@ class Show:
 
     def current_step(self):
         with self.lock:
-            if 0 <= self.step < len(self.programme):
-                return dict(self.programme[self.step])
+            if 0 <= self.step < len(self.program):
+                return dict(self.program[self.step])
             return None
 
     def next_step(self):
         with self.lock:
-            if 0 <= self.step + 1 < len(self.programme):
-                return dict(self.programme[self.step + 1])
+            if 0 <= self.step + 1 < len(self.program):
+                return dict(self.program[self.step + 1])
             return None
 
     def step_remaining(self, now=None):
@@ -615,14 +615,14 @@ class Show:
         early = lead if nxt and nxt.get("kind") in ("rounds", "shootout") else 0.0
         return remaining <= early
 
-    def programme_view(self, now=None):
+    def program_view(self, now=None):
         now = _now() if now is None else now
         with self.lock:
-            cur = (self.programme[self.step]
-                   if 0 <= self.step < len(self.programme) else None)
-            nxt = (self.programme[self.step + 1]
-                   if self.step + 1 < len(self.programme) else None)
-            return {"step": self.step + 1, "of": len(self.programme),
+            cur = (self.program[self.step]
+                   if 0 <= self.step < len(self.program) else None)
+            nxt = (self.program[self.step + 1]
+                   if self.step + 1 < len(self.program) else None)
+            return {"step": self.step + 1, "of": len(self.program),
                     "now": cur and cur["label"], "next": nxt and nxt["label"],
                     "kind": cur and cur["kind"],
                     "since": (now - self._step_at) if cur else None,
@@ -631,7 +631,7 @@ class Show:
                     # is a step the host ends.
                     "remaining": (round(self.step_remaining(now), 1)
                                   if cur and cur.get("minutes") else None),
-                    "steps": [s["label"] for s in self.programme]}
+                    "steps": [s["label"] for s in self.program]}
 
     # ------------------------------------------------------------ for units
 
@@ -648,8 +648,8 @@ class Show:
         with self.lock:
             card = self.card(now, standings, join)
             if supporter and card and card.get("kind") == "house":
-                card = dict(card, honour=supporter,
-                            text=honour_line(supporter, game))
+                card = dict(card, honor=supporter,
+                            text=honor_line(supporter, game))
             return {
                 "mode": self.mode,
                 "focus": self.focus_view(now),
@@ -658,7 +658,7 @@ class Show:
                 # the board (no unit) gets none of them.
                 "announcements": self.announcements_for(unit, "*" if unit else None, now),
                 "card": card,
-                "programme": self.programme_view(now) if self.programme else None,
+                "program": self.program_view(now) if self.program else None,
             }
 
     def host_view(self, now=None):
@@ -675,8 +675,8 @@ class Show:
                 "sponsors": [dict(s) for s in self.sponsors],
                 "supporters": list(self.supporters),
                 "notices": [dict(n) for n in self.notices],
-                "programme": self.programme_view(now),
-                "steps": [dict(s) for s in self.programme],
+                "program": self.program_view(now),
+                "steps": [dict(s) for s in self.program],
                 "step_kinds": dict(STEP_KINDS),
                 "events": [{"key": k, "label": v["label"], "blurb": v["blurb"]}
                            for k, v in EVENTS.items()],
@@ -690,7 +690,7 @@ class Show:
         with self.lock:
             data = {"deck": self.deck, "dwell": self.dwell, "house": self.house,
                     "sponsors": self.sponsors, "notices": self.notices,
-                    "programme": self.programme, "next_id": self._next_id}
+                    "program": self.program, "next_id": self._next_id}
         try:
             HOME.mkdir(parents=True, exist_ok=True)
             SETTINGS.write_text(json.dumps(data, indent=1))
@@ -726,14 +726,14 @@ class Show:
                     sp["presence"] = _presence(sp.pop("weight", 1))
             show.notices = [n for n in data.get("notices") or []
                             if isinstance(n, dict) and (n.get("title") or n.get("text"))]
-            show.programme = [s for s in data.get("programme") or []
+            show.program = [s for s in data.get("program") or []
                               if isinstance(s, dict) and s.get("kind") in STEP_KINDS]
             show._next_id = max(int(data.get("next_id") or 1),
                                 1 + max([0] + [int(x.get("id", 0)) for x in show.sponsors + show.notices]))
         return show
 
 
-# The steps a programme is made of, with the word for each on a screen.
+# The steps a program is made of, with the word for each on a screen.
 STEP_KINDS = {
     "intermission": "Intermission",
     "rounds": "Tournament rounds",
@@ -769,7 +769,7 @@ EVENTS = {
     },
     "class": {
         "label": "A class",
-        "blurb": "A licence class being taught: study first, then questions, "
+        "blurb": "A license class being taught: study first, then questions, "
                  "then study on what the room missed, and again - with the "
                  "weak sections on the host's screen the whole time.",
         "steps": [

@@ -63,7 +63,7 @@ RAMP_COVERAGE = 0.6
 
 # The two halves, weighted equally. Both are on [0, 1]: the miss rate as it
 # is, and the normalised time squashed so that "typical for that person" sits
-# at 0.5. Equal weights are a judgement and are labelled as one.
+# at 0.5. Equal weights are a judgment and are labelled as one.
 W_MISS = 0.5
 W_TIME = 0.5
 

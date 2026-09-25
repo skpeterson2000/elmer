@@ -9,7 +9,7 @@ coat: every section equally likely whatever its weight on the examination, the
 same question possible twice in an evening, and no end to it - so nobody ever
 won anything, they just stopped playing.
 
-It is now modelled on the examination for the licence class being played. The
+It is now modelled on the examination for the license class being played. The
 pool is divided into sections, the exam takes one from each, and the number of
 sections in a subelement is its weight on the paper - so drawing the same way
 gets the proportions right without a second table to maintain and disagree

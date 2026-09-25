@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Undoing a silent write: the licence classes the band plan left behind.
+"""Undoing a silent write: the license classes the band plan left behind.
 
     python3 tests/test_license_migration.py
 
@@ -16,7 +16,7 @@ it. Version 8 clears exactly those, so the station is asked once rather than
 quietly believed.
 
 What must survive it: a class the FCC record answers for, and a class marked
-as the operator's own. That second one is how a licence from outside the US -
+as the operator's own. That second one is how a license from outside the US -
 callook serves the FCC and nothing else - and an upgrade the published file
 has not caught up with live through this.
 """
@@ -71,7 +71,7 @@ def main():
 
     print("\n-- the upgrade --")
     # Whatever the current version is: this test is about what the version 8
-    # step does to the licence class, not about 8 being the last step. It
+    # step does to the license class, not about 8 being the last step. It
     # said "8" and went red the day a version 9 was added behind it.
     check("the database is brought all the way up to date", db.migrate(conn), db.SCHEMA_VERSION)
     check("  which is past the step under test", db.SCHEMA_VERSION >= 8, True)

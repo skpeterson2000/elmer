@@ -1,13 +1,13 @@
 """Parks and summits near enough to be a day out, kept for when there is none.
 
-The programmes are useless to somebody who cannot say what is near them, and
+The programs are useless to somebody who cannot say what is near them, and
 "near" is the part a program can actually answer. So this fetches the parks
 and summits within a day's reach while there is a signal, and holds them, so
 that a unit in a valley with no bars can still say what is around it and what
 the drive is. It is the same bargain the rest of ELMER makes about places:
 look it up once, keep it, and be honest afterwards about what is held.
 
-Radius is stated in kilometres because that is what arithmetic wants, but the
+Radius is stated in kilometers because that is what arithmetic wants, but the
 number is chosen in hours. Four hours of driving is about as far as anybody
 goes and comes back the same day, and four hours of road is roughly this far
 in a straight line - less through mountains, more across a plain. The circle
@@ -20,11 +20,11 @@ says who is worth asking without downloading the world. The alternative for
 summits is a 24 MB list of all 179,000 of them, which is one request and a
 great deal of somebody's bandwidth for a county's worth of hills.
 
-**A centre decides who to ask; it never decides what is near.** POTA's
+**A center decides who to ask; it never decides what is near.** POTA's
 location list carries a coordinate per location, and some of them are simply
 wrong - as this was written it placed South Africa's North West province in
 Indiana and a Romanian county in Missouri. Trusting those would put a park
-2,000 km away on a list of what is nearby. So the centres are used only to
+2,000 km away on a list of what is nearby. So the centers are used only to
 choose whose list to request, and then every reference is measured on its own
 coordinates, which are the ones the operator would drive to.
 """
@@ -73,10 +73,10 @@ DEFAULT_RADIUS_KM = 350
 # in the field, every time, and a unit with no signal cannot act on this
 # anyway - which is exactly when it is being read.
 STALE_DAYS = 30
-# How far outside the circle a location's centre may sit and still be worth
-# asking. A state is wide, and its centre can be hundreds of kilometres from
+# How far outside the circle a location's center may sit and still be worth
+# asking. A state is wide, and its center can be hundreds of kilometers from
 # the corner of it that is close to you.
-CENTRE_MARGIN_KM = 600
+CENTER_MARGIN_KM = 600
 
 
 def _get(url):
@@ -112,7 +112,7 @@ def parks_near(lat, lon, radius_km, say=None):
         if place.get("latitude") is None or place.get("longitude") is None:
             return False
         away = great_circle(lat, lon, place["latitude"], place["longitude"])[0]
-        return away < radius_km + CENTRE_MARGIN_KM
+        return away < radius_km + CENTER_MARGIN_KM
 
     asking = [l for l in locations if worth_asking(l)]
     say(f"POTA: {len(asking)} location lists to read")
@@ -187,7 +187,7 @@ def summits_near(lat, lon, radius_km, say=None):
 def fetch(lat, lon, radius_km=DEFAULT_RADIUS_KM, label=None, say=None):
     """Fetch and hold what is within reach of one place.
 
-    Returns the area record. A programme that could not be reached leaves its
+    Returns the area record. A program that could not be reached leaves its
     list absent rather than empty, because those are different answers and an
     operator told "no summits near you" when the truth is "nobody asked" has
     been told the wrong thing.

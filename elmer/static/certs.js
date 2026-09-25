@@ -40,7 +40,7 @@
           <button class="btn sm ghost" id="certs-close" style="margin-left:auto">Close</button></div>
         <div class="certs-grid">
           ${field('cf-event', 'Event', d.event, 'As it should read across the top: "Hamfest", "Club Night", "Field Day".')}
-          ${field('cf-club', 'Hosted by', d.club, 'The club or organisation, under the event. Leave blank if the event says it.')}
+          ${field('cf-club', 'Hosted by', d.club, 'The club or organization, under the event. Leave blank if the event says it.')}
           ${field('cf-when', 'Date, as it should read', d.when, 'Any wording: "Saturday 17 July 2027", or just "July 2027".')}
           ${field('cf-where', 'Place', d.where, 'Town and state. Starts from the station’s QTH.')}
           ${field('cf-net', 'Net control, for the signature line', d.net_control, 'Printed under the line, so they only have to sign.')}

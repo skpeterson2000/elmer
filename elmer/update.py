@@ -27,7 +27,7 @@ Three rules hold for the applying, whenever it is asked for:
 * **No update over local edits.**  Changes to tracked files are somebody's
   work in progress; an update that discards them is a bug, not a feature.  On
   the machine ELMER is actually written on, this is what keeps the updater
-  quiet.  Untracked files are left out of that judgement on purpose: they are
+  quiet.  Untracked files are left out of that judgment on purpose: they are
   nobody's business but their owner's, and git will refuse on its own if an
   incoming commit would land on one.
 * **Never prompt.**  The check runs on a background thread where a credential

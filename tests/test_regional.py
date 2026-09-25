@@ -3,7 +3,7 @@
 
     python3 tests/test_regional.py
 
-Forty-nine organisations cover the fifty states and not one per state: SERA
+Forty-nine organizations cover the fifty states and not one per state: SERA
 alone covers eight, T-MARC five, NESMC four, and California is carved up five
 ways. Naming somebody's coordinator and parsing their plan are two different
 jobs and only the first is cheap - there is no registry, no API and no common
@@ -46,7 +46,7 @@ def main():
     check("the shorthands are unique",
           len({c["short"] for c in R.COORDINATORS}), len(R.COORDINATORS))
 
-    print("\n-- states with more than one, and organisations with more than one state --")
+    print("\n-- states with more than one, and organizations with more than one state --")
     check("SERA covers eight states", len(R.for_state("GA")[0]["states"]), 8)
     check("California has several bodies", len(R.for_state("CA")) > 1, True)
     check("  and the most specific comes first",
@@ -137,9 +137,9 @@ def main():
 
     print("\n-- reading any page whose rows are a plan --")
     page = "\n".join([
-        "Two metres", "144.100 - 144.275 Weak Signal SSB", "144.500 - 144.900 Repeater Inputs",
+        "Two meters", "144.100 - 144.275 Weak Signal SSB", "144.500 - 144.900 Repeater Inputs",
         "145.100 - 145.500 Repeater Outputs", "146.400 - 146.580 Simplex",
-        "Seventy centimetres", "442.000 - 445.000 Repeater Outputs", "446.000 - 446.175 Simplex",
+        "Seventy centimeters", "442.000 - 445.000 Repeater Outputs", "446.000 - 446.175 Simplex",
         "447.000 - 450.000 Repeater Inputs", "1000.000 - 1001.000 not a band", "146.900 - 442.000 spans two",
     ])
     from elmer import bandplan

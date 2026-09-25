@@ -545,7 +545,7 @@ window.toast = window.toast || function (title, text) {
 };
 /* Every call has a deadline and is counted while it is out. A press whose
    request never leaves the browser - the connection pool full, a fetch
-   that hangs - used to sit for ever with the button greyed and nothing in
+   that hangs - used to sit for ever with the button grayed and nothing in
    any log; now it fails at the deadline, and the report says how many
    other requests were in flight and what the narrator's audio was doing,
    which is the one place a page like this can tie the pool up. */
@@ -1168,12 +1168,12 @@ async function tick() {
           canAim ? ` data-aim-for="${gf.away}" title="tap where you mean the ball to land"` : ''}>` +
           (canAim ? `<p class="hint holemap-hint">${awayAim && awayAim.set ? ((awayBall.lie === 'green' || awayBall.lie === 'fringe') ? `Aiming ${Math.round((awayAim.at - gf.yards) * 3)} ft ${(awayAim.at - gf.yards) < 0 ? 'short of' : 'past'} the cup${awayAim.off ? ', ' + Math.abs(Math.round(awayAim.off * 3)) + ' ft ' + (awayAim.off < 0 ? 'left' : 'right') : ''}. ` : `Aiming ${awayAim.at} yards${awayAim.off ? ', ' + Math.abs(awayAim.off) + (awayAim.off < 0 ? ' left' : ' right') : ''}. `) : ''}${(awayBall.lie === 'green' || awayBall.lie === 'fringe') ? 'Tap the green where you mean the putt to die' : awayBall.approaching ? 'Tap where you mean the ball to land - the fringe brakes it, the green lets it run' : 'Tap the hole to set your mark'}${awayAim && awayAim.set ? ', or <a href="#" data-aim-clear="' + gf.away + '">aim at the ' + ((awayBall.lie === 'green' || awayBall.lie === 'fringe') ? 'cup' : 'pin') + '</a>' : ''}.</p>` : '');
         // Between holes: the standings after the last, then the order of
-        // address - who has the honour is who is away on the tee.
+        // address - who has the honor is who is away on the tee.
         const standings = onTheTee && gf.holes_played > 0 && !gf.over
           ? `<div class="standings"><div class="chip">Standings after the ${gf.holes_played}${ordinal(gf.holes_played)}</div>
              <table class="res" style="margin:.3rem 0 .6rem">${(gf.leaderboard || []).map(r =>
                `<tr><td class="n">${r.place}</td><td>${esc(r.name)}</td><td class="ms">${r.gross}</td><td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>
-             ${gf.away_name ? `<p class="narrator"><b>${esc(gf.away_name)}</b> has the honour on the ${gf.hole}${ordinal(gf.hole)}.</p>` : ''}</div>`
+             ${gf.away_name ? `<p class="narrator"><b>${esc(gf.away_name)}</b> has the honor on the ${gf.hole}${ordinal(gf.hole)}.</p>` : ''}</div>`
           : '';
         stage.innerHTML = teePic + greenPic + `<div class="golfstage golfstage-map"><div>` + standings +
           (onTheTee || gf.over ? golfHead(gf) : `<div class="chip">${esc(gf.course_name)} &middot; ${gf.hole}${ordinal(gf.hole)}, par ${gf.par}</div>`) +

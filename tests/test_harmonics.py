@@ -7,7 +7,7 @@ A wire n half-waves long has a voltage maximum at each end and a current
 maximum in the middle of every half-wave, and where the feed sits decides
 which multiples are any use. Fed at the end, every multiple is a voltage
 maximum and the 49:1 matches all of them - which is the whole case for an
-end-fed and the reason people buy them. Fed at the centre, the even
+end-fed and the reason people buy them. Fed at the center, the even
 multiples put a current null at the feedpoint, so a 40 m dipole gives 15 m
 and not 20 m. That one surprises somebody every year.
 
@@ -48,7 +48,7 @@ def main():
     check("  the second multiple is there, which is the point",
           [r["n"] for r in A.harmonics("efhw", 7.1) if r["band"]][0], 2)
 
-    print("\n-- fed at the centre, only the odd ones --")
+    print("\n-- fed at the center, only the odd ones --")
     check("a 40 m dipole gives 15 m", bands("dipole", 7.1), ["15 m"])
     check("  and not 20 m - the even multiple is a current null at the feed",
           "20 m" in bands("dipole", 7.1), False)
@@ -85,9 +85,9 @@ def main():
     print("\n-- the reason given matches the antenna --")
     check("the end-fed is explained by its end",
           "end is a voltage maximum" in A.harmonic_words("efhw", 7.1), True)
-    check("  the dipole by its centre",
-          "fed at the centre" in A.harmonic_words("dipole", 7.1), True)
-    check("  and the vertical by its base, not by a centre it has not got",
+    check("  the dipole by its center",
+          "fed at the center" in A.harmonic_words("dipole", 7.1), True)
+    check("  and the vertical by its base, not by a center it has not got",
           "fed at the base" in A.harmonic_words("quarter", 7.1), True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

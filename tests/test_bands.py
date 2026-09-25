@@ -73,17 +73,17 @@ sixty = next(b for b in bands if b["key"] == "60m")
 check("60 m says it is channels", sixty["channelised"], True)
 check("small enough to load once", len(reply.data) < 20000, True)
 
-print("\none colour a band, everywhere")
+print("\none color a band, everywhere")
 from elmer import palette  # noqa: E402
 names = [b["name"] for b in bandplan.BANDS] + [b["name"] for b in bandplan.PERSONAL_BANDS]
-check("every band has a colour for the screen",
-      all(palette.band_colour(n) for n in names), True)
+check("every band has a color for the screen",
+      all(palette.band_color(n) for n in names), True)
 check("  and an ink for paper",
-      all(palette.band_colour(n, ink=True) for n in names), True)
-check("no two bands share a colour",
-      len({palette.band_colour(n) for n in names}), len(names))
-check("20 m and 20m are the same band", palette.band_colour("20m"), palette.band_colour("20 m"))
-check("a name that is not a band has no colour", palette.band_colour("13 m"), None)
+      all(palette.band_color(n, ink=True) for n in names), True)
+check("no two bands share a color",
+      len({palette.band_color(n) for n in names}), len(names))
+check("20 m and 20m are the same band", palette.band_color("20m"), palette.band_color("20 m"))
+check("a name that is not a band has no color", palette.band_color("13 m"), None)
 pal = bandplan.band_palette()
 check("the palette is in frequency order, 11 m after 12 m",
       [b["key"] for b in pal][8:11], ["12m", "11m", "10m"])
@@ -91,19 +91,19 @@ check("a CSS name that is an ident, even for 1.25 m",
       next(b["css"] for b in pal if b["key"] == "1.25m"), "band-1-25m")
 check("the rgb triple matches the hex",
       next(b["rgb"] for b in pal if b["key"] == "20m"),
-      ",".join(str(int(palette.band_colour("20m")[i:i + 2], 16)) for i in (1, 3, 5)))
+      ",".join(str(int(palette.band_color("20m")[i:i + 2], 16)) for i in (1, 3, 5)))
 check("the activity family has every kind, the same on every band",
-      set(palette.KIND_COLOUR), {k for k, _ in bandplan.KINDS})
-check("  and an ink for each", set(palette.KIND_INK), set(palette.KIND_COLOUR))
+      set(palette.KIND_COLOR), {k for k, _ in bandplan.KINDS})
+check("  and an ink for each", set(palette.KIND_INK), set(palette.KIND_COLOR))
 page = _client.get("/bandplan").get_data(as_text=True)
-check("the page head carries the tokens", "--band-20m: " + palette.band_colour("20m") + ";" in page, True)
+check("the page head carries the tokens", "--band-20m: " + palette.band_color("20m") + ";" in page, True)
 check("  and the map for the scripts", "window.BAND_PALETTE" in page, True)
-check("  and the activity colours for the band plan", '"cw": "#a6caff"' in page, True)
-check("  and the attention colour", "--attention: " + palette.ATTENTION in page, True)
-check("the licence family is earth, for none, GMRS and every class",
-      {"none", "gmrs", "ham", "Technician", "General", "Extra"} <= set(palette.CLASS_COLOUR), True)
+check("  and the activity colors for the band plan", '"cw": "#a6caff"' in page, True)
+check("  and the attention color", "--attention: " + palette.ATTENTION in page, True)
+check("the license family is earth, for none, GMRS and every class",
+      {"none", "gmrs", "ham", "Technician", "General", "Extra"} <= set(palette.CLASS_COLOR), True)
 check("every band reads on the dark panel at 4.5:1 or better",
-      all(palette.contrast(palette.band_colour(n)) >= 4.5 for n in names), True)
+      all(palette.contrast(palette.band_color(n)) >= 4.5 for n in names), True)
 
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all good"))
 sys.exit(1 if FAILS else 0)

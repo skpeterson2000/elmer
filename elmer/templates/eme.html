@@ -12,6 +12,11 @@
       <input class="mono" id="q-place"
              placeholder="grid, coordinates, or a place name"
              value="{{ location.short or location.grid or '' }}"
+             {# Handed over as data, not just as a name in a box: see initPlace.
+                Without these the page showed a QTH it could not re-save without
+                geocoding the name back again. #}
+             {% if location.lat is not none %}data-lat="{{ location.lat }}" data-lon="{{ location.lon }}"
+             data-grid="{{ location.grid or '' }}" data-short="{{ location.short or '' }}"{% endif %}
              style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.4rem .6rem;width:17rem">
       <button class="btn sm" id="q-save">Set QTH</button>
     </div>
@@ -32,7 +37,7 @@
   <div class="tiny muted" style="margin-bottom:.5rem">
     Painted for the whole Earth at the minute on the slider: green where the
     moon is well up at both ends, amber where it is low at one of them, dim
-    where it has just risen or is about to set, grey where it is down. Drag
+    where it has just risen or is about to set, gray where it is down. Drag
     the slider through the next day to watch the window sweep; tap a place to
     get its opening and closing times.
   </div>
@@ -72,7 +77,7 @@
       an evening one: the moon rises for them hours before it does for you.
     </p>
     <p class="small muted">
-      The colour is geometry only. What it does not show, and what changes
+      The color is geometry only. What it does not show, and what changes
       the day as much: the moon's <b>distance</b>, which moves the path loss
       about 2 dB between perigee and apogee (the loss goes as the fourth
       power, there and back); its <b>declination</b>, because a moon low in
@@ -104,7 +109,7 @@
 <p class="tiny muted mt">
   The moon's place comes from the Astronomical Almanac's low-precision series
   (the largest terms of Meeus, chapter 47): good to about a third of a degree
-  and a few hundred kilometres, which is a moonrise to within a minute or two
+  and a few hundred kilometers, which is a moonrise to within a minute or two
   and a path loss to a tenth of a decibel. Point a dish with a real ephemeris;
   decide whether to bother tonight with this. Coastline: Natural Earth,
   public domain.

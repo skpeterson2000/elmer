@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""What ELMER says about its own licence matches its licence.
+"""What ELMER says about its own license matches its license.
 
     python3 tests/test_license_words.py
 
 ELMER is under PolyForm Noncommercial 1.0.0: free for personal study, clubs,
 schools and other noncommercial use, not for commercial use, and deliberately
-not an OSI open-source licence. The README and DESIGN.md have always said
+not an OSI open-source license. The README and DESIGN.md have always said
 exactly that.
 
 Nine other sentences said "free for everyone". Each was making a true and
 worthwhile point - that a cup of coffee for the developer is thanks and not a
-toll - and each made it in words wider than the licence: a commercial user is
+toll - and each made it in words wider than the license: a commercial user is
 part of everyone, and for them ELMER is not free, they are not licensed at
 all. The phrase was walked past for a long time because every sentence it
 sat in was otherwise right.
@@ -18,7 +18,7 @@ sat in was otherwise right.
 So this reads every file a person might see and holds two lines:
 
   - nothing calls ELMER open source, free software, or free for everyone;
-  - every place that states the licence names the one in LICENSE.
+  - every place that states the license names the one in LICENSE.
 """
 import re
 import sys
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILS = []
 
 # Everything with words in it that a person reads. Not the data/ tree, which
-# carries other people's licences and a browser profile, and not the
+# carries other people's licenses and a browser profile, and not the
 # CHANGELOG, which is a record of what was said at the time and is not
 # rewritten.
 SEEN_BY_PEOPLE = (
@@ -62,7 +62,7 @@ def check(label, got, want):
 
 
 def main():
-    print("\n-- the licence itself --")
+    print("\n-- the license itself --")
     text = (ROOT / "LICENSE").read_text(encoding="utf-8")
     check("LICENSE is PolyForm Noncommercial 1.0.0",
           "PolyForm Noncommercial License 1.0.0" in text, True)
@@ -79,7 +79,7 @@ def main():
                 hits.append(f"{n}: {line.strip()[:70]}")
         check(f"{path.relative_to(ROOT).as_posix()}", hits, [])
 
-    print("\n-- and where the licence is named, it is the right one --")
+    print("\n-- and where the license is named, it is the right one --")
     for doc in ("README.md", "DESIGN.md"):
         body = (ROOT / doc).read_text(encoding="utf-8")
         check(f"{doc} names PolyForm Noncommercial",

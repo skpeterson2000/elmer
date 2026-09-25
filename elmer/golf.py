@@ -8,7 +8,7 @@ foul ball - into the rough, the sand, the water, over the cliff for a
 drop and a stroke.
 
 **One at a time.** Golf is not a race. The player who is away - farthest
-from the hole; on the tee, the honour, which is the best score on the
+from the hole; on the tee, the honor, which is the best score on the
 last hole - plays, and the rest of the group watches. Nothing in a round
 of golf is timed: a golfer rushed at the tee is not playing golf, so the
 clock has no say in the shot and no screen shows one. The room waits on
@@ -155,7 +155,7 @@ CLUB_LEAK = {row[0]: row[6] for row in BAG}
 # a different shot, and the ball says so: it launches lower, comes down
 # flatter with less spin, and runs on (see SOFT_* below). What golfers do
 # not do is swing a long club at a fraction of itself: a driver dropped a
-# hundred yards is a swing nobody practises, and it lands wherever it
+# hundred yards is a swing nobody practices, and it lands wherever it
 # likes. So only the long clubs pay for it, and only below SOFT_FLOOR of
 # their length: the spread widens by OVERCLUB_SPREAD for each tenth of the
 # club left unused past that, to the cap. The irons from the 6 down and the
@@ -276,7 +276,7 @@ SOFT_SPEED = 0.1                # and landing pace as the used fraction to this
 # What the ground does about it. A friction, so a bigger number is a
 # surface that stops the ball sooner, and the run goes as one over it.
 # Every one of these is set to reproduce the multiplier it had, so this
-# stage changes the *shape* of the model and none of its behaviour:
+# stage changes the *shape* of the model and none of its behavior:
 # x1.33 on the green, x1.00 on the fairway, x0.70 on the fringe, x0.36 in
 # the rough, and a ball landing in sand stopping where it pitched.
 #
@@ -372,7 +372,7 @@ SPIN_BACK = {"pitching-wedge": (1, 4), "sand-wedge": (1, 4), "9-iron": (0, 2), "
 # sideways a few yards off what it hit.
 KICK_ODDS = 0.12
 KICK_YARDS = (2, 6)
-SIDE_BANDS = {"": ("across", "front", "centre", "around", "beyond", ""),
+SIDE_BANDS = {"": ("across", "front", "center", "around", "beyond", ""),
               "left": ("left", "around"), "right": ("right", "around")}
 
 
@@ -402,7 +402,7 @@ def hazard_off(h, hz):
         if side in ("left", "right"):
             # A side hazard's stated offset is measured from the fairway's
             # edge, not from the line of play: nought is at the edge and the
-            # rest is out into the rough. Read as centre-line yards instead,
+            # rest is out into the rough. Read as center-line yards instead,
             # fifty-three of the ninety side hazards on the shipped courses
             # would sit *inside* their own fairway, which is not how a course
             # is built - and the card drew them there, which is what made a
@@ -421,7 +421,7 @@ def hazard_off(h, hz):
 
 
 def hazard_spans(h, hz):
-    """Where a hazard lies across the hole: a list of (centre, half-width)
+    """Where a hazard lies across the hole: a list of (center, half-width)
     in yards off the line, right positive. Usually one; "around" is two,
     one either side of the green.
 
@@ -436,10 +436,10 @@ def hazard_spans(h, hz):
     side = hz.get("side", "")
     half = fairway_half(h)
     if hz.get("off") is None:
-        if side in ("across", "front", "centre"):
+        if side in ("across", "front", "center"):
             # Straight across the line of play: the fairway's width, and a
             # little narrower for one sitting in the middle of it.
-            return [(0.0, half * (0.75 if side == "centre" else 1.0))]
+            return [(0.0, half * (0.75 if side == "center" else 1.0))]
         if side == "beyond":
             return [(0.0, green_half(h) + 6)]
         if side == "around":
@@ -456,7 +456,7 @@ def hazard_spans(h, hz):
 def hazard_covers(h, hz, off):
     """Whether a ball this far off the line is across the hazard at all."""
     across = float(off or 0)
-    return any(abs(across - centre) <= width for centre, width in hazard_spans(h, hz))
+    return any(abs(across - center) <= width for center, width in hazard_spans(h, hz))
 
 
 def on_the_green(h, at, off):
@@ -687,7 +687,7 @@ FLAIR_CALLS = {
 ACE_ODDS = 0.02
 # What a golfer says at the moment of contact, by what the ball did. The
 # screens show it big, so somebody knows what they hit without reading the
-# coloured answer - and a clip of the swing can go with it later; the
+# colored answer - and a clip of the swing can go with it later; the
 # reveal looks for static/golf/clips/<kind>.gif and shows it if it is there.
 CALLS = {
     "fairway": ["Pured it.", "Right down the middle.", "That'll play.", "Nice shot!", "On the fairway."],
@@ -1050,7 +1050,7 @@ class Golf:
         mark_off = int(mark.get("off") or 0)
         sides = {side_of(ball.off, half), side_of(mark_off, half)}
         if any(abs(o) <= half for o in (ball.off, mark_off)):
-            sides |= {"", "across", "front", "centre", "around", "beyond"}
+            sides |= {"", "across", "front", "center", "around", "beyond"}
         # a bunker to one side is in the line of a club that can spray that
         # far: the driver's, on most holes; not the wedge's
         if CLUB_SPREAD.get(club, AIM) >= half - abs(mark_off) - 2:
@@ -1214,7 +1214,7 @@ class Golf:
             says = f"{yards} to the mark - the {held} gets {plays}, {yards - plays} short; it is a {want}"
         elif widen > 1.0:
             says = (f"{yards} to the mark - a {want}; the {held} swung at a fraction of itself "
-                    f"is a swing nobody practises, and it goes wide")
+                    f"is a swing nobody practices, and it goes wide")
         elif soft:
             says = f"{yards} to the mark - a soft {held}: lower than a {want}, less spin, and {after}"
         else:
@@ -1806,14 +1806,14 @@ class Golf:
         ball.at = int(min(max(ball.at + 10, hz["from"], min(target, hz["to"])), hz["to"]))
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         spans = hazard_spans(h, hz)
-        centre, width = min(spans, key=lambda s: abs(s[0] - ball.off))
-        ball.off = int(round(centre + self.swing.uniform(-width / 2, width / 2)))
+        center, width = min(spans, key=lambda s: abs(s[0] - ball.off))
+        ball.off = int(round(center + self.swing.uniform(-width / 2, width / 2)))
         return {"kind": ball.lie, "words": f"{club_name(club)}, a foul ball - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 
     def away(self):
         """Whose turn it is: the ball farthest from the hole plays first,
-        as on a course. On the tee, the honour - the best score on the last
+        as on a course. On the tee, the honor - the best score on the last
         hole plays first - and seating order settles the rest. None when
         every ball on the hole is down."""
         h = self.hole()

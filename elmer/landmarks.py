@@ -5,19 +5,19 @@ because nobody has told it there is a post there - and the person standing
 at that post has no bars, which is the whole reason they want to know
 whether a handheld reaches the park office. So this is a small list, held
 with the program, of the spots inside a handful of places that a QTH picker
-and a far-end box should resolve before they ask anybody: a visitor centre,
+and a far-end box should resolve before they ask anybody: a visitor center,
 a trailhead, a summit, and the mile markers down a beach.
 
 Two kinds of entry, and they are honest about different things. A *point*
 is a fix; those marked "about" were read from a map by eye and are good to
-a few hundred metres, and those not marked came from a programme's own
+a few hundred meters, and those not marked came from a program's own
 list (SOTA publishes every summit's position). A *line* is a run of markers
 laid along an arc between two fixed ends - the beach bows, so a straight
 line would put mile 30 in the surf - and is good to about a mile, which is
 what a post in the sand is good to and about a hundredth of anything the
 radio arithmetic can tell apart.
 
-Every spot carries the programme reference of the place it is in, so a QTH
+Every spot carries the program reference of the place it is in, so a QTH
 set to the summit knows it is W0D/BB-001 without being told twice.
 """
 import json
@@ -134,7 +134,7 @@ def _score(spot, tokens):
             # Peak" is the summit before it is the trailhead named after it
             score += 2 if len(tokens) == len(words) else 0
             # a named spot before a marker: "padre" means the visitor
-            # centre before it means the fifth post down the beach
+            # center before it means the fifth post down the beach
             score += 0 if "mile" in spot else 1
             best = max(best, score)
     return best
@@ -168,7 +168,7 @@ def resolve(text):
 
 
 def group_for(ref=None, name=None):
-    """The place a programme reference or a name belongs to, with its spots -
+    """The place a program reference or a name belongs to, with its spots -
     what a park card shows as "where people set up"."""
     for group in _load()["groups"]:
         if ref and ref in (group.get("pota"), group.get("sota")):

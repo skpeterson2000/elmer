@@ -12,6 +12,11 @@
       <input class="mono" id="q-place"
              placeholder="grid, coordinates, or a place name"
              value="{{ location.short or location.grid or '' }}"
+             {# Handed over as data, not just as a name in a box: see initPlace.
+                Without these the page showed a QTH it could not re-save without
+                geocoding the name back again. #}
+             {% if location.lat is not none %}data-lat="{{ location.lat }}" data-lon="{{ location.lon }}"
+             data-grid="{{ location.grid or '' }}" data-short="{{ location.short or '' }}"{% endif %}
              style="background:#0f151d;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:.4rem .6rem;width:17rem">
       <button class="btn sm" id="q-save">Set QTH</button>
       <button class="btn sm ghost" id="q-locate" hidden>Locate me</button>
@@ -38,7 +43,7 @@
       group they share can only be right about one of them.
       <a href="/bandplan">The band plan</a> asks the same question band by band
       and hour by hour, against the measured critical frequency, and where the
-      two disagree that is usually why. 11 m is CB &mdash; no licence, forty
+      two disagree that is usually why. 11 m is CB &mdash; no license, forty
       channels &mdash; rated like its neighbours because it opens with them.
     </div>
     <div id="p-bands" class="muted small">loading&hellip;</div>

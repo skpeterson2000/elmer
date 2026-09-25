@@ -29,7 +29,7 @@ log = logging.getLogger("elmer")
 AWARDS = paths.STATE / "awards"
 MAX_MB = 20
 # A certificate arrives as a PDF at least as often as a picture: that is what
-# a contest organiser emails and what LoTW prints. The wall hangs pictures, so
+# a contest organizer emails and what LoTW prints. The wall hangs pictures, so
 # a PDF is rendered to one at the door - its first page, which is the
 # certificate; nobody issues a two-page award.
 PDF_DPI = 150

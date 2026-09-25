@@ -305,7 +305,7 @@ RECENT_WINDOW = 30
 
 # How the drill is dealt: by weight, and the weight is how much work a
 # character still needs. A character never met is the heaviest, because it
-# is the one being learnt. A met character that is not yet solid weighs
+# is the one being learned. A met character that is not yet solid weighs
 # more the worse its recent copy is - one copied half the time comes round
 # about three times as often as one that is known. A solid character has
 # the least weight, and never none: what is known has to keep being asked
@@ -348,7 +348,7 @@ def recent_rate(stat):
 # the drill they are something else: the eye reads the shape off the
 # screen while it is still being sounded, and the answer comes from
 # reading rather than from hearing. What that trains is fluency at a
-# thing nobody does on the air, and it has to be unlearnt afterwards -
+# thing nobody does on the air, and it has to be unlearned afterwards -
 # the same argument Farnsworth makes about slowing a character down.
 #
 # So the shape comes down once a character has been heard right several
@@ -417,6 +417,71 @@ def pace(stat):
             "by": abs(round(change * 100))}
 
 
+# ------------------------------------------------------ a cold rep and a warm one
+#
+# A reaction time means two different things depending on when it was taken.
+# The first time a character comes round in a sitting - nothing heard yet, no
+# warm-up behind it - is the rep that says whether the learning is there. The
+# eighth in a row inside a ninety-second drill says the drill is still
+# running. Both went into one pile, so the baseline was the mean of whichever
+# few came first, warm or cold, and the two were never comparable.
+#
+# The cold rep is also how a character gets a baseline at all. A brand-new
+# learner has none and cannot be handed one. They build one a character at a
+# time, and the first cold rep that lands is the moment a character joins it.
+#
+# This is how a dog is judged on "sit": not the tenth in a row with a treat
+# already in the air, but the first one of the walk. That rep is the marker -
+# it says the expectation is achievable from cold - and it is the one that
+# earns the fuss.
+COLD_GAP_MS = 60000       # this long since the character was last answered
+COLD_ENOUGH = 3           # cold reps past the landmark before the clock speaks
+
+
+def learned(stat):
+    """Whether this character has ever been named cold.
+
+    The landmark, and a low bar on purpose: once, from a standing start, with
+    nothing warmed up in front of it. Gross replication - the dog sat. What
+    comes after is refinement, and refinement is not what earns the fuss;
+    see :func:`wins`.
+    """
+    return bool(stat and "1" in str(stat.get("cold") or ""))
+
+
+def cold_rate(stat):
+    """How often the first rep of a sitting lands, or None with none taken.
+
+    The question a trainer actually asks - "how is the dog doing on this?" -
+    and it is asked of the cold rep because that is the only one that is not
+    propped up by the eight before it.
+    """
+    cold = str((stat or {}).get("cold") or "")
+    return cold.count("1") / len(cold) if cold else None
+
+
+def cold_pace(stat):
+    """The cold rep now against the cold rep that first landed.
+
+    Slower to speak than :func:`pace` and it should be: there is at most one
+    cold rep per sitting, so this is days of practice rather than minutes of
+    it. The landmark itself is kept out of the recent window - it is the
+    before, and averaging it into the after would flatten the very thing
+    being measured.
+    """
+    if not stat:
+        return None
+    first = stat.get("cold_first_ms")
+    times = [float(x) for x in str(stat.get("cold_times") or "").split(",") if x]
+    if not first or len(times) <= COLD_ENOUGH:
+        return None
+    now = sum(times[-COLD_ENOUGH:]) / COLD_ENOUGH
+    change = (first - now) / first
+    return {"first_s": round(first / 1000.0, 1), "now_s": round(now / 1000.0, 1),
+            "faster": change >= PACE_NEWS, "slower": change <= -PACE_NEWS,
+            "by": abs(round(change * 100))}
+
+
 def paces(progress, chars=None):
     """Every character with something to say about its pace, quickest first.
 
@@ -464,7 +529,7 @@ def plan(progress, setting=None):
 
     The lesson is two characters plus every character in order that is
     solid; the next character in the order is the new one. A slider set
-    higher is honoured - a person may push on - but the plan says if the
+    higher is honored - a person may push on - but the plan says if the
     record does not back it. `weak` is every met character not yet solid,
     worst first, with what it was heard as."""
     progress = progress or {}
@@ -527,21 +592,230 @@ def plan(progress, setting=None):
             # drawn - said plainly so the page does not have to work it
             # out twice and the day's note can say what came down.
             "weaned": [c for c in chars if weaned(progress.get(c))],
-            "drawn": [c for c in chars if not weaned(progress.get(c))]}
+            "drawn": [c for c in chars if not weaned(progress.get(c))],
+            # The characters that have been named cold at least once - the
+            # baseline as it stands, built a character at a time. A learner
+            # on their first day has none of these and that is the honest
+            # answer; by the end of it they have one, and it is the landmark
+            # everything about that character is read against afterwards.
+            "learned": [c for c in chars if learned(progress.get(c))]}
 
 
-def session(the_plan):
-    """Today's session, in order: meet what is new, drill one character at
-    a time against the clock, copy groups, then words once there are any.
-    Fifteen minutes, and the record decides tomorrow's."""
+# ------------------------------------------------------------------- how long
+#
+# Everything above decides *what* to practice. Nothing decided how long, and
+# the docstring on session() used to say fifteen minutes while the code said
+# nothing at all: three or four parts, and then a button offering another
+# three or four. An open loop. An open loop with two characters in it is the
+# same two characters for as long as a person can stand them, and what is
+# learned in the eleventh minute of K and M is not K and M - it is that this
+# is a thing to be endured.
+#
+# So the clock is set from the material there is to hold. Two characters is
+# three minutes: long enough to get measurably quicker at them, short enough
+# to leave somebody wanting the next go rather than relieved it is over.
+# Length is earned as there is something longer to hold - more characters,
+# then words, then a contact. Nothing bars a second session; what changes is
+# that there is now a bottom to reach, and a top.
+SESSION_LEAST = 180            # three minutes, at the two the order starts with
+SESSION_MOST = 900             # fifteen, with the whole order solid
+SESSION_PER_CHAR = 18          # each character earned buys this much more
+
+# What the parts cost, for fitting them to the clock.
+MEET_SECONDS = 45              # hearing a new character a few times
+GROUP_SECONDS = 14             # one group of five, sent and copied
+WORD_SECONDS = 12              # a word sent, and the time taken to write it down
+QSO_SECONDS = 120              # a short contact, copied
+LAP_SECONDS = 40               # the last part, and the reason for it: see below
+
+# How the middle of a session is split once the fixed parts are paid for.
+SHARE_FLASH = 0.5
+SHARE_GROUPS = 0.3             # the rest goes to words, where there are words
+
+
+def budget(the_plan):
+    """How many seconds today's session runs for, from what there is to do.
+
+    Short at the start and longer later, which is the whole of it: a learner
+    with two characters has three minutes of material and a learner holding
+    the order has a quarter of an hour of it.
+    """
+    the_plan = the_plan or {}
+    if the_plan.get("done"):
+        return SESSION_MOST
+    earned = max(2, int(the_plan.get("earned") or 2))
+    return int(max(SESSION_LEAST,
+                   min(SESSION_MOST, SESSION_LEAST + SESSION_PER_CHAR * (earned - 2))))
+
+
+# When to stop, and who says so.
+#
+# A learner whose answers are getting slower has stopped learning and
+# started grinding, and the session after this one is the one that does not
+# happen. Dog training and bedside teaching say the same thing about this
+# moment and say it plainly: it is a signal to come back at a better time,
+# not a wall to push through. The clock is already kept per answer, so the
+# program can see it from the inside and say so first, rather than waiting
+# to be told by somebody who has already decided the whole thing is a slog.
+FLAG_SLOWER = 0.30             # this much slower than the session's own best
+FLAG_WINDOW = 5                # answers to a stretch
+FLAG_ENOUGH = 15               # answers before the question may be asked
+
+
+def flagging(times):
+    """Whether this session has gone past its useful end.
+
+    `times` is this session's reaction times in order, in milliseconds. The
+    reading compares the last stretch against the best stretch earlier in
+    the same session - the person's own best today, not anybody else's - so
+    a slow day is not read as a decline and a good day is not cut short.
+
+    None while there is not enough to say it honestly.
+    """
+    times = [float(t) for t in (times or []) if t]
+    if len(times) < FLAG_ENOUGH:
+        return None
+    now = sum(times[-FLAG_WINDOW:]) / FLAG_WINDOW
+    earlier = times[:-FLAG_WINDOW]
+    stretches = [sum(earlier[i:i + FLAG_WINDOW]) / FLAG_WINDOW
+                 for i in range(len(earlier) - FLAG_WINDOW + 1)]
+    if not stretches:
+        return None
+    best = min(stretches)
+    slower = (now - best) / best if best else 0.0
+    return {"best_s": round(best / 1000.0, 1), "now_s": round(now / 1000.0, 1),
+            "by": abs(round(slower * 100)), "stop": slower >= FLAG_SLOWER}
+
+
+def wins(progress, the_plan, was=None):
+    """What moved, in words, loudest first - the card at the end of a sitting.
+
+    The order is the point, and it is not the order a scoreboard would pick.
+    The biggest noise is made over gross replication: a character named cold
+    for the first time, from a standing start, however roughly. That is the
+    rep that says the expectation is achievable, and it is the one that sends
+    somebody back for more. Reliability comes second, quieter. The refined
+    state - a character already learned getting a little quicker - comes last
+    and stays small, and only two of them are ever shown.
+
+    Weighting it this way round looks upside down next to a leaderboard, and
+    it is deliberate: a reward that keeps arriving for the polished thing
+    teaches somebody to perform for the reward, and then the reward is the
+    subject. Make the fuss when the thing is first done, and taper.
+
+    `was` is the plan as it stood before the sitting, for the things that can
+    only be seen as a change. An empty list is a real answer and is not
+    padded.
+    """
+    the_plan, was = the_plan or {}, was or {}
+    loud, middle, quiet = [], [], []
+
+    # Loudest: learned cold for the first time. Once per character, ever.
+    fresh = [c for c in (the_plan.get("learned") or []) if c not in (was.get("learned") or [])]
+    for ch in fresh[:3]:
+        got = cold_rate(progress.get(ch))
+        loud.append(f"<b>{ch} is yours</b> - you named it cold, first time it came "
+                    f"round, with nothing warmed up in front of it"
+                    + (". That is the one that counts" if got is None or got >= 0.99 else ""))
+
+    # Still loud, because it is an event and not a polish: the order moving
+    # on. It only happens when everything behind it is solid, so it is the
+    # record saying the earlier characters are genuinely held.
+    if was.get("earned") and the_plan.get("earned", 0) > was["earned"]:
+        loud.append("a new character opened up, which is the order saying the "
+                    "ones behind it are yours")
+
+    # Then the scaffolding coming away: heard by ear, with nothing drawn. An
+    # event too, once per character, and quieter than first naming it because
+    # by now the character is known - this is the refinement of how it is
+    # known, not whether.
+    fresh_ear = [c for c in (the_plan.get("weaned") or []) if c not in (was.get("weaned") or [])]
+    if fresh_ear:
+        middle.append("<b>" + ", ".join(fresh_ear) + "</b> "
+                      + ("are" if len(fresh_ear) > 1 else "is")
+                      + " heard without the shape drawn now - by ear, not by counting")
+
+    # Then reliability: the first rep of a sitting landing, not just landing
+    # eventually. Said as a count rather than a percentage - four of the last
+    # five is a thing somebody can picture.
+    for ch in (the_plan.get("learned") or []):
+        if ch in fresh:
+            continue
+        cold = str((progress.get(ch) or {}).get("cold") or "")
+        if len(cold) >= 4 and cold[-5:].count("1") >= 4 and "0" in cold[:-5]:
+            middle.append(f"<b>{ch}</b> lands cold now - {cold[-5:].count('1')} of the "
+                          f"last {len(cold[-5:])} first-of-the-day tries, where it "
+                          f"used to be hit and miss")
+
+    # Quietest, and rationed: the refined state. Read off the cold rep, so it
+    # is days of practice speaking and not the tail of one warm drill.
+    for ch in (the_plan.get("chars") or []):
+        got = cold_pace(progress.get(ch))
+        if got and got["faster"]:
+            quiet.append((got["by"], f"{ch} cold: {got['first_s']} s when you learned it, "
+                                     f"{got['now_s']} s now"))
+    quiet.sort(reverse=True)
+    return loud + middle + [line for _, line in quiet[:2]]
+
+
+def baseline_words(the_plan, was=None):
+    """What a learner has a baseline on, for the card when nothing else moved.
+
+    A first session has no before and cannot have one, and saying "too early
+    to show you anything" is both true and the wrong thing to say to somebody
+    who has just done the work. What they have is the start of the mark: the
+    characters they can name cold. That is worth naming, because it is the
+    thing the rest will be measured against.
+    """
+    the_plan = the_plan or {}
+    got = the_plan.get("learned") or []
+    met = the_plan.get("chars") or []
+    if not got:
+        return ("No mark to measure against yet - it gets set the first time you "
+                "name a character cold, before any warming up. That is what the "
+                "next sitting is for.")
+    return ("You can name <b>" + ", ".join(got) + "</b> cold"
+            + (f", which is {len(got)} of the {len(met)} in front of you" if len(met) > len(got) else "")
+            + ". That is the mark everything else gets read against.")
+
+
+def session(the_plan, seconds=None):
+    """Today's session, in order and to a clock: meet what is new, drill one
+    character at a time, copy groups, then words once there are any - and
+    finish on something already known.
+
+    The length comes from :func:`budget` unless a caller names one, and the
+    parts are cut to fit it rather than being a fixed list that runs for as
+    long as it runs.
+    """
+    total = int(seconds if seconds is not None else budget(the_plan))
     steps = []
     if the_plan["done"]:
-        steps.append({"kind": "words", "count": 8, "why": "every character is solid - the rest is speed, and words are how it comes"})
-        steps.append({"kind": "qso", "count": 1, "why": "a contact, as it would be sent"})
+        # With the order held, the session is mostly listening, and it ends
+        # on a contact rather than on a drill: at this point the reward for
+        # knowing the code is using it.
+        contacts = max(1, min(4, int(total * 0.55 / QSO_SECONDS)))
+        count = max(6, int(round((total - contacts * QSO_SECONDS) / WORD_SECONDS)))
+        steps.append({"kind": "words", "count": count, "seconds": count * WORD_SECONDS,
+                      "why": "every character is solid - the rest is speed, and words are how it comes"})
+        steps.append({"kind": "qso", "count": contacts, "seconds": contacts * QSO_SECONDS,
+                      "why": ("contacts, as they would be sent" if contacts > 1
+                              else "a contact, as it would be sent")})
         return steps
+    left = total
+    # The last part is paid for first: a session ends on something that goes
+    # right. A trainer finishes on a command the animal has cold, and a
+    # teacher finishes on the thing the student can already do, for the same
+    # reason - the last minute is the one that is remembered, and what it
+    # should say is "I can do this", not "I could not do that".
+    known = [c for c in the_plan["chars"]
+             if c not in the_plan["new"] and c not in [w["ch"] for w in the_plan["weak"]]]
+    if known:
+        left -= LAP_SECONDS
     if the_plan["new"]:
-        steps.append({"kind": "meet", "chars": the_plan["new"],
+        steps.append({"kind": "meet", "chars": the_plan["new"], "seconds": MEET_SECONDS,
                       "why": "new: hear it, see it drawn, hear it again - the sound first, the name second"})
+        left -= MEET_SECONDS
     # The shape coming down is said out loud. A screen that quietly stops
     # drawing the dits looks broken to the person it is helping, and the
     # reason is worth hearing anyway: it is the point of the whole drill.
@@ -555,10 +829,26 @@ def session(the_plan):
                 + (" are heard without the shape drawn now - you have them by ear"
                    if len(down) > 1 else
                    " is heard without the shape drawn now - you have it by ear"))
-    steps.append({"kind": "flash", "seconds": 90, "why": why})
-    steps.append({"kind": "koch", "count": 5, "why": "five groups of five at speed - copy behind, write what you heard"})
-    if the_plan["words"] >= 8:
-        steps.append({"kind": "words", "count": 6, "why": "words from the characters you have - the sound of the code as it is used"})
+    # The middle, cut to whatever the clock has left. With words in it the
+    # shares are flash, groups and words; without, the two share it out.
+    left = max(GROUP_SECONDS * 2, left)
+    has_words = the_plan["words"] >= 8
+    flash_share = SHARE_FLASH if has_words else SHARE_FLASH / (SHARE_FLASH + SHARE_GROUPS)
+    group_share = SHARE_GROUPS if has_words else 1.0 - flash_share
+    steps.append({"kind": "flash", "seconds": max(30, int(round(left * flash_share))), "why": why})
+    groups = max(2, int(round(left * group_share / GROUP_SECONDS)))
+    steps.append({"kind": "koch", "count": groups, "seconds": groups * GROUP_SECONDS,
+                  "why": f"{groups} groups of five at speed - copy behind, write what you heard"})
+    if has_words:
+        count = max(3, int(round(left * (1.0 - flash_share - group_share) / WORD_SECONDS)))
+        steps.append({"kind": "words", "count": count, "seconds": count * WORD_SECONDS,
+                      "why": "words from the characters you have - the sound of the code as it is used"})
+    if known:
+        # Only what is already known, and said so: the point is that it goes
+        # right, not that it is tested.
+        steps.append({"kind": "flash", "seconds": LAP_SECONDS, "only": known, "lap": True,
+                      "why": "a lap on the ones you already have - this part is not a test, "
+                             "it is where the session ends because it goes right"})
     return steps
 
 
@@ -599,7 +889,7 @@ def chart():
 
     Each entry carries the character and its code; the page draws the dits and
     dahs rather than printing dots and dashes, because the shape is the thing
-    being learnt and a full stop and a hyphen are a poor way to show a sound.
+    being learned and a full stop and a hyphen are a poor way to show a sound.
     """
     def rows(chars):
         return [{"char": c, "code": MORSE[c], "meaning": MEANINGS.get(c, "")}

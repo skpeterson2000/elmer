@@ -41,7 +41,7 @@ print("\nat the shack")
 check("the shack's X is in ohms too", abs(d["shack"]["x"]) > 1, True)
 check("  with its own chart coordinate", sorted(k for k in d["shack"] if k.startswith("g")),
       ["gamma_mag", "gx", "gy"])
-check("a matched load sits at the centre",
+check("a matched load sits at the center",
       smith.analyse(50, 0, line, 14.2, 50)["load"]["gx"], 0.0)
 print("\nthe path along the line is chart coordinates by design")
 check("each step has ft, x, y", sorted(d["path"][0]), ["ft", "x", "y"])

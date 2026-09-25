@@ -1,7 +1,7 @@
 """What a tournament is: how long it runs, and where its questions come from.
 
 A tournament is not a quiz that stops when somebody gets bored. It is modelled
-on the examination for the licence class being played, which is the only shape
+on the examination for the license class being played, which is the only shape
 of the material anybody has agreed on: the question pool is divided into
 sections, the exam takes one question from each, and the number of sections in
 a subelement *is* its weight on the paper. Draw the same way and the

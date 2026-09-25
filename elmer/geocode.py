@@ -2,7 +2,7 @@
 
 Uses OpenStreetMap's Nominatim, which needs no key but does ask for a
 identifying User-Agent and no more than one request a second.  Both are
-honoured here, and every lookup is cached on disk, so the same place costs
+honored here, and every lookup is cached on disk, so the same place costs
 nothing to look up twice.
 
 Grid squares, decimal coordinates and place names are all accepted by
@@ -45,7 +45,7 @@ def to_grid(lat, lon, precision=6):
 
 
 def from_grid(grid):
-    """Maidenhead locator to the coordinates at the centre of the square."""
+    """Maidenhead locator to the coordinates at the center of the square."""
     g = (grid or "").strip()
     if not RE_GRID.match(g):
         return None
@@ -162,7 +162,7 @@ def resolve(text, allow_lookup=True):
                     "kind": "coordinates", "lat": lat, "lon": lon,
                     "grid": to_grid(lat, lon)}
 
-    # A spot inside a place people operate from - a visitor centre, a mile
+    # A spot inside a place people operate from - a visitor center, a mile
     # marker, a summit - held with the program, so it costs no lookup and
     # answers where there is no network to ask.
     from . import landmarks

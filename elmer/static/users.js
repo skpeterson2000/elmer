@@ -52,7 +52,7 @@ document.addEventListener('keydown', e => {
 
 /* What the FCC says about the callsign on an account, as a pill. Nothing
    for no callsign; nothing for one not looked up yet, because a claim
-   either way would be a guess. "licensed" is reserved for a licence in
+   either way would be a guess. "licensed" is reserved for a license in
    force today - it used to mean "something is typed in the box". */
 function standingPill(u) {
   const s = u.standing;
@@ -60,7 +60,7 @@ function standingPill(u) {
   if (s === 'grace') return '<span class="pill warn tiny" title="expired, within the two years to renew without retesting - not to be used on the air">expired &middot; renew</span>';
   if (s === 'expired') return '<span class="pill warn tiny" title="expired, and past the window to renew without retesting">expired</span>';
   if (s === 'cancelled') return '<span class="pill warn tiny" title="the FCC lists this callsign as cancelled or terminated">cancelled</span>';
-  if (s === 'unfound') return '<span class="pill tiny muted" title="the FCC has no record of this callsign - lapsed and gone, a licence from outside the US, or a typing slip">no FCC record</span>';
+  if (s === 'unfound') return '<span class="pill tiny muted" title="the FCC has no record of this callsign - lapsed and gone, a license from outside the US, or a typing slip">no FCC record</span>';
   return '';
 }
 

@@ -7,10 +7,10 @@ chart, and the path it walks as you travel along the feedline towards the shack
 - and leaves the drawing to the page.
 
 The chart is the reflection coefficient plane. Every impedance normalised to the
-line's own Z0 maps to a point inside the unit circle; the centre is a perfect
+line's own Z0 maps to a point inside the unit circle; the center is a perfect
 match, the rim is total reflection. Constant-resistance circles and
-constant-reactance arcs are the grid drawn over it. Travelling along a lossless
-line rotates you about the centre at constant radius - which is why SWR does not
+constant-reactance arcs are the grid drawn over it. Traveling along a lossless
+line rotates you about the center at constant radius - which is why SWR does not
 change along a perfect line - and a full turn is half a wavelength, not a whole
 one, which is the fact that surprises everybody.
 

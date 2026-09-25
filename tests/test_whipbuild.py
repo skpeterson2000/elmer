@@ -71,10 +71,10 @@ check("40 m wants tens of microhenries", 15 < p40["base_uh"] < 40, True)
 check("and tens of turns on a 1.5 in form", 25 < p40["base_turns"] < 70, True)
 p10 = w.plan(28.4, 8.0)
 check("10 m wants almost nothing", p10["base_uh"] < 1.0, True)
-check("centre loading wants more inductance than base",
-      p40["centre_uh"] > p40["base_uh"], True)
+check("center loading wants more inductance than base",
+      p40["center_uh"] > p40["base_uh"], True)
 check("and it sits up the rod, not at the bottom",
-      0 < p40["centre_at_ft"] < 8.0, True)
+      0 < p40["center_at_ft"] < 8.0, True)
 
 print("\na whip already long enough needs no coil at all")
 check("a full quarter wave has nothing to cancel",

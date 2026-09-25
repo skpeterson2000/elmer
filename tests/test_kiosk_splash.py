@@ -197,4 +197,31 @@ print()
 if FAILS:
     print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
     sys.exit(1)
+print("\nthe screen and the browser, gathered for a report")
+# A kiosk that comes up in a window rather than filling the screen used to
+# leave nothing behind: a name, a pid, and the command only at debug, which
+# nobody runs an appliance at. These are the facts that decide it, and they
+# go in the log at every launch and travel with the bug report.
+facts = kiosk.session_facts()
+check("it says which platform", bool(facts["platform"]), True)
+check("  whether there is a screen at all", "have_display" in facts, True)
+check("  which browsers are on the box", isinstance(facts["found"], list), True)
+check("  and which one it would use", "chosen" in facts, True)
+check("  with the launch command, whole", "<url>" in (facts.get("command") or ""), True)
+lines = kiosk.report_lines()
+check("the same facts as lines for a report", len(lines) >= 5, True)
+for want in ("platform", "session type", "DISPLAY", "screen", "chosen"):
+    check(f"  it names {want}", any(w.startswith(want) for w in lines), True)
+# Asking Edge or Chrome for --version on Windows opens a browser window
+# instead of printing one, so it is asked only where asking is harmless.
+import os as _os
+check("the version is not asked for on Windows", 
+      facts.get("version") is None if _os.name == "nt" else bool(facts.get("version")), True)
+from elmer import bugreport as _br
+_got = _br.build(said="the kiosk did not go full screen")
+_text = _got[0] if isinstance(_got, tuple) else _got
+if not isinstance(_text, str): _text = "\n".join(_text)
+check("and the bug report carries them", "the screen, and the browser" in _text, True)
+check("  with the command in it", "--kiosk" in _text, True)
+
 print("all good")

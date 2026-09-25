@@ -71,7 +71,7 @@ def main():
           G.curvature_loss_db(60, 3.6) < 0.5, True)
     # The bug this was written after: with curvature removed, the surviving
     # fraction of the wave over sea is still substantial five thousand
-    # kilometres out, so nothing ended it and the model said 160m was readable
+    # kilometers out, so nothing ended it and the model said 160m was readable
     # across the Atlantic by ground wave.
     check("a flat-earth model alone would carry a sea path across an ocean",
           G.flat_attenuation(5000, 1.9, "sea") > 0.35, True)

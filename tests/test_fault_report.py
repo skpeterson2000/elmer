@@ -9,9 +9,9 @@ and the page had blamed the wrong thing. Three faults, one incident:
 
   - the fault itself: /progress/<pool> hands its template a `standing`,
     the study rank, and the block every page gets - which routes splat in
-    with ** - gained a `standing` of its own, the licence's. Two values for
-    one keyword, and the progress page died. The licence's is
-    `licence_standing` now;
+    with ** - gained a `standing` of its own, the license's. Two values for
+    one keyword, and the progress page died. The license's is
+    `license_standing` now;
 
   - the error page saw that a template had changed on disk and blamed it,
     telling the person to restart for a TypeError raised in app.py that a
@@ -65,14 +65,14 @@ def main():
     client = app.test_client()
     client.set_cookie("elmer_user", str(conn.user_id))
 
-    print("\n-- the progress page opens with a licence on the account --")
+    print("\n-- the progress page opens with a license on the account --")
     r = client.get("/progress/tech2026", environ_base=LOCAL)
     check("/progress/tech2026 is 200, not a collision on 'standing'", r.status_code, 200)
     home = client.get("/", environ_base=LOCAL).get_data(as_text=True)
-    check("  and the dashboard still says the licence's standing", "expires" in home and "KC9SP" in home, True)
+    check("  and the dashboard still says the license's standing", "expires" in home and "KC9SP" in home, True)
     block = appmod.profile_block(conn)
-    check("  the licence's standing has a name of its own in the block",
-          ("licence_standing" in block, "standing" in block), (True, False))
+    check("  the license's standing has a name of its own in the block",
+          ("license_standing" in block, "standing" in block), (True, False))
 
     print("\n-- a fault is named as a fault, and a changed file is blamed only when it is involved --")
     # With nothing changed on disk since start.

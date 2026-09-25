@@ -107,7 +107,7 @@ def remembered_bounds():
 
 
 def left_maximized():
-    """Whether the window was maximised the last time it was closed."""
+    """Whether the window was maximized the last time it was closed."""
     placement = remembered_placement()
     return bool(placement and placement.get("maximized"))
 
@@ -152,7 +152,7 @@ def command(browser, url, start=START_DEFAULT, remembered=None, maximized=None, 
     `start` (see START_SETTING): full screen, which is the default and is
     said plainly every launch; a fixed size by choice; or, for "as-left",
     nothing at all - except where the profile says the window was left
-    maximised, which is worth repeating out loud, because a browser does
+    maximized, which is worth repeating out loud, because a browser does
     not reliably restore that for itself.
     """
     PROFILE.mkdir(parents=True, exist_ok=True)
@@ -222,7 +222,7 @@ def ask_to_close(process):
     mid-breath, and everything it had not yet written to its profile - the
     size the window was at, the zoom, the note that it exited cleanly - is
     lost. Every shutdown through the Exit button did that, and measuring it
-    was plain: end the window with terminate() and a window maximised three
+    was plain: end the window with terminate() and a window maximized three
     seconds earlier is remembered as small; ask it to close and the size is
     kept. taskkill without /F posts the close message instead, which is a
     person clicking the X. Without /T, too: /T waits on a tree of renderer

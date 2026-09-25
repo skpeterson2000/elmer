@@ -9,14 +9,14 @@ hold regardless is the arithmetic done to it afterwards.
 
 Two of these earn their keep. The first is that a distance is recomputed
 against wherever the operator is standing now, because the whole reason for
-holding a list is that they were going to drive somewhere, and a kilometre
+holding a list is that they were going to drive somewhere, and a kilometer
 figure worked out at the kitchen table is wrong the moment they leave it.
 
 The second is that a reference is measured on its own coordinates and never
 on the coordinates of the list it came in. POTA's location list is wrong about
-some of its own centres - when this was written it placed South Africa's North
-West province in Indiana - so a program that trusted a centre would offer
-somebody a park on another continent. The centre may decide who to ask. It may
+some of its own centers - when this was written it placed South Africa's North
+West province in Indiana - so a program that trusted a center would offer
+somebody a park on another continent. The center may decide who to ask. It may
 not decide what is close.
 """
 import json
@@ -127,7 +127,7 @@ def run():
           ["US-4792"])
     check("  though it is still held", len(R.nearby(46.60, -94.31)), 2)
 
-    print("\n-- and the two programmes are told apart and not repeated --")
+    print("\n-- and the two programs are told apart and not repeated --")
     hold([{"label": "home", "lat": 46.6, "lon": -94.3, "radius_km": 350,
            "parks": [{"kind": "park", "ref": "US-4792", "name": "P",
                       "lat": 46.44, "lon": -94.09}],

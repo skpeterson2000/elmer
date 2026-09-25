@@ -23,12 +23,12 @@ RULE = colors.HexColor("#c8a24a")
 STAR = colors.HexColor("#e0b23c")
 STAR_EDGE = colors.HexColor("#9a7318")
 FOOTER = ("A badge earned in ELMER, the radio study assistant. It marks practice - "
-          "the record of a person at the table - and is not a licence, an award of "
+          "the record of a person at the table - and is not a license, an award of "
           "any body, or a claim of either.")
 
 
 def _star(c, x, y, r, points=5):
-    """A five-pointed star, filled and edged, centred on (x, y)."""
+    """A five-pointed star, filled and edged, centerd on (x, y)."""
     path = c.beginPath()
     for i in range(points * 2):
         rad = r if i % 2 == 0 else r * 0.42
@@ -82,7 +82,7 @@ def build(name, description, who, callsign=None, when=None, code=None):
     c.setFillColor(DIM)
     c.drawRightString(W - margin - 24, top - 33, when)
 
-    # The star, left of centre; the words, right of it.
+    # The star, left of center; the words, right of it.
     sx, sy, sr = margin + 160, H / 2 - 6, 92
     _star(c, sx, sy, sr)
     c.setFillColor(colors.white)

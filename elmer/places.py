@@ -82,10 +82,10 @@ def cached(lat, lon, radius_km):
             payload = json.loads(path.read_text())
         except (OSError, ValueError):
             continue
-        centre, covered = payload.get("centre"), payload.get("radius_km")
-        if not centre or covered is None:
+        center, covered = payload.get("center"), payload.get("radius_km")
+        if not center or covered is None:
             continue
-        if abs(centre[0] - lat) > 0.15 or abs(centre[1] - lon) > 0.15:
+        if abs(center[0] - lat) > 0.15 or abs(center[1] - lon) > 0.15:
             continue
         if covered + 0.5 < radius_km:
             continue                      # fetched a smaller area than asked
@@ -150,7 +150,7 @@ def fetch(lat, lon, radius_km):
     path = CACHE / f"{_key(lat, lon, radius_km)}.json"
     path.write_text(json.dumps(
         {"source": "OpenStreetMap via Overpass, ranked by population",
-         "centre": [round(lat, 4), round(lon, 4)], "radius_km": radius_km,
+         "center": [round(lat, 4), round(lon, 4)], "radius_km": radius_km,
          "places": rows}, indent=1))
     log.info("places: %d towns within %d km of %.3f,%.3f",
              len(rows), radius_km, lat, lon)
@@ -196,7 +196,7 @@ def nearest(lat, lon, limit=5, radius_km=400.0):
     anything inside 15 km as too close to be interesting, and lets a city stand
     for its suburbs. Every one of those is wrong for somebody who has just
     worked out where they are and wants to know which way to walk: the hamlet
-    twelve kilometres off is the whole answer, and it is the first thing that
+    twelve kilometers off is the whole answer, and it is the first thing that
     rule throws away.
 
     So this ranks by distance and keeps what it finds. Offline, from whatever

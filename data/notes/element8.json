@@ -72,7 +72,7 @@
   ]
  },
  "8-9": {
-  "note": "Circuit functions between the antenna and the screen. The video amplifier raises detected echoes to a level that can brighten the display. Sweep circuits move the trace outward from the centre in step with the timing so that distance on screen equals range.",
+  "note": "Circuit functions between the antenna and the screen. The video amplifier raises detected echoes to a level that can brighten the display. Sweep circuits move the trace outward from the center in step with the timing so that distance on screen equals range.",
   "key_facts": [
    "The video amplifier drives the display with detected echo signals",
    "Sweep circuits move the trace outward in step with the timing",
@@ -135,7 +135,7 @@
   ]
  },
  "8-16": {
-  "note": "A ferrite circulator does the duplexer job without gas devices, passing energy from port to port in one rotational direction only. Directional couplers tap a known fraction of the power travelling one way, which is how output power is monitored without interrupting it.",
+  "note": "A ferrite circulator does the duplexer job without gas devices, passing energy from port to port in one rotational direction only. Directional couplers tap a known fraction of the power traveling one way, which is how output power is monitored without interrupting it.",
   "key_facts": [
    "A circulator passes energy in one rotational direction between ports",
    "A weak or failed TR cell lets transmit power reach and damage the receiver",
@@ -216,7 +216,7 @@
   ]
  },
  "8-25": {
-  "note": "Sea clutter is the return from nearby waves, filling the centre of the screen. Sensitivity time control reduces receiver gain immediately after each pulse and restores it with time, so close returns are suppressed while distant ones are not.",
+  "note": "Sea clutter is the return from nearby waves, filling the center of the screen. Sensitivity time control reduces receiver gain immediately after each pulse and restores it with time, so close returns are suppressed while distant ones are not.",
   "key_facts": [
    "STC reduces gain just after each transmit pulse, then restores it",
    "STC suppresses sea clutter without hiding distant targets",
@@ -252,10 +252,10 @@
   ]
  },
  "8-29": {
-  "note": "The plan position indicator paints range radially from the centre and bearing by the sweep angle, so the display is a map. Relative motion keeps own ship at the centre; true motion moves it across the screen. Head-up, north-up and course-up set the orientation.",
+  "note": "The plan position indicator paints range radially from the center and bearing by the sweep angle, so the display is a map. Relative motion keeps own ship at the center; true motion moves it across the screen. Head-up, north-up and course-up set the orientation.",
   "key_facts": [
    "A PPI shows range radially and bearing as sweep angle",
-   "Relative motion keeps own ship fixed at the display centre",
+   "Relative motion keeps own ship fixed at the display center",
    "True motion moves own ship across the display",
    "North-up requires a compass input to stabilise the picture"
   ]

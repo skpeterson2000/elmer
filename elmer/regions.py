@@ -57,7 +57,7 @@ NAMES = {
 
 def at(lat, lon, among=None):
     """The region a point is most likely in, from the boxes: the one whose
-    box holds it and whose centre is nearest. A box is not a boundary, so
+    box holds it and whose center is nearest. A box is not a boundary, so
     near a state line this can name the neighbour - which is why the name
     on a reverse-geocoded place is asked first and this only when the QTH
     is a bare grid square. None when no box holds it."""

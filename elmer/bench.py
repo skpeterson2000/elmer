@@ -197,13 +197,13 @@ BENCHES = [
             {
                 "title": "Coax, connectors, and the dummy load",
                 "what": "Three things a meter can say about a feedline without any RF: is the "
-                        "centre open end to end, is the centre shorted to the shield, and does "
+                        "center open end to end, is the center shorted to the shield, and does "
                         "the dummy load read fifty.",
-                "how": "Disconnect both ends. Ohms from centre pin to centre pin should be "
-                       "near zero; centre to shield should be open (infinite). With the dummy "
-                       "load on the far end, centre to shield should read about 50 ohms - the "
-                       "load through the cable. A connector that reads open on the centre is "
-                       "a centre pin that never made contact, the commonest fault there is.",
+                "how": "Disconnect both ends. Ohms from center pin to center pin should be "
+                       "near zero; center to shield should be open (infinite). With the dummy "
+                       "load on the far end, center to shield should read about 50 ohms - the "
+                       "load through the cable. A connector that reads open on the center is "
+                       "a center pin that never made contact, the commonest fault there is.",
                 "reads": "Fifty ohms through the load, zero end to end, open between: a "
                          "healthy line. Anything else is a connector nine times in ten. An "
                          "analyser does the rest - loss, and where along the line a fault is.",
@@ -380,7 +380,7 @@ BENCHES = [
                          "the number the rule wants, and files it.",
                 "why": "RF is non-ionising; the hazard is heating, and the limits are set so "
                        "that heating never reaches tissue. Duty cycle and time average count "
-                       "in your favour; a directional antenna's gain counts against you in "
+                       "in your favor; a directional antenna's gain counts against you in "
                        "the direction it points.",
                 "exam": ["T0C01", "T0C02", "T0C04", "T0C05", "T0C06", "T0C08", "T0C11"],
             },

@@ -13,7 +13,7 @@ record did not.
 One resolver answers it now. The record decides wherever there is one, and it
 is pre-populated on lookup so that no screen asks for something the
 Commission has already published. An operator may still answer for
-themselves, because callook serves the ULS and nothing else and a licence
+themselves, because callook serves the ULS and nothing else and a license
 from another country resolves to nothing here, and because an upgrade granted
 this week is not in the published file yet. That answer is kept, it opens
 their pools and their pickers, and it is marked as theirs. What it may not do
@@ -95,7 +95,7 @@ def main():
     check("  and the gate does not call that verified",
           gating.reach({"license": record("Technician"), "license_class": "Extra",
                         callsign.SOURCE: callsign.OWN}, [])["verified"], False)
-    check("no licence at all is where everybody starts", opened({}), ["tech2026"])
+    check("no license at all is where everybody starts", opened({}), ["tech2026"])
 
     print("\n-- the record fills the class in, and clears an older answer --")
     callsign.lookup = lambda call, refresh=False: record("General")
@@ -104,13 +104,13 @@ def main():
     # A page of somebody's asks who is at the controls before it opens,
     # so a test that fetches one says who it is first.
     c.post("/api/users/switch", json={"id": 1}, environ_base={"REMOTE_ADDR": "127.0.0.1"})
-    # Nothing held: the band plan opens on No licence, which is the true
+    # Nothing held: the band plan opens on No license, which is the true
     # answer. It used to open on Technician, which showed a newcomer
     # privileges that are not theirs and called it their class - and the
-    # page has an honest thing to say to No licence instead, which is that
+    # page has an honest thing to say to No license instead, which is that
     # every amateur band above reads no and the services below it do not.
     page = c.get("/bandplan", environ_base=LOCAL).data.decode("utf-8")
-    check("a station holding nothing opens the band plan on No licence",
+    check("a station holding nothing opens the band plan on No license",
           '<option value="none" selected>' in page, True)
     c.post("/api/settings", json={"license_class": "Extra"}, environ_base=LOCAL)
     check("an answer typed before any callsign is the operator's word",

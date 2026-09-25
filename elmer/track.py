@@ -4,13 +4,13 @@ Make Contact answers "what can I reach from here" for somebody who already
 knows how to key up. The person it did nothing for is the one with a new
 handheld and a new callsign who has never pressed the button, and does not
 know what to say when they do - which is most of the people who let a
-licence lapse without a single contact. What they need is not a list of
+license lapse without a single contact. What they need is not a list of
 avenues but an order: listen first, program one machine, say your call,
 answer somebody, keep a log. Each step says how, how you know it worked,
 and what to do when it does not, with the specifics filled in - the nearest
 repeater's tone and offset, the operator's own call in the words.
 
-Which track depends on what they hold and what they have. No licence is a
+Which track depends on what they hold and what they have. No license is a
 track too: FRS and CB are real first contacts, and so is listening to a
 net, and the last step of that track is the exam. Progress is the
 operator's own, marked with a press and kept in the profile; nothing here
@@ -44,7 +44,7 @@ def _gmrs_repeater(ways):
 
 def build(gear, license, ways, callsign="", done=None, gmrs=None):
     """The steps for this station, in order, with what is done marked.
-    `gmrs` is the GMRS licence the person operates under, if any."""
+    `gmrs` is the GMRS license the person operates under, if any."""
     gear = set(gear or [])
     done = done or {}
     call = (callsign or "").upper().strip()
@@ -65,7 +65,7 @@ def build(gear, license, ways, callsign="", done=None, gmrs=None):
         if _has(gear, "gmrs", "murs", "cb"):
             steps.append(_step(
                 "personal", "Make a contact you are already allowed to make",
-                "FRS, MURS and CB need no licence. Channel 19 on CB has somebody on it on any "
+                "FRS, MURS and CB need no license. Channel 19 on CB has somebody on it on any "
                 "highway; FRS channel 1 or 20 at a campground or a ball game; MURS on a farm. "
                 "Say who you are and where, and ask if anybody copies.",
                 "Somebody answered, and you said your name and where you were without reading it.",
@@ -73,7 +73,7 @@ def build(gear, license, ways, callsign="", done=None, gmrs=None):
                 "/bandplan#personal"))
         machine = _gmrs_repeater(ways)
         if gmrs and gmrs.get("found") and machine:
-            # A first contact on the air this week, on a licence already
+            # A first contact on the air this week, on a license already
             # held - before any exam. The one step a GMRS ticket changes.
             gcall = gmrs["callsign"]
             steps.append(_step(
@@ -81,8 +81,8 @@ def build(gear, license, ways, callsign="", done=None, gmrs=None):
                 f"Listen on {machine['output']:.3f} for a while, then transmit 5 MHz up"
                 + (f" with tone {machine['tone']}" if machine.get("tone") else "")
                 + f": \"{gcall}, listening.\" It is {machine['miles']} miles off, {machine.get('reach', 'within reach')}. "
-                f"Say the call at the end of the exchange too - it is the licence talking, and on GMRS "
-                f"that licence covers the whole family (95.1705(c)).",
+                f"Say the call at the end of the exchange too - it is the license talking, and on GMRS "
+                f"that license covers the whole family (95.1705(c)).",
                 "Somebody came back to your call through the machine, and you heard yourself in the repeater's tail.",
                 "Nothing back: the owner's say-so may be needed - the call on the listing is theirs. Try channel 20 "
                 "simplex with the travel tone meanwhile.",
@@ -91,7 +91,7 @@ def build(gear, license, ways, callsign="", done=None, gmrs=None):
             "exam", "Sit the Technician exam",
             "Thirty-five questions from a public pool of about four hundred, and the pool is in "
             "this program with the reasons behind every answer. Most people pass in three to six "
-            "weeks of evenings. The exam costs about fifteen dollars and the licence lasts ten "
+            "weeks of evenings. The exam costs about fifteen dollars and the license lasts ten "
             "years.",
             "A callsign in the FCC database with your name on it - usually within a week.",
             "Stuck on a section: the study pages drill one section at a time.",

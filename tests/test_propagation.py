@@ -142,7 +142,7 @@ def main():
     check("  with day and night in it",
           len({h["day"] for h in hours}), 2)
     # 40m is a night band, so its best hour is not a daylight one. It is not
-    # at the grey line either: with no path and no far end, nothing here can
+    # at the gray line either: with no path and no far end, nothing here can
     # produce the terminator enhancement, and the model settles on the middle
     # of the night. Saying otherwise - as this comment used to - was claiming
     # something the numbers do not show.
@@ -655,7 +655,7 @@ def main():
           (15 <= lobe("quarter", 0.0, mhz=14.0) <= 35, lobe("quarter", 0.0, mhz=14.0, ground="sea") <= 12, lobe("quarter", 0.0)), (True, True, 0.0))
     check("  a wire a tenth of a wavelength up radiates overhead, half a wavelength up near 28 degrees",
           (lobe("dipole", 0.1, mhz=7.0), 20 <= lobe("dipole", 0.5, mhz=7.0) <= 35), (90.0, True))
-    check("a wire laid east-west favours north and south; laid north-south, east and west - and overhead it does not care",
+    check("a wire laid east-west favors north and south; laid north-south, east and west - and overhead it does not care",
           (A.field_toward("dipole", 10, 0, 90) > 0.9, A.field_toward("dipole", 10, 90, 90) < 0.2, A.field_toward("dipole", 85, 90, 90) > 0.9), (True, True, True))
     ew = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5, "heading": 90})
     ns = P.reach_map(14.0, 46.6, -94.31, snap, when=noon_utc, antenna={"kind": "dipole", "height_wl": 0.5, "heading": 0})

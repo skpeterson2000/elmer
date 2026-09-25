@@ -1028,7 +1028,7 @@ def main():
         # One small public request every twenty minutes; empty if there is
         # no route out, and nothing of the operator's goes with it.
         spotlog.watch()
-        # The FCC's licence files: whichever this unit has read are looked
+        # The FCC's license files: whichever this unit has read are looked
         # at again when the FCC posts a newer one - a HEAD request twice a
         # day, the download only on the Sunday it changes.
         from elmer import uls as _uls

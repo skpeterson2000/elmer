@@ -95,7 +95,7 @@ p { margin: 0 0 .8rem; }
 .nav a:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
 .nav a.on { color: var(--amber); border-color: var(--line-2); background: var(--panel); }
 /* Pressed, and the page is on its way. Deliberately not the amber of "you are
-   here" - it is not where you are yet, and wearing the same colour would make
+   here" - it is not where you are yet, and wearing the same color would make
    the nav lie for as long as the load takes. The pulse is what says working
    rather than selected, at a glance and across a room. */
 .nav a.going, .nav a.on.going {
@@ -290,7 +290,7 @@ p { margin: 0 0 .8rem; }
 input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
 
 /* The owl turns up where sternness is earned - a card you had learned and
-   lost, a safety limit, a claim about a licence. Never on an ordinary miss:
+   lost, a safety limit, a claim about a license. Never on an ordinary miss:
    see lapseNote() in study.js for why. */
 .lapse {
   display: flex; gap: .7rem; align-items: flex-start;
@@ -340,7 +340,7 @@ input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
 .chime-btn { font-size: .9rem; line-height: 1; padding: .2rem .4rem; }
 
 /* ---------- go and sit the real exam ---------- */
-/* The dashboard panel for somebody with no licence on record whose own
+/* The dashboard panel for somebody with no license on record whose own
    evidence says they would pass. Green rather than amber: this is not a
    warning, it is the program getting out of the way. See ticket.py. */
 .go-sit { border-left: 3px solid var(--green); }
@@ -386,7 +386,7 @@ input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
   font: .62rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
   padding: .1rem .4rem; border-radius: 4px;
 }
-/* Parks and summits, told apart by colour.
+/* Parks and summits, told apart by color.
    The two lists sit side by side and hold the same shape of row - a
    reference, a name, a distance and a bearing - so at a glance there is
    nothing to say which is which, and a park and a summit are answerable to
@@ -545,12 +545,12 @@ table.heights tr.sep td { font-style: italic; padding-top: .45rem; }
 .bandchips .chip:hover { border-color: var(--amber-dim); color: var(--text); }
 .bandchips .chip.on { border-color: var(--amber); background: #2a2216; color: var(--amber); }
 
-/* ---------- one colour a band ----------
+/* ---------- one color a band ----------
    The palette is palette.py's, in the page head as --band-20m and friends;
    an element is handed its band as --band and --band-rgb by bandStyle() in
-   elmer.js. These are the only shapes a band's colour takes: a swatch
+   elmer.js. These are the only shapes a band's color takes: a swatch
    beside the name, the name itself, a button or chip outlined in it and
-   filled with it when it is the one chosen. Never the colour alone. */
+   filled with it when it is the one chosen. Never the color alone. */
 .band-swatch { display: inline-block; width: .58em; height: .58em; border-radius: 50%;
                background: var(--band, var(--dimmer)); margin-right: .32em; vertical-align: 0;
                box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
@@ -781,7 +781,7 @@ table.data tr.denied td { opacity: .45; }
 .cw-char.unmet { opacity: .4; }
 .cw-char.new { outline: 2px solid var(--amber); outline-offset: 1px; }
 /* The ramp's gradient is set by bandplan.js from the same stops the map is
-   drawn with - the band's own colour, dark to bright - so the legend cannot
+   drawn with - the band's own color, dark to bright - so the legend cannot
    drift from the picture. */
 .bp-reach-ramp { display: inline-block; width: 12rem; max-width: 40vw; height: .7rem; border-radius: 4px; border: 1px solid rgba(255,255,255,.15);
   background: var(--line); }
@@ -790,7 +790,7 @@ table.data tr.denied td { opacity: .45; }
 .an-turn { margin-top: .6rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); }
 .an-turn .field { margin-bottom: .3rem; }
 /* The phonetic said back, shown where the eye is: under the letter, in the
-   colour of the grading. */
+   color of the grading. */
 .cw-flash-word { font-size: 1.15rem; min-height: 1.5em; opacity: 0; transition: opacity .15s; text-align: center; }
 .cw-flash-word.show { opacity: 1; }
 .cw-input {
@@ -857,7 +857,7 @@ table.data tr.denied td { opacity: .45; }
 .cw-teach-letter.show { opacity: 1; }
 /* The learner's own pick, in the lesson: green when it was right, red when
    it was not. The letter shown is always the one they chose - the voice says
-   the one that was sent - so the colour is about their answer and the word is
+   the one that was sent - so the color is about their answer and the word is
    about the truth, and the two are never confused with each other. */
 .cw-teach-letter.right { color: var(--green); }
 /* The lesson's characters while they are the answer buttons: the row says so
@@ -1169,19 +1169,19 @@ tr.law td { background: rgba(255,180,84,.08); }
 }
 /* Daylight is marked with a bar along the foot of the cell rather than by
    dimming it. Dimming put the good hours - which on the low bands are the
-   dark ones - in the faintest colours, so the strip read backwards from three
-   feet away. Colour is quality here and nothing else. */
+   dark ones - in the faintest colors, so the strip read backwards from three
+   feet away. Color is quality here and nothing else. */
 .fcstrip .fc.day { box-shadow: inset 0 -5px 0 rgba(255,255,255,.42); }
 /* And the hour between the two sunsets gets its own mark. It is neither of the
    other two and it is the one somebody is waiting for on the low bands, so it
    is not left to be inferred from the absence of a pale bar. */
-.fcstrip .fc.grey { box-shadow: inset 0 -5px 0 rgba(255,190,90,.85); }
+.fcstrip .fc.gray { box-shadow: inset 0 -5px 0 rgba(255,190,90,.85); }
 /* And a fourth, for the high-latitude summer night the sun never finishes:
    half a bar, because the absorber is half gone and stays there. */
 .fcstrip .fc.dusk { box-shadow: inset 0 -5px 0 rgba(255,190,90,.35); }
 .fcstrip .fc.now { outline: 2px solid var(--text); outline-offset: 1px; }
 /* The stretch where the band is at its best. Along the top, because the foot
-   of the cell already carries daylight and the grey line. */
+   of the cell already carries daylight and the gray line. */
 .fcstrip .fc.peak { border-top: 3px solid rgba(230, 237, 243, .6); }
 .fcstrip .fc span {
   position: absolute; left: 0; right: 0; bottom: -1.05rem; text-align: center;
@@ -1370,7 +1370,7 @@ table.data.printouts td { vertical-align: middle; }
   align-items: center; justify-content: center; text-align: center; padding: 2rem; pointer-events: auto; }
 .hs-attention p { font-size: clamp(1.6rem, 4vw, 3rem); line-height: 1.3; max-width: 30ch; margin: .5rem 0 0; }
 body.hs-held { overflow: hidden; }
-/* the programme step's clock - in the corner, readable from the back, not
+/* the program step's clock - in the corner, readable from the back, not
    the thing the screen is about */
 #hs-clock { position: fixed; top: 3.6rem; right: .8rem; z-index: 2900; pointer-events: none;
   font: 1rem var(--mono); color: var(--amber); background: rgba(11,14,19,.86);
@@ -1389,7 +1389,7 @@ body.hs-held { overflow: hidden; }
 #hs-leadin .hs-word.hs-clock { font-size: clamp(2rem, 8vw, 5.5rem); animation: none; }   /* "Next round in 0:42" - a clock, so it does not pop every second */
 @keyframes hs-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* The room's mark: ELMER's own icon, ringed in the colour of the pool the
+/* The room's mark: ELMER's own icon, ringed in the color of the pool the
    room is playing - green for Technician, amber for General, violet for
    Extra, cyan for the commercial pools - and beside it the
    credit, in words: this program was made with Claude Code. Words rather

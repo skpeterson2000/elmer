@@ -63,7 +63,7 @@ check("a day, not ten minutes", srs.LEARNED_DAYS, 1.0)
 check("and that is well past the relearn step",
       srs.LEARNED_DAYS > srs.RELEARN_DAYS * 10, True)
 
-print("\nreading a licence class you do not hold - upward only")
+print("\nreading a license class you do not hold - upward only")
 app.config["TESTING"] = True
 real = appmod._own_class
 try:
@@ -81,7 +81,7 @@ try:
         check("Extra reading Technician", above("Extra", "Technician"), False)
         check("Extra reading General", above("Extra", "General"), False)
         check("and a class reading itself", above("General", "General"), False)
-        # No licence on file is not the same as holding a low one.
+        # No license on file is not the same as holding a low one.
         appmod._own_class = lambda: ""
         check("nothing known, nothing claimed",
               client.get("/api/bandplan?class=Extra").get_json()["above_yours"],
@@ -92,13 +92,13 @@ finally:
 print("\nthe class picker is a view, and not a claim")
 BANDPLAN = (ROOT / "elmer" / "static" / "bandplan.js").read_text()
 # It used to save the choice to the profile on every change, and that one
-# line had two quiet consequences. The study pools are gated on the licence,
+# line had two quiet consequences. The study pools are gated on the license,
 # so reading Extra here opened every pool on the dashboard and at the table.
 # And the owl just above compares the class being read with the class held,
 # so with the setting chasing the dropdown the two were never different and
 # the owl could not appear at all - the warning defeated by the page it
 # warns on.
-check("choosing a class to read writes no licence anywhere",
+check("choosing a class to read writes no license anywhere",
       "license_class" in BANDPLAN, False)
 LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
 with app.test_client() as client:
@@ -108,7 +108,7 @@ with app.test_client() as client:
     before = db.get_profile(db.connect())["settings"].get("license_class")
     client.get("/api/bandplan?class=Extra")
     after = db.get_profile(db.connect())["settings"].get("license_class")
-    check("  reading Amateur Extra leaves the stored licence alone",
+    check("  reading Amateur Extra leaves the stored license alone",
           (before, after), (None, None))
     client.post("/api/settings", json={"license_class": "General"}, environ_base=LOCAL)
     client.get("/api/bandplan?class=Extra")

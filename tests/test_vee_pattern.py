@@ -12,7 +12,7 @@ question was really about.
 
 The ground reflection that sets the takeoff angle was being computed from
 the apex. An inverted-V does not radiate from its apex: the current is
-greatest at the centre and falls away down each sloping leg, so the pattern
+greatest at the center and falls away down each sloping leg, so the pattern
 follows the current-weighted mean height, which sits (pi - 2) / pi of the way
 out along a leg. The page has shown that number in its NVIS panel all along,
 and antenna_advice.py picks an NVIS apex with it, and the pattern plot never

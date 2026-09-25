@@ -112,7 +112,7 @@ def read(text):
     Deliberately forgiving in the ways the format is: comments anywhere, the
     options line in any case, whitespace of any kind. Deliberately strict about
     the one thing that matters, which is that the frequency unit and the format
-    on the options line are honoured rather than guessed.
+    on the options line are honored rather than guessed.
     """
     unit, form, z0 = "GHZ", "MA", DEFAULT_Z0      # Touchstone's own defaults
     rows, seen_options = [], False

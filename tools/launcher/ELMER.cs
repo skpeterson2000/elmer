@@ -4,7 +4,7 @@
 // same - and ELMER.exe is what somebody who got a Windows program from an
 // installer expects to find. This is the whole of it: start elmer.cmd from
 // the folder this file is in, with whatever was on the command line, the
-// console minimised the way the Start Menu shortcut runs it, so an error
+// console minimized the way the Start Menu shortcut runs it, so an error
 // still has a window to be read in. Nothing is decided here; elmer.cmd
 // decides which Python and elmer.py decides everything else.
 //

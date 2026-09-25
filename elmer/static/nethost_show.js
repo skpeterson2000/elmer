@@ -16,7 +16,7 @@
 
   const DECK_WORDS = {history: 'history', quotes: 'quotes', hams: 'famous hams', technique: 'on the air',
                       equipment: 'the gear', standings: 'standings', sponsor: 'sponsors', thanks: 'with thanks to', notice: 'notices',
-                      join: 'join code', programme: 'programme'};
+                      join: 'join code', program: 'program'};
   let view = null;
 
   /* ---------------------------------------------------------- announce */
@@ -245,16 +245,16 @@
     if (r.ok) { form.reset(); refresh(); }
   });
 
-  /* --------------------------------------------------------- programme */
+  /* --------------------------------------------------------- program */
   let steps = null;                    // the host's working copy
-  function paintProgramme(v) {
+  function paintProgram(v) {
     const kinds = v.step_kinds || {};
     const sel = $('sh-step-kind');
     if (!sel.options.length) {
       sel.innerHTML = Object.entries(kinds).map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join('');
     }
     if (steps === null) steps = (v.steps || []).map(s => ({...s}));
-    const p = v.programme || {};
+    const p = v.program || {};
     $('sh-steps').innerHTML = steps.map((s, i) => {
       const n = i + 1;
       const cls = n === p.step ? 'now' : (n < p.step ? 'done' : '');
@@ -262,7 +262,7 @@
                       s.difficulty || '', s.section || '', s.text ? '“' + s.text + '”' : ''].filter(Boolean).join(' · ');
       return `<li class="${cls}"><span>${esc(s.label)}${detail ? ` <span style="color:var(--dim)">${esc(detail)}</span>` : ''}</span>
         <button class="x" data-step="${i}" title="remove">&times;</button></li>`;
-    }).join('') || '<li class="empty" style="list-style:none;margin-left:-1.4rem">No programme yet - add steps, or fill in a club evening.</li>';
+    }).join('') || '<li class="empty" style="list-style:none;margin-left:-1.4rem">No program yet - add steps, or fill in a club evening.</li>';
     // A timed step says how long it has left: the same clock the room's
     // screens are showing, so the host is not surprised by the hand-over.
     const left = p.remaining != null ? ` · ${hallShow.mmss(p.remaining)} left` : '';
@@ -271,8 +271,8 @@
       : '';
     $('sh-next').disabled = !steps.length;
   }
-  async function saveProgramme() {
-    await post('/api/net/programme', {steps});
+  async function saveProgram() {
+    await post('/api/net/program', {steps});
     steps = null;
     refresh();
   }
@@ -286,15 +286,15 @@
     steps = steps || [];
     steps.push(step);
     $('sh-step-text').value = ''; $('sh-step-n').value = '';
-    saveProgramme();
+    saveProgram();
   });
   $('sh-steps').addEventListener('click', e => {
     const b = e.target.closest('[data-step]');
     if (!b) return;
     steps.splice(+b.dataset.step, 1);
-    saveProgramme();
+    saveProgram();
   });
-  /* Schedule an event: the programme in one of the shapes an event takes -
+  /* Schedule an event: the program in one of the shapes an event takes -
      the same program for a kitchen table, a class, a club night or a
      hamfest booth. The shapes come from the server; the host edits after. */
   function paintEvents(v) {
@@ -308,15 +308,15 @@
   }
   $('sh-event').addEventListener('change', () => view && paintEvents(view));
   $('sh-schedule').addEventListener('click', async () => {
-    if (steps && steps.length && !confirm('Replace the programme with this event?')) return;
-    const r = await post('/api/net/programme/event', {event: $('sh-event').value,
+    if (steps && steps.length && !confirm('Replace the program with this event?')) return;
+    const r = await post('/api/net/program/event', {event: $('sh-event').value,
                                                        difficulty: document.getElementById('difficulty').value});
     if (r.ok) { steps = null; refresh(); }
   });
-  $('sh-prog-clear').addEventListener('click', () => { steps = []; saveProgramme(); });
+  $('sh-prog-clear').addEventListener('click', () => { steps = []; saveProgram(); });
   $('sh-next').addEventListener('click', async () => {
-    const r = await post('/api/net/programme/next', {});
-    if (!r.ok) alert(r.data.message || r.data.error || 'Could not step the programme.');
+    const r = await post('/api/net/program/next', {});
+    if (!r.ok) alert(r.data.message || r.data.error || 'Could not step the program.');
     refresh();
   });
 
@@ -336,7 +336,7 @@
     paintDeck(view);
     paintWeak(view);
     paintItems(view);
-    paintProgramme(view);
+    paintProgram(view);
     paintEvents(view);
   }
   /* The host's own screen: quick while the hall is playing, easy when it is

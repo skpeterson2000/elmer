@@ -70,7 +70,7 @@ FEDERAL = [
         "why": "This is the line that matters on a modern trunked system, "
                "because more of them are encrypted every year. Without "
                "authorisation - a written agreement, or a role that carries "
-               "it - defeating the encryption is not a grey area. A scanner "
+               "it - defeating the encryption is not a gray area. A scanner "
                "that cannot decrypt it is not the point; obtaining the means "
                "is.",
         "cite": "18 U.S.C. 2511",
@@ -105,8 +105,8 @@ STATES = {
         "name": "Minnesota",
         "reading": "A licensed amateur may have police-frequency receive gear "
                    "in a vehicle - but the exemption has conditions, and one "
-                   "of them is that the licence travels with you.",
-        "carry_licence": True,
+                   "of them is that the license travels with you.",
+        "carry_license": True,
         "statutes": [
             {
                 "cite": "Minn. Stat. 299C.37",
@@ -123,8 +123,8 @@ STATES = {
                          "police emergency frequency.",
                 "reading": "The amateur exemption carries three conditions: no "
                            "conviction for a crime of violence, the equipment "
-                           "under the licence holder's direct control whenever "
-                           "it is used, and the licence carried in the vehicle "
+                           "under the license holder's direct control whenever "
+                           "it is used, and the license carried in the vehicle "
                            "at all times and produced to a peace officer on "
                            "request.",
             },
@@ -190,7 +190,7 @@ STATES = {
                          "amateurs.",
                 "reading": "Read what that exempts: a receiver used with your "
                            "amateur station, on amateur frequencies. It is not "
-                           "obviously a licence to carry a police scanner, "
+                           "obviously a license to carry a police scanner, "
                            "which is how it is usually summarised. Permits are "
                            "issued by the local governing body, and that is "
                            "the route this section actually provides.",
@@ -200,7 +200,7 @@ STATES = {
     "IN": {
         "name": "Indiana",
         "reading": "A possession-and-use restriction with ten exemptions, one "
-                   "of which is an amateur licence - for possessing the radio, "
+                   "of which is an amateur license - for possessing the radio, "
                    "not for misusing it.",
         "statutes": [
             {
@@ -236,7 +236,7 @@ STATES = {
     "KY": {
         "name": "Kentucky",
         "reading": "A possession restriction aimed at vehicles, with a long "
-                   "exemption list that includes a valid amateur licence - "
+                   "exemption list that includes a valid amateur license - "
                    "and a proviso that using the radio to help a crime or "
                    "avoid arrest is an offence in its own right.",
         "statutes": [
@@ -261,7 +261,7 @@ STATES = {
                            "the person, a mobile set that can receive or "
                            "transmit on police channels. Subsection (4)(c) "
                            "lifts that for a holder of a valid FCC amateur "
-                           "licence, alongside a receive-only set kept at "
+                           "license, alongside a receive-only set kept at "
                            "home, journalists, tow trucks, and emergency "
                            "management staff with written authority - with the "
                            "proviso quoted, and forfeiture of the radio on top "
@@ -392,7 +392,7 @@ def where_am_i(lat, lon, allow_lookup=True):
 def advice(state, licensed=True):
     """What to put in front of an operator here, and what to admit.
 
-    `licensed` is whether this operator holds an amateur licence, because in
+    `licensed` is whether this operator holds an amateur license, because in
     three of the five states written down so far that is the whole question.
     """
     code = _code(state)
@@ -415,9 +415,9 @@ def advice(state, licensed=True):
         return out
     out["reading"] = entry["reading"]
     out["statutes"] = entry["statutes"]
-    out["carry_licence"] = entry.get("carry_licence", False)
-    if entry.get("carry_licence") and licensed:
-        out["do_this"] = ("Carry your licence in the vehicle. The exemption "
+    out["carry_license"] = entry.get("carry_license", False)
+    if entry.get("carry_license") and licensed:
+        out["do_this"] = ("Carry your license in the vehicle. The exemption "
                           "this state gives you is conditional on producing it "
                           "on request.")
     return out

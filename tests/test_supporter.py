@@ -195,7 +195,7 @@ def main():
     check("  the title says so", card["title"], "ELMER has your 10 hours.")
     check("  the observation, not a bill", "competing for their evenings" in card["line"], True)
     # "Free for everyone" was the wording here, and it was wider than the
-    # licence: PolyForm Noncommercial. The point of the line is that the
+    # license: PolyForm Noncommercial. The point of the line is that the
     # coffee is not a toll, and that survives without the overclaim.
     check("  and that it stays free", card["foot"], "It stays free, coffee or no coffee.")
     check("  where the coffee goes", card["url"], "https://github.com/sponsors/skpeterson2000")
@@ -230,11 +230,11 @@ def main():
           "N0XX, N1XX, N2XX, N3XX, N4XX and N5XX and 3 more")
     check("none", supporter.words([]), "")
     check("the honorary line names the game",
-          supporter.honour_line("KC9SP", "shootout"),
+          supporter.honor_line("KC9SP", "shootout"),
           "This shootout is brought to you by the generous contribution of KC9SP.")
-    check("  a round of golf, for a club", supporter.honour_line("Cedar Valley ARC", "golf"),
+    check("  a round of golf, for a club", supporter.honor_line("Cedar Valley ARC", "golf"),
           "This round of golf is brought to you by the generous contribution of Cedar Valley ARC.")
-    check("  and something with no game running", supporter.honour_line("KC9SP", None),
+    check("  and something with no game running", supporter.honor_line("KC9SP", None),
           "This session is brought to you by the generous contribution of KC9SP.")
 
     print("\n-- the hall: net control gathers the room's supporters --")
@@ -255,21 +255,21 @@ def main():
     s = show.Show()
     s.set_deck({k: False for k in show.TRIVIA_DECKS}, house=1.0)
     s.supporters = ["KC9SP", "John Doe"]
-    kinds, honours = [], []
+    kinds, honors = [], []
     now = 1000.0
     for _ in range(12):
         view = s.for_unit("unit-a", standings=[], join=True, now=now, supporter="John Doe", game="shootout")
         kinds.append(view["card"]["kind"])
-        if view["card"].get("honour"):
-            honours.append(view["card"]["text"])
+        if view["card"].get("honor"):
+            honors.append(view["card"]["text"])
         now += s.dwell + 1
     check("the thanks card is in the rotation", "thanks" in kinds, True)
     check("  and the house card is the supporter's on their table",
-          honours[:1], ["This shootout is brought to you by the generous contribution of John Doe."])
+          honors[:1], ["This shootout is brought to you by the generous contribution of John Doe."])
     plain = [s.for_unit(None, standings=[], join=True, now=now + i * (s.dwell + 1))["card"]
              for i in range(12)]
     check("  a screen with no supporter sees ELMER's own card",
-          any(c["kind"] == "house" and not c.get("honour") for c in plain), True)
+          any(c["kind"] == "house" and not c.get("honor") for c in plain), True)
     roll = next(c for c in plain if c["kind"] == "thanks")
     check("  the roll names the room", roll["supporters"], ["KC9SP", "John Doe"])
     s.supporters = []

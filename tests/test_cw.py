@@ -187,7 +187,7 @@ def main():
     check("a shaky character is named, worst first, with what it was heard as", (p["weak"][0]["ch"], p["weak"][0]["heard_as"]), ("L", ["R", "M"]))
     check("  and the lesson waits on it", (p["lesson"], p["new"]), (9, ["L"]))
     p = cw.plan(shaky, setting=14)
-    check("a slider pushed ahead is honoured, and said to be ahead", (p["lesson"], p["ahead"], p["earned"]), (14, True, 9))
+    check("a slider pushed ahead is honored, and said to be ahead", (p["lesson"], p["ahead"], p["earned"]), (14, True, 9))
     gap = dict(solid); del gap["R"]
     check("a gap in the order holds the lesson at the gap", cw.plan(gap)["lesson"], 3)
     done = {c: {"sent": 30, "copied": 30, "confused": "{}"} for c in cw.KOCH_ORDER}
@@ -195,8 +195,15 @@ def main():
 
     print("\n-- the session, and the drill --")
     steps = [s_["kind"] for s_ in cw.session(cw.plan(shaky))]
-    check("meet the new one, one at a time, groups, then words once there are words", steps, ["meet", "flash", "koch", "words"])
-    check("  no words at lesson two", [s_["kind"] for s_ in cw.session(cw.plan({}))], ["meet", "flash", "koch"])
+    # The last part is a second flash drill and it is the lap: only what is
+    # already known, so the session ends on something that goes right. See
+    # test_cw_session.py, which holds the clock and the lap on their own.
+    check("meet the new one, one at a time, groups, words once there are words, then a lap",
+          steps, ["meet", "flash", "koch", "words", "flash"])
+    check("  the lap is the last of them, and named", 
+          bool(cw.session(cw.plan(shaky))[-1].get("lap")), True)
+    check("  no words at lesson two, and nothing known yet to end on",
+          [s_["kind"] for s_ in cw.session(cw.plan({}))], ["meet", "flash", "koch"])
     check("  and when every character is solid, words and a contact", [s_["kind"] for s_ in cw.session(cw.plan(done))], ["words", "qso"])
     seq = cw.flash_sequence(cw.plan(shaky), 300, seed=5)
     check("the drill draws only the lesson's characters", set(seq) <= set(cw.plan(shaky)["chars"]), True)

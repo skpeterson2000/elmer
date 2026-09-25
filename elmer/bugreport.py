@@ -60,7 +60,7 @@ def redact(text, callsign=None, places=()):
                        key=len, reverse=True):
         text = re.sub(re.escape(name), "[place]", text, flags=re.IGNORECASE)
     text = RE_CALL.sub("[callsign]", text)
-    # A four-character grid is a hundred kilometres across, which is enough to
+    # A four-character grid is a hundred kilometers across, which is enough to
     # say "this happens in the upper midwest" and not enough to say whose
     # driveway it is.
     text = RE_GRID.sub(r"\1xx", text)
@@ -227,6 +227,21 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
                        ("places", ROOT / "data" / "places.json"),
                        ("nifog", paths.STATE / "nifog")):
         add(f"{name:10s} {'present' if path.exists() else 'absent'}")
+
+    # The screen and the browser. A kiosk that comes up in a window instead of
+    # filling the screen is decided by things nobody can see from the other end
+    # of a conversation - which session type is running, whether the browser is
+    # a confined snap, what the launch command actually was - so they travel
+    # with the report.
+    add("")
+    add("the screen, and the browser the kiosk would use")
+    add("-" * 60)
+    try:
+        from . import kiosk as _kiosk
+        for line in _kiosk.report_lines():
+            add(line)
+    except Exception as exc:
+        add(f"could not be gathered: {exc}")
 
     said = str(said or "").strip()[:SAID_MOST]
     if said:

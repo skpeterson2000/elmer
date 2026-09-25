@@ -87,7 +87,7 @@ def main():
 
 def run():
     print("\n-- the token's shape --")
-    check("a RepeaterBook user token is recognised", R.token_looks_right(TOKEN), True)
+    check("a RepeaterBook user token is recognized", R.token_looks_right(TOKEN), True)
     check("  a stray word is not", R.token_looks_right("my password"), False)
     check("  nor nothing", R.token_looks_right(""), False)
 

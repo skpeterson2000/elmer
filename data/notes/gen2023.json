@@ -1,6 +1,6 @@
 {
  "G1A": {
-  "note": "General class opens most of HF, but four bands are shared with Extra-only segments at the bottom: 80, 40, 20 and 15 metres. Learn where your segment starts on each. 60 metres is different again \u2014 five fixed channels, upper sideband, with a power limit referenced to an effective radiated power rather than output.",
+  "note": "General class opens most of HF, but four bands are shared with Extra-only segments at the bottom: 80, 40, 20 and 15 meters. Learn where your segment starts on each. 60 meters is different again \u2014 five fixed channels, upper sideband, with a power limit referenced to an effective radiated power rather than output.",
   "key_facts": [
    "Generals are excluded from parts of 80, 40, 20 and 15 m",
    "A primary allocation takes precedence over a secondary user",
@@ -31,7 +31,7 @@
   "key_facts": [
    "Three accredited VEs are required to administer an exam",
    "A VE must be accredited by a VEC and hold General or higher",
-   "After upgrading, identify with your call sign plus /AG or /AE until the licence appears",
+   "After upgrading, identify with your call sign plus /AG or /AE until the license appears",
    "A CSCE is valid for 365 days for element credit"
   ]
  },
@@ -186,7 +186,7 @@
   "lab": "ohm"
  },
  "G6A": {
-  "note": "Component behaviour beyond the ideal. Every real component has parasitics: a capacitor has lead inductance, a resistor has capacitance, and both matter at RF. Electrolytic capacitors are polarised and fail if reversed. Diodes have a forward voltage drop \u2014 about 0.7 V for silicon, 0.3 V for germanium.",
+  "note": "Component behavior beyond the ideal. Every real component has parasitics: a capacitor has lead inductance, a resistor has capacitance, and both matter at RF. Electrolytic capacitors are polarised and fail if reversed. Diodes have a forward voltage drop \u2014 about 0.7 V for silicon, 0.3 V for germanium.",
   "key_facts": [
    "Silicon diode drops about 0.7 V forward; germanium about 0.3 V",
    "Electrolytic capacitors are polarised and must be fitted the right way round",
@@ -268,10 +268,10 @@
   "lab": "swr"
  },
  "G9B": {
-  "note": "The half-wave dipole is the reference antenna. Fed at the centre it presents roughly 70 ohms, radiates broadside to the wire, and its length is about 468 divided by frequency in MHz, in feet. Height above ground dominates its radiation angle: low means high-angle and short-range, high means low-angle and DX.",
+  "note": "The half-wave dipole is the reference antenna. Fed at the center it presents roughly 70 ohms, radiates broadside to the wire, and its length is about 468 divided by frequency in MHz, in feet. Height above ground dominates its radiation angle: low means high-angle and short-range, high means low-angle and DX.",
   "key_facts": [
    "Half-wave dipole in feet = 468 / f(MHz)",
-   "Centre-fed dipole feed point impedance is about 70 ohms",
+   "Center-fed dipole feed point impedance is about 70 ohms",
    "A quarter-wave vertical needs a ground plane or radials",
    "A dipole low over ground radiates at a high angle \u2014 good for NVIS"
   ],

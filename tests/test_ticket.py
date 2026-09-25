@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Telling somebody with no licence on record that they are ready to sit one.
+"""Telling somebody with no license on record that they are ready to sit one.
 
     python3 tests/test_ticket.py
 
-The properties worth holding: nothing is said to an operator whose licence
+The properties worth holding: nothing is said to an operator whose license
 class is already known, whether the FCC's record said so or they did; nothing
 is said before the evidence is there, so the panel is news and not furniture;
 "ready" means the exam-proven class tier and outranks a higher class that is
@@ -39,7 +39,7 @@ NEARLY = standing("tech2026", odds=0.80, passed=1)
 NOWHERE = standing("tech2026", step=ranks.LEARNER, odds=0.40, passed=0)
 
 
-print("\nnothing is said when a licence class is already on record")
+print("\nnothing is said when a license class is already on record")
 fcc = {"license": {"found": True, "license_class": "Technician"}}
 check("the FCC's record silences it",
       ticket.call_to_action(fcc, [READY]), None)
@@ -117,7 +117,7 @@ panel = ticket.call_to_action({}, [READY])
 words = " ".join(str(v) for v in panel.values()).lower()
 check("the word does not appear at all", "unlicensed" in words, False)
 check("  what is said instead is about the record",
-      panel["record_note"].startswith("No licence is on record"), True)
+      panel["record_note"].startswith("No license is on record"), True)
 
 print("\nand the charge is the reason the panel exists")
 check("it names the obligation", "obligations" in panel["charge"], True)

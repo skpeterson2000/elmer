@@ -10,7 +10,7 @@ somebody's wall is the most persistent form a result can take.
 What it says is what the program measured: the placing, the name played
 under, the tournament by class and length, the questions answered and the
 fastest-correct count, the blocks won. What it does *not* say is anything
-about a licence. A game result is not an examination and this paper is not a
+about a license. A game result is not an examination and this paper is not a
 claim of one, and it says so in small type at the foot, because a certificate
 with "Technician" in large letters on it will be read that way by somebody
 unless the paper itself says otherwise.
@@ -129,7 +129,7 @@ def _page(c, award, event, when, where, footer, club=None, signers=None, mode=No
     place = int(award.get("place") or 1)
     signers = signers or {}
 
-    # Border: a double rule, the outer heavier, in the medal's colour family.
+    # Border: a double rule, the outer heavier, in the medal's color family.
     c.setStrokeColor(RULE)
     c.setLineWidth(3)
     c.rect(margin, margin, W - 2 * margin, H - 2 * margin)
@@ -162,7 +162,7 @@ def _page(c, award, event, when, where, footer, club=None, signers=None, mode=No
     c.setFillColor(DIM)
     c.drawRightString(W - margin - 24, line, when)
 
-    # The medal, left of centre; the words, right of it.
+    # The medal, left of center; the words, right of it.
     mx, my, mr = margin + 160, H / 2 - 6, 92
     _medal(c, mx, my, mr, place, mode)
 
@@ -231,8 +231,8 @@ def build(awards, event="ELMER tournament", when=None, where=None, footer=None,
     when = when or f"{date.today().day} {date.today():%B %Y}"
     footer = footer or (
         f"A {mode if mode in MODE_WORD else 'tournament'} result, recorded by ELMER. "
-        "It is a game played on the licence question pools; it is not an "
-        "examination, a licence, or a claim of either.")
+        "It is a game played on the license question pools; it is not an "
+        "examination, a license, or a claim of either.")
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(LETTER))
     c.setTitle(f"{event} - certificates")

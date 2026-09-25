@@ -6,7 +6,7 @@
 This test never calls reset(). It cannot: the machine it runs on is somebody's
 machine, and a test suite that wipes the study data of whoever ran it would be
 a far worse bug than anything it could catch. So what is exercised is the dry
-run and the refusals, which is where the behaviour worth protecting lives.
+run and the refusals, which is where the behavior worth protecting lives.
 
 Two guards matter. It answers nothing to a request from off this machine,
 because a study session anybody on the network can erase is not a study

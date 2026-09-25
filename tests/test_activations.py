@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The two programmes' rules, pinned to the documents they were read from.
+"""The two programs' rules, pinned to the documents they were read from.
 
     python3 tests/test_activations.py
 
@@ -58,8 +58,8 @@ def main():
           "generator" in A.SOTA["power"], True)
     check("the activation zone is the operator's position, not the antenna's",
           "where the operator is" in A.SOTA["where"], True)
-    check("  typically 25 metres, and the Association's to set",
-          "25 metres" in A.SOTA["where"]
+    check("  typically 25 meters, and the Association's to set",
+          "25 meters" in A.SOTA["where"]
           and "Association" in A.SOTA["where"], True)
     check("a park's boundary covers the equipment too",
           "all of the equipment" in A.POTA["where"], True)
@@ -118,11 +118,11 @@ def main():
     nearest = min([p["km"] for p in d2["parks"]] or [d2["band"]["inner_km"]])   # an empty band lists nothing at all
     check("a band that starts at thirty lists nothing nearer", nearest >= d2["band"]["inner_km"] - 0.01, True)
     d3 = c.get("/api/activations?outer=50&from=Duluth, MN").get_json()
-    check("a place typed is the centre", d3["qth"], "Duluth")
+    check("a place typed is the center", d3["qth"], "Duluth")
     d4 = c.get("/api/activations?outer=50&from=Nowhereville").get_json()
     check("  and one that cannot be found falls back to here, and says so", (d4["qth"], "could not find" in (d4["band"]["note"] or "")), ("Pequot Lakes", True))
 
-    print("\n-- planning a trip: the place typed is the centre of the fetch as well as the list --")
+    print("\n-- planning a trip: the place typed is the center of the fetch as well as the list --")
     from elmer import references
     calls = []
     real_fetch = references.fetch
@@ -132,7 +132,7 @@ def main():
     references.fetch = fake_fetch
     local = {"REMOTE_ADDR": "127.0.0.1"}
     d = c.get("/api/activations?inner=0&outer=80&from=EL16hq").get_json()
-    check("a grid square typed centres the list there", (d["qth"], all(p["km"] <= d["band"]["outer_km"] for p in d["parks"])), ("EL16HQ", True))
+    check("a grid square typed centers the list there", (d["qth"], all(p["km"] <= d["band"]["outer_km"] for p in d["parks"])), ("EL16HQ", True))
     check("  and the bundled national units near it are listed before any fetch", any(p["ref"] == "US-0690" for p in d["parks"]), True)
     r = c.post("/api/activations/prepare", json={"from": "EL16hq"}, environ_base=local)
     check("the fetch goes around the place typed, labelled by it", (r.status_code, calls[-1]), (200, (26.69, -97.38, "EL16HQ")))

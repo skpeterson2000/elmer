@@ -2,7 +2,7 @@
 
 A sextant measures how high the sun is. That single number puts you somewhere
 on a circle drawn on the earth - every point on it sees the sun at that
-altitude at that instant, and its centre is the geographical position, the spot
+altitude at that instant, and its center is the geographical position, the spot
 where the sun is directly overhead. One sight is a circle. Two sights an hour
 apart are two circles, and they cross. That crossing is the fix, and it is the
 whole idea; everything below is arithmetic in service of it.
@@ -52,7 +52,7 @@ def sun_position(when):
     Declination is how far north or south of the equator the sun is overhead.
     Greenwich hour angle is how far west of Greenwich it is. Together they are
     the geographical position: the one point on earth with the sun exactly
-    overhead at this instant, and the centre of every circle of position.
+    overhead at this instant, and the center of every circle of position.
     """
     jd = julian_day(when)
     t = (jd - J2000) / 36525.0
@@ -62,7 +62,7 @@ def sun_position(when):
     m = 357.52911 + 35999.05029 * t - 0.0001537 * t * t
     mr = math.radians(m)
 
-    # Equation of the centre: the orbit is an ellipse, so the sun runs ahead
+    # Equation of the center: the orbit is an ellipse, so the sun runs ahead
     # of and behind its mean position through the year.
     c = ((1.914602 - 0.004817 * t - 0.000014 * t * t) * math.sin(mr)
          + (0.019993 - 0.000101 * t) * math.sin(2 * mr)
@@ -88,7 +88,7 @@ def sun_position(when):
     gha = (gmst - ra) % 360.0
 
     # Semi-diameter: the sun is half a degree wide, and a sextant is brought to
-    # one edge of it rather than to a centre nobody can see.
+    # one edge of it rather than to a center nobody can see.
     radius_au = 1.000001018 * (1 - 0.016708634 ** 2) / (
         1 + 0.016708634 * math.cos(mr + math.radians(c)))
     return {"dec": dec, "gha": gha, "ra": ra,
@@ -136,18 +136,18 @@ def altitude_azimuth(lat, lon, when, sun=None):
 #           the 34' of refraction that has the sun visibly up while it is
 #           geometrically still down. Sunrise is an illusion by more than half
 #           a degree, and this is where the half degree comes from.
-#    0.0    The geometric centre on the horizon. Not what you see, but what the
+#    0.0    The geometric center on the horizon. Not what you see, but what the
 #           D-layer arithmetic is written against.
 #   -6/-12/-18  Civil, nautical and astronomical twilight - light to work by,
 #           a usable sea horizon with stars, and true darkness.
 #
-# The grey line wants its own figure, 9.03 degrees down, where the sun has left
+# The gray line wants its own figure, 9.03 degrees down, where the sun has left
 # the ground but not the D layer 80 km up. That number belongs to `propagation`
 # and is passed in from there rather than duplicated here, so there is one
 # definition of it in the program and it lives with the physics that needs it.
 
 SUN_UPPER_LIMB = -0.8333        # refraction 34' + semidiameter 16'
-SUN_CENTRE = 0.0
+SUN_CENTER = 0.0
 CIVIL_TWILIGHT = -6.0
 NAUTICAL_TWILIGHT = -12.0
 ASTRONOMICAL_TWILIGHT = -18.0
@@ -250,7 +250,7 @@ def day_length_hours(lat, lon, when, altitude=SUN_UPPER_LIMB):
 # between you and the sun: the instrument's own error, the fact that you are
 # above the sea and can see slightly over the horizon, the atmosphere bending
 # the light, and the fact that you brought the sun's edge down rather than a
-# centre you cannot see. Each is a named correction and each is shown.
+# center you cannot see. Each is a named correction and each is shown.
 
 def dip_arcmin(height_ft):
     """How far below true horizontal the sea horizon is, from eye height."""
@@ -267,12 +267,12 @@ def altitude_from_shadow(object_height, shadow_length):
     """The sun's altitude from a stick and the shadow it throws.
 
     No instrument at all: altitude = atan(height / shadow), in whatever units
-    you like as long as they are the same. A metre stick with the shadow tip
-    read to a centimetre is good to about a third of a degree, which is twenty
+    you like as long as they are the same. A meter stick with the shadow tip
+    read to a centimeter is good to about a third of a degree, which is twenty
     nautical miles - loose for a sextant and ample for a four-character grid.
 
     The shadow's edge is soft because the sun is half a degree wide, so read
-    the middle of the fuzz: that is where the centre of the sun puts it.
+    the middle of the fuzz: that is where the center of the sun puts it.
     """
     if object_height <= 0 or shadow_length <= 0:
         return None
@@ -325,11 +325,11 @@ def reduce_sight(hs_deg, when, index_error_arcmin=0.0, height_ft=0.0,
     if horizon == "shadow":
         steps.append(("semi-diameter", h,
                       "none - the soft edge of a shadow is thrown by the whole "
-                      "disc, so its middle is already the sun's centre"))
+                      "disc, so its middle is already the sun's center"))
     elif limb == "lower":
         h += sd / 60.0
         steps.append(("semi-diameter", h,
-                      "+%.1f' - you brought the lower edge down, the centre is "
+                      "+%.1f' - you brought the lower edge down, the center is "
                       "half a diameter above it" % sd))
     elif limb == "upper":
         h -= sd / 60.0
@@ -484,15 +484,15 @@ def fix(sights, hint=None):
 # they agree perfectly by construction, and a residual of zero would report a
 # perfect fix from two readings that were both wrong.
 SIGHT_SIGMA_ARCMIN = 1.0          # a careful sextant sight
-SHADOW_PRECISION = 0.005          # half a centimetre read on a metre of stick
+SHADOW_PRECISION = 0.005          # half a centimeter read on a meter of stick
 
 
 def shadow_sigma_arcmin(alt_deg, precision=SHADOW_PRECISION):
     """How good a stick-and-shadow altitude is, at this altitude.
 
     Only the ratio of the reading error to the stick's height matters, not the
-    size of either: a two metre pole read to a centimetre is the same sight as
-    a metre stick read to half of one. Differentiating atan(h/s) gives an error
+    size of either: a two meter pole read to a centimeter is the same sight as
+    a meter stick read to half of one. Differentiating atan(h/s) gives an error
     of (e/h) x sin^2(altitude), which says something useful - a shadow sight is
     at its best with the sun low and its shadow long, exactly the opposite of a
     sextant, which prefers the sun high where refraction is small. Take stick
@@ -661,7 +661,7 @@ def eme_outlook(lat, lon, when=None):
     """Moonbounce, from a place and a clock: where the moon is, when it is
     up, how far away it is (the path loss against the average), how far it
     is from the sun (sun noise), and its declination (the sky behind it).
-    Nothing fetched; a judgement in words with the numbers that made it."""
+    Nothing fetched; a judgment in words with the numbers that made it."""
     when = when or datetime.now(timezone.utc)
     when = when.astimezone(timezone.utc) if when.tzinfo else when.replace(tzinfo=timezone.utc)
     moon = moon_position(when)

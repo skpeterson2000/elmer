@@ -34,7 +34,7 @@ do not say yes to.
 Double-click **`elmer.cmd`**. The first time takes a few seconds; then ELMER
 opens in a window of its own (Edge or Chrome, in app mode — no address bar)
 and puts itself on the Start Menu with its icon. The first launch offers to
-open maximised; the window remembers its size, place and zoom after that.
+open maximized; the window remembers its size, place and zoom after that.
 
 A console window stays open behind it. That is the program running; leave
 it. **Closing the ELMER window stops ELMER** — that is the Exit, and there is

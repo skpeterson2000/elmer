@@ -52,7 +52,7 @@ def main():
     # Counting distinct whole miles an hour was the old way of asking this,
     # and it measured the rounding as much as the gust: the day is down to
     # six miles an hour by here, where a real spread of five to seven is
-    # only three whole numbers. Ask for the behaviour instead - that shots
+    # only three whole numbers. Ask for the behavior instead - that shots
     # are played in more wind than the hole's and in less - and ask
     # separately for the part that is actually modelled, which is that a
     # blow is lumpy and light air is not.

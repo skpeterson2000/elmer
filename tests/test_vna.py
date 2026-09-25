@@ -38,7 +38,7 @@ def check(label, got, want):
 
 def main():
     print("\n-- a dipole cut exactly right --")
-    d = vna.sweep("dipole", f0_mhz=14.2, centre_mhz=14.2, span=0.10)
+    d = vna.sweep("dipole", f0_mhz=14.2, center_mhz=14.2, span=0.10)
     check("resonance lands where it was cut", d["antenna"]["resonance_mhz"], 14.2)
     # The best match is a sampled minimum and resonance is an interpolated
     # crossing, so they agree to within one sample and not exactly - which is
@@ -53,8 +53,8 @@ def main():
           "essentially where you are looking" in d["read"][0], True)
 
     print("\n-- which way to cut, which is the whole point --")
-    long_one = vna.sweep("dipole", f0_mhz=13.8, centre_mhz=14.2, span=0.12)
-    short_one = vna.sweep("dipole", f0_mhz=14.6, centre_mhz=14.2, span=0.12)
+    long_one = vna.sweep("dipole", f0_mhz=13.8, center_mhz=14.2, span=0.12)
+    short_one = vna.sweep("dipole", f0_mhz=14.6, center_mhz=14.2, span=0.12)
     check("cut too long, it resonates low", long_one["antenna"]["resonance_mhz"], 13.8)
     check("  and the advice says shorten", "Shorten" in long_one["read"][0], True)
     check("  and calls it long", "is long" in long_one["read"][0], True)
@@ -73,8 +73,8 @@ def main():
           len({r["r"] for r in rows}), 1)
 
     print("\n-- the coax flatters the antenna, and that is not an improvement --")
-    bare = vna.sweep("dipole", f0_mhz=14.6, centre_mhz=14.2, span=0.12, feet=0)
-    run = vna.sweep("dipole", f0_mhz=14.6, centre_mhz=14.2, span=0.12,
+    bare = vna.sweep("dipole", f0_mhz=14.6, center_mhz=14.2, span=0.12, feet=0)
+    run = vna.sweep("dipole", f0_mhz=14.6, center_mhz=14.2, span=0.12,
                     line="rg58", feet=150)
     check("at the antenna, both agree - nothing has been transformed",
           bare["antenna"]["best_swr"], run["antenna"]["best_swr"])
@@ -84,14 +84,14 @@ def main():
     check("  with the loss named", run["matched_loss_db"] > 1.0, True)
     print(f"       (antenna {run['antenna']['best_swr']}:1, shack "
           f"{run['shack']['best_swr']}:1, {run['matched_loss_db']} dB each way)")
-    lossless = vna.sweep("dipole", f0_mhz=14.6, centre_mhz=14.2, span=0.12,
+    lossless = vna.sweep("dipole", f0_mhz=14.6, center_mhz=14.2, span=0.12,
                          line="lmr400", feet=150)
     check("better coax tells less of a lie",
           lossless["shack"]["best_swr"] > run["shack"]["best_swr"], True)
 
     print("\n-- a whip is sharp and a bowtie is not --")
-    whip = vna.sweep("whip", f0_mhz=14.2, centre_mhz=14.2, span=0.08)
-    fat = vna.sweep("bowtie", f0_mhz=14.2, centre_mhz=14.2, span=0.08)
+    whip = vna.sweep("whip", f0_mhz=14.2, center_mhz=14.2, span=0.08)
+    fat = vna.sweep("bowtie", f0_mhz=14.2, center_mhz=14.2, span=0.08)
     check("the whip's usable width is the narrower",
           whip["antenna"]["band_2to1"]["khz"] < fat["antenna"]["band_2to1"]["khz"],
           True)
@@ -100,7 +100,7 @@ def main():
 
     print("\n-- the sweep stays inside what the approximation can defend --")
     wide = vna.sweep("dipole", f0_mhz=14.2, span=5.0)
-    check("a silly span is clamped, not honoured", wide["span"], vna.MAX_SPAN)
+    check("a silly span is clamped, not honored", wide["span"], vna.MAX_SPAN)
     check("  and the point count is bounded too",
           vna.sweep("dipole", 14.2, points=99999)["points"], 801)
 

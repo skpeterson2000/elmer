@@ -11,7 +11,7 @@ worth more than a reader assuming otherwise twice. And the count held is
 printed against the count shown, so a sheet listing thirty parks cannot be
 mistaken for the whole of what is within reach.
 
-Parks and summits keep the colours they have on the screen - green and blue -
+Parks and summits keep the colors they have on the screen - green and blue -
 because somebody who compared the two lists there should not have to learn a
 second scheme here.
 """
@@ -42,7 +42,7 @@ DEFAULT_LIMIT = 30
 # Distances are printed in whatever the operator reads them in - the same
 # thing the screen and the filter use. A sheet that quietly switched units
 # would have somebody comparing two numbers that are not the same number, and
-# asking for a range in miles then answering in kilometres is exactly the sort
+# asking for a range in miles then answering in kilometers is exactly the sort
 # of mismatch that makes a reader distrust every other figure on the page.
 
 
@@ -142,13 +142,13 @@ def _summits(rows, s, system=units.DEFAULT):
                         1.2 * inch, 0.55 * inch, 0.35 * inch], SUMMIT)
 
 
-def _section(title, shown, held, colour, s):
+def _section(title, shown, held, color, s):
     more = ("" if held <= shown else
             "  Nearest %d of %d held." % (shown, held))
     return Paragraph(
         '<font color="%s"><b>%s</b></font><font size="8.6" color="%s">'
         '   %d listed.%s</font>'
-        % (colour.hexval(), title, MUTED.hexval(), shown, more), s["head"])
+        % (color.hexval(), title, MUTED.hexval(), shown, more), s["head"])
 
 
 def build(parks, summits, want="both", station=None, radius_km=None,

@@ -39,7 +39,7 @@
   "note": "The VE and VEC framework in detail. A VE must be accredited, hold a class above the element being administered, and be at least 18. Three VEs must be present. VEs may be reimbursed only for out-of-pocket expenses, capped per candidate per year, and question pools must be published.",
   "key_facts": [
    "Three accredited VEs must observe and grade each examination",
-   "A VE must hold a licence class above the element administered",
+   "A VE must hold a license class above the element administered",
    "VEs may claim only actual out-of-pocket expenses, up to a published limit",
    "Test papers and records must be retained and forwarded per the VEC's instructions"
   ]
@@ -81,7 +81,7 @@
   ]
  },
  "E2D": {
-  "note": "VHF and UHF weak-signal work. EME suffers about 2 dB of libration fading and a two-and-a-half second path delay, and needs high gain and patience. Meteor scatter uses the ionised trails of meteors, favouring short bursts and high-speed modes. APRS carries position data using unnumbered AX.25 frames.",
+  "note": "VHF and UHF weak-signal work. EME suffers about 2 dB of libration fading and a two-and-a-half second path delay, and needs high gain and patience. Meteor scatter uses the ionised trails of meteors, favoring short bursts and high-speed modes. APRS carries position data using unnumbered AX.25 frames.",
   "key_facts": [
    "EME round-trip delay is about 2.5 seconds",
    "Meteor scatter bursts are brief, so high-speed digital modes are used",
@@ -141,7 +141,7 @@
   "note": "Every measurement has limits. A meter's accuracy is a percentage of full scale, so reading near the bottom of a range is proportionally worse. Probe capacitance and lead inductance load the circuit and distort readings at RF. Counter accuracy depends on its time base, and the error scales with the frequency measured.",
   "key_facts": [
    "Accuracy is usually a percentage of full scale, so use the lowest suitable range",
-   "A high-impedance probe minimises circuit loading",
+   "A high-impedance probe minimizes circuit loading",
    "Frequency counter error scales with the measured frequency and time base accuracy",
    "Lead inductance and stray capacitance dominate at VHF and above"
   ]
@@ -238,7 +238,7 @@
   ]
  },
  "E6D": {
-  "note": "Core material sets an inductor's behaviour. Permeability multiplies the inductance a given winding produces; a toroid keeps almost all the flux inside the core, so it does not couple to neighbouring components. Powdered iron suits high-Q resonant work; ferrite gives higher permeability and suits broadband transformers and chokes.",
+  "note": "Core material sets an inductor's behavior. Permeability multiplies the inductance a given winding produces; a toroid keeps almost all the flux inside the core, so it does not couple to neighbouring components. Powdered iron suits high-Q resonant work; ferrite gives higher permeability and suits broadband transformers and chokes.",
   "key_facts": [
    "A toroid confines its magnetic field almost entirely within the core",
    "Higher permeability gives more inductance for the same number of turns",
@@ -249,7 +249,7 @@
  "E6E": {
   "note": "RF semiconductor packaging is about getting heat out and inductance down. Surface-mount packages have short leads and low parasitic inductance, essential above VHF. MMICs integrate a whole amplifier in a package needing only a bias resistor and blocking capacitors, and usually present 50 ohms in and out.",
   "key_facts": [
-   "Surface-mount packages minimise lead inductance at UHF and above",
+   "Surface-mount packages minimize lead inductance at UHF and above",
    "An MMIC typically presents 50 ohms at input and output",
    "MMIC bias is usually applied through a resistor to the output pin",
    "Heat sinking determines the real power rating of an RF device"
@@ -319,7 +319,7 @@
   ]
  },
  "E7G": {
-  "note": "An op-amp has very high open-loop gain, very high input impedance and very low output impedance, so its behaviour is set almost entirely by the feedback network. In the inverting configuration the gain is minus the ratio of feedback to input resistor. Offset voltage and slew rate are the practical limits.",
+  "note": "An op-amp has very high open-loop gain, very high input impedance and very low output impedance, so its behavior is set almost entirely by the feedback network. In the inverting configuration the gain is minus the ratio of feedback to input resistor. Offset voltage and slew rate are the practical limits.",
   "key_facts": [
    "Ideal op-amp: infinite gain, infinite input impedance, zero output impedance",
    "Inverting gain = -Rf / Rin",
@@ -388,7 +388,7 @@
    "Front-to-back ratio compares the main lobe with the pattern 180 degrees behind",
    "Narrower beamwidth accompanies higher gain",
    "Azimuth pattern: horizontal cut. Elevation pattern: vertical cut",
-   "NEC-based modelling divides the antenna into segments and solves for currents"
+   "NEC-based modeling divides the antenna into segments and solves for currents"
   ]
  },
  "E9C": {
@@ -406,7 +406,7 @@
    "Yagi gain depends mainly on boom length",
    "Parabolic gain rises with the square of both diameter and frequency",
    "A short antenna has high Q, narrow bandwidth and low radiation resistance",
-   "Loading a short antenna at the centre or top is more efficient than at the base"
+   "Loading a short antenna at the center or top is more efficient than at the base"
   ]
  },
  "E9E": {
@@ -420,7 +420,7 @@
   "lab": "swr"
  },
  "E9F": {
-  "note": "Transmission line behaviour depends on electrical length. A shorted quarter-wave stub looks like an open circuit at its input; an open quarter-wave stub looks like a short. Velocity factor means physical length is always shorter than free-space length. Open wire line has far lower loss than coax but must be kept clear of metal.",
+  "note": "Transmission line behavior depends on electrical length. A shorted quarter-wave stub looks like an open circuit at its input; an open quarter-wave stub looks like a short. Velocity factor means physical length is always shorter than free-space length. Open wire line has far lower loss than coax but must be kept clear of metal.",
   "key_facts": [
    "Shorted quarter-wave stub: looks open. Open quarter-wave stub: looks shorted",
    "A half-wave line repeats the load impedance at its input",
@@ -430,11 +430,11 @@
   "lab": "ant"
  },
  "E9G": {
-  "note": "The Smith chart is a plot of complex impedance mapped onto a circle so that the whole infinite plane fits on one page. The horizontal line is pure resistance; circles of constant resistance and arcs of constant reactance cross it. Moving along a transmission line is a rotation about the centre, which is what makes it useful for matching.",
+  "note": "The Smith chart is a plot of complex impedance mapped onto a circle so that the whole infinite plane fits on one page. The horizontal line is pure resistance; circles of constant resistance and arcs of constant reactance cross it. Moving along a transmission line is a rotation about the center, which is what makes it useful for matching.",
   "key_facts": [
    "The horizontal axis is the pure resistance line",
    "Constant resistance circles and constant reactance arcs form the grid",
-   "The chart centre is a perfect match; the outer edge is infinite SWR",
+   "The chart center is a perfect match; the outer edge is infinite SWR",
    "Moving toward the generator rotates clockwise around the chart"
   ]
  },

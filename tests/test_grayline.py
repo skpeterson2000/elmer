@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Checks for the three states of the sky, and the grey line in the middle.
+"""Checks for the three states of the sky, and the gray line in the middle.
 
-    python3 tests/test_greyline.py
+    python3 tests/test_grayline.py
 
 What this is guarding is not the sun - `test_celestial.py` does that - but the
 decision to stop reducing the sun to one bit, and where the middle state is
@@ -80,9 +80,9 @@ def main():
     check("noon is lit", P.sun_regime(45.0), "lit")
     check("the last moment of sunlight is still lit", P.sun_regime(0.0), "lit")
     check("a hair under, the ground has lost the sun and the D layer has not",
-          P.sun_regime(-0.01), "grey")
-    check("still grey at the D layer's own horizon",
-          P.sun_regime(-P.D_LAYER_DIP), "grey")
+          P.sun_regime(-0.01), "gray")
+    check("still gray at the D layer's own horizon",
+          P.sun_regime(-P.D_LAYER_DIP), "gray")
     check("past that the absorber is wholly in shadow",
           P.sun_regime(-P.D_LAYER_DIP - 0.01), "dark")
     check("no position, no state", P.sun_regime(None), None)
@@ -90,19 +90,19 @@ def main():
     print("\n-- the window is a window, and it sits on the absorption curve --")
     sunset, d_set = crossing(0.0, False), crossing(-P.D_LAYER_DIP, False)
     span = (d_set - sunset).total_seconds() / 60.0
-    check("the evening grey line lasts the best part of an hour",
+    check("the evening gray line lasts the best part of an hour",
           30 <= span <= 90, True)
     print(f"       (8 Sep at {LAT:.1f}N: {sunset:%H:%M} to {d_set:%H:%M} CDT,"
           f" {span:.0f} min)")
     check("  it starts at sunset, not an hour after it",
-          regime_at(at(19, 45)), "grey")
+          regime_at(at(19, 45)), "gray")
     check("  and by nine it is over - absorption reached zero at half eight",
           regime_at(at(21, 0)), "dark")
     check("  the morning one ends at sunrise",
           crossing(-P.D_LAYER_DIP, True) < crossing(0.0, True), True)
-    check("the states run lit, grey, dark in that order down the evening",
+    check("the states run lit, gray, dark in that order down the evening",
           [regime_at(at(19, 0)), regime_at(at(20, 0)), regime_at(at(21, 0))],
-          ["lit", "grey", "dark"])
+          ["lit", "gray", "dark"])
 
     print("\n-- absorption is what the window is supposed to be about --")
     # band_score's own D-layer term, read directly. If the state ever drifts
@@ -135,22 +135,22 @@ def main():
         for mi in range(24 * 60):
             when = (t0 + timedelta(minutes=mi)).astimezone(timezone.utc)
             e = P.solar_elevation(la, LON, when)
-            run = run + 1 if P.sun_regime(e, la, when) == "grey" else 0
+            run = run + 1 if P.sun_regime(e, la, when) == "gray" else 0
             best = max(best, run)
         check(f"{la:.0f}N on 21 June is under two hours, not five", best < 120, True)
         print(f"       ({best} min)")
 
-    print("\n-- Alaska in June: a long twilight, which is not a long grey line --")
+    print("\n-- Alaska in June: a long twilight, which is not a long gray line --")
     # The question this section exists to answer. At Anchorage the sun bottoms
     # out 5.3 degrees down: the ground loses it, the D layer 80 km up does not,
     # and 80 m absorption never falls below a third of its noon value. Calling
-    # that the grey line would sell the worst season on the low bands as the
+    # that the gray line would sell the worst season on the low bands as the
     # best hour of the day.
     june = datetime(2026, 6, 21, 12, 0, tzinfo=timezone.utc)
     # Same sun angle, four degrees under the horizon, at three places on the
     # same night. What separates them is whether the sun is going to finish the
     # job - and only the two with a position can know that.
-    for name, la, want in (("Pequot Lakes", LAT, "grey"),
+    for name, la, want in (("Pequot Lakes", LAT, "gray"),
                            ("Anchorage", 61.22, "twilight"),
                            ("Fairbanks", 64.84, "twilight")):
         floor = P.night_floor(la, june)
@@ -162,7 +162,7 @@ def main():
           P.night_floor(LAT, june) < -P.D_LAYER_DIP * 2, True)
     check("  and Utqiagvik has no night to have one in",
           P.day_ceiling(71.29, june) > 0 and P.night_floor(71.29, june) > 0, True)
-    check("nor is polar noon in December a grey line",
+    check("nor is polar noon in December a gray line",
           P.sun_regime(-3.0, 71.29, datetime(2026, 12, 21, 12, 0, tzinfo=timezone.utc)),
           "twilight")
     check("  while the deep part of that day is honestly dark",
@@ -197,11 +197,11 @@ def main():
     check("  the sun agrees", P.solar_elevation(
         LAT, LON, at(7, 30).astimezone(timezone.utc)) > 0, True)
     # And what the first version of the fix got wrong: eight in the evening is
-    # twenty minutes past sunset, absorption two thirds gone. That is the grey
+    # twenty minutes past sunset, absorption two thirds gone. That is the gray
     # line. Hanging the window on the F2 dip called it daylight and then put
-    # the grey line at nine, when the sky here has been dark for half an hour.
-    check("eight in the evening is the grey line, not daylight",
-          regime_at(at(20, 0)), "grey")
+    # the gray line at nine, when the sky here has been dark for half an hour.
+    check("eight in the evening is the gray line, not daylight",
+          regime_at(at(20, 0)), "gray")
     check("  and nine o'clock is not - that was the complaint",
           regime_at(at(21, 0)), "dark")
 
@@ -218,14 +218,14 @@ def main():
                           ("12m-10m", "day"): "Fair", ("12m-10m", "night"): "Poor"},
            "vhf": {}}
     lit = {r["band"]: r for r in P._band_rows(ham, "lit", 14.0)}
-    grey = {r["band"]: r for r in P._band_rows(ham, "grey", 14.0)}
+    gray = {r["band"]: r for r in P._band_rows(ham, "gray", 14.0)}
     dark = {r["band"]: r for r in P._band_rows(ham, "dark", 14.0)}
     check("lit reads the day column", lit["80m"]["rating"], "Poor")
-    check("grey reads the night one - that column is about the absorber",
-          grey["80m"]["rating"], "Good")
+    check("gray reads the night one - that column is about the absorber",
+          gray["80m"]["rating"], "Good")
     check("  as does dark", dark["80m"]["rating"], "Good")
-    check("and the grey line is named on the low bands",
-          "grey line" in grey["80m"]["note"], True)
+    check("and the gray line is named on the low bands",
+          "gray line" in gray["80m"]["note"], True)
     check("  where by day the note is the absorption instead",
           "D-layer" in lit["80m"]["note"], True)
     check("  and after dark, nothing about the low bands at all",

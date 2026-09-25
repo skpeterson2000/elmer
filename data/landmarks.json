@@ -1,5 +1,5 @@
 {
-  "note": "Named spots inside places people operate from, resolvable with no network: the QTH picker and Make Contact's far end both read this before asking anybody. A point with \"about\": true is a fix from a map read by eye, good to a few hundred metres; a line is a run of markers laid along an arc between two fixed ends, good to about a mile, which is what a post in the sand is good to. Each spot carries the programme reference of the place it is in.",
+  "note": "Named spots inside places people operate from, resolvable with no network: the QTH picker and Make Contact's far end both read this before asking anybody. A point with \"about\": true is a fix from a map read by eye, good to a few hundred meters; a line is a run of markers laid along an arc between two fixed ends, good to about a mile, which is what a post in the sand is good to. Each spot carries the program reference of the place it is in.",
   "groups": [
     {
       "name": "Padre Island National Seashore",
@@ -7,7 +7,7 @@
       "pota": "US-0690",
       "about_lines": "The beach south of the pavement is signed with mile markers from mile 0 at the end of Park Road 22 to mile 60 at the Port Mansfield Channel, and for most of it there is no signal at all. An operator at mile 55 who wants to know whether a handheld reaches the park office asks this list for both ends.",
       "points": [
-        {"name": "Malaquite Visitor Center", "aliases": ["Padre Island visitor center", "park office", "Padre Island ranger station", "PINS visitor center", "Malaquite"], "kind": "visitor centre", "lat": 27.4224, "lon": -97.3001, "about": true},
+        {"name": "Malaquite Visitor Center", "aliases": ["Padre Island visitor center", "park office", "Padre Island ranger station", "PINS visitor center", "Malaquite"], "kind": "visitor center", "lat": 27.4224, "lon": -97.3001, "about": true},
         {"name": "Malaquite Beach", "aliases": ["Padre Island Malaquite beach"], "kind": "beach", "lat": 27.4260, "lon": -97.2985, "about": true},
         {"name": "North Beach", "aliases": ["Padre Island north beach"], "kind": "beach", "lat": 27.4520, "lon": -97.2910, "about": true},
         {"name": "Bird Island Basin", "aliases": ["Padre Island Bird Island Basin", "Bird Island boat ramp"], "kind": "campground and boat ramp", "lat": 27.4770, "lon": -97.3430, "about": true},

@@ -7,10 +7,10 @@ are public FCC record, but there is no reason for this app to store them, so it
 does not.
 
 The FCC's own files come first - see uls.py. The Commission's lookup API
-is gone, but it publishes the whole licence database weekly, and a unit
+is gone, but it publishes the whole license database weekly, and a unit
 that has read the file for a service answers that service's callsigns from
 the FCC's record with no network at all: amateur, GMRS and the commercial
-operator licences alike. callook is what answers an amateur call until the
+operator licenses alike. callook is what answers an amateur call until the
 amateur file - two hundred megabytes - has been fetched and read, and
 where it cannot be. The same policy on what is kept either way: the
 callsign, the class and the dates, the town for placing a far station,
@@ -37,7 +37,7 @@ MAX_AGE_DAYS = 7
 GRACE_DAYS = 730                     # two years, per 47 CFR 97.21(b)
 
 RE_CALL = re.compile(r"^[A-Z0-9]{3,10}$")
-# Where a licence is renewed: the ULS licence manager, signed in by FRN.
+# Where a license is renewed: the ULS license manager, signed in by FRN.
 RENEW_URL = "https://wireless2.fcc.gov/UlsEntry/licManager/login.jsp"
 # callook reports the class as a single letter.
 CLASS_NAMES = {
@@ -51,7 +51,7 @@ CLASS_NAMES = {
 # Where a class claim rests. The FCC's record is the one anybody can check;
 # anything else is the operator's own word. Both are allowed - callook serves
 # the ULS and nothing else, so a Canadian or a British operator holds a
-# perfectly good licence that resolves to nothing here, and an upgrade granted
+# perfectly good license that resolves to nothing here, and an upgrade granted
 # this week is not in the published file yet - but the two must never be
 # mistaken for each other on a screen.
 FCC = "fcc"
@@ -60,7 +60,7 @@ SOURCE = "license_class_source"
 
 
 def held(settings):
-    """The licence class this station holds, and whose word that rests on.
+    """The license class this station holds, and whose word that rests on.
 
     One answer, for the whole program. Everything that asks what class this
     operator holds asks here: the pool gate, the band plan, the class pickers
@@ -70,7 +70,7 @@ def held(settings):
     outrank the FCC and open pools that the record did not.
 
     The record decides wherever there is one. It is read on lookup, stored
-    with the licence, and carried to every screen that offers a class, so
+    with the license, and carried to every screen that offers a class, so
     nobody is asked to tell ELMER something the Commission already published.
 
     An operator may still answer for themselves, and that answer is kept and
@@ -85,7 +85,7 @@ def held(settings):
     record = settings.get("license") or {}
     record_class = ""
     if record.get("found"):
-        record_class = str(record.get("licence_class")
+        record_class = str(record.get("license_class")
                            or record.get("license_class") or "")
     own = str(settings.get("license_class") or "")
     same = (own.strip().title() == record_class.strip().title())
@@ -113,7 +113,7 @@ def _parse_date(text):
 
 def status_for(expiry, grace_days=GRACE_DAYS):
     """Where a license sits: current, grace, or expired past renewal. A
-    GMRS licence has no grace period - past the date it is simply gone."""
+    GMRS license has no grace period - past the date it is simply gone."""
     if not expiry:
         return {"state": "unknown", "days": None}
     today = date.today()
@@ -134,17 +134,17 @@ def status_for(expiry, grace_days=GRACE_DAYS):
 
 
 def refresh_status(record):
-    """A licence record with its status worked out as of today.
+    """A license record with its status worked out as of today.
 
-    The record is kept with the profile and a licence term runs for years -
+    The record is kept with the profile and a license term runs for years -
     ten, for GMRS - so the day count written into it goes stale the moment
     it is stored. The amateur record was already being recomputed on its way
-    to the page and the others were not, which is how a GMRS licence
+    to the page and the others were not, which is how a GMRS license
     thirty-five days from expiry went on reporting four hundred days and
     never tripped the renew-soon warning the band plan draws.
 
     Each service keeps its own grace: two years for amateur under 47 CFR
-    97.21(b), none at all for GMRS, where past the date the licence is
+    97.21(b), none at all for GMRS, where past the date the license is
     simply gone. A lifetime permit has no expiry and is handed back as it
     is, and so is a record that was never found.
     """

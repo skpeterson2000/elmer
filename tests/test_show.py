@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The host's hand on every screen: announcements, the deck, modes, the programme.
+"""The host's hand on every screen: announcements, the deck, modes, the program.
 
     python3 tests/test_show.py
 
@@ -8,7 +8,7 @@ carried in the check-in reply every table already polls for. These pin the
 rules: an announcement for one seat reaches that seat and no other; an urgent
 one stays until cleared; the deck puts a trivia card between every other
 kind; the sponsors' cards and the club's notices persist under the state
-directory; a programme step makes the hall do the thing.
+directory; a program step makes the hall do the thing.
 """
 import random
 import sys
@@ -87,7 +87,7 @@ def main():
             decks_seen.add(c["deck"])
     check("every trivia deck gets a turn", decks_seen, set(trivia.DECKS))
     s.set_deck({"history": False, "quotes": False, "hams": False, "technique": False, "equipment": False,
-                "standings": False, "join": False, "programme": False}, house=0)
+                "standings": False, "join": False, "program": False}, house=0)
     check("with everything off there is no card", s.card(8000, standings=[{"name": "x", "score": 1}]), None)
     s.set_deck({"history": True}, dwell=3)
     check("the dwell has a floor", s.dwell, S.MIN_DWELL)
@@ -155,7 +155,7 @@ def main():
     check("an image name is made safe", S.asset_name("Logo (final).PNG"), "Logo-final-.png".replace("-.", "."))
     check("  and a non-image is refused", S.asset_name("../evil.exe"), None)
 
-    print("\n-- mode, focus, programme --")
+    print("\n-- mode, focus, program --")
     s = S.Show(random.Random(5))
     s.set_focus("T5", "Electrical principles", "Ten minutes on T5", 10, now=10_000)
     check("setting a focus puts the hall in study", s.mode, S.STUDY)
@@ -169,12 +169,12 @@ def main():
         check("an unknown mode is refused", False, True)
     except ValueError:
         check("an unknown mode is refused", True, True)
-    steps = s.set_programme([{"kind": "intermission", "minutes": 5},
+    steps = s.set_program([{"kind": "intermission", "minutes": 5},
                              {"kind": "rounds", "rounds": 12, "difficulty": "technician"},
                              {"kind": "nonsense"}, {"kind": "thanks"}])
     check("unknown steps are dropped", [x["kind"] for x in steps], ["intermission", "rounds", "thanks"])
     check("the first press is the first step", s.advance(11_000)["kind"], "intermission")
-    check("  the view says where we are", (s.programme_view(11_005)["step"], s.programme_view()["next"]),
+    check("  the view says where we are", (s.program_view(11_005)["step"], s.program_view()["next"]),
           (1, "Tournament rounds"))
     s.advance(); s.advance()
     check("past the end is None", s.advance(), None)
@@ -198,8 +198,8 @@ def main():
     except ValueError:
         check("an unknown shape is refused", True, True)
     s = S.Show(random.Random(7))
-    s.set_programme(S.event_steps("table", "technician"))
-    check("and it loads as a programme", s.programme_view()["of"], 5)
+    s.set_program(S.event_steps("table", "technician"))
+    check("and it loads as a program", s.program_view()["of"], 5)
 
     print("\n-- the net carries the show --")
     net = netcontrol.Net("Test net")

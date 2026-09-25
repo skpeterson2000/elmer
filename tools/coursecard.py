@@ -6,7 +6,7 @@
 
 GolfTraxx (https://golftraxx.com) lays a yardage book over a satellite
 photo of each hole: the tee, the turning point of the line of play, the
-front, centre and back of the green, and every bunker and hazard with a
+front, center and back of the green, and every bunker and hazard with a
 flag on its near edge ("reach") and one on its far edge ("carry"), each
 a latitude and longitude. This reads those eighteen pages once - the
 static ones, which need no login and which the site's robots.txt allows
@@ -40,7 +40,7 @@ CACHE = CARDS / ".golftraxx"
 PAGE = "https://golftraxx.com/hole-layout?coursename={course}&zipcode={zipcode}&hole={hole}&static=true"
 UA = "ELMER/1.0 (+https://github.com/skpeterson2000/elmer; KC9SP@arrl.net)"
 PAUSE = 1.5                     # seconds between pages: eighteen reads, politely
-YARDS_PER_METRE = 1.0936
+YARDS_PER_METER = 1.0936
 FAIRWAY_HALF = 18               # golf.FAIRWAY_HALF: inside it a hazard is across the hole, not beside it
 BEND_LEAST = 8                  # degrees: a turn smaller than this is a straight hole
 
@@ -78,7 +78,7 @@ def parse(html):
         "tee": tee,
         "turn": (var("ttlatitude"), var("ttlongitude")),
         "front": (var("gflatitude"), var("gflongitude")),
-        "centre": (var("gclatitude"), var("gclongitude")),
+        "center": (var("gclatitude"), var("gclongitude")),
         "back": (var("gblatitude"), var("gblongitude")),
         "marks": [m for m in marks if m.get("reachlat") and not m.get("landmarkname", "").lower().endswith("tee")],
     }
@@ -100,21 +100,21 @@ def parse(html):
 def xy(p, origin):
     """A point as yards east and north of the origin."""
     lat0 = math.radians(origin[0])
-    return ((p[1] - origin[1]) * 111320 * math.cos(lat0) * YARDS_PER_METRE,
-            (p[0] - origin[0]) * 110540 * YARDS_PER_METRE)
+    return ((p[1] - origin[1]) * 111320 * math.cos(lat0) * YARDS_PER_METER,
+            (p[0] - origin[0]) * 110540 * YARDS_PER_METER)
 
 
 def line_of_play(page):
     """The legs of the line: tee to the turning point to the green's
-    centre - one leg when the turn is the green, or missing."""
-    tee, turn, centre = page["tee"], page["turn"], page["centre"]
+    center - one leg when the turn is the green, or missing."""
+    tee, turn, center = page["tee"], page["turn"], page["center"]
     legs = []
-    if (turn and turn[0] is not None and math.hypot(*xy(turn, centre)) > 20
+    if (turn and turn[0] is not None and math.hypot(*xy(turn, center)) > 20
             and math.hypot(*xy(turn, tee)) > 20):
         legs.append((tee, turn))
-        legs.append((turn, centre))
+        legs.append((turn, center))
     else:
-        legs.append((tee, centre))
+        legs.append((tee, center))
     return legs
 
 
@@ -212,7 +212,7 @@ def hazards(page, legs, origin, total, scale=1.0):
         elif greenside:
             side = "beyond" if lo > total else "front"
         else:
-            side = "across" if kind == "water" else "centre"
+            side = "across" if kind == "water" else "center"
         if label == "back" and greenside:
             side = "beyond"
         out.append({"kind": kind, "from": int(round(lo)), "to": int(round(max(hi, lo + 4))), "side": side,
@@ -243,7 +243,7 @@ def measure(page):
     scale = card_yards / total if total else 1.0
     front_at, _, _ = place(page["front"], legs, origin)
     back_at, _, _ = place(page["back"], legs, origin)
-    centre_at, _, _ = place(page["centre"], legs, origin)
+    center_at, _, _ = place(page["center"], legs, origin)
     turn = bend(legs, origin)
     if turn:
         turn["at"] = int(round(turn["at"] * scale))
@@ -251,7 +251,7 @@ def measure(page):
         "measured_yards": int(round(total)), "yards": card_yards,
         "bend": turn,
         "green": int(round((back_at - front_at) * scale)),
-        "pins": {"front": int(round((front_at - centre_at) * scale)), "back": int(round((back_at - centre_at) * scale))},
+        "pins": {"front": int(round((front_at - center_at) * scale)), "back": int(round((back_at - center_at) * scale))},
         "hazards": hazards(page, legs, origin, total, scale),
     }
 
@@ -264,7 +264,7 @@ def update_card(card_id, course, zipcode, compare=False):
     for n in range(1, 19):
         html = fetch(course, zipcode, n)
         page = parse(html)
-        if not page["tee"] or page["centre"][0] is None:
+        if not page["tee"] or page["center"][0] is None:
             print(f"  {n:2d}: the page has no tee or green - left as it was")
             continue
         got = measure(page)

@@ -354,7 +354,7 @@ def looks_like_callsign(name):
     least one digit, no spaces. Not "Scott", not "Ann Lee"."""
     s = str(name or "").strip().upper()
     # a prefix, the digit, and a suffix of letters - the shape of every
-    # amateur callsign, and not of "4X4" or a licence number
+    # amateur callsign, and not of "4X4" or a license number
     return bool(re.fullmatch(r"[A-Z0-9]{1,3}[0-9][A-Z]{1,4}", s)) and any(c.isalpha() for c in s[:-1])
 
 
@@ -387,7 +387,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None, wind_hour=None):
     if whole:
         out.append(whole)
         out += globals()["wind"](wind, wind_mph, wind_hour)
-        # the tee's colour is not here: it comes a line at a time, one to
+        # the tee's color is not here: it comes a line at a time, one to
         # each player's address on the tee - see party._lie_notes
         return out
     if course and course in COURSE_TOKENS:
@@ -403,7 +403,7 @@ def hole(n, par, yards, wind=None, wind_mph=None, course=None, wind_hour=None):
 
 
 def notes(course, n, where):
-    """The colour a hole was given, in order: hole-<course>-<n>-<where>-<k>
+    """The color a hole was given, in order: hole-<course>-<n>-<where>-<k>
     files - "A four here feels like nothing" at the tee, "The putting
     surface is modest" at the first putt, and likewise the fairway's, the
     sand's, the rough's at the first stroke from each, the water's with

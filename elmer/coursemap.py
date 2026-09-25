@@ -1,9 +1,9 @@
-"""The course, drawn: the club's routing from OpenStreetMap, in the strip's colours.
+"""The course, drawn: the club's routing from OpenStreetMap, in the strip's colors.
 
 golfmap.py draws a hole as the rules see it, a yardage-book strip from the
 card, because the game did not have the routing. Now it does:
 tools/fetch_golf_map.py keeps each course's fairways, greens, tees,
-bunkers, water, coastline and hole lines, in metres, beside its card
+bunkers, water, coastline and hole lines, in meters, beside its card
 (data/golf/<course>.map.json, OpenStreetMap contributors' data under the
 ODbL, credited on every picture). This draws from that. The whole course
 is the frame on the clubhouse wall; one hole, turned tee-at-the-foot like
@@ -13,12 +13,12 @@ on.
 A frame is filled. The course is fitted to whatever width and height the
 screen has, and the ground is allowed to stretch to fill it - a golf
 course is a long thin thing and a clubhouse frame is not - up to a limit,
-STRETCH_MOST, past which the picture is centred with margins rather than
+STRETCH_MOST, past which the picture is centerd with margins rather than
 squashed into nonsense. The stretch is done to the geometry here, not by
 the browser to the picture, so the hole numbers, the flags and the line
 widths stay true while the ground gives. The screenshots this replaces
 were the same data through somebody else's renderer, at their scale, in
-their colours, with their labels; this is the same facts in ELMER's hand.
+their colors, with their labels; this is the same facts in ELMER's hand.
 
 SVG, plain, the strip's palette (golfmap.FILL and friends), no
 libraries; the files are a hundred kilobytes and a course draws in a few
@@ -70,7 +70,7 @@ def _bounds(rings):
 
 
 class Fit:
-    """Metres to the frame: turned by `turn` radians, then scaled to fill
+    """Meters to the frame: turned by `turn` radians, then scaled to fill
     width x height, stretching one way up to STRETCH_MOST."""
 
     def __init__(self, rings, width, height, turn=0.0, margin_m=25.0, stretch_most=STRETCH_MOST):
@@ -87,10 +87,10 @@ class Fit:
         elif sy > sx * stretch_most:
             sy = sx * stretch_most
         self.sx, self.sy = sx, sy
-        # centre what is left over
+        # center what is left over
         self.ox = (width - sx * (x1 - x0)) / 2 - sx * x0
         self.oy = (height - sy * (y1 - y0)) / 2 + sy * y1
-        self.scale = math.sqrt(sx * sy)          # for things that must stay round: a metre, on average
+        self.scale = math.sqrt(sx * sy)          # for things that must stay round: a meter, on average
 
     def _rot(self, p):
         x, y = p
@@ -297,7 +297,7 @@ def course_svg(course_id, width=640, height=280, title=None):
 
 def hole_svg(course_id, n, width=260, height=420, balls=None, title=None):
     """One hole, turned so the tee is at the foot and the green at the head,
-    with what lies within a hundred metres of its line; the strip's cousin,
+    with what lies within a hundred meters of its line; the strip's cousin,
     drawn from the ground rather than the card. `balls` may carry the
     game's balls as (yards along, yards off) for the group being watched;
     they are placed along the hole's own line."""
@@ -349,7 +349,7 @@ def hole_svg(course_id, n, width=260, height=420, balls=None, title=None):
 
 
 def _near_line(ring, line, reach):
-    """Does any point of the ring lie within reach metres of the polyline?"""
+    """Does any point of the ring lie within reach meters of the polyline?"""
     for p in ring[:: max(1, len(ring) // 24)]:
         for a, b in zip(line, line[1:]):
             if _dist_seg(p, a, b) <= reach:
@@ -379,9 +379,9 @@ def _dist_seg(p, a, b):
     return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 
 
-def _along(line, metres, off_m=0.0):
-    """The point `metres` along the polyline, offset `off_m` to its right."""
-    left = metres
+def _along(line, meters, off_m=0.0):
+    """The point `meters` along the polyline, offset `off_m` to its right."""
+    left = meters
     for a, b in zip(line, line[1:]):
         seg = math.dist(a, b)
         if left <= seg or (a, b) == (line[-2], line[-1]):

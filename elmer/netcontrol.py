@@ -956,7 +956,7 @@ class Net:
                     tournament.block_of(self.round_number))
             summary["section"] = (self.round.get("question") or {}).get("section") or ""
             self.history.append(summary)
-            # The evening's record, one line a round: what the organiser
+            # The evening's record, one line a round: what the organizer
             # asks for afterwards and the only place it is written in words.
             people = [r for r in everyone if not r.get("bot")]
             log.info("net round %d closed: %s, %d of %d tables reported, %d people "
@@ -1266,7 +1266,7 @@ class Net:
         """Lay out a whole tournament, replacing anything half played.
 
         Called when a hall starts, and again when net control moves it to
-        another licence class: a Technician tournament that becomes a General
+        another license class: a Technician tournament that becomes a General
         one is a different examination and the draw has to be redrawn for it.
         """
         with self.lock:

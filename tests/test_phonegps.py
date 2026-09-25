@@ -63,7 +63,7 @@ def main():
     near("RMC latitude, ddmm.mmmm to degrees", rmc["lat"], 48 + 7.038 / 60)
     near("RMC longitude", rmc["lon"], 11 + 31.0 / 60)
     near("RMC speed, knots to m/s", rmc["speed_mps"], 22.4 * 0.514444, 1e-3)
-    near("GGA altitude in metres", gga["alt_m"], 545.4, 1e-6)
+    near("GGA altitude in meters", gga["alt_m"], 545.4, 1e-6)
     check("GGA satellite count", gga["sats"], 8)
 
     print("\n-- hemispheres, which are a sign and not a letter --")

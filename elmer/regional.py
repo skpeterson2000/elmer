@@ -158,9 +158,9 @@ def _fetch_mrc():
 
 # --- who coordinates where ---------------------------------------------------
 #
-# Forty-five organisations cover the fifty states, and not one per state: SERA
+# Forty-five organizations cover the fifty states, and not one per state: SERA
 # alone covers eight, T-MARC five, NESMC four, and California is carved up five
-# ways by band and region. So the table is by organisation with the states it
+# ways by band and region. So the table is by organization with the states it
 # covers, not the other way round.
 #
 # Naming somebody's coordinator and parsing their plan are two different jobs
@@ -375,7 +375,7 @@ def available():
 def states():
     """Every state, with who coordinates it - which is how somebody picks.
 
-    The selector used to be a list of organisations, which asks an operator to
+    The selector used to be a list of organizations, which asks an operator to
     know that Georgia is SERA before they can find out that Georgia is SERA.
     They know their state; the coordinator is the answer, not the question.
     """
@@ -499,7 +499,7 @@ def plan(state, refresh=False):
     if not entry:
         return None
     CACHE.mkdir(parents=True, exist_ok=True)
-    # Cached under the coordinator rather than the state, so an organisation
+    # Cached under the coordinator rather than the state, so an organization
     # covering eight of them is fetched once and not eight times.
     path = CACHE / f"{entry['short']}.json"
     if path.is_file() and not refresh:

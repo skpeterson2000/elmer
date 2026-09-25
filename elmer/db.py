@@ -30,13 +30,17 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 # How many recognitions to keep the clock for, and how many of the earliest
 # make the baseline. Thirty is a session's worth; five is enough to average
 # out the one where somebody was reaching for their tea.
 TIMES_KEEP = 30
 BASELINE_SAMPLES = 5
+# The cold record is kept shorter than the warm one because there is at most
+# one cold rep of a character per sitting: thirty of them is a month of
+# practice, where thirty warm ones can be ninety seconds of it.
+COLD_KEEP = 20
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -165,6 +169,14 @@ CREATE TABLE IF NOT EXISTS cw_char (
     recent   TEXT    NOT NULL DEFAULT '',
     times    TEXT    NOT NULL DEFAULT '',
     first_ms REAL,
+    -- The cold record: the first rep of this character in a sitting, or the
+    -- first after a real gap. `cold` is whether those landed, `cold_times`
+    -- how long the ones that landed took, and `cold_first_ms` the very first
+    -- one that landed - the point at which the character was learned, and the
+    -- mark everything after it is read against. See cw.COLD_GAP_MS.
+    cold       TEXT  NOT NULL DEFAULT '',
+    cold_times TEXT  NOT NULL DEFAULT '',
+    cold_first_ms REAL,
     updated  TEXT,
     PRIMARY KEY (user_id, ch)
 );
@@ -356,7 +368,7 @@ def migrate(conn):
     if version == 7:
         # Version 8 undoes a silent write.
         #
-        # The band plan's licence-class picker used to save the class being
+        # The band plan's license-class picker used to save the class being
         # *read* into the profile, and the profile's class is the one thing
         # the pool gate reads. So anybody who ever looked at Amateur Extra
         # on that page had every study pool opened to them, on the dashboard
@@ -369,7 +381,7 @@ def migrate(conn):
         # record behind it. Those are cleared, so the station is asked once
         # rather than quietly believed. Nothing else is touched: a class the
         # FCC record answers for stays, and so does one marked as the
-        # operator's own, which is how a licence from outside the US or an
+        # operator's own, which is how a license from outside the US or an
         # upgrade the published file has not caught up with survives this.
         cleared = 0
         for row in conn.execute("SELECT id, settings FROM profile").fetchall():
@@ -397,7 +409,7 @@ def migrate(conn):
             cleared += 1
         conn.execute("PRAGMA user_version = 8")
         conn.commit()
-        log.info("database upgraded to version 8 - %d unverified licence class(es) "
+        log.info("database upgraded to version 8 - %d unverified license class(es) "
                  "cleared, which the band plan used to set without asking", cleared)
         version = 8
 
@@ -430,10 +442,53 @@ def migrate(conn):
                              ("first_ms", "REAL")):
             if column not in _columns(conn, "cw_char"):
                 conn.execute(f"ALTER TABLE cw_char ADD COLUMN {column} {spec}")
+        conn.commit()
+        log.info("database upgraded to version 10 - the CW record keeps how long it took")
+        version = 10
+    if version == 10:
+        # Version 11: cold and warm kept apart.
+        #
+        # Every reaction time went into one pile, so the baseline was the
+        # mean of the first few recognitions whether they came at the start
+        # of a sitting or in the middle of a drill where the character had
+        # just been heard eight times. Those are not the same measurement.
+        # The one worth keeping is the cold one: the first rep of a sitting,
+        # with no warm-up behind it, which is the rep that says the learning
+        # is there rather than that the drill is still running.
+        #
+        # It is also the one that says a character has been learned at all.
+        # A brand-new learner has no baseline and cannot have one - but they
+        # are building one, a character at a time, and the first cold rep
+        # that lands is the moment a character joins it.
+        for column, spec in (("cold", "TEXT NOT NULL DEFAULT ''"),
+                             ("cold_times", "TEXT NOT NULL DEFAULT ''"),
+                             ("cold_first_ms", "REAL")):
+            if column not in _columns(conn, "cw_char"):
+                conn.execute(f"ALTER TABLE cw_char ADD COLUMN {column} {spec}")
+        # A character the record already calls solid has been named from cold
+        # at some point - the record simply did not tell a cold rep from a
+        # warm one - so it is marked as learned here. Without this, somebody
+        # who has held eight characters for a month is greeted on their next
+        # sitting with "K is yours", which is hollow and teaches them that the
+        # praise is noise.
+        #
+        # The landmark is deliberately left empty. That is a cold measurement
+        # and no cold measurement has been taken, so the clock stays quiet on
+        # these characters until there is a real one to read against. The rule
+        # for "solid" is inlined rather than imported from cw: a migration is
+        # a fact about one version and must not move when that rule does.
+        for row in conn.execute("SELECT user_id, ch, sent, copied, recent FROM cw_char "
+                                "WHERE cold = ''").fetchall():
+            window = (row["recent"] or "")[-30:]
+            solid = (window.count("1") / len(window) >= 0.9 if len(window) >= 20
+                     else row["sent"] >= 20 and row["copied"] / row["sent"] >= 0.9)
+            if solid:
+                conn.execute("UPDATE cw_char SET cold = '1' WHERE user_id = ? AND ch = ?",
+                             (row["user_id"], row["ch"]))
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the CW record keeps how long it took",
-                 SCHEMA_VERSION)
+        log.info("database upgraded to version %s - the CW record tells a cold rep "
+                 "from a warm one", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -542,7 +597,7 @@ def _modernise(settings):
 
 
 def standing(callsign, settings):
-    """Where the licence behind an account stands, from the FCC record kept
+    """Where the license behind an account stands, from the FCC record kept
     with it and today's date - never from the callsign field alone.
 
     The account menu used to pin a "licensed" pill on anybody with anything
@@ -563,7 +618,7 @@ def standing(callsign, settings):
       expired     past that, gone
 
     Computed now, not when the record was fetched: a record's own status
-    was worked out on the day of the lookup and frozen, so a licence that
+    was worked out on the day of the lookup and frozen, so a license that
     was current then would read current years after it ran out.
     """
     if not (callsign or "").strip():
@@ -721,7 +776,7 @@ def _free_retired(conn, stored, freed):
 
 
 # The settings a password seals: secrets, and nothing else. The name, the
-# callsign and the licence stay plain - the room's boards show them and the
+# callsign and the license stay plain - the room's boards show them and the
 # callsign is a public record.
 #
 # The QTH used to be on this list and it should not have been. A grid square
@@ -1044,17 +1099,43 @@ def cw_record(conn, per_char):
         if first_ms is None and len(times) >= BASELINE_SAMPLES:
             early = [float(x) for x in times[:BASELINE_SAMPLES]]
             first_ms = round(sum(early) / len(early), 1)
+        # The cold rep: the first time this character came round in this
+        # sitting, or the first after a real gap. At most one per sitting, and
+        # it is the one that answers "how are they doing on this?" - the rest
+        # of the drill is a warm bore. `cold_hit` says whether it landed,
+        # which matters as much as how long it took: the first rep of the day
+        # going in is the whole marker.
+        was_cold = ((row["cold"] if row and "cold" in row.keys() else "") or "")
+        cold_hit = stats.get("cold_hit")
+        cold = was_cold + ("1" if cold_hit else "0" if cold_hit is not None else "")
+        cold = cold[-COLD_KEEP:]
+        cold_had = ((row["cold_times"] if row and "cold_times" in row.keys() else "") or "")
+        cold_ms = stats.get("cold_ms")
+        cold_fresh = ([str(int(round(float(cold_ms))))]
+                      if cold_ms and 0 < float(cold_ms) < 20000 else [])
+        cold_times = [x for x in (cold_had.split(",") + cold_fresh) if x][-COLD_KEEP:]
+        # The landmark, written once: the first cold rep that ever landed.
+        # A learner with nothing yet has no baseline and cannot be given one -
+        # this is the moment they get one for this character, and it is what
+        # every cold rep after it is read against.
+        cold_first = row["cold_first_ms"] if row and "cold_first_ms" in row.keys() else None
+        if cold_first is None and cold_fresh:
+            cold_first = float(cold_fresh[0])
         conn.execute(
             "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, recent, "
-            "times, first_ms, updated) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
+            "times, first_ms, cold, cold_times, cold_first_ms, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT (user_id, ch) DO UPDATE SET "
             "sent = sent + excluded.sent, copied = copied + excluded.copied, "
             "confused = excluded.confused, repeats = repeats + excluded.repeats, "
             "recent = excluded.recent, times = excluded.times, "
             "first_ms = COALESCE(cw_char.first_ms, excluded.first_ms), "
+            "cold = excluded.cold, cold_times = excluded.cold_times, "
+            "cold_first_ms = COALESCE(cw_char.cold_first_ms, excluded.cold_first_ms), "
             "updated = excluded.updated",
             (conn.user_id, ch, sent, copied, _json.dumps(confused),
              int(stats.get("repeats", 0) or 0), recent, ",".join(times), first_ms,
+             cold, ",".join(cold_times), cold_first,
              utcnow().isoformat()))
     conn.commit()
 

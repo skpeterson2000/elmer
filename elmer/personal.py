@@ -348,7 +348,7 @@ AMATEUR_ON_THESE = {
                  "hand the radio to anyone for an emergency message "
                  "(95.1705(c)(3)); GMRS may pass emergency messages to "
                  "amateur stations (95.1733(a)(9)).",
-    "judgement": "Carry a radio licensed for the service you mean to use it "
+    "judgment": "Carry a radio licensed for the service you mean to use it "
                  "in. That is the rule and it is good advice. Extenuating "
                  "circumstances are exactly that - and when they arrive, a "
                  "call on channel 19 or 462.675 with the radio you have is "
@@ -364,7 +364,7 @@ LADDER = [
     {"step": 1, "what": "Your own bands, with your own license",
      "how": "The repeater, 146.520, the HF calling frequencies - everything "
             "above this on the list. This is what the license is for and "
-            "where the people who will recognise the call are listening."},
+            "where the people who will recognize the call are listening."},
     {"step": 2, "what": "The personal radio channels, where the humans are",
      "how": "CB channel 9 then 19; GMRS 462.675 with the 141.3 tone, then "
             "FRS 1; MURS 154.570 and 154.600. With a certified radio this "

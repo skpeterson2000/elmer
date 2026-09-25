@@ -73,7 +73,7 @@ def _throttle():
 
 
 def profile(lat1, lon1, lat2, lon2, samples=80):
-    """Elevations in metres along the path, or None if terrain is unavailable."""
+    """Elevations in meters along the path, or None if terrain is unavailable."""
     samples = max(2, min(MAX_POINTS, int(samples)))
     CACHE.mkdir(parents=True, exist_ok=True)
     cached = CACHE / _cache_key(lat1, lon1, lat2, lon2, samples)

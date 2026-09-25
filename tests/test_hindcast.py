@@ -6,7 +6,7 @@ GIRO's tabulated text is parsed, the blind hour is assembled from it the way
 the live feed would have shown it (latest reading at or before the hour,
 within the age and confidence the live feed accepts), and a short synthetic
 record is run through the model to a ledger and graded. No network: the
-data here is made up to be recognisable, not fetched.
+data here is made up to be recognizable, not fetched.
 """
 import sys
 from datetime import datetime, timedelta, timezone

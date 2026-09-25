@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""The run-up to a question, and the programme keeping its own time.
+"""The run-up to a question, and the program keeping its own time.
 
     python3 tests/test_leadin.py
 
-KC9SP, 2026-09-12: when the programme runs an intermission, a countdown on
+KC9SP, 2026-09-12: when the program runs an intermission, a countdown on
 the screens - not obtrusive, not hidden; and before the game starts again,
 a five-second warning on every player's screen: "Get ready!" for two
 seconds from five, then three, two, one. So the shift into the game is not
 abrupt, nobody can say their time was hindered, and the field is as level
 as we can make it.
 
-What is proved here: the programme's clock and the rule for when a timed
-step is up; the timekeeper moving the programme on and handing over from a
+What is proved here: the program's clock and the rule for when a timed
+step is up; the timekeeper moving the program on and handing over from a
 finished game, once; the run-up on the net and in every view the screens
 read; and, in the Chromium the kiosk runs, the words the screens draw from
 what is left.
@@ -41,16 +41,16 @@ def check(label, got, want):
         FAILS.append(label)
 
 
-# ------------------------------------------------------ the programme's clock
+# ------------------------------------------------------ the program's clock
 print("\na timed step has a clock; a step the host ends has none")
 sh = showmod.Show()
-sh.set_programme([{"kind": "intermission", "minutes": 2},
+sh.set_program([{"kind": "intermission", "minutes": 2},
                   {"kind": "rounds", "rounds": 3},
                   {"kind": "intermission", "minutes": 1},
                   {"kind": "thanks"}])
 t0 = 1000.0
 sh.advance(now=t0)
-view = sh.programme_view(now=t0 + 30)
+view = sh.program_view(now=t0 + 30)
 check("intermission: kind on the view", view["kind"], "intermission")
 check("  ninety seconds left", view["remaining"], 90.0)
 check("  not up with ninety seconds left", sh.step_due(now=t0 + 30, lead=5), False)
@@ -58,22 +58,22 @@ check("  up five seconds early when a game follows",
       sh.step_due(now=t0 + 115.1, lead=5), True)
 check("  but not with six seconds left", sh.step_due(now=t0 + 114, lead=5), False)
 sh.advance(now=t0 + 115)
-check("rounds: no clock", sh.programme_view(now=t0 + 120)["remaining"], None)
+check("rounds: no clock", sh.program_view(now=t0 + 120)["remaining"], None)
 check("  and never due by the clock", sh.step_due(now=t0 + 9999, lead=5), False)
 sh.advance(now=t0 + 200)
 check("an intermission before 'thanks' runs its full minute",
       sh.step_due(now=t0 + 256, lead=5), False)
 check("  and is up at nought", sh.step_due(now=t0 + 260, lead=5), True)
 
-print("\nadvancing from a step is refused if the programme has moved on")
+print("\nadvancing from a step is refused if the program has moved on")
 check("from the right step", sh.advance_from(2, now=t0 + 260)["kind"], "thanks")
 check("from a step that is gone", sh.advance_from(2, now=t0 + 261), None)
-check("  and the programme did not skip", sh.step, 3)
+check("  and the program did not skip", sh.step, 3)
 
 # ------------------------------------------------------------ the timekeeper
 print("\nthe timekeeper moves a timed step on, and hands over from a game")
 net = netcontrol.Net()
-net.show.set_programme([{"kind": "intermission", "minutes": 1},
+net.show.set_program([{"kind": "intermission", "minutes": 1},
                         {"kind": "rounds", "rounds": 1},
                         {"kind": "intermission", "minutes": 1},
                         {"kind": "thanks"}])
@@ -163,9 +163,9 @@ try:
         const out = {};
         const word = () => { const w = document.querySelector('#hs-leadin .hs-word'); return w && !document.getElementById('hs-leadin').hidden ? w.textContent : null; };
         const clock = () => { const c = document.getElementById('hs-clock'); return c && !c.hidden ? c.textContent : null; };
-        hallShow.overlay({mode: 'intermission', programme: {step: 1, kind: 'intermission', now: 'Intermission', remaining: 272}});
+        hallShow.overlay({mode: 'intermission', program: {step: 1, kind: 'intermission', now: 'Intermission', remaining: 272}});
         out.clock = clock(); out.noLead = word();
-        hallShow.overlay({mode: 'intermission', programme: {step: 1, kind: 'intermission', now: 'Intermission', remaining: 272}, lead_in: {remaining: 4.6, seconds: 5, at: 1}});
+        hallShow.overlay({mode: 'intermission', program: {step: 1, kind: 'intermission', now: 'Intermission', remaining: 272}, lead_in: {remaining: 4.6, seconds: 5, at: 1}});
         out.ready = word(); out.clockDuringLead = clock();
         hallShow.overlay({lead_in: {remaining: 2.9, seconds: 5, at: 1}});
         out.three = word();

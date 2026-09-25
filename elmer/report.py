@@ -43,9 +43,9 @@ def print_stats(who=None):
 
     said = {None: "   (no callsign on file)", "unchecked": "   (callsign not checked)",
             "unfound": "   (no FCC record for this callsign)",
-            "cancelled": "   (licence cancelled)",
-            "grace": "   (licence expired - in the window to renew)",
-            "expired": "   (licence expired)"}
+            "cancelled": "   (license cancelled)",
+            "grace": "   (license expired - in the window to renew)",
+            "expired": "   (license expired)"}
     print(f"\n  ELMER  {prof['display_name']}" + said.get(prof.get("standing"), ""))
     for name, track in tracks.items():
         lapse = "  (lapsed)" if track["lapsed"] else ""

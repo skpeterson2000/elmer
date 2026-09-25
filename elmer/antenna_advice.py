@@ -532,7 +532,7 @@ TYPES = {
             "resonance, because the match moves it. A tuner at the rig does "
             "the same and widens the usable span up to three times.",
             "Know which one you are working, because this antenna does both, and they are not the same contact. Close in it is ground wave - vertically polarised, hugging the surface, tens of miles of it, and the one kind of propagation a horizontal wire cannot manage at all. The contacts that surprise people are the other kind: a short vertical launches at a low angle, so what little it radiates leaves flat and comes back off the F layer hundreds or thousands of miles out. Working across the country from a moving car on 20 m is not ground wave - it is the ionosphere, reached by an antenna that is inefficient but aimed right. Being inefficient and being short-ranged are different failures, and this antenna only has the first.",
-            "Move the coil up the whip. Centre loading beats base loading by "
+            "Move the coil up the whip. Center loading beats base loading by "
             "a decibel or two, because it puts current where the radiating "
             "happens.",
             "Bond the vehicle properly, then mount as high and as central as "
@@ -575,7 +575,7 @@ TYPES = {
             "usable span without much loss. Moving from the phone to the CW "
             "end of 40 m means sliding both stingers.",
             "One band per pair of whips. Band changes are a whip swap, so "
-            "3/8-24 quick-disconnects and a colour code by band turn a job "
+            "3/8-24 quick-disconnects and a color code by band turn a job "
             "with tools into a push and a twist.",
             "Horizontal and low is an NVIS antenna: at 20 ft on 40 and 75 m "
             "most of what it radiates goes up and comes back down over your "
@@ -602,7 +602,7 @@ TYPES = {
             "Height buys the low bands most. The pair works at 20 ft; higher "
             "than 20 ft improves 40 and 75 m, where it is least efficient.",
             "Two bands on one coax: bolt two dipole mounts together, link "
-            "their centre posts with #12 wire, hang 40 m whips on one and 75 "
+            "their center posts with #12 wire, hang 40 m whips on one and 75 "
             "on the other, and feed the lower-band mount. The interaction is "
             "minor.",
             "In a car park with nothing to tie to: a folding TV tripod bolted "
@@ -619,7 +619,7 @@ TYPES = {
             "Octopus (Geoff Haines N1GY, QST December 2007; Cliff Pulis KE0CP "
             "built and documented one). A pair each for 40, 20, 15 and 10 m "
             "at 45 degrees round a stacked pair of outdoor junction boxes, "
-            "one coax: centre to the four adjacent hot elements, shield to "
+            "one coax: center to the four adjacent hot elements, shield to "
             "the four grounded ones, so the hot half and the grounded half "
             "are each one sector. No switching - only the resonant pair "
             "radiates and the rest sit in its near field doing little. Each "
@@ -627,11 +627,11 @@ TYPES = {
             "directivity, and the whole thing is 15 ft across and turns on a "
             "TV rotator. KE0CP worked 49 countries with his at 18-20 ft.",
             "Building the hub: the hot elements sit on 3/8-24 coupling nuts "
-            "through insulating shoulder washers (3/8 x 3/4) that centre the "
+            "through insulating shoulder washers (3/8 x 3/4) that center the "
             "bolt in the conduit hole so it cannot ground to the box; the "
             "grounded elements bolt straight to the box and its ground lug. "
-            "Mark one element - KE0CP's grey 20 m whip - as the heading "
-            "indicator, and colour the rotator dial by band, because each "
+            "Mark one element - KE0CP's gray 20 m whip - as the heading "
+            "indicator, and color the rotator dial by band, because each "
             "pair is bidirectional and points its own way.",
         ],
     },
@@ -717,7 +717,7 @@ LOW_ANGLE = {"quarter", "fiveeighth", "groundplane", "jpole", "whip"}
 NVIS_LOW, NVIS_TARGET, NVIS_HIGH = 0.15, 0.20, 0.25
 
 # An inverted-V does not radiate from its apex. The pattern follows the
-# current-weighted mean height, and current is greatest at the centre, so the
+# current-weighted mean height, and current is greatest at the center, so the
 # mean sits (pi - 2) / pi of the way out along each sloping leg. The apex
 # therefore has to be higher than the height you actually want by whatever the
 # legs drop - which is why the right apex for NVIS comes out near 35 ft on 40m
@@ -885,7 +885,7 @@ SITES = {
                   "ignition, the engine computer. On a quiet band that noise "
                   "floor, not the antenna, is usually what decides whether you "
                   "hear the other station.",
-                  "Where it is mounted matters more than what it cost. Centre "
+                  "Where it is mounted matters more than what it cost. Center "
                   "of the roof is best and symmetric; a hitch or bumper mount "
                   "puts the whip at the edge and skews the pattern toward the "
                   "far side of the car. Then remember it is up there - "
@@ -1079,7 +1079,7 @@ def reality(kind, mhz, wanted_ft, site, floor=None):
                wanted_ft,
                "it goes up and comes down over your own region"
                if angle > 55 else
-               "it favours a first hop rather than a long one"))
+               "it favors a first hop rather than a long one"))
     return out
 
 
@@ -1326,7 +1326,7 @@ def v_centroid_drop_wl(droop_deg):
     """How far below its apex an inverted V behaves as though it hangs.
 
     The pattern follows the current-weighted mean height and current is
-    greatest at the centre, so the mean sits V_CENTROID of the way out
+    greatest at the center, so the mean sits V_CENTROID of the way out
     along each sloping leg. At the Lab's default droop this is about a
     twentieth of a wavelength - fifteen feet on 80 m, which is the whole
     difference between a wire that works and one that does not.
@@ -1413,7 +1413,7 @@ def landmarks_for(droop_deg=0.0):
 #               one is a high impedance the 49:1 can match. This is the
 #               whole reason a 40 m end-fed hears 20, 15 and 10, and the
 #               reason people buy them.
-#   centre-fed  the centre is a current maximum on odd multiples and a
+#   center-fed  the center is a current maximum on odd multiples and a
 #               current *null* on even ones. At twice the fundamental a
 #               dipole's feedpoint is thousands of ohms: a 40 m dipole
 #               works 15 m and not 20 m, which surprises people yearly.
@@ -1435,9 +1435,9 @@ HARMONIC_SERIES = {
 # Why each kind has the series it has, in the words the note uses.
 HARMONIC_WHY = {
     "efhw": "fed at the end, and the end is a voltage maximum at every multiple",
-    "dipole": "fed at the centre, where only the odd multiples put current",
-    "invertedv": "fed at the centre, where only the odd multiples put current",
-    "bowtie": "fed at the centre, where only the odd multiples put current",
+    "dipole": "fed at the center, where only the odd multiples put current",
+    "invertedv": "fed at the center, where only the odd multiples put current",
+    "bowtie": "fed at the center, where only the odd multiples put current",
     "quarter": "fed at the base, which is a current maximum only on the odd quarter-waves",
     "groundplane": "fed at the base, which is a current maximum only on the odd quarter-waves",
 }
@@ -1657,14 +1657,14 @@ def matching_heights(mhz, reach_ft=None, droop_deg=0.0):
 # power the short element cannot radiate, the coax, and the people nearby -
 # which is the RF exposure tool's job, and this hands it the watts.
 
-COPPER_RHO = 1.72e-8                # ohm metres
+COPPER_RHO = 1.72e-8                # ohm meters
 LEGAL_LIMIT_W = 1500.0
 
 
 def conductor_loss_ohms(mhz, od_mm, sigma_rel, length_m):
     """Effective series loss of a half-wave of this wire, at the feedpoint.
 
-    RF runs in a skin about delta deep; a wire's RF resistance per metre is
+    RF runs in a skin about delta deep; a wire's RF resistance per meter is
     rho over (pi d delta). Current on a half wave is sinusoidal, so the loss
     resistance referred to the feedpoint is half the wire's total.
     """
@@ -1939,7 +1939,7 @@ def recommend(mhz, use=None, kind=None, site=None, floor=None):
             ],
             "watch": [
                 "Mount it well clear of a vertical on the same mast, and of "
-                "gutters and wiring - at these wavelengths a metre is a long "
+                "gutters and wiring - at these wavelengths a meter is a long "
                 "way and everything nearby is part of the antenna.",
                 "Rotating it matters. A beam pointed the wrong way is worse "
                 "than the dipole you did not put up.",
@@ -1997,7 +1997,7 @@ def recommend(mhz, use=None, kind=None, site=None, floor=None):
                 "On open-wire line instead of coax it becomes an end-fed "
                 "Zepp: a real antenna, but only one conductor of the feeder "
                 "attaches to the wire, so the feeder currents never balance and "
-                "it radiates. Centre-feed it as a doublet if that matters.",
+                "it radiates. Center-feed it as a doublet if that matters.",
                 "It needs a counterpoise, and a choke on the coax below the "
                 "unun - a 1:1 current balun, which really is a balun. Without "
                 "them the braid becomes the counterpoise: RF in the shack, "

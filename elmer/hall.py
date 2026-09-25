@@ -26,13 +26,13 @@ same instant has handed the round to whoever happened to be looking, and the
 rest will say, rightly, that their time was taken from them.  So the
 conductor puts five seconds on every screen first - "Get ready", then three,
 two, one - and asks on nought.  The same five seconds whether the host
-pressed Play or the programme's clock ran out, because the people in the
+pressed Play or the program's clock ran out, because the people in the
 room cannot tell which it was and should not have to.
 
-The programme keeps its own time too.  A step with minutes on it used to be
+The program keeps its own time too.  A step with minutes on it used to be
 a note for the host, who pressed Next when it felt like ten minutes; with a
 clock counting down in the corner of every screen it has to mean what it
-says, so the timekeeper here moves the programme on when a timed step is
+says, so the timekeeper here moves the program on when a timed step is
 up, and hands over from a game step when its rounds are played.  Steps with
 no natural end - an announcement, the certificates, thanks - still wait for
 the host, and the host's own buttons work throughout.
@@ -91,7 +91,7 @@ class Conductor:
         self.next_at = 0.0
         self.error = None
         # The run-up happens once, before this conducting's first question.
-        # Every Play press and every programme step makes a new conductor,
+        # Every Play press and every program step makes a new conductor,
         # so "first" is the first after whatever pause there was.
         self._led_in = self.lead_in <= 0
         self._starting = False
@@ -228,9 +228,9 @@ class Conductor:
 
 
 class Timekeeper:
-    """Walks the programme's timed steps, and hands over from finished games.
+    """Walks the program's timed steps, and hands over from finished games.
 
-    `advance(index)` is the application's: it moves the programme on from
+    `advance(index)` is the application's: it moves the program on from
     step `index` and makes the new step happen - the same thing the host's
     Next button does.  Given the index so that a press and a tick landing
     together cannot skip a step between them.
@@ -259,7 +259,7 @@ class Timekeeper:
             return index
         # A game step is over when the rounds are played or the shootout is
         # won; the conductor says so and then sits there.  Once per
-        # conductor: a finished one stays finished, and the same programme
+        # conductor: a finished one stays finished, and the same program
         # walked twice in an evening makes a new one each time.
         if cur.get("kind") in ("rounds", "shootout"):
             live = conductor()
@@ -275,7 +275,7 @@ class Timekeeper:
         cur = self.net.show.current_step() or {}
         if cur.get("kind") in ("rounds", "shootout"):
             self._handed = conductor()
-        log.info("programme: step %d (%s) is up - moving on", index + 1,
+        log.info("program: step %d (%s) is up - moving on", index + 1,
                  cur.get("label") or cur.get("kind") or "?")
         self.advance(index)
         return True
@@ -286,12 +286,12 @@ class Timekeeper:
                 self._tick()
             except Exception as exc:            # pragma: no cover
                 self.error = repr(exc)
-                log.exception("programme: %s", exc)
+                log.exception("program: %s", exc)
             self.stop.wait(self.tick)
 
     def start(self):
         self.thread = threading.Thread(target=self.run, daemon=True,
-                                       name="programme")
+                                       name="program")
         self.thread.start()
         return self
 
@@ -338,7 +338,7 @@ def timekeeper():
 
 
 def keep_time(net, advance, lead_in=None):
-    """Start walking this net's programme by the clock."""
+    """Start walking this net's program by the clock."""
     global _timekeeper
     with _lock:
         if _timekeeper is not None:

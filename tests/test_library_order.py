@@ -3,18 +3,18 @@
 
     python3 tests/test_library_order.py
 
-The page used to open with the operator's own licence papers and their
+The page used to open with the operator's own license papers and their
 certificate wall, and put the search, the index and the books underneath
 them. A library whose own function is below the fold is the wrong way round.
 
 The order now runs: what this unit has printed for you, when there is any;
 the search and the index beside each other, which are the two ways of
 finding something; the books; awards, ELMER's own and anybody else's
-together because they hang on the same wall; and the licence papers at the
+together because they hang on the same wall; and the license papers at the
 foot, which are private and are not library.
 
 And the thing that was missing rather than misplaced: an award arrives as a
-PDF at least as often as a picture - that is what a contest organiser emails
+PDF at least as often as a picture - that is what a contest organizer emails
 - and the wall took PNG and JPEG only. It now renders a PDF's first page and
 hangs that.
 """
@@ -48,7 +48,7 @@ def order_of(page):
         ("shelf", "On the shelf"),
         ("awards", "Awards and certificates"),
         ("elsewhere", "From elsewhere"),
-        ("licences", "Your licences"),
+        ("licenses", "Your licenses"),
     ]
     seen = [(page.index(text), key) for key, text in wanted if text in page]
     return [key for _, key in sorted(seen)]
@@ -65,7 +65,7 @@ def main():
     page = client.get("/library", environ_base=LOCAL).data.decode("utf-8")
     check("the page opens on the search, not on somebody's papers",
           order_of(page),
-          ["find", "index", "shelf", "awards", "elsewhere", "licences"])
+          ["find", "index", "shelf", "awards", "elsewhere", "licenses"])
     # An empty shelf at the top of a library is furniture.
     check("  and an empty print shelf is not shown at all",
           "What you have printed" in page, False)
@@ -77,12 +77,12 @@ def main():
     page = client.get("/library", environ_base=LOCAL).data.decode("utf-8")
     check("what you made leads the page",
           order_of(page),
-          ["printed", "find", "index", "shelf", "awards", "elsewhere", "licences"])
+          ["printed", "find", "index", "shelf", "awards", "elsewhere", "licenses"])
     check("  and it is reachable from there",
           bool(re.search(r'href="/prints/[0-9a-f]+"', page)), True)
 
     print("\n-- an award that arrived as a PDF --")
-    # The certificate a contest organiser emails. Built here with the guide's
+    # The certificate a contest organizer emails. Built here with the guide's
     # own renderer so the test carries no binary of its own.
     md = Path(_isolate.__file__).with_name("_award.md")
     md.write_text("# Worked All Continents\n\nAwarded for contacts on six continents.\n",

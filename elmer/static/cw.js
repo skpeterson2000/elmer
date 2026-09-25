@@ -83,7 +83,7 @@ function saveSettings() {
    before it acts. Press Slower and QRS sounds as the gaps open; press
    Resend and QSM? goes out first. The sound, the letters and the meaning
    arrive together, which is how a newcomer comes to think "QRS" when they
-   feel rushed - and that is the code learnt, not looked up. The switch in
+   feel rushed - and that is the code learned, not looked up. The switch in
    the settings row turns the keying off for somebody past needing it. */
 const Q_MEANING = {
   'QRV': 'ready, go ahead', 'QRS': 'send slower', 'QRQ': 'send faster',
@@ -159,7 +159,7 @@ bindSetting('cw-countdown', 'countdown', v => v ? v + ' s' : 'off');
 /* ------------------------------------------------------- the code, drawn */
 /* A dit is a short sound and a dah is a long one, three times over. Printed as
    a full stop and a hyphen the eye has to translate punctuation into duration;
-   drawn to length it is just the shape, which is the thing being learnt. */
+   drawn to length it is just the shape, which is the thing being learned. */
 
 /* A space in a code is the gap between two letters, not a symbol. It is drawn
    as a piece of silence the right width and it is sounded as one, which is
@@ -1087,7 +1087,7 @@ function timingReport(stats, targetDit) {
 /* Two instruments, not one. A straight key is a switch and every bit of the
    timing is yours - which is what the chart below measures. A paddle is not:
    you ask for dits and dahs and the keyer makes them, perfectly, and what you
-   are practising is which lever to hold and when to let go. Both belong here,
+   are practicing is which lever to hold and when to let go. Both belong here,
    because most people learning to send now learn on a paddle. */
 
 const keyDecoder = new MorseDecoder(1200 / settings.wpm);
@@ -1705,7 +1705,33 @@ function sayBack(actual, where, ok) {
 }
 
 let todayPlan = CWS.plan || null, todaySession = CWS.session || [], todayStreak = CWS.streak || {};
+let todayBudget = CWS.budget || 0, todayColdGap = CWS.cold_gap_ms || 60000;
 let sessionOn = false, sessionStop = false, sessionStarted = 0;
+/* The clock this session runs to, and every reaction time in it.
+
+   The times are kept for the whole sitting and not only per part, because
+   the question asked of them - is this person getting slower? - is a
+   question about the sitting. See cw.flagging. */
+let sessionEnds = 0, sessionTimes = [], sessionEnough = false;
+/* When each character was last answered, for telling a cold rep from a warm
+   one. One rule covers both cases: the first rep of a sitting, and the first
+   after a pronounced break. Within a drill a character comes round every few
+   seconds, so it never re-qualifies; across a break or a night, it does. A
+   fresh page load starts empty, which is correct - the first rep of a new
+   sitting is cold by definition. See cw.COLD_GAP_MS. */
+let lastAnswered = {};
+
+function sessionLeft() {
+  return sessionEnds ? Math.max(0, Math.round((sessionEnds - Date.now()) / 1000)) : 0;
+}
+
+/* A length in words. Rounded to the minute above a minute and a half - the
+   page says "about", and "5 min 30 s" for five minutes and forty-two
+   seconds is a precision that is both false and no use to anybody. */
+function clockWords(secs) {
+  if (secs < 90) return Math.round(secs) + ' s';
+  return Math.round(secs / 60) + ' min';
+}
 
 function renderToday() {
   const p = todayPlan;
@@ -1725,9 +1751,22 @@ function renderToday() {
   document.getElementById('cw-today-weak').textContent = p.weak.length
     ? 'Still shaky: ' + p.weak.slice(0, 4).map(w => w.ch + (w.heard_as.length ? ' (heard as ' + w.heard_as.join(', ') + ')' : '')).join(', ')
     : (p.solid ? 'Nothing shaky among what you have met.' : '');
+  /* How long today is, said before it starts. A learner who can see the
+     end of the session can decide to do it; one who cannot is being asked
+     for an open-ended amount of their evening, and the honest answer to
+     that is no. The clock is short at the start on purpose - see
+     cw.budget - and it grows as there is more code to hold. */
+  const clock = document.getElementById('cw-today-clock');
+  if (clock) {
+    clock.textContent = todayBudget
+      ? 'Today is about ' + clockWords(todayBudget) + '. It ends on its own; '
+        + 'you can go again if you want to, and you can leave at any break.'
+      : '';
+  }
   const names = {meet: 'Meet', flash: 'One at a time', koch: 'Groups', words: 'Words', qso: 'A contact'};
   document.getElementById('cw-today-steps').innerHTML = todaySession.map(s =>
-    '<li><b>' + names[s.kind] + (s.chars ? ' ' + escapeHTML(s.chars.join(' ')) : '') + (s.seconds ? ' - ' + s.seconds + ' s' : '') + '</b>' +
+    '<li><b>' + (s.lap ? 'A lap on what you have' : names[s.kind]) +
+    (s.chars ? ' ' + escapeHTML(s.chars.join(' ')) : '') + (s.seconds ? ' - ' + s.seconds + ' s' : '') + '</b>' +
     '<div class="tiny muted">' + escapeHTML(s.why) + '</div></li>').join('');
 }
 
@@ -1735,6 +1774,8 @@ async function refreshPlan() {
   try {
     const d = await api('/api/cw/plan');
     todayPlan = d.plan; todaySession = d.session; todayStreak = d;
+    todayBudget = d.budget || todayBudget;
+    todayColdGap = d.cold_gap_ms || todayColdGap;
     if (d.voice_have && window.Voice) Voice.setHave(d.voice_have);
     /* The lesson follows the record unless the slider was pushed ahead. */
     if (todayPlan && settings.lesson < todayPlan.lesson) {
@@ -1773,7 +1814,7 @@ document.getElementById('cw-flash-again').addEventListener('click', () => {
   take(RESEND_KEY);
 });
 
-async function flashRun(seconds) {
+async function flashRun(seconds, only) {
   const box = document.getElementById('cw-flash');
   const code = document.getElementById('cw-flash-code');
   const letter = document.getElementById('cw-flash-letter');
@@ -1783,7 +1824,8 @@ async function flashRun(seconds) {
   const word = document.getElementById('cw-flash-word');
   box.hidden = false;
   let seq;
-  try { seq = (await api('/api/cw/flash?count=200')).chars; } catch (e) { box.hidden = true; return null; }
+  const narrow = only && only.length ? '&only=' + encodeURIComponent(only.join('')) : '';
+  try { seq = (await api('/api/cw/flash?count=200' + narrow)).chars; } catch (e) { box.hidden = true; return null; }
   const perChar = {}, times = [];
   let right = 0, sent = 0, i = 0, resends = 0;
   const until = Date.now() + seconds * 1000;
@@ -1825,10 +1867,19 @@ async function flashRun(seconds) {
     sent++;
     resends += reps;
     const want = sym.char;
+    /* Cold or warm, decided before the answer is known. The first rep of a
+       character in a sitting is the one that says whether the learning is
+       there; the eighth in a row says the drill is still running. */
+    const gap = todayColdGap || 60000;
+    const isCold = !lastAnswered[want] || (Date.now() - lastAnswered[want]) >= gap;
+    lastAnswered[want] = Date.now();
     perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}, repeats: 0, ms: []};
     perChar[want].sent++;
     perChar[want].repeats += reps;
     const ok = answer === want;
+    /* Whether the cold rep landed, which matters as much as how long it took:
+       the first try of the day going in is the whole marker. */
+    if (isCold && perChar[want].cold_hit === undefined) perChar[want].cold_hit = ok;
     word.style.color = ok ? 'var(--green)' : 'var(--red)';
     sayBack(want, word, answer ? ok : undefined);
     if (ok) {
@@ -1841,6 +1892,8 @@ async function flashRun(seconds) {
          only the recognitions are sent. */
       const took = performance.now() - t0;
       times.push(took); perChar[want].ms.push(Math.round(took));
+      sessionTimes.push(Math.round(took));
+      if (isCold && perChar[want].cold_ms === undefined) perChar[want].cold_ms = Math.round(took);
     }
     else if (answer) perChar[want].confused[answer] = (perChar[want].confused[answer] || 0) + 1;
     /* Wrong, or nothing at all: here the shape earns its keep. Whatever
@@ -1909,7 +1962,7 @@ function nextWords(step) {
 }
 
 
-function takeABreak(head, done, next, at, total) {
+function takeABreak(head, done, next, at, total, clock) {
   return new Promise(resolve => {
     const box = document.getElementById('cw-break');
     if (!box) { resolve(true); return; }
@@ -1918,20 +1971,39 @@ function takeABreak(head, done, next, at, total) {
     document.getElementById('cw-break-head').innerHTML = head || '';
     document.getElementById('cw-break-done').innerHTML = done || '';
     document.getElementById('cw-break-next').innerHTML = next || '';
+    document.getElementById('cw-break-clock').innerHTML = clock || '';
     box.hidden = false;
     const btn = document.getElementById('cw-break-on');
+    const out = document.getElementById('cw-break-off');
     if (btn.childNodes[0]) btn.childNodes[0].nodeValue = 'Carry on ';
     let watch = null;
     const leave = ok => {
       if (watch) clearInterval(watch);
       btn.removeEventListener('click', onward);
+      if (out) { out.removeEventListener('click', enough); out.hidden = true; }
       box.hidden = true;
       resolve(ok);
     };
     const onward = () => leave(true);
+    /* Leaving from a break is finishing. The runner is told so the end card
+       says the right thing, and the session is not recorded as abandoned. */
+    const enough = () => { sessionEnough = true; leave(false); };
     btn.addEventListener('click', onward);
+    if (out) out.addEventListener('click', enough);
     watch = setInterval(() => { if (sessionStop) leave(false); }, 200);
   });
+}
+
+
+/* The reading that decides whether this is a good place to stop, asked of
+   the server so the judgment lives with the rest of the pedagogy. Quiet
+   when there is not enough to say - which is most breaks. */
+async function stoppingPoint() {
+  if (sessionTimes.length < 15) return null;
+  try {
+    const d = await postJSON('/api/cw/flagging', {times: sessionTimes});
+    return (d && d.reading && d.reading.stop) ? d.reading : null;
+  } catch (e) { return null; }
 }
 
 
@@ -1948,8 +2020,25 @@ async function runSession() {
   let justDid = '';                      // what the last part came to, in words
   const total = todaySession.length;
   let at = 0;
-  for (const step of todaySession) {
+  /* The clock, set from the plan - three minutes at two characters, a
+     quarter of an hour with the order held. See cw.budget. A session with a
+     length has a bottom to reach; one without is a pool, and a pool is what
+     sends somebody away rather than back. */
+  sessionTimes = []; sessionEnough = false; lastAnswered = {};
+  sessionEnds = todayBudget ? Date.now() + todayBudget * 1000 : 0;
+  const lapAt = todaySession.findIndex(x => x && x.lap);
+  for (let idx = 0; idx < todaySession.length; idx++) {
+    const step = todaySession[idx];
     if (sessionStop) break;
+    /* Out of time. The session goes to its last part rather than stopping
+       where it stands: that part is the lap on what is already known, and
+       finishing on something that goes right is the whole reason it is
+       there. With no lap to go to, this is the end. */
+    if (sessionEnds && sessionLeft() === 0 && !step.lap) {
+      sessionEnough = true;
+      if (lapAt > idx) { idx = lapAt - 1; continue; }
+      break;
+    }
     at++;
     /* A breath between chunks: the last word of one is still being said
        when the next would start, and two sounds at once is neither. */
@@ -1958,7 +2047,27 @@ async function runSession() {
        waits for a press. The first part needs no break - pressing Start
        was the press - and a new character gets its own card, below. */
     if (!first && !(step.kind === 'meet' && step.chars && step.chars.length)) {
-      if (!await takeABreak('', justDid, nextWords(step), at, total)) break;
+      /* And here is where the program asks whether this is a good place to
+         stop. A learner whose answers have slowed is not learning any more,
+         and the honest thing is to say so and hold the door - not to offer
+         "Carry on" as the only way forward. */
+      const flag = await stoppingPoint();
+      const left = sessionLeft();
+      let clock = sessionEnds
+        ? (left ? clockWords(left) + ' left of today' : 'the clock is up - one last lap')
+        : '';
+      let done = justDid;
+      if (flag) {
+        done = '<b>A good place to stop.</b> You were answering in ' + flag.best_s +
+          ' s earlier and it is ' + flag.now_s + ' s now - ' + flag.by +
+          ' per cent slower. That is tiredness, not the code getting harder, and ' +
+          'it is the moment to come back to rather than push through.' +
+          (justDid ? ' ' + justDid : '');
+        clock = 'Nothing is lost by leaving it here.' + (clock ? ' ' + clock + '.' : '');
+        const out = document.getElementById('cw-break-off');
+        if (out) out.hidden = false;
+      }
+      if (!await takeABreak('', done, nextWords(step), at, total, clock)) break;
     }
     if (step.kind === 'meet' && step.chars && step.chars.length) {
       /* Announced, rather than turning up in the middle of a drill. "When
@@ -1995,8 +2104,9 @@ async function runSession() {
       lines.push('<li>Met ' + escapeHTML(step.chars.join(' ')) + '.</li>');
       justDid = 'You met <b>' + escapeHTML(step.chars.join(' ')) + '</b>.';
     } else if (step.kind === 'flash') {
-      status.textContent = 'one at a time - ' + step.seconds + ' seconds';
-      const r = await flashRun(step.seconds);
+      status.textContent = (step.lap ? 'a lap on what you have - ' : 'one at a time - ') +
+        step.seconds + ' seconds';
+      const r = await flashRun(step.seconds, step.only);
       if (r && r.sent) {
         const pct = Math.round(100 * r.right / r.sent);
         lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') +
@@ -2035,7 +2145,11 @@ async function runSession() {
     }
   }
   const seconds = Math.round((Date.now() - sessionStarted) / 1000);
-  const stopped = sessionStop;
+  const stopped = sessionStop && !sessionEnough;
+  /* The plan as it was before any of this, kept so the card at the end can
+     say what changed in this one sitting rather than what is true in
+     general. */
+  const was = todayPlan || {};
   try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); freshBadges(todayStreak); } catch (e) {}
   sessionOn = false;
   document.getElementById('cw-today-start').hidden = false;
@@ -2053,11 +2167,36 @@ async function runSession() {
   if (lines.length) {
     const mins = Math.max(1, Math.round(seconds / 60));
     const streak = (todayStreak && todayStreak.days) || 0;
+    /* What moved, and it is the first thing on the card. Another green
+       letter used to be the only reward the program had, which means a
+       session that did not advance the order rewarded nothing at all -
+       however much quicker the person got inside it. Getting quicker is the
+       learning, and it is the one thing a learner cannot see from the
+       inside. The clock has been kept for it all along; here is where it
+       finally says so. */
+    let moved = [], baseline = '';
+    try {
+      const d = await postJSON('/api/cw/wins', {was: was});
+      moved = (d && d.wins) || [];
+      baseline = (d && d.baseline) || '';
+    } catch (e) { moved = []; }
+    const won = moved.length
+      ? '<ul class="small" style="margin:.2rem 0 .6rem;padding-left:1.2rem;text-align:left">'
+        + moved.map(w => '<li>' + w + '</li>').join('') + '</ul>'
+      : '';
     finishCard(
-      stopped ? 'Enough for now' : 'That is a session',
+      moved.length ? 'That is working' : stopped ? 'Enough for now' : 'That is a session',
+      won +
       '<b>' + mins + ' minute' + (mins === 1 ? '' : 's') + '</b> of code today' +
         (streak > 1 ? ', and <b>' + streak + ' days</b> running' : '') + '.' +
         (stopped ? ' Stopping at a break is finishing, not quitting.' : ''),
+      /* No number is invented where there is none - but "too early to show
+         you anything" is the wrong thing to say to somebody who has just
+         done the work. What a new learner has is the start of the mark: the
+         characters they can name cold. That is what gets said instead. */
+      (moved.length
+        ? 'That is the part you cannot feel from in here, which is why it is worth showing. '
+        : baseline + ' ') +
       'The record is kept and tomorrow is worked out from it. Nothing is ' +
       'lost by leaving it here — and nothing stops you going again.');
   }

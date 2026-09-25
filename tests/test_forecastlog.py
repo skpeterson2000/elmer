@@ -34,13 +34,13 @@ NOW = datetime(2026, 9, 12, 6, 0, tzinfo=timezone.utc)
 
 
 def regime_at(t):
-    # Sunlit 13Z-00Z at this longitude, grey either side, dark otherwise -
+    # Sunlit 13Z-00Z at this longitude, gray either side, dark otherwise -
     # a stand-in for the sun, since this is about the ledger, not the sky.
     h = t.hour
     if 14 <= h <= 23:
         return "lit"
     if h in (13, 0):
-        return "grey"
+        return "gray"
     return "dark"
 
 

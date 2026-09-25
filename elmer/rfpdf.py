@@ -278,7 +278,7 @@ def build(evaluation, station=None):
         Paragraph(
             f"Power density estimated as <b>{method['equation']}</b>, where "
             f"P<sub>avg</sub> is average power in watts, G is numeric antenna gain "
-            f"referenced to isotropic, and R is distance in metres. A ground "
+            f"referenced to isotropic, and R is distance in meters. A ground "
             f"reflection factor of {method['reflection_field']} on field strength "
             f"({method['reflection_power']:.2f} on power density) is applied "
             f"throughout, as recommended for a conservative amateur estimate. "

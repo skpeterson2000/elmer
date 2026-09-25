@@ -1,21 +1,21 @@
-"""The FCC's own licence records, read from the files the FCC publishes.
+"""The FCC's own license records, read from the files the FCC publishes.
 
 The Commission's lookup API is gone, but the Universal Licensing System still
 puts the whole database on a public shelf every Sunday, one zip per radio
 service, for anyone who will go and get it: `l_amat.zip` for the amateur
 service, `l_gmrs.zip` for GMRS, `l_frc.zip` for the commercial operator
-licences - the GROL, the MROP, the GMDSS tickets, the Ship Radar endorsement.
+licenses - the GROL, the MROP, the GMDSS tickets, the Ship Radar endorsement.
 That is the source. A site that answers a callsign is reading these files;
 ELMER reads them too, and then answers callsigns with no network at all.
 
 Each zip holds pipe-delimited tables from the ULS public-access schema. Only
-three are read, and only a few fields of each: HD (the licence header - the
+three are read, and only a few fields of each: HD (the license header - the
 callsign, its status, the grant and expiry dates), AM or FA (the operator
 class), and EN (the licensee, from which the FRN is kept and the name and
 address are not - same rule as the amateur lookup has always had). The rows
 go into a SQLite table on the unit; a lookup is one indexed read.
 
-A file is fetched when a licence of its service is first asked about, and
+A file is fetched when a license of its service is first asked about, and
 again only when the FCC has posted a newer one - checked by asking for the
 file's date, not by downloading it. The amateur file is two hundred
 megabytes, so a unit that only ever meets amateur calls fetches only that,
@@ -91,12 +91,12 @@ def service_of(call):
 def _connect():
     DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB), timeout=30)
-    conn.execute("""CREATE TABLE IF NOT EXISTS licence (
+    conn.execute("""CREATE TABLE IF NOT EXISTS license (
         service TEXT NOT NULL, call TEXT NOT NULL, status TEXT, code TEXT,
         granted TEXT, expires TEXT, cancelled TEXT, klass TEXT, radar TEXT, frn TEXT,
         city TEXT, state TEXT, zip TEXT,
         PRIMARY KEY (service, call))""")
-    conn.execute("CREATE INDEX IF NOT EXISTS licence_frn ON licence (frn)")
+    conn.execute("CREATE INDEX IF NOT EXISTS license_frn ON license (frn)")
     conn.execute("""CREATE TABLE IF NOT EXISTS files (
         service TEXT PRIMARY KEY, fetched REAL, dated TEXT, rows INTEGER)""")
     return conn
@@ -165,8 +165,8 @@ def build(service, zip_path):
                         batch = []
                 if batch:
                     conn.executemany("UPDATE fresh SET frn = ?, city = ?, state = ?, zip = ? WHERE call = ?", batch)
-            conn.execute("DELETE FROM licence WHERE service = ?", (service,))
-            conn.execute("""INSERT INTO licence (service, call, status, code, granted, expires, cancelled, klass, radar, frn, city, state, zip)
+            conn.execute("DELETE FROM license WHERE service = ?", (service,))
+            conn.execute("""INSERT INTO license (service, call, status, code, granted, expires, cancelled, klass, radar, frn, city, state, zip)
                             SELECT ?, call, status, code, granted, expires, cancelled, klass, radar, frn, city, state, zip FROM fresh""", (service,))
             rows = conn.execute("SELECT COUNT(*) FROM fresh").fetchone()[0]
             conn.execute("DROP TABLE fresh")
@@ -175,7 +175,7 @@ def build(service, zip_path):
                          (service, time.time(), dated, rows))
     with _connect() as conn:
         conn.execute("VACUUM")             # the replaced rows' space, given back
-    log.info("uls: %s file read - %d licences in %.0f s", spec["label"], rows, time.time() - started)
+    log.info("uls: %s file read - %d licenses in %.0f s", spec["label"], rows, time.time() - started)
     return rows
 
 
@@ -218,7 +218,7 @@ def fetch(service):
         target.unlink()                # the index is what is kept; the zip is not
     except OSError:
         pass
-    return True, f"{rows} {spec['label']} licences read from the FCC's file"
+    return True, f"{rows} {spec['label']} licenses read from the FCC's file"
 
 
 def fetching(service):
@@ -282,12 +282,12 @@ def lookup(call):
                 "reason": (f"the FCC's {SERVICES[service]['label']} file is being fetched - look again in a few minutes"
                            if state == "fetching" else f"the FCC's {SERVICES[service]['label']} file is not on this unit yet")}
     with _connect() as conn:
-        row = conn.execute("SELECT status, code, granted, expires, cancelled, klass, radar, frn, city, state, zip FROM licence WHERE service = ? AND call = ?",
+        row = conn.execute("SELECT status, code, granted, expires, cancelled, klass, radar, frn, city, state, zip FROM license WHERE service = ? AND call = ?",
                            (service, call)).fetchone()
         others = []
         if row and row[7]:
             others = [{"callsign": r[0], "service": r[1], "status": STATUS.get(r[2], r[2]), "class": _class(r[1], r[3], r[4])}
-                      for r in conn.execute("SELECT call, service, status, klass, radar FROM licence WHERE frn = ? AND NOT (service = ? AND call = ?)",
+                      for r in conn.execute("SELECT call, service, status, klass, radar FROM license WHERE frn = ? AND NOT (service = ? AND call = ?)",
                                             (row[7], service, call))]
     source = f"FCC ULS, the {SERVICES[service]['label']} file of {here['dated']}"
     if row is None:
@@ -328,14 +328,14 @@ def _class(service, klass, radar):
 
 
 def by_frn(frn):
-    """Every licence in the index under one FRN - the door the old API
+    """Every license in the index under one FRN - the door the old API
     shut: a person's amateur, GMRS and commercial tickets together."""
     if not frn or not DB.is_file():
         return []
     with _connect() as conn:
         return [{"callsign": r[0], "service": r[1], "status": STATUS.get(r[2], r[2]),
                  "class": _class(r[1], r[3], r[4]), "expires": r[5]}
-                for r in conn.execute("SELECT call, service, status, klass, radar, expires FROM licence WHERE frn = ?", (str(frn),))]
+                for r in conn.execute("SELECT call, service, status, klass, radar, expires FROM license WHERE frn = ?", (str(frn),))]
 
 
 def watch():

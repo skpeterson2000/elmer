@@ -46,7 +46,7 @@ document.querySelectorAll('#lab-tabs button').forEach(btn => {
   });
 });
 
-/* A concept note links here as /lab#skip, so honour the fragment on arrival -
+/* A concept note links here as /lab#skip, so honor the fragment on arrival -
    and otherwise reopen whatever was last being used, because coming back from
    the propagation page to a Lab that has forgotten which tool you had open is
    the same small waste as the band plan forgetting your band. */
@@ -187,7 +187,7 @@ function drawSkip() {
     skipMark +
     /* The scale along the ground is a distance like any other, so it is
        ruled in whatever the operator reads. The ticks stay on round numbers
-       of kilometres because that is where the hop geometry is computed; what
+       of kilometers because that is where the hop geometry is computed; what
        changes is the number printed under them. */
     [1000, 2000, 3000, 4000].map(d =>
       '<text x="' + x(d) + '" y="' + (ground + 46) + '" fill="#626e7b" font-size="10" ' +
@@ -207,7 +207,7 @@ function drawSkip() {
       : closed
       ? sig(f) + ' MHz is above the MUF even at the lowest takeoff angle (' + bestMuf.toFixed(1) +
         ' MHz), so every ray passes through the layer and out into space. The band is closed on this path — ' +
-        'this is exactly what "10 metres is dead" means at low solar flux.'
+        'this is exactly what "10 meters is dead" means at low solar flux.'
       : sig(f) + ' MHz is above foF2, so only rays leaving below <b>' + thetaMax.toFixed(1) +
         '&deg;</b> bend back. The shortest hop lands about <b>' + awayText(skipKm) +
         '</b> out; closer than that you are in the skip zone, reachable only by ground wave. ' +
@@ -351,7 +351,7 @@ function bandMeterHTML(mhz) {
   const band = bandAt(mhz);
   if (band) {
     const seg = segmentAt(mhz, band);
-    /* the dot that says "in a band" is the band's own colour, and so is the name */
+    /* the dot that says "in a band" is the band's own color, and so is the name */
     return '<i class="dot in" style="' + bandStyle(band.name) + '"></i><a class="band-tag" style="' + bandStyle(band.name) + '" href="/bandplan#' + band.key + '" ' +
       'title="open the band plan on ' + escapeHTML(band.name) + '">' +
       escapeHTML(band.name) + '</a>' +
@@ -1043,7 +1043,7 @@ function antennaFields(type) {
    horizontal wire sits low over ground. Below about 0.15 lambda ground loss
    starts eating the gain; above 0.25 lambda the lobe splits and comes down.
    For an inverted-V the pattern follows the current-weighted mean height, not
-   the apex: current is greatest at the centre, and the weighted mean sits
+   the apex: current is greatest at the center, and the weighted mean sits
    (pi-2)/pi = 0.3634 of the way out along each leg. */
 const NVIS_LOW = 0.15, NVIS_HIGH = 0.25, V_CENTROID = (Math.PI - 2) / Math.PI;
 
@@ -1071,7 +1071,7 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
   const freqNote = f > 10.5
     ? '<p class="watchout">At ' + f.toFixed(3) + ' MHz NVIS will usually fail: a ' +
       'near-vertical signal only comes back below foF2, which is rarely above ' +
-      '8&nbsp;MHz. NVIS is an 80, 60 and 40 metre technique. ' +
+      '8&nbsp;MHz. NVIS is an 80, 60 and 40 meter technique. ' +
       '<a href="#skip" data-skip-f="' + f + '">Check it against foF2 in ' +
       'the hop simulator &rarr;</a></p>'
     : '';
@@ -1241,7 +1241,7 @@ function calcAnt() {
       (eff * 100).toFixed(1) + '%</b> &mdash; a loss of <b>' + Math.abs(lossDb).toFixed(1) +
       '&nbsp;dB</b> before the signal ever leaves.');
     notes.push('Resonating it needs roughly <b>' + L.toFixed(1) + '&nbsp;&micro;H</b> of ' +
-      'loading. A coil at the centre or top of the whip works better than one at the ' +
+      'loading. A coil at the center or top of the whip works better than one at the ' +
       'base, because it sits where the current still is.' +
       (type === 'screwdriver'
         ? ' On a screwdriver that is the coil the motor winds in and out: it finds this ' +
@@ -1312,8 +1312,8 @@ function calcAnt() {
       '2643102002 cores over it (about 350&nbsp;&Omega; on 75&nbsp;m) &mdash; without that ' +
       'the feedline joins the antenna, the tuning moves with its length, and RF in the mic ' +
       'preamp shows up as distorted audio.');
-    notes.push('Band changes are a whip swap: 3/8-24 quick-disconnects, whips colour-coded by ' +
-      'band. Two bands on one coax: bolt two dipole mounts together, link the centre posts ' +
+    notes.push('Band changes are a whip swap: 3/8-24 quick-disconnects, whips color-coded by ' +
+      'band. Two bands on one coax: bolt two dipole mounts together, link the center posts ' +
       'with #12 wire, feed the lower-band mount. The stinger tips are the high-voltage ends ' +
       'and at tripod height they are where people walk &mdash; keep bystanders off them.');
     /* The fan-dipole step, and the reason the heading slider matters more
@@ -1321,12 +1321,12 @@ function calcAnt() {
        and the one set here is the pair for this band. */
     notes.push('<b>Four pairs on one hub.</b> The Octopus (N1GY, QST December 2007; built and ' +
       'documented by KE0CP) is a pair each for 40, 20, 15 and 10&nbsp;m at 45&deg; round a ' +
-      'stacked pair of outdoor junction boxes, one coax &mdash; centre to the four adjacent ' +
+      'stacked pair of outdoor junction boxes, one coax &mdash; center to the four adjacent ' +
       'hot elements, shield to the four grounded ones. No switching: only the resonant pair ' +
       'radiates and the others sit in its near field doing little. Fifteen feet across, one ' +
       'or two S-units of directivity, turned by a TV rotator; 49 countries from 18-20&nbsp;ft. ' +
       'The heading set here is <b>this band\'s pair</b>; the other three lie 45&deg;, 90&deg; ' +
-      'and 135&deg; round from it, so mark one whip as the pointer and colour the rotator dial ' +
+      'and 135&deg; round from it, so mark one whip as the pointer and color the rotator dial ' +
       'by band.');
   } else {
     const spec = ANTENNAS[type];
@@ -1528,7 +1528,7 @@ function calcAnt() {
           'up several decibels at exactly the low angles it is being credited ' +
           'with. Over salt water it delivers what the drawing shows; over dry ' +
           'sand it does not.');
-        notes.push('It also favours the downhill direction by a few decibels, ' +
+        notes.push('It also favors the downhill direction by a few decibels, ' +
           'which is real but small &mdash; and it is not drawn below, because ' +
           'putting a number on it needs the wire modelled over your actual ' +
           'soil rather than a rule of thumb.');
@@ -1562,7 +1562,7 @@ function calcAnt() {
 
   out('an-out', nvis +
     '<table class="data" style="max-width:520px"><thead><tr><th>Dimension</th>' +
-      '<th>feet</th><th>metres</th><th>inches</th></tr></thead><tbody>' + dims +
+      '<th>feet</th><th>meters</th><th>inches</th></tr></thead><tbody>' + dims +
     '</tbody></table>' +
     derivation(type, f, k, rows) +
     '<div class="row mt" style="gap:1rem">' +
@@ -2117,26 +2117,26 @@ function initPathPlaces() {
   }
 }
 
-function radioHorizonKm(hMetres) {
-  return 4.12 * Math.sqrt(Math.max(0, hMetres));      // 4/3 earth radius
+function radioHorizonKm(hMeters) {
+  return 4.12 * Math.sqrt(Math.max(0, hMeters));      // 4/3 earth radius
 }
 
 function fresnel1(d1km, d2km, dkm, fMHz) {
   if (dkm <= 0 || fMHz <= 0) return 0;
-  return 17.32 * Math.sqrt((d1km * d2km) / ((fMHz / 1000) * dkm));   // metres
+  return 17.32 * Math.sqrt((d1km * d2km) / ((fMHz / 1000) * dkm));   // meters
 }
 
 function earthBulge(d1km, d2km) {
-  return (d1km * d2km) / 17.0;                        // metres, k = 4/3
+  return (d1km * d2km) / 17.0;                        // meters, k = 4/3
 }
 
 /* Single knife-edge diffraction loss, ITU-R P.526. `h` is how far the
-   obstruction rises above the straight line between the antennas, in metres;
+   obstruction rises above the straight line between the antennas, in meters;
    negative means the path is clear over it. Without this the tool would quote
    a free-space budget over a blocked path and call it comfortable. */
 function knifeEdgeLoss(hM, d1km, d2km, fMHz) {
   if (d1km <= 0 || d2km <= 0 || fMHz <= 0) return 0;
-  const lambda = 299.792458 / fMHz;                   // metres
+  const lambda = 299.792458 / fMHz;                   // meters
   const d1 = d1km * 1000, d2 = d2km * 1000;
   const v = hM * Math.sqrt((2 / lambda) * (1 / d1 + 1 / d2));
   if (v <= -0.78) return 0;
@@ -2583,7 +2583,7 @@ async function rfEvaluate() {
   }
 
   /* The owl, where it is earned. This is a limit somebody can exceed with a
-     person standing in the field, and a licence somebody can exceed with a
+     person standing in the field, and a license somebody can exceed with a
      transmitter - the two cases in this tool where a raised eyebrow is the
      correct response rather than a decoration. It is deliberately not on
      anything else here. */
@@ -2877,7 +2877,7 @@ function tuningHTML(d) {
       ? '<p class="small muted">Will not come under 1.5:1 on the vehicle? The same sheet\'s ' +
         'answer is a 1000&nbsp;V capacitor from feedpoint to ground, about <b>' +
         t.match_pf[0] + '&ndash;' + t.match_pf[1] + '&nbsp;pF</b> on ' + escapeHTML(t.band) +
-        ', measured on a centre-loaded whip clear of surroundings; recheck resonance after, ' +
+        ', measured on a center-loaded whip clear of surroundings; recheck resonance after, ' +
         'because the match moves it.</p>'
       : '');
 }
@@ -2899,7 +2899,7 @@ function refreshAdvice() {
 
 /* Whether the operator may key up where this antenna is being cut for.
    ELMER holds 97.301 in full and the RF exposure tab already refuses a
-   frequency this licence has no business on - and the antenna calculator, the
+   frequency this license has no business on - and the antenna calculator, the
    one place that hands over a length somebody cuts wire to, never asked. A
    dipole for 3.885 is eleven feet shorter than one for the only part of 80 m
    a Technician may use, so the silence did not merely fail to warn: it gave
@@ -2911,7 +2911,7 @@ function refreshAdvice() {
    assumes the second is wrong about half the people it corrects. So the
    notice names the class it is judging by, and offers to judge by another -
    which changes this evaluation and not the profile, because guessing at
-   somebody's licence and then writing it down would be worse than either. */
+   somebody's license and then writing it down would be worse than either. */
 /* Whether the number in the height box is ELMER's suggestion or a height
    somebody measured. It matters because a height only means anything as a
    fraction of a wavelength: 35 ft is half a wave on 20 m and a seventh of one
@@ -2935,7 +2935,7 @@ async function antennaPrivilege(mhz) {
     d = await api('/api/privileges?mhz=' + encodeURIComponent(mhz) +
                   (anAsClass ? '&class=' + encodeURIComponent(anAsClass) : ''));
   } catch (err) { return; }
-  // Nothing to say when the licence is unknown, the frequency is outside the
+  // Nothing to say when the license is unknown, the frequency is outside the
   // amateur bands entirely, or the answer is simply yes.
   if (!d.license_class || !d.in_band || d.allowed) return;
 
@@ -3289,10 +3289,10 @@ const recallAntenna = () => recall('lab.antenna', null);
    Drawn rather than described, because the chart is a transformation and the
    only thing that teaches a transformation is watching it happen. The grid is
    geometry: a constant-resistance circle of r sits at x = r/(1+r) with radius
-   1/(1+r), and a constant-reactance arc of x is centred a unit to the right of
+   1/(1+r), and a constant-reactance arc of x is centerd a unit to the right of
    the rim at height 1/x with radius 1/|x|, trimmed to the unit circle. */
 
-const SM_R = 250, SM_CX = 285, SM_CY = 275;      // chart radius and centre, px
+const SM_R = 250, SM_CX = 285, SM_CY = 275;      // chart radius and center, px
 const SM_RES = [0.2, 0.5, 1, 2, 5];
 const SM_REACT = [0.2, 0.5, 1, 2, 5];
 
@@ -3441,7 +3441,7 @@ function smithNotes(d) {
   const near = Math.abs(d.shack.x) < 8 && Math.abs(d.shack.r - d.z0) < 12;
   if (near) {
     out.push('<p class="small" style="color:var(--green)">At this length the ' +
-      'line has brought the shack end close to the centre. The antenna has not ' +
+      'line has brought the shack end close to the center. The antenna has not ' +
       'changed &mdash; the line has transformed it. This is what a matching ' +
       'section does, and why feedline length matters when the antenna is not ' +
       'resonant.</p>');
@@ -4040,7 +4040,7 @@ function sxRow(n) {
     '<td><select class="sx-limb mono">' +
       '<option value="lower">lower</option>' +
       '<option value="upper">upper</option>' +
-      '<option value="centre">centre</option>' +
+      '<option value="center">center</option>' +
     '</select></td>' +
     '<td><button class="btn sm ghost sx-now" title="stamp this row with the time now">now</button></td>' +
   '</tr>';
@@ -4224,7 +4224,7 @@ async function avUpdate() {
     feet ? feet + ' ft' : 'measuring at the antenna';
   const d = await vnFetch({
     kind: document.getElementById('an-type').value,
-    f0: (f / (trim / 100)).toFixed(6), centre: f, span: 0.14,
+    f0: (f / (trim / 100)).toFixed(6), center: f, span: 0.14,
     line: document.getElementById('av-line').value, feet: feet,
   });
   vnDraw('av-chart', 'av-markers', 'av-read', d, {cursor: f});
@@ -4238,7 +4238,7 @@ async function avUpdate() {
    or from a sweep coming back. While this is known it owns the horizontal
    axis, because a chart that says 14.10-14.25 while the instrument in front
    of you is sweeping 14.00-14.35 is not a second opinion, it is a wrong
-   caption. Touch the model's own centre or span and it lets go: at that point
+   caption. Touch the model's own center or span and it lets go: at that point
    the operator has taken the wheel and asked to look somewhere else. */
 let vnFollow = null;
 
@@ -4250,9 +4250,9 @@ function vnFollowing(span) {
   // follow that rather than take the axis somewhere it cannot come back from.
   if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return;
   vnFollow = {low_mhz: lo, high_mhz: hi, points: span.points};
-  const centre = (lo + hi) / 2;
-  const box = document.getElementById('vn-centre');
-  if (box) box.value = centre.toFixed(3);   // set, not typed: fires nothing
+  const center = (lo + hi) / 2;
+  const box = document.getElementById('vn-center');
+  if (box) box.value = center.toFixed(3);   // set, not typed: fires nothing
   vnSoon(vnUpdate);
 }
 
@@ -4261,18 +4261,18 @@ async function vnUpdate() {
   const feet = +document.getElementById('vn-feet').value;
   if (!isFinite(f0) || f0 <= 0) return;
 
-  let centre, span, lo, hi;
+  let center, span, lo, hi;
   if (vnFollow) {
     lo = vnFollow.low_mhz;
     hi = vnFollow.high_mhz;
-    centre = (lo + hi) / 2;
-    span = (hi - lo) / centre;
+    center = (lo + hi) / 2;
+    span = (hi - lo) / center;
     document.getElementById('vn-span-v').textContent =
       'following the instrument: ' + lo.toFixed(3) + '–' + hi.toFixed(3) +
       ' MHz' + (vnFollow.points ? ', ' + vnFollow.points + ' points' : '');
   } else {
     const spanPct = +document.getElementById('vn-span').value;
-    centre = parseFloat(document.getElementById('vn-centre').value) || f0;
+    center = parseFloat(document.getElementById('vn-center').value) || f0;
     span = spanPct / 100;
     document.getElementById('vn-span-v').textContent = '±' + (spanPct / 2) + '%';
   }
@@ -4280,7 +4280,7 @@ async function vnUpdate() {
     feet ? feet + ' ft' : 'at the antenna';
   const d = await vnFetch({
     kind: document.getElementById('vn-kind').value,
-    f0: f0, centre: centre, span: span,
+    f0: f0, center: center, span: span,
     line: document.getElementById('vn-line').value, feet: feet,
   });
   if (!d) return;
@@ -4291,7 +4291,7 @@ async function vnUpdate() {
      instead would put the measured trace off the side of the picture, which
      is the bug this is here to stop. */
   vnDraw('vn-chart', 'vn-markers', 'vn-read', d, {
-    cursor: centre,
+    cursor: center,
     measured: vnMeasured && vnMeasured.rows,
     lo: lo || d.low_mhz, hi: hi || d.high_mhz,
   });
@@ -4425,11 +4425,11 @@ document.addEventListener('click', e => {
 });
 
 if (document.getElementById('vn-chart')) {
-  ['vn-f0', 'vn-centre', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
+  ['vn-f0', 'vn-center', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
     const el = document.getElementById(id);
     // Moving the window by hand is a request to look somewhere else, so the
     // chart stops following the instrument until it is driven again.
-    const own = (id === 'vn-centre' || id === 'vn-span');
+    const own = (id === 'vn-center' || id === 'vn-span');
     el.addEventListener('input', () => {
       if (own) vnFollow = null;
       vnSoon(vnUpdate);
@@ -4556,7 +4556,7 @@ if (document.getElementById('vn-chart')) {
   /* Out of the building. A sweep is the one number in this program that was
      measured rather than modelled, and a measurement that cannot leave the
      machine it was taken on is half a measurement. Touchstone is what the
-     modelling packages, NanoVNA-Saver and an antenna manufacturer all read, so
+     modeling packages, NanoVNA-Saver and an antenna manufacturer all read, so
      that is what goes out - the raw reflection coefficient the instrument
      handed back, not a picture of it and not a conversion of it.
 
@@ -5043,7 +5043,7 @@ async function sxSolve() {
       hs = a + (isFinite(b) ? b : 0) / 60;
     }
     sights.push({hs: hs, when: date + 'T' + time + 'Z',
-                 limb: shadow ? 'centre' : row.querySelector('.sx-limb').value});
+                 limb: shadow ? 'center' : row.querySelector('.sx-limb').value});
   }
   if (sights.length < 2) {
     out.innerHTML = '<div class="watchout">Two sights at least &mdash; one ' +
@@ -5176,10 +5176,10 @@ function sxWorking(d) {
     '<div class="tiny muted">' + (shadow
       ? 'The angle a shadow gives you is not quite the sun\'s altitude ' +
         'either: the atmosphere has lifted it, and you are standing on a ' +
-        'planet with a radius rather than at its centre.'
+        'planet with a radius rather than at its center.'
       : 'A sextant reading is not an altitude. It is an altitude plus the ' +
         'instrument, your height, the atmosphere, and the fact that you ' +
-        'brought an edge of the sun down rather than a centre you cannot see.'
+        'brought an edge of the sun down rather than a center you cannot see.'
     ) + '</div>' +
     d.working.map(w =>
       '<table class="data mt" style="max-width:720px"><thead><tr>' +

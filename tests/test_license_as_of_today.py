@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""A licence reads as of today, not as of the day it was looked up.
+"""A license reads as of today, not as of the day it was looked up.
 
-    python3 tests/test_licence_as_of_today.py
+    python3 tests/test_license_as_of_today.py
 
-The record is kept with the profile, and a licence term runs for years -
+The record is kept with the profile, and a license term runs for years -
 ten, for GMRS - so the day count written into it is stale the moment it is
 stored. The amateur record was already being recomputed on its way to the
-page. The GMRS one was not, so a licence thirty-five days from expiry went
+page. The GMRS one was not, so a license thirty-five days from expiry went
 on reporting whatever it reported the day the call was typed in, and the
 band plan's "renew soon" - which it draws below ninety days - could not
 fire at all.
 
 Each service keeps its own grace and they are not the same: two years for
 amateur under 47 CFR 97.21(b), none whatever for GMRS, where past the date
-the licence is simply gone. Telling a GMRS licensee they have two years to
+the license is simply gone. Telling a GMRS licensee they have two years to
 renew would be telling them to transmit unlicensed.
 
 Nothing here touches the network.
@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _isolate  # noqa: E402,F401  - before anything from elmer
 from elmer import callsign  # noqa: E402
-from elmer.app import _license_now, _records_for, gmrs_licence_for  # noqa: E402
+from elmer.app import _license_now, _records_for, gmrs_license_for  # noqa: E402
 
 FAILS = []
 
@@ -49,12 +49,12 @@ def record(service, days_out, stored_days=400):
 
 def main():
     print("\n-- the stored day count is not believed --")
-    check("a GMRS licence 35 days out says 35, not what was stored",
-          gmrs_licence_for(None, {"gmrs": record("gmrs", 35)})["status"]["days"], 35)
+    check("a GMRS license 35 days out says 35, not what was stored",
+          gmrs_license_for(None, {"gmrs": record("gmrs", 35)})["status"]["days"], 35)
     check("  and the amateur one, which already did",
           _license_now({"settings": {"license": record("amateur", 35)}})["status"]["days"], 35)
     check("  so the band plan's renew-soon can fire at all",
-          gmrs_licence_for(None, {"gmrs": record("gmrs", 35)})["status"]["days"] < 90, True)
+          gmrs_license_for(None, {"gmrs": record("gmrs", 35)})["status"]["days"] < 90, True)
 
     print("\n-- each service by its own grace --")
     for service, state in (("amateur", "grace"), ("gmrs", "expired"),
@@ -97,7 +97,7 @@ def main():
     check("the Station panel does not read the raw record",
           "profile.settings.gmrs or {}" in base, False)
     check("  it reads the one worked out today", "gmrs_own" in base, True)
-    check("  and the home page shows a GMRS licence at all",
+    check("  and the home page shows a GMRS license at all",
           "gmrs.callsign" in home, True)
     check("  saying there is no grace period after it",
           "no grace period" in home, True)
@@ -111,13 +111,13 @@ def main():
           "if gmrs.found %}" in home, False)
 
     print("")
-    print("-- a licence asked for too early settles itself --")
+    print("-- a license asked for too early settles itself --")
     # Entering a GMRS call starts the FCC file downloading and answers at
     # once: "being fetched, look again in a few minutes". The answer was
     # kept as the record and nothing ever went back for it, so looking
     # again showed the same sentence for ever - on the machine that found
     # this, fifteen seconds after the file had landed with the operator's
-    # own licence in it.
+    # own license in it.
     import elmer.app as elmer_app
     from elmer import db as edb
 
@@ -141,12 +141,12 @@ def main():
                                                      "gmrs_call": "WRMP909"}}
         edb.save_settings = lambda conn, s: saved.update(s)
 
-        elmer_app._settle_pending_licences(FakeConn())
+        elmer_app._settle_pending_licenses(FakeConn())
         check("with the file still absent, nothing is asked and nothing saved",
               saved, {})
 
         have_answer["gmrs"] = True
-        elmer_app._settle_pending_licences(FakeConn())
+        elmer_app._settle_pending_licenses(FakeConn())
         check("once the file is here, the record is read again",
               (saved.get("gmrs") or {}).get("found"), True)
         check("  and kept, with its dates",

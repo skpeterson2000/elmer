@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A licence from somewhere else, being used here.
+"""A license from somewhere else, being used here.
 
     python3 tests/test_reciprocity.py
 
@@ -12,18 +12,18 @@ the same question everybody else in the room has and the page had no answer
 for them.
 
 What the rule actually says is narrower than "a Canadian Extra is a US
-Extra". A visitor operates under the terms of their own licence and the
+Extra". A visitor operates under the terms of their own license and the
 FCC's rules together, and in no case beyond what an Amateur Extra may do.
 So the chart is a ceiling and not a set of privileges, and the page has to
 say so: half an answer about the law is the dangerous half.
 
 Three things are held down here. The chart drawn is the Extra ceiling. The
-view is not a licence class - it cannot be stored as one, it opens no study
+view is not a license class - it cannot be stored as one, it opens no study
 pool, and it is not offered in the Station panel, because a profile that
 recorded "visiting" as somebody's class would be saying something untrue
 about them on every screen that shows one. And nothing prints: a sheet
 headed "visiting" with a callsign on it would read as a claim about an
-operator's authority in a country whose licence they do not hold.
+operator's authority in a country whose license they do not hold.
 """
 import sys
 from pathlib import Path
@@ -54,7 +54,7 @@ def main():
           all(bandplan.privileges_for(b["name"], bandplan.RECIPROCAL)
               == bandplan.privileges_for(b["name"], "Extra") for b in bandplan.BANDS), True)
 
-    print("\n-- but it is not a licence class --")
+    print("\n-- but it is not a license class --")
     # Not in CLASSES, which is what every "which class may..." question reads,
     # and what the Station panel offers.
     check("nothing offers it as a class to hold", bandplan.RECIPROCAL in bandplan.CLASSES, False)

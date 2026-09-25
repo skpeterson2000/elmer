@@ -1,11 +1,11 @@
-"""The operator's own licence papers, kept for them and shown back to them.
+"""The operator's own license papers, kept for them and shown back to them.
 
-The FCC issues a licence as a PDF - the "official copy" from ULS, with the
+The FCC issues a license as a PDF - the "official copy" from ULS, with the
 full-size certificate and the wallet cut-outs on it - and the paper the
 rules ask an operator to be able to produce is that file, printed. ELMER
-already reads PDFs for the Library; this keeps each person's licences the
+already reads PDFs for the Library; this keeps each person's licenses the
 same way, with one difference that matters: the shelf is shared by everyone
-on the unit, because a manual is useful to the whole table, and a licence is
+on the unit, because a manual is useful to the whole table, and a license is
 not. It carries a name and a mailing address. So papers live in a folder of
 the account that brought them, are served only to that account, and are
 never on the shelf, never indexed for search, and never in a report.
@@ -14,7 +14,7 @@ What ELMER does with a paper is show it back - every page, drawn by poppler,
 printable - and read the callsign and the dates off it where the file has
 text under the picture, so the paper and the FCC record can be laid side by
 side. That is verification in both directions and nothing more: ELMER does
-not decide a licence is valid from a PDF, any more than from a lookup.
+not decide a license is valid from a PDF, any more than from a lookup.
 """
 import logging
 import re
@@ -27,17 +27,17 @@ from . import library, paths
 log = logging.getLogger("elmer")
 
 PAPERS = paths.STATE / "papers"
-MAX_MB = 25                              # a licence is a page or two; a scan of one is not much more
+MAX_MB = 25                              # a license is a page or two; a scan of one is not much more
 DPI = 150                                # legible on a screen and on paper
 
-# The kinds of licence a person might hold, in the order the card lists them.
+# The kinds of license a person might hold, in the order the card lists them.
 KINDS = {
-    "amateur": "Amateur licence",
-    "gmrs": "GMRS licence",
+    "amateur": "Amateur license",
+    "gmrs": "GMRS license",
     "grol": "General Radiotelephone Operator License",
     "mrop": "Marine Radio Operator Permit",
     "radar": "Ship Radar endorsement",
-    "other": "Another licence or permit",
+    "other": "Another license or permit",
 }
 
 RE_CALL = re.compile(r"\b(?:[AKNW][A-Z]?\d[A-Z]{1,3}|W[QR][A-Z]{2}\d{3}|K[A-Z]{2}\d{4})\b")
@@ -73,7 +73,7 @@ def _date(text):
 
 def read(pdf):
     """What the paper says, where it has text to read: the callsigns on it
-    and the latest date, which on a licence is the expiry. A scan with no
+    and the latest date, which on a license is the expiry. A scan with no
     text under it reads as nothing, and says so."""
     if not library.tool("pdftotext"):
         return {"readable": False, "note": "poppler is not on this unit, so the paper cannot be read"}
@@ -132,7 +132,7 @@ def add(user_id, kind, stream):
     PDF and for size, and nothing else - it is the person's own."""
     target = _path(user_id, kind)
     if target is None:
-        return False, "not a kind of licence ELMER keeps"
+        return False, "not a kind of license ELMER keeps"
     head = stream.read(5)
     stream.seek(0)
     if head != b"%PDF-":
@@ -149,7 +149,7 @@ def add(user_id, kind, stream):
             if size > MAX_MB * 1024 * 1024:
                 out.close()
                 tmp.unlink(missing_ok=True)
-                return False, f"larger than {MAX_MB} MB - a licence is a page or two"
+                return False, f"larger than {MAX_MB} MB - a license is a page or two"
             out.write(chunk)
     tmp.replace(target)
     _drop_pages(target)

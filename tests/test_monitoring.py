@@ -91,8 +91,8 @@ check("found by name as well as by code", mn["known"], True)
 check("same answer from the code", monitoring.advice("MN")["name"], "Minnesota")
 check("both statutes carried", len(mn["statutes"]), 2)
 # The condition almost nobody knows, and the reason this was worth building.
-check("the licence-in-the-vehicle condition is surfaced",
-      "Carry your licence" in mn.get("do_this", ""), True)
+check("the license-in-the-vehicle condition is surfaced",
+      "Carry your license" in mn.get("do_this", ""), True)
 check("299C.37 is the one with the exemption",
       any("299C.37" in s["cite"] for s in mn["statutes"]), True)
 check("609.856 is marked as not being a scanner law",
@@ -107,7 +107,7 @@ check("New York's exemption is flagged as narrower than reported",
       "narrower" in ny["reading"], True)
 
 print("\nan unlicensed operator is not told about a licensee's exemption")
-check("no licence to carry if there is no licence",
+check("no license to carry if there is no license",
       "do_this" in monitoring.advice("MN", licensed=False), False)
 
 print()

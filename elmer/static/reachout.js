@@ -60,7 +60,7 @@ function roCard(w) {
    approach, on one card above the list. The server works it out; this
    lays it out in the order somebody would read it - how far and which
    way, what is between, which bands carry it, then what to do. */
-const RO_SUN = {lit: 'in daylight', grey: 'on the grey line', dark: 'in the dark',
+const RO_SUN = {lit: 'in daylight', gray: 'on the gray line', dark: 'in the dark',
                 twilight: 'in twilight'};
 
 function roPathCard(d) {
@@ -111,7 +111,7 @@ function roPathCard(d) {
     '</div>';
 }
 
-/* The same path, three ways: with no licence, as a Technician, as a
+/* The same path, three ways: with no license, as a Technician, as a
    General - each with the radio that class would have in hand. Side by
    side, so the distance between the rungs shows. */
 function roLadder(l) {
@@ -130,11 +130,11 @@ function roLadder(l) {
       '<div class="tiny" style="margin-top:.3rem">' + escapeHTML(r.verdict) + '</div>' +
       (r.far_end ? '<div class="tiny muted" style="margin-top:.2rem">Far end: ' + escapeHTML(r.far_end) + '</div>' : '') + '</div>';
   }).join('');
-  return '<div class="panel-title" style="margin-top:.8rem">Right now, without a phone - by licence</div>' +
+  return '<div class="panel-title" style="margin-top:.8rem">Right now, without a phone - by license</div>' +
     '<div class="grid cols-3" style="gap:.5rem">' + cols + '</div>' +
     (l.step.length ? '<p class="small" style="margin:.4rem 0 0">' + l.step.map(escapeHTML).join('; ') + '.</p>' : '') +
     (l.two_way ? '<p class="small" style="margin:.3rem 0 0"><b>Two-way:</b> ' + escapeHTML(l.two_way) + '</p>' : '') +
-    '<p class="tiny muted" style="margin:.3rem 0 0">Each column assumes the radio that licence would have in hand, whatever is ticked above; the approach above is for what you actually have.</p>';
+    '<p class="tiny muted" style="margin:.3rem 0 0">Each column assumes the radio that license would have in hand, whatever is ticked above; the approach above is for what you actually have.</p>';
 }
 
 async function roPath() {
@@ -189,7 +189,7 @@ function roLinkRemember() {
 /* The path as a picture: the ground along it, the line between the two
    antennas sagging with the earth's bulge, the first Fresnel zone as a
    band about the line, and the worst of the ground marked. The vertical
-   is stretched - metres against kilometres - and says so. A hover reads
+   is stretched - meters against kilometers - and says so. A hover reads
    the ground, the line and the clearance at that point. */
 const RO_FT = m => Math.round(m * 3.28084);
 function roProfileSVG(d) {
@@ -341,7 +341,7 @@ async function roLink(to, path) {
       'value="' + (roLinkState.watts || d.watts || 100) + '" style="width:5.5rem"></label>';
     const works = !!d.works;
     const pct = Math.max(0, Math.min(100, d.score == null ? (works ? 60 : 0) : d.score));
-    const colour = works ? (pct >= 70 ? 'var(--green)' : 'var(--amber)') : 'var(--red)';
+    const color = works ? (pct >= 70 ? 'var(--green)' : 'var(--amber)') : 'var(--red)';
     box.innerHTML =
       '<div class="panel-title" style="margin-top:.6rem">By the numbers</div>' +
       '<div class="row" style="flex-wrap:wrap;gap:.5rem;align-items:center;margin:.3rem 0">' +
@@ -352,7 +352,7 @@ async function roLink(to, path) {
       '</div>' +
       '<div class="spread" style="align-items:baseline;flex-wrap:wrap;gap:.4rem">' +
         '<b>' + escapeHTML(d.band) + ', ' + awayText(d.km) + '</b>' +
-        '<span class="tiny mono" style="color:' + colour + '">' +
+        '<span class="tiny mono" style="color:' + color + '">' +
           escapeHTML(d.label || (works ? 'open' : 'closed')) + '</span>' +
       '</div>' +
       '<div class="meter thin" style="margin:.3rem 0"><i class="' +
@@ -427,7 +427,7 @@ async function roLink(to, path) {
       (loss.worst && loss.worst.above_line_m > 0 ? '; the ground stands ' + loss.worst.above_line_m + ' m above the line ' + loss.worst.km + ' km along, against a Fresnel zone ' + loss.worst.fresnel_m + ' m wide there' : '') +
       (d.terrain ? '. Terrain: ' + escapeHTML(d.source || '') : '. The ground was not asked - a flat earth with its bulge, and real ground can only cost more') + '.</p>' +
     (d.step_up ? '<p class="small" style="margin:.3rem 0"><b>The step up:</b> ' + escapeHTML(d.step_up.words) + '</p>' : '') +
-    (d.beyond ? '<p class="tiny" style="color:var(--amber);margin:.2rem 0">Past a couple of hundred kilometres the weather decides - tropospheric bending and ducts - and this model does not do weather.</p>' : '') +
+    (d.beyond ? '<p class="tiny" style="color:var(--amber);margin:.2rem 0">Past a couple of hundred kilometers the weather decides - tropospheric bending and ducts - and this model does not do weather.</p>' : '') +
     '<p class="tiny muted" style="margin:.2rem 0 .4rem">A teaching-grade model: the terrain between, the heights, the gains, the watts and the mode. It knows nothing of the trees in either yard or the building the far end is standing behind, which is why the answer is odds and not a promise.</p>';
   roProfileBind(d);
   ['here', 'there', 'band', 'mode', 'site'].forEach(k => {
@@ -464,7 +464,7 @@ async function roAsk() {
 
   where.innerHTML = 'From <b>' + escapeHTML(d.qth || 'the QTH on file') + '</b>' +
     (d.qth_source === 'gps' ? ' <span class="mono">(GPS)</span>' : '') +
-    ', ' + ({lit: 'in daylight', grey: 'on the grey line', dark: 'after dark',
+    ', ' + ({lit: 'in daylight', gray: 'on the gray line', dark: 'after dark',
              twilight: 'in twilight that will not clear'}[d.sun]
             || 'in daylight') + '. ' +
     (d.coverage && d.coverage.known

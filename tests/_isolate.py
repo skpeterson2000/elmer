@@ -37,7 +37,7 @@ os.environ["ELMER_STATE"] = str(STATE)
 # somebody's inbox is not a test passing. Empty means "no drop"; a test of
 # the drop itself points a unit-level drop.json at a stand-in.
 os.environ["ELMER_DROP_URL"] = ""
-# No test fetches the FCC's licence files - the amateur one is 200 MB.
+# No test fetches the FCC's license files - the amateur one is 200 MB.
 os.environ["ELMER_ULS"] = "off"
 
 # The guard. Not a fingerprint of data/ - a live ELMER on the same machine
@@ -50,7 +50,7 @@ os.environ["ELMER_ULS"] = "off"
 # Reading is allowed, because the pools and the figures live under data/ and
 # reading them is the point. Connecting to a database under data/ is not
 # allowed even to read - that is how a test came to depend on the operator's
-# licence class - and neither is any kind of write.
+# license class - and neither is any kind of write.
 _touched = []
 
 

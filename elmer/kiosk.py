@@ -24,6 +24,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -169,6 +170,92 @@ def have_display():
     if os.name == "nt":
         return True            # a Windows desktop always has one
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def session_facts():
+    """Everything about this machine's screen and browsers, for a report.
+
+    A kiosk that comes up in a window instead of filling the screen leaves
+    almost nothing behind to look at: the launch logged a name and a pid, and
+    the command itself only at debug, which on an appliance nobody has turned
+    on. So this gathers the facts that decide it - which session type is
+    running, which browsers are actually on the box, whether the one chosen is
+    a snap (a confined browser cannot always read a profile directory handed
+    to it), and what each one calls itself - and it is put in the log at every
+    launch and in the bug report, so a machine on the other end of the country
+    can say what happened without anybody guessing.
+    """
+    facts = {
+        "platform": sys.platform,
+        "display": os.environ.get("DISPLAY") or "",
+        "wayland_display": os.environ.get("WAYLAND_DISPLAY") or "",
+        "session_type": os.environ.get("XDG_SESSION_TYPE") or "",
+        "desktop": os.environ.get("XDG_CURRENT_DESKTOP") or "",
+        "have_display": have_display(),
+        "found": [],
+        "chosen": None,
+        "family": None,
+        "snap": None,
+        "version": None,
+        "profile_dir": str(PROFILE_DIR),
+    }
+    if os.name != "nt":
+        for name, family in BROWSERS:
+            where = shutil.which(name)
+            if where:
+                facts["found"].append({"name": name, "family": family, "path": where,
+                                       "snap": "/snap/" in where or "snapd" in where})
+    path, family = find_browser()
+    facts["chosen"], facts["family"] = path, family
+    if path:
+        facts["snap"] = "/snap/" in path or "snapd" in path
+        # What it calls itself. Asked only where asking is harmless: Edge and
+        # Chrome on Windows do not take --version and answer it by opening a
+        # browser window instead, which is a diagnostic with a side effect and
+        # no place in a report. On Linux, where this matters, both families
+        # print a version and exit.
+        if os.name != "nt":
+            # A snap wrapper can take a moment, so a short leash, and a failure
+            # to answer is recorded as a fact rather than raised as a fault.
+            try:
+                out = subprocess.run([path, "--version"], capture_output=True, text=True,
+                                     timeout=10, check=False)
+                facts["version"] = (out.stdout or out.stderr or "").strip()[:120]
+            except (OSError, subprocess.SubprocessError) as exc:
+                facts["version"] = f"could not be asked: {exc}"
+        profile = PROFILE_DIR / (family or "unknown")
+        facts["profile_writable"] = os.access(PROFILE_DIR.parent, os.W_OK)
+        facts["command"] = " ".join(_command(path, family, "<url>", profile))
+    return facts
+
+
+def report_lines():
+    """The same facts as flat lines, for the bug report and the doctor."""
+    facts = session_facts()
+    lines = [
+        f"platform      {facts['platform']}",
+        f"session type  {facts['session_type'] or '(not set)'}"
+        f"   desktop {facts['desktop'] or '(not set)'}",
+        f"DISPLAY       {facts['display'] or '(not set)'}"
+        f"   WAYLAND_DISPLAY {facts['wayland_display'] or '(not set)'}",
+        f"screen        {'yes' if facts['have_display'] else 'NO - kiosk stays headless'}",
+    ]
+    if facts["found"]:
+        for got in facts["found"]:
+            lines.append(f"found         {got['name']} ({got['family']})"
+                         f"{' [snap]' if got['snap'] else ''} at {got['path']}")
+    elif os.name != "nt":
+        lines.append("found         no chromium or firefox on PATH")
+    lines.append(f"chosen        {facts['chosen'] or '(none)'}"
+                 f"  family {facts['family'] or '-'}"
+                 f"{' [snap - confinement can block a profile path]' if facts['snap'] else ''}")
+    if facts.get("version"):
+        lines.append(f"version       {facts['version']}")
+    lines.append(f"profile dir   {facts['profile_dir']}"
+                 f"{'' if facts.get('profile_writable', True) else '  NOT WRITABLE'}")
+    if facts.get("command"):
+        lines.append(f"command       {facts['command']}")
+    return lines
 
 
 def find_browser():
@@ -321,10 +408,14 @@ def launch(url):
     """
     if not have_display():
         log.warning("kiosk: no DISPLAY or WAYLAND_DISPLAY - staying headless")
+        for line in report_lines():
+            log.warning("kiosk: %s", line)
         return None
     path, family = find_browser()
     if not path:
         log.warning("kiosk: no chromium or firefox found - staying headless")
+        for line in report_lines():
+            log.warning("kiosk: %s", line)
         return None
 
     profile = PROFILE_DIR / family
@@ -332,7 +423,13 @@ def launch(url):
     if family == "firefox":
         _allow_sound(profile)
     command = _command(path, family, url, profile)
-    log.debug("kiosk: %s", " ".join(command))
+    # At info, and the whole of it. A kiosk that comes up in a window rather
+    # than filling the screen used to leave nothing in the log to look at,
+    # because the one line that would have said why was at debug and nobody
+    # runs an appliance at debug.
+    for line in report_lines():
+        log.info("kiosk: %s", line)
+    log.info("kiosk: launching %s", " ".join(command))
     try:
         # Its own process group, so closing the browser later cannot deliver a
         # signal back to the server that started it.

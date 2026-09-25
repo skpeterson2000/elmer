@@ -68,7 +68,7 @@ TOPICS = {
                     # Tx 1"; the propagation sense always comes with its noun.
                     "words": ["propagation", "ionosphere", "ionospheric",
                               "skip zone", "skip distance", "sunspot", "solar",
-                              "muf", "nvis", "grey line", "gray line",
+                              "muf", "nvis", "gray line", "gray line",
                               "sporadic", "band conditions", "forecast",
                               "line of sight", "critical frequency"]},
     "cw": {"label": "CW and keying",
@@ -326,7 +326,7 @@ def _outline(pdf):
     one-page range gets the chapters without the text of the whole book.
 
     -nodrm matters. Most radio manuals are saved with "copying not allowed"
-    set - Yaesu's are - and pdftohtml honours that flag by refusing the whole
+    set - Yaesu's are - and pdftohtml honors that flag by refusing the whole
     document, bookmarks included, while pdftotext reads the same file
     without a murmur. ELMER then said the manual had no bookmarks, which was
     not true, and the operator could see the table of contents working in
@@ -664,7 +664,7 @@ def shelf_gear(conn):
 
     The books this person marked as theirs, if any; otherwise every book on
     the shelf, which is the right reading of a one-person unit. Returns the
-    radios recognised, the gear keys they tick, the basis, and the manuals
+    radios recognized, the gear keys they tick, the basis, and the manuals
     the table could not place - said, not guessed at.
 
     A person who has marked only a book that is not a radio - the FT8 guide,

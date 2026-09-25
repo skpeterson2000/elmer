@@ -111,7 +111,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
     {# A phone's browser does not draw a PDF inside a page - it hands the file
        to a viewer, or downloads it and says nothing. With poppler on the unit
        the page is drawn for it like any other screen; without, say so and
-       offer the file rather than show a grey rectangle. #}
+       offer the file rather than show a gray rectangle. #}
     <div id="phone" hidden class="missing">
       <p class="small">This browser will not show a PDF inside a page, and this unit has no poppler to draw it. Open the file itself and your phone's viewer will take it &mdash; page {{ page }} is where the Library pointed.</p>
       <p><a class="btn primary" href="/library/book/{{ name|urlencode }}#page={{ page }}">Open the file</a></p>

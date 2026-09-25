@@ -9,9 +9,9 @@
 let acData = null;
 
 /* The page and the filter have to count in the same thing. Asking somebody for
-   a range in miles and answering in kilometres is the sort of mismatch that
+   a range in miles and answering in kilometers is the sort of mismatch that
    makes a reader distrust every other number on the page, and rightly. The
-   server sends kilometres - it is what everything is computed in - and the
+   server sends kilometers - it is what everything is computed in - and the
    unit is the operator's, from the gear. */
 const AC_UNITS = (window.UNITS || {short: 'km', per_km: 1});
 
@@ -46,10 +46,10 @@ function acAway(km) {
 
 function acPlace(row) {
   const summit = row.kind === 'summit';
-  /* The reference carries the colour because the reference is the thing that
-     says which programme a row belongs to - K-1234 is a park, W0M/xx-123 is a
+  /* The reference carries the color because the reference is the thing that
+     says which program a row belongs to - K-1234 is a park, W0M/xx-123 is a
      summit, and the two lists sit side by side where a glance can cross
-     between them. Colouring the identifier means a row read out of the wrong
+     between them. Coloring the identifier means a row read out of the wrong
      column is visible as one. */
   return '<tr>' +
     '<td class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' +
@@ -358,7 +358,7 @@ if (document.getElementById('ac-near')) {
 
 
 /* ---------------------------------------------------- one place, picked */
-/* The programme's own record of a park or a summit, read out: how many
+/* The program's own record of a park or a summit, read out: how many
    made it, on what, when, and who was last. Fetched while there is a signal
    and held on disk after, the same bargain as the lists. The spots inside it
    are ELMER's own, from data/landmarks.json, and each is a button that sets
@@ -412,7 +412,7 @@ function acCard(r) {
       '<span class="tiny">' + from + '</span></div>' +
     '<div class="tiny muted" style="margin:.2rem 0 .5rem">' + facts + '</div>' +
     '<p class="small" style="margin:.3rem 0">' + escapeHTML(r.sentence || '') +
-      (r.stale ? ' <span class="muted">(held from an earlier look; the programme could not be reached)</span>' : '') + '</p>' +
+      (r.stale ? ' <span class="muted">(held from an earlier look; the program could not be reached)</span>' : '') + '</p>' +
     modes + acMonthBar(r.story) +
     (r.seen
       ? '<p class="small" style="margin:.5rem 0 0">' + escapeHTML(r.seen_sentence || '') +
@@ -443,7 +443,7 @@ function acCard(r) {
 
 async function acPickRef(ref) {
   const hint = document.getElementById('ac-pick-hint');
-  hint.textContent = 'asking the programme\u2026';
+  hint.textContent = 'asking the program\u2026';
   document.getElementById('ac-pick-matches').hidden = true;
   try {
     acCard(await api('/api/reference?ref=' + encodeURIComponent(ref)));

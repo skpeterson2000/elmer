@@ -206,7 +206,7 @@ def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
 def height_gains(kind, height_wl, mhz=None, ground="average"):
     """What this height buys, in decibels against the element alone in free
     space: straight up, at 45 degrees, at 20 degrees, and the best angle
-    with its gain. The map's colours saturate near the top; these do not."""
+    with its gain. The map's colors saturate near the top; these do not."""
     curve = elevation_raw(kind, height_wl, mhz=mhz, ground=ground)
     by_deg = {p["deg"]: p["field"] for p in curve}
 
@@ -220,7 +220,7 @@ def height_gains(kind, height_wl, mhz=None, ground="average"):
 
 # Where the main lobe has to sit before a wire is an NVIS antenna whatever
 # anybody calls it. With the lobe this steep there is no low-angle path out
-# of it: the signal goes up, comes down inside a few hundred kilometres, and
+# of it: the signal goes up, comes down inside a few hundred kilometers, and
 # that is the whole of what the antenna can do.
 NVIS_LOBE_DEG = 60.0
 
@@ -260,7 +260,7 @@ def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="aver
 
     With `mhz` the ground is real earth of the kind named (see GROUNDS);
     without it the ground is perfect, which is the ideal shape and the
-    old behaviour.
+    old behavior.
 
     A wire tilted at an angle is neither a horizontal antenna nor a vertical
     one: it carries a horizontal component of cos(angle) and a vertical
@@ -272,7 +272,7 @@ def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="aver
 
     The two components are added in power rather than in phase, which is the
     usual way to describe a slanted radiator and is an approximation. It gets
-    the shape and the trend right; it is not a substitute for modelling the
+    the shape and the trend right; it is not a substitute for modeling the
     actual wire over the actual soil, and the low-angle end is optimistic
     because perfect ground is assumed throughout.
     """
@@ -601,7 +601,7 @@ def layer_thickness(hmf2):
     the F2 layer usually has, and never so thick that its base falls out
     of the F region. Fitting it to the sonde's M(3000) was tried and gave
     absurd layers when the two numbers disagreed slightly, as a sonde's
-    own two numbers can; the sonde's factor is honoured by scaling
+    own two numbers can; the sonde's factor is honored by scaling
     instead, below."""
     return max(YM_RANGE_KM[0], min(0.35 * float(hmf2), float(hmf2) - 150.0))
 
@@ -677,7 +677,7 @@ def nvis_reach(mhz, fof2=None, hmf2=None, day=True):
                         "back down over the whole area, with no skip zone in "
                         "the middle. Good for roughly 300 miles, and it needs "
                         "the frequency to be below the critical frequency - "
-                        "which is why NVIS is an 80 and 40 metre trick by day. "
+                        "which is why NVIS is an 80 and 40 meter trick by day. "
                         "No ionosonde reading is in hand, so that is the rule "
                         "of thumb rather than this evening's figure."}
     height = float(hmf2 or TYPICAL_HMF2[bool(day)])
@@ -863,7 +863,7 @@ QUALIFIED = {
     "regional": ("The signal goes up and comes back down over the whole area, "
                  "with no skip zone in the middle.",
                  "Only while the frequency stays below the critical frequency "
-                 "- which is why NVIS is an 80 and 40 metre trick, and why it "
+                 "- which is why NVIS is an 80 and 40 meter trick, and why it "
                  "fails on 20."),
     "tropo": ("Refraction in the lower atmosphere, which does not care about "
               "the sun.",
@@ -895,7 +895,7 @@ DX_HOURS = [
            "the afternoon, and holding open some way past sunset before it "
            "shortens."),
     (None, "Up here it is a daylight ring. It breathes by hundreds of "
-           "kilometres through the day and closes after dark, and on a quiet "
+           "kilometers through the day and closes after dark, and on a quiet "
            "sun it may not open at all."),
 ]
 
@@ -1112,7 +1112,7 @@ def dx_bearings(lat, lon, kind=None, heading=0.0, hmf2=None):
 
 
 def main_lobe(kind, height_wl, slope_deg=0.0):
-    """The elevation angle the antenna actually favours."""
+    """The elevation angle the antenna actually favors."""
     best = max(elevation(kind, height_wl, slope_deg=slope_deg),
                key=lambda p: p["field"])
     return best["deg"]

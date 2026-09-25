@@ -91,7 +91,7 @@ def main():
     check("  no further than the 6 dB the image can give", w_low(150.0) <= prop.WEIGHT_CAP + 1e-9, True)
     check("  and charges the high wire the hole", w_high(150.0) < 0.7 < w_low(150.0), True)
 
-    print("\n-- the numbers behind the colours --")
+    print("\n-- the numbers behind the colors --")
     g25, g50 = P.height_gains("invertedv", 0.25, mhz=7.1), P.height_gains("invertedv", 0.5, mhz=7.1)
     check("a quarter wave up: the reflection adds straight up", 3.0 < g25["overhead_db"] < 5.0, True)
     check("  half a wave up: a dip of about seven decibels there", -9.0 < g50["overhead_db"] < -5.0, True)

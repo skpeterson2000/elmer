@@ -30,7 +30,7 @@ BANDS = [
     ("160m", 1.8, "80m-40m"), ("80m", 3.5, "80m-40m"), ("60m", 5.3, "80m-40m"),
     ("40m", 7.0, "80m-40m"), ("30m", 10.1, "30m-20m"), ("20m", 14.0, "30m-20m"),
     ("17m", 18.1, "17m-15m"), ("15m", 21.0, "17m-15m"), ("12m", 24.9, "12m-10m"),
-    # 11 m is CB - 26.965-27.405, forty channels, no licence, 4 W AM or 12 W
+    # 11 m is CB - 26.965-27.405, forty channels, no license, 4 W AM or 12 W
     # PEP SSB. It sits between two amateur bands the model already rates and
     # opens with them: when the MUF passes 27 MHz, or sporadic E arrives in
     # summer, "skip" is in and a 4 W call carries hundreds of miles. Nobody
@@ -276,20 +276,20 @@ def f2_drive(lat, lon, when):
 # reading an hour, at least a day of hours per cell. One year, one phase of
 # one cycle, one band of latitude; it is the fallback for a unit that has
 # never calibrated, and a unit that has (see forecastlog.calibration)
-# learns its own on top of it. "grey" covers twilight too.
+# learns its own on top of it. "gray" covers twilight too.
 SEASONAL_FOF2 = {
-    "01": {"dark": 0.78, "grey": 1.16, "lit": 1.59},
-    "02": {"dark": 0.95, "grey": 1.15, "lit": 1.62},
-    "03": {"dark": 1.04, "grey": 1.38, "lit": 1.49},
-    "04": {"dark": 1.11, "grey": 1.09, "lit": 1.23},
-    "05": {"dark": 1.19, "grey": 1.13, "lit": 1.05},
-    "06": {"dark": 1.28, "grey": 1.23, "lit": 1.01},
-    "07": {"dark": 1.13, "grey": 1.07, "lit": 0.97},
-    "08": {"dark": 1.17, "grey": 1.14, "lit": 1.08},
-    "09": {"dark": 1.10, "grey": 1.09, "lit": 1.26},
-    "10": {"dark": 1.05, "grey": 1.39, "lit": 1.63},
-    "11": {"dark": 0.88, "grey": 1.14, "lit": 1.65},
-    "12": {"dark": 0.75, "grey": 1.13, "lit": 1.57},
+    "01": {"dark": 0.78, "gray": 1.16, "lit": 1.59},
+    "02": {"dark": 0.95, "gray": 1.15, "lit": 1.62},
+    "03": {"dark": 1.04, "gray": 1.38, "lit": 1.49},
+    "04": {"dark": 1.11, "gray": 1.09, "lit": 1.23},
+    "05": {"dark": 1.19, "gray": 1.13, "lit": 1.05},
+    "06": {"dark": 1.28, "gray": 1.23, "lit": 1.01},
+    "07": {"dark": 1.13, "gray": 1.07, "lit": 0.97},
+    "08": {"dark": 1.17, "gray": 1.14, "lit": 1.08},
+    "09": {"dark": 1.10, "gray": 1.09, "lit": 1.26},
+    "10": {"dark": 1.05, "gray": 1.39, "lit": 1.63},
+    "11": {"dark": 0.88, "gray": 1.14, "lit": 1.65},
+    "12": {"dark": 0.75, "gray": 1.13, "lit": 1.57},
 }
 SEASONAL_FITTED = "2025-09-12 to 2026-09-12, GIRO stations AL945, IF843, EG931, MHJ45, AU930"
 
@@ -301,7 +301,7 @@ def seasonal_factor(when, regime):
     cell = SEASONAL_FOF2.get(when.strftime("%m"))
     if not cell:
         return 1.0
-    return cell.get("grey" if regime == "twilight" else regime, 1.0)
+    return cell.get("gray" if regime == "twilight" else regime, 1.0)
 
 
 def _fof2(sfi, elevation, lat=None, drive=None, when=None):
@@ -367,11 +367,11 @@ def _band_rows(ham, regime, muf):
         if freq > muf:
             note = f"above the estimated {muf} MHz MUF - refraction fails, signals escape"
         elif regime == "twilight" and freq <= 7.0:
-            note = ("the sun will not clear the D layer tonight - no grey "
+            note = ("the sun will not clear the D layer tonight - no gray "
                     "line at this latitude in this season, and absorption "
                     "never reaches zero")
-        elif regime == "grey" and freq <= 7.0:
-            note = ("grey line - the sun is down here but not on the D layer, "
+        elif regime == "gray" and freq <= 7.0:
+            note = ("gray line - the sun is down here but not on the D layer, "
                     "so absorption is collapsing and the low bands are opening")
         elif regime == "dark" and freq >= 21:
             note = "high bands normally close after dark"
@@ -420,7 +420,7 @@ def snapshot(lat=None, lon=None, force=False):
         # honest about that - claiming the middle state with no position would
         # be inventing the one thing this change exists to stop inventing.
         regime = "lit" if 6 <= datetime.now().hour < 18 else "dark"
-    # The wall chart has a day column and a night column and always will. Grey
+    # The wall chart has a day column and a night column and always will. Gray
     # reads off the night one: that column is about the absorber, and by then
     # the absorber has gone.
     is_day = regime == "lit"
@@ -532,7 +532,7 @@ def verdict(sfi, k, a):
 #     F2 peak       300 km   lit to about      -17.2 degrees
 #
 # Between those two the D layer is dark and the F2 is still lit: absorption
-# gone, ionisation still up. That is the grey line, it is plain geometry, and
+# gone, ionisation still up. That is the gray line, it is plain geometry, and
 # it lasts the half hour or so the effect is known to last.
 #
 # The term this replaces used max(0, sin(elevation)) - the sun as the *ground*
@@ -573,19 +573,19 @@ def sun_regime(elevation, lat=None, when=None):
     """Which of four states the sky overhead is in, from the sun's angle.
 
     "lit"  - the sun is up and the D layer is absorbing.
-    "grey" - the sun has set on the ground but not yet on the D layer 80 km up.
+    "gray" - the sun has set on the ground but not yet on the D layer 80 km up.
              Absorption is collapsing while the F layer stays ionised, and that
-             gap is the grey line. It ends at the D layer's own horizon.
+             gap is the gray line. It ends at the D layer's own horizon.
     "dark" - the D layer is wholly in shadow. Absorption is already zero and
              has been for some minutes; nothing further happens to it.
 
     "twilight" - the sun is down and the D layer will not clear tonight, or it
-             is up and never rises. There is no grey line here because there is
+             is up and never rises. There is no gray line here because there is
              no terminator passage: at Anchorage on the solstice the sun bottoms
              out 5.3 degrees down, the layer 80 km up keeps its light all night,
              and 80 m absorption never falls below 8 - a third of its noon
              value. Reported without the two states given lat and `when`, that
-             stretch was called "grey line" for five hours, which is the summer
+             stretch was called "gray line" for five hours, which is the summer
              at high latitude being sold as the best hour of the day.
 
     The upper edge is the ground terminator and the lower one is the layer
@@ -601,20 +601,20 @@ def sun_regime(elevation, lat=None, when=None):
     which is why 80 m works at two in the morning with the F layer long dark.
     Hanging the window on illumination put it between 9 and 17 degrees down -
     an hour that began after the absorption had already finished going. It
-    named the grey line half an hour after the grey line, and at 50 N in June,
+    named the gray line half an hour after the gray line, and at 50 N in June,
     where the sun never reaches 17 degrees down at all, it named it for five
     hours straight.
 
     Nothing here is a new model. `_fof2` and `band_score` already ramp
     continuously through all three states; this exists so that the parts which
-    have to name a state - a wall chart with two columns, a strip of coloured
+    have to name a state - a wall chart with two columns, a strip of colored
     hours, a sentence of advice - name the same one, on the same evidence.
     """
     if elevation is None:
         return None
     if elevation >= 0.0:
         return "lit"
-    # A grey line is a terminator passage. Where the sun neither sets on the D
+    # A gray line is a terminator passage. Where the sun neither sets on the D
     # layer nor rises at all, there is not one to name, and the honest answer
     # is that this is twilight - which is a real state of its own at latitude,
     # and not the same claim. Without a position this cannot be known, so the
@@ -623,7 +623,7 @@ def sun_regime(elevation, lat=None, when=None):
                or (night_floor(lat, when) <= -D_LAYER_DIP
                    and day_ceiling(lat, when) >= 0.0))
     if elevation >= -D_LAYER_DIP:
-        return "grey" if crosses else "twilight"
+        return "gray" if crosses else "twilight"
     return "dark"
 
 # --- how far inside the auroral oval the operator is -------------------------
@@ -777,7 +777,7 @@ LOWEST_TAKEOFF_DEG = 3.0
 
 # Past this, a signal that is below the critical frequency is not doing NVIS
 # any more - it is taking an ordinary low-angle hop, and calling it "straight
-# up and back" at fifteen hundred kilometres would be wrong about the geometry
+# up and back" at fifteen hundred kilometers would be wrong about the geometry
 # even though the band does carry it.
 NVIS_REACH_KM = 600.0
 
@@ -1055,7 +1055,7 @@ def _midpoint(lat1, lon1, lat2, lon2):
 
 
 # The edges the geometry draws are cliffs - inside the skip it is nothing,
-# a metre outside it is the band's score - and the ionosphere's are not:
+# a meter outside it is the band's score - and the ionosphere's are not:
 # the critical frequency the skip is worked out from is a reading with a
 # tenth of itself of uncertainty, and the layer is not a mirror. So each
 # edge is softened over a band either side of it, which is what the real
@@ -1206,7 +1206,7 @@ def _antenna_block(antenna, mhz):
             "height_ft": round(height_wl * lam_ft, 1),
             "heading": antenna.get("heading"), "ground": ground,
             "wavelength_ft": round(lam_ft, 1),
-            # the height's effect in numbers, since the colours run out at the top
+            # the height's effect in numbers, since the colors run out at the top
             "gain": patterns.height_gains(kind, height_wl, mhz=mhz, ground=ground),
             "nvis": patterns.is_nvis(kind, height_wl, mhz=mhz, ground=ground),
             "low_angle_wl": low_wl,
@@ -1234,7 +1234,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     equally served, which no antenna does.
 
     `emission` is the mode - ssb, am, fm, cw, ft8 - and, with the watts,
-    decides the ground wave's reach and, since the map learnt to add up a
+    decides the ground wave's reach and, since the map learned to add up a
     skywave path, how far the sky's reach can actually be heard. The sky
     does not care what is modulated onto what it reflects; the far end's
     receiver does. This map used to say so in the first half of that
@@ -1291,7 +1291,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
         lats = [top - i * step for i in range(rows)]
         lons = [((left + j * step + 180) % 360) - 180 for j in range(cols)]
     else:
-        lats = [90 - step / 2 - i * step for i in range(int(180 / step))]      # cell centres, pole to pole
+        lats = [90 - step / 2 - i * step for i in range(int(180 / step))]      # cell centers, pole to pole
         lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
     cells, night = [], []
     elev_here = solar_elevation(lat, lon, when)
@@ -1347,12 +1347,12 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     # says in words so the map is not taken for ignoring the antenna. Near
     # vertical, a little over foF2 still returns (the secant of a small
     # angle), so the door is 1.15 times foF2 for paths under a few hundred
-    # kilometres. The band to use instead is the highest one under the door.
+    # kilometers. The band to use instead is the highest one under the door.
     fof2_here = snap.get("fof2")
     nvis = None
     if fof2_here:
         # the door is the ceiling for the near zone - a hop of a few hundred
-        # kilometres, which a little over foF2 still makes - from the same
+        # kilometers, which a little over foF2 still makes - from the same
         # factor the cells are rated by, so the words and the map agree
         door = float(fof2_here) * factor(NVIS_REACH_KM / 2.0)
         skip_here = skip_km(mhz, float(fof2_here), hmf2)

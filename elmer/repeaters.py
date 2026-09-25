@@ -91,7 +91,7 @@ FIPS = {
 
 
 def horizon_km(height_ft, other_ft=ASSUMED_TOWER_FT):
-    """Radio horizon between two antennas, 4/3 earth, in kilometres."""
+    """Radio horizon between two antennas, 4/3 earth, in kilometers."""
     miles = 1.415 * (math.sqrt(max(float(height_ft), 1.0))
                      + math.sqrt(max(float(other_ft), 1.0)))
     return miles * 1.609

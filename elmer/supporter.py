@@ -1,9 +1,9 @@
 """A supporter's key, the thanks it earns, and the coffee card for everyone else.
 
 ELMER is a gift to the amateur radio community, free for noncommercial use
-- which is what the licence grants, and the one thing every sentence about
+- which is what the license grants, and the one thing every sentence about
 the coffee has to stay inside. "Free for everyone" was the phrase here and
-in eight other places, and it is wider than the licence: a commercial user
+in eight other places, and it is wider than the license: a commercial user
 is part of everyone and is not charged, they are not licensed at all. Some
 people will want to thank the developer with a cup of coffee, and the
 program should notice that: a person who has should be thanked, and a
@@ -343,7 +343,7 @@ def shown(conn, kind, now=None):
         db.kv_set(conn, THANKED, date.fromtimestamp(now).isoformat())
 
 
-def honour_line(holder, game=None):
+def honor_line(holder, game=None):
     """The hall's card for a table whose unit is a supporter's."""
     what = GAME_WORD.get(str(game or "").lower(), "session")
     return f"This {what} is brought to you by the generous contribution of {holder}."

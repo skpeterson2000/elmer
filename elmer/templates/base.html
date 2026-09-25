@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}ELMER{% endblock %}</title>
 <link rel="stylesheet" href="{{ asset('elmer.css') }}">
-{# One colour a band, everywhere - from palette.py, the only copy. #}
-<style>:root { {% for b in band_palette %}--{{ b.css }}: {{ b.colour }}; --{{ b.css }}-rgb: {{ b.rgb }}; {% endfor %}--attention: {{ attention.colour }}; --attention-rgb: {{ attention.rgb }}; }</style>
+{# One color a band, everywhere - from palette.py, the only copy. #}
+<style>:root { {% for b in band_palette %}--{{ b.css }}: {{ b.color }}; --{{ b.css }}-rgb: {{ b.rgb }}; {% endfor %}--attention: {{ attention.color }}; --attention-rgb: {{ attention.rgb }}; }</style>
 {% if icon_file %}<link rel="icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename=icon_file) }}?v={{ icon_v }}">
 {% else %}<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📻</text></svg>">
@@ -56,7 +56,7 @@
     </div>
     <div class="titles">
       {% for key, track in tracks.items() %}
-        {# "AMATEUR" over "Technician Operator" reads as a licence class, and
+        {# "AMATEUR" over "Technician Operator" reads as a license class, and
            the correction was in a tooltip - which a touchscreen does not have.
            The word rank goes in the visible label instead. The ladder keeps
            the class names on purpose, since a title is only earned with the
@@ -87,7 +87,7 @@
      and the way to stop the program. Everything else can ride the wrap. #}
   <div class="corner">
     <button type="button" class="gear-btn" id="gear-btn"
-            title="Callsign, name, licence class and QTH">
+            title="Callsign, name, license class and QTH">
       <span class="gear-cog">&#9881;</span><span class="gear-word">Station</span>
     </button>
 {% if kiosk_token %}
@@ -129,12 +129,12 @@
            spellcheck="false" autocapitalize="characters"
            value="{{ profile.callsign or '' }}">
     <p class="tiny muted" id="setup-call-hint">Looked up in the FCC&rsquo;s own
-      record, which fills in the licence class below.
+      record, which fills in the license class below.
       {%- set lic = profile.settings.license or {} -%}
       {%- if lic.others %} The same FRN holds
         {% for o in lic.others %}<b class="mono">{{ o.callsign }}</b> ({{ o.class or o.service }}, {{ o.status }}){% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
 
-    <p class="tiny muted">The FCC&rsquo;s licence files on this unit:
+    <p class="tiny muted">The FCC&rsquo;s license files on this unit:
       {% for key, st in uls.items() -%}
         <span class="mono">{{ key }}</span>
         {%- if st.fetching %} (fetching&hellip;){% elif st.have %} ({{ st.have.dated }}){% else %} (not yet){% endif %}{% if not loop.last %}, {% endif %}
@@ -159,7 +159,7 @@
 
     {%- set g = gmrs_own or {} -%}
     {%- if g.found and others_here %}
-    <p class="tiny muted" style="margin-top:.4rem">Your GMRS licence covers your immediate family
+    <p class="tiny muted" style="margin-top:.4rem">Your GMRS license covers your immediate family
       &mdash; 47 CFR 95.1705(c): they operate under <b class="mono">{{ g.callsign }}</b>. Mark
       the accounts on this unit that are family, and Make Contact offers them the
       GMRS repeaters under your call.</p>
@@ -172,7 +172,7 @@
     </div>
     {%- elif gmrs.covered_by %}
     <p class="tiny muted" style="margin-top:.4rem">You operate under <b class="mono">{{ gmrs.callsign }}</b>,
-      {{ gmrs.covered_by }}&rsquo;s GMRS licence, as immediate family (47 CFR 95.1705(c)).</p>
+      {{ gmrs.covered_by }}&rsquo;s GMRS license, as immediate family (47 CFR 95.1705(c)).</p>
     {%- endif %}
 
     <label class="setup-label" for="setup-commcall">Commercial operator callsign</label>
@@ -181,7 +181,7 @@
            value="{{ profile.settings.commercial_call or '' }}">
     <p class="tiny muted" id="setup-commcall-hint">
       {%- set cl = profile.settings.commercial_license or {} -%}
-      {%- if cl.found %}<b>{{ cl.license_class or 'Commercial operator licence' }}</b>, granted {{ cl.granted }}
+      {%- if cl.found %}<b>{{ cl.license_class or 'Commercial operator license' }}</b>, granted {{ cl.granted }}
         {%- if cl.status.lifetime %}, for life{% elif cl.expires %}, expires <b>{{ cl.expires }}</b>{% if cl.status.state == 'expired' %} &mdash; <b>expired</b>{% endif %}{% endif %}.
         {{ cl.source }}.
       {%- elif cl.callsign %}{{ cl.reason }}.
@@ -191,7 +191,7 @@
         dashboard with it.{% endif -%}
     </p>
 
-    <label class="setup-label" for="setup-class">Licence class
+    <label class="setup-label" for="setup-class">License class
       {%- if held.verified %}
         <span class="verified" title="from the FCC record for {{ license.callsign }}">verified</span>
       {%- elif held.record %}
@@ -308,7 +308,7 @@
     </select>
     {# Narrow on purpose. Nobody calls it the forty yard band. #}
     <p class="tiny muted">How far away a thing is &mdash; parks, summits,
-      repeaters. Wavelengths stay in metres and wire stays in feet, because
+      repeaters. Wavelengths stay in meters and wire stays in feet, because
       that is what the bands are named in and how wire is sold.</p>
 
     <label class="setup-label" for="setup-qth">Where you operate from</label>
@@ -371,7 +371,7 @@ window.BAND_PALETTE = {{ band_palette|tojson }};
 window.ELMER_ANNOUNCE = {{ announce|tojson }};
 /* How far away a thing is, in the units this operator reads. It used to go
    only to the Activations page, so every other page picked a unit and kept
-   it: the skip zone came out in kilometres on the Lab page and in miles on
+   it: the skip zone came out in kilometers on the Lab page and in miles on
    the band plan, and neither of them was asking. See units.py for what this
    preference governs and, just as deliberately, what it does not. */
 window.UNITS = {{ units|tojson }};

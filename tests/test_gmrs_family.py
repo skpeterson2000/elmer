@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks for what a GMRS licence earns on the unit: the family it covers
+"""Checks for what a GMRS license earns on the unit: the family it covers
 (47 CFR 95.1705(c)), the first-contact step it puts on the track, the
 renewal link when the date is near, and what a distance to a machine
 means for a handheld.
@@ -56,7 +56,7 @@ def main():
     c.post("/api/settings", json=QTH)
     d = c.get("/api/ways-out?gear=gmrs").get_json()
     g = next(w for w in d["ways"] if w["key"] == "gmrs-repeater")
-    check("  and, uncovered, is told the licence is a fee and a form", "a fee and a form" in g["needs"], True)
+    check("  and, uncovered, is told the license is a fee and a form", "a fee and a form" in g["needs"], True)
     check("  their track has no GMRS step", [s["key"] for s in d["track"]], ["listen", "personal", "exam"])
 
     print("\n-- marked as family, on the licensee's own account --")
@@ -69,8 +69,8 @@ def main():
     c.post("/api/users/switch", json={"id": 2})
     d = c.get("/api/ways-out?gear=gmrs").get_json()
     g = next(w for w in d["ways"] if w["key"] == "gmrs-repeater")
-    check("the grandchild's repeater card says whose licence and which rule",
-          "you operate under WRMP909, Scott's licence, as family (95.1705(c))" in g["needs"], True)
+    check("the grandchild's repeater card says whose license and which rule",
+          "you operate under WRMP909, Scott's license, as family (95.1705(c))" in g["needs"], True)
     check("  and to say the call", "Say WRMP909." in g["do"], True)
     check("  with the reach of each machine in words", [r["reach"] for r in g["rows"]], ["inside a handheld's radio horizon"] * 2)
     check("  the track gains the GMRS step, before the exam", [s["key"] for s in d["track"]], ["listen", "personal", "gmrs", "exam"])
@@ -81,7 +81,7 @@ def main():
     p = c.get("/api/personal").get_json()
     check("  the GMRS fold too", (p["gmrs_license"].get("covered_by"), p["gmrs_repeaters"][0]["reach"]), ("Scott", "inside a handheld's radio horizon"))
     r = c.post("/api/settings", json={"gmrs_covers": [1]})
-    check("nobody without a licence can claim to cover anyone", r.get_json()["settings"].get("gmrs_covers"), None)
+    check("nobody without a license can claim to cover anyone", r.get_json()["settings"].get("gmrs_covers"), None)
 
     print("\n-- unmarked again --")
     c.post("/api/users/switch", json={"id": 1})
@@ -92,7 +92,7 @@ def main():
 
     print("\n-- renewal, when the date is near --")
     with uls._connect() as conn:
-        conn.execute("UPDATE licence SET expires = ? WHERE call = 'WRMP909'", (time.strftime("%m/%d/%Y", time.localtime(time.time() + 40 * 86400)),))
+        conn.execute("UPDATE license SET expires = ? WHERE call = 'WRMP909'", (time.strftime("%m/%d/%Y", time.localtime(time.time() + 40 * 86400)),))
     c.post("/api/users/switch", json={"id": 1})
     r = c.post("/api/settings", json={"gmrs_call": "WRMP909"})
     check("forty days out", r.get_json()["settings"]["gmrs"]["status"]["days"] in (39, 40), True)

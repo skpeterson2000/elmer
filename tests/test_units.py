@@ -7,13 +7,13 @@ The preference is deliberately narrow, and the narrowness is the part worth
 testing. It governs how far away a thing is - a park, a summit, a repeater.
 It does not touch the units the craft speaks in: nobody calls it the forty
 yard band, wire is cut in feet because that is how wire is sold, and hmF2 is
-in kilometres because that is what ionosondes report. An operator who picks
+in kilometers because that is what ionosondes report. An operator who picks
 imperial is saying how they think about a drive, not asking for the 40 m band
 to be renamed.
 
 The rest is arithmetic, and the one thing arithmetic like this gets wrong is
 disagreeing with itself - a filter that takes miles and a table that answers
-in kilometres, which is exactly the mismatch this was built to end.
+in kilometers, which is exactly the mismatch this was built to end.
 """
 import sys
 from pathlib import Path
@@ -46,7 +46,7 @@ print("\nthe conversions are the conversions")
 check("a mile is 1.609344 km", round(units.to_km(1, "imperial"), 6), 1.609344)
 check("a nautical mile is 1.852 km", round(units.to_km(1, "nautical"), 6),
       1.852)
-check("a kilometre is itself", units.to_km(1, "metric"), 1.0)
+check("a kilometer is itself", units.to_km(1, "metric"), 1.0)
 
 print("\nand they come back where they started")
 for system in units.SYSTEMS:

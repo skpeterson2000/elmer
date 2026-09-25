@@ -5,7 +5,7 @@
     python3 tools/voice_script.py --md       # as docs/narration/voice-script.md
     python3 tools/voice_script.py --have     # what is recorded, what is still to do
     python3 tools/voice_script.py --adopt    # rename a reader's files ('29.One_hundred.mp3') to the stems
-    python3 tools/voice_script.py --adopt --hole 2   # a batch of colour for the second hole
+    python3 tools/voice_script.py --adopt --hole 2   # a batch of color for the second hole
 
 Record each line as its own file, named by the stem, as MP3, into
 elmer/static/golf/voice/ - three.mp3, addresses-the-ball.mp3 - and the
@@ -76,13 +76,13 @@ def shelf_report():
     known = set(voice.VOCABULARY)
     numbers = [h for h in have if h.startswith("n-") and h[2:].isdigit()]
     names = [h for h in have if h.startswith("name-")]
-    holes = [h for h in have if h.startswith("hole-")]        # a hole's reads and colour
+    holes = [h for h in have if h.startswith("hole-")]        # a hole's reads and color
     scripted = [h for h in have if h in known]
     strays = [h for h in have if h not in known and h not in numbers and h not in names and h not in holes]
     missing = [k for k in voice.VOCABULARY if k not in have]
     out = [f"{folder}", "",
            f"recorded: {len(scripted)} of {len(known)} scripted snippets, "
-           f"{len(numbers)} whole numbers, {len(names)} names, {len(holes)} hole reads and lines of colour"]
+           f"{len(numbers)} whole numbers, {len(names)} names, {len(holes)} hole reads and lines of color"]
     if strays:
         out += ["", "not in the script (check the stem - the narrator will never say these):"]
         out += [f"  {h}" for h in strays]
@@ -117,7 +117,7 @@ def adopt(dry_run=False, hole=None):
     script. The number in front is the reader's and is dropped before
     anything is matched. Whole numbers ('Three hundred seventy seven')
     become n-377. A hole read whole becomes hole-<course>-<n>, or a
-    further -read-<k> when one is there; a line of colour becomes
+    further -read-<k> when one is there; a line of color becomes
     hole-<course>-<n>-<where>-<k>, for the hole the batch is for -
     `hole`, or the hole a line names, or the first. Files already named
     for a stem are left alone; a file that matches nothing is listed,
@@ -214,7 +214,7 @@ def _whole_hole(text, taken=()):
 
 
 def _hole_note(text, taken, hole=1):
-    """A line of colour about a hole - anything not in the script that
+    """A line of color about a hole - anything not in the script that
     reads like a sentence - becomes hole-pebble-beach-<hole>-<where>-<k>:
     where the line is spoken from, read off its words - the sand when it
     speaks of bunkers, the water, the rough, the fairway (a hazard ahead,
@@ -222,7 +222,7 @@ def _hole_note(text, taken, hole=1):
     numbered after the ones already there."""
     import re
     words = str(text).replace("_", " ").strip()
-    # a line of colour is a sentence; three words are a piece of the
+    # a line of color is a sentence; three words are a piece of the
     # script the reader phrased another way, and belong in ALIASES
     if len(words.split()) < 5:
         return None
@@ -267,7 +267,7 @@ def _whole_number(text):
 if __name__ == "__main__":
     if "--adopt" in sys.argv:
         dry = "--dry-run" in sys.argv
-        # --hole 2: the hole this batch of colour is for, when no line names it
+        # --hole 2: the hole this batch of color is for, when no line names it
         hole = int(sys.argv[sys.argv.index("--hole") + 1]) if "--hole" in sys.argv else None
         renamed, strays = adopt(dry_run=dry, hole=hole)
         for a, b in renamed:

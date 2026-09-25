@@ -55,8 +55,8 @@ def run():
     d = pathto.predict(here, there, gear=["hf_wire", "ht"], license="General", now=1789400000)
     check("how far and which way", (d["km"] > 200, 100 < d["bearing"] < 200, d["miles"] < d["km"]), (True, True, True))
     check("  the back bearing is the other way", (d["back_bearing"] - d["bearing"]) % 360, 180)
-    check("  the sun at both ends", (d["from"]["sun"] in ("lit", "grey", "dark", "twilight"),
-                                     d["to"]["sun"] in ("lit", "grey", "dark", "twilight")), (True, True))
+    check("  the sun at both ends", (d["from"]["sun"] in ("lit", "gray", "dark", "twilight"),
+                                     d["to"]["sun"] in ("lit", "gray", "dark", "twilight")), (True, True))
     check("too far for line of sight, and the ground was not asked", (d["sight"]["clear"], asked), (False, []))
     carry = [b["band"] for b in d["sky"]["bands"] if b["works"]]
     check("the low bands carry it straight up and back", ("80m" in carry, "20m" in carry), (True, False))
@@ -97,18 +97,18 @@ def run():
     print("\n-- 11 m and the unlicensed --")
     check("CB is on the path list for a Technician", pathto._allowed("11m", "Technician")[0], True)
     check("  and for an Extra", pathto._allowed("11m", "Extra")[0], True)
-    check("  and for somebody with no licence", pathto._allowed("11m", "none")[0], True)
+    check("  and for somebody with no license", pathto._allowed("11m", "none")[0], True)
     check("  saying which channels and what radio", "36-40" in pathto._allowed("11m", "none")[1], True)
     check("but 20 m is not the unlicensed person's", pathto._allowed("20m", "none")[0], False)
     check("  nor 10 m", pathto._allowed("10m", "none")[0], False)
 
-    print("\n-- the same path three ways: no licence, Technician, General --")
+    print("\n-- the same path three ways: no license, Technician, General --")
     d = pathto.predict(here, there, gear=["ht"], license="Technician", now=1789400000)
     lad = d["ladder"]
     check("three rungs, in order", [r["key"] for r in lad["rungs"]], ["none", "Technician", "General"])
     none, tech, gen = lad["rungs"]
     check("the unlicensed rung across the state has no personal-radio way", any("FRS" in w["band"] for w in none["ways"]), False)
-    check("  and says so plainly when it has nothing", none["ways"] or "without a licence" in none["verdict"], True)
+    check("  and says so plainly when it has nothing", none["ways"] or "without a license" in none["verdict"], True)
     check("a Technician's HF ways are the CW-only bands, and say so",
           all(w.get("mode") for w in tech["ways"] if w["band"] not in ("2 m / 70 cm",)), True)
     check("  General has at least what Technician has", len(gen["ways"]) >= len(tech["ways"]), True)

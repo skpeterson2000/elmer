@@ -98,7 +98,7 @@ def machine_mark():
 def default_unit_id():
     """A stable id for this unit, unique on the network it is on.
 
-    The hostname leads, because an operator reading a log wants to recognise
+    The hostname leads, because an operator reading a log wants to recognize
     it; the mark decides ties. See :func:`machine_mark` for why a bare hostname
     is not enough.
     """

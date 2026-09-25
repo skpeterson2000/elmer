@@ -115,7 +115,7 @@ CONDUCTORS = [
     {"key": "pipe34", "label": "3/4 in copper pipe (22.2 mm OD)", "od_mm": 22.2,
      "material": "copper", "sigma": 1.00,
      "note": "Noticeably wider band than wire, and rigid enough to stand on "
-             "its own for a couple of metres."},
+             "its own for a couple of meters."},
     {"key": "pipe1", "label": "1 in copper pipe (28.6 mm OD)", "od_mm": 28.6,
      "material": "copper", "sigma": 1.00,
      "note": "About as fat as anybody builds from tube. Heavy, expensive, and "
@@ -134,7 +134,7 @@ CONDUCTORS = [
              "humidifier - 25 and 50 ft rolls, in every hardware store. Four "
              "times the diameter of #14 wire, so a usefully wider band, and it "
              "solders. Annealed, so it uncoils by hand, holds a shape, and "
-             "will stand on its own for a metre or two.",
+             "will stand on its own for a meter or two.",
      "caution": "It work-hardens: bend the same spot repeatedly and it "
                 "cracks. Heavier than wire, so a long horizontal span needs "
                 "support or it will sag and stretch."},
@@ -176,7 +176,7 @@ C_FT = 983.571
 
 
 def half_length_m(mhz):
-    """Half of a half-wave element, in metres - the L in the thickness factor."""
+    """Half of a half-wave element, in meters - the L in the thickness factor."""
     return 0.3048 * (C_FT / float(mhz)) * 0.95 / 4.0
 
 

@@ -81,7 +81,7 @@ summits of a region packed for somewhere the internet is not — on one
 Raspberry Pi, with no network needed once it is installed. Both communities
 get the whole of it. The commercial pools are not a bolt-on: they are the same
 program pointed at a different examination, gated by nothing an amateur
-licence says, because an Extra ticket says nothing about readiness for a GROL.
+license says, because an Extra ticket says nothing about readiness for a GROL.
 
 **Usability.** It runs from a clone with no build step and no configuration,
 opens the same way on every board whatever the hardware is doing underneath,
@@ -130,12 +130,12 @@ FCC circuit and radar drawings extracted from the official PDFs.
 
 The amateur examinations are given under **47 CFR Part 97**, and the pools
 cite it question by question. The commercial ones are given under **47 CFR
-Part 13**, *Commercial Radio Operators* — which licence is needed for what, and
+Part 13**, *Commercial Radio Operators* — which license is needed for what, and
 what each examination element covers — with the subject matter drawn from
 **Part 80**, *Stations in the Maritime Services* (the ship stations an MROP
 operates and a GROL maintains, watchkeeping, distress, the radar of Element 8)
 and **Part 87**, *Aviation Services* (the aeronautical stations the GROL is
-also the licence for). The FCC's commercial pools carry no citations of their
+also the license for). The FCC's commercial pools carry no citations of their
 own, so where a commercial question turns on a rule the concept note for its
 section names the part, rather than a paragraph being quoted beside the
 question as it is for the amateur pools.
@@ -259,7 +259,7 @@ A license class opens everything up to it and the pool above — everything at o
 below, not a two-rung window, because this program is named after the people
 who run Technician classes and a General reviewing the basics needs the lower
 pools. The class can be typed in as well as looked up, since the FCC's files
-hold the FCC's licences and nothing else, and a Canadian or British operator
+hold the FCC's licenses and nothing else, and a Canadian or British operator
 has a perfectly good callsign that resolves to nothing.
 
 Taking Technician to Elmer opens General with no callsign at all. The rank
@@ -360,7 +360,7 @@ is arithmetic rather than study — any two of those three is an ordinary
 evening, and all three together is not. One is a lucky stab at four options,
 so nothing is said until the third, which puts a false positive around one in
 sixty-four and costs nothing anyway. Then the owl turns up — the same one the
-RF exposure tool keeps for a limit exceeded and a licence exceeded, which are
+RF exposure tool keeps for a limit exceeded and a license exceeded, which are
 otherwise the only two places in the program that earn a raised eyebrow — and
 points out that the answer was a second away for nothing, that the scheduler
 now believes them and will therefore hand the card back in nine days to
@@ -389,7 +389,7 @@ exams behind it, that somebody would very probably pass — and had no way of
 saying the next thing, which is *go and do it*. The program would happily have
 let a person drill a pool to ninety-five per cent for a year.
 
-So when there is no licence on the account's record and a pool's own evidence
+So when there is no license on the account's record and a pool's own evidence
 says ready, the dashboard says so, and says what the day actually involves: an
 FRN from the FCC's CORES system before you go, a session to find, a VE team
 that sets its own fee, and the Commission's application fee afterwards. Those
@@ -407,14 +407,14 @@ true, so the panel is news and not furniture.
 
 The wording is careful in the same way the rank titles are, and in the same
 direction: it never says anybody is unlicensed. ELMER does not know that. It
-knows only that no licence is on this account's record — an operator licensed
+knows only that no license is on this account's record — an operator licensed
 for thirty years who has never typed their callsign in is not unlicensed, they
 are unrecorded — and that is the sentence the panel prints.
 
 And it says what the ticket is for, once, on the screen where somebody has just
 been told they are ready:
 
-> A licence is more than a privilege that carries legal and ethical
+> A license is more than a privilege that carries legal and ethical
 > obligations. It is knowledge, and knowledge carries its own imperative: to be
 > a generous ambassador for the craft, to demonstrate competence, and to share
 > that competence with the developing operator in kindness. The person who
@@ -443,7 +443,7 @@ because they carry very different authority:
   Where the record comes from: the FCC itself. Its lookup API is gone, but
   the Universal Licensing System still publishes the whole database every
   Sunday, one zip per service — amateur, GMRS, the commercial operator
-  licences — for anyone who will go and get it, and `elmer/uls.py` does.
+  licenses — for anyone who will go and get it, and `elmer/uls.py` does.
   The first time a call of a service is saved, that service's file is
   fetched and read into an index on the unit (the amateur one is 200 MB;
   a unit that never meets a GMRS call never fetches the GMRS file), and
@@ -455,14 +455,14 @@ because they carry very different authority:
   say the file is on its way. `ELMER_ULS=off` stops the fetching on a
   metered connection; the Station panel says which files the unit holds.
 
-  The same door answers every licence a person holds: a GMRS call
+  The same door answers every license a person holds: a GMRS call
   (WRxx000) gets its dates and the fact that GMRS has no grace period; a
   commercial call gets its class — GROL, MROP, GMDSS, the Radiotelegraph
   certificates — and whether the Ship Radar endorsement is on it, and a
   GROL is for life. And because the files carry the FRN, the record for
   one call lists the other tickets under the same FRN, which is what the
   dead API used to be asked for.
-- **Activity is convention.** 160 segments across sixteen bands, coloured by
+- **Activity is convention.** 160 segments across sixteen bands, colored by
   what happens there — CW, digital, phone, image, beacons, satellite,
   repeaters, FM simplex, calling frequencies. None of it is enforceable, but a
   signal in the wrong place is what people complain about.
@@ -501,7 +501,7 @@ because they carry very different authority:
   nothing back from overhead whatever the wire, and the near zone is a
   hole out to the skip - which is what a low inverted V on 40 m at three
   in the morning finds, foF2 near 3 MHz and the skip twelve hundred
-  kilometres, and looked, on the map alone, like the antenna being
+  kilometers, and looked, on the map alone, like the antenna being
   ignored. So the map now says it in words whenever the antenna is a low
   one or the NVIS switch is on: the critical frequency over you, whether
   this band comes back from overhead, the skip if it does not, and the
@@ -512,48 +512,48 @@ because they carry very different authority:
   the answer. On the round trip the panel also says what
   the far end needs to answer: the gear in a sentence, and in the US the
   lowest class for phone and for CW on that band (`bandplan.far_end`);
-  outside the US the licence line is silent, because the map does not know
+  outside the US the license line is silent, because the map does not know
   whose country a cell is in and must not guess.
-- **One colour a band, everywhere.** 20 m is the same green on the band
+- **One color a band, everywhere.** 20 m is the same green on the band
   buttons, on the heading, on the reach map's ramp, on the Lab's chips and
   its frequency meter, in the propagation outlook, on the home page's
   "good now", on the path ladder, and on the printed chart — so that the
-  colour comes to mean the band the way a callsign comes to mean a person.
+  color comes to mean the band the way a callsign comes to mean a person.
   The hues run with frequency, red at 160 m through yellow and green to
   blue at 10 m, then violet and pink for VHF and UHF, so a band not yet
-  learnt can be placed by its neighbours; 11 m (CB) is grey and borrows no
+  learned can be placed by its neighbours; 11 m (CB) is gray and borrows no
   amateur band's hue. Nobody publishes such a scheme — the FCC's rules
-  carry no colours and the ARRL chart colours by emission, not by band —
-  so this one is ELMER's own. The colour is never the only cue: the name
+  carry no colors and the ARRL chart colors by emission, not by band —
+  so this one is ELMER's own. The color is never the only cue: the name
   is always printed beside it.
 
   The palette lives in `elmer/palette.py` and nowhere else. The page head
   writes it out as CSS custom properties (`--band-20m`, `--band-20m-rgb`)
   and as `window.BAND_PALETTE`; a page prints a band with `bandTag()`,
   `bandSwatch()` or `bandStyle()` from `elmer.js`, and the PDFs take the
-  same hue darkened for paper from `band_colour(name, ink=True)`.
+  same hue darkened for paper from `band_color(name, ink=True)`.
 
-  Four families, one a kind of thing, so a colour says what it is about
-  before its label is read. **Bands** each have a colour of their own, chosen
+  Four families, one a kind of thing, so a color says what it is about
+  before its label is read. **Bands** each have a color of their own, chosen
   so that neighbours are far apart - warm beside cool, light beside dark,
-  the way a box of coloured pencils is told apart, with no order in the
+  the way a box of colored pencils is told apart, with no order in the
   hues to be read as anything. They used to run the rainbow in frequency
-  order, which put the nearest colours on the adjacent bands, the very
+  order, which put the nearest colors on the adjacent bands, the very
   ones that have to be told apart, and made the row of band buttons read
   as a pride flag on the dashboard. Chosen against simulated red-green
-  and blue-yellow colour blindness so that the eight bands everyone uses
+  and blue-yellow color blindness so that the eight bands everyone uses
   (160, 80, 40, 20, 15, 10, 2 m, 70 cm) stay apart by hue and lightness
   both, every adjacent pair close to 30 units apart in CIELAB or more, and every
   one reads on the dark panel at 4.5:1 or better. **Modes** — what happens on a band, CW
-  the same colour on every band — are the pastel family: the same hues
+  the same color on every band — are the pastel family: the same hues
   lightened and softened, so a mode reads as a softer thing than a band
-  even before the label. **Licence classes** are the earth tones, the
-  strata a person climbs through. And one **attention** colour, the
+  even before the label. **License classes** are the earth tones, the
+  strata a person climbs through. And one **attention** color, the
   safety orange of ANSI Z535 — the one published convention here — for
   the thing that must be found at once and nothing else: the "you are
   here" on the reach map. Fluorescent is not a family; seventeen neon
   hues on a dark screen tire the eye and lose the lightness differences
-  the colour-blind depend on.
+  the color-blind depend on.
 
   Convention and law do not share their edges, so each segment is answered with
   three states rather than two, and the reason is written beside the row. The
@@ -619,7 +619,7 @@ has, that the whole range is yours. It is drawn as what it is: five slivers,
 hatched between, numbered 1 to 5 and labelled with the dial setting.
 
 Two frequencies belong to each channel and they are not the same number. The
-rules name the channel by its centre — 5332.0 kHz and the rest. The operator
+rules name the channel by its center — 5332.0 kHz and the rest. The operator
 types the suppressed carrier, 1.5 kHz below that, and *that* is the number
 printed on every 60 m chart in a go-bag. Both are held, both answer "yes", and
 the page shows the one you dial with the one the rules name behind it, because
@@ -714,9 +714,9 @@ number. Those bands get what is actually known — what the network is reporting
 at this moment — and a sentence about why there is no curve.
 
 Two printouts. **One page (PDF)** is the picture: every band drawn to scale on a
-single landscape sheet, your privileges filled in and coloured by what you may
+single landscape sheet, your privileges filled in and colored by what you may
 send there — voice, CW and data, or CW only — and everything you may not
-transmit on left grey. Power ceilings below 1500 W are written into the segment
+transmit on left gray. Power ceilings below 1500 W are written into the segment
 they apply to, 60 m is drawn as the five fixed channels it actually is rather
 than a continuous band, and every privilege edge on the sheet is labelled. It is
 drawn from the allocations themselves rather than modelled on anybody's chart.
@@ -730,9 +730,9 @@ a claim to hold Extra, by anybody who reads it, whatever the page that made it
 meant. So a callsign goes on a chart only when the chart is of that station's
 own privileges — taken from the FCC record where there is one, not from the
 class being browsed — and anything else is drawn without it and says on its
-face that it is a study sheet, not a licence, and not a statement of what any
+face that it is a study sheet, not a license, and not a statement of what any
 station holds. Other operators would know and the one waving it would be
-caught; that is not the point. The door reflects on the community whose licence
+caught; that is not the point. The door reflects on the community whose license
 this program exists to teach people to respect.
 
 **Where a printout goes.** Nowhere, is the answer that was wrong. A PDF built
@@ -1040,7 +1040,7 @@ the antenna calculator carries the antenna ones under its advice. `./elmer.py
 --index-library` does the reading from the terminal; `--doctor` says what is
 on the shelf and whether it has been read. Most radio manuals are saved with
 the PDF "copying not allowed" flag set — both Yaesu manuals on the first shelf
-were — and `pdftohtml` honours it by refusing the whole document, bookmarks
+were — and `pdftohtml` honors it by refusing the whole document, bookmarks
 included, while `pdftotext` reads the same file without a murmur. ELMER reads
 the bookmarks anyway: the flag is the publisher's request about copying their
 text, and reading the chapter titles of a book you own, on your own machine,
@@ -1213,7 +1213,7 @@ road actually has: not "what is the best antenna", but "what might work now,
 with what I brought". Tick what you have on hand and it lists every avenue in
 the order worth trying - the repeater you cannot hear from the valley floor,
 the calling channels, APRS, the ISS digipeater passing overhead twice a day,
-NVIS on a wire eight feet off the ground, ten metres if you are a Technician
+NVIS on a wire eight feet off the ground, ten meters if you are a Technician
 who has been told they have no HF.
 
 **Reaching somewhere in particular.** Most real needs have a destination -
@@ -1334,8 +1334,8 @@ associations: 486 parks and 32 summits, in about fourteen seconds. After that
 it answers in a valley with no bars, which is the whole point of fetching it in
 advance.
 
-A centre decides who to ask and never decides what is near. POTA's own location
-list is wrong about some of its centres — as this was written it placed South
+A center decides who to ask and never decides what is near. POTA's own location
+list is wrong about some of its centers — as this was written it placed South
 Africa's North West province in Indiana — so every reference is measured on its
 own coordinates instead, and the distance is recomputed from wherever the
 operator is standing rather than from where the list was fetched.
@@ -1345,11 +1345,11 @@ and the day somebody read it, because these change by another body's decision
 rather than by physics. POTA wants ten QSOs inside one UTC day with the
 activator and all the equipment inside the boundary. SOTA takes one QSO to be
 an activation and four different stations for the summit's points, from inside
-the activation zone — typically 25 vertical metres, though each Association
+the activation zone — typically 25 vertical meters, though each Association
 sets its own. Neither counts a terrestrial repeater. Both count a satellite,
 which means the ISS digipeater on the Make Contact list earns credit in both.
 
-**Whose land it is.** Neither programme can give anybody permission to be
+**Whose land it is.** Neither program can give anybody permission to be
 somewhere — POTA's own rules put the park's rules first, and the park's rules
 are written by whoever owns the ground. So the page quotes what the
 regulations actually say, section by section, from the eCFR with the edition
@@ -1367,7 +1367,7 @@ not guessed at: the property manager is the authority. The pattern through all
 of them is one sentence — ask, nothing driven into a tree, no noise, nothing
 left behind, and a club outing is an event that needs a permit.
 
-**What you would be carrying**, judged against each programme from the same
+**What you would be carrying**, judged against each program from the same
 gear list Make Contact uses, worst news first. A whip on the car is a park
 antenna and a disqualification on a summit — SOTA rule 3.7.1 forbids the
 station being in or near a motor vehicle or connected to one in any way — and
@@ -1435,7 +1435,7 @@ are is an errand, and it says which one it is looking at.
 
 ELMER and TowerWitch are two programs on one bench. ELMER's dashboard has
 **TowerWitch** beside *Band conditions*
-and *Lab*: greyed, with the reason in the tooltip, when TowerWitch is not on
+and *Lab*: grayed, with the reason in the tooltip, when TowerWitch is not on
 the unit (or the page is being read from another machine - a desktop program
 is not started from across the network); live when it is, saying *running*
 when TowerWitch has announced itself from this machine, and starting it on
@@ -1547,7 +1547,7 @@ the five 60 m carrier frequencies and the Novice and Technician power restrictio
 
 ### CW
 
-A page at `/cw` for learning, practising and using Morse, with the tone
+A page at `/cw` for learning, practicing and using Morse, with the tone
 adjustable from 300 to 1200 Hz and its own volume — pick whatever you hear
 most comfortably, and it is remembered.
 
@@ -1717,7 +1717,7 @@ buttons are labelled QRV and QSM? and the reason net control keys QRT at
 a room are the same reason, and it is worth stating once so that nobody
 later decides the labels are clutter and tidies them away.
 
-A language is learnt by being surrounded by it. So the program speaks the
+A language is learned by being surrounded by it. So the program speaks the
 language it teaches: a control is labelled the way a contact would put
 it, and it keys its own code before it acts. QRS is not a legend beside a
 Slower button; it is what Slower is called, and after a few evenings of
@@ -1769,7 +1769,7 @@ What the answer does, and why it is built this way. The letter on the
 screen is the learner's own, green when right and red when wrong, and
 the name said aloud is always the character that was sent. Two different
 things are happening and they are deliberately not the same thing. The
-colour is about their answer: a right one is affirmed, a wrong one is
+color is about their answer: a right one is affirmed, a wrong one is
 marked, and a mark that costs nothing but is unmistakable is enough to
 make the next attempt more careful - positive punishment in the plain
 sense, something added rather than taken away. The spoken name is about
@@ -1777,7 +1777,7 @@ the sound: it arrives right after the tone, every time, right or wrong,
 so the tone and the word are paired on every single presentation and the
 pairing is never weakened by a miss. Naming the learner's mistake instead
 would pair a sound with the wrong word, which is the one thing this pane
-could do that would teach something that has to be unlearnt later. A miss
+could do that would teach something that has to be unlearned later. A miss
 brings the same character round again, so the pairing repeats while the
 attention is on it.
 
@@ -1785,7 +1785,7 @@ None of that is on the screen and none of it needs to be. The learner
 sees a red letter and hears the right name. The mechanism is the
 program's business; the effect is theirs. It is also confined to this
 pane: the drills above keep scores and say nothing about right and wrong
-in colour, because a learner who still needs the scaffolding is not the
+in color, because a learner who still needs the scaffolding is not the
 same person as one being timed, and leaving it up would turn a measure
 into a crutch.
 
@@ -1794,7 +1794,7 @@ bug behind it: "name it afterwards" put the bare letter on the screen,
 and naming a character means saying what it is called. One function names
 a character for the whole page now - shown, spelled phonetically, said.
 
-*One source of truth for a licence class (2026-09-18).* Three places
+*One source of truth for a license class (2026-09-18).* Three places
 asked what class this station holds and two of them disagreed about how to
 answer. `gating.reach` took `settings["license_class"]` first and the FCC
 record second; `_own_class` took the record first. The band plan's picker
@@ -1806,7 +1806,7 @@ Commission publishes the file, the operator does not have to be taken at
 their word, and nobody is asked for something already published.
 
 An own answer stays possible, because callook serves the ULS and nothing
-else and a Canadian licence resolves to nothing here, and because an
+else and a Canadian license resolves to nothing here, and because an
 upgrade granted this week is not in the weekly file yet. It is marked
 `SOURCE = OWN` and every screen showing the class says which word it is
 looking at. The line it may not cross is paper: the print path asks for
@@ -1825,7 +1825,7 @@ the ones you hold could never fire, because the setting it compares
 against had just been set to the class being read. A warning defeated by
 the page it warns on is worse than no warning. The rule now: reading is
 free and claiming is deliberate. The picker persists nothing, the page
-opens on `_own_class()` every time, and a licence is set where a licence
+opens on `_own_class()` every time, and a license is set where a license
 is set - a callsign the FCC record answers for, or the setup page. The
 gate, the owl and the printed sheet all ask one helper what this station
 holds, which is the parsimony that was missing.
@@ -2134,7 +2134,7 @@ browser's geolocation, which on Raspberry Pi OS resolves through a network
 lookup service Chromium has no key for and which never consults gpsd at all —
 so on the one machine with a receiver plugged into it, the browser was the
 source least able to answer, and the button failed while gpsd was reporting a
-3D fix half a metre away. It now takes the fix from the server, reverse-geocoded
+3D fix half a meter away. It now takes the fix from the server, reverse-geocoded
 to a name where one is known, and falls back to the browser only when the
 station has nothing.
 
@@ -2150,7 +2150,7 @@ Real solar and geomagnetic data from N0NBH (hamqsl.com) and NOAA SWPC: flux, K
 and A indices, sunspots, solar wind, X-ray background, aurora, band-by-band
 ratings for day and night, and an estimated MUF and foF2. Set your grid square
 and it works out your local solar elevation to pick the right day/night ratings
-and tell you when you're near the grey line.
+and tell you when you're near the gray line.
 
 Every indicator is annotated with what it means and why the exams care, with
 one-click links into the matching pool sections — reading about the MUF while
@@ -2294,16 +2294,16 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   whose coil is driven in and out by a motor. That last one is the only antenna
   here without a single Q, because it is defined by covering a decade — its
   figure is anchored at 40 m and scaled, which lands on the tens of kilohertz
-  builders measure down there and most of a megahertz on 10 m. Dimensions in feet, metres and
+  builders measure down there and most of a megahertz on 10 m. Dimensions in feet, meters and
   inches, feed impedance, gain, and for horizontal wire the takeoff angle your
   height above ground actually buys. A short whip reports its radiation
   resistance, efficiency and the loading it needs, which is the honest answer to
   why mobile HF is hard.
 
   The **build sheet** each of these prints carries the whole band it is cut
-  for at the top of it, once: the same coloured segment bar the band chart
+  for at the top of it, once: the same colored segment bar the band chart
   draws, with the slice this antenna holds under 2:1 outlined on it, and
-  whatever the licence may not transmit in hatched over. A wire cut for one
+  whatever the license may not transmit in hatched over. A wire cut for one
   frequency reaches a good deal more of a band than the frequency it was cut
   for, and most of what is up there is a mode rather than a frequency — one
   nobody thinks of is usually only out of mind because it was out of sight.
@@ -2629,7 +2629,7 @@ ledger under `data/forecasts/` with the inputs it was drawn from and the build
 that drew it, and every measured MUF is written down as it arrives. From those
 two the unit answers three questions on its own. *Skill*: "Yesterday at this
 hour ELMER said MUF 12.4; the sondes read 14.2" — kept by lead time and by sky
-(lit, grey, dark), so "the model runs 1.8 MHz low at night" is a measured
+(lit, gray, dark), so "the model runs 1.8 MHz low at night" is a measured
 sentence with an n behind it. *Adjustment*: where the record shows a steady
 bias by sky, the unit corrects its own model by that amount — only where no
 fresh reading holds, only after twelve measured hours of that sky agree, never
@@ -2663,7 +2663,7 @@ yesterday. So as the sonde anchor lets go, the forecast for an hour leans on
 what the sondes measured at that hour of day over the last three days, the
 most recent counting most (0.5 / 0.3 / 0.2). Over the year, blind: the
 24-hour error 2.68 → **1.87 MHz**, better than persistence alone in every
-month; the grey line — the weakest sky — 3.58 → 1.97; night 2.57 → 1.62; day
+month; the gray line — the weakest sky — 3.58 → 1.97; night 2.57 → 1.62; day
 3.04 → 2.09. The model keeps the hours the record cannot speak for and the
 shape between, and the strip says when the record is speaking. A unit's first
 day has no record and runs on the model; by the fourth it has all three.
@@ -2678,7 +2678,7 @@ the rest as the last run that saw them, so a quick run in September keeps the
 December a year run measured; the card says which months came from which run.
 A season is the unit of variation, which is why the quickest is a quarter and
 not a month. The operator watches it
-happen — a finding a month ("October: the model ran 1.6 MHz under at the grey
+happen — a finding a month ("October: the model ran 1.6 MHz under at the gray
 line") between cards from the history deck, the quotations and the hams people
 have heard of — because a screen that goes quiet for five minutes reads as
 broken. It runs the year again with the correction on and shows what it
@@ -2799,7 +2799,7 @@ reboot on a new lease, and the table follows it there without anybody typing.
 
 ### While the table catches up
 
-Somebody who has answered used to sit looking at their greyed-out choices until
+Somebody who has answered used to sit looking at their grayed-out choices until
 the round closed. That is the one moment in an evening a person is holding a
 screen with nothing to do but read it, so they get a **card** — a little of the
 history of the art: Hertz saying his waves were no use to anyone, the 92 Code
@@ -3015,7 +3015,7 @@ and a stroke.
 sitting and reasoning an answer through, weighing the alternatives, talking
 radio with friends between strokes - and nobody misses a shot to a clock.
 Nothing in a round is timed. The player who is *away* - farthest from the
-hole; on the tee, the honour, which is the best score on the last hole -
+hole; on the tee, the honor, which is the best score on the last hole -
 plays, and the rest of the group watches, the question in front of them
 too. The screens show no clock and the swing does not know how long the
 answer took. (A golfer who has walked off is waited on for ten minutes,
@@ -3093,18 +3093,18 @@ rules see it, because the game had no routing. Now it has: the club's own
 - fairways, greens, tees, bunkers, water, the coastline and the eighteen
 hole lines with their numbers - as OpenStreetMap contributors mapped it,
 fetched once by `tools/fetch_golf_map.py` into `data/golf/<course>.map.json`
-(metres about the course's centre, rounded to the half metre, sixty to a
+(meters about the course's center, rounded to the half meter, sixty to a
 hundred and seventy kilobytes a course, ODbL and credited on every
-picture) and drawn from there in the strip's colours, never from the
+picture) and drawn from there in the strip's colors, never from the
 network. The first attempt was screenshots of the OSM tiles, and they were
-terrible: somebody else's scale, colours and labels, cropped by a frame
+terrible: somebody else's scale, colors and labels, cropped by a frame
 that did not fit them. This is the same facts in ELMER's hand. The whole
 course is the frame on the clubhouse wall while a tee time counts down;
 one hole, turned tee-at-the-foot like the strip with the balls placed
 along its line, is the frame a person waiting on a tee time watches the
 group on. A frame is *filled*: the course is fitted to whatever width and
 height the screen has and the ground may stretch to fill it, up to one and
-a half to one, past which it is centred with margins rather than squashed
+a half to one, past which it is centerd with margins rather than squashed
 into nonsense; the stretch is done to the geometry, not by the browser to
 the picture, so the numbers, flags and line widths stay true while the
 ground gives. The sea is the water on the right hand of the coastline, by
@@ -3237,7 +3237,7 @@ on. Rounds play windier than they did, on purpose.
 
 **The green.** On the green the wind stops mattering and the slope
 starts, and everyone wants the cup. The strip becomes the green: the
-whole of it, the cup at the centre, rings every ten feet, every ball on
+whole of it, the cup at the center, rings every ten feet, every ball on
 it at its feet from the cup, an arrow the way it falls and how much (the
 card gives each green a slope - Pebble's fall toward the ocean and the
 front, placed approximately like the bunkers), and the golfer's mark
@@ -3372,7 +3372,7 @@ a ball is yards along the line and off it wherever the line goes - but
 the width is the rules' width, so the first cut is nearer on a narrow
 hole. Pebble's dog-legs are on the card where the course has them,
 placed approximately like the bunkers. And between holes the tee shows
-the standings after the last, then who has the honour - the best score
+the standings after the last, then who has the honor - the best score
 on the last hole plays first, practice player or person, as on a course.
 
 **The hole, drawn.** Beside the words, every screen shows the hole as a
@@ -3420,7 +3420,7 @@ the ball, the iron in hand, 162 to go from the fairway…* with a pulsing cue
 beside it - the moment at the tee, theirs to enjoy - and then the question.
 After the answer, two beats: first the shot in golfing terms alone - *Halyard…
 Topped it. Iron, a foul ball - short and into the rough* - and only then the
-answers, theirs and the right one at once, two colours side by side, which
+answers, theirs and the right one at once, two colors side by side, which
 people read fine as long as it is one car of the train at a time. The tee
 shot gets the hole read out; every stroke after it gets the narrator alone,
 since we were all there for the start of the hole. What is said goes on the
@@ -3506,7 +3506,7 @@ any time is one of the trivia modes, and they are a tile away.
 **The call.** Every stroke carries what a golfer would say at the moment of
 contact - *Pured it. On the dance floor. Topped it. Hooked it into the
 water. Lipped out.* - shown big above the club and the yards, so somebody
-knows what they hit without reading the coloured answer. And a slot beside
+knows what they hit without reading the colored answer. And a slot beside
 it: put a clip of the swing at `elmer/static/golf/clips/<kind>.gif`
 (`fairway`, `green`, `long`, `holed`, `rough`, `sand`, `water`, `missed`)
 and the reveal shows it - the unit reads the folder when a round starts, so
@@ -3573,7 +3573,7 @@ Technician figure question has its part on it.
 ### The room's mark, and the credit
 
 Every room page - the table, a phone at it, net control, the big board -
-carries ELMER's own mark in its head, ringed in the colour of the pool the
+carries ELMER's own mark in its head, ringed in the color of the pool the
 room is playing: green for Technician, amber for General, violet for Extra,
 cyan for the commercial pools. Beside it, in words, the credit: *made with
 Claude Code*. Words rather than a borrowed logo, because the logo is
@@ -3632,7 +3632,7 @@ left that field blank, may be corrected — a spelling, not a nickname — since
 somebody who typed *bob* on a phone should not get that in 44-point type. Name
 fixes are not kept; they were about those people and that print.
 
-What it does not say is anything about a licence. A game played on the
+What it does not say is anything about a license. A game played on the
 question pools is not an examination, and the foot of every certificate says
 so in as many words, because a sheet with *Technician* in large letters will be
 read that way by somebody unless the paper itself says otherwise.
@@ -3641,7 +3641,7 @@ The medal renders in `artwork/` were generated with Google Gemini at KC9SP's
 direction — they are not hand-drawn, and this document says so because a
 certificate is the one page of this program that leaves the building. They
 are cut into `elmer/static/medals/` and set on a drawn ribbon; the art's own
-ribbon is discarded, which is why the renders need not agree about its colour.
+ribbon is discarded, which is why the renders need not agree about its color.
 Where the art is missing a drawn medal stands in, so the certificate never
 waits on a file. All three were re-made without a callsign on the face —
 CHAMPION, FINALIST, BRONZE MEDALIST — so the set is any club's to print.
@@ -3732,7 +3732,7 @@ net control across a reboot — an operator who reboots the Pis in the small
 hours (ELMER never restarts or updates itself; see *Keeping it up to date*) should not have
 to walk twenty tables through a form before the doors open.
 
-### The run-up, and the programme keeping time
+### The run-up, and the program keeping time
 
 The first question after a pause does not appear from nowhere. A hall that
 has been in intermission for ten minutes and then has a question on every
@@ -3740,16 +3740,16 @@ screen in the same instant has handed the round to whoever happened to be
 looking, and the rest will say, rightly, that their time was taken. So the
 conductor puts five seconds on every screen first — **Get ready!** until three
 seconds are left, then **3**, **2**, **1** — and asks on nought. The same five
-seconds whether the host pressed Play or the programme's clock ran out, on the
+seconds whether the host pressed Play or the program's clock ran out, on the
 table screens, the phones and the board together, because the people in the
 room cannot tell which it was and should not have to. The seconds are counted
 on net control and each screen keeps the earliest reading it has had, so a
 slow poll never pushes a three back to a four.
 
-A programme step with minutes on it used to be a note for the host, who
+A program step with minutes on it used to be a note for the host, who
 pressed Next when it felt like ten minutes. Now it keeps time: a small clock
 sits in the corner of every screen — *Intermission · 4:32* — and when it runs
-out the programme moves on by itself. Where a game follows, the hand-over
+out the program moves on by itself. Where a game follows, the hand-over
 comes five seconds early so the run-up *is* the intermission's last five
 seconds and the clock reaches 0:00 as the question goes up. A rounds step
 hands over when its rounds are played, a shootout when it is won; steps with
@@ -3781,7 +3781,7 @@ said and when is logged; who saw it is not.
 moment — net control turns them over, which is what makes it a show rather
 than a screensaver. Trivia from five decks (history, quotations, famous hams,
 operating technique, the gear — every card checkable, sources named), the
-standings, the join code, the programme, and the event's own cards: sponsors
+standings, the join code, the program, and the event's own cards: sponsors
 (a name, a line, their image, added from the host page and served from this
 unit) and club notices (membership, coming events, a link). A trivia card
 sits between every other kind; the host ticks decks on and off and sets the
@@ -3811,7 +3811,7 @@ hall. That is the piece that was not possible before: an instructor who can
 see, while the room is still in front of them, which section it did not
 understand.
 
-**The programme.** The event as a list — intermission, twelve rounds, ten
+**The program.** The event as a list — intermission, twelve rounds, ten
 minutes' study on what the room missed, an announcement, a shootout,
 certificates, thanks — walked with one button. Each step does the thing: the
 conductor starts or stops, an open question is scored before the screens
@@ -4285,7 +4285,7 @@ every other PDF ELMER makes.
 The printed one is not the screen one. It goes in the vehicle, so it carries
 coordinates: the next thing anybody does with a reference they have chosen is
 type it into something that wants numbers, and a phone at a trailhead with no
-signal will not look it up. It keeps the screen's colours — green for parks,
+signal will not look it up. It keeps the screen's colors — green for parks,
 blue for summits — so nobody has to learn a second scheme. And it prints the
 count held against the count shown, because a sheet listing thirty parks where
 four hundred and eighty-five are held must not be mistaken for the whole of
@@ -4296,7 +4296,7 @@ or 0 and 10 — in whatever units you read distances in, set once behind the gea
 and used by the filter, the table and the sheet alike. The trips people take are bands — nought to ten miles is an
 evening after work, thirty to forty is somewhere worth the drive with nothing
 already worked in between — and a list that always starts at the doorstep
-buries the second kind under the first. And it can be centred somewhere else — **from where I am now**, or from where
+buries the second kind under the first. And it can be centerd somewhere else — **from where I am now**, or from where
 you are going. Type a town, a grid square or coordinates; the last two resolve
 without touching the network. Asking about somewhere nothing has been fetched
 for says so, and says that rather than "nothing is near there", because those
@@ -4310,16 +4310,16 @@ minute, which is not a thing to start by accident from a button marked print.
 
 It also holds **Distances in** — metric, imperial or nautical. That preference
 is deliberately narrow: it governs how far away a *thing* is, and nothing else.
-Nobody calls it the forty yard band. Wavelength stays in metres because the
-bands are named in metres, wire stays in feet because that is how wire is sold
+Nobody calls it the forty yard band. Wavelength stays in meters because the
+bands are named in meters, wire stays in feet because that is how wire is sold
 and how every handbook table prints it, and hmF2 and skip distance stay in
-kilometres because that is what ionosondes report. An operator choosing
+kilometers because that is what ionosondes report. An operator choosing
 imperial is saying how they think about a drive to a park, not asking for 40 m
 to be renamed.
 
 
 A gear at the right-hand end of the top bar opens **Your station**: what ELMER
-calls you, your callsign, your licence class, and where you operate from.
+calls you, your callsign, your license class, and where you operate from.
 
 None of it is new ground. The callsign is on the Band Plan, the QTH is on the
 map, the name is in the account menu, and all of that stays exactly where it is
@@ -4563,14 +4563,14 @@ away at the critical frequency, and the sonde gives its numbers: the peak
 height, the critical frequency, and M(3000)F2. `patterns.py` carries the
 layer; its semi-thickness is a third of its height, because fitting it to
 the sonde's M(3000) gave absurd layers when a sonde's own two numbers
-disagreed slightly, and the sonde's factor is honoured instead by scaling
+disagreed slightly, and the sonde's factor is honored instead by scaling
 the curve to pass through 1 straight up and the station's own factor at
 3000 km. The shape is the layer's, the level is the sonde's.
 
 So each cell is rated against its own hop's ceiling - foF2 times the factor
 for that distance - with the D-layer absorption scaled by how obliquely the
 hop crosses it, near-vertical paying a quarter of a long hop. The NVIS door
-is the same factor at a few hundred kilometres, so the words and the map
+is the same factor at a few hundred kilometers, so the words and the map
 cannot disagree. And the antenna's weighting keeps the level of the two-ray
 pattern - 1.0 is the element alone in free space - so a wire a fifth of a
 wave up is credited the image's reinforcement overhead, up to the 6 dB it
@@ -4707,7 +4707,7 @@ Three rules hold whenever an update is actually asked for:
 - **Never over local edits.** A change to a tracked file is somebody's work in
   progress, and an update that discards it is a bug. This is what keeps the
   updater quiet on the machine ELMER is actually written on. Untracked files are
-  left out of that judgement — they are nobody's business but their owner's, and
+  left out of that judgment — they are nobody's business but their owner's, and
   git refuses by itself if an incoming commit would land on one.
 - **Never prompts.** The check runs on a background thread where a credential
   prompt would simply hang, so git runs with prompting off and ssh in batch
@@ -4878,8 +4878,8 @@ rule.
 
 ELMER is a gift to the amateur radio community, which has given its author
 a great deal, and it is free for noncommercial use - the same words the
-licence uses, because a sentence about the coffee that said "free for
-everyone" was making a wider promise than the licence does. Some people
+license uses, because a sentence about the coffee that said "free for
+everyone" was making a wider promise than the license does. Some people
 will want to thank
 the developer with a cup of coffee, and the program should notice that
 without ever turning into a toll gate. The rules, and why:
@@ -4966,7 +4966,7 @@ unit*.
 ELMER's own code and artwork are under the
 [PolyForm Noncommercial License 1.0.0](LICENSE) — free for personal study,
 hobby and amateur use, for clubs, schools and other noncommercial
-organisations, but not for commercial use. Note that this is deliberately not
+organizations, but not for commercial use. Note that this is deliberately not
 an open-source license in the OSI sense.
 
 The question pools and rule text under `data/` are *not* covered by that

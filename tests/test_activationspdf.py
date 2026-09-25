@@ -101,16 +101,16 @@ check("30-40 reads as a band",
       "Between 30 and 40 miles out.")
 check("the same band in metric",
       activationspdf._band(48.3, 64.4, "metric"),
-      "Between 48 and 64 kilometres out.")
+      "Between 48 and 64 kilometers out.")
 check("and in nautical miles",
       activationspdf._band(48.3, 64.4, "nautical"),
       "Between 26 and 35 nautical miles out.")
 check("no band, nothing said", activationspdf._band(0, None, "metric"), "")
-# Both units against every distance. The screen counts in kilometres, and a
+# Both units against every distance. The screen counts in kilometers, and a
 # sheet that quietly switched would have somebody comparing two numbers that
 # are not the same number.
 # One unit, the operator's, on the page and in the filter both. Asking for a
-# range in miles and answering in kilometres is the mismatch that makes a
+# range in miles and answering in kilometers is the mismatch that makes a
 # reader distrust every other number on the sheet.
 check("a distance is in the operator's units",
       activationspdf._away({"km": 21}, "imperial"), "13")
@@ -130,7 +130,7 @@ check("default is a page or two of each",
       10 <= activationspdf.DEFAULT_LIMIT <= 60, True)
 one = activationspdf.build(PARKS, SUMMITS, want="parks", station=STATION,
                            limit=3)
-check("and it is honoured", len(one) < len(sheets["parks"]), True)
+check("and it is honored", len(one) < len(sheets["parks"]), True)
 
 print("\na station with nothing on it still prints")
 bare = activationspdf.build(PARKS[:2], SUMMITS[:2], want="both")

@@ -94,7 +94,7 @@
   "lab": "ohm"
  },
  "3-11": {
-  "note": "Frequency, period and wavelength are locked together by the speed of light. Multiply and divide by 300 to move between frequency in MHz and wavelength in metres. Harmonics are integer multiples of the fundamental.",
+  "note": "Frequency, period and wavelength are locked together by the speed of light. Multiply and divide by 300 to move between frequency in MHz and wavelength in meters. Harmonics are integer multiples of the fundamental.",
   "key_facts": [
    "Wavelength (m) = 300 / frequency (MHz)",
    "Period = 1 / frequency",
@@ -242,7 +242,7 @@
   ]
  },
  "3-27": {
-  "note": "An LED is a forward-biased diode that emits light, with a forward drop of roughly 1.5 to 2.5 V depending on colour. It always needs a series current-limiting resistor. Seven-segment displays and indicators are built from arrays of them.",
+  "note": "An LED is a forward-biased diode that emits light, with a forward drop of roughly 1.5 to 2.5 V depending on color. It always needs a series current-limiting resistor. Seven-segment displays and indicators are built from arrays of them.",
   "key_facts": [
    "An LED emits light when forward biased",
    "LED forward voltage is typically 1.5-2.5 V, higher for blue and white",
@@ -270,7 +270,7 @@
   "lab": "react"
  },
  "3-30": {
-  "note": "Operational amplifiers have very high open-loop gain, high input impedance and low output impedance, so feedback sets their behaviour. Inverting gain is the ratio of feedback to input resistor, with a sign change. The two inputs sit at virtually the same voltage when feedback is applied.",
+  "note": "Operational amplifiers have very high open-loop gain, high input impedance and low output impedance, so feedback sets their behavior. Inverting gain is the ratio of feedback to input resistor, with a sign change. The two inputs sit at virtually the same voltage when feedback is applied.",
   "key_facts": [
    "Inverting gain = -Rf / Rin;  non-inverting gain = 1 + Rf / Rin",
    "Ideal op-amp: infinite gain and input impedance, zero output impedance",
@@ -568,7 +568,7 @@
   ]
  },
  "3-63": {
-  "note": "Antenna fundamentals. A half-wave dipole fed at the centre presents about 73 ohms and radiates broadside. A quarter-wave vertical over a ground plane presents about 36 ohms. Gain always comes from concentrating radiation in some directions at the expense of others.",
+  "note": "Antenna fundamentals. A half-wave dipole fed at the center presents about 73 ohms and radiates broadside. A quarter-wave vertical over a ground plane presents about 36 ohms. Gain always comes from concentrating radiation in some directions at the expense of others.",
   "key_facts": [
    "Half-wave dipole feed impedance is about 73 ohms",
    "Quarter-wave ground plane feed impedance is about 36 ohms",
@@ -578,9 +578,9 @@
   "lab": "ant"
  },
  "3-64": {
-  "note": "Along a resonant antenna, current is maximum and voltage minimum at the centre of a half-wave dipole, with the reverse at the ends. That is why an end-fed half wave presents a very high impedance while a centre-fed one presents a low one.",
+  "note": "Along a resonant antenna, current is maximum and voltage minimum at the center of a half-wave dipole, with the reverse at the ends. That is why an end-fed half wave presents a very high impedance while a center-fed one presents a low one.",
   "key_facts": [
-   "Current is maximum at the centre of a half-wave dipole",
+   "Current is maximum at the center of a half-wave dipole",
    "Voltage is maximum at the ends of a half-wave dipole",
    "Radiation resistance accounts for the power actually radiated",
    "Efficiency = radiation resistance / total resistance"
@@ -596,7 +596,7 @@
   ]
  },
  "3-66": {
-  "note": "Transmission line behaviour. Characteristic impedance depends on conductor geometry, not length. A shorted quarter-wave stub looks open at its input and vice versa; a half-wave line repeats the load impedance. Velocity factor means physical length is always less than free-space length.",
+  "note": "Transmission line behavior. Characteristic impedance depends on conductor geometry, not length. A shorted quarter-wave stub looks open at its input and vice versa; a half-wave line repeats the load impedance. Velocity factor means physical length is always less than free-space length.",
   "key_facts": [
    "Shorted quarter-wave stub looks like an open circuit at its input",
    "A half-wave line repeats the load impedance",
@@ -639,7 +639,7 @@
    "Localizer: 108-112 MHz, provides lateral guidance",
    "Glide slope: 329-335 MHz, typically a 3 degree descent path",
    "Marker beacons operate on 75 MHz",
-   "Outer, middle and inner markers are identified by tone and light colour"
+   "Outer, middle and inner markers are identified by tone and light color"
   ]
  },
  "3-71": {
@@ -859,7 +859,7 @@
   ]
  },
  "3-95": {
-  "note": "Low earth orbit satellite systems circle a few hundred to a couple of thousand kilometres up, so each satellite is in view only briefly and a constellation with handoff is needed for continuous coverage. Low altitude means short path delay and lower power requirements.",
+  "note": "Low earth orbit satellite systems circle a few hundred to a couple of thousand kilometers up, so each satellite is in view only briefly and a constellation with handoff is needed for continuous coverage. Low altitude means short path delay and lower power requirements.",
   "key_facts": [
    "LEO altitude is roughly 200-2000 km",
    "A LEO satellite is in view for only minutes per pass",

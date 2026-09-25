@@ -152,7 +152,7 @@ const who = document.getElementById('who');
 
 /* Every call has a deadline and is counted while it is out. A press whose
    request never leaves the browser - the connection pool full, a fetch
-   that hangs - used to sit for ever with the button greyed and nothing in
+   that hangs - used to sit for ever with the button grayed and nothing in
    any log; now it fails at the deadline, and the report says how many
    other requests were in flight and what the narrator's audio was doing,
    which is the one place a page like this can tie the pool up. */
@@ -528,7 +528,7 @@ function golfHeadHTML(gf) {
   const standings = onTheTee && gf.holes_played > 0 && !gf.over
     ? `<p class="clock" style="margin:0 0 .3rem">Standings after the ${ordinal(gf.holes_played)}</p><table class="board" style="margin-bottom:.6rem">${(gf.leaderboard || []).map(r =>
         `<tr class="${r.player === me.id ? 'me' : ''}"><td class="n">${r.place}</td><td>${escapeHTML(r.name)}</td><td class="ms">${r.gross}</td><td class="ms">${r.to_par > 0 ? '+' + r.to_par : r.to_par === 0 ? 'E' : r.to_par}</td></tr>`).join('')}</table>` +
-      (gf.away_name ? `<p style="margin:0 0 .6rem"><b>${escapeHTML(gf.away_name)}</b> has the honour on the ${ordinal(gf.hole)}.</p>` : '')
+      (gf.away_name ? `<p style="margin:0 0 .6rem"><b>${escapeHTML(gf.away_name)}</b> has the honor on the ${ordinal(gf.hole)}.</p>` : '')
     : '';
   const onTheGreen = !onTheTee && (gf.away_lie === 'green' || gf.away_lie === 'fringe');
   return standings + (onTheTee && gf.tee_pic && !gf.over
@@ -724,7 +724,7 @@ async function send(index, button, extra) {
 }
 
 /* ----------------------------------------------------- the wait, filled */
-/* Somebody who has answered used to sit looking at their greyed-out choices
+/* Somebody who has answered used to sit looking at their grayed-out choices
    until the round closed. That is dead time, and it is the one moment in the
    evening a person is holding a screen with nothing to do but read it - so
    they get a card: a little of the history of the art, which the exam never
@@ -928,7 +928,7 @@ function paintShootout(shoot, withNote) {
             <table>${rows}</table></div>`;
 }
 
-/* The picker's screen: the subjects left, as buttons. The judgement being
+/* The picker's screen: the subjects left, as buttons. The judgment being
    made is "what do I know that they do not", which is a subject-level one,
    so it is subjects rather than questions - and the ones already spent are
    simply not offered, because the rule is that a subject is played once. */

@@ -172,7 +172,7 @@ def skill(card, now=None, prior=0.5):
         retention = math.exp(-DECAY * _elapsed_days(card, now) / card["interval"])
     else:
         retention = 0.55 if card["reps"] == 0 else 1.0
-    # Recognising the right answer among four choices decays more slowly than
+    # Recognizing the right answer among four choices decays more slowly than
     # free recall does, so forgetting erodes the estimate rather than erasing
     # it. Without this the readiness number sits several questions below what
     # the same learner actually scores on a mock exam.

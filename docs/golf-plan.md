@@ -195,7 +195,7 @@ returning the club the yards want, the reach of the club in hand, where a
 short club comes down, and the landing patch - drawn on the map and said on
 the phone. It landed ahead of stage 3 because it needs no route data. What
 remains of this stage is the route half: `kind`, `route` and the gold ring,
-once stage 3's routes exist. The colours below are the plan for that; in
+once stage 3's routes exist. The colors below are the plan for that; in
 range is drawn white rather than green, because green does not read on a
 green.*
 
@@ -209,7 +209,7 @@ def read_mark(self, player, at, off):
        "says": "the bay — 245 to carry"}
 ```
 
-| Colour | Means |
+| Color | Means |
 |---|---|
 | green | fairway or green |
 | sand | in a bunker |
@@ -223,7 +223,7 @@ clubbing, and repaints on a club change.
 **Water is never gold.** Gold is only ever a curated route from a card. The
 skip is never presented as a play.
 
-**The colour is never alone.** The project's own rule from the band palette.
+**The color is never alone.** The project's own rule from the band palette.
 `_mark_title()` already writes `aiming 255, 18 left`; it gains the reading,
 so the strip is legible to somebody who cannot separate the red from the
 gold.
@@ -277,7 +277,7 @@ mark as a cross and already knows where the hazards are.
 
 | Failure | Level | Log says | Resolution |
 |---|---|---|---|
-| strip cached by `k`, colour stale | `debug` | the key | `k` includes the mark and its reading |
+| strip cached by `k`, color stale | `debug` | the key | `k` includes the mark and its reading |
 
 ---
 
@@ -398,7 +398,7 @@ didnt-make-the-carry  "He didn't get all of it."
 skipped-it            "Skipped it! That's still dry."
 ```
 
-Per-hole colour, following the existing `hole-<course>-<n>-<where>-<k>`
+Per-hole color, following the existing `hole-<course>-<n>-<where>-<k>`
 convention, optional and silent until recorded:
 
 ```
@@ -420,7 +420,7 @@ Hole 7's lore lives here and nowhere else.
 | 3 | Route data + hole tilt | — | no |
 | 4 | `read_mark()` | 3 | no |
 | 5 | Nerve + chooser | 3 | no |
-| 6 | Strip colours | 4 | no |
+| 6 | Strip colors | 4 | no |
 | 7 | Difficulty: think-time, segments, shot floor | 3 | no |
 | 8 | Records | 5, 7 | no |
 | 9 | Narration | 3, 5 | **yes** |

@@ -5,7 +5,7 @@
 
 Four tests in one day wrote a stranger's club name into a unit setting, left
 a certificate on the real print shelf, set a password on a real account, and
-read the operator's licence class - each caught by hand, each patched by
+read the operator's license class - each caught by hand, each patched by
 hand. This holds the wholesale answer: every test imports _isolate first,
 which moves the operator's state to a temporary directory, and a guard on
 Python's audit hook that fails the run if this process opened anything under

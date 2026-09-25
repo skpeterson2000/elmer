@@ -97,7 +97,7 @@ PARTS = [
                    "part of the circuit. Two thirds of the way up it needs "
                    "about half again as much inductance, and it puts current "
                    "into the part of the rod that is doing the radiating.",
-        "do": "Centre-load it if you can hold the weight up there. A bought "
+        "do": "Center-load it if you can hold the weight up there. A bought "
               "whip distributes the winding along the whole rod, which is the "
               "same idea taken further than anybody winds by hand.",
         "cheat": "A capacity hat above the coil - three or four spokes, a "
@@ -165,7 +165,7 @@ LAKEVIEW_CHARTS = {
 # single whip on a vehicle whose SWR will not come under 1.5:1 by tuning. A
 # short vertical's feedpoint is well under 50 ohms, and a shunt capacitance at
 # the base with the whip left a little long (inductive) is an L-network with
-# the whip as the other half. Measured by Lakeview on centre-loaded whips
+# the whip as the other half. Measured by Lakeview on center-loaded whips
 # clear of surroundings; the sheet says other mountings change the values,
 # and to recheck resonance afterwards because matching moves it a little.
 # 1000 V rating. Nothing here applies to the two-whip dipole, whose feedpoint
@@ -210,7 +210,7 @@ def stinger_inches(mhz):
     return None
 
 
-# Free space, near enough for an antenna a few metres long.
+# Free space, near enough for an antenna a few meters long.
 C_M_PER_S = 299_792_458.0
 FT_PER_M = 3.280839895
 
@@ -274,8 +274,8 @@ def base_loading_uh(mhz, height_ft, radius_mm=2.4):
     Base loading is the easy build and the worse antenna: the coil sits where
     the current is highest, so its resistance is in the hottest part of the
     circuit, and the rod above it carries less current than it would if the
-    coil were further up. Centre loading is the usual commercial compromise -
-    see CENTRE_FRACTION.
+    coil were further up. Center loading is the usual commercial compromise -
+    see CENTER_FRACTION.
     """
     xc = abs(base_reactance(mhz, height_ft, radius_mm))
     if xc <= 0:
@@ -286,8 +286,8 @@ def base_loading_uh(mhz, height_ft, radius_mm=2.4):
 # A coil moved up the rod needs more inductance and gives more signal. Two
 # thirds of the way up is the usual commercial compromise, and roughly this
 # much more inductance than the same whip loaded at the base.
-CENTRE_FRACTION = 0.6
-CENTRE_MULTIPLIER = 1.6
+CENTER_FRACTION = 0.6
+CENTER_MULTIPLIER = 1.6
 
 
 def turns_for(uh, radius_in, length_in):
@@ -307,7 +307,7 @@ def plan(mhz, height_ft, radius_mm=2.4, form_dia_in=1.5, form_len_in=4.0,
          loss_ohms=12.0):
     """Everything the build needs for one band, worked out together."""
     base_uh = base_loading_uh(mhz, height_ft, radius_mm)
-    centre_uh = base_uh * CENTRE_MULTIPLIER
+    center_uh = base_uh * CENTER_MULTIPLIER
     r = form_dia_in / 2.0
     return {
         "mhz": mhz,
@@ -317,9 +317,9 @@ def plan(mhz, height_ft, radius_mm=2.4, form_dia_in=1.5, form_len_in=4.0,
         "reactance_ohms": base_reactance(mhz, height_ft, radius_mm),
         "base_uh": base_uh,
         "base_turns": turns_for(base_uh, r, form_len_in),
-        "centre_uh": centre_uh,
-        "centre_turns": turns_for(centre_uh, r, form_len_in),
-        "centre_at_ft": height_ft * CENTRE_FRACTION,
+        "center_uh": center_uh,
+        "center_turns": turns_for(center_uh, r, form_len_in),
+        "center_at_ft": height_ft * CENTER_FRACTION,
         "efficiency": efficiency(mhz, height_ft, loss_ohms),
         "db_down": db_down(mhz, height_ft, loss_ohms),
         "loss_ohms": loss_ohms,

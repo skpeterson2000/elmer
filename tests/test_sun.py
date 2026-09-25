@@ -70,17 +70,17 @@ def main():
     check("  and sunset", clock(rs["set"], 1), "21:21")
 
     print("\n-- the sun is up longer than half the day, and here is why --")
-    # On an equinox the geometric centre would be up for exactly twelve hours.
+    # On an equinox the geometric center would be up for exactly twelve hours.
     # It is not, because sunrise is the upper limb and the atmosphere has
     # already lifted it: 16' of semidiameter and 34' of refraction between them
     # buy several extra minutes at each end.
     start = local_midnight(2026, 3, 20, 0)
     limb = celestial.day_length_hours(0.0, 0.0, start)
-    centre = celestial.day_length_hours(0.0, 0.0, start,
-                                        altitude=celestial.SUN_CENTRE)
+    center = celestial.day_length_hours(0.0, 0.0, start,
+                                        altitude=celestial.SUN_CENTER)
     near("equinox on the equator, upper limb", limb, 12.12, 0.06)
-    near("  the geometric centre, near enough twelve", centre, 12.0, 0.02)
-    check("  so the illusion lengthens the day", limb > centre + 0.05, True)
+    near("  the geometric center, near enough twelve", center, 12.0, 0.02)
+    check("  so the illusion lengthens the day", limb > center + 0.05, True)
 
     print("\n-- rise and set stand either side of solar noon --")
     # Whatever the date, the two crossings are equidistant from the sun's
@@ -140,15 +140,15 @@ def main():
     for name, alt in [("astronomical", celestial.ASTRONOMICAL_TWILIGHT),
                       ("nautical", celestial.NAUTICAL_TWILIGHT),
                       ("civil", celestial.CIVIL_TWILIGHT),
-                      ("greyline", -9.03),
+                      ("grayline", -9.03),
                       ("sunrise", celestial.SUN_UPPER_LIMB)]:
         times[name] = celestial.rise_set(46.60, -94.31, start,
                                          altitude=alt)["rise"]
         print(f"        {name:<13} {clock(times[name], -5)}")
     check("astronomical first", times["astronomical"] < times["nautical"], True)
-    check("  then nautical", times["nautical"] < times["greyline"], True)
+    check("  then nautical", times["nautical"] < times["grayline"], True)
     check("  then the D layer's own horizon",
-          times["greyline"] < times["civil"], True)
+          times["grayline"] < times["civil"], True)
     check("  then civil, then the sun itself",
           times["civil"] < times["sunrise"], True)
 

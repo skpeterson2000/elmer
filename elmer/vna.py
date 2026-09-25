@@ -56,7 +56,7 @@ def _crossings(rows, key, level):
         if ya is None or yb is None:
             continue
         # An exact hit is a crossing. Missing that case is how a whip resonant
-        # precisely on the sweep's centre frequency - the commonest thing
+        # precisely on the sweep's center frequency - the commonest thing
         # anybody will type in - reported no resonance at all.
         if ya == level:
             out.append(a["mhz"])
@@ -106,25 +106,25 @@ def _markers(rows, swr_key, x_key):
     }
 
 
-def sweep(kind="dipole", f0_mhz=14.2, line="rg8x", feet=0.0, centre_mhz=None,
+def sweep(kind="dipole", f0_mhz=14.2, line="rg8x", feet=0.0, center_mhz=None,
           span=0.14, points=DEFAULT_POINTS, q=None):
     """One sweep, at the feedpoint and at the far end of `feet` of `line`.
 
     `f0_mhz` is where the antenna is resonant - the length you cut it to.
-    `centre_mhz` is where you are looking, which is the point of the whole
+    `center_mhz` is where you are looking, which is the point of the whole
     exercise: an antenna cut for 14.2 and swept around 14.2 tells you nothing
     about whether you cut it right.
     """
     spec = smith.LINES.get(line) or smith.LINES["rg8x"]
     z0 = spec["z0"]
-    centre = float(centre_mhz or f0_mhz)
+    center = float(center_mhz or f0_mhz)
     span = max(0.01, min(MAX_SPAN, float(span)))
     points = max(21, min(801, int(points)))
     feet = max(0.0, float(feet))
 
     rows = []
     for n in range(points):
-        f = centre * (1 - span / 2 + span * n / (points - 1))
+        f = center * (1 - span / 2 + span * n / (points - 1))
         if f <= 0:
             continue
         z = patterns.feedpoint_z(kind, f, f0_mhz, q)
@@ -146,21 +146,21 @@ def sweep(kind="dipole", f0_mhz=14.2, line="rg8x", feet=0.0, centre_mhz=None,
 
     at_antenna = _markers(rows, "swr", "x")
     at_shack = _markers(rows, "swr_in", "x_in")
-    matched = smith.matched_loss_db(line, centre, feet) if feet else 0.0
+    matched = smith.matched_loss_db(line, center, feet) if feet else 0.0
     return {
-        "kind": kind, "f0_mhz": round(f0_mhz, 4), "centre_mhz": round(centre, 4),
+        "kind": kind, "f0_mhz": round(f0_mhz, 4), "center_mhz": round(center, 4),
         "span": round(span, 4), "points": len(rows),
         "low_mhz": rows[0]["mhz"], "high_mhz": rows[-1]["mhz"],
         "line": line, "line_label": spec["label"], "z0": z0, "feet": round(feet, 1),
         "matched_loss_db": round(matched, 3),
         "antenna": at_antenna, "shack": at_shack,
         "rows": rows,
-        "read": reading(centre, at_antenna, at_shack, feet, matched,
+        "read": reading(center, at_antenna, at_shack, feet, matched,
                         spec["label"], z0),
     }
 
 
-def reading(centre, at_antenna, at_shack, feet, matched_db, line_label, z0):
+def reading(center, at_antenna, at_shack, feet, matched_db, line_label, z0):
     """The sentence an experienced operator would say looking at that screen.
 
     This is the part that is not on the instrument. A NanoVNA will show you a
@@ -170,7 +170,7 @@ def reading(centre, at_antenna, at_shack, feet, matched_db, line_label, z0):
     out = []
     res = at_antenna.get("resonance_mhz")
     if res:
-        off = (res - centre) / centre
+        off = (res - center) / center
         if abs(off) < 0.002:
             out.append("Resonant essentially where you are looking - the "
                        "reactance crosses zero inside the sweep.")
@@ -178,7 +178,7 @@ def reading(centre, at_antenna, at_shack, feet, matched_db, line_label, z0):
             # A half-wave element is a half wavelength: the fractional length
             # error is the fractional frequency error, the other way up.
             pct = abs(off) * 100.0
-            longer = res < centre
+            longer = res < center
             out.append(
                 "Resonance is at %.3f MHz, %.2f%% %s where you want it, so the "
                 "antenna is %s. %s it by about %.1f%% and the dip comes to you."
@@ -192,7 +192,7 @@ def reading(centre, at_antenna, at_shack, feet, matched_db, line_label, z0):
     else:
         out.append("The reactance does not cross zero inside this sweep, so "
                    "resonance is outside it - widen the span or move the "
-                   "centre until the dip appears.")
+                   "center until the dip appears.")
 
     best = at_antenna.get("best_swr")
     if best is not None and best > 2.0:

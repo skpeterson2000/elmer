@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A printed chart may only carry a callsign for the licence that station holds.
+"""A printed chart may only carry a callsign for the license that station holds.
 
     python3 tests/test_print_claims.py
 
@@ -10,7 +10,7 @@ leaves the screen on paper it becomes a different object. A sheet headed
 anybody who reads it, whatever the page that made it meant.
 
 Other operators would know, and the one waving it would be caught. That is not
-the point: leaving the door open reflects on the community whose licence this
+the point: leaving the door open reflects on the community whose license this
 program exists to teach people to respect, so it is closed here.
 
 The rule is that the callsign goes on only when the class being drawn is the
@@ -64,7 +64,7 @@ def main():
     prints.keep = fake_keep
     client = elmer_app.app.test_client()
 
-    # The licence is stated here rather than read off whoever's unit this is
+    # The license is stated here rather than read off whoever's unit this is
     # running on. A test that asks the machine what class it holds passes on
     # the Pi it was written on and fails on a fresh install, where nobody has
     # entered a callsign yet - which is every clean checkout and every build.
@@ -114,7 +114,7 @@ def main():
     said = bandpdf.NOT_HELD % "GENERAL"
     check("  which names the class it was drawn for",
           "GENERAL" in said, True)
-    check("  and denies being a licence", "not a licence" in said, True)
+    check("  and denies being a license", "not a license" in said, True)
     check("  and denies being about any station",
           "any station" in said, True)
 

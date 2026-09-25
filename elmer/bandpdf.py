@@ -11,14 +11,14 @@ from reportlab.graphics.shapes import Drawing, Image, Line, Rect, String
 from reportlab.platypus import (KeepTogether, PageBreak, Paragraph,
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
-from .bandplan import (BAND_INDEX, KINDS, activity_for, band_colour, gaps_for,
+from .bandplan import (BAND_INDEX, KINDS, activity_for, band_color, gaps_for,
                         privileges_for, usable_answer)
 
 from .palette import KIND_INK
 
-# The activity colours for paper: palette.py's inks, the same hues the
+# The activity colors for paper: palette.py's inks, the same hues the
 # screen shows darkened for white.
-KIND_COLOUR = {kind: colors.HexColor(ink) for kind, ink in KIND_INK.items()}
+KIND_COLOR = {kind: colors.HexColor(ink) for kind, ink in KIND_INK.items()}
 KIND_LABEL = dict(KINDS)
 
 
@@ -58,16 +58,16 @@ def build(bands, license_class, regional=None, station=None, interop=False,
         flow.append(Paragraph(NOT_HELD % license_class.upper(), s["sub"]))
     line = (f"Privileges shown for <b>{license_class}</b> class, per 47 CFR 97.301 "
             f"and 97.305. Activity segments are convention, not law. Each band "
-            f"is drawn to scale below its heading in the colours above, with "
+            f"is drawn to scale below its heading in the colors above, with "
             f"the band edges numbered and as many segment boundaries as fit. "
-            f"Hatching is where a {license_class} may not transmit; plain grey "
+            f"Hatching is where a {license_class} may not transmit; plain gray "
             f"is band with no activity convention on it.")
     if regional:
         line += (f" Regional segments from the {regional['name']} "
                  f"({regional['short']}), fetched {regional.get('fetched', '')}.")
     flow += [Paragraph(line, s["sub"])]
 
-    legend = [[Paragraph(f'<font color="{KIND_COLOUR[k].hexval()}">&#9632;</font> {label}',
+    legend = [[Paragraph(f'<font color="{KIND_COLOR[k].hexval()}">&#9632;</font> {label}',
                          s["cell"]) for k, label in KINDS]]
     lt = Table(legend, colWidths=[0.95 * inch] * len(KINDS), hAlign="LEFT")
     lt.setStyle(TableStyle([("BOTTOMPADDING", (0, 0), (-1, -1), 6),
@@ -115,7 +115,7 @@ def build(bands, license_class, regional=None, station=None, interop=False,
                          KIND_LABEL.get(kind, kind),
                          Paragraph(body, s["cell"]),
                          answer])
-            style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOUR.get(kind, colors.black)))
+            style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOR.get(kind, colors.black)))
             if state == "part":
                 style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b8791f")))
             if not ok:
@@ -134,7 +134,7 @@ def build(bands, license_class, regional=None, station=None, interop=False,
                               KIND_LABEL.get(seg["kind"], seg["kind"]),
                               Paragraph(seg["label"], s["cell"])])
                 rstyle.append(("TEXTCOLOR", (2, m), (2, m),
-                               KIND_COLOUR.get(seg["kind"], colors.black)))
+                               KIND_COLOR.get(seg["kind"], colors.black)))
             block.append(_table(rrows, rstyle,
                                 widths=[0.8, 0.8, 1.1, 6.6]))
         if gaps and allowed:
@@ -169,15 +169,15 @@ def build(bands, license_class, regional=None, station=None, interop=False,
 # which is the question somebody has when they are choosing a band rather than
 # checking a frequency.
 #
-# It carries no labels at all, deliberately. The colour key is already at the
+# It carries no labels at all, deliberately. The color key is already at the
 # top of the page and every segment is written out in the table directly
-# underneath, so numbers on the drawing would repeat what is a centimetre away
+# underneath, so numbers on the drawing would repeat what is a centimeter away
 # and crowd out the one thing the picture is there to show. The present form
 # is the key; this is the map.
 
 CHART_BAR_H = 13               # a little under the card's, since it repeats
 CHART_GROUND = colors.HexColor("#ededed")
-HATCH_COLOUR = colors.HexColor("#8f8f8f")
+HATCH_COLOR = colors.HexColor("#8f8f8f")
 HATCH_STEP = 3.4               # points between the diagonals, on the page
 
 
@@ -197,7 +197,7 @@ def _hatch(group, x, y, width, height, step=HATCH_STEP):
         x1 = min(x + width, y + height + offset)
         if x1 > x0:
             group.add(Line(x0, x0 - offset, x1, x1 - offset,
-                           strokeColor=HATCH_COLOUR, strokeWidth=0.35))
+                           strokeColor=HATCH_COLOR, strokeWidth=0.35))
         offset += step
 
 
@@ -209,7 +209,7 @@ CHART_LABEL_H = 11             # room under the bar for a tick and a number
 
 
 # Two spacings, because the labels are not all worth the same. Where this
-# licence begins and ends is the number the holder of the chart came for, and
+# license begins and ends is the number the holder of the chart came for, and
 # it is worth letting it sit closer to its neighbour than an ordinary segment
 # boundary would be allowed to.
 CHART_CLOSE_GAP = 24
@@ -219,7 +219,7 @@ def _rank(edges, yours, changes):
     """Which frequencies earn a label first, when they cannot all have one.
 
     Where the hatching starts and stops goes first: that is where what this
-    licence may do changes, and it is the reason somebody printed the chart
+    license may do changes, and it is the reason somebody printed the chart
     for their own class rather than a generic one. Then boundaries where the
     activity changes, which is the frequency anybody needs to know. Last, and
     usually dropped, boundaries between two segments of the same kind - those
@@ -233,8 +233,8 @@ def _rank(edges, yours, changes):
 def activity_bar(name, license_class, width, height=CHART_BAR_H):
     """One band drawn as what can be done on it, and where you may do it.
 
-    Colours are the legend's own, so the key at the top of the page reads the
-    drawing as well as the table. Anything this licence may not transmit in is
+    Colors are the legend's own, so the key at the top of the page reads the
+    drawing as well as the table. Anything this license may not transmit in is
     hatched over rather than left out: the activity is still there, it is
     simply not yours yet, and a chart that hid it would be answering a
     different question from the one on the page.
@@ -265,10 +265,10 @@ def activity_bar(name, license_class, width, height=CHART_BAR_H):
     for seg_low, seg_high, kind, _label in activity_for(name):
         x0, x1 = at(seg_low), at(max(seg_high, seg_low))
         # A calling frequency is a point, not a range, and would otherwise be
-        # drawn a hundredth of a millimetre wide and vanish.
+        # drawn a hundredth of a millimeter wide and vanish.
         seg_w = max(1.1, x1 - x0)
         drawing.add(Rect(x0, base, seg_w, height,
-                         fillColor=KIND_COLOUR.get(kind, colors.grey),
+                         fillColor=KIND_COLOR.get(kind, colors.gray),
                          strokeColor=colors.white if seg_w > 2.5 else None,
                          strokeWidth=0.3))
         edges.update((seg_low, seg_high))
@@ -282,7 +282,7 @@ def activity_bar(name, license_class, width, height=CHART_BAR_H):
         if seg_low > edge:
             _hatch(drawing, at(edge), base, at(seg_low) - at(edge), height)
         edge = max(edge, seg_high)
-        # Where the hatching stops is where this licence starts, which is the
+        # Where the hatching stops is where this license starts, which is the
         # most useful number on the drawing for the person holding it.
         yours.update((seg_low, seg_high))
         edges.update((seg_low, seg_high))
@@ -306,7 +306,7 @@ def activity_bar(name, license_class, width, height=CHART_BAR_H):
     if band.get("channelised"):
         from .bandplan import CHANNELS_60M
         for channel in CHANNELS_60M:
-            label(channel["dial"], at(channel["centre"]))
+            label(channel["dial"], at(channel["center"]))
         return drawing
 
     # The two edges are anchored inward so they cannot hang off the paper.
@@ -341,7 +341,7 @@ LABEL_W = 60                   # room for "1.25 m" and the range under it
 EDGE_GAP = 26                  # closest two edge labels may sit, points
 
 # What a segment lets you do, which is the thing worth seeing at a glance.
-SEG_COLOUR = {
+SEG_COLOR = {
     "phone": colors.HexColor("#1f8f4e"),      # voice and image as well
     "data": colors.HexColor("#7a4fbf"),       # CW and digital
     "cw": colors.HexColor("#3d7ebf"),         # CW only
@@ -371,10 +371,10 @@ def _band_row(group, x, y, width, name, license_class):
     bar_x = x + LABEL_W
     bar_w = width - LABEL_W
 
-    # The band's name in the band's own colour - the same hue it has on the
+    # The band's name in the band's own color - the same hue it has on the
     # screen, darkened for paper - so the sheet and the page agree.
     group.add(String(x, y + 3, name, fontName="Helvetica-Bold", fontSize=8.5,
-                     fillColor=colors.HexColor(band_colour(name, ink=True) or "#111111")))
+                     fillColor=colors.HexColor(band_color(name, ink=True) or "#111111")))
     group.add(String(x, y - 6, f"{_mhz(low)}\u2013{_mhz(high)}", fontSize=5.4,
                      fillColor=colors.HexColor("#666666")))
 
@@ -398,12 +398,12 @@ def _band_row(group, x, y, width, name, license_class):
         kind = _segment_kind(emissions_in(segments[0][2]))
         width_mhz = 0.0028
         for channel in CHANNELS_60M:
-            sx = bar_x + (channel["centre"] - low) / span * bar_w
+            sx = bar_x + (channel["center"] - low) / span * bar_w
             sw = max(2.0, width_mhz / span * bar_w)
             group.add(Rect(sx - sw / 2, y - 2, sw, BAR_H,
-                           fillColor=SEG_COLOUR[kind],
+                           fillColor=SEG_COLOR[kind],
                            strokeColor=colors.white, strokeWidth=0.3))
-            # The dial setting, not the channel centre: this sheet is read
+            # The dial setting, not the channel center: this sheet is read
             # with a radio in front of you, and that is the number you type.
             group.add(String(sx, y - 13, _mhz(channel["dial"]), fontSize=5,
                              textAnchor="middle",
@@ -420,7 +420,7 @@ def _band_row(group, x, y, width, name, license_class):
         kind = _segment_kind(emissions_in(terms))
         sx = bar_x + (seg_low - low) / span * bar_w
         sw = max(1.2, (seg_high - seg_low) / span * bar_w)
-        group.add(Rect(sx, y - 2, sw, BAR_H, fillColor=SEG_COLOUR[kind],
+        group.add(Rect(sx, y - 2, sw, BAR_H, fillColor=SEG_COLOR[kind],
                        strokeColor=colors.white, strokeWidth=0.3))
         pep, erp = limits_in(terms)
         ceiling = f"{pep} W" if pep else (f"{erp} W ERP" if erp else None)
@@ -487,12 +487,12 @@ def _colophon(group, x, y, width, license_class, station):
                      fillColor=colors.HexColor("#888888")))
 
 
-# What a sheet says when it is not a picture of the operator's own licence.
+# What a sheet says when it is not a picture of the operator's own license.
 # The band plan will draw any class for anybody, which is how somebody decides
 # whether an upgrade is worth sitting for - and the moment that leaves the
 # screen on paper it has to say what it is, because a chart headed with a
 # class is read as a claim to hold it.
-NOT_HELD = ("Drawn for %s privileges as a study sheet. It is not a licence "
+NOT_HELD = ("Drawn for %s privileges as a study sheet. It is not a license "
             "and not a statement of what any station holds.")
 
 
@@ -524,7 +524,7 @@ def build_card(license_class, station=None, own=True):
     flow += [
             Paragraph(
                 "Privileges per 47 CFR 97.301 and 97.305, drawn to scale within "
-                "each band. Grey is spectrum this license may not transmit on. "
+                "each band. Gray is spectrum this license may not transmit on. "
                 "1500 W PEP unless a segment says otherwise, and always the "
                 "minimum power needed (97.313).", s["sub"])]
 
@@ -554,7 +554,7 @@ def build_card(license_class, station=None, own=True):
     legend = Drawing(page_w, 14)
     at = 0
     for kind in ("phone", "data", "cw"):
-        legend.add(Rect(at, 2, 16, 9, fillColor=SEG_COLOUR[kind],
+        legend.add(Rect(at, 2, 16, 9, fillColor=SEG_COLOR[kind],
                         strokeColor=colors.white, strokeWidth=0.3))
         legend.add(String(at + 20, 4.5, SEG_LABEL[kind], fontSize=7))
         at += 26 + len(SEG_LABEL[kind]) * 3.6

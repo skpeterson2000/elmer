@@ -12,12 +12,12 @@ Three layers, kept apart because they carry very different authority:
 
 Frequencies are MHz throughout.
 """
-from .palette import BAND_COLOUR, BAND_INK, band_colour, band_key  # noqa: F401
+from .palette import BAND_COLOR, BAND_INK, band_color, band_key  # noqa: F401
 
 
 CLASSES = ["Novice", "Technician", "General", "Advanced", "Extra"]
 CLASS_RANK = {name: n for n, name in enumerate(CLASSES)}
-# No licence is a class too - the one most people are in. It holds nothing
+# No license is a class too - the one most people are in. It holds nothing
 # on the amateur bands and everything on FRS, MURS and CB, and a band plan
 # that could not be asked for it fell back to the Novice sheet, which told
 # somebody with a blister-pack handheld that they had CW on 80 m. It ranks
@@ -25,33 +25,33 @@ CLASS_RANK = {name: n for n, name in enumerate(CLASSES)}
 # CLASSES so that "which classes permit..." never names it.
 NO_LICENSE = "none"
 
-# A licence from somewhere else, being used here.
+# A license from somewhere else, being used here.
 #
 # 47 CFR 97.107 lets a visitor holding an amateur authorisation from their
 # own government be the control operator of a station in the US, where there
 # is a reciprocal arrangement - CEPT, the IARP, or a bilateral one, and
 # Canada's is written into the section itself. What they may do is the terms
-# of their own licence and the FCC's rules together, and in no case more
+# of their own license and the FCC's rules together, and in no case more
 # than an Amateur Extra may do.
 #
 # So the ceiling is Extra and this ranks as Extra, which is what the page
 # draws. It is deliberately not their class: the other half of the answer is
-# their own licence, which this program has never seen and must not pretend
+# their own license, which this program has never seen and must not pretend
 # to. The page says so in as many words beside the chart.
 #
 # It is a view and not a claim, so it is not in CLASSES: nothing offers it
-# as a licence to hold, it opens no study pool, and it is not a thing the
+# as a license to hold, it opens no study pool, and it is not a thing the
 # Station panel can be set to. A visitor to this country is not a person
-# with a US licence, and the program should not quietly record them as one.
+# with a US license, and the program should not quietly record them as one.
 RECIPROCAL = "reciprocal"
 
 CHOICES = [NO_LICENSE] + CLASSES + [RECIPROCAL]   # what a page may be asked for
-CLASS_LABELS = {NO_LICENSE: "No licence",
+CLASS_LABELS = {NO_LICENSE: "No license",
                 RECIPROCAL: "Visiting under reciprocity"}
 CLASS_RANK[NO_LICENSE] = CLASS_RANK["None"] = -1
 CLASS_RANK[RECIPROCAL] = CLASS_RANK["Extra"]
 
-# Activity kinds drive the colouring; the order here is the legend order.
+# Activity kinds drive the coloring; the order here is the legend order.
 KINDS = [
     ("cw", "CW"),
     ("digital", "Digital / data"),
@@ -79,31 +79,31 @@ KINDS = [
 # a chart drawn as a continuous bar quietly contradicts.
 #
 # Two frequencies belong to each channel and they are not the same number. The
-# rules name the channel by its centre. The operator types the suppressed
-# carrier into the radio, 1.5 kHz below the centre for upper sideband, and that
+# rules name the channel by its center. The operator types the suppressed
+# carrier into the radio, 1.5 kHz below the center for upper sideband, and that
 # is the number written on every band chart in a go-bag. Both are carried here,
 # because an operator who knows only one of them is the one who ends up 1.5 kHz
 # off and certain the chart is wrong.
 CHANNEL_WIDTH = 0.0028                       # 2.8 kHz, 97.303(h)
 
 
-def _channel(number, centre):
-    dial = round(centre - 0.0015, 4)         # USB suppressed carrier
+def _channel(number, center):
+    dial = round(center - 0.0015, 4)         # USB suppressed carrier
     # The span runs from the dial setting to the top of the occupied channel.
     # Strictly the emission starts 100 Hz above the dial, because the carrier
     # is suppressed and nothing is sent there - but the dial frequency is the
     # number an operator types, and a program that answers "no" to the exact
     # frequency printed on every 60 m chart is a program nobody will believe
     # the second time.
-    return {"n": number, "name": f"Channel {number}", "centre": centre,
+    return {"n": number, "name": f"Channel {number}", "center": center,
             "dial": dial, "mhz": dial,       # "mhz" is the dial: what you set
-            "low": dial, "high": round(centre + CHANNEL_WIDTH / 2, 5)}
+            "low": dial, "high": round(center + CHANNEL_WIDTH / 2, 5)}
 
 
 CHANNELS_60M = [_channel(1, 5.3320), _channel(2, 5.3480), _channel(3, 5.3585),
                 _channel(4, 5.3730), _channel(5, 5.4050)]
 
-# What may be sent on them: USB voice, CW at the channel centre, and data.
+# What may be sent on them: USB voice, CW at the channel center, and data.
 # Image is not among them, so it is not in the words either - emissions_in()
 # reads this text, and a program that applies the rules has to be told the
 # truth in the form it reads.
@@ -221,14 +221,14 @@ BANDS = [
 ]
 BAND_INDEX = {b["name"]: b for b in BANDS}
 
-# One colour a band, everywhere - see palette.py, where the colours live.
-# Wherever a band's name is on the screen it is in that colour, so that
-# the colour comes to mean the band the way a callsign comes to mean a
+# One color a band, everywhere - see palette.py, where the colors live.
+# Wherever a band's name is on the screen it is in that color, so that
+# the color comes to mean the band the way a callsign comes to mean a
 # person. The page head writes the palette out as CSS custom properties
 # and a JavaScript map, from here, so there is one copy.
 
 def band_palette():
-    """Every band's key and colours, in frequency order, 11 m in its place."""
+    """Every band's key and colors, in frequency order, 11 m in its place."""
     from . import palette
     names = [b["name"] for b in BANDS]
     for extra in PERSONAL_BANDS:
@@ -244,7 +244,7 @@ def band_palette():
 PERSONAL_BANDS = [
     {"name": "11 m", "low": 26.965, "high": 27.405, "group": "HF", "personal": "CB",
      "after": "12 m", "rule": "47 CFR 95 subpart D - the Citizens Band",
-     "privilege": "AM 4 W carrier, SSB 12 W PEP, FM since 2021 - no licence needed (95.967, 95.971)"},
+     "privilege": "AM 4 W carrier, SSB 12 W PEP, FM since 2021 - no license needed (95.967, 95.971)"},
 ]
 CB_ACTIVITY = [
     (26.965, 27.405, "phone", "The 40 CB channels, 10 kHz apart - AM is what most radios do"),
@@ -311,14 +311,14 @@ def band_at(mhz):
 def channel_at(mhz):
     """The 60 m channel a frequency sits on, or None.
 
-    The channel proper is 2.8 kHz centred on the frequency the rules name, and
+    The channel proper is 2.8 kHz centerd on the frequency the rules name, and
     the dial setting sits 100 Hz below the bottom of it. Both count as being on
     the channel: the carrier is suppressed, so nothing is transmitted at the
     dial frequency, but it is the number an operator sets and asks about.
     """
     for ch in CHANNELS_60M:
         if ch["low"] <= mhz <= ch["high"]:
-            return {"centre": ch["centre"], "dial": ch["dial"],
+            return {"center": ch["center"], "dial": ch["dial"],
                     "name": ch["name"], "low": ch["low"], "high": ch["high"]}
     return None
 
@@ -412,7 +412,7 @@ def privilege_table(license_class):
 
 def privileges_for(band_name, license_class):
     # A visiting operator is drawn at the ceiling 97.107 sets on them, which
-    # is what an Amateur Extra may do. Their own licence is the other half
+    # is what an Amateur Extra may do. Their own license is the other half
     # and is not ours to know; the page says so.
     if license_class == RECIPROCAL:
         license_class = "Extra"
@@ -421,8 +421,8 @@ def privileges_for(band_name, license_class):
 
 # The far end of a round trip. The reach map rates both legs of a contact;
 # this says what the other station needs to make the reply - the gear, and
-# in the US the licence - so a map that lights up a county in Ohio also
-# says who there may answer. Outside the US the licence line is silent:
+# in the US the license - so a map that lights up a county in Ohio also
+# says who there may answer. Outside the US the license line is silent:
 # the map does not know whose country a cell is in and must not guess.
 CLASS_ORDER = ["Technician", "General", "Advanced", "Extra"]
 
@@ -458,9 +458,9 @@ def far_end(band_name):
     if data and data != cw:
         words.append(f"data: {data}" + (" or higher" if data != "Extra" else ""))
     return {"band": band_name, "equipment": gear,
-            "licence": {"phone": phone, "cw": cw, "data": data},
-            "licence_words": ("in the US, " + "; ".join(words)) if words else "in the US, no class may transmit here",
-            "abroad": "outside the US, whatever that country's licence allows on this band"}
+            "license": {"phone": phone, "cw": cw, "data": data},
+            "license_words": ("in the US, " + "; ".join(words)) if words else "in the US, no class may transmit here",
+            "abroad": "outside the US, whatever that country's license allows on this band"}
 
 
 def may_transmit(band_name, license_class, mhz):
@@ -571,7 +571,7 @@ def calling_frequency(band_name):
 
     60 m has no calling frequency because it has no band: it is five channels
     with nothing legal in between, so the answer there is the first channel,
-    given as the dial setting an operator types rather than the centre the
+    given as the dial setting an operator types rather than the center the
     rules name.
     """
     if band_name == "60 m":
@@ -885,13 +885,13 @@ def activity_for(band_name):
 
 
 # --- is it worth the effort? --------------------------------------------
-# What each licence unlocks, in the one measure that is honest about it:
+# What each license unlocks, in the one measure that is honest about it:
 # the width of spectrum the class may key up, by band group and by the most
 # a segment lets you do there - a segment that allows phone counts as
 # phone, since CW is allowed wherever phone is. HF and VHF/UHF are kept
 # apart on purpose: the nine HF bands together are under four megahertz
 # and reach the world; 70 cm alone is thirty and reaches the next town.
-# No licence is a class too, with the Part 95 services that are anybody's.
+# No license is a class too, with the Part 95 services that are anybody's.
 
 GROUP_SETS = {"HF": ("HF",), "VHF/UHF": ("VHF", "UHF")}
 EMISSION_ORDER = ("phone", "image", "data", "cw")
@@ -918,9 +918,9 @@ def _union_width(segments):
     return sum(hi - lo for lo, hi in out)
 
 
-# The licence-free services, by group, in megahertz: FRS's 22 channels at
+# The license-free services, by group, in megahertz: FRS's 22 channels at
 # 12.5 kHz, MURS's five (two at 20 kHz, three at 11.25), CB's forty at 10
-# kHz. GMRS is a licence - a fee and a form, no exam - and is said apart.
+# kHz. GMRS is a license - a fee and a form, no exam - and is said apart.
 PERSONAL_MHZ = {"HF": [("cb", 0.400, "CB, 40 channels")],
                 "VHF/UHF": [("frs", 0.275, "FRS, 22 channels"), ("murs", 0.074, "MURS, 5 channels")]}
 GMRS_MHZ = 0.600      # 22 channels and 8 repeater inputs at 20 kHz
@@ -934,7 +934,7 @@ def allocation():
     for label, groups in GROUP_SETS.items():
         bands = [b for b in BANDS if b.get("group") in groups]
         total = sum(b["high"] - b["low"] for b in bands)
-        rows = [{"license": NO_LICENSE, "label": "No licence", "mhz": 0.0, "by": {},
+        rows = [{"license": NO_LICENSE, "label": "No license", "mhz": 0.0, "by": {},
                  "personal": [{"key": k, "mhz": mhz, "label": lab} for k, mhz, lab in PERSONAL_MHZ[label]]}]
         for cls in ("Technician", "General", "Extra"):
             by = {}

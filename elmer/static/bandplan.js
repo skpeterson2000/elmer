@@ -1,10 +1,10 @@
-/* Band plan: colour by activity, shade what your license class may not use. */
+/* Band plan: color by activity, shade what your license class may not use. */
 
-/* The activity colours are palette.py's, handed over with the page, so the
-   screen and the printed chart read one copy. The same colour for a kind on
-   every band; the band's own colour is the other family, on the buttons,
+/* The activity colors are palette.py's, handed over with the page, so the
+   screen and the printed chart read one copy. The same color for a kind on
+   every band; the band's own color is the other family, on the buttons,
    the headings and the reach map. */
-const KIND_COLOUR = window.KIND_COLOUR || {};
+const KIND_COLOR = window.KIND_COLOR || {};
 
 let bpData = null, bpRegional = null, bpBand = null, bpChannels = [];
 
@@ -20,7 +20,7 @@ function bpClass() { return document.getElementById('bp-class').value; }
 function bpNotYours(d) {
   const box = document.getElementById('bp-notyours');
   if (!box) return;
-  /* No licence is not a lapse and gets no owl: it is where everybody
+  /* No license is not a lapse and gets no owl: it is where everybody
      starts, and the honest sheet for it is the one further down the page -
      FRS, MURS and CB now, GMRS for a fee and no exam, and the amateur bands
      above shown for what they are, the reason to sit the Technician. */
@@ -28,7 +28,7 @@ function bpNotYours(d) {
     box.hidden = false;
     box.className = 'notice';
     box.innerHTML =
-      '<div><b>No licence yet.</b> Every amateur band above reads <i>no</i> ' +
+      '<div><b>No license yet.</b> Every amateur band above reads <i>no</i> ' +
       'for you, and that is the truth of it - but it is not the whole list. ' +
       '<a href="#personal">FRS, MURS and CB</a> are yours today with a radio ' +
       'certified for them, GMRS is a fee and a form with no exam, and CB has ' +
@@ -37,16 +37,16 @@ function bpNotYours(d) {
       'program.</div>';
     return;
   }
-  /* A licence from somewhere else, being used here. 47 CFR 97.107 lets a
+  /* A license from somewhere else, being used here. 47 CFR 97.107 lets a
      visitor holding their own government's amateur authorisation be the
      control operator of a station in the US where there is a reciprocal
      arrangement, and caps what they may do at what an Amateur Extra may do.
      That cap is what the chart above draws, and it is only half the answer:
-     the other half is their own licence, which this program has never seen.
+     the other half is their own license, which this program has never seen.
      Saying the first half without the second would be the dangerous half. */
   /* The charts print a class, and "visiting" is not one. A sheet headed
      that way, with a callsign on it, would read as a claim about an
-     operator's authority in a country whose licence they do not hold -
+     operator's authority in a country whose license they do not hold -
      and the chart they actually want exists already, because the ceiling
      they are drawn at is the Amateur Extra one. So the buttons say that
      rather than failing at the server. */
@@ -62,22 +62,22 @@ function bpNotYours(d) {
     box.hidden = false;
     box.className = 'notice';
     box.innerHTML =
-      '<div><b>Visiting, on your own licence.</b> Under ' +
+      '<div><b>Visiting, on your own license.</b> Under ' +
       '<a href="https://www.ecfr.gov/current/title-47/section-97.107" target="_blank" rel="noopener">47 CFR 97.107</a> ' +
       'an operator holding an amateur authorisation from their own government may be ' +
       'the control operator of a station here, wherever a reciprocal arrangement ' +
       'reaches - CEPT, the IARP, or a bilateral one, and Canada&rsquo;s is written into ' +
       'the rule itself. <b>The chart above is the ceiling, not your privileges.</b> ' +
-      'What you may do here is the terms of your own licence and the FCC&rsquo;s rules ' +
+      'What you may do here is the terms of your own license and the FCC&rsquo;s rules ' +
       'together, and in no case more than an Amateur Extra may do - so read this ' +
-      'against your own licence and take whichever is the narrower of the two. ' +
-      'ELMER has never seen your licence and is not guessing at it.' +
+      'against your own license and take whichever is the narrower of the two. ' +
+      'ELMER has never seen your license and is not guessing at it.' +
       '<br><br>Identify under ' +
       '<a href="https://www.ecfr.gov/current/title-47/section-97.119" target="_blank" rel="noopener">97.119(g)</a>: ' +
       'a Canadian licensee puts the indicator for the US call sign area after their ' +
       'own call, and everybody else puts it before, separated by a slant. ' +
       'None of this is for a US citizen or for anybody already holding an FCC ' +
-      'licence - that is their FCC licence, and it is the class above.</div>';
+      'license - that is their FCC license, and it is the class above.</div>';
     return;
   }
   box.className = 'lapse';
@@ -89,12 +89,12 @@ function bpNotYours(d) {
     'you hold <b>' + escapeHTML(d.own_class) + '</b>. Worth reading &mdash; ' +
     'it is how you decide whether the upgrade is worth sitting for. Anything ' +
     'printed from here says on its face that it is a study sheet and not a ' +
-    'licence, because a chart with a callsign on it gets read as a claim ' +
+    'license, because a chart with a callsign on it gets read as a claim ' +
     'about that station.</div>';
 }
 
 /* Bands in the order somebody would actually reach for them, rather than in
-   frequency order. The first one this licence can hold a conversation on is
+   frequency order. The first one this license can hold a conversation on is
    the one to open. */
 const BP_PREFERRED = ['20 m', '40 m', '2 m', '10 m', '70 cm', '17 m', '15 m',
                       '80 m', '6 m', '12 m', '30 m', '1.25 m', '160 m'];
@@ -119,12 +119,12 @@ async function bpLoad() {
   bpChannels = bpData.channels_60m || [];
   document.getElementById('bp-legend').innerHTML =
     bpData.kinds.map(([k, label]) =>
-      '<span class="legend"><i style="background:' + KIND_COLOUR[k] + '"></i>' +
+      '<span class="legend"><i style="background:' + KIND_COLOR[k] + '"></i>' +
       escapeHTML(label) + '</span>').join('') +
     '<span class="legend"><i class="legend-gap"></i>outside your privileges</span>';
 
-  /* One button a band, outlined in the band's own colour and filled with it
-     when it is the one open: the row is the palette, learnt by using it. */
+  /* One button a band, outlined in the band's own color and filled with it
+     when it is the one open: the row is the palette, learned by using it. */
   document.getElementById('bp-bands').innerHTML = bpData.bands.map(b =>
     '<button class="btn sm band-btn' + (b.name === bpBand ? ' on' : '') +
     '" style="' + bandStyle(b.name) + '" data-band="' + escapeHTML(b.name) + '">' + escapeHTML(b.name) + '</button>').join('');
@@ -179,14 +179,14 @@ async function bpLoadRegional() {
 /* 60 m is five 2.8 kHz channels and nothing in between, which on a bar 77 kHz
    wide is five slivers a reader could easily take for rounding. So they are
    named under the bar, at the frequency an operator actually dials - the
-   suppressed carrier, 1.5 kHz below the channel centre the rules name. */
+   suppressed carrier, 1.5 kHz below the channel center the rules name. */
 function channelTicks(band) {
   if (!band.channelised || !bpChannels.length) return '';
   const span = band.high - band.low;
   const at = f => ((f - band.low) / span) * 100;
   return '<div class="chanticks">' + bpChannels.map(c =>
-    '<i style="left:' + at(c.centre).toFixed(3) + '%" title="' + c.name +
-      ' — channel centre ' + c.centre.toFixed(4) + ' MHz, 2.8 kHz wide">' +
+    '<i style="left:' + at(c.center).toFixed(3) + '%" title="' + c.name +
+      ' — channel center ' + c.center.toFixed(4) + ' MHz, 2.8 kHz wide">' +
       '<b>' + c.n + '</b><span>' + c.dial.toFixed(4) + '</span></i>').join('') +
     '</div>';
 }
@@ -200,14 +200,14 @@ function bpRender() {
   const span = band.high - band.low;
   const pct = f => ((f - band.low) / span) * 100;
 
-  /* The bar: activity in colour, privilege gaps hatched over the top. Each
+  /* The bar: activity in color, privilege gaps hatched over the top. Each
      segment carries what it needs for the hover card and the click, so the
      bar becomes a way in rather than only a picture. */
   const bars = band.activity.map((a, i) => {
     const w = Math.max(0.35, pct(a.high) - pct(a.low));
     return '<i class="seg" data-seg="' + i + '" style="left:' +
       pct(a.low).toFixed(3) + '%;width:' + w.toFixed(3) + '%;background:' +
-      KIND_COLOUR[a.kind] + '"></i>';
+      KIND_COLOR[a.kind] + '"></i>';
   }).join('');
   const gaps = band.gaps.map(([lo, hi]) =>
     '<i class="seg gap" style="left:' + pct(lo).toFixed(3) + '%;width:' +
@@ -235,7 +235,7 @@ function bpRender() {
       ? '<div class="why ' + you.state + '">' + escapeHTML(you.note) + '</div>' : '';
     return '<tr class="' + (you.state === 'no' ? 'denied' : '') + '">' +
       '<td class="mono tiny">' + a.low + (a.high !== a.low ? '<br>' + a.high : '') + '</td>' +
-      '<td><span class="dot" style="background:' + KIND_COLOUR[a.kind] + '"></span>' +
+      '<td><span class="dot" style="background:' + KIND_COLOR[a.kind] + '"></span>' +
         escapeHTML((bpData.kinds.find(k => k[0] === a.kind) || [])[1] || a.kind) + '</td>' +
       '<td class="small">' + escapeHTML(a.label) + why + '</td>' +
       '<td>' + mark + '</td></tr>';
@@ -255,7 +255,7 @@ function bpRender() {
     '<div class="panel">' +
       '<div class="spread"><h2 class="band-tag" style="margin:0;' + bandStyle(band.name) + '">' + bandSwatch(band.name) + escapeHTML(band.name) + '</h2>' +
       '<span class="mono tiny muted">' + band.low + ' – ' + band.high + ' MHz · ' +
-        escapeHTML(band.group) + (band.personal ? ' · ' + escapeHTML(band.personal) + ', no licence' : '') + '</span></div>' +
+        escapeHTML(band.group) + (band.personal ? ' · ' + escapeHTML(band.personal) + ', no license' : '') + '</span></div>' +
       '<div class="bandbar">' + bars + gaps + '</div>' +
       channelTicks(band) +
       '<div class="bandscale"><span>' + band.low + '</span><span>' + band.high + '</span></div>' +
@@ -305,7 +305,7 @@ function bpRender() {
         'their published plan &rarr;</a></div>' +
       '<table class="data mt"><tbody>' + segs.map(sg =>
         '<tr><td class="mono tiny">' + sg.low + (sg.high !== sg.low ? '<br>' + sg.high : '') + '</td>' +
-        '<td><span class="dot" style="background:' + (KIND_COLOUR[sg.kind] || '#8b98a5') + '"></span>' +
+        '<td><span class="dot" style="background:' + (KIND_COLOR[sg.kind] || '#8b98a5') + '"></span>' +
           escapeHTML(sg.kind) + '</td>' +
         '<td class="small">' + escapeHTML(sg.label) + '</td></tr>').join('') +
       '</tbody></table>' +
@@ -322,11 +322,11 @@ function bpRender() {
  * offers every class to everybody. What it must not do is tell the rest of
  * the program that this station holds the class being read. It used to save
  * the choice to the profile on every change, and that one line had two
- * quiet consequences: the study pools are gated on the licence, so looking
+ * quiet consequences: the study pools are gated on the license, so looking
  * at Extra here opened every pool on the dashboard and at the table; and
  * the owl above compares the class being read with the class held, so with
  * the setting chasing the dropdown the two were never different and the
- * owl could not appear. A licence is set where a licence is set - the setup
+ * owl could not appear. A license is set where a license is set - the setup
  * page, or the FCC record behind a callsign - and this page opens on it
  * every time, whatever was looked at last. */
 document.getElementById('bp-class').addEventListener('change', () => { bpLoad(); });
@@ -529,13 +529,13 @@ function cbConditions() {
 /* The GMRS machines within reach of the QTH, from the same list the
    amateur repeaters come from - TowerWitch's, or the import - told apart
    by their eight fixed outputs. A repeater is most of what the GMRS
-   licence buys, so the fold says where the nearest ones are. */
-function gmrsLicence(d) {
+   license buys, so the fold says where the nearest ones are. */
+function gmrsLicense(d) {
   const g = d.gmrs_license;
   if (!g || !g.callsign) return '';
   if (!g.found) return '<p class="tiny muted" style="margin-top:.5rem">' + escapeHTML(g.callsign) + ': ' + escapeHTML(g.reason || 'not on record') + '</p>';
   const st = (g.status || {}).state;
-  return '<p class="small" style="margin-top:.5rem">' + (g.covered_by ? escapeHTML(g.covered_by) + '\u2019s licence, yours to operate under as family (95.1705(c)): ' : 'Your licence: ') +
+  return '<p class="small" style="margin-top:.5rem">' + (g.covered_by ? escapeHTML(g.covered_by) + '\u2019s license, yours to operate under as family (95.1705(c)): ' : 'Your license: ') +
     '<b class="mono">' + escapeHTML(g.callsign) + '</b>, ' +
     (st === 'current' ? 'good until <b>' + escapeHTML(g.expires) + '</b>' + ((g.status.days || 0) < 90 ? ' <span class="pill warn">renew soon</span> <a href="https://wireless2.fcc.gov/UlsEntry/licManager/login.jsp" target="_blank" rel="noopener">renew at ULS \u2192</a>' : '') :
      st === 'expired' ? '<b>expired ' + escapeHTML(g.expires) + '</b> \u2014 no grace period on GMRS; apply again before transmitting' :
@@ -557,7 +557,7 @@ function gmrsRepeaters(d) {
       '<td class="tiny">' + escapeHTML(r.reach || '') + '</td></tr>').join('') +
     '</tbody></table><p class="tiny muted">Transmit 5 MHz above the output. At 462 MHz the radio horizon is the reach: a handheld at head height sees a tower ' +
     'some twenty-three miles off, an antenna at twenty feet a few miles more, and 50 W buys margin inside that rather than distance past it. ' +
-    'A GMRS licence - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
+    'A GMRS license - a fee and a form, no exam - and the owner\u2019s say-so; an FRS radio cannot use a repeater.' +
     (d.gmrs_credit ? ' <a class="muted" href="https://www.repeaterbook.com" target="_blank" rel="noopener">' + escapeHTML(d.gmrs_credit) + '</a>' : '') + '</p>';
 }
 
@@ -583,7 +583,7 @@ function psRender() {
       '<div class="grid cols-2 ps-grid">' +
         '<div>' + psFacts(svc) + '</div>' +
         '<div class="nifog-band" style="margin-top:0">' + tables[svc.key]() + '</div>' +
-      '</div>' + (svc.key === 'cb' ? cbConditions() : '') + (svc.key === 'gmrs' ? gmrsLicence(d) + gmrsRepeaters(d) : '') + '</details>').join('') +
+      '</div>' + (svc.key === 'cb' ? cbConditions() : '') + (svc.key === 'gmrs' ? gmrsLicense(d) + gmrsRepeaters(d) : '') + '</details>').join('') +
     /* Said once, on the page that shows the channels, because this is where
        somebody with a dual-band handheld is looking at 462.675 and
        wondering. */
@@ -591,7 +591,7 @@ function psRender() {
       '<b>Your amateur radio on these channels.</b> ' + escapeHTML(d.amateur.can) + ' ' +
       escapeHTML(d.amateur.law) +
       '<p style="margin:.5rem 0 0">' + escapeHTML(d.amateur.emergency) + '</p>' +
-      '<p style="margin:.5rem 0 0">' + escapeHTML(d.amateur.judgement) + '</p>' +
+      '<p style="margin:.5rem 0 0">' + escapeHTML(d.amateur.judgment) + '</p>' +
     '</div>' +
     '<div class="small mt"><b>When it is an emergency, in this order:</b>' +
       '<ol class="ps-ladder">' + d.ladder.map(step =>
@@ -658,7 +658,7 @@ const QUALITY_CLASS = s =>
    a 33-degree sun came to talk about tonight's critical frequency. */
 function skyNow() {
   const r = bpProp && bpProp.regime;
-  return r === 'grey' ? 'the grey line\u2019s' : r === 'dark' ? 'tonight\u2019s'
+  return r === 'gray' ? 'the gray line\u2019s' : r === 'dark' ? 'tonight\u2019s'
                                                 : 'today\u2019s';
 }
 
@@ -667,12 +667,12 @@ function hourLabel(iso) {
   return String(d.getHours()).padStart(2, '0');
 }
 
-/* The grey line as clock times rather than a shaded hour. Both ends come from
+/* The gray line as clock times rather than a shaded hour. Both ends come from
    the same ephemeris, differing only in the height asked for: the horizon the
    operator stands on, and the D layer's own horizon 9.03 degrees further down.
    Where the sun does not set at all there is no window and this says nothing
    rather than inventing one. */
-function greyWindow() {
+function grayWindow() {
   const s = bpProp && bpProp.sun;
   if (!s || s.up_all_day || s.down_all_day) return '';
   const dusk = clockAt(s.set), dark = clockAt(s.d_layer_set);
@@ -698,7 +698,7 @@ function recordLine() {
     parts.push('Yesterday at this hour ELMER said MUF <b>' + latest.forecast +
       '</b> MHz; the sondes read <b>' + latest.measured + '</b>.');
   }
-  const words = {dark: 'at night', lit: 'by day', grey: 'on the grey line', twilight: 'in twilight'};
+  const words = {dark: 'at night', lit: 'by day', gray: 'on the gray line', twilight: 'in twilight'};
   const pers = r.persistence;
   if (pers && pers.hours) {
     parts.push('Past the reading, the curve leans on what the sondes measured at each hour over the last ' +
@@ -772,12 +772,12 @@ function forecastStrip(cond) {
     // "now" under the first cell, then every sixth hour: enough to read the
     // shape against the clock without turning the strip into a ruler.
     const tick = i === 0 ? 'now' : (i % 6 === 0 ? label : '');
-    const sky = h.regime === 'grey' ? ', grey line'
+    const sky = h.regime === 'gray' ? ', gray line'
               : h.regime === 'twilight' ? ', twilight - the D layer never clears'
               : h.regime === 'dark' ? ', dark' : ', daylight';
     return '<i class="fc ' + QUALITY_CLASS(h.score) + (i === 0 ? ' now' : '') +
       (atBest ? ' peak' : '') +
-      (h.regime === 'grey' ? ' grey' : h.regime === 'twilight' ? ' dusk'
+      (h.regime === 'gray' ? ' gray' : h.regime === 'twilight' ? ' dusk'
                                      : h.regime === 'dark' ? '' : ' day') +
       '" title="' + label + ':00 local — ' + h.score +
       '/100, MUF about ' + h.muf + ' MHz' + sky +
@@ -812,7 +812,7 @@ function forecastStrip(cond) {
   /* "Worth using right through the day" is true of 40 m at a floor of 38 and
      hides the fact that the middle of it is CW and FT8, not SSB. So the
      longest stretch inside a window where the band is merely Fair is named,
-     with the modes that stretch is good for - the strip's colours say it,
+     with the modes that stretch is good for - the strip's colors say it,
      and now the sentence does too. */
   let dip = '';
   {
@@ -836,15 +836,15 @@ function forecastStrip(cond) {
       'band stays under what a contact needs.';
   return '<div class="fcstrip">' + cells + '</div>' +
     '<div class="tiny muted fcsay">' + say +
-    ' Colour is how good the hour looks; the pale bar along the foot of a ' +
-    'cell is daylight, and an amber one is the grey line &mdash; sunset here, ' +
+    ' Color is how good the hour looks; the pale bar along the foot of a ' +
+    'cell is daylight, and an amber one is the gray line &mdash; sunset here, ' +
     'but not yet 80 km up, which is where the absorption is.' +
     /* The strip is hourly because the model is. The window itself is not, and
        the unit knows it to the minute: the sun leaves the ground at one time
        and the D layer 80 km up at another, and the gap is the whole event.
        Naming both makes the amber cell a thing somebody can be ready for
-       rather than a colour they notice afterwards. */
-    greyWindow() + recordLine() + '</div>';
+       rather than a color they notice afterwards. */
+    grayWindow() + recordLine() + '</div>';
 }
 
 /* Above about 30 MHz none of this applies, and pretending otherwise would put
@@ -873,13 +873,13 @@ function forecastStrip(cond) {
      part of the year.
 
    Note which sunrise is which. `regime` calls an hour "lit" at elevation >= 0,
-   the sun over the horizon where the operator is standing, and "grey" down to
+   the sun over the horizon where the operator is standing, and "gray" down to
    D_LAYER_DIP - 9.03 degrees below, where the sun has left the ground but not
    yet the D layer 80 km up. That D-layer geometry is most of the shape of the
    HF strip. Up here it is worth almost nothing: D absorption falls as 1/f^2,
    so what costs 80 m its whole daylight costs 2 m nothing measurable. The
    inversion is weather at head height, and the ground's own sunrise is the
-   one that governs it - so this reads the "lit" flip and not the grey hour.
+   one that governs it - so this reads the "lit" flip and not the gray hour.
    Getting that backwards would hand somebody an hour that is right on 80 m
    and 40 minutes early on 2 m. */
 
@@ -979,13 +979,13 @@ function vhfBox(band) {
       '</b> local' : '') + '. ' +
       '<b>Meteor scatter</b> runs on a different clock entirely: it peaks ' +
       'near <b>06:00</b> local whatever the season, because that is when your ' +
-      'side of the Earth has turned to face the way the planet is travelling ' +
+      'side of the Earth has turned to face the way the planet is traveling ' +
       'and sweeps the debris up head-on instead of catching it from behind. ' +
       'In midsummer those two land almost together; in December they are ' +
       'nearly two hours apart. Neither is a prediction &mdash; both are just ' +
       'when it is worth going to look.</div>' +
     moonBox(moon, met) +
-    '<div class="tiny muted mt">The grey line does almost nothing for you up ' +
+    '<div class="tiny muted mt">The gray line does almost nothing for you up ' +
       'here. D-layer absorption falls as 1/f&sup2;, so what shuts 80 m all ' +
       'day costs 2 m nothing you could measure &mdash; the whole business of ' +
       'the sun setting on the ground before it sets 80 km up is an HF story. ' +
@@ -1028,15 +1028,15 @@ function bpBorderLevel() {
   return bpView.zoom >= 7 ? 'counties' : bpView.zoom >= 2.5 ? 'states' : 'countries';
 }
 
-/* A continuous ramp in the band's own colour - dark where the band is shut,
+/* A continuous ramp in the band's own color - dark where the band is shut,
    the band's hue where it is good, paling towards white at the best - so the
    eye reads a field and not a legend, and reads which band's field it is
-   from the same colour the band has on its button. The stops are made from
-   the colour: the page's background at the bottom, the hue at 70, and the
+   from the same color the band has on its button. The stops are made from
+   the color: the page's background at the bottom, the hue at 70, and the
    hue lightened at the top. The legend's gradient is written from the same
    stops, so it cannot drift from the map. */
 const REACH_BG = [13, 17, 23];                      // --bg
-const REACH_FALLBACK = '#4ade80';                    // a band with no colour: 20 m's
+const REACH_FALLBACK = '#4ade80';                    // a band with no color: 20 m's
 function reachStops(hex) {
   const c = /^#([0-9a-f]{6})$/i.test(hex || '') ? hex : REACH_FALLBACK;
   const rgb = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -1059,9 +1059,9 @@ function reachLUT(stops) {
   return lut;
 }
 let REACH_LUT = reachLUT(reachStops(REACH_FALLBACK));
-/* The map and its legend take the band's colour together. */
+/* The map and its legend take the band's color together. */
 function reachPaint(bandName) {
-  const stops = reachStops(bandColour(bandName));
+  const stops = reachStops(bandColor(bandName));
   REACH_LUT = reachLUT(stops);
   const ramp = document.querySelector('#bp-reach .bp-reach-ramp');
   if (ramp) ramp.style.background = 'linear-gradient(90deg, ' +
@@ -1074,7 +1074,7 @@ function cubic(p0, p1, p2, p3, t) {
 }
 
 /* The score at any point, a cubic pass across the sixteen nearest cell
-   centres. The world grid wraps in longitude; a window grid clamps. */
+   centers. The world grid wraps in longitude; a window grid clamps. */
 function reachAt(d, lat, lon) {
   const fy = (d.lat0 - lat) / d.step;
   let dl = lon - d.lon0;
@@ -1101,7 +1101,7 @@ function inWindow(w, lat, lon) {
 }
 
 /* The viewport: the middle of the picture and how far in it is. Zoom 1 is
-   the whole world with the operator at the centre. */
+   the whole world with the operator at the center. */
 const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: null, band: null};
 
 function bpReachDraw(coarse) {
@@ -1197,7 +1197,7 @@ function bpReachDraw(coarse) {
     const x = X(d.qth.lon), y = Y(d.qth.lat);
     if (x >= -20 && x <= full.w + 20 && y >= -20 && y <= full.h + 20) {
       /* "You are here" is the one thing on the map that must be found at
-         once, in any band's colour - so it is the attention colour, the
+         once, in any band's color - so it is the attention color, the
          safety orange that means look here and nothing else on the screen. */
       const here = getComputedStyle(document.documentElement).getPropertyValue('--attention').trim() || '#ff7a00';
       ctx.save();
@@ -1314,7 +1314,7 @@ function bpReachMode() {
 }
 /* The emission - SSB, AM, FM, CW, FT8. It decides what the far end needs
    above the noise, so it decides the ground wave's reach, on 11 m the
-   lawful power with it, and - since the map learnt to add up a skywave
+   lawful power with it, and - since the map learned to add up a skywave
    path - how much of the sky's reach can actually be heard. The sky does
    not care what is modulated onto it; the far end's receiver does. */
 const EMISSIONS = {ssb: 'SSB', am: 'AM', fm: 'FM', cw: 'CW', ft8: 'FT8'};
@@ -1404,7 +1404,7 @@ function bpReachSeed() {
            set nothing back - so the panel kept the NVIS wire and the map
            drew the same picture either way. The whole point of the switch
            is the comparison, and there was none: a vertical and a low wire
-           are 17 dB apart at the angle a hundred-kilometre hop needs, and
+           are 17 dB apart at the angle a hundred-kilometer hop needs, and
            the map was being asked to show that difference against itself.
            Kept in the remembered settings rather than on the element, so
            it survives a reload with the box already ticked. */
@@ -1487,7 +1487,7 @@ async function bpReach(band) {
   const nvisBox = document.getElementById('bp-reach-nvis');
   if (nvisBox && d.antenna) nvisBox.checked = !!d.antenna.nvis;
   /* The far end of a round trip: what the other station needs to answer -
-     the gear, and in the US the licence. Shown for the contact, not for the
+     the gear, and in the US the license. Shown for the contact, not for the
      one-way path, because it is about the reply. */
   /* The critical frequency over the station decides NVIS, and the line says
      so whenever the antenna is a low one or the switch is on - a hole in the
@@ -1500,7 +1500,7 @@ async function bpReach(band) {
     nvisWords.hidden = !(d.nvis && (low || on));
     if (d.nvis) nvisWords.innerHTML = '<b>NVIS ' + (d.nvis.open ? 'open' : 'shut') + ' on ' + escapeHTML(band.name) + ':</b> ' + escapeHTML(d.nvis.words) + '.';
   }
-  /* The height's effect in numbers. The map's colours saturate over much of
+  /* The height's effect in numbers. The map's colors saturate over much of
      the near zone, so a wire raised from a quarter wave to a half looks the
      same shade while the model has moved it eleven decibels overhead; this
      line says so, against a dipole in free space, at three angles. */
@@ -1565,7 +1565,7 @@ async function bpReach(band) {
         /* The default view, and the one most people will never change. Say
            what it is a picture of before saying what the others would be. */
         s = '<b>This map is a phone signal.</b> ' + asks
-          + ', and that is what the colours are worked out from.';
+          + ', and that is what the colors are worked out from.';
       }
       const alts = Object.keys(md.others || {}).map(k =>
         k.toUpperCase() + ' hears ' + md.others[k].db.toFixed(1) + ' dB deeper ('
@@ -1582,7 +1582,7 @@ async function bpReach(band) {
   if (far) {
     const fe = d.far_end;
     far.hidden = !(mode === 'round' && fe);
-    if (fe) far.innerHTML = '<b>At the far end</b>, to answer: ' + escapeHTML(fe.equipment) + '; ' + escapeHTML(fe.licence_words) + '; ' + escapeHTML(fe.abroad) + '.';
+    if (fe) far.innerHTML = '<b>At the far end</b>, to answer: ' + escapeHTML(fe.equipment) + '; ' + escapeHTML(fe.license_words) + '; ' + escapeHTML(fe.abroad) + '.';
   }
   const antWords = d.antenna
     ? 'Weighted for ' + escapeHTML((document.querySelector('#bp-reach-ant option:checked') || {}).textContent || d.antenna.kind) + ' ' + Math.round(d.antenna.height_ft || 0) + ' ft up - ' + (d.antenna.height_wl || 0).toFixed(2) + ' of a wavelength - over ' + escapeHTML((document.querySelector('#bp-reach-gnd option:checked') || {}).textContent || 'average ground') + (d.antenna.heading !== null && d.antenna.heading !== undefined ? ', laid at ' + Math.round(d.antenna.heading) + '°' : ', direction unknown so all round') + ': each path by the angle its first hop leaves at, the ground\'s reflection at that angle, and what the antenna puts that way. Real terrain still moves the lobes. '
@@ -1799,21 +1799,21 @@ function bindSegments(band) {
 
 
 /* ------------------------------------------- is it worth the effort? */
-/* Four licences, two rows of spectrum, and the width of it each may key
+/* Four licenses, two rows of spectrum, and the width of it each may key
    up - stacked by the most a segment lets you do there. A horizontal bar
    a class, not a pie a class: the four are read against each other along
    one scale, and the megahertz are printed, because a pie hides the
    magnitude that is the whole argument. HF and VHF/UHF are separate bars
    because a Technician already holds nearly every VHF/UHF hertz; it is
    the General step that opens HF, where the world is. */
-/* The same colour for a mode as the band bar above uses - phone green, CW
-   blue, data violet, image amber - because a reader who has just learnt
+/* The same color for a mode as the band bar above uses - phone green, CW
+   blue, data violet, image amber - because a reader who has just learned
    the bar's key should not have to learn a second one three inches down. */
-const WORTH_COLOUR = {phone: KIND_COLOUR.phone || '#3fb950', cw: KIND_COLOUR.cw || '#58a6ff',
-                      data: KIND_COLOUR.digital || '#bc8cff', image: KIND_COLOUR.image || '#ffb454'};
+const WORTH_COLOR = {phone: KIND_COLOR.phone || '#3fb950', cw: KIND_COLOR.cw || '#58a6ff',
+                      data: KIND_COLOR.digital || '#bc8cff', image: KIND_COLOR.image || '#ffb454'};
 const WORTH_NAME = {phone: 'phone', cw: 'CW', data: 'data', image: 'image'};
 
-function worthBar(row, total, colours) {
+function worthBar(row, total, colors) {
   const W = 420, H = 18, gap = 2;
   const parts = [];
   let x = 0;
@@ -1823,12 +1823,12 @@ function worthBar(row, total, colours) {
     const mhz = (row.by || {})[k] || 0;
     if (!mhz) return;
     const w = px(mhz);
-    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colours[k]}"><title>${WORTH_NAME[k]}: ${mhz.toFixed(3)} MHz</title></rect>`);
+    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colors[k]}"><title>${WORTH_NAME[k]}: ${mhz.toFixed(3)} MHz</title></rect>`);
     x += w;
   });
   (row.personal || []).forEach(p => {
     const w = px(p.mhz);
-    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1.5, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colours.phone}"><title>${escapeHTML(p.label)}: ${p.mhz.toFixed(3)} MHz - voice, licence-free</title></rect>`);
+    parts.push(`<rect x="${x.toFixed(1)}" y="0" width="${Math.max(1.5, w - gap).toFixed(1)}" height="${H}" rx="2" fill="${colors.phone}"><title>${escapeHTML(p.label)}: ${p.mhz.toFixed(3)} MHz - voice, license-free</title></rect>`);
     x += Math.max(2, w);
   });
   parts.push(`<rect x="${x.toFixed(1)}" y="${H / 2 - 3}" width="${Math.max(0, W - x).toFixed(1)}" height="6" rx="3" fill="var(--line)"><title>not yours: ${(total - (row.mhz || 0) - (row.personal || []).reduce((a, p) => a + p.mhz, 0)).toFixed(3)} MHz</title></rect>`);
@@ -1839,9 +1839,9 @@ function worthRender(d) {
   const box = document.getElementById('bp-worth');
   if (!box || !d) return;
   const legend = '<div class="row tiny muted" style="gap:.9rem;flex-wrap:wrap;margin:.2rem 0 .6rem">' +
-    ['phone', 'image', 'data', 'cw'].map(k => `<span><i class="worth-swatch" style="background:${WORTH_COLOUR[k]}"></i>${WORTH_NAME[k]}</span>`).join('') +
+    ['phone', 'image', 'data', 'cw'].map(k => `<span><i class="worth-swatch" style="background:${WORTH_COLOR[k]}"></i>${WORTH_NAME[k]}</span>`).join('') +
     '<span><i class="worth-swatch" style="background:var(--line)"></i>not yours</span>' +
-    '<span class="muted">the colour is the most a segment lets you do; CW is allowed wherever phone is</span></div>';
+    '<span class="muted">the color is the most a segment lets you do; CW is allowed wherever phone is</span></div>';
   const groups = d.groups.map(g => {
     const rows = g.rows.map(r => {
       const mine = (r.mhz || 0) + (r.personal || []).reduce((a, p) => a + p.mhz, 0);
@@ -1849,7 +1849,7 @@ function worthRender(d) {
       const what = r.personal && r.personal.length
         ? r.personal.map(p => p.label).join(' and ') + ' - voice'
         : ['phone', 'image', 'data', 'cw'].filter(k => (r.by || {})[k]).map(k => WORTH_NAME[k] + ' ' + r.by[k].toFixed(2)).join(', ');
-      return `<tr><th scope="row">${escapeHTML(r.label)}</th><td class="worth-bar">${worthBar(r, g.total_mhz, WORTH_COLOUR)}</td>` +
+      return `<tr><th scope="row">${escapeHTML(r.label)}</th><td class="worth-bar">${worthBar(r, g.total_mhz, WORTH_COLOR)}</td>` +
         `<td class="mono worth-num">${mine.toFixed(mine < 1 ? 2 : 1)} MHz <span class="muted">${r.personal && r.personal.length ? 'its own channels' : pct + '%'}</span></td><td class="tiny muted worth-what">${escapeHTML(what)}</td></tr>`;
     }).join('');
     return `<div class="worth-group"><div class="spread" style="align-items:baseline"><b>${escapeHTML(g.group)}</b> <span class="tiny muted">${g.total_mhz.toFixed(1)} MHz of amateur allocation in ${g.bands.length} bands &middot; reaches ${escapeHTML(g.reach)}</span></div>` +
@@ -1863,33 +1863,33 @@ function worthRender(d) {
   const DB_LO = 20, DB_HI = 62;                          // 0.1 W to 1500 W, in dBm
   const powerRows = power.map(r => {
     const w = Math.max(2, (r.dbm - DB_LO) / (DB_HI - DB_LO) * 420);
-    /* the licence family - earth tones, the strata - from palette.py */
-    const CLASS_COLOUR = window.CLASS_COLOUR || {};
-    const colour = CLASS_COLOUR[r.license] || CLASS_COLOUR.ham || '#c9784a';
+    /* the license family - earth tones, the strata - from palette.py */
+    const CLASS_COLOR = window.CLASS_COLOR || {};
+    const color = CLASS_COLOR[r.license] || CLASS_COLOR.ham || '#c9784a';
     const watts = r.watts >= 1000 ? (r.watts / 1000).toFixed(1) + ' kW' : r.watts + ' ' + r.unit;
     return `<tr class="${bpClass() === r.license || (bpClass() === 'Extra' && r.license === 'General') ? 'worth-me' : ''}"><th scope="row">${escapeHTML(r.label)}</th>` +
       `<td class="worth-bar"><svg viewBox="0 0 420 18" width="100%" height="18" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(r.label)} ${watts}">` +
-      `<rect x="0" y="6" width="420" height="6" rx="3" fill="var(--line)"/><rect x="0" y="0" width="${w.toFixed(1)}" height="18" rx="2" fill="${colour}"><title>${escapeHTML(r.note)}</title></rect></svg></td>` +
+      `<rect x="0" y="6" width="420" height="6" rx="3" fill="var(--line)"/><rect x="0" y="0" width="${w.toFixed(1)}" height="18" rx="2" fill="${color}"><title>${escapeHTML(r.note)}</title></rect></svg></td>` +
       `<td class="mono worth-num">${watts} <span class="muted">${r.db_below ? '-' + r.db_below.toFixed(0) + ' dB' : 'the ceiling'}</span></td>` +
       `<td class="tiny muted worth-what">${escapeHTML(r.antenna)}</td></tr>`;
   }).join('');
   const powerBlock = `<div class="worth-group"><div class="spread" style="align-items:baseline"><b>Power</b> <span class="tiny muted">the most each radio may run, on a decibel scale - each 6 dB is an S-unit at the far end; the antenna rule beside it</span></div>` +
     `<table class="worth">${powerRows}</table></div>`;
   box.innerHTML = legend + groups + powerBlock +
-    `<p class="tiny muted" style="margin:.6rem 0 0;max-width:84ch">The bars are to one scale within a row: the grey is what the row's whole allocation would be. ` +
-    `Read across, the step that matters is the first one - from a licence-free radio to a Technician, VHF and UHF go from a few channels to all of it, ` +
-    `and HF from CB to ten metres with the world on it when the sun is up; the General step opens the rest of HF, and the Extra the last of every band. ` +
+    `<p class="tiny muted" style="margin:.6rem 0 0;max-width:84ch">The bars are to one scale within a row: the gray is what the row's whole allocation would be. ` +
+    `Read across, the step that matters is the first one - from a license-free radio to a Technician, VHF and UHF go from a few channels to all of it, ` +
+    `and HF from CB to ten meters with the world on it when the sun is up; the General step opens the rest of HF, and the Extra the last of every band. ` +
     `GMRS - a fee and a form, no exam - adds ${d.gmrs_mhz.toFixed(1)} MHz of UHF at 50 W with repeaters for a family, and is the one step that is not an exam. ` +
     `On power, a Technician's handheld on 2 m may run the same two or five watts as an FRS radio - and a beam on the roof, which the FRS radio may never have, is where the difference is made; the 1500 W is there when the band asks for it. ` +
     `Thirty-five questions from a pool of about four hundred, all of it in this program, is the Technician.</p>` +
-    `<details class="derivation"><summary class="tiny">The same as a table</summary><table class="data tiny"><tr><th>group</th><th>licence</th><th>MHz</th><th>of</th><th>by what you can do</th></tr>` +
+    `<details class="derivation"><summary class="tiny">The same as a table</summary><table class="data tiny"><tr><th>group</th><th>license</th><th>MHz</th><th>of</th><th>by what you can do</th></tr>` +
     d.groups.map(g => g.rows.map(r => `<tr><td>${escapeHTML(g.group)}</td><td>${escapeHTML(r.label)}</td><td class="mono">${((r.mhz || 0) + (r.personal || []).reduce((a, p) => a + p.mhz, 0)).toFixed(3)}</td><td class="mono">${g.total_mhz.toFixed(3)}</td><td>${escapeHTML(r.personal && r.personal.length ? r.personal.map(p => p.label + ' ' + p.mhz.toFixed(3)).join('; ') : Object.entries(r.by || {}).map(([k, v]) => WORTH_NAME[k] + ' ' + v.toFixed(3)).join('; '))}</td></tr>`).join('')).join('') +
     `</table><table class="data tiny mt"><tr><th>radio</th><th>watts</th><th>dBm</th><th>below 1500 W</th><th>rule</th><th>antenna</th></tr>` +
     power.map(r => `<tr><td>${escapeHTML(r.label)}</td><td class="mono">${r.watts} ${escapeHTML(r.unit)}</td><td class="mono">${r.dbm}</td><td class="mono">${r.db_below} dB (${r.s_units} S-units)</td><td>${escapeHTML(r.note)}</td><td>${escapeHTML(r.antenna)}</td></tr>`).join('') +
     `</table></details>`;
   // the row of the class being read is marked, so the selector and the chart agree
   const cls = bpClass();
-  box.querySelectorAll('table.worth tr').forEach(tr => tr.classList.toggle('worth-me', tr.querySelector('th').textContent === (cls === 'none' ? 'No licence' : cls)));
+  box.querySelectorAll('table.worth tr').forEach(tr => tr.classList.toggle('worth-me', tr.querySelector('th').textContent === (cls === 'none' ? 'No license' : cls)));
 }
 
 let bpWorth = null;

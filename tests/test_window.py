@@ -66,7 +66,7 @@ def run():
     finally:
         window.SPLASH = was_splash
     splash = was_splash.read_text(encoding="utf-8")
-    check("the splash honours where it was told to go", "params.get('to')" in splash, True)
+    check("the splash honors where it was told to go", "params.get('to')" in splash, True)
     check("  and goes there rather than to a rebuilt home page", "location.href = onward" in splash, True)
 
     print("\n-- how it opens: full screen, unless the person said otherwise --")
@@ -77,9 +77,9 @@ def run():
           size(window.command("b", "http://x/", "as-left", remembered=False, maximized=False)), ["--start-maximized"])
     check("bounds saved, left at a size of its own: nothing said",
           size(window.command("b", "http://x/", "as-left", remembered=True, maximized=False)), [])
-    check("left maximised: maximised again, said out loud",
+    check("left maximized: maximized again, said out loud",
           size(window.command("b", "http://x/", "as-left", remembered=True, maximized=True)), ["--start-maximized"])
-    check("maximised by choice: every launch, saved bounds or not",
+    check("maximized by choice: every launch, saved bounds or not",
           size(window.command("b", "http://x/", "maximized", remembered=True, maximized=False)), ["--start-maximized"])
     check("a size by choice: that size",
           size(window.command("b", "http://x/", "1280x860", remembered=True, maximized=True)), ["--window-size=1280,860"])
@@ -91,7 +91,7 @@ def run():
     # Two keys sit side by side in Preferences and only one is this window's.
     # browser.window_placement is a tabbed window's; ELMER's is the entry in
     # browser.app_window_placement. Reading the wrong one said "bounds are
-    # remembered" while never noticing they were remembered as maximised, so
+    # remembered" while never noticing they were remembered as maximized, so
     # the flag was never given and the window came up small launch after
     # launch. Here the two disagree on purpose.
     import json as _json
@@ -103,12 +103,12 @@ def run():
     tabbed = {"maximized": False, "left": 10, "top": 10, "right": 1060, "bottom": 1058}
     try:
         check("no profile yet: nothing remembered", window.remembered_bounds(), False)
-        check("  and nothing to say about maximised", window.left_maximized(), False)
+        check("  and nothing to say about maximized", window.left_maximized(), False)
         prefs.write_text(_json.dumps({"browser": {
             "window_placement": tabbed,
             "app_window_placement": {"localhost_/": dict(tabbed, maximized=True)}}}), encoding="utf-8")
         check("the app window's own placement is the one read", window.remembered_bounds(), True)
-        check("  left maximised, whatever the tabbed window did", window.left_maximized(), True)
+        check("  left maximized, whatever the tabbed window did", window.left_maximized(), True)
         prefs.write_text(_json.dumps({"browser": {
             "window_placement": dict(tabbed, maximized=True),
             "app_window_placement": {"localhost_/": tabbed}}}), encoding="utf-8")

@@ -9,7 +9,7 @@ nothing at all between them, and a program that draws that as one continuous
 bar is telling an operator they may transmit where they may not.
 
 Two frequencies belong to each channel and they are not the same number - the
-centre the rules name, and the dial setting 1.5 kHz below it that an operator
+center the rules name, and the dial setting 1.5 kHz below it that an operator
 types into the radio. Both have to answer "yes".
 """
 import sys
@@ -34,8 +34,8 @@ def check(label, got, want):
 def main():
     print("\n-- five channels, and nothing between them --")
     check("there are five", len(B.CHANNELS_60M), 5)
-    check("named by the rules' centre frequencies",
-          [c["centre"] for c in B.CHANNELS_60M],
+    check("named by the rules' center frequencies",
+          [c["center"] for c in B.CHANNELS_60M],
           [5.3320, 5.3480, 5.3585, 5.3730, 5.4050])
     check("dialled 1.5 kHz below that, for upper sideband",
           [c["dial"] for c in B.CHANNELS_60M],
@@ -53,8 +53,8 @@ def main():
               got["allowed"], True)
         check("  and knows which channel it is",
               (got["channel"] or {})["name"], channel["name"])
-        check("  centred where the rules say",
-              B.privilege_at(channel["centre"], "General")["allowed"], True)
+        check("  centerd where the rules say",
+              B.privilege_at(channel["center"], "General")["allowed"], True)
     check("and the gap between two channels is not",
           B.privilege_at(5.3400, "General")["allowed"], False)
     check("nor is one 100 Hz outside a channel",
@@ -110,7 +110,7 @@ def main():
     check("a Technician is told the real reason",
           "may transmit on" in tech[0], True)
 
-    print("\n-- no licence is a class the plan can be asked for --")
+    print("\n-- no license is a class the plan can be asked for --")
     check("it is offered, first", B.CHOICES[0], B.NO_LICENSE)
     check("  but never named as a class that permits something", B.NO_LICENSE in B.CLASSES, False)
     check("  and ranks below Novice", B.CLASS_RANK[B.NO_LICENSE] < B.CLASS_RANK["Novice"], True)
@@ -121,21 +121,21 @@ def main():
     check("  and 2 m phone still needs a Technician, not a nobody",
           B.classes_permitting("2 m", 146.0, 148.0, "phone")[0], "Technician")
 
-    print("\n-- is it worth the effort: what each licence unlocks --")
+    print("\n-- is it worth the effort: what each license unlocks --")
     a = B.allocation()
     groups = {g["group"]: g for g in a["groups"]}
     check("two rows of spectrum, HF and VHF/UHF", sorted(groups), ["HF", "VHF/UHF"])
     check("HF is under four megahertz together", 3.5 < groups["HF"]["total_mhz"] < 4.0, True)
     check("  and VHF/UHF over a hundred", groups["VHF/UHF"]["total_mhz"] > 100, True)
     hf = {r["license"]: r for r in groups["HF"]["rows"]}
-    check("no licence holds no amateur HF, and CB", (hf["none"]["mhz"], hf["none"]["personal"][0]["key"]), (0.0, "cb"))
+    check("no license holds no amateur HF, and CB", (hf["none"]["mhz"], hf["none"]["personal"][0]["key"]), (0.0, "cb"))
     check("a Technician holds under a megahertz of HF", 0.5 < hf["Technician"]["mhz"] < 1.0, True)
-    check("  a fifth of it phone - ten metres", round(hf["Technician"]["by"]["phone"], 2), 0.2)
+    check("  a fifth of it phone - ten meters", round(hf["Technician"]["by"]["phone"], 2), 0.2)
     check("a General most of it", hf["General"]["mhz"] > 3.0, True)
     check("  and an Extra more still", hf["Extra"]["mhz"] > hf["General"]["mhz"], True)
     vu = {r["license"]: r for r in groups["VHF/UHF"]["rows"]}
     check("VHF/UHF is the Technician's already", vu["Technician"]["mhz"], groups["VHF/UHF"]["total_mhz"])
-    check("  and no licence has a third of a megahertz of it", round(sum(p["mhz"] for p in vu["none"]["personal"]), 2), 0.35)
+    check("  and no license has a third of a megahertz of it", round(sum(p["mhz"] for p in vu["none"]["personal"]), 2), 0.35)
     check("a segment counts as the most it allows: phone before CW", B._most("CW, phone"), "phone")
 
     print("\n-- and the power ceiling --")
@@ -153,11 +153,11 @@ def main():
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     print("\n-- the far end of a round trip --")
     fe = B.far_end("20 m")
-    check("20 m: an HF station, a wire or a whip, and a General for phone or CW", (("wire" in fe["equipment"]), fe["licence"]["phone"], fe["licence"]["cw"]), (True, "General", "General"))
+    check("20 m: an HF station, a wire or a whip, and a General for phone or CW", (("wire" in fe["equipment"]), fe["license"]["phone"], fe["license"]["cw"]), (True, "General", "General"))
     fe = B.far_end("15 m")
-    check("15 m: a Technician may answer on CW, phone needs a General", (fe["licence"]["cw"], fe["licence"]["phone"]), ("Technician", "General"))
-    check("  and it is said in words, with the US named and the rest left to their own rules", ("in the US" in fe["licence_words"], "outside the US" in fe["abroad"]), (True, True))
-    check("2 m: a VHF rig, and a Technician for everything", (("VHF" in B.far_end("2 m")["equipment"]), B.far_end("2 m")["licence"]["phone"]), (True, "Technician"))
+    check("15 m: a Technician may answer on CW, phone needs a General", (fe["license"]["cw"], fe["license"]["phone"]), ("Technician", "General"))
+    check("  and it is said in words, with the US named and the rest left to their own rules", ("in the US" in fe["license_words"], "outside the US" in fe["abroad"]), (True, True))
+    check("2 m: a VHF rig, and a Technician for everything", (("VHF" in B.far_end("2 m")["equipment"]), B.far_end("2 m")["license"]["phone"]), (True, "Technician"))
     check("a band that is not one is None", B.far_end("13 m"), None)
 
     return 1 if FAILS else 0

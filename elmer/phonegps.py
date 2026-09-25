@@ -42,7 +42,7 @@ _lock = threading.Lock()
 
 
 def _checksum_ok(sentence):
-    """NMEA carries an XOR checksum after a '*'. Honour it.
+    """NMEA carries an XOR checksum after a '*'. Honor it.
 
     A truncated datagram is not rare on a phone that has just changed cell, and
     half a sentence parses into a plausible-looking wrong position far more

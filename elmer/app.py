@@ -38,7 +38,7 @@ from . import (
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
-    personal, phonegps, places, pota, prints, programmes,
+    personal, phonegps, places, pota, prints, programs,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
     srs, sweeps, terrain, ticket, touchstone, tournament, towerwitch,
@@ -275,11 +275,11 @@ def _build_for_pages():
     return {"build": _build()}
 
 
-# One colour a band, everywhere: the page head writes these out as CSS
+# One color a band, everywhere: the page head writes these out as CSS
 # custom properties and as window.BAND_PALETTE, from palette.py, so that
 # no stylesheet or script carries a copy of its own. Worked out once.
 _BAND_PALETTE = bandplan.band_palette()
-_ATTENTION = {"colour": palette.ATTENTION, "rgb": palette.rgb(palette.ATTENTION)}
+_ATTENTION = {"color": palette.ATTENTION, "rgb": palette.rgb(palette.ATTENTION)}
 
 
 @app.context_processor
@@ -363,7 +363,7 @@ def _private_names_once():
 
 @app.context_processor
 def _classes():
-    """The licence classes, for the settings the gear opens.
+    """The license classes, for the settings the gear opens.
 
     From bandplan rather than written out again in a template: a list that
     exists twice is a list that disagrees with itself eventually.
@@ -390,7 +390,7 @@ def _kiosk():
 
 @app.route("/api/window", methods=["GET", "POST"])
 def api_window():
-    """How the window of ELMER's own opens: where it was left, maximised,
+    """How the window of ELMER's own opens: where it was left, maximized,
     or a size. The person's own preference, kept with the unit's settings
     and read at every launch; local screen only, like the rest of what
     changes this machine."""
@@ -603,15 +603,15 @@ def _saved_qth(connection, profile):
     return place
 
 
-def _settle_pending_licences(connection):
-    """Read again a licence that was asked for before its FCC file arrived.
+def _settle_pending_licenses(connection):
+    """Read again a license that was asked for before its FCC file arrived.
 
     Entering a GMRS callsign starts that file downloading and answers at
     once - "the FCC's GMRS file is being fetched, look again in a few
     minutes" - which is sound advice the program could not take. The
     answer was kept as the record, and nothing ever went back for it once
     the file landed. On the machine that found this the file was read
-    fifteen seconds later, six hundred thousand licences of it, with the
+    fifteen seconds later, six hundred thousand licenses of it, with the
     operator's own among them; the page went on saying "being fetched"
     until the call was typed in again.
 
@@ -633,7 +633,7 @@ def _settle_pending_licences(connection):
         if fresh and fresh.get("found"):
             settings[key] = fresh
             changed = True
-            log.info("licence %s settled from the %s file: expires %s (%s)",
+            log.info("license %s settled from the %s file: expires %s (%s)",
                      record["callsign"], service or "FCC", fresh.get("expires"),
                      (fresh.get("status") or {}).get("state"))
     if changed:
@@ -641,9 +641,9 @@ def _settle_pending_licences(connection):
 
 
 def profile_block(connection):
-    # Before anything is read out of the profile: a licence that was still
+    # Before anything is read out of the profile: a license that was still
     # being fetched when it was asked for has its answer by now.
-    _settle_pending_licences(connection)
+    _settle_pending_licenses(connection)
     prof = db.public_profile(db.get_profile(connection))
     standings = all_standings(connection)
     tracks = ranks.overall(standings)
@@ -681,20 +681,20 @@ def profile_block(connection):
             # The record, with its standing worked out today. The stored
             # record carries the status it had on the day it was fetched,
             # and a page that read that raw showed "2046 days" for ever and
-            # never saw a licence run out until somebody looked it up again.
+            # never saw a license run out until somebody looked it up again.
             "license": _license_now(prof),
-            # The licence's standing, under a name of its own: this block is
+            # The license's standing, under a name of its own: this block is
             # also splatted into routes with **, and /progress already hands
             # its template a `standing` - the study rank - so the plain name
             # collided and the progress page died with "multiple values for
             # keyword argument 'standing'".
-            "licence_standing": prof.get("standing"),
+            "license_standing": prof.get("standing"),
             # The opening announcement: whether to key it at all, and the
             # name to key after DE. A supporter who asked to be named has
             # their own callsign read out with the program's, which is the
             # point of it - the room hears who keeps this going. Anybody who
             # would rather not be named is not, here as anywhere else.
-            # A licence class this unit cleared on an upgrade and has not
+            # A license class this unit cleared on an upgrade and has not
             # been given again. Shown until it is, because taking it in
             # silence was the mistake.
             "class_cleared": prof["settings"].get("license_class_cleared") or "",
@@ -704,7 +704,7 @@ def profile_block(connection):
             # every page: one answer, so a class shown on one screen cannot
             # disagree with the same class shown on another.
             "held": callsign.held(prof["settings"]),
-            "gmrs": gmrs_licence_for(connection, prof["settings"]) or {},
+            "gmrs": gmrs_license_for(connection, prof["settings"]) or {},
             # This person's own GMRS record, worked out as of today. `gmrs`
             # above may be somebody else's - a licensee on this unit who has
             # marked them as family - and the Station panel is asking about
@@ -830,7 +830,7 @@ def home():
         })
     connection.commit()
     profile = db.get_profile(connection)
-    # Somebody with no licence on record whose own evidence says they would
+    # Somebody with no license on record whose own evidence says they would
     # pass is told so, and told what the day involves. Never raised at the
     # dashboard's expense: a panel that cannot be built is a panel that is
     # not shown. See ticket.py.
@@ -849,7 +849,7 @@ def home():
     }
     return render_template("home.html", summary=summary, greeting=greeting(),
                            first_run=first_run, go_and_sit=go_and_sit,
-                           # The button to the other dashboard: greyed when
+                           # The button to the other dashboard: grayed when
                            # TowerWitch is not on this unit, or this is not
                            # the unit's own screen - a desktop program is
                            # not started from across the network.
@@ -1028,15 +1028,15 @@ def bandplan_page():
     profile = db.get_profile(connection)
     return render_template(
         "bandplan.html", bands=bandplan.BANDS, kinds=bandplan.KINDS,
-        kind_colours=palette.KIND_COLOUR, class_colours=palette.CLASS_COLOUR,
+        kind_colors=palette.KIND_COLOR, class_colors=palette.CLASS_COLOR,
         classes=bandplan.CHOICES, class_labels=bandplan.CLASS_LABELS,
         # The page opens on the class this station holds, every time. Not
         # the class looked at last: the picker is a view and saves nothing,
-        # so the licence is the only thing left to open on, and one helper
+        # so the license is the only thing left to open on, and one helper
         # answers "what does this station hold?" for the page, the owl and
         # anything printed with a callsign on it.
         #
-        # Nothing held opens on No licence rather than on Technician, because
+        # Nothing held opens on No license rather than on Technician, because
         # that is the true answer and because the page has an honest thing to
         # say to it: every amateur band reads no, and under them are the
         # services that are theirs today - FRS, MURS, CB, GMRS for a fee and
@@ -1108,14 +1108,14 @@ def api_bandplan():
         # Only the upward direction is a claim worth a word. An Extra reading
         # the Technician plan is looking at a subset of what they hold; a
         # Technician reading Extra is looking at what they do not, and that is
-        # the sheet that must never be mistaken for a licence.
+        # the sheet that must never be mistaken for a license.
         "above_yours": bool(
             own and license != bandplan.RECIPROCAL
             and bandplan.CLASS_RANK.get(license, 0)
             > bandplan.CLASS_RANK.get(own, 0)),
         # A visiting operator under 47 CFR 97.107: what is drawn is the
         # ceiling the rule sets, not a class anybody holds. The page says
-        # the rest of it - that their own licence binds them too, and how
+        # the rest of it - that their own license binds them too, and how
         # they identify here - because half an answer about the law is the
         # dangerous half.
         "reciprocal": license == bandplan.RECIPROCAL,
@@ -1325,7 +1325,7 @@ def api_ways_out():
             if g in reachout.GEAR]
     license = request.args.get("license") or \
         profile["settings"].get("license_class") or "Technician"
-    gmrs = gmrs_licence_for(connection, profile["settings"])
+    gmrs = gmrs_license_for(connection, profile["settings"])
     answer = reachout.summary(place["lat"], place["lon"], gear, license,
                               conn=connection, gmrs=gmrs)
     answer["qth"] = place.get("short") or place.get("grid") or ""
@@ -1336,7 +1336,7 @@ def api_ways_out():
     # kept in the profile, marked with a press.
     # The avenues assume Technician when no class is set, which is the useful
     # default for reading a band; the track must not, since its first steps
-    # are the ones for somebody with no licence yet - and an account with no
+    # are the ones for somebody with no license yet - and an account with no
     # class and no callsign is exactly that person.
     track_class = (profile["settings"].get("license_class")
                    or (license if profile.get("callsign") else "none"))
@@ -1366,7 +1366,7 @@ def api_ways_out():
 def activations_page():
     """Parks and summits: what is near, what counts, and what you have.
 
-    The two programmes are the reason most people carry a radio somewhere, and
+    The two programs are the reason most people carry a radio somewhere, and
     almost every wasted trip is a planning failure rather than a radio one -
     the wrong kit, or the wrong side of a contour. That is fixable at a table
     days early, which is what this page is for.
@@ -1446,7 +1446,7 @@ MAX_BAND = 400.0
 
 
 def _print_band(body, system):
-    """The inner and outer edge of the search, in kilometres.
+    """The inner and outer edge of the search, in kilometers.
 
     Typed in the operator's own units and converted once, here, rather than in
     the four places that would otherwise each have to agree about it.
@@ -1477,9 +1477,9 @@ def api_reference():
     """One park or summit, picked: where it is from here, what has worked
     for the people who went, and the spots inside it that ELMER holds.
 
-    `ref` is a programme reference; `q` is a name or part of one, answered
+    `ref` is a program reference; `q` is a name or part of one, answered
     from the held and bundled lists and the landmarks without a fetch. The
-    record itself is fetched from the programme when there is a network
+    record itself is fetched from the program when there is a network
     and read from disk when there is not.
     """
     connection = conn()
@@ -1500,7 +1500,7 @@ def api_reference():
                         or {"ref": code, "name": spot["landmark"],
                             "kind": "park" if spot.get("pota") else "summit"})
         return jsonify({"matches": hits})
-    record = programmes.lookup(ref, refresh=request.args.get("refresh") == "1")
+    record = programs.lookup(ref, refresh=request.args.get("refresh") == "1")
     held = references.find(ref)
     if held:
         # the list's name is the full one; the park record's is often short
@@ -1514,9 +1514,9 @@ def api_reference():
         record["from_here"] = {"km": round(km), "bearing": round(bearing),
                                "qth": place.get("short") or place.get("grid") or ""}
     record["spots"] = landmarks.group_for(ref=ref)
-    record["sentence"] = programmes.sentence(record) if record.get("ok") else ""
+    record["sentence"] = programs.sentence(record) if record.get("ok") else ""
     # What this unit has seen on the spot feed here - bands, hours, the odd
-    # comment about an antenna - which the programme's record does not carry.
+    # comment about an antenna - which the program's record does not carry.
     record["seen"] = spotlog.story(ref)
     record["seen_sentence"] = spotlog.sentence(record["seen"])
     return jsonify(record)
@@ -1542,7 +1542,7 @@ def api_activations_print():
 
     # From here, or from where you are going. A band around the destination is
     # the question somebody actually has the night before a trip, and the QTH
-    # is the wrong centre for it.
+    # is the wrong center for it.
     asked = str(body.get("from") or "").strip()
     if asked:
         place = geocode.resolve(asked)
@@ -1616,7 +1616,7 @@ def api_activations_prepare():
     connection = conn()
     profile = db.get_profile(connection)
     # Around here, or around where you are going: the "of" box on the page
-    # is the centre of the fetch as well as of the list. Planning a trip to
+    # is the center of the fetch as well as of the list. Planning a trip to
     # EL16hq from Minnesota means holding what is near EL16hq, not what is
     # near the QTH.
     body = request.get_json(silent=True) or {}
@@ -1714,7 +1714,7 @@ def api_pattern():
     # is, not on the server's idea of noon.
     # Three states where the operator is, then the one bit the hop geometry
     # actually wants. The F2 peak has a day height and a night height and no
-    # third one, and by the grey line it is already rising - so grey counts as
+    # third one, and by the gray line it is already rising - so gray counts as
     # night here. That is the only consumer left that a boolean genuinely fits.
     sun = (reachout.sun_state(place["lat"], place["lon"])
            if place.get("lat") is not None and place.get("lon") is not None
@@ -1838,7 +1838,7 @@ def api_vna_sweep():
     """What an instrument would show, for an antenna nobody has built yet."""
     try:
         f0 = float(request.args.get("f0", "14.2"))
-        centre = float(request.args.get("centre") or f0)
+        center = float(request.args.get("center") or f0)
         span = float(request.args.get("span", "0.14"))
         feet = float(request.args.get("feet", "0"))
         points = int(request.args.get("points", vna.DEFAULT_POINTS))
@@ -1848,9 +1848,9 @@ def api_vna_sweep():
         abort(400)
     kind = request.args.get("kind", "dipole")
     line = request.args.get("line", "rg8x")
-    if line not in smith.LINES or not (0.1 <= f0 <= 3000 and 0.1 <= centre <= 3000):
+    if line not in smith.LINES or not (0.1 <= f0 <= 3000 and 0.1 <= center <= 3000):
         abort(400)
-    return jsonify(vna.sweep(kind, f0, line, feet, centre, span, points, q))
+    return jsonify(vna.sweep(kind, f0, line, feet, center, span, points, q))
 
 
 @app.route("/api/vna/ports")
@@ -2093,7 +2093,7 @@ def api_antenna_pdf():
     site = body.get("site") or "house"
     if site not in antenna_advice.SITES:
         site = "house"
-    # The licence decides what is hatched over on the band bar at the top of
+    # The license decides what is hatched over on the band bar at the top of
     # the sheet. Taking it from the profile rather than the request keeps the
     # sheet's answer to "may I transmit here" the same one every other page
     # gives, rather than one the browser could ask for.
@@ -2135,7 +2135,7 @@ def api_personal():
             out["gmrs_credit"] = repeaters.RB_CREDIT if _ and repeaters.RB_SOURCE in _ else None
         except Exception:                          # never at the page's expense
             log.exception("gmrs repeaters")
-    out["gmrs_license"] = gmrs_licence_for(connection) or None
+    out["gmrs_license"] = gmrs_license_for(connection) or None
     return jsonify(out)
 
 
@@ -2344,7 +2344,7 @@ def api_bandplan_reach():
 
 @app.route("/api/bandplan/allocation")
 def api_bandplan_allocation():
-    """What each licence unlocks, by band group - the chart's numbers."""
+    """What each license unlocks, by band group - the chart's numbers."""
     return jsonify(bandplan.allocation())
 
 
@@ -2650,7 +2650,7 @@ def library_read(name):
                            draws=library.can_draw_pages())
 
 
-# ---- the operator's own licence papers: theirs, shown only to them
+# ---- the operator's own license papers: theirs, shown only to them
 
 def _records_for(connection):
     """The FCC records ELMER holds for this person, by call, so a paper can
@@ -2673,13 +2673,13 @@ def api_papers():
 
 @app.route("/api/papers/add", methods=["POST"])
 def api_papers_add():
-    """Keep a licence PDF for the person signed in - and nobody else."""
+    """Keep a license PDF for the person signed in - and nobody else."""
     up = request.files.get("file")
     kind = (request.form.get("kind") or "").strip()
     if up is None or not up.filename:
         abort(400, "no file")
     if kind not in papers.KINDS:
-        abort(400, "say which licence it is")
+        abort(400, "say which license it is")
     connection = conn()
     ok, message = papers.add(connection.user_id, kind, up.stream)
     if not ok:
@@ -2714,7 +2714,7 @@ def papers_file(kind):
         abort(404, "no such paper of yours")
     return send_from_directory(str(pdf.parent), pdf.name, mimetype="application/pdf", max_age=0,
                                as_attachment=bool(request.args.get("save")),
-                               download_name=f"{kind}-licence.pdf")
+                               download_name=f"{kind}-license.pdf")
 
 
 @app.route("/papers/page/<kind>/<int:n>.png")
@@ -2853,16 +2853,18 @@ def cw_page():
     return render_template(
         "cw.html", kinds=cw.KINDS, koch_order=cw.KOCH_ORDER,
         cw_settings=settings, progress=progress, plan=the_plan,
-        session=cw.session(the_plan), streak=_cw_streak(connection), voice_have=_voice_have(),
+        session=cw.session(the_plan), budget=cw.budget(the_plan),
+        cold_gap_ms=cw.COLD_GAP_MS,
+        streak=_cw_streak(connection), voice_have=_voice_have(),
         phonetic={k.upper(): v for k, v in voice.PHONETIC.items()},
         meanings=cw.MEANINGS, chart=cw.chart(), **profile_block(connection))
 
 
-CW_LOG_KEY = "cw.log"                  # {date: seconds practised}
+CW_LOG_KEY = "cw.log"                  # {date: seconds practiced}
 
 
 def _cw_streak(connection):
-    """Days practised in a row, ending today or yesterday, and today's minutes."""
+    """Days practiced in a row, ending today or yesterday, and today's minutes."""
     logbook = db.kv_get(connection, CW_LOG_KEY, {}) or {}
     today = date.today()
     minutes_today = round((logbook.get(today.isoformat()) or 0) / 60)
@@ -2887,7 +2889,9 @@ def api_cw_plan():
     # `learn` is the plan with no slider on it: what the record has earned
     # and nothing more. The self-paced lesson draws from this one, because
     # the whole point of that lesson is that the record decides.
-    return jsonify({"plan": the_plan, "session": cw.session(the_plan), "learn": cw.plan(progress),
+    return jsonify({"plan": the_plan, "session": cw.session(the_plan),
+                    "budget": cw.budget(the_plan), "cold_gap_ms": cw.COLD_GAP_MS,
+                    "learn": cw.plan(progress),
                     **_cw_streak(connection), "voice_have": _voice_have()})
 
 
@@ -2903,6 +2907,12 @@ def api_cw_flash():
         count = max(5, min(200, int(request.args.get("count", 40))))
     except ValueError:
         count = 40
+    # `only` narrows the drill to a named set: the lap a session ends on,
+    # which is the characters already known and nothing else. Anything asked
+    # for that is not in the lesson is dropped rather than taught early.
+    only = [c for c in (request.args.get("only") or "").upper() if c in the_plan["chars"]]
+    if only:
+        the_plan = dict(the_plan, chars=only, new=[], weak=[])
     seq = cw.flash_sequence(the_plan, count)
     # `print` says whether this character still has its shape drawn while it
     # sounds. Decided here, per character, rather than on the page: it is a
@@ -2915,9 +2925,57 @@ def api_cw_flash():
                     "weaned": the_plan["weaned"]})
 
 
+@app.route("/api/cw/flagging", methods=["POST"])
+def api_cw_flagging():
+    """Whether this session has gone past its useful end.
+
+    The page keeps the reaction times as they happen and asks at each break.
+    The judgment is here rather than there because it is pedagogy, not
+    display: see cw.flagging for why a learner who is slowing down is told
+    to come back rather than encouraged to push on.
+    """
+    body = request.get_json(silent=True) or {}
+    times = body.get("times")
+    if not isinstance(times, list):
+        times = []
+    clean = []
+    for t in times[-400:]:
+        try:
+            value = float(t)
+        except (TypeError, ValueError):
+            continue
+        if 0 < value < 60000:
+            clean.append(value)
+    return jsonify({"reading": cw.flagging(clean)})
+
+
+@app.route("/api/cw/wins", methods=["POST"])
+def api_cw_wins():
+    """What moved in this session, for the card at the end of it.
+
+    `was` is the plan as the page had it before the session started, which
+    is the only place the before-and-after of one sitting exists. It steers
+    the wording and nothing else, so taking the page's word for it costs
+    nothing if it is wrong.
+    """
+    body = request.get_json(silent=True) or {}
+    was = body.get("was") if isinstance(body.get("was"), dict) else {}
+    connection = conn()
+    settings = db.get_profile(connection)["settings"].get("cw") or {}
+    progress = db.cw_progress(connection)
+    the_plan = cw.plan(progress, settings.get("lesson"))
+    # `baseline` is what to say when nothing moved: what the person can name
+    # cold so far. A learner on their first day has no before and cannot have
+    # one - but they are building one, and that is worth saying instead of
+    # "too early to show you anything".
+    return jsonify({"wins": cw.wins(progress, the_plan, was),
+                    "baseline": cw.baseline_words(the_plan, was),
+                    "learned": the_plan.get("learned") or []})
+
+
 @app.route("/api/cw/minutes", methods=["POST"])
 def api_cw_minutes():
-    """Time practised, added to today - the streak is made of these."""
+    """Time practiced, added to today - the streak is made of these."""
     body = request.get_json(silent=True) or {}
     try:
         seconds = max(0.0, min(3600.0, float(body.get("seconds") or 0)))
@@ -3806,7 +3864,7 @@ def api_propagation_outlook():
     # height. A unit with the network unplugged answers this for any date.
     #
     # Two heights, because they are two different events and the difference is
-    # the whole grey-line argument: the sun leaves the ground at -0.833 (upper
+    # the whole gray-line argument: the sun leaves the ground at -0.833 (upper
     # limb, refraction and semidiameter included, which is what an almanac
     # prints) and leaves the D layer 80 km up at D_LAYER_DIP below that. The
     # gap between them is the window where the absorber is collapsing and the
@@ -6036,21 +6094,21 @@ def _open_net(wanted, name=None, section=None, seconds=None):
     # hall.py - so opening one early costs nothing.
     _lead_in_restore(conn())
     hall.start(running, lambda: _ask_net(running, wanted, section, seconds))
-    # And the programme keeps time: a timed step moves on when its clock is
+    # And the program keeps time: a timed step moves on when its clock is
     # up, a game step when its rounds are played. Nothing happens until the
-    # host has put a programme in and started it.
-    hall.keep_time(running, lambda index: _programme_advance(running, index))
+    # host has put a program in and started it.
+    hall.keep_time(running, lambda index: _program_advance(running, index))
     return running
 
 
-def _programme_advance(running, index):
-    """The timekeeper's Next: from step `index`, if the programme is still
+def _program_advance(running, index):
+    """The timekeeper's Next: from step `index`, if the program is still
     on it, on to the next and make it happen. Called from the timekeeper's
     thread, so no request is in hand; the step's own actions open what they
     need."""
     step = running.show.advance_from(index)
     if step is None:
-        if running.show.step >= len(running.show.programme):
+        if running.show.step >= len(running.show.program):
             # Past the end: the same landing the host's Next gives.
             running.show.set_mode(show.INTERMISSION)
         return
@@ -6188,7 +6246,7 @@ def _ask_net(running, level="technician", section=None, seconds=None):
         if running.mode == netcontrol.CUTTHROAT and running.cutthroat_over():
             return None
         # The tournament is drawn once, in the proportions of the examination
-        # for this licence class, and walked one question at a time. It used
+        # for this license class, and walked one question at a time. It used
         # to be random.choice over the whole pool every round: every section
         # equally likely whatever its weight on the paper, the same question
         # possible twice in an evening, and no end to it.
@@ -6345,7 +6403,7 @@ def api_net_mode():
 
 def _begin_hall_game(running, wanted, difficulty=None, seconds=None, tables=None, holes=None):
     """A CutThroat or a round of golf across the hall, tables for players.
-    Shared by the button and the programme."""
+    Shared by the button and the program."""
     difficulty = str(difficulty or running.difficulty).lower()
     if difficulty not in party.DIFFICULTIES:
         abort(400, f"difficulty must be one of {sorted(party.DIFFICULTIES)}")
@@ -6386,7 +6444,7 @@ def difficulty_module_measure(pool_id):
 
 def _begin_hall_shootout(running, difficulty=None, pick_seconds=None,
                          seconds=None, tables=None):
-    """Start a shootout across the hall. Shared by the button and the programme."""
+    """Start a shootout across the hall. Shared by the button and the program."""
     difficulty = str(difficulty or running.difficulty).lower()
     pool_id = party.DIFFICULTIES.get(difficulty)
     if not pool_id:
@@ -6413,7 +6471,7 @@ def _begin_hall_shootout(running, difficulty=None, pick_seconds=None,
 
 # ------------------------------------------------------------- the show
 # The host's hand on every screen: announcements, the deck between rounds,
-# the hall's mode and focus, the programme. See elmer.show.
+# the hall's mode and focus, the program. See elmer.show.
 
 @app.route("/api/net/show")
 def api_net_show():
@@ -6670,19 +6728,19 @@ def api_net_asset(name):
     return send_from_directory(str(show.ASSETS), safe, max_age=300)
 
 
-@app.route("/api/net/programme", methods=["POST"])
-def api_net_programme():
+@app.route("/api/net/program", methods=["POST"])
+def api_net_program():
     """The evening as a list of steps. Setting it does not start it."""
     running = _net_or_404()
     body = request.get_json(silent=True) or {}
-    steps = running.show.set_programme(body.get("steps") or [])
+    steps = running.show.set_program(body.get("steps") or [])
     running.show.save()
-    return jsonify({"steps": steps, "programme": running.show.programme_view()})
+    return jsonify({"steps": steps, "program": running.show.program_view()})
 
 
-@app.route("/api/net/programme/event", methods=["POST"])
-def api_net_programme_event():
-    """Schedule an event: the programme filled in one of the shapes an event
+@app.route("/api/net/program/event", methods=["POST"])
+def api_net_program_event():
+    """Schedule an event: the program filled in one of the shapes an event
     takes - the kitchen table, a class, a club night, a hamfest booth. The
     host edits from there."""
     running = _net_or_404()
@@ -6694,30 +6752,30 @@ def api_net_programme_event():
         steps = show.event_steps(str(body.get("event") or "table"), difficulty)
     except ValueError as exc:
         abort(400, str(exc))
-    running.show.set_programme(steps)
+    running.show.set_program(steps)
     running.show.save()
     log.info("show: event scheduled - %s, %d steps", body.get("event"), len(steps))
-    return jsonify({"steps": running.show.programme,
-                    "programme": running.show.programme_view()})
+    return jsonify({"steps": running.show.program,
+                    "program": running.show.program_view()})
 
 
-@app.route("/api/net/programme/next", methods=["POST"])
-def api_net_programme_next():
+@app.route("/api/net/program/next", methods=["POST"])
+def api_net_program_next():
     """One press: the next step happens - the hall's mode, the game, the
     announcement - and every screen follows."""
     running = _net_or_404()
     step = running.show.advance()
     if step is None:
         running.show.set_mode(show.INTERMISSION)
-        return jsonify({"step": None, "programme": running.show.programme_view(),
+        return jsonify({"step": None, "program": running.show.program_view(),
                         "mode": running.show.mode})
     _act_on_step(running, step)
-    return jsonify({"step": step, "programme": running.show.programme_view(),
+    return jsonify({"step": step, "program": running.show.program_view(),
                     "mode": running.show.mode})
 
 
 def _act_on_step(running, step):
-    """Make a programme step happen. Each kind is one of the host's buttons."""
+    """Make a program step happen. Each kind is one of the host's buttons."""
     kind = step["kind"]
     if kind not in ("rounds", "shootout", "announce"):
         # Leaving the game: the conductor stops and a question still open is
@@ -7134,7 +7192,7 @@ def _certificate_details(connection, body=None):
         saved = {}
     profile = db.get_profile(connection)
     place = qth_for(connection, profile) or {}
-    licence = profile["settings"].get("license") or {}
+    license = profile["settings"].get("license") or {}
     # A grid square is where the station is, not a place for a certificate:
     # "EN26uo" on the wall says nothing to anybody. A named town is used;
     # a bare grid is left blank for the host to fill in.
@@ -7145,7 +7203,7 @@ def _certificate_details(connection, body=None):
         "event": "", "club": "",
         "when": f"{date.today().day} {date.today():%B %Y}",
         "where": where,
-        "net_control": licence.get("callsign") or "",
+        "net_control": license.get("callsign") or "",
         "club_signer": "", "places": 3,
     }
     out = dict(defaults)
@@ -7185,7 +7243,7 @@ def api_tournament_certificates():
     Names may be corrected on the way through - `names` maps a placing to
     what should be printed - because a player who typed "dana" on a phone
     should not have that in 44 point type. What the certificate says about
-    the game is what the game recorded; what it says about licences is
+    the game is what the game recorded; what it says about licenses is
     nothing, in so many words.
     """
     body = request.get_json(silent=True) or {}
@@ -7934,7 +7992,7 @@ def api_celestial_fix():
         if not -1.0 <= hs <= 180.0:
             return jsonify({"ok": False,
                             "error": f"sight {i}: {hs} is not an altitude"}), 400
-        limb = row.get("limb") if row.get("limb") in ("lower", "upper") else "centre"
+        limb = row.get("limb") if row.get("limb") in ("lower", "upper") else "center"
         done = celestial.reduce_sight(hs, when, index_error, height_ft,
                                       limb, horizon)
         # Each sight carries what it is worth, so a stick reading is not
@@ -8051,7 +8109,7 @@ def _adopt_license(connection, call, settings=None):
     other = uls.service_of(callsign.normalise(call)) if call else None
     if other in ("gmrs", "commercial"):
         # A GMRS or commercial call typed into the amateur box is that
-        # licence, not a wrong amateur one: filed where it belongs, the
+        # license, not a wrong amateur one: filed where it belongs, the
         # amateur call left as it was. The panel has a box for each.
         settings = db.get_profile(connection)["settings"] if save else settings
         settings = (_adopt_gmrs if other == "gmrs" else _adopt_commercial)(call, settings)
@@ -8083,8 +8141,8 @@ def _adopt_license(connection, call, settings=None):
 
 
 def _adopt_gmrs(call, settings):
-    """Record a GMRS callsign and read its licence - the dates, since a GMRS
-    licence has no class. Blank takes it off."""
+    """Record a GMRS callsign and read its license - the dates, since a GMRS
+    license has no class. Blank takes it off."""
     call = callsign.normalise(call)
     if not call:
         settings.pop("gmrs_call", None)
@@ -8095,10 +8153,10 @@ def _adopt_gmrs(call, settings):
     if found:
         settings["gmrs"] = found
         if found.get("found"):
-            log.info("GMRS licence %s: granted %s, expires %s (%s)", call,
+            log.info("GMRS license %s: granted %s, expires %s (%s)", call,
                      found.get("granted"), found.get("expires"), found["status"]["state"])
         else:
-            log.info("GMRS licence %s: %s", call, found.get("reason"))
+            log.info("GMRS license %s: %s", call, found.get("reason"))
     else:
         settings["gmrs"] = {"callsign": call, "found": False, "service": "gmrs",
                             "reason": "lookup unavailable - the call is kept, the dates are not known"}
@@ -8106,8 +8164,8 @@ def _adopt_gmrs(call, settings):
     return settings
 
 
-def gmrs_licence_for(connection, settings=None):
-    """The GMRS licence this person operates under: their own, or - 47 CFR
+def gmrs_license_for(connection, settings=None):
+    """The GMRS license this person operates under: their own, or - 47 CFR
     95.1705(c) - a licensee's on this unit who has marked them as family.
     The licensee marks, on their own account; nobody can claim cover."""
     settings = settings if settings is not None else db.get_profile(connection)["settings"]
@@ -8142,10 +8200,10 @@ def _adopt_commercial(call, settings):
         settings["commercial_license"] = found
         if found.get("found"):
             settings["commercial"] = True
-            log.info("commercial licence %s: %s, expires %s (%s)", call, found.get("license_class"),
+            log.info("commercial license %s: %s, expires %s (%s)", call, found.get("license_class"),
                      found.get("expires") or "never", found["status"]["state"])
         else:
-            log.info("commercial licence %s: %s", call, found.get("reason"))
+            log.info("commercial license %s: %s", call, found.get("reason"))
     else:
         settings["commercial_license"] = {"callsign": call, "found": False, "service": "commercial",
                                           "reason": "lookup unavailable - the call is kept, the record is not known"}
@@ -8155,7 +8213,7 @@ def _adopt_commercial(call, settings):
 
 @app.route("/api/uls")
 def api_uls():
-    """Which of the FCC's licence files this unit has read, and when."""
+    """Which of the FCC's license files this unit has read, and when."""
     return jsonify(uls.state())
 
 
@@ -8215,7 +8273,7 @@ def api_settings():
         # is, not a request to rename the 40 m band.
         settings["units"] = units.system(body["units"])["key"]
     if "license_class" in body:
-        # Saying a class by hand is allowed and kept - a licence outside the
+        # Saying a class by hand is allowed and kept - a license outside the
         # US, an upgrade the published file has not caught up with, a club
         # station. What it cannot do is pass itself off as the record: it is
         # marked as the operator's word unless it agrees with what the FCC
@@ -8223,17 +8281,17 @@ def api_settings():
         #
         # A class somebody holds, though, or none - not every string the band
         # plan can be asked to draw. "Visiting under reciprocity" is a view of
-        # the ceiling the FCC puts on a visitor, not a licence anybody holds,
+        # the ceiling the FCC puts on a visitor, not a license anybody holds,
         # and a profile that recorded it as one would be saying something
         # untrue about that operator on every screen that shows a class.
         said = str(body["license_class"] or "")
         if said and said not in bandplan.CLASSES and said != bandplan.NO_LICENSE:
-            abort(400, "that is not a licence class")
+            abort(400, "that is not a license class")
         settings["license_class"] = said
         if said:
             settings.pop("license_class_cleared", None)
         record = (settings.get("license") or {})
-        record_class = str(record.get("licence_class")
+        record_class = str(record.get("license_class")
                            or record.get("license_class") or "") if record.get("found") else ""
         said = str(body["license_class"] or "").strip().title()
         if record_class and said == record_class.strip().title():
@@ -8933,7 +8991,7 @@ def _pct(value):
 
 @app.template_filter("fill")
 def _fill(value):
-    """Meter colour band: red below 50%, amber to 80%, green above."""
+    """Meter color band: red below 50%, amber to 80%, green above."""
     value = value or 0
     return "fill-high" if value >= 0.80 else "fill-mid" if value >= 0.50 else "fill-low"
 

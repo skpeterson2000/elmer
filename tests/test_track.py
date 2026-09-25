@@ -54,7 +54,7 @@ def main():
     keys = [s["key"] for s in T.build(["hf_wire"], "General", [], "KC9SP")]
     check("HF alone skips the repeater steps", "program" in keys, False)
 
-    print("\n-- no licence --")
+    print("\n-- no license --")
     steps = T.build(["ht", "cb"], "none", [REPEATER], "")
     check("listen, a contact that is already allowed, then the exam",
           [s["key"] for s in steps], ["listen", "personal", "exam"])

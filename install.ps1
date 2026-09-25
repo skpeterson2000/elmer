@@ -256,7 +256,7 @@ if ($wantShortcut) {
         $s.WorkingDirectory = $root
         $s.Description = 'ELMER - radio study and propagation'
         $s.IconLocation = (Join-Path $root 'elmer\static\elmer.ico') + ',0'
-        $s.WindowStyle = 7                 # the console minimised; the window is ELMER's
+        $s.WindowStyle = 7                 # the console minimized; the window is ELMER's
         $s.Save()
         Ok "ELMER is on the Start Menu, with its icon"
     } catch {

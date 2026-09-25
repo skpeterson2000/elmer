@@ -141,7 +141,7 @@ def build(conn=None, now=None):
                 s = skill["by_lead"].get(str(lead))
                 if s:
                     add(f"  {lead:2d} h lead      {_fmt(s)}")
-            for regime in ("lit", "grey", "twilight", "dark"):
+            for regime in ("lit", "gray", "twilight", "dark"):
                 s = skill["by_regime"].get(regime)
                 if s:
                     add(f"  {regime:14s} {_fmt(s)}")

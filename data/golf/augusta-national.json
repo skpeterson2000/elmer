@@ -61,7 +61,7 @@
      "kind": "rough",
      "from": 151,
      "to": 160,
-     "side": "centre",
+     "side": "center",
      "off": 2,
      "name": "the road"
     },
@@ -270,7 +270,7 @@
      "kind": "rough",
      "from": 192,
      "to": 210,
-     "side": "centre",
+     "side": "center",
      "off": -2,
      "name": "the road"
     },
@@ -334,7 +334,7 @@
      "kind": "bunker",
      "from": 375,
      "to": 434,
-     "side": "centre",
+     "side": "center",
      "off": 8,
      "name": "the fairway bunker"
     },

@@ -42,7 +42,7 @@
           '<div class="award-for">for this: ' + escapeHTML(a.description || '') + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="award-foot">A badge earned in ELMER. It marks practice, and is not a licence or a claim of one.</div>' +
+      '<div class="award-foot">A badge earned in ELMER. It marks practice, and is not a license or a claim of one.</div>' +
     '</div>';
   }
 

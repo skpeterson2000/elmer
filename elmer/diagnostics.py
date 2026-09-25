@@ -902,7 +902,7 @@ def check_hall():
                   + (f" ({d['waiting_for']})" if d.get("waiting_for") else ""))
     tk = hall.timekeeper()
     if tk is not None and getattr(tk, "error", None):
-        _line(BAD, "programme clock", tk.error)
+        _line(BAD, "program clock", tk.error)
     return True
 
 
