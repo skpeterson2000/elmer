@@ -119,6 +119,16 @@ def main():
         F.write(conn)
         time.sleep(0.01)
     check("old reports are pruned", len(list(F.REPORTS.glob("field-report-*.txt"))) <= F.KEEP, True)
+
+    # The field report is the one that actually gets sent. A kiosk that came
+    # up in a window instead of filling the screen was reported from a machine
+    # whose report said nothing about the screen or the browser, because these
+    # facts had been put in the problem report and not in this one.
+    check("the screen and the browser travel with it",
+          "the screen, and the browser" in text, True)
+    for want in ("platform", "session type", "DISPLAY", "screen", "chosen"):
+        check(f"  it carries {want}", want in text, True)
+    check("  and the whole launch command", "--kiosk" in text, True)
     conn.close()
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

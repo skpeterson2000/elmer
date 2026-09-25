@@ -128,6 +128,25 @@ def build(conn=None, now=None):
     up = time.time() - STARTED
     add(f"up         {up / 3600:.1f} h this run")
 
+    # -- the screen, and the browser the kiosk would use
+    #
+    # This lives here as well as in the problem report because the field
+    # report is the one that gets sent: a kiosk that comes up in a window
+    # instead of filling the screen was reported from a machine whose report
+    # said nothing about either, and the facts had been put in the other
+    # artifact. Which session type is running, which browsers are on the box
+    # and whether the chosen one is a confined snap are the things that decide
+    # it, and none of them can be guessed from the other end of a wire.
+    add("")
+    add("the screen, and the browser the kiosk would use")
+    add("-" * 60)
+    try:
+        from . import kiosk
+        for line in kiosk.report_lines():
+            add("   " + line)
+    except Exception as exc:                     # a report never fails on its own subject
+        add(f"   could not be gathered ({type(exc).__name__}: {exc})")
+
     # -- the forecast against the sky
     add("")
     add("forecast against the sondes, last 7 days (forecast - measured)")
