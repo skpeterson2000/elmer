@@ -59,6 +59,28 @@ OWN = "own"
 SOURCE = "license_class_source"
 
 
+def record_class(record):
+    """The class on a stored FCC record, whichever spelling it was saved with.
+
+    A record written before the program settled on American spelling has
+    `licence_class` in it; one written since has `license_class`. Both are read
+    here, and will go on being read: the old ones are sitting in profiles on
+    units in the field, and there is no moment at which it becomes safe to stop
+    understanding them.
+
+    This existed as two `.get` calls in a row at each of the two places that
+    needed it, and a spelling pass across the whole program rewrote both halves
+    of the pair to the same key - so the fallback quietly became a duplicate,
+    every stored record with the old spelling read as having no class, and the
+    pool gate locked the pools of an operator holding an Extra. One reader, in
+    one place, is the answer to that.
+    """
+    record = record or {}
+    if not record.get("found"):
+        return ""
+    return str(record.get("license_class") or record.get("licence_class") or "")
+
+
 def held(settings):
     """The license class this station holds, and whose word that rests on.
 
@@ -83,19 +105,16 @@ def held(settings):
     """
     settings = settings or {}
     record = settings.get("license") or {}
-    record_class = ""
-    if record.get("found"):
-        record_class = str(record.get("license_class")
-                           or record.get("license_class") or "")
+    held_class = record_class(record)
     own = str(settings.get("license_class") or "")
-    same = (own.strip().title() == record_class.strip().title())
-    if record_class and (not own or same or settings.get(SOURCE) != OWN):
-        return {"class": record_class, "source": FCC, "record": record_class,
+    same = (own.strip().title() == held_class.strip().title())
+    if held_class and (not own or same or settings.get(SOURCE) != OWN):
+        return {"class": held_class, "source": FCC, "record": held_class,
                 "verified": True}
     if own:
-        return {"class": own, "source": OWN, "record": record_class,
+        return {"class": own, "source": OWN, "record": held_class,
                 "verified": False}
-    return {"class": "", "source": "", "record": record_class, "verified": False}
+    return {"class": "", "source": "", "record": held_class, "verified": False}
 
 
 def normalise(call):
@@ -220,8 +239,22 @@ def _lookup_callook(call, refresh=False):
         return None
 
     if raw.get("status") != "VALID":
-        return {"callsign": call, "found": False,
-                "reason": "no current FCC record for this callsign"}
+        # callook.info answers UPDATING while it rebuilds its copy of the
+        # Commission's database, and it does that in the small hours when the
+        # FCC publishes. Reading that as "no current FCC record" was a lie
+        # twice over: the record exists, and the site that could not answer
+        # was not the FCC's. It cost an evening looking at the wrong service,
+        # and it left an operator holding an Extra being offered Technician
+        # because callook happened to be mid-rebuild when the call was typed.
+        #
+        # Marked pending, so the settling pass goes back for it rather than
+        # keeping the answer for good - see app._settle_pending_licenses.
+        updating = str(raw.get("status") or "").strip().upper() == "UPDATING"
+        return {"callsign": call, "found": False, "pending": updating,
+                "service": uls.service_of(call) or "",
+                "reason": ("callook.info is rebuilding its copy of the FCC database "
+                           "- the record will be read again shortly") if updating
+                          else "no current FCC record for this callsign"}
 
     other = raw.get("otherInfo") or {}
     current = raw.get("current") or {}

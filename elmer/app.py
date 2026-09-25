@@ -38,7 +38,7 @@ from . import (
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
-    personal, phonegps, places, pota, prints, programs,
+    paths, personal, phonegps, places, pota, prints, programs,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
     srs, sweeps, terrain, ticket, touchstone, tournament, towerwitch,
@@ -619,16 +619,33 @@ def _settle_pending_licenses(connection):
     file it was waiting on is on the unit, and kept. Only then: without
     the file this would ask the FCC on every page load, and the answer
     would be the same one.
+
+    A record that simply failed is settled the same way, and for the same
+    reason. The Commission takes its own site down for maintenance in the
+    small hours, and a callsign entered during one of those windows was
+    written down as "no current FCC record" and left that way for good -
+    so an operator holding an Extra went on being offered Technician
+    because of a few minutes one night. Nothing here asks the network to
+    settle one of those: the retry happens only where the answer can be
+    read off the unit's own copy of the FCC file, which costs a local
+    query and cannot fail the same way twice.
     """
     settings = db.get_profile(connection)["settings"]
     changed = False
     for key in ("gmrs", "license", "commercial_license"):
         record = settings.get(key) or {}
-        if record.get("found") or not record.get("pending") or not record.get("callsign"):
+        if record.get("found") or not record.get("callsign"):
             continue
-        service = (record.get("service") or "").lower()
-        if service and not uls.have(service):
-            continue                      # still waiting; nothing to ask yet
+        service = ((record.get("service") or "").lower()
+                   or uls.service_of(callsign.normalise(record["callsign"])) or "")
+        if record.get("pending"):
+            if service and not uls.have(service):
+                continue                  # still waiting; nothing to ask yet
+        elif not (service and uls.have(service)):
+            # A plain failure, and no local file to settle it from. Asking the
+            # network here would be asking on every page load for an answer
+            # that has already been given.
+            continue
         fresh = callsign.lookup(record["callsign"])
         if fresh and fresh.get("found"):
             settings[key] = fresh
@@ -849,6 +866,10 @@ def home():
     }
     return render_template("home.html", summary=summary, greeting=greeting(),
                            first_run=first_run, go_and_sit=go_and_sit,
+                           # Whether the Commission's amateur file is still on
+                           # its way, so a first run can show the tour rather
+                           # than an empty wait. See uls.progress.
+                           fcc_file=uls.state().get("amateur") or {},
                            # The button to the other dashboard: grayed when
                            # TowerWitch is not on this unit, or this is not
                            # the unit's own screen - a desktop program is
@@ -8211,6 +8232,25 @@ def _adopt_commercial(call, settings):
     return settings
 
 
+GUIDE_SHOTS = paths.ROOT / "docs" / "screenshots" / "guide"
+
+
+@app.route("/guide/shot/<name>")
+def guide_shot(name):
+    """One of the user's guide's screenshots.
+
+    Served from docs/ rather than copied into static/: there are three
+    megabytes of them and one copy is enough. The name is matched against the
+    files actually there, so nothing but a screenshot can be asked for.
+    """
+    if not GUIDE_SHOTS.is_dir():
+        abort(404)
+    wanted = {p.name for p in GUIDE_SHOTS.glob("*.png")}
+    if name not in wanted:
+        abort(404)
+    return send_from_directory(GUIDE_SHOTS, name, max_age=86400)
+
+
 @app.route("/api/uls")
 def api_uls():
     """Which of the FCC's license files this unit has read, and when."""
@@ -8291,8 +8331,8 @@ def api_settings():
         if said:
             settings.pop("license_class_cleared", None)
         record = (settings.get("license") or {})
-        record_class = str(record.get("license_class")
-                           or record.get("license_class") or "") if record.get("found") else ""
+        # Both spellings, through the one reader - see callsign.record_class.
+        record_class = callsign.record_class(record)
         said = str(body["license_class"] or "").strip().title()
         if record_class and said == record_class.strip().title():
             settings.pop(callsign.SOURCE, None)     # this is the record's word

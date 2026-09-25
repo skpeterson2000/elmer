@@ -34,8 +34,15 @@ async function load(force) {
     return;
   }
 
+  /* A reading past its window is handed over at once and a new one fetched
+     behind the page - see propagation.snapshot - so the line has to say which
+     of the two is on screen. Showing an old reading as this minute's would be
+     the sort of quiet lie the whole change exists to avoid. */
   document.getElementById('p-updated').textContent =
-    'updated ' + d.updated + (d.cached ? ' (cached)' : '') + ' — source ' + d.source;
+    'updated ' + d.updated
+    + (d.stale ? ' — ' + d.age_minutes + ' min old, fetching a new one'
+               : d.cached ? ' (cached)' : '')
+    + ' — source ' + d.source;
   document.getElementById('p-verdict').innerHTML =
     '<div class="row"><span class="pill ' + kClass(d.k_index) + '">' +
     escapeHTML(d.geomag || 'field') + '</span>' +

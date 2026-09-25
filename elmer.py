@@ -1019,6 +1019,26 @@ def main():
         # fetched once now so the Lab and the band plan open on a measurement
         # rather than a textbook layer. Network allowed to be absent.
         threading.Thread(target=prefetch_sky, daemon=True, name="elmer-sky").start()
+        # And the Commission's amateur file, on a unit that has not got one.
+        #
+        # It used to be started by somebody typing their callsign in, which put
+        # a two hundred megabyte download on the critical path of the one
+        # question a new licensee most wants answered - so the answer came from
+        # callook.info instead, and on the night callook was rebuilding its own
+        # copy the program said there was no FCC record for a licence that had
+        # nine years left on it. Started here, it is usually in place long
+        # before anybody is asked for a callsign, and the lookup is a local
+        # query. A unit that already has it does nothing; ELMER_ULS=off still
+        # means off, and a machine with no network simply fails quietly.
+        def _fcc_file():
+            import logging
+            from elmer import uls
+            try:
+                state = uls.ensure("amateur")
+                logging.getLogger("elmer").info("uls: amateur file at start - %s", state)
+            except Exception:
+                logging.getLogger("elmer").exception("uls: could not start the amateur file")
+        threading.Thread(target=_fcc_file, daemon=True, name="elmer-uls").start()
         # The weekly field report, if the operator has switched it on. The
         # thread looks at the clock once an hour and does nothing otherwise.
         from elmer import db as _fdb, fieldreport, spotlog

@@ -185,6 +185,35 @@
 </div>
 {% endif %}
 
+{# The tour, while the Commission's file is on its way.
+
+   Shown only on a unit that is both new and still waiting: once the file is
+   here there is nothing to fill, and on a unit that has had it for months
+   there never was. Skippable, and it remembers being skipped. #}
+{% if first_run.show and not fcc_file.have %}
+<div class="panel mt firstrun" id="firstrun">
+  <div class="panel-title">While the FCC's file comes down</div>
+  <div class="fr-body">
+    <div class="fr-shotwrap"><img id="fr-shot" alt=""></div>
+    <div class="fr-words">
+      <div class="fr-head" id="fr-head"></div>
+      <p class="small" id="fr-text"></p>
+      <div class="fr-dots" id="fr-dots"></div>
+    </div>
+  </div>
+  <div class="fr-bar-track"><div class="fr-bar" id="fr-bar"></div></div>
+  <div class="row" style="align-items:center;gap:.6rem;margin-top:.45rem">
+    <div class="tiny muted" id="fr-note" style="flex:1"></div>
+    <button class="btn sm ghost" id="fr-skip">Skip</button>
+  </div>
+  <p class="tiny muted" style="margin:.5rem 0 0">
+    Your callsign is checked against this file once it is here, which takes no
+    network at all &mdash; so it answers at a field site with no signal.
+    Everything else on this page works now.
+  </p>
+</div>
+{% endif %}
+
 {% if first_run.show %}
 <div class="panel mt welcome">
   <div class="panel-title">Start here</div>
@@ -392,6 +421,7 @@
 {% block scripts %}
 <script src="{{ asset('update.js') }}"></script>
 <script src="{{ asset('coffee.js') }}"></script>
+{% if first_run.show and not fcc_file.have %}<script src="{{ asset('firstrun.js') }}"></script>{% endif %}
 <script>
 document.getElementById('towerwitch-open').addEventListener('click', async e => {
   const b = e.currentTarget, said = document.getElementById('towerwitch-said');

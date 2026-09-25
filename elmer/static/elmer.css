@@ -1508,3 +1508,39 @@ table.worth tr.worth-me td.worth-num { color: var(--text); }
 .award-for { font-size: .95rem; }
 .award-foot { font-size: .7rem; font-style: italic; color: #5a6572; text-align: center; }
 @media (max-width: 640px) { .award-star { font-size: 4rem; } .award-name, .award-who { font-size: 1.3rem; } }
+
+
+/* ---------------------------------------------------- the first-run tour */
+/* Shown on a new unit while the Commission's amateur file comes down. The
+   picture carries it, so it gets the room; the bar underneath is the real
+   download and is not decorative. */
+.firstrun .fr-body { display: flex; gap: 1rem; align-items: flex-start; }
+.firstrun .fr-shotwrap {
+  flex: 1 1 58%; min-width: 0; border: 1px solid var(--line-2); border-radius: 8px;
+  overflow: hidden; background: #0f151d; aspect-ratio: 16 / 10;
+  display: flex; align-items: center; justify-content: center;
+}
+.firstrun .fr-shotwrap img { width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.firstrun .fr-words { flex: 1 1 42%; min-width: 0; }
+.firstrun .fr-head { font-size: 1.15rem; font-weight: 600; margin-bottom: .25rem; }
+.firstrun .fr-dots { display: flex; gap: .3rem; margin-top: .6rem; }
+.firstrun .fr-dot {
+  width: .5rem; height: .5rem; border-radius: 50%; background: var(--line-2);
+  cursor: pointer; transition: background .2s;
+}
+.firstrun .fr-dot.on { background: var(--accent, #ffb454); }
+.firstrun .fr-bar-track {
+  height: 4px; border-radius: 2px; background: var(--line-2);
+  margin-top: .8rem; overflow: hidden;
+}
+.firstrun .fr-bar {
+  height: 100%; width: 0; border-radius: 2px; background: var(--accent, #ffb454);
+  transition: width .5s ease;
+}
+.firstrun .fr-bar.done { background: var(--green, #3f8a4c); }
+
+/* On a phone the picture goes above the words rather than beside them. */
+@media (max-width: 700px) {
+  .firstrun .fr-body { flex-direction: column; }
+  .firstrun .fr-shotwrap, .firstrun .fr-words { flex: 1 1 auto; width: 100%; }
+}

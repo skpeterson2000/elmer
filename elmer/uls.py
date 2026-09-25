@@ -127,7 +127,7 @@ def build(service, zip_path):
             conn.execute("""CREATE TEMP TABLE fresh (
                 call TEXT PRIMARY KEY, status TEXT, code TEXT, granted TEXT, expires TEXT,
                 cancelled TEXT, klass TEXT, radar TEXT, frn TEXT, city TEXT, state TEXT, zip TEXT)""")
-            batch = []
+            batch, read = [], 0
             for line in z.open("HD.dat"):
                 f = _fields(line)
                 if len(f) < 10 or not f[4]:
@@ -135,6 +135,8 @@ def build(service, zip_path):
                 batch.append((f[4].upper(), f[5], f[6], f[7], f[8], f[9]))
                 if len(batch) >= 5000:
                     conn.executemany("INSERT OR REPLACE INTO fresh (call, status, code, granted, expires, cancelled) VALUES (?,?,?,?,?,?)", batch)
+                    read += len(batch)
+                    _note(service, rows=read)
                     batch = []
             if batch:
                 conn.executemany("INSERT OR REPLACE INTO fresh (call, status, code, granted, expires, cancelled) VALUES (?,?,?,?,?,?)", batch)
@@ -190,6 +192,26 @@ def _remote_date(service):
     return when, int(size or 0)
 
 
+# How far along a fetch is, so a first run can show it rather than leaving
+# somebody looking at a spinner for a file the size of this one. Kept per
+# service and in memory only: it describes this run, not the unit.
+_progress = {}
+
+
+def progress(service):
+    """How the fetch for this service is going, or None if it is not going.
+
+    Phases, in order: "downloading" with `bytes` of `total`, then "reading"
+    with `rows` read out of the zip, then it is gone and have() answers.
+    """
+    return dict(_progress[service]) if service in _progress else None
+
+
+def _note(service, **fields):
+    got = _progress.setdefault(service, {})
+    got.update(fields)
+
+
 def fetch(service):
     """Download this service's file and read it in. Returns (ok, message)."""
     spec = SERVICES[service]
@@ -197,20 +219,31 @@ def fetch(service):
     target = DIR / spec["file"]
     part = target.with_suffix(".part")
     request = urllib.request.Request(BASE + spec["file"], headers={"User-Agent": USER_AGENT})
+    _note(service, phase="downloading", bytes=0, total=0, rows=0,
+          label=spec["label"], started=time.time())
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response, part.open("wb") as out:
             stamp = response.headers.get("Last-Modified")
+            try:
+                _note(service, total=int(response.headers.get("Content-Length") or 0))
+            except (TypeError, ValueError):
+                pass
+            got = 0
             while True:
                 chunk = response.read(1 << 20)
                 if not chunk:
                     break
                 out.write(chunk)
+                got += len(chunk)
+                _note(service, bytes=got)
         part.replace(target)
         if stamp:
             when = parsedate_to_datetime(stamp).timestamp()
             os.utime(target, (when, when))
+        _note(service, phase="reading")
         rows = build(service, target)
     except Exception as exc:
+        _progress.pop(service, None)
         part.unlink(missing_ok=True)
         log.warning("uls: %s file could not be fetched or read: %s", spec["label"], exc)
         return False, f"the FCC's {spec['label']} file could not be fetched ({exc.__class__.__name__})"
@@ -218,6 +251,7 @@ def fetch(service):
         target.unlink()                # the index is what is kept; the zip is not
     except OSError:
         pass
+    _progress.pop(service, None)       # have() answers from here on
     return True, f"{rows} {spec['label']} licenses read from the FCC's file"
 
 
@@ -357,4 +391,6 @@ def watch():
 
 def state():
     """What is on the unit, for the doctor and the Station panel."""
-    return {s: {"have": have(s), "fetching": fetching(s), "file": v["file"]} for s, v in SERVICES.items()}
+    return {s: {"have": have(s), "fetching": fetching(s), "file": v["file"],
+                "progress": progress(s)}
+            for s, v in SERVICES.items()}
