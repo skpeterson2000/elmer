@@ -19,6 +19,8 @@ with it.
 """
 
 import math
+
+from . import units
 import re
 
 C_FT = 983.571                      # speed of light, feet per microsecond
@@ -1572,7 +1574,7 @@ def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0):
     return out
 
 
-def match_versus_height(mhz, wanted_ft):
+def match_versus_height(mhz, wanted_ft, unit=None):
     """Why the height to aim for is not the height where the coax matches
     - in the numbers, so nobody has to take it on trust. The match is worth
     a fraction of a decibel; the takeoff angle is worth the contact. And an
@@ -1590,12 +1592,12 @@ def match_versus_height(mhz, wanted_ft):
     loss = mismatch_loss_db(swr_wanted)
     low_angle = takeoff_deg(match_ft, mhz)
     high_angle = takeoff_deg(wanted_ft, mhz)
-    return (f"Why not the {match_ft} ft where the coax matches? Because the match is worth "
-            f"almost nothing and the angle is worth everything. At {wanted_ft} ft the feed is "
+    return (f"Why not the {units.say_ft(match_ft, unit)} where the coax matches? Because the match is worth "
+            f"almost nothing and the angle is worth everything. At {units.say_ft(wanted_ft, unit)} the feed is "
             f"about {round(r_wanted)} ohms, SWR {swr_wanted:.1f} - which costs {loss:.2f} dB, less "
-            f"than a tenth of an S-unit. At {match_ft} ft the main lobe points "
+            f"than a tenth of an S-unit. At {units.say_ft(match_ft, unit)} the main lobe points "
             f"{'straight up' if low_angle >= 85 else f'{low_angle:.0f} degrees up'} - a cloud warmer; "
-            f"at {wanted_ft} ft it is {high_angle:.0f} degrees, which is "
+            f"at {units.say_ft(wanted_ft, unit)} it is {high_angle:.0f} degrees, which is "
             f"where DX comes from. And an antenna receives exactly the way it transmits: the height "
             f"that puts your signal out low is the height that brings the far ones in. Take the "
             f"height; let the SWR be {swr_wanted:.1f}.")
@@ -1816,7 +1818,7 @@ def _steered_title(kind, site, mhz):
     return _STEERED_TITLES.get((site, kind)) or TYPES[kind]["title"]
 
 
-def recommend(mhz, use=None, kind=None, site=None, floor=None):
+def recommend(mhz, use=None, kind=None, site=None, floor=None, unit=None):
     """A starting antenna for this frequency and intention, with its reasoning.
     `floor` is which floor a flat's balcony is on, and matters only there."""
     mhz = float(mhz)
@@ -2025,13 +2027,13 @@ def recommend(mhz, use=None, kind=None, site=None, floor=None):
             "height_ft": quarter,
             "why": [
                 f"For distance a dipole wants to be half a wavelength up, and "
-                f"on this band that is about {wanted} ft. Nobody has that: a "
-                f"hundred feet is a tall tower, and above {FAA_NOTICE_FT} ft "
+                f"on this band that is about {units.say_ft(wanted, unit)}. Nobody has that: a "
+                f"hundred feet is a tall tower, and above {units.say_ft(FAA_NOTICE_FT, unit)} "
                 f"the FAA has to be told (14 CFR 77.9) and the structure "
                 f"registered (47 CFR Part 17). At the heights people do have, "
                 f"a dipole here is a near-vertical antenna - good for a few "
                 f"hundred miles and no further.",
-                f"A quarter-wave vertical is {quarter} ft tall, and what it "
+                f"A quarter-wave vertical is {units.say_ft(quarter, unit)} tall, and what it "
                 f"needs is not height but ground: radials laid on it, as many "
                 f"as you can manage. Its low takeoff angle is what the dipole "
                 f"cannot get without the tower, which is why the people who "
@@ -2068,13 +2070,13 @@ def recommend(mhz, use=None, kind=None, site=None, floor=None):
             "height_ft": half_wave,
             "why": [
                 f"Height sets the takeoff angle, and takeoff angle decides "
-                f"distance. Half a wavelength up - about {half_wave} ft here - "
+                f"distance. Half a wavelength up - about {units.say_ft(half_wave, unit)} here - "
                 f"puts the main lobe low enough to work DX; much lower and you "
                 f"are shouting at the sky above you.",
                 "A dipole is the reference every other antenna is measured "
                 "against, and a well-hung one beats an expensive antenna hung "
                 "badly. Start here before spending money.",
-                match_versus_height(mhz, half_wave),
+                match_versus_height(mhz, half_wave, unit),
             ],
             "watch": [
                 "It is broadside: strongest off the sides of the wire, deaf off "

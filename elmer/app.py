@@ -632,6 +632,17 @@ def _settle_pending_licenses(connection):
     """
     settings = db.get_profile(connection)["settings"]
     changed = False
+    # A stored "no license" that a record has since contradicted is cleared
+    # rather than left to be overridden on every read. It got there by a save
+    # from another panel while the callsign was still being looked up - see
+    # setup.js - and leaving it would go on showing the operator their own
+    # word for something the Commission has on file.
+    if str(settings.get("license_class") or "").strip().lower() in ("none", "no license"):
+        if callsign.record_class(settings.get("license") or {}):
+            settings.pop("license_class", None)
+            settings.pop(callsign.SOURCE, None)
+            changed = True
+            log.info("license: cleared a stored 'no license' that the FCC record contradicts")
     for key in ("gmrs", "license", "commercial_license"):
         record = settings.get(key) or {}
         if record.get("found") or not record.get("callsign"):
@@ -1260,12 +1271,13 @@ def api_path_to():
                         "note": (there or {}).get("error")
                         or f"ELMER could not place \"{text}\" - try a callsign, a grid square, or a town and state"})
     gear = [g for g in (request.args.get("gear") or "").split(",") if g in reachout.GEAR]
-    license = request.args.get("license") or profile["settings"].get("license_class") or "Technician"
+    license = request.args.get("license") or _class_held() or "Technician"
     try:
         watts = max(1.0, min(1500.0, float(request.args.get("watts") or 100)))
     except ValueError:
         watts = 100.0
-    out = pathto.predict(place, there, gear, license, watts)
+    out = pathto.predict(place, there, gear, license, watts,
+                         unit=units.system(profile["settings"].get("units"))["key"])
     out["ok"] = True
     out["located"] = True
     return jsonify(out)
@@ -1345,7 +1357,7 @@ def api_ways_out():
     gear = [g for g in (request.args.get("gear") or "").split(",")
             if g in reachout.GEAR]
     license = request.args.get("license") or \
-        profile["settings"].get("license_class") or "Technician"
+        _class_held() or "Technician"
     gmrs = gmrs_license_for(connection, profile["settings"])
     answer = reachout.summary(place["lat"], place["lon"], gear, license,
                               conn=connection, gmrs=gmrs)
@@ -2008,7 +2020,8 @@ def api_antenna_advice():
         floor = None
     out = antenna_advice.recommend(
         mhz, use=request.args.get("use"), kind=request.args.get("kind"),
-        site=request.args.get("site") or None, floor=floor)
+        site=request.args.get("site") or None, floor=floor,
+        unit=units.system(db.get_profile(conn())["settings"].get("units"))["key"])
     # Where the feed matches, for a horizontal wire: the heights the curve
     # does something at, marked reachable or not by what the site allows.
     # Where else this antenna is resonant, and whether that is a band an
@@ -2125,13 +2138,14 @@ def api_antenna_pdf():
     pdf = antennapdf.build(kind, mhz, height_ft, conductor, site,
                            use=body.get("use") or None,
                            callsign=profile_callsign() or "",
-                           license_class=license_class)
+                           license_class=license_class,
+                           unit=units.system(settings.get("units"))["key"])
     title = (antenna_advice.TYPES.get(kind) or {}).get("title", kind)
     name = f"antenna-{kind}-{mhz:.3f}mhz.pdf".replace(" ", "-")
     log.info("antenna sheet PDF: %s at %.3f MHz, %.0f ft, %s",
              kind, mhz, height_ft, conductor)
     row = prints.keep(pdf, name, "antenna",
-                      f"{title} - {mhz:.3f} MHz, {height_ft:.0f} ft",
+                      f"{title} - {mhz:.3f} MHz, {units.say_ft(height_ft, settings.get('units'))}",
                       {"kind": kind, "mhz": mhz, "height": height_ft,
                        "conductor": conductor, "site": site})
     return _print_reply(row, _wants_raw(body))
@@ -2188,8 +2202,7 @@ def api_privileges():
         abort(400)
     connection = conn()
     settings = db.get_profile(connection)["settings"]
-    license_class = (request.args.get("class")
-                     or settings.get("license_class") or "")
+    license_class = (request.args.get("class") or _class_held() or "")
     result = bandplan.privilege_at(mhz, license_class)
 
     # What this class may use on this band, whether or not it may use *here*.
@@ -2217,7 +2230,7 @@ def api_privileges():
     # A page that has been handed a class - from the band plan, or by somebody
     # choosing one - should be able to say so rather than implying the profile
     # said it.
-    result["profile_class"] = settings.get("license_class") or ""
+    result["profile_class"] = _class_held() or ""
     result["asked_class"] = request.args.get("class") or ""
 
 
@@ -2875,13 +2888,31 @@ def cw_page():
         "cw.html", kinds=cw.KINDS, koch_order=cw.KOCH_ORDER,
         cw_settings=settings, progress=progress, plan=the_plan,
         session=cw.session(the_plan), budget=cw.budget(the_plan),
-        cold_gap_ms=cw.COLD_GAP_MS,
+        cold_gap_ms=cw.COLD_GAP_MS, passes=cw.passes(the_plan),
+        speed_ladder=cw.SPEED_LADDER,
+        qualify_source=cw.QUALIFY_SOURCE, qualify_source_name=cw.QUALIFY_SOURCE_NAME,
         streak=_cw_streak(connection), voice_have=_voice_have(),
         phonetic={k.upper(): v for k, v in voice.PHONETIC.items()},
         meanings=cw.MEANINGS, chart=cw.chart(), **profile_block(connection))
 
 
 CW_LOG_KEY = "cw.log"                  # {date: seconds practiced}
+# The set of passes in progress - see cw.set_state. Kept beside the seconds
+# rather than divided out of them: a pass left half-done is time spent and is
+# not a pass, and the whole point of the count is how many times the lesson
+# was come back to. A set carries into tomorrow, because a shape that only
+# works on a clear day is not the shape being claimed for.
+CW_SET_KEY = "cw.set"
+
+
+def _cw_target(connection):
+    """How many passes make a set for this person, from their own record."""
+    try:
+        settings = db.get_profile(connection)["settings"].get("cw") or {}
+        return cw.passes(cw.plan(db.cw_progress(connection), settings.get("lesson")))
+    except Exception:                       # never at the page's expense
+        log.exception("cw: how many passes make a day")
+        return cw.PASSES_FEWEST
 
 
 def _cw_streak(connection):
@@ -2889,6 +2920,8 @@ def _cw_streak(connection):
     logbook = db.kv_get(connection, CW_LOG_KEY, {}) or {}
     today = date.today()
     minutes_today = round((logbook.get(today.isoformat()) or 0) / 60)
+    the_set = cw.set_state(db.kv_get(connection, CW_SET_KEY, {}), today,
+                           _cw_target(connection))
     streak, day = 0, today
     if not logbook.get(today.isoformat()):
         day = today - timedelta(days=1)          # today not yet: count from yesterday
@@ -2896,6 +2929,7 @@ def _cw_streak(connection):
         streak += 1
         day -= timedelta(days=1)
     return {"streak": streak, "minutes_today": minutes_today,
+            "passes_today": the_set["passes"], "set": the_set,
             "days": len(logbook), "minutes_all": round(sum(logbook.values()) / 60)}
 
 
@@ -2912,6 +2946,7 @@ def api_cw_plan():
     # the whole point of that lesson is that the record decides.
     return jsonify({"plan": the_plan, "session": cw.session(the_plan),
                     "budget": cw.budget(the_plan), "cold_gap_ms": cw.COLD_GAP_MS,
+                    "passes": cw.passes(the_plan), "day_target": cw.DAY_TARGET,
                     "learn": cw.plan(progress),
                     **_cw_streak(connection), "voice_have": _voice_have()})
 
@@ -2994,6 +3029,89 @@ def api_cw_wins():
                     "learned": the_plan.get("learned") or []})
 
 
+@app.route("/api/cw/qualify")
+def api_cw_qualify():
+    """The material for a qualifying run, at the speed the operator named."""
+    try:
+        wpm = float(request.args.get("wpm") or 13)
+    except ValueError:
+        wpm = 13.0
+    wpm = max(cw.QUALIFY_LEAST_WPM, min(cw.QUALIFY_MOST_WPM, wpm))
+    text = cw.qualifying_text(wpm, cw.QUALIFY_SECONDS)
+    return jsonify({"text": text, "groups": cw.encode(text), "wpm": wpm,
+                    "timing": cw.timing(wpm), "seconds": cw.QUALIFY_SECONDS,
+                    "clean": cw.QUALIFY_CLEAN})
+
+
+@app.route("/api/cw/qualify", methods=["POST"])
+def api_cw_qualify_result():
+    """A qualifying run, scored - and its copy folded into the record.
+
+    The run is practice like any other, so what was copied in it counts. That
+    is the whole answer to somebody who already knows the code and is being
+    asked to earn forty characters one at a time: a clean minute at speed is
+    a great deal of evidence arriving at once, and it is real evidence rather
+    than a switch that says "assume they know it".
+    """
+    body = request.get_json(silent=True) or {}
+    try:
+        wpm = max(cw.QUALIFY_LEAST_WPM, min(cw.QUALIFY_MOST_WPM, float(body.get("wpm") or 13)))
+    except (TypeError, ValueError):
+        wpm = 13.0
+    # The page sends what went out and what was typed; the scoring is here,
+    # where the schedule is known exactly and the alignment can be done
+    # properly. See cw.run_marks - a dropped character used to cost the whole
+    # run, and a run is five minutes of somebody's attention.
+    marks = cw.run_marks(body.get("text") or "", body.get("typed") or "", wpm)
+    clean = cw.clean_stretch(marks)
+    advice = cw.qualify_advice(wpm, marks, clean["passed"])
+
+    connection = conn()
+    per_char, seen = {}, set()
+    for mark in marks:
+        ch = str(mark.get("ch") or "").upper()[:1]
+        if not ch or ch not in cw.MORSE:
+            continue
+        ok = bool(mark.get("ok"))
+        row = per_char.setdefault(ch, {"sent": 0, "copied": 0, "confused": {},
+                                       "repeats": 0, "ms": [], "outcomes": ""})
+        row["sent"] += 1
+        row["outcomes"] += "1" if ok else "0"
+        if ok:
+            row["copied"] += 1
+        else:
+            typed = str(mark.get("typed") or "").upper()[:1]
+            if typed:
+                row["confused"][typed] = row["confused"].get(typed, 0) + 1
+        # The first time a character comes round in the run is a cold rep by
+        # any reading: the run is one sitting and nothing was warmed up first.
+        if ch not in seen:
+            seen.add(ch)
+            row["cold_hit"] = ok
+            if ok and mark.get("ms"):
+                try:
+                    row["cold_ms"] = float(mark["ms"])
+                except (TypeError, ValueError):
+                    pass
+    # A run is scored several times while it is going - that is how it can stop
+    # the moment the clean minute lands rather than sending four more minutes
+    # at somebody who has already proved the thing. Only the last of those
+    # scorings writes anything down.
+    final = body.get("final", True)
+    if per_char and final:
+        db.cw_record(connection, per_char)
+        connection.commit()
+    if final:
+        log.info("cw qualifying run at %g wpm: %.0f%% copied, longest clean stretch "
+                 "%.0fs - %s", wpm, 100 * advice["rate"], clean["seconds"],
+                 "passed" if clean["passed"] else "short of it")
+    progress = db.cw_progress(connection)
+    settings = db.get_profile(connection)["settings"].get("cw") or {}
+    return jsonify({"clean": clean, "advice": advice, "final": bool(final),
+                    "characters": len(per_char),
+                    "plan": cw.plan(progress, settings.get("lesson"))})
+
+
 @app.route("/api/cw/minutes", methods=["POST"])
 def api_cw_minutes():
     """Time practiced, added to today - the streak is made of these."""
@@ -3007,6 +3125,14 @@ def api_cw_minutes():
     key = date.today().isoformat()
     logbook[key] = (logbook.get(key) or 0) + seconds
     db.kv_set(connection, CW_LOG_KEY, logbook)
+    # A pass is a pass through the lesson, and only a session that reached its
+    # end counts as one. Somebody who started and stopped after thirty seconds
+    # spent the time and did not come back to the lesson, which is the thing
+    # being counted - see cw.passes.
+    if body.get("finished"):
+        db.kv_set(connection, CW_SET_KEY,
+                  cw.add_pass(db.kv_get(connection, CW_SET_KEY, {}), date.today(),
+                              _cw_target(connection)))
     out = _cw_streak(connection)
     out["fresh"] = game.check_cw_achievements(connection, {}, streak=out["streak"])
     connection.commit()

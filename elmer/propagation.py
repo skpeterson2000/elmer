@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
-from . import celestial, ionosonde
+from . import celestial, ionosonde, units
 
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 HAMQSL = "https://www.hamqsl.com/solarxml.php"
@@ -970,7 +970,8 @@ def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DE
 
 def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
                k_index=2.0,
-               muf=None, watts=100.0, emission="ssb", site="residential"):
+               muf=None, watts=100.0, emission="ssb", site="residential",
+               unit=None):
     """Which bands could carry a contact over this distance, right now.
 
     The line-of-sight tool answers a different question and answers it well:
@@ -1082,9 +1083,13 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
             elif not sky and not by_ground and skip is not None and 0 < km < skip:
                 row["label"] = "Inside the skip zone"
                 row["score"] = 0
-                row["why"] = ("%s comes back no nearer than %.0f km on this sky; %.0f km is inside "
+                # Skip distance is the distance across the ground to the
+                # nearest person who can hear you - "how far is that" - so it
+                # is read in the operator's own units. See units.py.
+                row["why"] = ("%s comes back no nearer than %s on this sky; %s is inside "
                               "the skip zone, and neither power nor antenna crosses it"
-                              % (name, skip, km))
+                              % (name, units.say(skip, unit or units.DEFAULT),
+                                 units.say(km, unit or units.DEFAULT)))
         if sky and hops > 1:
             # Geometry says yes; the path still has to be paid for. Each
             # reflection puts the signal through the D layer twice more and

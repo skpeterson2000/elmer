@@ -191,7 +191,10 @@ function roLinkRemember() {
    band about the line, and the worst of the ground marked. The vertical
    is stretched - meters against kilometers - and says so. A hover reads
    the ground, the line and the clearance at that point. */
-const RO_FT = m => Math.round(m * 3.28084);
+/* The Fresnel profile is computed in metres and read in whatever the
+   operator reads - feet for imperial and nautical, metres for metric. */
+const RO_FT = m => high(m);
+const RO_U = () => highUnit();
 function roProfileSVG(d) {
   const pts = d.profile || [];
   if (pts.length < 3) return '';
@@ -249,7 +252,7 @@ function roProfileSVG(d) {
       '<text x="' + (x(km) - 4) + '" y="' + (T + 10) + '" text-anchor="end" font-size="10" fill="var(--text)">them</text>' +
       (wp ? '<circle cx="' + x(wp.km).toFixed(1) + '" cy="' + y(wp.ground).toFixed(1) + '" r="4.5" fill="' + (intrudes ? 'var(--red)' : 'var(--green)') + '" stroke="var(--bg, #0d1117)" stroke-width="2"/>' +
         '<text x="' + x(wp.km).toFixed(1) + '" y="' + (y(Math.max(wp.ground, wp.line)) - 9).toFixed(1) + '" text-anchor="' + (wp.km < km * 0.15 ? 'start' : wp.km > km * 0.85 ? 'end' : 'middle') + '" font-size="10" fill="var(--text)"' + halo + '>' +
-          (intrudes ? RO_FT(worst.above_line_m) + ' ft above the line' : RO_FT(-worst.above_line_m) + ' ft clear at the tightest') + '</text>' : '') +
+          (intrudes ? RO_FT(worst.above_line_m) + ' ' + RO_U() + ' above the line' : RO_FT(-worst.above_line_m) + ' ' + RO_U() + ' clear at the tightest') + '</text>' : '') +
       '<line id="ro-prof-x" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--text)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>' +
       '<text id="ro-prof-read" x="' + (L + 6) + '" y="' + (H - B - 6) + '" font-size="10" fill="var(--text)" font-family="ui-monospace, monospace"' + halo + '></text>' +
       '<rect id="ro-prof-hit" x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent" style="cursor:crosshair"/>' +
@@ -272,7 +275,7 @@ function roProfileBind(d) {
     xl.setAttribute('x1', fx.toFixed(1)); xl.setAttribute('x2', fx.toFixed(1)); xl.setAttribute('opacity', '1');
     const clear = p.line - p.ground;
     read.textContent = awayText(p.km, 1) + ' · ground ' + RO_FT(p.ground).toLocaleString() + ' ft · line ' + RO_FT(p.line).toLocaleString() + ' ft · ' +
-      (clear >= 0 ? RO_FT(clear) + ' ft clear' : RO_FT(-clear) + ' ft in the way') + (p.r1 ? ' · zone ±' + RO_FT(p.r1) + ' ft' : '');
+      (clear >= 0 ? RO_FT(clear) + ' ' + RO_U() + ' clear' : RO_FT(-clear) + ' ' + RO_U() + ' in the way') + (p.r1 ? ' · zone ±' + RO_FT(p.r1) + ' ' + RO_U() : '');
   };
   hit.addEventListener('mousemove', show);
   hit.addEventListener('touchmove', e => { if (e.touches[0]) show(e.touches[0]); }, {passive: true});

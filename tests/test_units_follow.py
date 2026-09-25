@@ -21,6 +21,7 @@ What this holds down:
     layer is still a few hundred kilometers up however anybody drives.
 """
 import re
+import json
 import sys
 from pathlib import Path
 
@@ -48,7 +49,8 @@ def main():
     check("a mile is a mile", round(units.from_km(1.609344, "imperial"), 6), 1.0)
     check("a nautical mile is a nautical mile", round(units.from_km(1.852, "nautical"), 6), 1.0)
     check("metric is the identity", units.from_km(1234.0, "metric"), 1234.0)
-    check("and it says the unit out loud", units.say(1609.344, "imperial"), "1000 mi")
+    check("and it says the unit out loud, grouped so it can be read",
+          units.say(1609.344, "imperial"), "1,000 mi")
 
     print("\n-- skip distance is a distance, not a measurement of the layer --")
     # This is the line the report was really about. hmF2 is a property of
@@ -57,8 +59,12 @@ def main():
     # park is, and moves with the preference.
     check("the module no longer calls skip distance a thing that stays in km",
           "skip distance are kilometers" in units.__doc__, False)
-    check("  and says so where somebody will read it",
-          "Skip distance belongs on the moving side" in units.__doc__, True)
+    # The rule is wider than skip distance now: everything measured moves,
+    # and only the names of the bands stay put.
+    check("  and says what does not move, which is the band names",
+          "not a measurement of anything" in units.__doc__, True)
+    check("  heights included, which it used to argue against",
+          "Feet, for imperial and for nautical both" in units.__doc__, True)
 
     print("\n-- the preference reaches every page, not one --")
     conn = db.connect()
@@ -104,6 +110,31 @@ def main():
           "' km, foF2 '" in lab, True)
     check("  and a band is still named in meters",
           units.system("imperial")["short"], "mi")
+
+    print("\n-- the path page answers how far in the operator's own units --")
+    # It said "carries 2448 km by one hop" to somebody who had asked for miles,
+    # in the same sentence as 20 m and 40 m - which are the names of bands and
+    # not a measurement of anything on that path. The distance across the
+    # ground is the one that moves; see units.py, whose whole subject this is.
+    from elmer import pathto
+    here, there = {"lat": 46.6027, "lon": -94.3092}, {"lat": 36.5687, "lon": -121.9498}
+    said = {}
+    for name in ("metric", "imperial", "nautical"):
+        said[name] = json.dumps(pathto.predict(here, there, (), "General", 100.0, unit=name))
+    # A number with a unit on it, not any word that happens to start "mi" -
+    # "midpoint" is in there and is not a distance.
+    def units_in(blob):
+        # A distance or a height carries a space before its unit; a band is
+        # named "160m", closed up, and is not a measurement of this path.
+        return sorted(set(re.findall(r"[0-9] (km|mi|NM|ft)\b", blob)))
+    check("in metric they read km", units_in(said["metric"]), ["km"])
+    check("in imperial they read miles", units_in(said["imperial"]), ["mi"])
+    check("in nautical they read nautical miles", units_in(said["nautical"]), ["NM"])
+    check("a hill in the way is as tall as the operator reads",
+          (units.say_len(340, "imperial"), units.say_len(340, "metric")),
+          ("1,115 ft", "340 m"))
+    check("the number is converted, not just relabelled",
+          "1,577 mi" in said["imperial"] and "2,537 km" in said["metric"], True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

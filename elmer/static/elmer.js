@@ -145,7 +145,58 @@ function postJSON(url, body) {
  * the nearest station who can hear you - so it moves with this.
  */
 function unitSystem() {
-  return window.UNITS || {short: 'km', per_km: 1, long: 'kilometers'};
+  return window.UNITS || {short: 'km', per_km: 1, long: 'kilometers',
+                          short_len: 'm', per_m: 1, short_small: 'mm', per_small: 1000};
+}
+
+/* The vertical, and anything measured along a wire: how high to hang it, how
+   long to cut it, how far up the F2 layer is, how tall the hill in the way
+   stands. Metres for metric, feet for imperial and nautical both - a chart
+   gives height in feet, and nobody in America hangs an antenna in metres.
+
+   This file used to say wire stays in feet and the F2 layer stays in km
+   whatever the operator chose. That was the program noting a preference and
+   filing it. */
+function high(m, digits) {
+  if (m === null || m === undefined || isNaN(m)) return null;
+  const value = m * (unitSystem().per_m || 1);
+  return digits ? +value.toFixed(digits) : Math.round(value);
+}
+
+function highText(m, digits) {
+  const value = high(m, digits);
+  return value === null ? '\u2014'
+    : value.toLocaleString() + ' ' + (unitSystem().short_len || 'm');
+}
+
+function highUnit() { return unitSystem().short_len || 'm'; }
+
+/* The antenna pages work in feet throughout - a half wave on 40 m is 33 feet
+   to anybody who has cut one - so these take feet and render them in whatever
+   the operator reads. Feet stay feet for imperial and nautical; metric gets
+   metres. */
+const M_PER_FT = 0.3048, M_PER_IN = 0.0254;
+function highFt(ft, digits) { return high(ft === null || ft === undefined ? null : ft * M_PER_FT, digits); }
+function highFtText(ft, digits) { return highText(ft === null || ft === undefined ? null : ft * M_PER_FT, digits); }
+function acrossInText(inches, digits) {
+  return acrossText(inches === null || inches === undefined ? null : inches * M_PER_IN, digits);
+}
+
+/* Measured across rather than along - wire gauge, a gap, a spacing. */
+function across(m, digits) {
+  if (m === null || m === undefined || isNaN(m)) return null;
+  return +(m * (unitSystem().per_small || 1000)).toFixed(digits === undefined ? 1 : digits);
+}
+
+function acrossText(m, digits) {
+  const value = across(m, digits);
+  return value === null ? '\u2014' : value + ' ' + (unitSystem().short_small || 'mm');
+}
+
+/* From the operator's units back to metres, for anything typed or dragged. */
+function toMetres(value) {
+  if (value === null || value === undefined || isNaN(value)) return null;
+  return value / (unitSystem().per_m || 1);
 }
 
 function away(km, digits) {
@@ -158,7 +209,7 @@ function away(km, digits) {
 function awayText(km, digits) {
   /* The number with its unit on it, the way a screen or a sheet wants it. */
   const value = away(km, digits);
-  return value === null ? '\u2014' : value + ' ' + unitSystem().short;
+  return value === null ? '\u2014' : value.toLocaleString() + ' ' + unitSystem().short;
 }
 
 function awayUnit() {

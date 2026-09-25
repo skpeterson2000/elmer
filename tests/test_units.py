@@ -68,16 +68,29 @@ check("so does empty", units.system("")["key"], units.DEFAULT)
 check("so does None", units.system(None)["key"], units.DEFAULT)
 check("and the default is a real system", units.DEFAULT in units.SYSTEMS, True)
 
-print("\nthe preference is about distance, and nothing else")
-# Written down as a test because it is a rule about what NOT to build. The
-# temptation with a units switch is to run it through everything, and doing
-# that would rename the bands.
+print("\nthe preference governs everything measured, except the names of bands")
+# This used to be a rule about what NOT to build: distance only, no heights
+# and no lengths, because wire is sold in feet and an ionosonde reports in
+# kilometres. That was the program noting a preference and filing it. The
+# operator it is for could not tell you how many metres are in a hundred
+# yards, and does not need to be able to.
+#
+# The one thing that does not move is a band's name. Nobody calls it the
+# forty yard band.
 check("no wavelength in it",
       any("wavelength" in str(s).lower() for s in units.SYSTEMS.values()), False)
-check("no feet, no heights",
-      any("feet" in str(s).lower() for s in units.SYSTEMS.values()), False)
-check("the module says so out loud",
-      "forty yard band" in (units.__doc__ or ""), True)
+check("the vertical is there now",
+      all("short_len" in s for s in units.SYSTEMS.values()), True)
+check("  metres for metric", units.say_len(30, "metric"), "30 m")
+check("  feet for imperial", units.say_len(30, "imperial"), "98 ft")
+check("  and feet for nautical too, which is how a chart reads a height",
+      units.say_len(30, "nautical"), "98 ft")
+check("the antenna code's own feet come through",
+      (units.say_ft(33, "imperial"), units.say_ft(33, "metric")), ("33 ft", "10 m"))
+check("  and what is measured across",
+      (units.say_in(2.5, "imperial"), units.say_in(2.5, "metric")), ("2.5 in", "63.5 mm"))
+check("the module says why, out loud",
+      "not a measurement of anything" in (units.__doc__ or ""), True)
 
 print()
 if FAILS:

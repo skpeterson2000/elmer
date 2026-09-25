@@ -17,6 +17,7 @@
     <button class="btn sm ghost" data-mode="text">Send text</button>
     <button class="btn sm ghost" data-mode="key">Your sending</button>
     <button class="btn sm ghost" data-mode="rating">Your rating</button>
+    <button class="btn sm ghost" data-mode="qualify">Qualifying run</button>
     <button class="btn sm ghost" data-mode="decode">Decode off air</button>
   </div>
 </div>
@@ -146,7 +147,14 @@
   </div>
   <div id="cw-today-result" class="mt"></div>
   <p class="tiny muted" style="margin-top:.6rem">
-    Fifteen minutes a day beats two hours on Sunday. Every character is sent at
+    Fifteen minutes a day beats two hours on Sunday &mdash; and the arithmetic of
+    that is the point. Fifteen minutes is <b>five passes of three</b>, not one
+    block of fifteen. What is learned is learned in the coming back: the
+    character has to be fetched again from cold, after your mind has been
+    somewhere else, and that fetch is the rep that counts. So take the gaps.
+    Play a hole of golf, which is exam questions wearing a better hat, or look
+    at the band conditions and go and get on the air. And a set keeps: three
+    today with the last two tomorrow is still a set, not a failure. Every character is sent at
     full speed from the first day; what is slowed is the gap between them. A
     character is <i>solid</i> at nine in ten over twenty sends, and the next one
     arrives on its own. Type what you hear with your fingers on the keys; after each key a
@@ -297,6 +305,69 @@
 </div>
 
 <!-- ---------------------------------------------------------- send text -->
+<div class="panel mt cw-pane" id="cw-qualify" hidden>
+  <div class="panel-title">Qualifying run</div>
+
+  {# The shape the old code tests used, and for the same reason: nobody copies
+     a hundred per cent for five minutes. What a proficient operator does is
+     settle - the first half minute is a scramble, then the ear catches the
+     rhythm. One clean minute out of five measures the settling. #}
+  <div id="cw-q-setup">
+    <p class="small">
+      Five minutes of plain language at the speed you name, and one
+      <b>contiguous minute of perfect copy</b> is the bar &mdash; the same thing
+      the old code tests asked for. It stops the moment that minute lands; there
+      is no need to sit through the rest once you have shown it.
+    </p>
+    <p class="tiny muted">
+      Not a shape invented here: one error-free minute out of five minutes of
+      plain text is how code tests and world records are measured &mdash;
+      <a href="{{ qualify_source }}" target="_blank" rel="noopener">{{ qualify_source_name }}</a>.
+    </p>
+    <p class="small muted">
+      Whatever you copy counts toward the record, so a run that lands can open
+      a great deal of the order at once. Nothing is held against you if it
+      does not: the worst that happens is you learn the speed that fits today.
+    </p>
+    <div class="row" style="align-items:center;gap:.8rem;margin-top:.6rem">
+      <label class="small">Speed you think you can hold
+        <input type="range" id="cw-q-wpm" min="5" max="40" step="1" value="13"
+               style="vertical-align:middle;margin-left:.5rem">
+        <span class="mono" id="cw-q-wpm-v">13 wpm</span>
+      </label>
+      <button class="btn primary" id="cw-q-start" data-q="QRV">Start the run
+        <span class="q">QRV</span></button>
+    </div>
+    <p class="tiny muted" id="cw-q-hint" style="margin-top:.4rem"></p>
+  </div>
+
+  <div id="cw-q-running" hidden>
+    <div class="row" style="align-items:baseline;gap:1rem">
+      <span class="mono" id="cw-q-clock">0:00</span>
+      <span class="small muted" id="cw-q-state">sending&hellip;</span>
+      <button class="btn sm ghost" id="cw-q-stop" data-q="QRT" style="margin-left:auto">
+        Stop <span class="q">QRT</span></button>
+    </div>
+    {# The clean stretch as it stands, which is the one number that matters.
+       Shown as it grows rather than only at the end: a copyist forty seconds
+       into a clean minute should be able to see it. #}
+    <div class="fr-bar-track" style="margin-top:.5rem">
+      <div class="fr-bar" id="cw-q-bar"></div>
+    </div>
+    <div class="tiny muted" id="cw-q-stretch" style="margin-top:.3rem"></div>
+    <textarea id="cw-q-copy" class="cw-input" rows="4" autocomplete="off"
+              autocapitalize="characters" spellcheck="false"
+              style="width:100%;margin-top:.6rem;font-family:var(--mono)"
+              placeholder="Copy here as it comes. Stay behind it; do not chase it."></textarea>
+  </div>
+
+  <div id="cw-q-result" hidden>
+    <div class="cw-teach-letter" id="cw-q-head" style="font-size:1.3rem"></div>
+    <p class="small" id="cw-q-words" style="margin-top:.4rem"></p>
+    <div class="row" id="cw-q-after" style="gap:.6rem;margin-top:.6rem"></div>
+  </div>
+</div>
+
 <div class="panel mt cw-pane" id="cw-rating" hidden>
   <h2>Your rating</h2>
   <p class="small muted">Two numbers, and where they stand: the speed you copy at, and the speed
@@ -307,7 +378,11 @@
     <div class="field"><label>Sending</label><div class="big-number" id="cw-rating-send">&mdash;</div><div class="tiny muted" id="cw-rating-send-acc">wpm</div></div>
     <div class="field"><label>Rated</label><div class="small" id="cw-rating-when">never</div></div>
   </div>
-  <h3>Copying</h3>
+  {# A measured speed is a number until you know who is up there. The same
+     ladder the qualifying run reads from - see cw.SPEED_LADDER. #}
+  <div class="small" id="cw-rating-where" style="margin-top:.5rem"></div>
+  <div class="tiny muted" id="cw-rating-next" style="margin-top:.3rem"></div>
+  <h3 class="mt">Copying</h3>
   <p class="small muted">Five groups of five come at a speed. Type what you heard and check. Nine in ten right and
     the next rung is two words a minute faster; short of that, two slower. The ladder settles in a few rungs.</p>
   <div class="row" style="gap:.5rem;align-items:center">
@@ -462,6 +537,8 @@ window.CW = {
   session: {{ session|tojson }},
   budget: {{ budget|tojson }},
   cold_gap_ms: {{ cold_gap_ms|tojson }},
+  passes: {{ passes|tojson }},
+  speed_ladder: {{ speed_ladder|tojson }},
   streak: {{ streak|tojson }},
   voice_have: {{ voice_have|tojson }},
   phonetic: {{ phonetic|tojson }}

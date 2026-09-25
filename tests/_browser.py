@@ -54,12 +54,20 @@ def _free_port():
         return s.getsockname()[1]
 
 
-def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=(), cookies=None):
+def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=(), cookies=None,
+             out=None, clip=None):
     """Load `url` in a headless Chromium, wait `settle` seconds, return `js`.
 
     A fresh debugging port each time: the last Chromium is still letting go
     of its port when the next one starts, and a fixed port made every second
     launch wait on a browser that was not coming.
+
+    `out` writes a PNG of the page as well, and `clip` is a CSS selector to
+    crop it to - which is the difference between a picture of a page and a
+    picture of the thing being explained. See tools/guideshots.py, which is
+    what this is for: figures for the guide that are taken from the running
+    program and can be taken again, rather than drawn once by hand and left
+    to go stale as the program moves under them.
     """
     chromium = available()
     if not chromium:
@@ -72,8 +80,8 @@ def evaluate(url, js, width=1024, height=600, settle=2.0, port=None, flags=(), c
     last = None
     for attempt in range(3):
         try:
-            return _run(chromium, url, None, width, height, js, settle,
-                        port or _free_port(), flags, cookies)
+            return _run(chromium, url, out, width, height, js, settle,
+                        port or _free_port(), flags, cookies, clip)
         except _LaunchFlake as exc:
             last = exc
             time.sleep(0.5)
@@ -84,7 +92,7 @@ class _LaunchFlake(Exception):
     """Chromium did not come up this time; the launch is worth retrying."""
 
 
-def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None):
+def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None, clip=None):
   # A profile of its own, thrown away after: a headless browser sharing the
   # profile of the one the person is using would be a tab in their face on
   # Windows, and a locked profile elsewhere.
@@ -182,7 +190,25 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None):
           if got.get("exceptionDetails"):
               value = "EXCEPTION " + str(got["exceptionDetails"].get("text"))
       if out:
-          shot = call(5, "Page.captureScreenshot", format="png")
+          window = None
+          if clip:
+              # Where the thing being explained actually sits, asked of the
+              # page rather than guessed at. A figure cropped to the panel is
+              # worth three of the whole window with the panel somewhere in it.
+              box = call(6, "Runtime.evaluate", returnByValue=True, expression=(
+                  "(() => { const el = document.querySelector(" + json.dumps(clip) + ");"
+                  " if (!el) return null; const r = el.getBoundingClientRect();"
+                  " return {x: r.x + window.scrollX, y: r.y + window.scrollY,"
+                  " width: r.width, height: r.height}; })()"))
+              window = ((box.get("result") or {}).get("value")) or None
+          args = {"format": "png"}
+          if window and window["width"] > 1 and window["height"] > 1:
+              pad = 10
+              args["clip"] = {"x": max(0, window["x"] - pad), "y": max(0, window["y"] - pad),
+                              "width": window["width"] + pad * 2,
+                              "height": window["height"] + pad * 2, "scale": 1}
+              args["captureBeyondViewport"] = True
+          shot = call(5, "Page.captureScreenshot", **args)
           open(out, "wb").write(base64.b64decode(shot["data"]))
       return value
   finally:

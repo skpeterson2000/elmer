@@ -86,6 +86,30 @@ check("the commercial pools are not gated on any of it",
       sorted(p for p in opened({}) if p.startswith("element")),
       ["element1", "element3", "element8"])
 
+print("\na claim of no license does not outrank a record that says otherwise")
+# The Station panel used to send the class on every save, whatever the
+# operator had come there to change - so saving a name while the callsign
+# was still being looked up wrote "No license" down as their own word. It
+# then outranked the FCC record that arrived a minute later: the band plan
+# opened on No license for a station holding an Extra, and the pools stayed
+# shut. Nobody tells this program they hold nothing while the Commission
+# has them on file.
+RECORD = {"found": True, "callsign": "KC9SP", "license_class": "Extra"}
+stale = {"license": RECORD, "license_class": "none", callsign.SOURCE: callsign.OWN}
+got = callsign.held(stale)
+check("the record wins over a claim of nothing", got["class"], "Extra")
+check("  and it is marked verified", got["verified"], True)
+check("  so the pools open", amateur_open(stale), ["extra2024", "gen2023", "tech2026"])
+# A real answer for oneself at a lower class is still the operator's to give.
+lower = {"license": RECORD, "license_class": "General", callsign.SOURCE: callsign.OWN}
+got = callsign.held(lower)
+check("a lower class answered for oneself is left alone", got["class"], "General")
+check("  and is marked as their own word", got["verified"], False)
+check("  with the record still named beside it", got["record"], "Extra")
+# With no record at all, "no license" is the plain truth and stands.
+check("with no record, no license is simply true",
+      callsign.held({"license_class": "none", callsign.SOURCE: callsign.OWN})["class"], "none")
+
 print("\na service rebuilding its copy is not the same as no record")
 # callook.info answers UPDATING while it rebuilds from the Commission's
 # publication, which it does in the small hours. Reading that as "no current

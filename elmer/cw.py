@@ -320,10 +320,36 @@ WEIGHT_KNOWN = 1.0
 WEIGHT_WEAK_SPAN = 4.0        # a character copied 0% of the time weighs KNOWN + this
 
 
+# A second way to be sure, and a better one.
+#
+# The rule above waits for twenty sends and then asks for nine in ten. A person
+# who already knows the code - somebody who has come back to this after years,
+# or a tester who reset their profile to see what a beginner sees - owes eight
+# hundred flawless sends before the last character opens, one character at a
+# time, for letters they have copied since before this program existed. That is
+# the program failing to notice something it is being shown repeatedly.
+#
+# It is also, on the arithmetic, the weaker test. Against a flat prior, being
+# right eighteen times in twenty leaves only a 35 per cent case that the
+# character is really above nine in ten; a clean run of twelve, with no miss at
+# all, makes a 75 per cent case. More evidence, eight fewer sends. So a clean
+# run is a way through, and the only thing added to it is that the run cannot
+# be one lucky minute inside a single drill: at least one of those reps has to
+# have been a cold one, the first of a sitting, fetched with nothing warmed up
+# in front of it. That is the rep that tells proficiency from momentum.
+#
+# Nothing here is one-way. is_solid reads the window every time it is asked, so
+# a character promoted on a clean run goes straight back to being drilled the
+# moment the misses return.
+CLEAN_RUN = 12
+
+
 def is_solid(stat):
     if not stat:
         return False
     recent = str(stat.get("recent") or "")
+    if recent.endswith("1" * CLEAN_RUN) and "1" in str(stat.get("cold") or ""):
+        return True
     if len(recent) >= SOLID_SENT:
         window = recent[-RECENT_WINDOW:]
         return window.count("1") / len(window) >= SOLID_RATE
@@ -618,8 +644,42 @@ def plan(progress, setting=None):
 # then words, then a contact. Nothing bars a second session; what changes is
 # that there is now a bottom to reach, and a top.
 SESSION_LEAST = 180            # three minutes, at the two the order starts with
-SESSION_MOST = 900             # fifteen, with the whole order solid
-SESSION_PER_CHAR = 18          # each character earned buys this much more
+SESSION_MOST = 360             # six, with the whole order solid - see DAY_TARGET
+SESSION_PER_CHAR = 7           # each character earned buys this much more
+
+# A day, and why a session is only ever a piece of one.
+#
+# Fifteen minutes a day beats two hours on Sunday, and the arithmetic of that
+# is the whole point: fifteen minutes is five passes of three, not one block
+# of fifteen. What is learned is learned in the coming back - the character
+# has to be fetched again from cold, after the mind has been somewhere else,
+# and that fetch is the rep that counts. It is the same trick as using a new
+# acquaintance's name three times in one conversation, spaced out, rather than
+# fifteen times in a row.
+#
+# So the session grows with the material and stops growing early. A learner
+# holding the whole order has more to hold and gets six minutes rather than
+# three; what they do not get is a quarter of an hour in one sitting, because
+# that is the shape the line above exists to argue against. The day is the
+# lesson; a session is one pass through it; and the gaps between passes are
+# meant to be spent somewhere else in this program - a hole of golf, which is
+# exam questions wearing a better hat, or the band conditions, which is the
+# argument for going and getting on the air.
+DAY_TARGET = 900               # fifteen minutes, the frame the standing line sets
+PASSES_FEWEST = 3
+PASSES_MOST = 6
+
+
+def passes(the_plan):
+    """How many passes through today's lesson make a day.
+
+    The quotient of the day and the session, held between three and six. At
+    two characters that is five passes of three minutes; holding the order it
+    is three of six. Either way it is a quarter of an hour, and either way it
+    is not one sitting.
+    """
+    each = budget(the_plan)
+    return max(PASSES_FEWEST, min(PASSES_MOST, int(round(DAY_TARGET / float(each)))))
 
 # What the parts cost, for fitting them to the clock.
 MEET_SECONDS = 45              # hearing a new character a few times
@@ -777,6 +837,80 @@ def baseline_words(the_plan, was=None):
     return ("You can name <b>" + ", ".join(got) + "</b> cold"
             + (f", which is {len(got)} of the {len(met)} in front of you" if len(met) > len(got) else "")
             + ". That is the mark everything else gets read against.")
+
+
+# A set of passes does not expire at midnight.
+#
+# Five passes is what a day comes to, not a quota to be met before a clock
+# runs out. Somebody who got three of them in before the evening went sideways
+# has done three passes of a five-pass set, and the honest thing tomorrow is
+# to offer them the last two - not to wipe it and start again, which would be
+# the program punishing them for having a life. The whole argument for this
+# shape is that it fits into the gaps in a day; a version of it that only
+# works on a clear day is not the same claim.
+#
+# So a set carries. It stays open for CARRY_DAYS after the day it was opened,
+# and a pass finished inside that window goes on the same set. Past that it is
+# a new set, because a set that never closes is not a set either.
+CARRY_DAYS = 1
+
+
+def _as_date(text):
+    from datetime import date as _date
+    try:
+        y, m, d = (int(x) for x in str(text).split("-"))
+        return _date(y, m, d)
+    except (TypeError, ValueError):
+        return None
+
+
+def set_state(saved, today, target):
+    """The set of passes in progress: what is done, and what is left.
+
+    `saved` is what was last written down - {"opened", "last", "passes",
+    "target"} - and `today` is the date now. Returns the set as it stands,
+    with `carried` true when it was opened on an earlier day and is still
+    being worked through.
+
+    Both dates are kept, and both are needed: `opened` says how long the set
+    has been open, and `last` says when it was last touched. Without `last`, a
+    set finished on the carry day read as a brand-new empty one the moment it
+    was completed, because the only question being asked was whether it had
+    opened today.
+    """
+    target = max(1, int(target or 1))
+    fresh = {"opened": today.isoformat(), "passes": 0, "target": target,
+             "left": target, "carried": False, "complete": False}
+    saved = saved or {}
+    opened = _as_date(saved.get("opened"))
+    last = _as_date(saved.get("last")) or opened
+    done = int(saved.get("passes") or 0)
+    if opened is None or done <= 0:
+        return fresh
+    want = int(saved.get("target") or target)
+    state = {"opened": saved.get("opened"), "last": saved.get("last"),
+             "passes": done, "target": want, "left": max(0, want - done),
+             "carried": opened != today, "complete": done >= want}
+    if done >= want:
+        # Finished. It stands for the rest of the day it was finished on, and
+        # after that the next pass opens a new one.
+        return state if last == today else fresh
+    if (today - opened).days > CARRY_DAYS:
+        return fresh                       # too long ago to still be the same set
+    return state
+
+
+def add_pass(saved, today, target):
+    """One finished pass folded into the set, and the set that comes of it."""
+    state = set_state(saved, today, target)
+    if state["complete"]:
+        # Complete already, and somebody has gone again: a new set opens,
+        # because more is welcome and none of it is required.
+        state = {"opened": today.isoformat(), "passes": 0,
+                 "target": max(1, int(target or 1))}
+    return {"opened": state["opened"], "last": today.isoformat(),
+            "passes": int(state["passes"]) + 1,
+            "target": int(state.get("target") or target)}
 
 
 def session(the_plan, seconds=None):
@@ -941,3 +1075,343 @@ KINDS = [
     ("qsignals", "Q signals"), ("abbreviations", "Abbreviations"),
     ("prosigns", "Prosigns"), ("qso", "QSO fragments"),
 ]
+
+
+# ------------------------------------------------------- the qualifying run
+#
+# The old code tests sent five minutes of plain language and asked for one
+# minute of it perfectly - and that is still the right shape, because it is
+# honest about how copying actually goes. Nobody copies a hundred per cent for
+# five minutes. What a proficient operator does is settle: the first half
+# minute is a scramble, then the ear catches the rhythm and a clean stretch
+# comes out of it. Asking for one contiguous minute out of five measures that
+# settling rather than punishing the scramble.
+#
+# What is different here is that the operator names the speed. The program
+# does not decide what they can do; it gives them the run they asked for and
+# then tells them the truth about it, which is a different relationship.
+#
+# It ends the moment the clean minute lands. Making somebody sit through four
+# more minutes after they have already proved the thing is the program
+# collecting evidence for its own sake.
+QUALIFY_SECONDS = 300          # five minutes of sending, at most
+QUALIFY_CLEAN = 60             # one contiguous minute of it, without a miss
+# Not a shape invented here. Chuck Adams, K7QO - whose own 140.9 words a minute
+# is the figure everybody quotes - describes the standard for code tests and
+# world records as "copying one minute without error out of five minutes of
+# plain text". He also says the 140.9 is misleading when it is repeated as a
+# plain-text speed, because it came from RufzXP, which sends single callsigns
+# and nothing else. Both are worth having right: see QUALIFY_SOURCE.
+QUALIFY_SOURCE = "https://www.arrl.org/news/morse-code-at-140-wpm"
+QUALIFY_SOURCE_NAME = "ARRL: Morse Code at 140 WPM"
+QUALIFY_LEAST_WPM = 5
+QUALIFY_MOST_WPM = 40
+
+
+def qualifying_text(wpm, seconds=QUALIFY_SECONDS, seed=None):
+    """Plain language to copy, enough to fill the run at this speed.
+
+    Words rather than random groups: a qualifying run is about copying the
+    language, and a word half-heard is often still recoverable, which is the
+    skill. The whole character set is in play - this is the one drill that is
+    not confined to the lesson, because its whole job is to find out what the
+    operator already has.
+    """
+    rng = random.Random(seed)
+    # PARIS: a word is five characters, so characters a minute is five times
+    # the speed, and the run needs that many for as long as it runs.
+    want = int(max(1, float(wpm)) * 5 * float(seconds) / 60.0)
+    # Plain words alone leave fourteen of the forty characters unsent - every
+    # digit, the punctuation, and Q, Z, X and J, which are exactly the ones
+    # somebody proficient would most like credit for. A run built only of
+    # common English cannot place anybody past the easy half of the order.
+    # So it is sent the way real traffic is: words, callsigns, signal reports
+    # and Q-signals, which between them use the whole set.
+    # And weighted so the rare ones actually get an airing. A character only
+    # counts toward placement if it was sent often enough to be sure of, so a
+    # run made of ordinary English stalls the whole order at the first comma:
+    # measured across a dozen runs, a flawless copyist landed anywhere between
+    # twelve and thirty-three of the forty, on nothing but which words came up.
+    # Traffic is where digits and punctuation live anyway - reports, serials,
+    # portable callsigns - so leaning on it is truer to the air, not less.
+    out, size = [], 0
+    while size < want:
+        roll = rng.random()
+        if roll < 0.40:
+            piece = rng.choice(WORDS)
+        elif roll < 0.62:
+            piece = _callsign(rng, dx=rng.random() < 0.3)
+            if rng.random() < 0.22:
+                # Portable and mobile, which is where the slant comes from and
+                # the only place most operators ever hear one.
+                piece += "/" + rng.choice(["P", "M", "QRP", "3", "7"])
+        elif roll < 0.72:
+            piece = rng.choice(list(Q_SIGNALS))
+        elif roll < 0.88:
+            # Serials and reports, which is where the digits live. All ten of
+            # them, not just the five a signal report uses.
+            piece = "".join(str(rng.randint(0, 9)) for _ in range(rng.randint(3, 5)))
+        else:
+            piece = rng.choice(["73", "88", "5NN", "OM", "UR", "TU", "AGN?",
+                                "WX FB", "HW?", "RIG 100W", "ANT 40M DIPOLE",
+                                # The stop and the comma get sent too: they are
+                                # in the order, and a run that never sends them
+                                # cannot give anybody credit for knowing them.
+                                "NAME BOB, QTH OHIO.", "TNX FER CALL, 73.",
+                                "SRI QRM, PSE AGN."])
+        out.append(piece)
+        size += len(piece) + 1
+    return " ".join(out)
+
+
+# How far out of step a copyist is allowed to get before the alignment stops
+# looking. Somebody copying behind runs a character or two late; somebody who
+# loses the thread entirely is not going to be recovered by a wider band, and
+# the band is what keeps this fast.
+ALIGN_BAND = 48
+
+
+def _align(sent, got):
+    """Line up what was typed against what was sent, character by character.
+
+    A proper alignment, and it has to be: difflib takes the longest matching
+    block it can find and recurses either side of it, which is the wrong
+    instinct here. There are forty characters in the code and five hundred
+    positions in a run, so identical short runs are everywhere, and it will
+    happily match a "TH" near the start against a "TH" near the end and then
+    throw away everything in between. On a real run that scored a copyist at
+    thirteen per cent who had two thirds of it.
+
+    So: edit distance with a traceback, banded to ALIGN_BAND either side of
+    the diagonal. Banding keeps it quick and costs nothing real - a copyist
+    fifty characters out of step has not mistyped, they have stopped copying.
+
+    Returns (ok, typed_for), both the length of `sent`.
+    """
+    n, m = len(sent), len(got)
+    if not n:
+        return [], []
+    if not m:
+        return [False] * n, [""] * n
+    big = float("inf")
+    # cost[i][j] as two rolling rows, with the band clamped into range.
+    prev = [big] * (m + 1)
+    for j in range(0, min(m, ALIGN_BAND) + 1):
+        prev[j] = j
+    back = []                                # one row of moves per sent character
+    for i in range(1, n + 1):
+        row = [big] * (m + 1)
+        lo, hi = max(0, i - ALIGN_BAND), min(m, i + ALIGN_BAND)
+        moves = {}
+        if lo == 0:
+            row[0] = i
+            moves[0] = "up"
+        for j in range(max(1, lo), hi + 1):
+            same = sent[i - 1] == got[j - 1]
+            best, how = prev[j - 1] + (0 if same else 1), ("hit" if same else "sub")
+            if prev[j] + 1 < best:
+                best, how = prev[j] + 1, "up"        # sent, never typed
+            if row[j - 1] + 1 < best:
+                best, how = row[j - 1] + 1, "left"   # typed, never sent
+            row[j], moves[j] = best, how
+        back.append(moves)
+        prev = row
+    ok, typed_for = [False] * n, [""] * n
+    i, j = n, m
+    while i > 0:
+        how = back[i - 1].get(j)
+        if how is None:                      # outside the band: the rest is a miss
+            i -= 1
+            continue
+        if how == "left":
+            j -= 1
+            continue
+        if how in ("hit", "sub"):
+            if how == "hit":
+                ok[i - 1] = True
+            typed_for[i - 1] = got[j - 1] if j > 0 else ""
+            i, j = i - 1, j - 1
+            continue
+        i -= 1                               # "up": sent and nothing typed for it
+    return ok, typed_for
+
+
+def run_marks(text, typed, wpm):
+    """A run scored: one mark a character sent, with when it went out.
+
+    Two things have to be right or the clean minute is a lottery.
+
+    The first is when each character was sent, and that is not guessed - it is
+    computed from the code itself at this speed. The word PARIS is five words
+    a minute because of exactly this arithmetic, so the schedule the sender
+    used is the schedule the scorer uses.
+
+    The second is lining up what was typed against what was sent. Somebody who
+    drops one character and carries on is a character behind for the rest of
+    the run; scored position by position that reads as everything after the
+    slip being wrong, and it would take a clean minute away from an operator
+    who had one. So the two are aligned as sequences - the same way a diff
+    lines up two versions of a file - and only the genuinely unmatched
+    characters count as missed.
+    """
+    beat = timing(wpm)
+    sent = [c for c in str(text or "").upper()]
+    got = [c for c in str(typed or "").upper()]
+    # When each character finished going out, from the start of the run.
+    at, when = 0.0, []
+    for ch in sent:
+        if ch == " ":
+            at += beat["word_gap"]
+            when.append(at)
+            continue
+        code = MORSE.get(ch, "")
+        span = sum(beat["dah"] if sym == "-" else beat["dit"] for sym in code)
+        span += beat["symbol_gap"] * max(0, len(code) - 1)
+        at += span + beat["char_gap"]
+        when.append(at)
+    ok, typed_for = _align(sent, got)
+    marks = []
+    for i, ch in enumerate(sent):
+        if ch == " ":
+            continue                        # the gaps are not characters to copy
+        marks.append({"ch": ch, "ok": ok[i], "at": round(when[i] / 1000.0, 2),
+                      "typed": typed_for[i]})
+    return marks
+
+
+def clean_stretch(marks, need=QUALIFY_CLEAN):
+    """The longest run of unbroken copy, in seconds, and whether it is enough.
+
+    `marks` is the run as it happened: one entry a character, each
+    {"ok": bool, "at": seconds from the start}. A stretch is measured from the
+    first character after the last miss to the most recent one - so a miss
+    ends a stretch and starts the next, which is what "contiguous" means.
+    """
+    best, start = 0.0, None
+    for mark in marks or []:
+        at = float(mark.get("at") or 0.0)
+        if not mark.get("ok"):
+            start = None
+            continue
+        if start is None:
+            start = at
+        best = max(best, at - start)
+    return {"seconds": round(best, 1), "passed": best >= need, "need": need}
+
+
+def qualify_advice(wpm, marks, passed):
+    """What to say at the end, and it is never "you failed".
+
+    Somebody who asked for twenty-five and copied two thirds of it does not
+    need to be told they were wrong about themselves; they need the speed that
+    would have worked, which the run has just measured. Somebody who copied
+    almost none of it is not slow, they are early - and the honest and kindest
+    thing is to say the code is learnable and point at where it starts.
+    """
+    marks = list(marks or [])
+    hits = sum(1 for m in marks if m.get("ok"))
+    rate = hits / len(marks) if marks else 0.0
+    wpm = float(wpm)
+    if passed:
+        return {"rate": round(rate, 3), "suggest_wpm": None,
+                "head": "That is a qualifying run.",
+                "words": (f"A clean minute at {wpm:.0f} words a minute, which is the "
+                          "same thing the old code tests asked for. Whatever the record "
+                          "said about you before, it says this now.")}
+    if not marks:
+        return {"rate": 0.0, "suggest_wpm": QUALIFY_LEAST_WPM,
+                "head": "Nothing came through.",
+                "words": ("No characters were copied at all, so there is nothing to "
+                          "measure yet. That is a fine place to be - it is where "
+                          "everybody starts, and the code is learnable in about a month "
+                          "of short days.")}
+    if rate < 0.35:
+        return {"rate": round(rate, 3), "suggest_wpm": None, "start_here": True,
+                "head": "This one is not the place to start.",
+                "words": (f"About {rate * 100:.0f} per cent came through, which means the "
+                          "characters are not there yet rather than the speed being wrong "
+                          "- and no speed fixes that. Start with the lesson: two characters "
+                          "at a time, a few minutes a day, and the rest arrive on their own. "
+                          "People who could not copy a single letter in January are holding "
+                          "conversations by the spring.")}
+    # They can copy; the speed was ambitious. What they actually held is the
+    # number worth giving them, rounded down to something they can ask for.
+    suggest = max(QUALIFY_LEAST_WPM, int(wpm * min(0.9, max(0.5, rate))))
+    if suggest >= wpm:
+        suggest = max(QUALIFY_LEAST_WPM, int(wpm) - 2)
+    return {"rate": round(rate, 3), "suggest_wpm": suggest,
+            "head": f"Close. {rate * 100:.0f} per cent of it came through.",
+            "words": (f"That is real copying, at a speed that was reaching. Try it again "
+                      f"at {suggest} and it will very likely land - and a qualifying run at "
+                      f"{suggest} is worth more than a near miss at {wpm:.0f}, because the "
+                      "speed comes back quickly once the copy is solid.")}
+
+
+# ------------------------------------------------------------- what lives where
+#
+# A speed on a slider is a number. What makes it mean anything is knowing who
+# is up there and what they are doing, so the ladder is written down once and
+# read wherever a speed is being chosen or measured - the qualifying run's
+# setup, the rating, the breaks between passes.
+#
+# The two records at the top are reported rather than asserted, and they are
+# named so anybody can go and check: this program has no way to verify a world
+# record and should not sound as though it does.
+SPEED_LADDER = [
+    {"from": 0, "to": 7, "name": "where everybody starts",
+     "note": "Every character is sent at full speed from the first day; what is "
+             "slowed is the gap between them. Nobody learns the code slowly and "
+             "then speeds it up - that has to be unlearned."},
+    {"from": 8, "to": 14, "name": "the old code tests",
+     "note": "Five words a minute was Novice, thirteen was General, twenty was "
+             "Extra. The tests are gone, and the speeds are still where most "
+             "conversations live."},
+    {"from": 15, "to": 24, "name": "ragchewing",
+     "note": "A comfortable conversational speed for most operators on the air. "
+             "Somewhere around here the ear stops assembling letters and starts "
+             "hearing whole words - which is the change worth waiting for."},
+    {"from": 25, "to": 39, "name": "fluid sending, and head copy",
+     "note": "Characters run together and stop being separate things. "
+             "Experienced operators copy a whole conversation in their heads at "
+             "thirty to forty-five, writing nothing down."},
+    {"from": 40, "to": 59, "name": "contest speed",
+     "note": "Callsigns and reports in rapid-fire bursts, usually with a keyer "
+             "driven from logging software. Human hands on paddles can burst "
+             "into the fifties; holding it is another matter."},
+    {"from": 60, "to": 99, "name": "high-speed telegraphy",
+     "note": "Sixty to eighty and beyond, copied continuously - at rates that "
+             "rival or beat ordinary typing. Sending this fast is machine work: "
+             "past about seventy it is software, for spacing no hand can hold. "
+             "There is a world championship for it, run by the IARU.",
+     "source": "https://www.iaru-r1.org/2024/20th-iaru-hst-world-championship-tunisia-2024/",
+     "source_name": "IARU: 20th HST World Championship, Tunisia 2024"},
+    {"from": 100, "to": 999, "name": "the far end of it",
+     "note": "The callsign record is held by Ianis Scutaru, YO8YNS, who took "
+             "RufzXP to 311,192 points at 1,126 characters a minute - about 225 "
+             "words a minute - at the IARU world championship in Tunisia in "
+             "2024. Single callsigns, not prose, and a program that speeds up "
+             "every time you are right. Worth knowing about; not a target.",
+     "source": "http://www.highspeedtelegraphy.com/Telegraphy-world-records/World-record-Rufz",
+     "source_name": "HST: RufzXP world records"},
+]
+
+
+def speed_note(wpm):
+    """Where this speed sits, and what is done at it."""
+    try:
+        wpm = float(wpm)
+    except (TypeError, ValueError):
+        return SPEED_LADDER[0]
+    for rung in SPEED_LADDER:
+        if wpm <= rung["to"]:
+            return rung
+    return SPEED_LADDER[-1]
+
+
+def speed_above(wpm):
+    """The next rung up, for somebody who has just reached this one."""
+    here = speed_note(wpm)
+    for rung in SPEED_LADDER:
+        if rung["from"] > here["to"]:
+            return rung
+    return None

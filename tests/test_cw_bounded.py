@@ -112,10 +112,16 @@ try:
         got = json.loads(got)
     check("no javascript error on the page", got.get("errors"), [])
     check("the page knows how long today is", got["budget"] > 0, True)
-    check("  and says so in minutes or seconds", "Today is about" in got["clock"], True)
+    # A day is passes through the lesson, so the line says which pass this is
+    # rather than only how long it runs - see cw.passes.
+    check("  and says which pass of the day this is",
+          "Pass 1 of" in got["clock"] and "today" in got["clock"], True)
+    check("  with how long each one runs", "Each is about" in got["clock"], True)
     check("  it says the session ends on its own", "ends on its own" in got["clock"], True)
     check("  and that leaving at a break is allowed",
           "leave at any break" in got["clock"], True)
+    check("  and that the gap is the point, not an interval",
+          "coming back" in got["clock"], True)
     # 342 seconds is five minutes and forty-two: the page says "about", so
     # the words round to the minute rather than inventing a half one.
     check("the length reads as time, rounded honestly", got["words"], "6 min")

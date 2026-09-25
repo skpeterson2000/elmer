@@ -85,6 +85,62 @@ check("more time means more groups", groups(long_) > groups(short), True)
 check("  and a caller may name the length",
       sum(s.get("seconds") or 0 for s in cw.session(cw.plan(record(10)), seconds=300)) <= 320, True)
 
+print("\na day is passes through the lesson, never one block")
+# "Fifteen minutes a day beats two hours on Sunday" is not a slogan sitting
+# beside a three minute session - it is the same claim. Fifteen minutes is
+# five passes of three, and what is learned is learned in the coming back:
+# the character has to be fetched again from cold, after the mind has been
+# somewhere else. A session that grew to fill the whole quarter of an hour
+# would be the one shape the line exists to argue against, and that is what
+# it used to do - SESSION_MOST was 900 seconds, the whole day in one sitting.
+for met in (0, 3, 10, 25, 40):
+    the_plan = cw.plan(record(met))
+    each, times = cw.budget(the_plan), cw.passes(the_plan)
+    day = each * times
+    check(f"{met:2d} met: {times} passes of {each}s is a day of {round(day/60)} min",
+          (times >= cw.PASSES_FEWEST, 840 <= day <= 1150), (True, True))
+check("no session is a day on its own", cw.SESSION_MOST < cw.DAY_TARGET, True)
+check("  the longest is well under half of one",
+      cw.SESSION_MOST <= cw.DAY_TARGET / 2, True)
+check("two characters is five passes of three minutes",
+      (cw.passes(cw.plan({})), cw.budget(cw.plan({}))), (5, 180))
+check("holding the order it is fewer and longer, still not one",
+      cw.passes(cw.plan(record(40))) >= cw.PASSES_FEWEST, True)
+check("a plan with nothing in it still makes a day", cw.passes({}) >= cw.PASSES_FEWEST, True)
+
+print("\na set of passes keeps - tomorrow still counts")
+# Five passes is what a day comes to, not a quota with a clock on it.
+# Somebody who got three in before the evening went sideways has done three
+# of a five-pass set, and the honest thing tomorrow is to offer them the
+# last two. The argument for this shape is that it fits into the gaps in a
+# day; a version that only works on a clear day is a different claim.
+from datetime import date as _date, timedelta as _td
+mon = _date(2026, 9, 21)
+tue, wed, fri = mon + _td(days=1), mon + _td(days=2), mon + _td(days=4)
+held = None
+for _ in range(3):
+    held = cw.add_pass(held, mon, 5)
+check("three passes in on the day", cw.set_state(held, mon, 5)["passes"], 3)
+check("  and two still to go", cw.set_state(held, mon, 5)["left"], 2)
+st = cw.set_state(held, tue, 5)
+check("tomorrow the same set is offered", (st["passes"], st["left"]), (3, 2))
+check("  and it says it was carried", st["carried"], True)
+held = cw.add_pass(cw.add_pass(held, tue, 5), tue, 5)
+st = cw.set_state(held, tue, 5)
+check("finished on the carry day, it stands", (st["passes"], st["complete"]), (5, True))
+check("  and the next day starts clean", cw.set_state(held, wed, 5)["passes"], 0)
+# Past the window it is a new set: one that never closes is not a set.
+stale = {"opened": mon.isoformat(), "last": mon.isoformat(), "passes": 3, "target": 5}
+check("a set left four days is not still open", cw.set_state(stale, fri, 5)["passes"], 0)
+check("  and carries nothing with it", cw.set_state(stale, fri, 5)["carried"], False)
+# Going again after finishing opens a new one rather than being refused.
+again = cw.add_pass(held, tue, 5)
+check("more is welcome once the set is done", cw.set_state(again, tue, 5)["passes"], 1)
+check("nothing written down yet is simply a fresh set",
+      cw.set_state(None, mon, 5)["left"], 5)
+check("  and so is a record that makes no sense",
+      cw.set_state({"opened": "not-a-date", "passes": 4}, mon, 5)["passes"], 0)
+
 print("\nit ends on something that already goes right")
 steps = cw.session(cw.plan(record(10)))
 check("the last part is a lap", bool(steps[-1].get("lap")), True)

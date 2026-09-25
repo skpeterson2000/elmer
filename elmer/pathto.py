@@ -20,7 +20,7 @@ gazetteer.
 import math
 import re
 
-from . import bandplan, callsign, geocode, linkbudget, propagation, reachout, terrain
+from . import bandplan, callsign, geocode, linkbudget, propagation, reachout, terrain, units
 
 # Past this a path is the ionosphere's, whatever the antennas: the radio
 # horizon from a hundred feet up is about thirty miles, and nobody is asking
@@ -88,7 +88,7 @@ def resolve_to(text):
     return None
 
 
-def _sight(lat1, lon1, lat2, lon2, km):
+def _sight(lat1, lon1, lat2, lon2, km, unit=units.DEFAULT):
     """Whether two head-high antennas could see each other over the ground,
     from the terrain cache where it has the path, else smooth earth."""
     horizon = 4.12 * (math.sqrt(ANTENNA_M) + math.sqrt(ANTENNA_M))    # km, 4/3 earth
@@ -104,9 +104,9 @@ def _sight(lat1, lon1, lat2, lon2, km):
         prof = None
     if not prof or not prof.get("points"):
         out["clear"] = km <= horizon
-        out["verdict"] = (f"within the radio horizon of two head-high antennas ({horizon:.0f} km) over "
+        out["verdict"] = (f"within the radio horizon of two head-high antennas ({units.say(horizon, unit)}) over "
                           f"smooth earth" if out["clear"] else
-                          f"beyond the radio horizon of head-high antennas ({horizon:.0f} km); height at "
+                          f"beyond the radio horizon of head-high antennas ({units.say(horizon, unit)}); height at "
                           f"either end, or a repeater between, is what gets it through")
         return out
     pts = prof["points"]
@@ -129,7 +129,7 @@ def _sight(lat1, lon1, lat2, lon2, km):
         out["clear"] = False
         out["blocked_km"] = round(worst[1], 1)
         out["blocked_m"] = round(worst[0])
-        out["verdict"] = (f"ground in the way {worst[1]:.0f} km along, about {worst[0]:.0f} m above the "
+        out["verdict"] = (f"ground in the way {units.say(worst[1], unit)} along, about {units.say_len(worst[0], unit)} above the "
                           f"line - a repeater or height at one end is what gets past it")
     return out
 
@@ -165,7 +165,7 @@ def _antenna_note(how, bearing):
 PERSONAL_SIGHT_KM = 8.0
 
 
-def ladder(km, sight, sky, license=None):
+def ladder(km, sight, sky, license=None, unit=units.DEFAULT):
     """The same path, asked three ways: with no license, as a Technician,
     as a General - each with the radio that class would have in hand, not
     the gear ticked. Put side by side so the distance between the rungs
@@ -227,9 +227,10 @@ def ladder(km, sight, sky, license=None):
 
     def words(ways, who):
         if not ways:
-            return {"none": f"nothing reaches {km:.0f} km without a license right now",
-                    "Technician": f"nothing on a Technician's bands carries {km:.0f} km right now",
-                    "General": f"no band carries {km:.0f} km by the numbers right now"}[who]
+            far = units.say(km, unit)
+            return {"none": f"nothing reaches {far} without a license right now",
+                    "Technician": f"nothing on a Technician's bands carries {far} right now",
+                    "General": f"no band carries {far} by the numbers right now"}[who]
         good = [w for w in ways if w["odds"] == "good"]
         return (f"{len(ways)} way{'s' if len(ways) != 1 else ''}, {len(good)} of them good"
                 if good else f"{len(ways)} way{'s' if len(ways) != 1 else ''} worth trying, none certain")
@@ -254,7 +255,7 @@ def ladder(km, sight, sky, license=None):
     elif not tech and not none:
         step_up.append("neither no license nor Technician reaches there right now")
     if len(general) > len(tech):
-        step_up.append(f"General opens {len(general) - len(tech)} more than Technician - the HF bands that carry {km:.0f} km at this hour")
+        step_up.append(f"General opens {len(general) - len(tech)} more than Technician - the HF bands that carry {units.say(km, unit)} at this hour")
     elif tech and len(general) == len(tech):
         step_up.append("right now General adds nothing a Technician has not got - the hour, not the license, is the limit")
     you = (license or "").strip()
@@ -371,22 +372,30 @@ def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, s
     return out
 
 
-def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
+def predict(here, there, gear=(), license="Technician", watts=100.0, now=None,
+            unit=units.DEFAULT):
     """The path and the approach. `here` and `there` are place dicts with
     lat/lon; the ionosphere is read at the midpoint, which is where a
-    one-hop path is reflected."""
+    one-hop path is reflected.
+
+    `unit` is the operator's own - see units.py, whose whole subject is that a
+    distance across the ground answers "how far is that" and belongs to the
+    person reading it, while the band names do not. This page said 2448 km to
+    an operator who had asked for miles, in the same sentence as 20 m and
+    40 m, which are not a measurement of anything on this path.
+    """
     km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     back = (bearing + 180.0) % 360.0
     mid_lat = (here["lat"] + there["lat"]) / 2.0
     mid_lon = (here["lon"] + there["lon"]) / 2.0
     sun_here = reachout.sun_state(here["lat"], here["lon"], now)
     sun_there = reachout.sun_state(there["lat"], there["lon"], now)
-    sight = _sight(here["lat"], here["lon"], there["lat"], there["lon"], km)
+    sight = _sight(here["lat"], here["lon"], there["lat"], there["lon"], km, unit)
     snap = propagation.snapshot(lat=mid_lat, lon=mid_lon)
     sky = propagation.path_bands(
         km, fof2=snap.get("fof2"), hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
         elevation=snap.get("elevation") or 0.0, k_index=snap.get("k_index") or 2.0,
-        muf=snap.get("muf"), watts=watts)
+        muf=snap.get("muf"), watts=watts, unit=unit)
 
     has_hf = reachout._has_hf(gear)
     has_vhf = reachout._vhf(gear)
@@ -423,12 +432,12 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
             if b:
                 odds = ("good" if b["verdict"] == "solid"
                         else "worth trying" if b["verdict"] == "workable" else "long shot")
-                why = (f"carries {km:.0f} km by {r['how']}; at {b['watts']:g} W {b['emission'].upper()} "
+                why = (f"carries {units.say(km, unit)} by {r['how']}; at {b['watts']:g} W {b['emission'].upper()} "
                        f"it arrives {b['margin_db']:+.0f} dB against what the far end needs")
             else:
                 odds = ("good" if (r.get("hops") or 1) == 1 and (r.get("score") or 50) >= 50
                         else "worth trying" if (r.get("hops") or 1) <= 2 else "long shot")
-                why = r.get("cost") or f"carries {km:.0f} km by {r['how']} right now"
+                why = r.get("cost") or f"carries {units.say(km, unit)} by {r['how']} right now"
             approach.append({"band": r["band"], "how": r["how"], "odds": odds, "mode": mode,
                              "antenna": _antenna_note(r["how"], bearing),
                              "why": why, "margin_db": b.get("margin_db")})
@@ -464,7 +473,7 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
                                   "near here - the list below names the machines in range; ask on one "
                                   "whether it links toward " + (there.get("short") or "there")),
                          "antenna": "vertical, high as you can hold it",
-                         "why": f"{km:.0f} km is far past what a handheld reaches on its own"})
+                         "why": f"{units.say(km, unit)} is far past what a handheld reaches on its own"})
         approach.append({"band": ", ".join(would) if would else "HF", "how": "the ionosphere", "odds": "good" if would else "long shot",
                          "mode": ("what would carry it right now, if an HF radio can be borrowed - tick "
                                   "HF above and this fills in" if would else
@@ -507,5 +516,5 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None):
                 "read_at": "the midpoint of the path, where a hop is reflected"},
         "approach": approach,
         "when": when,
-        "ladder": ladder(km, sight, sky, license),
+        "ladder": ladder(km, sight, sky, license, unit),
     }

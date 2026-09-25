@@ -80,7 +80,10 @@ function benchFall() {
 /* The reactive near field: a wavelength over two pi. A conductor inside it
    is part of the antenna; a noise source inside it is in the receiver. */
 const NEAR_BANDS = [['160 m', 1.9], ['80 m', 3.6], ['40 m', 7.1], ['20 m', 14.2], ['10 m', 28.4], ['6 m', 50.1], ['2 m', 146], ['70 cm', 446]];
-function nearFieldFt(mhz) { return 299.792458 / mhz / (2 * Math.PI) * 3.28084; }
+/* Computed in metres; read in the operator's own. The name keeps 'Ft'
+   because every caller below is about a distance you pace out. */
+function nearFieldM(mhz) { return 299.792458 / mhz / (2 * Math.PI); }
+function nearFieldFt(mhz) { return high(nearFieldM(mhz), 2); }
 function benchNear() {
   const mhz = benchNum('bn-mhz', 7.1), d = benchNum('bn-d', 30);
   const nf = nearFieldFt(mhz);
@@ -92,7 +95,7 @@ function benchNear() {
     : '<b>Outside.</b> At ' + mhz + ' MHz the near field reaches about <b>' + nf.toFixed(0) + ' ft</b>; the thing at ' + d + ' ft is ' + (d - nf).toFixed(0) +
       ' ft beyond it. It still radiates noise the antenna can hear - at ' + (2 * d) + ' ft that would be a quarter of it, at ' + (4 * d) + ' ft a sixteenth.';
   out.innerHTML = verdict + '<table class="data mt" style="max-width:26rem"><thead><tr><th>Band</th><th>Near field</th></tr></thead><tbody>' +
-    NEAR_BANDS.map(([n, f]) => '<tr><td>' + n + '</td><td class="mono">' + (nearFieldFt(f) >= 10 ? nearFieldFt(f).toFixed(0) + ' ft' : nearFieldFt(f).toFixed(1) + ' ft') + '</td></tr>').join('') +
+    NEAR_BANDS.map(([n, f]) => '<tr><td>' + n + '</td><td class="mono">' + (nearFieldFt(f) >= 10 ? highText(nearFieldM(f)) : highText(nearFieldM(f), 1)) + '</td></tr>').join('') +
     '</tbody></table><div class="tiny muted">A wavelength over two pi - the boundary of the reactive near field for a wire-sized antenna. A rule of thumb, not a wall: coupling fades across it rather than stopping at it.</div>';
 }
 

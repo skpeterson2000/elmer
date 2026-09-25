@@ -384,7 +384,7 @@ function acCard(r) {
       r.from_here.bearing + '&deg;</span> from ' + escapeHTML(r.from_here.qth)
     : 'set a QTH for the distance';
   const facts = [
-    summit ? (r.alt_ft ? r.alt_ft + ' ft' : '') + (r.points ? ' &middot; ' + r.points + ' points' : '')
+    summit ? (r.alt_ft ? highFtText(r.alt_ft) : '') + (r.points ? ' &middot; ' + r.points + ' points' : '')
            : escapeHTML([r.type, r.agency].filter(Boolean).join(' - ')),
     escapeHTML(r.where || ''), r.grid ? '<span class="mono">' + escapeHTML(r.grid) + '</span>' : '',
     r.access ? 'access: ' + escapeHTML(r.access) : '', r.methods ? 'set up: ' + escapeHTML(r.methods) : '',

@@ -107,6 +107,20 @@ def held(settings):
     record = settings.get("license") or {}
     held_class = record_class(record)
     own = str(settings.get("license_class") or "")
+    # "No license" is not an answer that can outrank a record. Nobody sitting
+    # at this program deliberately tells it they hold nothing while the
+    # Commission has them on file as an Extra - and one did have exactly that
+    # stored, put there by a page that saved the class it happened to be
+    # showing while the callsign was still being looked up. The band plan then
+    # opened on No license for a station with nine years left on an Extra, and
+    # told it so in a panel about FRS and CB.
+    #
+    # A lower class answered for oneself is left alone: somebody may have
+    # reason to study or read at a class below the one they hold, and that
+    # costs nothing and is marked as theirs. It is the claim of nothing at all,
+    # against a record that says otherwise, that is thrown out.
+    if own.strip().lower() in ("none", "no license") and held_class:
+        own = ""
     same = (own.strip().title() == held_class.strip().title())
     if held_class and (not own or same or settings.get(SOURCE) != OWN):
         return {"class": held_class, "source": FCC, "record": held_class,

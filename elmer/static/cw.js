@@ -1706,6 +1706,10 @@ function sayBack(actual, where, ok) {
 
 let todayPlan = CWS.plan || null, todaySession = CWS.session || [], todayStreak = CWS.streak || {};
 let todayBudget = CWS.budget || 0, todayColdGap = CWS.cold_gap_ms || 60000;
+/* How many passes through today's lesson make a day, and how many are done.
+   A day is the lesson; a pass is one go at it; the gaps between are where
+   the learning lands. See cw.passes. */
+let todayPasses = CWS.passes || 5;
 let sessionOn = false, sessionStop = false, sessionStarted = 0;
 /* The clock this session runs to, and every reaction time in it.
 
@@ -1758,9 +1762,24 @@ function renderToday() {
      cw.budget - and it grows as there is more code to hold. */
   const clock = document.getElementById('cw-today-clock');
   if (clock) {
+    /* Where this pass sits in the set, because "one of five" is the whole
+       shape of the thing and "about 3 min" on its own is not.
+
+       A set carries. Somebody who got three in before the evening went
+       sideways is offered the last two today, and told so plainly - the
+       argument for this shape is that it fits into the gaps in a day, and a
+       version that only works on a clear day is a different claim. */
+    const set = streak.set || {passes: 0, target: todayPasses, left: todayPasses};
+    const where = set.complete
+      ? 'That is the set — ' + set.target + ' passes. More is welcome and none of it is required.'
+      : 'Pass ' + Math.min(set.passes + 1, set.target) + ' of ' + set.target +
+        (set.carried
+          ? ' — ' + set.left + ' still to go from your last one, and they keep.'
+          : ' today.');
     clock.textContent = todayBudget
-      ? 'Today is about ' + clockWords(todayBudget) + '. It ends on its own; '
-        + 'you can go again if you want to, and you can leave at any break.'
+      ? where + ' Each is about ' + clockWords(todayBudget) + ' and ends on its own; '
+        + 'you can leave at any break. Then go and do something else for a while — '
+        + 'the coming back is the part that sticks.'
       : '';
   }
   const names = {meet: 'Meet', flash: 'One at a time', koch: 'Groups', words: 'Words', qso: 'A contact'};
@@ -1776,6 +1795,7 @@ async function refreshPlan() {
     todayPlan = d.plan; todaySession = d.session; todayStreak = d;
     todayBudget = d.budget || todayBudget;
     todayColdGap = d.cold_gap_ms || todayColdGap;
+    todayPasses = d.passes || todayPasses;
     if (d.voice_have && window.Voice) Voice.setHave(d.voice_have);
     /* The lesson follows the record unless the slider was pushed ahead. */
     if (todayPlan && settings.lesson < todayPlan.lesson) {
@@ -1944,6 +1964,27 @@ function finishCard(head, done, next) {
   };
   btn.addEventListener('click', again);
   box.hidden = false;
+}
+
+
+/* What is left of the day, and what to do with the gap before it. */
+function dayAhead() {
+  const set = (todayStreak && todayStreak.set) || {};
+  const done = set.passes || 0;
+  const left = Math.max(0, (set.target || todayPasses) - done);
+  if (left <= 0) {
+    return 'That is today’s ' + todayPasses + ' passes done, and the record is kept. ' +
+      'Another is welcome and none of it is required.';
+  }
+  const away = [
+    ['a hole of golf', '/party', 'exam questions wearing a better hat'],
+    ['the band conditions', '/propagation', 'and then go and get on the air'],
+  ][done % 2];
+  return '<b>' + left + ' more pass' + (left === 1 ? '' : 'es') + '</b>, whenever you like ' +
+    '— today, or tomorrow if today is gone. Fifteen minutes a day is five of ' +
+    'these, not one block of fifteen. ' +
+    'Go and do something else first: <a href="' + away[1] + '">' + away[0] + '</a>, ' +
+    away[2] + '. Coming back to it cold is the part that sticks.';
 }
 
 
@@ -2150,7 +2191,15 @@ async function runSession() {
      say what changed in this one sitting rather than what is true in
      general. */
   const was = todayPlan || {};
-  try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); freshBadges(todayStreak); } catch (e) {}
+  /* `finished` is what makes it a pass rather than time spent: somebody who
+     pressed start and stopped after half a minute did not come back to the
+     lesson, and coming back is the thing being counted. Stopping at a break
+     does count - the card says as much, and it is true. */
+  try {
+    todayStreak = await postJSON('/api/cw/minutes',
+      {seconds: seconds, finished: !stopped});
+    freshBadges(todayStreak);
+  } catch (e) {}
   sessionOn = false;
   document.getElementById('cw-today-start').hidden = false;
   document.getElementById('cw-today-stop').hidden = true;
@@ -2197,8 +2246,12 @@ async function runSession() {
       (moved.length
         ? 'That is the part you cannot feel from in here, which is why it is worth showing. '
         : baseline + ' ') +
-      'The record is kept and tomorrow is worked out from it. Nothing is ' +
-      'lost by leaving it here — and nothing stops you going again.');
+      /* Where to spend the gap. The gap is not an interval in the session -
+         it is the session's other half: the character has to be fetched again
+         from cold, and it cannot be fetched from cold if you never left. So
+         the card names somewhere to go, and both places are the program
+         doing its own work on you while you are away from the code. */
+      dayAhead());
   }
 }
 
@@ -2243,6 +2296,27 @@ async function paintRating() {
   if (acc) acc.textContent = r.send_accuracy != null ? 'wpm \u00b7 ' + Math.round(r.send_accuracy) + '% clean' : 'wpm';
   const w = document.getElementById('cw-rating-when');
   if (w) w.textContent = r.when ? r.when.replace('T', ' ') : 'never';
+  /* What the number means. A speed with nobody standing near it is a speed
+     nobody can tell whether to be pleased about. */
+  const where = document.getElementById('cw-rating-where');
+  const next = document.getElementById('cw-rating-next');
+  if (where && next) {
+    const wpm = r.copy_wpm ? Math.round(r.copy_wpm) : 0;
+    const rung = wpm ? speedRung(wpm) : null;
+    where.innerHTML = rung
+      ? 'At ' + wpm + ' words a minute you are in <b>' + escapeHTML(rung.name) +
+        '</b>. ' + escapeHTML(rung.note) +
+        (rung.source
+          ? ' <a href="' + escapeHTML(rung.source) + '" target="_blank" rel="noopener">' +
+            escapeHTML(rung.source_name || 'source') + '</a>'
+          : '')
+      : 'Copy a block on the Copy pane and this fills in. It is a floor, not a '
+        + 'verdict: the rung you last passed, not the best you have ever done.';
+    const up = rung ? SPEED_LADDER.find(x => x.from > rung.to) : null;
+    next.innerHTML = up
+      ? 'Above it: <b>' + escapeHTML(up.name) + '</b> — ' + escapeHTML(up.note)
+      : '';
+  }
   return r;
 }
 
@@ -2380,3 +2454,221 @@ document.getElementById('cw-send-rate-done').addEventListener('click', async () 
   document.getElementById('cw-send-rate-done').hidden = true;
 });
 paintRating();
+
+/* ------------------------------------------------------- the qualifying run */
+/* Five minutes sent, one clean minute asked for, and it stops the moment that
+   minute lands. The scoring is the server's: it knows when every character
+   went out, because that is computed from the code at this speed, and it
+   aligns what was typed against what was sent properly. Doing either of those
+   here would mean a second copy of the rules, drifting.
+
+   So the page sends, collects what is typed, and asks every few seconds how
+   it is going. Only the last of those asks is written to the record. */
+
+const Q_ASK_MS = 4000;          // how often to ask the server how it is going
+
+let qRun = null;                // {text, groups, wpm, started, sentTo, stop}
+
+function qWpm() { return +document.getElementById('cw-q-wpm').value; }
+
+function qShow(which) {
+  ['setup', 'running', 'result'].forEach(name =>
+    document.getElementById('cw-q-' + name).hidden = name !== which);
+}
+
+function qClock(secs) {
+  const m = Math.floor(secs / 60);
+  return m + ':' + String(Math.floor(secs % 60)).padStart(2, '0');
+}
+
+/* Where a speed sits, from the one ladder the program keeps - see
+   cw.SPEED_LADDER. A number on a slider is not a thing most people can
+   picture; who is up there and what they are doing with it, is. */
+const SPEED_LADDER = CWS.speed_ladder || [];
+
+function speedRung(wpm) {
+  for (const rung of SPEED_LADDER) if (wpm <= rung.to) return rung;
+  return SPEED_LADDER[SPEED_LADDER.length - 1] || null;
+}
+
+function qHint() {
+  const wpm = qWpm();
+  document.getElementById('cw-q-wpm-v').textContent = wpm + ' wpm';
+  const rung = speedRung(wpm);
+  /* With the source on it where there is one. A claim about a world record
+     that cannot be followed up is just a program asserting things. */
+  document.getElementById('cw-q-hint').innerHTML = rung
+    ? '<b>' + escapeHTML(rung.name) + '.</b> ' + escapeHTML(rung.note) +
+      (rung.source
+        ? ' <a href="' + escapeHTML(rung.source) + '" target="_blank" rel="noopener">' +
+          escapeHTML(rung.source_name || 'source') + '</a>'
+        : '')
+    : '';
+}
+
+async function qAsk(final) {
+  if (!qRun) return null;
+  try {
+    return await postJSON('/api/cw/qualify', {
+      wpm: qRun.wpm,
+      text: qRun.text.slice(0, qRun.sentTo),
+      typed: document.getElementById('cw-q-copy').value,
+      final: !!final,
+    });
+  } catch (e) { return null; }
+}
+
+function qStretch(got) {
+  const clean = (got && got.clean) || {seconds: 0, need: 60};
+  const pct = Math.min(100, 100 * clean.seconds / (clean.need || 60));
+  document.getElementById('cw-q-bar').style.width = pct + '%';
+  document.getElementById('cw-q-bar').classList.toggle('done', !!clean.passed);
+  document.getElementById('cw-q-stretch').textContent = clean.seconds
+    ? 'Longest clean stretch so far: ' + clean.seconds.toFixed(0) + ' s of the ' +
+      (clean.need || 60) + ' you need.'
+    : 'Nothing clean yet — a scrambled start is normal and is not held against you.';
+}
+
+async function qFinish(reason) {
+  if (!qRun) return;
+  const run = qRun;
+  qRun = null;
+  player.stop();
+  if (run.watch) clearInterval(run.watch);
+  if (run.tick) clearInterval(run.tick);
+
+  /* A run that ends with nothing sent did not happen. A browser holding the
+     audio back - no gesture yet, a muted tab, a device that went away - would
+     otherwise be scored as a copyist who got nothing, and told the characters
+     are not there yet. That is the program telling somebody they cannot do
+     this because its own sound was off, which is exactly the way to lose
+     them. Say what actually went wrong, and record nothing. */
+  const elapsed = (Date.now() - run.started) / 1000;
+  // Only when the run ended by itself. Somebody who pressed Stop in the
+  // first few seconds meant to, and telling them the sound failed would be
+  // the program explaining away a decision they made.
+  if (reason !== 'stopped' && run.sentTo < 8 && elapsed < 8) {
+    document.getElementById('cw-q-head').textContent = 'No code came out.';
+    document.getElementById('cw-q-words').textContent =
+      'The run ended before anything was sent, which means the sound did not ' +
+      'start rather than anything about your copying. Some browsers hold audio ' +
+      'back until the page has been clicked on. Press the key below to make a ' +
+      'tone, then start the run again.';
+    const after = document.getElementById('cw-q-after');
+    after.innerHTML = '';
+    const test = document.createElement('button');
+    test.className = 'btn sm primary';
+    test.textContent = 'Make a tone';
+    test.addEventListener('click', () => document.getElementById('cw-test').click());
+    after.appendChild(test);
+    const back = document.createElement('button');
+    back.className = 'btn sm ghost';
+    back.textContent = 'Back';
+    back.addEventListener('click', () => qShow('setup'));
+    after.appendChild(back);
+    qShow('result');
+    return;
+  }
+  const got = await postJSON('/api/cw/qualify', {
+    wpm: run.wpm, text: run.text.slice(0, run.sentTo),
+    typed: document.getElementById('cw-q-copy').value, final: true,
+  }).catch(() => null);
+  if (!got) { qShow('setup'); return; }
+
+  const advice = got.advice || {};
+  document.getElementById('cw-q-head').textContent = advice.head || '';
+  document.getElementById('cw-q-words').innerHTML = escapeHTML(advice.words || '') +
+    (got.clean && got.clean.passed && got.plan
+      ? ' <b>The lesson now stands at ' + got.plan.lesson + ' of ' + got.plan.total + '.</b>'
+      : '');
+  /* Where to go next, and it is never a dead end. A run that landed opens the
+     lesson; a run that reached gets the speed it measured, on a button, so
+     nobody has to work out what to try instead. */
+  const after = document.getElementById('cw-q-after');
+  after.innerHTML = '';
+  const button = (label, onclick, primary) => {
+    const b = document.createElement('button');
+    b.className = 'btn sm' + (primary ? ' primary' : ' ghost');
+    b.textContent = label;
+    b.addEventListener('click', onclick);
+    after.appendChild(b);
+  };
+  if (got.clean && got.clean.passed) {
+    button('Go to today’s lesson', () => {
+      document.querySelector('#cw-modes [data-mode=today]').click();
+      refreshPlan().then(renderToday);
+    }, true);
+    button('Run it again, faster', () => {
+      document.getElementById('cw-q-wpm').value = Math.min(40, run.wpm + 3);
+      qHint(); qShow('setup');
+    });
+  } else if (advice.start_here) {
+    button('Start with the lesson', () => {
+      document.querySelector('#cw-modes [data-mode=today]').click();
+    }, true);
+    button('Meet the characters', () =>
+      document.querySelector('#cw-modes [data-mode=learn]').click());
+  } else {
+    if (advice.suggest_wpm) {
+      button('Try it at ' + advice.suggest_wpm, () => {
+        document.getElementById('cw-q-wpm').value = advice.suggest_wpm;
+        qHint(); qShow('setup');
+      }, true);
+    }
+    button('Back', () => qShow('setup'));
+  }
+  qShow('result');
+  if (got.clean && got.clean.passed) {
+    toast('Qualifying run', 'A clean minute at ' + run.wpm + ' wpm.');
+    if (got.plan) { todayPlan = got.plan; renderToday(); }
+  }
+}
+
+async function qStart() {
+  const wpm = qWpm();
+  let d;
+  try { d = await api('/api/cw/qualify?wpm=' + wpm); } catch (e) { return; }
+  document.getElementById('cw-q-copy').value = '';
+  qShow('running');
+  qStretch(null);
+  document.getElementById('cw-q-copy').focus();
+  qRun = {text: d.text, wpm: d.wpm, started: Date.now(), sentTo: 0};
+
+  /* The clock, and the character count as it goes out. `sentTo` is what the
+     scoring is told about: asking the server to mark characters that have not
+     been sent yet would count them all as missed. */
+  qRun.tick = setInterval(() => {
+    if (!qRun) return;
+    const secs = (Date.now() - qRun.started) / 1000;
+    document.getElementById('cw-q-clock').textContent = qClock(secs);
+    if (secs >= (d.seconds || 300) + 4) qFinish('time');
+  }, 250);
+
+  qRun.watch = setInterval(async () => {
+    const got = await qAsk(false);
+    if (!got || !qRun) return;
+    qStretch(got);
+    if (got.clean && got.clean.passed) {
+      document.getElementById('cw-q-state').textContent = 'that is the minute — stopping';
+      qFinish('passed');
+    }
+  }, Q_ASK_MS);
+
+  /* The marks arrive in the order the characters go out, so the pointer walks
+     the text rather than looking each character up by name - there are forty
+     characters and five hundred positions, and indexOf would find the wrong
+     one of many identical letters. */
+  player.send(d.groups, d.timing,
+    () => {
+      if (!qRun) return;
+      let i = qRun.sentTo;
+      while (i < qRun.text.length && qRun.text[i] === ' ') i++;
+      qRun.sentTo = Math.min(qRun.text.length, i + 1);
+    },
+    () => { if (qRun) qFinish('sent'); });
+}
+
+document.getElementById('cw-q-wpm').addEventListener('input', qHint);
+document.getElementById('cw-q-start').addEventListener('click', qStart);
+document.getElementById('cw-q-stop').addEventListener('click', () => qFinish('stopped'));
+qHint();

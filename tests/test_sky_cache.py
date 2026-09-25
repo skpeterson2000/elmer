@@ -111,8 +111,13 @@ check("  it got the held reading", got.get("ok"), True)
 check("  told plainly that it is old", got.get("stale"), True)
 check("  with its age in minutes", got.get("age_minutes") >= P.CACHE_MINUTES, True)
 check("  and that a new one is coming", got.get("refreshing"), True)
-check("  nothing was fetched on the page's own time",
-      (CALLS["ham"], CALLS["swpc"]), (before["ham"], before["swpc"]))
+# The claim is that the page did not *wait*, which the timing above says. It
+# is not that no fetch had begun: the refresh runs in a thread and marks the
+# call as it starts, so on a loaded machine it can tick before this line runs.
+# Counting calls here was measuring the scheduler, and it failed once in a
+# full suite run having passed on its own three times.
+check("  and it returned long before the fetch could have finished",
+      took < HANG["seconds"] * 1000, True)
 # The refresh is behind it, and lands.
 for _ in range(60):
     time.sleep(0.1)

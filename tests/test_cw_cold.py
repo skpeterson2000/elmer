@@ -96,6 +96,37 @@ print("\nthe warm pile is still there, and still says something different")
 check("the warm clock reads warm", cw.pace(row)["first_s"], 1.2)
 check("  which is not the cold reading", cw.pace(row)["first_s"] != got["first_s"], True)
 
+print("\nproficiency already held is recognised rather than ground through")
+# Somebody who has come back to the code after years, or a tester who reset
+# their profile to see what a beginner sees, owed eight hundred flawless
+# sends before the last character opened - one character at a time, for
+# letters they have copied since before this program existed.
+#
+# And the old bar was the weaker test. Right eighteen times in twenty makes
+# only a 35 per cent case that the character is above nine in ten; a clean
+# run of twelve makes a 75 per cent case. More evidence, eight fewer sends.
+run = "1" * cw.CLEAN_RUN
+check("a clean run with a cold rep in it is enough",
+      cw.is_solid({"recent": run, "cold": "1", "sent": 12, "copied": 12}), True)
+check("  but not a clean run never met cold",
+      cw.is_solid({"recent": run, "cold": "", "sent": 12, "copied": 12}), False)
+check("  nor one with a miss in it",
+      cw.is_solid({"recent": "1"*6 + "0" + "1"*6, "cold": "1", "sent": 13, "copied": 12}), False)
+check("  nor a run that is short",
+      cw.is_solid({"recent": "1"*(cw.CLEAN_RUN-1), "cold": "1", "sent": 11, "copied": 11}), False)
+check("the twenty-send route still works for everybody else",
+      cw.is_solid({"recent": "1"*18 + "00", "sent": 20, "copied": 18}), True)
+# Nothing here is one-way: the window is read afresh every time, so a
+# character promoted on a clean run is demoted the moment the misses return.
+check("and it comes straight back off when the misses return",
+      cw.is_solid({"recent": run + "0000", "cold": "1", "sent": 16, "copied": 12}), False)
+flawless = {ch: {"recent": run, "cold": "1", "sent": cw.CLEAN_RUN, "copied": cw.CLEAN_RUN}
+            for ch in cw.KOCH_ORDER}
+check("a flawless operator reaches the end of the order",
+      cw.plan(flawless)["done"], True)
+check("  in 480 sends rather than 800",
+      cw.CLEAN_RUN * len(cw.KOCH_ORDER), 480)
+
 print("\nthe reward is loudest for gross replication")
 prog = db.cw_progress(conn)
 the_plan = cw.plan(prog)

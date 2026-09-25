@@ -31,7 +31,7 @@ from reportlab.graphics.shapes import Line, Rect
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
                                 Spacer, Table, TableStyle)
 
-from . import antenna_advice, bandplan, bandpdf, conductors, patterns
+from . import antenna_advice, bandplan, bandpdf, conductors, patterns, units
 
 INK = colors.HexColor("#1a1a1a")
 MUTED = colors.HexColor("#555555")
@@ -267,8 +267,17 @@ def dimensions(kind, mhz, conductor_key):
 
 
 def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
-          use=None, callsign="", nvis=False, license_class="Extra"):
-    """The sheet, as PDF bytes."""
+          use=None, callsign="", nvis=False, license_class="Extra", unit=None):
+    """The sheet, as PDF bytes.
+
+    A cut sheet goes to the garage with somebody and gives both systems,
+    because paper cannot be switched over once it is printed. What `unit`
+    changes is which one leads: the operator's own in the first column, the
+    other beside it. Leading with feet for somebody who reads metres is the
+    sheet answering a question they did not ask, in the place they are least
+    able to do anything about it.
+    """
+    lead_metric = units.system(unit)["short_len"] == "m"
     st = _styles()
     advice = antenna_advice.for_type(mhz, kind, use=use, site=site)
     title = advice.get("title") or kind
@@ -303,7 +312,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     who = f"{callsign} &middot; " if callsign else ""
     flow.append(Paragraph(
         f"{who}Build sheet and evaluation &middot; {made} &middot; "
-        f"wavelength {lam_ft:.1f} ft &middot; {advice.get('use_label', '')}",
+        f"wavelength {units.say_ft(lam_ft, unit, 1)} &middot; {advice.get('use_label', '')}",
         st["sub"]))
 
     # --- the band it lives on -----------------------------------------------
@@ -350,17 +359,19 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     # --- what to cut --------------------------------------------------------
     flow.append(Paragraph("What to cut", st["h"]))
     if dims:
-        rows = [["", "Length", "In meters"]]
+        def both(feet):
+            """The length twice, the operator's system first."""
+            imperial, metric = _feet_inches(feet), f"{feet * 0.3048:.3f} m"
+            return (metric, imperial) if lead_metric else (imperial, metric)
+
+        rows = [["", "In meters" if lead_metric else "Length",
+                 "Length" if lead_metric else "In meters"]]
         if dims["legs"] > 1:
-            rows.append([dims["leg_name"].capitalize(),
-                         _feet_inches(dims["leg_ft"]),
-                         f"{dims['leg_ft'] * 0.3048:.3f} m"])
-        rows.append(["Overall", _feet_inches(dims["overall_ft"]),
-                     f"{dims['overall_ft'] * 0.3048:.3f} m"])
+            rows.append([dims["leg_name"].capitalize(), *both(dims["leg_ft"])])
+        rows.append(["Overall", *both(dims["overall_ft"])])
         if not dims["conductor"].get("reference"):
             rows.append([Paragraph("If it were #14 wire", st["cell"]),
-                         _feet_inches(dims["wire_reference_ft"]),
-                         f"{dims['wire_reference_ft'] * 0.3048:.3f} m"])
+                         *both(dims["wire_reference_ft"])])
         flow.append(_grid(rows, [2.2 * inch, 1.7 * inch, 1.5 * inch], st))
         flow.append(Spacer(1, 5))
         flow.append(Paragraph(dims["note"], st["body"]))
@@ -372,7 +383,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
             "after each cut.", st["body"]))
         if abs(dims["shorter_by_in"]) >= 0.5:
             flow.append(Paragraph(
-                f"This comes out {abs(dims['shorter_by_in']):.1f} in "
+                f"This comes out {units.say_in(abs(dims['shorter_by_in']), unit)} "
                 f"{'shorter' if dims['shorter_by_in'] > 0 else 'longer'} than "
                 f"the 468/f a book would give you, because that rule assumes "
                 f"thin wire and this is {spec['label']}. A fatter conductor is "
@@ -388,7 +399,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
             flow.append(Paragraph(
                 f"<b>Where to start the whip.</b> Lakeview's chart for the "
                 f"{tune['model']} ({tune['band']} Hamstick) puts the exposed "
-                f"stainless whip at about <b>{tune['inches']:.1f} in</b> for "
+                f"stainless whip at about <b>{units.say_in(tune['inches'], unit)}</b> for "
                 f"{mhz:.3f} MHz, moving about {abs(tune['per_100khz']):.1f} in "
                 f"per 100 kHz - shorter for higher"
                 + (", on both whips of the pair alike" if tune.get("pair") else "")
@@ -427,7 +438,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
         flow.append(Paragraph(reality["means"], st["body"]))
     if reality.get("capped"):
         flow.append(Paragraph(
-            f"Capped at {reality['max_ft']} ft by the site, not by the "
+            f"Capped at {units.say_ft(reality['max_ft'], unit)} by the site, not by the "
             f"arithmetic. A low antenna is not a broken one - it is a "
             f"different one, and the takeoff angle above says which.",
             st["body"]))

@@ -20,6 +20,16 @@
   const nameBox = document.getElementById('setup-name');
   const callBox = document.getElementById('setup-call');
   const classBox = document.getElementById('setup-class');
+  /* What the box was showing when the panel opened. Saving used to send the
+     class every time, whatever else the operator had come here to change - so
+     opening Station while the callsign was still being looked up, and pressing
+     save for a name or a unit, wrote down "No license" as the operator's own
+     word. It then outranked the FCC record that arrived a minute later, and
+     the band plan opened on No license for a station holding an Extra.
+
+     The class is sent only when it has actually been changed here. An answer
+     given for oneself is a deliberate act; it should take a deliberate act. */
+  const classWas = classBox ? classBox.value : null;
   const qthBox = document.getElementById('setup-qth');
   const unitBox = document.getElementById('setup-units');
 
@@ -138,7 +148,7 @@
       if (commBox) body.commercial_call = commBox.value.trim().toUpperCase();
       const family = document.getElementById('setup-gmrs-family');
       if (family) body.gmrs_covers = [...family.querySelectorAll('[data-gmrs-cover]:checked')].map(b => +b.dataset.gmrsCover);
-      body.license_class = classBox.value;
+      if (classBox && classBox.value !== classWas) body.license_class = classBox.value;
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');
       if (commercialBox) body.commercial = commercialBox.checked;

@@ -614,12 +614,29 @@ function derivation(type, f, k, rows) {
      "984" beside a result computed from 983.571 means anybody who checks the
      line on a calculator gets a different answer - which is precisely the
      person this table exists for. */
-  let steps = step('983.6 &divide; ' + f.toFixed(3) + ' MHz', lam.toFixed(2) + ' ft',
-    'One whole wavelength in free space. 983.6 is the speed of light in feet ' +
-    'per microsecond, and frequency in MHz is cycles per microsecond, so the ' +
-    'division is just distance = speed &times; time. Most books round it to ' +
-    '984, which is close enough to build from and half an inch different at ' +
-    '14 MHz.');
+  /* The chain is shown in whatever the operator reads, constants and all.
+     Handing a metric reader "983.6 / 14.200 MHz" and a result in metres would
+     leave the arithmetic not checking out on a calculator, which is the one
+     thing this table promises - see the note above about printing 983.6
+     rather than 984. So the constants travel with the units: 299.79 metres
+     per microsecond against 983.6 feet, and 142.5 as the book constant
+     against 468. They are the same two numbers in different clothes. */
+  const inMetres = (typeof highUnit === 'function' ? highUnit() : 'ft') === 'm';
+  const asLen = ft => inMetres ? ft * 0.3048 : ft;
+  const LEN_U = inMetres ? ' m' : ' ft';
+  const C_LEN = inMetres ? '299.79' : '983.6';
+  const BOOK = inMetres ? '142.5' : '468';
+
+  let steps = step(C_LEN + ' &divide; ' + f.toFixed(3) + ' MHz',
+    asLen(lam).toFixed(2) + LEN_U,
+    'One whole wavelength in free space. ' + C_LEN + ' is the speed of light in ' +
+    (inMetres ? 'metres' : 'feet') + ' per microsecond, and frequency in MHz is ' +
+    'cycles per microsecond, so the division is just distance = speed &times; time. ' +
+    (inMetres
+      ? 'Most books round it to 300, which is close enough to build from and a ' +
+        'centimetre different at 14 MHz.'
+      : 'Most books round it to 984, which is close enough to build from and half ' +
+        'an inch different at 14 MHz.'));
 
   const kind = {
     dipole: ['&divide; 2', 2, 'A dipole is half a wave: two quarter-wave legs, fed in the middle.'],
@@ -635,14 +652,15 @@ function derivation(type, f, k, rows) {
   }[type];
 
   if (kind) {
-    steps += step(lam.toFixed(2) + ' ' + kind[0], (lam / kind[1]).toFixed(2) + ' ft', kind[2]);
+    steps += step(asLen(lam).toFixed(2) + ' ' + kind[0],
+      asLen(lam / kind[1]).toFixed(2) + LEN_U, kind[2]);
     const vf = (lam / kind[1]) * k;
-    steps += step('&times; ' + k.toFixed(4), vf.toFixed(2) + ' ft',
+    steps += step('&times; ' + k.toFixed(4), asLen(vf).toFixed(2) + LEN_U,
       'The velocity factor. A wire is not free space: the ends couple to ' +
       'everything around them, so it behaves electrically longer than it ' +
       'measures and has to be cut short. About 0.95 for ordinary wire, less ' +
-      'for anything fatter - which is why <b>468 &divide; f</b> is the number ' +
-      'everybody memorises for a dipole, and where it comes from.');
+      'for anything fatter - which is why <b>' + BOOK + ' &divide; f</b> is the ' +
+      'number everybody memorises for a dipole, and where it comes from.');
   }
 
   /* Reconcile with the constant everybody memorises, rather than leaving the
@@ -658,15 +676,19 @@ function derivation(type, f, k, rows) {
      level and it has never mattered. */
   if (kind && Math.abs(kind[1] - 2) < 0.01) {
     const derived = lam / 2 * k, printed = (468 / f) * (k / 0.95);
-    const gapIn = Math.abs(printed - derived) * 12;
+    // The gap between the two constants, in whatever small unit the operator
+    // measures with: inches on a tape, centimetres on a rule.
+    const gapSmall = Math.abs(printed - derived) * (inMetres ? 30.48 : 12);
+    const gapUnit = inMetres ? ' cm' : ' in';
     // Four places, not three: three reproduced the figure beside it only to
     // within a hundredth, and this fold's whole promise is that it reproduces.
-    steps += step('468 &divide; ' + f.toFixed(3) + ' &times; ' +
+    steps += step(BOOK + ' &divide; ' + f.toFixed(3) + ' &times; ' +
         (k / 0.95).toFixed(4),
-      printed.toFixed(2) + ' ft',
-      'What the table above prints. 468 is the constant the books and the ' +
-      'question pools use, and it is 983.6 &divide; 2 &times; 0.95 = 467.2 ' +
-      'rounded up. So it lands ' + gapIn.toFixed(1) + ' in away from the ' +
+      asLen(printed).toFixed(2) + LEN_U,
+      'What the table above prints. ' + BOOK + ' is the constant the books and the ' +
+      'question pools use, and it is ' + C_LEN + ' &divide; 2 &times; 0.95 = ' +
+      (inMetres ? '142.4' : '467.2') + ' ' +
+      'rounded up. So it lands ' + gapSmall.toFixed(1) + gapUnit + ' away from the ' +
       'line above - inside the error of your tape and far inside what a ' +
       'gutter or a wet tree will shift it. Cut to either and trim on the ' +
       'analyser; that is what the trimming is for.');
@@ -1629,7 +1651,7 @@ function calcAnt() {
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
                                    : 'loaded mobile whip')) +
                  (isWhip(type) ? ' on a vehicle'
-                  : heightFt > 0 ? ' at ' + heightFt.toFixed(0) + ' ft' : ''),
+                  : heightFt > 0 ? ' at ' + highFtText(heightFt) : ''),
   };
   drawAntenna(shape, rows, type);
 }
@@ -2633,13 +2655,13 @@ async function rfEvaluate() {
           '<tr><td class="small">' + escapeHTML(r.environment) + '</td>' +
           '<td class="mono tiny">' + r.averaging_minutes + ' min</td>' +
           '<td class="mono tiny">' + r.limit.toFixed(3) + '</td>' +
-          '<td class="mono tiny">' + r.distance_ft.toFixed(1) + ' ft' +
+          '<td class="mono tiny">' + highFtText(r.distance_ft, 1) +
             (r.near_field ? '<span style="color:var(--amber)" title="inside the near field">&dagger;</span>' : '') + '</td>' +
           '<td class="mono tiny">' + (r.density === null ? '—' : r.density.toFixed(4)) + '</td>' +
           '<td class="mono tiny">' + (r.margin_ratio === null ? '—'
             : (r.margin_ratio * 100).toFixed(1) + '%') + '</td>' +
           '<td class="mono tiny">' + (r.compliance_distance_ft === null ? '—'
-            : r.compliance_distance_ft.toFixed(1) + ' ft') + '</td>' +
+            : highFtText(r.compliance_distance_ft, 1)) + '</td>' +
           '<td><span class="pill ' + (r.compliant ? 'good' : 'bad') + '">' +
             (r.compliant ? 'pass' : 'exceeds') + '</span></td></tr>').join('') +
         '</tbody></table>' +
@@ -3527,7 +3549,9 @@ async function calcSmith() {
     line: document.getElementById('sm-line').value,
     feet: num('sm-len'), watts: num('sm-w'),
   });
-  document.getElementById('sm-len-v').textContent = num('sm-len') + ' ft';
+  /* The slider steps in feet because coax is sold and cut in feet, and the
+     server is told feet. What the operator reads is their own. */
+  document.getElementById('sm-len-v').textContent = highFtText(num('sm-len'));
   let d;
   try { d = await api('/api/smith?' + q); } catch (e) { return; }
   document.getElementById('sm-chart').innerHTML = smithPlot(d,
@@ -4151,7 +4175,7 @@ function vnaChart(d, extra) {
   }
 
   const keys = [['antenna, at the feedpoint', SX_SUN, false]];
-  if (d.feet) keys.push(['at the shack end of ' + d.feet + ' ft', SX_GLASS, true]);
+  if (d.feet) keys.push(['at the shack end of ' + highFtText(d.feet), SX_GLASS, true]);
   if (extra.measured && extra.measured.length) keys.push(['measured', SX_OK, false]);
   const legend = keys.map((k, i) =>
     '<span style="white-space:nowrap"><svg width="26" height="8" style="vertical-align:middle">' +
@@ -4181,7 +4205,7 @@ function vnaMarkers(d) {
          band ? band.low_mhz.toFixed(3) + '–' + band.high_mhz.toFixed(3) +
            (band.wider_than_sweep ? ' (runs off the sweep)' : '') : 'not in this span') +
     (d.feet ? cell('At the shack', (sh.best_swr !== undefined ? sh.best_swr.toFixed(2) + ':1' : '—'),
-         d.matched_loss_db + ' dB matched loss in ' + d.feet + ' ft') : '') +
+         d.matched_loss_db + ' dB matched loss in ' + highFtText(d.feet)) : '') +
     '</div>';
 }
 
@@ -4221,7 +4245,7 @@ async function avUpdate() {
     trim.toFixed(2) + '% ' + (Math.abs(trim - 100) < 0.01 ? '(as calculated)'
       : trim > 100 ? '(long)' : '(short)');
   document.getElementById('av-feet-v').textContent =
-    feet ? feet + ' ft' : 'measuring at the antenna';
+    feet ? highFtText(feet) : 'measuring at the antenna';
   const d = await vnFetch({
     kind: document.getElementById('an-type').value,
     f0: (f / (trim / 100)).toFixed(6), center: f, span: 0.14,
@@ -4277,7 +4301,7 @@ async function vnUpdate() {
     document.getElementById('vn-span-v').textContent = '±' + (spanPct / 2) + '%';
   }
   document.getElementById('vn-feet-v').textContent =
-    feet ? feet + ' ft' : 'at the antenna';
+    feet ? highFtText(feet) : 'at the antenna';
   const d = await vnFetch({
     kind: document.getElementById('vn-kind').value,
     f0: f0, center: center, span: span,
