@@ -320,6 +320,13 @@ def _look(host, port):
                      "alt_m": None, "mode": 2,
                      "read_at": time.time() - (borrowed["age_s"] or 0.0),
                      "source": "towerwitch", "town": borrowed.get("town"),
+                     # Said out loud, because the paragraph above claims this
+                     # is not presented as a live fix and it was: it came back
+                     # from place() like any other and outranked the QTH the
+                     # operator had typed. A position read out of another
+                     # program's state file is the answer when there is no
+                     # other; it is not news from a receiver. See qth_for().
+                     "last_known": True,
                      "from": "TowerWitch's last known position"}
     _last["at"] = now
     if found:

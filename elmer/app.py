@@ -506,6 +506,16 @@ def qth_for(connection, profile):
     live = gps.place(connection)
     if not live:
         return saved
+    # A position read out of TowerWitch's state file is not a fix and must
+    # not outrank a place somebody typed. It is there for the unit that has
+    # no QTH at all - ELMER just started, TowerWitch has been running - and
+    # it was taking the band plan to Minneapolis on a station whose operator
+    # had set Pequot Lakes, because Minneapolis is the default TowerWitch
+    # falls back to when it has no receiver. The one program on the bench
+    # that knew where the station was, was being overruled by the one that
+    # says outright that it does not.
+    if live.get("last_known") and saved.get("lat") is not None:
+        return saved
     # Near home the saved QTH has a name on it and the fix does not, so keep
     # the name and take the coordinates. Away from it, a grid square is the
     # honest label: nothing here can reverse-geocode a lay-by off-grid.
