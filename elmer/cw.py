@@ -384,6 +384,55 @@ def weaned(stat):
     return rate is not None and rate >= WEAN_FLOOR
 
 
+# How much faster counts as faster. Reaction times bounce about - a sip of
+# tea is half a second - so a difference under this is not news and is not
+# reported as any.
+PACE_NEWS = 0.15          # 15 per cent
+PACE_ENOUGH = 4           # recognitions in the recent window before we speak
+
+
+def pace(stat):
+    """How long this character takes now against how long it used to.
+
+    The one thing a learner cannot see from inside is that they are getting
+    faster: the percentage they can feel, but "three seconds of thinking in
+    the first week, under one in the fourth" is invisible unless somebody
+    keeps the clock. The record keeps it now - `first_ms` written once from
+    the earliest recognitions, `times` the recent ones - and this is the
+    before and after.
+
+    None when there is not enough to say it honestly: no baseline yet, too
+    few recent answers, or a difference small enough to be a sip of tea.
+    """
+    if not stat:
+        return None
+    first = stat.get("first_ms")
+    times = [float(x) for x in str(stat.get("times") or "").split(",") if x]
+    if not first or len(times) < PACE_ENOUGH:
+        return None
+    now = sum(times[-PACE_ENOUGH:]) / len(times[-PACE_ENOUGH:])
+    change = (first - now) / first
+    return {"first_s": round(first / 1000.0, 1), "now_s": round(now / 1000.0, 1),
+            "faster": change >= PACE_NEWS, "slower": change <= -PACE_NEWS,
+            "by": abs(round(change * 100))}
+
+
+def paces(progress, chars=None):
+    """Every character with something to say about its pace, quickest first.
+
+    The quickest is the one worth showing: it is the proof, and somebody
+    who has just been told they copied 60 per cent needs the sentence that
+    says the rest of it is arriving.
+    """
+    out = []
+    for ch in (chars or list(progress or {})):
+        got = pace((progress or {}).get(ch))
+        if got and got["faster"]:
+            out.append(dict(got, ch=ch))
+    out.sort(key=lambda p: -p["by"])
+    return out
+
+
 def draw(chars, new, weak, progress=None):
     """How often each character in a drill should come up, as shares that
     sum to one. `new` is the character(s) not yet met, `weak` the met ones

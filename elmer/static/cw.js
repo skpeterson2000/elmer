@@ -1825,13 +1825,23 @@ async function flashRun(seconds) {
     sent++;
     resends += reps;
     const want = sym.char;
-    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}, repeats: 0};
+    perChar[want] = perChar[want] || {sent: 0, copied: 0, confused: {}, repeats: 0, ms: []};
     perChar[want].sent++;
     perChar[want].repeats += reps;
     const ok = answer === want;
     word.style.color = ok ? 'var(--green)' : 'var(--red)';
     sayBack(want, word, answer ? ok : undefined);
-    if (ok) { right++; perChar[want].copied++; times.push(performance.now() - t0); }
+    if (ok) {
+      right++; perChar[want].copied++;
+      /* The clock, kept per character and not only as a session mean. A
+         mean says the session was quick; "K took three seconds in the
+         first week and under one now" says the learning is landing, and
+         only the record can say that. A miss is timed too and means
+         nothing - it is how long somebody waited before guessing - so
+         only the recognitions are sent. */
+      const took = performance.now() - t0;
+      times.push(took); perChar[want].ms.push(Math.round(took));
+    }
     else if (answer) perChar[want].confused[answer] = (perChar[want].confused[answer] || 0) + 1;
     /* Wrong, or nothing at all: here the shape earns its keep. Whatever
        else is on screen, a copyist who missed is shown what the sound
@@ -1996,6 +2006,19 @@ async function runSession() {
            record; read now it is feedback. */
         justDid = 'You copied <b>' + r.right + ' of ' + r.sent + '</b> — ' + pct + '%' +
           (pct >= 90 ? '. That is solid copy.' : pct >= 70 ? '. That is coming along.' : '. Early days, and that is what this is for.');
+        /* And the thing nobody can see from inside: that they are getting
+           faster. The percentage is how well it went today; this is the
+           evidence that the weeks are doing something, and after a middling
+           session it is the sentence worth reading. */
+        const quicker = (res && res.paces) || [];
+        if (quicker.length) {
+          const q = quicker[0];
+          justDid += '<br><b>' + escapeHTML(q.ch) + '</b> took you <b>' + q.first_s +
+            ' s</b> when you started and <b>' + q.now_s + ' s</b> now — ' +
+            q.by + '% quicker.' +
+            (quicker.length > 1 ? ' ' + (quicker.length - 1) + ' other' +
+              (quicker.length === 2 ? '' : 's') + ' the same way.' : '');
+        }
         const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
         if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
         freshBadges(res);

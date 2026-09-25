@@ -30,7 +30,13 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
+
+# How many recognitions to keep the clock for, and how many of the earliest
+# make the baseline. Thirty is a session's worth; five is enough to average
+# out the one where somebody was reaching for their tea.
+TIMES_KEEP = 30
+BASELINE_SAMPLES = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -157,6 +163,8 @@ CREATE TABLE IF NOT EXISTS cw_char (
     confused TEXT    NOT NULL DEFAULT '{}',
     repeats  INTEGER NOT NULL DEFAULT 0,
     recent   TEXT    NOT NULL DEFAULT '',
+    times    TEXT    NOT NULL DEFAULT '',
+    first_ms REAL,
     updated  TEXT,
     PRIMARY KEY (user_id, ch)
 );
@@ -403,9 +411,28 @@ def migrate(conn):
         # the record, and this is the recent past.
         if "recent" not in _columns(conn, "cw_char"):
             conn.execute("ALTER TABLE cw_char ADD COLUMN recent TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+        log.info("database upgraded to version 9 - the CW record keeps its recent sends")
+        version = 9
+    if version == 9:
+        # Version 10: how long it took, not only whether it was right.
+        #
+        # The thing a learner cannot see from inside is that they are
+        # getting faster. The record knew the percentage and threw the
+        # clock away, so the one measure that says "it is working" -
+        # three seconds of thinking in the first week, under one in the
+        # fourth - was gone the moment the session ended.
+        #
+        # `times` is the recent reaction times in milliseconds, and
+        # `first_ms` is what it took at the start, kept once and never
+        # written again: it is the before in before-and-after.
+        for column, spec in (("times", "TEXT NOT NULL DEFAULT ''"),
+                             ("first_ms", "REAL")):
+            if column not in _columns(conn, "cw_char"):
+                conn.execute(f"ALTER TABLE cw_char ADD COLUMN {column} {spec}")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the CW record keeps its recent sends",
+        log.info("database upgraded to version %s - the CW record keeps how long it took",
                  SCHEMA_VERSION)
         return SCHEMA_VERSION
 
@@ -1003,14 +1030,32 @@ def cw_record(conn, per_char):
             outcomes = "1" * copied + "0" * max(0, sent - copied)
         recent = ((row["recent"] if row and "recent" in row.keys() else "") or "") + outcomes
         recent = recent[-RECENT_KEEP:]
+        # How long it took, for the answers that were right. A miss has a
+        # time too and it means nothing - it is how long somebody waited
+        # before guessing - so only the recognitions are kept.
+        had = ((row["times"] if row and "times" in row.keys() else "") or "")
+        fresh = [str(int(round(float(ms)))) for ms in (stats.get("ms") or [])
+                 if 0 < float(ms) < 20000]
+        times = [x for x in (had.split(",") + fresh) if x][-TIMES_KEEP:]
+        # The before, written once. It is the mean of the first few
+        # recognitions and then it is never touched again: a baseline that
+        # moved with the record would have nothing to say.
+        first_ms = row["first_ms"] if row and "first_ms" in row.keys() else None
+        if first_ms is None and len(times) >= BASELINE_SAMPLES:
+            early = [float(x) for x in times[:BASELINE_SAMPLES]]
+            first_ms = round(sum(early) / len(early), 1)
         conn.execute(
-            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, recent, updated) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
+            "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, recent, "
+            "times, first_ms, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, ch) DO UPDATE SET "
             "sent = sent + excluded.sent, copied = copied + excluded.copied, "
             "confused = excluded.confused, repeats = repeats + excluded.repeats, "
-            "recent = excluded.recent, updated = excluded.updated",
+            "recent = excluded.recent, times = excluded.times, "
+            "first_ms = COALESCE(cw_char.first_ms, excluded.first_ms), "
+            "updated = excluded.updated",
             (conn.user_id, ch, sent, copied, _json.dumps(confused),
-             int(stats.get("repeats", 0) or 0), recent, utcnow().isoformat()))
+             int(stats.get("repeats", 0) or 0), recent, ",".join(times), first_ms,
+             utcnow().isoformat()))
     conn.commit()
 
 

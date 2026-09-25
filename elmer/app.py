@@ -3060,7 +3060,12 @@ def api_cw_result():
     connection.commit()
     # The plan the record has earned, after this, so a lesson that records
     # one pick at a time learns on the spot that a character just went solid.
-    return jsonify({"ok": True, "progress": progress, "fresh": fresh, "learn": cw.plan(progress)})
+    # What is getting quicker, with this session folded in. The percentage
+    # a learner can feel; "three seconds of thinking then, under one now"
+    # they cannot, and it is the sentence that says the work is working.
+    return jsonify({"ok": True, "progress": progress, "fresh": fresh,
+                    "paces": cw.paces(progress, list(per_char)),
+                    "learn": cw.plan(progress)})
 
 
 @app.route("/lab")
