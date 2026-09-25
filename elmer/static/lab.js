@@ -912,6 +912,29 @@ function isWhip(type) { return type === 'whip' || type === 'screwdriver'; }
 const WHIP_LOSS_DEFAULT = 12;    // ground path and coil, one whip on a vehicle
 const PAIR_LOSS_DEFAULT = 24;    // two coils, no ground - what -10 dB on 40 m implies
 
+/* Where to tie the far end, for the slope you want.
+
+   A tree is not one height. It starts at the ground and every point up it
+   is an anchor - a throw line over a branch, an arborist's strap round the
+   trunk - so the attachment height is chosen, not suffered. That makes
+   this the useful direction: not "what angle does a 70 ft tree force on a
+   66 ft wire" (83 degrees, and the answer is nobody would do that), but
+   "tie it at 38 ft and you have 30". The feed end is waist to shoulder
+   because that is where the operator stands. */
+function farEndFor(wireFt, feedFt, slopeDeg) {
+  return feedFt + wireFt * Math.sin(slopeDeg * Math.PI / 180);
+}
+
+
+/* And the other way, for when the anchor really is fixed - a mast, a gable,
+   the one branch that will take a line. Whole degrees, 0 when it cannot. */
+function feedAngle(farFt, wireFt, feedFt) {
+  if (!(wireFt > 0)) return 0;
+  const rise = Math.max(0, Math.min(wireFt, farFt - feedFt));
+  return Math.round(Math.asin(rise / wireFt) * 180 / Math.PI);
+}
+
+
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
@@ -927,6 +950,20 @@ function antennaFields(type) {
      the wire's: how high it hangs. */
   show('.an-when-whip', isWhip(type) || type === 'whipdipole');
   show('.an-when-height', !isWhip(type));
+  /* Which height, for an antenna that has two. A flat dipole has one and
+     the question does not arise; an inverted V is hung by its apex; an
+     end-fed goes up into the tree by its far end and is fed at the low
+     one, at about waist height, which is where the operator stands. The
+     field was labelled "Height above ground" for all three, and for the
+     two that slope that names nothing in particular. */
+  const hLabel = document.getElementById('an-h-label');
+  if (hLabel) {
+    hLabel.textContent =
+      type === 'efhw' ? 'Height of the far (high) end (ft)'
+      : type === 'invertedv' ? 'Height of the apex (ft)'
+      : type === 'dipole' ? 'Height of the support (ft)'
+      : 'Height above ground (ft)';
+  }
   const pair = type === 'whipdipole';
   const whLabel = document.getElementById('an-wh-label');
   if (whLabel) whLabel.textContent = pair ? 'Length of one whip (ft)' : 'Physical whip height (ft)';
@@ -1397,8 +1434,10 @@ function calcAnt() {
             ' From this support the wire will take about <b>' + maxDeg +
             '&deg;</b> before the end is too low' +
             (type === 'efhw'
-              ? ', and on an end-fed that far end is the high-voltage point, so ' +
-                'it is the one to keep up.'
+              ? ', and on an end-fed the low end is where you feed it and stand. ' +
+                'Both ends of a half wave are voltage maxima - that is why it ' +
+                'wants a 49:1 and not a coax tail - so the reachable one is a ' +
+                'few hundred volts at 100 W.'
               : '.') +
             ' Raise the support, shorten the angle, or run it flatter.');
         } else {
@@ -1409,8 +1448,14 @@ function calcAnt() {
             'not of the mast. That is the figure people quote when a sloper ' +
             'disappoints against the dipole they had imagined.' +
             (type === 'efhw'
-              ? ' Feed it at the low end: the far end of an end-fed is the ' +
-                'high-voltage point, and that is the one you want up the tree.'
+              ? ' The low end is the feed, where you are standing - waist to ' +
+                'shoulder, call it 4&nbsp;ft 6. A tree is not one height, so the ' +
+                'far end goes wherever you can get a line over: <b>' +
+                farEndFor(wireFt, 4.5, 20).toFixed(0) + '&nbsp;ft</b> for 20&deg;, <b>' +
+                farEndFor(wireFt, 4.5, 30).toFixed(0) + '&nbsp;ft</b> for 30&deg;, <b>' +
+                farEndFor(wireFt, 4.5, 45).toFixed(0) + '&nbsp;ft</b> for 45&deg;. ' +
+                'Both ends of a half wave are voltage maxima, so the one at your ' +
+                'shoulder is live: keep it behind the operator, not across a path.'
               : ''));
         }
         notes.push('Tilting mixes vertical polarisation into what was a ' +
