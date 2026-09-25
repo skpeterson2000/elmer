@@ -1403,6 +1403,107 @@ def landmarks_for(droop_deg=0.0):
     return _LANDMARK_CACHE[key]
 
 
+# Where else a wire is resonant, and why it depends on where you feed it.
+#
+# A wire n half-waves long has a voltage maximum at each end and a current
+# maximum in the middle of every half-wave. Where the feed sits decides
+# which multiples are any use:
+#
+#   end-fed     the end is a voltage maximum at *every* multiple, so each
+#               one is a high impedance the 49:1 can match. This is the
+#               whole reason a 40 m end-fed hears 20, 15 and 10, and the
+#               reason people buy them.
+#   centre-fed  the centre is a current maximum on odd multiples and a
+#               current *null* on even ones. At twice the fundamental a
+#               dipole's feedpoint is thousands of ohms: a 40 m dipole
+#               works 15 m and not 20 m, which surprises people yearly.
+#   quarter     a base-fed quarter wave is the same story a step down -
+#               odd multiples only, so 3f and 5f.
+#
+# Loaded antennas are left out on purpose. A coil is a lump of inductance
+# at one frequency and a different one at the next, so a screwdriver or a
+# loaded whip has no orderly harmonic series to show.
+# A loop is deliberately absent. A full-wave loop does have resonances
+# above its fundamental, but where the feed lands on them depends on where
+# it was tapped and on the loop's shape, and this would be guessing.
+HARMONIC_SERIES = {
+    "efhw": "every",
+    "dipole": "odd", "invertedv": "odd", "bowtie": "odd",
+    "quarter": "odd", "groundplane": "odd",
+}
+
+# Why each kind has the series it has, in the words the note uses.
+HARMONIC_WHY = {
+    "efhw": "fed at the end, and the end is a voltage maximum at every multiple",
+    "dipole": "fed at the centre, where only the odd multiples put current",
+    "invertedv": "fed at the centre, where only the odd multiples put current",
+    "bowtie": "fed at the centre, where only the odd multiples put current",
+    "quarter": "fed at the base, which is a current maximum only on the odd quarter-waves",
+    "groundplane": "fed at the base, which is a current maximum only on the odd quarter-waves",
+}
+
+# The harmonics of a real wire are near the multiples and not on them: the
+# end effect that shortens the fundamental counts for less as the wire gets
+# electrically longer, so the higher resonances creep *up*. It is why a wire
+# cut at the bottom of 40 m lands inside the higher bands and one cut at the
+# top can fall off the end of them.
+#
+# This does not pretend to a figure for the creep. It flags the harmonics
+# that sit in the top half of the band they land in, because those are the
+# ones the creep carries out of it - which is the part an operator can act
+# on, by cutting the wire a little long.
+#
+# A fixed margin in megahertz was tried and is wrong: 30 m is fifty
+# kilohertz wide and 10 m is seventeen hundred, so any one figure either
+# flags everything on the narrow bands or nothing on the wide ones. Half a
+# band is half a band whatever its width.
+
+
+def harmonics(kind, mhz, most=5):
+    """Where else this antenna is resonant, and whether anybody may use it.
+
+    Each entry is a multiple of the fundamental with the band it lands in,
+    or None when it lands between bands - which is the useful half of the
+    answer. A 40 m end-fed is a four-band antenna; a 30 m one is not, and
+    it is the same wire cut differently. Nobody should have to work that
+    out with a calculator to find out which to build.
+
+    Returns [] for an antenna with no orderly series - anything loaded, and
+    anything that is not a plain wire.
+    """
+    from . import bandplan
+    series = HARMONIC_SERIES.get(kind)
+    if not series or not mhz:
+        return []
+    out = []
+    for n in range(2, most + 2):
+        if series == "odd" and n % 2 == 0:
+            continue
+        f = float(mhz) * n
+        if f > 148.0:                    # past 2 m nobody is using a wire's harmonic
+            break
+        band = bandplan.band_at(f)
+        name = band["name"] if band else None
+        high_half = bool(band) and f >= (band["low"] + band["high"]) / 2.0
+        out.append({"n": n, "mhz": round(f, 3), "band": name,
+                    "near_edge": high_half})
+    return out
+
+
+def harmonic_words(kind, mhz):
+    """The harmonics in a sentence, or None when there is nothing to say."""
+    rows = harmonics(kind, mhz)
+    if not rows:
+        return None
+    useful = [r for r in rows if r["band"]]
+    if not useful:
+        return ("Nothing else lands in a band: its harmonics fall between "
+                "them, so this one is the band it was cut for and no more.")
+    said = ", ".join(f"{r['band']} ({r['mhz']:.3f})" for r in useful)
+    why = HARMONIC_WHY.get(kind, "by where it is fed")
+    return f"Also resonant in {said} - {why}."
+
+
 def mismatch_loss_db(swr):
     """What an SWR costs in power not accepted, in dB - the honest size of
     a mismatch, which is small: 1.5:1 is 0.18 dB, 2:1 is 0.5 dB."""

@@ -2679,6 +2679,40 @@ if (document.getElementById('pane-rf')) initRf();
    wave. The ideal height is worth knowing; so are the heights the garden can
    actually reach where the match happens to be good, which is what this
    lists. Perfect-ground figures: real ground damps the swings. */
+/* Where else the wire is resonant. This is the whole case for an end-fed -
+   a 40 m one is a four-band antenna and a 30 m one is not, and it is the
+   same wire cut differently - and the usual surprise for a dipole, which
+   gives 15 m from 40 and not 20. The page had neither.
+
+   The multiples that land between bands are shown as well as the ones that
+   land in them, because "nothing until 6 m" is the answer somebody needs
+   before they cut, not after. */
+function harmonicsHTML(d) {
+  const rows = d.harmonics || [];
+  if (!rows.length) return '';
+  const line = r =>
+    '<tr' + (r.band ? '' : ' class="muted"') + '>' +
+      '<td class="mono">&times;' + r.n + '</td>' +
+      '<td class="mono">' + r.mhz.toFixed(3) + ' MHz</td>' +
+      '<td>' + (r.band
+        ? '<b>' + escapeHTML(r.band) + '</b>' +
+          (r.near_edge ? ' <span class="pill warn tiny">high in the band</span>' : '')
+        : 'between bands') + '</td>' +
+    '</tr>';
+  const edgy = rows.some(r => r.band && r.near_edge);
+  return '<div class="panel-title" style="margin-top:.6rem">Where else it is resonant</div>' +
+    '<table class="facts small">' + rows.map(line).join('') + '</table>' +
+    (d.harmonic_words ? '<p class="small">' + escapeHTML(d.harmonic_words) + '</p>' : '') +
+    '<p class="tiny muted">A real wire’s harmonics sit near the multiples rather than ' +
+    'on them: the end effect that shortens the fundamental counts for less as the wire ' +
+    'gets electrically longer, so the higher ones creep up. Cut at the bottom of the band ' +
+    'and they land inside the higher ones; cut at the top and they can fall off the end.' +
+    (edgy ? ' <b>One of these already sits in the top half of its band</b> — that is ' +
+      'the one the creep carries out, so cut the wire a little long and check it with an ' +
+      'analyser before trusting it.' : '') + '</p>';
+}
+
+
 function matchingHeightsHTML(d) {
   const rows = d.heights || [];
   if (!rows.length) return '';
@@ -2994,7 +3028,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
               ? 'Height: the roof of the vehicle.'
               : 'Height to aim for: ' + d.height_ft + ' ft.') + '</b> ' +
         escapeHTML(d.feedline) + '</p>' +
-        matchingHeightsHTML(d) + tuningHTML(d) + powerHTML(d) + '</div>' +
+        matchingHeightsHTML(d) + harmonicsHTML(d) + tuningHTML(d) + powerHTML(d) + '</div>' +
       '<div><div class="panel-title">What usually goes wrong</div>' +
         '<ul class="facts small">' +
         d.watch.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>' +

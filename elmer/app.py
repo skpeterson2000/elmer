@@ -1980,6 +1980,12 @@ def api_antenna_advice():
         site=request.args.get("site") or None, floor=floor)
     # Where the feed matches, for a horizontal wire: the heights the curve
     # does something at, marked reachable or not by what the site allows.
+    # Where else this antenna is resonant, and whether that is a band an
+    # operator may use. It is the whole case for an end-fed and the usual
+    # surprise for a dipole - 40 m gives 15 and not 20 - and neither was
+    # anywhere on the page.
+    out["harmonics"] = antenna_advice.harmonics(out.get("type"), mhz)
+    out["harmonic_words"] = antenna_advice.harmonic_words(out.get("type"), mhz)
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
         site = request.args.get("site") or ""
         # The droop, for a V, and nothing for anything else. A V's legs
