@@ -7758,8 +7758,26 @@ def api_gps():
         # QTH, offered as such so a caller - TowerWitch on a laptop with no
         # receiver - can take it knowingly rather than have nothing.
         saved = _saved_qth(connection, db.get_profile(connection))
+        borrowed_from = None
+        if saved.get("lat") is None and db.unit_get(connection, "share_position", "on") != "off":
+            # A QTH is where the station is, and a station has one. This is
+            # asked over the LAN by the other programs on the bench -
+            # TowerWitch, when the laptop has no receiver and the puck is
+            # out in the vehicle - and they arrive as nobody in particular,
+            # so they were being answered from a profile that had never
+            # typed one in. Whoever on this unit has named the place, that
+            # is the place. Under the unit's own position-sharing switch,
+            # because "do not tell anything where I am" has to mean this
+            # too, and said out loud in `qth_from` rather than passed off
+            # as the asker's own.
+            for other in db.users(connection):
+                where = (other["settings"].get("location") or {})
+                if where.get("lat") is not None:
+                    saved, borrowed_from = where, other["display_name"]
+                    break
         qth = ({"lat": saved["lat"], "lon": saved["lon"], "grid": saved.get("grid"),
-                "short": saved.get("short") or saved.get("grid")}
+                "short": saved.get("short") or saved.get("grid"),
+                "qth_from": borrowed_from}
                if saved.get("lat") is not None else None)
         return jsonify({"located": False, "reason": "no fix", "detail": detail,
                         "gpsd": f"{host}:{port}", "gpsd_listening": listening,
