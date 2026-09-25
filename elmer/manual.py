@@ -20,8 +20,10 @@ of the unit, not of whoever is signed in, because the shelf is shared.
 The markdown is a small subset, chosen so the file reads plainly on GitHub
 and renders here without a markdown library: `#` the title, `##` a
 chapter, `###` a section, paragraphs, `-` bullets, `>` a note, `**bold**`,
-`*italic*`, `` `code` ``, and `![caption](docs/screenshots/x.png)` for a
-picture, scaled to the page. The PDF carries a table of contents with page
+`*italic*`, `` `code` ``, `[text](https://...)` for a source worth
+following, and `![caption](docs/screenshots/x.png)` for a picture, scaled
+to the page. A link is printed as well as linked, because most of what
+this file becomes is paper. The PDF carries a table of contents with page
 numbers, bookmarks for the Library's chapter list, and the build in the
 footer so a problem report and a page can be matched.
 """
@@ -154,6 +156,12 @@ def decline(conn, flag):
 # ------------------------------------------------------------------ the book
 
 _INLINE = [
+    # A cited source, first so none of the rules below can get inside the
+    # address. It is made a real link and the address is printed beside it:
+    # most of what this file becomes is paper, and a reader holding a printed
+    # page cannot click anything.
+    (re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)"),
+     r'<link href="\2"><u>\1</u></link> (<font face="Courier" size="8">\2</font>)'),
     (re.compile(r"\*\*(.+?)\*\*"), r"<b>\1</b>"),
     (re.compile(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])"), r"<i>\1</i>"),
     (re.compile(r"`([^`]+)`"), r'<font face="Courier">\1</font>'),

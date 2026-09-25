@@ -36,6 +36,14 @@ def run():
     check("  a bullet that runs on is one bullet", items[4][1], "a bullet that runs on")
     check("  inline marks become the PDF's own", manual._inline("a **b** *c* `d` & <e>"),
           'a <b>b</b> <i>c</i> <font face="Courier">d</font> &amp; &lt;e&gt;')
+    # A cited source is linked and printed: the link is for the screen and
+    # the address is for the printed page, where nothing can be clicked.
+    linked = manual._inline("see [the record](https://example.org/r?a=1&b=2) for it")
+    check("  a source is a real link", 'href="https://example.org/r?a=1&amp;b=2"' in linked, True)
+    check("  with its address printed beside it",
+          linked.count("https://example.org/r?a=1&amp;b=2"), 2)
+    check("  and the address survives the rules that come after it",
+          "https://e.org/a_b-c/d.html?q=1" in manual._inline("[x](https://e.org/a_b-c/d.html?q=1)"), True)
 
     print("\n-- the source, and the book --")
     check("USER-GUIDE.md is in the checkout, at the top where a person looks", (manual.SOURCE.is_file(), manual.SOURCE.parent == manual.paths.ROOT), (True, True))
@@ -43,6 +51,14 @@ def run():
     heads = [ln for ln in text.splitlines() if ln.startswith("## ")]
     check("  with chapters to make a table of contents from", len(heads) >= 8, True)
     check("  and the pre-release notice in its front matter", "pre-release" in text.lower(), True)
+    # A figure that is not in the checkout does not break the book - it prints
+    # "[picture missing: ...]" where the picture should be, which is worse,
+    # because it ships. Every one the guide names has to be here.
+    figures = [rel for kind, (rel, _cap) in
+               ((k, v) for k, v in manual.parse(text) if k == "img")]
+    check("  every figure it names is in the checkout",
+          [rel for rel in figures if not (manual.paths.ROOT / rel).is_file()], [])
+    check("  and there are figures to name", len(figures) >= 10, True)
     pages = manual.build(manual.SOURCE, manual.path(), build_id="test")
     check("built onto the shelf, more than a few pages", (manual.path().is_file(), pages > 5), (True, True))
     head = manual.path().read_bytes()[:5]

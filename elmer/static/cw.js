@@ -1775,7 +1775,7 @@ function renderToday() {
       : 'Pass ' + Math.min(set.passes + 1, set.target) + ' of ' + set.target +
         (set.carried
           ? ' — ' + set.left + ' still to go from your last one, and they keep.'
-          : ' today.');
+          : ' in this set.');
     clock.textContent = todayBudget
       ? where + ' Each is about ' + clockWords(todayBudget) + ' and ends on its own; '
         + 'you can leave at any break. Then go and do something else for a while — '
@@ -2095,7 +2095,7 @@ async function runSession() {
       const flag = await stoppingPoint();
       const left = sessionLeft();
       let clock = sessionEnds
-        ? (left ? clockWords(left) + ' left of today' : 'the clock is up - one last lap')
+        ? (left ? clockWords(left) + ' left of this pass' : 'the clock is up - one last lap')
         : '';
       let done = justDid;
       if (flag) {
@@ -2152,15 +2152,23 @@ async function runSession() {
         const pct = Math.round(100 * r.right / r.sent);
         lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') +
           (r.resends ? ', ' + r.resends + ' resend' + (r.resends === 1 ? '' : 's') + ' asked for' : '') + '.</li>');
+        /* The record is written first, because what is said back at the
+           break is read off the answer it gives. This used to sit at the
+           foot of the block, below the two paragraphs that read it: `res`
+           is a const, so reaching for it above its own line threw, and the
+           drill's answers never reached the record at all. */
+        const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
+        if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
+        freshBadges(res);
         /* Said back at the break rather than banked for the end. A number
            somebody reads twenty minutes after the thing it measures is a
            record; read now it is feedback. */
         justDid = 'You copied <b>' + r.right + ' of ' + r.sent + '</b> — ' + pct + '%' +
           (pct >= 90 ? '. That is solid copy.' : pct >= 70 ? '. That is coming along.' : '. Early days, and that is what this is for.');
         /* And the thing nobody can see from inside: that they are getting
-           faster. The percentage is how well it went today; this is the
-           evidence that the weeks are doing something, and after a middling
-           session it is the sentence worth reading. */
+           faster. The percentage is how well it went in this pass; this is
+           the evidence that the weeks are doing something, and after a
+           middling session it is the sentence worth reading. */
         const quicker = (res && res.paces) || [];
         if (quicker.length) {
           const q = quicker[0];
@@ -2170,9 +2178,6 @@ async function runSession() {
             (quicker.length > 1 ? ' ' + (quicker.length - 1) + ' other' +
               (quicker.length === 2 ? '' : 's') + ' the same way.' : '');
         }
-        const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
-        if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
-        freshBadges(res);
       }
     } else if (step.kind === 'koch' || step.kind === 'words' || step.kind === 'qso') {
       status.textContent = step.kind === 'koch' ? 'groups - type what you hear, then Check' : step.kind === 'words' ? 'words - type what you hear, then Check' : 'a contact - copy it, then Check';
@@ -2180,7 +2185,7 @@ async function runSession() {
       showMode('copy');
       await sendPractice(false);
       /* The copy pane takes it from here: the person types and checks at
-         their own pace, and the Today pane is a press away. */
+         their own pace, and the Next session pane is a press away. */
       lines.push('<li>' + (step.kind === 'koch' ? 'Groups' : step.kind === 'words' ? 'Words' : 'A contact') + ' sent - check them on the Copy pane.</li>');
       break;
     }
@@ -2594,7 +2599,7 @@ async function qFinish(reason) {
     after.appendChild(b);
   };
   if (got.clean && got.clean.passed) {
-    button('Go to today’s lesson', () => {
+    button('Go to the lesson', () => {
       document.querySelector('#cw-modes [data-mode=today]').click();
       refreshPlan().then(renderToday);
     }, true);

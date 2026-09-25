@@ -1551,12 +1551,19 @@ A page at `/cw` for learning, practicing and using Morse, with the tone
 adjustable from 300 to 1200 Hz and its own volume — pick whatever you hear
 most comfortably, and it is remembered.
 
+- **Next session** is the door: the record picks the lesson, one press runs one
+  pass of it, and the pass ends on its own. It was called *Today* and the word
+  was doing damage — it read as a quota against a midnight deadline, when what
+  it names is the next pass of several.
 - **Learn** uses the Koch method: two characters sent at full target speed, and
   one more added each time you copy at 90%. Speed is slowed by stretching the
   gaps between characters rather than the characters themselves (Farnsworth),
   because a slowed-down character is a different sound that has to be unlearned
   later. ELMER tracks each character's copy rate and, more usefully, *what you
-  heard it as* — the confusions are what still need separating.
+  heard it as* — the confusions are what still need separating. A character is
+  solid at nine in ten over the last thirty sends, or at twelve clean in a row
+  with one of them cold — the second road exists for somebody who already knows
+  the letter and should not be made to grind out thirty sends to prove it.
 - **Copy practice** sends and you type: Koch groups, plain letters, numbers,
   mixed, callsigns, Q signals, abbreviations, prosigns, and whole QSO fragments
   built around your own callsign. Scored per character.
@@ -1584,6 +1591,70 @@ most comfortably, and it is remembered.
 Tone is generated with a shaped 5 ms rise and fall rather than by switching an
 oscillator, because hard keying is what produces key clicks — the same wide
 sidebands E8D asks about.
+
+**A session, a pass, a set** (`cw.budget`, `cw.passes`, `cw.set_state`).
+Fifteen minutes a day beats two hours on Sunday, and the arithmetic is the
+claim: fifteen minutes is five passes of three, not one block of fifteen.
+What is learned is learned in the coming back — the character is fetched
+again from cold after the mind has been elsewhere, and that fetch is the rep
+that counts. So a pass is clocked from the material there is to hold: three
+minutes at the two characters the order starts with, seven seconds more per
+character earned, six minutes with the whole order, and never a quarter of an
+hour in one sitting. The day is `DAY_TARGET / budget`, held between three and
+six passes, and the break card sends somebody somewhere else in the program
+on purpose. The open loop it replaced — three or four parts and then a button
+offering another three or four — taught that this is a thing to be endured.
+
+A set of passes does not expire at midnight (`CARRY_DAYS`). Three passes of
+five before an evening went sideways is three of a five-pass set, and the
+next morning is offered the last two; a set stays open one day past the day
+it opened, and past that a pass starts a new one. A shape whose whole
+argument is that it fits into the gaps in a day cannot also require a clear
+day.
+
+**Cold and warm** (`cw.learned`, `cw.cold_rate`, `cw.cold_pace`). A rep is
+cold when `COLD_GAP_MS` has passed since that character was last answered —
+the first of a sitting, with nothing warmed up in front of it. It is the rep
+a trainer counts: not the tenth "sit" with a treat already in the air, but
+the first one of the walk. `wins()` is ordered by that and not by what a
+scoreboard would pick — loudest for a character named cold for the first
+time, however roughly, quieter for reliability, quietest and rationed for the
+refined state — because a reward that keeps arriving for the polished thing
+teaches somebody to perform for the reward.
+
+**Sleeping on it** (`cw.slept_on`, `cw.held_overnight`, `cw.stuck`, schema
+12's `cold_days`). The record keeps the days a character was met cold and
+landed, a fortnight of them. One day is an afternoon; two is a night, and a
+night is the only evidence that settles anything. It is also the one measure
+that serves both ends of the range without flattering either: the learner who
+tore through the order in an afternoon and the one who has been on five
+letters for a week are asked the same question the next morning. The other
+side of the same count is `stuck()` — met cold on `STUCK_DAYS` separate days
+and still not solid — which names the pair it is being confused with, because
+the answer to that is hearing the two against each other and not more of the
+same one.
+
+**The qualifying run** (`cw.qualifying_text`, `cw.run_marks`,
+`cw.clean_stretch`, `cw.qualify_advice`). Somebody who already knows the code
+was owed eight hundred flawless sends before the last character opened. They
+now name the speed they think they can hold and get the old code test: five
+minutes of plain traffic, one contiguous minute copied without a miss, ending
+the moment that minute lands. Two things have to be right or it is a lottery.
+When each character went out is computed from the code at that speed rather
+than guessed, and what was typed is aligned against what was sent with a
+banded Needleman-Wunsch (`_align`) — `difflib`'s longest-block-first instinct
+scored a two-thirds-correct copyist at 13%, because a copyist who drops one
+character is a character behind for the rest of the run. The run's sends are
+real sends and place the lesson; nobody is declared solid on forty characters
+for five minutes' work, and nobody is told they failed. The format is Chuck
+Adams', K7QO, by way of the ARRL (`QUALIFY_SOURCE`).
+
+**One ladder of speeds** (`cw.SPEED_LADDER`). A number of words a minute is a
+number until you know who is up there, so the rungs are written down once and
+read wherever a speed is chosen or measured. Every rung that makes a claim
+carries a URL, because that is the point of a record being published; the
+140 wpm "plain text" figure that gets repeated second-hand is wrong twice
+over, and the ladder says so and says what RufzXP actually sends.
 
 **Your rating.** Two numbers a person can watch move: the speed they copy
 at and the speed they send at, each the top rung of a ladder they passed.

@@ -30,7 +30,7 @@ from . import paths
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 # How many recognitions to keep the clock for, and how many of the earliest
 # make the baseline. Thirty is a session's worth; five is enough to average
@@ -41,6 +41,10 @@ BASELINE_SAMPLES = 5
 # one cold rep of a character per sitting: thirty of them is a month of
 # practice, where thirty warm ones can be ninety seconds of it.
 COLD_KEEP = 20
+# The days a character was met cold and landed. Kept as dates rather than a
+# count because the question is whether it survived a night, and two reps on
+# one evening are not that however many hours apart they were.
+DAYS_KEEP = 14
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (
@@ -177,6 +181,10 @@ CREATE TABLE IF NOT EXISTS cw_char (
     cold       TEXT  NOT NULL DEFAULT '',
     cold_times TEXT  NOT NULL DEFAULT '',
     cold_first_ms REAL,
+    -- The days this character was named cold and landed, most recent last.
+    -- Sleeping on it is what turns a thing you can do into a thing you know,
+    -- and no rep taken an hour after another can stand for that.
+    cold_days  TEXT  NOT NULL DEFAULT '',
     updated  TEXT,
     PRIMARY KEY (user_id, ch)
 );
@@ -485,10 +493,26 @@ def migrate(conn):
             if solid:
                 conn.execute("UPDATE cw_char SET cold = '1' WHERE user_id = ? AND ch = ?",
                              (row["user_id"], row["ch"]))
+        conn.commit()
+        log.info("database upgraded to version 11 - the CW record tells a cold rep "
+                 "from a warm one")
+        version = 11
+    if version == 11:
+        # Version 12: which days a character survived.
+        #
+        # A cold rep a minute after the last one and a cold rep after a night's
+        # sleep were the same entry in the record, and they are not the same
+        # evidence. Hearing the whole code in an afternoon proves the ear
+        # works; still having it tomorrow is the thing being learned, and it
+        # is the only measure that serves both ends of the range - the person
+        # who tore through it in a day and the person who has been on the same
+        # five letters for a week are both asking the same question of it.
+        if "cold_days" not in _columns(conn, "cw_char"):
+            conn.execute("ALTER TABLE cw_char ADD COLUMN cold_days TEXT NOT NULL DEFAULT ''")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
-        log.info("database upgraded to version %s - the CW record tells a cold rep "
-                 "from a warm one", SCHEMA_VERSION)
+        log.info("database upgraded to version %s - the CW record keeps which days "
+                 "a character survived", SCHEMA_VERSION)
         return SCHEMA_VERSION
 
     was = conn.isolation_level
@@ -1121,10 +1145,19 @@ def cw_record(conn, per_char):
         cold_first = row["cold_first_ms"] if row and "cold_first_ms" in row.keys() else None
         if cold_first is None and cold_fresh:
             cold_first = float(cold_fresh[0])
+        # And the day it landed on, once per day. Two goes at it this evening
+        # are one day's evidence, which is what the column is for.
+        had_days = ((row["cold_days"] if row and "cold_days" in row.keys() else "") or "")
+        days = [d for d in had_days.split(",") if d]
+        if cold_hit:
+            today_key = today()
+            if not days or days[-1] != today_key:
+                days.append(today_key)
+        days = days[-DAYS_KEEP:]
         conn.execute(
             "INSERT INTO cw_char (user_id, ch, sent, copied, confused, repeats, recent, "
-            "times, first_ms, cold, cold_times, cold_first_ms, updated) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "times, first_ms, cold, cold_times, cold_first_ms, cold_days, updated) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT (user_id, ch) DO UPDATE SET "
             "sent = sent + excluded.sent, copied = copied + excluded.copied, "
             "confused = excluded.confused, repeats = repeats + excluded.repeats, "
@@ -1132,10 +1165,11 @@ def cw_record(conn, per_char):
             "first_ms = COALESCE(cw_char.first_ms, excluded.first_ms), "
             "cold = excluded.cold, cold_times = excluded.cold_times, "
             "cold_first_ms = COALESCE(cw_char.cold_first_ms, excluded.cold_first_ms), "
+            "cold_days = excluded.cold_days, "
             "updated = excluded.updated",
             (conn.user_id, ch, sent, copied, _json.dumps(confused),
              int(stats.get("repeats", 0) or 0), recent, ",".join(times), first_ms,
-             cold, ",".join(cold_times), cold_first,
+             cold, ",".join(cold_times), cold_first, ",".join(days),
              utcnow().isoformat()))
     conn.commit()
 

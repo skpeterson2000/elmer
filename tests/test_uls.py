@@ -70,7 +70,12 @@ def main():
     check("three rows read", n, 3)
     r = uls.lookup("WRMP909")
     check("the license: found, active, the dates", (r["found"], r["fcc_status"], r["granted"], r["expires"]), (True, "active", "05/14/2021", "05/14/2031"))
-    check("  current, with no grace period on GMRS", (r["status"]["state"], r["status"]["grace_ends"]), ("current", "2031-05-14"))
+    # No grace means no date to name. A "grace_ends" equal to the expiry
+    # itself reads like a grace period to anybody who meets it later, which
+    # is the one thing a GMRS licensee must not be told - see
+    # callsign.status_for.
+    check("  current, with no grace period on GMRS",
+          (r["status"]["state"], "grace_ends" in r["status"]), ("current", False))
     check("  the FRN kept", r["frn"], "0030807051")
     check("  the town kept, for placing a far station", (r["place"], r["zip"]), ("Pequot Lakes, MN", "56472"))
     check("  and the name and street not", any(k for k in r if "name" in k or "street" in k), False)

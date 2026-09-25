@@ -508,6 +508,62 @@ def cold_pace(stat):
             "by": abs(round(change * 100))}
 
 
+# Sleeping on it, which is the only evidence that settles anything.
+#
+# A cold rep a minute after the last one and a cold rep after a night are the
+# same entry in most records and they are not the same evidence. Hearing the
+# whole code in an afternoon proves the ear works. Still having it tomorrow is
+# the learning, and it is the one measure that serves both ends of the range:
+# somebody who tore through the order in a day and somebody who has been on
+# the same five letters for a week are asking it the same question, and it
+# answers both without flattering either.
+#
+# A learner who does get through it in a day and still has it the next morning
+# is rare and is not to be held back for being rare.
+STUCK_DAYS = 4            # met cold on this many days and still not solid
+
+
+def days_held(stat):
+    """The days this character was named cold and landed, most recent last."""
+    return [d for d in str((stat or {}).get("cold_days") or "").split(",") if d]
+
+
+def slept_on(stat):
+    """How many separate days it has survived. One is an afternoon; two is a
+    night, and a night is the thing."""
+    return len(days_held(stat))
+
+
+def held_overnight(stat):
+    """Whether it was there again on a later day. The strongest thing the
+    record can say about a character, and the cheapest to earn honestly."""
+    return slept_on(stat) >= 2
+
+
+def stuck(stat):
+    """A character that keeps coming back and will not settle, or None.
+
+    Not a judgement and not a failure - some letters simply take longer, and
+    the pair they are being confused with is usually the whole story. Said so
+    that the drill can do something about it rather than dealing the same
+    character again and hoping.
+    """
+    if not stat or is_solid(stat):
+        return None
+    days = slept_on(stat)
+    if days < STUCK_DAYS:
+        return None
+    confused = stat.get("confused") or {}
+    if isinstance(confused, str):
+        try:
+            confused = json.loads(confused)
+        except ValueError:
+            confused = {}
+    worst = sorted(confused.items(), key=lambda kv: -kv[1])[:2]
+    return {"days": days, "heard_as": [w[0] for w in worst],
+            "rate": recent_rate(stat)}
+
+
 def paces(progress, chars=None):
     """Every character with something to say about its pace, quickest first.
 
@@ -789,6 +845,30 @@ def wins(progress, the_plan, was=None):
     # event too, once per character, and quieter than first naming it because
     # by now the character is known - this is the refinement of how it is
     # known, not whether.
+    # Only for characters that are actually holding. A letter met on five
+    # separate days and still missed half the time has survived nothing, and
+    # congratulating it in the same breath as saying it will not settle is the
+    # program talking over itself.
+    def holding(ch):
+        return (held_overnight(progress.get(ch))
+                and not stuck(progress.get(ch))
+                and (recent_rate(progress.get(ch)) or 0) >= WEAN_FLOOR)
+
+    kept = [c for c in (the_plan.get("chars") or [])
+            if holding(c) and not held_overnight((was.get("progress") or {}).get(c))]
+    if not kept:
+        # Without a before to compare, say it for anything that has just
+        # earned its second day - the record carries the days, so this is a
+        # fact about the character and not a guess about the session.
+        kept = [c for c in (the_plan.get("chars") or [])
+                if slept_on(progress.get(c)) == 2 and holding(c)][:3]
+    if kept:
+        loud.append("<b>" + ", ".join(kept[:3]) + "</b> "
+                    + ("were" if len(kept[:3]) > 1 else "was")
+                    + " still there after a night's sleep. That is the part that "
+                    + "sticks - hearing it today proves the ear works, having it "
+                    + "tomorrow is the learning")
+
     fresh_ear = [c for c in (the_plan.get("weaned") or []) if c not in (was.get("weaned") or [])]
     if fresh_ear:
         middle.append("<b>" + ", ".join(fresh_ear) + "</b> "
@@ -815,7 +895,20 @@ def wins(progress, the_plan, was=None):
             quiet.append((got["by"], f"{ch} cold: {got['first_s']} s when you learned it, "
                                      f"{got['now_s']} s now"))
     quiet.sort(reverse=True)
-    return loud + middle + [line for _, line in quiet[:2]]
+    out = loud + middle + [line for _, line in quiet[:2]]
+    for ch in (the_plan.get("chars") or []):
+        got = stuck(progress.get(ch))
+        if got:
+            heard = got["heard_as"]
+            out.append(
+                f"<b>{ch}</b> has been coming round for {got['days']} days and has not "
+                + ("settled yet" if not heard else
+                   "settled yet - it is being heard as " + " or ".join(heard))
+                + ". That is normal and it is not a verdict on you: some characters "
+                  "take a week. What shifts it is hearing the pair against each "
+                  "other rather than more of the same one")
+            break
+    return out
 
 
 def baseline_words(the_plan, was=None):

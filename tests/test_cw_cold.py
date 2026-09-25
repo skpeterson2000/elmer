@@ -96,7 +96,7 @@ print("\nthe warm pile is still there, and still says something different")
 check("the warm clock reads warm", cw.pace(row)["first_s"], 1.2)
 check("  which is not the cold reading", cw.pace(row)["first_s"] != got["first_s"], True)
 
-print("\nproficiency already held is recognised rather than ground through")
+print("\nproficiency already held is recognized rather than ground through")
 # Somebody who has come back to the code after years, or a tester who reset
 # their profile to see what a beginner sees, owed eight hundred flawless
 # sends before the last character opened - one character at a time, for

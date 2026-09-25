@@ -5,12 +5,13 @@
     python3 tools/guideshots.py cw          # one chapter's
     python3 tools/guideshots.py --list      # what there is
 
-The guide has eighteen pictures across eighteen thousand words, and the
-chapters a newcomer needs most are the thinnest of all: CW is fourteen
-hundred words with no subheadings and one screenshot at the very bottom,
-which is the same thing as none.
+The guide is eighteen thousand words, and the chapters a newcomer needs most
+used to be the thinnest of all: CW was fourteen hundred words with no
+subheadings and one screenshot at the very bottom, which is the same thing
+as none. It is sectioned and illustrated now, and it was this that made
+that cheap enough to do.
 
-Part of the reason is that every one of those pictures was taken by hand.
+Part of the reason it was bare is that every picture was taken by hand.
 A figure that costs an afternoon is a figure nobody adds, and one taken once
 goes quietly out of date as the program moves under it. So they are taken
 from the program instead, by this, and can be taken again after any change.
@@ -44,11 +45,14 @@ USER = int(os.environ.get("GUIDESHOT_USER") or 1)
 # the page first. `setup` is JavaScript run before the shot, for the state a
 # picture needs - a lesson opened, a panel unfolded, an answer typed.
 FIGURES = [
-    # -- CW: the chapter with the most words and the fewest pictures.
+    # -- CW: the chapter with the most words in it.
     # The CW page keeps each mode in a pane and hides the rest, so the figure
     # presses the button first - the same press a person makes, rather than
-    # reaching for a function that the page does not put in global scope. A hidden panel measures zero and this
-    # tool reports it missing rather than writing out a blank picture.
+    # reaching for a function the page does not put in global scope. A hidden
+    # panel measures zero, and this tool reports it missing rather than
+    # writing out a blank picture.
+    # The mode is still called `today` in the markup; the button it draws says
+    # Next session, which is the word the guide uses.
     {"name": "cw-today", "chapter": "cw", "url": "/cw",
      "where": "#cw-today", "settle": 3.0,
      "setup": "document.querySelector('#cw-modes [data-mode=today]').click()",

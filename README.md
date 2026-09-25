@@ -147,8 +147,15 @@ own files — amateur, GMRS and commercial alike, with the FRN's other
 tickets — a GMRS license covers the family it covers, and the paper copy
 and the certificates a person has earned live on their own account: the
 papers on the Library page, the wall in the pro shop and the lounge. CW
-opens on Today, where the record decides the lesson and one press runs the
-session. Golf lets the host say how many companions. The unit keeps a
+opens on the next session, where the record decides the lesson and one
+press runs a pass of it: a day is five passes of three or four minutes
+rather than one long sitting, a set of passes carries into the next
+morning when an evening goes sideways, and a character is judged on the
+first rep of a sitting and on whether it was still there after a night's
+sleep. Somebody who already knows the code takes a qualifying run instead
+— five minutes of traffic at a speed they name, one clean minute to pass,
+and the lesson opens on what they actually copied. Golf lets the host say
+how many companions. The unit keeps a
 ledger of its own pace and names a creeper in the weekly report home. A
 book on the shelf with no bookmarks gives up its printed chapter headings
 where they run in order, or takes the chapters you list in a text file

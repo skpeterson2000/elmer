@@ -111,11 +111,13 @@ try:
     if isinstance(got, str):
         got = json.loads(got)
     check("no javascript error on the page", got.get("errors"), [])
-    check("the page knows how long today is", got["budget"] > 0, True)
+    check("the page knows how long a pass is", got["budget"] > 0, True)
     # A day is passes through the lesson, so the line says which pass this is
-    # rather than only how long it runs - see cw.passes.
-    check("  and says which pass of the day this is",
-          "Pass 1 of" in got["clock"] and "today" in got["clock"], True)
+    # rather than only how long it runs - see cw.passes. It names the set and
+    # not the day, because a set can be a couple of hours or a couple of days
+    # and the word "today" was claiming a deadline that is not there.
+    check("  and says which pass of the set this is",
+          "Pass 1 of" in got["clock"] and "in this set" in got["clock"], True)
     check("  with how long each one runs", "Each is about" in got["clock"], True)
     check("  it says the session ends on its own", "ends on its own" in got["clock"], True)
     check("  and that leaving at a break is allowed",
