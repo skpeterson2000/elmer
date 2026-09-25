@@ -538,6 +538,38 @@ def _qth_note(connection, profile):
             "propagation page - a grid square is enough.")
 
 
+def _unit_qth(connection):
+    """The station's QTH, and whose it is when it is not the asker's own.
+
+    A QTH is where the station is, and a station has one. This is asked
+    over the LAN by the other programs on the bench - TowerWitch, when the
+    laptop has no receiver and the puck is out in the vehicle - and they
+    arrive as nobody in particular, so they were being answered from a
+    profile that had never typed one in. Whoever on this unit has named the
+    place, that is the place.
+
+    Under the unit's own position-sharing switch, because "do not tell
+    anything where I am" has to mean this too, and said out loud in
+    `qth_from` rather than passed off as the asker's own.
+    """
+    saved = _saved_qth(connection, db.get_profile(connection))
+    if saved.get("lat") is None and db.unit_get(connection, "share_position", "on") != "off":
+        for other in db.users(connection):
+            where = (other["settings"].get("location") or {})
+            if where.get("lat") is not None:
+                return where, other["display_name"]
+    return saved, None
+
+
+def _qth_block(saved, borrowed_from):
+    """The QTH as the API hands it out, or None when there is not one."""
+    if not saved or saved.get("lat") is None:
+        return None
+    return {"lat": saved["lat"], "lon": saved["lon"], "grid": saved.get("grid"),
+            "short": saved.get("short") or saved.get("grid"),
+            "qth_from": borrowed_from}
+
+
 def _saved_qth(connection, profile):
     """The QTH somebody typed in, named once and remembered."""
     place = dict(profile["settings"].get("location") or {})
@@ -7757,28 +7789,7 @@ def api_gps():
         # No fix, but the unit still knows where it usually is: the typed
         # QTH, offered as such so a caller - TowerWitch on a laptop with no
         # receiver - can take it knowingly rather than have nothing.
-        saved = _saved_qth(connection, db.get_profile(connection))
-        borrowed_from = None
-        if saved.get("lat") is None and db.unit_get(connection, "share_position", "on") != "off":
-            # A QTH is where the station is, and a station has one. This is
-            # asked over the LAN by the other programs on the bench -
-            # TowerWitch, when the laptop has no receiver and the puck is
-            # out in the vehicle - and they arrive as nobody in particular,
-            # so they were being answered from a profile that had never
-            # typed one in. Whoever on this unit has named the place, that
-            # is the place. Under the unit's own position-sharing switch,
-            # because "do not tell anything where I am" has to mean this
-            # too, and said out loud in `qth_from` rather than passed off
-            # as the asker's own.
-            for other in db.users(connection):
-                where = (other["settings"].get("location") or {})
-                if where.get("lat") is not None:
-                    saved, borrowed_from = where, other["display_name"]
-                    break
-        qth = ({"lat": saved["lat"], "lon": saved["lon"], "grid": saved.get("grid"),
-                "short": saved.get("short") or saved.get("grid"),
-                "qth_from": borrowed_from}
-               if saved.get("lat") is not None else None)
+        qth = _qth_block(*_unit_qth(connection))
         return jsonify({"located": False, "reason": "no fix", "detail": detail,
                         "gpsd": f"{host}:{port}", "gpsd_listening": listening,
                         "phone_listening": bool(phone), "qth": qth,
@@ -7793,6 +7804,12 @@ def api_gps():
         "age_s": live.get("age_s"), "from": live.get("from"),
         "source": live.get("source"), "sats": live.get("sats"),
         "seen": live.get("seen"), "hdop": live.get("hdop"),
+        # The QTH comes with the fix as well as instead of it. A caller that
+        # refuses this fix - TowerWitch refuses one that came from a
+        # TowerWitch, because it may be its own coming back round - would
+        # otherwise be left with nothing, having asked the one program on
+        # the bench that does know where the station is.
+        "qth": _qth_block(*_unit_qth(connection)),
         # Where it comes from in words, how it has been going, and what to
         # move if it goes - for TowerWitch's screen as much as this one.
         "sleuth": gps.sleuth(live),

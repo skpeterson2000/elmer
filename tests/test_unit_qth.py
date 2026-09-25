@@ -85,6 +85,28 @@ def main():
         edb.save_settings(k, s)
     check("no borrowing when the asker has one", qth()["qth_from"], None)
 
+    print("")
+    print("-- and the QTH comes with a fix as well as instead of one --")
+    # TowerWitch refuses a fix that came from a TowerWitch, because it may
+    # be its own broadcast coming back round through ELMER. Refusing it
+    # used to leave it with nothing: the located answer carried no QTH, so
+    # the one program on the bench that does know where the station is had
+    # been asked and had dropped the answer on the way out.
+    from elmer import gps as elmer_gps
+    real = elmer_gps.place
+    elmer_gps.place = lambda conn: {"lat": 44.9778, "lon": -93.265,
+                                    "grid": "EN34ix", "mode": 2,
+                                    "source": "towerwitch",
+                                    "from": "TowerWitch's last known position"}
+    try:
+        answer = app.test_client().get("/api/gps").get_json()
+        check("ELMER reports the fix it has", answer["located"], True)
+        check("  and says where it came from", answer["source"], "towerwitch")
+        check("  and the QTH is there too, for a caller that refuses it",
+              (answer.get("qth") or {}).get("grid"), "EN26uo")
+    finally:
+        elmer_gps.place = real
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 
