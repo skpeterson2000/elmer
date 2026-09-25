@@ -28,6 +28,7 @@ import os
 import subprocess
 import threading
 from pathlib import Path
+from urllib.parse import quote
 
 from . import paths
 
@@ -45,14 +46,27 @@ CANDIDATES = [
 PROFILE = paths.STATE / "window-profile"
 OWNER_FLAG = "elmer_window=1"
 
+# The same page the kiosk opens on, and for the same reason. On Windows the
+# window used to be held back until the server answered - up to a minute of
+# nothing at all on the screen, and then a window - because a browser pointed
+# at a port that is not listening yet shows its own error page. The splash is
+# the other answer to that: it is a file on disk, so it is on screen at once,
+# and it watches the port itself and goes to the program when it answers. The
+# Pi has opened this way for a long while; the window on Windows should not
+# have been the one place that still stared at nothing.
+SPLASH = Path(__file__).resolve().parent / "static" / "splash.html"
+
 # How the window opens: the unit's setting, kept with the others under the
-# key below. "as-left" is the default - the profile restores the bounds the
-# person left the window at, and ELMER says nothing about size - with one
-# exception: a machine with no bounds saved yet gets it maximised, which is
-# the offer a first launch makes. "maximized" and "WIDTHxHEIGHT" are the
-# person's own choice and are applied every launch, saved bounds or not.
+# key below. ELMER opens full screen, and that is the default, because that
+# is what a program does - it opens at the size it is meant to be read at,
+# and it does not need to be told twice. The default used to be "as-left",
+# which handed the question to the browser's memory of its own bounds; that
+# is a browser's habit showing through something that is not supposed to
+# look like a browser, and on a profile whose browser had been killed rather
+# than closed it meant opening small, every single time. "as-left" and a
+# fixed WIDTHxHEIGHT are still here for somebody who wants them.
 START_SETTING = "window_start"
-START_DEFAULT = "as-left"
+START_DEFAULT = "maximized"
 STARTS = ("as-left", "maximized")
 
 
@@ -67,13 +81,35 @@ def start_choice(value):
     return START_DEFAULT
 
 
-def remembered_bounds():
-    """Whether the profile has a window placement saved - a second launch."""
+def remembered_placement():
+    """The bounds the browser saved for ELMER's window, or None.
+
+    They live under browser.app_window_placement, which is not a placement
+    but a shelf of them, one per app the profile has opened - ELMER's is
+    the only one here. The key beside it, browser.window_placement, belongs
+    to an ordinary window with tabs and has nothing to say about this one;
+    reading that one by mistake is what hid this bug.
+    """
     try:
         prefs = json.loads((PROFILE / "Default" / "Preferences").read_text(encoding="utf-8"))
-        return bool(prefs.get("browser", {}).get("app_window_placement"))
-    except (OSError, ValueError, AttributeError):
-        return False
+        shelf = prefs.get("browser", {}).get("app_window_placement") or {}
+        for placement in shelf.values():
+            if isinstance(placement, dict) and "right" in placement:
+                return placement
+    except (OSError, ValueError, AttributeError) as exc:
+        log.debug("window: no saved placement to read: %s", exc)
+    return None
+
+
+def remembered_bounds():
+    """Whether the profile has a window placement saved - a second launch."""
+    return remembered_placement() is not None
+
+
+def left_maximized():
+    """Whether the window was maximised the last time it was closed."""
+    placement = remembered_placement()
+    return bool(placement and placement.get("maximized"))
 
 
 def find_browser():
@@ -87,38 +123,69 @@ def find_browser():
     return None, None
 
 
-def command(browser, url, start=START_DEFAULT, remembered=None):
+def marked(url):
+    """ELMER's URL with the mark that says this is ELMER's own window.
+
+    The page reads it and grows an Exit button - see owner.js - so it has to
+    survive anything the window is opened through, the splash included.
+    """
+    return f"{url}{'&' if '?' in url else '?'}{OWNER_FLAG}"
+
+
+def opening_page(url, port=None):
+    """What the window opens on: the splash where there is one, else ELMER.
+
+    The splash carries the real destination in `to` rather than rebuilding
+    it, so the mark above goes through unharmed.
+    """
+    page = marked(url)
+    if port and SPLASH.is_file():
+        return f"{SPLASH.as_uri()}?port={int(port)}&to={quote(page, safe='')}"
+    return page
+
+
+def command(browser, url, start=START_DEFAULT, remembered=None, maximized=None, port=None):
     """The browser as an app window on ELMER, in a profile of ELMER's own.
 
-    The profile remembers the window's last bounds - which screen, how big
-    - and the zoom set with Ctrl and the wheel, and restores both. What
-    ELMER adds about size follows `start` (see START_SETTING): nothing, for
-    "as-left" with bounds saved; maximised for a first launch or by choice;
-    a fixed size by choice. A size given every launch regardless was what
-    made the window come back where ELMER put it, not where it was left.
+    The profile remembers the zoom set with Ctrl and the wheel, and its own
+    idea of the window's last bounds. What ELMER says about size follows
+    `start` (see START_SETTING): full screen, which is the default and is
+    said plainly every launch; a fixed size by choice; or, for "as-left",
+    nothing at all - except where the profile says the window was left
+    maximised, which is worth repeating out loud, because a browser does
+    not reliably restore that for itself.
     """
     PROFILE.mkdir(parents=True, exist_ok=True)
-    joiner = "&" if "?" in url else "?"
-    cmd = [browser, f"--app={url}{joiner}{OWNER_FLAG}",
+    cmd = [browser, f"--app={opening_page(url, port)}",
            f"--user-data-dir={PROFILE}",
            "--no-first-run", "--no-default-browser-check",
            "--disable-features=Translate"]
     start = start_choice(start)
-    remembered = remembered_bounds() if remembered is None else remembered
-    if start == "maximized" or (start == "as-left" and not remembered):
+    if start == "maximized":
         cmd.append("--start-maximized")
-    elif start != "as-left":
+    elif start == "as-left":
+        # The only answer that asks the profile anything, so it is the only
+        # one that goes and reads it.
+        remembered = remembered_bounds() if remembered is None else remembered
+        maximized = left_maximized() if maximized is None else maximized
+        if not remembered or maximized:
+            cmd.append("--start-maximized")
+    else:
         cmd.append("--window-size=" + start.replace("x", ","))
     return cmd
 
 
-def launch(url, start=START_DEFAULT):
-    """Open the window. Returns (process, browser name) or (None, None)."""
+def launch(url, start=START_DEFAULT, port=None):
+    """Open the window. Returns (process, browser name) or (None, None).
+
+    Given `port`, the window opens now, on the splash, and finds the server
+    for itself; without it the caller is expected to have waited already.
+    """
     browser, name = find_browser()
     if not browser:
         return None, None
     try:
-        process = subprocess.Popen(command(browser, url, start),
+        process = subprocess.Popen(command(browser, url, start, port=port),
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError as exc:
         log.warning("window: could not start %s: %s", name, exc)
@@ -148,11 +215,47 @@ def watch(process, quitting, port):
     return thread
 
 
+def ask_to_close(process):
+    """Ask the window to close the way its X does. True if it was asked.
+
+    Popen.terminate() on Windows is TerminateProcess: the browser stops
+    mid-breath, and everything it had not yet written to its profile - the
+    size the window was at, the zoom, the note that it exited cleanly - is
+    lost. Every shutdown through the Exit button did that, and measuring it
+    was plain: end the window with terminate() and a window maximised three
+    seconds earlier is remembered as small; ask it to close and the size is
+    kept. taskkill without /F posts the close message instead, which is a
+    person clicking the X. Without /T, too: /T waits on a tree of renderer
+    processes that have already gone, and takes fifteen seconds to decide
+    they are not coming back.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        asked = subprocess.run(["taskkill", "/PID", str(process.pid)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               timeout=10, check=False)
+        # It refuses for anything with no window to close - a console
+        # program, say - and then there is nothing to wait for.
+        return asked.returncode == 0
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("window: could not ask the window to close: %s", exc)
+        return False
+
+
 def close(process):
     """Close the window, for a shutdown that started elsewhere - the Exit
     button, an update - so it does not stand empty over a stopped server."""
     if process is None or process.poll() is not None:
         return
+    if ask_to_close(process):
+        try:
+            process.wait(timeout=8)
+            return
+        except subprocess.TimeoutExpired:
+            log.warning("window: did not close when asked - ending it (pid %s)", process.pid)
+        except OSError:
+            return
     try:
         process.terminate()
         process.wait(timeout=5)

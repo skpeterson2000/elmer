@@ -51,6 +51,11 @@
 var params = new URLSearchParams(location.search);
 var port = params.get('port') || '5000';
 var base = 'http://127.0.0.1:' + port;
+// Where to hand over to, when it is not just the home page. The window on
+// Windows opens with a mark in the URL that tells the page it is ELMER's own
+// window and not a tab - that is what puts the Exit button on it - and the
+// mark has to survive the handover or the window arrives not knowing itself.
+var onward = params.get('to') || (base + '/');
 var say = document.getElementById('say');
 var began = Date.now();
 
@@ -68,7 +73,7 @@ var HOLD_MS = 4000;
 document.getElementById('icon').src = 'icon.png';
 
 function go() {
-  setTimeout(function () { location.href = base + '/'; },
+  setTimeout(function () { location.href = onward; },
              Math.max(0, HOLD_MS - (Date.now() - began)));
 }
 

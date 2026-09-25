@@ -136,16 +136,18 @@ function updateControls(d, waiting) {
       '<select id="update-policy">' + options.map(([v, label]) =>
         '<option value="' + v + '"' + (d.policy === v ? ' selected' : '') + '>' +
         label + '</option>').join('') + '</select></label>' +
-    /* Only in the window of ELMER's own: how it opens next time. The
-       default respects what the person left - size, screen and zoom are
-       the profile's memory - and a first launch offers it maximised. */
+    /* Only in the window of ELMER's own: how it opens next time. Full
+       screen is the default and is first here, because that is what the
+       program does unless somebody says otherwise. "the size I leave it"
+       is last on purpose: it is the one answer that hands the question to
+       the browser underneath, and this is not meant to feel like one. */
     (document.body.dataset.window
-      ? '<label class="tiny muted">This window opens&nbsp;' +
+      ? '<label class="tiny muted">ELMER opens&nbsp;' +
         '<select id="window-start">' +
-          '<option value="as-left">where I left it</option>' +
-          '<option value="maximized">maximized</option>' +
-          '<option value="1280x860">1280 × 860</option>' +
+          '<option value="maximized">full screen</option>' +
           '<option value="1600x1000">1600 × 1000</option>' +
+          '<option value="1280x860">1280 × 860</option>' +
+          '<option value="as-left">the size I leave it</option>' +
         '</select></label>'
       : '') +
     '</div>' +

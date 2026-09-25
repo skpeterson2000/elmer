@@ -894,6 +894,35 @@ def main():
         def _open_when_ready(url=f"http://localhost:{args.port}/"):
             import urllib.request
             import webbrowser
+            from elmer import window
+            try:
+                from elmer import db as _wdb
+                _c = _wdb.connect()
+                start = _wdb.unit_get(_c, window.START_SETTING, window.START_DEFAULT)
+                _c.close()
+            except Exception:
+                start = window.START_DEFAULT
+            # A window of ELMER's own opens now, on the splash, and waits
+            # there where somebody can watch it start - the same page and
+            # the same wait the kiosk has always had. This used to hold the
+            # window back until the server answered, which meant up to a
+            # minute of nothing on the screen and then a window, with no
+            # way to tell a slow start from a dead one.
+            if app.config.get("WINDOW") and window.SPLASH.is_file():
+                process, name = window.launch(url, start, port=args.port)
+                if process is not None:
+                    own_window[0] = process
+                    window.watch(process, window_quitting, args.port)
+                    print(f"\n  Opened ELMER in a window of its own ({name}). "
+                          "Closing that window stops ELMER.\n", flush=True)
+                    return
+                logging.getLogger("elmer").warning(
+                    "window: the window did not open - falling back to a tab")
+            # No window of ELMER's own, so this is a tab in somebody's
+            # browser and there is no splash to hold it: wait for the server
+            # first, because a tab opened on a dead port shows the browser's
+            # own error page and nobody is going to press reload.
+            #
             # Wait on the cheapest answer the server gives, not the home
             # page: polling / with a one-second timeout built a full page a
             # try, and on a day the page took longer than a second to build
@@ -908,14 +937,6 @@ def main():
             else:
                 logging.getLogger("elmer").warning("window: the server did not answer within a minute - no window opened")
                 return
-            from elmer import window
-            try:
-                from elmer import db as _wdb
-                _c = _wdb.connect()
-                start = _wdb.unit_get(_c, window.START_SETTING, window.START_DEFAULT)
-                _c.close()
-            except Exception:
-                start = window.START_DEFAULT
             process, name = window.launch(url, start)
             if process is not None:
                 own_window[0] = process

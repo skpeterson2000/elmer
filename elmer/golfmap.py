@@ -23,6 +23,10 @@ from xml.sax.saxutils import escape
 
 W, H = 260, 560                 # the strip
 PAD_TOP, PAD_BOT = 58, 46       # room for the green's cup and the tee's box
+
+# How far past the pin an aiming mark may be put: a tap behind the flag
+# is a mark on the back of the green, not one out in the hayfield.
+PAST_PIN = 20
 FAIR_L, FAIR_R = 95, 165        # the fairway's edges
 CENTRE = (FAIR_L + FAIR_R) / 2
 # Across the hole: the fairway's half-width in the rules (golf.FAIRWAY_HALF,
@@ -319,6 +323,20 @@ def _cross(parts, x, y, cls, r, width, opacity, dash, title, color="#ffb454"):
                  f'<line x1="{x:.1f}" y1="{y - r - 5:.1f}" x2="{x:.1f}" y2="{y + r + 5:.1f}"/><title>{escape(title)}</title></g>')
 
 
+def _on_canvas(x, y, w=W, h=H, inset=8.0):
+    """A point pulled back onto the picture, for something that lies off it.
+
+    A ball that ran through the back of a green can be further past the pin
+    than the strip has room to draw - the deepest green on these courses is
+    twenty-seven yards from pin to collar, and the run is on top of that.
+    Drawn where the numbers say it would be off the top of the picture.
+    Drawn at the pin - which is what used to happen - it is a lie, and the
+    one the player reads first. Pinned to the edge it is as far past the
+    green as the picture goes, and the words and the board carry the yards.
+    """
+    return max(inset, min(w - inset, x)), max(inset, min(h - inset, y))
+
+
 def _ball(parts, x, y, b):
     color = "#8b98a5" if b.get("picked_up") else LIE_MARK.get(b.get("lie") or "fairway", "#e8e8e8")
     parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{7 if b.get("you") else 5.5}" fill="{color}" '
@@ -484,20 +502,24 @@ def hole_svg(h, wind=None, wind_mph=None, balls=None, course_name=None, mark=Non
         parts.append(f'<text x="{W - 14}" y="26" text-anchor="end" font-size="13" fill="#9ad1ff" '
                      f'font-family="system-ui, sans-serif">{escape(wtxt)}</text>')
     if aimed and aimed.get("at") is not None:
-        ax, ay = plan.at(min(float(aimed["at"]), total + 20), aimed.get("off"))
+        ax, ay = plan.at(min(float(aimed["at"]), total + PAST_PIN), aimed.get("off"))
         _cross(parts, ax, ay, "aimed", 8, 1.5, 0.55, "3 2", "aimed here")
     if mark and mark.get("at") is not None:
-        color = _reading(parts, lambda a, o: plan.at(min(float(a), total + 20), o), mark, reading)
-        mx, my = plan.at(min(float(mark["at"]), total + 20), mark.get("off"))
+        color = _reading(parts, lambda a, o: plan.at(min(float(a), total + PAST_PIN), o), mark, reading)
+        mx, my = plan.at(min(float(mark["at"]), total + PAST_PIN), mark.get("off"))
         _cross(parts, mx, my, "mark", 9, 2, 1, "", (reading or {}).get("says") or f'aiming {int(mark["at"])} yards' + (f', {abs(int(mark.get("off") or 0))} {"left" if (mark.get("off") or 0) < 0 else "right"}' if mark.get("off") else ""), color)
     # the balls, where they lie - the one that is you ringed, the holed at the cup
     on_the_tee = [b for b in (balls or []) if not b.get("holed") and float(b.get("at") or 0) == 0]
     for b in balls or []:
-        at = total if b.get("holed") else min(float(b.get("at") or 0), total)
+        # A ball past the pin is drawn past the pin. This used to clamp to
+        # the pin's own yardage, which put every ball that had run through
+        # the back of the green on top of the cup, whatever the words said
+        # about the rough it was sitting in.
+        at = total if b.get("holed") else float(b.get("at") or 0)
         if at == 0 and b in on_the_tee:
             xx, yy = plan.at(0, (on_the_tee.index(b) - (len(on_the_tee) - 1) / 2) * 7)
         else:
-            xx, yy = plan.at(at, b.get("off"))
+            xx, yy = _on_canvas(*plan.at(at, b.get("off")))
         _ball(parts, xx, yy, b)
     parts.append("</svg>")
     return "".join(parts)
@@ -677,7 +699,7 @@ def green_svg(h, balls=None, mark=None, aimed=None, slope=None):
     for b in balls or []:
         if b.get("holed"):
             continue
-        x, y = at(b.get("feet_along"), b.get("feet_across"))
+        x, y = _on_canvas(*at(b.get("feet_along"), b.get("feet_across")), w=GW, h=GH)
         parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{7 if b.get("you") else 5.5}" fill="#ffffff" '
                      f'stroke="{"#ffb454" if b.get("you") else GROUND}" stroke-width="{2.5 if b.get("you") else 1}">'
                      f'<title>{escape(str(b.get("name") or ""))}, {b.get("feet", "?")} feet</title></circle>')

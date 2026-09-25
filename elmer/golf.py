@@ -1084,7 +1084,7 @@ class Golf:
         if mark:
             # The golfer said where: the club for those yards, which is what
             # the mark reads and what an unchosen club is swung with.
-            return self.club_for(player, max(0, float(mark["at"]) - ball.at))
+            return self.club_for(player, abs(float(mark["at"]) - ball.at))
         left = abs(h["yards"] - ball.at)
         for club in reversed(allowed):
             if self.reach(player, club) >= left:
@@ -1274,7 +1274,9 @@ class Golf:
         ball = self.balls.get(player)
         if h is None or ball is None or ball.done() or ball.lie in ("green", "fringe"):
             return False
-        left = h["yards"] - ball.at
+        # How far there is to play, either side of the pin: read signed, a
+        # ball behind the green was an approach however far behind it lay.
+        left = abs(h["yards"] - ball.at)
         if left <= APPROACH_FROM:
             return True
         club = self.default_club(player)
@@ -1308,8 +1310,11 @@ class Golf:
             # spread, and wider for a club too many - see OVERCLUB_SPREAD.
             spread = self.spread_for(self._who, club, abs(left)) * (0.5 if getattr(self, "_lucky", False) else 1.0)
             return round(left + self.swing.uniform(-spread, spread) + wind_yards * 0.25)
-        # A full swing: the club's length, give or take its spread.
-        return max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
+        # A full swing: the club's length, give or take its spread, in the
+        # direction the shot is played - back toward the pin, for a ball
+        # that finished behind the green.
+        way = -1 if left < 0 else 1
+        return way * max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
 
     def _in_band(self, h, at, off=None, kinds=("water", "bunker", "rough")):
         """The hazard a ball at these yards is in, if any, of these kinds.
@@ -1580,12 +1585,23 @@ class Golf:
             return {"kind": "rough", "words": f"{club_name(club)}, {carry} yards{ran} - {how}, into the first cut - {left} to go",
                     "carry": carry, "roll": roll, "wind": wind, "leak": leaked, "left": left, "off": off}
         if left < -edge:
-            # Over the back: rough beyond, or whatever is there.
-            ball.at, ball.off = h["yards"], off
+            # Over the back, and the ball lies where it stopped - which is
+            # past the pin. This used to file it at the pin's own yardage,
+            # and everything downstream believed it: the plan drew it on
+            # top of the cup, the board said nothing left to play, and the
+            # hole measured it as the nearest ball there was, so a man
+            # sixty yards into the rough behind the green watched somebody
+            # ten feet from the cup putt first. Who is away is decided by
+            # who is farthest, and that can only be as good as where the
+            # balls are said to be.
+            ball.at, ball.off = landed, off
             ball.lie = "rough"
+            back = int(round(-left))
             how = "ran through the green" if came_down == "green" else "through the green"
-            return {"kind": "long", "words": f"{club_name(club)}, {carry} yards - {how}, into the rough behind",
-                    "carry": carry, "roll": roll, "wind": wind, "off": off}
+            return {"kind": "long",
+                    "words": f"{club_name(club)}, {carry} yards - {how}, into the rough behind"
+                             f" - {back} back to the pin",
+                    "carry": carry, "roll": roll, "wind": wind, "off": off, "left": back}
         ball.at, ball.off = landed, off
         if hz and hz["kind"] == "bunker":
             ball.lie = "sand"
@@ -1741,13 +1757,19 @@ class Golf:
         if club == "putter" or ball.lie == "green":
             return self._putt(h, ball, right=False)
         ball.strokes += 1
-        reach = ball.at + CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+        # Which way this shot is played. A ball that finished behind the
+        # green is played back toward it, so the trouble it can find is the
+        # trouble between it and the pin, and a short one goes toward the
+        # pin rather than further out into the hayfield.
+        way = -1 if ball.at > h["yards"] else 1
+        reach = ball.at + way * CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+        lo, hi = min(ball.at, reach), max(ball.at, reach)
         ahead = [hz for hz in h.get("hazards", [])
-                 if hz["to"] > ball.at and hz["from"] <= reach and hz["kind"] in ("water", "bunker", "rough")]
+                 if hz["to"] > lo and hz["from"] <= hi and hz["kind"] in ("water", "bunker", "rough")]
         if not ahead:
             # short, and off to one side - the rough is beside the fairway,
             # not down the middle of it, and the strip shows it there
-            ball.at += max(20, round(CLUBS[club] * 0.4))
+            ball.at += way * max(20, round(CLUBS[club] * 0.4))
             ball.lie = "rough"
             side = -1 if ball.off < 0 else 1 if ball.off > 0 else self.swing.choice((-1, 1))
             ball.off = side * int(round(fairway_half(h) + self.swing.uniform(4, 12)))
@@ -1761,7 +1783,9 @@ class Golf:
         # guarding the green the ball was hit at - and only now and then the
         # one it was topped into on the way. So each hazard's chance falls
         # away with its yards from where the ball was aimed (FOUL_NEAR).
-        target = min(float(self.aim(self._who)["at"]), reach)
+        # The club cannot be aimed further than it reaches, from either
+        # side of the pin.
+        target = max(lo, min(hi, float(self.aim(self._who)["at"])))
         near = lambda x: 0.0 if x["from"] <= target <= x["to"] else min(abs(target - x["from"]), abs(target - x["to"]))  # noqa: E731
         hz = self.rng.choices(ahead, weights=[weights[x["kind"]] / (1.0 + (near(x) / FOUL_NEAR) ** 2)
                                               for x in ahead])[0]
@@ -1920,7 +1944,7 @@ class Golf:
             self.aims[player] = dict(b["aim"])
         self.mulligans[player] = h["n"]
         b["foul"] = False
-        where = "the tee" if ball.strokes == 0 else f"{int(round(h['yards'] - ball.at))} out"
+        where = "the tee" if ball.strokes == 0 else f"{int(round(abs(h['yards'] - ball.at)))} out"
         words = f"mulligan - a fresh ball from {where}"
         ball.log.append(words)
         self.logs.setdefault(player, {})[h["n"]] = list(ball.log)
@@ -2163,7 +2187,11 @@ class Golf:
             "holes_played": self.hole_index, "holes": len(self.holes),
             "slope": self.slope(h) if h else None,
             "balls": {p: {"at": b.at, "off": b.off, "lie": b.lie, "strokes": b.strokes, "holed": b.holed,
-                          "picked_up": b.picked_up, "left": int(round(h["yards"] - b.at)) if h else 0,
+                          # How far there is to play, not how far short it is:
+                          # a ball past the pin has yards to go like any other,
+                          # and read signed it showed as a negative, or as the
+                          # nothing that a ball filed at the pin came to.
+                          "picked_up": b.picked_up, "left": int(round(abs(h["yards"] - b.at))) if h else 0,
                           "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie in ("green", "fringe") else None),
                           "approaching": self.approaching(p),
                           "aim": self.aim(p), "last_aim": b.last_aim,

@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -42,29 +43,94 @@ def run():
     cmd = window.command("browser.exe", "http://localhost:5000/?x=1")
     check("  a query already there is joined, not doubled", cmd[1], "--app=http://localhost:5000/?x=1&elmer_window=1")
 
-    print("\n-- how it opens: the person's preference, and a first launch's offer --")
+    print("\n-- opening on the splash, so the wait is watched rather than blank --")
+    # The window used to be held back until the server answered: up to a
+    # minute of nothing on the screen, and no way to tell a slow start from a
+    # dead one. The kiosk has never done that - it opens on a page held on
+    # disk and lets that page find the server - and this is the same page.
+    cmd = window.command("b", "http://localhost:5000/", port=5000)
+    opened = cmd[1][len("--app="):]
+    check("the window opens on the splash, from disk", opened.startswith("file:"), True)
+    check("  which is told where to find the server", "port=5000" in opened, True)
+    check("  and where to hand over to, mark and all",
+          "to=" + quote("http://localhost:5000/?" + window.OWNER_FLAG, safe="") in opened, True)
+    check("without a port there is nothing to wait for: straight to ELMER",
+          window.command("b", "http://localhost:5000/")[1],
+          "--app=http://localhost:5000/?" + window.OWNER_FLAG)
+    was_splash = window.SPLASH
+    window.SPLASH = Path(str(was_splash) + ".not-here")
+    try:
+        check("no splash on this machine: straight to ELMER, as before",
+              window.command("b", "http://localhost:5000/", port=5000)[1],
+              "--app=http://localhost:5000/?" + window.OWNER_FLAG)
+    finally:
+        window.SPLASH = was_splash
+    splash = was_splash.read_text(encoding="utf-8")
+    check("the splash honours where it was told to go", "params.get('to')" in splash, True)
+    check("  and goes there rather than to a rebuilt home page", "location.href = onward" in splash, True)
+
+    print("\n-- how it opens: full screen, unless the person said otherwise --")
     size = lambda c: [a for a in c if a.startswith("--window-size") or a == "--start-maximized"]  # noqa: E731
-    check("nothing saved yet: maximised, as the offer",
-          size(window.command("b", "http://x/", "as-left", remembered=False)), ["--start-maximized"])
-    check("bounds saved, left as they were: nothing said",
-          size(window.command("b", "http://x/", "as-left", remembered=True)), [])
+    check("said nothing: full screen, which is what ELMER opens as",
+          size(window.command("b", "http://x/")), ["--start-maximized"])
+    check("nothing saved yet: full screen too, whatever was asked for",
+          size(window.command("b", "http://x/", "as-left", remembered=False, maximized=False)), ["--start-maximized"])
+    check("bounds saved, left at a size of its own: nothing said",
+          size(window.command("b", "http://x/", "as-left", remembered=True, maximized=False)), [])
+    check("left maximised: maximised again, said out loud",
+          size(window.command("b", "http://x/", "as-left", remembered=True, maximized=True)), ["--start-maximized"])
     check("maximised by choice: every launch, saved bounds or not",
-          size(window.command("b", "http://x/", "maximized", remembered=True)), ["--start-maximized"])
+          size(window.command("b", "http://x/", "maximized", remembered=True, maximized=False)), ["--start-maximized"])
     check("a size by choice: that size",
-          size(window.command("b", "http://x/", "1280x860", remembered=True)), ["--window-size=1280,860"])
+          size(window.command("b", "http://x/", "1280x860", remembered=True, maximized=True)), ["--window-size=1280,860"])
     check("a setting as typed is made valid", window.start_choice(" 1600 X 1000 "), "1600x1000")
-    check("  and nonsense is the default", window.start_choice("huge"), "as-left")
-    check("  as is a size no screen has", window.start_choice("10x10"), "as-left")
+    check("  and nonsense is the default", window.start_choice("huge"), "maximized")
+    check("  as is a size no screen has", window.start_choice("10x10"), "maximized")
+
+    print("\n-- how it was left, read from the browser's own profile --")
+    # Two keys sit side by side in Preferences and only one is this window's.
+    # browser.window_placement is a tabbed window's; ELMER's is the entry in
+    # browser.app_window_placement. Reading the wrong one said "bounds are
+    # remembered" while never noticing they were remembered as maximised, so
+    # the flag was never given and the window came up small launch after
+    # launch. Here the two disagree on purpose.
+    import json as _json
+    was_profile = window.PROFILE
+    sandbox = Path(os.environ["ELMER_STATE"]) / "window-test"
+    (sandbox / "Default").mkdir(parents=True, exist_ok=True)
+    window.PROFILE = sandbox
+    prefs = sandbox / "Default" / "Preferences"
+    tabbed = {"maximized": False, "left": 10, "top": 10, "right": 1060, "bottom": 1058}
+    try:
+        check("no profile yet: nothing remembered", window.remembered_bounds(), False)
+        check("  and nothing to say about maximised", window.left_maximized(), False)
+        prefs.write_text(_json.dumps({"browser": {
+            "window_placement": tabbed,
+            "app_window_placement": {"localhost_/": dict(tabbed, maximized=True)}}}), encoding="utf-8")
+        check("the app window's own placement is the one read", window.remembered_bounds(), True)
+        check("  left maximised, whatever the tabbed window did", window.left_maximized(), True)
+        prefs.write_text(_json.dumps({"browser": {
+            "window_placement": dict(tabbed, maximized=True),
+            "app_window_placement": {"localhost_/": tabbed}}}), encoding="utf-8")
+        check("  left at a size of its own, likewise", window.left_maximized(), False)
+        check("  bounds are still remembered", window.remembered_bounds(), True)
+        prefs.write_text("{ not json", encoding="utf-8")
+        check("an unreadable profile is a first launch, not a crash", window.remembered_bounds(), False)
+        prefs.write_text(_json.dumps({"browser": {"app_window_placement": {}}}), encoding="utf-8")
+        check("  an empty shelf too", window.remembered_bounds(), False)
+    finally:
+        window.PROFILE = was_profile
 
     print("\n-- the setting, kept with the unit's --")
     client0 = appmod.app.test_client()
     local0 = {"REMOTE_ADDR": "127.0.0.1"}
-    check("the default", client0.get("/api/window", environ_base=local0).get_json()["start"], "as-left")
-    r = client0.post("/api/window", json={"start": "maximized"}, environ_base=local0)
-    check("set to maximised", r.get_json()["start"], "maximized")
-    check("  and kept", client0.get("/api/window", environ_base=local0).get_json()["start"], "maximized")
+    check("the default: full screen, the way a program opens",
+          client0.get("/api/window", environ_base=local0).get_json()["start"], "maximized")
+    r = client0.post("/api/window", json={"start": "as-left"}, environ_base=local0)
+    check("set to the size it is left at", r.get_json()["start"], "as-left")
+    check("  and kept", client0.get("/api/window", environ_base=local0).get_json()["start"], "as-left")
     check("  not from the LAN", client0.post("/api/window", json={"start": "as-left"},
-                                            environ_base={"REMOTE_ADDR": "10.0.0.5"}).status_code, 403)
+                                             environ_base={"REMOTE_ADDR": "10.0.0.5"}).status_code, 403)
 
     print("\n-- the watcher --")
     stopped = []
