@@ -1852,6 +1852,79 @@ async function flashRun(seconds) {
   return {perChar: perChar, right: right, sent: sent, mean_ms: mean, resends: resends};
 }
 
+/* The pause between the parts of a session.
+
+   Learner-paced, and nothing here runs on a timer: the digesting is the
+   whole point, and a card that vanishes on its own is a card somebody was
+   still reading. It says what just happened, what is coming and why, and
+   where in the session they are - because "two of four" is the difference
+   between a lesson and a bottomless pool.
+
+   Resolves false if Stop was pressed while it was up, so the runner can
+   leave cleanly rather than waiting on a button nobody is going to press. */
+/* The end of a session: the same card, with the door left open. It waits
+   for nobody - it is where somebody stops - and the button starts another
+   round for anybody who wants one. */
+function finishCard(head, done, next) {
+  const box = document.getElementById('cw-break');
+  if (!box) return;
+  document.getElementById('cw-break-count').textContent = '';
+  document.getElementById('cw-break-head').innerHTML = escapeHTML(head);
+  document.getElementById('cw-break-done').innerHTML = done;
+  document.getElementById('cw-break-next').innerHTML = next;
+  const btn = document.getElementById('cw-break-on');
+  if (btn.childNodes[0]) btn.childNodes[0].nodeValue = 'Go again ';
+  const again = () => {
+    btn.removeEventListener('click', again);
+    box.hidden = true;
+    runSession();
+  };
+  btn.addEventListener('click', again);
+  box.hidden = false;
+}
+
+
+function nextWords(step) {
+  const name = step.kind === 'meet' ? 'Next: something new'
+    : step.kind === 'flash' ? 'Next: one character at a time'
+    : step.kind === 'koch' ? 'Next: groups, at speed'
+    : step.kind === 'words' ? 'Next: words'
+    : step.kind === 'qso' ? 'Next: a contact, as it would be sent'
+    : 'Next';
+  /* The reason comes from the server, which decided the session and knows
+     why this part is in it - "five groups of five at speed, copy behind",
+     "K, U come round more often". Reworded here it would drift from the
+     record that chose it. */
+  return '<b>' + name + '.</b>' + (step.why ? ' ' + escapeHTML(step.why) + '.' : '');
+}
+
+
+function takeABreak(head, done, next, at, total) {
+  return new Promise(resolve => {
+    const box = document.getElementById('cw-break');
+    if (!box) { resolve(true); return; }
+    document.getElementById('cw-break-count').textContent =
+      total ? at + ' of ' + total : '';
+    document.getElementById('cw-break-head').innerHTML = head || '';
+    document.getElementById('cw-break-done').innerHTML = done || '';
+    document.getElementById('cw-break-next').innerHTML = next || '';
+    box.hidden = false;
+    const btn = document.getElementById('cw-break-on');
+    if (btn.childNodes[0]) btn.childNodes[0].nodeValue = 'Carry on ';
+    let watch = null;
+    const leave = ok => {
+      if (watch) clearInterval(watch);
+      btn.removeEventListener('click', onward);
+      box.hidden = true;
+      resolve(ok);
+    };
+    const onward = () => leave(true);
+    btn.addEventListener('click', onward);
+    watch = setInterval(() => { if (sessionStop) leave(false); }, 200);
+  });
+}
+
+
 async function runSession() {
   if (sessionOn) return;
   sessionOn = true; sessionStop = false; sessionStarted = Date.now();
@@ -1862,11 +1935,33 @@ async function runSession() {
   result.innerHTML = '';
   const lines = [];
   let first = true;
+  let justDid = '';                      // what the last part came to, in words
+  const total = todaySession.length;
+  let at = 0;
   for (const step of todaySession) {
     if (sessionStop) break;
+    at++;
     /* A breath between chunks: the last word of one is still being said
        when the next would start, and two sounds at once is neither. */
     if (!first) await sleep(1200);
+    /* Then a real break, with what just happened and what is next, and it
+       waits for a press. The first part needs no break - pressing Start
+       was the press - and a new character gets its own card, below. */
+    if (!first && !(step.kind === 'meet' && step.chars && step.chars.length)) {
+      if (!await takeABreak('', justDid, nextWords(step), at, total)) break;
+    }
+    if (step.kind === 'meet' && step.chars && step.chars.length) {
+      /* Announced, rather than turning up in the middle of a drill. "When
+         did those new letters appear?" is the question this answers, and
+         naming one character makes it one character rather than a pile. */
+      const named = step.chars.map(c => escapeHTML(c) + ' <span class="muted">' +
+        escapeHTML(phoneticWord(c)) + '</span>').join(', ');
+      const head = step.chars.length === 1 ? 'A new character' : 'New characters';
+      if (!await takeABreak(named,
+            '<b>' + head + '.</b> Everything else today you have met before.',
+            'You will hear it a few times with its shape drawn, then its name. ' +
+            'Nothing is asked of you yet.', at, total)) break;
+    }
     first = false;
     if (step.kind === 'meet') {
       status.textContent = 'meet ' + step.chars.join(' ');
@@ -1888,6 +1983,7 @@ async function runSession() {
       }
       flash.hidden = true;
       lines.push('<li>Met ' + escapeHTML(step.chars.join(' ')) + '.</li>');
+      justDid = 'You met <b>' + escapeHTML(step.chars.join(' ')) + '</b>.';
     } else if (step.kind === 'flash') {
       status.textContent = 'one at a time - ' + step.seconds + ' seconds';
       const r = await flashRun(step.seconds);
@@ -1895,6 +1991,11 @@ async function runSession() {
         const pct = Math.round(100 * r.right / r.sent);
         lines.push('<li>One at a time: <b>' + pct + '%</b> of ' + r.sent + (r.mean_ms ? ', ' + (r.mean_ms / 1000).toFixed(1) + ' s to the key when right' : '') +
           (r.resends ? ', ' + r.resends + ' resend' + (r.resends === 1 ? '' : 's') + ' asked for' : '') + '.</li>');
+        /* Said back at the break rather than banked for the end. A number
+           somebody reads twenty minutes after the thing it measures is a
+           record; read now it is feedback. */
+        justDid = 'You copied <b>' + r.right + ' of ' + r.sent + '</b> — ' + pct + '%' +
+          (pct >= 90 ? '. That is solid copy.' : pct >= 70 ? '. That is coming along.' : '. Early days, and that is what this is for.');
         const res = await postJSON('/api/cw/result', {per_char: r.perChar, settings: settings}).catch(() => null);
         if (res && res.progress) { CWS.progress = res.progress; renderProgress(); }
         freshBadges(res);
@@ -1911,13 +2012,32 @@ async function runSession() {
     }
   }
   const seconds = Math.round((Date.now() - sessionStarted) / 1000);
+  const stopped = sessionStop;
   try { todayStreak = await postJSON('/api/cw/minutes', {seconds: seconds}); freshBadges(todayStreak); } catch (e) {}
   sessionOn = false;
   document.getElementById('cw-today-start').hidden = false;
   document.getElementById('cw-today-stop').hidden = true;
-  status.textContent = sessionStop ? 'stopped' : '';
+  status.textContent = '';
   result.innerHTML = lines.length ? '<ul class="small" style="margin:0;padding-left:1.2rem">' + lines.join('') + '</ul>' : '';
   await refreshPlan();
+  /* An end that is reachable. Without one the session is a pool with no
+     bottom: there is always more, so there is never enough, and that is
+     what sends somebody away rather than back. Stopping at a break is
+     finishing, not quitting, and the card says so.
+
+     Nothing bars the door either. Anybody who wants more presses again,
+     and the same card is the way through. */
+  if (lines.length) {
+    const mins = Math.max(1, Math.round(seconds / 60));
+    const streak = (todayStreak && todayStreak.days) || 0;
+    finishCard(
+      stopped ? 'Enough for now' : 'That is a session',
+      '<b>' + mins + ' minute' + (mins === 1 ? '' : 's') + '</b> of code today' +
+        (streak > 1 ? ', and <b>' + streak + ' days</b> running' : '') + '.' +
+        (stopped ? ' Stopping at a break is finishing, not quitting.' : ''),
+      'The record is kept and tomorrow is worked out from it. Nothing is ' +
+      'lost by leaving it here — and nothing stops you going again.');
+  }
 }
 
 document.getElementById('cw-today-start').addEventListener('click', runSession);

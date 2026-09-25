@@ -101,6 +101,23 @@
     </label>
     <span class="tiny muted" id="cw-today-status"></span>
   </div>
+  {# A pause between the parts of a session, and it is not dead time. It is
+     where somebody sees what they just did, reads what is coming and why,
+     and decides to go on. Run end to end the session reads as a bottomless
+     pool - new characters appear unannounced, nothing ever finishes, and
+     the question becomes "do I have to do all of those?" - which is a wall
+     at exactly the point we promised help. Learner-paced on purpose: the
+     digesting is the point, so nothing here runs on a timer. #}
+  <div id="cw-break" class="cw-teach mt" hidden>
+    <div class="tiny muted" id="cw-break-count"></div>
+    <div class="cw-teach-letter" id="cw-break-head" style="font-size:1.4rem"></div>
+    <div class="small" id="cw-break-done" style="margin-top:.3rem"></div>
+    <div class="small muted" id="cw-break-next" style="margin-top:.5rem"></div>
+    <div class="row" style="justify-content:center;margin-top:.7rem">
+      <button class="btn primary" id="cw-break-on" data-q="QRV"
+              title="QRV - ready, go ahead">Carry on <span class="q">QRV</span></button>
+    </div>
+  </div>
   <div id="cw-flash" class="cw-teach mt" hidden>
     <div class="cw-code big" id="cw-flash-code"></div>
     <div class="cw-teach-letter" id="cw-flash-letter"></div>
