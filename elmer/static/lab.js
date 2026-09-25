@@ -935,6 +935,60 @@ function feedAngle(farFt, wireFt, feedFt) {
 }
 
 
+/* One slider, three jobs, and the antenna type is the selector.
+   A dipole and an end-fed slope; a V droops its legs; a ground plane
+   droops its radials. All three are the same gesture - how far from
+   horizontal - and they were three sliders with three ids, three defaults
+   and three chances to forget one. That had already happened: an-slope was
+   missing from the input list and the slider did nothing.
+
+   The range and the starting angle still change with the antenna, because
+   they are teaching something. A V at nought degrees is not a V, and 45 is
+   where a ground plane's radials come out at 50 ohms. */
+const ANGLE_FOR = {
+  dipole: {label: 'Slope from horizontal (°)', max: 70, start: 0,
+           says: d => d ? d + '° — a sloper' : '0° — flat'},
+  efhw: {label: 'Slope from horizontal (°)', max: 70, start: 0,
+         says: d => d ? d + '° — a sloper' : '0° — flat'},
+  invertedv: {label: 'Leg droop from horizontal (°)', max: 60, start: 35,
+              says: d => d + '° — legs down from the apex'},
+  groundplane: {label: 'Radial droop from horizontal (°)', max: 60, start: 45,
+                says: d => d + '° down — about ' + radialZ(d) + ' Ω'},
+};
+
+/* What the slider is set to, or 0 for an antenna that has no angle. Every
+   caller still asks its own type question first - a droop is not a slope -
+   so this only ever answers "how far from horizontal". */
+function antAngle() {
+  return num('an-angle') || 0;
+}
+
+/* Set per antenna and kept per antenna: somebody who droops their V to 45,
+   looks at a dipole to compare and comes back should find 45 still there. */
+const angleMemory = {};
+
+function applyAngle(type) {
+  const spec = ANGLE_FOR[type];
+  const el = document.getElementById('an-angle');
+  if (!el) return;
+  if (el.dataset.forType && el.dataset.forType !== type) {
+    angleMemory[el.dataset.forType] = el.value;
+  }
+  if (!spec) { el.dataset.forType = ''; return; }
+  if (el.dataset.forType !== type) {
+    el.max = String(spec.max);
+    el.value = angleMemory[type] !== undefined ? angleMemory[type] : String(spec.start);
+    el.dataset.forType = type;
+  }
+  ['an-angle-label', 'an-angle-2-label'].forEach(id => {
+    const lab = document.getElementById(id);
+    if (lab) lab.textContent = spec.label;
+  });
+  const m = document.getElementById('an-angle-2');
+  if (m) { m.max = el.max; m.value = el.value; }
+}
+
+
 function antennaFields(type) {
   const show = (cls, on) => document.querySelectorAll(cls)
     .forEach(el => { el.style.display = on ? '' : 'none'; });
@@ -945,7 +999,8 @@ function antennaFields(type) {
   show('.an-when-heading', (ANTENNAS[type] || {}).shape !== 'vert' && !isWhip(type));
   /* A straight wire on one support can be slung at an angle; a V already has
      its own droop and a beam has a boom. */
-  show('.an-when-slope', type === 'efhw' || type === 'dipole');
+  show('.an-when-angle', !!ANGLE_FOR[type]);
+  applyAngle(type);
   /* The pair asks the whip's questions - how long, how lossy a coil - and
      the wire's: how high it hangs. */
   show('.an-when-whip', isWhip(type) || type === 'whipdipole');
@@ -979,8 +1034,8 @@ function antennaFields(type) {
     if (pair && lossEl.value === String(WHIP_LOSS_DEFAULT)) lossEl.value = PAIR_LOSS_DEFAULT;
     if (!pair && lossEl.value === String(PAIR_LOSS_DEFAULT)) lossEl.value = WHIP_LOSS_DEFAULT;
   }
-  show('.an-when-v', type === 'invertedv');
-  show('.an-when-radials', type === 'groundplane');
+  /* .an-when-v and .an-when-radials marked the two angle sliders that are
+     now the one an-when-angle above, and nothing else wore them. */
   show('.an-when-nvis', NVIS_TYPES.indexOf(type) >= 0);
 }
 
@@ -993,7 +1048,7 @@ function antennaFields(type) {
 const NVIS_LOW = 0.15, NVIS_HIGH = 0.25, V_CENTROID = (Math.PI - 2) / Math.PI;
 
 function nvisBlock(type, f, lamFt, heightFt, legFt) {
-  const droop = type === 'invertedv' ? num('an-droop') : 0;
+  const droop = type === 'invertedv' ? antAngle() : 0;
   const sinD = Math.sin(droop * Math.PI / 180);
   const effective = type === 'invertedv'
     ? heightFt - V_CENTROID * legFt * sinD
@@ -1287,7 +1342,7 @@ function calcAnt() {
     }
     gain = spec.gain;
     z = spec.z;
-    if (type === 'groundplane') z = radialZ(num('an-radials'));
+    if (type === 'groundplane') z = radialZ(antAngle());
     gainRef = spec.ref || FREE_SPACE;
     if (type === 'efhw') {
       notes.push('The end of a half wave is a high-voltage, high-impedance ' +
@@ -1335,7 +1390,7 @@ function calcAnt() {
            lose - it is unbalanced on both sides by construction - so what the
            slope changes is where the return current has to live, and the
            answer is: on the ground, right under the transformer. */
-        if (num('an-slope') > 0) {
+        if (antAngle() > 0) {
           notes.push('<b>Sloping it is the normal arrangement, not a ' +
             'compromise.</b> Transformer low, wire rising to a branch or a mast. ' +
             'Three things follow and all three are wanted. The high-voltage end ' +
@@ -1352,7 +1407,7 @@ function calcAnt() {
     }
     // feedNote returns nothing for an end-fed - it has the longer
     // note above, and the slope paragraph now sits in there with it.
-    const feeding = feedNote(type, (type === 'dipole') ? num('an-slope') : 0);
+    const feeding = feedNote(type, (type === 'dipole') ? antAngle() : 0);
     if (feeding) notes.push(feeding);
     if (COND && COND.note) {
       notes.push('<b>' + escapeHTML(COND.label) + '.</b> ' +
@@ -1372,7 +1427,7 @@ function calcAnt() {
       'Radial count matters more than radial length &mdash; 16 or more on the ground, or ' +
       'four elevated.');
     if (type === 'groundplane') {
-      const dr = num('an-radials');
+      const dr = antAngle();
       notes.push('Radials at <b>' + dr.toFixed(0) + '&deg;</b> put the feed point near <b>' +
         radialZ(dr) + '&nbsp;&Omega;</b>. Flat radials give roughly 36&nbsp;&Omega; ' +
         '&mdash; a 1.4:1 mismatch you can live with but need not &mdash; and about ' +
@@ -1392,11 +1447,17 @@ function calcAnt() {
       'better than a flat dipole at the same height.');
   }
 
-  const droopEl = document.getElementById('an-droop-v');
-  if (droopEl) droopEl.textContent = num('an-droop').toFixed(0) + '\u00b0 from horizontal';
-  const radEl = document.getElementById('an-radials-v');
-  if (radEl) radEl.textContent = num('an-radials').toFixed(0) + '\u00b0 down \u2014 about '
-    + radialZ(num('an-radials')) + ' \u03a9';
+  /* One readout, in one idiom: the angle, a dash, and what it buys on
+     this antenna. It used to be three - "35° from horizontal", "45° down
+     — about 50 Ω", "flat" - the same gesture said three ways, which is a
+     learning curve for nothing. The tail belongs to the token; the shape
+     is shared. */
+  const angleSpec = ANGLE_FOR[type];
+  const angleSaid = angleSpec ? angleSpec.says(Math.round(antAngle())) : '';
+  ['an-angle-v', 'an-angle-2-v'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = angleSaid;
+  });
 
   /* Height above ground sets the takeoff angle for anything horizontal. */
   let takeoff = null;
@@ -1407,9 +1468,9 @@ function calcAnt() {
       // apex, so quoting the apex here would contradict the NVIS panel.
       const legFt = rows['Each leg'] || (rows['Overall length'] || lamFt / 2) / 2;
       const effFt = type === 'invertedv'
-        ? hFt - V_CENTROID * legFt * Math.sin(num('an-droop') * Math.PI / 180)
+        ? hFt - V_CENTROID * legFt * Math.sin(antAngle() * Math.PI / 180)
         : hFt;
-      const slopeDeg = (type === 'efhw' || type === 'dipole') ? num('an-slope') : 0;
+      const slopeDeg = (type === 'efhw' || type === 'dipole') ? antAngle() : 0;
       if (slopeDeg) {
         /* A sloping wire radiates from the height of its middle, not the top
            of the mast - which is the figure people quote, and the reason a
@@ -1526,12 +1587,7 @@ function calcAnt() {
   const heightFt = isWhip(type) ? null : num('an-h');
   const legFt = rows['Each leg'] || (rows['Overall length'] || 0) / 2 ||
                 rows['Radiator'] || 0;
-  const slope = (type === 'efhw' || type === 'dipole') ? num('an-slope') : 0;
-  const slopeEl = document.getElementById('an-slope-v');
-  if (slopeEl) {
-    slopeEl.textContent = slope
-      ? slope + '\u00b0 \u2014 a sloper' : 'flat';
-  }
+  const slope = (type === 'efhw' || type === 'dipole') ? antAngle() : 0;
   const slopeWire = rows['Wire length'] || rows['Overall length'] || 0;
   const slopeDrop = slopeWire * Math.sin(slope * Math.PI / 180) /
                     (type === 'dipole' ? 2 : 1);
@@ -1550,7 +1606,7 @@ function calcAnt() {
      the heights people actually hang wire at, always in the direction of
      making it look better for distance than it is. */
   const vDrop = type === 'invertedv'
-    ? V_CENTROID * legFt * Math.sin(num('an-droop') * Math.PI / 180) : 0;
+    ? V_CENTROID * legFt * Math.sin(antAngle() * Math.PI / 180) : 0;
   const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2)
     : vDrop ? Math.max(1, heightFt - vDrop)
       : heightFt;
@@ -1560,8 +1616,6 @@ function calcAnt() {
     : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
       ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
   ['an-head-v', 'an-head-2-v'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = headWords; });
-  const slope2 = document.getElementById('an-slope-2-v');
-  if (slope2 && slopeEl) slope2.textContent = slopeEl.textContent;
   drawPattern(type, f, heightFt, heading, slope, effHeight);
 
   window.LAB_ANTENNA = {
@@ -1569,7 +1623,7 @@ function calcAnt() {
     z: z,                       /* so the Smith chart can start from it */
     label: (ANTENNAS[type] || {}).label || (type === 'yagi' ? 'Yagi' : 'Loaded whip'),
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
-    legFt: legFt, droop: type === 'invertedv' ? num('an-droop') : 0,
+    legFt: legFt, droop: type === 'invertedv' ? antAngle() : 0,
     whipFt: (isWhip(type) || type === 'whipdipole') ? num('an-wh') : null,
     description: ((ANTENNAS[type] || {}).label ||
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
@@ -1638,7 +1692,7 @@ function drawAntenna(shape, rows, type) {
         '<line x1="310" y1="165" x2="310" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
         lbl(310, 38, 'one full wavelength of wire') + lbl(310, 200, 'feed', 'middle');
     } else if (type === 'efhw') {
-      const slope = num('an-slope') || 0;
+      const slope = antAngle() || 0;
       if (slope > 0) {
         /* Fed at the low end, rising to the support: that puts the far end -
            which on an end-fed is the high-voltage one - at the top, where it
@@ -1663,8 +1717,8 @@ function drawAntenna(shape, rows, type) {
           '<line x1="120" y1="' + y + '" x2="120" y2="' + g + '" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4 3"/>' +
           lbl(320, y - 12, 'half wavelength of wire') + lbl(120, y - 16, '49:1 unun');
       }
-    } else if (type === 'dipole' && num('an-slope') > 0) {
-      const slope = num('an-slope');
+    } else if (type === 'dipole' && antAngle() > 0) {
+      const slope = antAngle();
       const t = tilt(slope, 62);
       const top = 50, x1 = 310 - t.span, x2 = 310 + t.span;
       const yLow = top + 2 * t.drop, yMid = top + t.drop;
@@ -1682,7 +1736,7 @@ function drawAntenna(shape, rows, type) {
     } else {
       /* The droop follows the slider now, rather than a fixed 55 pixels that
          made the V look the same at 5 degrees as at 60. */
-      const t = type === 'invertedv' ? tilt(num('an-droop'), 95) : {span: 200, drop: 0};
+      const t = type === 'invertedv' ? tilt(antAngle(), 95) : {span: 200, drop: 0};
       const x1 = 310 - t.span, x2 = 310 + t.span;
       body = '<line x1="' + x1 + '" y1="' + (y + t.drop) + '" x2="310" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
         '<line x1="310" y1="' + y + '" x2="' + x2 + '" y2="' + (y + t.drop) + '" stroke="#ffb454" stroke-width="2.5"/>' +
@@ -1717,7 +1771,7 @@ function drawAntenna(shape, rows, type) {
       /* 90 px of radial keeps the steepest droop clear of the ground line
          while staying about as long as the radiator, which is what a quarter
          wave against a quarter wave should look like. */
-      const dr = num('an-radials'), r = 90;
+      const dr = antAngle(), r = 90;
       const dx = r * Math.cos(dr * Math.PI / 180), dy = r * Math.sin(dr * Math.PI / 180);
       body += '<line x1="310" y1="' + base + '" x2="' + (310 - dx).toFixed(1) +
         '" y2="' + (base + dy).toFixed(1) + '" stroke="#39d3d8" stroke-width="2"/>' +
@@ -1766,7 +1820,7 @@ function drawAntenna(shape, rows, type) {
    when it has not. */
 /* The copies on the figure: one value, two sliders. Moving either moves
    the other and the figure. */
-[['an-head-2', 'an-head'], ['an-slope-2', 'an-slope']].forEach(([mirror, real]) => {
+[['an-head-2', 'an-head'], ['an-angle-2', 'an-angle']].forEach(([mirror, real]) => {
   const m = document.getElementById(mirror), r = document.getElementById(real);
   if (!m || !r) return;
   m.value = r.value;
@@ -1775,8 +1829,8 @@ function drawAntenna(shape, rows, type) {
 });
 
 ['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
- 'an-k', 'an-cond', 'an-droop', 'an-radials', 'an-nvis', 'an-head', 'an-site', 'an-floor',
- 'an-slope', 'an-use', 'an-pw']
+ 'an-k', 'an-cond', 'an-angle', 'an-nvis', 'an-head', 'an-site', 'an-floor',
+ 'an-use', 'an-pw']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -1822,7 +1876,7 @@ function drawAntenna(shape, rows, type) {
          degrees and at 45 - which is the whole use of setting the angle on
          the ground before going out with it. The panel follows the slider
          rather than describing the angle it was last asked about. */
-      if (id === 'an-droop') { refreshAdvice(); calcAnt(); return; }
+      if (id === 'an-angle') { refreshAdvice(); calcAnt(); return; }
       if (id === 'an-site' || id === 'an-use') {
         // The questions changed. A suggested antenna follows them; a chosen
         // one stays, and only the advice about it is refreshed.
@@ -2957,7 +3011,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
                          not a flat dipole's - and it follows the angle
                          somebody is going to tie, so they can set it on the
                          ground and deploy knowing what to expect. */
-                      droop: kind === 'invertedv' ? num('an-droop') : '',
+                      droop: kind === 'invertedv' ? antAngle() : '',
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
                       conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));

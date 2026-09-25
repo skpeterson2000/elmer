@@ -212,17 +212,18 @@
       <div class="field an-when-height"><label id="an-h-label">Height above ground (ft)</label>
         <input id="an-h" value="35"></div>
 
-      <div class="field an-when-slope"><label>Slope from horizontal (&deg;)</label>
-        <input type="range" id="an-slope" min="0" max="70" step="1" value="0">
-        <span class="sim-out" id="an-slope-v"></span></div>
-
-      <div class="field an-when-v"><label>Leg droop from horizontal (&deg;)</label>
-        <input type="range" id="an-droop" min="0" max="60" step="1" value="35">
-        <span class="sim-out" id="an-droop-v"></span></div>
-
-      <div class="field an-when-radials"><label>Radial droop from horizontal (&deg;)</label>
-        <input type="range" id="an-radials" min="0" max="60" step="1" value="45">
-        <span class="sim-out" id="an-radials-v"></span></div>
+      {# One slider for the angle, whatever the antenna calls it. The type
+         above is the selector: a dipole and an end-fed slope, a V droops its
+         legs, a ground plane droops its radials, and all three are the same
+         gesture - how far from horizontal. Three sliders meant three ids,
+         three defaults and three chances to forget one, which had already
+         happened once: an-slope was left out of the input list and the
+         slider was inert. The range and the starting angle still change with
+         the antenna, because a V is never flat and 45 degrees is where a
+         ground plane's radials make 50 ohms. #}
+      <div class="field an-when-angle"><label id="an-angle-label">Slope from horizontal (&deg;)</label>
+        <input type="range" id="an-angle" min="0" max="70" step="1" value="0">
+        <span class="sim-out" id="an-angle-v"></span></div>
 
       <div class="field an-when-heading"><label>Which way is it laid?</label>
         <input type="range" id="an-head" min="0" max="179" step="1" value="90">
@@ -284,9 +285,9 @@
         <div class="field an-when-heading"><label>Turn it &mdash; which way is it laid?</label>
           <input type="range" id="an-head-2" min="0" max="179" step="1" value="90">
           <span class="sim-out" id="an-head-2-v"></span></div>
-        <div class="field an-when-slope"><label>Slope from horizontal (&deg;)</label>
-          <input type="range" id="an-slope-2" min="0" max="70" step="1" value="0">
-          <span class="sim-out" id="an-slope-2-v"></span></div>
+        <div class="field an-when-angle"><label id="an-angle-2-label">Slope from horizontal (&deg;)</label>
+          <input type="range" id="an-angle-2" min="0" max="70" step="1" value="0">
+          <span class="sim-out" id="an-angle-2-v"></span></div>
       </div>
       <div id="an-pattern-words" class="mt"></div>
       <div id="an-out" class="mt small"></div>
