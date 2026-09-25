@@ -72,7 +72,12 @@ def wired():
 print("\nthe page's controls are found")
 controls = inputs_on_the_page() - READOUTS - NOT_INPUTS
 check("there are some", len(controls) >= 10, True)
-check("and the slope is one of them", "an-slope" in controls, True)
+# The angle slider, which is one control doing three jobs - a dipole's
+# slope, a V's droop, a ground plane's radials - named by the antenna
+# type. It was an-slope, an-droop and an-radials, and the comment in
+# lab.js about an-slope having been left out of the input list is why
+# this check names one at all.
+check("and the angle slider is one of them", "an-angle" in controls, True)
 
 print("\nevery one of them re-runs something when it moves")
 live = wired()
@@ -80,7 +85,7 @@ for name in sorted(controls):
     check(name, name in live, True)
 
 print("\nthe slope specifically, which is the one this was written for")
-check("in the recompute list", "an-slope" in live, True)
+check("in the recompute list", "an-angle" in live, True)
 
 print()
 if FAILS:
