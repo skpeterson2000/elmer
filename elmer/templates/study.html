@@ -12,15 +12,21 @@
       </div>
     </div>
     <div class="row">
+      {# "Lapses" is what the schedule calls it; "Needs review" is what it is,
+         and it carries its count, because a list nobody can see the size of
+         is not a list somebody works through. Everything got wrong anywhere -
+         the drill, a contest round, a mock exam, a hole of golf at a table -
+         is in it. #}
       {% for m, label, hint in [
           ('drill','Drill','Due reviews first, then new material'),
-          ('weak','Weak spots','Lowest estimated mastery first'),
+          ('weak','Weak spots','What you have got wrong, weakest first, then what you have never met'),
           ('new','New','Questions you have never seen'),
-          ('review','Lapses','Questions you have got wrong before'),
+          ('review','Needs review','Everything you have got wrong and not yet put right, wherever you got it wrong'),
           ('rapid','Contest','Fast random-fire round')] %}
         <a class="btn sm {% if mode == m %}primary{% else %}ghost{% endif %}"
            title="{{ hint }}"
-           href="/study/{{ pool.pool_id }}?mode={{ m }}{% if section %}&section={{ section }}{% endif %}">{{ label }}</a>
+           href="/study/{{ pool.pool_id }}?mode={{ m }}{% if section %}&section={{ section }}{% endif %}">{{ label }}{%
+           if m == 'review' and needs_review %} <span class="pill bad">{{ needs_review }}</span>{% endif %}</a>
       {% endfor %}
     </div>
   </div>

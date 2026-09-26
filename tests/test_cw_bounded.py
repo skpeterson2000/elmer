@@ -112,12 +112,15 @@ try:
         got = json.loads(got)
     check("no javascript error on the page", got.get("errors"), [])
     check("the page knows how long a pass is", got["budget"] > 0, True)
-    # A day is passes through the lesson, so the line says which pass this is
-    # rather than only how long it runs - see cw.passes. It names the set and
-    # not the day, because a set can be a couple of hours or a couple of days
-    # and the word "today" was claiming a deadline that is not there.
-    check("  and says which pass of the set this is",
-          "Pass 1 of" in got["clock"] and "in this set" in got["clock"], True)
+    # The line says which pass this is and not how many are owed. "Pass 1 of
+    # 5" was a quota, and this program does not set them: it is one option
+    # among several, and somebody whose day holds two passes has not failed a
+    # five-pass day. The arithmetic is offered as the reason the sessions are
+    # short and then left alone, so the count only ever goes up.
+    check("  and says which pass this is", "pass" in got["clock"].lower(), True)
+    check("  without a quota attached",
+          any(w in got["clock"] for w in (" of 5", " of 4", " of 6", "still to go", "left of the day")),
+          False)
     check("  with how long each one runs", "Each is about" in got["clock"], True)
     check("  it says the session ends on its own", "ends on its own" in got["clock"], True)
     check("  and that leaving at a break is allowed",

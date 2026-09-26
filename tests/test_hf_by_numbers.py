@@ -29,7 +29,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _isolate  # noqa: E402,F401  - before anything from elmer
-from elmer import pathto  # noqa: E402
+from elmer import pathto, propagation  # noqa: E402
+
+# The claim here is that two panels agree about one sky, which is a claim
+# about this program. Both of them ask propagation.snapshot(), which is a
+# live reading off somebody else's server behind a fifteen-minute cache - so
+# the two calls could be given two different skies, and the test would report
+# that the ionosphere had moved rather than anything about the code. It did:
+# it passed alone and failed inside a full run, on a day when the cache
+# happened to turn over between the two questions. One fixed reading, and the
+# only thing left that can differ is the code.
+SKY = {"fof2": 7.4, "hmf2": 280.0, "muf": 24.6, "elevation": 32.0, "k_index": 2.0,
+       "ok": True, "cached": True}
+propagation.snapshot = lambda *a, **kw: dict(SKY)
 
 FAILS = []
 HERE = {"lat": 44.98, "lon": -93.27, "short": "Minneapolis"}

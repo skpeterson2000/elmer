@@ -584,6 +584,28 @@ function calcSWR() {
       (swr < 1.5 ? '. That is a good match; the loss is negligible.'
         : swr < 3 ? '. Most solid-state finals still run happily here.'
         : '. Expect the transmitter to fold back power to protect itself.') +
+    '</div>' +
+    /* What a tuner does about this, and - more usefully - what it does not.
+       Three to one is the number worth knowing: it is where a rig's own
+       ALC starts pulling power back, and it is the reach of most tuners
+       built into a radio. The wider boxes are outboard ones. */
+    '<div class="small muted" style="margin-top:.5rem">' +
+      (!isFinite(swr)
+        ? '<b>No tuner matches an open or a short.</b> Find the fault first.'
+        : swr <= 3
+          ? '<b>A tuner will take this.</b> Three to one is about the reach of the tuner '
+            + 'built into a radio; an outboard automatic one usually goes to ten.'
+          : '<b>Past most built-in tuners.</b> The one in a radio typically stops near 3:1, '
+            + 'and some are narrower than that; an outboard automatic tuner usually reaches '
+            + 'about 10:1, and a manual one further still.') +
+      ' What it buys is that the rig sees 50 ohms and stops folding back, so it delivers its '
+      + 'full output again - which often puts <i>more</i> power into the antenna than running '
+      + 'untuned did, not because the antenna improved but because the radio stopped '
+      + 'protecting itself. What it does not do is change the standing wave between the tuner '
+      + 'and the antenna: that part of the line still carries it, and still pays the extra '
+      + 'loss above. The tuner has a little loss of its own as well. A match at the rig is '
+      + 'not an efficient antenna - a perfect 50 ohms can be a tuner matching into a coil '
+      + 'that is mostly heater.' +
     '</div>');
 }
 ['w-z0', 'w-zl', 'w-p'].forEach(id => {

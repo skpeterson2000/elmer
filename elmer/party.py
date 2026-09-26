@@ -545,6 +545,9 @@ class Room:
         self.golf_next = None      # the next stroke's question, drawn while the last is read
         self.golf_difficulty = None
         self.clubs = {}            # player -> the club chosen for the next stroke
+        # player -> {"shape", "spin"}: the shot they set up. Kept from stroke
+        # to stroke, the way a golfer has a stock shot, until they change it.
+        self.shapes = {}
         self.pick = None           # the subject chosen, waiting to be asked
         self.pick_seconds = PICK_SECONDS
         self._pick_since = None    # (when the wait began, on whom)
@@ -723,6 +726,7 @@ class Room:
             if gone is not None and self.cutthroat is not None:
                 self.cutthroat.withdraw(player_id)    # leaving is losing
             self.clubs.pop(player_id, None)
+            self.shapes.pop(player_id, None)
             if gone is not None and self.golf is not None:
                 self.golf.drop(player_id)             # the ball is picked up
             if gone is not None and self.shootout is not None:
@@ -911,13 +915,16 @@ class Room:
         player = self.players.get(player_id)
         return (player.cert_name if player else None) or None
 
-    def submit(self, player_id, chosen_index, client_ms, server_ms=None):
+    def submit(self, player_id, chosen_index, client_ms, server_ms=None, meter=None):
         """Take one answer, timed by the player's own clock.
 
         `client_ms` is what the browser measured between painting the question
         and the button going down. `server_ms` is how long the same interval
         looked from here; it is used only as a ceiling, because a client that
         reports two milliseconds is not fast, it is lying.
+
+        `meter` is a golfer's swing: where they stopped the meter, 0..1 of a
+        full swing. Golf holds it to that range; anything else ignores it.
         """
         with self.lock:
             rnd = self.round
@@ -964,7 +971,8 @@ class Room:
                 "player_id": player_id, "name": player.name,
                 "cohort": player.cohort_id, "correct": correct,
                 "chosen": chosen_index,
-                "ms": round(ms, 1), "order": len(rnd.answers) + 1}
+                "ms": round(ms, 1), "order": len(rnd.answers) + 1,
+                "meter": meter}
             return rnd.answers[player_id], None
 
     def submit_extra(self, player_id, chosen_index, client_ms):
@@ -1137,7 +1145,11 @@ class Room:
                         "question_id": rnd.question_id,
                         # the swing's timing, which seeds where in the
                         # club's spread the ball lands - luck, repeatable
-                        "ms": (a["ms"] if a else None)})
+                        "ms": (a["ms"] if a else None),
+                        # and the golfer's own hand: the meter's stop, and
+                        # the shot they set up before the question
+                        "meter": (a.get("meter") if a else None),
+                        **(self.shapes.get(rnd.to) or {})})
                     self.clubs.pop(rnd.to, None)
                 else:
                     summary["golf"] = self.golf.play({
@@ -1181,6 +1193,7 @@ class Room:
                     (lo, hi), (wlo, whi) = BOT_SWINGS.get(pl.bot, ((1.0, 1.0), (1.0, 1.0)))
                     self.golf.set_swing(p, random.uniform(lo, hi), random.uniform(wlo, whi))
             self.clubs = {}
+            self.shapes = {}
             self.golf_pace = float(seconds or DEFAULT_ROUND_SECONDS)
             # Which clips of the swing are on this unit - static/golf/clips/
             # <kind>.gif - read once a round, so the screens ask only for
@@ -1337,6 +1350,7 @@ class Room:
         with self.lock:
             self.golf = None
             self.clubs = {}
+            self.shapes = {}
             if self.mode == GOLF:
                 self.mode = TOURNAMENT
 
@@ -1359,6 +1373,35 @@ class Room:
             self.clubs[player_id] = club
             return True, club
 
+    def choose_shape(self, player_id, shape=None, spin=None):
+        """The shot this player sets up: its shape, -1 all draw to +1 all
+        fade, and its spin, 0 to 1 of what the club has. Set before the
+        question and changed freely up to the swing, like the club."""
+        with self.lock:
+            g = self.golf
+            if g is None:
+                return False, "this table is not playing golf"
+            if player_id not in g.balls:
+                return False, "you are not in this round"
+            rnd = self.round
+            if rnd is not None and not rnd.closed and player_id in rnd.answers:
+                return False, "the ball is away - the shot was set up"
+            now = dict(self.shapes.get(player_id) or {"shape": 0.0, "spin": 0.0})
+            for key, value, lo in (("shape", shape, -1.0), ("spin", spin, 0.0)):
+                if value is None:
+                    continue
+                try:
+                    v = float(value)
+                except (TypeError, ValueError):
+                    return False, f"{key} is a number"
+                if v != v:
+                    return False, f"{key} is a number"
+                now[key] = round(max(lo, min(1.0, v)), 2)
+            self.shapes[player_id] = now
+            # and the game, so the notch and the reading fly the shot as set up
+            g.set_setup(player_id, now["shape"], now["spin"])
+            return True, now
+
     def golf_view(self, player_id=None):
         """What the screens need: the hole, every ball with its name, the
         last stroke in words, the card, and this player's own choices."""
@@ -1374,7 +1417,9 @@ class Room:
                 balls[p] = {**b, "name": name(p), "bot": bool(self.players[p].bot) if p in self.players else False,
                             "club": club,
                             # what the aiming mark says with that club in hand
-                            "reading": g.read_mark(p, club)}
+                            "reading": g.read_mark(p, club),
+                            # and on the green, the putting meter's notch and range
+                            "putt": g.putt_meter(p, club)}
             last = g.history[-1] if g.history else None
             shots = []
             if last:
@@ -1461,6 +1506,12 @@ class Room:
                     "last_hole_done": bool(last and last.get("hole_done")),
                     "last_card": ({name(p): s for p, s in last["card"].items()} if last and last.get("card") else None),
                     "you": mine, "your_club": (self.clubs.get(player_id) if player_id is not None else None),
+                    # the shot set up: this player's own, and the one who is
+                    # away, for the table screen's seated golfer
+                    "your_shape": (self.shapes.get(player_id) or {"shape": 0.0, "spin": 0.0}
+                                   if player_id is not None else None),
+                    "away_shape": (self.shapes.get(away) or {"shape": 0.0, "spin": 0.0}
+                                   if away is not None else None),
                     "winner_name": name(g.winner()) if g.winner() else None,
                     "handicaps_given": {name(p): n for p, n in g.handicaps.items()}}
 

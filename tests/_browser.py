@@ -182,6 +182,24 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None, cli
       for n, (name, value) in enumerate(sorted((cookies or {}).items())):
           call(30 + n, "Network.setCookie", name=name, value=str(value), url=url)
       call(3, "Page.navigate", url=url)
+      # The page is loaded before it is settled. `settle` was a plain sleep,
+      # so it was buying two things at once - waiting for the scripts to
+      # arrive, and waiting for whatever the page does afterwards - and on a
+      # machine busy running the rest of the suite the first of those ate the
+      # whole budget. A test would then call a function the page had not
+      # finished defining and report the page as broken: "antennaFields is
+      # not defined", twelve dead calculators, one slow load. Loading is
+      # waited for now, up to fifteen seconds, and `settle` is spent on what
+      # it was meant for. Tests that wait for their own function as well lose
+      # nothing by it.
+      waited = 0.0
+      while waited < 15.0:
+          ready = call(29, "Runtime.evaluate", returnByValue=True,
+                       expression="document.readyState")
+          if (ready.get("result") or {}).get("value") == "complete":
+              break
+          time.sleep(0.1)
+          waited += 0.1
       time.sleep(settle)
       value = None
       if js:

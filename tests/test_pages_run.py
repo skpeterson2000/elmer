@@ -101,13 +101,22 @@ try:
     # died reading .shape of undefined the first time anybody picked it -
     # which the kiosk's log recorded twice before anyone read the log.
     print("\nevery antenna type calculates")
+    # Waited for, like the loop above and for the same reason. A fixed second
+    # and a half was enough on a quiet machine and not enough on one running
+    # the rest of the suite, where the page had not finished evaluating its
+    # script - so every antenna came back "antennaFields is not defined" and
+    # the test reported twelve dead calculators rather than one slow load.
     got = _browser.evaluate(
         f"http://127.0.0.1:{PORT}/lab",
-        "(() => { const out = {}; const sel = document.getElementById('an-type');"
-        " for (const o of [...sel.options].map(o => o.value)) { sel.value = o;"
-        "  try { antennaFields(o); calcAnt(); out[o] = 'ok'; }"
-        "  catch (e) { out[o] = String(e).slice(0, 80); } } return JSON.stringify(out); })()",
-        settle=1.5, port=9341, cookies={'elmer_user': '1'})
+        "new Promise(r => { const t0 = Date.now(); const go = () => {"
+        "  if (typeof antennaFields !== 'function' && Date.now() - t0 < 8000)"
+        "    return setTimeout(go, 200);"
+        "  const out = {}; const sel = document.getElementById('an-type');"
+        "  for (const o of [...sel.options].map(o => o.value)) { sel.value = o;"
+        "   try { antennaFields(o); calcAnt(); out[o] = 'ok'; }"
+        "   catch (e) { out[o] = String(e).slice(0, 80); } }"
+        "  r(JSON.stringify(out)); }; go(); })",
+        settle=0.5, port=9341, cookies={'elmer_user': '1'})
     import json as _json
     results = _json.loads(got or "{}")
     check("the selector has its antennas", len(results) >= 12, True)

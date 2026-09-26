@@ -22,7 +22,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import paths
+from . import library, paths
 
 log = logging.getLogger("elmer")
 
@@ -113,7 +113,7 @@ def add(user_id, stream, filename, caption):
     data = stream.read(MAX_MB * 1024 * 1024 + 1)
     if len(data) > MAX_MB * 1024 * 1024:
         return False, f"larger than {MAX_MB} MB"
-    if data[:5] == b"%PDF-":
+    if library.is_pdf(data):
         page = _first_page(data)
         if page is None:
             return False, ("that is a PDF and this unit has no poppler to render "

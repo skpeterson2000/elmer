@@ -283,9 +283,22 @@ def readiness(pool, per_question, per_section, trials=4000, seed=None):
     }
 
 
+def missed_last(card):
+    """True when the most recent answer to this card was wrong.
+
+    ``schedule`` zeroes ``reps`` on every miss and counts it up on every right
+    answer, so a card with lapses and no reps has not been put right yet.
+    ``lapses`` on its own is history: it never goes back to zero.
+    """
+    return bool(card and card["seen"] and card["lapses"] and not card["reps"])
+
+
 def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
               new_left=None, review_left=None):
     """Cards to study next: overdue first, then unseen, then weakest.
+
+    While anything in the selection is still unseen, overdue and weakest mean
+    only the cards last answered wrong - see the coverage note below.
 
     Priority is the point of the schedule and is not negotiable: what is
     overdue comes before what is not, and the further overdue the sooner. But
@@ -304,6 +317,7 @@ def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
     from datetime import datetime
 
     overdue, fresh, rest = [], [], []
+    missed = set()
     for q in pool.questions:
         if sections and q["section"] not in sections:
             continue
@@ -311,6 +325,8 @@ def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
         if not card or not card["seen"]:
             fresh.append((q["id"], 0.0))
             continue
+        if missed_last(card):
+            missed.add(q["id"])
         if card["due"]:
             try:
                 days_over = (now - datetime.fromisoformat(card["due"])).total_seconds() / 86400
@@ -330,7 +346,19 @@ def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
             overdue.append((q["id"],
                             round(days_over / max(card["interval"], 0.5), 1)))
         else:
-            rest.append((q["id"], -round(skill(card, now) or 0.0, 2)))
+            rest.append((q["id"], round(skill(card, now) or 0.0, 2)))
+
+    # Coverage comes first. Until every question in the selection has been
+    # met, a question last answered right has nothing to teach that an unseen
+    # one does not teach more urgently - the schedule's first obligation is to
+    # get the whole pool seen, and its second is to get it answered right. So
+    # while anything is unseen, the only cards that come back are the ones
+    # last got wrong, and those always do. Without this, a mock exam spent the
+    # day's new-question allowance, the drill fell through to working ahead,
+    # and handed back the very questions just answered.
+    if fresh:
+        overdue = [x for x in overdue if x[0] in missed]
+        rest = [x for x in rest if x[0] in missed]
 
     # Shuffle first, sort second. Equal scores keep the shuffled order; unequal
     # ones are put back in the order the schedule asked for.
@@ -338,6 +366,8 @@ def due_queue(pool, cards, now=None, limit=None, sections=None, rng=None,
     rng.shuffle(fresh)
     rng.shuffle(rest)
     overdue.sort(key=lambda x: -x[1])
+    # Weakest first, as the docstring always said. This used to sort on the
+    # negated skill, which put the best-known card at the front.
     rest.sort(key=lambda x: x[1])
     # Today's remaining budget, if the caller is keeping one. Trimmed after the
     # sort so what survives is the most urgent of each kind, not the first
@@ -405,26 +435,37 @@ DAILY_REVIEW = 120
 
 
 def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW):
-    """How much of today's work is left, counted separately.
+    """How much of today's drill is left, counted separately.
 
     Counts distinct questions rather than answers, so a card seen twice in one
     session - which relearning makes ordinary - does not eat two of the day's
     allowance.
+
+    Only the drill's own answers count against it. The budget belongs to the
+    drill; a mock exam or a contest round is a separate choice, and charging
+    it here meant one thirty-five-question paper used up the whole day's new
+    material before the drill had offered a single unseen question.
     """
     from .db import today
     rows = conn.execute(
-        "SELECT question_id, MIN(ts) first_ts FROM answer_log "
-        "WHERE user_id = ? AND day = ? AND pool_id = ? GROUP BY question_id",
+        "SELECT question_id, mode FROM answer_log "
+        "WHERE user_id = ? AND day = ? AND pool_id = ? ORDER BY ts",
         (conn.user_id, today(), pool_id)).fetchall()
-    done = {r["question_id"] for r in rows}
-    # A question first met today is new work; anything else was maintenance.
+    first_mode, done = {}, set()
+    for r in rows:
+        first_mode.setdefault(r["question_id"], r["mode"])
+        if r["mode"] == "drill":
+            done.add(r["question_id"])
     seen_before = conn.execute(
         "SELECT DISTINCT question_id FROM answer_log "
         "WHERE user_id = ? AND day < ? AND pool_id = ?",
         (conn.user_id, today(), pool_id)).fetchall()
     older = {r["question_id"] for r in seen_before}
-    fresh_done = len(done - older)
-    review_done = len(done & older)
+    # New work is a question the drill itself introduced today. Anything met
+    # before - yesterday, or an hour ago on an exam - is maintenance.
+    fresh = {q for q in done - older if first_mode[q] == "drill"}
+    fresh_done = len(fresh)
+    review_done = len(done - fresh)
     return {
         "new_done": fresh_done, "new_left": max(0, new_limit - fresh_done),
         "review_done": review_done,

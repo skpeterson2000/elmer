@@ -173,9 +173,11 @@ def roll_up(club, mark_at, n=200, frm=335):
 
 
 edge = golf.green_edge(flat_course(green=30)["holes"][0])
-short_of_green = int(400 - edge - golf.FRINGE - 4)
+# Seven yards short of the green: the mark is about the green, not the collar, which
+# narrowed from three yards to two and would otherwise have walked the mark with it.
+short_of_green = int(400 - edge - 7)
 nine_on = roll_up("9-iron", short_of_green, frm=short_of_green - 65)
-check("from 65 yards, a soft 9-iron landed four short of the collar runs up onto the green most of the time",
+check("from 65 yards, a soft 9-iron landed seven short of the green runs up onto the green most of the time",
       nine_on > 110, True)
 check("  where a wedge landed there checks and stays off it",
       roll_up("sand-wedge", short_of_green, frm=short_of_green - 65) < nine_on // 3, True)

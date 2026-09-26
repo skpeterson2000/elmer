@@ -65,8 +65,25 @@ def main():
           (["KC9SP"], "2021-05-14", "2031-05-14"))
     check("  two pages, the wallet copy the second", held["pages"], 2)
     check("  laid beside the FCC record, which it agrees with", (held["record"]["callsign"], held["agrees"]), ("KC9SP", True))
+    # The FCC's official copy as ULS actually issues it: a blank line, then
+    # the header. The format allows the header anywhere in the first
+    # kilobyte and every reader honors that; ELMER refused it
+    # of "that is not a PDF" on the one file it exists to keep.
+    fcc = b"\r\n" + license_pdf("WRMP909", "05-14-2021", "05-14-2031")
+    r = cl.post("/api/papers/add", data={"kind": "gmrs", "file": (io.BytesIO(fcc), "WRMP909.pdf")},
+                content_type="multipart/form-data")
+    check("the FCC's copy, blank line first, is kept", (r.status_code, (r.get_json() or {}).get("message")),
+          (200, "GMRS license kept"))
+    gm = [x for x in r.get_json()["held"] if x["kind"] == "gmrs"][0]
+    check("  and read like any other", (gm["says"]["calls"], gm["pages"]), (["WRMP909"], 2))
+    cl.post("/api/papers/remove", json={"kind": "gmrs"})
     r = cl.post("/api/papers/add", data={"kind": "gmrs", "file": (io.BytesIO(b"hello there"), "x.pdf")}, content_type="multipart/form-data")
     check("something that is not a PDF is refused", r.status_code, 400)
+    r = cl.post("/api/papers/add", data={"kind": "gmrs", "file": (io.BytesIO(b"x" * 2000 + b"%PDF-1.4"), "x.pdf")},
+                content_type="multipart/form-data")
+    check("  and so is a header buried past the first kilobyte", r.status_code, 400)
+    check("the Library's shelf takes the same", (library.is_pdf(b"\r\n%PDF-1.4"), library.is_pdf(b"%PDF-1.7"),
+                                                  library.is_pdf(b"<html>")), (True, True, False))
     r = cl.post("/api/papers/add", data={"kind": "passport", "file": (io.BytesIO(license_pdf("KC9SP", "1", "2")), "x.pdf")}, content_type="multipart/form-data")
     check("  and so is a kind ELMER does not keep", r.status_code, 400)
 

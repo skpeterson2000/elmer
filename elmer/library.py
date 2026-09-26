@@ -51,6 +51,20 @@ INDEX_VERSION = 3     # 3: chapters from printed headings and the operator's own
 SNIPPET = 90          # characters either side of the first hit
 MAX_PDF_MB = 200      # a scanned manual can be big; a disc image is not a manual
 
+# How much of a file to read before deciding it is a PDF. The format lets
+# the %PDF- header sit anywhere in the first kilobyte, and every reader -
+# Acrobat, poppler, a browser - honors that. The FCC's own official license
+# copies start with a blank line before the header, and ELMER, which
+# demanded the header as the very first five bytes, refused the one PDF it
+# most exists to keep.
+PDF_HEAD_BYTES = 1024
+
+
+def is_pdf(head):
+    """Whether these first bytes of a file are a PDF's: the header somewhere
+    in the first kilobyte, as the format allows."""
+    return b"%PDF-" in bytes(head[:PDF_HEAD_BYTES])
+
 # ELMER's own topics, as the words a publisher uses for them in a heading.
 # These are what the pointers match against a manual's bookmarks: an outline
 # entry whose title contains any of a topic's words is that topic's chapter.

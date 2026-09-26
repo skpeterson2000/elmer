@@ -955,17 +955,25 @@ def log_hall_round(conn, pool_id, question_id, section, rows, key, mode="hall"):
     said they hold, whether they were right, how long they took, and which
     game it was.
     """
+    from . import ledger
     now, day = utcnow().isoformat(), today()
+    kept = []
     for r in rows:
         if r.get("bot"):
             continue
+        row = {"who": hall_who(key, r.get("unit"), r.get("name")),
+               "license": license_of(r.get("license")),
+               "correct": int(bool(r.get("correct"))),
+               "ms": float(r["ms"]) if r.get("ms") else None}
         conn.execute(
             "INSERT INTO hall_log (ts, day, pool_id, question_id, section, unit, "
             "who, license, correct, ms, mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (now, day, pool_id, question_id, section or "", str(r.get("unit")),
-             hall_who(key, r.get("unit"), r.get("name")),
-             license_of(r.get("license")), int(bool(r.get("correct"))),
-             float(r["ms"]) if r.get("ms") else None, str(mode or "hall")[:20]))
+             row["who"], row["license"], row["correct"], row["ms"],
+             str(mode or "hall")[:20]))
+        kept.append(row)
+    if kept:
+        ledger.hall_answers(pool_id, question_id, section, kept, str(mode or "hall")[:20])
 
 
 def seen_questions(conn, pool_id):
@@ -1005,6 +1013,13 @@ def log_answer(conn, pool_id, question_id, section, correct, chosen, ms, mode):
         (conn.user_id, utcnow().isoformat(), today(), pool_id, question_id,
          section, int(correct), chosen, ms, mode),
     )
+    # The question ledger (ledger.py) takes every answer too - except one
+    # given at a table, which the hall round has already written there under
+    # the net's tag, and would otherwise count twice.
+    if mode != "hall" and not str(mode).startswith("table:"):
+        from . import ledger
+        ledger.answered(conn, pool_id, question_id, section, correct, ms,
+                        "exam" if mode == "exam" else "study", mode)
 
 
 def _note_out(conn, body):

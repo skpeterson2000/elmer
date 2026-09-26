@@ -12,8 +12,8 @@ on that is disapproving of the mechanism. It also happens dozens of times an
 evening, which is how a character stops meaning anything by Thursday.
 
 What earns it: forgetting something you had learned, a limit somebody can
-exceed with a person standing in the field, and reading privileges above the
-ones you hold.
+exceed with a person standing in the field, reading privileges above the
+ones you hold, and answering out of the network tab (peeking.py).
 """
 import sys
 from pathlib import Path
@@ -48,13 +48,20 @@ print("\nan ordinary miss does not get it")
 # The guard is in the markup: lapseNote returns nothing unless res.lapsed.
 check("the note is behind a lapse test", "if (!res.lapsed) return ''" in STUDY,
       True)
-# The picture appears once, and inside the function that is guarded. An
-# earlier version of this test searched for the word "owl" and matched the
-# comment explaining why it is not used everywhere.
-check("the picture is used exactly once", STUDY.count("owl-mind.png"), 1)
-check("and that once is inside lapseNote",
-      "owl-mind.png" in STUDY.split("function lapseNote")[1]
-      .split("\nfunction ")[0], True)
+# The picture appears twice on the study page, each inside a function with a
+# guard of its own: lapseNote for a forgotten card, wireNote for an answer
+# read off the wire. An earlier version of this test searched for the word
+# "owl" and matched the comment explaining why it is not used everywhere.
+
+
+def body(name):
+    return STUDY.split("function " + name)[1].split("\nfunction ")[0]
+
+
+check("the picture is used exactly twice", STUDY.count("owl-mind.png"), 2)
+check("  once inside lapseNote", "owl-mind.png" in body("lapseNote"), True)
+check("  once inside wireNote", "owl-mind.png" in body("wireNote"), True)
+check("  and wireNote draws nothing without a peek", "if (!wire) return ''" in body("wireNote"), True)
 
 print("\nwhat counts as having learned something")
 check("a day, not ten minutes", srs.LEARNED_DAYS, 1.0)

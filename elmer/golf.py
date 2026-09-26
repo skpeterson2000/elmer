@@ -66,6 +66,7 @@ ball went, in yards and in words - the playback - and who is winning.
 """
 import json
 import logging
+import functools
 import math
 import random
 from pathlib import Path
@@ -196,7 +197,7 @@ LEAK_PUSH = 10
 # ground, which is why a golfer chips into it on purpose, to take the pace
 # off a ball that would otherwise run across the green. A ball that stops
 # on the collar can be putted - the putter through it - or chipped.
-FRINGE = 3
+FRINGE = 2                      # six feet: a collar, not a second green - it was three yards, and drawn true it swamped the putting surface
 FRINGE_DRAG = 0.12              # of a putt's roll, lost to the collar when the golfer did not allow for it
 # A ball does not stick where it lands. Carry, then roll: the club sets
 # how much life the ball has when it comes down - a driver's low, running
@@ -223,6 +224,132 @@ SLOPE_BREAK = 0.035             # feet of break per foot rolled, per percent of 
 PUTT_LINE = 4.0                 # degrees either side of the line a right answer's putt may start on
 DEFAULT_SLOPE = {"falls": "front", "grade": 1.5}
 FALLS = {"front": (-1.0, 0.0), "back": (1.0, 0.0), "left": (0.0, -1.0), "right": (0.0, 1.0)}
+
+# --- the green's surface, and a putt rolled across it -----------------------
+# A green is not one tilt. The card's fall is the green's general lie, and
+# on most greens there is one thing more: a tier, a step between a lower
+# green and an upper one, or a ridge running up the middle that sheds a
+# ball off either side. Which, where and how steep is drawn from the hole's
+# own number, so it is the same green every round - and a card can name its
+# own under "slope": {"features": [...]}. green_fall() is the ground's say
+# at a point, in percent of grade, pointing downhill; the drawing reads it
+# as a field of small arrows, and a metered putt is rolled across it a step
+# at a time, so what the golfer sees is what the ball does.
+#
+# In feet from the cup: x along the hole, past the cup positive; y across
+# it, right positive.
+TIER_GRADE = (2.0, 4.0)         # percent, at the face of a tier
+TIER_WIDTH = (3.0, 6.0)         # feet, the face's half-width
+RIDGE_GRADE = (1.5, 3.0)        # percent, on the flanks of a ridge
+RIDGE_WIDTH = (6.0, 12.0)       # feet from its crown to its steepest
+FEATURE_ODDS = (0.35, 0.35)     # a tier, a ridge; the rest are a plain tilt
+# The roll. The ball slows at a constant rate on the flat and the slope
+# pushes it downhill as it goes; ROLL_G is how hard, per percent of grade,
+# against a flat green's slowing. It is set so a putt across a steady
+# cross-slope breaks what SLOPE_BREAK always said it did - twice it, because
+# the rolling ball's friction works against the sideways speed the slope
+# gives it, which the one-line formula never had to - and straight up a
+# slope it comes up short by what SLOPE_PACE said.
+ROLL_G = 2 * SLOPE_BREAK
+ROLL_STEPS = 400
+# The putting meter. It is not the full swing's: its length is a range, the
+# first of these that holds the putt with room to spare, and the notch is
+# the pace that would stop the ball at the mark on a flat green. The slope
+# is the golfer's to read - uphill, past the notch; downhill, short of it.
+PUTT_RANGES = (10, 20, 40, 80)  # feet, a full stroke of the meter
+PUTT_ROOM = 1.3                 # the range holds the putt this many times over
+PUTT_MISREAD = ((0.5, 0.75), (1.3, 1.6))  # a wrong answer's pace: never up, or raced
+PUTT_WOBBLE = 8.0               # degrees off line, a wrong answer's putt
+PUTT_PREVIEW = 1 / 3            # of the roll the aiming preview shows
+
+
+def green_features(h):
+    """The tier or ridge on this green, if it has one - from the card, or
+    drawn from the hole's own number."""
+    s = h.get("slope") or {}
+    if "features" in s:
+        return list(s.get("features") or [])
+    rng = random.Random(int(h.get("n") or 0) * 7919 + int(h.get("yards") or 0) * 31 + int(h.get("par") or 0))
+    depth = float(h.get("green") or 28) * 3 / 2         # feet from the cup to the green's front and back
+    roll = rng.random()
+    if roll < FEATURE_ODDS[0]:
+        return [{"kind": "tier", "at": round(rng.uniform(-0.6, 0.6) * depth, 1),
+                 "grade": round(rng.uniform(*TIER_GRADE), 1), "width": round(rng.uniform(*TIER_WIDTH), 1),
+                 # which way the step goes: up toward the back, or down
+                 "up": "back" if rng.random() < 0.6 else "front"}]
+    if roll < FEATURE_ODDS[0] + FEATURE_ODDS[1]:
+        return [{"kind": "ridge", "across": round(rng.uniform(-0.5, 0.5) * GREEN_HALF * 3, 1),
+                 "grade": round(rng.uniform(*RIDGE_GRADE), 1), "width": round(rng.uniform(*RIDGE_WIDTH), 1)}]
+    return []
+
+
+def green_fall(h, slope, features, x, y):
+    """Downhill at this point of the green, as (along, across) in percent."""
+    fx, fy = FALLS[slope["falls"]]
+    gx, gy = fx * slope["grade"], fy * slope["grade"]
+    for f in features:
+        if f.get("kind") == "tier":
+            # the face of a step: steepest at its line, gone a few feet off
+            u = (x - float(f["at"])) / max(0.5, float(f["width"]))
+            face = float(f["grade"]) / math.cosh(u) ** 2
+            gx += -face if f.get("up", "back") == "back" else face
+        elif f.get("kind") == "ridge":
+            # a crown: a ball on either flank is shed away from it
+            u = (y - float(f["across"])) / max(0.5, float(f["width"]))
+            gy += float(f["grade"]) * u * math.exp(0.5 - u * u / 2)
+    return gx, gy
+
+
+def roll_putt(h, slope, features, bx, by, ux, uy, distance, capture=True):
+    """Roll a putt across the green: from (bx, by), on the line (ux, uy),
+    struck to stop `distance` feet on a flat green. Returns the path as
+    points, whether it dropped, and where it came to rest.
+
+    The ball slows at one unit a second on the flat, so a strike for d feet
+    leaves at sqrt(2d); each step the slope pushes it downhill by ROLL_G per
+    percent. It drops when it crosses the cup slowly enough to have run no
+    more than CUP_OVERRUN past it - unless `capture` is off, for a putt
+    that was never going to drop."""
+    speed = math.sqrt(2.0 * max(0.05, distance))
+    vx, vy = ux * speed, uy * speed
+    x, y = bx, by
+    dt = max(0.004, speed / ROLL_STEPS * 2)
+    catch = math.sqrt(2.0 * CUP_OVERRUN)
+    path = [(round(x, 2), round(y, 2))]
+    for _ in range(ROLL_STEPS * 3):
+        v = math.hypot(vx, vy)
+        if v < 0.02:
+            break
+        gx, gy = green_fall(h, slope, features, x, y)
+        ax = -vx / v + ROLL_G * gx
+        ay = -vy / v + ROLL_G * gy
+        nx, ny = x + vx * dt, y + vy * dt
+        # over the cup: the nearest point of this step to it
+        sx, sy = nx - x, ny - y
+        seg = sx * sx + sy * sy
+        t = max(0.0, min(1.0, (-x * sx - y * sy) / seg)) if seg else 0.0
+        if capture and math.hypot(x + t * sx, y + t * sy) <= CUP_CAPTURE and v <= catch:
+            path.append((0.0, 0.0))
+            return {"path": path, "holed": True, "rest": (0.0, 0.0)}
+        x, y = nx, ny
+        nvx, nvy = vx + ax * dt, vy + ay * dt
+        # friction stops a ball; it does not turn it round
+        if nvx * vx + nvy * vy < 0 and math.hypot(nvx, nvy) < 1.0 * dt * 2:
+            vx = vy = 0.0
+        else:
+            vx, vy = nvx, nvy
+        if len(path) < 400 and (abs(x - path[-1][0]) + abs(y - path[-1][1])) > 0.4:
+            path.append((round(x, 2), round(y, 2)))
+    path.append((round(x, 2), round(y, 2)))
+    return {"path": path, "holed": False, "rest": (x, y)}
+
+
+def putt_range(feet):
+    """The meter's length for a putt of this many feet."""
+    for r in PUTT_RANGES:
+        if r >= feet * PUTT_ROOM:
+            return r
+    return PUTT_RANGES[-1]
 # The ground's say. A ball lands with the speed it was hit at, and the roll
 # is that speed on that surface on that day: a full driver on a running
 # fairway goes forty yards more; a three-quarter iron into a soft green
@@ -368,6 +495,77 @@ SLOPE_DRIFT = 0.15              # of the roll, per percent of grade, across
 WEDGE_CHECK = 0.2
 SPIN_ODDS = {"pitching-wedge": 0.5, "sand-wedge": 0.5, "9-iron": 0.3, "8-iron": 0.2, "7-iron": 0.15}
 SPIN_BACK = {"pitching-wedge": (1, 4), "sand-wedge": (1, 4), "9-iron": (0, 2), "8-iron": (0, 2), "7-iron": (0, 2)}
+
+# --- the golfer's own hand in the shot --------------------------------------
+# Luck is what a golfer tries to take out of the game, not what the game is.
+# So a person sets the shot up - its shape and its spin - before the
+# question, and after choosing an answer swings at a meter: the strength of
+# the swing is where they stop it. The answer still decides the shot. A
+# right answer does what the golfer set up; a wrong one does it too much -
+# the fade they asked for becomes a slice, the spin balloons it short - so
+# the miss comes out of the shot they chose, and choosing is how a golfer
+# picks their miss. The practice players send none of this and play the
+# shot the way they always have.
+#
+# The meter. It bounces from nothing to a full swing and back; the golfer
+# stops it. Where the mark wants it is shown as a notch - meter_need - and a
+# stop inside the sweet zone either side of the notch is dead on. Outside
+# it the ball goes that much further or shorter. The scatter a fair ball
+# used to get from the club's spread is mostly the meter's now, and only
+# METER_SCATTER of it is left to the ground.
+METER_SWEET = 0.03             # of a full swing, either side of the notch
+METER_SWEET_ADEPT = 0.08       # a hard question answered right is a wider window
+# The strike is graded, not a window with a wall round it. A stop inside
+# METER_PURE of the notch is dead on; out to the edge of the sweet zone a
+# miss counts for half; past it, in full. So every thousandth of the meter
+# is a distinction - the next decimal place, as KC9SP put it - and a stop
+# two hundredths off is not the same strike as one a hair off.
+METER_PURE = 0.008
+METER_PURE_ADEPT = 0.02
+METER_HALF = 0.5               # how much of a miss counts inside the sweet zone
+
+
+def strike_error(meter, need, adept=False, lucky=False):
+    """How far off the swing counts as, after the sweet zone's forgiveness.
+    Positive is past the notch."""
+    pure = (METER_PURE_ADEPT if adept else METER_PURE) * (1.5 if lucky else 1.0)
+    sweet = (METER_SWEET_ADEPT if adept else METER_SWEET) * (1.5 if lucky else 1.0)
+    e = meter - need
+    a = abs(e)
+    if a <= pure:
+        return 0.0
+    if a <= sweet:
+        return math.copysign((a - pure) * METER_HALF, e)
+    return math.copysign((sweet - pure) * METER_HALF + (a - sweet), e)
+
+
+def strike_words(meter, need, adept=False):
+    """The strike, said: pure, or how far off the notch and which way."""
+    e = meter - need
+    pure = METER_PURE_ADEPT if adept else METER_PURE
+    if abs(e) <= pure:
+        return "pure"
+    how = "a hair" if abs(e) <= METER_SWEET else "well" if abs(e) > 0.1 else ""
+    return (how + " " if how else "") + ("past the notch" if e > 0 else "short of the notch")
+METER_SCATTER = 0.35           # of the club's spread, left in a metered shot
+# Shape: -1 is all the draw a golfer can put on it, curving left; +1 all the
+# fade, curving right (a right-hander's shapes). A shaped shot still lands at
+# the mark - the curve is the path to it - but a draw comes in hot and runs,
+# a fade lands soft and sits, and shaped against a crosswind it holds its
+# line while shaped with one it rides it. A leak goes the way it was shaped.
+SHAPE_ROLL = 0.25              # of the roll, more for a draw, less for a fade
+SHAPE_WIND = 0.6               # of the drift, held or added
+SHAPE_FOUL = 1.5               # how much likelier the trouble on the shaped side
+SHAPE_WORDS = 0.3              # a shape this strong is said out loud
+# Spin: 0 is none, 1 all the club has - and a club has as much as its loft
+# gives it, the sand wedge all of it and the driver next to nothing. It checks
+# the roll on any surface; past SPIN_BACK_FROM on a green it draws the ball
+# back. Too much on a wrong answer and it balloons, and comes down short.
+SPIN_CAP = {c: round(SPIN_RATE[c] / SPIN_RATE["sand-wedge"], 3) for c in SPIN_RATE}
+SPIN_CHECK_MOST = 0.7          # of the roll, taken off by all the spin there is
+SPIN_BACK_FROM = 0.6           # of the club's spin, before it comes back
+SPIN_BACK_MOST = 4             # yards, the most a ball is drawn back
+SPIN_BALLOON = 15              # yards short a wrong answer with all the spin aims
 # The bounce that kicks: ground is not flat, and one landing in eight goes
 # sideways a few yards off what it hit.
 KICK_ODDS = 0.12
@@ -641,6 +839,174 @@ def wind_drift(hour, mph, club=None, carry=None, most=None, flair=None):
         return 0.0
     seconds = flight_seconds(club, carry, most, flair) if club else FLIGHT_SECONDS["driver"]
     return -WIND_DRIFT_PER_SECOND * float(mph or 0) * cross * seconds
+# --- the ball in the air ----------------------------------------------------
+# The wind used to be a correction on a table: so many yards a mile an hour,
+# a fixed sideways drift a second. It was about a third of what the wind
+# does to a real ball - a caddie's rule is a percent of carry lost for each
+# mile an hour in the face and half that gained with it behind - and it had
+# nothing to say about spin, which is most of why a wedge balloons into a
+# breeze and a stinger bores through it.
+#
+# So the ball is flown. A point mass with the drag a dimpled ball has and
+# the lift its backspin gives it (the Magnus force), launched at each club's
+# angle with each club's spin - tour averages, from launch-monitor data - and
+# flown a step at a time through the air as it moves, wind and all. Drag
+# goes with the square of the speed through the air, not over the ground,
+# which is why a headwind costs more than a tailwind gives without anybody
+# having to say so. Backspin holds the ball up, so a high-spinning shot hangs
+# and the wind has longer with it; into a breeze it climbs and drops short.
+# The shape tilts the spin axis and the ball curves in the air.
+#
+# The table is still the truth on a calm day. Each club's launch speed is
+# solved so that its calm carry is the bag's carry, exactly, for whatever
+# spin and shape the golfer set up; what the model adds is only what the
+# air does differently from calm. It is flown in metres and handed back in
+# yards.
+AIR_DENSITY = 1.225             # kg per cubic metre, sea level
+BALL_MASS = 0.04593             # kg
+BALL_RADIUS = 0.021335          # m
+BALL_DRAG = 0.21                # drag coefficient of a dimpled ball with no spin
+SPIN_DRAG = 0.30                # and how much more per unit of spin ratio: spin costs speed
+LIFT_MOST = 0.42                # the lift coefficient a ball approaches as its spin ratio grows
+LIFT_RISE = 3.0                 # how quickly: 1 - exp(-rise * r.omega / v)
+# The wind is measured near the ground and a ball peaks thirty metres up,
+# where it blows harder. The usual power law, from the ten-metre wind the
+# forecast gives, held to a sensible range near the ground and aloft.
+WIND_SHEAR = 0.15
+WIND_REF_M = 10.0
+SPIN_DECAY_S = 22.0             # seconds for the spin to fall to a third or so
+SHAPE_TILT = 16.0               # degrees the spin axis tilts at a full draw or fade
+GRAVITY = 9.81
+MPH = 0.44704                   # metres a second
+YARD = 0.9144                   # metres
+FLIGHT_DT = 0.02                # seconds a step
+# Launch angle and backspin by club, from tour launch-monitor averages; the
+# sand wedge, which those tables stop short of, extended the way they run.
+LAUNCH = {"driver": (10.9, 2686), "3-wood": (9.2, 3655), "5-wood": (9.4, 4350),
+          "4-iron": (11.0, 4836), "5-iron": (12.1, 5361), "6-iron": (14.1, 6231),
+          "7-iron": (16.3, 7097), "8-iron": (18.1, 7998), "9-iron": (20.4, 8647),
+          "pitching-wedge": (24.2, 9304), "sand-wedge": (28.0, 9800)}
+# The golfer's spin, 0..1, as a multiple of the club's own: none at all
+# still spins a ball; all of it is a quarter more than a stock swing.
+SPIN_FLIGHT = (0.75, 1.25)
+
+
+def _fly(v0, launch_deg, rpm, wind_x=0.0, wind_y=0.0, tilt_deg=0.0):
+    """Fly one ball. x is down the line, y to the right, z up, in metres.
+    Returns (carry_m, lateral_m, hang_s, descent_deg)."""
+    k = 0.5 * AIR_DENSITY * math.pi * BALL_RADIUS ** 2 / BALL_MASS
+    a = math.radians(launch_deg)
+    vx, vy, vz = v0 * math.cos(a), 0.0, v0 * math.sin(a)
+    x = y = z = t = 0.0
+    omega = rpm * 2 * math.pi / 60.0
+    # The spin axis: backspin with the top of the ball coming back at the
+    # golfer, tilted about the line of flight for a draw (left) or fade.
+    tilt = math.radians(tilt_deg)
+    wx_, wy_, wz_ = 0.0, -math.cos(tilt), math.sin(tilt)
+    decay = math.exp(-FLIGHT_DT / SPIN_DECAY_S)
+    for _ in range(4000):
+        aloft = max(0.55, min(1.35, (max(z, 1.0) / WIND_REF_M) ** WIND_SHEAR))
+        rx, ry, rz = vx - wind_x * aloft, vy - wind_y * aloft, vz
+        speed = math.sqrt(rx * rx + ry * ry + rz * rz) or 1e-6
+        ratio = BALL_RADIUS * omega / speed
+        lift = LIFT_MOST * (1 - math.exp(-LIFT_RISE * ratio))
+        drag = BALL_DRAG + SPIN_DRAG * ratio
+        # Magnus: along (axis x air velocity), as big as the lift coefficient says
+        cx_, cy_, cz_ = wy_ * rz - wz_ * ry, wz_ * rx - wx_ * rz, wx_ * ry - wy_ * rx
+        cn = math.sqrt(cx_ * cx_ + cy_ * cy_ + cz_ * cz_) or 1e-6
+        f = k * speed * speed
+        ax = -f * drag * rx / speed + f * lift * cx_ / cn
+        ay = -f * drag * ry / speed + f * lift * cy_ / cn
+        az = -f * drag * rz / speed + f * lift * cz_ / cn - GRAVITY
+        vx, vy, vz = vx + ax * FLIGHT_DT, vy + ay * FLIGHT_DT, vz + az * FLIGHT_DT
+        nx, ny, nz = x + vx * FLIGHT_DT, y + vy * FLIGHT_DT, z + vz * FLIGHT_DT
+        t += FLIGHT_DT
+        omega *= decay
+        if nz < 0 and vz < 0:
+            s = z / (z - nz) if z != nz else 1.0            # where between the steps it landed
+            descent = math.degrees(math.atan2(-vz, math.hypot(vx, vy)))
+            return x + (nx - x) * s, y + (ny - y) * s, t - FLIGHT_DT * (1 - s), descent
+        x, y, z = nx, ny, nz
+    return x, y, t, 45.0
+
+
+def _spin_mult(spin):
+    return 1.0 if spin is None else SPIN_FLIGHT[0] + (SPIN_FLIGHT[1] - SPIN_FLIGHT[0]) * spin
+
+
+@functools.lru_cache(maxsize=512)
+def _launch_speed(club, spin_q, shape_q):
+    """The launch speed that carries this club its table length on a calm
+    day, with this spin and shape. Solved once and kept."""
+    angle, rpm = LAUNCH.get(club, LAUNCH["7-iron"])
+    rpm *= _spin_mult(spin_q)
+    want = CLUBS.get(club, 150) * YARD
+    lo, hi = 5.0, 120.0
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if _fly(mid, angle, rpm, tilt_deg=SHAPE_TILT * shape_q)[0] < want:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+@functools.lru_cache(maxsize=8192)
+def _flight(club, frac_q, hour, mph_q, spin_q, shape_q):
+    angle, rpm = LAUNCH.get(club, LAUNCH["7-iron"])
+    v0 = _launch_speed(club, spin_q, shape_q) * frac_q
+    tail, cross = wind_parts(hour)
+    # cross is positive with the wind off the right, which pushes the ball left
+    wind_x, wind_y = tail * mph_q * MPH, -cross * mph_q * MPH
+    carry, lateral, hang, descent = _fly(v0, angle, rpm * _spin_mult(spin_q) * frac_q,
+                                         wind_x, wind_y, SHAPE_TILT * shape_q)
+    return carry / YARD, lateral / YARD, hang, descent
+
+
+def flight(club, frac=1.0, hour=None, mph=0.0, spin=None, shape=0.0):
+    """How this club flies at this much of a full swing, in this wind, with
+    this spin and shape: {"carry", "lateral", "hang", "descent"}, in yards,
+    seconds and degrees. Rounded on the way in so the answers can be kept."""
+    frac = max(0.05, min(1.2, float(frac)))
+    c, l, t, d = _flight(club, round(frac, 3), hour, round(float(mph or 0), 1),
+                         None if spin is None else round(float(spin), 2), round(float(shape or 0), 2))
+    return {"carry": c, "lateral": l, "hang": t, "descent": d}
+
+
+def wind_on_carry(club, frac, hour, mph, spin=None, shape=0.0):
+    """Yards the wind adds to (or takes off) this shot's carry, against calm."""
+    if hour is None or not mph:
+        return 0.0
+    return (flight(club, frac, hour, mph, spin, shape)["carry"]
+            - flight(club, frac, None, 0.0, spin, shape)["carry"])
+
+
+def wind_across(club, frac, hour, mph, spin=None, shape=0.0):
+    """Yards the wind moves this shot sideways, against calm - where a
+    shaped shot's own curve, which the golfer aims for, is not the wind's."""
+    if hour is None or not mph:
+        return 0.0
+    return (flight(club, frac, hour, mph, spin, shape)["lateral"]
+            - flight(club, frac, None, 0.0, spin, shape)["lateral"])
+
+
+def swing_for(club, carry_yards, hour=None, mph=0.0, spin=None, shape=0.0):
+    """How much of a full swing of this club carries this far in this wind:
+    the meter's notch. More than 1.0 means it does not get there."""
+    if carry_yards <= 0:
+        return 0.05
+    if flight(club, 1.0, hour, mph, spin, shape)["carry"] < carry_yards:
+        return 1.0 + 1e-3
+    lo, hi = 0.05, 1.0
+    for _ in range(18):
+        mid = (lo + hi) / 2
+        if flight(club, mid, hour, mph, spin, shape)["carry"] < carry_yards:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 # Where a hole ends: picked up at par plus this many.
 PICK_UP_OVER = 3
 # A foul ball finds the trouble nearest where it was aimed, most of the
@@ -709,6 +1075,19 @@ CALLS = {
 LIE_HARDNESS = {"tee": 0.25, "fairway": 0.35, "green": 0.5, "fringe": 0.5, "rough": 0.7, "sand": 0.85}
 NAMES = {-3: "albatross", -2: "eagle", -1: "birdie", 0: "par", 1: "bogey",
          2: "double bogey", 3: "triple bogey"}
+
+
+def _unit(value, lo, hi):
+    """A number from the page, held to its range; None when there is none."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    if v != v:                       # NaN
+        return None
+    return max(lo, min(hi, v))
 
 
 def courses():
@@ -878,6 +1257,17 @@ class Ball:
 
 class Golf:
 
+    # The golfer's hand in the stroke being played - see "the golfer's own
+    # hand in the shot". Set by _stroke from the answer; these are what a
+    # stroke with none of it plays with, which is the shot as it always was.
+    _meter = None          # where the meter was stopped, 0..1 of a full swing
+    _shape = 0.0           # -1 all draw .. +1 all fade
+    _spin = None           # 0..1 of the club's spin; None leaves it to the dice
+    _meter_off = None      # how far outside the sweet zone the stop was
+    _frac = None           # how much of a full swing the stroke's carry was flown at
+    _meter_need = None     # where the notch was, for the stroke being played
+    _strike = None         # the strike in words: pure, or how far off and which way
+
     def __init__(self, players, course, holes=None, handicaps=None, seed=None, seconds=30.0, forecast=None):
         """`players` in seating order; `course` a course dict; `holes` the
         hole numbers to play (default the front nine); `handicaps` strokes
@@ -895,6 +1285,7 @@ class Golf:
         self.hole_index = 0
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
+        self.setup = {}                # player -> {"shape", "spin"}: the shot they set up - see set_setup
         self.before = {}                 # player -> the ball before their last stroke, for a mulligan
         # Luck, earned: a player who answered along with somebody else's
         # stroke and got it right has a little on their side for their next
@@ -1121,7 +1512,23 @@ class Golf:
         wind, not a gust, since this is what a golfer reckons at address."""
         h = self.hole()
         hour = self.wind_clock(h) if h else None
-        return self.reach(player, club, lie) + wind_carry(hour) * float(self.wind_mph or 0)
+        most = self.reach(player, club, lie)
+        spin, shape = self._hand(player)
+        return most + wind_on_carry(club, 1.0, hour, float(self.wind_mph or 0), spin, shape) * most / CLUBS[club]
+
+    def set_setup(self, player, shape=0.0, spin=None):
+        """The shot this golfer has set up, as the room holds it: the notch
+        and the reading are worked out with it, before the stroke."""
+        self.setup[player] = {"shape": float(shape or 0.0), "spin": None if spin is None else float(spin)}
+
+    def _hand(self, player):
+        """(spin, shape) for this golfer's shot: the stroke's own while it is
+        being played, otherwise what they have set up. Nothing set up is a
+        stock shot."""
+        if player == self._who and self._meter is not None:
+            return self._spin, self._shape
+        s = self.setup.get(player) or {}
+        return s.get("spin"), s.get("shape") or 0.0
 
     def club_for(self, player, yards):
         """The club for these yards: the shortest this lie allows that gets
@@ -1220,6 +1627,10 @@ class Golf:
         else:
             says = f"{yards} to the mark - the {held}; {after}"
         return {"club": club, "yards": yards, "plays": plays, "reaches": reaches, "short": max(0, yards - plays),
+                # where the meter's notch sits, and how wide its sweet zone
+                "need": self.meter_need(player, club), "sweet": METER_SWEET,
+                # how much spin this club can put on it at all
+                "spin_cap": SPIN_CAP.get(club, 0.0),
                 "suggest": suggest, "over": max(0, over), "chip": chip, "soft": soft, "widen": round(widen, 2),
                 "runs": runs, "long": round(spread, 1), "wide": round(spread * 0.6, 1),
                 "comes_down": comes_down, "says": says}
@@ -1303,18 +1714,76 @@ class Golf:
         ball cannot be carried by one wind and blown sideways by another.
         """
         most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-        wind_yards = wind_carry(hour) * (self.day.gust() if mph is None else mph)
+        scale = most / CLUBS[club]
+        gust = self.day.gust() if mph is None else mph
+        steady = float(self.wind_mph or 0)
+        spin, shape = self._hand(self._who)
         spread = CLUB_SPREAD.get(club, AIM) * (0.5 if getattr(self, "_lucky", False) else 1.0)
-        if most + wind_yards >= abs(left):
+        need = swing_for(club, abs(left) / scale, hour, steady, spin, shape)
+        if need <= 1.0:
             # Aimed - at the pin, from either side of it, within the club's
             # spread, and wider for a club too many - see OVERCLUB_SPREAD.
+            # Swung for the steady wind the golfer saw; flown in this gust.
             spread = self.spread_for(self._who, club, abs(left)) * (0.5 if getattr(self, "_lucky", False) else 1.0)
-            return round(left + self.swing.uniform(-spread, spread) + wind_yards * 0.25)
-        # A full swing: the club's length, give or take its spread, in the
-        # direction the shot is played - back toward the pin, for a ball
-        # that finished behind the green.
+            self._frac = need
+            flown = scale * flight(club, need, hour, gust, spin, shape)["carry"]
+            return (-1 if left < 0 else 1) * round(flown + self.swing.uniform(-spread, spread))
+        # A full swing: the club's length in this wind, give or take its
+        # spread, in the direction the shot is played - back toward the pin,
+        # for a ball that finished behind the green.
+        self._frac = 1.0
         way = -1 if left < 0 else 1
-        return way * max(10, round(most + wind_yards + self.swing.uniform(-spread, spread)))
+        flown = scale * flight(club, 1.0, hour, gust, spin, shape)["carry"]
+        return way * max(10, round(flown + self.swing.uniform(-spread, spread)))
+
+    def meter_need(self, player, club=None):
+        """Where the notch sits on the meter: how much of a full swing of
+        this club reaches the golfer's mark in today's steady wind. 1.0 when
+        the club cannot reach - the notch is at the top, and a full swing is
+        the whole of what it has. None on the green, where it is a putt.
+
+        The same sum the stroke makes, so the notch the page draws and the
+        swing the server scores cannot disagree: a mark left on the pin is
+        landed short by the run the club is expected to have (see _fair).
+        """
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie == "green":
+            return None
+        club = club or self.default_club(player)
+        if not club or club == "putter":
+            return None
+        mark = self.aim(player)
+        to_mark = float(mark["at"]) - ball.at
+        most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(player, 1.0)
+        hour = self.wind_clock(h)
+        if not mark.get("set") and most >= to_mark:
+            to_mark -= int(round(self.expected_roll(club, "green", hour, to_mark, most) * 0.8))
+        spin, shape = self._hand(player)
+        need = swing_for(club, abs(to_mark) / (most / CLUBS[club]), hour, float(self.wind_mph or 0), spin, shape)
+        return round(max(0.05, min(1.0, need)), 4)   # to the decimal place the stroke is scored at
+
+    def _metered_carry(self, ball, club, hour, to_mark, mph, adept, lie=None):
+        """How far a swing at the meter goes: where it was stopped, against
+        the notch. Dead on inside the sweet zone; past it, the ball goes that
+        much further or shorter. The notch is reckoned in the steady wind the
+        golfer saw; the ball flies in this stroke's gust."""
+        most = CLUBS[club] * LIES[lie or ball.lie][0] * self.power.get(self._who, 1.0)
+        scale = most / CLUBS[club]
+        gust = self.day.gust() if mph is None else mph
+        spin, shape = self._spin, self._shape
+        need = max(0.05, min(1.0, swing_for(club, abs(to_mark) / scale, hour, float(self.wind_mph or 0), spin, shape)))
+        lucky = getattr(self, "_lucky", False)
+        err = strike_error(self._meter, need, adept, lucky)
+        self._meter_off = round(err, 3)
+        self._meter_need, self._strike = round(need, 4), strike_words(self._meter, need, adept)
+        log.debug("golf: %s swung %.3f at a notch of %.3f (%+.3f outside the sweet zone), %s",
+                  self._who, self._meter, need, err, club)
+        scatter =self.spread_for(self._who, club, abs(to_mark)) * METER_SCATTER * (0.5 if lucky else 1.0)
+        way = -1 if to_mark < 0 else 1
+        self._frac = max(0.05, need + err)
+        flown = scale * flight(club, self._frac, hour, gust, spin, shape)["carry"]
+        return way * max(5, round(flown + self.swing.uniform(-scatter, scatter)))
 
     def _in_band(self, h, at, off=None, kinds=("water", "bunker", "rough")):
         """The hazard a ball at these yards is in, if any, of these kinds.
@@ -1389,7 +1858,17 @@ class Golf:
                 flair = "stinger"             # the wind does not cost: punched under it
             elif ball.strokes == 0:
                 flair = "launched"            # off the tee: a little more of everything
-        if flair == "worked":
+        if self._meter is not None:
+            # The golfer swung at the meter: the stop is the strength. A hard
+            # question answered right widens the sweet zone rather than
+            # swinging for them - "pure" and "launched" were the game
+            # deciding a strike the golfer now makes. Worked out of a bad lie
+            # and punched under the wind are still an adept golfer's shots.
+            if flair == "launched":
+                flair = None
+            carry = self._metered_carry(ball, club, None if flair == "stinger" else hour, to_mark, mph,
+                                        adept, lie="fairway" if flair == "worked" else None)
+        elif flair == "worked":
             lie_was = ball.lie
             ball.lie = "fairway"
             carry = self._carry(ball, club, hour, to_mark, mph)
@@ -1400,7 +1879,7 @@ class Golf:
             carry = round(self._carry(ball, club, hour, to_mark, mph) * 1.12)
         elif adept and self.reach(self._who, club) >= to_mark:
             flair = "pure"                    # the club reaches: stiff, all over the mark
-            carry = round(to_mark + self.rng.uniform(-4, 4))
+            carry = round(to_mark + self.swing.uniform(-4, 4))   # the swing's own luck, like every other strike
         elif adept:
             flair = "launched"                # a full swing with everything in it
             carry = round(self._carry(ball, club, hour, to_mark, mph) * 1.12)
@@ -1414,7 +1893,10 @@ class Golf:
         off = mark["off"] + (self.swing.uniform(-4, 4) if flair == "pure" else self.swing.uniform(-spread, spread))
         leaked = None
         if not adept and not lucky and self.swing.random() < CLUB_LEAK.get(club, 0.0) * self.wild.get(self._who, 1.0):
-            leaked = "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
+            # A shaped shot leaks the way it was shaped: that is the miss the
+            # golfer chose.
+            leaked = ("left" if self._shape < 0 else "right") if self._shape else \
+                "left" if (off < 0 if off else self.swing.random() < 0.5) else "right"
             off += -LEAK_PUSH if leaked == "left" else LEAK_PUSH
             if abs(off) <= fairway_half(h):           # a leak goes off the fairway, by definition
                 off = (-1 if leaked == "left" else 1) * (fairway_half(h) + 3)
@@ -1425,7 +1907,15 @@ class Golf:
         # ten o'clock is mostly in your face and still moves the ball.
         if hour is not None and mph:
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
-            off += wind_drift(hour, mph, club, carry, most, flair)
+            # Flown, not reckoned: how far this ball, with this spin and this
+            # shape, at this much of a swing, is moved across the line by
+            # this gust. A stinger is punched under it and down early.
+            spin, shape = self._hand(self._who)
+            frac = self._frac if self._frac is not None else min(1.0, abs(carry) / max(1.0, most))
+            drift = wind_across(club, frac, hour, mph, spin, shape)
+            if flair == "stinger":
+                drift *= STINGER_HANG
+            off += drift
         off = int(round(max(-OFF_MOST, min(OFF_MOST, off))))
         from_the_tee = ball.strokes == 0
         ball.strokes += 1
@@ -1445,6 +1935,13 @@ class Golf:
             most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
             roll = self.expected_roll(club, came_down, hour, abs(carry), most, flair) * (
                 self.swing.uniform(1.0, ROLL_NOISE[1]) if lucky and came_down != "green" else self.swing.uniform(*ROLL_NOISE))
+            # A draw comes in hot and runs; a fade lands soft and sits. And
+            # the spin the golfer put on it checks it, as much as the club's
+            # loft lets it.
+            roll *= 1 - SHAPE_ROLL * self._shape
+            spin = None if self._spin is None else self._spin * SPIN_CAP.get(club, 0.0)
+            if spin:
+                roll *= 1 - SPIN_CHECK_MOST * spin
             if came_down == "green":
                 # The green's fall: toward the player checks the ball, away
                 # releases it, across nudges the roll toward the fall.
@@ -1455,7 +1952,13 @@ class Golf:
                     roll *= 1 + SLOPE_RELEASE * s["grade"]
                 else:
                     off += (-1 if s["falls"] == "left" else 1) * SLOPE_DRIFT * s["grade"] * roll
-                if club in SPIN_ODDS and self.swing.random() < SPIN_ODDS[club]:
+                if spin is not None:
+                    # The golfer's spin, not the dice: enough of it, on a
+                    # club with the loft to carry it, draws the ball back.
+                    if spin > SPIN_BACK_FROM:
+                        back = SPIN_BACK_MOST * (spin - SPIN_BACK_FROM) / (1 - SPIN_BACK_FROM)
+                        roll, spun = -back * self.swing.uniform(0.8, 1.2), True
+                elif club in SPIN_ODDS and self.swing.random() < SPIN_ODDS[club]:
                     lo, hi = SPIN_BACK[club]
                     roll, spun = -self.swing.uniform(lo, hi), True
             elif came_down in ("fairway", "rough") and not lucky and self.swing.random() < KICK_ODDS:
@@ -1507,6 +2010,8 @@ class Golf:
                else ", the fringe checked it" if (came_down == "fringe" and roll < 1) else "")
         if kicked:
             ran = f", kicked {kicked}" + ran
+        if abs(self._shape) >= SHAPE_WORDS:
+            ran = (", drawn in" if self._shape < 0 else ", faded in") + ran
         wide = f" {side}" if side else ""
         # A ball that arrives at water flat and fast skips off it, the way
         # a stone does. Never offered and never aimable - see SKIP_ANGLE -
@@ -1632,6 +2137,86 @@ class Golf:
         (short negative, past positive) and across (left negative)."""
         return (ball.at - h["yards"]) * 3.0, ball.off * 3.0
 
+    def _putt_line(self, h, ball, player):
+        """A putt's line and length to the golfer's mark, in feet: (bx, by)
+        where the ball is, (ux, uy) the way to the mark, and how far. The
+        mark left on the pin is the cup."""
+        bx, by = self.feet_from_cup(ball, h)
+        mark = self.aim(player) or {"at": h["yards"], "off": 0}
+        vx, vy = (float(mark["at"]) - h["yards"]) * 3.0 - bx, float(mark["off"]) * 3.0 - by
+        length = math.hypot(vx, vy)
+        if length < 0.5:
+            vx, vy, length = -bx, -by, max(math.hypot(bx, by), 0.5)
+        return bx, by, vx / length, vy / length, length
+
+    def putt_meter(self, player, club=None):
+        """The putting meter for this golfer, or None when it is not a putt:
+        the ball on the green or its collar with the putter in hand, and
+        more than a tap-in. The notch is flat pace to the mark, as a share
+        of the meter's range; the slope is the golfer's to read."""
+        h = self.hole()
+        ball = self.balls.get(player)
+        if h is None or ball is None or ball.done() or ball.lie not in ("green", "fringe"):
+            return None
+        if (club or self.default_club(player)) != "putter":
+            return None
+        bx, by = self.feet_from_cup(ball, h)
+        if math.hypot(bx, by) < 1.5:
+            return None
+        _, _, _, _, length = self._putt_line(h, ball, player)
+        full = putt_range(length)
+        return {"need": round(min(1.0, length / full), 4), "sweet": METER_SWEET,
+                "range": full, "feet": int(round(length)), "putt": True}
+
+    def putt_preview(self, player, club=None):
+        """The first part of the putt's roll, struck at the notch - where it
+        starts to bend, and which way. Points in feet from the cup; None when
+        it is not a putt. Only a part: how far it bends is the read."""
+        if self.putt_meter(player, club) is None:
+            return None
+        h = self.hole()
+        bx, by, ux, uy, length = self._putt_line(h, self.balls[player], player)
+        rolled = roll_putt(h, self.slope(h), green_features(h), bx, by, ux, uy, length)
+        path, out, walked = rolled["path"], [], 0.0
+        total = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(path, path[1:])) or 1.0
+        for a, b in zip(path, path[1:]):
+            out.append(a)
+            walked += math.hypot(b[0] - a[0], b[1] - a[1])
+            if walked >= total * PUTT_PREVIEW:
+                out.append(b)
+                break
+        return out
+
+    def _metered_putt(self, h, ball, right, adept, bx, by, ux, uy, length, slope):
+        """A putt stroked at the meter: the stop against the notch is the
+        pace, and the ball is rolled across the green a step at a time.
+        Right, and it goes on the line with the pace the golfer gave it; the
+        read is theirs. Wrong, and it is misread - never up, or raced past -
+        and off line, and it does not drop. Returns (rx, ry, holed, rolled)."""
+        full = putt_range(length)
+        need = min(1.0, length / full)
+        err = strike_error(self._meter, need, adept)
+        self._meter_off = round(err, 3)
+        self._meter_need, self._strike = round(need, 4), strike_words(self._meter, need, adept)
+        strike = max(0.3, (need + err) * full)
+        if right:
+            line = PUTT_LINE * (0.25 if adept else 0.5)
+        else:
+            raced = err > 0 or (err == 0 and self.swing.random() < 0.5)
+            strike *= self.swing.uniform(*PUTT_MISREAD[1 if raced else 0])
+            line = PUTT_WOBBLE
+        ang = math.radians(self.swing.uniform(-line, line))
+        ux, uy = ux * math.cos(ang) - uy * math.sin(ang), ux * math.sin(ang) + uy * math.cos(ang)
+        if ball.lie == "fringe":
+            strike *= 1 - FRINGE_DRAG            # the collar takes some of it
+        rolled = roll_putt(h, slope, green_features(h), bx, by, ux, uy, strike, capture=right)
+        rx, ry = rolled["rest"]
+        log.debug("golf: putt of %.1f ft struck for %.1f (meter %.3f, notch %.3f) - %s",
+                  length, strike, self._meter, need, "holed" if rolled["holed"] else f"rests {rx:.1f},{ry:.1f}")
+        # How far it actually went along its line - what the words say "short"
+        # and "past" by. The pace it was struck at is not that on a slope.
+        return rx, ry, rolled["holed"], (rx - bx) * ux + (ry - by) * uy
+
     def _putt(self, h, ball, right, adept=False):
         """The putt. Everyone wants the cup, and the green decides."""
         ball.strokes += 1
@@ -1653,47 +2238,53 @@ class Golf:
             vx, vy, length = -bx, -by, max(have, 0.5)     # a mark on the ball: at the cup, then
         ux, uy = vx / length, vy / length
         from_fringe = ball.lie == "fringe"
-        if right:
-            pace = PUTT_PACE[0] + length / PUTT_PACE[1]
-            line = PUTT_LINE
-            if adept:
-                pace, line = pace * 0.5, line * 0.5
-            rolled = length * (1 + self.swing.uniform(-pace, pace))
-            # and the line: a degree or two either side of where it was meant
-            import math as _m
-            ang = _m.radians(self.swing.uniform(-line, line))
-            ux, uy = ux * _m.cos(ang) - uy * _m.sin(ang), ux * _m.sin(ang) + uy * _m.cos(ang)
-        elif self.swing.random() < 0.5:
-            rolled = length * self.swing.uniform(0.45, 0.72)          # never up
+        if self._meter is not None:
+            # Stroked at the meter, and rolled across the green as it is -
+            # its tilt, and any tier or ridge on it. See roll_putt.
+            rx, ry, holed, rolled = self._metered_putt(h, ball, right, adept, bx, by, ux, uy, length, s)
+            along_fall = ux * fx + uy * fy
         else:
-            rolled = length * self.swing.uniform(1.25, 1.6)           # raced it
-        # The slope: pace on the up-and-down, break across. A golfer who set
-        # no mark is taken to have allowed for the pace, as anyone who has
-        # putted uphill does; one who set a mark gets the green as it is.
-        along_fall = ux * fx + uy * fy
-        if mark.get("set"):
-            rolled *= 1 + SLOPE_PACE * grade * along_fall
-            if from_fringe:
-                rolled *= 1 - FRINGE_DRAG            # the collar takes some of it
-        px, py = fx - along_fall * ux, fy - along_fall * uy         # the fall across the line
-        brk = SLOPE_BREAK * grade * rolled
-        rx, ry = bx + ux * rolled + px * brk, by + uy * rolled + py * brk
-        if not right:
-            # a bad stroke is off line as well as off pace
-            wobble = self.swing.uniform(-0.12, 0.12) * length
-            rx, ry = rx - uy * wobble, ry + ux * wobble
-        # Over the cup with pace to spare, and it drops. The path is the
-        # segment from the ball to where it would rest.
-        holed = False
-        if right:
-            dx, dy = rx - bx, ry - by
-            seg = (dx * dx + dy * dy) ** 0.5 or 1e-6
-            t = max(0.0, min(1.0, (-bx * dx - by * dy) / (seg * seg)))
-            cx, cy = bx + t * dx, by + t * dy
-            miss = (cx * cx + cy * cy) ** 0.5
-            overrun = seg * (1 - t)
-            capture, allow = (CUP_CAPTURE * 1.4, CUP_OVERRUN * 1.5) if adept else (CUP_CAPTURE, CUP_OVERRUN)
-            holed = miss <= capture and overrun <= allow and t > 0
+            if right:
+                pace = PUTT_PACE[0] + length / PUTT_PACE[1]
+                line = PUTT_LINE
+                if adept:
+                    pace, line = pace * 0.5, line * 0.5
+                rolled = length * (1 + self.swing.uniform(-pace, pace))
+                # and the line: a degree or two either side of where it was meant
+                import math as _m
+                ang = _m.radians(self.swing.uniform(-line, line))
+                ux, uy = ux * _m.cos(ang) - uy * _m.sin(ang), ux * _m.sin(ang) + uy * _m.cos(ang)
+            elif self.swing.random() < 0.5:
+                rolled = length * self.swing.uniform(0.45, 0.72)          # never up
+            else:
+                rolled = length * self.swing.uniform(1.25, 1.6)           # raced it
+            # The slope: pace on the up-and-down, break across. A golfer who set
+            # no mark is taken to have allowed for the pace, as anyone who has
+            # putted uphill does; one who set a mark gets the green as it is.
+            along_fall = ux * fx + uy * fy
+            if mark.get("set"):
+                rolled *= 1 + SLOPE_PACE * grade * along_fall
+                if from_fringe:
+                    rolled *= 1 - FRINGE_DRAG            # the collar takes some of it
+            px, py = fx - along_fall * ux, fy - along_fall * uy         # the fall across the line
+            brk = SLOPE_BREAK * grade * rolled
+            rx, ry = bx + ux * rolled + px * brk, by + uy * rolled + py * brk
+            if not right:
+                # a bad stroke is off line as well as off pace
+                wobble = self.swing.uniform(-0.12, 0.12) * length
+                rx, ry = rx - uy * wobble, ry + ux * wobble
+            # Over the cup with pace to spare, and it drops. The path is the
+            # segment from the ball to where it would rest.
+            holed = False
+            if right:
+                dx, dy = rx - bx, ry - by
+                seg = (dx * dx + dy * dy) ** 0.5 or 1e-6
+                t = max(0.0, min(1.0, (-bx * dx - by * dy) / (seg * seg)))
+                cx, cy = bx + t * dx, by + t * dy
+                miss = (cx * cx + cy * cy) ** 0.5
+                overrun = seg * (1 - t)
+                capture, allow = (CUP_CAPTURE * 1.4, CUP_OVERRUN * 1.5) if adept else (CUP_CAPTURE, CUP_OVERRUN)
+                holed = miss <= capture and overrun <= allow and t > 0
         words_slope = ("downhill" if along_fall > 0.4 and grade >= 1 else "uphill" if along_fall < -0.4 and grade >= 1
                        else (f"breaking {s['falls']}" if s["falls"] in ("left", "right") else "across the slope")
                        if grade >= 1.5 and abs(along_fall) < 0.7 else "")
@@ -1762,7 +2353,13 @@ class Golf:
         # trouble between it and the pin, and a short one goes toward the
         # pin rather than further out into the hayfield.
         way = -1 if ball.at > h["yards"] else 1
-        reach = ball.at + way * CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0)
+        # A soft swing at the meter cannot find trouble a full one would.
+        strength = self._meter if self._meter is not None else 1.0
+        reach = ball.at + way * CLUBS[club] * LIES[ball.lie][0] * self.power.get(self._who, 1.0) * max(0.2, strength)
+        # The shape set up, overdone: a fade is a slice now, a draw a hook.
+        # It is said so, and it chooses the side of the trouble.
+        s = self._shape
+        how = ("sliced it" if s > 0 else "hooked it") if abs(s) >= SHAPE_WORDS else "a foul ball"
         lo, hi = min(ball.at, reach), max(ball.at, reach)
         ahead = [hz for hz in h.get("hazards", [])
                  if hz["to"] > lo and hz["from"] <= hi and hz["kind"] in ("water", "bunker", "rough")]
@@ -1771,11 +2368,21 @@ class Golf:
             # not down the middle of it, and the strip shows it there
             ball.at += way * max(20, round(CLUBS[club] * 0.4))
             ball.lie = "rough"
-            side = -1 if ball.off < 0 else 1 if ball.off > 0 else self.swing.choice((-1, 1))
+            side = (-1 if s < 0 else 1) if s else \
+                -1 if ball.off < 0 else 1 if ball.off > 0 else self.swing.choice((-1, 1))
             ball.off = side * int(round(fairway_half(h) + self.swing.uniform(4, 12)))
-            return {"kind": "rough", "words": f"{club_name(club)}, a foul ball - short and into the rough on the {'left' if side < 0 else 'right'}",
+            return {"kind": "rough", "words": f"{club_name(club)}, {how} - short and into the rough on the {'left' if side < 0 else 'right'}",
                     "carry": 0, "off": ball.off}
         weights = {"water": 2, "bunker": 3, "rough": 3}
+
+        def shaped(x):
+            """The shape's say in which trouble: its own side likelier, the
+            other side less likely, the middle of the hole untouched."""
+            if not s or x.get("side") not in ("left", "right"):
+                return 1.0
+            if (x["side"] == "left") == (s < 0):
+                return 1.0 + SHAPE_FOUL * abs(s)
+            return max(0.1, 1.0 - abs(s))
         if getattr(self, "_lucky", False) and any(x["kind"] != "water" for x in ahead):
             ahead = [x for x in ahead if x["kind"] != "water"]     # luck keeps it dry
         # A bad swing still goes roughly where it was meant to: the trouble
@@ -1785,9 +2392,14 @@ class Golf:
         # away with its yards from where the ball was aimed (FOUL_NEAR).
         # The club cannot be aimed further than it reaches, from either
         # side of the pin.
-        target = max(lo, min(hi, float(self.aim(self._who)["at"])))
+        target = float(self.aim(self._who)["at"])
+        if self._spin:
+            # Too much spin on a bad swing balloons it, and it comes down
+            # short - into the trouble in front of what it was hit at.
+            target -= way * SPIN_BALLOON * self._spin * SPIN_CAP.get(club, 0.0)
+        target = max(lo, min(hi, target))
         near = lambda x: 0.0 if x["from"] <= target <= x["to"] else min(abs(target - x["from"]), abs(target - x["to"]))  # noqa: E731
-        hz = self.rng.choices(ahead, weights=[weights[x["kind"]] / (1.0 + (near(x) / FOUL_NEAR) ** 2)
+        hz = self.rng.choices(ahead, weights=[weights[x["kind"]] * shaped(x) / (1.0 + (near(x) / FOUL_NEAR) ** 2)
                                               for x in ahead])[0]
         name = hz["name"] or hz["kind"]
         if hz["kind"] == "water":
@@ -1796,7 +2408,7 @@ class Golf:
             dropped = self._drop(h, ball, hz)
             ball.at = max(ball.at, at_before)
             left = int(round(h["yards"] - ball.at))
-            return {"kind": "water", "words": f"{club_name(club)}, a foul ball - into {name}; {dropped}, and a penalty stroke - {left} to go",
+            return {"kind": "water", "words": f"{club_name(club)}, {how} - into {name}; {dropped}, and a penalty stroke - {left} to go",
                     "carry": 0, "hazard": name, "left": left, "off": ball.off}
         # In the hazard it just named, and in the part of it the card draws.
         # This used to push the ball ten yards on whatever that overran, and
@@ -1806,9 +2418,12 @@ class Golf:
         ball.at = int(min(max(ball.at + 10, hz["from"], min(target, hz["to"])), hz["to"]))
         ball.lie = "sand" if hz["kind"] == "bunker" else "rough"
         spans = hazard_spans(h, hz)
-        center, width = min(spans, key=lambda s: abs(s[0] - ball.off))
+        # The part of it nearest the ball's line - or, for a shaped shot, the
+        # part out on the side it was shaped to.
+        toward = math.copysign(OFF_MOST, s) if s else ball.off
+        center, width = min(spans, key=lambda span: abs(span[0] - toward))
         ball.off = int(round(center + self.swing.uniform(-width / 2, width / 2)))
-        return {"kind": ball.lie, "words": f"{club_name(club)}, a foul ball - into {name}", "carry": 0, "hazard": name,
+        return {"kind": ball.lie, "words": f"{club_name(club)}, {how} - into {name}", "carry": 0, "hazard": name,
                 "off": ball.off}
 
     def away(self):
@@ -1860,6 +2475,15 @@ class Golf:
             club = self.default_club(p)
         self._lucky = p in self.luck
         self.luck.discard(p)              # spent on this stroke, whichever way it goes
+        # The golfer's own hand: the meter's stop, and the shape and spin set
+        # up before the question. Anything missing or unreadable is the shot
+        # as the game used to play it.
+        self._meter = _unit(a.get("meter"), 0.0, 1.0)
+        self._shape = _unit(a.get("shape"), -1.0, 1.0) or 0.0
+        self._spin = _unit(a.get("spin"), 0.0, 1.0)
+        self._meter_off = None
+        self._frac = None
+        self._meter_need = self._strike = None
         qid = a.get("question_id")
         if qid:
             if a.get("correct"):
@@ -1877,6 +2501,22 @@ class Golf:
             shot = self._foul(h, ball, club)
         if self._lucky:
             shot["luck"] = True
+        if self._meter is not None:
+            # For the screens: where the meter was stopped, and how far
+            # outside the sweet zone - nought is dead on.
+            shot["meter"] = round(self._meter, 4)
+            shot["meter_off"] = self._meter_off
+            # and against what: the notch, to the next decimal place, and
+            # the strike in a word - for the screens to say back
+            shot["meter_need"] = self._meter_need
+            shot["strike"] = self._strike
+            # Every swing, right answer or wrong - a foul ball was swung
+            # too, and a log that wrote only the good ones could not tell a
+            # swing that missed from a stroke that never had a meter.
+            log.info("golf: %s swung %.3f with the %s, shape %+.2f, spin %s - %s: %s",
+                     p, self._meter, club, self._shape,
+                     "-" if self._spin is None else f"{self._spin:.2f}",
+                     "right" if a.get("correct") else "wrong", shot.get("words", ""))
         flair = shot.get("flair")
         shot["call"] = ("A hole in one!" if shot.get("ace")
                         else self.rng.choice(FLAIR_CALLS[flair]) if flair in FLAIR_CALLS

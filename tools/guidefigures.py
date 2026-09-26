@@ -860,29 +860,37 @@ def fig_lab_hop():
 def fig_lab_swr():
     """What a mismatch actually costs, which is not what most people are told."""
     out = []
-    x0, w = 200, 520
-    for n, (swr, back) in enumerate(((1.0, 0.0), (2.0, 0.111), (3.0, 0.25))):
-        y = 130 + n * 96
-        out.append(text(x0 - 22, y + 30, f"{swr:.0f}:1", 24, INK, "end", "600"))
-        out.append(rect(x0, y, w, 46, GREEN, 6))
+    x0, w = 210, 470
+    rows = ((1.0, 0.0), (2.0, 0.111), (3.0, 0.25), (5.0, 0.444))
+    for n, (swr, back) in enumerate(rows):
+        y = 132 + n * 84
+        out.append(text(x0 - 22, y + 28, f"{swr:.0f}:1", 24, INK, "end", "600"))
+        out.append(rect(x0, y, w, 44, GREEN, 6))
         if back:
-            out.append(rect(x0 + w * (1 - back), y, w * back, 46, AMBER, 6))
-        out.append(text(x0 + w + 20, y + 30,
+            out.append(rect(x0 + w * (1 - back), y, w * back, 44, AMBER, 6))
+        out.append(text(x0 + w + 18, y + 28,
                         "all of it forward" if not back
-                        else f"{int(round(back * 100))}% turned back at the antenna",
-                        20, MUTED))
+                        else f"{int(round(back * 100))}% turned back", 20, MUTED))
+    # Three to one is the number worth knowing, so it is drawn rather than
+    # described: it is where a rig starts pulling its own power back, and it
+    # is about as far as the tuner inside a radio will reach.
+    edge = 132 + 3 * 84 - 12
+    out.append(line(x0 - 90, edge, WIDE - 96, edge, AMBER, 2, "7 5"))
+    out.append(text(WIDE - 96, edge - 10, "the reach of most built-in tuners", 19, AMBER, "end"))
     out.append(text(90, 56, "A mismatch does not throw your power away", 24, INK,
                     "start", "600"))
     out.append(text(90, 88, "What comes back is not burned; most of it is re-sent by the "
                             "transmitter and goes out anyway.", 20, MUTED))
-    out.append(rect(90, 424, WIDE - 180, 116, SOFT, 8))
-    out.append(text(114, 460, "The real cost is the extra trip through the feedline.",
-                    21, INK, "start", "600"))
-    out.append(text(114, 490, "On good coax at HF that is a fraction of a decibel and you "
-                              "will never hear it. On lossy", 20, MUTED))
-    out.append(text(114, 516, "cable at VHF, or at 5:1, it is worth fixing - and the tab "
-                              "puts the number on it in watts.", 20, MUTED))
-    return svg(out, 570)
+    out.append(rect(90, 486, WIDE - 180, 150, SOFT, 8))
+    out.append(text(114, 522, "The cost is the extra trip through the feedline - and a tuner "
+                              "does not remove it.", 21, INK, "start", "600"))
+    out.append(text(114, 552, "A tuner shows the radio 50 ohms, so it stops folding back and "
+                              "delivers full output again -", 20, MUTED))
+    out.append(text(114, 578, "often putting more power into the antenna than running untuned "
+                              "did. It changes nothing", 20, MUTED))
+    out.append(text(114, 604, "between itself and the antenna: that line still carries the "
+                              "standing wave, and its loss.", 20, MUTED))
+    return svg(out, 664)
 
 
 # ------------------------------------------------------- figure: the sondes

@@ -1762,20 +1762,20 @@ function renderToday() {
      cw.budget - and it grows as there is more code to hold. */
   const clock = document.getElementById('cw-today-clock');
   if (clock) {
-    /* Where this pass sits in the set, because "one of five" is the whole
-       shape of the thing and "about 3 min" on its own is not.
-
-       A set carries. Somebody who got three in before the evening went
-       sideways is offered the last two today, and told so plainly - the
-       argument for this shape is that it fits into the gaps in a day, and a
-       version that only works on a clear day is a different claim. */
-    const set = streak.set || {passes: 0, target: todayPasses, left: todayPasses};
-    const where = set.complete
-      ? 'That is the set — ' + set.target + ' passes. More is welcome and none of it is required.'
-      : 'Pass ' + Math.min(set.passes + 1, set.target) + ' of ' + set.target +
-        (set.carried
-          ? ' — ' + set.left + ' still to go from your last one, and they keep.'
-          : ' in this set.');
+    /* Which pass this is, and not how many are owed.
+       "Pass 3 of 5" is a quota, and this program does not set quotas: it is
+       an assistant and one option among several, and somebody whose day
+       holds two passes has not failed at a five-pass day. The arithmetic
+       that makes short-and-often beat long-and-rare is worth knowing and is
+       said plainly below; it is an illustration of why the sessions are
+       short, not a target to be measured against. So the count goes up
+       rather than down, and nothing is ever "still to go". */
+    const set = streak.set || {passes: 0};
+    const done = set.passes || 0;
+    const where = done
+      ? 'Pass ' + (done + 1) + ' today — ' + done + ' done so far'
+        + (set.carried ? ', carried over from your last sitting.' : '.')
+      : 'Your next pass.';
     clock.textContent = todayBudget
       ? where + ' Each is about ' + clockWords(todayBudget) + ' and ends on its own; '
         + 'you can leave at any break. Then go and do something else for a while — '
@@ -1967,22 +1967,32 @@ function finishCard(head, done, next) {
 }
 
 
-/* What is left of the day, and what to do with the gap before it. */
+/* What has been done, and what to do with the gap before the next one.
+
+   Not "what is left": there is nothing owed. ELMER is one option among
+   several and it does not get to set somebody's quota - a person studying
+   for an exam in three weeks and a person learning the code because they
+   feel like it are both using this correctly, and a program that tells the
+   second one they are two passes short of a day has misread them both. What
+   it can do is say what was done, why the gaps matter, and where to go in
+   one. The fifteen-minute arithmetic is offered once, as the reason the
+   sessions are short, and then left alone. */
 function dayAhead() {
   const set = (todayStreak && todayStreak.set) || {};
   const done = set.passes || 0;
-  const left = Math.max(0, (set.target || todayPasses) - done);
-  if (left <= 0) {
-    return 'That is today’s ' + todayPasses + ' passes done, and the record is kept. ' +
-      'Another is welcome and none of it is required.';
-  }
   const away = [
     ['a hole of golf', '/party', 'exam questions wearing a better hat'],
     ['the band conditions', '/propagation', 'and then go and get on the air'],
   ][done % 2];
-  return '<b>' + left + ' more pass' + (left === 1 ? '' : 'es') + '</b>, whenever you like ' +
-    '— today, or tomorrow if today is gone. Fifteen minutes a day is five of ' +
-    'these, not one block of fifteen. ' +
+  const sofar = done === 1 ? 'That is one pass today'
+    : 'That is <b>' + done + ' passes</b> today';
+  return sofar + ', and the record is kept. Another whenever you like — ' +
+    'today, or tomorrow; nothing here expires. ' +
+    (done < 3
+      ? 'Short and often is what does the work: a quarter of an hour spread across a ' +
+        'day beats one long sitting, because each time you come back the character has ' +
+        'to be fetched from cold. '
+      : '') +
     'Go and do something else first: <a href="' + away[1] + '">' + away[0] + '</a>, ' +
     away[2] + '. Coming back to it cold is the part that sticks.';
 }
@@ -2013,6 +2023,11 @@ function takeABreak(head, done, next, at, total, clock) {
     document.getElementById('cw-break-done').innerHTML = done || '';
     document.getElementById('cw-break-next').innerHTML = next || '';
     document.getElementById('cw-break-clock').innerHTML = clock || '';
+    /* One thing worth knowing per break, in order, carried across sittings.
+       A break is the only moment in the session when somebody is looking at
+       the screen with nothing being asked of them. */
+    const fact = document.getElementById('cw-break-fact');
+    if (fact) fact.innerHTML = nextFact();
     box.hidden = false;
     const btn = document.getElementById('cw-break-on');
     const out = document.getElementById('cw-break-off');
@@ -2494,6 +2509,64 @@ const SPEED_LADDER = CWS.speed_ladder || [];
 function speedRung(wpm) {
   for (const rung of SPEED_LADDER) if (wpm <= rung.to) return rung;
   return SPEED_LADDER[SPEED_LADDER.length - 1] || null;
+}
+
+/* Something worth knowing, for the ten seconds of a break.
+
+   The ladder was written with its sources and then read out in exactly one
+   place - the slider on a pane most people never open. A learner two
+   characters into the Koch order has no reason to go there and every reason
+   to want to know what this is for, so the facts come to them instead, one
+   per break, in order, and each keeps the link it was written with. A claim
+   about a record that cannot be followed up is a program asserting things.
+
+   The first few are about the code itself rather than about speed, because
+   somebody on their second pass does not need to hear about 225 words a
+   minute; they need to know that the thing they are doing is the thing
+   everybody did. */
+const CW_FACTS = [
+  {head: 'The code is older than the telephone',
+   body: 'Morse went on the wire in 1844 and is still in daily use on the ham bands. ' +
+         'Nothing else on a radio has had that long to be argued about.'},
+  {head: 'Nobody learns it slowly and then speeds up',
+   body: 'Every character here is sent at full speed from your first day; only the ' +
+         'silence between them is stretched. A character learned slow is a different ' +
+         'sound, and it has to be unlearned before you can copy at twenty.'},
+  {head: 'Five letters is one word',
+   body: 'Speed is quoted in words a minute, and the word is PARIS - five characters ' +
+         'with their spacing, chosen because it times out to exactly the average. ' +
+         'When ELMER says twenty words a minute, that is what it means.'},
+  {head: 'One clean minute out of five',
+   body: 'That is the bar the old code tests used, and the one the qualifying run ' +
+         'here uses. Not five perfect minutes - one, anywhere in the five.'},
+];
+
+/* And then the ladder itself, from where this learner actually sits upward,
+   so the facts stay ahead of them without ever being a target. */
+function ladderFacts() {
+  return SPEED_LADDER.map(rung => ({
+    head: (rung.to > 900 ? rung.from + ' wpm and up: '
+           : rung.from ? rung.from + '-' + rung.to + ' wpm: '
+           : 'Up to ' + rung.to + ' wpm: ') + rung.name,
+    body: rung.note,
+    source: rung.source,
+    source_name: rung.source_name,
+  }));
+}
+
+let factAt = Number(localStorage.getItem('cw.factAt') || 0);
+
+function nextFact() {
+  const all = CW_FACTS.concat(ladderFacts());
+  if (!all.length) return '';
+  const fact = all[factAt % all.length];
+  factAt += 1;
+  try { localStorage.setItem('cw.factAt', String(factAt)); } catch (e) { /* private window */ }
+  return '<b>' + escapeHTML(fact.head) + '</b> &mdash; ' + escapeHTML(fact.body) +
+    (fact.source
+      ? ' <a href="' + escapeHTML(fact.source) + '" target="_blank" rel="noopener">' +
+        escapeHTML(fact.source_name || 'source') + '</a>'
+      : '');
 }
 
 function qHint() {

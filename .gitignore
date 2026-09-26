@@ -3,6 +3,9 @@ data/elmer.db
 data/elmer.db-journal
 data/elmer.db-wal
 data/elmer.db-shm
+# The question ledger: this unit's record of how each question has gone.
+# Never committed, and kept through a developer reset - see elmer/ledger.py.
+data/ledger/
 data/elmer.log
 data/elmer.log.*
 data/server-console.log

@@ -1,5 +1,11 @@
 # ELMER
 
+**A study program that knows what you do not and drills you on that.** Every
+question you get wrong — in the drill, in a contest round, on a mock exam, or
+at a table in a hall playing a hole of golf — goes on the review list and
+comes back before you would have forgotten it. Nothing you answer anywhere is
+wasted, and nothing you have already proved wastes your evening.
+
 A study assistant, progress tracker and game for the United States radio
 operator examinations — the amateur pools (Technician, General, Extra) and
 the commercial ones (MROP, GROL, Ship Radar), every question with an

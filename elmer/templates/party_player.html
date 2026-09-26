@@ -113,6 +113,7 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
   <div id="view"><div class="state"><h2>Connecting…</h2></div></div>
 </div>
 <script src="{{ asset('games.js') }}"></script>
+<script src="{{ asset('golfswing.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>
 <script>
@@ -444,11 +445,13 @@ function paintWaiting(state) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
         <h2 style="margin:0 0 .4rem">Golf</h2>${golfHeadHTML(gf)}${golfTurnHTML(gf)}
         ${gf.over ? `<p><b>${escapeHTML(gf.winner_name || 'Somebody')}</b> wins the round.</p>` : golfClubsHTML(gf)}
-        ${gf.your_turn && gf.address_waits && !gf.over ? `<p><button class="choice" id="golf-hit" style="text-align:center"><b>Hit &rsaquo;</b></button></p>` : ''}
+        ${canSetUp(gf) ? `<h3 style="margin:.6rem 0 .1rem">Set up the shot</h3>${GolfSwing.setupHTML(gf.your_shape, gf.you.reading)}` : ''}
+        ${gf.your_turn && gf.address_waits && !gf.over ? `<p><button class="choice" id="golf-hit" style="text-align:center"><b>Ready &rsaquo;</b></button></p><p class="tiny muted" style="margin:-.4rem 0 .6rem">The question comes next. Choose your answer, then swing.</p>` : ''}
         ${golfPlaybackHTML(gf)}
         <h3 style="margin:.8rem 0 .3rem">The card</h3>${golfBoardHTML(gf)}
         ${gf.you && gf.you.log && gf.you.log.length ? `<h3 style="margin:.8rem 0 .3rem">Your strokes this hole</h3><ol class="tiny" style="margin:0;padding-left:1.2rem">${gf.you.log.map(l => `<li>${escapeHTML(l)}</li>`).join('')}</ol>` : ''}</div>`;
     wireClubs();
+    if (canSetUp(gf)) GolfSwing.wireSetup(view, gf.you.reading, postShape);
     const hb = document.getElementById('golf-hit');
     if (hb) hb.addEventListener('click', async () => { hb.disabled = true; await api('/api/party/hit', {player: me.id}); tick(); });
     return;
@@ -568,6 +571,24 @@ function golfReadingHTML(gf) {
     ? ` <a href="#" data-take-club="${escapeHTML(r.suggest)}">take the ${escapeHTML(names[r.suggest] || r.suggest)}</a>` : '';
   return `<p class="tiny" style="margin:0 0 .4rem;color:${tone}"><b>${!r.reaches ? 'Short' : r.widen > 1 ? 'Too much club' : r.chip ? 'A chip' : r.soft ? 'A soft swing' : 'In range'}</b> &middot; ${escapeHTML(r.says)}.${take}</p>`;
 }
+/* The golfer's own hand - see golfswing.js. A shot can be set up and
+   swung whenever the ball is off the green: the reading exists, and it
+   carries the meter's notch. On the green it is a putt, and the answer is
+   the stroke, as it always was. */
+function canSetUp(gf) {
+  return !!(window.GolfSwing && gf && gf.your_turn && !gf.over && gf.you && gf.you.reading
+            && !gf.you.holed && !gf.you.picked_up);
+}
+/* Any stroke of this golfer's that is swung at a meter: a full shot off the
+   green, or a putt on it - the putt has its own meter, and no set-up. */
+function canSwing(gf) {
+  return !!(window.GolfSwing && gf && gf.your_turn && !gf.over && gf.you && (gf.you.reading || gf.you.putt)
+            && !gf.you.holed && !gf.you.picked_up);
+}
+async function postShape(change) {
+  const r = await api('/api/party/shape', Object.assign({player: me.id}, change));
+  if (!r.ok) console.warn('golf: the shot was not set up', r.data);
+}
 function golfClubsHTML(gf) {
   const you = gf.you;
   if (!you || !you.clubs || !you.clubs.length || you.holed || you.picked_up) return '';
@@ -611,7 +632,8 @@ function golfPlaybackHTML(gf) {
   return `${mine ? `<div class="verdict ${mine.holed ? 'right' : mine.kind === 'water' || mine.kind === 'missed' || mine.kind === 'sand' ? 'wrong' : 'in'}">
       <div class="h">${escapeHTML(mine.call || mine.words)}</div>${
         mine.kind && (gf.clips || []).includes(mine.kind) ? `<img src="/static/golf/clips/${escapeHTML(mine.kind)}.gif" alt="" style="max-width:100%;max-height:7rem;display:block;margin:.3rem auto;border-radius:8px">` : ''}
-      <div class="t">${escapeHTML(mine.words)}</div></div>` : ''}
+      <div class="t">${escapeHTML(mine.words)}</div>${
+        window.GolfSwing && mine.meter != null ? `<div class="tiny" style="margin-top:.2rem;font-family:var(--mono)">${GolfSwing.strikeLine(mine)}</div>` : ''}</div>` : ''}
     <table class="board">${others.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.call ? '<b>' + escapeHTML(s.call) + '</b> ' : ''}${escapeHTML(s.words)}</td></tr>`).join('')}</table>`;
 }
 function strokeCell(card, n, ball, hole) {
@@ -677,6 +699,10 @@ function paintQuestion(round, ct, gf) {
   // next stroke; wrong or skipped costs nothing.
   const extra = watching && round.to != null && !gf.over;
   const seated = !!(ct && !ct.you_in) || (watching && !extra);
+  // This golfer's own stroke, off the green: chosen, then swung at the meter.
+  const swings = !seated && canSwing(gf);
+  const putting = swings && !gf.you.reading && gf.you.putt;
+  const gauge = swings ? (gf.you.reading || gf.you.putt) : null;
   const choices = (q.choices || []).map((c, i) =>
     `<button class="choice" data-i="${i}"${seated ? ' disabled' : ''}>
        <span class="k">${'ABCD'[i]}</span>${escapeHTML(c)}</button>`).join('');
@@ -694,30 +720,81 @@ function paintQuestion(round, ct, gf) {
         ? '<p style="margin:.8rem 0 .5rem"><b>Your stroke.</b> Take your time - nothing here is timed.</p>' + golfClubsHTML(gf)
         : extra ? `<p style="margin:.8rem 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away${gf.away_club ? ' with the ' + escapeHTML(clubName(gf, gf.away_club)) : ''}. <b>Extra credit:</b> answer along. Right earns a little luck on your next stroke; wrong or skipped costs nothing.</p>`
         : `<p style="margin:.8rem 0 .5rem;color:var(--amber)"><b>${escapeHTML(gf.away_name || 'Somebody')}</b> is away${gf.away_club ? ' with the ' + escapeHTML(clubName(gf, gf.away_club)) : ''}. Read it with them - what would you play?</p>`) : ''}
-    ${gf ? `<p class="clock" style="margin:0 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par}${gf.you ? ((gf.you.lie === 'green' || gf.you.lie === 'fringe') ? ` &middot; ${gf.you.feet} feet, on the ${gf.you.lie}` : ` &middot; ${gf.you.left} to go, ${escapeHTML(gf.you.lie)}`) : ''}</p>` : ''}`;
+    ${gf ? `<p class="clock" style="margin:0 0 .6rem;color:var(--dim)">Golf &middot; ${ordinal(gf.hole)}, par ${gf.par}${gf.you ? ((gf.you.lie === 'green' || gf.you.lie === 'fringe') ? ` &middot; ${gf.you.feet} feet, on the ${gf.you.lie}` : ` &middot; ${gf.you.left} to go, ${escapeHTML(gf.you.lie)}`) : ''}</p>` : ''}
+    ${swings ? `<div id="swing"><p class="tiny muted" style="margin:.2rem 0 0">${putting
+          ? `Your putt: ${gauge.feet} feet to your mark. The notch is the pace on a flat green - read the slope: uphill, past it; downhill, short of it. A full stroke is ${gauge.range} feet.`
+          : `Your shot: ${escapeHTML(GolfSwing.summary(gf.your_shape, gf.you.reading))} &middot; the notch is where the mark wants the swing.`}</p>
+        ${GolfSwing.meterHTML(gauge)}
+        <p class="tiny muted" id="swing-said" style="margin:.3rem 0 0">Choose your answer, and the meter starts.</p></div>` : ''}`;
   if (gf && gf.your_turn) wireClubs();
   if (seated) { answered = true; return; }
-  document.querySelectorAll('.choice').forEach(b => {
-    b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b, extra));
-  });
+  // Only the answers are answers. The club buttons share the .choice look,
+  // and wiring every .choice here made a club tapped with the question open
+  // a wrong answer - a foul ball nobody swung.
+  const answers = document.querySelectorAll('#choices .choice');
+  if (!swings) {
+    answers.forEach(b => b.addEventListener('click', () => send(parseInt(b.dataset.i, 10), b, extra)));
+    return;
+  }
+  // A golfer's stroke: the tap chooses, the meter starts, Hit swings. The
+  // answer can be changed while the meter runs; the swing is what commits.
+  // What was chosen survives a repaint - a club changed with the question
+  // open redraws the screen and the notch.
+  const meter = GolfSwing.meter();
+  const pick = b => {
+    answers.forEach(x => x.classList.toggle('picked', x === b));
+    swingPick = {round: round.number, index: parseInt(b.dataset.i, 10)};
+    meter.start();
+    const said = document.getElementById('swing-said');
+    if (said) said.textContent = 'Stop it on the notch: Hit.';
+  };
+  answers.forEach(b => b.addEventListener('click', () => pick(b)));
+  if (swingPick && swingPick.round === round.number) {
+    const again = document.querySelector(`#choices .choice[data-i="${swingPick.index}"]`);
+    if (again) pick(again);
+  }
+  const hit = document.getElementById('gs-hit');
+  const swing = e => {
+    if (!meter.running() || !swingPick) return;
+    const value = meter.stop(e && e.timeStamp);
+    const b = document.querySelector(`#choices .choice[data-i="${swingPick.index}"]`);
+    send(swingPick.index, b, false, value);
+  };
+  hit.addEventListener('click', swing);
+  // A key does it too, at a keyboard. The listener goes with the question.
+  const onKey = e => {
+    if (!document.getElementById('gs-hit')) { document.removeEventListener('keydown', onKey); return; }
+    if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); swing(e); }
+  };
+  document.addEventListener('keydown', onKey);
 }
 
-async function send(index, button, extra) {
+let swingPick = null;       // {round, index}: the answer chosen for the swing
+
+async function send(index, button, extra, meter) {
   if (answered) return;
   answered = true;
   // The interval this phone measured, from painting the question to the tap.
   // Network time is deliberately not in it - that is the whole point.
   const ms = Math.round(performance.now() - paintedAt);
   myChoice = index;
-  document.querySelectorAll('.choice').forEach(b => { b.disabled = true; });
-  button.classList.add('picked');
-  const r = await api('/api/party/answer', {player: me.id, chosen: index, ms, extra: !!extra});
+  const hit = document.getElementById('gs-hit');
+  document.querySelectorAll('#choices .choice').forEach(b => { b.disabled = true; });
+  if (hit) hit.disabled = true;
+  if (button) button.classList.add('picked');
+  const body = {player: me.id, chosen: index, ms, extra: !!extra};
+  if (meter != null) body.meter = meter;
+  const r = await api('/api/party/answer', body);
   if (!r.data.accepted) {
     answered = false;
-    document.querySelectorAll('.choice').forEach(b => { b.disabled = false; });
-    button.classList.remove('picked');
+    document.querySelectorAll('#choices .choice').forEach(b => { b.disabled = false; });
+    if (hit) hit.disabled = false;
+    if (button && meter == null) button.classList.remove('picked');
+    // A swing that was refused can be taken again: the meter starts over.
+    if (meter != null) { shownRound = null; tick(); }
     return;
   }
+  swingPick = null;
   // In: the question is done with, so the screen has something else to say
   // while the rest of the table catches up.
   paintCard(currentRound);

@@ -10,7 +10,7 @@ const GAME_ABOUT = {
              progress: 'A shootout is a shootout - nothing is kept but the win.'},
   cutthroat: {how: 'Musical chairs with questions: miss and you are out, every right answer keeps its seat. Two left get fifteen questions; level after that, sudden death.',
               progress: 'Nothing saved between games; the answers still count for the players\' study.'},
-  golf: {how: 'The slow game. A real course, a question a stroke, one player at a time, no clock. Right and the ball flies where you aimed it, the club and the lie having their say; wrong is a foul ball. A tee time lets friends join before the group departs.',
+  golf: {how: 'The slow game. A real course, a question a stroke, one player at a time, no clock. Set up the shot - club, shape, spin - then choose your answer and swing at the meter. Right, and the ball does what you set up, as far as your swing sent it; wrong, and it does it too much - the fade becomes a slice. A tee time lets friends join before the group departs.',
          progress: 'The record board in the pro shop keeps every regular\'s rounds, best to par and aces on this unit.'},
   baseball: {how: 'The machine pitches Morse. Batting is copying: type what you heard and swing - clean is a hit, sized by the pitch. Fielding is sending: key the ball back, clean and in time, for the out. Innings, runs, and the late innings come faster; the last inning pitches a contact.',
              progress: 'The pitching starts at the operator\'s CW rating from the CW page, which the ladder there keeps.'},

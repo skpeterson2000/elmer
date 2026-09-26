@@ -370,6 +370,19 @@ EQUIPMENT = [
      "make the antenna efficient: a tuner showing the rig a perfect 50 ohms "
      "can be matching into a coil that is mostly heater.",
      "what a tuner does"),
+    ("The tuner built into a radio usually gives up somewhere near 3:1, and "
+     "some are narrower than that; an outboard automatic one typically "
+     "reaches about 10:1. Three to one is also about where a solid-state rig "
+     "starts folding its own power back to protect the finals, which is why "
+     "the two numbers are the same number.",
+     "tuner range, and why 3:1 keeps coming up"),
+    ("A tuner does not change the standing wave between itself and the "
+     "antenna - that length of line still carries it, and still pays the "
+     "loss. What it changes is what the radio sees, so the radio stops "
+     "folding back and delivers full output again. That often puts more "
+     "power into the antenna than running untuned did, and none of it is "
+     "because the antenna got better.",
+     "what a tuner does not do"),
     ("A ferrite choke where the coax meets the antenna stops the braid "
      "carrying RF back into the shack. RF in the shack shows up as a hot mic, "
      "distorted audio, or a radio that resets itself on transmit.",

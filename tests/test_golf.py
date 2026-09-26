@@ -86,11 +86,16 @@ def run():
     g = golf.Golf(["a"], flat_course(wind="into"), seed=1, seconds=30)
     g.wind_mph = 10
     row = g.play({"a": R(True, ms=1000, club="driver")})
-    check("ten into the wind takes eight yards", row["shots"]["a"]["carry"], 242)
+    # Flown, not reckoned: a driver into ten miles an hour now loses what a
+    # caddie would tell you, about five percent, where the old table took
+    # eight yards off everything.
+    check("ten into the wind takes twelve yards off a driver", row["shots"]["a"]["carry"], 238)
     g = golf.Golf(["a"], flat_course(wind="with"), seed=1, seconds=30)
     g.wind_mph = 10
     row = g.play({"a": R(True, ms=1000, club="5-wood")})
-    check("ten behind gives six", row["shots"]["a"]["carry"], 216)
+    check("ten behind gives a 5-wood seven", row["shots"]["a"]["carry"], 217)
+    check("  and the wind in the face costs more than the same wind behind gives",
+          -golf.wind_on_carry("driver", 1.0, 12, 10) > golf.wind_on_carry("driver", 1.0, 6, 10), True)
 
     print("\n-- the course has its say --")
     creek = golf.Golf(["a"], flat_course(hazards=[{"kind": "water", "from": 240, "to": 260,
@@ -151,6 +156,11 @@ def run():
     # share.
     HOLE_OUT = golf.HOLE_OUT_ODDS
     golf.HOLE_OUT_ODDS = 0.0
+    # Nor the gusts: each stroke meets its own, and since the ball is flown
+    # through the wind rather than reckoned from a table, a gust moves an
+    # aimed shot as much as a full one.
+    GUSTS = golf.Day.GUST
+    golf.Day.GUST = (1.0, 1.0)
     g = golf.Golf(["ann", "bob"], c, holes=range(1, 4), handicaps={"bob": 2}, seed=7, seconds=30)
     check("three holes to play", g.as_dict()["holes"], 3)
     played = 0
@@ -163,8 +173,13 @@ def run():
     check("  the strokes given to bob come off", next(r["given"] for r in board if r["player"] == "bob"), 2)
     ann = next(r for r in board if r["player"] == "ann")
     bob = next(r for r in board if r["player"] == "bob")
+    if ann["gross"] != bob["gross"]:
+        print("  board:", board)
+        for p in ("ann", "bob"):
+            print("  ", p, g.logs.get(p))
     check("  gross is the same, so the net leads", (ann["gross"] == bob["gross"], board[0]["player"]), (True, "bob"))
     golf.HOLE_OUT_ODDS = HOLE_OUT
+    golf.Day.GUST = GUSTS
     check("  and bob wins it", g.winner(), "bob")
 
     print("\n-- a tie goes to a playoff hole --")
@@ -477,11 +492,16 @@ def run():
     check("  quick is no straighter than slow - it is a seed, not a clock",
           abs(sum(timed(ms)["carry"] for ms in range(500, 3000, 100)) / 25
               - sum(timed(ms)["carry"] for ms in range(20000, 45000, 1000)) / 25) < 8, True)
-    g = golf.Golf(["a", "b", "c"], pb, holes=[1], seed=7)
-    for p in ("a", "b", "c"):
-        g.play_one(p, {"correct": True, "club": "driver"})
-    ats = [g.balls[p].at for p in ("a", "b", "c")]
-    check("three right answers off the tee land in three places, so somebody is away", len(set(ats)), 3)
+    # Across rounds, not in one: three drives spread over thirty-odd yards
+    # and read in whole yards tie now and then, and one round's tie is
+    # chance, not a fault. What matters is that it is rare.
+    apart = 0
+    for seed in range(20):
+        g = golf.Golf(["a", "b", "c"], pb, holes=[1], seed=seed)
+        for p in ("a", "b", "c"):
+            g.play_one(p, {"correct": True, "club": "driver"})
+        apart += len({g.balls[p].at for p in ("a", "b", "c")}) == 3
+    check("three right answers off the tee land in three places, so somebody is away", apart >= 15, True)
     check("  the farthest out", g.away(), min(("a", "b", "c"), key=lambda p: g.balls[p].at))
 
     print("\n-- the green: everyone wants the cup, and the green decides --")

@@ -15,7 +15,8 @@ What "fresh" means is not invented here. `.gitignore` is already a written
 inventory of what belongs to the operator rather than to the program, so a
 reset is exactly `git clean` of the ignored files under data/ - which leaves
 the pools, figures and rules a clone ships with, and takes the database, the
-logs, the caches and the fetched lists.
+logs, the caches and the fetched lists. One ignored thing stays: the
+question ledger, which is about the pool rather than the people (ledger.py).
 
 Two things it will not do. It will not answer a request from anywhere but this
 machine, because a study session that anybody on the network can erase is not
@@ -51,9 +52,16 @@ def available():
 
 
 def _clean(dry_run):
+    # The question ledger stays. It is what has been learned about the
+    # questions, not about the people on this unit, and a reset that took it
+    # would restart the difficulty measure from nothing - see ledger.py.
+    # Excluded as a pathspec: `git clean -x` ignores `-e`, so that route
+    # removes it anyway.
+    from .ledger import RESET_KEEPS
     flags = "-xdn" if dry_run else "-xdf"
-    return subprocess.run(["git", "clean", flags, "data/"], cwd=str(ROOT),
-                          capture_output=True, text=True, timeout=60)
+    return subprocess.run(["git", "clean", flags, "--", "data/",
+                           f":!{RESET_KEEPS}", f":!{RESET_KEEPS}/**"],
+                          cwd=str(ROOT), capture_output=True, text=True, timeout=60)
 
 
 def would_remove():

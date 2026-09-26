@@ -48,7 +48,6 @@ KC9SP at two tables is one pace, and otherwise the table and the name. Study
 answers and hall answers carry a time; exam answers do not and contribute
 only to the miss rate.
 """
-import json
 import math
 from statistics import median
 
@@ -124,6 +123,105 @@ def measure(rows):
     return out
 
 
+# --- how long it takes, and how long it lasts --------------------------------
+# Hardness is one sighting. These two are the other time scales the ledger can
+# measure: how many sightings a question takes before a person answers it
+# without having to think, and how fast a right answer wears off afterwards.
+
+# An answer is automatic when it is right and quick. Six seconds is where the
+# scheduler already draws "fast" (srs.FAST_MS): long enough to read the
+# question, too short to work it out.
+AUTOMATIC_MS = 6000
+# Answers inside one sitting are not forgetting - the question was on screen
+# minutes ago. Only gaps longer than this count toward the decay rate.
+DECAY_MIN_GAP_DAYS = 0.25
+
+
+def _by_person(rows):
+    """{(person, question): [answers, oldest first]}."""
+    out = {}
+    for r in sorted(rows, key=lambda r: r["ts"]):
+        out.setdefault((r["user_id"], r["question_id"]), []).append(r)
+    return out
+
+
+def _days_between(a, b):
+    from datetime import datetime
+    try:
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds() / 86400
+    except (TypeError, ValueError):
+        return None
+
+
+def automaticity(rows):
+    """Per question: how many sightings, and how many days, to automatic.
+
+    Walks each person's answers to each question in order and stops at the
+    first one that is right and under AUTOMATIC_MS. `reached` is how many of
+    the people who met it got there at all; the medians are over those who
+    did. A question with a high `sightings` and a low share reached is one
+    that does not stick, whatever its first-exposure miss rate says.
+    """
+    per = {}
+    for (_, qid), answers in _by_person(rows).items():
+        q = per.setdefault(qid, {"people": 0, "reached": 0, "sightings": [], "days": []})
+        q["people"] += 1
+        for i, a in enumerate(answers, 1):
+            if a["correct"] and a.get("ms") and a["ms"] <= AUTOMATIC_MS:
+                q["reached"] += 1
+                q["sightings"].append(i)
+                days = _days_between(answers[0]["ts"], a["ts"])
+                if days is not None:
+                    q["days"].append(days)
+                break
+    out = {}
+    for qid, q in per.items():
+        out[qid] = {
+            "people": q["people"], "reached": q["reached"],
+            "sightings": median(q["sightings"]) if q["sightings"] else None,
+            "days": round(median(q["days"]), 2) if q["days"] else None,
+            "measured": q["reached"] >= MIN_N,
+        }
+    return out
+
+
+def forgetting(rows):
+    """How fast a right answer wears off: per question and over the pool.
+
+    Every pair of consecutive answers by one person to one question, where
+    the first was right and the gap is longer than a sitting, is a trial: did
+    it survive the gap? Treated as a constant hazard, the rate is misses over
+    total days of gap - the estimate for an exponential with the survivors
+    counted as still running - and a half-life is ln 2 over that.
+
+    It is a floor, not a truth: a right answer at the far end of the gap can
+    be a lucky guess among four, so the real forgetting is somewhat faster.
+    The comparison between questions is what it is for.
+    """
+    def summarise(pairs, forgot, days):
+        rate = forgot / days if days > 0 else None
+        return {"pairs": pairs, "forgot": forgot, "days": round(days, 2),
+                "per_day": round(rate, 4) if rate is not None else None,
+                "half_life_days": round(math.log(2) / rate, 1) if rate else None,
+                "measured": pairs >= MIN_N}
+
+    per, total = {}, [0, 0, 0.0]
+    for (_, qid), answers in _by_person(rows).items():
+        for a, b in zip(answers, answers[1:]):
+            if not a["correct"]:
+                continue
+            gap = _days_between(a["ts"], b["ts"])
+            if gap is None or gap < DECAY_MIN_GAP_DAYS:
+                continue
+            q = per.setdefault(qid, [0, 0, 0.0])
+            lost = 0 if b["correct"] else 1
+            for t in (q, total):
+                t[0] += 1
+                t[1] += lost
+                t[2] += gap
+    return ({qid: summarise(*q) for qid, q in per.items()}, summarise(*total))
+
+
 def ranker(measured):
     """A callable for tournament.ordered(): hardness, or None if unmeasured."""
     def difficulty_of(question):
@@ -148,43 +246,27 @@ def hardest(measured, limit=12):
 
 
 def load(conn, pool_id):
-    """The rows this needs: the unit's own log and the hall's, as one list.
+    """The rows this needs, from the question ledger (ledger.py).
 
-    A hall person is keyed "hall:<who>" so they can never collide with a
-    study user's integer id, and the measure treats them exactly alike - a
-    person, a day, a question, right or not, how long.
+    The ledger holds every answer given on this unit - studying, on a mock
+    exam, at a table in a hall - and, unlike the database, survives a
+    developer reset: what has been learned about the questions is not thrown
+    away with the people's cards. `conn` is only used to bring in, once,
+    whatever this unit's database recorded before the ledger existed.
 
-    Each row carries the license class the person holds, or "" for not
-    said: the hall's from what they told the table when they sat down, a
-    study user's from their own profile as it stands now - which is the
-    class they hold today, not necessarily the one they held when they
-    answered, and close enough for a report about how knowledge wears.
+    A person is the ledger's opaque tag; a hall person's is prefixed "hall:"
+    so the two can never collide, and the measure treats them exactly alike -
+    a person, a day, a question, right or not, how long. Each row carries the
+    license class the person held when they answered, or "" for not said.
     """
-    from .db import _modernise, license_of
-    held = {}
-    for p in conn.execute("SELECT id, settings FROM profile"):
-        try:
-            s = _modernise(json.loads(p["settings"] or "{}"))
-        except ValueError:
-            s = {}
-        held[p["id"]] = license_of(s.get("license_class")
-                                   or (s.get("license") or {}).get("license_class"))
-    rows = [dict(r) for r in conn.execute(
-        "SELECT user_id, ts, day, question_id, correct, ms FROM answer_log "
-        "WHERE pool_id = ? ORDER BY ts", (pool_id,))]
-    for r in rows:
-        r["source"] = "study"
-        r["license"] = held.get(r["user_id"], "")
-    try:
-        hall = conn.execute(
-            "SELECT who, ts, day, question_id, correct, ms, license FROM hall_log "
-            "WHERE pool_id = ? ORDER BY ts", (pool_id,)).fetchall()
-    except Exception:                    # a database from before the hall log
-        hall = []
-    for h in hall:
-        rows.append({"user_id": "hall:" + h["who"], "ts": h["ts"], "day": h["day"],
-                     "question_id": h["question_id"], "correct": h["correct"],
-                     "ms": h["ms"], "source": "hall", "license": h["license"] or ""})
+    from . import ledger
+    ledger.backfill(conn)
+    rows = []
+    for r in ledger.answers(pool_id):
+        rows.append({"user_id": r["person"], "ts": r["answered_ts"] or r["ts"],
+                     "day": r["day"], "question_id": r["question_id"],
+                     "correct": r["correct"], "ms": r["ms"], "source": r["source"],
+                     "license": r["license"] or ""})
     rows.sort(key=lambda r: r["ts"])
     return rows
 

@@ -657,15 +657,86 @@ function seatColumnHTML(seat, round, shoot, gf) {
   const ball = gf && gf.balls ? gf.balls[me] : null;
   const clubs = ball && !done ? `<div class="clubrow" data-clubrow="${me}">${(ball.clubs || []).map(c =>
       `<button class="btn sm ${c === ball.club ? 'on' : ''}" data-seat-club="${me}" data-club="${c}" title="${esc(clubName(gf, c))}${(ball.club_yards || {})[c] ? ' - gets ' + ball.club_yards[c] + ' from here' : ''}">${esc((gf.club_labels || {})[c] || c)}</button>`).join('')}</div>` : '';
-  return `<div class="seatcol ${done ? 'done' : ''}" data-seatcol="${me}">
+  // The golfer's own stroke, off the green: the tap chooses, the meter
+  // starts, Hit swings - see golfswing.js. On the green the tap is the putt.
+  const swings = !done && seatSwings(gf, round, me);
+  const picked = swings && seatSwingPick[me] && seatSwingPick[me].round === round.number ? seatSwingPick[me].index : seatAnswered[me];
+  return `<div class="seatcol ${done ? 'done' : ''}" data-seatcol="${me}"${swings ? ' data-swings="1"' : ''}>
       <div class="who"><b>${esc(seat.name)}</b>${gf ? '' : `<span class="clk" data-seatclk="${me}"></span>`}</div>
       ${clubs}
-      ${(q.choices || []).map((c, i) => `<button class="choice ${seatAnswered[me] === i ? 'picked' : ''}"
+      ${(q.choices || []).map((c, i) => `<button class="choice ${picked === i ? 'picked' : ''}"
           data-seat-answer="${me}" data-choice="${i}" ${done ? 'disabled' : ''}>
           <span class="k">${letters[i]}</span>${esc(c)}</button>`).join('')}
+      ${swings ? `<p class="hint" style="text-align:left;margin:.3rem 0 0">${ball.reading
+          ? `Your shot: ${esc(GolfSwing.summary(gf.away_shape, ball.reading))} &middot; the notch is where the mark wants the swing.`
+          : `Your putt: ${ball.putt.feet} feet to your mark. The notch is the pace on a flat green - read the slope: uphill, past it; downhill, short of it. A full stroke is ${ball.putt.range} feet.`}</p>
+        ${GolfSwing.meterHTML(ball.reading || ball.putt, 'seat' + me).replace('id="seat' + me + '-hit"', 'id="seat' + me + '-hit" data-seat-hit="' + me + '"')}
+        <p class="hint" style="text-align:left;margin:.2rem 0 0" data-swing-said="${me}">Choose your answer, and the meter starts.</p>` : ''}
       ${done ? `<div class="verdict in">${gf ? 'The ball is away.' : 'In. Waiting on the rest of the table.'}</div>` : ''}
     </div>`;
 }
+
+/* The seated golfer's swing. The meter is found by its element, so a repaint
+   - a club changed with the question open moves the notch - picks the swing
+   up where it was: the same answer chosen, the meter started again. */
+const seatSwingPick = {};       // player id -> {round, index}
+const seatMeters = {};          // player id -> GolfSwing.meter
+function seatSwings(gf, round, me) {
+  const ball = gf && gf.balls ? gf.balls[me] : null;
+  return !!(window.GolfSwing && gf && round.to === me && ball && (ball.reading || ball.putt) && !ball.holed && !ball.picked_up);
+}
+function seatPick(me, index, round) {
+  const col = document.querySelector(`[data-seatcol="${me}"]`);
+  if (!col) return;
+  col.querySelectorAll('[data-seat-answer]').forEach(x => x.classList.toggle('picked', +x.dataset.choice === index));
+  seatSwingPick[me] = {round, index};
+  // A change of answer leaves a running meter running. A repaint has put a
+  // fresh, idle meter on the screen, and that one is started.
+  const el = document.getElementById('seat' + me + '-meter');
+  const fresh = !el || el.classList.contains('idle');
+  if (!seatMeters[me] || fresh) {
+    if (seatMeters[me]) seatMeters[me].stop();
+    seatMeters[me] = GolfSwing.meter('seat' + me);
+    seatMeters[me].start();
+  }
+  const said = col.querySelector(`[data-swing-said="${me}"]`);
+  if (said) said.textContent = 'Stop it on the notch: Hit.';
+}
+function resumeSeatSwings(round) {
+  Object.keys(seatSwingPick).forEach(k => {
+    const p = seatSwingPick[k];
+    if (p && p.round === round.number && document.querySelector(`[data-seatcol="${k}"][data-swings]`)) seatPick(+k, p.index, p.round);
+  });
+}
+async function seatSwing(me, when) {
+  const p = seatSwingPick[me], m = seatMeters[me];
+  if (!p || !m || !m.running() || seatAnswered[me] !== undefined) return;
+  const value = m.stop(when);
+  const col = document.querySelector(`[data-seatcol="${me}"]`);
+  seatAnswered[me] = p.index;
+  col.querySelectorAll('.choice').forEach(x => { x.disabled = true; });
+  const hit = col.querySelector('[data-seat-hit]');
+  if (hit) hit.disabled = true;
+  const ms = Math.round(performance.now() - seatPaintedAt);
+  const r = await api('/api/party/answer', {player: me, chosen: p.index, ms, meter: value});
+  if (!r.data.accepted) {
+    // Refused: the swing can be taken again.
+    delete seatAnswered[me];
+    col.querySelectorAll('.choice').forEach(x => { x.disabled = false; });
+    seatPick(me, p.index, p.round);
+    return;
+  }
+  delete seatSwingPick[me];
+  col.classList.add('done');
+  col.insertAdjacentHTML('beforeend', '<div class="verdict in">The ball is away.</div>');
+}
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' && e.key !== 'Enter') return;
+  const hit = document.querySelector('[data-seat-hit]:not([disabled])');
+  if (!hit) return;
+  e.preventDefault();
+  seatSwing(+hit.dataset.seatHit, e.timeStamp);
+});
 
 function seatVerdictHTML(seat, round, shoot, golfNow) {
   const mine = (round.results || []).find(r => r.player_id === seat.id);
@@ -700,10 +771,17 @@ function seatPickHTML(seat, shoot) {
 }
 
 document.addEventListener('click', async e => {
+  const sh = e.target.closest('[data-seat-hit]');
+  if (sh) { seatSwing(+sh.dataset.seatHit, e.timeStamp); return; }
   const b = e.target.closest('[data-seat-answer]');
   if (b) {
     const me = +b.dataset.seatAnswer, i = +b.dataset.choice;
     if (seatAnswered[me] !== undefined) return;
+    if (b.closest('[data-swings]')) {
+      // A golfer's stroke: this chooses; Hit swings.
+      seatPick(me, i, lastTableState && lastTableState.round ? lastTableState.round.number : null);
+      return;
+    }
     seatAnswered[me] = i;
     const col = b.closest('.seatcol');
     col.querySelectorAll('.choice').forEach(x => { x.disabled = true; });
@@ -757,6 +835,8 @@ document.addEventListener('click', async e => {
     const me = +cb.dataset.seatClub;
     const r = await api('/api/party/club', {player: me, club: cb.dataset.club});
     if (r.ok) cb.closest('.clubrow').querySelectorAll('.btn').forEach(x => x.classList.toggle('on', x === cb));
+    // Mid-swing, the club moves the notch: redraw, and the swing resumes.
+    if (r.ok && cb.closest('[data-swings]')) { painted = null; tick(); }
     return;
   }
   const pk = e.target.closest('[data-seat-pick]');
@@ -799,7 +879,8 @@ function golfPlayback(gf) {
   if (!gf.last || !gf.last.length) return '';
   return `<table class="res" style="margin-top:.4rem">${gf.last.map(s =>
     `<tr><td>${esc(s.name)}</td><td>${s.call ? `<div class="shotcall">${esc(s.call)}</div>` : ''}${
-      s.kind && (gf.clips || []).includes(s.kind) ? `<img class="shotclip" src="/static/golf/clips/${esc(s.kind)}.gif" alt="">` : ''}${esc(s.words)}</td></tr>`).join('')}</table>`;
+      s.kind && (gf.clips || []).includes(s.kind) ? `<img class="shotclip" src="/static/golf/clips/${esc(s.kind)}.gif" alt="">` : ''}${esc(s.words)}${
+      window.GolfSwing && s.meter != null ? `<div class="hint" style="text-align:left;margin:.2rem 0 0;font-family:var(--mono)">${GolfSwing.strikeLine(s)}</div>` : ''}</td></tr>`).join('')}</table>`;
 }
 function golfTeeTimes(gf) {
   if (!gf.tee_times || !gf.tee_times.length) return '';
@@ -1139,13 +1220,15 @@ async function tick() {
           ? `<p class="narrator"><b>${esc(gf.away_name)}</b> ${gf.address_waits ? 'is away' : 'addresses the ball'}${gf.away_club ? ', the <span data-away-club>' + esc(clubName(gf, gf.away_club)) + '</span> in hand' : ''}${
               (gf.away_lie === 'green' || gf.away_lie === 'fringe') ? `, ${gf.away_feet || 0} feet` : gf.away_left ? `, ${gf.away_left} to go from the ${esc(gf.away_lie || '')}` : ''}&hellip;${gf.address_waits ? '' : '<span class="cue" title="the question is coming"></span>'}${gf.away_ahead ? ` <span class="hint" style="display:inline">${esc(gf.away_ahead)}</span>` : ''}</p>` +
             (awayHere && awayBall
-              ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club, then press Hit. The question is yours when you are ready - nothing here is timed.</p>
+              ? `<div class="hitrow"><p class="hint" style="text-align:left;margin:0 0 .3rem">Choose a club and set up the shot, then press Ready. The question is yours when you are - nothing here is timed.</p>
                  <div class="clubrow" data-clubrow="${gf.away}">${(awayBall.clubs || []).map(c =>
                    `<button class="btn sm ${c === awayBall.club ? 'on' : ''}" data-seat-club="${gf.away}" data-club="${c}" title="${esc(clubName(gf, c))}${(awayBall.club_yards || {})[c] ? ' - gets ' + awayBall.club_yards[c] + ' from here' : ''}">${esc((gf.club_labels || {})[c] || c)}${c === awayBall.default_club ? ' &#9733;' : ''}</button>`).join('')}</div>
                  <p class="hint" style="text-align:left;margin:.2rem 0 .3rem" data-caddie>${caddieWords(gf, awayBall)}</p>
-                 <button class="btn primary" data-golf-hit="${gf.away}">Hit &rsaquo;</button></div>`
+                 ${awayBall.reading && window.GolfSwing ? GolfSwing.setupHTML(gf.away_shape, awayBall.reading, 'ts') : ''}
+                 <button class="btn primary" data-golf-hit="${gf.away}">Ready &rsaquo;</button>
+                 <p class="hint" style="text-align:left;margin:.3rem 0 0">The question comes next. Choose your answer, then swing.</p></div>`
               : gf.address_waits
-                ? `<p class="hint" style="text-align:left">${esc(gf.away_name)} is choosing a club on their phone. The question comes when they hit.</p>`
+                ? `<p class="hint" style="text-align:left">${esc(gf.away_name)} is setting up the shot on their phone. The question comes when they are ready.</p>`
                 : '')
           : '';
         // The view from the tee, when the unit has the picture: the address
@@ -1181,6 +1264,10 @@ async function tick() {
           golfBalls(gf) + golfTeeTimes(gf) + (address ? '' : golfPlayback(gf)) + (gf.over ? golfBoard(gf) + recordBoardHTML() : '') +
           `</div>${holeMap}</div>`;
         if (window.Voice) Voice.setHave(gf.voice_have);
+        if (awayHere && awayBall && awayBall.reading && window.GolfSwing) {
+          const who = gf.away;
+          GolfSwing.wireSetup(stage, awayBall.reading, change => api('/api/party/shape', Object.assign({player: who}, change)), 'ts');
+        }
         if (address) narrate(`${gf.away_name} addresses the ball`, (onTheTee ? gf.hole_tokens : []).concat(gf.address_tokens || []));
       }
       return;
@@ -1395,6 +1482,7 @@ async function tick() {
       (gf ? `<div class="golfunder">${golfAwayLine(gf)}${golfHead(gf)}</div>` : '');
     }
   }
+  resumeSeatSwings(round);
   const clock = document.getElementById('clock');
   if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
   stage.querySelectorAll('[data-seatclk]').forEach(el => { el.textContent = Math.ceil(round.remaining) + 's'; });
@@ -2232,6 +2320,7 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => { guardedTick(); scheduleTable(); });
 </script>
 <script src="{{ asset('games.js') }}"></script>
+<script src="{{ asset('golfswing.js') }}"></script>
 <script src="{{ asset('morse.js') }}"></script>
 <script src="{{ asset('certs.js') }}"></script>
 <script src="{{ asset('hallshow.js') }}"></script>

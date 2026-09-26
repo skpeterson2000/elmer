@@ -107,8 +107,16 @@ function renderResults(r) {
         '<td style="width:34%">' + meterHTML(b.right / b.total, true) + '</td></tr>').join('') +
       '</tbody></table></div>' +
 
+    /* Said out loud, because this is where somebody doubts it. Every answer
+       in the paper has already been folded into the same schedule the drill
+       runs on - the misses are lapsed and due back within minutes - and a
+       screen that shows the misses without saying so reads as a screen that
+       threw them away. */
     (missed.length ? '<div class="panel mt"><div class="panel-title">Review the ' +
-      missed.length + ' you missed</div>' + missed.map(m =>
+      missed.length + ' you missed</div>' +
+      '<p class="small muted" style="margin:0 0 .6rem">These are in your review queue ' +
+      'already: every answer in this exam went into the same schedule the drill uses, ' +
+      'and the ones you missed come back within minutes.</p>' + missed.map(m =>
       '<div style="border-bottom:1px solid #1c242e;padding:.7rem 0">' +
         '<div class="quiz-context"><span class="qid">' + escapeHTML(m.question_id) +
           '</span> &middot; ' + escapeHTML(m.section_title) + '</div>' +
@@ -118,8 +126,18 @@ function renderResults(r) {
           escapeHTML(m.chosen_text) + '</div>' : '<div class="small muted">left blank</div>') +
       '</div>').join('') + '</div>' : '') +
 
+    /* The first button is the one somebody wants after a paper: the questions
+       this exam just caught. It used to be "Drill the weak spots", which is
+       the whole pool sorted by mastery - and an unseen question outranks one
+       you have just got wrong, so it served material nobody had met and none
+       of what the exam found. */
     '<div class="row mt">' +
-      '<a class="btn primary" href="/study/' + E.pool + '?mode=weak">Drill the weak spots</a>' +
+      (missed.length
+        ? '<a class="btn primary" href="/study/' + E.pool + '?mode=review">Drill the ' +
+          missed.length + ' you missed</a>'
+        : '') +
+      '<a class="btn' + (missed.length ? '' : ' primary') + '" href="/study/' + E.pool +
+        '?mode=weak">Drill the weak spots</a>' +
       '<a class="btn" href="/exam/' + E.pool + '">Another exam</a>' +
       '<a class="btn ghost" href="/progress/' + E.pool + '">Full progress</a>' +
     '</div>';

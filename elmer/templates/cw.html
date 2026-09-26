@@ -132,6 +132,13 @@
     {# The clock, so the session has a visible bottom. "Two of four" says
        where in the lesson somebody is; this says how much of it is left. #}
     <div class="tiny muted" id="cw-break-clock" style="margin-top:.5rem"></div>
+    {# A break is ten idle seconds with somebody's attention already on the
+       code, which is the one place a fact about it is worth reading. The
+       ladder and its sources were built and then left sitting in a slider
+       nobody drags. See cw.SPEED_LADDER and QUALIFY_SOURCE: everything here
+       that makes a claim carries a link to somewhere it can be checked. #}
+    <div class="tiny muted" id="cw-break-fact" style="margin-top:.7rem;
+         border-top:1px solid var(--line);padding-top:.6rem;text-align:left"></div>
   </div>
   <div id="cw-flash" class="cw-teach mt" hidden>
     <div class="cw-code big" id="cw-flash-code"></div>

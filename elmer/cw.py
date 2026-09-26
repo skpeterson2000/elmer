@@ -727,12 +727,20 @@ PASSES_MOST = 6
 
 
 def passes(the_plan):
-    """How many passes through today's lesson make a day.
+    """How many passes of this length a quarter of an hour comes to.
 
     The quotient of the day and the session, held between three and six. At
     two characters that is five passes of three minutes; holding the order it
     is three of six. Either way it is a quarter of an hour, and either way it
     is not one sitting.
+
+    It is an illustration and not an assignment, and the page says so: the
+    number is the reason the sessions are short, not a quota to be met. What
+    a person's day holds is theirs to decide - somebody sitting an exam in
+    three weeks and somebody learning the code for the pleasure of it are
+    both using this correctly - so nothing counts down toward this figure
+    and nothing is ever reported as outstanding. It survives here because
+    the carry window needs a length; see :func:`set_state`.
     """
     each = budget(the_plan)
     return max(PASSES_FEWEST, min(PASSES_MOST, int(round(DAY_TARGET / float(each)))))

@@ -36,7 +36,7 @@ from . import (
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
     fieldreport, forecastlog, game, gating, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
-    landmarks, library, logs, mail, monitoring, nanovna,
+    landmarks, ledger, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
     paths, personal, phonegps, places, pota, prints, programs,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
@@ -59,7 +59,7 @@ app.config["JSON_SORT_KEYS"] = False
 MODES = ("drill", "weak", "new", "review", "rapid", "section")
 EMPTY_REASON = {
     "new": "you have seen every question in this pool at least once",
-    "review": "nothing has tripped you up yet - no lapsed questions to review",
+    "review": "nothing is waiting - every question you have got wrong, you have since got right",
     "weak": "no questions available in this selection",
 }
 
@@ -912,8 +912,16 @@ def study(pool_id):
     if mode not in MODES:
         mode = "drill"
     section = request.args.get("section")
+    # How many questions are waiting because they were got wrong. The promise
+    # this program is built on is that it knows what you do not and drills you
+    # on that, and until now the only way to find out how much of that there
+    # was, was to press Lapses and count. A number on the button is the list
+    # existing where somebody can see it.
+    waiting = sum(1 for c in db.cards_for_pool(conn(), pool.pool_id).values()
+                  if srs.missed_last(c))
     return render_template("study.html", pool=pool, mode=mode, section=section,
                            section_title=pool.section_title(section) if section else None,
+                           needs_review=waiting,
                            # The page opens on the run ladder as it stands,
                            # not on noughts: somebody coming back to a pool
                            # they have taken to eight should see the eight.
@@ -2593,9 +2601,10 @@ def api_library_add():
     name = secure_filename(up.filename)
     if not name.lower().endswith(".pdf"):
         abort(400, "only PDF manuals go on the shelf")
-    head = up.stream.read(5)
+    head = up.stream.read(library.PDF_HEAD_BYTES)
     up.stream.seek(0)
-    if head != b"%PDF-":
+    if not library.is_pdf(head):
+        log.warning("library: refused %s - no PDF header in its first bytes: %r", name, head[:16])
         abort(400, "that is not a PDF")
     library.SHELF.mkdir(parents=True, exist_ok=True)
     target = library.SHELF / name
@@ -3510,10 +3519,24 @@ def api_next():
     if mode == "new":
         queue = [q for q in queue if not cards.get(q, {}).get("seen")]
     elif mode == "review":
-        queue = [q for q in queue if cards.get(q, {}).get("lapses")]
+        # What is still wrong, not everything ever got wrong. The lapse count
+        # never goes down, so filtering on it kept a question here after it
+        # had been put right, and the list could never be emptied.
+        queue = [q for q in queue if srs.missed_last(cards.get(q))]
     elif mode == "weak":
         per_q, _, _, _ = srs.pool_skills(pool, cards)
-        queue = sorted(queue, key=lambda q: per_q.get(q, 0.0))[:200]
+        # Measured weakness first, and only then the unmeasured. A question
+        # nobody has answered is not a weak spot; it is an unknown, and
+        # srs.pool_skills scores it from its section discounted by how little
+        # evidence there is - which lands it *below* a question the learner
+        # has actually just got wrong. So this mode, whose documented job is
+        # "use it after a mock exam has told you where you are thin", served
+        # four hundred questions never seen before and not one of the ten the
+        # exam had just caught. The exam's own button pointed here, so from
+        # the outside it looked as though a mock exam taught the program
+        # nothing at all.
+        queue = sorted(queue, key=lambda q: (0 if cards.get(q, {}).get("seen") else 1,
+                                             per_q.get(q, 0.0)))[:200]
     elif mode == "rapid":
         random.shuffle(queue)
 
@@ -3521,11 +3544,15 @@ def api_next():
         return jsonify({"done": True, "reason": EMPTY_REASON.get(
             mode, "there are no questions in this selection")})
     # `exclude` only suppresses repeats within a session; once it has consumed
-    # the whole queue the session has wrapped around, so start it again.
+    # the whole queue the session wraps around. While any of the pool is
+    # unseen, a question last answered right is no longer in the queue, so
+    # what it wraps onto is misses - which are meant to come back.
     queue = [q for q in queue if q not in exclude] or queue
 
     pick = queue[0] if mode != "rapid" else random.choice(queue[:60])
     question = pool.by_id[pick]
+    # Written down whether or not it is ever answered. See ledger.py.
+    ledger.offered(connection, pool.pool_id, pick, question["section"], "study", mode)
     shown = presentation(question)
     card = cards.get(pick)
     return jsonify({
@@ -3671,6 +3698,9 @@ def api_exam_start():
     connection.execute("UPDATE exam SET detail = ? WHERE id = ?",
                        (json.dumps({"exam": exam}), exam["exam_id"]))
     connection.commit()
+    for item in exam["items"]:
+        ledger.offered(connection, pool.pool_id, item["question_id"],
+                       pool.by_id[item["question_id"]]["section"], "exam", "exam")
     client = dict(exam)
     # The answer key, and the shuffle it was derived from. "answer" was
     # already withheld; "order" was not, and it is the same secret written
@@ -4533,7 +4563,8 @@ def api_party_answer():
             return jsonify({"accepted": False, "reason": why}), 409
         return jsonify({"accepted": True, "ms": entry["ms"], "extra": True})
     server_ms = (time.monotonic() - rnd.opened_at) * 1000.0 if rnd else None
-    entry, why = room.submit(who, chosen, body.get("ms"), server_ms)
+    # A golfer's swing comes with the answer: where they stopped the meter.
+    entry, why = room.submit(who, chosen, body.get("ms"), server_ms, meter=body.get("meter"))
     room.note_service((time.perf_counter() - started) * 1000.0)
     if entry is None:
         return jsonify({"accepted": False, "reason": why}), 409
@@ -5644,7 +5675,15 @@ def api_party_golf_map():
               for pid, b in (view.get("balls") or {}).items() if b.get("lie") in ("green", "fringe")]
         last = (view.get("last") or [{}])[0] if view.get("last") else {}
         aimed = feet(ball.get("last_aim")) if (who is not None and ball.get("strokes") and last.get("putt")) else None
-        resp = app.response_class(golfmap.green_svg(h, on, feet(mark), aimed, view.get("slope")), mimetype="image/svg+xml")
+        # Framed on the golfer's ball and the cup, with the first part of
+        # the putt's roll at the notch's pace - where it starts to bend.
+        try:
+            preview = g.putt_preview(int(whose), ball.get("club")) if whose is not None else None
+        except (TypeError, ValueError):
+            preview = None
+        resp = app.response_class(golfmap.green_svg(h, on, feet(mark), aimed, view.get("slope"),
+                                                    focus=golfmap.green_focus(h, ball), preview=preview),
+                                  mimetype="image/svg+xml")
         resp.headers["Cache-Control"] = "no-store"
         return resp
     # And where the last stroke was aimed - the phone's own golfer's last,
@@ -6006,6 +6045,21 @@ def api_party_aim():
     if mark is None:
         abort(409, "no mark from there - it is a putt, or the ball is down")
     return jsonify({"ok": True, "aim": g.aim(player)})
+
+
+@app.route("/api/party/shape", methods=["POST"])
+def api_party_shape():
+    """The shot a golfer sets up before the question: its shape and spin."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player_id = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "which player?")
+    ok, said = room.choose_shape(player_id, body.get("shape"), body.get("spin"))
+    if not ok:
+        return jsonify({"ok": False, "message": said}), 409
+    return jsonify({"ok": True, "shape": said})
 
 
 @app.route("/api/party/hit", methods=["POST"])

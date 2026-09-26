@@ -163,7 +163,11 @@ Study modes:
 - **Drill** — overdue reviews first, then new material
 - **Weak spots** — lowest estimated mastery first
 - **New** — questions you have never seen
-- **Lapses** — the ones that have caught you out before
+- **Needs review** — the ones that have caught you out before, from any mode: the
+  three places an answer is written down (the study API, the exam scorer and
+  `_credit_card`, which the table games use) all grade the card the same way, and
+  a wrong answer is always below the passing quality, so it always lapses. The
+  button carries the count. See tests/test_every_miss_reviews.py
 - **Contest** — five-minute rapid-fire round
 - Or drill any single syllabus section from the progress and browse pages
 

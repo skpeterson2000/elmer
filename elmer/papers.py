@@ -133,9 +133,11 @@ def add(user_id, kind, stream):
     target = _path(user_id, kind)
     if target is None:
         return False, "not a kind of license ELMER keeps"
-    head = stream.read(5)
+    head = stream.read(library.PDF_HEAD_BYTES)
     stream.seek(0)
-    if head != b"%PDF-":
+    if not library.is_pdf(head):
+        log.warning("papers: refused a %s for user %s - no PDF header in its first bytes: %r",
+                    KINDS[kind], user_id, bytes(head[:16]))
         return False, "that is not a PDF - the FCC's official copy is one"
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(".tmp")

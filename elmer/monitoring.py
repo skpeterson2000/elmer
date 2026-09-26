@@ -31,7 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from . import paths
+from . import library, paths
 
 log = logging.getLogger("elmer")
 
@@ -473,14 +473,14 @@ def fetch(url, cite, refresh=False):
             except (OSError, ValueError):
                 pass
         return {"ok": False, "cite": cite, "url": url, "error": str(exc)}
-    if url.lower().endswith(".pdf") and raw[:5] != b"%PDF-":
+    if url.lower().endswith(".pdf") and not library.is_pdf(raw):
         # Asked for the document and handed a page - a sign-in wall, a
         # viewer, an outage notice. Not the statute, and not kept as one.
         return {"ok": False, "cite": cite, "url": url,
                 "error": "the site answered with a page instead of the document"}
     out = {"ok": True, "cite": cite, "url": url, "html": body,
            "fetched_at": time.time()}
-    if raw[:5] == b"%PDF-":
+    if library.is_pdf(raw):
         # Indiana and Kentucky publish the section as a PDF. The words are
         # what is wanted, so they are read out with the same tool that reads
         # the question pools; the bytes are not a page and are not kept.
