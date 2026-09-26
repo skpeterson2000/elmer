@@ -24,11 +24,13 @@ import json
 import time
 from pathlib import Path
 
-from . import geocode, places, references
+from . import geocode, paths, places, references
 from .terrain import great_circle
 
 ROOT = Path(__file__).resolve().parents[1]
-STORE = ROOT / "data" / "trips.json"
+# The operator's, so with their other state - not the checkout's data/ by
+# name, which put the tests' destinations in a real unit's list.
+STORE = paths.STATE / "trips.json"
 
 # Wide enough to hold an NVIS footprint, a tropo circle and the near half of a
 # first HF hop - which is everything the plan view asks for at a destination.
@@ -144,8 +146,23 @@ def prepare(where, radius_km=DEFAULT_RADIUS_KM, progress=None):
         missing.append(f"parks and summits could not be fetched "
                        f"({type(exc).__name__})")
 
+    # The ground where the antenna is going up: rated from the surveys now,
+    # while there is a signal, and kept - see siteground.py.
+    from . import siteground
+    say("asking the soil and water surveys about the ground there ...")
+    rated = siteground.survey(spot["lat"], spot["lon"], name=spot.get("short") or spot.get("name") or "",
+                              refresh=True)
+    ground = rated.get("ground") if rated.get("ok") else None
+    if ground:
+        got.append(f"the ground: {rated['label'].lower()}")
+    elif rated.get("ok"):
+        missing.append("the ground: no soil survey covers it - choose it by hand there")
+    else:
+        missing.append(f"the ground could not be rated - {rated.get('error', 'the surveys did not answer')}")
+
     record = {
         "name": spot.get("short") or spot.get("name"),
+        "ground": ground,
         "grid": spot.get("grid") or geocode.to_grid(spot["lat"], spot["lon"]),
         "lat": round(spot["lat"], 4), "lon": round(spot["lon"], 4),
         "radius_km": radius_km, "prepared": time.time(),

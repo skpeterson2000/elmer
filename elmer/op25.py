@@ -54,6 +54,9 @@ def match_pattern(conn):
         return DEFAULT_MATCH
 
 
+_no_pgrep_said = [False]
+
+
 def find(match=DEFAULT_MATCH):
     """Every OP25 process, as (pid, command line) - never this one or its parent."""
     mine = {os.getpid(), os.getppid()}
@@ -61,7 +64,12 @@ def find(match=DEFAULT_MATCH):
     try:
         res = subprocess.run(["pgrep", "-af", match], capture_output=True,
                              text=True, timeout=5)
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as exc:
+        # No pgrep: not Linux, and OP25 is a Linux program - there is nothing
+        # here to stop. Said once, not at every game.
+        if not _no_pgrep_said[0]:
+            log.info("op25: not looked for on this machine (%s) - OP25 runs on Linux", exc)
+            _no_pgrep_said[0] = True
         return out
     for line in res.stdout.splitlines():
         pid_s, _, cmd = line.partition(" ")

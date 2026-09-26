@@ -31,6 +31,7 @@ import time
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 
+from . import paths
 from .paths import STATE
 
 log = logging.getLogger("elmer")
@@ -122,10 +123,7 @@ def save(**fields):
         current["port"] = DEFAULT_PORT[current["security"]]
     SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS.write_text(json.dumps(current, indent=1))
-    try:
-        os.chmod(SETTINGS, 0o600)       # a password lives in it
-    except OSError:
-        pass
+    paths.keep_private(SETTINGS)        # a password lives in it
     return public_settings()
 
 

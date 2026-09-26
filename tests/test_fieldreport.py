@@ -82,7 +82,30 @@ def main():
           ("password" in pub, pub["has_password"]), (False, True))
     mail.save(password="")
     check("  a blank password on save keeps the old one", mail.settings()["password"], "hunter2")
-    check("  the file is the operator's alone", oct(mail.SETTINGS.stat().st_mode & 0o777), "0o600")
+    import os as _os
+    if _os.name != "nt":
+        check("  the file is the operator's alone", oct(mail.SETTINGS.stat().st_mode & 0o777), "0o600")
+    else:
+        # Windows has no mode bits, so the question is asked the way Windows
+        # answers it: who is on the file's permission list. No group - not
+        # Users, not Everyone, not every signed-in account - may be.
+        import subprocess as _sp
+        acl = _sp.run(["icacls", str(mail.SETTINGS)], capture_output=True, text=True).stdout
+        broad = [g for g in ("BUILTIN\\Users", "Everyone", "Authenticated Users") if g in acl]
+        check("  the file is the operator's alone", (broad, _os.environ.get("USERNAME", "?") in acl), ([], True))
+        # And that it is made so, not merely inherited so: a file every user
+        # on the machine can read is handed to keep_private, and comes back
+        # the owner's alone.
+        from elmer import paths as _paths
+        scratch = mail.SETTINGS.parent / "wide-open.txt"
+        scratch.write_text("secret")
+        _sp.run(["icacls", str(scratch), "/grant", "*S-1-5-32-545:R"], capture_output=True, text=True)
+        before = "BUILTIN\\Users" in _sp.run(["icacls", str(scratch)], capture_output=True, text=True).stdout
+        made = _paths.keep_private(scratch)
+        after = _sp.run(["icacls", str(scratch)], capture_output=True, text=True).stdout
+        check("  a file every user could read is made the owner's alone",
+              (before, made, "BUILTIN\\Users" in after, _os.environ.get("USERNAME", "?") in after), (True, True, False, True))
+        scratch.unlink()
     ok, why = mail.send("test", "body")
     check("a server that is not there is a plain failure, not an exception", ok, False)
     check("  with the reason in words", bool(why), True)

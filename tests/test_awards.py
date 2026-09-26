@@ -70,7 +70,13 @@ def main():
     print("\n-- in the lounge --")
     c.post("/api/users/switch", json={"id": 1})
     html = c.get("/lounge").get_data(as_text=True)
-    check("the lounge renders, with a frame for every plate in the picture", (html.count('class="lg-frame"'), html.count('class="lg-small"')), (13, 5))
+    # Against the list, not a number: the room's picture was replaced on
+    # 22 September and its frames measured again, and a count written into
+    # this test failed for a week without anything being wrong.
+    from elmer.app import LOUNGE_FRAMES, LOUNGE_SMALL
+    check("the lounge renders, with a frame for every plate in the picture",
+          (html.count('class="lg-frame"'), html.count('class="lg-small"')), (len(LOUNGE_FRAMES), len(LOUNGE_SMALL)))
+    check("  and the picture has frames to hang things in", (len(LOUNGE_FRAMES) > 0, len(LOUNGE_SMALL) > 0), (True, True))
     check("  and the room itself", "golf/lounge.jpg" in html, True)
     c.post("/api/users/switch", json={"id": 2})
 

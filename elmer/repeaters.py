@@ -98,10 +98,20 @@ def horizon_km(height_ft, other_ft=ASSUMED_TOWER_FT):
 
 
 def find_towerwitch():
-    """Where TowerWitch is, if it is anywhere obvious."""
+    """Where TowerWitch is, if it is anywhere obvious.
+
+    ELMER_TOWERWITCH, when it is set, is the answer and the search is not
+    made: a path is where TowerWitch is, and an empty value is "there is no
+    TowerWitch here". Unset, the usual places are looked in. The empty value
+    is what the tests set - without it, a test on a machine that also runs
+    TowerWitch read that machine's real position and failed for it."""
     named = os.environ.get("ELMER_TOWERWITCH")
-    candidates = [Path(named).expanduser()] if named else []
-    candidates += [Path.home() / "TowerWitch", ROOT.parent / "TowerWitch"]
+    if named is not None:
+        if not named.strip():
+            return None
+        candidates = [Path(named).expanduser()]
+    else:
+        candidates = [Path.home() / "TowerWitch", ROOT.parent / "TowerWitch"]
     for path in candidates:
         try:
             if (path / "data").is_dir() or (path / "radio_cache").is_dir():

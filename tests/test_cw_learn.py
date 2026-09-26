@@ -89,7 +89,11 @@ LESSON_JS = r"""(async () => {
   $('cw-learn-begin').click();
   // Two characters never heard are met first - sounded, drawn, named, with
   // nothing asked - and only then is the first one sent as a question.
-  await sleep(1200);
+  // Waited for, not slept on: a fixed 1.2 s was right on a quiet machine
+  // and early on one running the whole suite, and the test failed for it
+  // with nothing wrong on the page. Up to five seconds, looked at every
+  // tenth; the later steps keep their spacing from here.
+  for (let t = 0; t < 50 && !$('cw-teach-hint').textContent.startsWith('new: '); t++) await sleep(100);
   out.meeting = {hint: $('cw-teach-hint').textContent, waiting: !$('cw-learn-again').hidden,
                  chars: learnChars.slice()};
   await sleep(8500);

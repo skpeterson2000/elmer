@@ -17,6 +17,7 @@
   <button class="btn sm ghost" data-tab="smith">Smith chart</button>
   <button class="btn sm ghost" data-tab="db">Decibels</button>
   <button class="btn sm ghost" data-tab="path">Path &amp; line of sight</button>
+  <button class="btn sm ghost" data-tab="ground">Ground</button>
   {% for b in benches %}<button class="btn sm ghost" data-tab="{{ b.key }}">{{ b.title }}</button>{% endfor %}
 </div>
 <p class="tiny muted" style="margin:.5rem 0 0">
@@ -416,6 +417,23 @@
 </div>
 
 <!-- ---------------------------------------------------------------- path -->
+<div class="panel mt lab-pane" id="pane-ground" hidden>
+  <div class="panel-title">The ground &mdash; what the antenna will be standing on</div>
+  <p class="small muted" style="margin:0 0 .6rem">Read from the public surveys: the soil (USDA), the water nearby (USGS)
+    and the lie of the land. Rate a spot while you have a signal and it is kept here, ready in a field with none.</p>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="flex:1;min-width:14rem;margin:0">
+      <label>Grid, lat,lon, or a place name &mdash; or leave it empty for your QTH</label>
+      <input id="g-where" placeholder="EN60 &middot; 40.50,-86.50 &middot; Moab, Utah">
+    </div>
+    <button class="btn sm primary" id="g-rate">Rate the ground</button>
+    <button class="btn sm ghost" id="g-qth">my QTH</button>
+    <button class="btn sm ghost" id="g-locate">where I am</button>
+  </div>
+  <div id="g-out" class="mt"></div>
+  <div id="g-kept" class="mt"></div>
+</div>
+
 <div class="panel mt lab-pane" id="pane-path" hidden>
   <div class="panel-title">Path and line of sight &mdash; will this link actually work?</div>
 

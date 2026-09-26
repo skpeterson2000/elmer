@@ -210,10 +210,8 @@ def init_issuer(path=None):
     seed, pk = ed25519.keypair()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(seed.hex() + "\n", encoding="utf-8")
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    from . import paths
+    paths.keep_private(path)            # the key that signs the roster: its owner's alone
     return pk.hex()
 
 

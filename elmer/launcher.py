@@ -34,8 +34,13 @@ def _home_share():
 
 
 def _desktop_dir():
-    """The user's desktop folder, or None if this desktop has no such thing."""
-    directory = Path.home() / "Desktop"
+    """The user's desktop folder, or None if this desktop has no such thing.
+
+    $HOME/Desktop, as the freedesktop layout has it - HOME rather than
+    Path.home(), which on Linux is the same thing and on Windows ignores HOME
+    altogether, so the test that sets HOME to a scratch folder could not see
+    the shortcut it had just asked for."""
+    directory = Path(os.environ.get("HOME") or Path.home()) / "Desktop"
     return directory if directory.is_dir() else None
 
 

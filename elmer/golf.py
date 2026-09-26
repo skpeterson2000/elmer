@@ -860,25 +860,25 @@ def wind_drift(hour, mph, club=None, carry=None, most=None, flair=None):
 # The table is still the truth on a calm day. Each club's launch speed is
 # solved so that its calm carry is the bag's carry, exactly, for whatever
 # spin and shape the golfer set up; what the model adds is only what the
-# air does differently from calm. It is flown in metres and handed back in
+# air does differently from calm. It is flown in meters and handed back in
 # yards.
-AIR_DENSITY = 1.225             # kg per cubic metre, sea level
+AIR_DENSITY = 1.225             # kg per cubic meter, sea level
 BALL_MASS = 0.04593             # kg
 BALL_RADIUS = 0.021335          # m
 BALL_DRAG = 0.21                # drag coefficient of a dimpled ball with no spin
 SPIN_DRAG = 0.30                # and how much more per unit of spin ratio: spin costs speed
 LIFT_MOST = 0.42                # the lift coefficient a ball approaches as its spin ratio grows
 LIFT_RISE = 3.0                 # how quickly: 1 - exp(-rise * r.omega / v)
-# The wind is measured near the ground and a ball peaks thirty metres up,
-# where it blows harder. The usual power law, from the ten-metre wind the
+# The wind is measured near the ground and a ball peaks thirty meters up,
+# where it blows harder. The usual power law, from the ten-meter wind the
 # forecast gives, held to a sensible range near the ground and aloft.
 WIND_SHEAR = 0.15
 WIND_REF_M = 10.0
 SPIN_DECAY_S = 22.0             # seconds for the spin to fall to a third or so
 SHAPE_TILT = 16.0               # degrees the spin axis tilts at a full draw or fade
 GRAVITY = 9.81
-MPH = 0.44704                   # metres a second
-YARD = 0.9144                   # metres
+MPH = 0.44704                   # meters a second
+YARD = 0.9144                   # meters
 FLIGHT_DT = 0.02                # seconds a step
 # Launch angle and backspin by club, from tour launch-monitor averages; the
 # sand wedge, which those tables stop short of, extended the way they run.
@@ -892,7 +892,7 @@ SPIN_FLIGHT = (0.75, 1.25)
 
 
 def _fly(v0, launch_deg, rpm, wind_x=0.0, wind_y=0.0, tilt_deg=0.0):
-    """Fly one ball. x is down the line, y to the right, z up, in metres.
+    """Fly one ball. x is down the line, y to the right, z up, in meters.
     Returns (carry_m, lateral_m, hang_s, descent_deg)."""
     k = 0.5 * AIR_DENSITY * math.pi * BALL_RADIUS ** 2 / BALL_MASS
     a = math.radians(launch_deg)

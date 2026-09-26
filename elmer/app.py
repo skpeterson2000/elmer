@@ -3795,6 +3795,47 @@ def api_exam_submit(exam_id):
 # misc API
 # --------------------------------------------------------------------------
 
+@app.route("/api/ground")
+def api_ground():
+    """The ground at a spot, rated from the public surveys - see siteground.py.
+
+    `where` is a place, a grid square or lat,lon, resolved the way a trip is;
+    or `lat` and `lon`; or neither, for this station's QTH. A spot rated
+    before is answered from the unit, which is what makes it work in a field
+    with no signal; `refresh=1` asks the surveys again."""
+    from . import siteground, trip
+    where = (request.args.get("where") or "").strip()
+    name = ""
+    if where:
+        spot = trip.resolve(where)
+        if not spot or spot.get("lat") is None:
+            return jsonify({"ok": False, "error": f"could not work out where \"{where}\" is - try a town and state, "
+                                                  f"a grid square, or lat,lon"}), 404
+        lat, lon, name = spot["lat"], spot["lon"], spot.get("short") or spot.get("name") or where
+    elif request.args.get("lat") not in (None, "") and request.args.get("lon") not in (None, ""):
+        try:
+            lat, lon = float(request.args["lat"]), float(request.args["lon"])
+        except ValueError:
+            abort(400, "lat and lon are numbers")
+        name = (request.args.get("name") or "").strip()[:80]
+    else:
+        loc = (db.get_profile(conn())["settings"].get("location") or {})
+        if loc.get("lat") is None or loc.get("lon") is None:
+            return jsonify({"ok": False, "error": "no QTH is set - set one on the dashboard, or name a place"}), 404
+        lat, lon, name = loc["lat"], loc["lon"], "your QTH"
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        abort(400, "that is not a place on the earth")
+    got = siteground.survey(lat, lon, name=name, refresh=request.args.get("refresh") == "1")
+    return jsonify(got), (200 if got.get("ok", True) else 503)
+
+
+@app.route("/api/ground/kept")
+def api_ground_kept():
+    """Every spot this unit has rated, for picking one offline."""
+    from . import siteground
+    return jsonify({"spots": siteground.kept_spots()})
+
+
 @app.route("/api/propagation")
 def api_propagation():
     connection = conn()
@@ -7932,10 +7973,40 @@ def _describe_this_unit():
             out["party"] = {"running": bool(room.round),
                             "players": state.get("players", 0),
                             "seats": state.get("seats", 0)}
-    except Exception:
-        pass
+            golf_open = _golf_open(room)
+            if golf_open:
+                out["party"]["golf"] = golf_open
+        _describe_said.discard("party")
+    except Exception as exc:                 # the announcer must go on; say so once
+        if "party" not in _describe_said:
+            log.warning("discovery: could not describe this unit's table: %s: %s", type(exc).__name__, exc)
+            _describe_said.add("party")
     out["net"] = _net_role()
     return out
+
+
+_describe_said = set()        # which parts of the announcement have failed, said once each
+
+
+def _golf_open(room):
+    """A round of golf this unit is playing, as a neighbour needs it: enough
+    to offer it on another unit's table screen - the course, where the group
+    is, how many people are in it, whether a foursome has room - or None.
+    A tee time waiting in the clubhouse counts: that is the best time to
+    join. See discovery.golf_rounds."""
+    club = room.clubhouse_view()
+    if club:
+        return {"course": club.get("course_name") or "", "clubhouse": True,
+                "tee_in": club.get("tee_in"), "people": len(club.get("people") or []),
+                "full": bool(club.get("full"))}
+    g = room.golf
+    if g is None or g.over():
+        return None
+    h = g.hole()
+    people = sum(1 for p in room.players.values() if not p.bot)
+    return {"course": (g.course or {}).get("name") or "", "clubhouse": False,
+            "hole": h["n"] if h else None, "holes": len(g.holes),
+            "people": people, "full": people >= party.FOURSOME}
 
 
 def _net_role():
@@ -7970,6 +8041,14 @@ def _net_role():
     except Exception:
         pass
     return role
+
+
+@app.route("/api/party/nearby-golf")
+def api_party_nearby_golf():
+    """Rounds of golf open on other units here, for the table screen to offer
+    - see discovery.golf_rounds. Empty when discovery is not running."""
+    hood = discovery.neighbourhood()
+    return jsonify({"rounds": hood.golf_rounds() if hood else []})
 
 
 @app.route("/api/peers")

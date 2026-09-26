@@ -97,8 +97,10 @@ local coordinator's band plan for the QTH's state, the weather at a golf
 course from the National Weather Service (the course's, not yours), the POTA
 spot feed sampled every twenty minutes while the unit is on, and a park's or
 summit's record from POTA and SOTA when one is picked — and for what you ask
-it to look up, a callsign or a place; nothing about you travels with those
-requests beyond the thing asked. The moon, the meteor calendar and the sun come
+it to look up, a callsign or a place - including the ground at a spot you ask
+to have rated, which sends that spot's coordinates to the USDA soil survey,
+the USGS water survey and the elevation service, and nothing else; nothing
+about you travels with those requests beyond the thing asked. The moon, the meteor calendar and the sun come
 from a clock and arithmetic, and fetch nothing. Two things can be sent
 *from* a unit, and both are entirely voluntary: a **problem report**, when you
 press for it, and a **weekly field report**, when you switch it on — each

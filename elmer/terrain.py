@@ -9,14 +9,19 @@ Everything here degrades to None rather than raising: the path tool still does
 the smooth-earth maths when the network is missing, and simply says the terrain
 is unknown.
 """
+import hashlib
 import json
+import logging
 import math
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 from . import paths
+
+log = logging.getLogger("elmer")
 
 CACHE = paths.STATE / "terrain"       # with the unit's other caches, not the checkout's
 API = "https://api.opentopodata.org/v1/srtm30m"
@@ -91,9 +96,12 @@ def profile(lat1, lon1, lat2, lon2, samples=80):
         _throttle()
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = json.loads(response.read())
-    except Exception:
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        # The path tool steps aside to smooth-earth geometry; say why, once.
+        log.warning("terrain: no profile from %s: %s", API, exc)
         return None
     if payload.get("status") != "OK":
+        log.warning("terrain: the elevation service said %s", payload.get("status"))
         return None
 
     km, bearing = great_circle(lat1, lon1, lat2, lon2)
@@ -111,4 +119,41 @@ def profile(lat1, lon1, lat2, lon2, samples=80):
     out = {"distance_km": km, "bearing": bearing, "samples": len(elevations),
            "points": elevations, "source": "OpenTopoData SRTM 30 m"}
     cached.write_text(json.dumps(out))
+    return out
+
+
+def points(pairs):
+    """Elevations in meters at these (lat, lon) points, in one request, in
+    order - or None if terrain is unavailable. Kept on disk like a profile,
+    so a spot looked at with a signal is still known without one."""
+    pairs = [(float(a), float(b)) for a, b in pairs][:MAX_POINTS]
+    if not pairs:
+        return []
+    locations = "|".join(f"{a:.6f},{b:.6f}" for a, b in pairs)
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cached = CACHE / ("pts_" + hashlib.sha1(locations.encode("ascii")).hexdigest()[:20] + ".json")
+    if cached.is_file():
+        try:
+            return json.loads(cached.read_text())
+        except ValueError:
+            cached.unlink(missing_ok=True)
+    url = f"{API}?{urllib.parse.urlencode({'locations': locations})}"
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        _throttle()
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read())
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        log.warning("terrain: no elevations from %s: %s", API, exc)
+        return None
+    if payload.get("status") != "OK":
+        log.warning("terrain: the elevation service said %s", payload.get("status"))
+        return None
+    out = [0.0 if r.get("elevation") is None else float(r["elevation"]) for r in payload.get("results", [])]
+    if len(out) != len(pairs):
+        return None
+    try:
+        cached.write_text(json.dumps(out))
+    except OSError as exc:
+        log.warning("terrain: could not keep elevations: %s", exc)
     return out

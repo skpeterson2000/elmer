@@ -39,6 +39,10 @@ os.environ["ELMER_STATE"] = str(STATE)
 os.environ["ELMER_DROP_URL"] = ""
 # No test fetches the FCC's license files - the amateur one is 200 MB.
 os.environ["ELMER_ULS"] = "off"
+# Nor finds the operator's TowerWitch. It lives beside ELMER on a real unit,
+# and a test that found it read that machine's position and repeaters as if
+# they were the test's. A test that wants one points this at a stand-in.
+os.environ.setdefault("ELMER_TOWERWITCH", "")
 
 # The guard. Not a fingerprint of data/ - a live ELMER on the same machine
 # writes its log and its database every second, and a fingerprint blames

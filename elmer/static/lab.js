@@ -5338,3 +5338,83 @@ document.addEventListener('click', async e => {
     btn.disabled = false;
   }
 });
+
+
+/* ---------------------------------------------------------------- ground */
+/* The ground under the antenna, rated from the public surveys - see
+   siteground.py. A spot is rated with a signal and kept on the unit, so the
+   list of kept spots below is what there is to hand in a field with none. */
+(function () {
+  const out = document.getElementById('g-out');
+  if (!out) return;
+  const kept = document.getElementById('g-kept');
+  const whereBox = document.getElementById('g-where');
+  const esc = s => (typeof escapeHTML === 'function' ? escapeHTML(String(s == null ? '' : s)) : String(s == null ? '' : s));
+
+  function card(r) {
+    if (!r.ok && r.error) return `<p class="small" style="color:var(--amber)">${esc(r.error)}</p>`;
+    const when = r.rated ? new Date(r.rated * 1000).toLocaleDateString() : '';
+    const lie = r.lie ? `<p class="small" style="margin:.3rem 0"><b>The lie of the land:</b> ${esc(r.lie.says)}.</p>` : '';
+    const list = (xs) => xs && xs.length ? `<ul class="small" style="margin:.2rem 0 .4rem 1.1rem;padding:0">${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+    const missing = r.missing && r.missing.length
+      ? `<p class="tiny muted" style="margin:.3rem 0 0">Not known: ${r.missing.map(esc).join('; ')}.</p>` : '';
+    return `<div class="panel" style="margin:0">
+      <div class="row" style="justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+        <div><b style="font-size:1.1rem">${esc(r.label || 'Unrated')}</b>${r.name ? ` <span class="muted">&middot; ${esc(r.name)}</span>` : ''}</div>
+        <div class="tiny mono muted">${Number(r.lat).toFixed(4)}, ${Number(r.lon).toFixed(4)}${r.kept ? ' &middot; kept ' + esc(when) : ''}</div>
+      </div>
+      <p class="small" style="margin:.3rem 0">${esc(r.headline || '')}</p>
+      ${r.sigma != null ? `<p class="tiny mono muted" style="margin:0 0 .3rem">conductivity ${r.sigma} S/m &middot; permittivity ${r.epsilon} &middot; for the antenna patterns: ${esc(r.pattern)} ground</p>` : ''}
+      ${list(r.why)}${lie}
+      ${r.practical && r.practical.length ? '<p class="small" style="margin:.3rem 0 0"><b>Putting it up</b></p>' + list(r.practical) : ''}
+      <p class="tiny muted" style="margin:.2rem 0 0">An estimate from surveys, not a measurement: radio sees a meter and more into the ground, and the soil survey describes the top couple.${r.kept ? ' <a href="#" data-g-refresh>Ask the surveys again</a>.' : ''}</p>
+      ${missing}</div>`;
+  }
+
+  async function rate(params) {
+    out.innerHTML = '<p class="small muted">Asking the surveys&hellip;</p>';
+    try {
+      const r = await fetch('/api/ground?' + new URLSearchParams(params));
+      const d = await r.json();
+      out.innerHTML = card(d);
+      const again = out.querySelector('[data-g-refresh]');
+      if (again) again.addEventListener('click', e => { e.preventDefault(); rate(Object.assign({}, params, {refresh: '1'})); });
+      showKept();
+    } catch (e) {
+      out.innerHTML = '<p class="small" style="color:var(--amber)">The unit did not answer.</p>';
+    }
+  }
+
+  async function showKept() {
+    try {
+      const d = await (await fetch('/api/ground/kept')).json();
+      const spots = d.spots || [];
+      kept.innerHTML = spots.length ? `<p class="small" style="margin:0 0 .2rem"><b>Kept on this unit</b> &mdash; ready without a signal</p>
+        <table class="small" style="width:100%">${spots.map(s => `<tr><td><a href="#" data-g-lat="${s.lat}" data-g-lon="${s.lon}" data-g-name="${esc(s.name || '')}">${esc(s.name || (s.lat + ', ' + s.lon))}</a></td>
+          <td>${esc(s.label || 'unrated')}</td><td class="tiny muted">${s.rated ? new Date(s.rated * 1000).toLocaleDateString() : ''}</td></tr>`).join('')}</table>` : '';
+    } catch (e) { kept.innerHTML = ''; }
+  }
+
+  kept.addEventListener('click', e => {
+    const a = e.target.closest('[data-g-lat]');
+    if (!a) return;
+    e.preventDefault();
+    rate({lat: a.dataset.gLat, lon: a.dataset.gLon, name: a.dataset.gName});
+  });
+  document.getElementById('g-rate').addEventListener('click', () => {
+    const w = whereBox.value.trim();
+    rate(w ? {where: w} : {});
+  });
+  whereBox.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('g-rate').click(); });
+  document.getElementById('g-qth').addEventListener('click', () => { whereBox.value = ''; rate({}); });
+  document.getElementById('g-locate').addEventListener('click', async () => {
+    out.innerHTML = '<p class="small muted">Finding where you are&hellip;</p>';
+    try {
+      const fix = await locateMe();
+      rate({lat: fix.lat, lon: fix.lon, name: 'where I was'});
+    } catch (e) {
+      out.innerHTML = `<p class="small" style="color:var(--amber)">${esc(e.message || 'no position')}</p>`;
+    }
+  });
+  showKept();
+})();

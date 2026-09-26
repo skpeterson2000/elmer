@@ -73,7 +73,9 @@ run = subprocess.run([sys.executable, "-c", script], cwd=ROOT / "tests",
                      env=env, capture_output=True, text=True)
 check("the process was failed by the guard", run.returncode, 3)
 check("  and said why", "ISOLATION BREACH" in run.stderr, True)
-check("  naming the file", "prints/index.json" in run.stderr, True)
+# Either separator: Windows names it prints\index.json, and the guard is
+# right to - the file is named, which is what is being held.
+check("  naming the file", "prints/index.json" in run.stderr.replace("\\", "/"), True)
 
 # ... and one that only connects to a database there, even to read.
 script = (

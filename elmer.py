@@ -321,6 +321,13 @@ def main():
         args.kiosk = False
 
     if args.install_launcher or args.remove_launcher:
+        if os.name == "nt":
+            # The menu entry and the desktop file are the Linux desktop's. On
+            # Windows ELMER goes on the Start Menu from the installer, and a
+            # .desktop file written here would be a file nothing reads.
+            print("\n  On Windows, ELMER goes on the Start Menu from the installer:")
+            print("      powershell -ExecutionPolicy Bypass -File install.ps1 -Shortcut\n")
+            sys.exit(1)
         from elmer import launcher
         if args.remove_launcher:
             removed = launcher.remove()

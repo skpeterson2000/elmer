@@ -36,30 +36,46 @@ def check(label, got, want):
 TMP = Path(_isolate.STATE) / "multi_rx.py"
 TMP.write_text("import time\ntime.sleep(120)\n")
 
-print("\nthe finder catches the decoder and spares what only mentions it")
-real = subprocess.Popen([sys.executable, str(TMP)])
-decoy = subprocess.Popen(["bash", "-c", f"sleep 120 # {TMP} decoy"])
-time.sleep(1.0)
-try:
-    pids = [p for p, _ in op25.find()]
-    check("the real decoder is found", real.pid in pids, True)
-    check("  a shell that only names it is spared", decoy.pid in pids, False)
-    check("  this process is never in the list", os.getpid() not in pids, True)
-finally:
-    for p in (real, decoy):
-        try:
-            p.terminate(); p.wait(timeout=5)
-        except Exception:
-            p.kill()
+def linux_processes():
+    """The decoder found, the decoys spared, the signal taken - by pgrep and
+    POSIX signals, which is how OP25 is found on the Linux it runs on."""
+    print("\nthe finder catches the decoder and spares what only mentions it")
+    real = subprocess.Popen([sys.executable, str(TMP)])
+    decoy = subprocess.Popen(["bash", "-c", f"sleep 120 # {TMP} decoy"])
+    time.sleep(1.0)
+    try:
+        pids = [p for p, _ in op25.find()]
+        check("the real decoder is found", real.pid in pids, True)
+        check("  a shell that only names it is spared", decoy.pid in pids, False)
+        check("  this process is never in the list", os.getpid() not in pids, True)
+    finally:
+        for p in (real, decoy):
+            try:
+                p.terminate(); p.wait(timeout=5)
+            except Exception:
+                p.kill()
 
-print("\nstop() terminates the decoder and reports what it stopped")
-real = subprocess.Popen([sys.executable, str(TMP)])
-time.sleep(1.0)
-stopped = op25.stop(reason="a test")
-check("it reported one stopped", len(stopped), 1)
-time.sleep(0.5)
-check("  and it is gone", op25.find(), [])
-check("  the child took the signal", real.poll() is not None, True)
+    print("\nstop() terminates the decoder and reports what it stopped")
+    real = subprocess.Popen([sys.executable, str(TMP)])
+    time.sleep(1.0)
+    stopped = op25.stop(reason="a test")
+    check("it reported one stopped", len(stopped), 1)
+    time.sleep(0.5)
+    check("  and it is gone", op25.find(), [])
+    check("  the child took the signal", real.poll() is not None, True)
+
+
+if os.name == "nt":
+    # OP25 is a Linux program and there is no pgrep here to find it with. What
+    # matters on Windows is that a game starting steps aside cleanly - not
+    # that a Windows machine can find a Linux decoder. The process checks
+    # above run on the Pi, where OP25 does.
+    print("\nOP25 runs on Linux; on Windows the finder steps aside")
+    check("the finder finds nothing, and does not fail", op25.find(), [])
+    check("  stop() stops nothing, and does not fail", op25.stop(reason="a test"), [])
+    print("  (the process checks - catching the decoder, sparing a shell, the signal - run on Linux)")
+else:
+    linux_processes()
 
 print("\nthe switch and the pattern are the operator's")
 conn = db.connect()

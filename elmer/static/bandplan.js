@@ -1388,6 +1388,34 @@ function bpReachSeed() {
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
   if (hd) hd.value = (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
+  /* The ground, rated rather than guessed: the soil and water surveys at the
+     QTH (siteground.py), turned into the four grounds the map knows. Kept on
+     the unit once rated, so it answers again without a signal. */
+  const rateBtn = document.getElementById('bp-reach-gnd-rate');
+  if (gnd && rateBtn && !rateBtn.dataset.wired) {
+    rateBtn.dataset.wired = '1';
+    rateBtn.addEventListener('click', async () => {
+      rateBtn.disabled = true;
+      rateBtn.textContent = 'asking the surveys...';
+      try {
+        const d = await (await fetch('/api/ground')).json();
+        if (d.pattern && [...gnd.options].some(o => o.value === d.pattern)) {
+          gnd.value = d.pattern;
+          gnd.dispatchEvent(new Event('change', {bubbles: true}));
+          rateBtn.textContent = 'rated: ' + (d.label || d.pattern).toLowerCase();
+          rateBtn.title = (d.headline || '') + ' - more in the Lab, under Ground.';
+        } else {
+          rateBtn.textContent = 'rate mine';
+          rateBtn.title = d.error || d.headline || 'no rating for here';
+          if (typeof toast === 'function') toast('Ground not rated', d.error || d.headline || '');
+        }
+      } catch (e) {
+        rateBtn.textContent = 'rate mine';
+      } finally {
+        rateBtn.disabled = false;
+      }
+    });
+  }
   /* The NVIS switch: a low wire, and the map brought in to the one-hop
      window round the station, where NVIS lives. It is a way of asking the
      question; the answer is the critical frequency line, which says whether

@@ -44,6 +44,12 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
 /* The Gaming Center. One orange, kept to this panel; brackets on the
    corners; a ring that breathes while the table stands by. */
+/* Golf on another unit, offered - and this screen visiting one. */
+.nearby-golf { margin: .2rem 0 .8rem; padding: .5rem .7rem; border: 1px solid var(--amber, #e8a33d);
+  border-radius: 8px; background: rgba(232, 163, 61, .08); }
+.nearby-row { display: flex; gap: .6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .9rem; }
+.nearby-row + .nearby-row { margin-top: .4rem; }
+.visiting .gc, .visiting #endtable { display: none !important; }
 .gc { --gco: #ff7a1a; --gco-dim: #b8561a; position: relative; margin-bottom: 1rem;
       padding: 1rem 1.1rem .9rem; background: linear-gradient(180deg, #16120e, var(--panel));
       border: 1px solid #3a2a1c; border-radius: var(--radius); }
@@ -401,6 +407,7 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
           </div>
           <span class="gc-status" id="gc-status">4 games &middot; standing by</span>
         </div>
+        <div class="nearby-golf" id="nearby-golf" hidden></div>
         <div class="controls gc-setup">
           <select class="btn" id="difficulty">
             <optgroup label="Amateur">
@@ -2328,5 +2335,62 @@ document.addEventListener('DOMContentLoaded', () => { guardedTick(); scheduleTab
 <script src="{{ asset('figure.js') }}"></script>
 <script src="{{ asset('voice.js') }}"></script>
 <script src="{{ asset('warm.js') }}"></script>
+<script>
+/* Golf with another unit. One round is played on one unit - there is then
+   only ever one account of where every ball is - and a golfer at another
+   unit joins it by that unit's screen becoming a screen onto this table:
+   its own seats, its own phones joining here by the code on it, the same
+   questions, meters and strokes. So this screen does two things about it.
+
+   Visiting: opened from another unit's table screen, it says so. The Gaming
+   Center and Close the table are the host's, and a visitor pressing them
+   would end or change a round for the people at the other unit, so they
+   are put away; "back" goes home to the unit it came from.
+
+   Offering: a unit with no golf of its own lists the rounds open on other
+   units nearby, with a button that makes this screen one onto that round. */
+const VISIT = (() => {
+  const q = new URLSearchParams(location.search);
+  try {
+    if (q.get('visit')) sessionStorage.setItem('elmer_visit', JSON.stringify({url: q.get('visit'), name: q.get('from') || 'your unit'}));
+    return JSON.parse(sessionStorage.getItem('elmer_visit') || 'null');
+  } catch (e) { return q.get('visit') ? {url: q.get('visit'), name: q.get('from') || 'your unit'} : null; }
+})();
+if (VISIT) {
+  document.body.classList.add('visiting');
+  const back = document.querySelector('.head a.btn');
+  if (back) {
+    back.href = VISIT.url;
+    back.innerHTML = '&larr; Back to ' + esc(VISIT.name);
+    back.title = 'this screen is playing in a round on another unit; this goes home';
+    back.addEventListener('click', () => { try { sessionStorage.removeItem('elmer_visit'); } catch (e) { /* the link still goes */ } });
+  }
+}
+
+async function nearbyGolf() {
+  const box = document.getElementById('nearby-golf');
+  if (!box || VISIT) return;
+  const mine = lastTableState && (lastTableState.golf || lastTableState.clubhouse);
+  let rounds = [];
+  try {
+    const r = await api('/api/party/nearby-golf');
+    rounds = (r.data && r.data.rounds) || [];
+  } catch (e) { rounds = []; }
+  if (mine || !rounds.length) { box.hidden = true; box.innerHTML = ''; return; }
+  const home = location.origin + '/party/1';
+  box.innerHTML = rounds.map(g => {
+    const where = g.clubhouse
+      ? `in the clubhouse, tee time in ${Math.max(0, Math.round(g.tee_in || 0))} s`
+      : `on the ${g.hole}${ordinal(g.hole || 0)} of ${g.holes}`;
+    const who = `${g.people} playing${g.full ? ' - the foursome is full; a newcomer watches until a place opens' : ''}`;
+    const go = `${g.url.replace(/\/+$/, '')}/party/1?visit=${encodeURIComponent(home)}&from=${encodeURIComponent({{ name|tojson }})}`;
+    return `<div class="nearby-row"><span>&#9971; Golf on <b>${esc(g.name)}</b>: ${esc(g.course || 'a course')}, ${esc(where)} &middot; ${esc(who)}</span>
+      <a class="btn sm primary" href="${esc(go)}">Play in it from this screen</a></div>`;
+  }).join('');
+  box.hidden = false;
+}
+nearbyGolf();
+setInterval(nearbyGolf, 8000);
+</script>
 </body>
 </html>

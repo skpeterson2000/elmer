@@ -547,6 +547,32 @@ class Neighbourhood:
                 seen.add(peer["url"])
         return out
 
+    def golf_rounds(self):
+        """Every round of golf on another unit here that a person could join,
+        for this unit's table screen to offer.
+
+        A golfer at one unit and a golfer at another are in the same round by
+        the second unit's screen becoming a screen onto the first's table -
+        one round, played on one unit, so there is only ever one account of
+        where a ball is. What is offered is what somebody deciding needs: the
+        unit, the course, where the group is, and whether there is room. A
+        unit that is a table in somebody's net is playing the net's game, not
+        its own, and is not offered."""
+        out = []
+        for peer in self.current():
+            golf = (peer.get("party") or {}).get("golf")
+            net = peer.get("net") or {}
+            if not isinstance(golf, dict) or not peer.get("url") or net.get("table_of"):
+                continue
+            out.append({"unit": peer["unit"], "name": peer["name"], "url": peer["url"],
+                        "course": str(golf.get("course") or "")[:60],
+                        "clubhouse": bool(golf.get("clubhouse")), "tee_in": golf.get("tee_in"),
+                        "hole": golf.get("hole"), "holes": golf.get("holes"),
+                        "people": int(golf.get("people") or 0), "full": bool(golf.get("full")),
+                        "version": peer.get("version") or ""})
+        out.sort(key=lambda g: (g["full"], g["name"]))
+        return out
+
     def summary(self):
         """What the screen needs: how many, and what can be joined.
 
