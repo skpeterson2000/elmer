@@ -9,6 +9,7 @@ speed, with the *spacing* stretched to slow things down (Farnsworth). Learning
 a slowed-down character teaches the wrong sound, and it has to be unlearned
 later; learning the real sound with more thinking time between does not.
 """
+import json
 import random
 import re
 
