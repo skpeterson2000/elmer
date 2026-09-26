@@ -4,6 +4,63 @@ ELMER is a study tool and a station companion for amateur radio, built to run on
 
 ELMER is in pre-release. Features will continue to appear and to be refined while bugs are found and taken out, and what a feature does today may not be precisely what the final version does, where that latitude exists. The dashboard shows which build a unit is running, and the changelog says what changed and when. Where this guide and the screen disagree, the screen is newer.
 
+## How do I - find the thing I want
+
+This guide is long because ELMER does a lot, and a long guide is no use to somebody who wants one answer. So: the thing you want, and where it is. Each line names the chapter and the section inside it; the contents at the front gives the page, and in the PDF the chapter list down the side of the reader jumps straight there.
+
+**Getting going**
+
+- Start it for the first time, and get past Windows warning about it - *Getting it running*
+- Use it without a callsign, a location or a network - *Before you begin*
+- Tell it my callsign, my license and where I am - *Finding your way around: Your station*
+- Share one unit with somebody else and keep our records apart - *Finding your way around: Who is playing*
+- Find out what the row of icons at the top is doing - *Finding your way around: The status strip*
+
+**Passing the exam**
+
+- Start from nothing and get a Technician license - *Studying for the exam: If you read one thing, read this*
+- Know what to actually do this week - *Studying for the exam: A first week*
+- Sit a practice exam under the real rules - *Studying for the exam: The mock exam*
+- See what I keep getting wrong, and read the pool itself - *Studying for the exam: Progress, and browsing the pool*
+- Watch the maths move instead of memorizing it - *The Lab*
+- Print something to study away from the screen - *Printouts*, and *The Library*
+
+**Morse**
+
+- Learn the code from nothing - *CW: Learn*
+- Know how long to practice, and how often - *CW: A session is three minutes, and a day is five of them*
+- Pick up where I left off after a day away - *CW: A set of passes does not expire at midnight*
+- Show it I already know the code, and skip the crawl - *CW: Qualifying run*
+- Find out what speed I copy and send at - *CW: Your rating*
+- Decode what is coming out of the receiver - *CW: Decode off air*
+- Practice with a real key or paddle - *CW: Your sending*
+
+**Antennas and the station**
+
+- Work out what antenna to build, and print its cut lengths - *The Lab: Antennas*
+- Decide which way to string a wire, and see what that changes - *The Lab: Antennas*, and the figure in it
+- Find out how high is high enough - *The Lab: Antennas*
+- See what my feedline is costing me - *The Lab: SWR, reflection and what it actually costs you*, and *Smith chart*
+- Check I am within the RF exposure rules - *The Lab: RF exposure evaluation*
+
+**On the air**
+
+- Find out whether a band is open right now - *Band conditions*
+- See how far a band reaches from my station, this hour - *The band plan: Where the band reaches from here, now*
+- Check what I am allowed to transmit, and where - *The band plan*
+- Work out whether a particular contact will happen - *Make Contact*
+- Plan a park or summit activation - *Parks and summits*
+- Decide whether tonight is worth it for moonbounce - *EME*
+
+**Everything else**
+
+- Play something, alone or against other people - *The Gaming Center*
+- Run a club night on one unit - *A club night*
+- Put my own books and manuals on the shelf - *The Library*
+- Check the unit is healthy, and update it - *Keeping ELMER healthy*
+- Find out what this thing sends over the network - *What leaves this unit*
+- Work out why something is not behaving - *When something goes wrong*
+
 ## Before you begin
 
 **Nothing is required.** The Station dialog says so itself: ELMER works without a callsign, a location or a network. Each thing you give it lets it answer something it would otherwise have to ask about or guess at. A callsign fills in your license class from the FCC's own record. A location, called a QTH in the hobby, gives the propagation pages your sky and the band plan your coordinator. A network fetches the space weather and the ionosonde readings. Everything else works from a clock and what is already on the unit.
@@ -102,6 +159,8 @@ Click the operator chip for the menu **Who is at the controls?** It lists every 
 
 **A week of this is worth more than the week before the exam.** A question you have known for a while can space out as far as six months, so the pool quietly gets smaller as you go and the daily session gets shorter, not longer.
 
+![Every time you get a question right the gap before it comes back grows, so the pool quietly shrinks. A miss drops it back to about ten minutes and keeps a share of the spacing it had already earned - which is why getting one wrong is the measurement rather than a setback.](docs/figures/guide/study-spacing.png)
+
 ### A first week
 
 1. **Pick your pool.** Technician if you hold nothing yet. The card is on the dashboard.
@@ -110,6 +169,8 @@ Click the operator chip for the menu **Who is at the controls?** It lists every 
 4. **Come back the next day and press Study again.** It will start with what you are about to forget and then bring you new material. This is the loop, and it stays this way to the end.
 5. **After three or four sessions, take a mock exam.** Not to pass it. It marks the sections you are weakest in, and it feeds everything you answer back into the schedule, so nothing about it is wasted time.
 6. **Then follow the numbers on the card,** below.
+
+![The first week, day by day. The loop does not change after this; it gets shorter.](docs/figures/guide/study-week.png)
 
 ### The cards
 
@@ -126,6 +187,8 @@ One question at a time. Five modes across the top, and the short answer is that 
 - **Weak spots** starts with your lowest mastery. Use it after a mock exam has told you where you are thin, or in the last fortnight before a test.
 - **Lapses** returns to what you have got wrong. Use it when the same few questions keep catching you and you want them dealt with in one sitting.
 - **Contest** is a fast random round against a clock. It is for the evening you do not feel like studying, and it still counts.
+
+![What each mode draws from. If you are not sure, the answer is Drill.](docs/figures/guide/study-modes.png)
 
 The keys: `1` to `4` or `a` to `d` answer, `space` or `Enter` moves on, `?` reveals the answer and counts as wrong, which is the honest thing to do. After you commit, the card opens: whether you were right, the XP, when it will come round again, and underneath, why this is the answer, what to watch out for, the concept it belongs to with a link to try it in the Lab where one exists, and the FCC rule with a link to the section. There is a box for your own note on any question, saved with the account. A badge earned, or a step up the rank ladder, is written into the card as well as sliding past as a toast, so it is still there when you come back to the screen.
 
@@ -153,6 +216,8 @@ Built the way the real one is: the right number of questions, exactly one drawn 
 - **Exam odds** next, and take the **range** on the Progress page more seriously than the single figure. A likely score whose lower end is comfortably above the pass mark is a different thing from one whose average is.
 - **Your recent mock exams** last, because they are the only number here that is not a model. Three mock exams in a row, on different days, all clear of the pass mark with a margin, is the honest signal.
 
+![The three numbers, and the order to read them in. The single likely-score figure is the least useful thing on the page; the low end of its range and three mocks on three different days are what actually answer the question.](docs/figures/guide/study-ready.png)
+
 If no license is on your account's record, ELMER will say something when those numbers line up: a panel on the dashboard once a class is within reach, and again when the evidence says you are ready, with what the day actually involves — get an FRN from the FCC's CORES system beforehand, find a session, what the team will ask you for, and the Commission's fee that comes after you pass. Those are the four things that catch people out, and none of them is the exam.
 
 It is still your call, not the program's, because ELMER does not know what a bad day at the test session looks like. What it can also tell you is whether you are still improving: if the last few mock exams are flat and the drill is mostly showing you reviews rather than new questions, you have got what this pool has to give you.
@@ -166,6 +231,8 @@ The **Propagation** page is the live sky. Set your QTH at the top of it, a grid,
 The wall chart is N0NBH's, and the page says what it is and is not: eight figures, not hourly, not for your location, one word covering a whole group of bands. The band plan asks the same question band by band and hour by hour from the reading nearest you, and the two sometimes disagree; when they do, the band plan says so and explains why. Under the chart, **What these numbers mean** explains each indicator with its live value beside it, and **Take it to the pool** goes straight to the exam sections about propagation.
 
 The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cached for fifteen minutes, and the ionosonde readings through prop.kc2g.com. Where the page says *Est.*, no sounder was in range and the model is standing on its own. Without a network the strip says so.
+
+![Each sonde within five thousand kilometers votes, weighted by how far away it is and how old its reading is, and the model's figure is corrected to meet them. With none in range the page says Est. and means it.](docs/figures/guide/prop-sondes.png)
 
 **The sondes that vote.** The critical frequency over you is the model's figure corrected to meet the sondes within five thousand kilometers, each with a vote weighted by its distance and by the age of its reading. The line under the numbers names them, marks any whose reading was held from an earlier fetch after the feed missed a cycle, and says how far the correction would move if any one of them dropped out. That last figure is the one to read when two units side by side disagree: a thin panel far from the nearest sounder can swing by a third on one vote, and the page now says so instead of leaving two screens to argue. The weekly field report, if you have switched it on, carries how steady the panel was over the week and nothing that names your station.
 
@@ -181,7 +248,9 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 **What it actually does.** It fetches the last year of readings from the ionosondes nearest you, then runs ELMER's own forecast blind across that year, hour by hour, each hour given only what it would have known at the time. It compares every one of those forecasts against what the sondes actually recorded, and fits a correction month by month and sky by sky. Then it runs the whole year again with the correction switched on, so you can see what it bought. The line it prints at the end is the plain answer: the 24-hour forecast's average error before, and after, in megahertz, with "same as yesterday" beside it for comparison.
 
-**Do you have to apply it? No.** The correction is saved when the run finishes and every forecast this unit makes for this place uses it from that moment on. There is no switch to throw and nothing to accept. You will see it in the band plan's hour-by-hour verdicts, in the reach map and in the propagation outlook, without doing anything else.
+**Do you have to apply it? No.** The correction is saved when the run finishes and every forecast this unit makes for this place uses it from that moment on.
+
+![What the five minutes buys: the forecast run blind against a year of real readings, and the gap between the two kept as a correction for this place.](docs/figures/guide/prop-calibrate.png) There is no switch to throw and nothing to accept. You will see it in the band plan's hour-by-hour verdicts, in the reach map and in the propagation outlook, without doing anything else.
 
 **Choose a depth.** A quarter, a half year or a full year. Each depth refreshes the months it actually covers and leaves the rest exactly as the last run that saw them measured. So a quick run in September sharpens the autumn and leaves December standing on the full year you ran in the spring. Deeper is better and slower; the year is the one to run first.
 
@@ -201,11 +270,15 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 What the law allows, and what convention puts where. Pick the **license class** at the top, or enter your callsign in the strip below it and ELMER uses your actual privileges and tells you when the license expires. The page opens on the class you hold every time, whatever you were reading last. With no license on the station it opens on **No license**, which is the true answer: every amateur band reads no, and under them are the services that are yours today and the exam that opens the first of the others. The picker changes only what is on the screen: reading a class above your own is the point of having it, and it is how you decide whether the upgrade is worth sitting for, so a class you do not hold brings a note saying so rather than a locked door. What it is not is a claim. It does not tell the rest of ELMER that you hold that class, and it does not open a study pool - the pools follow your license, and your license is set with your callsign or on the setup page. Each band is a button; the chosen band shows its bar colored by activity, with the parts your class may not transmit on hatched out, the privileges for your class beside the rule that grants them, and a table of what happens where and whether you may use it in that mode.
 
+![How to read a band's bar. Hatched is the part your license does not reach - change the class at the top and the hatching moves.](docs/figures/guide/band-strip.png)
+
 Every band has its own color, the same wherever its name appears in ELMER: on the buttons here, on the reach map, on the Lab's chips, in the propagation outlook and on the printed chart. The hues are ELMER's own, because nobody publishes a color a band. They used to run the spectrum in frequency order, which put the nearest colors on the bands hardest to tell apart and read as a flag rather than a set of things. Each band now has a color chosen so its neighbours are far from it, warm beside cool and light beside dark, the way a box of colored pencils is told apart, with no order in the hues meant to be read as anything. The eight bands everyone uses were checked against simulated red-green and blue-yellow blindness and stay distinct by lightness as well as hue. 11 meters is CB rather than amateur and is gray on purpose. The color is never the only cue; the name is always printed beside it.
 
 **Visiting under reciprocity.** The last entry in the class list is for an operator here on a license from somewhere else. Under 47 CFR 97.107, somebody holding an amateur authorisation from their own government may be the control operator of a station in the US wherever a reciprocal arrangement reaches: CEPT, the IARP, or a bilateral one, and Canada's is written into the rule itself. Choose it and the chart draws what an Amateur Extra may do, because that is the ceiling the rule sets. It is a ceiling and not your privileges: what you may do here is the terms of your own license and the FCC's rules together, whichever is narrower, and ELMER has never seen your license. The note beside the chart says that, and how to identify under 97.119(g) - a Canadian licensee puts the US call sign area indicator after their own call, everybody else puts it before. None of it applies to a US citizen or to anybody already holding an FCC license.
 
 It is a view and not a class. It cannot be set as your license in the Station panel, it opens no study pool, and it does not print, because a sheet headed "visiting" with a callsign on it would read as a claim about your authority in a country whose license you do not hold. The Amateur Extra chart is the same ceiling and prints as it always did.
+
+![The same band to three licenses. This is the argument for sitting the next exam, drawn.](docs/figures/guide/band-classes.png)
 
 **Regional coordinator.** The local frequency coordinator's plan, fetched from their site and drawn beside the national one. With a QTH set, the coordinator for your state is picked on its own.
 
@@ -239,6 +312,8 @@ The button says **Next session** and not *Today* on purpose, and the change of w
 
 Fifteen minutes a day beats two hours on Sunday, and the arithmetic of that is the whole point: fifteen minutes is five passes of three, not one block of fifteen. What is learned is learned in the coming back. The character has to be fetched again from cold, after your mind has been somewhere else, and that fetch is the rep that counts - it is the same trick as using a new acquaintance's name three times in one conversation, spaced out, rather than fifteen times in a row. A drill that never stops is not five reps of the same thing; it is one long one, and what a learner takes from the eleventh minute of K and M is not K and M. It is that this is a thing to be endured.
 
+![Fifteen minutes one way and the other. Same quarter of an hour on the key; what differs is that each pass begins with the character fetched again from cold, and that fetch is the rep that teaches.](docs/figures/guide/cw-day.png)
+
 So the session is clocked from the material there is to hold. Two characters is three minutes - long enough to get measurably quicker at them, short enough to leave you wanting the next go rather than relieved it is over - and it grows by about seven seconds for each character you earn, to six minutes with the whole order in hand. What it never becomes is a quarter of an hour in one sitting.
 
 The line under the session says where this pass sits - "Pass 1 of 5 in this set" - because one of five is the shape of the thing and "about 3 min" on its own is not. How many make a set works out between three and six, depending on how long a pass has grown to; either way it is a quarter of an hour, and either way it is not one sitting. At the end of a pass the card says how many are left and sends you somewhere else for a while: a hole of golf, which is exam questions wearing a better hat, or the band conditions, which is the argument for going and getting on the air. Nothing stops you starting another pass straight away. What is new is that there is a bottom to reach and a top to stop at.
@@ -249,6 +324,8 @@ Five passes is what a day comes to, not a quota to be met before a clock runs ou
 
 So a set carries. It stays open for the day after the one it was opened on, and a pass finished inside that window goes on the same set; past that it is a new set, because a set that never closes is not a set either. Tomorrow can still count as today. A set that gets finished stands for the rest of the day it was finished on, and a pass after that opens a new one, because more is welcome and none of it is required.
 
+![A set of five passes, three of them done before the evening went sideways and the last two offered the next morning. Past that day it is a new set.](docs/figures/guide/cw-set.png)
+
 ### Both ends of the range
 
 A set can be a couple of hours or a couple of days, and both are ordinary. The chance of anybody hearing the whole code and recalling it on the first day is infinitesimal - and somebody who does get through it in a day and still has it the next morning is rare and is not to be held back for being rare. The same record serves them and the learner who has been on the same five letters for five days, and it serves both by measuring the one thing that tells them apart, which is the next section.
@@ -256,6 +333,8 @@ A set can be a couple of hours or a couple of days, and both are ordinary. The c
 ### Cold and warm, and sleeping on it
 
 A rep is **cold** when at least a minute has gone by since you last answered that character - the first one of a sitting, with nothing warmed up in front of it - and **warm** otherwise. They are the same entry in most records and they are not the same evidence. This is how a dog is judged on "sit": not the tenth in a row with a treat already in the air, but the first one of the walk. That rep says the expectation is achievable from cold, and it is the one that earns the fuss.
+
+![The first rep of a sitting is the cold one; the rest are warm. Below it, the only measure that settles anything: the same character named cold again on a later day.](docs/figures/guide/cw-cold.png)
 
 The card at the end of a sitting is ordered by that and not by what a scoreboard would pick. Loudest is a character named cold for the first time, however roughly - gross replication, the dog sat - because that is the rep that sends somebody back for more. Reliability comes next and quieter: "K lands cold now - 4 of the last 5 first-of-the-day tries, where it used to be hit and miss". The refined state comes last, is rationed to two lines, and is read off the cold rep rather than the tail of a warm drill: "K cold: 2.6 s when you learned it, 0.9 s now". Weighting it this way round looks upside down next to a leaderboard, and it is deliberate - a reward that keeps arriving for the polished thing teaches you to perform for the reward, and then the reward is the subject.
 
@@ -269,6 +348,8 @@ And within a sitting, the session watches your reaction times and compares the l
 
 **Learn** is the Koch method: two characters at full speed, then one more at a time when the ones you have are solid. The lesson's characters are drawn as shapes to compare against, and below them is a grid of where you stand on all forty, green for solid, amber for shaky, red for needs work, gray for not met yet. Hover a character for what it was confused with, and how often it had to be sent again. The slider sets the copy drill; the one-at-a-time lesson follows your record and cannot be pushed by it.
 
+![The forty characters in the order they arrive, with the code under each drawn at its real lengths. K and M come first because with one character there is nothing to tell apart.](docs/figures/guide/cw-koch.png)
+
 **Learn them one at a time** is the place to start, and there is no clock on it. It begins with two characters, K and M, because with one there is nothing to tell apart. A character you have never heard is met first - it sounds, it is drawn, it is named - and nothing is asked; that is you finding out what it sounds like, and it is not a test. Then it joins the drill: one character sounds and nothing happens at all until you answer. Compare what you heard against the shapes above and pick the one you think it was, by clicking it or by typing it; ask for it **Again** as often as you like first.
 
 Your answer goes up on the screen in green if it was right and in red if it was not, and either way the character that was actually sent is named aloud. Hear K, pick K, and a green K appears and Kilo affirms it. Hear K, pick R, and a red R appears and Kilo tells you what it really was. The name you hear is never the mistake, so the sound of a character is only ever coupled to its own name. Miss it and the same character comes round again.
@@ -277,15 +358,23 @@ Your answer goes up on the screen in green if it was right and in red if it was 
 
 Every answer goes into your record, and the record decides when you are ready for more. A character is **solid** one of two ways: nine in ten copied over your last thirty sends - the last thirty, not everything ever, so a rough first day with a character is forgiven once you have it - or twelve clean in a row with at least one of them named cold, which is the shorter road for somebody who simply knows it already. When every character in the lesson is solid the next one in the order is met and joins, and the lesson says so. How often each one comes round is set by how much work it still needs: the newest most, about four times as often as one you know; every shaky one more the shakier it is, so a character you copy half the time comes round about three times as often as one you have cold; and the ones you know least of all, but never never, because what is known has to keep being asked or it stops being known. On top of that, a character you have just missed is put back in the air within the next few sends, whatever the deal would have drawn, while the miss is still warm. Nothing is ever taken away - a character slipping does not shrink the lesson behind it - and not advancing is the lesson's way of saying not yet. The counter under the buttons shows how many you have heard this sitting and how many of the forty are solid.
 
+![Two roads to a character being solid, and the shorter one is the stronger evidence.](docs/figures/guide/cw-solid.png)
+
 The drawn shape comes down once a character is known by ear. It is how a character is met, but during a drill it can be read off the screen while it is still sounding, and then the answer comes from the eye - fluency at a thing nobody does on the air. So it comes down after four clean copies running and goes back up if copy falls away, and the session says out loud when a shape has come down, because a screen that quietly stops drawing looks broken to the person it is helping.
 
 It is a slow build on purpose. The drills upstairs are for speed; this is for knowing the sounds, and nobody who copies at twenty got there any other way.
+
+![Why particular pairs get confused. What a character was heard as is what still needs separating, which is why ELMER keeps it per character.](docs/figures/guide/cw-shapes.png)
 
 **Hear this lesson's characters** runs them all together once you know them, each named a couple of seconds after it sounds. The button becomes **Send them again** afterwards. **Start copying it** is the next step up. **Name it afterwards** governs the naming in both, and you turn it off when you no longer need it.
 
 ### Chart - the whole code on one wall
 
 **Chart** is the whole code, click anything to hear it, with the dits and dahs drawn to length and the prosigns run together. A dah is three times a dit and the gap inside a character is one dit, which is what the spacing shows; a space in a code is the gap between two letters, drawn as silence of the right width and sounded as silence of the right length. That is the whole difference between the Q signal QRM, which is three letters, and a prosign, which has no gaps inside it at all and is one sound.
+
+![The whole of Morse timing in one line: a dah is three dits, the gap inside a letter is one, between letters three, between words seven.](docs/figures/guide/cw-timing.png)
+
+![What Farnsworth changes and what it refuses to change. Both lines take the same time to send; only the one below leaves the letter sounding as it will at twenty words a minute.](docs/figures/guide/cw-farnsworth.png)
 
 ![The whole code drawn at its real lengths, which is what a learner looks at](docs/screenshots/guide/cw-chart.png)
 
@@ -294,6 +383,8 @@ It is a slow build on purpose. The drills upstairs are for speed; this is for kn
 Somebody who already knows the code - a tester who reset their profile, an operator coming back after twenty years - should not have to earn forty characters one at a time for letters they copied before this program existed. **Qualifying run** is the way past it, and it is the old code test rather than anything invented here.
 
 You name the speed you think you can hold, anywhere from 5 to 40 words a minute, and the line under the slider says what that speed is for before you commit five minutes to it. Then the run: five minutes of real traffic - plain words, callsigns with the odd `/P` and `/M`, Q signals, three- to five-figure serials, punctuation - sent at the speed you named, with one contiguous minute of it copied without a miss as the bar. The clean stretch is shown as it grows rather than sprung on you at the end, and a scrambled first half minute is not held against you, because the stretch that counts is the best one anywhere in the run and that is what settling looks like.
+
+![Five minutes are sent and one clean minute is asked for. It ends the moment that minute lands - the rest is never asked of you.](docs/figures/guide/cw-qualify-run.png)
 
 It ends the moment the minute lands. Making somebody sit through four more after they have proved the thing is the program collecting evidence for its own sake. What was copied counts: the run's sends are real sends, and the lesson opens to what you met and copied, so a returning operator drills the alphabet instead of crawling out of K and M. Being solid still has to be earned - five minutes is not twelve clean reps of forty characters at any speed - and what you did not copy is not credited.
 
@@ -306,6 +397,8 @@ The shape is not ELMER's. Chuck Adams, K7QO, describes the standard for code tes
 ### What a speed means
 
 A number of words a minute is a number until you know who is up there, so ELMER keeps one ladder and reads from it wherever a speed is chosen or measured - on the qualifying run's slider, and against your rating.
+
+![The ladder, as a scale you can find yourself on.](docs/figures/guide/cw-ladder.png)
 
 - **Up to 7** is where everybody starts. Every character is sent at full speed from the first day; what is slowed is the gap between them. Nobody learns the code slowly and then speeds it up - that has to be unlearned.
 - **8 to 14** is the old code tests: five words a minute was Novice, thirteen was General, twenty was Extra. The tests are gone and the speeds are still where most conversations live.
@@ -355,6 +448,8 @@ The moon, from a clock and a place, nothing fetched. Where the moon is from your
 
 Put in a band or a frequency, and the critical frequency and layer height, which arrive filled in from the sounder nearest you when there is a network. Out comes a drawing of the rays: the ones that bend back to earth and the ones that punch through and are gone, with the skip zone marked between where the ground wave stops and the first hop lands. Reach for it when a band is open to somewhere far away and dead to the next county, which is the thing the picture explains in one look.
 
+![A ray too steep goes through the layer and is gone; a shallower one bends back and lands. Between where the ground wave gives out and where the first hop comes down, nobody hears you - that hole is the skip zone.](docs/figures/guide/lab-hop.png)
+
 ### Ohm's law and power
 
 Fill in any two of volts, amps, ohms and watts and press **Solve** for the other two. **Clear** empties it. It is the tab to keep open while working the electrical questions, because the exam asks the same relationship a dozen ways.
@@ -367,6 +462,8 @@ Frequency, inductance and capacitance, and a plot of how the reactances cross. U
 
 Line impedance, load impedance and transmitter power. It answers the question the exam never quite asks plainly: what a standing wave ratio actually loses you in watts, which for a mismatch that sounds alarming is often less than people expect, and for a long lossy line is more.
 
+![A mismatch does not burn your power - most of what comes back is re-sent. What it actually costs is the extra trip through the feedline, which is a fraction of a decibel on good coax at HF and worth fixing on lossy cable at VHF.](docs/figures/guide/lab-swr.png)
+
 ### Antennas - dimensions, impedance and gain
 
 The long one, and the order of the questions is deliberate. It starts with what you have got to work with, which is a mast, a garden, an attic, a balcony, a vehicle, or nothing at home at all. Then what you want to do with it, the frequency, and the power you will run. Then the antenna itself, its height, its slope and its droop.
@@ -375,6 +472,12 @@ The long one, and the order of the questions is deliberate. It starts with what 
 - **Not sure, suggest one** picks an antenna for the answers you have already given, which is the button to use the first time.
 - **Print the sheet (PDF)** puts the whole evaluation on the Printouts shelf, to take out to the garden.
 - The sliders that turn the picture sit under the plot they move, so you can see the pattern change as the height does.
+
+![The plan view is a control, not a picture. Set the bearing the wire runs along and the pattern turns with it - which is how you find out that the wire along the fence hears the two directions you did not want.](docs/figures/guide/ant-turn.png)
+
+**Reading the two plots.** **Looking down on it** is the view from above - which way the antenna hears, with real bearings on it. **Elevation pattern** is the view from the side, and it is a slice through the whole vertical plane: the horizon the antenna faces on the right, straight up at the top, and the horizon behind it on the left. Most antennas have two lobes there and both are drawn. A vertical's pattern is a doughnut, the same in every direction round it, so from the side it is two lobes and from above it is a circle; a wire radiates broadside both ways, so its two lobes are mirror images and there is as much behind it as in front - turning a wire does not aim it, it moves the nulls off the ends. The one antenna whose two halves really differ is a beam, and that difference is the front-to-back you paid for. The dashed line is the takeoff angle, drawn on every lobe that is actually at it.
+
+Both plots are over average earth rather than perfect ground, which matters most to a vertical. A vertical's own element is strongest out along the ground and nulls straight up, along its own axis - but real earth turns its reflection against the direct wave at grazing angles, so the field falls to nothing right at the horizon and the lobe sits twenty-odd degrees up. That is where the signal actually leaves, and it is what the reach ring under the plan view is measured from.
 
 ### Smith chart - what the feedline does to your antenna
 
@@ -438,6 +541,8 @@ Getting a message out: everything worth trying from where you are, best bet firs
 With a QTH set, the answer is local: the repeaters within reach and the bands open now. Type a callsign, a grid or a town into **Reaching somewhere in particular?** and the path tool works out how to get there, asking the same question for three license classes so it can say what the far end needs. Below the answer, **Getting on the air, your track**: the steps to a first contact, each saying how, how you know it worked, and what to do when it does not, with a box to mark each one done. The day of a first contact is one people remember, and ELMER keeps the date.
 
 **By the numbers on VHF and UHF.** The path answer says whether the ground clears between the two ends, and past the horizon that it does not, which is true and is not the whole answer: a 2 meter signal does not stop at the horizon, it loses so many decibels getting past it, and whether the contact is made is whether the radios have those decibels in hand. So under the path there is a link budget. Pick a radio at your end and one at theirs off a shelf that runs from a handheld on its own rubber duck, through a mobile, to a base rig into a Yagi thirty feet up, then the band, the mode and how noisy the receiving end is, a quiet field or a residential street. ELMER adds it up the way a link budget is always added up, both directions: what leaves, what the path costs along the terrain between, what arrives, what the receiver needs, and the margin. The margin becomes odds, because real paths scatter about a figure like this by some eight decibels: twenty in hand is near certain, none is a coin toss, and minus ten is a long shot you may still get on a good day. When the odds are poor, **the step up** names the smallest change on the shelf that would make it, or says plainly that this one wants a repeater between or height at one end.
+
+![Whether a contact happens is a sum, and the only term nobody can move is the path. What arrives has to clear the noise at the far end - which is why the answer to a marginal link is a better antenna or a narrower mode far more often than more watts.](docs/figures/guide/contact-budget.png)
 
 **By the numbers on HF.** Pick an HF band in the same panel and the question changes, because the ground between you is not the path any more: the signal leaves at an angle, turns in the ionosphere and comes down. Two things decide it, and they have different owners. Whether the band comes back at all over this distance is the ionosphere's - the critical frequency and the layer height read at the middle of the path, the same reading the bands line above runs on. No power changes that: above the MUF a kilowatt goes through to space the same as five watts, and inside a band's skip zone nothing lands however loud. Whether what comes back can be *copied* is yours: the watts you type in the **HF power** box, the mode, and how noisy the far end is. ELMER adds that up the way it adds up the VHF budget - what leaves, free space over the ray as it really travels, the D layer by day, a ground touch for every hop after the first, what arrives, what the mode needs above the noise - and gives you the margin. Fifteen decibels in hand is solid through the fading a skywave path always has; five is workable; nought is the edge. Where it is short it says by how much and **what power would close it**, or, when that would be past the legal limit, the honest advice instead: wait for dark, because the D layer has it by day, or use a mode that hears deeper - CW copies about fourteen decibels below SSB, FT8 about twenty-eight. The power box is the one box for the whole page: the list of bands that carry the path changes as you change it, which is the point.
 

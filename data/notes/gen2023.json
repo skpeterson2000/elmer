@@ -147,7 +147,7 @@
   ]
  },
  "G4E": {
-  "note": "Mobile and portable stations live with limited power and compromise antennas. A short mobile whip needs a loading coil to be resonant, and most of its loss is in ground and coil resistance \u2014 a larger coil and a capacity hat help. Alternative power sources have their own problems: solar charge controllers and switching supplies both make RF noise.",
+  "note": "Mobile and portable stations live with limited power and compromise antennas. A short mobile whip needs a loading coil to be resonant, and most of its loss is in ground and coil resistance \u2014 a larger coil and a capacitance hat help. Alternative power sources have their own problems: solar charge controllers and switching supplies both make RF noise.",
   "key_facts": [
    "A loading coil resonates a physically short mobile antenna",
    "Connect a mobile transceiver directly to the battery with fused leads",

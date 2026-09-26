@@ -2399,8 +2399,29 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   the antenna's image adds a second wave, and where the two add is where you
   radiate, so the lobes fall out of arithmetic. A wire at half a wavelength
   peaks at 30°, at three quarters 19.5°, at a full wavelength 14.5°; that is the
-  whole argument about height, drawn. Perfect ground is assumed, so treat the
-  shape as right and the last couple of degrees as optimistic.
+  whole argument about height, drawn. It is drawn over average earth rather
+  than perfect ground, which matters most to a vertical: over perfect ground a
+  vertical peaks at 0°, along the ground, and real earth turns the reflection
+  against the direct wave at grazing angles, so the field goes to nothing at
+  the horizon and the lobe lifts to twenty-odd degrees. Every figure read off
+  the pattern — the takeoff angle in words, the marker on the plot, the azimuth
+  cut, the reach ring and the skip zone — is taken from the same curve; they
+  were taken from perfect ground while average earth was on the screen, which
+  reported every vertical as strongest at 0° and put its reach ring at the
+  longest hop geometry allows.
+
+  The elevation plot is a slice through the **whole** vertical plane, 0° at the
+  horizon in front, 90° overhead, 180° at the horizon behind. It was a
+  quadrant, which drew every antenna as though it fired one way: a vertical's
+  pattern is a doughnut and the side view of a doughnut is two lobes, a wire
+  radiates broadside both ways and its lobes are mirror images, and the one
+  antenna whose halves genuinely differ is a beam — where the difference, the
+  front-to-back, is the number somebody buys the beam for. Drawing the back
+  also exposed a claim that had been hiding in the plan view, where everything
+  is drawn against the pattern's own maximum and −60 dB looks like −20: the
+  cosine shape used for a Yagi went to *exactly* nothing behind it. No beam
+  measures nothing, so it is held at `patterns.YAGI_FB_DB`, 20 dB, blended so
+  the forward shape is untouched.
 
   The plan view is the one that saves an afternoon of work. A dipole radiates
   *across* itself and is deaf off its ends, so which way you string it decides

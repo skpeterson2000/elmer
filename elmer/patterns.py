@@ -370,6 +370,26 @@ def _wire_factor(along):
     return abs(math.cos(math.pi / 2 * along) / sin_g) if sin_g > 1e-9 else 0.0
 
 
+# What a beam actually leaves behind it.
+#
+# The cosine shape this model uses for a Yagi goes to exactly nothing at 180
+# degrees, and nothing is not a number any beam has ever measured. A decent
+# three-element Yagi is 15 to 25 dB front-to-back and the rear of the pattern
+# is a handful of small lobes, not a hole; the hole only ever survived because
+# the plan view is drawn to the pattern's own maximum, where -60 dB and -20 dB
+# are both "the middle of the plot". Drawing the back of the elevation cut
+# puts it on the screen, so it has to be honest: 20 dB, blended in so the
+# forward shape is untouched and the rear settles at a level somebody could
+# actually work a station through.
+YAGI_FB_DB = 20.0
+
+
+def _yagi_floor(field):
+    """A beam's pattern with its front-to-back held to something real."""
+    back = 10.0 ** (-YAGI_FB_DB / 20.0)
+    return back + (1.0 - back) * field
+
+
 def _element_shape(kind, factor):
     """What the antenna's own geometry does to a straight wire's pattern.
 
@@ -409,14 +429,74 @@ def field_toward(kind, elev_deg, bearing, heading=None):
     return _element_shape(kind, _wire_factor(along))
 
 
-def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0):
+def boresight(kind, heading=0.0):
+    """The compass bearing an elevation cut is taken along.
+
+    A beam's is where the boom points. A wire's is across itself, because a
+    wire radiates broadside and a cut taken along the wire would be a slice
+    through its null. A vertical has no such direction, and is given one
+    only so the same code can ask.
+    """
+    heading = float(heading or 0.0)
+    if ANTENNA_Q.get(kind, {}).get("shape") == "vertical" or kind == "yagi":
+        return heading % 360
+    return (heading + 90.0) % 360
+
+
+def elevation_slice(kind, height_wl, slope_deg=0.0, mhz=None, ground="average",
+                    heading=None, points=181):
+    """The whole vertical plane: up the front, over the top, down the back.
+
+    `deg` runs 0 to 180 - nought is the horizon the antenna faces, 90 is
+    straight up, 180 is the horizon behind it - so the pair of lobes is one
+    curve rather than two plots that have to be read together.
+
+    :func:`elevation` is a quarter of this and was what got drawn, which
+    made every antenna look as though it fired one way. A vertical does not:
+    its pattern is a doughnut, the same in every direction round it, and the
+    side view of a doughnut is two lobes. Nor does a dipole, whose two lobes
+    are mirror images broadside to the wire. The one antenna where the two
+    halves genuinely differ is a beam, and that difference - the
+    front-to-back - is the number people buy a beam for. Drawing one lobe
+    threw away the only case worth drawing and told a lie about the rest.
+
+    The back half is the same elevation curve scaled by what the element
+    does toward the opposite bearing, which for everything but a beam is
+    one. `heading` None means nothing is known about which way it is laid,
+    and the two halves come out alike.
+    """
+    front = elevation(kind, height_wl, points=points, slope_deg=slope_deg,
+                      mhz=mhz, ground=ground)
+    face = boresight(kind, heading if heading is not None else 0.0)
+    out = [{"deg": p["deg"], "field": p["field"]} for p in front]
+    for p in reversed(front[:-1]):
+        ratio = 1.0
+        if heading is not None:
+            ahead = field_toward(kind, p["deg"], face, heading)
+            behind = field_toward(kind, p["deg"], (face + 180.0) % 360, heading)
+            ratio = behind / ahead if ahead > 1e-9 else 0.0
+        out.append({"deg": round(180.0 - p["deg"], 2),
+                    "field": round(p["field"] * ratio, 5)})
+    return out
+
+
+def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0, mhz=None, ground="average"):
     """The elevation angles where the main lobe has fallen by `drop_db`.
 
     An antenna does not radiate at one angle, and a single number for "the
     takeoff angle" turns a band of workable distances into a false point. The
     half-power edges of the lobe are what turn it back into a band.
+
+    Give it `mhz` and it reads the lobe off real earth, which is the only
+    way to ask this about a vertical. Over perfect ground a vertical peaks
+    at zero degrees - along the ground, where the image is exactly in phase
+    - and that answer is an idealisation, not a takeoff angle: real earth
+    turns the reflection against the direct wave at grazing angles, the
+    field goes to nothing at the horizon, and the lobe sits fifteen to
+    twenty-five degrees up. Without `mhz` there is no ground to be real
+    about and the perfect-ground shape is what comes back.
     """
-    curve = elevation(kind, height_wl, slope_deg=slope_deg)
+    curve = elevation(kind, height_wl, slope_deg=slope_deg, mhz=mhz, ground=ground)
     if not curve:
         return None, None, None
     best = max(curve, key=lambda p: p["field"])
@@ -451,15 +531,21 @@ def lobe_edges(kind, height_wl, slope_deg=0.0, drop_db=3.0):
     return curve[low]["deg"], peak["deg"], curve[high]["deg"]
 
 
-def hop_ring(kind, height_wl, slope_deg=0.0, day=True):
+def hop_ring(kind, height_wl, slope_deg=0.0, day=True, mhz=None, ground="average"):
     """How far one hop reaches, as a band of distance rather than a point.
 
     A high takeoff angle lands close; a low one lands far. So the near edge of
     what this antenna works comes from the top of its lobe and the far edge
     from the bottom of it - which is why height, not power, is what changes an
     HF station's reach.
+
+    `mhz` puts real earth under it - see :func:`lobe_edges`. It matters most
+    here: a vertical read over perfect ground has its lower edge at zero
+    degrees, and a zero-degree hop is the longest one geometry allows, so
+    the ring drawn round the station was the furthest anything could ever
+    go rather than where this antenna puts a signal.
     """
-    low, peak, high = lobe_edges(kind, height_wl, slope_deg)
+    low, peak, high = lobe_edges(kind, height_wl, slope_deg, mhz=mhz, ground=ground)
     if low is None:
         return None
     layer = F2_DAY_KM if day else F2_NIGHT_KM
@@ -835,7 +921,7 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
     # the band and the hour" was true and useless: the operator wanted a
     # distance, and the antenna they have already decides most of it.
     lam_ft = 983.571 / mhz
-    ring = hop_ring(kind, max(0.0, height_ft / lam_ft), slope_deg, day)
+    ring = hop_ring(kind, max(0.0, height_ft / lam_ft), slope_deg, day, mhz=mhz)
     if not ring:
         return {"kind": "dx", "radius_km": None,
                 "note": "Ionospheric propagation, so distance depends on the "
@@ -1056,7 +1142,7 @@ def field_at(kind, bearing, heading=0.0):
         return 1.0
     if kind == "yagi":
         off = math.radians((bearing - heading + 180) % 360 - 180)
-        return abs(0.5 + 0.5 * math.cos(off)) ** 1.6
+        return _yagi_floor(abs(0.5 + 0.5 * math.cos(off)) ** 1.6)
     # A wire radiates broadside: strongest across itself, nothing off the ends.
     # Along the ground, which is what a plan view is, so this is field_toward
     # at nought degrees of elevation and must stay equal to it - it used to be
@@ -1111,9 +1197,18 @@ def dx_bearings(lat, lon, kind=None, heading=0.0, hmf2=None):
     return sorted(out, key=lambda r: r["bearing"])
 
 
-def main_lobe(kind, height_wl, slope_deg=0.0):
-    """The elevation angle the antenna actually favors."""
-    best = max(elevation(kind, height_wl, slope_deg=slope_deg),
+def main_lobe(kind, height_wl, slope_deg=0.0, mhz=None, ground="average"):
+    """The elevation angle the antenna actually favors.
+
+    Asked of the same curve the page draws, which means `mhz` has to come in
+    with the question. It did not, and the answer was read off perfect
+    ground while real earth was on the screen beside it: every vertical was
+    reported as strongest at zero degrees, with the marker laid along the
+    horizon, against a lobe plainly peaking twenty-odd degrees up. The
+    element is strongest along the ground and that much is true of the
+    antenna; the ground is what takes the last few degrees back.
+    """
+    best = max(elevation(kind, height_wl, slope_deg=slope_deg, mhz=mhz, ground=ground),
                key=lambda p: p["field"])
     return best["deg"]
 

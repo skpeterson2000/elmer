@@ -153,7 +153,12 @@ check("and the wait it did not need is in the log, not on the screen",
       timed(said) is not None and timed(said) < 1.0, True)
 
 print("\nso does the slow one, and the log carries what the screen does not")
-slow, said = run(comes_up_after=1.2)
+# The check below is a floor - that the log noticed this board was slow - so
+# the launcher is given plenty of ceiling. Two seconds of it left barely eight
+# hundred milliseconds of headroom, and on a machine busy running the rest of
+# the suite that ran out: the test passed alone and failed in a full run,
+# which says nothing about the launcher and everything about the clock.
+slow, said = run(comes_up_after=1.2, timeout=10.0)
 check("the same splash", "splash.html" in (slow or ""), True)
 check("the log knows this board was slower", (timed(said) or 0) >= 1.0, True)
 
@@ -184,7 +189,7 @@ print("\nwithout the splash file it waits, as it did before there was one")
 was = kiosk.SPLASH
 kiosk.SPLASH = Path(__file__).resolve().parent / "no-such-splash.html"
 try:
-    late, said = run(comes_up_after=0.5)
+    late, said = run(comes_up_after=0.5, timeout=10.0)
     check("waited for the program rather than opening on nothing", late,
           "http://localhost:5000")
     check("and timed it just the same", (timed(said) or 0) >= 0.4, True)

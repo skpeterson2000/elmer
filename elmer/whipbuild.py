@@ -100,7 +100,7 @@ PARTS = [
         "do": "Center-load it if you can hold the weight up there. A bought "
               "whip distributes the winding along the whole rod, which is the "
               "same idea taken further than anybody winds by hand.",
-        "cheat": "A capacity hat above the coil - three or four spokes, a "
+        "cheat": "A capacitance hat above the coil - three or four spokes, a "
                  "bicycle wheel rim, a disc of mesh - lowers the inductance "
                  "you need and raises the current in the rod. It is the "
                  "cheapest decibel on the whole antenna.",

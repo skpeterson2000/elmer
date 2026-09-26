@@ -1269,7 +1269,7 @@ function calcAnt() {
         ? ' On a screwdriver that is the coil the motor winds in and out: it finds this ' +
           'value for you on every band, and the efficiency above is what it finds it at.'
         : ''));
-    if (hat > 1) notes.push('The capacity hat raises the effective height, which is why ' +
+    if (hat > 1) notes.push('The capacitance hat raises the effective height, which is why ' +
       'it buys efficiency for no extra length &mdash; it is the cheapest improvement here.');
     notes.push('This is why mobile HF is hard: at ' + f.toFixed(3) + '&nbsp;MHz the whip is only ' +
       (ratio * 100).toFixed(1) + '% of a wavelength tall.');
@@ -3618,9 +3618,21 @@ if (document.getElementById('sm-chart')) {
    sketched: the elevation pattern from the ground reflection that height
    creates, the SWR curve from the antenna's Q. */
 
+/* An elevation pattern is a slice through the whole vertical plane, not a
+   quadrant of one. The points run 0 to 180: the horizon in front, over the
+   top, and down to the horizon behind - so a vertical draws the two lobes
+   it actually has (the side view of a doughnut), a dipole draws its mirror
+   pair, and a beam draws its forward lobe with whatever it leaves behind
+   it. Drawn as one quadrant, every antenna on the page looked like a beam.
+   A shorter list that stops at 90 still plots, mirrored, because that is
+   what a pattern with nothing said about its heading looks like. */
 function polarPlot(points, opts) {
-  const R = 118, cx = 140, cy = 138;
-  const pts = points.map(p => {
+  const R = 118, cx = 155, cy = 148;
+  const half = points.length && points[points.length - 1].deg <= 90.5;
+  const whole = half
+    ? points.concat(points.slice(0, -1).reverse().map(p => ({deg: 180 - p.deg, field: p.field})))
+    : points;
+  const pts = whole.map(p => {
     const rad = (p.deg / 180) * Math.PI;
     const r = R * p.field;
     return [(cx + r * Math.cos(rad)).toFixed(1),
@@ -3629,26 +3641,40 @@ function polarPlot(points, opts) {
   const rings = [0.25, 0.5, 0.75, 1].map(f =>
     '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R * f).toFixed(1) +
     '" fill="none" stroke="#2a3441"/>').join('');
-  const spokes = [0, 15, 30, 45, 60, 75, 90].map(d => {
+  const spokes = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180].map(d => {
     const rad = (d / 180) * Math.PI;
+    /* Labelled by how far up it is, both sides, because that is the
+       question being asked of it - the far side is the same angle behind. */
+    const up = d > 90 ? 180 - d : d;
     return '<line x1="' + cx + '" y1="' + cy + '" x2="' +
       (cx + R * Math.cos(rad)).toFixed(1) + '" y2="' +
       (cy - R * Math.sin(rad)).toFixed(1) + '" stroke="#222c36"/>' +
-      '<text x="' + (cx + (R + 12) * Math.cos(rad)).toFixed(1) + '" y="' +
-      (cy - (R + 12) * Math.sin(rad) + 4).toFixed(1) +
-      '" fill="#626e7b" font-size="9" text-anchor="middle">' + d + '&#176;</text>';
+      '<text x="' + (cx + (R + 13) * Math.cos(rad)).toFixed(1) + '" y="' +
+      (cy - (R + 13) * Math.sin(rad) + 4).toFixed(1) +
+      '" fill="#626e7b" font-size="9" text-anchor="middle">' + up + '&#176;</text>';
   }).join('');
-  return '<svg viewBox="0 0 290 165" style="width:100%;max-width:290px">' +
+  return '<svg viewBox="0 0 310 180" style="width:100%;max-width:310px">' +
     rings + spokes +
     '<line x1="' + (cx - R - 6) + '" y1="' + cy + '" x2="' + (cx + R + 6) +
       '" y2="' + cy + '" stroke="#8b98a5"/>' +
     '<polygon points="' + cx + ',' + cy + ' ' + pts + '" fill="rgba(63,185,80,.22)" ' +
       'stroke="#3fb950" stroke-width="1.6"/>' +
+    /* The takeoff angle, marked on every lobe that is actually at it. Both,
+       for anything symmetric - which is most antennas - and the front alone
+       for a beam, where marking the back would claim a lobe it does not
+       have. Within a decibel counts as the same angle. */
     (opts && opts.mark !== undefined
-      ? '<line x1="' + cx + '" y1="' + cy + '" x2="' +
-        (cx + R * Math.cos(opts.mark / 180 * Math.PI)).toFixed(1) + '" y2="' +
-        (cy - R * Math.sin(opts.mark / 180 * Math.PI)).toFixed(1) +
-        '" stroke="#ffb454" stroke-width="1.4" stroke-dasharray="4 3"/>' : '') +
+      ? [opts.mark, 180 - opts.mark].filter((deg, n) => {
+          if (!n) return true;
+          const at = a => (whole.reduce((best, p) =>
+            Math.abs(p.deg - a) < Math.abs(best.deg - a) ? p : best, whole[0]) || {}).field || 0;
+          return at(deg) >= at(opts.mark) * 0.89;
+        }).map(deg =>
+          '<line x1="' + cx + '" y1="' + cy + '" x2="' +
+          (cx + R * Math.cos(deg / 180 * Math.PI)).toFixed(1) + '" y2="' +
+          (cy - R * Math.sin(deg / 180 * Math.PI)).toFixed(1) +
+          '" stroke="#ffb454" stroke-width="1.4" stroke-dasharray="4 3"/>').join('')
+      : '') +
     '</svg>';
 }
 
@@ -3675,8 +3701,19 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
   const elevationWords = '<p class="tiny muted">Strongest at <b>' + d.main_lobe_deg +
         '&deg;</b> above the horizon.' + vNote + ' ' +
         (d.shape === 'vertical'
-          ? 'A vertical has no null at the horizon, which is why it works for DX from a small plot.'
-          : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled and a vertical\'s lobe sits where a measurement puts it, up off the horizon.') +
+          ? 'A vertical nulls straight up, along its own axis, and is strongest out along the ground &mdash; so its lobe is low whatever its height, which is why it works DX off a small plot. The last few degrees are the ground\'s doing, not the antenna\'s: drawn over average earth, where the reflection turns against the direct wave at grazing angles, so the field falls away to nothing right at the horizon and the lobe peaks a little above it. Over perfect ground it would run all the way down to zero degrees, and perfect ground is not a thing anybody has.'
+          : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled rather than bottomless.') +
+        '</p>' +
+        /* What the left half of the plot is. It is a slice through the
+           whole vertical plane, and which two things it is a slice of
+           depends on the antenna - so say which. */
+        '<p class="tiny muted">The cut is the whole vertical plane: the way it faces on the right, ' +
+        'behind it on the left. ' +
+        (d.shape === 'vertical'
+          ? 'A vertical’s pattern is a doughnut, the same in every direction round it &mdash; so the side view is two lobes and the plan view is a circle. There is no front to it.'
+          : type === 'yagi'
+            ? 'A beam is the one antenna where the two halves differ, and the difference is what you bought it for: the rear lobe is held at ' + d.front_to_back_db + ' dB down, which is a good three-element Yagi rather than the hole a bare cosine would draw.'
+            : 'A wire radiates broadside, both ways, so the two lobes are mirror images &mdash; there is as much behind it as in front. Turning it does not aim it; it moves the nulls off the ends.') +
         '</p>';
   const sharpWords = '<div class="panel-title">How sharp it is</div>' +
         '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
@@ -3694,7 +3731,7 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         planPlot(d) + (words ? '' : planWords(d)) + '</div>' +
       '<div><div class="panel-title">Elevation pattern' +
         (d.shape === 'vertical' ? '' : ' at ' + d.height_wl + ' wavelengths up') +
-        '</div>' + polarPlot(d.elevation, {mark: d.main_lobe_deg}) +
+        '</div>' + polarPlot(d.elevation_cut || d.elevation, {mark: d.main_lobe_deg}) +
         (words ? '' : elevationWords) + '</div>' +
       /* The SWR curve used to be drawn here too, small and static, next to
          the two patterns. It has moved to the sweep at the foot of this tab,

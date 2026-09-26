@@ -1813,6 +1813,13 @@ def api_pattern():
         "shape": spec["shape"], "q": round(patterns.base_q(kind, mhz), 1),
         "fed": spec["fed"],
         "elevation": patterns.elevation(kind, height_wl, slope_deg=slope, mhz=mhz),
+        # The plot's own curve: the whole vertical plane rather than the
+        # quadrant above, so an antenna with two lobes is drawn with two.
+        # "elevation" is kept beside it because the quadrant is what the
+        # takeoff figures are read from and what the printed sheet uses.
+        "elevation_cut": patterns.elevation_slice(
+            kind, height_wl, slope_deg=slope, mhz=mhz, heading=heading),
+        "front_to_back_db": patterns.YAGI_FB_DB if kind == "yagi" else None,
         "ground": "average",
         # Two slices of the same pattern, because one of them on its own
         # has been misleading people. "azimuth" is along the ground, which
@@ -1822,9 +1829,14 @@ def api_pattern():
         # the second is very nearly a circle, and that gap is the answer to
         # "which way should I string it".
         "azimuth": patterns.azimuth(kind, heading),
-        "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope),
+        # Over the same ground the elevation plot above is drawn on. Asked
+        # without the frequency it answered about perfect ground, which put
+        # every vertical's takeoff at zero degrees - along the horizon,
+        # where real earth leaves nothing at all.
+        "main_lobe_deg": patterns.main_lobe(kind, height_wl, slope, mhz=mhz),
         "azimuth_lobe": patterns.azimuth(
-            kind, heading, elev_deg=patterns.main_lobe(kind, height_wl, slope)),
+            kind, heading,
+            elev_deg=patterns.main_lobe(kind, height_wl, slope, mhz=mhz)),
         "slope": slope,
         "swr": patterns.swr_curve(kind, mhz, q=patterns.base_q(kind, mhz)),
         "bandwidth": patterns.usable_bandwidth(

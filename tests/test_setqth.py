@@ -52,12 +52,34 @@ if not _browser.available():
     print("\nFAILED: this test needs chromium")
     sys.exit(1)
 
+# The geocoder this test used to reach is somebody else's server on the far
+# side of the internet, with a rate limit on it. So the test passed on its own
+# and failed inside a full run, which is the worst way for a test to behave -
+# and what it was reporting was Nominatim's mood, not this program's behavior.
+# The three answers the page has to tell apart are canned here instead: one
+# place, several places, none. Everything from the box to the save is still
+# the real path.
+STUB = """
+from elmer import geocode
+def _search(query, limit=6):
+    q = (query or "").strip().lower()
+    if q.startswith("springfield"):
+        return [{"name": "Springfield, Illinois", "lat": 39.8, "lon": -89.65,
+                 "kind": "place"},
+                {"name": "Springfield, Missouri", "lat": 37.2, "lon": -93.3,
+                 "kind": "place"}]
+    if q.startswith("pequot"):
+        return [{"name": "Pequot Lakes, Minnesota", "lat": 46.6, "lon": -94.31,
+                 "kind": "place"}]
+    return []
+geocode.search = _search
+"""
 PORT = _browser._free_port()
 server = subprocess.Popen(
     [sys.executable, "-c",
-     "import sys; sys.path.insert(0, %r)\nfrom elmer.app import app\n"
+     "import sys; sys.path.insert(0, %r)\nfrom elmer.app import app\n%s\n"
      "app.run(host='127.0.0.1', port=%d, threaded=True, use_reloader=False)"
-     % (str(ROOT), PORT)],
+     % (str(ROOT), STUB, PORT)],
     env=dict(os.environ), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Each press is watched through fetch, because "did it save" is a question

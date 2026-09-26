@@ -92,7 +92,12 @@ def main():
     block = js.split("const effHeight =")[1][:200]
     check("the pattern's height is the drooped one, not the apex",
           "vDrop" in block, True)
-    check("  and the droop is what makes it", "an-droop" in js.split("const vDrop")[1][:200], True)
+    # The droop had its own slider, `an-droop`, until one slider took over
+    # all three jobs - a dipole's slope, a V's droop and a ground plane's
+    # radials are the same angle asked three ways. This looked for the old
+    # id and had been failing ever since, against code that was correct.
+    check("  and the droop is what makes it", "antAngle()" in js.split("const vDrop")[1][:200], True)
+    check("  which is the one angle slider", "an-angle" in js.split("function antAngle")[1][:120], True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
