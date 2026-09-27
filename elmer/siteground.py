@@ -3,7 +3,7 @@
 Every antenna sits on ground, and the ground decides more than most operators
 are told: how far a ground wave goes, how low a vertical fires, how many
 radials are worth laying, whether a ground rod goes in at all. ELMER has always
-reasoned with the ITU's standard ground types (groundwave.GROUND) and asked the
+reasoned with the ITU's standard ground types (elmer/ground.py) and asked the
 operator to pick one, and nearly everybody leaves it on "average", because
 nobody knows what their ground is.
 
@@ -47,7 +47,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import groundwave, paths, terrain
+from . import ground as _ground
+from . import paths, terrain
 from .geo import EARTH_R_KM
 
 log = logging.getLogger("elmer")
@@ -273,7 +274,7 @@ def rate(soil, water, lie, lat=None):
             why.append(f"{w['what'][0].upper()}{w['what'][1:]} {where}{named}. Fresh water reflects well but conducts poorly - "
                        f"it is not the sea.")
 
-    g = groundwave.GROUND[kind]
+    g = _ground.SOILS[kind]
     # The practical side: the rod, the radials, the water, the winter.
     if rock is not None and rock <= 100:
         practical.append(f"Ground rod: rock about {round(rock / 2.54)} in down - a full 8 ft rod will not go in. "

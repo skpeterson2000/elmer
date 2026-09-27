@@ -27,43 +27,14 @@ is as much as anybody needs to decide whether to bother.
 """
 import math
 
-# Conductivity in siemens per meter and relative permittivity, from the ITU's
-# standard ground types. The spread is enormous - sea water conducts five
+from . import ground as _ground
+
+# Conductivity in siemens per meter and relative permittivity: the one
+# ground table every model reads (elmer/ground.py), from ITU-R P.527 where
+# P.527 gives them. The spread is enormous - sea water conducts fifty
 # thousand times better than dry sand - and it is the single biggest thing
 # deciding how far a ground wave goes.
-GROUND = {
-    "sea": {"sigma": 5.0, "epsilon": 80.0,
-            "label": "Sea water",
-            "note": "The best ground there is. Coastal stations get ground "
-                    "wave ranges inland stations never see."},
-    "fresh": {"sigma": 0.003, "epsilon": 80.0,
-              "label": "Fresh water",
-              "note": "High permittivity, poor conductivity - a lake is not "
-                      "the sea and does not behave like it."},
-    "wet": {"sigma": 0.02, "epsilon": 30.0,
-            "label": "Wet ground, marsh",
-            "note": "Rich damp soil, bog, irrigated land. The best ordinary "
-                    "ground and worth siting for."},
-    "average": {"sigma": 0.005, "epsilon": 13.0,
-                "label": "Average ground",
-                "note": "The default in every textbook and the right guess "
-                        "for ordinary farmland and pasture."},
-    "poor": {"sigma": 0.002, "epsilon": 10.0,
-             "label": "Poor ground, rocky",
-             "note": "Hills, rock, sandy loam. Common and quietly costly."},
-    "sand": {"sigma": 0.0002, "epsilon": 10.0,
-             "label": "Dry sand, desert",
-             "note": "Close to an insulator. A ground wave dies fast on it, "
-                     "and radials matter more here than anywhere."},
-    "city": {"sigma": 0.001, "epsilon": 5.0,
-             "label": "City, industrial",
-             "note": "Buildings and dry fill. Poor ground and a high noise "
-                     "floor arriving together."},
-    "ice": {"sigma": 0.001, "epsilon": 3.0,
-            "label": "Ice, frozen ground",
-            "note": "Frozen soil conducts far worse than the same soil thawed "
-                    "- a winter ground wave is shorter than a summer one."},
-}
+GROUND = _ground.SOILS
 
 
 def complex_permittivity(mhz, ground="average"):
@@ -73,7 +44,7 @@ def complex_permittivity(mhz, ground="average"):
     rises, which is the root of why ground wave is a low-band phenomenon: the
     same soil looks progressively less like a conductor the higher you go.
     """
-    soil = GROUND.get(ground) or GROUND["average"]
+    soil = _ground.soil(ground) or _ground.SOILS[_ground.DEFAULT]
     lam = 299.792458 / float(mhz)                    # meters
     return soil["epsilon"], 60.0 * lam * soil["sigma"], lam
 
@@ -289,7 +260,7 @@ def useful_range_km(mhz, watts=100.0, ground="average", site="rural",
 def describe(mhz, watts=100.0, ground="average", site="rural", mode="ssb",
              polarization="vertical", gain_dbi=0.0):
     """The whole answer, in the terms somebody would ask the question in."""
-    soil = GROUND.get(ground) or GROUND["average"]
+    soil = _ground.soil(ground) or _ground.SOILS[_ground.DEFAULT]
     out = {"ground": ground, "ground_label": soil["label"],
            "ground_note": soil["note"], "polarization": polarization,
            "mhz": float(mhz), "watts": float(watts), "mode": mode,

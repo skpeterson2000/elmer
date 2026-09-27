@@ -2606,6 +2606,23 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   is never quietly reported as comfortable. Terrain is cached, and without a
   network the smooth-earth maths still runs and says the terrain is unknown.
   The antenna tab hands its gain figure straight to it.
+- **One ground table** — `elmer/ground.py` holds every soil's permittivity
+  and conductivity, and the antenna patterns, the ground wave and the Ground
+  tab's rating all read it. They kept their own tables, and the tables had
+  drifted: "poor" was one soil in the patterns and another in the ground
+  wave, and sea water had a permittivity that was nobody's figure. The
+  figures are ITU-R P.527-6's (Attachment to Annex 1, Figure 24), read at
+  HF, wherever P.527 gives the soil: sea water 70 and 5 S/m, wet ground 30
+  and 0.01, fresh water 80 and 0.003, medium dry ("poor") 15 and 0.001, very
+  dry ("sand") 3 and 0.0001, and fresh-water ice 3 and about 5e-5, read by
+  eye between its two curves. Two are not P.527's and say so: "average",
+  13 and 0.005 S/m, the textbook default every book and modeling program
+  means by average ground, kept because it is what an operator who has not
+  rated their ground should get; and "city", 5 and 0.001, the textbook
+  figure for built-up ground, for which P.527 has no curve. The patterns'
+  old "good" is P.527's wet ground. Moving to P.527 changed the answers for
+  wet ground, poor, sand, ice and the patterns' good, and only those; the
+  changelog for 2026-09-27 lists by how much.
 
 ### Tools
 

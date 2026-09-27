@@ -38,6 +38,7 @@ rather than derived from the geometry, and are labelled that way.
 import cmath
 import math
 
+from . import ground as _ground
 from .geo import EARTH_R_KM, hop_km
 
 # Typical loaded Q near resonance, and the feedpoint resistance to match.
@@ -138,16 +139,13 @@ def base_q(kind, mhz):
     return max(rule["floor"], spec["q"] * (ratio ** rule["power"]))
 
 
-# The soils: relative permittivity and conductivity in S/m. "perfect" is
-# the textbook conductor, kept for the curves that pre-date the ground and
-# for anybody who wants the ideal shape.
-GROUNDS = {
-    "perfect": None,
-    "average": (13.0, 0.005),      # pastoral, medium hills - the Antenna Book's default
-    "poor": (5.0, 0.001),          # city, dry sand, rock
-    "good": (20.0, 0.03),          # rich farmland, marsh
-    "sea": (80.0, 5.0),            # salt water
-}
+# The soils: relative permittivity and conductivity in S/m, from the one
+# ground table every model reads (elmer/ground.py - P.527 where P.527 gives
+# them). "perfect" is the textbook conductor, kept for the curves that
+# pre-date the ground and for anybody who wants the ideal shape.
+GROUNDS = {"perfect": None,
+           **{name: _ground.constants(name) for name in _ground.SOILS},
+           **{name: _ground.constants(name) for name in _ground.ALIASES}}
 
 
 def fresnel(elev_rad, mhz, ground="average"):
