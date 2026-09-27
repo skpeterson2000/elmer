@@ -15,6 +15,11 @@ and this test holds the files to it:
     where it was published;
   - the whole shelf stays under 40 MB, for the Windows zip and a Pi's clone.
 
+Those checks read the real data/shelf/ by its own path, and deliberately not
+through ELMER_SHELF: _isolate points that at an empty directory so that
+other tests do not count the shipped books, and a check of the manifest made
+through it would pass over an empty shelf and prove nothing.
+
 And the shelf behaves as promised, shown against a throwaway shipped
 directory so nothing is written under the program's content:
 
