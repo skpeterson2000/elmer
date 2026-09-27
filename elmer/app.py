@@ -2390,6 +2390,14 @@ def api_bandplan_reach():
                 heading = float(request.args.get("heading")) % 360.0
             except (TypeError, ValueError):
                 heading = None
+        # A blank box used to mean "all round", and drew a Yagi or a
+        # terminated wire as a vertical - a beam covering everywhere. An
+        # antenna whose pattern has a direction is drawn laid toward north
+        # instead, and the page says the direction is assumed: the shape is
+        # there at once, and so is the reason to set it.
+        heading_assumed = False
+        if heading is None and patterns.ANTENNA_Q.get(kind, {}).get("shape") != "vertical":
+            heading, heading_assumed = 0.0, True
         ground = str(request.args.get("ground") or "average").lower()
         if ground not in patterns.GROUNDS or ground == "perfect":
             ground = "average"
@@ -2399,8 +2407,8 @@ def api_bandplan_reach():
         except (TypeError, ValueError):
             length_ft = None
         antenna = {"kind": patterns.laid(kind, length_ft, height_ft, mhz),
-                   "height_ft": height_ft, "heading": heading, "ground": ground,
-                   "length_ft": length_ft,
+                   "height_ft": height_ft, "heading": heading, "heading_assumed": heading_assumed,
+                   "ground": ground, "length_ft": length_ft,
                    "height_wl": max(0.02, height_ft / antenna_advice.wavelength_ft(mhz))}
     try:
         watts = max(0.1, min(1500.0, float(request.args.get("watts") or 100.0)))
@@ -2416,6 +2424,7 @@ def api_bandplan_reach():
     key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode,
            kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts, 1), emission,
            (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),
+           bool(antenna and antenna.get("heading_assumed")),
            antenna["ground"] if antenna else "",
            round(antenna["length_ft"]) if antenna and antenna.get("length_ft") else 0)
     hit = _reach_cache.get(key)

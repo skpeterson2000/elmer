@@ -1299,6 +1299,8 @@ def _antenna_block(antenna, mhz):
     return {"kind": kind, "height_wl": round(height_wl, 3),
             "height_ft": round(height_wl * lam_ft, 1),
             "heading": antenna.get("heading"), "ground": ground,
+            # true when the page's box was blank and north was taken for it
+            "heading_assumed": bool(antenna.get("heading_assumed")),
             "wavelength_ft": round(lam_ft, 1),
             # the height's effect in numbers, since the colors run out at the top
             "gain": patterns.height_gains(kind, height_wl, mhz=mhz, ground=ground),

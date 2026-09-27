@@ -182,7 +182,9 @@ at its yards, the dogleg where the line turns, the green's depth, the
 pins. The Lab gained two terminated antennas from the Marines' *Antenna
 Handbook*, the end-fed vee (the "vertical half-rhombic") and the sloping
 wire. Neither is cut to a band, each fires one way off its resistor, and
-their patterns are worked out as the travelling waves they are. The
+their patterns are worked out as the travelling waves they are; the reach
+map draws that one-way lobe even before you say which way the wire runs,
+laid toward north and marked as assumed until you do. The
 Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
 of its release statement, its source and its SHA-256. An operator can hide

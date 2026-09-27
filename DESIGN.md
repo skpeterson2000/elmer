@@ -841,7 +841,12 @@ resistor for, and the gain printed is the directivity less those 3 dB. The
 length is the operator's, since a terminated wire is sized by the ground
 there is and not by the band. It travels with the antenna's kind (a
 `Laid` string that still reads "tefv"), so the reach map, the DX bearings
-and the plan view use the same model without learning anything new. The
+and the plan view use the same model without learning anything new. The reach map
+once took an empty "laid" box to mean "all round" and dropped the direction
+entirely, which drew this antenna, and a Yagi, as a vertical - the one
+answer a beam can never be. Unknown now means laid toward north, said to be
+assumed, with the box in amber: the shape is right at once and the guess is
+in plain sight, where "all round" hid it. The
 pattern is a table at 1° of elevation and 5° of azimuth, built once per
 wire, band and height. That is about 20 ms, and after that every lookup is
 arithmetic, which is what a Pi can afford. For a 500 ft vee on a 50 ft mast

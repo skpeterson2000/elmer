@@ -246,7 +246,7 @@
         <label class="tiny muted"><input type="radio" name="bp-reach-em" value="cw"> CW</label>
         <label class="tiny muted"><input type="radio" name="bp-reach-em" value="ft8"> FT8</label>
       </span>
-      <input class="btn sm" id="bp-reach-hd" type="number" min="0" max="359" step="1" placeholder="laid" style="width:5.5rem" title="which way the wire is laid, in degrees from north, or a Yagi points - blank if you do not know, and the map treats it as all round">
+      <input class="btn sm" id="bp-reach-hd" type="number" min="0" max="359" step="1" placeholder="laid" style="width:5.5rem" title="which way the antenna is laid, in degrees from north: the way a wire runs, a Yagi points, or a terminated wire runs from its feed to its resistor - the way it fires. Blank draws it laid toward north and says so.">
       <span class="tiny muted">&deg;</span>
       <select class="btn sm" id="bp-reach-gnd" title="the ground under the antenna: it sets how strong the reflected wave is and where a vertical's lobe sits">
         <option value="average" selected>average ground</option>
@@ -272,6 +272,7 @@
     <span class="tiny muted">good</span>
     <span class="tiny muted">&middot; centerd on you, the ring &middot; the night side shaded, the terminator as its twilight</span>
   </div>
+  <p class="small" style="margin:.5rem 0 0" id="bp-reach-laid" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-gain" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-mode" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-nvis-words" hidden></p>

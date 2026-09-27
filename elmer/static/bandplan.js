@@ -1371,6 +1371,36 @@ function bpReachAntenna() {
           heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
           emission: bpReachEmission(), length: length};
 }
+/* Which way the antenna is laid, said where the box is. A blank box is
+   drawn as north rather than as all round - all round drew a Yagi or a
+   terminated wire as a vertical, a beam covering everywhere - and the page
+   says it was assumed. A terminated wire gets the most words, because it
+   fires one way and "laid" has to mean the right end: an operator told to
+   expect Europe who finds only South America should be able to tell whether
+   the wire or the program is facing the wrong way. */
+function bpReachLaid(d) {
+  const box = document.getElementById('bp-reach-laid'), hd = document.getElementById('bp-reach-hd');
+  const a = d && d.antenna;
+  const directed = a && a.heading !== null && a.heading !== undefined;
+  if (hd) {
+    hd.style.borderColor = directed && a.heading_assumed ? 'var(--amber)' : '';
+    hd.placeholder = directed && a.heading_assumed ? '0 ?' : 'laid';
+  }
+  if (!box) return;
+  box.hidden = !directed;
+  if (!directed) return;
+  const h = Math.round(a.heading) % 360;
+  const toward = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(h / 45) % 8];
+  const terminated = a.kind === 'tefv' || a.kind === 'termsloper';
+  const how = terminated
+    ? 'A terminated wire fires one way, off its resistor end. Laid is the bearing from the feed end to the resistor, in degrees from north - stand at the feed, face the resistor, and read the compass.'
+    : a.kind === 'yagi'
+      ? 'Laid is the way the beam points, in degrees from north.'
+      : 'Laid is the way the wire runs, in degrees from north. A wire fires broadside, both ways, so 0 and 180 draw the same.';
+  box.innerHTML = a.heading_assumed
+    ? '<b style="color:var(--amber)">Laid toward north (0°) - assumed, because the box is empty.</b> The shape is right; the direction is a guess until you set it. ' + how
+    : '<b>Laid at ' + h + '°</b>' + (terminated ? ', so it fires ' + toward + ' and the lobe on the map should point that way. If it points somewhere you did not mean, it is the wire that needs turning.' : '.') + ' ' + (terminated ? '' : how);
+}
 /* What the panel keeps between visits: the choices, with the operator's
    own watts rather than the CB ceiling standing in for them. */
 function bpReachRemember(extra) {
@@ -1617,8 +1647,9 @@ async function bpReach(band) {
     far.hidden = !(mode === 'round' && fe);
     if (fe) far.innerHTML = '<b>At the far end</b>, to answer: ' + escapeHTML(fe.equipment) + '; ' + escapeHTML(fe.license_words) + '; ' + escapeHTML(fe.abroad) + '.';
   }
+  bpReachLaid(d);
   const antWords = d.antenna
-    ? 'Weighted for ' + escapeHTML((document.querySelector('#bp-reach-ant option:checked') || {}).textContent || d.antenna.kind) + ' ' + Math.round(d.antenna.height_ft || 0) + ' ft up - ' + (d.antenna.height_wl || 0).toFixed(2) + ' of a wavelength - over ' + escapeHTML((document.querySelector('#bp-reach-gnd option:checked') || {}).textContent || 'average ground') + (d.antenna.heading !== null && d.antenna.heading !== undefined ? ', laid at ' + Math.round(d.antenna.heading) + '°' : ', direction unknown so all round') + ': each path by the angle its first hop leaves at, the ground\'s reflection at that angle, and what the antenna puts that way. Real terrain still moves the lobes. '
+    ? 'Weighted for ' + escapeHTML((document.querySelector('#bp-reach-ant option:checked') || {}).textContent || d.antenna.kind) + ' ' + Math.round(d.antenna.height_ft || 0) + ' ft up - ' + (d.antenna.height_wl || 0).toFixed(2) + ' of a wavelength - over ' + escapeHTML((document.querySelector('#bp-reach-gnd option:checked') || {}).textContent || 'average ground') + (d.antenna.heading !== null && d.antenna.heading !== undefined ? ', laid at ' + Math.round(d.antenna.heading) + '°' + (d.antenna.heading_assumed ? ' (assumed - the laid box is empty)' : '') : ', the same all round') + ': each path by the angle its first hop leaves at, the ground\'s reflection at that angle, and what the antenna puts that way. Real terrain still moves the lobes. '
     : 'The sky alone, every takeoff angle served equally, which no antenna does - pick yours above. ';
   document.getElementById('bp-reach-note').textContent = antWords +
     'A model, and labelled as one: one sonde’s reading anchoring a modelled sky, read at the midpoint of each path - the sun’s angle there, not here. ' +
