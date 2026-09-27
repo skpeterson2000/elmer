@@ -123,6 +123,14 @@ adding features.
   own convention: bands in meters, wire in feet, ionosonde heights in km.
 - Diagnostics go to the log, where the dashboard shows the tail of it. They do
   not go on the study screens.
+- A Pi has one job: the person or the table in front of it. While a game, a
+  net, a mock exam or a study session is running, background work waits -
+  fetches, the FCC license download and its index, spot sampling, Library
+  indexing, anything a page did not ask for. It runs when the unit is idle,
+  and never mid-question. New heavy work (the antenna solver, the ground-wave
+  curves) is computed on demand for the page that asked, never ahead. A Pi
+  decoding P25 or running TowerWitch is not an ELMER host; ELMER reaches it
+  over the network.
 
 ## Writing: code comments, the user interface, docs, commits
 
