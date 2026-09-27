@@ -2,9 +2,15 @@
 #
 # On Debian and Raspberry Pi OS these are better installed with apt, because the
 # system Python is externally managed and pip will refuse it:
-#     sudo apt install python3-flask python3-pil python3-reportlab
+#     sudo apt install python3-flask python3-pil python3-reportlab python3-numpy python3-scipy
 # install.sh does that for you, and falls back to a virtual environment when apt
 # is not available.
+#
+# numpy and scipy are for the numerical work. The floors are what Raspberry Pi
+# OS bookworm ships. scipy is imported inside the function that needs it,
+# never at the top of a module.
 Flask>=2.2
 Pillow>=9.0
 reportlab>=3.6
+numpy>=1.24
+scipy>=1.10

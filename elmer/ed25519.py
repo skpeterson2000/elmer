@@ -1,7 +1,7 @@
 """Ed25519 signatures in plain Python, for the signed supporter roster.
 
-ELMER has no dependencies beyond Flask, Pillow and reportlab, and none of
-those signs anything. The roster of issued supporter keys has to be
+ELMER has no dependencies beyond Flask, Pillow, reportlab, numpy and scipy,
+and none of those signs anything. The roster of issued supporter keys has to be
 signed by the developer and checked on a unit that may never have seen a
 network, so the check has to be here, in the standard library's terms:
 ``hashlib`` for SHA-512 and Python's own big integers for the curve. This

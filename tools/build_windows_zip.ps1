@@ -2,8 +2,8 @@
 #
 # What is in it: the program as committed (git archive, so nothing of this
 # machine's - no data the operator made, no venv, no .git), the official
-# embeddable Python from python.org with Flask, Pillow, reportlab and pyserial
-# already in it (the embeddable Python has no pip, so the NanoVNA's library
+# embeddable Python from python.org with Flask, Pillow, reportlab, numpy,
+# scipy and pyserial already in it (the embeddable Python has no pip, so the NanoVNA's library
 # goes in now or never), and elmer.cmd, which starts the bundled Python and opens a browser
 # window on ELMER once it is serving. No Python to install, no administrator
 # rights, no execution policy to get past, nothing to answer.
@@ -100,7 +100,7 @@ $pth = Join-Path $pydir "python$short._pth"
 # Fetched for the embedded interpreter - its version, its platform, wheels
 # only - by whatever pip this machine has. That is what lets the build run
 # on a machine whose own Python is some other version.
-Say "Flask, Pillow, reportlab and pyserial, for the embedded python"
+Say "Flask, Pillow, reportlab, numpy, scipy and pyserial, for the embedded python"
 $site = Join-Path $pydir 'Lib\site-packages'
 New-Item -ItemType Directory -Force $site | Out-Null
 $pip = $null

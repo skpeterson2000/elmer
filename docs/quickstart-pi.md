@@ -15,8 +15,8 @@ cd elmer
 ```
 
 `install.sh` checks what is on the Pi, says what it intends to do, and asks
-for `sudo` only if a system package is genuinely needed — Flask, Pillow and
-reportlab come from apt, because Raspberry Pi OS refuses `pip install` and
+for `sudo` only if a system package is genuinely needed — Flask, Pillow,
+reportlab, numpy and scipy come from apt, because Raspberry Pi OS refuses `pip install` and
 should. Run it again any time; it puts back what is missing and touches
 nothing else (`./install.sh --repair` restores changed files from the
 repository, and says first that it will).

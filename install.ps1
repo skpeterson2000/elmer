@@ -193,7 +193,7 @@ if (Test-Path $vpy) {
 
 # --------------------------------------------------------------- packages
 Write-Host ""
-Write-Host "  Installing Flask, Pillow and reportlab into .venv ..."
+Write-Host "  Installing Flask, Pillow, reportlab, numpy and scipy into .venv ..."
 & $vpy -m pip install --quiet --upgrade pip
 & $vpy -m pip install --quiet -r (Join-Path $root 'requirements.txt')
 if ($LASTEXITCODE -ne 0) { Bad "pip could not install the dependencies"; exit 1 }

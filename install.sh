@@ -476,6 +476,8 @@ check_optional() {                            # check_optional <binary> <apt> <w
 check_py flask python3-flask "Flask>=2.2"
 check_py PIL python3-pil "Pillow>=9.0"
 check_py reportlab python3-reportlab "reportlab>=3.6"
+check_py numpy python3-numpy "numpy>=1.24"
+check_py scipy python3-scipy "scipy>=1.10"
 check_bin pdftotext poppler-utils "needed to build the question pools"
 check_bin pdftoppm poppler-utils "needed to build the question pools"
 check_bin pdfimages poppler-utils "needed to build the question pools"
@@ -537,7 +539,7 @@ if [ "$USE_VENV" = 1 ]; then
     "$PY" -m pip install --quiet -r requirements.txt 2>&1 \
         | grep -v 'Error parsing dependencies of' || true
     "$PY" - <<'EOF' || { bad "python packages did not install"; exit 1; }
-import flask, PIL, reportlab            # noqa: F401  - presence is the test
+import flask, PIL, reportlab, numpy, scipy   # noqa: F401  - presence is the test
 EOF
     ok "python packages installed into .venv"
     warn "start ELMER with .venv/bin/python elmer.py, or let the menu entry do it"

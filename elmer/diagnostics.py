@@ -1194,6 +1194,15 @@ def doctor(port=5000):
         print(f"  flask       {flask.__version__}")
     except Exception:
         print("  flask       NOT INSTALLED - pip3 install flask")
+    # A unit brought up to date with a plain git pull does not get new
+    # packages; ./install.sh (install.ps1 on Windows) puts back what is
+    # missing, and this is where the operator finds out.
+    for name in ("numpy", "scipy"):
+        try:
+            module = __import__(name)
+            print(f"  {name:<11} {module.__version__}")
+        except ImportError:
+            print(f"  {name:<11} not installed - ./install.sh (install.ps1 on Windows) puts it in")
     print()
 
     results = [

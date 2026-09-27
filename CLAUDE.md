@@ -55,11 +55,14 @@ functions, so running bare `pytest` collects nothing and "fails".
 
 - **Python 3.11 is the floor**, because Raspberry Pi OS bookworm ships 3.11 and
   CI tests on it. Use no syntax or standard-library features from 3.12 or later.
-- **Runtime dependencies are Flask, Pillow and reportlab**, and nothing else.
-  Everything else is the standard library, including the QR encoder. Do not add
-  a dependency without asking. scipy was removed deliberately; do not bring it
-  back. poppler-utils and pyserial are optional, and the self-check
-  (`./elmer.py --doctor`) names them when missing.
+- **Runtime dependencies are Flask, Pillow, reportlab, numpy and scipy**, and
+  nothing else. Everything else is the standard library, including the QR
+  encoder. Do not add a dependency without asking. numpy and scipy were added
+  on 2026-09-27 for the numerical work (the antenna solver, the ground-wave
+  physics, the golf flight), each of which gets its own plan before any code.
+  Import scipy lazily, inside the function that uses it, never at the top of
+  a module. poppler-utils and pyserial are optional, and the self-check
+  (`./elmer.py --doctor`) names them when missing, numpy and scipy too.
 - **Raspberry Pi OS refuses `pip install`** (PEP 668). `install.sh` uses apt
   there and a virtual environment elsewhere. Never tell a user to pip install.
 - **Windows is a first-class target.** The release workflow builds and

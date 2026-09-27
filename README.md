@@ -78,7 +78,8 @@ none is machine-generated, and where none exists the program says so.
 
 ## Requirements
 
-Python 3.11 or later with Flask, Pillow and reportlab (`requirements.txt`);
+Python 3.11 or later with Flask, Pillow, reportlab, numpy and scipy
+(`requirements.txt`);
 `install.sh` fetches them with apt on Raspberry Pi OS and a virtual
 environment elsewhere, `install.ps1` on Windows. Optional, and named by the
 self-check when missing: poppler-utils to rebuild the pools or read PDFs on

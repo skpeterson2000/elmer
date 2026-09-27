@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- numpy and scipy are ELMER's dependencies now, beside Flask, Pillow and reportlab, for the numerical work ahead: the antenna solver, the ground-wave physics and the golf ball's flight, each planned before any of it is written. `install.sh` puts them in from apt (`python3-numpy`, `python3-scipy`), `install.ps1` and the Windows zip carry them, and the self-check says whether a unit has them - a unit updated with a plain pull does not, and `./install.sh` puts them back. Nothing uses them yet, so a unit without them runs exactly as before. scipy is to be imported only inside the function that needs it.
+
 - Distances, bearings and the length of a skywave hop are worked out in one place. The earth's radius was written out in eight modules, the great circle in two and the hop twice in one, and copies drift; they all ask a new `elmer/geo.py` now. It keeps three radii by name, because they are three different things: the mean radius for distances on the ground, the "4/3 earth" a VHF path is drawn over, and the equatorial radius the Moon's distance is worked from. Every answer is the same as before, to well under a meter.
 
 ## 2026-09-26

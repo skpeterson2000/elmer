@@ -13,7 +13,7 @@ cd elmer
 ```
 
 Outside Raspberry Pi OS, `install.sh` makes a `.venv` in the folder and
-installs Flask, Pillow and reportlab into it — nothing system-wide, no
+installs Flask, Pillow, reportlab, numpy and scipy into it — nothing system-wide, no
 `sudo`. It says what it intends to do first. poppler-utils (for rebuilding
 the pools and reading PDFs on the library shelf) is offered, not required,
 and the self-check names it if it is missing.

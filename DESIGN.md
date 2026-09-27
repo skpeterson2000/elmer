@@ -44,8 +44,10 @@ cd elmer
 (`install.sh` uses apt on Raspberry Pi OS, which refuses `pip install` under
 PEP 668, and a virtual environment elsewhere. On Windows, see *ELMER on
 Windows* below.) The pools ship built, so it runs straight from a clone — no
-build step. The dependencies are Flask, Pillow and reportlab; everything
-else, including the QR encoder, is the standard library. poppler-utils is
+build step. The dependencies are Flask, Pillow, reportlab, numpy and scipy;
+everything else, including the QR encoder, is the standard library. numpy
+and scipy are there for the numerical work, and scipy is imported only
+inside the functions that use it. poppler-utils is
 wanted only to rebuild the pools or read PDFs on the library shelf, pyserial
 only to talk to a NanoVNA, and the self-check says which is missing.
 
@@ -4948,7 +4950,7 @@ browser. Nothing is installed: the zip
 carries its own Python (the official embeddable one from python.org, signed
 by the Python Software Foundation, which is why Windows does not put up its
 "unrecognized app" screen the way it would for a home-made `.exe`), with
-Flask, Pillow, reportlab and pyserial already inside. No administrator
+Flask, Pillow, reportlab, numpy, scipy and pyserial already inside. No administrator
 rights, no execution policy, nothing to answer. It cannot update itself -
 there is no git in it - and the dashboard says so; to give it that, run
 `install.ps1` in the folder once, as below, and say yes when it offers git
@@ -4976,7 +4978,8 @@ ELMER is written in; git is how it updates itself; poppler reads the NIFOG
 channel PDF and the manuals on the shelf, and everything else works without
 it. `-Yes` answers for you, for a machine you are setting up in one go;
 `-NoInstall` only reports, for one somebody else looks after. Then it builds
-a virtual environment in `.venv` and puts Flask, Pillow and reportlab in it.
+a virtual environment in `.venv` and puts Flask, Pillow, reportlab, numpy
+and scipy in it.
 `-Shortcut` adds a Start Menu entry, `-Serial` adds pyserial so the Lab can
 talk to a NanoVNA.
 
@@ -5146,7 +5149,8 @@ of the deck like any other.
 
 ## Requirements
 
-Python 3.11 or later with Flask, Pillow and reportlab (`requirements.txt`).
+Python 3.11 or later with Flask, Pillow, reportlab, numpy and scipy
+(`requirements.txt`).
 Optional: `pdftotext`, `pdftoppm` and `pdfimages` from poppler-utils, to
 rebuild the pools and read PDFs on the library shelf; pyserial, to talk to a
 NanoVNA; TowerWitch's own packages, only if it sits beside ELMER. All present
