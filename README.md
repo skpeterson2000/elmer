@@ -186,7 +186,9 @@ their patterns are worked out as the travelling waves they are; the reach
 map draws that one-way lobe even before you say which way the wire runs,
 laid toward north and marked as assumed until you do. In the Lab the
 compass is the control: drag round it to turn the antenna, or tap a place
-to aim at it. The
+to aim at it. The reach map follows a signal the long way round the world
+as well as the short, where the power will carry it, and has a great-circle
+view centered on the station, the map a beam is aimed with. The
 Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
 of its release statement, its source and its SHA-256. An operator can hide

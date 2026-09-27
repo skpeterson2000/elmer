@@ -1134,6 +1134,8 @@ def path_bands(km, fof2=None, hmf2=HMF2_DEFAULT, elevation=0.0,
 # reading, anchoring a modelled sky, applied everywhere. It is a shape.
 REACH_STEP = 5                     # 2592 cells: about a tenth of a second here, a second on a Pi, cached
 REACH_HOP_COST = 0.75              # each hop past the first keeps this much of the score
+EARTH_CIRCUMFERENCE_KM = 40030.0   # 2 pi times the mean radius, 6371 km
+LONG_PATH_MAX_KM = 28000.0         # about seven hops: past it the long way cannot win
 
 
 def _midpoint(lat1, lon1, lat2, lon2):
@@ -1389,7 +1391,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     else:
         lats = [90 - step / 2 - i * step for i in range(int(180 / step))]      # cell centers, pole to pole
         lons = [-180 + step / 2 + j * step for j in range(int(360 / step))]
-    cells, night = [], []
+    cells, night, longs = [], [], []
     elev_here = solar_elevation(lat, lon, when)
     for glat in lats:
         for glon in lons:
@@ -1399,23 +1401,26 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             muf, fof2 = levels(sfi, elev, mlat, m3000, anchor, drive=f2_drive(mlat, mlon, when), when=when)
             elev_far = solar_elevation(glat, glon, when)
             score = 0.0
+            via_long = False
             if km <= ground_km:
                 score = 100.0
             else:
                 skip = skip_km(mhz, fof2, hmf2)
+                # the ceiling and the absorption are the hop's own, not
+                # the 3000 km hop's: a cell 200 km out is rated against
+                # foF2 nearly itself, crossing the D layer once and
+                # nearly straight, which is the whole of what NVIS is
+                def rate(leg_km, f2=fof2, sun_mid=elev):
+                    # the midpoint's sky is a parameter so the long way
+                    # round can be rated at its own midpoint
+                    ceiling = hop_muf(f2, leg_km)
+                    scale = absorb_scale(leg_km)
+                    if mode == "round":
+                        here_leg = float(band_score(mhz, ceiling, elev_here, k, fof2=f2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
+                        there_leg = float(band_score(mhz, ceiling, elev_far, k, fof2=f2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
+                        return min(here_leg, there_leg)
+                    return float(band_score(mhz, ceiling, sun_mid, k, fof2=f2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
                 if skip is not None:
-                    # the ceiling and the absorption are the hop's own, not
-                    # the 3000 km hop's: a cell 200 km out is rated against
-                    # foF2 nearly itself, crossing the D layer once and
-                    # nearly straight, which is the whole of what NVIS is
-                    def rate(leg_km):
-                        ceiling = hop_muf(fof2, leg_km)
-                        scale = absorb_scale(leg_km)
-                        if mode == "round":
-                            here_leg = float(band_score(mhz, ceiling, elev_here, k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
-                            there_leg = float(band_score(mhz, ceiling, solar_elevation(glat, glon, when), k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
-                            return min(here_leg, there_leg)
-                        return float(band_score(mhz, ceiling, elev, k, fof2=fof2, hmf2=hmf2, absorb_scale=scale).get("score") or 0.0)
                     if km <= far * (1 + REACH_EDGE):
                         # one hop: open past the skip's near edge, closing at the
                         # furthest a hop lands - both edges soft
@@ -1430,10 +1435,37 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
                         multi = (rate(leg) * gate * (REACH_HOP_COST ** (n - 1))
                                  * (weigh(leg, bearing) if weigh else 1.0) * heard(km, n, elev, elev_far, glat))
                         score = max(score, multi)
+                # The long way round. A path does not stop at the edge of
+                # the map or at the antipode: past it the signal carries on
+                # round the other side, and a place can be reached the long
+                # way - off the back of a beam aimed away from it, or across
+                # the dark side when the short path is shut. It leaves on the
+                # opposite bearing, travels the rest of the circumference,
+                # and is rated at its own midpoint, the antipode of the short
+                # path's, with every hop paid for. Only tried inside
+                # LONG_PATH_MAX_KM: past that the hops cost more than any sky
+                # gives back, and the map stays as cheap as it was.
+                long_km = EARTH_CIRCUMFERENCE_KM - km
+                if long_km <= LONG_PATH_MAX_KM:
+                    llat, llon = -mlat, ((mlon + 360.0) % 360.0) - 180.0
+                    elev_l = solar_elevation(llat, llon, when)
+                    _, fof2_l = levels(sfi, elev_l, llat, m3000, anchor, drive=f2_drive(llat, llon, when), when=when)
+                    skip_l = skip_km(mhz, fof2_l, hmf2)
+                    if skip_l is not None:
+                        n = max(2, int(math.ceil(long_km / far)))
+                        leg = long_km / n
+                        gate = (_soft(leg, skip_l) if skip_l > 0 else 1.0) * _soft(leg, far, inside_below=False)
+                        back = (bearing + 180.0) % 360.0
+                        the_long = (rate(leg, fof2_l, elev_l) * gate * (REACH_HOP_COST ** (n - 1))
+                                    * (weigh(leg, back) if weigh else 1.0) * heard(long_km, n, elev_l, elev_far, glat))
+                        if the_long > score:
+                            score = the_long
+                            via_long = True
                 # ground wave fades out rather than stopping at a line
                 if ground_km > 0 and km <= ground_km * (1 + REACH_EDGE):
                     score = max(score, 100.0 * _soft(km, ground_km, inside_below=False))
             cells.append(int(round(max(0.0, min(100.0, score)))))
+            longs.append(1 if via_long and cells[-1] > 0 else 0)     # marked only where it is lit
             night.append(solar_elevation(glat, glon, when) < 0)
     sun = celestial.sun_position(when)
     # NVIS is decided by one number: the critical frequency straight up over
@@ -1468,6 +1500,8 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
             "antenna": (_antenna_block(antenna, mhz) if weigh else None),
             "emission_depth": _mode_depth(mhz, emission, watts),
             "cells": cells, "night": night, "one_hop_km": round(far), "ground_km": round(ground_km),
+            # 1 where the long way round is the better path, for the page to say so
+            "long": longs, "long_cells": sum(longs),
             "watts": round(float(watts), 1), "emission": emission,
             "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)},
             "muf_here": snap.get("muf"), "fof2_here": snap.get("fof2"), "muf_source": snap.get("muf_source"),

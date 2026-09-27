@@ -1102,9 +1102,152 @@ function inWindow(w, lat, lon) {
 
 /* The viewport: the middle of the picture and how far in it is. Zoom 1 is
    the whole world with the operator at the center. */
-const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: null, band: null};
+const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: null, band: null,
+                proj: recall('bandplan.proj', 'flat')};   // 'flat', or 'globe' - see bpReachDrawGlobe
+
+/* The great-circle view: azimuthal equidistant, centered on the QTH. On
+   the flat map a throw that runs off the top carries on over the pole and
+   comes down half a world to the side - right, but it looks like a smear
+   along the edge that has nothing to do with the lobe it came from. Here
+   every straight line out from the middle is a real beam heading, the
+   distance from the middle is the real distance along the path, and the rim
+   is the far side of the world - so a lobe is one unbroken fan, over the
+   pole and down the other side, and there is no edge for a signal to leave
+   by. It is the map an operator aims a beam with. */
+function bpReachDrawGlobe(coarse) {
+  const d = bpReachFor;
+  const canvas = document.getElementById('bp-reach-map');
+  if (!d || !canvas || !d.qth) return;
+  const full = {w: canvas.width, h: canvas.height};
+  const scale = coarse ? 2 : 1;
+  const W = Math.round(full.w / scale), H = Math.round(full.h / scale);
+  const ctx = canvas.getContext('2d');
+  const view = bpView;
+  const D2R = Math.PI / 180, PI = Math.PI;
+  const p0 = d.qth.lat * D2R, l0 = d.qth.lon * D2R, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+  const R = (Math.min(W, H) / 2 - 18 / scale) * view.zoom, cx = W / 2, cy = H / 2;
+  const sd = Math.sin(d.sun.dec * D2R), cd = Math.cos(d.sun.dec * D2R);
+  const bg = [13, 17, 23];
+  const img = ctx.createImageData(W, H);
+  const px = img.data;
+  const score = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 4;
+      const dx = (x + 0.5 - cx) / R * PI, dy = (cy - (y + 0.5)) / R * PI;
+      const c = Math.hypot(dx, dy);
+      if (c > PI) {                      // past the far side of the world
+        score[y * W + x] = -1;
+        px[o] = bg[0]; px[o + 1] = bg[1]; px[o + 2] = bg[2]; px[o + 3] = 255;
+        continue;
+      }
+      const az = Math.atan2(dx, dy), sc = Math.sin(c), cc = Math.cos(c);
+      const sl = sp0 * cc + cp0 * sc * Math.cos(az);
+      const lat = Math.asin(Math.max(-1, Math.min(1, sl)));
+      const lon = l0 + Math.atan2(Math.sin(az) * sc * cp0, cc - sp0 * sl);
+      const latD = lat / D2R, lonD = ((lon / D2R + 540) % 360) - 180;
+      const v = reachAt(d, latD, lonD);
+      score[y * W + x] = v;
+      const k = Math.round(v) * 3;
+      const alt = Math.asin(sl * sd + Math.cos(lat) * cd * Math.cos((d.sun.gha + lonD) * D2R)) / D2R;
+      const t = Math.max(0, Math.min(1, (alt + 12) / 18));
+      const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
+      px[o] = REACH_LUT[k] * shade; px[o + 1] = REACH_LUT[k + 1] * shade; px[o + 2] = REACH_LUT[k + 2] * shade; px[o + 3] = 255;
+    }
+  }
+  if (!coarse) {
+    const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
+    for (let y = 0; y < H - 1; y++) {
+      for (let x = 0; x < W - 1; x++) {
+        const i = y * W + x;
+        if (score[i] < 0 || score[i + 1] < 0 || score[i + W] < 0) continue;
+        const b = band(score[i]);
+        if (b !== band(score[i + 1]) || b !== band(score[i + W])) {
+          const o = i * 4;
+          px[o] *= 0.55; px[o + 1] *= 0.55; px[o + 2] *= 0.55;
+        }
+      }
+    }
+  }
+  if (scale === 1) {
+    ctx.putImageData(img, 0, 0);
+  } else {
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    off.getContext('2d').putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, full.w, full.h);
+  }
+  /* Forward, for lines drawn over it: a place's bearing and distance from
+     the QTH become its angle and radius. */
+  const Rf = R * scale, cxf = full.w / 2, cyf = full.h / 2;
+  const project = (lonD, latD) => {
+    const f = latD * D2R, dl = lonD * D2R - l0;
+    const cc = Math.max(-1, Math.min(1, sp0 * Math.sin(f) + cp0 * Math.cos(f) * Math.cos(dl)));
+    const c = Math.acos(cc);
+    const az = Math.atan2(Math.sin(dl) * Math.cos(f), cp0 * Math.sin(f) - sp0 * Math.cos(f) * Math.cos(dl));
+    const r = Rf * c / PI;
+    return [cxf + r * Math.sin(az), cyf - r * Math.cos(az), c];
+  };
+  const strokeLines = (lines, style, width) => {
+    if (!lines) return;
+    ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    lines.forEach(line => {
+      let last = null;
+      line.forEach(p => {
+        const [x, y, c] = project(p[0], p[1]);
+        /* Near the far side of the world neighbouring points can land on
+           opposite sides of the rim; a jump that long is a break, not a line. */
+        if (last === null || c > PI * 0.985 || Math.hypot(x - last[0], y - last[1]) > Rf / 4) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        last = [x, y];
+      });
+    });
+    ctx.stroke();
+  };
+  const level = bpBorderLevel();
+  if (level !== 'none') {
+    strokeLines(bpLayer('countries'), 'rgba(255,255,255,.42)', view.zoom >= 3 ? 1.1 : 0.9);
+    if (level === 'states' || level === 'counties') strokeLines(bpLayer('states'), 'rgba(255,255,255,.30)', 0.9);
+    if (level === 'counties') strokeLines(bpLayer('counties'), 'rgba(255,255,255,.22)', 0.8);
+  }
+  const coast = view.zoom >= 3 ? (bpLayer('coast50') || bpCoast) : bpCoast;
+  strokeLines(coast, 'rgba(245,248,252,.65)', view.zoom >= 3 ? 1.5 : 1.2);
+  /* The distance rings and the bearings: what this view is for. */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.fillStyle = 'rgba(255,255,255,.62)';
+  ctx.lineWidth = 1; ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left';
+  const ringKm = view.zoom >= 4 ? 1000 : view.zoom >= 2 ? 2500 : 5000;
+  for (let km = ringKm; km < 20000; km += ringKm) {
+    const r = Rf * (km / 6371) / PI;
+    if (r > Math.hypot(full.w, full.h)) break;
+    ctx.beginPath(); ctx.arc(cxf, cyf, r, 0, 2 * PI); ctx.stroke();
+    ctx.fillText(typeof awayText === 'function' ? awayText(km) : km.toLocaleString() + ' km', cxf + 4, cyf - r - 3);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,.34)';
+  ctx.beginPath(); ctx.arc(cxf, cyf, Rf, 0, 2 * PI); ctx.stroke();
+  ctx.textAlign = 'center';
+  ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].forEach((name, i) => {
+    const a = i * 45 * D2R;
+    ctx.strokeStyle = 'rgba(255,255,255,.10)';
+    ctx.beginPath(); ctx.moveTo(cxf, cyf); ctx.lineTo(cxf + Rf * Math.sin(a), cyf - Rf * Math.cos(a)); ctx.stroke();
+    const lx = cxf + (Rf + 11) * Math.sin(a), ly = cyf - (Rf + 11) * Math.cos(a) + 4;
+    if (lx > 8 && lx < full.w - 8 && ly > 10 && ly < full.h - 2) ctx.fillText(name, lx, ly);
+  });
+  ctx.restore();
+  const here = getComputedStyle(document.documentElement).getPropertyValue('--attention').trim() || '#ff7a00';
+  ctx.save();
+  ctx.shadowColor = here; ctx.shadowBlur = 14;
+  ctx.strokeStyle = here; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(cxf, cyf, 7, 0, 2 * PI); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = here; ctx.beginPath(); ctx.arc(cxf, cyf, 2.2, 0, 2 * PI); ctx.fill();
+  const zoomEl = document.getElementById('bp-reach-zoom');
+  if (zoomEl) zoomEl.textContent = view.zoom > 1.05 ? '×' + (view.zoom < 10 ? view.zoom.toFixed(1) : Math.round(view.zoom)) + ' · great circle' : 'great circle';
+}
 
 function bpReachDraw(coarse) {
+  if (bpView.proj === 'globe' && bpReachFor && bpReachFor.qth) return bpReachDrawGlobe(coarse);
   const d = bpReachFor;
   const canvas = document.getElementById('bp-reach-map');
   if (!d || !canvas) return;
@@ -1215,7 +1358,7 @@ function bpReachDraw(coarse) {
 /* A settled zoom asks the model for the window at a finer step. */
 async function bpRefine() {
   const d = bpReachFor;
-  if (!d || bpView.zoom < 1.8) { bpView.refined = null; return; }
+  if (!d || bpView.zoom < 1.8 || bpView.proj === 'globe') { bpView.refined = null; return; }
   const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
   const top = Math.min(89.5, bpView.lat + spanLat * 0.6), bottom = Math.max(-89.5, bpView.lat - spanLat * 0.6);
   const left = bpView.lon - spanLon * 0.6, span = Math.min(360, spanLon * 1.2);
@@ -1237,6 +1380,14 @@ function bpViewSettled() {
 }
 
 function bpZoomAt(factor, cx, cy) {
+  if (bpView.proj === 'globe') {
+    // centered on the station by definition: it zooms about the middle
+    bpView.zoom = Math.max(1, Math.min(24, bpView.zoom * factor));
+    bpReachDraw(true);
+    clearTimeout(bpView.timer);
+    bpView.timer = setTimeout(() => bpReachDraw(false), 250);
+    return;
+  }
   const canvas = document.getElementById('bp-reach-map');
   const rect = canvas.getBoundingClientRect();
   const fx = (cx - rect.left) / rect.width, fy = (cy - rect.top) / rect.height;
@@ -1281,7 +1432,7 @@ function bpReachBind() {
       bpZoomAt(want / bpView.zoom, (a.x + b.x) / 2, (a.y + b.y) / 2);
       return;
     }
-    if (pointers.size === 1 && (e.buttons & 1 || e.pointerType === 'touch')) {
+    if (pointers.size === 1 && bpView.proj !== 'globe' && (e.buttons & 1 || e.pointerType === 'touch')) {
       const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
       bpView.lon -= (e.clientX - was.x) / rect.width * spanLon;
       bpView.lat = Math.max(-90 + spanLat / 2, Math.min(90 - spanLat / 2, bpView.lat + (e.clientY - was.y) / rect.height * spanLat));
@@ -1303,6 +1454,16 @@ function bpReachBind() {
   const borders = document.getElementById('bp-reach-borders');
   if (borders) borders.addEventListener('change', () => { remember('bandplan.borders', borders.value); bpReachDraw(false); });
   if (borders) { const kept = recall('bandplan.borders', 'auto'); if ([...borders.options].some(o => o.value === kept)) borders.value = kept; }
+  const proj = document.getElementById('bp-reach-proj');
+  if (proj) {
+    proj.value = bpView.proj === 'globe' ? 'globe' : 'flat';
+    proj.addEventListener('change', () => {
+      bpView.proj = proj.value;
+      remember('bandplan.proj', proj.value);
+      bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null;
+      bpReachDraw(false);
+    });
+  }
   const reset = document.getElementById('bp-reach-reset');
   if (reset) reset.addEventListener('click', () => { bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null; bpReachDraw(false); });
 }
@@ -1656,7 +1817,14 @@ async function bpReach(band) {
   const antWords = d.antenna
     ? 'Weighted for ' + escapeHTML((document.querySelector('#bp-reach-ant option:checked') || {}).textContent || d.antenna.kind) + ' ' + Math.round(d.antenna.height_ft || 0) + ' ft up - ' + (d.antenna.height_wl || 0).toFixed(2) + ' of a wavelength - over ' + escapeHTML((document.querySelector('#bp-reach-gnd option:checked') || {}).textContent || 'average ground') + (d.antenna.heading !== null && d.antenna.heading !== undefined ? ', laid at ' + Math.round(d.antenna.heading) + '°' + (d.antenna.heading_assumed ? ' (assumed - the laid box is empty)' : '') : ', the same all round') + ': each path by the angle its first hop leaves at, the ground\'s reflection at that angle, and what the antenna puts that way. Real terrain still moves the lobes. '
     : 'The sky alone, every takeoff angle served equally, which no antenna does - pick yours above. ';
-  document.getElementById('bp-reach-note').textContent = antWords +
+  /* The long way round: a path does not stop at the edge of the map or at
+     the far side of the world, and where going the other way is the better
+     path, the map is lit by it and says so. */
+  const longWords = d.long_cells
+    ? d.long_cells + (d.long_cells === 1 ? ' place on this map is' : ' places on this map are') +
+      ' reached better the long way round - leaving on the opposite bearing and carrying on past the far side of the world. '
+    : '';
+  document.getElementById('bp-reach-note').textContent = longWords + antWords +
     'A model, and labelled as one: one sonde’s reading anchoring a modelled sky, read at the midpoint of each path - the sun’s angle there, not here. ' +
     'It knows the geometry - inside the skip, one hop out to ' + d.one_hop_km + ' km, several past it, each hop paid for, the edges soft the way the layer is - and nothing of the far end’s antenna. ' +
     'Each cell is rated against its own hop’s ceiling, from the layer’s shape' + (d.nvis && d.nvis.m3000_of_layer ? ' (M(3000) ' + d.nvis.m3000_of_layer + ')' : '') + ': straight up the ceiling is the critical frequency itself, and a near hop crosses the D layer once and nearly straight, so the county is rated as the county and not as a long path. ' +

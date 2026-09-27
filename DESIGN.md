@@ -3418,6 +3418,34 @@ big assumption is the whole model's: one sonde's reading anchoring a
 modelled sky, applied everywhere. The footnote says so; what it is right
 about is the shape.
 
+A path does not stop at the edge of the map, or at the far side of the
+world. Every cell is measured along the great circle from the QTH, so a
+throw that leaves the top of the picture carries on over the pole and
+down the far side - not in at the bottom, which is the other pole - and
+one that leaves a side comes in at the other. Past the antipode the
+signal keeps going round the other way, so each cell is also tried **the
+long way**: leaving on the opposite bearing, the rest of the 40,030 km
+round, rated at its own midpoint (the antipode of the short path's) with
+every hop paid for, and weighted by the antenna toward that bearing - so
+a beam aimed west reaches places to its east the long way. The better of
+the two is the cell, and the answer marks which were the long way. The
+power budget decides it honestly: 100 W of SSB is some thirty decibels
+short at 20,000 km, so on SSB the long way lights nothing, where FT8,
+twenty-eight decibels deeper, does. It is only tried inside 28,000 km -
+seven hops - past which the hops cost more than any sky gives back, so
+the map costs what it did.
+
+The flat map is right and misleading at once: a lobe carried over the pole
+arrives as a smear along the top edge, half a world to the side of where it
+left. So there is a second view, **great circle, from here**: azimuthal
+equidistant about the QTH, the map a beam is aimed with. Each pixel is
+turned back into a latitude and longitude and read off the same cells, and
+the coasts and borders are projected forward, broken where neighbouring
+points straddle the rim. Straight lines from the middle are headings, radius
+is distance, and the rim is the antipode - no edge to leave by. It zooms
+about the station and does not pan, since the station is the point of it,
+and it draws the whole-world grid rather than asking for windows.
+
 **The pace ledger** (`elmer/pace.py`). Every request is timed already; the
 ledger keeps, per endpoint, how many times it was asked, its mean, its
 slowest and its last forty timings for a ninety-fifth percentile - the
