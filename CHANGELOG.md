@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- Golf's picker shows its yards sooner after a spin or shape change, and a swing stopped on the meter's notch always reaches the mark. Each club's launch speed and each notch are solved by the secant method now: five or six flights where halving took forty for a launch speed and eighteen for a notch, so the eleven clubs' yards after a slider move cost 15 ms here instead of 86, and they are kept until the lie, the set-up or the wind moves rather than worked out on every read. Every carry is where it was, to a millimeter. The notch is the first thousandth of a swing that gets there; the halving left about half of them a thousandth short.
+
 - The three plans carry Scott's decisions. Each opens with what was decided and answers its own open questions: what goes first before any solver is written (the vertical's gain and one SWR answer a height, the golf solve and its caching, one ground module read by every model, and a benchmark for the Pis), and what the solver, the ground wave and the golf flight will and will not do when they come.
 
 - Three plans for review, before any of it is written: an antenna solver, the ground wave by the ITU's method, and the golf ball's flight and its meeting with the ground (`docs/plans/`). Each measures what ELMER does now against published figures and says by how much it falls short, then sets out the method, what it will be checked against, what happens on a unit without numpy or scipy, what it costs a Raspberry Pi, and what would change on screen. Nothing on a unit changes with this.

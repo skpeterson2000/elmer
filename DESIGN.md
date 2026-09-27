@@ -3526,6 +3526,20 @@ sentence. One figure, `Golf.spread_for`, is the drawn patch, the
 carry's spread and the drift across the line alike, so the picture
 cannot promise what the swing does not deliver.
 
+Each club's launch speed is the one that carries it the bag's length on a
+calm day, and the meter's notch is the swing that carries it to the mark.
+Both are solved by the secant method (`golf._launch_speed`,
+`golf.swing_for`): carry is close to linear in launch speed, so a line
+through the last two tries lands in five or six flights where halving a
+bracket took forty for a launch speed and eighteen for a notch. The notch
+is the first thousandth of a swing that gets there, so a swing stopped on
+it always reaches the mark; the halving left it on the line between two
+thousandths, and about half its notches carried a thousandth short. The
+picker's yards (`Golf.club_yards`) are worked out when the lie, the
+golfer's power, the set-up or the wind moves, and kept until then, rather
+than on every read of the table's state. After a spin or shape change they
+cost 15 ms here, where they cost 86 ms.
+
 More club, softer, is a shot and not a mistake - into the wind, to keep
 it low, to run it up onto a green. A part swing is a lower ball, not a
 full one with less in it: the less of the club is used, the flatter it

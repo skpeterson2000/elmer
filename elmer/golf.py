@@ -934,17 +934,47 @@ def _spin_mult(spin):
     return 1.0 if spin is None else SPIN_FLIGHT[0] + (SPIN_FLIGHT[1] - SPIN_FLIGHT[0]) * spin
 
 
+# How close a solved launch speed must carry to the bag's length: a
+# millimeter, which no screen shows and which puts every carry where the
+# forty halvings that used to find it put it.
+LAUNCH_TOL_M = 0.001
+LAUNCH_RANGE = (5.0, 120.0)         # meters a second, the bracket the halving used
+
+
 @functools.lru_cache(maxsize=512)
 def _launch_speed(club, spin_q, shape_q):
     """The launch speed that carries this club its table length on a calm
-    day, with this spin and shape. Solved once and kept."""
+    day, with this spin and shape. Solved once and kept.
+
+    By the secant method: carry is close to linear in launch speed, so a
+    line through the last two tries lands in four or five flights where
+    halving the bracket took forty - and a golfer who moves the spin slider
+    pays for eleven of these. Halving is kept for a secant that leaves the
+    bracket or stops closing, which a smooth carry never does but a
+    changed model might."""
     angle, rpm = LAUNCH.get(club, LAUNCH["7-iron"])
     rpm *= _spin_mult(spin_q)
+    tilt = SHAPE_TILT * shape_q
     want = CLUBS.get(club, 150) * YARD
-    lo, hi = 5.0, 120.0
+    lo, hi = LAUNCH_RANGE
+
+    def miss(v):
+        return _fly(v, angle, rpm, tilt_deg=tilt)[0] - want
+
+    v0, v1 = 40.0, 70.0
+    m0, m1 = miss(v0), miss(v1)
+    for _ in range(12):
+        if abs(m1) < LAUNCH_TOL_M:
+            return v1
+        if m1 == m0:
+            break
+        v2 = v1 - m1 * (v1 - v0) / (m1 - m0)
+        if not lo <= v2 <= hi:
+            break
+        v0, m0, v1, m1 = v1, m1, v2, miss(v2)
     for _ in range(40):
         mid = (lo + hi) / 2
-        if _fly(mid, angle, rpm, tilt_deg=SHAPE_TILT * shape_q)[0] < want:
+        if miss(mid) < 0:
             lo = mid
         else:
             hi = mid
@@ -992,19 +1022,40 @@ def wind_across(club, frac, hour, mph, spin=None, shape=0.0):
 
 def swing_for(club, carry_yards, hour=None, mph=0.0, spin=None, shape=0.0):
     """How much of a full swing of this club carries this far in this wind:
-    the meter's notch. More than 1.0 means it does not get there."""
+    the meter's notch. More than 1.0 means it does not get there.
+
+    `flight` flies the swing to the thousandth, so the notch is where the
+    last thousandth that falls short meets the first that gets there. A
+    secant from the full swing finds the neighborhood in two or three
+    flights, and a step or two along the thousandths settles it - where
+    eighteen halvings used to walk the whole way in."""
     if carry_yards <= 0:
         return 0.05
-    if flight(club, 1.0, hour, mph, spin, shape)["carry"] < carry_yards:
+    full = flight(club, 1.0, hour, mph, spin, shape)["carry"]
+    if full < carry_yards:
         return 1.0 + 1e-3
-    lo, hi = 0.05, 1.0
-    for _ in range(18):
-        mid = (lo + hi) / 2
-        if flight(club, mid, hour, mph, spin, shape)["carry"] < carry_yards:
-            lo = mid
-        else:
-            hi = mid
-    return (lo + hi) / 2
+
+    def carry(f):
+        return flight(club, f, hour, mph, spin, shape)["carry"]
+
+    f0, c0 = 1.0, full
+    f1 = max(0.05, min(1.0, carry_yards / full)) if full > 0 else 0.5
+    c1 = carry(f1)
+    for _ in range(6):
+        if abs(c1 - carry_yards) < 0.05 or c1 == c0:
+            break
+        f2 = max(0.05, min(1.0, f1 - (c1 - carry_yards) * (f1 - f0) / (c1 - c0)))
+        f0, c0, f1, c1 = f1, c1, f2, carry(f2)
+    # Onto the thousandths: k is the first that carries it. The notch sits
+    # a hair inside k's side of the line, so a swing stopped on it gets
+    # there; exactly on the line, as the halving left it, about half the
+    # notches carried a thousandth short.
+    k = max(50, min(1000, int(round(f1 * 1000))))
+    while k < 1000 and carry(k / 1000) < carry_yards:
+        k += 1
+    while k > 50 and carry((k - 1) / 1000) >= carry_yards:
+        k -= 1
+    return 0.05 if k == 50 else (k - 0.5) / 1000 + 1e-6
 
 
 # Where a hole ends: picked up at par plus this many.
@@ -1318,6 +1369,7 @@ class Golf:
         self.hardness = {}
         self.tee_times = []             # who joins at the next tee, in order
         self.streak = {}                # right answers in a row, per player
+        self._yards = {}                # player -> (what it rests on, club_yards) - see club_yards
         self._tee_off()
 
     # The day's wind, as the round has always been asked for it - and set,
@@ -1506,6 +1558,27 @@ class Golf:
         """How far this golfer's club goes from this lie."""
         lie = lie or self.balls[player].lie
         return CLUBS[club] * LIES[lie][0] * self.power.get(player, 1.0)
+
+    def club_yards(self, player):
+        """What each club gets from here today, for the picker.
+
+        Held until something it rests on moves - the lie, the golfer's
+        power, the shot set up, the hole's wind - rather than worked out
+        afresh on every read of the table's state, which a table with four
+        players does several times a second."""
+        h = self.hole()
+        hour = self.wind_clock(h) if h else None
+        ball = self.balls.get(player)
+        clubs = tuple(c for c in self.clubs_for(player) if c != "putter")
+        key = (ball.lie if ball else None, self.power.get(player, 1.0), self._hand(player),
+               hour, float(self.wind_mph or 0), clubs)
+        memo = self.__dict__.setdefault("_yards", {})
+        held = memo.get(player)
+        if held and held[0] == key:
+            return dict(held[1])
+        yards = {c: int(round(self.plays(player, c))) for c in clubs}
+        memo[player] = (key, yards)
+        return dict(yards)
 
     def plays(self, player, club, lie=None):
         """How far this club gets from here in today's wind - the steady
@@ -2837,7 +2910,7 @@ class Golf:
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           # what each club gets from here today, for the picker
-                          "club_yards": {c: int(round(self.plays(p, c))) for c in self.clubs_for(p) if c != "putter"},
+                          "club_yards": self.club_yards(p),
                           "can_mulligan": self.can_mulligan(p),
                           "luck": p in self.luck,
                           "log": list(b.log), "ahead": self.ahead(p)}
