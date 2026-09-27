@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- A benchmark to carry to each Pi: `tools/pibench.py` times what the numerical work will cost where it runs, so the plans' estimates can be replaced with measurements. It times the imports of numpy and scipy in a fresh Python, the antenna solver plan's thin-wire matrix fill and solve from 100 to 800 unknowns (with a half-wave dipole's feed impedance as a check that the machine's numpy answers correctly), a 400-point ground-wave curve by the ITU's method on three grounds, and golf's flight, launch-speed solve and club yards. BLAS is held to one thread, as ELMER will run it. `--json` writes the numbers.
+
 - Golf's picker shows its yards sooner after a spin or shape change, and a swing stopped on the meter's notch always reaches the mark. Each club's launch speed and each notch are solved by the secant method now: five or six flights where halving took forty for a launch speed and eighteen for a notch, so the eleven clubs' yards after a slider move cost 15 ms here instead of 86, and they are kept until the lie, the set-up or the wind moves rather than worked out on every read. Every carry is where it was, to a millimeter. The notch is the first thousandth of a swing that gets there; the halving left about half of them a thousandth short.
 
 - The three plans carry Scott's decisions. Each opens with what was decided and answers its own open questions: what goes first before any solver is written (the vertical's gain and one SWR answer a height, the golf solve and its caching, one ground module read by every model, and a benchmark for the Pis), and what the solver, the ground wave and the golf flight will and will not do when they come.
