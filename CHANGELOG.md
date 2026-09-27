@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- Three plans for review, before any of it is written: an antenna solver, the ground wave by the ITU's method, and the golf ball's flight and its meeting with the ground (`docs/plans/`). Each measures what ELMER does now against published figures and says by how much it falls short, then sets out the method, what it will be checked against, what happens on a unit without numpy or scipy, what it costs a Raspberry Pi, and what would change on screen. Nothing on a unit changes with this.
+
 - The bug report's own test tells the log's sections by their headings. It looked for the words "self-check" and "log lines" anywhere in a suggestion, and the report's build line quotes the last commit's subject - so a commit about the self-check made every suggestion look as though it carried the log. Nothing leaked; the test was reading the wrong line.
 
 - The Lab's hop simulator and path tool are held to the same earth as the rest of the program. They run in the browser, so `lab.js` keeps its own copy of the earth's radius and of the hop geometry, and a new test fails if either drifts from `elmer/geo.py`: the radius is compared directly, and the page's own hop function is run in a real browser over 488 takeoff angles and layer heights against the Python one.
