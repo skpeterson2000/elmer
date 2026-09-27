@@ -3310,6 +3310,9 @@ async function antennaAdvice(mhz, use, kind, quiet) {
                          ground and deploy knowing what to expect. */
                       droop: kind === 'invertedv' ? antAngle() : '',
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
+                      /* Evaluate sends the height on screen, to be judged
+                         beside ELMER's - never replaced by it. */
+                      height: quiet === 'evaluate' && num('an-h') > 0 ? num('an-h') : '',
                       conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));
   } catch (e) { return; }
@@ -3330,7 +3333,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     if (useSel) useSel.value = d.use;
     antennaFields(d.type);
     calcAnt();
-  } else if (anHeightSuggested && d.height_ft) {
+  } else if (quiet !== 'evaluate' && anHeightSuggested && d.height_ft) {
     /* Quiet means "leave the operator's numbers alone", and this one is not
        theirs - ELMER put it there for a different band. Leaving it would have
        the reach, the pattern and the takeoff angle all answering about an
@@ -3358,13 +3361,24 @@ async function antennaAdvice(mhz, use, kind, quiet) {
       'so this assumes <b>' + escapeHTML(d.use_label.toLowerCase()) + '</b>.</div>';
 
   antennaPrivilege(d.mhz);
+  /* Evaluating a setup: the operator's height said plainly beside ELMER's,
+     with the reason, and ELMER's offered rather than imposed. The height in
+     the box may be the most anybody can get up there; a suggestion that
+     overwrote it answered a question nobody asked. */
+  const yours = d.yours
+    ? '<div class="nvis mt" id="an-yours"><b>Your setup.</b> ' + escapeHTML(d.yours.words) +
+      (!d.yours.close && d.yours.suggested_ft
+        ? ' <button class="btn sm ghost" type="button" data-use-height="' + d.yours.suggested_ft + '">Use ' +
+          d.yours.suggested_ft + ' ft instead</button>'
+        : '') + '</div>'
+    : '';
   box.innerHTML =
     '<div class="advice-head">' +
       '<b>' + escapeHTML(d.title) + '</b>' +
       '<span class="tiny muted">' + d.mhz + ' MHz &middot; ' +
         escapeHTML(d.use_label) + ' &middot; wavelength ' + d.wavelength_ft +
         ' ft</span>' +
-    '</div>' + said +
+    '</div>' + said + yours +
     '<div class="grid cols-2" style="gap:.9rem;margin-top:.5rem">' +
       '<div>' + d.why.map(w => '<p class="small">' + escapeHTML(w) + '</p>').join('') +
         /* A flat has no height to aim for - the wire starts at the window and
@@ -3493,7 +3507,21 @@ if (adviseBtn) adviseBtn.addEventListener('click', () => {
                use: document.getElementById('an-use').value,
                kind: document.getElementById('an-type').value};
   rememberAntenna(ctx);
-  antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+  /* Evaluate what is on screen and leave it on screen. With no antenna
+     chosen yet there is nothing to evaluate, and it is a suggestion. */
+  antennaAdvice(ctx.mhz, ctx.use, ctx.kind, ctx.kind ? 'evaluate' : false);
+});
+/* ELMER's height, taken only when it is asked for. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-use-height]');
+  if (!btn) return;
+  const h = document.getElementById('an-h');
+  if (!h) return;
+  h.value = btn.dataset.useHeight;
+  anHeightSuggested = false;          // chosen now, by a person, so it is theirs
+  h.dispatchEvent(new Event('input'));
+  const yoursBox = document.getElementById('an-yours');
+  if (yoursBox) yoursBox.innerHTML = '<b>Your setup.</b> Set to ' + escapeHTML(btn.dataset.useHeight) + ' ft, ELMER’s height. Evaluate it again to hear what it does.';
 });
 
 /* The sheet. Everything worked out on this page is worked out indoors, and

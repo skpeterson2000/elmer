@@ -1044,6 +1044,67 @@ def takeoff_deg(height_ft, mhz):
 GROUND_LIMIT = 0.10
 
 
+def judge_height(kind, mhz, use, yours_ft, suggested_ft):
+    """The operator's own height, said plainly beside ELMER's - for
+    "Evaluate this setup", which used to overwrite the height somebody could
+    actually get with the one ELMER would choose. It is theirs; this says
+    what it does and what the other would do, and changes nothing. None when
+    no height was given."""
+    try:
+        yours = float(yours_ft)
+    except (TypeError, ValueError):
+        return None
+    if yours < 0:
+        return None
+    lam = wavelength_ft(mhz)
+    waves = yours / lam
+    suggested = float(suggested_ft) if suggested_ft else 0.0
+    close = suggested > 0 and abs(yours - suggested) <= max(3.0, 0.15 * suggested)
+    shown = ("%g" % round(yours, 1))
+    out = {"height_ft": round(yours, 1), "waves": round(waves, 2), "suggested_ft": suggested or None,
+           "close": close}
+    if kind in TRAVELLING:
+        words = ("The mast at %s ft. A terminated wire's lobe is set mostly by how many "
+                 "wavelengths of wire it has, and much less by the mast; the pattern on this "
+                 "page is drawn for your mast." % shown)
+        if suggested and not close:
+            words += " The handbook's mast is %g ft." % suggested
+    elif TYPES.get(kind, {}).get("polarisation") == "horizontal":
+        angle = round(takeoff_deg(yours, mhz)) if yours > 0 else 90
+        out["takeoff_deg"] = angle
+        if waves < GROUND_LIMIT:
+            words = ("At %s ft - %.2f of a wavelength on %g MHz - this wire is close enough to the "
+                     "ground that much of its power warms the earth: below about a tenth of a "
+                     "wavelength the efficiency falls away. It fires nearly straight up, which is "
+                     "what NVIS wants, at a cost in signal." % (shown, waves, mhz))
+        else:
+            words = ("At %s ft - %.2f of a wavelength on %g MHz - this wire's main lobe is about "
+                     "%d degrees up." % (shown, waves, mhz, angle))
+        if close:
+            words += " That is about where ELMER would put it."
+        elif suggested:
+            theirs = round(takeoff_deg(suggested, mhz))
+            out["suggested_takeoff_deg"] = theirs
+            if yours < suggested:
+                words += (" ELMER would aim for %g ft, where it is about %d degrees up. Yours fires "
+                          "higher, which favors the nearer contacts - the county and the region - "
+                          "over distance." % (suggested, theirs))
+            else:
+                words += (" ELMER would aim for %g ft, where it is about %d degrees up. Yours fires "
+                          "lower, which favors distance%s." % (
+                              suggested, theirs,
+                              " - and the nearer stations regional work is for get quieter"
+                              if use == "regional" else " over the near ring"))
+    else:
+        words = ("A vertical's lobe stays low whatever its height, so %s ft changes its angle "
+                 "little; height buys a clearer horizon, above the roofs and trees round it, and "
+                 "on VHF a longer line of sight." % shown)
+        if suggested and not close:
+            words += " ELMER's figure for it is %g ft." % suggested
+    out["words"] = words + " Everything on this page is worked out for your height."
+    return out
+
+
 # A balcony is on a floor, and the floor is the height. The ground floor's
 # rail is about four feet up; each storey adds about ten. The tenth floor is
 # ninety-odd feet above the street, which on 20 m is a tower's height for

@@ -470,7 +470,7 @@ Line impedance, load impedance and transmitter power. It answers the question th
 
 The long one, and the order of the questions is deliberate. It starts with what you have got to work with, which is a mast, a garden, an attic, a balcony, a vehicle, or nothing at home at all. Then what you want to do with it, the frequency, and the power you will run. Then the antenna itself, its height, its slope and its droop.
 
-- **Evaluate this setup** draws it: the radiation pattern, what the height is doing to it, the feedpoint impedance, and a reading in words of what the setup is good for and what it will disappoint you at.
+- **Evaluate this setup** draws it: the radiation pattern, what the height is doing to it, the feedpoint impedance, and a reading in words of what the setup is good for and what it will disappoint you at. It evaluates what you entered and changes none of it: the height you typed stays the height, because it may be all the tree allows. Under **Your setup** it says what that height does - the angle the wire fires at, and what that favors - beside the height ELMER would choose and why. If you want ELMER's, the button beside it - **Use 69 ft instead**, with ELMER's own figure in it - puts it in; nothing else does.
 - **Not sure, suggest one** picks an antenna for the answers you have already given, which is the button to use the first time.
 - **Print the sheet (PDF)** puts the whole evaluation on the Printouts shelf, to take out to the garden.
 - The sliders that turn the picture sit under the plot they move, so you can see the pattern change as the height does.

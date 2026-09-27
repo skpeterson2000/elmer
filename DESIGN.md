@@ -2564,6 +2564,15 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   cannot make. A 2 m vertical gets its radio horizon, and is told plainly that
   the repeater is doing the reaching rather than the antenna.
 
+  **Evaluate this setup** evaluates; it does not set. It used to take the same
+  path as Suggest and put ELMER's height, NVIS switch and use over the ones on
+  screen, which answered "what would you do" when the question was "what
+  will mine do". A height typed may be all a tree or a lease allows, and a
+  page recomputed for 69 ft is a page about an antenna nobody will put up. So
+  the height goes to the advice with the question, and comes back judged
+  beside ELMER's (`judge_height`): the takeoff angle at each and what that
+  trades, said once. ELMER's goes in only on the button that says so.
+
   The compass is also the control. The bearing was two sliders, 0 to 179, and
   the one beside the figure stayed at 179 for a Yagi or a terminated wire,
   which fire one way and need the whole circle - and a slider has ends where a

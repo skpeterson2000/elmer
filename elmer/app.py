@@ -2081,6 +2081,11 @@ def api_antenna_advice():
     # operator may use. It is the whole case for an end-fed and the usual
     # surprise for a dipole - 40 m gives 15 and not 20 - and neither was
     # anywhere on the page.
+    # The operator's own height, when "Evaluate this setup" sends it: judged
+    # beside ELMER's and never put in its place.
+    if request.args.get("height"):
+        out["yours"] = antenna_advice.judge_height(out.get("type"), mhz, out.get("use"),
+                                                   request.args.get("height"), out.get("height_ft"))
     out["harmonics"] = antenna_advice.harmonics(out.get("type"), mhz)
     out["harmonic_words"] = antenna_advice.harmonic_words(out.get("type"), mhz)
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
