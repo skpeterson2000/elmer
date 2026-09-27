@@ -69,7 +69,8 @@ def main():
     print("\n-- the deck --")
     s = S.Show(random.Random(3))
     kinds = []
-    for t in range(0, 12 * 10, 12):
+    step = int(S.DEFAULT_DWELL)          # one card a step, whatever the dwell is
+    for t in range(0, step * 10, step):
         c = s.card(5000 + t, standings=[{"name": "Poldhu", "score": 3}], join=True)
         kinds.append(c["kind"])
     check("a trivia card sits between every other kind",
@@ -81,7 +82,8 @@ def main():
     c3 = s.card(6000 + s.dwell + 1)
     check("  and turns over after it", c3["id"] != c1["id"], True)
     decks_seen = set()
-    for t in range(0, 12 * 40, 12):
+    step = int(s.dwell)
+    for t in range(0, step * 40, step):
         c = s.card(7000 + t)
         if c["kind"] == "trivia":
             decks_seen.add(c["deck"])
@@ -93,6 +95,15 @@ def main():
     check("the dwell has a floor", s.dwell, S.MIN_DWELL)
     s.set_deck(dwell=90)
     check("  and a ceiling", s.dwell, S.MAX_DWELL)
+    # The settings file is the event's own and is not in the checkout, so a
+    # unit without one starts at the twenty seconds every unit ran with
+    # when it was.
+    check("a show with no settings of its own holds a card twenty seconds",
+          S.Show(random.Random(5)).dwell, 20.0)
+    import subprocess
+    tracked = subprocess.run(["git", "ls-files", "data/show"], capture_output=True, text=True,
+                             cwd=str(Path(__file__).resolve().parents[1])).stdout.split()
+    check("  and nothing of the show's is tracked in the checkout", tracked, [])
 
     print("\n-- presence: how often a card comes round --")
     s = S.Show(random.Random(8))
@@ -101,7 +112,8 @@ def main():
     s.add_sponsor("Quarter", "", "", None, 0.25)
     s.add_notice("Club", "meets")
     by_pass = {}
-    for t in range(0, 12 * 80, 12):
+    step = int(S.DEFAULT_DWELL)
+    for t in range(0, step * 80, step):
         c = s.card(20_000 + t, standings=[{"name": "x", "score": 1}], join=True)
         by_pass.setdefault(c["pass"], []).append(c.get("name") if c["kind"] == "sponsor" else c["kind"])
     passes = [by_pass[i] for i in sorted(by_pass)][:8]
@@ -119,14 +131,16 @@ def main():
     check("  and cannot be off for a sponsor", S._presence(0), 0.25)
     check("  but ELMER's own card can be turned off", S._presence(0, allow_off=True), 0.0)
     s.set_deck(house=0)
-    kinds = [s.card(30_000 + t, join=True)["kind"] for t in range(0, 12 * 40, 12)]
+    step = int(s.dwell)
+    kinds = [s.card(30_000 + t, join=True)["kind"] for t in range(0, step * 40, step)]
     check("with the house card off it never comes round", "house" in kinds, False)
     s.set_presence(s.sponsors[2]["id"], 3)
     check("a sponsor's presence can be changed after the fact", s.sponsors[2]["presence"], 3.0)
     house = S.Show(random.Random(9)).card(40_000)
     seen = set()
     hs = S.Show(random.Random(9)); hs.set_deck({d: False for d in S.TRIVIA_DECKS}, house=1)
-    for t in range(0, 12 * 8, 12):
+    step = int(hs.dwell)
+    for t in range(0, step * 8, step):
         c = hs.card(50_000 + t)
         if c and c["kind"] == "house":
             seen.add(c["image"])
@@ -141,7 +155,8 @@ def main():
     check("a sponsor survives a reload", [x["name"] for x in again.sponsors], ["Ham Radio Outlet"])
     check("  so does the notice", [x["title"] for x in again.notices], ["Club meets"])
     check("  and their ids stay unique", again._next_id > sp["id"], True)
-    kinds = [again.card(9000 + t)["kind"] for t in range(0, 12 * 8, 12)]
+    step = int(again.dwell)
+    kinds = [again.card(9000 + t)["kind"] for t in range(0, step * 8, step)]
     check("the sponsor's card and the notice both play", {"sponsor", "notice"} <= set(kinds), True)
     check("a weight of 2 does not repeat back to back",
           all(not (kinds[i] == "sponsor" and kinds[i + 1] == "sponsor") for i in range(len(kinds) - 1)), True)

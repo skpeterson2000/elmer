@@ -56,7 +56,10 @@ URGENT_REPEAT = 60.0             # how often an urgent one comes back, if asked
 PLAY, STUDY, INTERMISSION = "play", "study", "intermission"
 MODES = (PLAY, STUDY, INTERMISSION)
 
-DEFAULT_DWELL = 12.0             # seconds a card stands
+# Seconds a card stands. Twenty is what every unit has run: the show's
+# settings file was committed with it, and a unit with no file of its own
+# now starts where they all were rather than somewhere new.
+DEFAULT_DWELL = 20.0
 MIN_DWELL, MAX_DWELL = 5.0, 60.0
 
 # The kinds of card the deck can hold, and which are on by default. Trivia

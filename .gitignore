@@ -100,6 +100,9 @@ data/trips.json
 # The parks and summits fetched for wherever this operator goes. Same
 # reasoning as the trip list: it is a record of where somebody intends to be.
 data/references.json
+# The show's settings and pictures - sponsors, notices, the programme, the
+# images uploaded for them. The event's own, not the program's.
+data/show/
 # The supporter roster as this unit last fetched it (roster.CACHE). The
 # roster that ships is supporters.roster at the top of the checkout.
 data/supporters.roster
