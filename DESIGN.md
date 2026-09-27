@@ -1057,6 +1057,32 @@ you already own, once, and afterwards answer *where does it say that?* with
 the file, the page and the lines around it — from your copy, on this machine,
 with or without a signal.
 
+**The shipped shelf.** Some manuals can be shipped: the ones their publisher
+released to the public, which for the services' handbooks means
+*Distribution Statement A: approved for public release; distribution is
+unlimited* on the cover, and for older government works the public domain.
+Those live in `data/shelf/`, under the program's content, next to
+`manifest.json`, which records for each book the file, its title and edition
+and the release statement as the cover gives them, the address it was
+published at, and the SHA-256 and size of the file as committed. Only a file
+the manifest lists is shown; anything else in the directory was never checked
+and stays off the shelf, with a line in the log. `tests/test_shelf.py` fails
+if a listed file is missing or its hash has changed, if a PDF is there that
+the manifest does not list, if an entry has no release statement, or if the
+shelf passes 40 MB. The limit keeps the Windows zip and a Pi's clone light,
+and the files are committed as published, never recompressed, because
+recompressing a scan degrades it. The Library shows the two shelves as one,
+with the shipped books marked and their statement beside them. Their indexes
+and page pictures are state like any other book's. A shipped book is part of
+the program, so the Library will not delete it: deleting it would dirty the
+checkout, and the next update would put it back. The operator hides it
+instead. The hidden list is the unit's, kept in the state directory, so an
+update that replaces the file does not put the book back on the shelf. An
+operator's own file under a shipped book's name is refused at *Add a manual*,
+so the shelf never has to choose between the two. Nothing is fetched to fill
+the shipped shelf: it arrives with the program, so it adds nothing to *What
+leaves a unit*.
+
 Copy PDFs into `data/library/` (or hand one over from a phone with *Add a
 manual* on the Library page) and the next visit to **Library** indexes them:
 `pdftotext` for the words on every page, the publisher's own bookmarks for the

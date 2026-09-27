@@ -1,0 +1,4 @@
+{
+  "about": "Manuals that ship with ELMER. Only public releases go here: a book whose cover carries Distribution Statement A (approved for public release; distribution is unlimited), or one in the public domain outright. Each entry is copied from the book's own cover and title page: file, title, edition, the release statement word for word, the address it was published at, and the SHA-256 and size of the file as committed. tests/test_shelf.py fails if a file is missing, unlisted, or no longer matches its hash. Total kept under 40 MB.",
+  "books": []
+}

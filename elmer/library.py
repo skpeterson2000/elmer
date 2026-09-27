@@ -26,6 +26,16 @@ when the file changes, and refreshed anyway after REINDEX_DAYS so a poppler
 upgrade that reads better is picked up. Page numbers are the file's own -
 the 47th page of the PDF, which is not always what the publisher printed in
 the corner - and are labelled as such.
+
+Beside it stands a second shelf that ships with the program: data/shelf/,
+manuals released to the public (a Distribution Statement A on the cover, or
+public domain outright), each listed with its source and SHA-256 in
+data/shelf/manifest.json. The page shows the two as one shelf, with the
+shipped books marked. A shipped book is part of the program's content, so it
+is never written to or deleted: an operator who does not want one hides it,
+and the list of hidden books is the unit's, kept in its state, so an update
+that brings the file back does not put it back on the shelf. Its index and
+page pictures are state like any other book's.
 """
 import json
 import logging
@@ -43,6 +53,14 @@ log = logging.getLogger("elmer")
 
 SHELF = paths.STATE / "library"
 INDEX_DIR = SHELF / ".index"
+# The manuals that ship with ELMER, and what vouches for each one. Only a
+# file the manifest lists is a shipped book: anything else in that directory
+# was never checked and stays off the shelf.
+SHIPPED = paths.CONTENT / "shelf"
+MANIFEST_NAME = "manifest.json"
+# The shipped books this unit has hidden, by file name. A dotfile, so the
+# shelf does not take it for a book.
+HIDDEN_NAME = ".hidden.json"
 REINDEX_DAYS = 30
 # What an index file looks like. An index made by an older reader is remade
 # on the next visit, whatever the file did: version 2 is when the bookmarks
@@ -231,28 +249,131 @@ def missing_tools_note():
             f"ELMER looks again on the next visit.")
 
 
-def shelf():
-    """Every PDF on the shelf, by name. Hidden files and non-PDFs are not books."""
-    if not SHELF.is_dir():
+def _pdfs(folder):
+    """The PDFs in one folder. Dotfiles and non-PDFs are not books."""
+    if not folder.is_dir():
         return []
-    out = []
-    for p in sorted(SHELF.iterdir(), key=lambda q: q.name.lower()):
-        if p.name.startswith(".") or not p.is_file():
-            continue
-        if p.suffix.lower() != ".pdf":
-            continue
-        out.append(p)
+    return [p for p in folder.iterdir()
+            if not p.name.startswith(".") and p.is_file() and p.suffix.lower() == ".pdf"]
+
+
+_manifest_cache = {}       # manifest path -> (mtime, books by file name)
+_unlisted_said = set()     # shipped files already logged as unlisted
+
+
+def manifest():
+    """The shipped books as the manifest lists them, by file name.
+
+    Read once per change of the file. A missing manifest is an empty shelf;
+    an unreadable one is too, with a line in the log, because a book the
+    program cannot vouch for is not one it should show.
+    """
+    path = SHIPPED / MANIFEST_NAME
+    try:
+        stamp = path.stat().st_mtime
+    except OSError:
+        return {}
+    had = _manifest_cache.get(str(path))
+    if had and had[0] == stamp:
+        return had[1]
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as exc:
+        log.warning("library: shipped manifest %s unreadable, no shipped books shown: %s", path, exc)
+        return {}
+    books = {}
+    for row in (data.get("books") if isinstance(data, dict) else None) or []:
+        if isinstance(row, dict) and isinstance(row.get("file"), str):
+            books[row["file"]] = row
+    _manifest_cache[str(path)] = (stamp, books)
+    return books
+
+
+def is_shipped(pdf):
+    """Whether this book came with the program, rather than from the operator."""
+    return pdf is not None and pdf.parent == SHIPPED
+
+
+def hidden():
+    """The shipped books hidden on this unit, by file name."""
+    try:
+        with open(SHELF / HIDDEN_NAME, encoding="utf-8") as f:
+            names = json.load(f)
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as exc:
+        log.warning("library: hidden list unreadable, showing every shipped book: %s", exc)
+        return []
+    return [n for n in names if isinstance(n, str)] if isinstance(names, list) else []
+
+
+def set_hidden(name, flag):
+    """Hide a shipped book, or show it again. Returns the hidden list;
+    raises OSError when the state directory will not take the write."""
+    have = [n for n in hidden() if n != name]
+    if flag:
+        have.append(name)
+    SHELF.mkdir(parents=True, exist_ok=True)
+    path = SHELF / HIDDEN_NAME
+    tmp = path.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(have), f)
+    tmp.replace(path)
+    log.info("library: shipped book %s %s", name, "hidden" if flag else "shown again")
+    return sorted(have)
+
+
+def _shipped():
+    """The shipped books the manifest vouches for, by name."""
+    listed = manifest()
+    out = {}
+    for p in _pdfs(SHIPPED):
+        if p.name in listed:
+            out[p.name] = p
+        elif p.name not in _unlisted_said:
+            _unlisted_said.add(p.name)
+            log.warning("library: %s is in %s but not in its manifest - left off the shelf",
+                        p.name, SHIPPED)
     return out
 
 
+def shelf(include_hidden=False):
+    """Every book on the shelf, the operator's and the shipped, by name.
+
+    Where the operator has a copy of their own under a shipped book's name,
+    theirs is the one on the shelf. Hidden shipped books are left out unless
+    asked for.
+    """
+    books = _shipped()
+    if not include_hidden:
+        for name in hidden():
+            books.pop(name, None)
+    for p in _pdfs(SHELF):
+        books[p.name] = p
+    return sorted(books.values(), key=lambda q: q.name.lower())
+
+
+def hidden_books():
+    """The shipped books hidden on this unit, as the page offers them back."""
+    listed = manifest()
+    have = _shipped()
+    return [{"name": n, "title": listed[n].get("title") or n}
+            for n in hidden() if n in have and not (SHELF / n).is_file()]
+
+
 def book(name):
-    """The PDF called `name` on the shelf, or None - never a path outside it."""
+    """The PDF called `name` on either shelf, or None - never a path outside
+    them. The operator's copy first; a shipped book is found hidden or not,
+    so a link to one still opens."""
     if not name or "/" in name or "\\" in name or name.startswith("."):
         return None
-    p = SHELF / name
-    if p.suffix.lower() != ".pdf" or not p.is_file():
+    if Path(name).suffix.lower() != ".pdf":
         return None
-    return p
+    p = SHELF / name
+    if p.is_file():
+        return p
+    return _shipped().get(name)
 
 
 def _index_path(pdf):
@@ -599,7 +720,8 @@ def refresh(force=False, only=None):
             report["failed"][pdf.name] = str(exc)[:200]
             log.warning("library: could not index %s: %s", pdf.name, exc)
     if not only and INDEX_DIR.is_dir():
-        names = {b.name for b in shelf()}
+        # A hidden book keeps its index, so showing it again is instant.
+        names = {b.name for b in shelf(include_hidden=True)}
         for idx in INDEX_DIR.glob("*.pdf.json"):
             if idx.name[:-5] not in names:
                 try:
@@ -624,16 +746,23 @@ def catalogue():
     """The shelf as the page shows it: each book, indexed or not, and why."""
     from . import rigs
     rows = []
+    listed = manifest()
     for pdf, meta in _indexes():
         why = _stale(pdf, meta)
         rig = rigs.identify((meta or {}).get("title"), pdf.name)
+        about = listed.get(pdf.name) if is_shipped(pdf) else None
         rows.append({
+            # Came with the program: the manifest's own words for it, and
+            # what makes it free to ship.
+            "shipped": ({k: about.get(k) for k in ("title", "edition", "source", "statement")}
+                        if about else None),
             # What radio the manual is for, if the table knows the model -
             # so the shelf can say what the operator owns.
             "rig": ({"make": rig["make"], "model": rig["model"], "kind": rig["kind"],
                      "word": rig["word"]} if rig else None),
             "name": pdf.name,
-            "title": (meta or {}).get("title") or pdf.stem.replace("_", " "),
+            "title": ((about or {}).get("title") or (meta or {}).get("title")
+                      or pdf.stem.replace("_", " ")),
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
             "pages": (meta or {}).get("pages"),
             # Pictures of pages, not pages: a scan has nothing for search to

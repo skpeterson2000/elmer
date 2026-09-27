@@ -2559,6 +2559,7 @@ def api_library():
                     "tools_note": None if tools["pdftotext"] else library.missing_tools_note(),
                     "shelf": library.catalogue(), "topics": library.topic_map(),
                     "mine": library.mine(conn()),
+                    "hidden": library.hidden_books(),
                     "manual": manual.status(conn()),
                     "reindex_days": library.REINDEX_DAYS})
 
@@ -2629,6 +2630,10 @@ def api_library_add():
     if not library.is_pdf(head):
         log.warning("library: refused %s - no PDF header in its first bytes: %r", name, head[:16])
         abort(400, "that is not a PDF")
+    if name in library.manifest():
+        # It would stand in front of the shipped copy, and the shelf would
+        # stop being able to say which of the two it is showing.
+        abort(409, "a book of that name ships with ELMER - rename your copy to add it")
     library.SHELF.mkdir(parents=True, exist_ok=True)
     target = library.SHELF / name
     up.save(target)
@@ -2670,6 +2675,11 @@ def api_library_remove():
     pdf = library.book(body.get("name"))
     if pdf is None:
         abort(404, "no such book")
+    if library.is_shipped(pdf):
+        # Part of the program: deleting it would dirty the checkout and the
+        # next update would put it back. Hiding is what the operator wants.
+        return jsonify({"ok": False, "shipped": True,
+                        "error": "this book ships with ELMER - it can be hidden, not deleted"}), 409
     pdf.unlink()
     library.refresh()                    # drops the orphaned index
     log.info("library: %s removed from the shelf", pdf.name)
@@ -2677,6 +2687,22 @@ def api_library_remove():
             "brings it back sooner. To keep it off, decline it below."
             if pdf.name == manual.NAME and not manual.declined(conn()) else "")
     return jsonify({"removed": pdf.name, "shelf": library.catalogue(), "note": note})
+
+
+@app.route("/api/library/hide", methods=["POST"])
+def api_library_hide():
+    """Hide a book that ships with ELMER, or show it again. For the unit,
+    like the shelf itself, and kept through updates."""
+    body = request.get_json(silent=True) or {}
+    pdf = library.book(body.get("name"))
+    if pdf is None or not library.is_shipped(pdf):
+        abort(404, "no shipped book of that name")
+    try:
+        library.set_hidden(pdf.name, bool(body.get("hidden", True)))
+    except OSError as exc:
+        log.error("library: could not save the hidden list: %s", exc)
+        return jsonify({"ok": False, "error": "the state directory would not take the change"}), 503
+    return jsonify({"ok": True, "shelf": library.catalogue(), "hidden": library.hidden_books()})
 
 
 @app.route("/api/library/manual", methods=["POST"])
@@ -2819,7 +2845,7 @@ def library_book(name):
     pdf = library.book(name)
     if pdf is None:
         abort(404, "no such book")
-    return send_from_directory(str(library.SHELF), pdf.name,
+    return send_from_directory(str(pdf.parent), pdf.name,
                                mimetype="application/pdf", max_age=0)
 
 

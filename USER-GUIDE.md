@@ -593,6 +593,10 @@ There are two ways, and they end up in the same place.
 
 The next visit to the Library reads anything new, once. A big manual takes a moment the first time and is instant afterwards. Two hundred megabytes is the most it will take for one file, which is generous for a manual and refuses a disc image. The shelf is shared by everyone on the unit, so a club radio's manual only has to be put on once.
 
+### The books that ship with ELMER
+
+Some books are on the shelf before you add anything. These are manuals their publishers released to the public, marked **ships with ELMER**, with the edition and the release statement from the cover beside each one, and the address it was published at. They read and search like your own books. You cannot delete one, because it is part of the program and the next update would only put it back. You can **Hide** it instead. A hidden book is listed at the foot of the shelf with **Show again**, and it stays hidden on this unit through updates until you show it again. If you add a book of your own under the same file name as a shipped one, it is refused; rename your copy first.
+
 ### Not every PDF searches, and the difference is large
 
 **A PDF with real text in it** is what you want. ELMER reads the words, `Find the page` searches them, and the chapters come from the file's own bookmarks.

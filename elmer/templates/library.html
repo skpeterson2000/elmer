@@ -92,7 +92,10 @@
     when a file changes. Page numbers are the file's own, which is not always
     what the publisher printed in the corner. The shelf is shared by everyone
     on this unit; <i>mine</i> marks whose radio a manual is for, and Make
-    Contact starts from that.
+    Contact starts from that. A book marked <i>ships with ELMER</i> came with
+    the program: a manual released to the public, with the statement from its
+    cover beside it. It can be hidden on this unit, not deleted, and it stays
+    hidden through updates.
   </p>
   <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
   <p class="small muted" style="margin:.8rem 0 0;max-width:80ch" id="lib-manual-note">
@@ -239,9 +242,36 @@
     return 'indexed ' + d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
   }
 
+  /* The shipped books this unit has hidden. Only the full shelf answer
+     carries them; an index answer keeps the list it had. */
+  let hiddenBooks = [];
+
+  function hiddenLine() {
+    if (!hiddenBooks.length) return '';
+    return '<p class="tiny muted">Hidden on this unit: ' + hiddenBooks.map(h =>
+      escapeHTML(h.title) + ' <button class="btn sm ghost" data-unhide="' + escapeHTML(h.name) +
+      '">Show again</button>').join(' &middot; ') + '</p>';
+  }
+
+  /* Where a shipped book came from and why it may ship: its edition, the
+     release statement on its cover, and the address it was published at. */
+  function shippedLine(b) {
+    const s = b.shipped;
+    if (!s) return '';
+    return '<span class="tiny muted"><span class="pill">ships with ELMER</span> ' +
+      (s.edition ? escapeHTML(s.edition) + ' &middot; ' : '') +
+      escapeHTML(s.statement || '') +
+      /* The address as text, not a link: everything on this page opens in
+         the same tab, and the kiosk has no tab bar to come back by. */
+      (s.source ? ' &middot; published at <span class="mono" style="word-break:break-all">' +
+        escapeHTML(s.source) + '</span>' : '') +
+      '</span>';
+  }
+
   function paintShelf(d) {
     const rows = d.shelf || [];
     const tools = d.tools;
+    if (Array.isArray(d.hidden)) hiddenBooks = d.hidden;
     let head = '';
     /* Only an answer that carries the tools gets to say they are missing. The
        index answer used not to carry them, and the page took their absence
@@ -255,7 +285,7 @@
         'but not restarted. Restart ELMER and look again.') + '</div>';
     }
     if (!rows.length) {
-      shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>';
+      shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>' + hiddenLine();
       return;
     }
     shelfBox.innerHTML = head + rows.map(b => `
@@ -263,6 +293,7 @@
         <div class="meta">
           <b>${escapeHTML(b.title)}</b>
           ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' \u2014 ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
+          ${shippedLine(b)}
           <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
           <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
           <span style="flex:1"></span>
@@ -270,10 +301,12 @@
             <input type="checkbox" data-mine="${escapeHTML(b.name)}" ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>
           <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
           ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
-          <button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="take it off the shelf">Remove</button>
+          ${b.shipped
+            ? `<button class="btn sm ghost" data-hide="${escapeHTML(b.name)}" title="it ships with ELMER, so it is hidden on this unit rather than deleted">Hide</button>`
+            : `<button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="take it off the shelf">Remove</button>`}
         </div>
         <div class="lib-outline-box" hidden></div>
-      </div>`).join('');
+      </div>`).join('') + hiddenLine();
   }
 
   const declineBox = document.getElementById('lib-manual-decline');
@@ -500,6 +533,17 @@
       box.hidden = false;
       box.innerHTML = '<ul class="lib-outline tiny">' + (await outlineOf(o.dataset.outline)).map(i =>
         `<li class="l${Math.min(i.level, 2)}"><a href="/library/read/${encodeURIComponent(o.dataset.outline)}?page=${i.page}">${escapeHTML(i.title)}</a> <span class="muted mono">${i.page}</span></li>`).join('') + '</ul>';
+      return;
+    }
+    const h = e.target.closest('[data-hide], [data-unhide]');
+    if (h) {
+      const hide = !!h.dataset.hide;
+      if (hide && !confirm('Hide ' + h.dataset.hide + ' on this unit? It ships with ELMER, so it is ' +
+          'not deleted: it stays hidden through updates, until you show it again.')) return;
+      try {
+        await postJSON('/api/library/hide', {name: hide ? h.dataset.hide : h.dataset.unhide, hidden: hide});
+      } catch (err) { /* postJSON has already said what went wrong */ }
+      load();
       return;
     }
     const r = e.target.closest('[data-remove]');

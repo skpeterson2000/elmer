@@ -179,7 +179,11 @@ at its yards, the dogleg where the line turns, the green's depth, the
 pins. The Lab gained two terminated antennas from the Marines' *Antenna
 Handbook*, the end-fed vee (the "vertical half-rhombic") and the sloping
 wire. Neither is cut to a band, each fires one way off its resistor, and
-their patterns are worked out as the travelling waves they are.
+their patterns are worked out as the travelling waves they are. The
+Library has a second shelf that ships with the program, for manuals their
+publishers released to the public. Each one is checked against a manifest
+of its release statement, its source and its SHA-256. An operator can hide
+a shipped book but not delete it, and it stays hidden through updates.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**
