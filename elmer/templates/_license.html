@@ -1,0 +1,38 @@
+{#- Where a license's status came from - the evidence beside the status.
+    The dashboard line and the band plan both draw from these, and the
+    account menu's pill (users.js) uses the same marks and the same words,
+    all from papers.evidence. Color is the status; a mark is a word. -#}
+
+{% macro evidence_marks(ev) -%}
+  {%- for m in (ev or {}).get('marks') or [] -%}
+    <span class="ev ev-{{ m }}">{{ 'FCC' if m == 'fcc' else 'paper' }}</span>
+  {%- endfor -%}
+{%- endmacro %}
+
+{% macro evidence_source(ev) -%}
+  {%- if ev and ev.source and ev.state in ('fcc', 'paper', 'both') -%}
+    {{ evidence_marks(ev) }} <span class="tiny muted">{{ ev.source }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro paper_says(p) -%}
+  {{ [p.callsign, p['class'], ('expires ' ~ p.expires) if p.expires else ''] | select | join(' · ') }}
+{%- endmacro %}
+
+{% macro license_differ(ev) -%}
+  {%- if ev and ev.state == 'differ' %}
+  {%- set what = {'callsign': 'the callsign', 'class': 'the class', 'expiry': 'the expiry date',
+                  'record': 'whether it is in force'} %}
+  <p class="small license-differ" role="note">
+    <span class="sign" aria-hidden="true">&#9888;</span>{{ evidence_marks(ev) }}
+    <b>Your paper and the FCC differ</b> on
+    {%- for d in ev.differs %}{{ ' and' if loop.last and not loop.first }}{{ ',' if not loop.first and not loop.last }} {{ what.get(d, d) }}{% endfor %}.
+    The FCC has <b>{{ ev.fcc_says }}</b>, and that is what ELMER goes by.
+    Your paper{% if ev.paper.granted %}, dated {{ ev.paper.granted }},{% endif %} says
+    {{ paper_says(ev.paper) }} &mdash; it may be out of date.
+  </p>
+  {%- endif %}
+  {%- if ev and ev.note %}
+  <p class="tiny muted" style="margin:.2rem 0 0">{{ ev.note }}.</p>
+  {%- endif %}
+{%- endmacro %}

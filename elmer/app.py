@@ -8411,6 +8411,8 @@ def _adopt_license(connection, call, settings=None):
     db.set_callsign(connection, call or "")
     settings = db.get_profile(connection)["settings"] if save else settings
     found = callsign.lookup(call) if call else None
+    if found is not None or not call:
+        settings.pop("license_unreached", None)
     if found and found.get("found"):
         settings["license"] = found
         if found.get("license_class"):
@@ -8427,6 +8429,13 @@ def _adopt_license(connection, call, settings=None):
         settings["license"] = found
     elif call:
         log.warning("license lookup unavailable for %s", call)
+        # Noted, so the indicator can say "the FCC could not be reached"
+        # rather than "not looked up yet". A record kept for some other
+        # callsign says nothing about this one, and would otherwise go on
+        # being shown as if it did.
+        settings["license_unreached"] = {"callsign": callsign.normalise(call), "on": db.today()}
+        if callsign.normalise((settings.get("license") or {}).get("callsign") or "") != callsign.normalise(call):
+            settings.pop("license", None)
     if save:
         db.save_settings(connection, settings)
     return settings
@@ -8804,6 +8813,9 @@ def _user_block(connection):
     return {"users": [{"id": u["id"], "name": u["name"],
                        "callsign": u["callsign"], "licensed": u["licensed"],
                        "standing": u.get("standing"),
+                       # Where the status came from. What a paper says is
+                       # its owner's, so everybody else sees only the marks.
+                       "evidence": u["evidence"] if u["id"] == current["id"] else papers.public(u["evidence"]),
                        "display_name": u["display_name"],
                        # Whether an account is locked, never anything about
                        # what it is locked with.
@@ -9022,6 +9034,7 @@ def api_scoreboard():
                 "name": user["display_name"],
                 "licensed": user["licensed"],
                 "standing": user.get("standing"),
+                "evidence": papers.public(user["evidence"]),
                 "titles": {k: t["title"] for k, t in tracks.items()},
                 "xp": user["xp"],
                 "streak": user["streak_days"],

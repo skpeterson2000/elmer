@@ -50,18 +50,40 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') openWhoMenu(false);
 });
 
-/* What the FCC says about the callsign on an account, as a pill. Nothing
-   for no callsign; nothing for one not looked up yet, because a claim
-   either way would be a guess. "licensed" is reserved for a license in
-   force today - it used to mean "something is typed in the box". */
+/* Where an account's license stands, as a pill, and on what evidence.
+   Two things, drawn two ways, so neither can be mistaken for the other:
+   the color is the status - in force, expired, cancelled, no record - and
+   the marks inside it, FCC and PAPER, are where that answer came from.
+   A mark is a word, never a color. A paper and an FCC record that differ
+   get a dashed outline and a warning sign with the words, whatever the
+   status color. "licensed" is reserved for a license in force today; a
+   callsign nobody could look up is "not confirmed", never "unlicensed". */
+const STANDING_LOOK = {
+  current: ['info', 'licensed', ''],
+  grace: ['warn', 'expired &middot; renew', 'expired, within the two years to renew without retesting - not to be used on the air'],
+  expired: ['warn', 'expired', 'expired, and past the window to renew without retesting'],
+  cancelled: ['warn', 'cancelled', 'the FCC lists this callsign as cancelled or terminated'],
+  unfound: ['muted', 'no FCC record', 'the FCC has no record of this callsign - lapsed and gone, a license from outside the US, or a typing slip'],
+  unchecked: ['muted unlit', 'not confirmed', ''],
+};
+
+function evidenceMarks(ev) {
+  return (ev && ev.marks || []).map(m =>
+    '<span class="ev ev-' + m + '">' + (m === 'fcc' ? 'FCC' : 'paper') + '</span>').join('');
+}
+
 function standingPill(u) {
-  const s = u.standing;
-  if (s === 'current') return '<span class="pill info tiny">licensed</span>';
-  if (s === 'grace') return '<span class="pill warn tiny" title="expired, within the two years to renew without retesting - not to be used on the air">expired &middot; renew</span>';
-  if (s === 'expired') return '<span class="pill warn tiny" title="expired, and past the window to renew without retesting">expired</span>';
-  if (s === 'cancelled') return '<span class="pill warn tiny" title="the FCC lists this callsign as cancelled or terminated">cancelled</span>';
-  if (s === 'unfound') return '<span class="pill tiny muted" title="the FCC has no record of this callsign - lapsed and gone, a license from outside the US, or a typing slip">no FCC record</span>';
-  return '';
+  const look = STANDING_LOOK[u.standing];
+  if (!look) return '';
+  const ev = u.evidence || null;
+  const differ = ev && ev.state === 'differ';
+  const title = [ev && ev.source, look[2]].filter(Boolean).join(' - ');
+  return '<span class="pill tiny ' + look[0] + (differ ? ' differ' : '') + '"' +
+    (title ? ' title="' + escapeHTML(title) + '"' : '') + '>' +
+    (differ ? '<span aria-hidden="true">&#9888;</span> ' : '') + look[1] +
+    evidenceMarks(ev) +
+    (differ ? '<span class="sr-only"> - ' + escapeHTML(ev.source) + '</span>' : '') +
+    '</span>';
 }
 
 function whoRow(u, current) {

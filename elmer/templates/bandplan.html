@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_license.html" import evidence_source, license_differ %}
 {% block title %}Band plan &middot; ELMER{% endblock %}
 {% block body %}
 
@@ -85,6 +86,7 @@
   </div>
 {% endif %}
 
+{% set ev = profile.evidence or {} %}
 {% if license.get('found') %}
   <div class="panel tight mt license-strip
       {% if license.status.state == 'grace' %}warn{% elif license.status.state == 'expired' %}bad{% endif %}">
@@ -105,11 +107,48 @@
         <span class="small">expired {{ license.expires }} &mdash; past the grace period,
           so the license must be earned again.</span>
       {% endif %}
+      {{ evidence_source(ev) }}
       {% if paper_amateur %}<a class="tiny" style="margin-left:auto" href="/papers/amateur">your license, on paper &rarr;</a>{% endif %}
       {% if license.uls_url %}
         <a class="tiny" {% if not paper_amateur %}style="margin-left:auto"{% endif %} href="{{ license.uls_url }}"
            target="_blank" rel="noopener">FCC ULS record &rarr;</a>
       {% endif %}
+    </div>
+    {{ license_differ(ev) }}
+  </div>
+{% elif ev.state == 'differ' %}
+  {#- A paper for a license the FCC has no record of in force: the
+      record's answer, and the paper flagged beside it. -#}
+  <div class="panel tight mt license-strip{% if license_standing == 'cancelled' %} warn{% endif %}">
+    <div class="row" style="gap:1.1rem">
+      <b class="mono">{{ ev.callsign }}</b>
+      <span class="small">{{ ev.fcc_says }} on the FCC's record</span>
+      <a class="tiny" style="margin-left:auto" href="/papers/amateur">your license, on paper &rarr;</a>
+    </div>
+    {{ license_differ(ev) }}
+  </div>
+{% elif ev.state == 'paper' %}
+  {#- The paper alone: no FCC answer yet - not looked up, or no signal
+      here - so the status is the paper's expiry against today's date.
+      Said as the paper's, not as verified. -#}
+  <div class="panel tight mt license-strip
+      {% if license_standing == 'grace' %}warn{% elif license_standing == 'expired' %}bad{% endif %}">
+    <div class="row" style="gap:1.1rem">
+      <b class="mono">{{ ev.paper.callsign }}</b>
+      {% if ev.paper['class'] %}<span class="pill info">{{ ev.paper['class'] }}</span>{% endif %}
+      {% if license_standing == 'current' %}
+        <span class="small">expires <b>{{ ev.paper.expires }}</b> &mdash; {{ ev.status.days }} days</span>
+      {% elif license_standing == 'grace' %}
+        <span class="small">expired {{ ev.paper.expires }} &mdash;
+          <b>in the two-year grace period</b>, {{ ev.status.renew_within }} days left to renew
+          without re-testing. You may not transmit until it is renewed.</span>
+      {% elif license_standing == 'expired' %}
+        <span class="small">expired {{ ev.paper.expires }} &mdash; past the grace period.</span>
+      {% else %}
+        <span class="small"><b>not confirmed</b> &mdash; no date could be read off your paper</span>
+      {% endif %}
+      {{ evidence_source(ev) }}
+      <a class="tiny" style="margin-left:auto" href="/papers/amateur">your license, on paper &rarr;</a>
     </div>
   </div>
 {% endif %}

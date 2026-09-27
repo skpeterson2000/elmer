@@ -152,7 +152,10 @@ General, saying what the far end needs too. Licenses come from the FCC's
 own files — amateur, GMRS and commercial alike, with the FRN's other
 tickets — a GMRS license covers the family it covers, and the paper copy
 and the certificates a person has earned live on their own account: the
-papers on the Library page, the wall in the pro shop and the lounge. CW
+papers on the Library page, the wall in the pro shop and the lounge.
+Wherever a license's standing is shown it says where it came from - the
+FCC's record, your own paper, both, or that the two differ - and a paper
+alone confirms a license on a unit with no signal on its first day. CW
 opens on the next session, where the record decides the lesson and one
 press runs a pass of it: a day is five passes of three or four minutes
 rather than one long sitting, a set of passes carries into the next

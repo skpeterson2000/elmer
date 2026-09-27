@@ -139,9 +139,9 @@ def main():
     print("\n-- and the page draws the pill from the standing --")
     src = (Path(__file__).resolve().parents[1] / "elmer" / "static" / "users.js").read_text(encoding="utf-8")
     check("the pill is drawn from the standing", "function standingPill(" in src, True)
-    check("  'licensed' only for current", "s === 'current') return '<span class=\"pill info tiny\">licensed" in src, True)
-    check("  expired, cancelled and no-record each have their own word",
-          all(w in src for w in ("expired &middot; renew", ">expired<", ">cancelled<", ">no FCC record<")), True)
+    check("  'licensed' only for current", ("current: ['info', 'licensed'" in src, src.count("'licensed'")), (True, 1))
+    check("  expired, cancelled, no-record and not-confirmed each have their own word",
+          all(w in src for w in ("'expired &middot; renew'", "'expired'", "'cancelled'", "'no FCC record'", "'not confirmed'")), True)
     check("  nothing is pinned on u.licensed any more", "u.licensed ?" in src or "r.licensed ?" in src, False)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

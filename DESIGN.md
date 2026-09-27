@@ -1892,6 +1892,36 @@ chart with a callsign on it cannot claim a class the Commission has on
 file differently. Study is the operator's own business; a claim about a
 station is not.
 
+*Status, and the evidence for it (2026-09-26).* The account menu's pill,
+the dashboard line under the greeting and the band plan's strip all said
+where a license stands - in force, renew, expired, cancelled, no FCC record
+- from one answer, `db.standing`, and none of them said where that answer
+came from. A unit in a camp with no signal had nothing to say on its first
+day but "not checked", with the operator's own license sitting in the
+Library as a PDF it had already read. So there are two dimensions now,
+worked out once in `_row_to_profile` and read by all three screens:
+status, which is still one answer, and evidence, from `papers.evidence` -
+the FCC record, the paper, both, or nothing. The FCC decides wherever it
+has answered; the paper decides only where it has not, and then from its
+own expiry against the unit's clock, which needs no network at all.
+
+Status is drawn in color and evidence as a mark with a word on it (FCC,
+PAPER) in whatever color it sits in, so no color means two things, and
+every state has words for a screen reader and for somebody who does not
+see color. A paper and a record that disagree - on the callsign, the class
+or the expiry, or a paper for a license the FCC has no record of in force -
+get a shape of their own, a dashed outline and a warning sign, with the
+words "your paper and the FCC differ" and the FCC's answer, because the
+record wins and the paper is the likelier to be out of date. The paper's
+own words are "from your paper, dated X", never "verified": ELMER still
+does not decide a license is valid from a PDF (see `papers.py`). Nothing
+here is "unlicensed": with nothing to go on the pill reads "not
+confirmed", and says whether that is because nobody has looked yet or
+because the FCC could not be reached. Reading the paper costs a
+`pdftotext`, so it is done once per paper and kept beside it, keyed on the
+file's own timestamp; and another account on the unit sees the marks, never
+what somebody's paper says.
+
 *A view is not a claim (2026-09-18).* The band plan's class picker
 wrote the class being read into the profile, which is the single setting
 the pool gate reads. Two things followed, neither of them visible at the

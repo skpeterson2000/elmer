@@ -22,10 +22,13 @@ right, and it is worth knowing before putting one on a network with people you
 would not hand the radio to.
 """
 import json
+import logging
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
 from . import paths
+
+log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = paths.STATE / "elmer.db"
@@ -653,6 +656,10 @@ def standing(callsign, settings):
     if not record.get("found"):
         if record.get("fcc_status") in ("cancelled", "terminated"):
             return "cancelled"
+        # A record still being read (callook rebuilding its copy) is not an
+        # answer yet, and "no FCC record" would be a claim nobody made.
+        if record.get("pending"):
+            return "unchecked"
         return "unfound"
     from . import callsign as _callsign
     state = _callsign.status_for(_callsign._parse_date(record.get("expires"))).get("state")
@@ -663,8 +670,23 @@ def _row_to_profile(row):
     prof = dict(row)
     prof["settings"] = _modernise(json.loads(prof["settings"] or "{}"))
     prof["display_name"] = display_name(prof)
-    prof["standing"] = standing(prof.get("callsign"), prof["settings"])
-    # "Licensed" is a claim the FCC has to back. In force, today.
+    # Status and the evidence for it, worked out once, here, for every screen:
+    # the account menu, the dashboard and the band plan all read these two.
+    # The FCC record decides wherever it has answered; the operator's own
+    # paper decides only where it has not - a unit in a camp with no signal,
+    # on the first day - and the evidence says which it was.
+    from . import papers as _papers
+    fcc = standing(prof.get("callsign"), prof["settings"])
+    try:
+        paper = _papers.reading(prof["id"], "amateur")
+    except OSError as exc:
+        log.warning("could not read the license paper of user %s: %s", prof["id"], exc)
+        paper = None
+    prof["evidence"] = _papers.evidence(fcc, prof.get("callsign"), prof["settings"].get("license"),
+                                        paper, unreached=prof["settings"].get("license_unreached"))
+    prof["standing"] = prof["evidence"]["standing"]
+    # "Licensed" means in force, today - on the FCC's word, or on the
+    # paper's where the FCC has not been asked. The evidence says which.
     prof["licensed"] = prof["standing"] == "current"
     # The salt and the hash never leave here. This dict is what /api/users
     # answers with, and a stored hash served to the network is a stored hash
