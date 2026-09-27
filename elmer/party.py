@@ -530,6 +530,7 @@ class Room:
         self.log_key = secrets.token_bytes(32)
         self.on_round_closed = []
         self.golf = None           # a round on a real course; see golf.py
+        self.ended = None          # {"what", "how", "at", ...}: a game the host stopped early; see end_golf
         # The standing game: what an empty table will play when somebody
         # scans in - set by the host beforehand ("I'll go set up a golf
         # game to join"), so the first arrival is met by the clubhouse and
@@ -1346,8 +1347,18 @@ class Room:
                 return None
             return g.away()
 
-    def end_golf(self):
+    def end_golf(self, how=None):
+        """The golf put away. `how` is the host stopping a round before its
+        last hole, and is kept as `ended` for the screens - a visiting screen
+        on another unit, a phone - to say so rather than simply find the
+        golf gone. A round played out is not "ended"; it finished."""
         with self.lock:
+            g = self.golf
+            if how and g is not None and not g.over():
+                h = g.hole()
+                self.ended = {"what": "golf", "how": str(how)[:120], "at": time.time(),
+                              "course": (g.course or {}).get("name") or "",
+                              "hole": h["n"] if h else None}
             self.golf = None
             self.clubs = {}
             self.shapes = {}
@@ -1914,6 +1925,10 @@ class Room:
                 "starts_in": (None if self.start_at is None
                               else max(0.0, round(self.start_at - _now(), 1))),
                 "clubhouse": self.clubhouse_view(),
+                # A game the host stopped before its finish, for the screens
+                # to say so - see end_golf. Only while nothing has replaced it.
+                "ended": (dict(self.ended) if self.ended and self.golf is None and self.clubhouse is None
+                          and time.time() - self.ended["at"] <= CLOSED_NOTE_FOR else None),
                 "standing": self.standing_view(),
                 "bots": sum(1 for p in self.players.values() if p.bot),
                 "people": sum(1 for p in self.players.values() if not p.bot),
@@ -1982,18 +1997,40 @@ _room_lock = threading.Lock()
 
 def room(create=False, cohorts=2):
     """The party on this unit, if one is running."""
-    global _room
+    global _room, _closed_note
     with _room_lock:
         if _room is None and create:
             _room = Room(cohorts=cohorts)
+            _closed_note = None           # a new table: the old one's note is history
         return _room
 
 
-def close_room():
+def close_room(why=None):
     """The table closes - and its director with it, or a tick already under
-    way would ask a room that is not there for a question."""
-    global _room
+    way would ask a room that is not there for a question.
+
+    `why` is the host closing it on purpose, and is left behind as a note:
+    a phone or another unit's screen that asks after the table is told the
+    host closed it, when, and not left to guess that the network failed."""
+    global _room, _closed_note
     from . import autoplay
     autoplay.stop()
     with _room_lock:
         _room = None
+        if why:
+            _closed_note = {"what": "table", "why": str(why)[:120], "at": time.time()}
+
+
+# What the host closed, and when - kept a while after, so a device asking
+# after a table that is gone is told the host closed it rather than that the
+# connection failed. See closed_note(); a new table clears it.
+_closed_note = None
+CLOSED_NOTE_FOR = 3600.0
+
+
+def closed_note():
+    """The host's note about the table it closed, while it is recent."""
+    note = _closed_note
+    if note and time.time() - note["at"] <= CLOSED_NOTE_FOR:
+        return dict(note)
+    return None

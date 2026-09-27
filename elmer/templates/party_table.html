@@ -50,6 +50,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .nearby-row { display: flex; gap: .6rem; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .9rem; }
 .nearby-row + .nearby-row { margin-top: .4rem; }
 .visiting .gc, .visiting #endtable { display: none !important; }
+.host-ended { position: fixed; inset: 0; z-index: 50; background: rgba(8, 10, 14, .82); display: flex; align-items: flex-start; justify-content: center; }
 .gc { --gco: #ff7a1a; --gco-dim: #b8561a; position: relative; margin-bottom: 1rem;
       padding: 1rem 1.1rem .9rem; background: linear-gradient(180deg, #16120e, var(--panel));
       border: 1px solid #3a2a1c; border-radius: var(--radius); }
@@ -1106,8 +1107,15 @@ function waitingToStart(s) {
 
 async function tick() {
   const r = await api('/api/party/state?showing=' + encodeURIComponent(showing));
-  if (r.status === 404) { chip.textContent = 'party ended'; return; }
+  if (r.status === 404 || r.status === 410) {
+    // 410 is the host closing the table on purpose, with a note saying so;
+    // 404 is a table that is simply not there. Neither is the network.
+    chip.textContent = r.status === 410 ? 'closed by the host' : 'party ended';
+    if (typeof visitGone === 'function') visitGone(r.data && r.data.ended);
+    return;
+  }
   const s = r.data;
+  if (typeof visitWatch === 'function') visitWatch(s);
   // Addressing the next stroke: the round before it is done with - the
   // address is what the room needs to see, and the Hit button on it.
   const round = s.addressing ? null : s.round;
@@ -2167,14 +2175,18 @@ function paintNode(info) {
   const words = {
     joined:  'Checked in with ' + (b.net_name || 'net control'),
     offline: 'Net control is not answering — this table keeps playing and reports when it is back',
+    // Closed on purpose is not the network: said as what it is, with when.
+    ended: 'The host closed ' + (b.net_name || 'the net') +
+           (b.ended && b.ended.at ? ' at ' + new Date(b.ended.at * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) : '') +
+           ' — this table carries on by itself. Leave the net to take it off the roster.',
     refused: b.error || 'The net is full',
     starting: 'Connecting…',
     faulted: 'Something went wrong — see data/elmer.log',
     stopped: 'Stopped',
   };
-  const cls = ({joined: 'joined', offline: 'offline', refused: 'refused'})[b.state] || 'idle';
+  const cls = ({joined: 'joined', offline: 'offline', refused: 'refused', ended: 'refused'})[b.state] || 'idle';
   const game = hallGameLine({cutthroat: b.cutthroat, golf: b.golf});
-  const key = [b.state, b.net_name, b.difficulty, b.name, b.net_round, b.waiting_to_report, info.ready, b.error, game].join('|');
+  const key = [b.state, b.net_name, b.difficulty, b.name, b.net_round, b.waiting_to_report, info.ready, b.error, game, b.ended && b.ended.at].join('|');
   if (key === nodePainted) return;
   nodePainted = key;
   nodeBox.innerHTML =
@@ -2391,6 +2403,49 @@ async function nearbyGolf() {
 }
 nearbyGolf();
 setInterval(nearbyGolf, 8000);
+
+/* The host ended it. A visiting screen whose host closes the table, or
+   stops the golf before the last hole, is told so in those words - not
+   "connection lost", because the connection is fine and a person chose -
+   and is taken home after a moment to read it, with a button to go now
+   and one to stay and look at the card. */
+let visitSawGolf = false, visitEnded = false;
+function visitWatch(s) {
+  if (!VISIT || visitEnded) return;
+  if (s.golf || s.clubhouse) { visitSawGolf = true; return; }
+  if (visitSawGolf) hostEnded(s.ended || {what: 'golf', why: 'the host stopped the round'});
+}
+function visitGone(note) {
+  if (!VISIT || visitEnded) return;
+  hostEnded(note || {what: 'table', why: 'the table is no longer open'});
+}
+function hostEnded(note) {
+  visitEnded = true;
+  const when = note && note.at
+    ? ' at ' + new Date(note.at * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) : '';
+  const what = note && note.what === 'table'
+    ? `The host closed the table${when}, so the round is over.`
+    : `The host stopped the round${note && note.course ? ' at ' + esc(note.course) : ''}${note && note.hole ? ' on the ' + note.hole + ordinal(note.hole) : ''}${when}, before the last hole.`;
+  let left = 20;
+  const box = document.createElement('div');
+  box.className = 'host-ended';
+  box.innerHTML = `<div class="panel" style="max-width:34rem;margin:2rem auto;text-align:center">
+      <h2 style="margin:0 0 .5rem">The round is over</h2>
+      <p style="margin:0 0 .6rem">${what}</p>
+      <p class="hint" style="margin:0 0 .9rem">This screen goes home to <b>${esc(VISIT.name)}</b> in <span id="host-ended-left">${left}</span> s.</p>
+      <a class="btn primary" id="host-ended-home" href="${esc(VISIT.url)}">Back to ${esc(VISIT.name)} now</a>
+      <button class="btn ghost" id="host-ended-stay">Stay here</button></div>`;
+  document.body.appendChild(box);
+  const home = () => { try { sessionStorage.removeItem('elmer_visit'); } catch (e) { /* the page still goes */ } location.href = VISIT.url; };
+  const timer = setInterval(() => {
+    left -= 1;
+    const el = document.getElementById('host-ended-left');
+    if (el) el.textContent = left;
+    if (left <= 0) { clearInterval(timer); home(); }
+  }, 1000);
+  document.getElementById('host-ended-home').addEventListener('click', e => { e.preventDefault(); clearInterval(timer); home(); });
+  document.getElementById('host-ended-stay').addEventListener('click', () => { clearInterval(timer); box.remove(); });
+}
 </script>
 </body>
 </html>

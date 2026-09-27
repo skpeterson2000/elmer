@@ -189,6 +189,9 @@ of its release statement, its source and its SHA-256. An operator can hide
 a shipped book but not delete it, and it stays hidden through updates.
 The first book on it is the Army's ATP 6-02.53, *Techniques for Tactical
 Radios and Retransmission* (July 2025).
+Two ELMERs on one network can play one round of golf together, and when a
+host ends a game, the screens, phones and tables playing in it say so in
+those words rather than reading like a lost connection.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

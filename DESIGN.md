@@ -4151,6 +4151,25 @@ same terms. The host's own panel does mark them, with a small hollow square,
 because whoever is running the net needs to know which places are being held
 even when the hall does not.
 
+### When the host ends it
+
+A table that is gone and a network that has failed looked the same from the
+far side: a visiting screen froze on "party ended", and a table in a hall net
+read "net control is not answering" - a fault, when a person had decided and
+the connection was fine. So the host leaves a note of what it ended and when.
+A table or net its host closed answers **410 with the note** instead of 404,
+and a table whose golf was stopped before the last hole says so in its state.
+A 404 still means there was never anything there, and a failure to connect
+still reads as one.
+
+The note is kept for an hour and a new table clears it, so it describes the
+last thing the host did rather than haunting the next evening. A table in a
+closed net **stops checking in** - knocking on a net that has said it is closed
+is noise - and carries on as a table of its own; any other refusal is backed
+off from and retried, because that one may be the network. A visiting golf
+screen goes home to its own unit after twenty seconds, long enough to read the
+line, with a button to go now and one to stay and read the card.
+
 ### What a spectator sees
 
 A big board is watched by people who are not playing — at a club night the

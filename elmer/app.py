@@ -26,7 +26,7 @@ from pathlib import Path
 from markupsafe import escape
 from urllib.parse import urlsplit
 
-from flask import (Flask, Response, abort, g, has_request_context, jsonify, redirect,
+from flask import (Flask, Response, abort, g, has_request_context, jsonify, make_response, redirect,
                    render_template, request, send_from_directory, url_for)
 
 from . import (
@@ -4458,6 +4458,13 @@ def _net_name_for(difficulty):
 def _party_or_404():
     room = party.room()
     if room is None:
+        # Closed on purpose is not the same as never there, or as a network
+        # that failed: a screen or a phone that asks after a table its host
+        # closed is told so, with when, and can say it in those words.
+        note = party.closed_note()
+        if note:
+            abort(make_response(jsonify({"ok": False, "ended": note,
+                                         "error": "the host closed this table"}), 410))
         abort(404, "no party is running on this unit")
     return room
 
@@ -5433,7 +5440,7 @@ def api_party_mode():
         room.set_standing(wanted, spec, spec.get("tee_in") or 0)
         room.end_shootout()
         room.end_cutthroat()
-        room.end_golf()
+        room.end_golf(how="the host stopped the round")
         room.end_baseball()
         # An earlier booking and its practice players do not outlive the
         # choice: a foursome booked before the seat emptied was still in
@@ -5501,7 +5508,7 @@ def _apply_mode(room, wanted, body):
         room.fill_bots(body.get("level"))
         room.end_shootout()
         room.end_cutthroat()
-        room.end_golf()
+        room.end_golf(how="the host stopped the round")
         room.leave_clubhouse()
         try:
             innings = max(1, min(9, int(body.get("innings") or 3)))
@@ -5563,7 +5570,7 @@ def _apply_mode(room, wanted, body):
                 "seconds": float(body.get("seconds") or party.DEFAULT_ROUND_SECONDS)}
         room.end_shootout()
         room.end_cutthroat()
-        room.end_golf()
+        room.end_golf(how="the host stopped the round")
         try:
             tee_in = max(0.0, float(body.get("tee_in") or 0))
         except (TypeError, ValueError):
@@ -5590,7 +5597,7 @@ def _apply_mode(room, wanted, body):
         room.set_standing(None)
         room.end_shootout()
         room.end_cutthroat()
-        room.end_golf()
+        room.end_golf(how="the host stopped the round")
         room.end_baseball()
         log.info("party: back to a tournament")
 
@@ -5988,7 +5995,9 @@ def api_party_end():
     room = party.room()
     if room is not None:
         room.clear_bots()
-    party.close_room()
+    # Closed on purpose, and said so to whoever asks after it - see
+    # party.closed_note.
+    party.close_room(why="the host closed the table")
     log.info("party: table closed")
     return jsonify({"open": False})
 
@@ -6003,7 +6012,14 @@ def api_net_end():
     hall.halt()
     hall.release_time()
     cohort.disconnect(conn())
+    closing = netcontrol.net()
     netcontrol.close_net()
+    # The tables in it are told the host closed it - on their next check-in,
+    # as a 410 with this note - rather than finding a net that stopped
+    # answering and taking it for the network.
+    global _net_closed_note
+    _net_closed_note = {"what": "net", "name": getattr(closing, "name", "") or "",
+                        "why": "the host closed the net", "at": time.time()}
     log.info("net control: closed")
     return jsonify({"open": False})
 
@@ -6314,9 +6330,18 @@ def party_join(table):
 # One master unit running a competition across many cohort units. The traffic
 # here is one conversation per unit, not one per player - see netcontrol.py.
 
+_net_closed_note = None      # {"what": "net", "name", "why", "at"}: the net the host last closed
+
+
 def _net_or_404():
     running = netcontrol.net()
     if running is None:
+        # A net its host closed, recently: say so, so a table does not
+        # read it as net control having gone quiet.
+        note = _net_closed_note
+        if note and time.time() - note["at"] <= party.CLOSED_NOTE_FOR:
+            abort(make_response(jsonify({"ok": False, "ended": dict(note),
+                                         "error": "the host closed this net"}), 410))
         abort(404, "no net is running on this unit")
     return running
 

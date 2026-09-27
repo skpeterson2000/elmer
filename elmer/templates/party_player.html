@@ -369,6 +369,15 @@ function paintWaiting(state) {
   const secs = state.starts_in;
   const soon = secs !== null && secs !== undefined;
   if (paintHallShootout(state)) return;
+  // The host stopped the golf before its finish: said as that, not left to
+  // look like a round that vanished.
+  if (state.ended && state.ended.what === 'golf' && !state.golf) {
+    view.innerHTML = `<div class="state" style="padding:1rem .2rem;text-align:left">
+        <h2 style="margin:0 0 .4rem">The round is over</h2>
+        <p>The host stopped the round${state.ended.course ? ' at ' + escapeHTML(state.ended.course) : ''} before the last hole.
+           You are still at the table - whatever it plays next comes here.</p></div>`;
+    return;
+  }
   const hallGame = hallGameLine(state.hall);
   if (hallGame) {
     view.innerHTML = `<div class="state" style="padding:1rem .2rem"><h2>${state.hall.cutthroat && state.hall.cutthroat.on ? 'CutThroat' : 'Golf'} across the hall</h2>
@@ -1099,7 +1108,15 @@ async function tick() {
   try {
     r = await api('/api/party/state?player=' + me.id);
   } catch (e) { return; }
-  if (r.status === 404) { clearInterval(poll); showJoin('The party has ended.'); return; }
+  if (r.status === 404 || r.status === 410) {
+    clearInterval(poll);
+    // 410: the host closed the table on purpose, and left a note saying so.
+    const note = r.status === 410 && r.data && r.data.ended;
+    const when = note && note.at
+      ? ' at ' + new Date(note.at * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) : '';
+    showJoin(note ? `The host closed the table${when}.` : 'The party has ended.');
+    return;
+  }
   const s = r.data, round = s.addressing ? null : s.round, shoot = s.shootout;
   // The unit has been updated underneath this page: fetch the new one. The
   // player is kept in sessionStorage, so the reload lands back in the game.

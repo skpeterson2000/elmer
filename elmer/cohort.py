@@ -135,6 +135,7 @@ class Bridge:
         self.stop = threading.Event()
         self.thread = None
         self.state = "starting"
+        self.net_ended = None      # net control's note, when its host closed the net
         self.last_error = None
         self.seen_round = 0          # net round this table has already started
         self.reported_round = 0      # net round this table has handed in
@@ -422,6 +423,21 @@ class Bridge:
             try:
                 self._tick()
                 wait = POLL_SECONDS if self._active else WAITING_SECONDS
+            except urllib.error.HTTPError as exc:
+                ended = self._ended_note(exc)
+                if ended:
+                    # Closed on purpose, and net control said so: not the
+                    # network, and not worth another knock. The table was
+                    # always playing for its own people too; it carries on.
+                    self.state = "ended"
+                    self.net_ended = ended
+                    self.last_error = None
+                    log.info("cohort: %s was closed by its host - this table carries on by itself",
+                             self.net_name or self.url)
+                    break
+                self.state = "offline"
+                self.last_error = f"HTTP {exc.code}: {exc.reason}"
+                wait = POLL_SECONDS if self._follow() else min(BACKOFF_MAX, wait * 1.8)
             except (urllib.error.URLError, OSError, ValueError) as exc:
                 # Net control is off, busy, or unreachable. Not an error worth
                 # stopping for - back off and keep the table running - and
@@ -435,7 +451,21 @@ class Bridge:
                 log.exception("cohort bridge: %s", exc)
                 wait = BACKOFF_MAX
             self.stop.wait(wait)
-        self.state = "stopped"
+        if self.state != "ended":
+            self.state = "stopped"
+
+    @staticmethod
+    def _ended_note(exc):
+        """Net control's note that its host closed the net, from a 410 - or
+        None for any other refusal, which is a fault to back off from."""
+        if getattr(exc, "code", None) != 410:
+            return None
+        try:
+            body = json.loads(exc.read() or b"{}")
+        except (ValueError, OSError):
+            return {"what": "net", "why": "the host closed the net"}
+        ended = body.get("ended") if isinstance(body, dict) else None
+        return ended if isinstance(ended, dict) else {"what": "net", "why": "the host closed the net"}
 
     def start(self):
         self.thread = threading.Thread(target=self.run, daemon=True,
@@ -447,7 +477,7 @@ class Bridge:
         return {"url": self.url, "unit": self.unit_id, "name": self.name,
                 "net_name": self.net_name, "net_token": self.net_token,
                 "difficulty": self.net_difficulty,
-                "state": self.state, "error": self.last_error,
+                "state": self.state, "error": self.last_error, "ended": self.net_ended,
                 "net_round": self.seen_round,
                 "reported": self.reported_round,
                 "waiting_to_report": bool(self.pending),

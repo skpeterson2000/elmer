@@ -93,6 +93,46 @@ try:
 finally:
     discovery.neighbourhood = real
 
+print("\n-- the host ending it is said as that, not as the network --")
+party.close_room()
+room = party.room(create=True, cohorts=1)
+room.join("KC9SP")
+client.post("/api/party/mode", json={"mode": "golf", "difficulty": "technician", "holes": "front",
+                                     "seconds": 30, "level": "Elmer"}, environ_base=LOCAL)
+autoplay.stop()
+check("a round in play is not ended", client.get("/api/party/state", environ_base=LOCAL).get_json().get("ended"), None)
+client.post("/api/party/mode", json={"mode": "tournament"}, environ_base=LOCAL)
+ended = client.get("/api/party/state", environ_base=LOCAL).get_json().get("ended")
+check("the host stopping the golf early leaves a note on the table", (ended or {}).get("what"), "golf")
+check("  saying where it stopped", ((ended or {}).get("hole"), bool((ended or {}).get("course"))), (1, True))
+client.post("/api/party/end", json={}, environ_base=LOCAL)
+r = client.get("/api/party/state", environ_base=LOCAL)
+check("a table its host closed answers 410, not 404", r.status_code, 410)
+check("  with the host's note", (r.get_json().get("ended") or {}).get("what"), "table")
+party.room(create=True, cohorts=1)
+check("a new table puts the note away", client.get("/api/party/state", environ_base=LOCAL).status_code, 200)
+party.close_room()
+check("  and a table that simply is not there is 404", client.get("/api/party/state", environ_base=LOCAL).status_code, 404)
+
+import io  # noqa: E402
+import urllib.error  # noqa: E402
+from elmer import cohort, netcontrol  # noqa: E402
+appmod._net_closed_note = {"what": "net", "name": "Technician", "why": "the host closed the net", "at": time.time()}
+real_net = netcontrol.net
+netcontrol.net = lambda: None
+try:
+    r = client.post("/api/net/checkin", json={"unit": "t1"}, environ_base=LOCAL)
+    check("a net its host closed answers a table's check-in with 410", (r.status_code, r.get_json()["ended"]["name"]),
+          (410, "Technician"))
+finally:
+    netcontrol.net = real_net
+    appmod._net_closed_note = None
+gone = urllib.error.HTTPError("http://x/api/net/checkin", 410, "Gone", {},
+                              io.BytesIO(json.dumps({"ended": {"what": "net", "name": "Technician"}}).encode()))
+check("the table reads it as the host closing the net", cohort.Bridge._ended_note(gone)["name"], "Technician")
+check("  and anything else as a fault to back off from",
+      cohort.Bridge._ended_note(urllib.error.HTTPError("http://x", 503, "Busy", {}, io.BytesIO(b""))), None)
+
 print("\n-- the screen offers it, and visits it --")
 check("chromium is on this machine", bool(_browser.available()), True)
 PORT = _browser._free_port()
@@ -148,6 +188,35 @@ try:
           ("Back to Table B", "http://10.0.0.6:5000/party/1"))
     check("  the host's controls are put away - a visitor cannot end or change the round",
           (got.get("gc_hidden"), got.get("end_hidden")), (True, True))
+
+    ended_js = """new Promise(async r => {
+      const until = (f, ms) => new Promise(res => { const t0 = Date.now(); const go = () => (f() || Date.now() - t0 > ms) ? res(f()) : setTimeout(go, 100); go(); });
+      await until(() => typeof visitGone === 'function', 8000);
+      const out = {};
+      visitWatch({golf: {hole: 3}});
+      visitWatch({ended: {what: 'golf', course: 'Pebble Beach', hole: 3, at: Date.now() / 1000}});
+      let box = document.querySelector('.host-ended');
+      out.stopped = box ? box.textContent.replace(/\\s+/g, ' ') : '';
+      document.getElementById('host-ended-stay').click();
+      out.stayed = !document.querySelector('.host-ended');
+      visitEnded = false;
+      visitGone({what: 'table', at: Date.now() / 1000});
+      box = document.querySelector('.host-ended');
+      out.closed = box ? box.textContent.replace(/\\s+/g, ' ') : '';
+      out.home = (document.getElementById('host-ended-home') || {}).getAttribute
+        ? document.getElementById('host-ended-home').getAttribute('href') : '';
+      r(JSON.stringify(out));
+    })"""
+    got = json.loads(_browser.evaluate(url, ended_js, settle=0.5, cookies={"elmer_user": "1"}) or "{}")
+    check("the host stopping the golf reads as that, with where",
+          all(w in (got.get("stopped") or "") for w in ("The round is over", "The host stopped the round",
+                                                        "Pebble Beach", "3rd", "before the last hole")), True)
+    check("  never as a lost connection", "connection" in (got.get("stopped") or "").lower(), False)
+    check("  and whoever is there can stay to read the card", got.get("stayed"), True)
+    check("the host closing the table reads as that",
+          "The host closed the table" in (got.get("closed") or ""), True)
+    check("  and the screen is taken home by name",
+          ("goes home to Table B" in (got.get("closed") or ""), got.get("home")), (True, "http://10.0.0.6:5000/party/1"))
 finally:
     server.terminate()
     try:
