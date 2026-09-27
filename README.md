@@ -184,6 +184,8 @@ Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
 of its release statement, its source and its SHA-256. An operator can hide
 a shipped book but not delete it, and it stays hidden through updates.
+The first book on it is the Army's ATP 6-02.53, *Techniques for Tactical
+Radios and Retransmission* (July 2025).
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

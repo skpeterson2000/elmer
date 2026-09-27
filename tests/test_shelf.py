@@ -45,7 +45,10 @@ ROOT = Path(__file__).resolve().parents[1]
 REAL = ROOT / "data" / "shelf"
 MAX_MB = 40
 FIELDS = ("file", "title", "edition", "source", "statement", "sha256", "bytes")
-RELEASED = re.compile(r"distribution statement a\b|public domain", re.I)
+# Distribution Statement A by name, or by its words: the Army prints the same
+# release under the label "Distribution Restriction".
+RELEASED = re.compile(r"distribution statement a\b|approved for public release; distribution is unlimited"
+                      r"|public domain", re.I)
 
 
 def check(label, got, want):

@@ -43,6 +43,10 @@ os.environ["ELMER_ULS"] = "off"
 # and a test that found it read that machine's position and repeaters as if
 # they were the test's. A test that wants one points this at a stand-in.
 os.environ.setdefault("ELMER_TOWERWITCH", "")
+# Nor sees the books that ship with the program. A test counts what is on
+# the shelf, and a shipped manual turned up in every count. The shelf's own
+# test builds a shipped shelf of its own, and checks the real one directly.
+os.environ["ELMER_SHELF"] = str(Path(tempfile.mkdtemp(prefix="elmer-shelf-empty-")))
 
 # The guard. Not a fingerprint of data/ - a live ELMER on the same machine
 # writes its log and its database every second, and a fingerprint blames

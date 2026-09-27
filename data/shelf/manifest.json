@@ -1,4 +1,16 @@
 {
-  "about": "Manuals that ship with ELMER. Only public releases go here: a book whose cover carries Distribution Statement A (approved for public release; distribution is unlimited), or one in the public domain outright. Each entry is copied from the book's own cover and title page: file, title, edition, the release statement word for word, the address it was published at, and the SHA-256 and size of the file as committed. tests/test_shelf.py fails if a file is missing, unlisted, or no longer matches its hash. Total kept under 40 MB.",
-  "books": []
+  "about": "Manuals that ship with ELMER. Only public releases go here: a book whose cover carries Distribution Statement A - the words 'Approved for public release; distribution is unlimited', which the Army prints under the label 'Distribution Restriction' - or one in the public domain outright. Each entry is copied from the book's own cover and title page: file, title, edition, the release statement word for word, the publisher's record for that edition, and the SHA-256 and size of the file exactly as the publisher serves it, never re-saved or recompressed. tests/test_shelf.py fails if a file is missing, unlisted, or no longer matches its hash. Total kept under 40 MB.",
+  "books": [
+    {
+      "file": "ATP-6-02.53-2025.pdf",
+      "title": "ATP 6-02.53, Techniques for Tactical Radios and Retransmission",
+      "edition": "31 July 2025 (supersedes the edition of 13 February 2020)",
+      "publisher": "Headquarters, Department of the Army",
+      "source": "https://armypubs.army.mil/ProductMaps/PubForm/Details.aspx?PUB_ID=1031572",
+      "published_file": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN44497-ATP_6-02.53-000-WEB-1.pdf",
+      "statement": "DISTRIBUTION RESTRICTION: Approved for public release; distribution is unlimited.",
+      "sha256": "1b34ad599f578c963d24b74338884aa584bc472d4c0fbf8d35d79862f019d7b3",
+      "bytes": 6346432
+    }
+  ]
 }

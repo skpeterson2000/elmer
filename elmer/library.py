@@ -56,7 +56,7 @@ INDEX_DIR = SHELF / ".index"
 # The manuals that ship with ELMER, and what vouches for each one. Only a
 # file the manifest lists is a shipped book: anything else in that directory
 # was never checked and stays off the shelf.
-SHIPPED = paths.CONTENT / "shelf"
+SHIPPED = Path(os.environ.get("ELMER_SHELF") or (paths.CONTENT / "shelf"))
 MANIFEST_NAME = "manifest.json"
 # The shipped books this unit has hidden, by file name. A dotfile, so the
 # shelf does not take it for a book.

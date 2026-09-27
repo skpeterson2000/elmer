@@ -1061,7 +1061,11 @@ with or without a signal.
 released to the public, which for the services' handbooks means
 *Distribution Statement A: approved for public release; distribution is
 unlimited* on the cover, and for older government works the public domain.
-Those live in `data/shelf/`, under the program's content, next to
+The Army prints the same words under the label *Distribution Restriction*,
+and the test takes the words as well as the name. The file shipped is the
+one the publisher serves, byte for byte: a copy that has been opened and
+saved again reads the same but hashes differently, and could not be checked
+against the publisher's own. Those live in `data/shelf/`, under the program's content, next to
 `manifest.json`, which records for each book the file, its title and edition
 and the release statement as the cover gives them, the address it was
 published at, and the SHA-256 and size of the file as committed. Only a file
