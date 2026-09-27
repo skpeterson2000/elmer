@@ -35,12 +35,18 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import paths
 from .geo import great_circle
 
 log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
-STORE = ROOT / "data" / "references.json"
+# The parks and summits fetched for the places this operator goes: theirs,
+# so with the rest of their state, wherever ELMER_STATE puts it. It used to
+# be written into the checkout's data/ whatever ELMER_STATE said; a copy
+# still there is read until the next fetch writes this one.
+STORE = paths.STATE / "references.json"
+OLD_STORE = ROOT / "data" / "references.json"
 # The National Park Service units, shipped with the program: the places
 # people drive across the country for, about four hundred of them, and the
 # ones a visitor plans a radio afternoon around. State parks are thousands
@@ -224,14 +230,18 @@ def held():
     file, not once per call. This is asked several times a page and, on
     the activations page, per keystroke; a Pi's card is not a place to
     read a list of parks from that often."""
+    path = STORE
+    if not STORE.exists() and OLD_STORE != STORE and OLD_STORE.exists():
+        path = OLD_STORE
     try:
-        stamp = STORE.stat().st_mtime_ns
+        stamp = (str(path), path.stat().st_mtime_ns)
     except OSError:
         return []
     if _held["stamp"] != stamp:
         try:
-            _held["areas"] = json.loads(STORE.read_text()).get("areas", [])
-        except (OSError, ValueError):
+            _held["areas"] = json.loads(path.read_text()).get("areas", [])
+        except (OSError, ValueError) as exc:
+            log.warning("references: could not read %s, holding nothing: %s", path, exc)
             _held["areas"] = []
         _held["stamp"] = stamp
     return _held["areas"]
