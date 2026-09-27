@@ -28,7 +28,7 @@ FAILS = []
 # Every option in the calculator's type selector.
 CALCULATOR_TYPES = ["dipole", "invertedv", "efhw", "bowtie", "loop", "quarter",
                     "fiveeighth", "jpole", "groundplane", "yagi", "whip",
-                    "screwdriver", "whipdipole"]
+                    "screwdriver", "whipdipole", "tefv", "termsloper"]
 
 
 def check(label, got, want):

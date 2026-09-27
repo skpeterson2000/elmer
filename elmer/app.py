@@ -1733,6 +1733,15 @@ def api_pattern():
     except ValueError:
         slope = 0.0
     spec = patterns.ANTENNA_Q[kind]
+    # A terminated wire's pattern depends on how many wavelengths long it
+    # is and how high it is hung, so those travel with its kind.
+    try:
+        length_ft = float(request.args.get("length") or 0) or None
+    except ValueError:
+        length_ft = None
+    if length_ft is not None and not 20.0 <= length_ft <= 2000.0:
+        abort(400)
+    kind = patterns.laid(kind, length_ft, height_ft, mhz)
     # A fatter element is a lower-Q element and a lower-Q element holds its
     # SWR across more of the band. The bowtie is left alone: its Q already
     # comes from the width of the triangle, and scaling that by the gauge of
@@ -1828,6 +1837,12 @@ def api_pattern():
         "elevation_cut": patterns.elevation_slice(
             kind, height_wl, slope_deg=slope, mhz=mhz, heading=heading),
         "front_to_back_db": patterns.YAGI_FB_DB if kind == "yagi" else None,
+        # A terminated wire's gain depends on the band, so it comes from the
+        # model here rather than from a figure in the page's table.
+        "gain_dbi": (patterns.travelling_gain_dbi(kind, height_wl, mhz)
+                     if patterns.is_travelling(kind) else None),
+        "length_wl": (round(kind.length_ft / lam_ft, 2)
+                      if patterns.is_travelling(kind) else None),
         "ground": "average",
         # Two slices of the same pattern, because one of them on its own
         # has been misleading people. "azimuth" is along the ground, which
@@ -2360,7 +2375,14 @@ def api_bandplan_reach():
         ground = str(request.args.get("ground") or "average").lower()
         if ground not in patterns.GROUNDS or ground == "perfect":
             ground = "average"
-        antenna = {"kind": kind, "height_ft": height_ft, "heading": heading, "ground": ground,
+        try:
+            length_ft = (max(20.0, min(2000.0, float(request.args.get("length"))))
+                         if request.args.get("length") else None)
+        except (TypeError, ValueError):
+            length_ft = None
+        antenna = {"kind": patterns.laid(kind, length_ft, height_ft, mhz),
+                   "height_ft": height_ft, "heading": heading, "ground": ground,
+                   "length_ft": length_ft,
                    "height_wl": max(0.02, height_ft / antenna_advice.wavelength_ft(mhz))}
     try:
         watts = max(0.1, min(1500.0, float(request.args.get("watts") or 100.0)))
@@ -2376,7 +2398,8 @@ def api_bandplan_reach():
     key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode,
            kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts, 1), emission,
            (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),
-           antenna["ground"] if antenna else "")
+           antenna["ground"] if antenna else "",
+           round(antenna["length_ft"]) if antenna and antenna.get("length_ft") else 0)
     hit = _reach_cache.get(key)
     if hit and time.time() - hit[0] < REACH_CACHE_S:
         return jsonify({"ok": True, "cached": True, **hit[1]})

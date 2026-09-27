@@ -855,7 +855,23 @@ const ANTENNAS = {
   // branch in calcAnt works its efficiency out instead of a build table.
   whipdipole: {shape: 'wire', label: 'Two loaded whips as a dipole', gain: null, z: 50,
     ref: FREE_SPACE},
+  // Terminated antennas, from the Marines' Antenna Handbook (MCRP 3-40.3C,
+  // 1999). Not cut to a band, so no build formula in the frequency: the
+  // branch in calcAnt lays out the wire the operator has, and the gain
+  // comes back with the pattern, because on these it depends on how many
+  // wavelengths long the wire is on this band.
+  tefv: {shape: 'tw', label: 'Terminated end-fed vee (vertical half-rhombic)', gain: null,
+    z: 600, ref: OVER_GROUND},
+  termsloper: {shape: 'tw', label: 'Terminated sloping wire', gain: null,
+    z: 600, ref: OVER_GROUND},
 };
+
+/* A resistor at the far end, a wave that runs one way and does not come
+   back. Length and mast are the operator's; the handbook's sizes are where
+   the fields start. */
+const TW_DEFAULTS = {tefv: {len: 500, mast: 50}, termsloper: {len: 250, mast: 40}};
+function isTw(type) { return !!TW_DEFAULTS[type]; }
+const TW_END_FT = 6;          // the insulator posts at the ends, figure 4-30
 
 /* Feedpoint resistance of a quarter wave against its radials, as they are
    drooped. Flat radials give about 36 ohms; at 45 degrees it is near 50, which
@@ -1049,6 +1065,20 @@ function antennaFields(type) {
      the wire's: how high it hangs. */
   show('.an-when-whip', isWhip(type) || type === 'whipdipole');
   show('.an-when-height', !isWhip(type));
+  /* A terminated wire has a length of its own, set by the room and not by
+     the band, and it fires one way - so its heading runs round the whole
+     compass where a wire's only needs half. The mast starts at the
+     handbook's height the first time one is chosen. */
+  show('.an-when-tw', isTw(type));
+  const headEl = document.getElementById('an-head');
+  if (headEl) headEl.max = isTw(type) ? '359' : '179';
+  const lenEl = document.getElementById('an-len');
+  if (isTw(type) && lenEl && lenEl.dataset.forType !== type) {
+    lenEl.value = TW_DEFAULTS[type].len;
+    lenEl.dataset.forType = type;
+    const hEl = document.getElementById('an-h');
+    if (hEl) hEl.value = TW_DEFAULTS[type].mast;
+  }
   /* Which height, for an antenna that has two. A flat dipole has one and
      the question does not arise; an inverted V is hung by its apex; an
      end-fed goes up into the tree by its far end and is fed at the low
@@ -1060,6 +1090,8 @@ function antennaFields(type) {
     hLabel.textContent =
       type === 'efhw' ? 'Height of the far (high) end (ft)'
       : type === 'invertedv' ? 'Height of the apex (ft)'
+      : type === 'tefv' ? 'Height of the mast top (ft)'
+      : type === 'termsloper' ? 'Height of the support, the feed end (ft)'
       : type === 'dipole' ? 'Height of the support (ft)'
       : 'Height above ground (ft)';
   }
@@ -1372,6 +1404,60 @@ function calcAnt() {
       'The heading set here is <b>this band\'s pair</b>; the other three lie 45&deg;, 90&deg; ' +
       'and 135&deg; round from it, so mark one whip as the pointer and color the rotator dial ' +
       'by band.');
+  } else if (isTw(type)) {
+    shape = 'tw';
+    const lenFt = Math.max(20, num('an-len') || TW_DEFAULTS[type].len);
+    const mastFt = Math.max(TW_END_FT + 1, num('an-h') || TW_DEFAULTS[type].mast);
+    const legs = type === 'tefv' ? 2 : 1;
+    const legFt = lenFt / legs;
+    const rise = Math.min(mastFt - TW_END_FT, legFt * 0.999);
+    const run = Math.sqrt(Math.max(0, legFt * legFt - rise * rise));
+    if (legs === 2) rows['Each leg, post to mast top'] = legFt;
+    rows['Wire, end to end'] = lenFt;
+    rows['Ground covered, feed to resistor'] = run * legs;
+    rows[legs === 2 ? 'Mast' : 'Support'] = mastFt;
+    rows['End posts'] = TW_END_FT;
+    gain = null;
+    z = 600;
+    gainRef = OVER_GROUND;
+    const wl = lenFt / lamFt;
+    notes.push('<b>Not cut to the band.</b> A resistor at the far end takes ' +
+      'whatever the wire has not radiated, so nothing comes back, there is no ' +
+      'resonance and no length to trim: ' + lenFt.toFixed(0) + '&nbsp;ft is <b>' +
+      wl.toFixed(1) + ' wavelengths</b> here, and the same wire is ' +
+      (lenFt / LAMBDA_FT(3.6)).toFixed(1) + ' on 80&nbsp;m and ' +
+      (lenFt / LAMBDA_FT(28.4)).toFixed(1) + ' on 10&nbsp;m. The more ' +
+      'wavelengths, the lower and narrower the lobe it fires off the ' +
+      'resistor end.' + (wl < 1
+        ? ' <span style="color:var(--red)"><b>Under a wavelength here</b></span> ' +
+          '&mdash; the handbook\'s least; below it the lobe stands up and the ' +
+          'back fills in.'
+        : ''));
+    notes.push('<b>Feeding it.</b> The wire looks like about 600&nbsp;&Omega; ' +
+      'at the feed on every band. Take it to coax through a <b>12:1 balun</b>, ' +
+      'or straight to the radio\'s coupler: one terminal to the wire, the other ' +
+      'to ground. At the far end a <b>600&nbsp;&Omega; non-inductive resistor</b> ' +
+      'from the wire to ground, rated for <b>half the transmitter\'s power</b> ' +
+      '&mdash; the handbook sizes it that way because half is about what ' +
+      'reaches it. That half is heat, and it is the price of the flat match ' +
+      'and a pattern with no back. Both ends want a real ground: rods or a ' +
+      'counterpoise.');
+    notes.push('<b>Which way.</b> It fires toward the resistor, so the heading ' +
+      'is the way from the feed to the resistor. ' + (type === 'tefv'
+        ? 'Below 12&nbsp;MHz point it straight at the station; above, the ' +
+          'handbook says to aim it "10 feet to either side", which can only ' +
+          'mean degrees &mdash; a long wire\'s lobe splits either side of its ' +
+          'axis as the band goes up, and the plan view below shows the split.'
+        : 'The handbook puts the low end toward the station. Its sentence on ' +
+          'the feed says "low end" for both the terminated and the plain wire; ' +
+          'a terminated wire fires toward its resistor, so the resistor is at ' +
+          'the low end and the feed at the top of the support, and that is ' +
+          'what is drawn and modeled here.'));
+    notes.push('<span class="tiny">From USMC MCRP 3-40.3C, <i>Antenna ' +
+      'Handbook</i> (1999), ' + (type === 'tefv' ? 'pp. 4-37 to 4-39 and 6-14' :
+      'pp. 4-33 to 4-36') + '. The pattern is worked out as a travelling ' +
+      'wave on straight wires over average ground, with half the power ' +
+      'left in the resistor: the shape and the trend, not a measurement.</span>');
   } else {
     const spec = ANTENNAS[type];
     shape = spec.shape;
@@ -1612,9 +1698,11 @@ function calcAnt() {
     '<div class="row mt" style="gap:1rem">' +
       '<span>Wavelength <b>' + lamFt.toFixed(2) + ' ft</b></span>' +
       (z ? '<span>Feed impedance &asymp; <b>' + z + ' &Omega;</b></span>' : '') +
-      '<span>Gain <b>' + (gain >= 0 ? '+' : '') + gain.toFixed(1) + ' dBd</b> ' +
-        '<span class="tiny muted">(' + (gain + 2.15).toFixed(1) + ' dBi, ' +
-        escapeHTML(gainRef) + ')</span></span>' +
+      (gain === null || gain === undefined
+        ? '<span>Gain <b id="an-tw-gain">with the pattern below</b></span>'
+        : '<span>Gain <b>' + (gain >= 0 ? '+' : '') + gain.toFixed(1) + ' dBd</b> ' +
+          '<span class="tiny muted">(' + (gain + 2.15).toFixed(1) + ' dBi, ' +
+          escapeHTML(gainRef) + ')</span></span>') +
     '</div>' +
     '<div class="small muted" style="margin-top:.6rem">' +
       notes.map(n => '<p>' + n + '</p>').join('') +
@@ -1657,6 +1745,8 @@ function calcAnt() {
   const heading = num('an-head');
   const headWords = type === 'yagi'
     ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
+    : isTw(type)
+    ? 'fires ' + heading + '\u00b0 ' + compass(heading) + ', feed to resistor'
     : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
       ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
   ['an-head-v', 'an-head-2-v'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = headWords; });
@@ -1669,6 +1759,7 @@ function calcAnt() {
     gain: gain, f: f, heightFt: heightFt > 0 ? heightFt : null,
     legFt: legFt, droop: type === 'invertedv' ? antAngle() : 0,
     whipFt: (isWhip(type) || type === 'whipdipole') ? num('an-wh') : null,
+    lengthFt: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : null,
     description: ((ANTENNAS[type] || {}).label ||
                   (type === 'yagi' ? Math.round(num('an-el')) + '-element Yagi'
                                    : 'loaded mobile whip')) +
@@ -1718,6 +1809,41 @@ function drawAntenna(shape, rows, type) {
       lbl(W / 2, cy - 60, 'feed at the apexes') +
       lbl(W / 2, cy + halfW + 22, 'wide element = low Q = wide band') +
       lbl(W / 2 + 40, (cy + g) / 2, 'height', 'start');
+  } else if (shape === 'tw') {
+    /* Drawn with the height stretched, because to scale 50 ft over 500 of
+       wire is a line along the ground and the picture would teach nothing.
+       The label says by how much. Feed on the left, resistor on the right,
+       which is also the way it fires. */
+    const mast = rows['Mast'] || rows['Support'] || 40;
+    const covered = rows['Ground covered, feed to resistor'] || 1;
+    const x0 = 70, x1 = 550, yTop = 45, post = g - 16;
+    const stretch = ((post - yTop) / Math.max(1, mast - TW_END_FT)) /
+                    ((x1 - x0) / Math.max(1, covered));
+    const res = (x, y) => '<rect x="' + (x - 5) + '" y="' + (y + 4) + '" width="10" height="' +
+      Math.max(8, g - y - 8) + '" fill="none" stroke="#f47067" stroke-width="2"/>';
+    if (type === 'tefv') {
+      const xm = (x0 + x1) / 2;
+      body =
+        '<line x1="' + xm + '" y1="' + (yTop - 8) + '" x2="' + xm + '" y2="' + g +
+          '" stroke="#2a3441" stroke-width="3"/>' +
+        '<polyline points="' + x0 + ',' + post + ' ' + xm + ',' + yTop + ' ' + x1 + ',' + post +
+          '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="' + x0 + '" cy="' + post + '" r="5" fill="#58a6ff"/>' + res(x1, post) +
+        lbl(x0, post - 12, '12:1, fed here', 'start') +
+        lbl(x1, g + 16, '600 \u03a9 to ground', 'end') +
+        lbl(xm + 8, yTop + 4, mast.toFixed(0) + ' ft mast', 'start');
+    } else {
+      body =
+        '<line x1="' + x0 + '" y1="' + (yTop - 8) + '" x2="' + x0 + '" y2="' + g +
+          '" stroke="#2a3441" stroke-width="3"/>' +
+        '<line x1="' + x0 + '" y1="' + yTop + '" x2="' + x1 + '" y2="' + post +
+          '" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="' + x0 + '" cy="' + yTop + '" r="5" fill="#58a6ff"/>' + res(x1, post) +
+        lbl(x0 + 10, yTop - 6, '12:1, fed at the top', 'start') +
+        lbl(x1, g + 16, '600 \u03a9 to ground', 'end');
+    }
+    body += lbl(W / 2, g + 30, 'fires this way \u2192   (height drawn ' +
+      Math.max(1, Math.round(stretch)) + '\u00d7 its true scale)');
   } else if (shape === 'wire') {
     const y = 90;
     /* The angle on the screen is the angle you set. Both of these used to be
@@ -1872,7 +1998,7 @@ function drawAntenna(shape, rows, type) {
   r.addEventListener('input', () => { if (m.value !== r.value) m.value = r.value; });
 });
 
-['an-type', 'an-f', 'an-h', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
+['an-type', 'an-f', 'an-h', 'an-len', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-angle', 'an-nvis', 'an-head', 'an-site', 'an-floor',
  'an-use', 'an-pw']
   .forEach(id => {
@@ -3285,7 +3411,8 @@ if (printBtn) printBtn.addEventListener('click', async () => {
 /* The height and the power ride along, so the band plan's reach map can
    open on the antenna designed here without asking again. */
 const rememberAntenna = ctx => remember('lab.antenna', Object.assign(
-  {height_ft: num('an-h') || 0, watts: num('an-pw') || 0, heading_deg: num('an-head')}, ctx));
+  {height_ft: num('an-h') || 0, watts: num('an-pw') || 0, heading_deg: num('an-head'),
+   length_ft: num('an-len') || 0}, ctx));
 const recallAntenna = () => recall('lab.antenna', null);
 
 (function () {
@@ -3709,9 +3836,16 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
     d = await api('/api/pattern?' + new URLSearchParams(
       {type: type, mhz: mhz, height: (effHeight || heightFt || 0),
        heading: heading || 0, nvis: nvisOn, slope: slope || 0,
-       conductor: (COND && COND.key) || 'wire14'}));
+       conductor: (COND && COND.key) || 'wire14',
+       length: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : ''}));
   } catch (e) { box.innerHTML = ''; return; }
   const b = d.bandwidth;
+  const twGain = document.getElementById('an-tw-gain');
+  if (twGain && d.gain_dbi !== null && d.gain_dbi !== undefined) {
+    twGain.innerHTML = (d.gain_dbi >= 0 ? '+' : '') + d.gain_dbi.toFixed(1) + ' dBi' +
+      ' <span class="tiny muted">(peak, over average ground, the resistor\'s half taken off; ' +
+      d.length_wl + ' wavelengths of wire)</span>';
+  }
   /* The plots in one box and their words in another, with the sliders that
      turn the plots between the two: turned from below, watching what one
      does, and the reading of it after. */
@@ -3724,6 +3858,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         '&deg;</b> above the horizon.' + vNote + ' ' +
         (d.shape === 'vertical'
           ? 'A vertical nulls straight up, along its own axis, and is strongest out along the ground &mdash; so its lobe is low whatever its height, which is why it works DX off a small plot. The last few degrees are the ground\'s doing, not the antenna\'s: drawn over average earth, where the reflection turns against the direct wave at grazing angles, so the field falls away to nothing right at the horizon and the lobe peaks a little above it. Over perfect ground it would run all the way down to zero degrees, and perfect ground is not a thing anybody has.'
+          : d.shape === 'travelling'
+          ? 'Length sets this more than height does: the more wavelengths of wire, the lower the lobe off the resistor end. Drawn over average ground, which takes the last few degrees along the horizon.'
           : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled rather than bottomless.') +
         '</p>' +
         /* What the left half of the plot is. It is a slice through the
@@ -3735,6 +3871,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
           ? 'A vertical’s pattern is a doughnut, the same in every direction round it &mdash; so the side view is two lobes and the plan view is a circle. There is no front to it.'
           : type === 'yagi'
             ? 'A beam is the one antenna where the two halves differ, and the difference is what you bought it for: the rear lobe is held at ' + d.front_to_back_db + ' dB down, which is a good three-element Yagi rather than the hole a bare cosine would draw.'
+            : d.shape === 'travelling'
+            ? 'A terminated wire fires one way, off the resistor end, and what is behind it is what the resistor did not quite swallow. Turning it does aim it.'
             : 'A wire radiates broadside, both ways, so the two lobes are mirror images &mdash; there is as much behind it as in front. Turning it does not aim it; it moves the nulls off the ends.') +
         '</p>';
   const sharpWords = '<div class="panel-title">How sharp it is</div>' +
@@ -3931,10 +4069,13 @@ function planWords(d) {
       'it costs: no gain anywhere, because there is no direction to take it ' +
       'from.</p>';
   }
-  const best = d.type === 'yagi'
+  /* A beam and a terminated wire each fire one way, down the heading, and
+     are weakest straight behind; a plain wire fires broadside both ways. */
+  const oneWay = d.type === 'yagi' || isTw(d.type);
+  const best = oneWay
     ? [d.heading]
     : [(d.heading + 90) % 360, (d.heading + 270) % 360];
-  const nulls = d.type === 'yagi'
+  const nulls = oneWay
     ? [(d.heading + 180) % 360]
     : [d.heading % 360, (d.heading + 180) % 360];
   const say = a => a.map(b => Math.round(b) + '&deg; ' + compass(b)).join(' and ');
@@ -3956,7 +4097,7 @@ function planWords(d) {
   const downDb = deepest > 0 ? -20 * Math.log10(deepest) : 99;
   const lobeDeg = Math.round(d.main_lobe_deg || 0);
   let html;
-  if (d.type !== 'yagi' && downDb < 3) {
+  if (!oneWay && downDb < 3) {
     /* Under 3 dB there is no useful direction, and saying there is sends
        somebody up a tower to turn a wire for nothing. */
     html = '<p class="tiny muted">At the <b>' + lobeDeg + '&deg;</b> this ' +
@@ -3974,6 +4115,9 @@ function planWords(d) {
       '</b> at the <b>' + lobeDeg + '&deg;</b> it works at. ' +
       (d.type === 'yagi'
         ? 'Turn the boom and the whole pattern turns with it.'
+        : isTw(d.type)
+        ? 'It fires off the resistor end, along itself &mdash; turn the wire ' +
+          'and the pattern turns with it.'
         : 'A wire radiates across itself, not along itself &mdash; so the ' +
           'direction it is strung decides the direction it hears.') + '</p>';
   }

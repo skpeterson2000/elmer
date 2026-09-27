@@ -821,6 +821,42 @@ Octopus, N1GY's QST design of December 2007 as built and documented by KE0CP
 box), why it needs no switching, and the reminder that each pair points its
 own way.
 
+**Terminated wires, from the Marines' handbook.** Two antennas come from the
+USMC *Antenna Handbook* (MCRP 3-40.3C, 1999), a US government work: the
+terminated end-fed vee, which the handbook also calls the vertical
+half-rhombic, and the terminated sloping wire. Each is a long wire with a
+600 Ω resistor to ground at the far end. What the wire has not radiated by
+the time it gets there is burned off, so nothing comes back. There is no
+resonance, the feed sits near 600 Ω on every band (a 12:1 balun or the
+radio's coupler), and the antenna fires one way, off the resistor end. A
+dipole's pattern could not describe that, so `patterns.py` works these two
+out as a travelling wave. The current runs along each straight leg as
+e^−(jk+α)s, and the far field of a leg comes in closed form (Kraus,
+*Antennas*, ch. 14). Each leg gets its image in average ground by the
+Fresnel coefficients, vertical and horizontal parts apart. α is set so half
+the power reaches the resistor, because that is what the handbook rates the
+resistor for, and the gain printed is the directivity less those 3 dB. The
+length is the operator's, since a terminated wire is sized by the ground
+there is and not by the band. It travels with the antenna's kind (a
+`Laid` string that still reads "tefv"), so the reach map, the DX bearings
+and the plan view use the same model without learning anything new. The
+pattern is a table at 1° of elevation and 5° of azimuth, built once per
+wire, band and height. That is about 20 ms, and after that every lookup is
+arithmetic, which is what a Pi can afford. For a 500 ft vee on a 50 ft mast
+it gives a lobe near 40° on 80 m, 24° on 40, 13° on 20 and 8° on 10, with
+the gain rising from about 1 to 11 dBi over ground: the more wavelengths of
+wire, the lower and narrower the lobe. That is the handbook's own account of
+the antenna, and it is a shape and a trend, not a measurement.
+
+The handbook has slips, and the notes say which reading ELMER took. It tells
+you to aim the vee "10 feet to either side" above 12 MHz, which can only mean
+degrees. The model shows why: a long wire's lobe splits either side of its
+axis as the band goes up. The resistor is built from "100-watt, 106-ohm"
+parts, and six of them in series make 636 Ω. The sloping wire's feed sentence
+says "low end" twice. A terminated wire fires toward its resistor and the
+handbook puts the low end toward the station, so the resistor is modeled at
+the low end and the feed at the top.
+
 A bought whip has no length to cut, but it has a stinger to slide, and the
 maker printed a chart. `whipbuild.LAKEVIEW_CHARTS` holds Lakeview's exposed-
 whip-length charts for the nine HF Hamstick models, read off their instruction

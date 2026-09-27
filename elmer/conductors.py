@@ -240,6 +240,12 @@ BUILT_FROM = {
     # argument applies to it: what is being paid for is a thing that survives
     # a car wash and a low branch.
     "screwdriver": ["stainless", "tube14", "tube38", "alu12"],
+    # Hundreds of feet strung between posts and a mast: wire, and nothing a
+    # tube or a tape measure could be. The conductor does not set a length
+    # here - nothing is resonant - only the loss, which on this much wire
+    # is small beside what the resistor takes.
+    "tefv": ["wire14", "wire12", "wire18", "fence"],
+    "termsloper": ["wire14", "wire12", "wire18", "fence"],
 }
 
 

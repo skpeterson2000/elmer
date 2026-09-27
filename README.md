@@ -176,7 +176,10 @@ zooms to the green when it is the target, and holes and greens drawn as
 grass rather than geometry - and the cards are measured now, from
 GolfTraxx's hole maps (`tools/coursecard.py`): every bunker on its side
 at its yards, the dogleg where the line turns, the green's depth, the
-pins.
+pins. The Lab gained two terminated antennas from the Marines' *Antenna
+Handbook*, the end-fed vee (the "vertical half-rhombic") and the sloping
+wire. Neither is cut to a band, each fires one way off its resistor, and
+their patterns are worked out as the travelling waves they are.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

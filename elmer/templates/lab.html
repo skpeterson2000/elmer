@@ -198,6 +198,10 @@
             <option value="whipdipole">Two loaded whips as a dipole &mdash; the hamstick dipole</option>
             <option value="screwdriver">Screwdriver &mdash; motor-tuned mobile vertical</option>
           </optgroup>
+          <optgroup label="Terminated &mdash; one way, every band, from the Marines' handbook">
+            <option value="tefv">Terminated end-fed vee (vertical half-rhombic)</option>
+            <option value="termsloper">Terminated sloping wire</option>
+          </optgroup>
         </select>
         <div class="tiny muted" id="an-type-note" hidden></div></div>
       <div class="row" style="gap:.5rem;flex-wrap:wrap">
@@ -212,6 +216,11 @@
 
       <div class="field an-when-height"><label id="an-h-label">Height above ground (ft)</label>
         <input id="an-h" value="35"></div>
+      {# A terminated wire's length is the operator's, set by the room and
+         not by the band - so it is asked, where every other wire's length
+         is worked out from the frequency. #}
+      <div class="field an-when-tw" style="display:none"><label>Wire length, end to end (ft)</label>
+        <input id="an-len" value="500"></div>
 
       {# One slider for the angle, whatever the antenna calls it. The type
          above is the selector: a dipole and an end-fed slope, a V droops its

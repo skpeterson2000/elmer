@@ -691,6 +691,116 @@ TYPES = {
             "that before you key up.",
         ],
     },
+    # The two terminated antennas are from the Marine Corps' own field
+    # manual, USMC MCRP 3-40.3C (formerly 6-22D), *Antenna Handbook*, 1999:
+    # a US government publication, so free to quote and to build from. The
+    # figures below are the handbook's; where the handbook has a slip, the
+    # entry says what it printed and what it must have meant.
+    "tefv": {
+        "title": "Terminated end-fed vee (vertical half-rhombic)",
+        # A mast, not a fraction of a wavelength: the handbook's is 50 ft
+        # and it is the same mast on every band.
+        "height": (0, 50, 50),
+        "polarisation": "vertical",
+        "source": "USMC MCRP 3-40.3C, Antenna Handbook (1999), pp. 4-37 to "
+                  "4-39 and 6-14",
+        "why": [
+            "Half a rhombic stood on its point: one wire up to the top of a "
+            "single mast and down the other side, fed at one end against "
+            "ground and ended at the other through a resistor to ground. The "
+            "ground supplies the missing half, the way it does for a "
+            "quarter-wave vertical. The Marines' Antenna Handbook calls it "
+            "the vertical half-rhombic; the amateur name is the TEFV.",
+            "The resistor is what makes it different from every other wire "
+            "here. It soaks up whatever the wire has not radiated by the time "
+            "the current gets there, so nothing reflects, the wire has no "
+            "resonance, and one antenna covers everything from the lowest "
+            "frequency it is long enough for up to 30 MHz with no tuner "
+            "work between bands. The handbook rates it 2 to 30 MHz.",
+            "It fires one way, off the resistor end, low - a medium-to-low "
+            "angle lobe that gets lower and narrower the more wavelengths "
+            "long the wire is, which is why the handbook picks it for "
+            "medium and long paths. It is only as wide as the mast's guys, "
+            "so several can stand side by side pointing different ways.",
+        ],
+        "watch": [
+            "The resistor takes a real share of the power: the handbook "
+            "sizes it for half the transmitter's output, and half is about "
+            "what it gets. That is 3 dB spent to buy a flat match across "
+            "two decades of frequency and a pattern with no back to it. Use "
+            "600 ohms, non-inductive - a wirewound resistor is a coil and "
+            "undoes the whole idea.",
+            "The handbook says to make the terminator from \"100-watt, "
+            "106-ohm\" resistors without saying how many. Six in series is "
+            "636 ohms, which is what it must mean; it is not one resistor.",
+            "Both ends need a good ground - the feed's return and the "
+            "resistor's. The handbook asks for ground rods or a counterpoise "
+            "at each end. A poor ground at the resistor end is a resistor "
+            "in series with the resistor.",
+            "It wants room: the handbook's tactical size is 500 ft of wire "
+            "on a 50 ft mast, and a wavelength at the lowest frequency is "
+            "the least that works. Shorter than that it stops being "
+            "directional and becomes an expensive way to heat a resistor.",
+        ],
+        "better": [
+            "Point it. Below 12 MHz aim the resistor end at the station; "
+            "above 12 MHz the handbook says to aim it \"10 feet to either "
+            "side\" of the station, which can only mean degrees - the lobe "
+            "of a long wire splits either side of its axis as the band goes "
+            "up, and the Lab's plan view shows the split.",
+            "Longer, before higher. The handbook includes a 1,000 ft pattern "
+            "for anyone who has the room, and the lobe drops and narrows "
+            "with every wavelength added; raising the mast changes much "
+            "less.",
+            "Feed it through a 12:1 balun to 50 ohm coax, or straight from "
+            "the radio's coupler: one terminal to the wire, the other to "
+            "ground.",
+        ],
+    },
+    "termsloper": {
+        "title": "Terminated sloping wire",
+        "height": (0, 40, 40),
+        "polarisation": "vertical",
+        "source": "USMC MCRP 3-40.3C, Antenna Handbook (1999), pp. 4-33 to "
+                  "4-36",
+        "why": [
+            "One wire from the top of one support down to near the ground, "
+            "with a 600 ohm resistor from its low end to ground. The "
+            "simplest antenna in the handbook that has a direction to it, "
+            "and it needs one support.",
+            "Terminated, it is a travelling-wave antenna like the vee: no "
+            "resonance, a flat match from the lowest frequency it is long "
+            "enough for upward, and a lobe that fires toward the resistor. "
+            "The handbook's sizes run from 45 to over 500 ft; it calls the "
+            "short ones poor and the long ones good for medium and long "
+            "paths.",
+        ],
+        "watch": [
+            "The handbook's sentence on feeding it reads \"If the wire is "
+            "unterminated, feed the antenna at the low end. If a terminating "
+            "resistor is used, feed the antenna low end\" - the same end "
+            "twice. A terminated wire fires toward its resistor, and the "
+            "handbook also says the low end points at the station, so it is "
+            "the resistor that goes at the low end and the feed at the top. "
+            "The Lab models it that way.",
+            "As with the vee, the resistor is sized for half the power, "
+            "non-inductive, and wants a real ground under it.",
+            "Short, it is not much of anything. Under about a wavelength at "
+            "the operating frequency the lobe stands up and the front-to-back "
+            "goes; the handbook's 100 ft wire is a 20 m antenna, not an 80 m "
+            "one.",
+        ],
+        "better": [
+            "Aim the low end at the station, and lengthen before you raise: "
+            "250 ft does more than a taller support.",
+            "Feed the top end through a 12:1 balun to coax, or a coupler at "
+            "the top of the support.",
+            "Unterminated - no resistor - it is the ordinary sloping long "
+            "wire: no heat lost, but bidirectional and fussy about length "
+            "and matching again. The resistor is what buys the flat match "
+            "and the clean back.",
+        ],
+    },
 }
 
 
@@ -708,6 +818,9 @@ WANTS = {
                    "same band."),
 }
 LOW_ANGLE = {"quarter", "fiveeighth", "groundplane", "jpole", "whip"}
+# Terminated wires: a resistor at the far end, a travelling wave, no
+# resonance. See patterns.TRAVELLING for how their pattern is worked out.
+TRAVELLING = {"tefv", "termsloper"}
 
 
 # Near-vertical incidence wants the antenna low, and "low" is a fraction of a
@@ -1097,6 +1210,30 @@ def suits(kind, use, mhz):
                         "to this antenna will get that back."
                         % (spec["title"].lower(), spec["polarisation"], use,
                            want[1])}
+    if kind in TRAVELLING:
+        # Polarised vertically, like the verticals, but nothing like them
+        # in what they are for: a long wire with a direction and a low
+        # lobe, which is a DX antenna and not a county one.
+        if mhz > 30.0:
+            return {"verdict": "out of its range",
+                    "note": "The handbook rates it 2 to 30 MHz. Above that "
+                            "hundreds of feet of wire is dozens of "
+                            "wavelengths, the lobe is a pencil pointing into "
+                            "the ground, and a beam does the job in a "
+                            "fraction of the space."}
+        if use == "regional":
+            return {"verdict": "wrong shape for the near end",
+                    "note": "A terminated wire fires low and one way, which is "
+                            "what medium and long paths want and the opposite "
+                            "of near-vertical incidence. The handbook it comes "
+                            "from names only a low dipole and the AS-2259 for "
+                            "NVIS; for the county, hang a dipole low beside it."}
+        if use in ("dx", "digital"):
+            return {"verdict": "well suited",
+                    "note": "Low, one way, and flat across every band it is "
+                            "long enough for. Point the resistor end where you "
+                            "want to work; the price is the half of the power "
+                            "the resistor keeps."}
     if use == "regional":
         if kind in LOW_ANGLE:
             # True about the skywave and only half the story. A vertical is
@@ -1712,6 +1849,16 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             "core that saturates heats, the match drifts, and the coax braid "
             "starts radiating. Buy the rating for the power you will actually "
             "run" + (", and at this level that is a large core." if watts > 400 else "."))
+    if kind in TRAVELLING:
+        # The handbook's figure: the resistor is sized for half the power
+        # because half is what reaches it (MCRP 3-40.3C, p. 4-38).
+        out["resistor_w"] = round(watts / 2.0)
+        out["items"].append(
+            f"The resistor at the far end takes about {watts / 2.0:.0f} W of "
+            f"your {watts:.0f} W and turns it into heat, and it must be rated "
+            f"for that continuously - non-inductive, 600 ohms, outdoors. The "
+            f"handbook's own recipe is 100 W, 106 ohm parts; six of those in "
+            f"series is 636 ohms and 600 W.")
     if kind in ("whip", "screwdriver", "whipdipole") and coil_loss_ohms and whip_r_rad:
         coil_w = watts * coil_loss_ohms / (coil_loss_ohms + whip_r_rad)
         out["coil_heat_w"] = round(coil_w)

@@ -107,6 +107,33 @@ NOT_CUT = {
                   "is the Octopus (N1GY, QST December 2007): only the "
                   "resonant pair radiates, so no switching, and each pair "
                   "points its own way.",
+    # USMC MCRP 3-40.3C, Antenna Handbook (1999), pp. 4-33 to 4-39 and 6-14.
+    "tefv": "Not cut to a band: a terminated antenna has no resonance, so one "
+            "length works from the lowest frequency it is long enough for "
+            "up to 30 MHz. The handbook's tactical size is 500 ft of wire "
+            "over a 50 ft mast - up to the mast top and down again - with "
+            "1,000 ft where there is room; a wavelength at the lowest "
+            "frequency is the least that works. Feed one end through a 12:1 "
+            "balun or the radio's coupler, one terminal to the wire and the "
+            "other to ground; at the far end a 600 ohm non-inductive "
+            "resistor goes from the wire to a good ground, rated for at "
+            "least half the transmitter's power. It fires off the resistor "
+            "end: point that end at the station. (The handbook says to aim "
+            "it \"10 feet\" to either side above 12 MHz, which can only mean "
+            "degrees, and to build the terminator from a \"100-watt, 106-ohm "
+            "resistor\"; six of those in series make 600 ohms.)",
+    "termsloper": "Not cut to a band: a terminated antenna has no resonance. "
+                  "The handbook's sloping wires run from 45 to over 500 ft "
+                  "and call the short ones poor; 250 ft and 500 ft do well "
+                  "on medium and long paths. One support: the wire runs "
+                  "from its top down to the low end, which points at the "
+                  "station, with a 600 ohm non-inductive resistor from "
+                  "there to ground, rated for half the transmitter's power. "
+                  "Feed the other end through a 12:1 balun or a coupler. "
+                  "(The handbook's sentence reads \"feed the antenna low "
+                  "end\" for both the terminated and the unterminated "
+                  "wire; a terminated wire fires toward its resistor, so "
+                  "it is the resistor that goes at the low end.)",
 }
 
 

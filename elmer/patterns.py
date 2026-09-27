@@ -85,6 +85,20 @@ ANTENNA_Q = {
     "whipdipole":  {"q": 110.0, "r": 35.0, "shape": "horizontal",
                     "fed": "straight off coax through a 1:1 choke - the loss in "
                            "the two coils is most of what brings it toward 50 ohms"},
+    # Terminated antennas are not resonant at all. The resistor at the far
+    # end swallows what the wire has not radiated, so no wave comes back and
+    # the feedpoint sees the wire's own characteristic impedance - about 600
+    # ohms, taken to 50 through a 12:1 balun or the radio's coupler - at
+    # every frequency the wire is long enough for. The Q is not a figure
+    # anybody measures; it is set low enough that the sweep is flat, which
+    # is the truth about these antennas and the reason the military uses
+    # them (USMC MCRP 3-40.3C, Antenna Handbook, 1999, pp. 4-33 to 4-39).
+    "tefv":        {"q": 0.3, "r": 50.0, "shape": "travelling",
+                    "fed": "about 600 ohms at the feed, through a 12:1 balun or "
+                           "the radio's coupler, at every frequency it is long enough for"},
+    "termsloper":  {"q": 0.3, "r": 50.0, "shape": "travelling",
+                    "fed": "about 600 ohms at the feed, through a 12:1 balun or "
+                           "the radio's coupler, at every frequency it is long enough for"},
 }
 
 # A screwdriver is not one antenna but the same antenna at every frequency it
@@ -186,11 +200,255 @@ def _vertical_over_ground(rad, height_wl, mhz=None, ground="perfect"):
     return element * _image(rad, height_wl, r_v)
 
 
+# --- travelling-wave antennas: a wire with a resistor at the far end ---------
+#
+# Everything above treats an antenna as an element with a fixed shape and a
+# ground that interferes with it. That holds for anything resonant, because
+# a standing wave on a half-wave wire has the same shape whatever the
+# frequency. A terminated wire does not have a standing wave. The current
+# runs one way, from the feed to the resistor, losing what it radiates as
+# it goes, and nothing comes back. Its pattern is set by how many
+# wavelengths long it is, which changes with the band: 500 feet is one and
+# a half wavelengths on 80 m and fifteen on 10 m, and the lobe that fires
+# toward the resistor gets lower and narrower the longer it is.
+#
+# So these are worked out rather than looked up. Each straight leg carries
+# I(s) = exp(-(jk + a)s), and its far field toward a direction u has a
+# closed form: exp(jk u.r0) (exp(cL) - 1) / c, with c = jk(u.t - 1) - a.
+# That is the textbook travelling-wave wire (Kraus, *Antennas*, ch. 14),
+# summed over the legs, and its ground image is added as the elevation
+# pattern's is: the horizontal-polarised part reflected with r_h, the
+# vertical-plane part with r_v, from the same Fresnel coefficients.
+#
+# The decay `a` is set so half the power reaches the resistor, because
+# that is what the handbook sizes the resistor for - "capable of handling
+# one-half of the transmitter's power output" (MCRP 3-40.3C, p. 4-38). So
+# half is taken as radiated and half as heat, and the gain is 3 dB under
+# what the pattern alone would give. That is the handbook's figure, not a
+# measurement; a longer wire radiates more of it and wastes less.
+#
+# The short verticals at each end - the feed lead and the resistor's
+# ground lead - are left out. On a 50 ft mast they are a few feet each and
+# the legs are hundreds. The model is two straight wires over flat ground:
+# the shape and the trend, the same promise as the rest of this module.
+
+TRAVELLING = {
+    # The handbook's own tactical sizes, used when nothing else is known.
+    # A 500 ft vertical half-rhombic on a 50 ft mast is what figures 4-31
+    # and 4-32 are drawn for; 250 ft is one of the sloping wires of figures
+    # 4-27 to 4-29, which give no mast height, so 40 ft - the handbook's
+    # sloping-vee mast - stands in.
+    "tefv": {"length_ft": 500.0, "height_ft": 50.0},
+    "termsloper": {"length_ft": 250.0, "height_ft": 40.0},
+}
+TRAVELLING_END_FT = 6.0          # the insulator posts at each end, figure 4-30
+TRAVELLING_TO_LOAD = 0.5         # the share of the power the resistor takes
+
+
+class Laid(str):
+    """An antenna's kind with the facts its pattern depends on attached.
+
+    A terminated wire's pattern depends on its length in wavelengths and
+    on its height, and the functions here were written for antennas whose
+    pattern does not - they are passed a kind and nothing else, from a
+    dozen places. So the kind carries them. A Laid is still the string
+    "tefv" to every dictionary and comparison, and the travelling-wave
+    code reads the length, the height and the frequency off it; a plain
+    string gets the handbook's sizes on 40 m.
+    """
+
+    def __new__(cls, kind, length_ft=None, height_ft=None, mhz=None):
+        obj = super().__new__(cls, kind)
+        spec = TRAVELLING.get(kind, {})
+        obj.length_ft = float(length_ft or spec.get("length_ft", 250.0))
+        obj.height_ft = float(height_ft if height_ft is not None
+                              else spec.get("height_ft", 40.0))
+        obj.mhz = float(mhz or 7.15)
+        return obj
+
+
+def laid(kind, length_ft=None, height_ft=None, mhz=None):
+    """The kind, carrying its length and height when it is a terminated
+    wire; any other antenna comes back as it went in."""
+    if kind not in TRAVELLING:
+        return kind
+    return Laid(kind, length_ft, height_ft, mhz)
+
+
+def is_travelling(kind):
+    return ANTENNA_Q.get(kind, {}).get("shape") == "travelling"
+
+
+def travelling_legs(kind, height_wl, length_wl, end_wl):
+    """The straight legs, in wavelengths, from the feed to the resistor.
+
+    x runs toward the resistor - the way the antenna fires - and z is up.
+    A vertical half-rhombic is two legs, up to the mast top and down
+    again; a sloping wire is one, from the top of its support down to the
+    resistor. A wire too short to reach the mast top it is hung from is
+    drawn as steep as it will go rather than refused.
+    """
+    top = max(height_wl, end_wl)
+    if kind == "tefv":
+        leg = length_wl / 2.0
+        rise = min(top - end_wl, leg * 0.999)
+        run = math.sqrt(max(1e-9, leg * leg - rise * rise))
+        t_up = (run / leg, 0.0, rise / leg)
+        t_down = (run / leg, 0.0, -rise / leg)
+        return [((0.0, 0.0, end_wl), t_up, leg),
+                ((run, 0.0, end_wl + rise), t_down, leg)]
+    rise = min(top - end_wl, length_wl * 0.999)
+    run = math.sqrt(max(1e-9, length_wl * length_wl - rise * rise))
+    return [((0.0, 0.0, end_wl + rise), (run / length_wl, 0.0, -rise / length_wl),
+             length_wl)]
+
+
+def _travelling_sum(legs, u, theta_hat, phi_hat, alpha):
+    """The legs' field toward u, split into its vertical-plane and
+    horizontal parts."""
+    k = 2.0 * math.pi
+    d_theta = d_phi = 0j
+    start = 1.0 + 0j
+    for (x0, y0, z0), (tx, ty, tz), length in legs:
+        along = u[0] * tx + u[1] * ty + u[2] * tz
+        c = complex(-alpha, k * (along - 1.0))
+        integral = (cmath.exp(c * length) - 1.0) / c if abs(c) > 1e-9 else complex(length)
+        term = start * cmath.exp(1j * k * (u[0] * x0 + u[1] * y0 + u[2] * z0)) * integral
+        d_theta += term * (tx * theta_hat[0] + ty * theta_hat[1] + tz * theta_hat[2])
+        d_phi += term * (tx * phi_hat[0] + ty * phi_hat[1])
+        start *= cmath.exp(complex(-alpha, -k) * length)
+    return d_theta, d_phi
+
+
+def _travelling_field(legs, alpha, elev_deg, phi_deg, mhz=None, ground="average",
+                      free_space=False):
+    """|E| toward one direction: elevation above the horizon, and azimuth
+    measured from the way the antenna fires."""
+    e, p = math.radians(elev_deg), math.radians(phi_deg)
+    ce, se, cp, sp = math.cos(e), math.sin(e), math.cos(p), math.sin(p)
+    phi_hat = (-sp, cp, 0.0)
+    direct = _travelling_sum(legs, (ce * cp, ce * sp, se), (se * cp, se * sp, -ce),
+                             phi_hat, alpha)
+    if free_space:
+        return math.hypot(abs(direct[0]), abs(direct[1]))
+    r_h, r_v = fresnel(max(0.0, e), mhz, ground)
+    mirror = _travelling_sum(legs, (ce * cp, ce * sp, -se), (-se * cp, -se * sp, -ce),
+                             phi_hat, alpha)
+    return math.hypot(abs(direct[0] + r_v * mirror[0]), abs(direct[1] + r_h * mirror[1]))
+
+
+def _travelling_setup(kind, height_wl=None):
+    lam_ft = 983.571 / kind_mhz(kind)
+    length_wl = getattr(kind, "length_ft", TRAVELLING.get(kind, {}).get("length_ft", 250.0)) / lam_ft
+    if height_wl is None:
+        height_wl = getattr(kind, "height_ft", TRAVELLING.get(kind, {}).get("height_ft", 40.0)) / lam_ft
+    end_wl = TRAVELLING_END_FT / lam_ft
+    alpha = math.log(1.0 / TRAVELLING_TO_LOAD) / (2.0 * length_wl)
+    return travelling_legs(str(kind), height_wl, length_wl, end_wl), alpha, length_wl
+
+
+def kind_mhz(kind):
+    return getattr(kind, "mhz", 7.15)
+
+
+# The dipole's free-space directivity, 1.64, is the level every raw curve
+# here is measured against.
+DIPOLE_DIRECTIVITY = 1.64
+
+# Worked on a grid and read by interpolation: a map asks for thousands of
+# directions and a Pi should work each wire out once, not once per cell.
+TRAVELLING_ELEV_STEP = 1.0
+TRAVELLING_AZ_STEP = 5.0
+_TRAVELLING_TABLES = {}
+
+
+def _travelling_table(kind, height_wl, mhz=None, ground="average"):
+    """The field over the upper hemisphere, level against a half-wave
+    dipole's peak in free space fed the same power, with the resistor's
+    share taken off. Symmetric left and right, so 0 to 180 degrees from
+    the firing direction is all of it."""
+    lam_ft = 983.571 / kind_mhz(kind)
+    key = (str(kind), round(getattr(kind, "length_ft", 0.0), 1),
+           round(height_wl, 3), round(kind_mhz(kind), 3),
+           round(float(mhz), 3) if mhz else None, ground)
+    hit = _TRAVELLING_TABLES.get(key)
+    if hit:
+        return hit
+    legs, alpha, length_wl = _travelling_setup(kind, height_wl)
+    # Directivity in free space, by summing the pattern over the sphere.
+    # Coarse, because it only sets the level and the level is only ever
+    # quoted to a decibel.
+    total = peak = 0.0
+    n_t, n_p = 60, 36
+    for i in range(n_t):
+        elev = -90.0 + 180.0 * (i + 0.5) / n_t
+        weight = math.cos(math.radians(elev))
+        for j in range(n_p):
+            phi = 180.0 * (j + 0.5) / n_p
+            f2 = _travelling_field(legs, alpha, elev, phi, free_space=True) ** 2
+            total += f2 * weight
+            peak = max(peak, f2)
+    mean = total / sum(math.cos(math.radians(-90.0 + 180.0 * (i + 0.5) / n_t)) for i in range(n_t)) / n_p
+    directivity = peak / mean if mean > 0 else 1.0
+    gain = directivity * (1.0 - TRAVELLING_TO_LOAD)
+    level = math.sqrt(gain / DIPOLE_DIRECTIVITY) / math.sqrt(peak) if peak > 0 else 0.0
+    elevs = [TRAVELLING_ELEV_STEP * i for i in range(int(90 / TRAVELLING_ELEV_STEP) + 1)]
+    azs = [TRAVELLING_AZ_STEP * j for j in range(int(180 / TRAVELLING_AZ_STEP) + 1)]
+    grid = [[level * _travelling_field(legs, alpha, e, a, mhz, ground) for a in azs]
+            for e in elevs]
+    table = {"elevs": elevs, "azs": azs, "grid": grid,
+             "gain_dbi": round(10.0 * math.log10(max(gain, 1e-9)), 1),
+             "length_wl": round(length_wl, 2)}
+    if len(_TRAVELLING_TABLES) > 24:
+        _TRAVELLING_TABLES.clear()
+    _TRAVELLING_TABLES[key] = table
+    return table
+
+
+def travelling_raw(kind, height_wl, elev_deg, rel_deg, mhz=None, ground="average"):
+    """The level toward one direction, read off the table."""
+    t = _travelling_table(kind, height_wl, mhz, ground)
+    rel = abs((float(rel_deg) + 180.0) % 360.0 - 180.0)
+    e = max(0.0, min(90.0, float(elev_deg))) / TRAVELLING_ELEV_STEP
+    a = rel / TRAVELLING_AZ_STEP
+    i0, j0 = int(e), int(a)
+    i1, j1 = min(i0 + 1, len(t["elevs"]) - 1), min(j0 + 1, len(t["azs"]) - 1)
+    fe, fa = e - i0, a - j0
+    g = t["grid"]
+    top = g[i0][j0] * (1 - fa) + g[i0][j1] * fa
+    bottom = g[i1][j0] * (1 - fa) + g[i1][j1] * fa
+    return top * (1 - fe) + bottom * fe
+
+
+def travelling_envelope(kind, height_wl, mhz=None, ground="average"):
+    """For each elevation, the strongest level in any direction and the
+    azimuth it is in - the cut a sloping wire's lobe actually lies in,
+    which for a long single wire is a cone round the wire and not the
+    straight line down the middle of it."""
+    t = _travelling_table(kind, height_wl, mhz, ground)
+    out = []
+    for e, row in zip(t["elevs"], t["grid"]):
+        j = max(range(len(row)), key=lambda n: row[n])
+        out.append((e, row[j], t["azs"][j]))
+    return out
+
+
+def travelling_gain_dbi(kind, height_wl, mhz=None, ground="average"):
+    """The peak of the pattern over this ground, in dBi, with the
+    resistor's half taken off - the figure the Lab prints for it."""
+    best = max(level for _e, level, _a in travelling_envelope(kind, height_wl, mhz, ground))
+    return round(20.0 * math.log10(max(best, 1e-9)) + 10.0 * math.log10(DIPOLE_DIRECTIVITY), 1)
+
+
 def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
     """The elevation pattern with its level kept: 1.0 is the element alone
     in free space, so the image's reinforcement shows as up to 2.0 and its
     cancellation as 0. `elevation` below normalises to the peak, which is
     the shape; this is the shape and the gain the ground gives."""
+    if is_travelling(kind):
+        return [{"deg": round(90.0 * n / (points - 1), 2),
+                 "field": _envelope_at(kind, height_wl, 90.0 * n / (points - 1), mhz, ground)}
+                for n in range(points)]
     out = []
     for n in range(points):
         deg = 90.0 * n / (points - 1)
@@ -201,6 +459,15 @@ def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
             field = _horizontal_over_ground(rad, height_wl, mhz, ground)
         out.append({"deg": round(deg, 2), "field": field})
     return out
+
+
+def _envelope_at(kind, height_wl, deg, mhz=None, ground="average"):
+    """The travelling-wave envelope at one elevation, between table rows."""
+    env = travelling_envelope(kind, height_wl, mhz, ground)
+    x = max(0.0, min(90.0, deg)) / TRAVELLING_ELEV_STEP
+    i0 = int(x)
+    i1 = min(i0 + 1, len(env) - 1)
+    return env[i0][1] + (env[i1][1] - env[i0][1]) * (x - i0)
 
 
 def height_gains(kind, height_wl, mhz=None, ground="average"):
@@ -276,7 +543,7 @@ def elevation(kind, height_wl, points=181, slope_deg=0.0, mhz=None, ground="aver
     actual wire over the actual soil, and the low-angle end is optimistic
     because perfect ground is assumed throughout.
     """
-    if slope_deg:
+    if slope_deg and not is_travelling(kind):
         out = []
         tilt = math.radians(max(0.0, min(90.0, slope_deg)))
         h_share, v_share = math.cos(tilt) ** 2, math.sin(tilt) ** 2
@@ -305,6 +572,13 @@ def _elevation_plain(kind, height_wl, points=181, mhz=None, ground="average"):
     phase - which is the whole reason verticals are worth having for DX and
     horizontals have to be got up high before they compete.
     """
+    if is_travelling(kind):
+        # The strongest direction at each angle, which for a vee is straight
+        # off the resistor end and for a long single wire is off to either
+        # side of it, round the cone the wire radiates.
+        out = elevation_raw(kind, height_wl, points, mhz=mhz, ground=ground)
+        peak = max(p["field"] for p in out) or 1.0
+        return [{"deg": p["deg"], "field": round(p["field"] / peak, 5)} for p in out]
     out = []
     for n in range(points):
         deg = 90.0 * n / (points - 1)
@@ -422,11 +696,31 @@ def field_toward(kind, elev_deg, bearing, heading=None):
     shape = ANTENNA_Q.get(kind, {}).get("shape")
     if shape == "vertical":
         return 1.0
+    if shape == "travelling":
+        return _travelling_toward(kind, elev_deg, bearing, heading)
     if kind == "yagi":
         return field_at(kind, bearing, heading)
     elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
     along = math.cos(elev) * math.cos(math.radians(bearing - heading))   # cosine of the angle from the wire's axis
     return _element_shape(kind, _wire_factor(along))
+
+
+def _travelling_toward(kind, elev_deg, bearing, heading, height_wl=None):
+    """A terminated wire's field toward a bearing, against the strongest
+    direction at the same elevation - so multiplied by the envelope it is
+    the pattern itself. The height is the one the kind was laid at.
+
+    Along the ground everything over real earth goes to nothing and the
+    ratio of two nothings is noise, so the plan view is read two degrees up.
+    """
+    if height_wl is None:
+        height_wl = getattr(kind, "height_ft", TRAVELLING.get(kind, {}).get("height_ft", 40.0))             / (983.571 / kind_mhz(kind))
+    elev = max(2.0, float(elev_deg))
+    mhz = kind_mhz(kind)
+    rel = float(bearing) - float(heading)
+    here = travelling_raw(kind, height_wl, elev, rel, mhz)
+    best = _envelope_at(kind, height_wl, elev, mhz)
+    return min(1.0, here / best) if best > 1e-12 else 0.0
 
 
 def boresight(kind, heading=0.0):
@@ -438,7 +732,9 @@ def boresight(kind, heading=0.0):
     only so the same code can ask.
     """
     heading = float(heading or 0.0)
-    if ANTENNA_Q.get(kind, {}).get("shape") == "vertical" or kind == "yagi":
+    # A terminated wire fires off its resistor end, and `heading` is laid
+    # that way: from the feed toward the resistor.
+    if ANTENNA_Q.get(kind, {}).get("shape") in ("vertical", "travelling") or kind == "yagi":
         return heading % 360
     return (heading + 90.0) % 360
 
@@ -465,6 +761,17 @@ def elevation_slice(kind, height_wl, slope_deg=0.0, mhz=None, ground="average",
     one. `heading` None means nothing is known about which way it is laid,
     and the two halves come out alike.
     """
+    if is_travelling(kind):
+        # The slice down the middle of it, both ways, read straight off the
+        # model: off the resistor end in front, off the feed end behind.
+        degs = [90.0 * n / (points - 1) for n in range(points)]
+        front_raw = [travelling_raw(kind, height_wl, d, 0.0, mhz, ground) for d in degs]
+        back_raw = [travelling_raw(kind, height_wl, d, 180.0, mhz, ground) for d in degs]
+        peak = max(front_raw + back_raw) or 1.0
+        out = [{"deg": round(d, 2), "field": round(f / peak, 5)} for d, f in zip(degs, front_raw)]
+        for d, f in zip(reversed(degs[:-1]), reversed(back_raw[:-1])):
+            out.append({"deg": round(180.0 - d, 2), "field": round(f / peak, 5)})
+        return out
     front = elevation(kind, height_wl, points=points, slope_deg=slope_deg,
                       mhz=mhz, ground=ground)
     face = boresight(kind, heading if heading is not None else 0.0)
@@ -1140,6 +1447,8 @@ def field_at(kind, bearing, heading=0.0):
     shape = ANTENNA_Q.get(kind, {}).get("shape")
     if shape == "vertical":
         return 1.0
+    if shape == "travelling":
+        return _travelling_toward(kind, 0.0, bearing, heading)
     if kind == "yagi":
         off = math.radians((bearing - heading + 180) % 360 - 180)
         return _yagi_floor(abs(0.5 + 0.5 * math.cos(off)) ** 1.6)
@@ -1300,13 +1609,24 @@ def advise_empty(span, mhz, kind, height_ft, use=None, bundled=False):
                         f"hole in. On 40 or 80 the same wire covers the ground "
                         f"this one steps across."),
             })
-            out.append({
-                "do": "Lower the antenna, or feed it as an inverted V",
-                "why": ("Height buys distance by lowering the takeoff angle, "
-                        "and that is exactly what opened the hole. Half a "
-                        "wavelength up is the compromise; a quarter is "
-                        "deliberately near-vertical."),
-            })
+            if is_travelling(kind):
+                # Its takeoff is set by how many wavelengths of wire it is,
+                # not by how high it hangs, so height is the wrong knob.
+                out.append({
+                    "do": "Use a shorter wire on this band",
+                    "why": ("A terminated wire's lobe comes down as it gets "
+                            "longer in wavelengths, and that low lobe is what "
+                            "opened the hole. Fewer wavelengths of wire stand "
+                            "the lobe up and bring the first hop in."),
+                })
+            else:
+                out.append({
+                    "do": "Lower the antenna, or feed it as an inverted V",
+                    "why": ("Height buys distance by lowering the takeoff angle, "
+                            "and that is exactly what opened the hole. Half a "
+                            "wavelength up is the compromise; a quarter is "
+                            "deliberately near-vertical."),
+                })
         out.append({
             "do": "Work the ring, not the middle",
             "why": (f"The contacts are between {span.get('inner_km', 0)} and "

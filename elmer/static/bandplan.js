@@ -1362,9 +1362,14 @@ function bpReachAntenna() {
   const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
   if (!sel) return {};
+  /* A terminated wire's pattern needs its length; the Lab's, when the Lab
+     last designed that kind, and the handbook's size otherwise. */
+  const lab = recall('lab.antenna', null) || {};
+  const length = (sel.value === 'tefv' || sel.value === 'termsloper') && lab.kind === sel.value &&
+                 lab.length_ft > 0 ? String(Math.round(lab.length_ft)) : '';
   return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
           heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
-          emission: bpReachEmission()};
+          emission: bpReachEmission(), length: length};
 }
 /* What the panel keeps between visits: the choices, with the operator's
    own watts rather than the CB ceiling standing in for them. */
