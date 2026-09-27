@@ -115,6 +115,16 @@ if ($pip.Count -gt 1) { $pipArgs = $pip[1..($pip.Count - 1)] }
     --python-version ($PythonVersion -replace '\.\d+$', '') `
     -r (Join-Path $root 'requirements.txt') pyserial
 if ($LASTEXITCODE -ne 0) { throw "pip could not fetch the packages for the embedded python" }
+
+# numpy's and scipy's own test suites are not the program. They are about
+# 43 MB unpacked, and they hold the deepest paths in the zip - one scipy test
+# file sits 130 characters in, which unzipped into a deep folder passes
+# Windows' 260-character path limit and fails to extract at all.
+Get-ChildItem $site -Directory -Recurse -Filter 'tests' |
+    Where-Object { $_.FullName -match '\\site-packages\\(numpy|scipy)\\' } |
+    Sort-Object { $_.FullName.Length } -Descending |
+    ForEach-Object { if (Test-Path $_.FullName) { Remove-Item -Recurse -Force $_.FullName } }
+Say "numpy's and scipy's test suites left out"
 Get-ChildItem $site -Directory -Filter '*.dist-info' | ForEach-Object { Say "  $($_.Name -replace '\.dist-info$','')" }
 
 # --------------------------------------------------------------- the zip

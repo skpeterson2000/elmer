@@ -50,7 +50,9 @@ cd elmer
 
 On Windows: download `ELMER-windows-<build>.zip` from the
 [latest release](https://github.com/skpeterson2000/elmer/releases/latest),
-unzip it anywhere outside OneDrive, and double-click `elmer.cmd`. Nothing is
+unzip it outside OneDrive, and double-click `elmer.cmd`. Unzip it near the
+top of a drive, such as `C:\ELMER`: a folder buried deep can push a file's
+full name past Windows' 260-character path limit, and the unzip fails. Nothing is
 installed — Python is inside the zip — and ELMER opens in a window of its
 own and puts itself on the Start Menu. Or clone as above and run
 `.\install.ps1` for a copy that updates itself.

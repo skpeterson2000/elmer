@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- The Windows zip is 13 MB smaller: it leaves out numpy's and scipy's own test suites, which are not the program. They held its deepest file names too, 130 characters in, which could take a file past Windows' path limit when the zip was unpacked in a deep folder; the deepest is 115 now. The README says to unzip near the top of a drive, such as `C:\ELMER`.
+
 - The cards shown while a forecast calibrates stay up as long as they take to read, and a tap holds one. Each card stood for twelve seconds whatever was on it, which cut a long quotation off halfway and left a short one up long after it was read. Now a card stands for five seconds plus a third of a second a word, the attribution counted with the text. One tap on the card holds it there; a second tap moves on to the next. The card is a button, so Enter or Space does the same from a keyboard.
 
 - numpy and scipy are ELMER's dependencies now, beside Flask, Pillow and reportlab, for the numerical work ahead: the antenna solver, the ground-wave physics and the golf ball's flight, each planned before any of it is written. `install.sh` puts them in from apt (`python3-numpy`, `python3-scipy`), `install.ps1` and the Windows zip carry them, and the self-check says whether a unit has them - a unit updated with a plain pull does not, and `./install.sh` puts them back. Nothing uses them yet, so a unit without them runs exactly as before. scipy is to be imported only inside the function that needs it.
