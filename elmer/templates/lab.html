@@ -236,7 +236,8 @@
         <span class="sim-out" id="an-angle-v"></span></div>
 
       <div class="field an-when-heading"><label>Which way is it laid?</label>
-        <input type="range" id="an-head" min="0" max="179" step="1" value="90">
+        <input class="an-head-num btn sm" style="width:5rem" type="number" id="an-head" step="1" value="90" inputmode="numeric"
+               title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;
         <span class="sim-out" id="an-head-v"></span></div>
 
       <label class="an-when-nvis" style="display:flex;align-items:center;gap:.45rem;
@@ -293,8 +294,10 @@
       <div id="an-pattern" class="mt"></div>
       <div class="an-turn">
         <div class="field an-when-heading"><label>Turn it &mdash; which way is it laid?</label>
-          <input type="range" id="an-head-2" min="0" max="179" step="1" value="90">
-          <span class="sim-out" id="an-head-2-v"></span></div>
+          <input class="an-head-num btn sm" style="width:5rem" type="number" id="an-head-2" step="1" value="90" inputmode="numeric"
+                 title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;
+          <span class="sim-out" id="an-head-2-v"></span>
+          <div class="tiny muted">Drag round the compass to turn it, or tap a place on its rim to aim at it.</div></div>
         <div class="field an-when-angle"><label id="an-angle-2-label">Slope from horizontal (&deg;)</label>
           <input type="range" id="an-angle-2" min="0" max="70" step="1" value="0">
           <span class="sim-out" id="an-angle-2-v"></span></div>

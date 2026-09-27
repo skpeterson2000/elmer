@@ -1421,7 +1421,12 @@ function bpReachSeed() {
   if (w) w.value = (own && own.watts) || (lab.watts > 0 ? Math.round(lab.watts) : 100);
   if (own && own.emission) bpSetEmission(own.emission);
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
-  if (hd) hd.value = (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
+  /* Which way it is laid: the Lab's, when the Lab last turned this same
+     antenna - the two must never disagree about where a beam points - and
+     otherwise whatever this panel was last told. */
+  const labLaid = lab.heading_kind === sel.value && lab.heading_deg >= 0;
+  if (hd) hd.value = labLaid ? Math.round(lab.heading_deg)
+    : (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
   /* The ground, rated rather than guessed: the soil and water surveys at the
      QTH (siteground.py), turned into the four grounds the map knows. Kept on

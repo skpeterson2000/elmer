@@ -1070,8 +1070,10 @@ function antennaFields(type) {
      compass where a wire's only needs half. The mast starts at the
      handbook's height the first time one is chosen. */
   show('.an-when-tw', isTw(type));
-  const headEl = document.getElementById('an-head');
-  if (headEl) headEl.max = isTw(type) ? '359' : '179';
+  ['an-head', 'an-head-2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = wrapHead(parseFloat(el.value) || 0, type);
+  });
   const lenEl = document.getElementById('an-len');
   if (isTw(type) && lenEl && lenEl.dataset.forType !== type) {
     lenEl.value = TW_DEFAULTS[type].len;
@@ -1743,13 +1745,7 @@ function calcAnt() {
     : vDrop ? Math.max(1, heightFt - vDrop)
       : heightFt;
   const heading = num('an-head');
-  const headWords = type === 'yagi'
-    ? 'boom points ' + heading + '\u00b0 ' + compass(heading)
-    : isTw(type)
-    ? 'fires ' + heading + '\u00b0 ' + compass(heading) + ', feed to resistor'
-    : 'wire runs ' + heading + '\u00b0 ' + compass(heading) + ' to ' +
-      ((heading + 180) % 360) + '\u00b0 ' + compass((heading + 180) % 360);
-  ['an-head-v', 'an-head-2-v'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = headWords; });
+  sayHead(type, heading);
   drawPattern(type, f, heightFt, heading, slope, effHeight);
 
   window.LAB_ANTENNA = {
@@ -1988,7 +1984,138 @@ function drawAntenna(shape, rows, type) {
    nothing ever re-ran to use it. A control that does nothing is worse than no
    control - it tells somebody the program has considered their arrangement
    when it has not. */
-/* The copies on the figure: one value, two sliders. Moving either moves
+/* Which way it is laid. This was two sliders, 0 to 179, and the one beside
+   the figure stayed at 179 even for a Yagi or a terminated wire - antennas
+   that fire one way and need the whole compass - so half of it could not be
+   reached from where the pattern is. A slider has ends and a compass has
+   none. So the compass is the control: drag round it and the antenna points
+   where the pointer is, tap a place on its rim and it is aimed at that
+   place, and the degree boxes take a number, turn a degree with the arrow
+   keys and fifteen with Shift, and go on round past 359. A wire fires
+   broadside both ways, so 30 and 210 are the same wire and its heading
+   stays within half the circle; everything with a front gets all of it. */
+const oneWay = type => type === 'yagi' || isTw(type);
+function wrapHead(v, type) {
+  const span = oneWay(type) ? 360 : 180;
+  return ((Math.round(v) % span) + span) % span;
+}
+function headWordsFor(type, heading) {
+  return type === 'yagi'
+    ? 'boom points ' + heading + '° ' + compass(heading)
+    : isTw(type)
+    ? 'fires ' + heading + '° ' + compass(heading) + ', feed to resistor'
+    : 'wire runs ' + heading + '° ' + compass(heading) + ' to ' +
+      ((heading + 180) % 360) + '° ' + compass((heading + 180) % 360);
+}
+function sayHead(type, heading) {
+  const words = headWordsFor(type, heading);
+  ['an-head-v', 'an-head-2-v'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = words; });
+}
+/* Kept with the antenna and with which antenna it belongs to, so the band
+   plan's reach map opens laid the same way the Lab has it - the two must
+   never disagree about where a beam points. */
+function keepHead(type, heading) {
+  remember('lab.antenna', Object.assign(recall('lab.antenna', null) || {}, {heading_deg: heading, heading_kind: type}));
+}
+/* Set it from anywhere - a box, the compass, a place - and, unless the
+   pointer is still moving, work the pattern out again. */
+function setHead(heading, redraw) {
+  const type = document.getElementById('an-type').value;
+  const h = wrapHead(heading, type);
+  ['an-head', 'an-head-2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = h; });
+  sayHead(type, h);
+  if (redraw) {
+    keepHead(type, h);
+    document.getElementById('an-head').dispatchEvent(new Event('input'));
+  }
+  return h;
+}
+['an-head', 'an-head-2'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  /* Wrapped before anything else reads it: 360 is 0, and one below 0 is 359. */
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    if (!Number.isFinite(v)) return;              // half-typed: leave it be
+    const type = document.getElementById('an-type').value;
+    const h = wrapHead(v, type);
+    if (String(h) !== el.value) el.value = h;
+    keepHead(type, h);
+  });
+  el.addEventListener('keydown', e => {
+    if (!e.shiftKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    setHead((parseFloat(el.value) || 0) + (e.key === 'ArrowUp' ? 15 : -15), true);
+  });
+});
+(function () {
+  const kept = recall('lab.antenna', null);    // recallAntenna is declared further down
+  if (kept && Number.isFinite(kept.heading_deg)) {
+    ['an-head', 'an-head-2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = Math.round(kept.heading_deg); });
+  }
+})();
+/* The plan view as a dial. The bearing under the pointer is read off the
+   compass's own center, so the antenna turns exactly as far as the hand;
+   while it moves only the needle and the words follow, and the pattern is
+   worked out again when it is let go - a Pi asked for a pattern at every
+   pixel of a drag would still be answering after the hand had stopped. */
+function wirePlanTurn(box, d) {
+  const svg = box && box.querySelector('svg[data-plan]');
+  if (!svg || d.shape === 'vertical') return;
+  const cx = +svg.dataset.cx, cy = +svg.dataset.cy, R = +svg.dataset.r;
+  const bearingAt = e => {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return (Math.atan2(p.x - cx, cy - p.y) * 180 / Math.PI + 360) % 360;
+  };
+  const ns = 'http://www.w3.org/2000/svg';
+  const needle = document.createElementNS(ns, 'line');
+  needle.setAttribute('stroke', '#ffb454');
+  needle.setAttribute('stroke-width', '2');
+  needle.setAttribute('stroke-dasharray', '5 3');
+  needle.style.display = 'none';
+  svg.appendChild(needle);
+  const point = h => {
+    const r = h * Math.PI / 180, back = oneWay(d.type) ? 0 : R;
+    needle.setAttribute('x1', (cx - back * Math.sin(r)).toFixed(1));
+    needle.setAttribute('y1', (cy + back * Math.cos(r)).toFixed(1));
+    needle.setAttribute('x2', (cx + R * Math.sin(r)).toFixed(1));
+    needle.setAttribute('y2', (cy - R * Math.cos(r)).toFixed(1));
+    needle.style.display = '';
+  };
+  let dragging = false;
+  svg.addEventListener('pointerdown', e => {
+    const place = e.target.closest('[data-bearing]');
+    if (place) {
+      /* Aimed at a place: a beam or a terminated wire points at it; a
+         plain wire is laid across the line to it, so it fires broadside
+         that way. */
+      const b = parseFloat(place.dataset.bearing);
+      setHead(oneWay(d.type) ? b : b + 90, true);
+      return;
+    }
+    dragging = true;
+    // Keeps the drag when the pointer leaves the compass; a browser that
+    // will not capture this pointer still turns it while it is over it.
+    try { svg.setPointerCapture(e.pointerId); } catch (err) { /* see above */ }
+    svg.style.cursor = 'grabbing';
+    point(setHead(bearingAt(e), false));
+  });
+  svg.addEventListener('pointermove', e => {
+    if (dragging) point(setHead(bearingAt(e), false));
+  });
+  const letGo = e => {
+    if (!dragging) return;
+    dragging = false;
+    svg.style.cursor = 'grab';
+    setHead(bearingAt(e), true);
+  };
+  svg.addEventListener('pointerup', letGo);
+  svg.addEventListener('pointercancel', letGo);
+}
+
+/* The copies on the figure: one value, two boxes. Changing either changes
    the other and the figure. */
 [['an-head-2', 'an-head'], ['an-angle-2', 'an-angle']].forEach(([mirror, real]) => {
   const m = document.getElementById(mirror), r = document.getElementById(real);
@@ -3832,10 +3959,16 @@ function polarPlot(points, opts) {
    the page gives one SWR for one height. */
 let LAB_FEED_R = null;
 
+/* Each request is numbered, and only the newest answer is drawn. A Pi
+   answers a slow pattern after a quick one it was asked later, and the
+   slower answer, drawn last, showed the antenna before - a dipole's words
+   over a terminated wire, a compass that turned the wrong antenna. */
+let patternAsked = 0;
 async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
   const box = document.getElementById('an-pattern');
   if (!box) return;
   let d;
+  const asked = ++patternAsked;
   try {
     const nvisOn = (document.getElementById('an-nvis') || {}).checked ? 1 : 0;
     d = await api('/api/pattern?' + new URLSearchParams(
@@ -3844,7 +3977,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
        conductor: (COND && COND.key) || 'wire14',
        droop: type === 'invertedv' ? antAngle() : '',
        length: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : ''}));
-  } catch (e) { box.innerHTML = ''; return; }
+  } catch (e) { if (asked === patternAsked) box.innerHTML = ''; return; }
+  if (asked !== patternAsked) return;      // a newer question is on its way
   const was = LAB_FEED_R;
   LAB_FEED_R = d.feed_r_from === 'height' ? d.feed_r : null;
   if (LAB_FEED_R !== was && document.getElementById('av-chart')) avUpdate();
@@ -3920,6 +4054,7 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
        a third of a page, and a table you have to scroll sideways to read the
        bearing of is a table that failed at its one job. */
     (words ? '' : positionNote(d) + repeaterList(d));
+  wirePlanTurn(box, d);
 }
 
 /* ---------- the plan view ----------
@@ -4059,6 +4194,11 @@ function planPlot(d) {
            'opacity="0.55"/>');
     g.push('<circle cx="' + x + '" cy="' + y + '" r="2.2" fill="' +
            (weak ? '#f85149' : '#39d3d8') + '"/>');
+    /* A place is a target: tap it and the antenna is aimed at it. The dot
+       is too small for a finger, so an invisible ring round it takes the tap. */
+    const aim = ' data-bearing="' + t.bearing + '" data-place="' + escapeHTML(t.name) + '" style="cursor:pointer"';
+    g.push('<circle cx="' + x + '" cy="' + y + '" r="8" fill="transparent"' + aim + '><title>Aim at ' +
+           escapeHTML(t.name) + ', ' + Math.round(t.bearing) + '&deg;</title></circle>');
     if (t.bearing - lastLabel < 16) return;
     lastLabel = t.bearing;
     const [lx, ly] = at(t.bearing, R + 16);
@@ -4068,12 +4208,17 @@ function planPlot(d) {
     const lines = wrapName(t.name);
     const dy = -(lines.length - 1) * 4.5;
     g.push('<text x="' + lx + '" y="' + (+ly + 3 + dy) + '" fill="' +
-           (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle">' +
+           (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle"' + aim + '>' +
            lines.map((line, n) => '<tspan x="' + lx + '" dy="' + (n ? 9 : 0) +
                      '">' + escapeHTML(line) + '</tspan>').join('') +
            '</text>');
   });
-  return '<svg viewBox="0 0 320 300" style="width:100%;max-width:320px">' +
+  /* The compass is the control: its center and radius ride on the SVG, so
+     a pointer on it can be read as a bearing - see wirePlanTurn. */
+  const turnable = d.shape !== 'vertical';
+  return '<svg viewBox="0 0 320 300" style="width:100%;max-width:320px' +
+         (turnable ? ';cursor:grab;touch-action:none' : '') + '" data-plan="1" data-type="' + escapeHTML(d.type || '') + '"' +
+         ' data-cx="' + cx + '" data-cy="' + cy + '" data-r="' + R + '">' +
          g.join('') + '</svg>';
 }
 

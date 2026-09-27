@@ -2564,6 +2564,23 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   cannot make. A 2 m vertical gets its radio horizon, and is told plainly that
   the repeater is doing the reaching rather than the antenna.
 
+  The compass is also the control. The bearing was two sliders, 0 to 179, and
+  the one beside the figure stayed at 179 for a Yagi or a terminated wire,
+  which fire one way and need the whole circle - and a slider has ends where a
+  compass has none. Now a drag round the compass points the antenna where the
+  hand is, reading the bearing off the compass's own center so it turns exactly
+  as far as the hand does; only the needle and the words follow the drag, and
+  the pattern is worked out again on letting go, because a Pi asked for a
+  pattern at every pixel would still be answering after the hand had stopped.
+  A tap on a place aims a one-way antenna at it and lays a wire across the line
+  to it. The degree boxes stay, for a number read off a real compass and for
+  the keyboard, and they wrap. A wire keeps to half the circle, since 30 and
+  210 are the same wire. The bearing is kept with the antenna it belongs to,
+  and the band plan's reach map opens on it for that antenna, so the two pages
+  cannot disagree about where a beam points. And only the newest pattern
+  answer is drawn: a slow answer arriving after a quick later one had been
+  painting the antenna before over the one on screen.
+
   The names come from two places, and the better one wins. `./elmer.py
   --fetch-places` asks OpenStreetMap what towns are actually around your QTH,
   ranked by population, and caches them — so it works in Wales or Hokkaido as
