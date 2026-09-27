@@ -83,8 +83,10 @@ def main():
 
     print("\n-- an award that arrived as a PDF --")
     # The certificate a contest organizer emails. Built here with the guide's
-    # own renderer so the test carries no binary of its own.
-    md = Path(_isolate.__file__).with_name("_award.md")
+    # own renderer so the test carries no binary of its own. Built in the
+    # test's own state directory: the renderer leaves its .manual.json note
+    # beside whatever it builds, and beside tests/ that was a tracked file.
+    md = _isolate.STATE / "_award.md"
     md.write_text("# Worked All Continents\n\nAwarded for contacts on six continents.\n",
                   encoding="utf-8")
     pdf_path = md.with_suffix(".pdf")

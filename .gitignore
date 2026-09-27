@@ -51,6 +51,10 @@ data/callsign/
 data/pota/
 data/ionosonde/
 
+# The note the guide's renderer leaves beside what it builds. A test that
+# builds beside the tests would leave it here; it is nobody's source.
+tests/.manual.json
+
 # Python
 __pycache__/
 *.py[cod]

@@ -44,8 +44,7 @@ functions, so running bare `pytest` collects nothing and "fails".
   shelf at an empty directory (`ELMER_SHELF`), and fails the test loudly if it
   writes into the real `data/`.
 - A test must not touch the network. Stub the fetch or use bundled data.
-- A test must not change tracked files. Known exception to fix: a library test
-  rewrites `tests/.manual.json`. Never commit that churn.
+- A test must not change tracked files.
 - A bug that only appears after days of use (anything read back from the
   database as JSON text, anything keyed on how many days since something) needs
   a test that seeds that state. A fresh database will never reach it.
