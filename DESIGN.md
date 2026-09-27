@@ -2877,7 +2877,10 @@ not a month. The operator watches it
 happen — a finding a month ("October: the model ran 1.6 MHz under at the gray
 line") between cards from the history deck, the quotations and the hams people
 have heard of — because a screen that goes quiet for five minutes reads as
-broken. It runs the year again with the correction on and shows what it
+broken. A card stands for five seconds plus 0.33 seconds a word, attribution
+included, rather than a flat twelve, which cut a long quotation off halfway
+and left a short one up long after it was read; one tap holds a card, and a
+second moves on to the next. It runs the year again with the correction on and shows what it
 bought, month by month, beside "the same as yesterday". It applies only what
 is worth applying: a cell within ten percent of the model is left alone and
 said to be, because a unit between the stations the season was fitted from

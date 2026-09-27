@@ -4,8 +4,15 @@
    things: the findings, one a month, as the run passes each month of the
    year ("October: the model ran 11.2 MHz under by day - the winter anomaly");
    and a card from the decks - history, a quotation, a ham people have heard
-   of - every twelve seconds. Neither costs anything: the run is a thread on
-   the server and this page polls a status line every two seconds. */
+   of - each up for as long as it takes to read. Neither costs anything: the
+   run is a thread on the server and this page polls a status line every two
+   seconds.
+
+   A card stands for five seconds plus a third of a second a word, counting
+   the attribution with the text. A fixed twelve seconds cut a long quotation
+   off halfway and left a short one standing long after it was read. One tap
+   on the card holds it there; a second tap moves on to the next, and the
+   timing starts again from that card. */
 (() => {
   const choices = document.getElementById('cal-choices');
   if (!choices) return;
@@ -20,19 +27,77 @@
   const cardText = document.getElementById('cal-card-text');
   const cardAbout = document.getElementById('cal-card-about');
   const cardDeck = document.getElementById('cal-card-deck');
+  const card = document.getElementById('cal-card');
+  const cardHint = document.getElementById('cal-card-hint');
   let poll = null, cardTimer = null, lastCard = '', deckIndex = 0, shownFindings = 0;
+  let cardsOn = false, cardHeld = false, cardAsked = 0;
+  const CARD_BASE_S = 5, CARD_PER_WORD_S = 0.33;
   const DECKS = ['history', 'quotes', 'hams', 'history', 'hams'];
   const DECK_NAMES = {history: 'From the history of the art', quotes: 'Somebody said', hams: 'Hams you have heard of'};
 
+  /* How long a card stands: the words on it, the attribution included. */
+  function readingMs(c) {
+    const words = ((c.text || '') + ' ' + (c.about || '')).split(/\s+/).filter(Boolean).length;
+    return Math.round((CARD_BASE_S + CARD_PER_WORD_S * words) * 1000);
+  }
+
+  function hint() {
+    if (cardHint) cardHint.textContent = cardHeld ? 'Held. Tap for the next card.' : 'Tap to hold this card.';
+    if (card) card.setAttribute('aria-pressed', cardHeld ? 'true' : 'false');
+  }
+
+  function schedule(ms) {
+    clearTimeout(cardTimer);
+    cardTimer = cardsOn && !cardHeld ? setTimeout(nextCard, ms) : null;
+  }
+
   async function nextCard() {
+    clearTimeout(cardTimer); cardTimer = null;
     const deck = DECKS[deckIndex++ % DECKS.length];
+    const asked = ++cardAsked;
     try {
       const c = await api('/api/cards?deck=' + deck + '&avoid=' + encodeURIComponent(lastCard));
+      if (asked !== cardAsked || !cardsOn) return;     // a newer card was asked for, or the run ended
       lastCard = c.text;
       cardDeck.textContent = DECK_NAMES[c.deck] || '';
       cardText.innerHTML = c.deck === 'hams' ? '<b>' + escapeHTML(c.text) + '</b>' : '“' + escapeHTML(c.text) + '”';
       cardAbout.textContent = c.deck === 'hams' ? c.about : '— ' + c.about;
-    } catch (e) { /* the card is a courtesy */ }
+      schedule(readingMs(c));
+    } catch (e) {
+      // The card is a courtesy: try another after the shortest stand.
+      if (asked === cardAsked) schedule(CARD_BASE_S * 1000);
+    }
+  }
+
+  function startCards() {
+    if (cardsOn) return;
+    cardsOn = true; cardHeld = false; hint();
+    nextCard();
+  }
+
+  function stopCards() {
+    cardsOn = false; cardHeld = false;
+    clearTimeout(cardTimer); cardTimer = null;
+    hint();
+  }
+
+  /* One tap holds the card; a second moves on to the next. */
+  function tapCard() {
+    if (!cardsOn) return;
+    if (!cardHeld) {
+      cardHeld = true;
+      clearTimeout(cardTimer); cardTimer = null;
+      hint();
+    } else {
+      cardHeld = false; hint();
+      nextCard();
+    }
+  }
+  if (card) {
+    card.addEventListener('click', tapCard);
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapCard(); }
+    });
   }
 
   function paint(s) {
@@ -63,7 +128,7 @@
     if (s.state === 'done' && s.result) paintResult(s.result);
     if (!running) {
       clearInterval(poll); poll = null;
-      clearInterval(cardTimer); cardTimer = null;
+      stopCards();
     }
   }
 
@@ -127,8 +192,7 @@
       stage.hidden = false;
       paint(s);
       if (!poll) poll = setInterval(tick, 2000);
-      nextCard();
-      if (!cardTimer) cardTimer = setInterval(nextCard, 12000);
+      startCards();
     } catch (err) { starts.forEach(b => { b.disabled = false; }); }
   });
   stop.addEventListener('click', async () => { try { await postJSON('/api/calibrate/stop', {}); } catch (e) {} });
@@ -137,7 +201,7 @@
   api('/api/calibrate/status').then(s => {
     if (['queued', 'fetching', 'running', 'checking'].includes(s.state)) {
       stage.hidden = false; paint(s);
-      poll = setInterval(tick, 2000); nextCard(); cardTimer = setInterval(nextCard, 12000);
+      poll = setInterval(tick, 2000); startCards();
     } else if (s.table && s.table.months) {
       state.innerHTML = coverageLine(s.table);
     }

@@ -244,7 +244,7 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 **Where it is.** At the foot of the **Propagation** page, under the wall chart.
 
-**How long, and what you see.** About five minutes on a Raspberry Pi. You are not left looking at a frozen screen: it reports what it finds as it goes, a month at a time, with a card or two in between, and you can stop it.
+**How long, and what you see.** About five minutes on a Raspberry Pi. You are not left looking at a frozen screen: it reports what it finds as it goes, a month at a time, and you can stop it. Beside the findings, cards from ELMER's decks come round: the history of the art, things people said, and hams you have heard of. Each card stays up for as long as it takes to read, five seconds plus about a third of a second for every word on it, the name at the foot included. **Tap a card to hold it** there as long as you like. Tap it again for the next card, which then keeps its own time. On a keyboard, Enter or Space on the card does the same.
 
 **What it actually does.** It fetches the last year of readings from the ionosondes nearest you, then runs ELMER's own forecast blind across that year, hour by hour, each hour given only what it would have known at the time. It compares every one of those forecasts against what the sondes actually recorded, and fits a correction month by month and sky by sky. Then it runs the whole year again with the correction switched on, so you can see what it bought. The line it prints at the end is the plain answer: the 24-hour forecast's average error before, and after, in megahertz, with "same as yesterday" beside it for comparison.
 
