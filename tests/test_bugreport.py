@@ -90,13 +90,24 @@ def run():
     check("cut to the most", text.count("y" * 100) * 100 <= bugreport.SAID_MOST, True)
 
     print("\n-- four kinds, and only a problem carries the log --")
+
+    # The log's sections, found by their headings: each is a line of its own.
+    # The words alone are not enough - the build line quotes the last commit's
+    # subject, and a commit about the self-check put "self-check" in every
+    # report, suggestions included.
+    def log_sections(report):
+        lines = report.splitlines()
+        return ("self-check" in lines,
+                any(line.startswith("last ") and line.endswith(" log lines") for line in lines),
+                any(line.startswith("errors and warnings in the last ") for line in lines))
+
     sugg, red = bugreport.build(conn, lines=20, said="the reach map could show the county's mean score", kind="suggestion")
     check("a suggestion opens as one", (sugg.startswith("ELMER suggestion"), "kind       suggestion" in sugg), (True, True))
     check("  carries the words and the build", ("reach map could" in sugg, "build      " in sugg), (True, True))
-    check("  and nothing from the log", ("self-check" in sugg, "log lines" in sugg, "errors and warnings" in sugg), (False, False, False))
+    check("  and nothing from the log", log_sections(sugg), (False, False, False))
     check("  redacted like any other", red, True)
     prob, _ = bugreport.build(conn, lines=20, said="it went blank", kind="problem")
-    check("a problem still carries the log", ("self-check" in prob, "log lines" in prob), (True, True))
+    check("a problem still carries the log", log_sections(prob)[:2], (True, True))
     check("a kind the page never named is a problem", bugreport.kind_of("wishlist"), "problem")
     empty, _ = bugreport.build(conn, lines=20, kind="comment")
     check("a comment with nothing written says so", "a comment with nothing written in it" in empty, True)

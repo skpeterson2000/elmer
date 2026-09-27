@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- The bug report's own test tells the log's sections by their headings. It looked for the words "self-check" and "log lines" anywhere in a suggestion, and the report's build line quotes the last commit's subject - so a commit about the self-check made every suggestion look as though it carried the log. Nothing leaked; the test was reading the wrong line.
+
 - The self-check says how to put a missing package back in this platform's own terms, and never says pip. For a missing Flask it said `pip3 install flask`, which Raspberry Pi OS refuses and which anywhere else can land in a Python ELMER does not run. Flask, numpy and scipy are each reported with their version, and a missing one now names `./install.sh` on Linux and the Pi, or `install.ps1` on Windows.
 
 - The ground rating a unit keeps for its spot stays out of the checkout. It is stored in `data/ground/`, one file per spot named by its latitude and longitude, and that folder was not in `.gitignore`, so a commit made on a unit could have carried the operator's location with it. It is ignored now, with the other location-keyed caches.
