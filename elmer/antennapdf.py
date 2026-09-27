@@ -325,8 +325,14 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     # base_q rather than the table, because an antenna that covers a decade
     # does not have one Q - see patterns.Q_SCALES_WITH_BAND.
     q = spec["q_scale"] * patterns.base_q(kind, mhz)
-    z = patterns.feedpoint_z(kind, mhz, mhz, q=q)
-    span = patterns.usable_bandwidth(kind, mhz, q=q)
+    # The resistance at the planned height, as the Lab's curve and the heights
+    # table read it; a V's wire hangs below its apex, at the Lab's own droop.
+    wire_wl = height_ft / lam_ft
+    if kind == "invertedv":
+        wire_wl -= antenna_advice.v_centroid_drop_wl(antenna_advice.DEFAULT_DROOP_DEG)
+    feed_r = antenna_advice.feed_r_at(kind, wire_wl, antenna_advice.DEFAULT_DROOP_DEG)
+    z = patterns.feedpoint_z(kind, mhz, mhz, q=q, r=feed_r)
+    span = patterns.usable_bandwidth(kind, mhz, q=q, r=feed_r)
 
     out = io.BytesIO()
     doc = SimpleDocTemplate(out, pagesize=LETTER,

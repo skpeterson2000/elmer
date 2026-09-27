@@ -107,13 +107,14 @@ def _markers(rows, swr_key, x_key):
 
 
 def sweep(kind="dipole", f0_mhz=14.2, line="rg8x", feet=0.0, center_mhz=None,
-          span=0.14, points=DEFAULT_POINTS, q=None):
+          span=0.14, points=DEFAULT_POINTS, q=None, r=None):
     """One sweep, at the feedpoint and at the far end of `feet` of `line`.
 
     `f0_mhz` is where the antenna is resonant - the length you cut it to.
     `center_mhz` is where you are looking, which is the point of the whole
     exercise: an antenna cut for 14.2 and swept around 14.2 tells you nothing
-    about whether you cut it right.
+    about whether you cut it right. `r` is the feed resistance at the height
+    the antenna hangs, when the Lab knows it; see `patterns.feedpoint_z`.
     """
     spec = smith.LINES.get(line) or smith.LINES["rg8x"]
     z0 = spec["z0"]
@@ -127,7 +128,7 @@ def sweep(kind="dipole", f0_mhz=14.2, line="rg8x", feet=0.0, center_mhz=None,
         f = center * (1 - span / 2 + span * n / (points - 1))
         if f <= 0:
             continue
-        z = patterns.feedpoint_z(kind, f, f0_mhz, q)
+        z = patterns.feedpoint_z(kind, f, f0_mhz, q, r)
         g = smith.reflection(z, z0)
         z_in = smith.transform(z, line, f, feet) if feet else z
         g_in = smith.reflection(z_in, z0)

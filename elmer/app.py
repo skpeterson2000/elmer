@@ -1742,6 +1742,14 @@ def api_pattern():
     if length_ft is not None and not 20.0 <= length_ft <= 2000.0:
         abort(400)
     kind = patterns.laid(kind, length_ft, height_ft, mhz)
+    # One SWR for one height: the curve reads the resistance the heights
+    # table prints for this height. The Lab sends a V's effective height,
+    # below its apex, and its droop.
+    try:
+        droop = max(0.0, min(60.0, float(request.args.get("droop") or antenna_advice.DEFAULT_DROOP_DEG)))
+    except ValueError:
+        droop = antenna_advice.DEFAULT_DROOP_DEG
+    feed_r = antenna_advice.feed_r_at(str(kind), height_wl, droop)
     # A fatter element is a lower-Q element and a lower-Q element holds its
     # SWR across more of the band. The bowtie is left alone: its Q already
     # comes from the width of the triangle, and scaling that by the gauge of
@@ -1861,9 +1869,13 @@ def api_pattern():
             kind, heading,
             elev_deg=patterns.main_lobe(kind, height_wl, slope, mhz=mhz)),
         "slope": slope,
-        "swr": patterns.swr_curve(kind, mhz, q=patterns.base_q(kind, mhz)),
+        "swr": patterns.swr_curve(kind, mhz, q=patterns.base_q(kind, mhz), r=feed_r),
         "bandwidth": patterns.usable_bandwidth(
-            kind, mhz, q=patterns.base_q(kind, mhz)),
+            kind, mhz, q=patterns.base_q(kind, mhz), r=feed_r),
+        # The resistance the curve was drawn with, and where it came from:
+        # the height, where the heights table knows it, else the type's own.
+        "feed_r": round(feed_r, 1) if feed_r is not None else patterns.ANTENNA_Q[kind]["r"],
+        "feed_r_from": "height" if feed_r is not None else "type",
         "conductor": made_of,
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
         "qth_source": place.get("source") or "saved",
@@ -1912,13 +1924,19 @@ def api_vna_sweep():
         points = int(request.args.get("points", vna.DEFAULT_POINTS))
         q = request.args.get("q")
         q = float(q) if q else None
+        # The feed resistance at the height it hangs, which the Lab's
+        # pattern answer gave, so the trace and the curve read the same.
+        r = request.args.get("r")
+        r = float(r) if r else None
     except ValueError:
         abort(400)
     kind = request.args.get("kind", "dipole")
     line = request.args.get("line", "rg8x")
     if line not in smith.LINES or not (0.1 <= f0 <= 3000 and 0.1 <= center <= 3000):
         abort(400)
-    return jsonify(vna.sweep(kind, f0, line, feet, center, span, points, q))
+    if r is not None and not 1.0 <= r <= 2000.0:
+        abort(400)
+    return jsonify(vna.sweep(kind, f0, line, feet, center, span, points, q, r))
 
 
 @app.route("/api/vna/ports")

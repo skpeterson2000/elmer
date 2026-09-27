@@ -1503,24 +1503,27 @@ def main_lobe(kind, height_wl, slope_deg=0.0, mhz=None, ground="average"):
     return best["deg"]
 
 
-def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121, q=None):
+def swr_curve(kind, f0_mhz, z0=50.0, span=0.30, points=121, q=None, r=None):
     """SWR against frequency, from the resonant-circuit approximation.
 
     Near resonance X ~ R*Q*(f/f0 - f0/f), which is the standard series-resonant
     form. It is an approximation and stops being one a long way off resonance,
     so the sweep is kept to +/-15% where it still means something.
+
+    `r` is the feed resistance where the antenna actually hangs, when that
+    is known - see `feedpoint_z`.
     """
     out = []
     for n in range(points):
         f = f0_mhz * (1 - span / 2 + span * n / (points - 1))
-        z = feedpoint_z(kind, f, f0_mhz, q)
+        z = feedpoint_z(kind, f, f0_mhz, q, r)
         g = abs((z - z0) / (z + z0))
         swr = (1 + g) / (1 - g) if g < 0.999999 else float("inf")
         out.append({"mhz": round(f, 4), "swr": round(min(swr, 20.0), 3)})
     return out
 
 
-def feedpoint_z(kind, mhz, f0_mhz, q=None):
+def feedpoint_z(kind, mhz, f0_mhz, q=None, r=None):
     """The complex impedance at the feedpoint, at one frequency.
 
     Pulled out of `swr_curve` because an SWR number is not enough to draw what
@@ -1533,13 +1536,21 @@ def feedpoint_z(kind, mhz, f0_mhz, q=None):
     # `q` overrides the table so the conductor the element is made of can move
     # it: a fatter element is a lower-Q element, and that is the whole reason
     # anybody builds an antenna out of pipe.
-    q, r = (spec["q"] if q is None else float(q)), spec["r"]
-    return complex(r, r * q * (mhz / f0_mhz - f0_mhz / mhz))
+    #
+    # `r` is the resistance at the height it hangs, where that is known: the
+    # ground moves a dipole's feed from 22 ohms at a tenth of a wave to 98 at
+    # 0.35, and a curve drawn at the free-space 73 at every height put an SWR
+    # of 1.46 beside a heights table saying 1.0. The reactance's slope is the
+    # wire's own and stays; the ground changes the resistance, so a low wire
+    # comes out narrower, as it is.
+    q, table_r = (spec["q"] if q is None else float(q)), spec["r"]
+    return complex(table_r if r is None else float(r),
+                   table_r * q * (mhz / f0_mhz - f0_mhz / mhz))
 
 
-def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0, q=None):
+def usable_bandwidth(kind, f0_mhz, limit=2.0, z0=50.0, q=None, r=None):
     """The span where SWR stays under `limit`, in MHz and as a percentage."""
-    curve = swr_curve(kind, f0_mhz, z0=z0, points=601, q=q)
+    curve = swr_curve(kind, f0_mhz, z0=z0, points=601, q=q, r=r)
     good = [p["mhz"] for p in curve if p["swr"] <= limit]
     if not good:
         return {"limit": limit, "low": None, "high": None, "khz": 0, "percent": 0.0}

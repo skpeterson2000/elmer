@@ -1491,6 +1491,20 @@ def feedpoint_resistance(height_wavelengths, droop_deg=0.0):
     return base - _mutual_r(2.0 * height_wavelengths) * (base / FREE_SPACE_OHMS)
 
 
+def feed_r_at(kind, wire_height_wl, droop_deg=0.0):
+    """The feed resistance of this antenna at this height, where the heights
+    table knows it: a half-wave dipole or inverted V, over perfect ground.
+    None for anything else, and for a wire too low to mean anything.
+
+    `wire_height_wl` is the wire's own height - for a V, the height it
+    behaves as though it hangs at, below its apex (v_centroid_drop_wl). The
+    Lab's SWR curve and the build sheet ask here, so they read the same
+    resistance the heights table prints for the same height."""
+    if kind not in ("dipole", "invertedv"):
+        return None
+    return feedpoint_resistance(wire_height_wl, droop_deg if kind == "invertedv" else 0.0)
+
+
 def _swr_into_50(r):
     return max(r, 50.0) / min(r, 50.0)
 

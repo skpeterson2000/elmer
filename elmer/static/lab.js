@@ -3827,6 +3827,11 @@ function polarPlot(points, opts) {
     '</svg>';
 }
 
+/* The feed resistance the last pattern answer drew its SWR with, when it
+   came from the height: the sweep at the foot of the tab reads the same, so
+   the page gives one SWR for one height. */
+let LAB_FEED_R = null;
+
 async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
   const box = document.getElementById('an-pattern');
   if (!box) return;
@@ -3837,8 +3842,12 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
       {type: type, mhz: mhz, height: (effHeight || heightFt || 0),
        heading: heading || 0, nvis: nvisOn, slope: slope || 0,
        conductor: (COND && COND.key) || 'wire14',
+       droop: type === 'invertedv' ? antAngle() : '',
        length: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : ''}));
   } catch (e) { box.innerHTML = ''; return; }
+  const was = LAB_FEED_R;
+  LAB_FEED_R = d.feed_r_from === 'height' ? d.feed_r : null;
+  if (LAB_FEED_R !== was && document.getElementById('av-chart')) avUpdate();
   const b = d.bandwidth;
   const twGain = document.getElementById('an-tw-gain');
   if (twGain && d.gain_dbi !== null && d.gain_dbi !== undefined) {
@@ -3879,6 +3888,12 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         '<p class="small muted"><b>' + (b.khz ? b.khz + ' kHz' : 'nothing') +
         '</b> under 2:1' + (b.khz ? ' (' + b.percent + '% of the frequency)' : '') +
         '. Q about ' + d.q + ' &mdash; ' + escapeHTML(d.fed) + '.</p>' +
+        (d.feed_r_from === 'height'
+          ? '<p class="tiny muted">Drawn with the feed at this height: about <b>' + d.feed_r +
+            '&nbsp;&Omega;</b>, the heights table\'s figure. It is worked out over perfect ' +
+            'ground, and real ground narrows the swing, so read it as the most this height ' +
+            'can do to the match.</p>'
+          : '') +
         '<p class="tiny muted">The trace for this, with a feedline on it and a ' +
         'length you can drag, is at the foot of this tab.</p>';
   if (words) {
@@ -4453,6 +4468,7 @@ async function avUpdate() {
     kind: document.getElementById('an-type').value,
     f0: (f / (trim / 100)).toFixed(6), center: f, span: 0.14,
     line: document.getElementById('av-line').value, feet: feet,
+    r: LAB_FEED_R || '',
   });
   vnDraw('av-chart', 'av-markers', 'av-read', d, {cursor: f});
 }

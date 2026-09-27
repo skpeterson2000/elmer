@@ -2439,6 +2439,16 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   carry for one function — and checked against the published curve. Perfect-ground figures: real ground damps the
   swings, so these are heights to start looking, not to stop at.
 
+  The SWR curve beside the table, the sweep at the foot of the tab and the
+  build sheet read the same resistance for the height the antenna hangs at
+  (`antenna_advice.feed_r_at`), for a dipole and an inverted V, so the page
+  gives one SWR for one height. They used to draw at the free-space 73 Ω
+  whatever the height, and at the match height the table said 1.0 while the
+  curve beside it said 1.46. The reactance's slope stays the wire's own, since
+  the ground moves the resistance and not the wire, so a low wire's lower
+  resistance shows as a narrower 2:1 span. The curve says it is a
+  perfect-ground figure, as the table does.
+
   **And why the height to aim for is not the height where the coax matches**
   — said in numbers, because a page that lists a perfect 50 Ω match at 16 ft
   and then says "aim for 49" looks obtuse unless it says why. The match is
