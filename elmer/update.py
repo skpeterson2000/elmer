@@ -613,6 +613,8 @@ def watch(get_policy, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY,
                     continue
             except Exception:                     # a closed database, say
                 continue
+            from . import activity
+            activity.wait_until_idle("the update check")
             try:
                 status = check()
             except Exception as exc:              # never take the server down

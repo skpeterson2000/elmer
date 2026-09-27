@@ -406,14 +406,23 @@
     paintShelf(d); paintTopics(d); paintManual(d);
     // Anything new or changed is read now, and the page says so while it
     // reads: a thousand pages is a little while on a Pi.
-    if ((d.shelf || []).some(b => b.stale) && d.tools && d.tools.pdftotext) await reindex(false);
+    // Read on its own only when the unit is idle - the server says if it is not.
+    if ((d.shelf || []).some(b => b.stale) && d.tools && d.tools.pdftotext) await reindex(false, true);
   }
 
-  async function reindex(force) {
+  async function reindex(force, auto) {
     const btn = document.getElementById('lib-reindex');
     btn.disabled = true; btn.textContent = 'Indexing…';
     try {
-      const d = await postJSON('/api/library/index', {force: !!force});
+      const d = await postJSON('/api/library/index', {force: !!force, auto: !!auto});
+      if (d.deferred) {
+        /* A game, a net, an exam or somebody studying has the unit: the
+           books are read later, or now if the button is pressed. */
+        btn.textContent = 'Index the shelf';
+        btn.disabled = false;
+        btn.title = 'Waiting while the unit is busy with ' + d.deferred + ' - press to read them now';
+        return;
+      }
       paintShelf(d); paintTopics(d);
       const r = d.report || {};
       const failed = Object.keys(r.failed || {});

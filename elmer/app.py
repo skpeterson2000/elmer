@@ -2605,6 +2605,15 @@ def api_library_index():
     could not be read, by name.
     """
     body = request.get_json(silent=True) or {}
+    # The page reading stale books by itself, as it opens, is work nobody
+    # asked for: it waits while the unit is busy with a game, a net, an exam
+    # or somebody studying. The button is somebody asking, and always runs.
+    if body.get("auto"):
+        from . import activity
+        reason = activity.busy()
+        if reason:
+            log.info("library: reading the stale books waits - the unit is busy with %s", reason)
+            return jsonify({"deferred": reason})
     report = library.refresh(force=bool(body.get("force")),
                              only=body.get("only") or None)
     # The same shape as /api/library, tools included: the page repaints the
@@ -8038,6 +8047,29 @@ def api_doctor_fix():
     return jsonify({"ok": bool(ok), "fix": name, "what": what, "said": said})
 
 
+# The commit this unit runs, for the discovery hello. Every describe asked
+# git for it - seven subprocesses, every eight seconds and again for every
+# packet heard from another unit, on a Pi that was meant to be running a
+# game. It changes when the unit is updated, which is a restart; a minute
+# old is plenty.
+_version_cache = {"at": 0.0, "head": ""}
+VERSION_CACHE_S = 60.0
+
+
+def _version_now():
+    now = time.monotonic()
+    if now - _version_cache["at"] < VERSION_CACHE_S:
+        return _version_cache["head"]
+    try:
+        head = (update.state() or {}).get("head") or ""
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        # no git, or a checkout mid-update: the hello goes without a version
+        log.debug("describe: no version to say: %s", exc)
+        head = _version_cache["head"]
+    _version_cache["at"], _version_cache["head"] = now, head
+    return head
+
+
 def _describe_this_unit():
     """What this unit tells the network about itself, for discovery.
 
@@ -8050,10 +8082,7 @@ def _describe_this_unit():
     # carries a mark that makes it unique and the name stays the hostname.
     out = {"unit": cohort.default_unit_id(), "name": cohort.default_unit_name(),
            "version": "", "party": {}}
-    try:
-        out["version"] = (update.state() or {}).get("head") or ""
-    except Exception:
-        pass
+    out["version"] = _version_now()
     try:
         found = diagnostics.local_addresses()
         host = found[0][1] if found else "127.0.0.1"

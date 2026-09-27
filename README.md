@@ -188,7 +188,9 @@ laid toward north and marked as assumed until you do. In the Lab the
 compass is the control: drag round it to turn the antenna, or tap a place
 to aim at it. The reach map follows a signal the long way round the world
 as well as the short, where the power will carry it, and has a great-circle
-view centered on the station, the map a beam is aimed with. The
+view centered on the station, the map a beam is aimed with. Background
+work - the spot feed, the FCC's files, the update check, reading new books -
+waits while a game, a net, an exam or a lesson has the unit. The
 Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
 of its release statement, its source and its SHA-256. An operator can hide

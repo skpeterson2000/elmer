@@ -135,7 +135,11 @@ def sample():
 def watch(minutes=EVERY_MINUTES):
     """Sample every so often, for as long as the server runs."""
     def run():
+        from . import activity
         while True:
+            # nobody at the unit asked for it: it waits for a game, a net,
+            # an exam or somebody studying to finish (see activity.py)
+            activity.wait_until_idle("spot sampling")
             sample()
             time.sleep(minutes * 60)
     thread = threading.Thread(target=run, name="spot-watch", daemon=True)

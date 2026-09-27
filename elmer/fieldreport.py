@@ -400,6 +400,8 @@ def watch(open_conn, interval=CHECK_EVERY, delay=FIRST_CHECK_DELAY):
             first = False
             try:
                 if due():
+                    from . import activity
+                    activity.wait_until_idle("the weekly field report")
                     conn = open_conn()
                     try:
                         send_now(conn)

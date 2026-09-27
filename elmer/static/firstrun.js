@@ -108,7 +108,10 @@ function bytesWord(n) {
     }
     const p = got.progress;
     if (!p) {
-      note.textContent = got.fetching
+      note.textContent = got.waiting
+        ? 'The FCC’s amateur file waits while the unit is busy with ' + got.waiting +
+          ' - it comes down when that is done.'
+        : got.fetching
         ? 'Fetching the FCC’s amateur file…'
         : 'The FCC’s amateur file is not on this unit yet.';
       return;

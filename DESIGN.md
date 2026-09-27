@@ -4676,6 +4676,26 @@ for themselves, and the clock exists for when nobody does.
 An API asking the same question still gets JSON. Handing a page back to
 something fetching `/api` turns a working refusal into a parse error.
 
+## A Pi has one job
+
+The unit is the person or the table in front of it. Work nobody at it asked
+for - the spot feed, the FCC's files and their index, the update check, the
+weekly report, the GPS watch, reading stale books onto the Library's index -
+used to run on its own clock, and on a Pi the ULS rebuild alone is minutes of
+a core. `elmer/activity.py` answers one question, whether the unit is busy
+and with what, from state that is already there: a party room with a game on
+or people seated, a net hosted or a round live in one, an unfinished mock
+exam started in the last two hours (an abandoned one stays unfinished for
+ever, so an old one does not count), an answer in the last five minutes. The
+background loops call `wait_until_idle` before their work: it returns at
+once on an idle unit, and otherwise waits, logging once each way. A signal
+that cannot answer counts as not busy for itself - a unit that cannot tell
+must still get its files. What a person presses for runs at once: the button
+is the asking. The GPS watch skips a sample rather than waiting, since the
+next is twenty seconds off. Discovery is not paused - it is how units find
+each other's games - but its hello no longer asks git who it is every eight
+seconds; the commit is kept for a minute.
+
 ## The tests cannot reach your data
 
 Every test imports `tests/_isolate.py` before anything from the program. It

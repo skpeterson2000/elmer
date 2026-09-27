@@ -16,9 +16,12 @@ no fix yet is an ordinary Tuesday, and the honest answer to "where am I" is
 then the one the operator gave.
 """
 import json
+import logging
 import os
 import socket
 import time
+
+log = logging.getLogger("elmer")
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 2947
@@ -370,11 +373,15 @@ def start_watch(every=WATCH_EVERY):
     stop = threading.Event()
 
     def run():
+        from . import activity
         while not stop.is_set():
             try:
-                _sample()
-            except Exception:                    # pragma: no cover
-                pass
+                # a sample nobody asked for; a game has the unit, so this
+                # one is skipped rather than waited for - the next is soon
+                if not activity.busy():
+                    _sample()
+            except Exception:                    # one bad probe must not end the watch
+                log.debug("gps watch: a sample failed", exc_info=True)
             stop.wait(every)
     t = threading.Thread(target=run, daemon=True, name="gps-watch")
     t.start()

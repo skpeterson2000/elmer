@@ -260,6 +260,8 @@ def fetching(service):
     return bool(t and t.is_alive())
 
 
+_waiting = {}        # service -> what the unit is busy with, while its download waits
+
 def ensure(service, force=False):
     """Have this service's file, fetching it in the background if it is
     missing or the FCC has posted a newer one. Returns what is happening."""
@@ -285,6 +287,17 @@ def ensure(service, force=False):
             return "current"
 
         def run():
+            # The download and the index it builds are the heaviest thing a
+            # unit does. Nobody pressed for this one - it is the unit keeping
+            # itself current - so mid-game it starts when the game is over,
+            # and says so meanwhile. A press (force) is somebody asking.
+            if not force:
+                from . import activity
+                _waiting[service] = activity.busy()
+                try:
+                    activity.wait_until_idle(f"the FCC {service} file")
+                finally:
+                    _waiting.pop(service, None)
             ok, message = fetch(service)
             (log.info if ok else log.warning)("uls: %s", message)
         t = threading.Thread(target=run, name=f"uls-{service}", daemon=True)
@@ -377,8 +390,10 @@ def watch():
     service with an index is asked about, and refreshed when the FCC has
     posted a newer file. Services never asked about are never fetched."""
     def run():
+        from . import activity
         time.sleep(300)                    # let the unit come up first
         while True:
+            activity.wait_until_idle("the FCC license check")
             for service in SERVICES:
                 try:
                     if have(service):
@@ -392,5 +407,7 @@ def watch():
 def state():
     """What is on the unit, for the doctor and the Station panel."""
     return {s: {"have": have(s), "fetching": fetching(s), "file": v["file"],
-                "progress": progress(s)}
+                "progress": progress(s),
+                # what the download is waiting for, while a game or a lesson has the unit
+                "waiting": _waiting.get(s)}
             for s, v in SERVICES.items()}
