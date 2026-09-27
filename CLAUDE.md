@@ -44,7 +44,6 @@ functions, so running bare `pytest` collects nothing and "fails".
   shelf at an empty directory (`ELMER_SHELF`), and fails the test loudly if it
   writes into the real `data/`.
 - A test must not touch the network. Stub the fetch or use bundled data.
-  Known exception to fix: `test_activations.py` geocodes "Duluth, MN" live.
 - A test must not change tracked files. Known exception to fix: a library test
   rewrites `tests/.manual.json`. Never commit that churn.
 - A bug that only appears after days of use (anything read back from the

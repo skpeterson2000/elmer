@@ -107,7 +107,12 @@ def main():
           "does not guess" in A.LAND[-1]["what"], True)
 
     print("\n-- the band on the page is the list's band, not only the sheet's --")
+    from elmer import app as appmod
     from elmer.app import app
+    # Saving a QTH in Minnesota fetches the state coordinator's band plan in
+    # the background, from mnrepeaters.org. Nothing here is about that plan,
+    # and a test asks nobody's server anything.
+    appmod._prefetch_regional = lambda place: None
     c = app.test_client()
     c.post("/api/settings", json={"location": {"lat": 46.60, "lon": -94.31, "short": "Pequot Lakes", "grid": "EN36"}, "units": "imperial"})
     d = c.get("/api/activations?inner=0&outer=50").get_json()
@@ -117,6 +122,19 @@ def main():
     d2 = c.get("/api/activations?inner=30&outer=120").get_json()
     nearest = min([p["km"] for p in d2["parks"]] or [d2["band"]["inner_km"]])   # an empty band lists nothing at all
     check("a band that starts at thirty lists nothing nearer", nearest >= d2["band"]["inner_km"] - 0.01, True)
+    # A town typed goes to the geocoder, which is somebody else's server on
+    # the far side of the internet - what this checked was its answer, not
+    # this program's. The two answers the page has to tell apart are canned
+    # here instead, for the rest of this file: one place found, and none.
+    # Everything from the box to the center of the list is still the real path.
+    from elmer import geocode
+
+    def fake_search(query, limit=6):
+        if (query or "").strip().lower().startswith("duluth"):
+            return [{"name": "Duluth, Minnesota", "short": "Duluth", "kind": "city",
+                     "lat": 46.7867, "lon": -92.1005, "grid": geocode.to_grid(46.7867, -92.1005)}]
+        return []
+    geocode.search = fake_search
     d3 = c.get("/api/activations?outer=50&from=Duluth, MN").get_json()
     check("a place typed is the center", d3["qth"], "Duluth")
     d4 = c.get("/api/activations?outer=50&from=Nowhereville").get_json()
