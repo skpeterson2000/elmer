@@ -4683,12 +4683,24 @@ for - the spot feed, the FCC's files and their index, the update check, the
 weekly report, the GPS watch, reading stale books onto the Library's index -
 used to run on its own clock, and on a Pi the ULS rebuild alone is minutes of
 a core. `elmer/activity.py` answers one question, whether the unit is busy
-and with what, from state that is already there: a party room with a game on
-or people seated, a net hosted or a round live in one, an unfinished mock
-exam started in the last two hours (an abandoned one stays unfinished for
-ever, so an old one does not count), an answer in the last five minutes. The
-background loops call `wait_until_idle` before their work: it returns at
-once on an idle unit, and otherwise waits, logging once each way. A signal
+and with what. Busy is activity, not state: a party room with a game on or
+people seated, or a net hosted or a round live in one, counts only if there
+has been play, an answer, a join or a press in the last ten minutes. A table
+left seated overnight is not a game. A mock exam counts only while its
+answers are arriving, and only in the two hours after it started (an
+abandoned one stays unfinished for ever). An answer in the last five minutes
+counts as study. The presses are heard in one place: a `before_request` hook
+stamps every POST under `/api/party/` and `/api/net/`. Polling is a GET and
+does not count. Net control stamps a table joining and a table reporting
+people's answers, but not the once-a-second check-in, and not a simulated
+table's or a bot's answers. The exam page posts `/api/exam/<id>/answering`
+on each answer; it carries nothing, so the paper stays in the page. The
+stamps live in memory, because a press is not worth a write to the SD card.
+The background loops call `wait_until_idle` before their work: it returns at
+once on an idle unit, and otherwise waits, logging once each way. The
+backstop is for a unit that is never quiet for ten minutes, such as a hall
+running all day. A job that has waited 24 hours takes the first five quiet
+minutes instead, and the log says it went ahead on the backstop. A signal
 that cannot answer counts as not busy for itself - a unit that cannot tell
 must still get its files. What a person presses for runs at once: the button
 is the asking. The GPS watch skips a sample rather than waiting, since the

@@ -361,6 +361,28 @@ def _private_names_once():
         _remember_private_names()
 
 
+@app.before_request
+def _note_activity():
+    """A press at the table or in the net is somebody using the unit.
+
+    Every answer, join, play and button at a table or in a hosted net is a
+    POST under these two prefixes, and polling for state is a GET, so this
+    one hook hears all of the first and none of the second. A table's
+    once-a-second check-in with net control is not a person, and its round
+    report is weighed in netcontrol, which knows a bot's answer from a
+    person's. See activity.py.
+    """
+    if request.method != "POST":
+        return None
+    path = request.path
+    from . import activity
+    if path.startswith("/api/party/"):
+        activity.touch("table")
+    elif path.startswith("/api/net/") and path not in ("/api/net/checkin", "/api/net/report"):
+        activity.touch("net")
+    return None
+
+
 @app.context_processor
 def _classes():
     """The license classes, for the settings the gear opens.
@@ -3802,7 +3824,20 @@ def api_exam_start():
     client["items"] = [{k: v for k, v in item.items()
                         if k not in ("answer", "order")}
                        for item in exam["items"]]
+    from . import activity
+    activity.touch("exam")
     return jsonify(client)
+
+
+@app.route("/api/exam/<int:exam_id>/answering", methods=["POST"])
+def api_exam_answering(exam_id):
+    """The exam page saying an answer was given - which one, and what, stays
+    in the page until it is submitted. It is how the unit knows somebody is
+    sitting the paper rather than that a paper was once started, so the
+    background work waits for the one and not the other."""
+    from . import activity
+    activity.touch("exam")
+    return "", 204
 
 
 @app.route("/api/exam/<int:exam_id>/submit", methods=["POST"])

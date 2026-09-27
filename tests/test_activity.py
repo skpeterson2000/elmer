@@ -8,12 +8,20 @@ nobody at the unit asked for - the spot feed, the FCC's files and their
 index, the update check, the weekly report, the GPS watch, reading the
 Library's books - waits, and runs when the unit is idle. What is held here:
 
-  - the unit knows when it is busy, and with what, from the state that is
-    already there: a game or people at the table, a net, an unfinished mock
-    exam started lately, an answer in the last few minutes - and not from an
-    exam abandoned hours ago or an answer from before lunch;
+  - the unit knows when it is busy, and with what: a game or people at the
+    table, a net, a mock exam, each only while somebody is doing something
+    at it - play, an answer, a join or a press in the last ten minutes -
+    and an answer in the last few minutes; not a table left seated with
+    nobody pressing anything for eleven minutes, not an exam whose answers
+    stopped, not an exam abandoned hours ago, not an answer from before lunch;
+  - a press is heard where people press: the table's and the net's routes,
+    a table joining the net, a table reporting people's answers (not a
+    timer's), and the exam page saying an answer was given;
   - waiting says so once in the log and once when it goes ahead, and a loop
     told to stop while it waits stops;
+  - a job that has waited more than a day runs at the first five quiet
+    minutes rather than waiting for ten, and the log says it ran on the
+    backstop;
   - the FCC download, asked for mid-game, starts when the game is over;
   - the Library reads stale books on its own only when the unit is idle,
     and the button always reads them;
@@ -52,21 +60,66 @@ class Said(logging.Handler):
 
 def main():
     from elmer import activity, db, netcontrol, party
+    from elmer.app import app
+    c = app.test_client()
+
+    # The clock the presses are stamped with, moved by hand.
+    clock = [1000.0]
+    real_clock = activity._clock
+    activity._clock = lambda: clock[0]
+
+    def later(seconds):
+        clock[0] += seconds
 
     print("\n-- the unit knows when it is busy, and with what --")
     check("a fresh unit is idle", activity.busy(fresh=True), None)
-    room = party.room(create=True, cohorts=1)
-    room.join("KC9SP")
-    check("somebody sitting at the table", activity.busy(fresh=True), "people at the table")
+    c.post("/api/party/open", json={"cohorts": 1}, environ_base=LOCAL)
+    c.post("/api/party/join", json={"name": "KC9SP", "device": "phone"}, environ_base=LOCAL)
+    check("somebody who has just sat down at the table", activity.busy(fresh=True), "people at the table")
+    later(9 * 60)
+    check("  nine minutes later, still", activity.busy(fresh=True), "people at the table")
+    later(2 * 60)
+    check("a table seated with no activity for 11 minutes is idle", activity.busy(fresh=True), None)
+    c.post("/api/party/next", json={}, environ_base=LOCAL)
+    check("  and busy again the moment somebody presses something there",
+          activity.busy(fresh=True), "people at the table")
+    c.get("/api/party/state", environ_base=LOCAL)
+    later(11 * 60)
+    c.get("/api/party/state", environ_base=LOCAL)
+    check("  a page polling the table is not somebody playing at it", activity.busy(fresh=True), None)
     party.close_room()
-    check("  and idle again when the table closes", activity.busy(fresh=True), None)
+    activity.touch("table")
+    check("  and a closed table is idle, pressed or not", activity.busy(fresh=True), None)
 
-    real_net = netcontrol.net
-    netcontrol.net = lambda: object()
+    netcontrol.net(create=True, name="Test Net")
     try:
-        check("hosting a net", activity.busy(fresh=True), "a net")
+        later(11 * 60)
+        check("a net hosted with nobody doing anything in it for 11 minutes is idle",
+              activity.busy(fresh=True), None)
+        r = c.post("/api/net/mode", json={"mode": "tournament"}, environ_base=LOCAL)
+        check("hosting a net, and pressing something in it",
+              (r.status_code, activity.busy(fresh=True)), (200, "a net"))
+        later(11 * 60)
+        c.post("/api/net/checkin", json={}, environ_base=LOCAL)
+        check("  a table's check-in every second is not somebody in the net",
+              activity.busy(fresh=True), None)
     finally:
-        netcontrol.net = real_net
+        netcontrol.close_net()
+
+    hall = netcontrol.Net(name="Test Net")
+    later(11 * 60)
+    hall.check_in("pi-kitchen", name="Kitchen", players=2)
+    check("a table joining the net is the net in use", activity.quiet_for("net"), 0.0)
+    later(11 * 60)
+    hall.check_in("pi-kitchen", name="Kitchen", players=2)
+    check("  the same table checking in again is not", activity.quiet_for("net"), 11 * 60.0)
+    hall.round, hall.round_number = {"question_id": "T1A01"}, 1
+    hall.report("pi-kitchen", 1, [{"name": "BOT-1", "correct": True, "ms": 900, "bot": "easy"}])
+    check("  a table of practice bots reporting is not people answering",
+          activity.quiet_for("net"), 11 * 60.0)
+    hall.results.clear()
+    hall.report("pi-kitchen", 1, [{"name": "KC9SP", "correct": True, "ms": 4200}])
+    check("  a table reporting its people's answers is", activity.quiet_for("net"), 0.0)
 
     conn = db.connect()
     now = db.utcnow()
@@ -77,7 +130,16 @@ def main():
     conn.execute("INSERT INTO exam (user_id, pool_id, started, total) VALUES (1, 'tech', ?, 35)",
                  ((now - timedelta(minutes=10)).isoformat(),))
     conn.commit()
-    check("a mock exam started ten minutes ago and not finished", activity.busy(conn), "a mock exam")
+    later(11 * 60)
+    check("a mock exam started ten minutes ago whose answers are not arriving",
+          activity.busy(conn), None)
+    exam_id = conn.execute("SELECT MAX(id) FROM exam").fetchone()[0]
+    r = c.post(f"/api/exam/{exam_id}/answering", environ_base=LOCAL)
+    check("  the exam page saying an answer was given", (r.status_code, r.get_data()), (204, b""))
+    check("  and now it is somebody sitting one", activity.busy(conn), "a mock exam")
+    later(11 * 60)
+    check("  and eleven minutes after the last answer, it is not", activity.busy(conn), None)
+    activity.touch("exam")
     conn.execute("UPDATE exam SET finished = ?", (now.isoformat(),))
     conn.commit()
 
@@ -92,6 +154,12 @@ def main():
     conn.execute("DELETE FROM answer_log")
     conn.commit()
     conn.close()
+    exam_js = (Path(__file__).resolve().parents[1] / "elmer" / "static" / "exam.js").read_text(encoding="utf-8")
+    ping = exam_js[exam_js.index("function answering()"):]
+    ping = ping[:ping.index("}\n") + 1]
+    check("the exam page pings on every answer, and sends nothing in it",
+          ("answers[pos] = +b.dataset.n; answering();" in exam_js,
+           "/answering'" in ping, "body" in ping), (True, True, False))
 
     print("\n-- waiting says so, once each way, and can be stopped --")
     said = Said()
@@ -116,6 +184,45 @@ def main():
         check("a loop told to stop while it waits stops", activity.wait_until_idle("x", stop=stop, poll=0.01), False)
     finally:
         activity.busy = real_busy
+
+    print("\n-- a job deferred for a day runs at the first five quiet minutes --")
+    # A table somebody pressed at seven minutes ago: busy by the ten-minute
+    # rule, quiet by the backstop's five. The clock moves an hour a poll.
+    room = party.room(create=True, cohorts=1)
+    room.join("KC9SP")
+    said.lines.clear()
+
+    def stamp_seven_minutes_ago():
+        activity._last["table"] = clock[0] - 7 * 60
+
+    stamp_seven_minutes_ago()
+    check("a table somebody pressed at seven minutes ago is busy", activity.busy(fresh=True), "people at the table")
+
+    class Polls:
+        """Each poll is an hour, and somebody pressed seven minutes before it."""
+        def __init__(self, limit):
+            self.n, self.limit = 0, limit
+
+        def wait(self, _):
+            self.n += 1
+            clock[0] += 3600
+            stamp_seven_minutes_ago()
+            return self.n >= self.limit
+
+    under = Polls(limit=23)
+    check("  a job that has waited under a day keeps waiting", activity.wait_until_idle("the update check", stop=under),
+          False)
+    check("  and it did not run on the backstop", [line for line in said.lines if "backstop" in line], [])
+    said.lines.clear()
+    stamp_seven_minutes_ago()
+    over = Polls(limit=48)
+    went = activity.wait_until_idle("the update check", stop=over)
+    check("a job deferred for over 24 hours runs at the first idle window", (went, over.n), (True, 24))
+    check("  the log says it ran on the backstop",
+          len([line for line in said.lines if "the update check goes ahead on the backstop" in line]), 1)
+    said.lines.clear()
+    party.close_room()
+    activity._clock = real_clock
 
     print("\n-- the FCC download, asked for mid-game, starts after it --")
     from elmer import uls
@@ -157,8 +264,6 @@ def main():
     check("  a press is somebody asking: it fetches at once", [o[0] for o in order], ["fetch"])
 
     print("\n-- the Library reads on its own only when the unit is idle --")
-    from elmer.app import app
-    c = app.test_client()
     activity.busy = lambda *a, **k: "a game at the table"
     try:
         auto = c.post("/api/library/index", json={"auto": True}, environ_base=LOCAL).get_json()

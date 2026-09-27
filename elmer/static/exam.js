@@ -59,11 +59,22 @@ function show(i) {
       (flags.has(pos) ? '★ Flagged for review' : '☆ Flag for review') + '</button>';
 
   document.querySelectorAll('#e-card .choice').forEach(b =>
-    b.addEventListener('click', () => { answers[pos] = +b.dataset.n; show(pos); }));
+    b.addEventListener('click', () => { answers[pos] = +b.dataset.n; answering(); show(pos); }));
   document.getElementById('e-flagbtn').addEventListener('click', () => {
     flags.has(pos) ? flags.delete(pos) : flags.add(pos); show(pos);
   });
   refreshMap();
+}
+
+/* Tells the unit an answer was given, and nothing else: not which question
+   and not which choice, which stay here until the paper is submitted. The
+   unit holds its background work while these keep arriving. A ping that
+   does not get through costs nothing the person would notice - at worst the
+   update check runs during their exam - so it is not worth a message on
+   their screen, and the next answer sends another. */
+function answering() {
+  fetch('/api/exam/' + exam.exam_id + '/answering', { method: 'POST', keepalive: true })
+    .catch(() => {});
 }
 
 document.getElementById('e-prev').addEventListener('click', () => show(pos - 1));

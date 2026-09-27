@@ -29,7 +29,7 @@ import threading
 import time
 from collections import deque
 
-from . import show as showmod, tournament
+from . import activity, show as showmod, tournament
 from .cutthroat import CutThroat
 from .golf import Golf
 from .party import callsign_of as party_callsign
@@ -525,6 +525,7 @@ class Net:
                 log.info("net: table %s (%s) checked in with %d player%s - %d table%s now",
                          unit.name, slot, players, "" if players == 1 else "s",
                          len(self.units), "" if len(self.units) == 1 else "s")
+                activity.touch("net")           # a table joining is the net in use
                 if self.shootout is not None and not self.shootout.over():
                     self.shootout.admit(slot)
                 if self.cutthroat is not None and not self.cutthroat.over():
@@ -778,6 +779,10 @@ class Net:
                 except (TypeError, ValueError):
                     continue
             self.results[unit.id] = rows
+            # People answering in the hall. A simulated table, or a table of
+            # practice bots, answers on a timer, and a timer is not a person.
+            if not unit.simulated and any(not r["bot"] for r in rows):
+                activity.touch("net")
             unit.last_seen = _now()
             unit.reported_round = round_number
             return {"accepted": len(rows)}, None
