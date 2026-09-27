@@ -440,6 +440,22 @@ def travelling_gain_dbi(kind, height_wl, mhz=None, ground="average"):
     return round(20.0 * math.log10(max(best, 1e-9)) + 10.0 * math.log10(DIPOLE_DIRECTIVITY), 1)
 
 
+# A monopole fed against what is under it. The vertical's field above is a
+# half-wave element with its image - which is exactly the monopole and its
+# image, at the same current. But the monopole takes half the dipole's
+# feed resistance (36.5 ohms against 73), so the same power drives it with
+# more current: its field against a free-space dipole's is sqrt(2), not 2,
+# and a quarter wave on perfect ground is 5.16 dBi, not 8.15. That holds
+# when the base is on the ground, or on a car's roof for a mobile whip.
+# A vertical on a mast with its own radials is a different antenna - the
+# earth images the whole of it, and the doubling stands in the limit - and
+# the heights between the two are the antenna solver's to settle, so they
+# are left as they were.
+GROUND_FED = {"quarter", "fiveeighth", "groundplane", "whip", "screwdriver"}
+GROUND_FED_WL = 0.02                   # a base this near the ground is on it
+MONOPOLE_POWER = 1.0 / math.sqrt(2.0)  # half the feed resistance, the same power
+
+
 def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
     """The elevation pattern with its level kept: 1.0 is the element alone
     in free space, so the image's reinforcement shows as up to 2.0 and its
@@ -455,6 +471,8 @@ def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
         rad = math.radians(deg)
         if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
             field = _vertical_over_ground(rad, height_wl, mhz, ground)
+            if kind in GROUND_FED and height_wl < GROUND_FED_WL:
+                field *= MONOPOLE_POWER
         else:
             field = _horizontal_over_ground(rad, height_wl, mhz, ground)
         out.append({"deg": round(deg, 2), "field": field})

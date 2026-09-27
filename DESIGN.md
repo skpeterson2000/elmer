@@ -2496,7 +2496,16 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   Every gain figure says what it was measured against and where — dBd, and free
   space for horizontal wire, over an average ground plane for verticals —
   because a gain number without those is the stuff antenna advertising is made
-  of. They are estimates worth about ±1 dB, not measurements. Yagi gain comes
+  of. They are estimates worth about ±1 dB, not measurements. A vertical fed
+  against the ground is counted as the monopole it is: the pattern model draws
+  it as a half-wave element and its image, which is the monopole and its image
+  at the same current, but a monopole takes half a dipole's feed resistance, so
+  the same power gives it sqrt(2) the field, not twice it - a quarter wave on
+  perfect ground is 5.16 dBi, where the band plan's height line used to print
+  8.15 (`patterns.GROUND_FED`). That holds with the base on the ground, or on a
+  car's roof for a whip. A vertical on a mast with its own radials is left as
+  the whole antenna over its image, and the heights between the two are the
+  antenna solver's to settle. Yagi gain comes
   from the **boom length**, which is what actually sets it: element count and
   spacing decide the boom, and two Yagis with the same boom get the same answer
   whether that boom carries five elements or seven. Spacing outside the 0.15 to
