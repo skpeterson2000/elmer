@@ -11,6 +11,28 @@ the two disagree and by how much, and proposes a replacement that disagrees
 with the ITU by less than a tenth of a decibel. Where the answer on screen
 would not change, the plan says so too.
 
+## Decisions (Scott, 2026-09-27)
+
+Reviewed. These answer the open questions at the end.
+
+- **Now, before this plan's phases:** one ground module. A single table of
+  soil constants, from ITU-R P.527 where it gives them, with "average" kept
+  and labeled as the textbook default it is. `patterns.py`, `groundwave.py`
+  and `siteground.py` all read it, and a same-answers check lists every
+  answer a P.527 value deliberately changes.
+- **The sea anchors are retired**, and the page says the ground wave over
+  the sea is a daytime figure: at night the skywave arrives on top of it
+  and fades against it.
+- **The −1.76 dB charge goes.** A quarter-wave vertical is about +0.4 dB
+  against P.368's reference monopole (5.16 dBi against 4.77). The radial
+  system's efficiency is charged separately, in the antenna solver's phase
+  4. Until then the page says it is not counted.
+- **P.527's ground values** (arrives with the ground module, above).
+- **The operator's site noise stays**, at sea as on land.
+- **No terminal heights yet.**
+- **The coast comes from the SRTM profile** the path tool already fetches,
+  with the ratings at each end, labeled as estimated. No new fetch.
+
 ---
 
 ## 1. What the model does now, and where it falls short
@@ -444,29 +466,22 @@ the *What leaves a unit* list does not change.
   and 1.10.
 - **Windows.** A table path through `pathlib`, and the same suite.
 
-## Open questions for Scott
+## The questions, and Scott's answers
 
 1. **The sea anchors.** Retire 300 / 150 / 100 miles in favor of P.368
-   (513 / 348 / 221 under the same noise), or keep a service-range figure
-   beside the physics and say which is which?
-2. **The -1.76 dB charge.** Should a vertical on real ground be 0 dB against
-   P.368's reference monopole? That is 8% more range on land. The ground's
-   losses are already inside the attenuation function.
-3. **The ground table.** Move wet ground to P.527's 0.01 S/m (80 m 143 to
-   115 km) and ice to P.527's 1e-4? Keep "average" (0.005 / 13), which is
-   not a P.527 curve but is the textbook default and sits between P.527's
-   wet and medium dry?
-4. **Noise at sea.** Keep the operator's site noise, or use P.372's quieter
-   figure when the path is over water? At 160 m, quiet noise against rural
-   is 1,107 km against 838 km.
-5. **Terminal heights.** Worth carrying for a mobile whip or a vertical on a
-   roof? LFMF moves the field by about 1 dB at 10 m on 40 m, which is under
-   the 3.5 dB spread.
-6. **Where the sea is on a path.** Is the elevation profile the path tool
-   already fetches (SRTM, 0 m over ocean) a good enough guide to where the
-   coast is, with the NHD rating at each end? Or should Millington wait for
-   a coastline source, which would be a new fetch and a new line under
-   *What leaves a unit*?
+   (513 / 348 / 221 under the same noise)? *Retired, with a line saying the
+   sea figure is a daytime one, since night skywave fades against it.*
+2. **The −1.76 dB charge.** *Dropped. A quarter-wave vertical is about
+   +0.4 dB against P.368's reference. Radial efficiency is charged
+   separately (antenna solver phase 4); until then the page says it is not
+   counted.*
+3. **The ground table.** *P.527's values where P.527 gives them, in one
+   ground module that every model reads; "average" (0.005 S/m, εr 13) kept
+   and labeled as the textbook default, not a P.527 curve.*
+4. **Noise at sea.** *Keep the operator's site noise.*
+5. **Terminal heights.** *Not yet.*
+6. **Where the sea is on a path.** *The SRTM profile plus the ratings at
+   each end, labeled estimated. No new fetch.*
 
 ## Order of work, with the tests for each
 

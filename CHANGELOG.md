@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- The three plans carry Scott's decisions. Each opens with what was decided and answers its own open questions: what goes first before any solver is written (the vertical's gain and one SWR answer a height, the golf solve and its caching, one ground module read by every model, and a benchmark for the Pis), and what the solver, the ground wave and the golf flight will and will not do when they come.
+
 - Three plans for review, before any of it is written: an antenna solver, the ground wave by the ITU's method, and the golf ball's flight and its meeting with the ground (`docs/plans/`). Each measures what ELMER does now against published figures and says by how much it falls short, then sets out the method, what it will be checked against, what happens on a unit without numpy or scipy, what it costs a Raspberry Pi, and what would change on screen. Nothing on a unit changes with this.
 
 - The bug report's own test tells the log's sections by their headings. It looked for the words "self-check" and "log lines" anywhere in a suggestion, and the report's build line quotes the last commit's subject - so a commit about the self-check made every suggestion look as though it carried the log. Nothing leaked; the test was reading the wrong line.

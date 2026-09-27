@@ -12,6 +12,32 @@ f512b73, from scratch scripts outside the repository, on an Intel Core
 Ultra 9 275HX under Python 3.12.10. Published figures carry their source.
 A figure this plan could not check directly is marked **(unverified)**.
 
+## Decisions (Scott, 2026-09-27)
+
+Reviewed. These answer the open questions at the end and set what comes
+first.
+
+- **Now, before the new aerodynamics:** the secant launch-speed solve in
+  place of the bisections, and `club_yards` cached until the set-up, the
+  hole's wind or the lie changes. Both on today's `_fly`, so every carry
+  stays where it is and only the cost falls.
+- **The papers.** Try the open-access ones first: Lyu, Kensrud, Smith and
+  Tosaya (ISEA 2018, MDPI *Proceedings*) and Kensrud and Smith (*Procedia
+  Engineering*, 2010). Ask for Smits and Smith (1994) only if those do not
+  give usable drag and lift coefficients.
+- **The bag's calm carry stays the truth.** The air and the wind change it on
+  the day.
+- **The air moves the club buttons.** A cold morning and a hot afternoon
+  read differently on the buttons, by the yards the physics gives.
+- **The stinger is flown honestly.** Report where it lands and how often it
+  would skip, and decide about the skip from that, not before.
+- **Spin-back, yes:** on firm greens with high spin, a full short iron comes
+  back.
+- **The kind greens stay**, at about stimpmeter 5.5 for slope, and the game
+  prints that they are slower than a tournament's.
+- **The side view** is on the table screen only. The stroke line gains apex
+  and hang.
+
 ---
 
 ## Scope
@@ -560,27 +586,28 @@ ball lies, the mark and the reading. This plan proposes:
 
 ---
 
-## Open questions for Scott
+## The questions, and Scott's answers
 
-1. Is the bag's calm carry still the truth (recommended), with the air and
-   wind changing it on the day? Or should a player's carry come from a ball
-   speed?
-2. Should the air move the carry on the club buttons, by a few yards
-   between a cold morning and a hot afternoon at Pebble?
-3. The skip: fly the stinger honestly and let the skip be as rare as
-   physics makes it, or keep `STINGER_DESCENT` as an authored flair factor
-   and say so in DESIGN.md?
-4. Green spin: are you content that a full 9-iron onto a firm green
-   comes back instead of releasing?
-5. Putting stays at about stimpmeter 5.5 for slope. Keep that as the
-   game's kindness, or give each card a stimpmeter reading, printed, and
-   roll to it?
-6. The side view on the table screen: wanted? And apex and hang in the
-   stroke line?
-7. Can you get Smits & Smith (1994) and Penner (2002b)? A library copy of
-   *Science and Golf II* would do for the first.
-8. The 2024 TrackMan tables: if they differ from the 2019 sheet, check
-   against the newer one?
+1. Is the bag's calm carry still the truth? *Yes. The air and the wind
+   change it on the day.*
+2. Should the air move the carry on the club buttons? *Yes.*
+3. The skip: fly the stinger honestly, or keep `STINGER_DESCENT` as an
+   authored factor? *Fly it honestly and report where it lands before
+   deciding the skip.*
+4. Green spin: a full 9-iron onto a firm green comes back? *Yes, on firm
+   greens with high spin.*
+5. Putting at about stimpmeter 5.5 for slope? *Keep the kind greens, and
+   print that they are slower than a tournament's.*
+6. The side view on the table screen, and apex and hang in the stroke
+   line? *The side view on the table screen only; apex and hang in the
+   stroke line.*
+7. Smits and Smith (1994) and Penner (2002b)? *Try the open-access papers
+   first: Lyu, Kensrud, Smith and Tosaya (ISEA 2018, MDPI Proceedings) and
+   Kensrud and Smith (Procedia Engineering 2010). Ask for Smits and Smith
+   only if they fall short.* Penner (2002b) is still wanted for the bounce
+   constants.
+8. The 2024 TrackMan tables: check against the newer one if they differ?
+   Not yet answered.
 
 ---
 
@@ -607,6 +634,12 @@ and a Pi 5 and write the timings into this file. Test
 (`test_golf_flight.py`, first part): the tool runs with no network and
 exits 0, and the game's flight of TrackMan's driver matches the harness's
 copy (the harness reads `golf`'s constants, and does not keep its own).
+
+**Before phase 1, decided to go first:** the secant solves and the
+`club_yards` caching, on today's `_fly` and today's coefficients. Every
+carry stays where it is; the test is that each club's solved launch speed
+and the notch land within 0.1 yd of what the bisections found, with the
+flight counts below.
 
 **Phase 1: the flight.** `elmer/golfball.py`, the coefficients from the
 source, RK4, the secant solves, and `golf.flight()` calling it. Tests:

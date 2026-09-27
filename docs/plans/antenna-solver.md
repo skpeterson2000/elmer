@@ -19,6 +19,36 @@ Every number below says where it came from. Three kinds appear:
   is checked against it. Where it agrees with a published figure, that is
   some evidence the method is sound. It is not in the repository.
 
+## Decisions (Scott, 2026-09-27)
+
+Reviewed. These settle the open questions at the foot of the plan and change
+the phases below where they say so.
+
+- **Now, before any solver work:** phase 1's vertical fix (−3.0 dB on the
+  monopole's element factor) and one SWR answer per height. The refit of
+  `radialZ` through Cebik's ground-plane figures waits for phase 2, where
+  the solver can check it.
+- **468/f stays** as the cut length. The modeled resonance goes beside it,
+  over the rated ground.
+- **The estimate shows at once, labeled, then the solver's figure replaces
+  it.** No blank "working it out".
+- **The modeled F/B is printed as the model gives it**, with a line saying
+  that installations rarely keep so deep a null: a mast, a feedline and a
+  neighbor's gutter fill it in.
+- **Phase 2 ships before Sommerfeld.** It says plainly that it cannot answer
+  over real ground below 0.2 λ.
+- **Sommerfeld grids are precomputed and shipped**, one per ground type and
+  band, like the ground-wave table. A unit computes one only for a ground or
+  band off the table.
+- **The module is `wiresolver.py`.** It is not NEC, and the name does not say
+  it is.
+- **BLAS is pinned to one thread in `elmer.py`**, before numpy is first
+  imported.
+- **Before chasing the short-boom Yagi's j28 Ω**, Cebik's Yagi dimensions are
+  retyped from his page. The web summary mislabeled a table once already.
+- **A convergence test:** every solver check must hold when the segment
+  counts are doubled.
+
 ---
 
 ## 1. What the current model does, and where it falls short
@@ -391,8 +421,9 @@ that replaces the estimates in section 5. No ELMER code changes.
 
 **Phase 1: fix what needs no solver.** The monopole's element factor
 (−3.0 dB on verticals). One SWR answer for one height: the heights table
-and the SWR curve read the same R. `radialZ` is refit through Cebik's
-21.4 Ω flat and 48.3 Ω at 45°, and 72 Ω at 90°.
+and the SWR curve read the same R. *Decided: these two now, before any
+solver work.* The refit of `radialZ` through Cebik's 21.4 Ω flat, 48.3 Ω at
+45° and 72 Ω at 90° moves to phase 2, where the solver checks it.
 *Tests*: `test_patterns_vertical_gain.py`: a quarter wave over perfect
 ground reads 5.16 dBi ±0.1. `test_heights_one_answer.py`: at every landmark
 height, the table's SWR equals the curve's minimum.
@@ -408,13 +439,19 @@ on the Lab.
 falls back); `test_wiresolver_fallback.py` (numpy blocked: every antenna
 route answers with `"model": "analytic"` and one log line);
 `test_wiresolver_cache.py` (a second identical request does not solve, and
-a height change solves once). Each imports `_isolate` first and fetches
+a height change solves once); `test_wiresolver_converge.py` (every check
+above still holds with the segment counts doubled). Before check 8 is
+written, Cebik's Yagi dimensions are retyped from his page, and only then
+is the short-boom j28 Ω looked into. Each imports `_isolate` first and fetches
 nothing. The Lab's browser test gains a check that the model label is on
 the page.
 
 **Phase 3: Sommerfeld ground.** The grid builder, with scipy imported
 inside it; real-ground impedance below 0.2 λ; the band plan's height gains
-from the solver.
+from the solver. *Decided:* the grids are built by a tool, one per ground
+type and band, and shipped, like the ground-wave table; a unit builds one
+only for a ground or band that is not on the table, and says it is working
+while it does.
 *Tests*: `test_wiresolver_sommerfeld.py` (checks 9–10, and check 11's
 finite-ground figures); `test_wiresolver_noscipy.py` (scipy blocked: below
 0.2 λ the analytic figure answers, with its reason).
@@ -432,29 +469,28 @@ not change.
 
 ---
 
-## Risks and open questions for Scott
+## Risks, and the questions Scott answered
 
 - **468/f.** The pools teach it, and the build sheet uses it. The prototype
-  puts #14's free-space resonance at 478/f. Over real ground and with
-  insulators the answer differs, and it is not known yet by how much. The
-  proposal keeps 468/f as the cut length and adds the modeled resonance as
-  a line beside it, rather than changing the build. Is that right?
+  puts #14's free-space resonance at 478/f. *Answered: 468/f stays as the
+  cut length, with the modeled resonance beside it over the rated ground.*
 - **A second answer on the page.** For a second or so on a Pi 4 the page
-  shows the analytic figure, then the solver's. Is a visible swap
-  acceptable, or should the numbers wait, with *working it out* in their
-  place?
+  shows the analytic figure, then the solver's. *Answered: show the
+  estimate at once, labeled, then swap.*
 - **The Yagi's F/B at 20 dB** was a deliberate "no beam measures nothing".
   The solver will print 27–41 dB at the design frequency for good designs.
-  Do we print what the model says, or cap it at 30 dB as "over 30 dB", since
-  a real rear null does not survive a mast, a feedline and a neighbor's
-  gutter?
+  *Answered: print the modeled F/B, with a line that installations rarely
+  keep so deep a null.*
 - **Real-ground impedance below 0.2 λ is phase 3**, and that is exactly
-  where NVIS operators hang wire. Phase 2 will be honest that it cannot
-  answer there. Is it worth shipping before phase 3?
-- **The prototype's short-boom Yagi reactance** is j28 Ω off Cebik's. Until
-  that is understood, check 8 covers the long and medium booms only.
-- **The Sommerfeld grid's cost on a Pi is unknown.** If it is minutes, it is
-  built only on request, and the page says it is working.
-- **Name**: `wiresolver.py`, or `nec.py`? It is not NEC, and the name
-  should not suggest it is.
-- **Pinning BLAS to one thread** on the Pi touches the launcher. Acceptable?
+  where NVIS operators hang wire. *Answered: ship phase 2 first, honest that
+  it cannot answer there.*
+- **The prototype's short-boom Yagi reactance** is j28 Ω off Cebik's.
+  *Answered: retype Cebik's dimensions from his page before chasing it.*
+  Until it is understood, check 8 covers the long and medium booms only.
+- **The Sommerfeld grid's cost on a Pi is unknown.** *Answered: the grids
+  are precomputed and shipped per ground type and band; a unit computes one
+  only off the table.* `tools/pibench.py` measures the fill and solve on
+  the Pis.
+- **Name.** *Answered: `wiresolver.py`.*
+- **Pinning BLAS to one thread** on the Pi touches the launcher. *Answered:
+  pin it in `elmer.py`.*
