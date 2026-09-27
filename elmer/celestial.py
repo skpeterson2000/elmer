@@ -26,6 +26,8 @@ interpolation between printed rows.
 import math
 from datetime import datetime, timedelta, timezone
 
+from .geo import EQUATORIAL_R_KM
+
 # Meeus, *Astronomical Algorithms*, chapter 25 - the "low accuracy" solar
 # position, which is good to about 0.01 degrees. That is 0.6 of a nautical
 # mile, comfortably better than anyone can hold a sextant.
@@ -565,7 +567,6 @@ def _widest_gap(bearings):
 # tracking ephemeris; a dish is pointed with a better one.
 
 MOON_MEAN_KM = 384400.0
-EARTH_RADIUS_KM = 6378.14
 
 
 def moon_position(when):
@@ -590,7 +591,7 @@ def moon_position(when):
                 + 0.0095 * math.cos(d2r(259.2 - 413335.38 * t))
                 + 0.0078 * math.cos(d2r(890534.22 * t + 235.7))
                 + 0.0028 * math.cos(d2r(954397.74 * t + 269.9)))
-    distance_km = EARTH_RADIUS_KM / math.sin(d2r(parallax))
+    distance_km = EQUATORIAL_R_KM / math.sin(d2r(parallax))
     eps = d2r(23.439291 - 0.0130042 * t)
     lr, br = d2r(lam), d2r(beta)
     x = math.cos(br) * math.cos(lr)

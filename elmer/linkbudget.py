@@ -46,6 +46,7 @@ paths most of the time.
 import math
 
 from . import groundwave, terrain
+from .geo import EFFECTIVE_R_KM
 
 # The bands, and the frequency the budget is worked at.
 BANDS = {"6m": 50.2, "2m": 146.0, "1.25m": 223.5, "70cm": 446.0}
@@ -107,9 +108,6 @@ NOISE_FIGURE_DB = 5.0
 # is what the terrain models are measured to hold over irregular ground.
 SPREAD_DB = 8.0
 
-# 4/3-earth radius, for the bulge in the middle of a path.
-EARTH_KM = 8495.0
-
 # Past this the budget is not the question: what carries a VHF signal two
 # hundred kilometers is the weather - tropospheric bending and ducting -
 # and this model does not do weather.
@@ -163,7 +161,7 @@ def _clearances(pts, ha_m, hb_m, mhz):
         d2 = d - d1
         if d1 <= 0 or d2 <= 0:
             continue
-        line = a + (b - a) * (d1 / d) - (d1 * d2) / (2.0 * EARTH_KM) * 1000.0
+        line = a + (b - a) * (d1 / d) - (d1 * d2) / (2.0 * EFFECTIVE_R_KM) * 1000.0
         h = elev - line
         r1 = fresnel_radius_m(d1, d2, mhz)
         nu = h * math.sqrt(2.0) / r1 if r1 > 0 else 0.0
@@ -181,7 +179,7 @@ def series(pts, ha_m, hb_m, mhz):
     out = []
     for km, elev in pts:
         d1, d2 = km, d - km
-        line = a + (b - a) * (d1 / d) - (d1 * d2) / (2.0 * EARTH_KM) * 1000.0 if d > 0 else a
+        line = a + (b - a) * (d1 / d) - (d1 * d2) / (2.0 * EFFECTIVE_R_KM) * 1000.0 if d > 0 else a
         r1 = fresnel_radius_m(d1, d2, mhz) if 0 < d1 < d else 0.0
         out.append({"km": round(km, 2), "ground": round(elev), "line": round(line, 1), "r1": round(r1)})
     return out

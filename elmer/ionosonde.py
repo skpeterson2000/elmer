@@ -11,12 +11,12 @@ Stations report on their own schedule and many go quiet, so anything older
 than MAX_AGE_HOURS is treated as absent rather than shown as current.
 """
 import json
-import math
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from . import paths
+from .geo import distance_km
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = paths.STATE / "ionosonde"
@@ -24,7 +24,6 @@ API = "https://prop.kc2g.com/api/stations.json"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 CACHE_MINUTES = 15
 MAX_AGE_HOURS = 3.0
-EARTH_R = 6371.0
 
 # The Digisonde autoscaler grades its own work 0-100. A trace it could not read
 # is worse than a missing station: one sonde reporting twice its neighbours'
@@ -167,21 +166,14 @@ def stations(force=False, offline=False):
     return _with_memory(_clean(raw, now), now, write=True)
 
 
-def great_circle(lat1, lon1, lat2, lon2):
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    return EARTH_R * math.acos(max(-1.0, min(1.0,
-        math.sin(p1) * math.sin(p2)
-        + math.cos(p1) * math.cos(p2) * math.cos(math.radians(lon2 - lon1)))))
-
-
 def nearest(lat, lon, force=False, offline=False):
     """The closest recently reporting ionosonde, with its distance."""
     found = stations(force, offline=offline)
     if not found:
         return None
-    best = min(found, key=lambda s: great_circle(lat, lon, s["lat"], s["lon"]))
+    best = min(found, key=lambda s: distance_km(lat, lon, s["lat"], s["lon"]))
     best = dict(best)
-    best["distance_km"] = round(great_circle(lat, lon, best["lat"], best["lon"]))
+    best["distance_km"] = round(distance_km(lat, lon, best["lat"], best["lon"]))
     return best
 
 

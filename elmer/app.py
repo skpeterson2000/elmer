@@ -34,7 +34,7 @@ from . import (
     bandplan, bench, bugreport, calibrate, callsign, celestial,
     certpdf, cohort, conductors, coursemap, cw, db, devreset,
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
-    fieldreport, forecastlog, game, gating, geocode, golf,
+    fieldreport, forecastlog, game, gating, geo, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, ledger, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
@@ -520,7 +520,7 @@ def qth_for(connection, profile):
     # the name and take the coordinates. Away from it, a grid square is the
     # honest label: nothing here can reverse-geocode a lay-by off-grid.
     if saved.get("lat") is not None:
-        km, _ = terrain.great_circle(saved["lat"], saved["lon"],
+        km, _ = geo.great_circle(saved["lat"], saved["lon"],
                                      live["lat"], live["lon"])
         if km <= 10 and saved.get("short"):
             live = dict(live, short=saved["short"],
@@ -1551,7 +1551,7 @@ def api_reference():
             if record.get(key) in (None, ""):
                 record[key] = held.get(key)
     if record.get("lat") is not None and place.get("lat") is not None:
-        km, bearing = terrain.great_circle(place["lat"], place["lon"], record["lat"], record["lon"])
+        km, bearing = geo.great_circle(place["lat"], place["lon"], record["lat"], record["lon"])
         record["from_here"] = {"km": round(km), "bearing": round(bearing),
                                "qth": place.get("short") or place.get("grid") or ""}
     record["spots"] = landmarks.group_for(ref=ref)

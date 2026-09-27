@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
-from . import celestial, ionosonde, units
+from . import celestial, geo, ionosonde, units
 
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 HAMQSL = "https://www.hamqsl.com/solarxml.php"
@@ -634,7 +634,7 @@ def verdict(sfi, k, a):
 # right; it still cannot tell you that the path to a station on the far side of
 # the terminator is open, because band_score is handed one sun angle - yours -
 # and a path has two ends.
-EARTH_RADIUS_KM = 6371.0
+EARTH_RADIUS_KM = geo.EARTH_R_KM
 D_LAYER_KM = 80.0
 D_LAYER_DIP = math.degrees(math.acos(EARTH_RADIUS_KM /
                                      (EARTH_RADIUS_KM + D_LAYER_KM)))
@@ -856,7 +856,7 @@ def skip_km(mhz, fof2, hmf2=HMF2_DEFAULT):
         return None
     if steepest >= 90.0:
         return 0.0
-    return patterns._hop_km(steepest, hmf2)
+    return geo.hop_km(steepest, hmf2)
 
 
 # The shallowest ray anybody actually gets away, which sets how far one hop
@@ -874,8 +874,7 @@ NVIS_REACH_KM = 600.0
 
 def one_hop_limit_km(hmf2=HMF2_DEFAULT):
     """The furthest a single hop reaches off a layer at this height."""
-    from . import patterns
-    return patterns._hop_km(LOWEST_TAKEOFF_DEG, hmf2)
+    return geo.hop_km(LOWEST_TAKEOFF_DEG, hmf2)
 
 
 # The skywave link budget: what power decides.
@@ -1201,7 +1200,7 @@ def takeoff_weights(kind, height_wl, layer_km, db_floor=18.0, mhz=None, heading=
     # back into the angle that lands it; hop_km falls as the angle rises
     angles = [p["deg"] for p in curve]
     fields = [p["field"] for p in curve]
-    kms = [patterns.hop_km(a, layer_km) for a in angles]
+    kms = [geo.hop_km(a, layer_km) for a in angles]
 
     def weight(leg_km, bearing=None):
         # the angle whose hop lands this leg: walk the table (181 rows)
@@ -1339,7 +1338,7 @@ def reach_map(mhz, lat, lon, snap, step=REACH_STEP, when=None, watts=100.0, wind
     budget Make Contact runs: solid stays as bright as the sky makes it,
     the edge of copy is dim, and twenty decibels short is dark, and ten is the faint long shot it is."""
     from . import groundwave, patterns
-    from .terrain import great_circle
+    from .geo import great_circle
     when = when or datetime.now(timezone.utc)
     sfi = float(snap.get("sfi") or 100.0)
     k = float(snap.get("k_index") or 2.0)
@@ -1705,7 +1704,7 @@ def calibration(sfi, lat, lon, when=None, sondes=None):
     when = when or datetime.now(timezone.utc)
     votes, factors, suns, nearest, closest, voters = [], [], [], None, None, []
     for station in sondes:
-        km = ionosonde.great_circle(lat, lon, station["lat"], station["lon"])
+        km = geo.distance_km(lat, lon, station["lat"], station["lon"])
         if km > CALIBRATION_KM:
             continue
         sun = solar_elevation(station["lat"], station["lon"], when)

@@ -38,6 +38,8 @@ rather than derived from the geometry, and are labelled that way.
 import cmath
 import math
 
+from .geo import EARTH_R_KM, hop_km
+
 # Typical loaded Q near resonance, and the feedpoint resistance to match.
 # Fatness is what sets Q: a thin wire is high Q and narrow, a fan or a cage is
 # low Q and wide, and a parasitic array is narrower than its driven element
@@ -615,26 +617,10 @@ DX_TARGETS = [
 ]
 
 
-EARTH_R_KM = 6371.0
-
 # Where the F2 layer sits, roughly: low by day, high at night. The height
 # matters because it sets how far one hop reaches, and an hour either side of
 # sunset moves it more than any antenna change will.
 F2_DAY_KM, F2_NIGHT_KM = 260.0, 350.0
-
-
-def hop_km(elev_deg, layer_km):
-    """Ground distance covered by one ionospheric hop leaving at this angle.
-
-    The same geometry the skip simulator draws, moved here so the antenna's
-    own takeoff angle can be turned into a distance. Curvature is included:
-    the flat-earth form blows up at low angles and would promise the moon.
-    """
-    elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
-    sin_phi = min(1.0, EARTH_R_KM * math.cos(elev) / (EARTH_R_KM + layer_km))
-    phi = math.asin(sin_phi)
-    psi = math.pi / 2 - elev - phi          # earth-central angle
-    return max(0.0, 2 * EARTH_R_KM * psi)
 
 
 def _wire_factor(along):
@@ -879,7 +865,6 @@ def hop_ring(kind, height_wl, slope_deg=0.0, day=True, mhz=None, ground="average
 # as 45 degrees of takeoff - which off a night layer lands near the 500 km this
 # used to assume, so the rule of thumb is what the model reduces to on an
 # ordinary night rather than something it contradicts.
-EARTH_R_KM = 6371.0
 NVIS_EDGE_ANGLE = 45.0        # where a low horizontal wire stops being useful
 TYPICAL_HMF2 = {True: 270.0, False: 330.0}    # day, night - when none measured
 
@@ -891,10 +876,8 @@ def _incidence(elev_deg, h_km):
     return math.degrees(math.asin(sin_phi))
 
 
-def _hop_km(elev_deg, h_km):
-    """Ground distance covered by one hop leaving at this takeoff angle."""
-    psi = 90.0 - elev_deg - _incidence(elev_deg, h_km)
-    return 2.0 * EARTH_R_KM * math.radians(max(0.0, psi))
+# The hop is geo's. The old private name stays for the callers that knew it.
+_hop_km = hop_km
 
 
 # ---- the layer as the ray sees it -------------------------------------------
@@ -1331,7 +1314,7 @@ def nearby(lat, lon, radius_km, limit=8, inner_km=0.0, spread=False):
     and which of the two they came from, because a bundled answer deserves to
     be labelled as one.
     """
-    from .terrain import great_circle
+    from .geo import great_circle
     from . import places as place_source
 
     candidates, source = place_source.known(lat, lon, radius_km)
@@ -1491,7 +1474,7 @@ def db(field):
 def dx_bearings(lat, lon, kind=None, heading=0.0, hmf2=None):
     """Where the well-known parts of the world are, and what the antenna does
     toward each of them - at the angle each one actually needs."""
-    from .terrain import great_circle
+    from .geo import great_circle
     out = []
     for name, tlat, tlon in DX_TARGETS:
         km, bearing = great_circle(lat, lon, tlat, tlon)

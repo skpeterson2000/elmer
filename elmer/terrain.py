@@ -20,6 +20,7 @@ import urllib.request
 from pathlib import Path
 
 from . import paths
+from .geo import great_circle
 
 log = logging.getLogger("elmer")
 
@@ -28,20 +29,8 @@ API = "https://api.opentopodata.org/v1/srtm30m"
 USER_AGENT = "ELMER/1.0 (personal amateur radio study tool)"
 MAX_POINTS = 100          # the service's per-request ceiling
 MIN_INTERVAL = 1.1        # seconds between calls, per their fair-use request
-EARTH_R = 6371.0
 
 _last_call = [0.0]
-
-
-def great_circle(lat1, lon1, lat2, lon2):
-    """Distance in km and initial bearing in degrees."""
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlon / 2) ** 2
-    km = 2 * EARTH_R * math.asin(min(1.0, math.sqrt(a)))
-    y = math.sin(dlon) * math.cos(p2)
-    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dlon)
-    return km, (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
 def interpolate(lat1, lon1, lat2, lon2, samples):

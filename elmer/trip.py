@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from . import geocode, paths, places, references
-from .terrain import great_circle
+from .geo import great_circle
 
 ROOT = Path(__file__).resolve().parents[1]
 # The operator's, so with their other state - not the checkout's data/ by

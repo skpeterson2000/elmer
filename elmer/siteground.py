@@ -48,6 +48,7 @@ import urllib.request
 from pathlib import Path
 
 from . import groundwave, paths, terrain
+from .geo import EARTH_R_KM
 
 log = logging.getLogger("elmer")
 
@@ -179,7 +180,7 @@ def lie_of_land(lat, lon):
     ring = [(lat, lon)]
     bearings = [0, 45, 90, 135, 180, 225, 270, 315]
     for b in bearings:
-        d = LIE_RADIUS_M / 6371000.0
+        d = LIE_RADIUS_M / (EARTH_R_KM * 1000.0)
         la, lo, br = math.radians(lat), math.radians(lon), math.radians(b)
         la2 = math.asin(math.sin(la) * math.cos(d) + math.cos(la) * math.sin(d) * math.cos(br))
         lo2 = lo + math.atan2(math.sin(br) * math.sin(d) * math.cos(la), math.cos(d) - math.sin(la) * math.sin(la2))

@@ -21,6 +21,7 @@ import math
 import re
 
 from . import bandplan, callsign, geocode, linkbudget, propagation, reachout, terrain, units
+from .geo import EFFECTIVE_R_KM, great_circle
 
 # Past this a path is the ionosphere's, whatever the antennas: the radio
 # horizon from a hundred feet up is about thirty miles, and nobody is asking
@@ -28,8 +29,6 @@ from . import bandplan, callsign, geocode, linkbudget, propagation, reachout, te
 SIGHT_KM = 80.0
 # Two antennas at about head height, which is what somebody standing there has.
 ANTENNA_M = 3.0
-# 4/3-earth radius, for the bulge in the middle of a line of sight.
-EARTH_KM = 8495.0
 
 # A callsign has the shape prefix-digit-suffix; a grid square does not.
 RE_CALLSIGN = re.compile(r"^[A-Z0-9]{1,2}\d[A-Z]{1,4}$")
@@ -116,7 +115,7 @@ def _sight(lat1, lon1, lat2, lon2, km, unit=units.DEFAULT):
     for p in pts[1:-1]:
         d1 = p["km"]
         d2 = km - d1
-        line = a + (b - a) * (d1 / km) - (d1 * d2) / (2 * EARTH_KM) * 1000.0
+        line = a + (b - a) * (d1 / km) - (d1 * d2) / (2 * EFFECTIVE_R_KM) * 1000.0
         over = p["elevation"] - line
         if worst is None or over > worst[0]:
             worst = (over, d1, p["elevation"])
@@ -305,7 +304,7 @@ def _sky_link(here, there, band, watts=100.0, mode="ssb", site="residential"):
     these watts in this mode put at the far end against what it needs -
     which is the part five watts and a kilowatt disagree about.
     """
-    km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
+    km, bearing = great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     # The same midpoint the panel above reads at. Two panels on one page
     # disagreeing about the sky over the same path is the kind of thing this
     # program has been caught doing before.
@@ -363,7 +362,7 @@ def link(here, there, band="2m", mode="fm", radio_here="ht", radio_there=None, s
         out["bands"] = _band_choices(linkbudget.for_bands()
                                      if hasattr(linkbudget, "for_bands") else None)
         return out
-    km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
+    km, bearing = great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     out = linkbudget.for_path(here, there, km, band=band, mode=mode, radio_here=radio_here,
                               radio_there=radio_there, site=site)
     out["bearing"] = round(bearing)
@@ -384,7 +383,7 @@ def predict(here, there, gear=(), license="Technician", watts=100.0, now=None,
     an operator who had asked for miles, in the same sentence as 20 m and
     40 m, which are not a measurement of anything on this path.
     """
-    km, bearing = terrain.great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
+    km, bearing = great_circle(here["lat"], here["lon"], there["lat"], there["lon"])
     back = (bearing + 180.0) % 360.0
     mid_lat = (here["lat"] + there["lat"]) / 2.0
     mid_lon = (here["lon"] + there["lon"]) / 2.0

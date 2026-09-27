@@ -203,7 +203,7 @@ def nearest(lat, lon, limit=5, radius_km=400.0):
     :func:`known` has - which is the point, because a person reading this has
     no network and possibly no phone.
     """
-    from .terrain import great_circle
+    from .geo import great_circle
 
     candidates, source = known(lat, lon, radius_km)
     rows = []

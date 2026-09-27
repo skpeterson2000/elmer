@@ -35,7 +35,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .terrain import great_circle
+from .geo import great_circle
 
 log = logging.getLogger("elmer")
 

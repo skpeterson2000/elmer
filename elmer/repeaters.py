@@ -35,7 +35,7 @@ import urllib.request
 from pathlib import Path
 
 from . import bandplan, paths
-from .terrain import great_circle
+from .geo import great_circle
 
 ROOT = Path(__file__).resolve().parents[1]
 # Under the state directory, like everything the unit writes - so a test

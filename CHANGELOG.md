@@ -5,6 +5,10 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-27
+
+- Distances, bearings and the length of a skywave hop are worked out in one place. The earth's radius was written out in eight modules, the great circle in two and the hop twice in one, and copies drift; they all ask a new `elmer/geo.py` now. It keeps three radii by name, because they are three different things: the mean radius for distances on the ground, the "4/3 earth" a VHF path is drawn over, and the equatorial radius the Moon's distance is worked from. Every answer is the same as before, to well under a meter.
+
 ## 2026-09-26
 
 - The first book on the shipped shelf is the Army's ATP 6-02.53, *Techniques for Tactical Radios and Retransmission*, the edition of 31 July 2025, approved for public release. It is the Army Publishing Directorate's own file, byte for byte, and it reads and searches like any book on the shelf: 206 pages, with the Army's chapters down the side.
