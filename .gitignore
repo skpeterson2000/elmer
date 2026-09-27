@@ -41,6 +41,9 @@ data/kiosk-profile/
 # so they are yours rather than the app's.
 data/geocode/
 data/terrain/
+# The ground under the antenna, rated from the surveys: one file per spot,
+# named by its latitude and longitude.
+data/ground/
 data/regional/
 data/callsign/
 # Awards fetched by callsign. Public where they came from, and still not

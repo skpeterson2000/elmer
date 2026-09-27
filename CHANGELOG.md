@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- The ground rating a unit keeps for its spot stays out of the checkout. It is stored in `data/ground/`, one file per spot named by its latitude and longitude, and that folder was not in `.gitignore`, so a commit made on a unit could have carried the operator's location with it. It is ignored now, with the other location-keyed caches.
+
 - The Windows zip is 13 MB smaller: it leaves out numpy's and scipy's own test suites, which are not the program. They held its deepest file names too, 130 characters in, which could take a file past Windows' path limit when the zip was unpacked in a deep folder; the deepest is 115 now. The README says to unzip near the top of a drive, such as `C:\ELMER`.
 
 - The cards shown while a forecast calibrates stay up as long as they take to read, and a tap holds one. Each card stood for twelve seconds whatever was on it, which cut a long quotation off halfway and left a short one up long after it was read. Now a card stands for five seconds plus a third of a second a word, the attribution counted with the text. One tap on the card holds it there; a second tap moves on to the next. The card is a button, so Enter or Space does the same from a keyboard.
