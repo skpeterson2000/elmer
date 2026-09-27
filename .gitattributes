@@ -1,0 +1,9 @@
+# Binary files, byte for byte. The shipped shelf's manifest records the
+# SHA-256 of each PDF as committed, and line-ending conversion on a Windows
+# checkout must never be able to touch those bytes, or the images and sounds.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.mp3 binary
+*.wav binary
+*.ico binary
