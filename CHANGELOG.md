@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-27
 
+- The self-check says how to put a missing package back in this platform's own terms, and never says pip. For a missing Flask it said `pip3 install flask`, which Raspberry Pi OS refuses and which anywhere else can land in a Python ELMER does not run. Flask, numpy and scipy are each reported with their version, and a missing one now names `./install.sh` on Linux and the Pi, or `install.ps1` on Windows.
+
 - The ground rating a unit keeps for its spot stays out of the checkout. It is stored in `data/ground/`, one file per spot named by its latitude and longitude, and that folder was not in `.gitignore`, so a commit made on a unit could have carried the operator's location with it. It is ignored now, with the other location-keyed caches.
 
 - The Windows zip is 13 MB smaller: it leaves out numpy's and scipy's own test suites, which are not the program. They held its deepest file names too, 130 characters in, which could take a file past Windows' path limit when the zip was unpacked in a deep folder; the deepest is 115 now. The README says to unzip near the top of a drive, such as `C:\ELMER`.

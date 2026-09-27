@@ -1185,24 +1185,40 @@ def check_server(port):
     return True
 
 
+# The Python packages the self-check reports, in the order it reports them.
+PACKAGES = ("flask", "numpy", "scipy")
+
+
+def install_step():
+    """How this platform puts a missing package back: the installer the unit
+    was set up with, and never pip. Raspberry Pi OS refuses pip (PEP 668),
+    and pip into the wrong Python is how a package ends up installed and
+    still missing."""
+    from . import host
+    return "install.ps1" if host.WINDOWS else "./install.sh"
+
+
+def package_lines(importer=__import__):
+    """One line a package: its version, or what puts it back.
+
+    A unit brought up to date with a plain git pull does not get new
+    packages, and this is where the operator finds out."""
+    lines = []
+    for name in PACKAGES:
+        try:
+            version = getattr(importer(name), "__version__", "present")
+            lines.append(f"  {name:<11} {version}")
+        except ImportError:
+            lines.append(f"  {name:<11} NOT INSTALLED - run {install_step()} and it puts it back")
+    return lines
+
+
 def doctor(port=5000):
     print("\n  ELMER self-check\n")
     print(f"  python      {sys.version.split()[0]}")
     print(f"  project     {ROOT}")
-    try:
-        import flask
-        print(f"  flask       {flask.__version__}")
-    except Exception:
-        print("  flask       NOT INSTALLED - pip3 install flask")
-    # A unit brought up to date with a plain git pull does not get new
-    # packages; ./install.sh (install.ps1 on Windows) puts back what is
-    # missing, and this is where the operator finds out.
-    for name in ("numpy", "scipy"):
-        try:
-            module = __import__(name)
-            print(f"  {name:<11} {module.__version__}")
-        except ImportError:
-            print(f"  {name:<11} not installed - ./install.sh (install.ps1 on Windows) puts it in")
+    for line in package_lines():
+        print(line)
     print()
 
     results = [
