@@ -1121,6 +1121,7 @@ async function tick() {
   const round = s.addressing ? null : s.round;
   if (s.build && s.build !== PAGE_BUILD) { location.reload(); return; }
   lastTableState = s;
+  autoTick();
   nameForCourse(s);
   markChosen(s);
   const shootOpen = s.shootout && !s.shootout.over;
@@ -1308,7 +1309,11 @@ async function tick() {
       }
       paintPickClock(shoot);
       const pc = stage.querySelector('[data-pickclk]');
-      if (pc) pc.textContent = (shoot.pick_remaining === null || shoot.pick_remaining === undefined) ? '' : Math.ceil(shoot.pick_remaining) + 's';
+      if (pc) {
+        const n = holdClock('pick', shoot.pick_remaining);
+        pc.dataset.count = 'pick';
+        pc.textContent = n === '' ? '' : n + 's';
+      }
       return;
     }
     /* Between rounds in a hall, the host's deck: the same card on every
@@ -1320,7 +1325,9 @@ async function tick() {
       paintCard(card, s.hall.master);
       return;
     }
-    chip.textContent = soon ? `starting in ${Math.ceil(secs)}s` : 'no round';
+    const startIn = soon ? holdClock('start', secs) : holdClock('start', null);
+    if (soon) chip.innerHTML = `starting in <span data-count="start">${startIn}s</span>`;
+    else chip.textContent = 'no round';
     showing = 'idle';
     const idleKey = 'none' + (netInfo.connected ? (netInfo.ready ? ':node' : ':linked') : (netInfo.heard || []).length ? ':offer' : '');
     if (painted !== idleKey || soon) {
@@ -1328,7 +1335,7 @@ async function tick() {
       const nb = netInfo.bridge || {};
       stage.innerHTML = soon
         ? `<p class="empty">Somebody has joined. First question in
-           <b>${Math.ceil(secs)}</b> seconds &mdash; or start one now.</p>`
+           <b data-count="start" data-count-unit="">${startIn}</b> seconds &mdash; or start one now.</p>`
         : netInfo.connected && netInfo.ready
           ? `<p class="empty">Waiting on net control &mdash; the next question comes from
              <b>${esc(nb.net_name || 'the net')}</b> when the host starts it.</p>`
@@ -1499,8 +1506,11 @@ async function tick() {
   }
   resumeSeatSwings(round);
   const clock = document.getElementById('clock');
-  if (clock) clock.textContent = Math.ceil(round.remaining) + 's';
-  stage.querySelectorAll('[data-seatclk]').forEach(el => { el.textContent = Math.ceil(round.remaining) + 's'; });
+  const left = holdClock('round' + (round.number || ''), round.remaining);
+  if (clock) { clock.dataset.count = 'round' + (round.number || ''); clock.textContent = left + 's'; }
+  stage.querySelectorAll('[data-seatclk]').forEach(el => {
+    el.dataset.count = 'round' + (round.number || ''); el.textContent = left + 's';
+  });
   const waiting = document.getElementById('waiting');
   if (waiting) waiting.textContent = round.to != null
     ? (round.waiting_on ? `${round.to_name || 'somebody'}'s stroke - nothing is timed. Read it with them.` : 'the ball is away')
@@ -1912,7 +1922,7 @@ tourney.addEventListener('click', async () => {
     seconds: parseFloat(document.getElementById('seconds').value) || 30,
     bots: document.getElementById('botson').checked});
   tourney.disabled = false;
-  autoTick();
+  tick();
 });
 /* The mark in the head follows the class this table is playing. */
 document.getElementById('difficulty').addEventListener('change', e => {
@@ -2020,8 +2030,13 @@ document.addEventListener('change', e => {
   if (sel) golfGroup(parseInt(sel.value, 10) || 0);
 });
 
-async function autoTick() {
-  const r = await api('/api/party/auto-state');
+/* Whether a tournament is running, and the line that says so. It comes on
+   the table's own state poll now (s.auto_state), so this paints from the
+   last state rather than asking on a timer of its own - which was three
+   hundred requests in ten minutes for one line. Called after a press as
+   before; the tick that follows brings the fresh answer. */
+function autoTick() {
+  const r = {data: (lastTableState && lastTableState.auto_state) || {auto: null, mode: null}};
   const a = r.data && r.data.auto;
   const on = !!(a && a.running);
   const club = lastTableState && lastTableState.clubhouse;
@@ -2041,8 +2056,6 @@ async function autoTick() {
   autostate.textContent = on
     ? `${a.state} · ${a.played} round${a.played === 1 ? '' : 's'}` : '';
 }
-autoTick();
-setInterval(autoTick, 2000);
 
 /* ---------------------------------------------------------- net control */
 /* Which of three things this screen is. A table on its own has the host's
@@ -2101,7 +2114,11 @@ function paintHallShootout(b) {
       <div class="seats" style="margin:.5rem 0">${standing}</div>${body}`;
   }
   const left = document.getElementById('hp-left');
-  if (left) left.textContent = (sh.pick_remaining === null || sh.pick_remaining === undefined) ? '' : Math.ceil(sh.pick_remaining) + 's';
+  if (left) {
+    const n = holdClock('hallpick', sh.pick_remaining);
+    left.dataset.count = 'hallpick';
+    left.textContent = n === '' ? '' : n + 's';
+  }
 }
 
 document.addEventListener('click', async e => {
@@ -2292,13 +2309,41 @@ async function netTick() {
   if (r.ok) paintNet(r.data);
 }
 netTick();
-setInterval(netTick, 5000);
+setInterval(netTick, 15000);    // who is in the net changes over minutes, not seconds
 
 /* Fast while a round or its run-up is on the table, easy between rounds - a
    table screen watching the same 15-second deck as the room need not poll
-   every second to do it. */
-const TABLE_FAST = 1000, TABLE_WAIT = 5000;
+   every second to do it. Two seconds while it is on: the clocks on the
+   screen count down here between polls (see holdClock), so the deck reads
+   second by second whatever the poll does. */
+const TABLE_FAST = 2000, TABLE_WAIT = 5000;
 let tableMs = TABLE_FAST, tableTimer = null;
+
+/* The clocks on the screen count down here, between polls: each is held as
+   the moment it reaches nought, and every quarter second each element
+   marked data-count="<key>" is redrawn from that. A poll that says a little
+   more time is left than the count does - it is up to a round trip old -
+   does not wind the clock back; one that says less, or a clock not seen
+   before, sets it. So a two-second poll still shows the deck second by
+   second, the way the hall's own lead-in clock already did. */
+const clockEnds = {};
+function holdClock(key, secs) {
+  if (secs === null || secs === undefined) { delete clockEnds[key]; return ''; }
+  const end = performance.now() + secs * 1000;
+  const had = clockEnds[key];
+  if (!had || end < had || end - had > 1500) clockEnds[key] = end;
+  return String(clockLeft(key));
+}
+function clockLeft(key) {
+  const end = clockEnds[key];
+  return end ? Math.max(0, Math.ceil((end - performance.now()) / 1000)) : null;
+}
+setInterval(() => {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const n = clockLeft(el.dataset.count);
+    if (n !== null) el.textContent = n + (el.dataset.countUnit === undefined ? 's' : el.dataset.countUnit);
+  });
+}, 250);
 /* A poll that throws - a fetch that failed, a paint that hit a bad value -
    used to end the polling for good: the timer was only re-armed after a
    tick that came back. A screen with nothing wrong on it then sat on
@@ -2402,7 +2447,7 @@ async function nearbyGolf() {
   box.hidden = false;
 }
 nearbyGolf();
-setInterval(nearbyGolf, 8000);
+setInterval(nearbyGolf, 30000);  // a round nearby lasts an hour; half a minute finds it
 
 /* The host ended it. A visiting screen whose host closes the table, or
    stops the golf before the last hole, is told so in those words - not

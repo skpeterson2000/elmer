@@ -4675,6 +4675,11 @@ def api_party_state():
     # screens draw the address instead.
     driver = autoplay.director()
     state["addressing"] = bool(driver and driver.state == "addressing" and state.get("golf"))
+    # Whether a tournament is running here - what /api/party/auto-state
+    # says, carried on the poll every table screen makes anyway. The table
+    # used to ask for it on a timer of its own, every two seconds: three
+    # hundred requests in ten minutes for one line of text.
+    state["auto_state"] = {"auto": driver.as_dict() if driver else None, "mode": room.mode}
     # The table screen says what it is showing so the host can see the room;
     # the bridge carries it up with the next check-in.
     showing = request.args.get("showing")
