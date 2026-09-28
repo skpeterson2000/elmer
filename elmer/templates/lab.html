@@ -453,7 +453,7 @@
     <div>
       <div class="row" style="margin-bottom:.3rem; gap:.5rem">
         <span class="tiny mono muted">YOUR END</span>
-        {% if qth.grid %}<span class="qth-badge" title="your saved QTH">QTH {{ qth.grid }}</span>{% endif %}
+        {% if qth.grid %}<span class="qth-badge" title="the position ELMER is working from{% if qth.position %} - {{ qth.position.label }}{% endif %}">QTH {{ qth.grid }}</span>{% endif %}
         <button class="btn sm ghost" id="p-use-qth" style="padding:.1rem .45rem;font-size:.7rem">use my QTH</button>
         <button class="btn sm ghost" id="p-locate" hidden style="padding:.1rem .45rem;font-size:.7rem">locate me</button>
         <button class="btn sm ghost" id="p-save-qth" style="padding:.1rem .45rem;font-size:.7rem">save as my QTH</button>

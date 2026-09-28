@@ -760,26 +760,59 @@ function browserFix() {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       async pos => {
-        const {latitude: lat, longitude: lon} = pos.coords;
+        const {latitude: lat, longitude: lon, accuracy} = pos.coords;
+        /* Where it came from and how sure, kept with it. On a desktop the
+           browser answers from the network - an IP address or the nearest
+           Wi-Fi - and can be a county out; its accuracy was thrown away here
+           and the guess saved as the QTH with nothing to say what it was. */
+        const how = {source: 'browser', browser: true,
+                     accuracy_m: (typeof accuracy === 'number' && isFinite(accuracy)) ? Math.round(accuracy) : null};
         try {
-          resolve(await api('/api/reverse-geocode?' +
-            new URLSearchParams({lat: lat, lon: lon})));
+          resolve(Object.assign(await api('/api/reverse-geocode?' +
+            new URLSearchParams({lat: lat, lon: lon})), how));
         } catch (e) {
-          resolve({name: lat.toFixed(4) + ', ' + lon.toFixed(4),
+          resolve(Object.assign({name: lat.toFixed(4) + ', ' + lon.toFixed(4),
                    short: lat.toFixed(4) + ', ' + lon.toFixed(4),
                    kind: 'coordinates', lat: lat, lon: lon,
-                   grid: latLonToGrid(lat, lon)});
+                   grid: latLonToGrid(lat, lon)}, how));
         }
       },
       err => reject(err), {timeout: 15000, maximumAge: 600000});
   });
 }
 
+/* A position about to be taken that is not a fix - a browser guess coarser
+   than 100 m, or one the server says nobody vouches for (TowerWitch's
+   fallback) - is shown for what it is and taken only if the operator says
+   so. It used to be saved as the QTH without a word. */
+const FIX_METRES = 100;
+
+function confirmUnvouched(place) {
+  const browserGuess = place.source === 'browser' &&
+    !(place.accuracy_m != null && place.accuracy_m <= FIX_METRES);
+  if (!browserGuess && place.vouch !== 'unvouched') return place;
+  const within = place.accuracy_m != null
+    ? (place.accuracy_m >= 1000 ? (place.accuracy_m / 1000).toFixed(1) + ' km' : place.accuracy_m + ' m')
+    : 'an accuracy it does not give';
+  const what = browserGuess
+    ? 'Your browser puts you near ' + (place.short || place.grid) + ', to within ' + within +
+      '. That is likely your internet provider\'s or a Wi-Fi network\'s location, not a GPS fix.'
+    : 'The only position available is ' + (place.label || 'one nobody vouches for') +
+      ', near ' + (place.short || place.grid) + '.';
+  if (!window.confirm(what + '\n\nUse it as your QTH anyway?')) {
+    const err = new Error('not taken - ' + (browserGuess ? 'the browser\'s position was too coarse to trust'
+                                                         : 'the position was not one anything vouches for'));
+    err.reason = err.message;
+    throw err;
+  }
+  return place;
+}
+
 async function locateMe() {
   // The GPS on the station first: it knows about this lay-by, and it needs
   // neither a secure context nor a network lookup service.
   const fix = await serverFix();
-  if (fix) return fix;
+  if (fix) return confirmUnvouched(fix);
   if (!geolocationAvailable()) {
     // Carry the server's own account of what is missing, so the page can
     // repeat it rather than inventing a vaguer one.
@@ -787,14 +820,16 @@ async function locateMe() {
     err.reason = lastFixReason;
     throw err;
   }
+  let guess;
   try {
-    return await browserFix();
+    guess = await browserFix();
   } catch (e) {
     const err = new Error(lastFixReason ||
       'the browser would not give a position either');
     err.reason = lastFixReason;
     throw err;
   }
+  return confirmUnvouched(guess);
 }
 
 function saveQTH(place) {

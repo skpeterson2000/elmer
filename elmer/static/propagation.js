@@ -106,8 +106,20 @@ async function load(force) {
       '<span class="pill ' + (/closed/i.test(v) ? '' : 'good') + '">' + escapeHTML(v) + '</span>' +
     '</div>').join('');
 
+  /* Where these numbers are for, and from which source: a receiver's fix, the
+     typed QTH, or something nobody vouches for - and anything that
+     disagrees. Said on every load, because on a mobile station they differ. */
+  const w = d.where && d.where.position;
+  const whereLine = d.where
+    ? '<p class="tiny muted" style="margin:.3rem 0 0">Worked from <b>' + escapeHTML(d.where.short || '') +
+      '</b> &mdash; ' + escapeHTML(w ? w.label : 'the QTH on file') + '.' +
+      (w && w.disagree && w.disagree.length
+        ? ' <span class="warntext">' + w.disagree.map(x => escapeHTML(x.with) + ' is ' + Math.round(x.km) +
+            ' km from it').join('; ') + ' &mdash; more than their accuracies allow.</span>'
+        : '') + '</p>'
+    : '';
   if (d.elevation !== null) {
-    document.getElementById('p-qth').innerHTML =
+    document.getElementById('p-qth').innerHTML = whereLine +
       'Sun is <b>' + d.elevation + '&deg;</b> ' + (d.elevation >= 0 ? 'above' : 'below') +
       ' your horizon, so ELMER is using the <b>' + (d.is_day ? 'daytime' : 'night-time') +
       '</b> band ratings and a MUF of <b>' + d.muf + ' MHz</b>' +

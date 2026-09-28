@@ -87,7 +87,10 @@
       const fix = await locateMe();
       picked = {lat: fix.lat, lon: fix.lon,
                 grid: fix.grid || latLonToGrid(fix.lat, fix.lon),
-                name: 'Here', short: 'Here', kind: 'fix'};
+                name: 'Here', short: 'Here', kind: 'fix',
+                // where it came from and how sure, kept with the QTH
+                source: fix.source || null, accuracy_m: fix.accuracy_m != null ? fix.accuracy_m : null,
+                browser: !!fix.browser};
       document.getElementById('setup-qth-hint').innerHTML =
         '<b>Here</b> &middot; ' + escapeHTML(picked.grid) + ' &middot; ' +
         picked.lat.toFixed(4) + ', ' + picked.lon.toFixed(4);

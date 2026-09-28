@@ -465,8 +465,15 @@ async function roAsk() {
     return;
   }
 
+  /* The source in words for every source, not only gpsd: TowerWitch, a
+     phone, another ELMER and a browser guess used to be shown as if they
+     were the QTH on file. */
+  const pos = d.qth_position;
   where.innerHTML = 'From <b>' + escapeHTML(d.qth || 'the QTH on file') + '</b>' +
-    (d.qth_source === 'gps' ? ' <span class="mono">(GPS)</span>' : '') +
+    (pos ? ' <span class="muted">(' + escapeHTML(pos.label) + ')</span>' : '') +
+    (pos && pos.disagree && pos.disagree.length
+      ? ' <span class="warntext">' + pos.disagree.map(x => escapeHTML(x.with) + ' is ' + Math.round(x.km) +
+          ' km from it').join('; ') + '.</span>' : '') +
     ', ' + ({lit: 'in daylight', gray: 'on the gray line', dark: 'after dark',
              twilight: 'in twilight that will not clear'}[d.sun]
             || 'in daylight') + '. ' +

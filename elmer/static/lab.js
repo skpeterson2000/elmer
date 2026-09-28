@@ -4095,12 +4095,18 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
    than where somebody told ELMER they live. In a vehicle those are different
    places, and which one the figures came from is the whole answer. */
 function positionNote(d) {
-  if (d.qth_source !== 'gps') return '';
+  /* Every source that is not the QTH on file is said, with what it can
+     vouch for - not only gpsd - and anything that disagrees with it. */
+  const pos = d.qth_position;
+  if (!pos || pos.class === 'typed') return '';
   const age = d.qth_age_s;
-  return '<p class="tiny muted">Position from GPS &mdash; <b>' +
-    escapeHTML(d.qth || '') + '</b>, read ' +
-    (!(age > 90) ? 'just now' : Math.round(age / 60) + ' min ago') +
-    '. These figures are about here, not about the QTH on file.</p>';
+  return '<p class="tiny muted">Position from ' + escapeHTML(pos.label) + ' &mdash; <b>' +
+    escapeHTML(d.qth || '') + '</b>' + (age != null ? ', read ' +
+    (!(age > 90) ? 'just now' : Math.round(age / 60) + ' min ago') : '') +
+    '. These figures are about here, not about the QTH on file.' +
+    (pos.disagree && pos.disagree.length
+      ? ' <span class="warntext">' + pos.disagree.map(x => escapeHTML(x.with) + ' is ' + Math.round(x.km) +
+          ' km from it').join('; ') + '.</span>' : '') + '</p>';
 }
 
 /* Break a place name into at most two lines at a word boundary, as evenly as

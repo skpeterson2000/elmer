@@ -1395,6 +1395,9 @@ def api_ways_out():
                               conn=connection, gmrs=gmrs)
     answer["qth"] = place.get("short") or place.get("grid") or ""
     answer["qth_source"] = place.get("source") or "saved"
+    # Where the position came from in words, and what disagrees with it -
+    # every source, not only gpsd (provenance.py).
+    answer["qth_position"] = place.get("position")
     answer["located"] = True
     # The track: the steps from a silent radio to a first contact, for the
     # person the list of avenues does nothing for. Progress is theirs,
@@ -1904,6 +1907,7 @@ def api_pattern():
         "dx": dx, "qth": place.get("grid") or place.get("short") or "",
         "qth_source": place.get("source") or "saved",
         "qth_age_s": place.get("age_s"),
+        "qth_position": place.get("position"),
         "reach": span, "use": use,
         "daytime": day, "sun": sun,
         # When the compass comes back empty, an empty compass is not the whole
@@ -3966,10 +3970,17 @@ def api_ground_kept():
 @app.route("/api/propagation")
 def api_propagation():
     connection = conn()
-    settings = db.get_profile(connection)["settings"]
-    loc = settings.get("location") or {}
+    profile = db.get_profile(connection)
+    settings = profile["settings"]
+    # The position ranked as everywhere else (qth_for): a fix before the
+    # typed QTH, the typed QTH before anything unvouched. This page used
+    # the typed QTH alone, so a mobile station's band conditions were for
+    # where it had last been set, while the band plan followed the fix.
+    loc = qth_for(connection, profile) or {}
     snap = propagation.snapshot(lat=loc.get("lat"), lon=loc.get("lon"),
                                 force=request.args.get("force") == "1")
+    snap["where"] = ({"short": loc.get("short") or loc.get("grid"), "grid": loc.get("grid"),
+                      "position": loc.get("position")} if loc.get("lat") is not None else None)
     # The moon and the meteor calendar come from a clock and a place, fetched
     # from nowhere - so they are on the page whether the network is or not.
     try:
