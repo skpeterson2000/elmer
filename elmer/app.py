@@ -39,7 +39,7 @@ from . import (
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, ledger, library, logs, mail, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
-    paths, personal, phonegps, places, pota, prints, programs,
+    paths, personal, phonegps, places, pota, prints, programs, provenance,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
     srs, sweeps, terrain, ticket, touchstone, tournament, towerwitch,
@@ -511,43 +511,45 @@ def all_standings(connection, refresh=False):
 
 
 def qth_for(connection, profile):
-    """Where the station is: the GPS if one is talking, else the saved QTH.
+    """Where the station is, ranked by what each source can vouch for.
 
-    A QTH entered as a bare grid square has no name to show, so the first time
-    it is needed the coordinates are reverse-geocoded and the result stored.
-    Failure is fine - the grid square still works on its own.
+    A receiver's fix beats the typed QTH - these Pis travel, and a mobile
+    station's typed QTH is the stale one - and the typed QTH beats anything
+    nobody vouches for: TowerWitch's broadcast when it says nothing of its
+    fix, its last known or fallback position, a coarse browser guess, another
+    ELMER relaying one of those (provenance.py). The typed square is not
+    wasted when a fix is in: it is what the program runs on in a field with
+    no GPS and no network, which is why it is asked for.
 
-    A live fix outranks the typed square, because these Pis travel and every
-    answer about reach, bearings and exposure is an answer about a place. The
-    typed square is not thereby wasted: it is what the program runs on in a
-    field with no GPS and no network, which is why it is asked for.
+    A QTH entered as a bare grid square has no name to show, so the first
+    time it is needed the coordinates are reverse-geocoded and the result
+    stored. Failure is fine - the grid square still works on its own.
+
+    The place returned carries "position": which source it is, its class
+    and accuracy in words, and any other position heard that disagrees with
+    it by more than their accuracies allow. TowerWitch falls back to
+    Minneapolis when it has no receiver, and a station whose operator had
+    set Pequot Lakes was being taken there - by a guard in this function
+    that checked for a flag place() never carried, so it never fired.
     """
     saved = _saved_qth(connection, profile)
     if not gps.enabled(connection):
         return saved
     live = gps.place(connection)
-    if not live:
+    others = [o for o in gps.heard() if not live or (o.get("lat"), o.get("lon")) != (live.get("lat"), live.get("lon"))]
+    chosen, account = provenance.choose(saved, live, others)
+    if account is None:
         return saved
-    # A position read out of TowerWitch's state file is not a fix and must
-    # not outrank a place somebody typed. It is there for the unit that has
-    # no QTH at all - ELMER just started, TowerWitch has been running - and
-    # it was taking the band plan to Minneapolis on a station whose operator
-    # had set Pequot Lakes, because Minneapolis is the default TowerWitch
-    # falls back to when it has no receiver. The one program on the bench
-    # that knew where the station was, was being overruled by the one that
-    # says outright that it does not.
-    if live.get("last_known") and saved.get("lat") is not None:
-        return saved
+    from_saved = chosen is saved
+    chosen = dict(chosen, position=account)
     # Near home the saved QTH has a name on it and the fix does not, so keep
     # the name and take the coordinates. Away from it, a grid square is the
     # honest label: nothing here can reverse-geocode a lay-by off-grid.
-    if saved.get("lat") is not None:
-        km, _ = geo.great_circle(saved["lat"], saved["lon"],
-                                     live["lat"], live["lon"])
+    if not from_saved and chosen.get("lat") is not None and saved.get("lat") is not None:
+        km, _ = geo.great_circle(saved["lat"], saved["lon"], chosen["lat"], chosen["lon"])
         if km <= 10 and saved.get("short"):
-            live = dict(live, short=saved["short"],
-                        name=saved.get("name") or saved["short"])
-    return live
+            chosen.update(short=saved["short"], name=saved.get("name") or saved["short"])
+    return chosen
 
 
 def _qth_note(connection, profile):
@@ -8345,8 +8347,13 @@ def api_gps():
         "located": True,
         "name": place.get("name") or live["grid"],
         "short": place.get("short") or live["grid"],
-        "kind": "gps", "lat": live["lat"], "lon": live["lon"],
+        # The kind is the source's own - "gps" only for a receiver on this
+        # unit - and the class and label say what it can vouch for, so a
+        # page that saves this as the QTH, or TowerWitch taking it, knows
+        # whether it holds a fix or somebody's fallback.
+        "kind": live.get("kind"), "lat": live["lat"], "lon": live["lon"],
         "grid": live["grid"], "mode": live.get("mode"),
+        "vouch": live.get("vouch"), "accuracy_m": live.get("accuracy_m"), "label": live.get("label"),
         "age_s": live.get("age_s"), "from": live.get("from"),
         "source": live.get("source"), "sats": live.get("sats"),
         "seen": live.get("seen"), "hdop": live.get("hdop"),

@@ -307,9 +307,18 @@ def _payload(unit, name, url, version, fix, party, share_position=True,
     if fix and share_position:
         # The fix travels with the announcement, so a unit without a receiver
         # needs no second request to be useful - it simply knows.
+        # With what the source can vouch for, so a unit that borrows it
+        # knows whether it borrowed a receiver's fix or TowerWitch's
+        # fallback: a peer's position used to arrive as "another ELMER" and
+        # nothing more, whatever was behind it. The label carries no
+        # coordinates and no town (provenance.py).
+        from . import provenance
+        said = provenance.vouch(fix) or {}
         out["gps"] = {"lat": fix["lat"], "lon": fix["lon"],
                       "mode": fix.get("mode"), "source": fix.get("source", "gps"),
-                      "age_s": round(max(0.0, time.time() - fix["read_at"]), 1)}
+                      "age_s": round(max(0.0, time.time() - fix["read_at"]), 1),
+                      "vouch": said.get("class"), "accuracy_m": said.get("accuracy_m"),
+                      "label": said.get("label")}
     out["party"] = party or {}
     # Which of the three parts this unit is already playing: running the net
     # for the hall, reporting to somebody else's, or neither. A neighbour that
@@ -345,7 +354,13 @@ def parse(data, sender_ip):
             peer["gps"] = {"lat": lat, "lon": lon,
                            "mode": gps.get("mode") or 2,
                            "source": gps.get("source"),
-                           "age_s": gps.get("age_s")}
+                           "age_s": gps.get("age_s"),
+                           # What the sender says its source vouches for. A
+                           # unit from before this was sent says nothing, and
+                           # nothing is assumed: it ranks as unvouched.
+                           "vouch": gps.get("vouch") if gps.get("vouch") in ("fix", "typed", "unvouched") else None,
+                           "accuracy_m": gps.get("accuracy_m") if isinstance(gps.get("accuracy_m"), (int, float)) else None,
+                           "label": str(gps.get("label"))[:80] if gps.get("label") else None}
     return peer
 
 
@@ -667,4 +682,8 @@ def borrowed_fix():
     return {"lat": gps["lat"], "lon": gps["lon"], "alt_m": None,
             "mode": gps.get("mode") or 2, "source": "elmer-peer",
             "read_at": time.time() - float(gps.get("age_s") or 0.0),
-            "from": f"ELMER on {peer['name']}"}
+            "from": f"ELMER on {peer['name']}",
+            # The source behind it, as the sender vouched: the original
+            # used to be received here and dropped.
+            "via": {"class": gps.get("vouch"), "accuracy_m": gps.get("accuracy_m"),
+                    "label": gps.get("label") or (f"its {gps['source']} position" if gps.get("source") else None)}}

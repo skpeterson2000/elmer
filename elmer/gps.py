@@ -42,7 +42,7 @@ CONNECT_TIMEOUT = 0.8     # seconds to get a socket, before any waiting on it
 FRESH_FOR = 30.0          # how long a fix is reused before asking again
 STALE_AFTER = 300.0       # a fix older than this is history, not position
 
-_last = {"at": 0.0, "fix": None}
+_last = {"at": 0.0, "fix": None, "all": []}
 
 
 def target(conn=None):
@@ -77,6 +77,10 @@ def usable(tpv, host="", port=0):
     try:
         return {"lat": float(tpv["lat"]), "lon": float(tpv["lon"]),
                 "alt_m": tpv.get("alt"), "mode": tpv.get("mode"),
+                # gpsd's own estimate of the horizontal error, in metres,
+                # where the receiver gives one - the accuracy a fix states.
+                "eph": tpv.get("eph") if tpv.get("eph") is not None else (
+                    max(tpv["epx"], tpv["epy"]) if tpv.get("epx") is not None and tpv.get("epy") is not None else None),
                 "time": tpv.get("time"), "read_at": time.time(),
                 # Every fix says where it came from. Callers were left to
                 # assume it when the field was absent, and an assumption about
@@ -286,8 +290,8 @@ def fix(conn=None, max_age=FRESH_FOR):
     # the position sat in the listener. gpsd still outranks them - the probe
     # replaces this with the receiver's own fix as soon as it has one.
     if not _last["fix"]:
-        from . import towerwitch, phonegps
-        cheap = towerwitch.current() or phonegps.current()
+        from . import towerwitch, phonegps, provenance
+        cheap = provenance.best([towerwitch.current(), phonegps.current()])
         if cheap:
             _last["fix"] = cheap
     return _last["fix"]
@@ -295,57 +299,60 @@ def fix(conn=None, max_age=FRESH_FOR):
 
 def _look(host, port):
     """One probe for a fix, off the request path: what fix() used to do
-    on the caller's time. The sources in the order they are trusted."""
+    on the caller's time.
+
+    Every source is heard, not only the first to answer, and the one kept
+    is the best by what it can vouch for (provenance.best) - with the order
+    below, the order they are trusted in, deciding between equals. Taking
+    the first to answer put TowerWitch's broadcast ahead of a phone with a
+    good fix, and TowerWitch's broadcast cannot say whether it has one. All
+    of them are kept in _last["all"], so a position that disagrees with the
+    one used can be said (provenance.choose)."""
+    from . import discovery, phonegps, provenance, repeaters, towerwitch
     now = time.time()
-    found = read_fix(host, port)
-    if not found:
-        # The station's own GPS, taken off the network where TowerWitch puts
-        # it. One receiver in the vehicle, every device knowing where it is -
-        # which is the arrangement, and it wants no configuring at either end.
-        from . import towerwitch
-        found = towerwitch.current()
-    if not found:
-        # No receiver, or none with a lock. A phone streaming NMEA at this unit
-        # is the fallback, and for a station with no antenna on a lead it is
-        # the only source there is - which is the case it exists for. A real
-        # receiver still wins when there is one, so this is only consulted
-        # after gpsd has been asked and had nothing to say.
-        from . import phonegps
-        found = phonegps.current()
-    if not found:
-        # Another ELMER on the same network that has a receiver. It announces
-        # its fix; this one takes it. Same idea as TowerWitch's broadcast and
-        # deliberately separate: that is the arrangement when TowerWitch is
-        # running, this one holds when it is not.
-        from . import discovery
-        found = discovery.borrowed_fix()
-    if not found:
-        # Last, what TowerWitch last knew. It is not a live fix and is not
-        # presented as one - the age it was written travels with it - but on a
-        # unit where TowerWitch has been running and ELMER has just started, it
-        # is the difference between knowing roughly where the station is and
-        # knowing nothing at all.
-        from . import repeaters
-        borrowed = repeaters.last_position()
-        if borrowed:
-            found = {"lat": borrowed["lat"], "lon": borrowed["lon"],
-                     "alt_m": None, "mode": 2,
-                     "read_at": time.time() - (borrowed["age_s"] or 0.0),
-                     "source": "towerwitch", "town": borrowed.get("town"),
-                     # Said out loud, because the paragraph above claims this
-                     # is not presented as a live fix and it was: it came back
-                     # from place() like any other and outranked the QTH the
-                     # operator had typed. A position read out of another
-                     # program's state file is the answer when there is no
-                     # other; it is not news from a receiver. See qth_for().
-                     "last_known": True,
-                     "from": "TowerWitch's last known position"}
+    heard = [
+        read_fix(host, port),            # a receiver on this unit
+        # The station's own GPS, taken off the network where TowerWitch
+        # puts it: one receiver in the vehicle, every device knowing where
+        # it is, with no configuring at either end.
+        towerwitch.current(),
+        # A phone streaming NMEA at this unit - for a station with no
+        # antenna on a lead, the only source there is.
+        phonegps.current(),
+        # Another ELMER on the same network that has a receiver, and says
+        # which it is and how good (see discovery.borrowed_fix).
+        discovery.borrowed_fix(),
+    ]
+    # Last, what TowerWitch last knew: not a live fix, and not presented
+    # as one - it is the difference between knowing roughly where the
+    # station is and knowing nothing at all, and it ranks below the typed
+    # QTH (provenance: unvouched). Its mode is not claimed: a state file
+    # does not say whether there was a fix behind it.
+    borrowed = repeaters.last_position()
+    if borrowed:
+        heard.append({"lat": borrowed["lat"], "lon": borrowed["lon"],
+                      "alt_m": None, "mode": None,
+                      "read_at": time.time() - (borrowed["age_s"] or 0.0),
+                      "source": "towerwitch", "town": borrowed.get("town"),
+                      "fallback": borrowed.get("fallback"), "fix_mode": borrowed.get("fix_mode"),
+                      "last_known": True,
+                      "from": "TowerWitch's last known position"})
+    heard = [h for h in heard if h]
+    found = provenance.best(heard)
     _last["at"] = now
+    _last["all"] = heard
     if found:
         _last["fix"] = found
     elif _last["fix"] and now - _last["fix"]["read_at"] >= STALE_AFTER:
         _last["fix"] = None
     return _last["fix"]
+
+
+def heard():
+    """Every position the last probe heard, best first - for saying when
+    two of them disagree. Empty until a probe has run."""
+    from . import provenance
+    return sorted(_last.get("all") or [], key=lambda p: provenance.RANK[provenance.vouch(p)["class"]])
 
 
 # ------------------------------------------------------------- the sleuth
@@ -482,8 +489,18 @@ def place(conn=None):
     # A position borrowed from TowerWitch keeps the town it knew, because
     # "Pequot Lakes" is a more honest label than a grid square implying a fix.
     short = found.get("town") or grid
+    from . import provenance
+    said = provenance.vouch(found)
     return {"lat": found["lat"], "lon": found["lon"], "grid": grid,
-            "name": short, "short": short, "kind": "gps",
+            "name": short, "short": short,
+            # "gps" only for a receiver on this unit. Every source used to
+            # come back as kind "gps", so a TowerWitch fallback saved from
+            # here was later shown as a GPS position.
+            "kind": "gps" if found.get("source", "gps") == "gps" else found.get("source"),
+            "last_known": bool(found.get("last_known")),
+            "vouch": said["class"], "accuracy_m": said["accuracy_m"], "label": said["label"],
+            "fix_mode": found.get("fix_mode"), "fallback": found.get("fallback"),
+            "eph": found.get("eph"), "via": found.get("via"),
             "alt_m": found.get("alt_m"), "mode": found.get("mode"),
             # Say which it came from. A fix off somebody's handset and a fix
             # off a receiver on the roof are both positions, but an operator

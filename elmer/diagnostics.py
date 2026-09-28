@@ -147,7 +147,7 @@ def collect(port=5000):
         for check in (check_pools, check_figures, check_explanations,
                       check_database, check_accounts, check_templates, check_tools, check_manual,
                       check_kiosk, check_launcher, check_updates,
-                      check_location, check_gps, check_repeaters,
+                      check_location, check_gps, check_position, check_repeaters,
                       check_towerwitch_service, check_towerwitch_beside,
                       check_neighbours_known,
                       check_net_role, check_hall, check_node, check_mail,
@@ -514,6 +514,42 @@ def check_internet():
     return True
 
 
+def check_position():
+    """Which position ELMER works from, what it can vouch for, and whether
+    any other position heard disagrees with it.
+
+    Every answer about reach and bearings is an answer about a place, and
+    the place can come from a receiver, TowerWitch, a phone, another ELMER,
+    a browser or the operator's own typing - not equally good. This line
+    says which is in use and flags two that are farther apart than their
+    accuracies allow (provenance.py). The label carries no coordinates and
+    no town, so it can go in a report as it stands.
+    """
+    from . import db, gps, provenance
+    try:
+        conn = db.connect()
+        saved = db.get_profile(conn)["settings"].get("location") or {}
+        if not gps.enabled(conn):
+            live, others = None, []
+        else:
+            watch = gps._watch.get("thread")
+            if watch is None or not watch.is_alive():
+                # --doctor on its own: no watch has looked, so look now.
+                gps._look(*gps.target(conn))
+            live = gps.place(conn)
+            others = [o for o in gps.heard()
+                      if not live or (o.get("lat"), o.get("lon")) != (live.get("lat"), live.get("lon"))]
+        _, account = provenance.choose(saved, live, others)
+    except Exception as exc:              # one check that cannot be made must not cost the rest
+        _line(WARN, "position used", f"could not be worked out ({type(exc).__name__}: {exc})")
+        return True
+    if account is None:
+        _line(WARN, "position used", "none - no QTH set and nothing heard; set one on the propagation page")
+        return True
+    _line(WARN if account["disagree"] else OK, "position used", provenance.words(account))
+    return True
+
+
 def check_gps():
     """Whether the GPS is answering, and which one is being asked.
 
@@ -556,10 +592,17 @@ def check_gps():
         from . import towerwitch as twnet
         shared = twnet.current()
         if shared:
+            # Said as what it can vouch for. Every TowerWitch packet used to
+            # be called a "3D fix" here, its fallback position included.
+            from . import provenance
             from .geocode import to_grid
-            _line(OK, "GPS", f"3D fix from {shared['from']} - "
-                             f"{to_grid(shared['lat'], shared['lon'])} "
-                             f"({shared['lat']:.4f}, {shared['lon']:.4f})")
+            said = provenance.vouch(shared)
+            _line(OK if said["class"] == provenance.FIX else WARN, "GPS",
+                  f"{said['label']}, from {shared['from']} - "
+                  f"{to_grid(shared['lat'], shared['lon'])} "
+                  f"({shared['lat']:.4f}, {shared['lon']:.4f})"
+                  + ("" if said["class"] == provenance.FIX else
+                     " - not a fix it vouches for, so the typed QTH is used ahead of it"))
             return True
         # A phone streaming NMEA is the fallback, and on a station with no
         # receiver on a lead it is the whole answer - so say so before
@@ -655,9 +698,14 @@ def check_repeaters():
     try:
         from . import db, gps
         conn = db.connect()
-        spot = gps.place(conn) if gps.enabled(conn) else None
-        if not spot:
-            spot = db.get_profile(conn)["settings"].get("location") or None
+        from . import provenance
+        saved = db.get_profile(conn)["settings"].get("location") or {}
+        live = gps.place(conn) if gps.enabled(conn) else None
+        # Ranked as everywhere else (provenance.choose): a fix, then the
+        # typed QTH, then anything unvouched - which used to win here over
+        # the QTH the operator had typed.
+        spot, _ = provenance.choose(saved, live)
+        spot = spot or None
     except Exception:
         spot = None
     if spot and spot.get("lat") is not None:
@@ -1311,7 +1359,7 @@ def doctor(port=5000):
         check_templates(), check_tools(), check_library(), check_manual(), check_kiosk(),
         check_launcher(),
         check_updates(), check_location(),
-        check_gps(), check_repeaters(), check_towerwitch_service(), check_towerwitch_beside(),
+        check_gps(), check_position(), check_repeaters(), check_towerwitch_service(), check_towerwitch_beside(),
         check_neighbours(), check_net_role(), check_hall(), check_node(),
         check_mail(), check_load(), check_op25(),
         check_internet(), check_start(), check_pace(), check_server(port),

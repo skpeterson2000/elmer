@@ -20,7 +20,21 @@ The packet is TowerWitch's own, unchanged:
      "speed_mps": 0.05, "is_vehicle_speed": false,
      "closest_armer_towers": [...]}
 
-Only the position is taken. What else rides along is TowerWitch's business.
+Only the position is taken, and with it what TowerWitch says about how good
+it is - see docs/towerwitch-broadcast.md for the fields this reads:
+
+    "fix_mode": 0-3    gpsd's mode: 0 unknown, 1 no fix, 2 2D, 3 3D
+    "sats": 8          satellites used in the fix
+    "hdop": 1.2        horizontal dilution of precision
+    "eph": 6.5         horizontal error in metres, where the receiver gives one
+    "fallback": true   the position is not from a receiver fix at all
+    "fix_time": "..."  when the fix was taken, apart from when it was sent
+
+A packet without them is taken as it always was, and not called a fix: its
+position is labelled "no fix quality given" and ranks below the typed QTH
+(see provenance.py). TowerWitch falls back to Minneapolis when it has no
+receiver, and a station in Pequot Lakes was put there by a packet that
+could not say so. What else rides along is TowerWitch's business.
 
 A word on trust, kept in the same terms as everything else here: anything on
 the network can send a packet to this port, so this is a station on a network
@@ -70,9 +84,20 @@ def parse(payload):
         return None
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         return None
-    out = {"lat": lat, "lon": lon, "mode": 3, "alt_m": None,
+    # What the packet says about its own fix, where it says anything. The
+    # mode used to be set to 3 here for every packet, and the self-check
+    # called TowerWitch's fallback a "3D fix".
+    quality = {}
+    for key, cast in (("fix_mode", int), ("sats", int), ("hdop", float), ("eph", float)):
+        try:
+            if data.get(key) is not None:
+                quality[key] = cast(data[key])
+        except (TypeError, ValueError):
+            continue
+    out = {"lat": lat, "lon": lon, "mode": quality.get("fix_mode"), "alt_m": None,
            "source": "towerwitch-net", "read_at": time.time(),
-           "sent": data.get("timestamp")}
+           "sent": data.get("timestamp"), "fix_time": data.get("fix_time"),
+           "fallback": bool(data.get("fallback")), **quality}
     try:
         if data.get("speed_mps") is not None:
             out["speed_mps"] = float(data["speed_mps"])

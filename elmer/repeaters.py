@@ -162,8 +162,14 @@ def last_position(path=None):
             age = None
     if age is not None and age > STATE_MAX_AGE:
         return None
+    # Whether TowerWitch says the position was a fix, where it says so -
+    # see docs/towerwitch-broadcast.md. Absent, nothing is assumed.
+    fallback = state.get("last_fallback")
     return {"lat": lat, "lon": lon, "town": state.get("nearest_town") or None,
-            "age_s": age, "written": stamp, "from": str(where)}
+            "age_s": age, "written": stamp, "from": str(where),
+            "fix_mode": state.get("last_fix_mode"),
+            "fallback": bool(fallback) if fallback is not None else None,
+            "fix_time": state.get("last_fix_time")}
 
 
 # GMRS repeaters answer on exactly eight frequencies - 462.550 to 462.725

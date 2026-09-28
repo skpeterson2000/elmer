@@ -121,6 +121,16 @@ def held_names(conn=None):
     except (OSError, ValueError, AttributeError) as exc:
         log.warning("redaction: could not read the rated ground spots: %s", exc)
     places.update(_looked_up())
+    # The town TowerWitch last knew itself at, which the self-check names:
+    # "TowerWitch last knew itself at Minneapolis, Minnesota" went out in a
+    # report as it stood, beside coordinates that were redacted.
+    try:
+        from . import repeaters
+        tw = repeaters.last_position() or {}
+        town = str(tw.get("town") or "")
+        places.update((town, town.split(",")[0]))
+    except (OSError, ValueError, AttributeError) as exc:
+        log.warning("redaction: could not read TowerWitch's last known town: %s", exc)
     return ({str(c).strip() for c in calls if c and str(c).strip()},
             {str(p).strip() for p in places if p and str(p).strip()})
 
