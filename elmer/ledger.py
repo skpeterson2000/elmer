@@ -44,7 +44,7 @@ import hmac
 import logging
 import secrets
 import sqlite3
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from . import paths
 
@@ -52,6 +52,9 @@ log = logging.getLogger("elmer")
 
 DIR = paths.STATE / "ledger"
 PATH = DIR / "ledger.db"
+# How much older than the ledger a database row must be to be brought in by
+# backfill() - see there.
+BACKFILL_GRACE_S = 2
 # What devreset.py must leave alone, relative to the checkout. The reset
 # cleans the checkout's own data/, whatever ELMER_STATE says.
 RESET_KEEPS = "data/ledger"
@@ -225,11 +228,24 @@ def backfill(conn):
         if led.execute("SELECT 1 FROM meta WHERE key = 'backfilled'").fetchone():
             return 0
         created = led.execute("SELECT value FROM meta WHERE key = 'created'").fetchone()["value"]
+        # A little before the ledger was made, not the moment itself. Both
+        # clocks keep whole seconds, and the ledger is made by the first
+        # answer written to it - stamped by the database a moment before.
+        # When a second turned between the two, that answer was older than
+        # the ledger by one second, written live and brought in again here:
+        # counted twice. Every answer since the ledger existed is written
+        # live; the rows this is for are from builds older than it by far
+        # more than a few seconds.
+        try:
+            cutoff = (datetime.fromisoformat(created)
+                      - timedelta(seconds=BACKFILL_GRACE_S)).isoformat()
+        except ValueError:
+            cutoff = created
         n = 0
         people = {}
         rows = conn.execute(
             "SELECT user_id, ts, day, pool_id, question_id, section, correct, ms, mode "
-            "FROM answer_log WHERE ts < ? ORDER BY id", (created,)).fetchall()
+            "FROM answer_log WHERE ts < ? ORDER BY id", (cutoff,)).fetchall()
         real_user = conn.user_id
         try:
             for r in rows:
@@ -250,7 +266,7 @@ def backfill(conn):
         try:
             hall = conn.execute(
                 "SELECT ts, day, pool_id, question_id, section, who, license, correct, "
-                "ms, mode FROM hall_log WHERE ts < ? ORDER BY id", (created,)).fetchall()
+                "ms, mode FROM hall_log WHERE ts < ? ORDER BY id", (cutoff,)).fetchall()
         except sqlite3.OperationalError:     # a database from before the hall log
             hall = []
         for h in hall:

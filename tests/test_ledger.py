@@ -165,5 +165,34 @@ check("  two lost over forty days is one in twenty a day", per["Q2"]["per_day"],
 check("  a half-life of about two weeks", per["Q2"]["half_life_days"], 13.9)
 check("  and the pool-wide figure is the same sum", pool_wide["per_day"], 0.05)
 
+print("\nthe answer that makes the ledger is counted once, whatever the clock does")
+# Both clocks keep whole seconds, and the database stamps the answer a moment
+# before that answer makes the ledger. A Windows runner turned a second in
+# between, and the answer was written live and brought in again by the
+# backfill as one from before the ledger. Forced here: the ledger is made one
+# second after the database's stamp, on a ledger and a database of their own.
+real_dir, real_path, real_now = ledger.DIR, ledger.PATH, ledger._now
+fresh = Path(tempfile.mkdtemp(prefix="elmer-ledger-"))
+ledger.DIR, ledger.PATH = fresh, fresh / "ledger.db"
+stamp = db.utcnow()
+ledger._now = lambda: stamp + __import__("datetime").timedelta(seconds=1)
+spare_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False); spare_db.close()
+try:
+    c2 = db.connect(spare_db.name)
+    real_utcnow = db.utcnow
+    db.utcnow = lambda: stamp
+    try:
+        db.log_answer(c2, "tech2026", "T1A01", "T1A", 1, 0, 3000, "study")
+        c2.commit()
+    finally:
+        db.utcnow = real_utcnow
+    got = D.load(c2, "tech2026")
+    check("one answer, written a second before its ledger was made: one row", len(got), 1)
+    c2.close()
+finally:
+    ledger.DIR, ledger.PATH, ledger._now = real_dir, real_path, real_now
+    shutil.rmtree(fresh, ignore_errors=True)
+    Path(spare_db.name).unlink(missing_ok=True)
+
 print("\n" + ("FAILED: " + ", ".join(FAILS) if FAILS else "all ok"))
 sys.exit(1 if FAILS else 0)
