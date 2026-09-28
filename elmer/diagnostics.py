@@ -1240,9 +1240,10 @@ def doctor(port=5000):
     if not addresses:
         print("      no network interface is up - only localhost will work")
 
+    from . import host, logs
     print("\n  If a browser on another device cannot reach it, check that the")
     print("  device is on the same network as this Pi, then watch the log while")
-    print("  you try:  tail -f data/elmer.log")
+    print(f"  you try:  {host.follow_log(logs.LOG_PATH)}")
     print("  If nothing appears there, the request never arrived and the problem")
     print("  is the network, not ELMER.\n")
     return all(results)

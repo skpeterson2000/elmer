@@ -778,7 +778,8 @@ def main():
         print(f"      http://{ip}:{args.port}      (from another device, via {interface})")
     if log_path:
         print(f"\n  Logging to {log_path}")
-        print(f"  Watch it live with:  tail -f {log_path}")
+        from elmer import host
+        print(f"  Watch it live with:  {host.follow_log(log_path)}")
 
     # Say which build this is, in the log, before anything else happens. A log
     # that does not name its version costs whoever reads it the first hour.

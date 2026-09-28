@@ -27,9 +27,18 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 2947
 # Long enough for a receiver that reports every few seconds to get a word in.
 # ?POLL usually answers instantly, so this is the safety net rather than the
-# normal path - and a unit with no GPS at all still fails in well under it,
-# because nothing is listening and the connection is refused outright.
+# normal path.
 TIMEOUT = 5.0             # seconds to wait for a fix before giving up
+# Connecting is bounded separately, because "nothing is listening" is not the
+# same speed on the two machines. On Linux a refused loopback connection comes
+# back at once - the kernel answers its own RST. Windows retries the SYN before
+# it admits the refusal: 2.03 s measured on a laptop, against 0.81 s with this
+# bound. Most reads are off the request path now (fix() looks in a thread),
+# but the self-check page, --doctor and --gps still read on somebody's time,
+# and every Windows unit is a unit with no gpsd. One round trip is all a
+# connection needs, on loopback or across the shack; only the waiting
+# afterwards wants the five seconds above.
+CONNECT_TIMEOUT = 0.8     # seconds to get a socket, before any waiting on it
 FRESH_FOR = 30.0          # how long a fix is reused before asking again
 STALE_AFTER = 300.0       # a fix older than this is history, not position
 
@@ -107,7 +116,7 @@ def read_fix(host=None, port=None, timeout=TIMEOUT):
     port = port or DEFAULT_PORT
     deadline = time.monotonic() + timeout
     try:
-        sock = socket.create_connection((host, port), timeout=timeout)
+        sock = socket.create_connection((host, port), timeout=min(timeout, CONNECT_TIMEOUT))
     except OSError:
         return None
     sky = None                    # the last SKY seen: satellites and geometry

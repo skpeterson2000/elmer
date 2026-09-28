@@ -95,3 +95,79 @@ jobs:
           exit 1
         fi
         echo "all test files passed"
+
+  # The Pi is what ELMER is for, and the job above stands in for it. This one
+  # exists because Windows is a second implementation in the few places that
+  # cannot be shared - stopping the program, naming a serial port, telling
+  # somebody how to watch the log, replacing a file another thread has open -
+  # and an untested second implementation works right up until somebody
+  # needs it.
+  #
+  # It installs the way the README tells a person to, through install.ps1,
+  # rather than pip-installing behind the installer's back, because "it will
+  # not install on Windows" is one of the reports this is here to catch. Then
+  # it lints and runs every test the way the job above does, through the
+  # virtual environment the installer made.
+  windows:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    # The Python the portable zip carries (see release.yml). The Pi's 3.11
+    # is pinned above for a reason that does not apply here: nobody runs
+    # Raspberry Pi OS on the laptop this job stands in for.
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+    # poppler, for the library and the NIFOG reader, as the job above
+    # installs it. install.ps1 offers it through winget, and only with a
+    # keyboard or -Yes; a runner has neither a keyboard nor winget.
+    - name: Install poppler
+      run: choco install poppler -y --no-progress
+    # The installer finds Python through the py launcher, which on a runner
+    # with several Pythons picks the newest; these tell it which one is meant.
+    - name: Install, exactly as a person would
+      env:
+        PY_PYTHON: "3.12"
+        PY_PYTHON3: "3.12"
+      run: powershell -ExecutionPolicy Bypass -File install.ps1
+    # Which interpreter the installer actually chose, said in the log and
+    # held: a surprise here should stop the job, not be inferred later from
+    # a strange failure three tests in.
+    - name: Say what the installer built
+      shell: bash
+      run: |
+        .venv/Scripts/python.exe -VV
+        .venv/Scripts/python.exe -c "import sys; sys.exit(0 if sys.version_info[:2] == (3, 12) else 'the installer built with ' + sys.version)"
+    # Here the virtual environment is inside the checkout, as it is on every
+    # installed Windows unit, which is what .flake8's excludes are for.
+    - name: Lint with flake8
+      shell: bash
+      run: |
+        .venv/Scripts/python.exe -m pip install --quiet flake8
+        .venv/Scripts/python.exe -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Run the tests
+      shell: bash
+      run: |
+        # The same loop as the job above, through the installer's Python, so
+        # this tests the installed program and not a separate set of packages.
+        failed=""
+        for t in tests/test_*.py; do
+          echo "::group::$t"
+          rc=0
+          out=$(.venv/Scripts/python.exe "$t" 2>&1) || rc=$?
+          echo "$out"
+          if [ $rc -ne 0 ]; then
+            failed="$failed $t"
+            why=$(echo "$out" | grep -E "FAIL|Traceback|Error|BREACH|    (open|sqlite3|os.|shutil)" | head -8 | paste -sd '|' -)
+            echo "::error file=$t::$t failed on Windows (rc $rc): ${why:0:900}"
+          fi
+          echo "::endgroup::"
+        done
+        if [ -n "$failed" ]; then
+          echo "failed:$failed"
+          exit 1
+        fi
+        echo "all test files passed"

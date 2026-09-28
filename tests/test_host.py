@@ -97,6 +97,29 @@ def run():
     check("posix returns a list", isinstance(host.serial_fallback(), list),
           True)
 
+    print("\n-- how to watch the log, in the machine's own language --")
+    log = Path("data") / "elmer.log"
+    as_windows(True)
+    check("windows is told PowerShell's way", host.follow_log(log),
+          f'Get-Content -Wait "{log}"')
+    as_windows(False)
+    check("posix is told tail", host.follow_log(log), f"tail -f {log}")
+    as_windows(True)
+    check("  and windows is never told tail", "tail" in host.follow_log(log),
+          False)
+    host.WINDOWS = REALLY_WINDOWS
+    # Read, not run: --doctor goes out to the internet among its checks, and
+    # a test does not.
+    root = Path(__file__).resolve().parents[1]
+    banner = (root / "elmer.py").read_text(encoding="utf-8")
+    check("the start banner asks host, not tail",
+          ("host.follow_log(log_path)" in banner, "tail -f {log_path}" in banner),
+          (True, False))
+    doctor = (root / "elmer" / "diagnostics.py").read_text(encoding="utf-8")
+    check("  and so does the self-check, with the log where it really is",
+          ("host.follow_log(logs.LOG_PATH)" in doctor, "tail -f" in doctor),
+          (True, False))
+
     print("\n-- the kiosk is a Linux appliance and says so --")
     host.WINDOWS = REALLY_WINDOWS
     check("kiosk only where /proc and X are", host.can_kiosk(), host.LINUX)

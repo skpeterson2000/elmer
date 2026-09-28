@@ -115,6 +115,20 @@ def serial_fallback():
     return sorted(glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*"))
 
 
+def follow_log(path):
+    """The command that watches the log as it is written, on this machine.
+
+    `tail` is not on a Windows box. Printing it anyway spends the one
+    instruction the reader was given on a command that answers "not
+    recognized", and the person who most needs the log is the one least
+    likely to know what to substitute. PowerShell has the same thing under
+    its own name, so the hint is the same hint, in the local language.
+    """
+    if WINDOWS:
+        return f'Get-Content -Wait "{path}"'
+    return f"tail -f {path}"
+
+
 def can_kiosk():
     """Whether the full-screen kiosk exists on this machine.
 

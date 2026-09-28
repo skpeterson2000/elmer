@@ -168,11 +168,15 @@ def main():
     check("refused outright, not waited on",
           gps.read_fix("127.0.0.1", dead, timeout=3), None)
     # Linux refuses a dead loopback port at once; Windows retries the SYN
-    # twice first and takes two seconds over it - which is why gps.fix()
-    # probes in a thread of its own rather than on a page's time.
+    # and takes two seconds to admit the refusal, so the connect is bounded
+    # on its own (gps.CONNECT_TIMEOUT) - the self-check page and --doctor
+    # still read on somebody's time. The margin above the bound is for a
+    # busy CI runner.
     import os as _os
-    check("  and it did not spend the timeout doing it" + (" (Windows takes two seconds to refuse)" if _os.name == "nt" else ""),
-          time.monotonic() - started < (3.0 if _os.name == "nt" else 1.0), True)
+    check("  and it did not spend the timeout doing it" + (" (Windows gives up at the connect bound)" if _os.name == "nt" else ""),
+          time.monotonic() - started < (gps.CONNECT_TIMEOUT + 0.7 if _os.name == "nt" else 1.0), True)
+    check("  the connect bound is shorter than the wait for a fix",
+          gps.CONNECT_TIMEOUT < gps.TIMEOUT, True)
 
     print("\n-- the probe is never on the caller's time --")
     gps._last["at"] = 0.0

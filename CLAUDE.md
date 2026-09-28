@@ -63,8 +63,9 @@ functions, so running bare `pytest` collects nothing and "fails".
   (`./elmer.py --doctor`) names them when missing, numpy and scipy too.
 - **Raspberry Pi OS refuses `pip install`** (PEP 668). `install.sh` uses apt
   there and a virtual environment elsewhere. Never tell a user to pip install.
-- **Windows is a first-class target.** The release workflow builds and
-  smoke-tests a Windows zip when a `v*` tag is pushed.
+- **Windows is a first-class target.** CI installs through `install.ps1` on
+  a Windows runner and runs the whole suite there on every push. The release
+  workflow builds and smoke-tests a Windows zip when a `v*` tag is pushed.
   - Use `pathlib` for paths, never string-joined separators.
   - File permissions: mode 600 does nothing on Windows. Private files get
     their inherited permissions removed and are granted to the owner and
@@ -163,4 +164,4 @@ adding features.
 - `tests/` holds the standalone test scripts, plus `_isolate.py` and
   `_browser.py`. `tools/` holds the build and asset scripts.
 - `.github/workflows/`: `python-app.yml` (lint and tests on push or pull request
-  to main) and `release.yml` (the Windows zip, on a `v*` tag).
+  to main, on Ubuntu with Python 3.11 and on Windows with 3.12) and `release.yml` (the Windows zip, on a `v*` tag).
