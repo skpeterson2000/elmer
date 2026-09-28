@@ -18,6 +18,7 @@ links therefore go through ELMER's own /away page, and :func:`open_window` puts
 the external site in an ordinary window - one with a close button - leaving the
 kiosk window still on ELMER underneath.
 """
+import json
 import logging
 import os
 import re
@@ -68,6 +69,220 @@ BROWSERS = (
     ("firefox", "firefox"),
     ("firefox-esr", "firefox"),
 )
+
+# ----------------------------------------------------------- the last launch
+# What the most recent --kiosk launch came to, kept where the problem report,
+# the doctor and the dashboard can all read it. A unit nobody can paste a log
+# from still has to be able to say why its screen is not full.
+LAST = paths.STATE / "kiosk-last.json"
+BROWSER_LOG = paths.STATE / "kiosk-browser.log"   # the browser's own stderr, this launch
+EARLY_S = 15.0          # a browser gone within this of starting failed to start
+WINDOW_WAIT_S = 10.0    # after that, how long to look for its window
+STDERR_TAIL = 12
+
+NOT_FOUND = "browser not found"
+NO_SCREEN = "no screen"
+EXITED = "started and exited"
+NOT_FULL = "running but not full screen"
+FULL = "running full screen"
+UNCHECKABLE = "not checkable"
+FAILED = (NOT_FOUND, NO_SCREEN, EXITED, NOT_FULL)
+
+_which = shutil.which           # the tests stand these two in
+_follower = {"thread": None}
+
+
+def _run_tool(args):
+    """What a small X tool printed, or None if it could not say."""
+    try:
+        out = subprocess.run(args, capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.debug("kiosk: %s could not run: %s", args[0], exc)
+        return None
+    return out.stdout if out.returncode == 0 else None
+
+
+def packaging(path):
+    """'snap', 'flatpak' or None: how the browser at `path` is confined.
+
+    Both keep the browser in a box of its own, and a box is the first thing
+    to suspect when a launch fails: a snap has a /tmp of its own and cannot
+    open a hidden folder in home, so a profile or a page handed to it from
+    either is a file it cannot see."""
+    if not path:
+        return None
+    for where in {str(path), os.path.realpath(path)}:
+        if "/snap/" in where or "snapd" in where:
+            return "snap"
+        if "flatpak" in where:
+            return "flatpak"
+    return None
+
+
+def _session_kind():
+    session = (os.environ.get("XDG_SESSION_TYPE") or "").lower()
+    if session == "wayland" or (os.environ.get("WAYLAND_DISPLAY") and session != "x11"):
+        return "wayland"
+    if os.environ.get("DISPLAY"):
+        return "x11"
+    return None
+
+
+def fullscreen(pid, family):
+    """Whether the browser's window is full screen, as (True, False or None,
+    why). None is "cannot tell here", said rather than guessed: Wayland does
+    not let one program read another's window, and on X it takes xprop or
+    wmctrl to ask."""
+    kind = _session_kind()
+    if kind == "wayland":
+        return None, "a Wayland session does not let another program read a window's state"
+    if kind != "x11":
+        return None, "no X display to ask"
+    xprop, wmctrl = _which("xprop"), _which("wmctrl")
+    if not (xprop or wmctrl):
+        return None, "neither xprop nor wmctrl is installed to ask X"
+    wanted = ("chrom",) if family == "chromium" else ("firefox", "navigator")
+    windows = []                                   # (id, pid, class)
+    if wmctrl:
+        for line in (_run_tool([wmctrl, "-lpx"]) or "").splitlines():
+            bits = line.split(None, 4)
+            if len(bits) >= 4:
+                windows.append((bits[0], bits[2], bits[3].lower()))
+    else:
+        listed = _run_tool([xprop, "-root", "_NET_CLIENT_LIST"]) or ""
+        for wid in re.findall(r"0x[0-9a-fA-F]+", listed.split("#", 1)[-1]):
+            props = _run_tool([xprop, "-id", wid, "_NET_WM_PID", "WM_CLASS"]) or ""
+            owner = re.search(r"_NET_WM_PID\(CARDINAL\) = (\d+)", props)
+            klass = re.search(r"WM_CLASS\(STRING\) = (.*)", props)
+            windows.append((wid, owner.group(1) if owner else "",
+                            (klass.group(1) if klass else "").lower()))
+    # By the process first; a browser that hands its window to a child of
+    # its own is found by its class instead.
+    ours = ([w for w in windows if w[1] == str(pid)]
+            or [w for w in windows if any(k in w[2] for k in wanted)])
+    if not ours:
+        return None, f"no window of the browser's among the {len(windows)} on the screen"
+    wid = ours[0][0]
+    if xprop:
+        state = _run_tool([xprop, "-id", wid, "_NET_WM_STATE"])
+        if state is None:
+            return None, f"xprop could not read window {wid}"
+        shown = state.split("=", 1)[-1].strip() if "=" in state else "no state set"
+        return "_NET_WM_STATE_FULLSCREEN" in state, f"window {wid}: {shown}"
+    # wmctrl alone cannot print a state; the window's size against the
+    # desktop's says the same thing.
+    size = next((line.split() for line in (_run_tool([wmctrl, "-lG"]) or "").splitlines()
+                 if line.split()[:1] == [wid]), None)
+    desk = next((line for line in (_run_tool([wmctrl, "-d"]) or "").splitlines()
+                 if " * " in line), "")
+    screen = re.search(r"DG: (\d+)x(\d+)", desk)
+    if not (size and len(size) >= 6 and screen):
+        return None, "wmctrl could not give the window's size"
+    w, h, sw, sh = int(size[4]), int(size[5]), int(screen.group(1)), int(screen.group(2))
+    return w >= sw and h >= sh, f"window {wid} is {w}x{h} on a {sw}x{sh} desktop"
+
+
+def _record(verdict, lines, **more):
+    """The launch's outcome, to the log and to LAST."""
+    data = {"at": time.time(), "verdict": verdict, "lines": list(lines), **more}
+    try:
+        LAST.parent.mkdir(parents=True, exist_ok=True)
+        LAST.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError as exc:
+        log.warning("kiosk: could not keep the launch's outcome at %s: %s", LAST, exc)
+    if verdict in FAILED:
+        log.warning("kiosk: verdict: %s", verdict)
+    else:
+        log.info("kiosk: verdict: %s", verdict)
+    return data
+
+
+def last():
+    """The last launch's outcome, or None if this unit has not had one."""
+    try:
+        return json.loads(LAST.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        log.warning("kiosk: could not read %s: %s", LAST, exc)
+        return None
+
+
+def failed():
+    """The last launch's outcome if it failed, else None - what the
+    dashboard's one line is about."""
+    got = last()
+    return got if got and got.get("verdict") in FAILED else None
+
+
+def verdict_line():
+    got = last()
+    if not got:
+        return "verdict       no --kiosk launch recorded on this unit"
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(got.get("at") or 0))
+    return f"verdict       {got.get('verdict')} (last --kiosk launch, {when})"
+
+
+def last_lines():
+    """The last launch as flat lines: its verdict, what the browser said if
+    it died, the full-screen reading, and the facts as they were then."""
+    got = last()
+    out = [verdict_line()]
+    if not got:
+        return out
+    if got.get("exit_code") is not None:
+        out.append(f"exit code     {got['exit_code']}")
+    for line in got.get("stderr") or []:
+        out.append(f"browser said  {line}")
+    if got.get("fullscreen"):
+        out.append(f"full screen   {got['fullscreen']}")
+    out.extend(f"at launch     {line}" for line in got.get("lines") or [])
+    return out
+
+
+def _tail(path, n=STDERR_TAIL):
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    return [line for line in text.splitlines() if line.strip()][-n:]
+
+
+def _follow(process, family, lines):
+    """Watch the first seconds of a launch and write down what it came to.
+
+    A browser gone within EARLY_S never started: its exit code and the last
+    of what it said go to the log. One still running is asked, where that
+    can be asked, whether its window went full screen."""
+    try:
+        try:
+            code = process.wait(timeout=EARLY_S)
+        except subprocess.TimeoutExpired:
+            code = None
+        if code is not None:
+            tail = _tail(BROWSER_LOG)
+            log.warning("kiosk: the browser exited with code %s within %.0f s of starting",
+                        code, EARLY_S)
+            for line in tail:
+                log.warning("kiosk: browser said: %s", line)
+            _record(EXITED, lines, exit_code=code, stderr=tail)
+            return
+        deadline = time.monotonic() + WINDOW_WAIT_S
+        while True:
+            full, why = fullscreen(process.pid, family)
+            if full is not None or not why.startswith("no window") or time.monotonic() >= deadline:
+                break
+            time.sleep(1.0)
+        if full is None:
+            log.info("kiosk: whether it is full screen cannot be checked here: %s", why)
+            _record(UNCHECKABLE, lines, fullscreen=why)
+        elif full:
+            _record(FULL, lines, fullscreen=why)
+        else:
+            log.warning("kiosk: the browser is running but not full screen: %s", why)
+            _record(NOT_FULL, lines, fullscreen=why)
+    except Exception:                    # a watcher, not the launch: it must not take anything down
+        log.exception("kiosk: following the launch failed")
 
 
 def serving_elsewhere(port):
@@ -196,6 +411,7 @@ def session_facts():
         "chosen": None,
         "family": None,
         "snap": None,
+        "packaging": None,
         "version": None,
         "profile_dir": str(PROFILE_DIR),
     }
@@ -204,11 +420,13 @@ def session_facts():
             where = shutil.which(name)
             if where:
                 facts["found"].append({"name": name, "family": family, "path": where,
-                                       "snap": "/snap/" in where or "snapd" in where})
+                                       "snap": packaging(where) == "snap",
+                                       "packaging": packaging(where)})
     path, family = find_browser()
     facts["chosen"], facts["family"] = path, family
     if path:
-        facts["snap"] = "/snap/" in path or "snapd" in path
+        facts["packaging"] = packaging(path)
+        facts["snap"] = facts["packaging"] == "snap"
         # What it calls itself. Asked only where asking is harmless: Edge and
         # Chrome on Windows do not take --version and answer it by opening a
         # browser window instead, which is a diagnostic with a side effect and
@@ -243,12 +461,12 @@ def report_lines():
     if facts["found"]:
         for got in facts["found"]:
             lines.append(f"found         {got['name']} ({got['family']})"
-                         f"{' [snap]' if got['snap'] else ''} at {got['path']}")
+                         f"{' [' + got['packaging'] + ']' if got.get('packaging') else ''} at {got['path']}")
     elif os.name != "nt":
         lines.append("found         no chromium or firefox on PATH")
     lines.append(f"chosen        {facts['chosen'] or '(none)'}"
                  f"  family {facts['family'] or '-'}"
-                 f"{' [snap - confinement can block a profile path]' if facts['snap'] else ''}")
+                 f"{' [' + facts['packaging'] + ' - confinement can block a profile or a page path]' if facts.get('packaging') else ''}")
     if facts.get("version"):
         lines.append(f"version       {facts['version']}")
     lines.append(f"profile dir   {facts['profile_dir']}"
@@ -408,14 +626,18 @@ def launch(url):
     """
     if not have_display():
         log.warning("kiosk: no DISPLAY or WAYLAND_DISPLAY - staying headless")
-        for line in report_lines():
+        lines = report_lines()
+        for line in lines:
             log.warning("kiosk: %s", line)
+        _record(NO_SCREEN, lines)
         return None
     path, family = find_browser()
     if not path:
         log.warning("kiosk: no chromium or firefox found - staying headless")
-        for line in report_lines():
+        lines = report_lines()
+        for line in lines:
             log.warning("kiosk: %s", line)
+        _record(NOT_FOUND, lines)
         return None
 
     profile = PROFILE_DIR / family
@@ -427,19 +649,38 @@ def launch(url):
     # than filling the screen used to leave nothing in the log to look at,
     # because the one line that would have said why was at debug and nobody
     # runs an appliance at debug.
-    for line in report_lines():
+    lines = report_lines()
+    for line in lines:
         log.info("kiosk: %s", line)
     log.info("kiosk: launching %s", " ".join(command))
+    # What the browser says goes to a file of this launch's own rather than
+    # nowhere: a browser that refuses its profile says why on stderr, and
+    # that is the one line that explains a kiosk that never came up.
+    try:
+        BROWSER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        said = open(BROWSER_LOG, "wb")
+    except OSError as exc:
+        log.warning("kiosk: no file for the browser's own messages (%s): %s", BROWSER_LOG, exc)
+        said = subprocess.DEVNULL
     try:
         # Its own process group, so closing the browser later cannot deliver a
         # signal back to the server that started it.
         process = subprocess.Popen(
-            command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            command, stdout=subprocess.DEVNULL, stderr=said,
             start_new_session=True)
     except OSError as exc:
         log.warning("kiosk: could not start %s (%s)", path, exc)
+        _record(EXITED, lines, exit_code=None, stderr=[f"could not be started: {exc}"])
         return None
+    finally:
+        if said is not subprocess.DEVNULL:
+            said.close()                 # the browser has its own copy of the handle
     log.info("kiosk: %s (pid %d) on %s", Path(path).name, process.pid, url)
+    process.kiosk_started = time.monotonic()
+    thread = threading.Thread(target=_follow, args=(process, family, lines),
+                              name="kiosk-follow", daemon=True)
+    _follower["thread"] = thread
+    thread.start()
     return process
 
 
@@ -536,6 +777,15 @@ def watch(process, quitting):
         except OSError:
             return
         if quitting.is_set():
+            return
+        began = getattr(process, "kiosk_started", None)
+        if began is not None and time.monotonic() - began < EARLY_S:
+            # Not somebody closing the kiosk - a browser that never came up.
+            # Stopping would leave a dark unit nobody can reach to find out
+            # why; serving on lets another device, or the dashboard once a
+            # browser is opened by hand, say what happened.
+            log.warning("kiosk: the browser did not stay up - the server keeps running "
+                        "so the failure can be seen and reported")
             return
         log.info("kiosk: browser closed - stopping the server")
         os.kill(os.getpid(), signal.SIGINT)

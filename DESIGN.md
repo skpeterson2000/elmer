@@ -916,7 +916,17 @@ what you set up rather than by a switch beside it:
   with no file manager is a fact; these are things a person can press.
 
 Whichever door, the report is the same text, written to disk first and shown
-before it goes. The settings, a test message down whichever door is open,
+before it goes. A kiosk that did not come up full screen is the case this was
+shaped around most recently: a unit nobody can paste a log from still has
+to explain itself, so every `--kiosk` start leaves its verdict in
+`kiosk-last.json` under the state directory and the browser's own stderr in
+`kiosk-browser.log`, the doctor gives the verdict a line, and a failed start
+puts one line on the dashboard with **Report this** beside it. That press
+opens the same three-press report with the verdict already said; it sends
+nothing. Full screen is read from X with `xprop` or `wmctrl` and is never
+guessed: on Wayland no program may read another's window, and the verdict
+says it cannot be checked. A browser that dies within fifteen seconds of
+starting no longer stops the server with it - a dark unit cannot say why. The settings, a test message down whichever door is open,
 and both reports live under **Mail home** on the dashboard's update panel,
 local screen only.
 
@@ -932,7 +942,13 @@ Two things can go:
   say what happened — the one thing the log cannot — and a box to put your
   callsign on it so a reply can reach you; both optional. Then the report is
   written: your words first, then versions, the self-check, the recent errors
-  and the tail of the log, with your callsign, QTH and network addresses taken
+  and the tail of the log, and a **Kiosk** section - the verdict of the last
+  `--kiosk` start (browser not found, no screen, started and exited, running
+  but not full screen, running full screen, not checkable), what the browser
+  said on stderr if it died, the full-screen reading, the browser and whether
+  it is a snap or a flatpak, its command line and the session's DISPLAY,
+  WAYLAND_DISPLAY, XDG_SESSION_TYPE and XDG_CURRENT_DESKTOP, as at that start
+  and as now - with your callsign, QTH and network addresses taken
   out unless you ticked the box — a callsign typed into your own words
   included. It is shown so you can read it, and sent only by a further press,
   with the first line of what you said as its subject.

@@ -100,6 +100,8 @@ Scroll down and the rest of the first screen is already there, waiting for a rec
 
 **Kiosk mode and the Exit button.** Started with `--kiosk` on a Pi, or as its own window on Windows, ELMER fills the screen and shows an **Exit** button in the top corner. Exit stops ELMER and closes the window, after asking if anyone is playing on the unit from another device. Links that lead outside ELMER open a page that says so first, with a way back, so a full-screen browser with no back button never strands you.
 
+**When the kiosk does not fill the screen.** Every `--kiosk` start is written down: which browser was used and whether it is a snap or a flatpak, the whole command, the kind of screen session, and how it went - the browser was not found, there was no screen, it started and exited, it is running but not full screen, it is running full screen, or it cannot be checked (on Wayland, or on X without `xprop` or `wmctrl`). A browser that gives up in the first seconds has its own last words kept, and ELMER keeps serving rather than stopping with it, so another device can still reach the unit. When the last start failed, the dashboard says so in one line with **Report this** beside it, which opens a problem report with that already said; the report, and `./elmer.py --doctor`, carry a **Kiosk** section with the verdict first and the facts under it, with your callsign, QTH and home folder taken out as everywhere else in a report. Nothing is sent until you press send.
+
 **A tab pressed twice.** The tabs at the top light up when pressed and ignore a second press for a moment. On a Pi a page takes a second or two to build, and the second press would throw away the first.
 
 ## Finding your way around

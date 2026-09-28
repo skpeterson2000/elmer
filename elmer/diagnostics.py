@@ -1006,14 +1006,33 @@ def check_kiosk():
     if not path:
         _line(WARN, "kiosk mode", "no chromium or firefox - --kiosk will serve "
                                   "normally instead")
+        _kiosk_verdict()
         return True
     name = Path(path).name
     if not kiosk.have_display():
         _line(WARN, "kiosk mode", f"{name} found, but this session has no "
                                   "screen - --kiosk will serve normally instead")
+        _kiosk_verdict()
         return True
     _line(OK, "kiosk mode", f"{name} ({family}) ready")
+    _kiosk_verdict()
     return True
+
+
+def _kiosk_verdict():
+    """How the last --kiosk launch went, as one finding."""
+    from . import kiosk
+    got = kiosk.last()
+    if not got:
+        return
+    verdict = got.get("verdict")
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(got.get("at") or 0))
+    detail = f"{verdict} ({when})"
+    if got.get("fullscreen"):
+        detail += f" - {got['fullscreen']}"
+    elif got.get("exit_code") is not None:
+        detail += f" - exit code {got['exit_code']}"
+    _line(WARN if verdict in kiosk.FAILED else OK, "kiosk last launch", detail)
 
 
 def check_updates():
@@ -1231,6 +1250,14 @@ def doctor(port=5000):
         check_mail(), check_load(), check_op25(),
         check_internet(), check_start(), check_pace(), check_server(port),
     ]
+
+    # The kiosk's facts in full, where there is a kiosk or has been one:
+    # the verdict above is one line, and these are what explain it.
+    from . import host as _host, kiosk as _kiosk
+    if _host.can_kiosk() or _kiosk.last():
+        print("\n  Kiosk\n")
+        for line in _kiosk.last_lines() + ["now:"] + _kiosk.report_lines():
+            print(f"      {line}")
 
     print("\n  Open ELMER at any of these:\n")
     print(f"      http://localhost:{port}          (on this Pi)")

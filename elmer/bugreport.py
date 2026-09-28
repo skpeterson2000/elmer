@@ -233,14 +233,20 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
     # of a conversation - which session type is running, whether the browser is
     # a confined snap, what the launch command actually was - so they travel
     # with the report.
+    # The verdict first, in one line, then the facts as they are now and as
+    # they were at the last launch - a server started by a service can have
+    # no DISPLAY at all while the launch that failed had one.
     add("")
-    add("the screen, and the browser the kiosk would use")
+    add("Kiosk")
     add("-" * 60)
     try:
         from . import kiosk as _kiosk
+        for line in _kiosk.last_lines():
+            add(line)
+        add("now:")
         for line in _kiosk.report_lines():
             add(line)
-    except Exception as exc:
+    except Exception as exc:              # one section that cannot be gathered must not cost the report
         add(f"could not be gathered: {exc}")
 
     said = str(said or "").strip()[:SAID_MOST]

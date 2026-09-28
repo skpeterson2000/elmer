@@ -9244,13 +9244,23 @@ def _update_payload(status):
     connection = conn()
     from . import credits
     named = credits.supporters()
+    local = _is_local(request.remote_addr)
+    # The last --kiosk launch, when it failed: one line on the dashboard with
+    # "Report this" beside it. Local screen only, like the report itself.
+    kiosk_failed = None
+    if local:
+        from . import kiosk
+        got = kiosk.failed()
+        if got:
+            kiosk_failed = {"verdict": got.get("verdict"), "at": got.get("at")}
     return {
+        "kiosk_failed": kiosk_failed,
         "policy": update.policy(connection),
         "policies": list(update.POLICIES),
         "state": update.state(),
         "status": status,
         "blocked": update.blocked(status),
-        "local": _is_local(request.remote_addr),
+        "local": local,
         # the people who have thanked the developer with a coffee, under the build
         "supporters": named,
         "supporter_words": credits.words(named),

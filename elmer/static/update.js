@@ -69,6 +69,15 @@ function renderUpdate(d) {
       ? '<div class="small warntext" style="margin-top:.3rem">Held back: ' +
         escapeHTML(d.blocked) + '</div>' : '') +
     (d.local ? updateControls(d, waiting) : '') +
+    /* The last --kiosk launch, when it failed: said once, with the press
+       that turns it into a problem report. The report carries the kiosk's
+       facts whatever it is about; this only starts one with the words
+       already in it. Nothing goes until the report's own send. */
+    (d.local && d.kiosk_failed
+      ? '<div class="small warntext" style="margin-top:.5rem">The kiosk did not come up full screen at its last start: ' +
+        escapeHTML(d.kiosk_failed.verdict) + '. ' +
+        '<button class="btn sm" data-report-kiosk="' + escapeHTML(d.kiosk_failed.verdict) + '">Report this</button></div>'
+      : '') +
     (d.local ? '<div class="row" style="gap:.6rem;margin-top:.6rem;align-items:center">' +
         '<button class="btn sm" data-report="1">Send feedback</button>' +
         '<span class="tiny muted">A comment, a question, a suggestion or a problem. ' +
@@ -327,6 +336,22 @@ document.addEventListener('click', e => {
   if (out) out.innerHTML = reportForm();
   const said = document.getElementById('report-said');
   if (said) said.focus();
+});
+
+/* "Report this" beside a failed kiosk start: the same form, a problem,
+   with the verdict already said - the report adds the kiosk's facts. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-report-kiosk]');
+  if (!btn) return;
+  const out = document.getElementById('report-out');
+  if (!out) return;
+  out.innerHTML = reportForm();
+  const said = document.getElementById('report-said');
+  if (said) {
+    said.value = 'The kiosk did not come up full screen: ' + btn.dataset.reportKiosk + '.';
+    said.focus();
+  }
+  out.scrollIntoView({block: 'nearest'});
 });
 
 /* The file, as things to press. A path on a kiosk with no file manager is
