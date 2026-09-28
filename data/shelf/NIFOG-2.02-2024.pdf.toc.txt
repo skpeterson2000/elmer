@@ -1,0 +1,142 @@
+title: NIFOG: National Interoperability Field Operations Guide, Version 2.02
+# The guide's own table of contents (its printed pages ii-iv), with each
+# printed page number moved to the file's page (+7). Its bookmarks are
+# the leftovers of how the file was assembled, not chapters, so this list
+# stands in for them. tests/test_nifog_shelf.py checks that every title here
+# is on the page it names, so a new edition with this list left behind fails.
+8 GUIDE
+12 FCC Rules and Regulations
+12 NTIA Rules and Regulations
+13 FCC Rules for Interoperability
+15 NTIA Rules for Interoperability
+19 United States/Canada Frequency Coordination Lines
+21 How do I request a Special Temporary Authorization (STA)?
+25 Regulations and Guidelines for National Interoperability
+26 Conditions for Use of Federal Interoperability Channels
+29 Recommendations for Programming the Federal Interoperability Channels
+30 INTEROPERABILITY CHANNELS
+30 Conventions of Use for Interoperability
+31 Interoperability “Watch-Out” Situations
+32 ICS 205 Sample & Channel Instructions
+34 Notes on Interoperability Channels
+34 Field Programming
+35 VHF National Interoperability Channels
+    35 Low Band – LLAW & LFIRE
+    36 VHF Tactical Simplex – VCALL & VTAC
+    37 VHF Tactical Repeater - VTAC
+    38 VHF Inland – VTAC17
+    41 VHF Public Safety Mutual Aid and Common Channels
+    42 VHF Incident Response (IR) Federal Interoperability Channels
+    43 VHF Law Enforcement (LE) Federal Interoperability Channels
+    44 NOAA Weather Radio (NWR) “All Hazards” Broadcasts
+45 UHF Nationwide Interoperability Channels
+    45 UCALL & UTAC
+    46 UHF Incident Response (IR) Federal Interoperability Channels
+    47 UHF Law Enforcement (LE) Federal Interoperability Channels
+    48 UHF Medical (MED, EMS) Channels
+52 700 MHz Nationwide Interoperability Channels
+    58 700 MHz Nationwide Air-Ground Channels
+    60 700 MHz Low Power Itinerant Channels
+    61 700 MHz Nationwide Deployable Trunked System Channels
+    62 700 MHz Nationwide Deployable Trunked System Talkgroups
+66 800 MHz Nationwide Interoperability Channels
+67 P25 Digital Codes
+68 Continuous Tone-Coded Squelch System – CTCSS, Codes, & NAC Conversions
+69 Continuous Digital-Coded Squelch System - CDCSS Codes
+70 Federal / Non-Federal SAR Command Interoperability Plan
+71 Federal / Non-Federal VHF SAR Operations Interoperability Plan
+72 Common Emission Designators in Public Safety Licensing
+73 FCC Part 90 Common Station Class Codes
+74 Line-of-Sight Formulas
+75 25 Cities Project Federal Interoperability Channels
+84 Encryption – National Reserved SLN Table
+86 Commonly Used Frequencies
+86 Aviation Frequencies
+87 Notice to Airmen (NOTAM) Filing Instructions
+88 Unmanned Aircraft (UAS) Incident Reporting – Tips in Responding to a UAS Incident
+90 UAS Frequency Reference
+92 VHF Marine Channel Listing
+96 VHF Marine Channels & Frequencies
+102 Common Business Frequencies
+103 Railroad Frequencies
+104 SAR (Search and Rescue) Frequencies
+105 Standard Time and Frequency Broadcasts
+105 Standard Time by Telephone
+106 HF Disaster Communications
+107 HF Long Distance Communications
+108 Maritime HF and VHF Distress Frequencies
+109 SHARES HF
+109 Alaska Emergency Frequency
+110 Amateur Radio Emergency Frequencies
+110 60-meter Band (5 MHz)
+112 Amateur Radio Calling Frequencies
+112 Amateur Radio Repeater Coordinators
+113 Amateur Radio Bands (US)
+119 Amateur Radio Power Limits (US)
+120 Personal Radio Services
+124 Interference Management
+128 USEFUL REFERENCES
+128 Operations Center Telephone Numbers
+130 CISA/FEMA Regions - States and Territories
+131 CISA Region Contacts
+132 FEMA Region Contacts
+133 Emergency Support Functions (ESF)
+134 Priority Telecommunications Services Programs
+    134 GETS – Govt. Emergency Telecommunications Service
+    134 WPS – Wireless Priority Service
+    134 TSP – Telecommunications Service Priority
+136 EMERGENCY WIRELESS CARRIER SERVICES
+137 Typical Customer Support Request Information
+138 FirstNet Response Operations Group (ROG)
+139 How do FirstNet Deployables work?
+139 How do you request a FirstNet deployable?
+140 FirstNet Central: Uplift Portal and Incident Management
+140 FirstNet Assist App
+141 T-Mobile Emergency Response Team
+142 Verizon Response Team
+143 Telephone Keypad Letters
+143 N11 Numbers
+143 DSN Area Codes
+144 Text Messaging
+146 SATELLITE SERVICES
+146 M-SAT Satellite Mutual Aid Radio Talkgroups (SMARTTM)
+148 Satellite Phone Dialing Instructions
+    148 IRIDIUM
+    149 BGAN
+    149 MSAT
+    149 INMARSAT
+    150 INMARSAT-M Service Codes
+151 INFORMATION TECHNOLOGY
+151 Network Troubleshooting*
+152 Information Technology Disaster Resource Center
+153 Cisco Crisis Response (formerly Tactical Operations)
+154 Open Source Interconnection (OSI) Seven Layer Model
+155 Physical Media for Data Networks
+156 Public DNS Servers IPv4 & IPv6
+158 Reserved Address Spaces
+159 Subnetting / CIDR Notation
+160 Public Network Time Protocol (NTP) Servers
+161 Examples of Troubleshooting with Packet Captures
+162 Comparison of Common VPN Protocols
+163 WAN Technologies / Common Data Rates
+164 North America WIFI Channel Plan and Best Practices
+165 WIFI Configuration Best Practices
+166 RJ-45 Pinout
+167 RJ-45 Wiring
+168 Telephone Connectors
+169 25-Pair Telephone Block Wiring Color Code
+170 Notes on Fiber Optic Cable and Connectors
+171 RS-232 Connectors (DE9 and DB25)
+172 Uniform Color Code of Underground Utility Markings
+174 CYBERSECURITY
+174 Top Cybersecurity Tactics
+175 Cyber Incident Response
+176 Federal Cybersecurity Resources
+177 Common TCP/UDP Ports
+178 Cryptographic Cipher Recommendations
+179 ACKNOWLEDGEMENTS
+180 NOTES
+188 TIME ZONES
+189 UTC (ZULU) – TIME ZONE CONVERSION CHART
+190 PHONETIC ALPHABET STANDARDS
+191 EMERGENCY MEDICAL PROCEDURES

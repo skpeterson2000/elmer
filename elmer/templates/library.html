@@ -227,6 +227,15 @@
 .lib-hit mark { background: rgba(255,180,84,.28); color: inherit; padding: 0 .1em; border-radius: 3px; }
 .lib-book { padding: .6rem 0; border-bottom: 1px solid var(--line); }
 .lib-book .meta { display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
+/* A book's row: what it is on the left, wrapping as it needs to; what can be
+   done with it on the right, together and in the same order on every row. */
+.lib-row { display: flex; gap: .6rem 1.2rem; align-items: flex-start; }
+.lib-row .info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem .8rem; align-items: baseline; }
+.lib-row .acts { flex: none; display: flex; gap: .4rem; align-items: center; white-space: nowrap; }
+@media (max-width: 760px) {
+  .lib-row { flex-wrap: wrap; }
+  .lib-row .acts { flex-wrap: wrap; white-space: normal; }
+}
 .lib-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: .6rem; }
 .lib-card { border: 1px solid var(--line); border-radius: 8px; padding: .55rem .7rem; display: flex; flex-direction: column; gap: .25rem; }
 .lib-card .who { color: var(--dim); }
@@ -296,23 +305,25 @@
     const away = b.place === 'shelf';
     return `
       <div class="lib-book${away ? ' on-shelf' : ''}" data-book="${escapeHTML(b.name)}">
-        <div class="meta">
-          <b>${escapeHTML(b.title)}</b>
-          ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' — ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
-          ${shippedLine(b)}
-          ${lendingTag(b)}
-          <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
-          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
-          <span style="flex:1"></span>
-          <label class="tiny muted" title="Yours: Make Contact assumes you have this radio, wherever the book is. The Library itself is shared." style="display:flex;align-items:center;gap:.3rem;white-space:nowrap">
-            <input type="checkbox" data-mine="${escapeHTML(b.name)}" ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>
-          <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
-          ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
-          ${away
-            ? `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="table">Bring to the table</button>`
-            : `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="shelf" title="it stays in the Library, indexed and searched">Return to the shelf</button>`}
-          ${b.claimable ? `<button class="btn sm ghost" data-claim="${escapeHTML(b.name)}" data-title="${escapeHTML(b.title)}" title="nobody's name is on this book: if it is your copy, say so, and the file is yours to save or print">This is my copy</button>` : ''}
-          ${b.removable ? `<button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="delete the file from this unit">Remove</button>` : ''}
+        <div class="lib-row">
+          <div class="info">
+            <b>${escapeHTML(b.title)}</b>
+            ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' \u2014 ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
+            ${shippedLine(b)}
+            ${lendingTag(b)}
+            <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
+            <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
+          </div>
+          <div class="acts">
+            <label class="tiny muted" title="${b.claimable ? 'Yours: Make Contact assumes you have this radio. Nobody\'s name is on this copy yet - tick it and you are asked whether the file is yours too.' : 'Yours: Make Contact assumes you have this radio, wherever the book is. The Library itself is shared.'}" style="display:flex;align-items:center;gap:.3rem">
+              <input type="checkbox" data-mine="${escapeHTML(b.name)}" data-title="${escapeHTML(b.title)}"${b.claimable ? ' data-claimable="1"' : ''} ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>
+            <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
+            ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
+            ${away
+              ? `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="table">Bring to the table</button>`
+              : `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="shelf" title="it stays in the Library, indexed and searched">Return to the shelf</button>`}
+            ${b.removable ? `<button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="delete the file from this unit">Remove</button>` : ''}
+          </div>
         </div>
         <div class="lib-outline-box" hidden></div>
       </div>`;
@@ -378,7 +389,6 @@
             ${away
               ? `<button class="btn sm" data-shelve="${escapeHTML(b.name)}" data-to="table">Bring to the table</button>`
               : `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="shelf">Return to the shelf</button>`}
-            ${b.claimable ? `<button class="btn sm ghost" data-claim="${escapeHTML(b.name)}" data-title="${escapeHTML(b.title)}" title="nobody's name is on this book: if it is your copy, say so, and the file is yours to save or print">This is my copy</button>` : ''}
           </div>
         </div>`; }).join('') + '</div>';
   }
@@ -621,10 +631,21 @@
     box.addEventListener('click', onBook);
   });
 
+  /* "mine" says whose radio a manual is for. On a copy nobody's name is on,
+     ticking it also asks - once, since the first to say so owns the file -
+     whether the file is theirs; No still marks the radio. */
   async function onMine(e) {
     const m = e.target.closest('[data-mine]');
     if (!m) return;
-    try { await postJSON('/api/library/mine', {name: m.dataset.mine, mine: m.checked}); } catch (err) { m.checked = !m.checked; }
+    const claim = m.checked && m.dataset.claimable &&
+      confirm('Is this your copy of ' + m.dataset.title + '? Nobody\'s name is on it yet. The first ' +
+              'person to say so can save, print and remove it; everybody else reads it here.\n\n' +
+              'OK: it is my copy.   Cancel: just mark the radio as mine.');
+    try {
+      if (claim) await postJSON('/api/library/claim', {name: m.dataset.mine});
+      await postJSON('/api/library/mine', {name: m.dataset.mine, mine: m.checked});
+    } catch (err) { m.checked = !m.checked; }
+    if (claim) load();
   }
 
   async function onBook(e) {
@@ -641,16 +662,6 @@
        back with one press. */
     const s = e.target.closest('[data-shelve]');
     if (s) { await shelve(s.dataset.shelve, s.dataset.to); return; }
-    /* Asked, because it is once: the first to say so owns the copy. */
-    const c = e.target.closest('[data-claim]');
-    if (c) {
-      if (!confirm('Is ' + c.dataset.title + ' your copy? Nobody\'s name is on it yet. Once it is yours, ' +
-          'you can save, print and remove it, and everybody else reads it here. Only one person can say so.')) return;
-      try { await postJSON('/api/library/claim', {name: c.dataset.claim}); }
-      catch (err) { /* postJSON has already said what went wrong */ }
-      load();
-      return;
-    }
     const r = e.target.closest('[data-remove]');
     if (r) {
       if (!confirm('Remove ' + r.dataset.remove + ' from the Library? The file is deleted from this unit. ' +

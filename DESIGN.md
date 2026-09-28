@@ -1163,10 +1163,14 @@ club: anybody may read it in ELMER's reader, a page at a time as poppler
 draws it, but the file is handed out only to the person who added it
 (*yours to take*), and only they may remove it. Who added what is kept
 beside the books (`data/library/.added.json`); a book copied into the folder
-by hand has no name on it and starts *for reading here* to everybody. It
-carries *This is my copy*: the first person to press it owns it, once, and a
-second claim is refused, so the manuals already copied onto a unit before
-this existed do not stay unprintable for the person who bought them. Nothing
+by hand has no name on it and starts *for reading here* to everybody. The
+claim rides on *mine*: ticking it on such a book asks whether the file is
+the ticker's copy too, and the first to say yes owns it, once - a second
+claim is refused - so the manuals already copied onto a unit before this
+existed do not stay unprintable for the person who bought them. It was a
+button of its own, *This is my copy*, beside the checkbox; two controls that
+both read "this is mine" were one too many, so there is one, and the
+question is asked only while nobody's name is on the book. Nothing
 that came with ELMER, and not the guide, can be claimed: they are free to
 take already. `/library/book/` refuses the file to
 anybody else, and the reader offers no *Open as PDF* or browser viewer for

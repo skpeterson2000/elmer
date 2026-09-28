@@ -271,6 +271,10 @@ check("  pointers answer", d["pointers"][0]["page"], 3)
 check("  an unknown topic is refused", client.get("/api/library/pointers?topic=x").status_code, 400)
 d = client.get("/api/library/outline?name=FT-991A%20Operating%20Manual.pdf").get_json()
 check("  the outline is served", len(d["outline"]), 5)
+# A publisher who bookmarks every table gives an index, not chapters: the
+# list stops at chapters and their sections.
+deep = [{"title": f"t{n}", "page": 1, "level": n % 4} for n in range(8)]
+check("  the chapter list is two levels deep", [i["level"] for i in L.chapters_of(deep)], [0, 1, 0, 1])
 r = client.get("/library/book/FT-991A%20Operating%20Manual.pdf")
 check("  a manual copied in by hand is not handed out as a file", r.status_code, 403)
 # Added from the page by the person at this browser: theirs, and the file opens.

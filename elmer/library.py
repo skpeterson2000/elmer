@@ -654,7 +654,7 @@ def _outline(pdf):
 
 # What a PDF's Author field says when nobody filled it in: the account the
 # file was saved from, or the program's default.
-NOT_AUTHORS = {"administrator", "admin", "user", "owner", "unknown", "author", "default",
+NOT_AUTHORS = {"administrator", "admin", "user", "owner", "unknown", "anonymous", "author", "default",
                "microsoft", "windows user", "none"}
 
 
@@ -696,6 +696,17 @@ RE_HEADING = re.compile(r"^(?:(?P<chapter>Chapter|Section|Part)\s+)?(?P<num>\d{1
 RE_APPENDIX = re.compile(r"^(?P<title>Appendix\s+[A-Z][.:]?\s+[A-Z][^\n]{2,80}?)\s*$")
 HEADINGS_MIN = 3       # fewer numbered headings than this is not a table of contents
 HEADINGS_PER_PAGE = 3  # more than this on one page is a list, or the contents page
+# How deep the chapter list goes: chapters and their sections. A publisher
+# who bookmarks every table and figure gives a list of thousands, which is
+# an index, not chapters - the ATP has 447 bookmarks six deep. The index
+# keeps them all (a search hit still names the nearest one); the Chapters
+# list and its count stop here.
+CHAPTER_LEVELS = 2
+
+
+def chapters_of(outline):
+    """The chapters and sections of an outline, without the deeper levels."""
+    return [item for item in outline or [] if item.get("level", 0) < CHAPTER_LEVELS]
 
 
 def _title_case(title):
@@ -834,7 +845,9 @@ def index_one(pdf):
     own_title, own = _own_list(pdf, len(pages))
     info = _pdfinfo(pdf)
     if own:
-        outline, outline_from = own, "your list"
+        # A shipped book's list came with it (the NIFOG's, from its printed
+        # contents), and is nobody's own.
+        outline, outline_from = own, ("the list that came with it" if is_shipped(pdf) else "your list")
     elif not outline:
         outline = _headings(pages)
         outline_from = "printed headings" if outline else ""
@@ -945,7 +958,7 @@ def catalogue(user_id=None):
             # look like the word was not in the book.
             "scanned": bool(meta and meta.get("pages")
                             and not any((t or "").strip() for t in meta.get("text") or [])),
-            "bookmarks": len((meta or {}).get("outline") or []),
+            "bookmarks": len(chapters_of((meta or {}).get("outline"))),
             "bookmarks_from": (meta or {}).get("outline_from") or "",
             "bookmarks_problem": (meta or {}).get("outline_problem") or "",
             "indexed_at": (meta or {}).get("indexed_at"),
@@ -1073,9 +1086,10 @@ def can_draw_pages():
 
 
 def outline(name):
+    """The chapter list the Library and the reader show: two levels deep."""
     pdf = book(name)
     meta = _load_index(pdf) if pdf else None
-    return (meta or {}).get("outline") or []
+    return chapters_of((meta or {}).get("outline"))
 
 
 # ---------------------------------------------------------------------- search

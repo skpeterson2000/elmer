@@ -68,6 +68,26 @@ def main():
     if not library.tool("pdftotext"):
         check("pdftotext is here to read the channels", None, "a path")
         return
+
+    print("\n-- its chapters, from its own printed contents --")
+    # Its bookmarks are what was left of assembling the file - "NIFOG_508_
+    # Master1_2_3...", table column headings - thousands of them. The list
+    # beside it is the guide's printed table of contents, moved to the
+    # file's pages, and it outranks the bookmarks.
+    report = library.refresh(only=name)
+    check("indexed", name in report["indexed"] + report["kept"], True)
+    meta = library._load_index(pdf) or {}
+    check("the chapters come from the list that came with it",
+          (meta.get("outline_from"), len(library.outline(name))), ("the list that came with it", 136))
+    pages = meta.get("text") or []
+
+    def norm(s):
+        return "".join(ch for ch in s.lower() if ch.isalnum())
+    astray = [(i["page"], i["title"]) for i in library.outline(name)
+              if norm(i["title"])[:28] not in norm(pages[i["page"] - 1] if i["page"] <= len(pages) else "")]
+    check("  every title is on the page it names", astray, [])
+    row = next((b for b in library.catalogue(1) if b["name"] == name), {})
+    check("  and the Library counts them", row.get("bookmarks"), 136)
     print("\n-- the channels, from the copy that came with ELMER --")
     nifog.CACHE.unlink(missing_ok=True)
     nifog.SHELF_CACHE.unlink(missing_ok=True)
