@@ -900,7 +900,11 @@ what you set up rather than by a switch beside it:
   Google Apps Script the project's owner deployed from their own account —
   and the script mails it on, or files it in a GitHub folder, or both. Every
   credential for that lives on the script's side; the units know only the
-  URL, and the URL can only put things in, which is why it can be public. A
+  URL, and the URL can only put things in, which is why it can be public. It
+  takes six reports an hour from one unit, thirty an hour from all of them
+  together (a unit's mark is its own word, so that is the limit that holds),
+  and eighty a day, under the mail quota of an ordinary Google account; a
+  report over a limit is refused with the reason and stays on the unit. A
   Pi in a club hall, with nobody to type an app password into it, goes home
   this way. The script and its five-minute setup are in
   [`tools/report_drop.gs`](tools/report_drop.gs); a club running its own

@@ -48,6 +48,38 @@ var TAG = 'ELMER';
 var SUBJECT_TAG = '[ELMER]';
 var MOST = 400000;
 
+/* HOW MANY
+ *
+ * The address is public, so something has to say how much it will take.
+ *
+ *   PER_UNIT_HOUR  6   One unit mark in any clock hour. Somebody chasing a
+ *                      fault writes, sends, restarts and sends again; three
+ *                      or four in an hour is a person, six leaves room for
+ *                      the test message and a resend, and past that it is a
+ *                      loop - a unit stuck sending the same report - or
+ *                      somebody who has found the URL.
+ *   ALL_HOUR      30   Every unit together. The mark is the sender's own
+ *                      word, so a sender can change it each time; this is
+ *                      the limit that holds whatever it claims to be. A
+ *                      hamfest hall of twenty units reporting in one hour
+ *                      is already a very bad hour.
+ *   ALL_DAY       80   MailApp on an ordinary Google account sends about a
+ *                      hundred mails a day, and the owner's own mail comes
+ *                      out of the same quota. Past it every report fails to
+ *                      mail anyway; stopping at 80 leaves the owner room.
+ *
+ * A report over a limit is refused with ok: false and a detail that says
+ * which limit and when it resets. The unit keeps the report - it was
+ * written to disk before it was sent - and its page offers it by hand.
+ * The hour's counts live in the script cache, which may forget early: that
+ * limit can let a few more through, never fewer, which is the right way for
+ * a filter to fail. The day's count is a script property (DROP_DAY_COUNT),
+ * because the cache keeps nothing past six hours.
+ */
+var PER_UNIT_HOUR = 6;
+var ALL_HOUR = 30;
+var ALL_DAY = 80;
+
 function doPost(e) {
   var data;
   try {
@@ -66,6 +98,8 @@ function doPost(e) {
   if (subject.indexOf(SUBJECT_TAG) !== 0) subject = SUBJECT_TAG + ' ' + subject;
   var kind = clean(data.kind, 'report');
   var unit = clean(data.unit, 'unit');
+  var over = overLimit(unit);
+  if (over) return say({ok: false, detail: over});
   var props = PropertiesService.getScriptProperties();
   var out = {ok: true};
 
@@ -126,8 +160,54 @@ function doGet() {
     what: 'ELMER report drop',
     takes: 'POST, JSON, tag "' + TAG + '"',
     mails: !!(props.getProperty('MAIL_TO') || Session.getEffectiveUser().getEmail()),
-    files: !!(props.getProperty('GITHUB_REPO') && props.getProperty('GITHUB_TOKEN'))
+    files: !!(props.getProperty('GITHUB_REPO') && props.getProperty('GITHUB_TOKEN')),
+    // Which limits this deployment holds - and so whether the version with
+    // them in it is the one deployed.
+    limits: {per_unit_hour: PER_UNIT_HOUR, all_hour: ALL_HOUR, all_day: ALL_DAY}
   });
+}
+
+/* null if this report may go, or the sentence saying why it may not. Counted
+ * under a lock, because two reports in the same second would each read the
+ * count before either wrote it back. A lock that cannot be had in five
+ * seconds lets the report through rather than refusing it: a busy drop is
+ * not a reason to lose somebody's report. */
+function overLimit(unit) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return null;
+  try {
+    var cache = CacheService.getScriptCache();
+    var now = new Date();
+    var hour = Utilities.formatDate(now, 'UTC', 'yyyyMMddHH');
+    var day = Utilities.formatDate(now, 'UTC', 'yyyyMMdd');
+    var keys = {mine: 'n:h:' + hour + ':' + unit, hour: 'n:h:' + hour};
+    var got = cache.getAll([keys.mine, keys.hour]);
+    var mine = Number(got[keys.mine] || 0);
+    var inHour = Number(got[keys.hour] || 0);
+    // The day's count outlives the cache, which keeps nothing past six
+    // hours: it is a script property, "yyyyMMdd:count", one write a report.
+    var props = PropertiesService.getScriptProperties();
+    var stamp = String(props.getProperty('DROP_DAY_COUNT') || '').split(':');
+    var inDay = stamp[0] === day ? Number(stamp[1] || 0) : 0;
+    if (mine >= PER_UNIT_HOUR) {
+      return 'this unit has sent ' + mine + ' reports this hour, the most one unit may; ' +
+             'it is kept on the unit - send it again after the hour (UTC)';
+    }
+    if (inHour >= ALL_HOUR) {
+      return 'the drop has taken ' + inHour + ' reports this hour from every unit together; ' +
+             'it is kept on the unit - send it again after the hour (UTC)';
+    }
+    if (inDay >= ALL_DAY) {
+      return 'the drop has taken ' + inDay + ' reports today; it is kept on the unit - ' +
+             'send it again tomorrow (UTC), or by hand';
+    }
+    cache.put(keys.mine, String(mine + 1), 3700);
+    cache.put(keys.hour, String(inHour + 1), 3700);
+    props.setProperty('DROP_DAY_COUNT', day + ':' + (inDay + 1));
+    return null;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function clean(value, fallback) {
