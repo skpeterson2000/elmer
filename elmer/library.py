@@ -330,6 +330,13 @@ def manifest():
     return books
 
 
+def shipped_name(key):
+    """The file name of the shipped book the manifest gives this key
+    ("nifog"), or None - so code that wants a particular book does not
+    remember a file name that changes with its edition."""
+    return next((name for name, row in manifest().items() if row.get("key") == key), None)
+
+
 def is_shipped(pdf):
     """Whether this book came with the program, rather than from the operator."""
     return pdf is not None and pdf.parent == SHIPPED
@@ -916,7 +923,7 @@ def catalogue(user_id=None):
         rows.append({
             # Came with the program: the manifest's own words for it, and
             # what makes it free to ship.
-            "shipped": ({k: about.get(k) for k in ("title", "edition", "source", "statement")}
+            "shipped": ({k: about.get(k) for k in ("title", "edition", "source", "statement", "basis", "note")}
                         if about else None),
             # What radio the manual is for, if the table knows the model -
             # so the shelf can say what the operator owns.

@@ -193,7 +193,9 @@ Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
 of its release statement, its source and its SHA-256. The first book on it
 is the Army's ATP 6-02.53, *Techniques for Tactical Radios and
-Retransmission* (July 2025). Every book in the Library is on the table,
+Retransmission* (July 2025), and beside it CISA's NIFOG 2.02 (January 2025),
+whose channel tables the band plan reads when a unit has not fetched a newer
+edition. Every book in the Library is on the table,
 open for use, or on the shelf: a book returned to the shelf is still indexed
 and searched, its pages offered after the table's as *Also on the shelf*
 with a button to bring it back, and the card catalogue lists every book,

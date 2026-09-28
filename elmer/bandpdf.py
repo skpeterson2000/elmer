@@ -600,8 +600,8 @@ def _interop_page(s):
             Paragraph(
                 f"From the National Interoperability Field Operations Guide, "
                 f"version {record.get('version') or '?'} "
-                f"({record.get('dated') or 'undated'}), published by CISA and "
-                f"read on {record.get('fetched')}. A work of the US government, "
+                f"({record.get('dated') or 'undated'}), published by CISA, "
+                f"{nifog.provenance(record)}. A work of the US government, "
                 f"reproduced freely.", s["small"]),
             Paragraph(
                 "<b>None of these channels is amateur spectrum, and this chart "

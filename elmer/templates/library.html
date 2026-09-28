@@ -280,7 +280,11 @@
     if (!s) return '';
     return '<span class="tiny muted"><span class="pill">came with ELMER</span> ' +
       (s.edition ? escapeHTML(s.edition) + ' &middot; ' : '') +
-      escapeHTML(s.statement || '') +
+      /* The cover's release statement, or - for a US Government work whose
+         cover says nothing - why it is free to copy, and anything in it that
+         is somebody else's. */
+      escapeHTML(s.statement || s.basis || '') +
+      (s.note ? ' ' + escapeHTML(s.note) : '') +
       /* The address as text, not a link: everything on this page opens in
          the same tab, and the kiosk has no tab bar to come back by. */
       (s.source ? ' &middot; published at <span class="mono" style="word-break:break-all">' +

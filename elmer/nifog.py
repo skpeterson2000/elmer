@@ -11,6 +11,12 @@ Operations Guides page rather than from a filename remembered here, downloaded,
 converted with the poppler tools ELMER already needs for the question pools, and
 the channel tables are read out of it.
 
+A copy also comes with ELMER, in the Library (data/shelf/, beside its manifest),
+to be read like any book. A unit that has never fetched - no signal on its first
+day - reads the channels from that copy instead, with the same checks, and says
+so; and when an update brings a newer edition than the one a unit fetched, the
+newer one is used. See load().
+
 **Everything parsed here is checked before it is used.**  A wrong digit in a
 frequency is not a cosmetic defect in a document somebody programs a radio from,
 so a parse that fails its checks is discarded whole and the previous copy kept.
@@ -36,6 +42,8 @@ log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = paths.STATE / "nifog" / "channels.json"
+# The channels read from the copy that comes with ELMER, kept per edition.
+SHELF_CACHE = paths.STATE / "nifog" / "shipped.json"
 
 SAFECOM_PAGE = "https://www.cisa.gov/safecom/field-operations-guides"
 NIFOG_PAGE = "https://www.cisa.gov/resources-tools/resources/nifog"
@@ -98,14 +106,19 @@ def discover():
 
 def to_text(pdf_bytes):
     """The guide as laid-out text, via the poppler tools ELMER already uses."""
+    # The Library's lookup, not the bare name: a unit started from a desktop
+    # icon or a service does not always have poppler on its PATH, and the
+    # Library already knows where else to look.
+    from . import library
+    exe = library.tool("pdftotext") or "pdftotext"
     with tempfile.TemporaryDirectory() as tmp:
         pdf = Path(tmp) / "nifog.pdf"
         pdf.write_bytes(pdf_bytes)
-        done = subprocess.run(["pdftotext", "-layout", str(pdf), "-"],
-                              capture_output=True, text=True, timeout=180)
+        done = subprocess.run([exe, "-layout", "-enc", "UTF-8", str(pdf), "-"],
+                              capture_output=True, timeout=180)
     if done.returncode != 0:
-        raise RuntimeError(f"pdftotext failed: {done.stderr.strip()[:200]}")
-    return done.stdout
+        raise RuntimeError(f"pdftotext failed: {done.stderr.decode('utf-8', 'ignore').strip()[:200]}")
+    return done.stdout.decode("utf-8", "ignore")
 
 
 def edition(text):
@@ -177,12 +190,80 @@ def problems(channels):
     return found
 
 
-def load():
-    """The cached channels, or None. Never touches the network."""
+def _shipped_pdf():
+    """The NIFOG that comes with ELMER, in the Library, or None."""
+    from . import library
+    name = library.shipped_name("nifog")
+    pdf = library.book(name) if name else None
+    return pdf if pdf is not None and library.is_shipped(pdf) else None
+
+
+def _version(record):
     try:
-        return json.loads(CACHE.read_text())
-    except (OSError, ValueError):
+        return tuple(int(p) for p in str((record or {}).get("version") or "").split("."))
+    except ValueError:
+        return ()
+
+
+def from_shelf():
+    """The channels read out of the copy that comes with ELMER, checked as a
+    fetch is, or None. Read once per edition of the file and kept, since a
+    192-page guide is a few seconds of pdftotext on a Pi."""
+    pdf = _shipped_pdf()
+    if pdf is None:
         return None
+    stamp = f"{pdf.name}:{pdf.stat().st_size}"
+    try:
+        kept = json.loads(SHELF_CACHE.read_text())
+        if kept.get("stamp") == stamp:
+            return kept
+    except (OSError, ValueError):
+        pass                    # not read yet, or unreadable: read it now
+    try:
+        text = to_text(pdf.read_bytes())
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        log.warning("nifog: the copy in the Library could not be read: %s", exc)
+        return None
+    channels = parse(text)
+    wrong = problems(channels)
+    if wrong:
+        log.warning("nifog: the copy in the Library did not parse cleanly, so it is not used: %s",
+                    "; ".join(wrong[:4]))
+        return None
+    record = dict(edition(text), url=None, fetched=None, source="shipped", book=pdf.name,
+                  stamp=stamp, channels=channels, count=len(channels))
+    try:
+        SHELF_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        SHELF_CACHE.write_text(json.dumps(record, indent=1))
+    except OSError as exc:
+        log.warning("nifog: channels read from the Library's copy, not kept: %s", exc)
+    log.info("nifog: %d channels from the Library's copy, version %s", len(channels), record["version"])
+    return record
+
+
+def load():
+    """The channels, or None. Never touches the network.
+
+    What was fetched from CISA, unless the copy that came with ELMER is a
+    newer edition - an update can bring a newer guide than a unit fetched
+    last year - or nothing was ever fetched, so a unit with no signal on its
+    first day still has the channels, and says which edition they are from.
+    """
+    try:
+        fetched = json.loads(CACHE.read_text())
+    except (OSError, ValueError):
+        fetched = None
+    shipped = from_shelf()
+    if fetched and (not shipped or _version(fetched) >= _version(shipped)):
+        return dict(fetched, source=fetched.get("source") or "fetched")
+    return shipped
+
+
+def provenance(record):
+    """Where the channels came from, said plainly: fetched, or the copy in the Library."""
+    if (record or {}).get("source") == "shipped":
+        return "read from the copy that came with ELMER"
+    return f"fetched from CISA on {(record or {}).get('fetched') or 'an unrecorded date'}"
 
 
 def refresh():

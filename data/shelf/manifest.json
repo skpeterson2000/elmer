@@ -1,5 +1,5 @@
 {
-  "about": "Manuals that ship with ELMER. Only public releases go here: a book whose cover carries Distribution Statement A - the words 'Approved for public release; distribution is unlimited', which the Army prints under the label 'Distribution Restriction' - or one in the public domain outright. Each entry is copied from the book's own cover and title page: file, title, edition, the release statement word for word, the publisher's record for that edition, and the SHA-256 and size of the file exactly as the publisher serves it, never re-saved or recompressed. tests/test_shelf.py fails if a file is missing, unlisted, or no longer matches its hash. Total kept under 40 MB.",
+  "about": "Manuals that ship with ELMER. Only publications free to copy go here: a book whose cover carries Distribution Statement A - the words 'Approved for public release; distribution is unlimited', which the Army prints under the label 'Distribution Restriction' - or one in the public domain outright. A work of the United States Government is not subject to copyright in the United States (17 U.S.C. 105) whether or not its cover says so; such a book has no 'statement' and gives its 'basis' instead, and anything inside it that is somebody else's is named in 'note'. Each entry is copied from the book's own cover and title page: file, title, edition, the release statement word for word (or the basis), the publisher's record for that edition, and the SHA-256 and size of the file exactly as the publisher serves it, never re-saved or recompressed. 'key' names a book the program reads for itself (nifog.py reads 'nifog'). tests/test_shelf.py fails if a file is missing, unlisted, or no longer matches its hash. Total kept under 40 MB.",
   "books": [
     {
       "file": "ATP-6-02.53-2025.pdf",
@@ -11,6 +11,19 @@
       "statement": "DISTRIBUTION RESTRICTION: Approved for public release; distribution is unlimited.",
       "sha256": "1b34ad599f578c963d24b74338884aa584bc472d4c0fbf8d35d79862f019d7b3",
       "bytes": 6346432
+    },
+    {
+      "file": "NIFOG-2.02-2024.pdf",
+      "key": "nifog",
+      "title": "NIFOG: National Interoperability Field Operations Guide, Version 2.02",
+      "edition": "Version 2.02, January 2025 (posted 3 December 2024; supersedes 2.01)",
+      "publisher": "Cybersecurity and Infrastructure Security Agency (CISA), SAFECOM",
+      "source": "https://www.cisa.gov/safecom/field-operations-guides",
+      "published_file": "https://www.cisa.gov/sites/default/files/2024-12/NIFOG%202.02_508%20FINAL%20VERSION%2012%2003%202024.pdf",
+      "basis": "A work of the United States Government (CISA): not subject to copyright in the United States, 17 U.S.C. 105. The cover carries no release statement.",
+      "note": "Page 159 reprints an RJ-45 pinout marked 'Copyright 2021 ShowMeCables. All rights reserved.', as CISA publishes it.",
+      "sha256": "45c2f5d94861b3ed1b80f7ce5962a160fdd56092211586bdee711b68ca3d3142",
+      "bytes": 6735362
     }
   ]
 }

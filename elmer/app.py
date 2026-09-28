@@ -2262,15 +2262,19 @@ def api_personal():
 
 @app.route("/api/nifog")
 def api_nifog():
-    """The cached interoperability channels. Never fetches on a page load."""
+    """The interoperability channels: fetched, or read from the copy that
+    came with ELMER. Never fetches on a page load. `book` is the guide in
+    the Library, to be read there."""
     from elmer import nifog
     record = nifog.load()
+    book = library.shipped_name("nifog")
     if not record:
-        return jsonify({"have": False, "page": nifog.SAFECOM_PAGE})
+        return jsonify({"have": False, "page": nifog.SAFECOM_PAGE, "book": book})
     return jsonify({"have": True, "version": record.get("version"),
                     "dated": record.get("dated"), "fetched": record.get("fetched"),
+                    "source": record.get("source"), "provenance": nifog.provenance(record),
                     "url": record.get("url"), "count": record.get("count"),
-                    "bands": nifog.by_band(record), "page": nifog.SAFECOM_PAGE})
+                    "bands": nifog.by_band(record), "page": nifog.SAFECOM_PAGE, "book": book})
 
 
 @app.route("/api/privileges")

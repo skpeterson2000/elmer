@@ -11,8 +11,9 @@ and this test holds the files to it:
 
   - every book the manifest lists is there, byte for byte;
   - every PDF in the directory is listed, so nothing unvetted rides along;
-  - each carries Distribution Statement A or is public domain, and says
-    where it was published;
+  - each carries Distribution Statement A or is public domain, in its
+    cover's words, or is a work of the US Government and cites 17 U.S.C.
+    105 where the cover says nothing; and says where it was published;
   - the whole shelf stays under 40 MB, for the Windows zip and a Pi's clone.
 
 Those checks read the real data/shelf/ by its own path, and deliberately not
@@ -60,11 +61,14 @@ LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
 ROOT = Path(__file__).resolve().parents[1]
 REAL = ROOT / "data" / "shelf"
 MAX_MB = 40
-FIELDS = ("file", "title", "edition", "source", "statement", "sha256", "bytes")
+FIELDS = ("file", "title", "edition", "source", "sha256", "bytes")
 # Distribution Statement A by name, or by its words: the Army prints the same
 # release under the label "Distribution Restriction".
 RELEASED = re.compile(r"distribution statement a\b|approved for public release; distribution is unlimited"
                       r"|public domain", re.I)
+# A work of the US Government, whose cover need not say so: the entry gives
+# the statute instead, and names the office that made it.
+US_WORK = re.compile(r"work of the united states government.*17 u\.s\.c\. (§ ?)?105", re.I | re.S)
 
 
 def check(label, got, want):
@@ -112,8 +116,11 @@ def the_real_shelf():
         if not name:
             continue
         listed.add(name)
-        check(f"{name}: released to the public, in the cover's words",
-              bool(RELEASED.search(str(row.get("statement") or ""))), True)
+        # The cover's own words where it has them; a US Government work's
+        # basis where it has none - one or the other, never neither.
+        statement, basis = str(row.get("statement") or ""), str(row.get("basis") or "")
+        check(f"{name}: free to copy, in the cover's words or by statute",
+              bool(RELEASED.search(statement)) if statement else bool(US_WORK.search(basis)), True)
         check(f"{name}: the address it was published at", str(row.get("source") or "").startswith("https://"), True)
         path = REAL / name
         check(f"{name}: the file is there", path.is_file(), True)

@@ -405,6 +405,12 @@ if (bpLookupBtn) {
 api('/api/nifog').then(d => {
   const box = document.getElementById('nifog-channels');
   if (!box) return;
+  /* The guide itself is in the Library: read it there, with Back to here. */
+  const read = document.getElementById('nifog-read');
+  if (read && d.book) {
+    read.href = '/library/read/' + encodeURIComponent(d.book) + '?back=' + encodeURIComponent('/bandplan#nifog');
+    read.hidden = false;
+  }
   if (!d.have) {
     box.innerHTML = '<p class="small muted">ELMER can read the interoperability ' +
       'channels straight out of the current guide &mdash; run ' +
@@ -418,9 +424,9 @@ api('/api/nifog').then(d => {
     '<details class="nifog-more"><summary class="small">' +
       'Nationwide interoperability channels read from the guide (' + d.count +
       ') &mdash; for reference and monitoring</summary>' +
-    '<p class="tiny muted" style="margin:.5rem 0">Read from NIFOG version ' +
+    '<p class="tiny muted" style="margin:.5rem 0">From NIFOG version ' +
       escapeHTML(d.version || '?') + ' (' + escapeHTML(d.dated || '') +
-      '), fetched ' + escapeHTML(d.fetched) + '. ' + d.count + ' channels. ' +
+      '), ' + escapeHTML(d.provenance || ('fetched ' + (d.fetched || ''))) + '. ' + d.count + ' channels. ' +
       '<b>None of them is amateur spectrum.</b></p>' +
     d.bands.map(g =>
       '<div class="nifog-band"><div class="tiny mono muted">' + escapeHTML(g.band) +

@@ -294,7 +294,7 @@ It is a view and not a class. It cannot be set as your license in the Station pa
 
 **The charts.** **One page (PDF)** prints a single landscape sheet with your privileges filled in and colored by what you may do; **Full chart (PDF)** prints the whole plan band by band. Both land on the Printouts shelf and open in the viewer. A chart printed for a class you do not hold says on its face that it is a study sheet, not a license.
 
-**The other radios in America.** FRS, GMRS, MURS and CB, the Part 95 services, with their channels and the rules cited, because most two-way radios in the country are not amateur radios. And the **NIFOG**, the national interoperability field guide, with the caution that nearly nothing in it is amateur spectrum: monitor freely, transmit only where you are licensed to.
+**The other radios in America.** FRS, GMRS, MURS and CB, the Part 95 services, with their channels and the rules cited, because most two-way radios in the country are not amateur radios. And the **NIFOG**, the national interoperability field guide, with the caution that nearly nothing in it is amateur spectrum: monitor freely, transmit only where you are licensed to. A copy comes with ELMER, in the Library, and **Read it in the Library** opens it there, with Back to the band plan. Its nationwide interoperability channels are listed under it, read out of that copy, or out of a newer one if the unit has fetched it with `./elmer.py --fetch-nifog`; the line above the channels says which edition they come from and where it was read.
 
 ## CW
 
@@ -619,7 +619,7 @@ The next visit to the Library reads anything new, once. A big manual takes a mom
 
 ### The books that came with ELMER
 
-Some books are in the Library before you add anything. These are publications released to the public, marked **came with ELMER**, with the edition and the release statement from the cover beside each one, and the address it was published at. They start on the table, and they read and search like your own books. You cannot delete one, because it is part of the program and the next update would only put it back; return it to the shelf instead, and it stays there through updates until you bring it back. If you add a book of your own under the same file name as one that came with ELMER, it is refused; rename your copy first.
+Some books are in the Library before you add anything: the Army's ATP 6-02.53, *Techniques for Tactical Radios and Retransmission*, and CISA's NIFOG, the National Interoperability Field Operations Guide. These are publications free to copy, marked **came with ELMER**, with the edition and the release statement from the cover beside each one, and the address it was published at. The NIFOG's cover has no release statement; as a work of the US government it has no copyright in the United States, and its card says so, and names the one figure in it that is somebody else's. They start on the table, and they read and search like your own books. You cannot delete one, because it is part of the program and the next update would only put it back; return it to the shelf instead, and it stays there through updates until you bring it back. If you add a book of your own under the same file name as one that came with ELMER, it is refused; rename your copy first.
 
 ### Not every PDF searches, and the difference is large
 

@@ -770,7 +770,12 @@ for — programming a radio and filling in an ICS 205 — and, at least as
 importantly, that nearly nothing in it is amateur spectrum. Monitoring is free;
 transmitting on those channels needs an authorisation a license does not give
 you, and owning the book is not it. Being a work of the US government it carries
-no copyright and can be printed and handed out freely.
+no copyright and can be printed and handed out freely, so a copy of the current
+edition (2.02, January 2025) comes with ELMER, in the Library, and the page opens
+it there. Its cover carries no release statement, so its manifest entry gives the
+statute instead (17 U.S.C. 105, a `basis` in place of a `statement`), and a
+`note` names the one thing in it that is somebody else's: an RJ-45 pinout on page
+159 marked as ShowMeCables'. It is lent as CISA lends it, whole.
 
 **The other radios in America.** Most two-way radios in the country are not
 amateur radios, and below the amateur bands the page gives FRS, GMRS, MURS
@@ -1682,7 +1687,15 @@ folded away behind a summary line, and can be added to the printed chart with a
 checkbox that is off by default — a band chart is a one-page thing to pin up, and
 three pages of channels nobody may transmit on is paper wasted on most people who
 print it. Because the guide is revised and a transcribed channel list goes quietly
-stale, ELMER reads the current one rather than carrying a copy.
+stale, ELMER reads the guide rather than typing its tables out. A unit that has
+never fetched reads the channels from the copy in the Library instead, under the
+same checks, and keeps what it read per edition of the file - a Pi with no signal
+on its first day still has them. Whichever is the newer edition wins: an update
+can bring a newer guide than a unit fetched last year, and a fetch can find one
+newer than the update carried. The reader finds poppler the way the Library does
+and reads the text as UTF-8; it used to call a bare `pdftotext` and decode in the
+system's code page, and on Windows lost the rows whose names carry a bullet - 50
+channels of 59.
 
 Everything parsed is checked before it is used: channel names against their
 pattern, every frequency against the band its group belongs to, and the four
@@ -1690,7 +1703,8 @@ nationwide calling channels have to be present or the parse is judged not to hav
 understood the document. A parse that fails is discarded whole and the previous
 copy kept — ELMER would rather show something a year old, and say so, than a
 number it has not satisfied itself about. Provenance travels with it: the version,
-the date on the cover, and when it was read all print on the chart.
+the date on the cover, and when it was fetched - or that it was read from the copy
+that came with ELMER - print on the page and the chart.
 
 When they are included they go on pages of their own, never folded into the band
 chart: everything on the chart is spectrum you may transmit on, nothing on those
