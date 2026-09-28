@@ -110,8 +110,10 @@
     const mins = Math.round((s.elapsed_s || 0) / 60);
     const span = s.days >= 300 ? 'the year' : s.days >= 150 ? 'the half-year' : s.days >= 60 ? 'the quarter' : 'the last ' + s.days + ' days';
     const phase = s.state === 'fetching' ? 'Fetching ' + span + ' from the sondes, GFZ and SWPC…'
-      : s.state === 'running' ? 'Forecasting ' + span + ' blind, hour by hour (pass 1 of 2)'
-      : s.state === 'checking' ? 'Running ' + span + ' again with the correction on (pass 2 of 2)'
+      : s.state === 'running' ? 'Forecasting ' + span + ' blind, hour by hour (pass 1 of ' + (s.passes || 2) + ')'
+      : s.state === 'checking' ? (s.passes === 3 && s.pass === 2
+          ? 'Running ' + span + ' again with the calibration in force (pass 2 of 3)'
+          : 'Running ' + span + ' again with the new correction on (pass ' + (s.pass || 2) + ' of ' + (s.passes || 2) + ')')
       : s.state === 'done' ? 'Done.' : s.state === 'failed' ? 'Could not finish.' : s.state === 'stopped' ? 'Stopped.' : 'Starting…';
     progress.textContent = phase + (running && s.hours_total ? ' — ' + s.hours_done + ' of ' + s.hours_total + ' hours' : '') +
       (mins ? ' — ' + mins + ' min' : '');
@@ -155,24 +157,34 @@
   }
 
   function paintResult(r) {
-    const b = r.before || {}, a = r.after || {};
-    const l = k => ((b.by_lead || {})[k] || {}).mae, la = k => ((a.by_lead || {})[k] || {}).mae;
+    /* Three numbers where there are three: the bare model, the calibration
+       the unit was already using, and the table just fitted - each over the
+       same span. Two used to be all a run showed, so it could never say
+       whether the calibration in force had helped. */
+    const b = r.before || {}, a = r.after || {}, h = r.held || null;
+    const lead = (x, k) => (((x || {}).by_lead || {})[k] || {}).mae;
+    const l = k => lead(b, k), la = k => lead(a, k), lh = k => lead(h, k);
+    const cell = v => (v != null ? v.toFixed(2) : '—');
     const months = Object.keys(a.by_month || {});
     const rows = months.map(m => {
       const bm = (b.by_month || {})[m] || {}, am = (a.by_month || {})[m] || {};
-      return '<tr><td class="mono">' + escapeHTML(m) + '</td><td class="mono">' + (bm.mae != null ? bm.mae.toFixed(2) : '—') +
-        '</td><td class="mono"><b>' + (am.mae != null ? am.mae.toFixed(2) : '—') + '</b></td><td class="mono muted">' +
-        (am.persistence != null ? am.persistence.toFixed(2) : '—') + '</td></tr>';
+      const hm = h ? ((h.by_month || {})[m] || {}) : null;
+      return '<tr><td class="mono">' + escapeHTML(m) + '</td><td class="mono">' + cell(bm.mae) + '</td>' +
+        (hm ? '<td class="mono">' + cell(hm.mae) + '</td>' : '') +
+        '<td class="mono"><b>' + cell(am.mae) + '</b></td><td class="mono muted">' + cell(am.persistence) + '</td></tr>';
     }).join('');
     const p = (b.persistence_24h || {}).mae;
     result.hidden = false;
     result.innerHTML =
       '<div class="panel-title" style="margin:0 0 .3rem">What the calibration bought</div>' +
-      '<p class="small">Over the span, the 24-hour forecast’s error against the sondes went from <b>' +
-      (l('24') != null ? l('24').toFixed(2) : '?') + '</b> to <b>' + (la('24') != null ? la('24').toFixed(2) : '?') +
+      '<p class="small">Over the span, the 24-hour forecast’s error against the sondes: the bare model <b>' +
+      (l('24') != null ? l('24').toFixed(2) : '?') + '</b>' +
+      (h ? ', the calibration in force' + (r.held_made ? ' (from ' + escapeHTML(new Date(r.held_made).toLocaleDateString()) + ')' : '') +
+           ' <b>' + (lh('24') != null ? lh('24').toFixed(2) : '?') + '</b>' : '') +
+      ', the new table <b>' + (la('24') != null ? la('24').toFixed(2) : '?') +
       ' MHz</b>' + (p != null ? '; “the same as this hour yesterday” manages ' + p.toFixed(2) + '.' : '.') +
       ' The band plan’s 24-hour strips use the correction from now on, and say so.</p>' +
-      '<table class="facts small"><tr><th>Month</th><th>Before</th><th>After</th><th>Yesterday-as-forecast</th></tr>' + rows + '</table>' +
+      '<table class="facts small"><tr><th>Month</th><th>Bare model</th>' + (h ? '<th>In force</th>' : '') + '<th>New table</th><th>Yesterday-as-forecast</th></tr>' + rows + '</table>' +
       '<p class="tiny muted" style="margin:.5rem 0 0">Mean error in MHz of the model’s own hours (6–24 h ahead). ' +
       'Measured against ' + (b.sondes_voting || '?') + ' sondes voting on average, over ' + (b.hours_with_reading || '?') +
       ' hours with a reading in reach. ' + escapeHTML((r.table || {}).acknowledgement || '') + '</p>';

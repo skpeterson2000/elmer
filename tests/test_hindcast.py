@@ -138,8 +138,26 @@ for _ in range(600):
 check("  and finishes", (st["state"], st["error"]), ("done", None))
 check("  with the year's fraction at one", st["fraction"], 1.0)
 check("  something found to say", len(st["findings"]) >= 2, True)
-check("  a result with before and after", sorted(st["result"]), ["after", "before", "table"])
+check("  a result with before and after", sorted(st["result"]), ["after", "before", "held", "held_made", "table"])
+check("  with no calibration in force yet, two passes and nothing held to score",
+      (st["passes"], st["result"]["held"]), (2, None))
 check("  and the table saved for the live forecast", F.calibration() is not None and "months" in F.calibration(), True)
+
+# Run again with that table in force: it is scored as a pass of its own,
+# over the same span, before the new one replaces it - the three numbers a
+# second run is for: the bare model, the calibration in force, the new table.
+st = C.start(45.5, -84.0, days=2, build="t", place="Test")
+for _ in range(900):
+    st = C.status()
+    if st["state"] in ("done", "failed", "stopped"):
+        break
+    _time.sleep(0.1)
+check("a second run, with a table in force, scores it as a third pass",
+      (st["state"], st["passes"], st["result"]["held"] is not None), ("done", 3, True))
+check("  said in words: the bare model, the calibration in force, the new table",
+      any("the bare model" in f["text"] and "the calibration in force" in f["text"] and "the new table" in f["text"]
+          for f in st["findings"]), True)
+check("  and the fraction still ends at one", st["fraction"], 1.0)
 check("a second start while idle is a new job", C.start(45.5, -84.0, days=2, build="t", place="Test")["state"] in ("queued", "fetching", "running"), True)
 check("  stop stops it", C.stop(), True)
 

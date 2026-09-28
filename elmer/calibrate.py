@@ -12,6 +12,7 @@ they wait - not a spinner, and not silence.
 Nothing leaves the unit. The record fetched is GIRO's and GFZ's, under their
 terms; the table is this unit's, about this sky.
 """
+import copy
 import logging
 import secrets
 import threading
@@ -37,7 +38,14 @@ class Job:
         self.finished = None
         self.hours_total = self.days * 24
         self.hours_done = 0
-        self.pass_no = 0                # 1 = bare, 2 = calibrated
+        self.pass_no = 0                # 1 = bare, then the table in force if any, then the new one
+        self.passes = 2                 # 3 when there is a table in force to score
+        # The table in force when the run began. A run used to score only
+        # the bare model and the table it had just fitted, so it could never
+        # say whether the calibration the unit was already using had helped
+        # - the question somebody running it twice is asking. It is scored
+        # over the same span as its own pass, before anything replaces it.
+        self.held = None
         self.findings = []              # sentences, oldest first
         self.stations = []
         self.silent = []
@@ -49,6 +57,10 @@ class Job:
     # ------------------------------------------------------------ the run
     def run(self):
         try:
+            held = forecastlog.calibration()
+            if held and held.get("months"):
+                self.held = copy.deepcopy(held)
+                self.passes = 3
             self.state = "fetching"
             end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
             start = end - timedelta(days=self.days)
@@ -100,7 +112,17 @@ class Job:
                          f"ten percent of the sondes over {bare['hours_with_reading']} hours, so there "
                          f"is nothing to correct here - which is worth knowing, and now measured.")
             self.state = "checking"
-            self.pass_no = 2
+            held_run = None
+            if self.held:
+                self.pass_no = 2
+                self.hours_done = 0
+                self._last_month = None
+                held_run = hindcast.run(start, end, self.lat, self.lon, data, build=self.build + "+held",
+                                        calibration=self.held, progress=self._progress, stop=self.stop)
+                if self.stop.is_set():
+                    self.state = "stopped"
+                    return
+            self.pass_no = self.passes
             self.hours_done = 0
             self._last_month = None
             after = hindcast.run(start, end, self.lat, self.lon, data, build=self.build + "+cal",
@@ -110,16 +132,24 @@ class Job:
                 return
             b24 = bare["skill"]["by_lead"].get("24", {}).get("mae")
             a24 = after["skill"]["by_lead"].get("24", {}).get("mae")
+            h24 = held_run["skill"]["by_lead"].get("24", {}).get("mae") if held_run else None
             p24 = bare["skill"].get("persistence_24h", {}).get("mae")
             if b24 and a24:
-                self.say(f"Over the span, the 24-hour forecast's error went from {b24:.1f} to {a24:.1f} MHz"
-                         + (f"; 'same as yesterday' manages {p24:.1f}." if p24 else "."))
+                # Three numbers where there are three: the bare model, the
+                # table the unit was using, and the one just fitted - each
+                # over the same span, so they can be read against each other.
+                self.say(f"Over the span, the 24-hour forecast's error: the bare model {b24:.2f} MHz"
+                         + (f", the calibration in force {h24:.2f}" if h24 else "")
+                         + f", the new table {a24:.2f}"
+                         + (f"; 'same as yesterday' manages {p24:.2f}." if p24 else "."))
             forecastlog.save_calibration(table)
             forecastlog._cal_cache.clear()
-            self.result = {"before": _slim(bare), "after": _slim(after), "table": table}
+            self.result = {"before": _slim(bare), "after": _slim(after), "table": table,
+                           "held": _slim(held_run) if held_run else None,
+                           "held_made": (self.held or {}).get("made")}
             self.state = "done"
-            log.info("calibration: done for %s - %d cells applied, 24h MAE %.2f -> %.2f",
-                     self.place, applied, b24 or 0, a24 or 0)
+            log.info("calibration: done for %s - %d cells applied, 24h MAE bare %.2f, in force %s, new %.2f",
+                     self.place, applied, b24 or 0, f"{h24:.2f}" if h24 else "none", a24 or 0)
         except hindcast.Unavailable as exc:
             # The record could not be had. Said in words, logged as a
             # warning, and not a bug: the network was the matter.
@@ -212,13 +242,12 @@ class Job:
         total = self.hours_total
         done = self.hours_done
         overall = (done / total) if total else 0.0
-        if self.pass_no == 2:
-            overall = 0.5 + 0.5 * overall
-        elif self.pass_no == 1:
-            overall = 0.5 * overall
+        if self.pass_no:
+            overall = (self.pass_no - 1 + overall) / self.passes
         elapsed = (self.finished or time.time()) - self.started
         return {"state": self.state, "error": self.error, "place": self.place,
-                "days": self.days, "pass": self.pass_no, "hours_done": done, "hours_total": total,
+                "days": self.days, "pass": self.pass_no, "passes": self.passes,
+                "hours_done": done, "hours_total": total,
                 "fraction": round(min(1.0, overall), 3), "elapsed_s": round(elapsed),
                 "stations": self.stations, "silent": self.silent,
                 "findings": self.findings[-30:], "result": self.result}

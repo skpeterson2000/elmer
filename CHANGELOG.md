@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- A calibration run scores the calibration already in force as well as the bare model and the new table, each over the same span, and says all three. It used to score only the bare model and the table it had just fitted, so it could never say whether the calibration the unit was using had helped - which is what somebody running it a second time wants to know. Where there is a table in force the run takes a third pass to score it, so it takes about half as long again.
+
 - The MUF is named for what it is: MUF(3000), the highest frequency for a 3,000 km hop, on the band conditions tile and the reach map's header, with foF2 beside it as the one straight up. A night of MUF 8.3 MHz over a foF2 of 2.7 had been read as "40 m works" - true a thousand miles out, and false for the next county, where 40 m goes straight up and through. When 40 m cannot come back from overhead the headline now says which band can, from the same door the reach map draws its near zone by: "Near - out to a few hundred miles - 160m is the band now: foF2 is 2.7 MHz, so 40m goes straight up and through." And the reach map's line about a low wire no longer says it has no low-angle way out: its own figure at 20 degrees says otherwise, and on FT8 the map shows far paths it opens.
 
 - install.sh installs wmctrl, so a kiosk whose browser comes up in a window on X can always be set full screen without anybody installing it by hand. It is a needed package rather than an optional one: optional packages are only installed alongside a needed one, so a unit that already had the rest would never have got it. A unit that updates is told to run ./install.sh again, as for any change to it.
