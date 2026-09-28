@@ -83,9 +83,10 @@ def main():
         page = scratch / "hop.html"
         page.write_text("<!doctype html><html><body><script>\n" + page_js + "</script></body></html>",
                         encoding="utf-8")
-        got = _browser.evaluate(page.resolve().as_uri(),
-                                "JSON.stringify(%s.map(([a, h]) => hopKm(a, h)))" % json.dumps(grid),
-                                settle=0.3)
+        with _browser.serve(scratch) as base:
+            got = _browser.evaluate(base + "/hop.html",
+                                    "JSON.stringify(%s.map(([a, h]) => hopKm(a, h)))" % json.dumps(grid),
+                                    settle=0.3)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     try:

@@ -18,10 +18,16 @@ on:
 permissions:
   contents: read
 
+# Nothing here waits for ever. A test that hung once held this job for six
+# hours with nothing printed; each test file now has five minutes and fails
+# by name past that, and each job has thirty minutes in all (the suite takes
+# about ten on Ubuntu and twenty on Windows). The tests run unbuffered (-u)
+# so a test that is stopped still shows how far it got.
 jobs:
   build:
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     # v7 and v7 both target Node 24. On v4/v5 GitHub forced them onto 24
@@ -81,9 +87,12 @@ jobs:
         for t in tests/test_*.py; do
           echo "::group::$t"
           rc=0
-          out=$(python "$t" 2>&1) || rc=$?
+          out=$(timeout -k 10 300 python -u "$t" 2>&1) || rc=$?
           echo "$out"
-          if [ $rc -ne 0 ]; then
+          if [ $rc -eq 124 ] || [ $rc -eq 137 ]; then
+            failed="$failed $t"
+            echo "::error file=$t::$t timed out after 5 minutes and was stopped; the last it printed: $(echo "$out" | tail -3 | paste -sd '|' -)"
+          elif [ $rc -ne 0 ]; then
             failed="$failed $t"
             why=$(echo "$out" | grep -E "FAIL|Traceback|Error|BREACH|    (open|sqlite3|os.|shutil)" | head -8 | paste -sd '|' -)
             echo "::error file=$t::$t failed (rc $rc): ${why:0:900}"
@@ -111,6 +120,7 @@ jobs:
   windows:
 
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
     - uses: actions/checkout@v7
@@ -157,9 +167,14 @@ jobs:
         for t in tests/test_*.py; do
           echo "::group::$t"
           rc=0
-          out=$(.venv/Scripts/python.exe "$t" 2>&1) || rc=$?
+          # Git's coreutils timeout, by its full path: plain "timeout" can be
+          # Windows' own, which only sleeps.
+          out=$(/usr/bin/timeout -k 10 300 .venv/Scripts/python.exe -u "$t" 2>&1) || rc=$?
           echo "$out"
-          if [ $rc -ne 0 ]; then
+          if [ $rc -eq 124 ] || [ $rc -eq 137 ]; then
+            failed="$failed $t"
+            echo "::error file=$t::$t timed out after 5 minutes on Windows and was stopped; the last it printed: $(echo "$out" | tail -3 | paste -sd '|' -)"
+          elif [ $rc -ne 0 ]; then
             failed="$failed $t"
             why=$(echo "$out" | grep -E "FAIL|Traceback|Error|BREACH|    (open|sqlite3|os.|shutil)" | head -8 | paste -sd '|' -)
             echo "::error file=$t::$t failed on Windows (rc $rc): ${why:0:900}"

@@ -23,6 +23,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -86,6 +87,9 @@ PAGE = """<!doctype html><html><body>
 # Each step waits a moment for the awaited fetch to settle.
 DRIVE = r"""
 new Promise(async done => {
+ // A step that throws answers with the error: an async executor that
+ // throws never calls done, and the promise would never settle.
+ try {
   const nap = ms => new Promise(r => window.__realTimeout(r, ms));
   const card = document.getElementById('cal-card');
   const hint = () => document.getElementById('cal-card-hint').textContent;
@@ -104,6 +108,7 @@ new Promise(async done => {
   card.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); await nap(100);
   out.key = {live: window.__live(), pressed: card.getAttribute('aria-pressed')};
   done(JSON.stringify(out));
+ } catch (e) { done('EXCEPTION ' + e); }
 })
 """
 
@@ -134,7 +139,8 @@ def main():
     try:
         page = scratch / "cards.html"
         page.write_text(PAGE.format(card=card, stubs=stubs, script=script), encoding="utf-8")
-        got = _browser.evaluate(page.resolve().as_uri(), DRIVE, settle=0.5)
+        with _browser.serve(scratch) as base:
+            got = _browser.evaluate(base + "/cards.html", DRIVE, settle=0.5)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     try:
@@ -165,6 +171,29 @@ def main():
     print("\n-- left alone, it moves on by itself; the keyboard holds it too --")
     check("when its time is up the next card comes", out["expired"]["cards"], 3)
     check("Enter on the card holds it, as a tap does", (out["key"]["live"], out["key"]["pressed"]), (0, "true"))
+
+    # This test once wrote its page where a snap Chromium could not see it,
+    # its script threw before it could answer, and the CI job waited six
+    # hours on a browser that had nothing more to say. Held here: a page
+    # that never answers fails the test, quickly and by name.
+    print("\n-- a page that never answers fails the test rather than hanging it --")
+    real = _browser.ANSWER_S
+    _browser.ANSWER_S = 3.0
+    scratch = Path(tempfile.mkdtemp(prefix="elmer-silent-"))
+    started = time.monotonic()
+    try:
+        (scratch / "silent.html").write_text("<!doctype html><p>nothing</p>", encoding="utf-8")
+        with _browser.serve(scratch) as base:
+            _browser.evaluate(base + "/silent.html", "new Promise(() => {})", settle=0.1)
+        said = None
+    except _browser.PageSilent as exc:
+        said = str(exc)
+    finally:
+        _browser.ANSWER_S = real
+        shutil.rmtree(scratch, ignore_errors=True)
+    check("a promise that never settles is reported, naming the page",
+          bool(said and "silent.html" in said), True)
+    check("  within seconds, not hours", time.monotonic() - started < 30, True)
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

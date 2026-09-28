@@ -10,8 +10,43 @@ already runs.
 
     from _browser import evaluate
     value = evaluate("http://127.0.0.1:5079/party", "typeof tick")
+
+A page a test writes for itself goes through `serve()`, not a file:// URL:
+Ubuntu's Chromium is a snap, and a snap has a /tmp of its own, so a page in
+this process's temporary directory is a page that browser cannot see.
+
+Nothing here waits for ever. A page that stops answering - a script whose
+promise never settles, a renderer that has gone - fails the test after
+ANSWER_S with a line that says so. It used to hang the CI job for six hours
+with nothing printed.
 """
-import base64, json, os, shutil, socket, struct, subprocess, tempfile, time, urllib.request
+import base64, contextlib, functools, http.server, json, os, shutil, socket, struct, subprocess
+import tempfile, threading, time, urllib.request
+
+ANSWER_S = 60.0             # the longest the browser may be silent before the test fails
+
+
+class PageSilent(RuntimeError):
+    """The browser stopped answering: the test fails rather than hangs."""
+
+
+@contextlib.contextmanager
+def serve(directory):
+    """Serve `directory` on a loopback port for as long as the block runs.
+    Yields the base URL, without a trailing slash."""
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args):
+            pass                        # a request log line per file is noise in a test
+
+    handler = functools.partial(Quiet, directory=str(directory))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True, name="test-pages")
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def available():
@@ -116,12 +151,19 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None, cli
       ws = page["webSocketDebuggerUrl"]           # ws://127.0.0.1:9333/devtools/page/ID
       path = ws.split(f":{port}", 1)[1]
       s = socket.create_connection(("127.0.0.1", port))
+      s.settimeout(ANSWER_S)
       s.sendall((f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\n"
                  f"Connection: Upgrade\r\nSec-WebSocket-Key: {base64.b64encode(os.urandom(16)).decode()}\r\n"
                  f"Sec-WebSocket-Version: 13\r\n\r\n").encode())
       buf = b""
       while b"\r\n\r\n" not in buf:
-          buf += s.recv(4096)
+          try:
+              chunk = s.recv(4096)
+          except socket.timeout:
+              raise PageSilent(f"the browser did not open its devtools socket in {ANSWER_S:.0f} s") from None
+          if not chunk:
+              raise PageSilent("the browser closed its devtools socket before the handshake")
+          buf += chunk
       buf = buf.split(b"\r\n\r\n", 1)[1]
 
       def send(obj):
@@ -134,16 +176,27 @@ def _run(chromium, url, out, w, h, js, settle, port, flags=(), cookies=None, cli
           else: head += bytes([0x80 | 127]) + struct.pack(">Q", n)
           s.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
 
+      def fill():
+          nonlocal buf
+          try:
+              chunk = s.recv(65536)
+          except socket.timeout:
+              raise PageSilent(f"the browser said nothing for {ANSWER_S:.0f} s: a script that "
+                               f"never finished, or a page that never loaded ({url})") from None
+          if not chunk:
+              raise PageSilent(f"the browser closed the connection ({url})")
+          buf += chunk
+
       def recv():
           nonlocal buf
           while True:
               while len(buf) < 2:
-                  buf += s.recv(65536)
+                  fill()
               n = buf[1] & 0x7F; off = 2
               if n == 126: n = struct.unpack(">H", buf[2:4])[0]; off = 4
               elif n == 127: n = struct.unpack(">Q", buf[2:10])[0]; off = 10
               while len(buf) < off + n:
-                  buf += s.recv(65536)
+                  fill()
               payload, buf = buf[off:off + n], buf[off + n:]
               return json.loads(payload)
 
