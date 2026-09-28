@@ -174,6 +174,14 @@ if os.name == "nt":
         _winget = Path(_local) / "Microsoft" / "WinGet"
         FALLBACK_DIRS += [str(p) for p in _winget.glob("Packages/*Poppler*/poppler*/Library/bin")]
         FALLBACK_DIRS += [str(_winget / "Links")]
+    # The other package managers a Windows machine gets poppler from:
+    # Chocolatey's shims (what the CI runner uses), Scoop's, and MSYS2's
+    # native builds.
+    FALLBACK_DIRS += [str(Path(os.environ.get("ChocolateyInstall") or r"C:\ProgramData\chocolatey") / "bin")]
+    _home = Path(os.path.expanduser("~"))
+    FALLBACK_DIRS += [str(_home / "scoop" / "shims"),
+                      str(_home / "scoop" / "apps" / "poppler" / "current" / "Library" / "bin")]
+    FALLBACK_DIRS += [r"C:\msys64\ucrt64\bin", r"C:\msys64\mingw64\bin"]
 
 _tools = {}
 
@@ -205,9 +213,13 @@ def tool(name):
         return _tools[name]
     exe = name + (".exe" if os.name == "nt" else "")
     candidates = []
-    on_path = shutil.which(name)
-    if on_path:
-        candidates.append(on_path)
+    # Every copy on the PATH, not only the first: a shell opened from Git
+    # for Windows has xpdf's pdftotext ahead of everything, and poppler's
+    # further along the same PATH was never considered.
+    for d in (os.environ.get("PATH") or "").split(os.pathsep):
+        on_path = shutil.which(name, path=d) if d else None
+        if on_path and on_path not in candidates:
+            candidates.append(on_path)
     for d in FALLBACK_DIRS:
         candidate = Path(d) / exe
         if candidate.is_file() and os.access(candidate, os.X_OK) and str(candidate) not in candidates:

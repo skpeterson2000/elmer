@@ -60,7 +60,11 @@ INPUTS = {"sfi": 110, "k_index": 1.3, "muf_now": 12.0, "muf_source": "measured",
           "fof2": 4.4, "hmf2": 245, "hmf2_measured": True, "m3000": 2.8, "lat": 46.36, "lon": -94.2}
 
 print("\nthe ledger is the isolated state's")
-check("under ELMER_STATE", str(F.LEDGER).startswith(__import__("os").environ["ELMER_STATE"]), True)
+# Resolved on both sides: Windows can hand out the temporary directory under
+# its short 8.3 name (RUNNER~1) while paths.STATE is resolved to the long
+# one, and the same folder then fails a comparison of strings.
+check("under ELMER_STATE",
+      F.LEDGER.resolve().is_relative_to(Path(__import__("os").environ["ELMER_STATE"]).resolve()), True)
 
 print("\na fortnight of forecasts and readings")
 first = NOW - timedelta(days=14)

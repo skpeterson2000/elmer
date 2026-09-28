@@ -82,7 +82,7 @@ saved, L._tools = os.environ.get("PATH"), {}
 os.environ["PATH"] = "/nowhere"
 try:
     check("  and is still found with a useless PATH", bool(L.tool("pdftotext")), True)
-    check("  by looking in the usual places", os.path.dirname(L.tool("pdftotext")) in L.FALLBACK_DIRS, True)
+    check("  by looking in the usual places", os.path.dirname(L.tool("pdftotext") or "") in L.FALLBACK_DIRS, True)
     check("  the note for a missing tool says where it looked",
           "/nowhere" in L.missing_tools_note() and "/usr/bin" in L.missing_tools_note(), True)
 finally:
@@ -90,7 +90,11 @@ finally:
     L._tools = {}
 
 print("\nthe shelf is the isolated state directory's, not the operator's")
-check("the shelf is under ELMER_STATE", str(L.SHELF).startswith(os.environ["ELMER_STATE"]), True)
+# Resolved on both sides: Windows can hand out the temporary directory under
+# its short 8.3 name (RUNNER~1) while paths.STATE is resolved to the long
+# one, and the same folder then fails a comparison of strings.
+check("the shelf is under ELMER_STATE",
+      L.SHELF.resolve().is_relative_to(Path(os.environ["ELMER_STATE"]).resolve()), True)
 check("  and empty to begin with", L.shelf(), [])
 check("  a name with a path in it is not a book", L.book("../elmer.db"), None)
 

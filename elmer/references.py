@@ -234,7 +234,11 @@ def held():
     if not STORE.exists() and OLD_STORE != STORE and OLD_STORE.exists():
         path = OLD_STORE
     try:
-        stamp = (str(path), path.stat().st_mtime_ns)
+        # The size as well as the time: two writes inside one tick of the
+        # filesystem's clock (seen on a Windows CI runner) share an mtime,
+        # and the second list was never read.
+        st = path.stat()
+        stamp = (str(path), st.st_mtime_ns, st.st_size)
     except OSError:
         return []
     if _held["stamp"] != stamp:

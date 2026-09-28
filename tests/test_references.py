@@ -20,6 +20,7 @@ somebody a park on another continent. The center may decide who to ask. It may
 not decide what is close.
 """
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -100,6 +101,18 @@ def run():
     check("far outside it", R.coverage(39.74, -104.99)["reason"], "elsewhere")
     check("  which still says how far the nearest prepared place is",
           R.coverage(39.74, -104.99)["nearest_km"] > 1000, True)
+
+    print("\n-- a new list is read even when it lands in the same tick --")
+    # A Windows runner wrote two lists inside one tick of the filesystem's
+    # clock, and the second was never read. Forced here on any machine: the
+    # new list is given the old one's modification time exactly.
+    before = R.STORE.stat().st_mtime_ns
+    R.held()
+    hold([{"label": "same tick", "lat": 46.60, "lon": -94.31, "radius_km": 50,
+           "parks": [], "summits": []}])
+    os.utime(R.STORE, ns=(before, before))
+    check("the list written in the same tick is the one read",
+          [a["label"] for a in R.held()], ["same tick"])
 
     print("\n-- a distance is worked out from where the operator is now --")
     # The stored figure is deliberately a lie: it is what the distance was
