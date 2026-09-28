@@ -356,14 +356,23 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
     add("-" * 60)
     try:
         from . import diagnostics
+        started = time.perf_counter()
         results = diagnostics.collect()
+        took = round((time.perf_counter() - started) * 1000)
         worst = {"FAIL": 0, "warn": 0, "ok": 0}
         for c in results:
             worst[c["state"]] = worst.get(c["state"], 0) + 1
             mark = {"FAIL": "FAIL", "warn": "warn", "ok": " ok "}.get(c["state"], c["state"])
-            add(f"  [{mark}] {c['label']}: {c['detail']}")
+            ms = f" ({c['ms']} ms)" if c.get("ms") is not None else ""
+            add(f"  [{mark}] {c['label']}: {c['detail']}{ms}")
         add(f"  -> {worst.get('FAIL', 0)} failing, {worst.get('warn', 0)} warnings, "
             f"{worst.get('ok', 0)} ok")
+        # Where the time went, slowest first: a report that takes seconds to
+        # write says which check it spent them on.
+        slow = sorted({(c["label"], c["ms"]) for c in results if c.get("ms") is not None},
+                      key=lambda row: -row[1])[:3]
+        add(f"  -> the self-check took {took} ms"
+            + (f"; slowest {', '.join(f'{label} {ms} ms' for label, ms in slow)}" if slow else ""))
     except Exception as exc:
         add(f"  (self-check could not run: {type(exc).__name__}: {exc})")
 

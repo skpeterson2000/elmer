@@ -10,6 +10,7 @@ import socket
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 from pathlib import Path
@@ -151,14 +152,23 @@ def collect(port=5000):
                       check_neighbours_known,
                       check_net_role, check_hall, check_node, check_mail,
                       check_load, check_op25, check_internet, check_start):
+            # Each check's time goes on its own lines: a report that took
+            # six seconds to write said nothing of where they went.
+            before, started = len(_collected), time.perf_counter()
             try:
                 check()
             except Exception as exc:
                 _collected.append({"state": BAD.strip(), "label": check.__name__,
                                    "detail": f"{type(exc).__name__}: {exc}"})
+            took = round((time.perf_counter() - started) * 1000)
+            for row in _collected[before:]:
+                row["ms"] = took
         try:
+            before, started = len(_collected), time.perf_counter()
             check_server(port)
-        except Exception:
+            for row in _collected[before:]:
+                row["ms"] = round((time.perf_counter() - started) * 1000)
+        except Exception:                # a server that cannot be asked is said by the page itself
             pass
         return list(_collected)
     finally:
@@ -448,16 +458,58 @@ def check_manual():
     return True
 
 
-def check_internet():
+# The feed's reachability, asked off the caller's time and kept: the fetch
+# took two seconds on a good line and up to ten on a bad one, every time
+# the doctor ran or a report was written. A reading this fresh is used as
+# it stands; an older one is used and asked again behind it.
+INTERNET_FRESH_S = 600.0
+_internet = {"at": 0.0, "error": None, "thread": None}
+_internet_lock = threading.Lock()
+
+
+def _ask_internet():
+    """Fetch the feed's head once; record when, and what went wrong if it did."""
     try:
         request = urllib.request.Request(
             "https://www.hamqsl.com/solarxml.php",
             headers={"User-Agent": "ELMER/1.0"})
         with urllib.request.urlopen(request, timeout=10) as response:
             response.read(200)
-        _line(OK, "space weather feed", "hamqsl.com reachable")
-    except Exception as exc:
-        _line(WARN, "space weather feed", f"unreachable ({exc}) - "
+        error = None
+    except Exception as exc:             # any failure to reach it is the finding
+        error = exc
+    with _internet_lock:
+        _internet["at"], _internet["error"] = time.time(), error
+
+
+def _internet_behind():
+    """Ask again in the background, unless a thread is already asking."""
+    with _internet_lock:
+        running = _internet["thread"]
+        if running is not None and running.is_alive():
+            return
+        t = threading.Thread(target=_ask_internet, name="doctor-internet", daemon=True)
+        _internet["thread"] = t
+    t.start()
+
+
+def check_internet():
+    if _collected is None or not _internet["at"]:
+        # --doctor at a terminal, or the first look in this process: asked
+        # now, since there is nothing kept to answer with.
+        _ask_internet()
+    # What is kept is the answer, read before any fresh look is started
+    # behind it, so the line and its age are the same reading.
+    with _internet_lock:
+        at, exc = _internet["at"], _internet["error"]
+    if time.time() - at > INTERNET_FRESH_S:
+        _internet_behind()
+    age = time.time() - at
+    said = "" if age < 60 else f" (as of {age / 60:.0f} min ago)"
+    if exc is None:
+        _line(OK, "space weather feed", f"hamqsl.com reachable{said}")
+    else:
+        _line(WARN, "space weather feed", f"unreachable ({exc}){said} - "
               "everything except the propagation page still works")
     return True
 
@@ -482,7 +534,21 @@ def check_gps():
         _line(WARN, "GPS", f"switched off for this unit - the typed QTH is "
                            f"used (./elmer.py --gpsd {host} turns it back on)")
         return True
-    found = gps.read_fix(host, port)
+    # A server watches the fix in the background (gps.start_watch), and its
+    # last look is at most a sample old: that is the answer, at once.
+    # Asking gpsd again here waited up to five seconds for a lock that was
+    # not coming, which made /api/doctor and every problem report five
+    # seconds slower on a unit whose receiver had none. With no recent
+    # sample - --doctor on its own, or a game holding the watch off - the
+    # receiver is asked as it always was.
+    watch = gps._watch.get("thread")
+    recent = [h for h in gps._history if time.time() - h["t"] <= gps.WATCH_EVERY * 3]
+    if watch is not None and watch.is_alive() and recent:
+        last = gps._last.get("fix")
+        found = (last if last and last.get("source") == "gps"
+                 and time.time() - last.get("read_at", 0) < gps.STALE_AFTER else None)
+    else:
+        found = gps.read_fix(host, port)
     if not found:
         # TowerWitch broadcasts the station's position over the network, so
         # one receiver serves every device. If that is arriving, this unit has

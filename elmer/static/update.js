@@ -378,6 +378,11 @@ function byHand(d, why, subject) {
   '</div>';
 }
 
+/* The report last written, and the words and choices it was written from:
+   a send while they still stand sends that file rather than building it
+   again, which cost the whole self-check a second time. */
+let reportWritten = null;
+
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-report-write]');
   if (!btn) return;
@@ -385,10 +390,12 @@ document.addEventListener('click', async e => {
   btn.disabled = true;
   if (out) out.innerHTML = '<p class="tiny muted">Writing...</p>';
   try {
+    const asked = reportBody(false);
     const d = await api('/api/report', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: reportBody(false),
+      body: asked,
     });
+    reportWritten = {name: String(d.path || '').split(/[\\/]/).pop(), body: asked};
     if (out) out.innerHTML =
       '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
         escapeHTML(d.path) + '</span>' +
@@ -413,9 +420,10 @@ document.addEventListener('click', async e => {
   btn.disabled = false;
 });
 
-/* The press that sends: writes the report again with the same words and the
-   same choice about the callsign (so what goes is what was just read) and
-   sends it by whichever door is open - the drop, or the unit's own mail
+/* The press that sends: the report just written, as it stands - so what
+   goes is what was just read - or, if the words or the callsign box have
+   changed since, written again from them first; and sent by whichever door
+   is open - the drop, or the unit's own mail
    settings. If the door does not open, the by-hand way appears with the
    reason, and the report it wrote is the one the links point at. */
 document.addEventListener('click', async e => {
@@ -425,9 +433,11 @@ document.addEventListener('click', async e => {
   const said = document.getElementById('report-sent');
   const hand = document.getElementById('report-byhand');
   try {
+    const body = JSON.parse(reportBody(true));
+    if (reportWritten && reportWritten.body === reportBody(false)) body.report = reportWritten.name;
     const d = await api('/api/report', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: reportBody(true),
+      body: JSON.stringify(body),
     });
     if (said) said.innerHTML = d.sent
       ? ' <span style="color:var(--green)">Sent.</span>'

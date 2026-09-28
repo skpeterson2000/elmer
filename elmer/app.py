@@ -9303,10 +9303,25 @@ def api_report():
     include = body.get("station") is True
     said = str(body.get("said") or "")[:bugreport.SAID_MOST]
     kind = bugreport.kind_of(body.get("kind"))
-    path, redacted, text = bugreport.write(conn(), include_station=include, said=said, kind=kind)
-    log.info("%s written to %s (%s%s)", bugreport.KINDS[kind], path.name,
-             "redacted" if redacted else "with station detail",
-             ", with the operator's account" if said.strip() else "")
+    # A send names the report the page just wrote, when nothing on the page
+    # has changed since: that file is what the operator read, and it is sent
+    # as it stands. Building it again cost the whole self-check a second
+    # time - three to six seconds on a unit - to send the same text.
+    written = bugreport.locate(body.get("report")) if body.get("send") else None
+    if written is not None and written.name.startswith("elmer-report-"):
+        try:
+            path, redacted, text = written, not include, written.read_text(encoding="utf-8")
+            log.info("%s sent as written, %s", bugreport.KINDS[kind], path.name)
+        except OSError as exc:
+            log.warning("report %s could not be read to send; writing it again: %s", written.name, exc)
+            written = None
+    else:
+        written = None
+    if written is None:
+        path, redacted, text = bugreport.write(conn(), include_station=include, said=said, kind=kind)
+        log.info("%s written to %s (%s%s)", bugreport.KINDS[kind], path.name,
+                 "redacted" if redacted else "with station detail",
+                 ", with the operator's account" if said.strip() else "")
     out = {"path": str(path), "redacted": redacted, "text": text,
            "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way(),
            # Where to open it and where to save it from - a path on a kiosk
