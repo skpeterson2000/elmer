@@ -157,6 +157,23 @@ def main():
           bool(R.RE_CALL_IN.search("N2MO Farmingdale Monmouth")), True)
     check("  while a plan's label is", bool(R.RE_CALL_IN.search("Weak Signal SSB (144.200 calling)")), False)
 
+    print("\n-- the cache is the operator's state, and a test fetches nothing --")
+    from elmer import paths
+    check("the plans are cached under ELMER_STATE", R.CACHE.parent, paths.STATE)
+    asked = []
+    real = dict(R.FETCHERS)
+    for name in R.FETCHERS:
+        R.FETCHERS[name] = lambda name=name: asked.append(name) or {"2 m": []}
+    real_generic = R._fetch_generic
+    R._fetch_generic = lambda entry: asked.append(entry["short"]) or {}
+    try:
+        got = R.plan("MN")
+    finally:
+        R.FETCHERS.update(real)
+        R._fetch_generic = real_generic
+    check("with ELMER_REGIONAL off, nothing is fetched and nothing is written",
+          (got, asked, R.CACHE.exists() and any(R.CACHE.iterdir())), (None, [], False))
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

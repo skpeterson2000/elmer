@@ -1,22 +1,31 @@
 """Regional band plans from the local frequency coordinator.
 
 These are somebody else's work and they change, so they are fetched on demand
-and cached rather than shipped with ELMER. The cache lives under data/regional
-and is gitignored for the same reason the terrain cache is: it is not ours to
-redistribute, and it is specific to where you are.
+and cached rather than shipped with ELMER. The cache lives under the
+operator's state (data/regional unless ELMER_STATE moves it) and is gitignored
+for the same reason the terrain cache is: it is not ours to redistribute, and
+it is specific to where you are. ELMER_REGIONAL=off keeps what is cached and
+fetches nothing, which is how the tests run.
 
 Adding a coordinator means adding an entry to COORDINATORS with a parser; the
 rest of the application does not care which state it is looking at.
 """
 import html
 import json
+import logging
+import os
 import re
 import time
 import urllib.request
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "data" / "regional"
+from . import paths
+
+log = logging.getLogger("elmer")
+
+# Under the operator's state, never the checkout's data/: the tests move the
+# state, and a cache computed from the program's own folder was written into
+# the real data/ from under them.
+CACHE = paths.STATE / "regional"
 USER_AGENT = ("Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 MAX_AGE_DAYS = 30
@@ -513,7 +522,12 @@ def plan(state, refresh=False):
         except ValueError:
             pass
 
-    bands = FETCHERS[entry["fetch"]]() if entry.get("fetch") else _fetch_generic(entry)
+    if os.environ.get("ELMER_REGIONAL", "").lower() in ("off", "0", "no"):
+        # Switched off: what is cached, stale or not, and nothing fetched.
+        log.debug("%s plan: fetching is off (ELMER_REGIONAL)", entry["short"])
+        bands = None
+    else:
+        bands = FETCHERS[entry["fetch"]]() if entry.get("fetch") else _fetch_generic(entry)
     if not bands:
         if path.is_file():                       # stale beats nothing
             try:
@@ -529,5 +543,8 @@ def plan(state, refresh=False):
     data.update({"bands": bands, "fetched": time.strftime("%Y-%m-%d"),
                  "cached": False,
                  "segments": sum(len(v) for v in bands.values())})
-    path.write_text(json.dumps(data, indent=1))
+    try:
+        path.write_text(json.dumps(data, indent=1))
+    except OSError as exc:
+        log.warning("%s plan: fetched but could not be cached at %s: %s", entry["short"], path, exc)
     return data

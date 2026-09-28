@@ -39,6 +39,9 @@ os.environ["ELMER_STATE"] = str(STATE)
 os.environ["ELMER_DROP_URL"] = ""
 # No test fetches the FCC's license files - the amateur one is 200 MB.
 os.environ["ELMER_ULS"] = "off"
+# Nor a coordinator's band plan. Setting a QTH fetches the plan ahead, and a
+# runner in CI fetched Minnesota's and wrote it into the real data/.
+os.environ["ELMER_REGIONAL"] = "off"
 # Nor finds the operator's TowerWitch. It lives beside ELMER on a real unit,
 # and a test that found it read that machine's position and repeaters as if
 # they were the test's. A test that wants one points this at a stand-in.
