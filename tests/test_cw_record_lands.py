@@ -83,6 +83,13 @@ JS = r"""(async () => {
   $('cw-today-start').click();
   await sleep(13000);
   clearInterval(tick);
+  /* The pass's line is written after the session's answers are saved, and
+     on a busy machine that can be later than the thirteen seconds above:
+     a Windows runner once had the record in hand and the line not yet
+     drawn. Waited for, up to half a minute, rather than read at a moment. */
+  for (let waited = 0; waited < 30000 && !/%/.test($('cw-today-result').textContent || ''); waited += 250) {
+    await sleep(250);
+  }
 
   out.after = JSON.parse(JSON.stringify((CWS.progress || {}).K || {sent: 0}));
   out.said = ($('cw-today-result').textContent || '').slice(0, 300);
