@@ -22,11 +22,17 @@ Library's books - waits, and runs when the unit is idle. What is held here:
   - a job that has waited more than a day runs at the first five quiet
     minutes rather than waiting for ten, and the log says it ran on the
     backstop;
+  - when a job began waiting survives a restart: it is written to the
+    operator's state once as the wait begins and once as the job runs, never
+    per check, and a job that began waiting 25 hours ago, before a restart,
+    runs at the first five quiet minutes after it;
   - the FCC download, asked for mid-game, starts when the game is over;
   - the Library reads stale books on its own only when the unit is idle,
     and the button always reads them;
   - the discovery hello no longer asks git who it is every few seconds.
 """
+import importlib
+import json
 import logging
 import sys
 import threading
@@ -187,7 +193,10 @@ def main():
 
     print("\n-- a job deferred for a day runs at the first five quiet minutes --")
     # A table somebody pressed at seven minutes ago: busy by the ten-minute
-    # rule, quiet by the backstop's five. The clock moves an hour a poll.
+    # rule, quiet by the backstop's five. Both clocks move an hour a poll.
+    wall = [1_790_000_000.0]
+    real_wall = activity._wall
+    activity._wall = lambda: wall[0]
     room = party.room(create=True, cohorts=1)
     room.join("KC9SP")
     said.lines.clear()
@@ -206,12 +215,13 @@ def main():
         def wait(self, _):
             self.n += 1
             clock[0] += 3600
+            wall[0] += 3600
             stamp_seven_minutes_ago()
             return self.n >= self.limit
 
     under = Polls(limit=23)
-    check("  a job that has waited under a day keeps waiting", activity.wait_until_idle("the update check", stop=under),
-          False)
+    check("  a job that has waited under a day keeps waiting",
+          activity.wait_until_idle("the weekly field report", stop=under), False)
     check("  and it did not run on the backstop", [line for line in said.lines if "backstop" in line], [])
     said.lines.clear()
     stamp_seven_minutes_ago()
@@ -221,8 +231,66 @@ def main():
     check("  the log says it ran on the backstop",
           len([line for line in said.lines if "the update check goes ahead on the backstop" in line]), 1)
     said.lines.clear()
+
+    print("\n-- when a job began waiting survives a restart --")
+    writes = []
+
+    def counting(module):
+        real_write = module._write_deferred
+
+        def write():
+            writes.append(dict(module._deferred_mem))
+            real_write()
+        module._write_deferred = write
+
+    def on_disk():
+        try:
+            return json.loads(activity.DEFERRED.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+
+    check("a job that ran is off the record", "the update check" in on_disk(), False)
+    counting(activity)
+    began = wall[0]
+    stamp_seven_minutes_ago()
+    five = Polls(limit=5)
+    check("the FCC file waits for the table, and the unit is stopped five hours in",
+          (activity.wait_until_idle("the FCC amateur file", stop=five), five.n), (False, 5))
+    check("  when it began waiting is in the operator's state",
+          on_disk().get("the FCC amateur file"), began)
+    check("  written once as the wait began, not once a check", len(writes), 1)
+
+    # The restart: the module comes back from nothing, with nothing in memory.
+    activity = importlib.reload(activity)
+    activity._clock = lambda: clock[0]
+    activity._wall = lambda: wall[0]
+    counting(activity)
+    writes.clear()
+    wall[0] = began + 25 * 3600
+    clock[0] += 20 * 3600
+    stamp_seven_minutes_ago()
+    check("after the restart the table is still busy by the ten-minute rule",
+          activity.busy(fresh=True), "people at the table")
+    fresh_job = Polls(limit=1)
+    check("  a job that has only just begun waiting waits",
+          activity.wait_until_idle("spot sampling", stop=fresh_job), False)
+    writes.clear()
+    said.lines.clear()
+    after = Polls(limit=5)
+    went = activity.wait_until_idle("the FCC amateur file", stop=after)
+    check("a job that began waiting 25 hours ago, across a restart, runs at the first 5 idle minutes",
+          (went, after.n), (True, 0))
+    check("  the log says it ran on the backstop",
+          len([line for line in said.lines if "the FCC amateur file goes ahead on the backstop" in line]), 1)
+    check("  and it is off the record, in one write",
+          ("the FCC amateur file" in on_disk(), len(writes)), (False, 1))
+    activity._end("spot sampling")
+    activity._end("the weekly field report")
+    activity._end("x")
+    said.lines.clear()
     party.close_room()
     activity._clock = real_clock
+    activity._wall = real_wall
 
     print("\n-- the FCC download, asked for mid-game, starts after it --")
     from elmer import uls

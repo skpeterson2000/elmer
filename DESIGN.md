@@ -4700,7 +4700,13 @@ The background loops call `wait_until_idle` before their work: it returns at
 once on an idle unit, and otherwise waits, logging once each way. The
 backstop is for a unit that is never quiet for ten minutes, such as a hall
 running all day. A job that has waited 24 hours takes the first five quiet
-minutes instead, and the log says it went ahead on the backstop. A signal
+minutes instead, and the log says it went ahead on the backstop. When each
+job began waiting is kept in `deferred.json` under the operator's state, so
+a restart does not start the day again. It is written once when the wait
+begins and once when the job runs, never per check, and it is measured by
+the wall clock, since the monotonic clock starts again at boot. A Pi without
+a clock that boots in the past counts a wait from the future as no wait at
+all. A signal
 that cannot answer counts as not busy for itself - a unit that cannot tell
 must still get its files. What a person presses for runs at once: the button
 is the asking. The GPS watch skips a sample rather than waiting, since the

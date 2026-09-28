@@ -21,7 +21,10 @@ returns at once on an idle unit and otherwise waits, saying once in the log
 what is waiting and for what, and once when it goes ahead. A job that has
 waited a whole day - a hall running round the clock, a table that is never
 quiet for ten minutes - stops waiting for ten quiet minutes and takes the
-first five, and the log says it ran on the backstop.
+first five, and the log says it ran on the backstop. When each job began
+waiting is kept in the operator's state (`deferred.json`), written once as
+the wait begins and once as the job runs, so a restart does not start the
+day again.
 
 Every signal is read defensively. A check that cannot answer - a database
 that is locked, a module not yet loaded - counts as not busy for that one
@@ -29,11 +32,15 @@ signal, and is logged at debug: a unit that cannot tell must still get its
 files eventually, and a signal that fails is not a reason to hold everything.
 """
 
+import json
 import logging
+import os
 import sqlite3
 import threading
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
+
+from . import paths
 
 log = logging.getLogger("elmer")
 
@@ -56,9 +63,22 @@ CACHE_S = 5.0               # one answer serves every loop that asks within this
 
 KINDS = ("table", "net", "exam")
 
-_clock = time.monotonic     # one clock for presses and waits; the tests move it
+# When each deferred job began waiting, by the wall clock, because it has to
+# mean the same thing after a restart and the monotonic clock does not.
+DEFERRED = paths.STATE / "deferred.json"
+# A name nobody has waited under for this long is a job that no longer
+# exists under that name; it is dropped at the next write.
+FORGET_AFTER_S = 14 * 24 * 3600
+
+_clock = time.monotonic     # the clock presses are stamped with; the tests move it
+_wall = time.time           # the clock a wait is measured by; the tests move it too
 _last = {}                  # kind -> _clock() at the last press, answer or join
 _last_lock = threading.Lock()
+_deferred_lock = threading.Lock()
+_deferred_mem = {}          # what the file holds: job -> _wall() when it began waiting
+_deferred_loaded = False
+_deferred_said = set()      # the one warning about the file, said once
+_backstopped = set()        # jobs already told the log they are on the backstop
 _cache = {"at": 0.0, "value": None}
 _cache_lock = threading.Lock()
 
@@ -159,36 +179,125 @@ def busy(conn=None, fresh=False, within=ACTIVE_S):
     return found
 
 
+def _say_once(key, message, *args):
+    if key not in _deferred_said:
+        _deferred_said.add(key)
+        log.warning(message, *args)
+
+
+def _record():
+    """What is waiting and since when: read from the file the first time it is
+    asked for, and kept here after that - this process is the only writer.
+    Called inside _deferred_lock."""
+    global _deferred_loaded
+    if _deferred_loaded:
+        return _deferred_mem
+    _deferred_loaded = True
+    try:
+        data = json.loads(DEFERRED.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return _deferred_mem
+    except (OSError, ValueError) as exc:
+        _say_once("read", "deferred jobs: cannot read %s, so a wait that began before a "
+                  "restart starts again: %s", DEFERRED, exc)
+        return _deferred_mem
+    if not isinstance(data, dict):
+        _say_once("shape", "deferred jobs: %s is not a record of waits; starting afresh", DEFERRED)
+        return _deferred_mem
+    _deferred_mem.update({str(k): float(v) for k, v in data.items()
+                          if isinstance(v, (int, float))})
+    return _deferred_mem
+
+
+def _write_deferred():
+    """The record to the file. Called inside _deferred_lock. A state directory
+    that cannot be written leaves the record in memory: the backstop still
+    works, only not across a restart."""
+    now = _wall()
+    for k in [k for k, v in _deferred_mem.items() if now - v >= FORGET_AFTER_S]:
+        del _deferred_mem[k]
+    tmp = DEFERRED.with_name(f"{DEFERRED.name}.{os.getpid()}.tmp")
+    try:
+        DEFERRED.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(_deferred_mem, indent=1, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, DEFERRED)
+    except OSError as exc:
+        _say_once("write", "deferred jobs: cannot write %s, so how long a job has waited "
+                  "will not survive a restart: %s", DEFERRED, exc)
+        try:
+            tmp.unlink()
+        except OSError:
+            pass                        # it was never made, or the directory is gone
+
+
+def _waiting_since(what):
+    """When `what` began waiting, if a wait of its was left unfinished."""
+    with _deferred_lock:
+        return _record().get(what)
+
+
+def _begin(what, since):
+    with _deferred_lock:
+        _record()[what] = since
+        _write_deferred()
+
+
+def _end(what):
+    with _deferred_lock:
+        if _record().pop(what, None) is not None:
+            _write_deferred()
+    _backstopped.discard(what)
+
+
+def _waited(since):
+    # A Pi has no clock of its own and can boot an hour in the past before
+    # the network sets it right; a wait that seems to have begun in the
+    # future has waited no time at all.
+    return max(0.0, _wall() - since)
+
+
+def _busy_for(what, since):
+    """busy(), or the backstop's shorter question once `what` has waited a day."""
+    if since is None or _waited(since) < BACKSTOP_S:
+        return busy()
+    if what not in _backstopped:
+        _backstopped.add(what)
+        log.warning("%s has waited %.1f h for the unit to be quiet for %d minutes; "
+                    "five quiet minutes will do now", what, _waited(since) / 3600, ACTIVE_S // 60)
+    return busy(fresh=True, within=BACKSTOP_QUIET_S)
+
+
 def wait_until_idle(what, stop=None, poll=POLL_S):
     """Hold `what` until the unit is idle. Returns False if `stop` was set
     while waiting, True otherwise - so a loop can end cleanly.
 
     After BACKSTOP_S of waiting, five quiet minutes are enough: the job
-    runs on the backstop, and the log says so.
+    runs on the backstop, and the log says so. The wait is counted from when
+    it began, before a restart if there was one; a loop told to stop leaves
+    its wait on record for the next start to pick up.
     """
-    reason = busy()
-    if not reason:
+    since = _waiting_since(what)
+    reason = _busy_for(what, since)
+    if reason:
+        if since is None:
+            since = _wall()
+            _begin(what, since)
+            log.info("%s waits: the unit is busy with %s", what, reason)
+        else:
+            log.info("%s waits: the unit is busy with %s (it has been waiting since %s)",
+                     what, reason, datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M"))
+        while reason:
+            if stop is not None:
+                if stop.wait(poll):
+                    return False
+            else:
+                time.sleep(poll)
+            reason = _busy_for(what, since)
+    if since is None:
         return True
-    log.info("%s waits: the unit is busy with %s", what, reason)
-    started = _clock()
-    backstop = False
-    while reason:
-        if stop is not None:
-            if stop.wait(poll):
-                return False
-        else:
-            time.sleep(poll)
-        waited = _clock() - started
-        if waited >= BACKSTOP_S:
-            if not backstop:
-                backstop = True
-                log.warning("%s has waited %.1f h for the unit to be quiet for %d minutes; "
-                            "five quiet minutes will do now", what, waited / 3600, ACTIVE_S // 60)
-            reason = busy(fresh=True, within=BACKSTOP_QUIET_S)
-        else:
-            reason = busy()
-    waited = _clock() - started
-    if backstop:
+    waited = _waited(since)
+    _end(what)
+    if waited >= BACKSTOP_S:
         log.warning("%s goes ahead on the backstop: it waited %.1f h, and the unit has been "
                     "quiet for %d minutes", what, waited / 3600, BACKSTOP_QUIET_S // 60)
     else:
