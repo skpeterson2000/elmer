@@ -30,12 +30,30 @@ the corner - and are labelled as such.
 Beside it stands a second shelf that ships with the program: data/shelf/,
 manuals released to the public (a Distribution Statement A on the cover, or
 public domain outright), each listed with its source and SHA-256 in
-data/shelf/manifest.json. The page shows the two as one shelf, with the
+data/shelf/manifest.json. The page shows the two as one Library, with the
 shipped books marked. A shipped book is part of the program's content, so it
-is never written to or deleted: an operator who does not want one hides it,
-and the list of hidden books is the unit's, kept in its state, so an update
-that brings the file back does not put it back on the shelf. Its index and
-page pictures are state like any other book's.
+is never written to or deleted.
+
+Every book in the Library is either on the table or on the shelf. The table
+is what is open and in use: the page lists it, search answers from it first,
+and ELMER's topics point into it. The shelf is everything else - still
+catalogued, still indexed, and still searched, its pages offered after the
+table's as "also on the shelf" - so a tidy table never costs anybody a
+book. A book starts on the table; returning it to the shelf is the unit's
+choice, kept in its state (see SHELVED_NAME), so an update that replaces a
+shipped file does not bring it back to the table. (The folder data/library/
+keeps its old name. On the page, "the shelf" is only the books not on the
+table.)
+
+Every book is also either free to take or for reference. A book released to
+the public - one that came with ELMER, ELMER's own guide - is free to take:
+anybody may open the file itself, save it and print it. A book somebody
+added is usually one they bought, and the Library is shared, so it is read
+in ELMER's reader by anybody but handed out as a file only to the person who
+added it (see lending()). That is a courtesy the program keeps, not a lock:
+the pages are on the screen, and whoever copied the file into the folder has
+it already. It keeps the Library from being the thing that passes somebody's
+purchase around a club.
 """
 import json
 import logging
@@ -58,9 +76,19 @@ INDEX_DIR = SHELF / ".index"
 # was never checked and stays off the shelf.
 SHIPPED = Path(os.environ.get("ELMER_SHELF") or (paths.CONTENT / "shelf"))
 MANIFEST_NAME = "manifest.json"
-# The shipped books this unit has hidden, by file name. A dotfile, so the
-# shelf does not take it for a book.
-HIDDEN_NAME = ".hidden.json"
+# The books this unit has returned to the shelf, by file name - any book,
+# shipped or the operator's. A dotfile, so it is not taken for a book.
+SHELVED_NAME = ".shelved.json"
+# What the same list was called when only a shipped book could be put away
+# ("hidden"). Read once, carried over and removed - see shelved().
+LEGACY_HIDDEN_NAME = ".hidden.json"
+# Where a book can be: open on the table, put away on the shelf, or either.
+PLACES = ("table", "shelf", "all")
+# How many pages from the shelf a search offers beneath the table's.
+SHELF_HITS = 10
+# Who added each book from the page, by file name: {name: user id}. A book
+# copied into the folder by hand has no entry.
+ADDED_NAME = ".added.json"
 REINDEX_DAYS = 30
 # What an index file looks like. An index made by an older reader is remade
 # on the next visit, whatever the file did: version 2 is when the bookmarks
@@ -307,32 +335,61 @@ def is_shipped(pdf):
     return pdf is not None and pdf.parent == SHIPPED
 
 
-def hidden():
-    """The shipped books hidden on this unit, by file name."""
+def _read_names(path):
+    """A JSON list of file names, or None when there is no such file. An
+    unreadable one is an empty list, said in the log."""
     try:
-        with open(SHELF / HIDDEN_NAME, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             names = json.load(f)
     except FileNotFoundError:
-        return []
+        return None
     except (OSError, ValueError) as exc:
-        log.warning("library: hidden list unreadable, showing every shipped book: %s", exc)
+        log.warning("library: %s unreadable, every book is on the table: %s", path, exc)
         return []
     return [n for n in names if isinstance(n, str)] if isinstance(names, list) else []
 
 
-def set_hidden(name, flag):
-    """Hide a shipped book, or show it again. Returns the hidden list;
-    raises OSError when the state directory will not take the write."""
-    have = [n for n in hidden() if n != name]
-    if flag:
-        have.append(name)
+def _write_names(path, names):
     SHELF.mkdir(parents=True, exist_ok=True)
-    path = SHELF / HIDDEN_NAME
     tmp = path.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(sorted(have), f)
+        json.dump(sorted(set(names)), f)
     tmp.replace(path)
-    log.info("library: shipped book %s %s", name, "hidden" if flag else "shown again")
+
+
+def shelved():
+    """The books this unit has returned to the shelf, by file name.
+
+    A unit that hid shipped books before there was a table has them in the
+    old list; they are carried over the first time this is asked, since a
+    book hidden then is a book put away now.
+    """
+    names = _read_names(SHELF / SHELVED_NAME)
+    if names is not None:
+        return names
+    legacy = _read_names(SHELF / LEGACY_HIDDEN_NAME)
+    if not legacy:
+        return []
+    try:
+        _write_names(SHELF / SHELVED_NAME, legacy)
+        (SHELF / LEGACY_HIDDEN_NAME).unlink()
+        log.info("library: %d hidden book(s) carried over to the shelf: %s",
+                 len(legacy), ", ".join(legacy))
+    except OSError as exc:
+        # Still read from the old list next time; nothing is lost.
+        log.warning("library: could not carry the hidden list over to the shelf: %s", exc)
+    return legacy
+
+
+def set_shelved(name, flag):
+    """Return a book to the shelf (True) or bring it to the table (False).
+    Returns the shelved list; raises OSError when the state directory will
+    not take the write."""
+    have = [n for n in shelved() if n != name]
+    if flag:
+        have.append(name)
+    _write_names(SHELF / SHELVED_NAME, have)
+    log.info("library: %s %s", name, "returned to the shelf" if flag else "brought to the table")
     return sorted(have)
 
 
@@ -350,34 +407,105 @@ def _shipped():
     return out
 
 
-def shelf(include_hidden=False):
-    """Every book on the shelf, the operator's and the shipped, by name.
+def books(where="all"):
+    """The books in the Library, the operator's and the shipped, by name:
+    all of them, or only those on the table or on the shelf.
 
     Where the operator has a copy of their own under a shipped book's name,
-    theirs is the one on the shelf. Hidden shipped books are left out unless
-    asked for.
+    theirs is the one in the Library.
     """
-    books = _shipped()
-    if not include_hidden:
-        for name in hidden():
-            books.pop(name, None)
+    if where not in PLACES:
+        raise ValueError(f"no such place in the Library: {where!r}")
+    found = _shipped()
     for p in _pdfs(SHELF):
-        books[p.name] = p
-    return sorted(books.values(), key=lambda q: q.name.lower())
+        found[p.name] = p
+    if where != "all":
+        put_away = set(shelved())
+        found = {n: p for n, p in found.items() if (n in put_away) == (where == "shelf")}
+    return sorted(found.values(), key=lambda q: q.name.lower())
 
 
-def hidden_books():
-    """The shipped books hidden on this unit, as the page offers them back."""
-    listed = manifest()
-    have = _shipped()
-    return [{"name": n, "title": listed[n].get("title") or n}
-            for n in hidden() if n in have and not (SHELF / n).is_file()]
+def place(name):
+    """Where a book is: "table" or "shelf"."""
+    return "shelf" if name in shelved() else "table"
+
+
+def _added():
+    try:
+        with open(SHELF / ADDED_NAME, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        log.warning("library: who added which book is unreadable, so no added book is lent: %s", exc)
+        return {}
+    return {k: v for k, v in data.items() if isinstance(k, str)} if isinstance(data, dict) else {}
+
+
+def added_by(name):
+    """The user id that added this book from the page, or None."""
+    return _added().get(name)
+
+
+def set_added_by(name, user_id):
+    """Say who added a book, or (None) forget it. Raises OSError when the
+    state directory will not take the write."""
+    have = _added()
+    if user_id is None:
+        have.pop(name, None)
+    else:
+        have[name] = user_id
+    SHELF.mkdir(parents=True, exist_ok=True)
+    path = SHELF / ADDED_NAME
+    tmp = path.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(have, f, sort_keys=True)
+    tmp.replace(path)
+
+
+def is_guide(pdf):
+    """Whether this is ELMER's own User's Guide, which never leaves."""
+    from . import manual
+    return pdf is not None and pdf.name == manual.NAME and pdf.parent == SHELF
+
+
+def lending(pdf, user_id):
+    """Whether this person may take the file itself - open, save, print:
+
+    "free"      released to the public (came with ELMER, or ELMER's guide)
+    "yours"     this person added it, so it is their copy
+    "reference" somebody else's copy, or one nobody added from the page:
+                read in the Library, not handed out
+    """
+    if is_shipped(pdf) or is_guide(pdf):
+        return "free"
+    who = added_by(pdf.name)
+    if who is not None and user_id is not None and who == user_id:
+        return "yours"
+    return "reference"
+
+
+def claimable(pdf):
+    """Whether somebody may say this book is their copy: one copied into the
+    folder by hand, with nobody's name on it yet. Once, and first come - a
+    book with a name on it is not claimed from its owner."""
+    return not (is_shipped(pdf) or is_guide(pdf)) and added_by(pdf.name) is None
+
+
+def removable(pdf, user_id):
+    """Whether this person may delete the book from the unit: never one that
+    came with ELMER or the guide; another person's, only if nobody's name
+    is on it."""
+    if is_shipped(pdf) or is_guide(pdf):
+        return False
+    who = added_by(pdf.name)
+    return who is None or who == user_id
 
 
 def book(name):
-    """The PDF called `name` on either shelf, or None - never a path outside
-    them. The operator's copy first; a shipped book is found hidden or not,
-    so a link to one still opens."""
+    """The PDF called `name` in the Library, or None - never a path outside
+    it. The operator's copy first; a book is found on the table or the
+    shelf alike, so a link to one still opens."""
     if not name or "/" in name or "\\" in name or name.startswith("."):
         return None
     if Path(name).suffix.lower() != ".pdf":
@@ -517,11 +645,31 @@ def _outline(pdf):
     return out, ""
 
 
-def _title(pdf):
-    try:
-        raw = _run([tool("pdfinfo") or "pdfinfo", str(pdf)], timeout=60).decode("utf-8", "ignore")
-    except (RuntimeError, subprocess.TimeoutExpired):
+# What a PDF's Author field says when nobody filled it in: the account the
+# file was saved from, or the program's default.
+NOT_AUTHORS = {"administrator", "admin", "user", "owner", "unknown", "author", "default",
+               "microsoft", "windows user", "none"}
+
+
+def _author(raw):
+    """The Author field of pdfinfo's answer, when it names somebody."""
+    m = re.search(r"^Author:\s*(.+)$", raw, re.M)
+    author = (m.group(1).strip() if m else "")
+    if len(author) < 3 or author.lower() in NOT_AUTHORS or "@" in author or author.isdigit():
         return ""
+    return author[:120]
+
+
+def _pdfinfo(pdf):
+    try:
+        return _run([tool("pdfinfo") or "pdfinfo", str(pdf)], timeout=60).decode("utf-8", "ignore")
+    except (RuntimeError, subprocess.TimeoutExpired) as exc:
+        log.debug("library: pdfinfo could not read %s: %s", pdf.name, exc)
+        return ""
+
+
+def _title(pdf, raw=None):
+    raw = _pdfinfo(pdf) if raw is None else raw
     m = re.search(r"^Title:\s*(.+)$", raw, re.M)
     title = (m.group(1).strip() if m else "")
     # Word's default and the like are not titles, and neither is the name of
@@ -677,6 +825,7 @@ def index_one(pdf):
     outline, outline_problem = _outline(pdf)
     outline_from = "bookmarks" if outline else ""
     own_title, own = _own_list(pdf, len(pages))
+    info = _pdfinfo(pdf)
     if own:
         outline, outline_from = own, "your list"
     elif not outline:
@@ -685,7 +834,8 @@ def index_one(pdf):
     meta = {
         "version": INDEX_VERSION,
         "name": pdf.name,
-        "title": own_title or _title(pdf) or pdf.stem.replace("_", " "),
+        "title": own_title or _title(pdf, info) or pdf.stem.replace("_", " "),
+        "author": _author(info),
         "size": st.st_size, "mtime": int(st.st_mtime),
         "own_list_mtime": _own_list_mtime(pdf),
         "indexed_at": time.time(), "pages": len(pages),
@@ -708,18 +858,19 @@ def index_one(pdf):
 def refresh(force=False, only=None):
     """Bring the index up to the shelf. Returns what was done, by name.
 
-    Indexes what is new or changed, drops indexes for books that have gone,
-    and leaves the rest alone. `only` restricts it to one book.
+    Indexes what is new or changed, on the table and the shelf alike - a
+    book put away is still searched - drops indexes for books that have
+    gone, and leaves the rest alone. `only` restricts it to one book.
     """
     report = {"indexed": [], "kept": [], "failed": {}, "dropped": []}
     have = tools_present()
     if not have["pdftotext"]:
         report["failed"]["*"] = missing_tools_note()
         return report
-    books = shelf()
+    todo = books()
     if only:
-        books = [b for b in books if b.name == only]
-    for pdf in books:
+        todo = [b for b in todo if b.name == only]
+    for pdf in todo:
         meta = None if force else _load_index(pdf)
         why = "asked to" if force else _stale(pdf, meta)
         if why is None:
@@ -732,33 +883,32 @@ def refresh(force=False, only=None):
             report["failed"][pdf.name] = str(exc)[:200]
             log.warning("library: could not index %s: %s", pdf.name, exc)
     if not only and INDEX_DIR.is_dir():
-        # A hidden book keeps its index, so showing it again is instant.
-        names = {b.name for b in shelf(include_hidden=True)}
+        names = {b.name for b in todo}
         for idx in INDEX_DIR.glob("*.pdf.json"):
             if idx.name[:-5] not in names:
                 try:
                     idx.unlink()
                     report["dropped"].append(idx.name[:-5])
-                except OSError:
-                    pass
+                except OSError as exc:
+                    # Harmless: an orphaned index is never read, and the
+                    # next refresh tries again.
+                    log.debug("library: could not drop the index %s: %s", idx.name, exc)
     return report
 
 
 # ---------------------------------------------------------------- the catalogue
 
-def _indexes():
-    out = []
-    for pdf in shelf():
-        meta = _load_index(pdf)
-        out.append((pdf, meta))
-    return out
+def _indexes(where="all"):
+    return [(pdf, _load_index(pdf)) for pdf in books(where)]
 
 
-def catalogue():
-    """The shelf as the page shows it: each book, indexed or not, and why."""
+def catalogue(user_id=None):
+    """The Library as the page shows it: each book, where it is, whether
+    this person may take it or remove it, indexed or not, and why."""
     from . import rigs
     rows = []
     listed = manifest()
+    put_away = set(shelved())
     for pdf, meta in _indexes():
         why = _stale(pdf, meta)
         rig = rigs.identify((meta or {}).get("title"), pdf.name)
@@ -773,6 +923,12 @@ def catalogue():
             "rig": ({"make": rig["make"], "model": rig["model"], "kind": rig["kind"],
                      "word": rig["word"]} if rig else None),
             "name": pdf.name,
+            "place": "shelf" if pdf.name in put_away else "table",
+            "author": ((about or {}).get("publisher") or (meta or {}).get("author") or ""),
+            "guide": is_guide(pdf),
+            "lending": lending(pdf, user_id),
+            "removable": removable(pdf, user_id),
+            "claimable": claimable(pdf),
             "title": ((about or {}).get("title") or (meta or {}).get("title")
                       or pdf.stem.replace("_", " ")),
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
@@ -817,8 +973,10 @@ def set_mine(conn, name, flag):
 def shelf_gear(conn):
     """What Make Contact should assume the operator has, from the shelf.
 
-    The books this person marked as theirs, if any; otherwise every book on
-    the shelf, which is the right reading of a one-person unit. Returns the
+    The books this person marked as theirs, if any; otherwise every book in
+    the Library, which is the right reading of a one-person unit. The table
+    and the shelf both count: a manual returned to the shelf tidies the
+    table, it does not say the radio was sold - "mine" is for that. Returns the
     radios recognized, the gear keys they tick, the basis, and the manuals
     the table could not place - said, not guessed at.
 
@@ -934,8 +1092,13 @@ def _snippet(text, term):
     return ("…" if a > 0 else "") + s + ("…" if b < len(text) else "")
 
 
-def search(query, limit=30):
-    """The pages on the shelf that contain every term, best first.
+def search(query, limit=30, book_name=None, shelf_limit=SHELF_HITS):
+    """The pages that contain every term, best first: the table's in
+    `hits`, and beneath them the shelf's in `shelf`, so a book put away is
+    still found - offered after the books in use, and fewer of them.
+
+    `book_name` searches that one book wherever it is, and everything comes
+    back in `hits` - the reader, searching inside the book it has open.
 
     A page counts if every term is on it. Its score is how many times the
     terms appear, and a page where the first term appears in the first
@@ -945,11 +1108,22 @@ def search(query, limit=30):
     to have invented a match.
     """
     terms = _terms(query)
+    none = {"hits": [], "total": 0, "books": 0}
     if not terms:
-        return {"query": query or "", "terms": [], "hits": [], "books": 0}
+        return {"query": query or "", "terms": [], **none, "shelf": dict(none)}
+    if book_name is not None:
+        pdf = book(book_name)
+        found = _pages_with(terms, [(pdf, _load_index(pdf))] if pdf else [], limit)
+        return {"query": query, "terms": terms, **found, "shelf": dict(none)}
+    return {"query": query, "terms": terms, **_pages_with(terms, _indexes("table"), limit),
+            "shelf": _pages_with(terms, _indexes("shelf"), shelf_limit)}
+
+
+def _pages_with(terms, indexed, limit):
+    """The pages of these books that contain every term, best first."""
     hits = []
     books = 0
-    for pdf, meta in _indexes():
+    for pdf, meta in indexed:
         if not meta:
             continue
         books += 1
@@ -966,8 +1140,7 @@ def search(query, limit=30):
                          "snippet": _snippet(text, terms[0]),
                          "chapter": _chapter_of(meta.get("outline") or [], n)})
     hits.sort(key=lambda h: (-h["score"], h["book"], h["page"]))
-    return {"query": query, "terms": terms, "hits": hits[:limit],
-            "total": len(hits), "books": books}
+    return {"hits": hits[:limit], "total": len(hits), "books": books}
 
 
 def _chapter_of(outline, page):
@@ -986,10 +1159,14 @@ def _chapter_of(outline, page):
 # -------------------------------------------------------------------- pointers
 
 def pointers(topic=None, words=None):
-    """Where ELMER's topics are in the operator's own books, by bookmark.
+    """Where ELMER's topics are in the books on the table, by bookmark.
+
+    Only the table: the topics are the door into the books in use, and a
+    book returned to the shelf was put there to be out of the way. Search
+    still reaches it.
 
     For one topic (a key of TOPICS) or an explicit list of words: every
-    chapter on the shelf whose title contains one of the words, with the
+    chapter on the table whose title contains one of the words, with the
     book and the page. A book none of whose chapters say the word - or
     with no chapters at all - is read by its own title instead: a one-page
     fact sheet never has an outline, and "Hamstick Dipole Fact Sheet" says
@@ -1011,7 +1188,7 @@ def pointers(topic=None, words=None):
                      if re.search(r"\b" + re.escape(w) + r"(?:s|es)?\b", title)), None)
 
     out = []
-    for pdf, meta in _indexes():
+    for pdf, meta in _indexes("table"):
         outline = (meta or {}).get("outline") or []
         book_title = (meta or {}).get("title") or pdf.stem.replace("_", " ")
         chapters = []

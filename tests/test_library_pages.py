@@ -77,6 +77,13 @@ def run():
         check("a page that is not there", r.status_code, 404)
         r = client.get("/library/read/test-manual.pdf?page=2")
         html = r.get_data(as_text=True)
+        check("somebody else's copy is drawn, with no file offered",
+              ('id="pageimg"' in html, 'id="mode"' in html, 'id="asfile"' in html), (True, False, False))
+        # This person's own copy: the browser's viewer too, with print and save.
+        client.set_cookie("elmer_user", "1")
+        library.set_added_by("test-manual.pdf", 1)
+        r = client.get("/library/read/test-manual.pdf?page=2")
+        html = r.get_data(as_text=True)
         check("the reader draws pages", ('id="pageimg"' in html, 'id="mode"' in html), (True, True))
         check("  and still offers the browser's viewer", 'Browser viewer' in html, True)
 

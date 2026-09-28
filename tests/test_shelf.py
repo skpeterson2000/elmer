@@ -23,10 +23,21 @@ through it would pass over an empty shelf and prove nothing.
 And the shelf behaves as promised, shown against a throwaway shipped
 directory so nothing is written under the program's content:
 
-  - the Library shows both shelves as one, the shipped books marked;
-  - a shipped book cannot be deleted, only hidden, and the hidden list
-    lives in the unit's state, so it survives the file being replaced by an
-    update; showing it again brings it back;
+  - the Library shows both sources as one, the shipped books marked, every
+    book starting on the table;
+  - a shipped book cannot be deleted, only returned to the shelf, and where
+    each book is lives in the unit's state, so it survives the file being
+    replaced by an update; bringing it to the table brings it back;
+  - a book on the shelf is still indexed and searched, its pages offered
+    beneath the table's, and the reader searches inside it; ELMER's topics
+    point only into the table;
+  - any book can go on the shelf, the operator's own as well;
+  - a unit that hid books under the old list finds them on the shelf;
+  - a book released to the public is free to take for everybody; a book
+    somebody added is theirs to take and remove, and for reading here to
+    anybody else - the file refused, the reader offering none, the pages
+    drawn all the same; one copied in by hand is for reading here to all
+    until somebody says it is their copy - once, first come;
   - an operator cannot add a book under a shipped book's name;
   - a PDF dropped in the shipped directory without a manifest entry is not
     shown.
@@ -139,8 +150,8 @@ def the_behavior():
         library.SHELF.mkdir(parents=True, exist_ok=True)
         (library.SHELF / "my-radio.pdf").write_bytes(tiny_pdf("My Radio"))
 
-        names = [p.name for p in library.shelf()]
-        check("the operator's book and the shipped one are on one shelf",
+        names = [p.name for p in library.books()]
+        check("the operator's book and the shipped one are in one Library",
               ("my-radio.pdf" in names, "handbook.pdf" in names), (True, True))
         check("  and the PDF the manifest does not list is not", "stray.pdf" in names, False)
 
@@ -154,25 +165,28 @@ def the_behavior():
               (rows["handbook.pdf"]["title"], rows["handbook.pdf"]["shipped"]["edition"],
                "DISTRIBUTION STATEMENT A" in rows["handbook.pdf"]["shipped"]["statement"]),
               ("Antenna Handbook", "1999", True))
-        check("  and nothing is hidden yet", d["hidden"], [])
+        check("  and every book starts on the table",
+              (rows["handbook.pdf"]["place"], rows["my-radio.pdf"]["place"]), ("table", "table"))
         r = c.get("/library/book/handbook.pdf", environ_base=LOCAL)
         check("a shipped book opens", (r.status_code, r.data[:5]), (200, b"%PDF-"))
         r.close()
-        check("a name that climbs out of the shelf finds nothing",
+        check("a name that climbs out of the Library finds nothing",
               (library.book("../handbook.pdf"), library.book("..\\handbook.pdf")), (None, None))
 
-        print("\n-- hidden, never deleted --")
+        print("\n-- on the shelf, never deleted --")
         r = c.post("/api/library/remove", json={"name": "handbook.pdf"}, environ_base=LOCAL)
         check("removing a shipped book is refused", (r.status_code, (r.get_json() or {}).get("shipped")), (409, True))
         check("  and the file is still there", (scratch / "handbook.pdf").is_file(), True)
-        r = c.post("/api/library/hide", json={"name": "handbook.pdf", "hidden": True}, environ_base=LOCAL)
-        check("hiding it is allowed", r.status_code, 200)
-        check("  it is off the shelf", "handbook.pdf" in [p.name for p in library.shelf()], False)
-        check("  offered back by name", [h["name"] for h in library.hidden_books()], ["handbook.pdf"])
+        r = c.post("/api/library/shelve", json={"name": "handbook.pdf", "shelved": True}, environ_base=LOCAL)
+        check("returning it to the shelf is allowed", (r.status_code, r.get_json()["place"]), (200, "shelf"))
+        check("  it is off the table", "handbook.pdf" in [p.name for p in library.books("table")], False)
+        check("  and on the shelf, still in the Library",
+              ([p.name for p in library.books("shelf")], "handbook.pdf" in [p.name for p in library.books()]),
+              (["handbook.pdf"], True))
         check("  the file is untouched", sha256(scratch / "handbook.pdf"),
               hashlib.sha256(shipped_bytes).hexdigest())
-        check("  and the hidden list is kept in the unit's state, not beside the book",
-              ((library.SHELF / library.HIDDEN_NAME).is_file(), (scratch / library.HIDDEN_NAME).exists()),
+        check("  and the list is kept in the unit's state, not beside the book",
+              ((library.SHELF / library.SHELVED_NAME).is_file(), (scratch / library.SHELVED_NAME).exists()),
               (True, False))
 
         # An update replaces the file and rewrites the manifest; the
@@ -183,17 +197,51 @@ def the_behavior():
         man["books"][0].update(sha256=hashlib.sha256(newer).hexdigest(), bytes=len(newer), edition="2001")
         (scratch / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
         library._manifest_cache.clear()
-        check("after an update brings the file back, it is still hidden",
-              "handbook.pdf" in [p.name for p in library.shelf()], False)
-        check("  and search does not reach into it",
-              [h["book"] for h in library.search("antenna")["hits"] if h["book"] == "handbook.pdf"], [])
+        check("after an update brings the file back, it is still on the shelf",
+              library.place("handbook.pdf"), "shelf")
 
-        r = c.post("/api/library/hide", json={"name": "handbook.pdf", "hidden": False}, environ_base=LOCAL)
-        check("showing it again brings it back",
-              (r.status_code, "handbook.pdf" in [p.name for p in library.shelf()]), (200, True))
-        check("  and it is no longer offered as hidden", library.hidden_books(), [])
-        r = c.post("/api/library/hide", json={"name": "my-radio.pdf", "hidden": True}, environ_base=LOCAL)
-        check("the operator's own book is not hidden, it is removed", r.status_code, 404)
+        print("\n-- the shelf is searched after the table --")
+        report = library.refresh()
+        if report["failed"].get("*"):
+            # The library tests need poppler (CLAUDE.md); say so rather than pass.
+            check("pdftotext is here for the search checks", report["failed"]["*"][:40], "")
+        else:
+            check("a book on the shelf is still indexed", "handbook.pdf" in report["indexed"], True)
+            found = library.search("antenna")
+            check("  its pages are not among the table's",
+                  [h["book"] for h in found["hits"] if h["book"] == "handbook.pdf"], [])
+            check("  they come beneath, as the shelf's",
+                  ([h["book"] for h in found["shelf"]["hits"]], found["shelf"]["books"]), (["handbook.pdf"], 1))
+            check("  and the table's pages are not repeated there",
+                  "my-radio.pdf" in [h["book"] for h in found["shelf"]["hits"]], False)
+            d = c.get("/api/library/search?q=antenna", environ_base=LOCAL).get_json()
+            check("the search answer carries both", (len(d["hits"]), len(d["shelf"]["hits"])), (1, 1))
+            check("the reader searches inside a book on the shelf",
+                  [h["page"] for h in library.search("antenna", book_name="handbook.pdf")["hits"]], [1])
+            check("ELMER's topics point only into the table",
+                  sorted({p["book"] for p in library.pointers(words=["radio", "handbook"])}), ["my-radio.pdf"])
+
+        r = c.post("/api/library/shelve", json={"name": "handbook.pdf", "shelved": False}, environ_base=LOCAL)
+        check("bringing it to the table brings it back",
+              (r.status_code, "handbook.pdf" in [p.name for p in library.books("table")]), (200, True))
+        check("  and the shelf is empty again", library.books("shelf"), [])
+
+        print("\n-- any book can go on the shelf --")
+        r = c.post("/api/library/shelve", json={"name": "my-radio.pdf", "shelved": True}, environ_base=LOCAL)
+        check("the operator's own book goes on the shelf too", (r.status_code, library.place("my-radio.pdf")), (200, "shelf"))
+        check("  and its file stays", (library.SHELF / "my-radio.pdf").is_file(), True)
+        r = c.post("/api/library/shelve", json={"name": "nothing.pdf", "shelved": True}, environ_base=LOCAL)
+        check("a book that is not there is refused", r.status_code, 404)
+        c.post("/api/library/shelve", json={"name": "my-radio.pdf", "shelved": False}, environ_base=LOCAL)
+
+        print("\n-- a unit that hid books before there was a table --")
+        (library.SHELF / library.SHELVED_NAME).unlink()
+        (library.SHELF / library.LEGACY_HIDDEN_NAME).write_text(json.dumps(["handbook.pdf"]), encoding="utf-8")
+        check("a book hidden then is on the shelf now", library.place("handbook.pdf"), "shelf")
+        check("  and the old list is carried over and gone",
+              ((library.SHELF / library.SHELVED_NAME).is_file(), (library.SHELF / library.LEGACY_HIDDEN_NAME).exists()),
+              (True, False))
+        library.set_shelved("handbook.pdf", False)
 
         print("\n-- the operator's books are theirs to add and remove --")
         r = c.post("/api/library/add", data={"file": (io.BytesIO(tiny_pdf("Imposter")), "handbook.pdf")},
@@ -204,6 +252,71 @@ def the_behavior():
         r = c.post("/api/library/remove", json={"name": "my-radio.pdf"}, environ_base=LOCAL)
         check("the operator's own book still removes", (r.status_code, (library.SHELF / "my-radio.pdf").exists()),
               (200, False))
+
+        print("\n-- free to take, and for reading here --")
+        from elmer import db
+        other = db.add_user(db.connect(), "Somebody Else")
+        other = other if isinstance(other, int) else other["id"]
+        them = app.test_client()
+        them.set_cookie("elmer_user", str(other))
+        r = c.post("/api/library/add", data={"file": (io.BytesIO(tiny_pdf("Bought Handbook")), "bought.pdf")},
+                   content_type="multipart/form-data", environ_base=LOCAL)
+        check("a book added from the page", r.status_code, 200)
+        check("  is on record as the adder's", library.added_by("bought.pdf"), 1)
+
+        def row(client, name):
+            d = client.get("/api/library", environ_base=LOCAL).get_json()
+            return next((b for b in d["shelf"] if b["name"] == name), {})
+        check("to the adder it is theirs to take, and to remove",
+              (row(c, "bought.pdf").get("lending"), row(c, "bought.pdf").get("removable")), ("yours", True))
+        check("to anybody else it is for reading here, and not theirs to remove",
+              (row(them, "bought.pdf").get("lending"), row(them, "bought.pdf").get("removable")), ("reference", False))
+        check("a book that came with ELMER is free to take, for everybody",
+              (row(c, "handbook.pdf").get("lending"), row(them, "handbook.pdf").get("lending")), ("free", "free"))
+
+        r = c.get("/library/book/bought.pdf", environ_base=LOCAL)
+        check("the adder may take the file", r.status_code, 200)
+        r.close()
+        r = them.get("/library/book/bought.pdf", environ_base=LOCAL)
+        check("  anybody else may not", r.status_code, 403)
+        r.close()
+        r = them.get("/library/book/handbook.pdf", environ_base=LOCAL)
+        check("  but may take a book released to the public", r.status_code, 200)
+        r.close()
+        r = them.get("/library/read/bought.pdf", environ_base=LOCAL)
+        page = r.get_data(as_text=True)
+        check("anybody may read it in the reader, which offers no file",
+              (r.status_code, 'id="asfile"' in page, "for reading here" in page), (200, False, True))
+        r = c.get("/library/read/bought.pdf", environ_base=LOCAL)
+        check("  the adder's reader offers the file", 'id="asfile"' in r.get_data(as_text=True), True)
+        if library.can_draw_pages():
+            r = them.get("/library/page/bought.pdf/1.png", environ_base=LOCAL)
+            check("  and its pages are drawn for anybody", r.status_code, 200)
+            r.close()
+
+        r = them.post("/api/library/remove", json={"name": "bought.pdf"}, environ_base=LOCAL)
+        check("anybody else cannot remove it", (r.status_code, (library.SHELF / "bought.pdf").is_file()), (403, True))
+        (library.SHELF / "by-hand.pdf").write_bytes(tiny_pdf("Copied In By Hand"))
+        check("a book copied in by hand is for reading here, for everybody",
+              (row(c, "by-hand.pdf").get("lending"), row(them, "by-hand.pdf").get("lending")),
+              ("reference", "reference"))
+        check("  and it can be claimed; one added from the page, or that came with ELMER, cannot",
+              (row(c, "by-hand.pdf").get("claimable"), row(c, "bought.pdf").get("claimable"),
+               row(c, "handbook.pdf").get("claimable")), (True, False, False))
+        r = them.post("/api/library/claim", json={"name": "by-hand.pdf"}, environ_base=LOCAL)
+        check("whoever says it is their copy first owns it",
+              (r.status_code, library.added_by("by-hand.pdf"), row(them, "by-hand.pdf").get("lending")),
+              (200, other, "yours"))
+        check("  and to everybody else it is still for reading here, not theirs to remove",
+              (row(c, "by-hand.pdf").get("lending"), row(c, "by-hand.pdf").get("removable")), ("reference", False))
+        r = c.post("/api/library/claim", json={"name": "by-hand.pdf"}, environ_base=LOCAL)
+        check("  a second claim is refused, and the owner stays", (r.status_code, library.added_by("by-hand.pdf")),
+              (409, other))
+        r = c.post("/api/library/claim", json={"name": "handbook.pdf"}, environ_base=LOCAL)
+        check("a book that came with ELMER is claimed by nobody", r.status_code, 409)
+        r = c.post("/api/library/remove", json={"name": "bought.pdf"}, environ_base=LOCAL)
+        check("the adder can remove it, and the record goes with it",
+              (r.status_code, (library.SHELF / "bought.pdf").exists(), library.added_by("bought.pdf")), (200, False, None))
     finally:
         library.SHIPPED = real_shipped
         library._manifest_cache.clear()

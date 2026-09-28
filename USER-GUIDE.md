@@ -56,7 +56,7 @@ This guide is long because ELMER does a lot, and a long guide is no use to someb
 
 - Play something, alone or against other people - *The Gaming Center*
 - Run a club night on one unit - *A club night*
-- Put my own books and manuals on the shelf - *The Library*
+- Put my own books and manuals in the Library - *The Library*
 - Check the unit is healthy, and update it - *Keeping ELMER healthy*
 - Find out what this thing sends over the network - *What leaves this unit*
 - Work out why something is not behaving - *When something goes wrong*
@@ -584,22 +584,42 @@ Everything this unit has built as a PDF, kept here so it can be read and printed
 
 **What you have printed** leads the page whenever there is anything on it, and is not there at all when there is not. Band charts, the RF exposure record, an antenna evaluation: the sheets this unit built for you, with **Open** to read one and **Save** to take the file. The newest thirty stand, and the whole shelf is the Printouts page.
 
-Your own manuals, read once and indexed to the page. Then **Find the page** answers a question at a campsite from your own copy: the file, the page, and the lines around it. Nothing is summarised or guessed. Every word must be on the page, a quoted phrase is kept whole, and nothing is stemmed, so that the search can never be found to have invented a match.
+The books that came with ELMER and the manuals you bring, each read once and indexed to the page. Then **Find the page** answers a question at a campsite from the copy on this machine: the book, the page, and the lines around it. Nothing is summarised or guessed. Every word must be on the page, a quoted phrase is kept whole, and nothing is stemmed, so that the search can never be found to have invented a match.
+
+### The table and the shelf
+
+Every book in the Library is in one of two places. **On the table** are the books open for use: the page lists them, search answers from them first, and ELMER's topics point into them. **On the shelf** is everything else. A book on the shelf is still in the Library, still indexed, and still searched, so putting one away never costs you a book; it only clears the table.
+
+- **Return to the shelf** puts a book away. Nothing is deleted and nothing is asked: it comes back with one press.
+- **The card catalogue**, under the table, lists every book in the Library, on the table or on the shelf, one card each: the title, the author or publisher, where it is, and whether it may be taken away (below). Type part of a title or an author's name in its box and the cards narrow to those. Each card has **Read**, and **Bring to the table** or **Return to the shelf**. This is how you find a book you have in mind; **Find the page** is for finding the words inside them.
+- **Search** lists the table's pages first, under **On the table**, and then, under **Also on the shelf**, up to ten pages from books put away, each book with its own **Bring to the table**. So when the answer is in a book you shelved months ago, the Library still finds it and offers to bring it back.
+
+A book you add goes on the table, because you brought it to use it. Where each book is, table or shelf, is kept for the unit and everyone on it, and it survives updates. Make Contact counts every book in the Library when it works out what radios you have, the shelf included: shelving a manual tidies the table, it does not say you sold the radio. **mine** is for saying whose radio it is.
+
+### Free to take, and for reading here
+
+Some books may be taken away and some are read in the Library, as in any library. Each card says which.
+
+- **Free to take** is a publication released to the public: the books that came with ELMER, and this guide. Anybody may open it as a PDF, save it, and print it.
+- **Yours to take** is a book you added yourself. It is your copy, so the file is yours to save or print.
+- **For reading here** is a book somebody else added. It is usually one they bought, and the Library is shared: anybody may read it in ELMER's reader, a page at a time, but the file itself is not handed out, so the reader has no **Open as PDF** for it. Only the person who added it can take the file away, and only they can remove it.
+
+A book copied into the folder by hand, rather than added from the page, has nobody's name on it, so it starts as for reading here, for everybody. Its card and its row on the table have **This is my copy**: press it if the book is yours, and it becomes yours to take and to remove, as if you had added it from the page. Only one person can say so, and the first to press it is the owner, so ELMER asks before it takes your word. This is a courtesy the Library keeps rather than a lock, since a page on a screen can always be photographed; it keeps the Library from being the thing that passes somebody's purchase around a club.
 
 The page needs poppler, a set of PDF tools. Without it the page says so, and on Windows the dashboard's self-check offers to install it.
 
-### Putting a manual on the shelf
+### Bringing your own books
 
 There are two ways, and they end up in the same place.
 
-- **From the machine ELMER runs on**, copy the PDF into the shelf folder. You do not have to work out where that is: the Library page prints the exact path for your install, at the top of **On the shelf**. On a default install it is `data/library` inside the folder you unpacked ELMER into, and it follows the state folder if you moved that. You will find `ELMER-Users-Guide.pdf` already sitting there, because this guide lives on the shelf like any other book, which is a convenient way to be sure you are in the right folder.
-- **From anywhere else, including a phone**, press **Add a manual** on the Library page and hand the file over.
+- **From the machine ELMER runs on**, copy the PDF into the shelf folder. You do not have to work out where that is: the Library page prints the exact path for your install, under **On the table**. On a default install it is `data/library` inside the folder you unpacked ELMER into, and it follows the state folder if you moved that. You will find `ELMER-Users-Guide.pdf` already sitting there, because this guide lives in the Library like any other book, which is a convenient way to be sure you are in the right folder.
+- **From anywhere else, including a phone**, press **Add a book** on the Library page and hand the file over.
 
-The next visit to the Library reads anything new, once. A big manual takes a moment the first time and is instant afterwards. Two hundred megabytes is the most it will take for one file, which is generous for a manual and refuses a disc image. The shelf is shared by everyone on the unit, so a club radio's manual only has to be put on once.
+The next visit to the Library reads anything new, once. A big manual takes a moment the first time and is instant afterwards. Two hundred megabytes is the most it will take for one file, which is generous for a manual and refuses a disc image. The Library is shared by everyone on the unit, so a club radio's manual only has to be added once. **Remove** deletes a book you added from the unit altogether, and only the person who added it has the button; to keep it but clear the table, return it to the shelf instead.
 
-### The books that ship with ELMER
+### The books that came with ELMER
 
-Some books are on the shelf before you add anything. These are manuals their publishers released to the public, marked **ships with ELMER**, with the edition and the release statement from the cover beside each one, and the address it was published at. They read and search like your own books. You cannot delete one, because it is part of the program and the next update would only put it back. You can **Hide** it instead. A hidden book is listed at the foot of the shelf with **Show again**, and it stays hidden on this unit through updates until you show it again. If you add a book of your own under the same file name as a shipped one, it is refused; rename your copy first.
+Some books are in the Library before you add anything. These are publications released to the public, marked **came with ELMER**, with the edition and the release statement from the cover beside each one, and the address it was published at. They start on the table, and they read and search like your own books. You cannot delete one, because it is part of the program and the next update would only put it back; return it to the shelf instead, and it stays there through updates until you bring it back. If you add a book of your own under the same file name as one that came with ELMER, it is refused; rename your copy first.
 
 ### Not every PDF searches, and the difference is large
 
@@ -607,11 +627,11 @@ Some books are on the shelf before you add anything. These are manuals their pub
 
 **A scan is pictures of pages.** There is no text underneath for anything to read, so search cannot see inside it at all, and a question you know is answered on page 40 will come back with nothing. The book still opens, still turns pages, still reads perfectly well, and you can still go to page 40 yourself.
 
-ELMER tells you which you have got rather than leaving you to wonder why the search is useless: a scanned book is marked on the shelf as **a scan, nothing for search to read**. Check that line after adding a manual. If a manual matters to you and the copy you have is a scan, it is worth looking for a text copy from the maker, because the difference is not a matter of degree.
+ELMER tells you which you have got rather than leaving you to wonder why the search is useless: a scanned book is marked in the Library as **a scan, nothing for search to read**. Check that line after adding a manual. If a manual matters to you and the copy you have is a scan, it is worth looking for a text copy from the maker, because the difference is not a matter of degree.
 
-The chapter list has a similar order of preference: the publisher's own bookmarks first, then a list you wrote beside the book, then the numbered headings ELMER could find in the text. The shelf says which of the three it used, and says so when a file's bookmarks could not be read.
+The chapter list has a similar order of preference: the publisher's own bookmarks first, then a list you wrote beside the book, then the numbered headings ELMER could find in the text. The Library says which of the three it used, and says so when a file's bookmarks could not be read.
 
-![The Library: the shelf, with the User's Guide on it](docs/screenshots/guide/library.png)
+![The card catalogue: every book in the Library, on the table or on the shelf](docs/screenshots/guide/library.png)
 
 **Open** reads a book inside ELMER, with the chapters down the side and search hits highlighted.
 
@@ -622,7 +642,7 @@ The chapter list has a similar order of preference: the publisher's own bookmark
 - **The page number**, top right. Type a number and press Enter to go straight there.
 - **The chapter list**, down the side. It lists where each chapter *begins*. So a chapter that opens on page 13 followed by one that opens on page 15 does not mean page 14 is missing: it means page 14 is the middle of the first chapter, and one press of the right arrow is where it lives.
 
-**Escape** comes back to the Library. **Open as PDF** in the reader's bar hands the file itself to your browser's own viewer, in a tab of its own, opened at the page you were on; that viewer's toolbar has print and save, so any page of any book on the shelf, this guide included, can be printed from there. On the kiosk, which has no tabs, the same button shows the file in the reader's frame with Back still above it. **Chapters** lists the publisher's bookmarks, or a list you wrote beside the book, or the numbered headings ELMER found. **mine** marks whose radio a manual is for, and Make Contact starts from that. The shelf is shared by everyone on the unit.
+**Escape** comes back to the Library. **Open as PDF** in the reader's bar hands the file itself to your browser's own viewer, in a tab of its own, opened at the page you were on; that viewer's toolbar has print and save, so any page of any book in the Library, this guide included, can be printed from there. On the kiosk, which has no tabs, the same button shows the file in the reader's frame with Back still above it. **Chapters** lists the publisher's bookmarks, or a list you wrote beside the book, or the numbered headings ELMER found. **mine** marks whose radio a manual is for, and Make Contact starts from that. The Library is shared by everyone on the unit.
 
 ### Keep a copy of your license here
 
@@ -638,19 +658,19 @@ The chapter list has a similar order of preference: the publisher's own bookmark
 
 **Getting it back.** **Show** opens it with a **Print** button. **Remove** takes it off.
 
-**Who can see it.** You, on this account, and nobody else. It is not on the shared shelf with the manuals, it does not appear for other people using this unit, and it never leaves the machine.
+**Who can see it.** You, on this account, and nobody else. It is not in the shared Library with the manuals, it does not appear for other people using this unit, and it never leaves the machine.
 
 **From elsewhere.** Under the same heading, the awards somebody else gave you: an eWAC, an eDX, a contest plaque, a first-contact certificate. Hand over the file eQSL, LoTW or the contest organizer sent, as a **PDF, a PNG or a JPEG**, write the caption and who issued it, and it hangs beside ELMER's own badges. A PDF is hung as its first page, which is the certificate; it is rendered with poppler, the same tool the shelf reads manuals with, so a unit that can index a book can hang one of these. Yours alone, and it leaves with your account.
 
-**ELMER's topics** list the chapters of every book on the shelf under the subject they belong to, matched from the publisher's bookmarks - antennas, propagation, CW and keying, and Games and the table, which is where this guide's own chapters on the Gaming Center, the games, net control and the Lounge are found.
+**ELMER's topics** list the chapters of every book on the table under the subject they belong to, matched from the publisher's bookmarks - antennas, propagation, CW and keying, and Games and the table, which is where this guide's own chapters on the Gaming Center, the games, net control and the Lounge are found.
 
 **ELMER's awards.** At the foot of the Library, and on a shelf in the Lounge, the badges this account has earned sit as small plaques. Tap one for a closer look, and **Open the PDF** builds it as a page for the wall, on the print shelf, in the browser's own viewer where the print button is. The page says what it is: a mark of practice, not a license.
 
 ### This guide
 
-This guide is on the shelf with your manuals, indexed and searched like any book and opened in the same reader, so a kiosk with no file manager still has it. The text it is built from is `USER-GUIDE.md` at the top of ELMER's own folder, beside the README, where you can read it without starting ELMER at all; the shelf's copy is built from it when ELMER starts, and rebuilt when the text changes with an update.
+This guide is in the Library with your manuals, indexed and searched like any book and opened in the same reader, so a kiosk with no file manager still has it. The text it is built from is `USER-GUIDE.md` at the top of ELMER's own folder, beside the README, where you can read it without starting ELMER at all; the Library's copy is built from it when ELMER starts, and rebuilt when the text changes with an update. It is free to take: save it or print it from the reader.
 
-It can be taken off the shelf like any other book. Taken off by accident, it comes back when ELMER next starts, and the dashboard's self-check has a **Fix** that puts it back sooner. If you do not want it, tick **I decline the User's Guide and any future updates to it** under the shelf on the Library page. It is taken off then and not put back, by a start or by an update, until you untick the box. That is a setting of the unit, not of the person signed in, because the shelf is shared.
+It is never removed from the Library. It can go on the shelf like any book, where it stays in the card catalogue out of the way. If its file is deleted from the folder by hand, it comes back when ELMER next starts, and the dashboard's self-check has a **Fix** that puts it back sooner.
 
 ## The Gaming Center
 
@@ -805,7 +825,7 @@ Everything above has a command-line form for a unit reached over a network or a 
 - `./elmer.py --update` pulls the latest ELMER and restarts onto it; `--update-check` only reports.
 - `./elmer.py --report` writes a problem report with the station's identity taken out; `--report-with-station` leaves it in, only if you have read it.
 - `./elmer.py --prepare PLACE` fetches what ELMER needs about somewhere you are going while you still have a network, and `--trips` lists what is prepared.
-- `./elmer.py --index-library` indexes the manuals on the shelf; `--gps` says whether ELMER will use the GPS; `--import-repeaters` reads a TowerWitch's list.
+- `./elmer.py --index-library` indexes every book in the Library, the table and the shelf; `--gps` says whether ELMER will use the GPS; `--import-repeaters` reads a TowerWitch's list.
 - `./elmer.py --copies` lists every copy of ELMER on this machine and `--tidy` offers to remove the empty ones, one question each.
 
 `./elmer.py --help` lists them all.
@@ -814,7 +834,7 @@ Everything above has a command-line form for a unit reached over a network or a 
 
 Nothing about you goes out with any request, and nothing is sent from a unit that you have not pressed for or switched on knowing what it carries.
 
-- **Fetched, automatically, when there is a network:** the space weather, the ionosonde record, the meteor and moon tables, the coordinator's plan, the weather at a golf course, the POTA spot feed sampled every twenty minutes, and the FCC's license files. None of these requests carries anything of yours. The ones nobody asked for - the spot feed, the FCC's files and their index, the update check, the weekly report, the GPS watch, and reading new books onto the Library's index - wait while the unit is in use: a game or people at the table, or a net, where somebody has played, answered, joined or pressed something in the last ten minutes; a mock exam while its answers are arriving; or somebody answering questions in the last few minutes. A table left seated or a net left open with nobody doing anything does not hold them. They run when it is idle, never mid-question, and the log says when one waited and when it went ahead. One that has waited a whole day stops waiting for ten quiet minutes and runs in the first five, and the log says it ran on the backstop. Anything you press for yourself - **Index the shelf**, fetching an FCC file from the Station panel - runs at once.
+- **Fetched, automatically, when there is a network:** the space weather, the ionosonde record, the meteor and moon tables, the coordinator's plan, the weather at a golf course, the POTA spot feed sampled every twenty minutes, and the FCC's license files. None of these requests carries anything of yours. The ones nobody asked for - the spot feed, the FCC's files and their index, the update check, the weekly report, the GPS watch, and reading new books onto the Library's index - wait while the unit is in use: a game or people at the table, or a net, where somebody has played, answered, joined or pressed something in the last ten minutes; a mock exam while its answers are arriving; or somebody answering questions in the last few minutes. A table left seated or a net left open with nobody doing anything does not hold them. They run when it is idle, never mid-question, and the log says when one waited and when it went ahead. One that has waited a whole day stops waiting for ten quiet minutes and runs in the first five, and the log says it ran on the backstop. Anything you press for yourself - **Catalogue new books**, fetching an FCC file from the Station panel - runs at once.
 - **Fetched when you ask:** a callsign lookup with the callsign as the query; a place name to be turned into coordinates; the repeaters for your state under your own RepeaterBook token; a park's record.
 - **Sent when you press:** a problem report, after you have read it. **Sent when you switch it on:** the weekly field report, described beside its switch. Both carry a four-character mark of the unit so two reports from the same unit can be told apart, and nothing else that names you.
 - **Never:** your progress, your notes, your answers, your callsign, your QTH or anyone's phone. Progress is kept on the unit in `data/elmer.db`, and the phones at a game night talk to the table's unit and nowhere else.

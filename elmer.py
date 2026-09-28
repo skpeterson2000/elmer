@@ -648,9 +648,9 @@ def main():
     if args.index_library:
         from elmer import library
         force = str(args.index_library).lower() == "all"
-        books = library.shelf()
-        print(f"\n  {len(books)} PDF{'s' if len(books) != 1 else ''} on the "
-              f"shelf at {library.SHELF}")
+        books = library.books()
+        print(f"\n  {len(books)} PDF{'s' if len(books) != 1 else ''} in the "
+              f"Library at {library.SHELF}")
         if not books:
             print("  Copy your manuals in - a radio's, the Antenna Book, "
                   "anything you own as a PDF - and run this again.\n")
@@ -661,7 +661,7 @@ def main():
         for name in report["kept"]:
             print(f"      kept     {name}")
         for name in report["dropped"]:
-            print(f"      dropped  {name} (no longer on the shelf)")
+            print(f"      dropped  {name} (no longer in the Library)")
         for name, why in report["failed"].items():
             print(f"      FAILED   {name}: {why}")
         for row in library.catalogue():
@@ -1012,9 +1012,9 @@ def main():
         # Pi that is several seconds of nothing on screen. The browser takes a
         # moment to come up; this fills it.
         threading.Thread(target=warm, daemon=True, name="elmer-warm").start()
-        # ELMER's own User's Guide, on the Library shelf with the operator's
+        # ELMER's own User's Guide, in the Library with the operator's
         # manuals: placed if it is missing, rebuilt if the text changed with
-        # an update, left alone if the operator declined it. See manual.py.
+        # an update. It cannot be removed. See manual.py.
         def _guide():
             try:
                 from elmer import db as _mdb, manual as _manual

@@ -95,7 +95,7 @@ print("\nthe shelf is the isolated state directory's, not the operator's")
 # one, and the same folder then fails a comparison of strings.
 check("the shelf is under ELMER_STATE",
       L.SHELF.resolve().is_relative_to(Path(os.environ["ELMER_STATE"]).resolve()), True)
-check("  and empty to begin with", L.shelf(), [])
+check("  and empty to begin with", L.books(), [])
 check("  a name with a path in it is not a book", L.book("../elmer.db"), None)
 
 L.SHELF.mkdir(parents=True, exist_ok=True)
@@ -226,7 +226,7 @@ check("  its chapters, a page out of range and a line that is not one left out",
       [(1, 0, "Mounting the Radio"), (2, 1, "The Bracket"), (3, 0, "Keying")])
 check("  named as the list names it", (cat["steps.pdf"]["title"], cat["steps.pdf"]["bookmarks_from"]), ("The Installation Sheet", "your list"))
 check("  and the list's chapters are pointers", [x["title"] for x in L.pointers("words", words=["bracket"])], ["The Bracket"])
-check("  the list is not a book on the shelf", "steps.pdf.toc.txt" in [b.name for b in L.shelf()], False)
+check("  the list is not a book on the shelf", "steps.pdf.toc.txt" in [b.name for b in L.books()], False)
 for name in ("FT4_FT8_QEX.pdf", "steps.pdf", "steps.pdf.toc.txt", "guide.pdf"):
     (L.SHELF / name).unlink()
 L.refresh()
@@ -272,7 +272,12 @@ check("  an unknown topic is refused", client.get("/api/library/pointers?topic=x
 d = client.get("/api/library/outline?name=FT-991A%20Operating%20Manual.pdf").get_json()
 check("  the outline is served", len(d["outline"]), 5)
 r = client.get("/library/book/FT-991A%20Operating%20Manual.pdf")
-check("  the book itself opens", (r.status_code, r.data[:5]), (200, b"%PDF-"))
+check("  a manual copied in by hand is not handed out as a file", r.status_code, 403)
+# Added from the page by the person at this browser: theirs, and the file opens.
+client.set_cookie("elmer_user", "1")
+L.set_added_by("FT-991A Operating Manual.pdf", 1)
+r = client.get("/library/book/FT-991A%20Operating%20Manual.pdf")
+check("  the book itself opens for the person who added it", (r.status_code, r.data[:5]), (200, b"%PDF-"))
 
 print("\na book opens inside ELMER, with the way back on it")
 r = client.get("/library/read/FT-991A%20Operating%20Manual.pdf?page=2&q=cw+pitch&back=%2Flab")

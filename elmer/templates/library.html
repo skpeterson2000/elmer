@@ -6,17 +6,18 @@
   <div>
     <h1 style="margin-bottom:.2rem">Library</h1>
     <div class="quiz-context">
-      Your own manuals, read once and indexed to the page, so a question at
-      a campsite is answered from your copy on this machine &mdash; the file,
-      the page, and the lines around it. Nothing is summarised or guessed:
-      the words are on the page or they are not found.
+      The books that came with ELMER and the manuals you bring, each read once
+      and indexed to the page, so a question at a campsite is answered from
+      the copy on this machine &mdash; the book, the page, and the lines
+      around it. Nothing is summarised or guessed: the words are on the page
+      or they are not found.
     </div>
   </div>
   <div class="row" style="flex:none;white-space:nowrap">
-    <label class="btn sm ghost" style="cursor:pointer">Add a manual
+    <label class="btn sm ghost" style="cursor:pointer">Add a book
       <input type="file" id="lib-file" accept="application/pdf,.pdf" hidden>
     </label>
-    <button class="btn sm ghost" id="lib-reindex" title="read again what has changed on the shelf">Index the shelf</button>
+    <button class="btn sm ghost" id="lib-reindex" title="read any book that is new or has changed">Catalogue new books</button>
   </div>
 </div>
 
@@ -59,7 +60,7 @@
 <div class="panel mt">
   <div class="panel-title">Find the page</div>
   <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
-  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match.</div>
+  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match. The books on the table answer first; the shelf is searched too, and its pages follow.</div>
   <div id="lib-results" class="mt"></div>
 </div>
 
@@ -68,7 +69,7 @@
    Above the shelf on purpose - a question arrives as a topic, not as a file
    name, and the shelf itself is the deeper look, further down. #}
 <div class="panel mt">
-  <div class="panel-title">ELMER's topics, in your books</div>
+  <div class="panel-title">ELMER's topics, in the books on the table</div>
   <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
     Matched from the bookmarks the publisher put in each file &mdash; a
     chapter is an antenna chapter because its title says so. A file with no
@@ -77,37 +78,47 @@
     (<span class="mono">Book.pdf.toc.txt</span>: a page number, a space, the
     title, one to a line). A book with none of the three is placed by its
     own title or file name, whole. Nothing is inferred beyond that; search
-    reaches into every page regardless.
+    reaches into every page regardless, the shelf's included.
   </p>
   <div id="lib-topics" class="lib-topics"></div>
 </div>
 
 
-<div class="panel mt">
-  <div class="panel-title">On the shelf</div>
+<div class="panel mt" id="lib-books">
+  <div class="panel-title">On the table</div>
   <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
-    The shelf is <span class="mono">{{ shelf_path }}</span>. Copy a PDF in
-    &mdash; a radio's manual, the Antenna Book, anything you own &mdash; or
-    hand one over from a phone with <i>Add a manual</i>. The index is rebuilt
-    when a file changes. Page numbers are the file's own, which is not always
-    what the publisher printed in the corner. The shelf is shared by everyone
-    on this unit; <i>mine</i> marks whose radio a manual is for, and Make
-    Contact starts from that. A book marked <i>ships with ELMER</i> came with
-    the program: a manual released to the public, with the statement from its
-    cover beside it. It can be hidden on this unit, not deleted, and it stays
-    hidden through updates.
+    The books open for use. One you are not reading can go back on the shelf:
+    it stays in the Library, in the card catalogue below, and is still
+    searched. Where every book is, the table or the shelf, is kept for this
+    unit and everyone on it, through updates. Bring your own by copying a PDF
+    into <span class="mono">{{ shelf_path }}</span> &mdash; a radio's manual,
+    the Antenna Book, anything you own &mdash; or hand one over from a phone
+    with <i>Add a book</i>; it goes on the table. Page numbers are the file's
+    own, which is not always what the publisher printed in the corner.
+    <i>mine</i> marks whose radio a manual is for, and Make Contact starts
+    from that.
   </p>
   <div id="lib-shelf"><span class="small muted">Looking&hellip;</span></div>
-  <p class="small muted" style="margin:.8rem 0 0;max-width:80ch" id="lib-manual-note">
-    ELMER's own <b>User's Guide</b> is on this shelf, indexed and searched like
-    any book. Taken off by accident, it comes back when ELMER next starts, and
-    the dashboard's self-check can put it back sooner. It is rebuilt when the
-    text changes with an update.
+</div>
+
+{# The card catalogue: every book in the Library, always, one card each -
+   the way into the shelf. A book put away is looked up here by what it is
+   called or who wrote it, and brought back to the table with one press. #}
+<div class="panel mt" id="lib-catalogue">
+  <div class="spread">
+    <div class="panel-title">The card catalogue</div>
+    <input id="lib-cards-q" class="sm" placeholder="title or author" autocomplete="off" style="max-width:16rem">
+  </div>
+  <p class="small muted" style="margin:.35rem 0 .6rem;max-width:80ch">
+    Every book in the Library, on the table or on the shelf. <i>Free to take</i>
+    is a publication released to the public &mdash; the books that came with
+    ELMER, and this program's own guide &mdash; which anybody may save or
+    print. A book somebody added is usually one they bought: anybody may read
+    it here, but only the person who added it can take the file away, and only
+    they can remove it. The User's Guide and the books that came with ELMER are
+    never removed; they go on the shelf instead.
   </p>
-  <label class="small" style="display:flex;align-items:flex-start;gap:.5rem;margin:.4rem 0 0;max-width:80ch;cursor:pointer">
-    <input type="checkbox" id="lib-manual-decline" style="margin-top:.2rem">
-    <span>I decline the User's Guide and any future updates to it. Take it off the shelf and do not put it back.</span>
-  </label>
+  <div id="lib-cards"><span class="small muted">Looking&hellip;</span></div>
 </div>
 
 {# Awards, in one place: the ones this program hands out and the ones
@@ -177,7 +188,7 @@
 </div>
 
 
-{# The person's own licenses: not on the shelf, which everyone at the table
+{# The person's own licenses: not in the Library, which everyone at the table
    can read, but in a folder of their own, shown only to them. #}
 <div class="panel mt">
   <div class="spread">
@@ -216,6 +227,10 @@
 .lib-hit mark { background: rgba(255,180,84,.28); color: inherit; padding: 0 .1em; border-radius: 3px; }
 .lib-book { padding: .6rem 0; border-bottom: 1px solid var(--line); }
 .lib-book .meta { display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
+.lib-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: .6rem; }
+.lib-card { border: 1px solid var(--line); border-radius: 8px; padding: .55rem .7rem; display: flex; flex-direction: column; gap: .25rem; }
+.lib-card .who { color: var(--dim); }
+.lib-card .acts { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; padding-top: .3rem; }
 .lib-outline { margin: .4rem 0 0 .2rem; padding-left: 0; list-style: none; columns: 2; column-gap: 2rem; }
 .lib-outline li { break-inside: avoid; padding: .1rem 0; }
 .lib-outline li.l1 { padding-left: 1rem; }
@@ -225,6 +240,8 @@
 .lib-topic ul { margin: .2rem 0 0; padding-left: 1.1rem; line-height: 1.5; }
 .lib-topic details summary { cursor: pointer; color: var(--dim); font-size: .8rem; padding: .15rem 0; list-style: none; }
 .lib-topic details summary:hover { color: var(--text); }
+#lib-cards-q { padding: .35rem .6rem; font-size: .85rem; border-radius: 8px;
+               border: 1px solid var(--line-2); background: var(--panel); color: var(--text); }
 #lib-q { width: 100%; padding: .8rem 1rem; font-size: 1.05rem; border-radius: 12px;
          border: 1px solid var(--line-2); background: var(--panel); color: var(--text); }
 </style>
@@ -242,15 +259,18 @@
     return 'indexed ' + d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
   }
 
-  /* The shipped books this unit has hidden. Only the full shelf answer
-     carries them; an index answer keeps the list it had. */
-  let hiddenBooks = [];
+  const cardsBox = document.getElementById('lib-cards');
+  const cardsQ = document.getElementById('lib-cards-q');
 
-  function hiddenLine() {
-    if (!hiddenBooks.length) return '';
-    return '<p class="tiny muted">Hidden on this unit: ' + hiddenBooks.map(h =>
-      escapeHTML(h.title) + ' <button class="btn sm ghost" data-unhide="' + escapeHTML(h.name) +
-      '">Show again</button>').join(' &middot; ') + '</p>';
+  /* What a person may do with the file itself, as the card says it. */
+  const LENDING = {
+    free: ['free to take', 'Released to the public: open it as a PDF, save it, print it.'],
+    yours: ['yours to take', 'You added this book, so the file is yours to save or print.'],
+    reference: ['for reading here', 'Somebody else added this book, and it is their copy: read it here, but the file is not handed out.'],
+  };
+  function lendingTag(b) {
+    const l = LENDING[b.lending] || LENDING.reference;
+    return `<span class="tiny muted" title="${escapeHTML(l[1])}">${l[0]}</span>`;
   }
 
   /* Where a shipped book came from and why it may ship: its edition, the
@@ -258,7 +278,7 @@
   function shippedLine(b) {
     const s = b.shipped;
     if (!s) return '';
-    return '<span class="tiny muted"><span class="pill">ships with ELMER</span> ' +
+    return '<span class="tiny muted"><span class="pill">came with ELMER</span> ' +
       (s.edition ? escapeHTML(s.edition) + ' &middot; ' : '') +
       escapeHTML(s.statement || '') +
       /* The address as text, not a link: everything on this page opens in
@@ -268,10 +288,43 @@
       '</span>';
   }
 
+  function bookRow(b, d) {
+    const away = b.place === 'shelf';
+    return `
+      <div class="lib-book${away ? ' on-shelf' : ''}" data-book="${escapeHTML(b.name)}">
+        <div class="meta">
+          <b>${escapeHTML(b.title)}</b>
+          ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' — ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
+          ${shippedLine(b)}
+          ${lendingTag(b)}
+          <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
+          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
+          <span style="flex:1"></span>
+          <label class="tiny muted" title="Yours: Make Contact assumes you have this radio, wherever the book is. The Library itself is shared." style="display:flex;align-items:center;gap:.3rem;white-space:nowrap">
+            <input type="checkbox" data-mine="${escapeHTML(b.name)}" ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>
+          <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
+          ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
+          ${away
+            ? `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="table">Bring to the table</button>`
+            : `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="shelf" title="it stays in the Library, indexed and searched">Return to the shelf</button>`}
+          ${b.claimable ? `<button class="btn sm ghost" data-claim="${escapeHTML(b.name)}" data-title="${escapeHTML(b.title)}" title="nobody's name is on this book: if it is your copy, say so, and the file is yours to save or print">This is my copy</button>` : ''}
+          ${b.removable ? `<button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="delete the file from this unit">Remove</button>` : ''}
+        </div>
+        <div class="lib-outline-box" hidden></div>
+      </div>`;
+  }
+
+  /* The mine marks are only in the full Library answer; an index answer
+     keeps the ones it had. */
+  let lastMine = [];
+
   function paintShelf(d) {
     const rows = d.shelf || [];
     const tools = d.tools;
-    if (Array.isArray(d.hidden)) hiddenBooks = d.hidden;
+    if (Array.isArray(d.mine)) lastMine = d.mine;
+    const view = {mine: lastMine};
+    const table = rows.filter(b => b.place !== 'shelf');
+    const shelved = rows.filter(b => b.place === 'shelf');
     let head = '';
     /* Only an answer that carries the tools gets to say they are missing. The
        index answer used not to carry them, and the page took their absence
@@ -285,44 +338,47 @@
         'but not restarted. Restart ELMER and look again.') + '</div>';
     }
     if (!rows.length) {
-      shelfBox.innerHTML = head + '<p class="small muted">Nothing on the shelf yet.</p>' + hiddenLine();
-      return;
+      shelfBox.innerHTML = head + '<p class="small muted">The Library is empty. Add a book, or copy a PDF into the folder above.</p>';
+    } else {
+      shelfBox.innerHTML = head + (table.length
+        ? table.map(b => bookRow(b, view)).join('')
+        : '<p class="small muted">The table is clear. Every book is on the shelf &mdash; find one in the card catalogue below, or search, and bring it back.</p>');
     }
-    shelfBox.innerHTML = head + rows.map(b => `
-      <div class="lib-book" data-book="${escapeHTML(b.name)}">
-        <div class="meta">
-          <b>${escapeHTML(b.title)}</b>
-          ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' \u2014 ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
-          ${shippedLine(b)}
-          <span class="tiny muted mono">${escapeHTML(b.name)} &middot; ${b.size_mb} MB</span>
-          <span class="tiny muted">${b.indexed ? b.pages + ' pages &middot; ' + (b.scanned ? '<span class="warntext" title="The pages are pictures with no text under them, so search cannot read this book. It opens and reads like any other.">a scan &mdash; nothing for search to read</span> &middot; ' : '') + (b.bookmarks ? b.bookmarks + ' chapters' + (b.bookmarks_from && b.bookmarks_from !== 'bookmarks' ? ', from ' + escapeHTML(b.bookmarks_from) : '') : (b.bookmarks_problem ? '<span class="warntext" title="' + escapeHTML(b.bookmarks_problem) + '">bookmarks could not be read</span>' : 'no bookmarks in the file')) + ' &middot; ' : ''}${when(b.indexed_at)}${b.stale ? ' &middot; <span class="warntext">' + escapeHTML(b.stale) + '</span>' : ''}</span>
-          <span style="flex:1"></span>
-          <label class="tiny muted" title="Yours: Make Contact assumes you have this radio. The shelf itself is shared." style="display:flex;align-items:center;gap:.3rem;white-space:nowrap">
-            <input type="checkbox" data-mine="${escapeHTML(b.name)}" ${(d.mine || []).includes(b.name) ? 'checked' : ''}> mine</label>
-          <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Open</a>
-          ${b.bookmarks ? `<button class="btn sm ghost" data-outline="${escapeHTML(b.name)}">Chapters</button>` : ''}
-          ${b.shipped
-            ? `<button class="btn sm ghost" data-hide="${escapeHTML(b.name)}" title="it ships with ELMER, so it is hidden on this unit rather than deleted">Hide</button>`
-            : `<button class="btn sm ghost" data-remove="${escapeHTML(b.name)}" title="take it off the shelf">Remove</button>`}
-        </div>
-        <div class="lib-outline-box" hidden></div>
-      </div>`).join('') + hiddenLine();
+    lastRows = rows;
+    paintCards();
   }
 
-  const declineBox = document.getElementById('lib-manual-decline');
-  function paintManual(d) {
-    const m = d.manual || {};
-    if (declineBox) declineBox.checked = !!m.declined;
-    const note = document.getElementById('lib-manual-note');
-    if (note && m.declined) note.innerHTML = "ELMER's own <b>User's Guide</b> is declined on this unit: not on the shelf, and not put back by a start or an update. Untick below to have it back.";
+  /* The card catalogue: every book, sorted by title, narrowed by what is
+     typed - any word of the title or the author, in any order. */
+  let lastRows = [];
+  function paintCards() {
+    const words = cardsQ.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const cards = lastRows
+      .filter(b => { const hay = (b.title + ' ' + (b.author || '') + ' ' + b.name).toLowerCase();
+                     return words.every(w => hay.includes(w)); })
+      .sort((x, y) => x.title.localeCompare(y.title));
+    if (!lastRows.length) { cardsBox.innerHTML = '<p class="small muted">No cards yet: the Library is empty.</p>'; return; }
+    if (!cards.length) { cardsBox.innerHTML = '<p class="small muted">No card in the catalogue has those words. The full text is searched under <i>Find the page</i>.</p>'; return; }
+    const onShelf = lastRows.filter(b => b.place === 'shelf').length;
+    cardsBox.innerHTML = `<p class="tiny muted" style="margin:0 0 .5rem">${lastRows.length} book${lastRows.length === 1 ? '' : 's'} &middot; ${lastRows.length - onShelf} on the table, ${onShelf} on the shelf${cards.length < lastRows.length ? ' &middot; ' + cards.length + ' shown' : ''}</p>` +
+      '<div class="lib-cards">' + cards.map(b => {
+        const away = b.place === 'shelf';
+        const about = [b.author, b.shipped && b.shipped.edition].filter(Boolean).map(escapeHTML).join(' &middot; ');
+        return `
+        <div class="lib-card">
+          <b class="small">${escapeHTML(b.title)}</b>
+          ${about ? `<span class="tiny who">${about}</span>` : ''}
+          <span class="tiny muted">${away ? 'on the shelf' : 'on the table'} &middot; ${lendingTag(b)}${b.shipped ? ' &middot; came with ELMER' : (b.guide ? ' &middot; ELMER&rsquo;s own' : '')}</span>
+          <div class="acts">
+            <a class="btn sm ghost" href="/library/read/${encodeURIComponent(b.name)}">Read</a>
+            ${away
+              ? `<button class="btn sm" data-shelve="${escapeHTML(b.name)}" data-to="table">Bring to the table</button>`
+              : `<button class="btn sm ghost" data-shelve="${escapeHTML(b.name)}" data-to="shelf">Return to the shelf</button>`}
+            ${b.claimable ? `<button class="btn sm ghost" data-claim="${escapeHTML(b.name)}" data-title="${escapeHTML(b.title)}" title="nobody's name is on this book: if it is your copy, say so, and the file is yours to save or print">This is my copy</button>` : ''}
+          </div>
+        </div>`; }).join('') + '</div>';
   }
-  if (declineBox) declineBox.addEventListener('change', async () => {
-    if (declineBox.checked && !confirm("Decline the User's Guide? It is taken off the shelf now and not put back by a start or an update, until you untick this.")) { declineBox.checked = false; return; }
-    declineBox.disabled = true;
-    try { await postJSON('/api/library/manual', {declined: declineBox.checked}); await load(); }
-    catch (err) { declineBox.checked = !declineBox.checked; }
-    declineBox.disabled = false;
-  });
+  cardsQ.addEventListener('input', paintCards);
 
   function paintTopics(d) {
     const all = d.topics || [];
@@ -335,12 +391,12 @@
     const waitingLine = waiting.length
       ? `<p class="tiny muted" style="grid-column:1/-1;margin:.6rem 0 0">
            Nothing here yet on <b>${waiting.map(escapeHTML).join('</b>, <b>')}</b>.
-           Put a radio's manual on the shelf and its chapters file themselves
+           Put a radio's manual on the table and its chapters file themselves
            under these on the next visit.</p>`
       : '';
     if (!topics.length) {
       topicsBox.innerHTML = '<p class="small muted">No bookmarked chapters match yet. ' +
-        'ELMER&rsquo;s own guide is on the shelf and fills several of these; ' +
+        'ELMER&rsquo;s own guide on the table fills several of these; ' +
         'a radio&rsquo;s manual fills the rest.</p>';
       return;
     }
@@ -379,21 +435,48 @@
     try { d = await api('/api/library/search?q=' + encodeURIComponent(text)); }
     catch (e) { results.innerHTML = '<div class="warntext small">Could not search.</div>'; return; }
     terms = d.terms || [];
-    if (!d.books) { results.innerHTML = '<p class="small muted">Nothing indexed to search yet.</p>'; return; }
-    if (!d.hits.length) {
-      results.innerHTML = `<p class="small muted">Not on any page of the ${d.books} book${d.books === 1 ? '' : 's'} on the shelf. Try another word for it - nothing here guesses at synonyms.</p>`;
-      return;
-    }
-    results.innerHTML = `<div class="tiny muted" style="margin-bottom:.3rem">${d.total} page${d.total === 1 ? '' : 's'}${d.total > d.hits.length ? ', best ' + d.hits.length + ' shown' : ''}</div>` +
-      d.hits.map(h => `
+    const shelf = d.shelf || {hits: [], total: 0, books: 0};
+    if (!d.books && !shelf.books) { results.innerHTML = '<p class="small muted">No book in the Library has been read yet, so there is nothing to search.</p>'; return; }
+    const pages = n => n + ' page' + (n === 1 ? '' : 's');
+    const hit = (h, away) => `
         <div class="lib-hit">
           <div class="where">
             <a href="/library/read/${encodeURIComponent(h.book)}?page=${h.page}&q=${encodeURIComponent(text)}"><b>${escapeHTML(h.title)}</b></a>
             <span class="tiny muted mono">page ${h.page} of the file</span>
             ${h.chapter ? `<span class="tiny muted">${escapeHTML(h.chapter)}</span>` : ''}
+            ${away ? `<button class="btn sm ghost" data-shelve="${escapeHTML(h.book)}" data-to="table">Bring to the table</button>` : ''}
           </div>
           <p class="small snip">${mark(h.snippet)}</p>
-        </div>`).join('');
+        </div>`;
+    /* The same book turns up on several pages; its button is offered once. */
+    const offered = new Set();
+    const shelfHit = h => { const first = !offered.has(h.book); offered.add(h.book); return hit(h, first); };
+    let out = '';
+    if (d.hits.length) {
+      out += `<div class="tiny muted" style="margin-bottom:.3rem"><b>On the table</b> &middot; ${pages(d.total)}${d.total > d.hits.length ? ', best ' + d.hits.length + ' shown' : ''}</div>` +
+        d.hits.map(h => hit(h, false)).join('');
+    } else if (d.books) {
+      out += `<p class="small muted">Nothing on the table mentions that${shelf.hits.length ? '.' : ' - try another word for it; nothing here guesses at synonyms.'}</p>`;
+    }
+    if (shelf.hits.length) {
+      out += `<div class="tiny muted" style="margin:${d.hits.length ? '1rem' : '.3rem'} 0 .3rem"><b>Also on the shelf</b> &middot; ${pages(shelf.total)} in books put away${shelf.total > shelf.hits.length ? ', best ' + shelf.hits.length + ' shown' : ''}</div>` +
+        shelf.hits.map(shelfHit).join('');
+    } else if (!d.hits.length) {
+      out = `<p class="small muted">No book in the Library uses those words. Try another word the manual might use - nothing here guesses at synonyms.</p>`;
+    }
+    results.innerHTML = out;
+  }
+  results.addEventListener('click', async e => {
+    const s = e.target.closest('[data-shelve]');
+    if (!s) return;
+    await shelve(s.dataset.shelve, s.dataset.to);
+    search();
+  });
+
+  async function shelve(name, to) {
+    try { await postJSON('/api/library/shelve', {name: name, shelved: to === 'shelf'}); }
+    catch (err) { /* postJSON has already said what went wrong */ }
+    await load();
   }
 
   let timer = null;
@@ -403,7 +486,7 @@
   async function load() {
     let d;
     try { d = await api('/api/library'); } catch (e) { shelfBox.innerHTML = '<div class="warntext small">Could not read the shelf.</div>'; return; }
-    paintShelf(d); paintTopics(d); paintManual(d);
+    paintShelf(d); paintTopics(d);
     // Anything new or changed is read now, and the page says so while it
     // reads: a thousand pages is a little while on a Pi.
     // Read on its own only when the unit is idle - the server says if it is not.
@@ -418,7 +501,7 @@
       if (d.deferred) {
         /* A game, a net, an exam or somebody studying has the unit: the
            books are read later, or now if the button is pressed. */
-        btn.textContent = 'Index the shelf';
+        btn.textContent = 'Catalogue new books';
         btn.disabled = false;
         btn.title = 'Waiting while the unit is busy with ' + d.deferred + ' - press to read them now';
         return;
@@ -426,9 +509,9 @@
       paintShelf(d); paintTopics(d);
       const r = d.report || {};
       const failed = Object.keys(r.failed || {});
-      btn.textContent = failed.length ? 'Some could not be read' : 'Index the shelf';
+      btn.textContent = failed.length ? 'Some could not be read' : 'Catalogue new books';
       if (failed.length) shelfBox.insertAdjacentHTML('afterbegin', '<div class="warntext small">' + failed.map(n => escapeHTML(n) + ': ' + escapeHTML(r.failed[n])).join('<br>') + '</div>');
-    } catch (e) { btn.textContent = 'Index the shelf'; }
+    } catch (e) { btn.textContent = 'Catalogue new books'; }
     btn.disabled = false;
   }
   document.getElementById('lib-reindex').addEventListener('click', () => reindex(false));
@@ -528,13 +611,19 @@
     load();
   });
 
-  shelfBox.addEventListener('change', async e => {
+  /* The table and the shelf hold the same rows and answer the same presses. */
+  [shelfBox, cardsBox].forEach(box => {
+    box.addEventListener('change', onMine);
+    box.addEventListener('click', onBook);
+  });
+
+  async function onMine(e) {
     const m = e.target.closest('[data-mine]');
     if (!m) return;
     try { await postJSON('/api/library/mine', {name: m.dataset.mine, mine: m.checked}); } catch (err) { m.checked = !m.checked; }
-  });
+  }
 
-  shelfBox.addEventListener('click', async e => {
+  async function onBook(e) {
     const o = e.target.closest('[data-outline]');
     if (o) {
       const box = o.closest('.lib-book').querySelector('.lib-outline-box');
@@ -544,25 +633,29 @@
         `<li class="l${Math.min(i.level, 2)}"><a href="/library/read/${encodeURIComponent(o.dataset.outline)}?page=${i.page}">${escapeHTML(i.title)}</a> <span class="muted mono">${i.page}</span></li>`).join('') + '</ul>';
       return;
     }
-    const h = e.target.closest('[data-hide], [data-unhide]');
-    if (h) {
-      const hide = !!h.dataset.hide;
-      if (hide && !confirm('Hide ' + h.dataset.hide + ' on this unit? It ships with ELMER, so it is ' +
-          'not deleted: it stays hidden through updates, until you show it again.')) return;
-      try {
-        await postJSON('/api/library/hide', {name: hide ? h.dataset.hide : h.dataset.unhide, hidden: hide});
-      } catch (err) { /* postJSON has already said what went wrong */ }
+    /* No question asked: nothing is lost on the shelf, and the book comes
+       back with one press. */
+    const s = e.target.closest('[data-shelve]');
+    if (s) { await shelve(s.dataset.shelve, s.dataset.to); return; }
+    /* Asked, because it is once: the first to say so owns the copy. */
+    const c = e.target.closest('[data-claim]');
+    if (c) {
+      if (!confirm('Is ' + c.dataset.title + ' your copy? Nobody\'s name is on it yet. Once it is yours, ' +
+          'you can save, print and remove it, and everybody else reads it here. Only one person can say so.')) return;
+      try { await postJSON('/api/library/claim', {name: c.dataset.claim}); }
+      catch (err) { /* postJSON has already said what went wrong */ }
       load();
       return;
     }
     const r = e.target.closest('[data-remove]');
     if (r) {
-      if (!confirm('Take ' + r.dataset.remove + ' off the shelf? The file is deleted from this unit.')) return;
+      if (!confirm('Remove ' + r.dataset.remove + ' from the Library? The file is deleted from this unit. ' +
+          'To keep it but clear the table, return it to the shelf instead.')) return;
       const gone = await postJSON('/api/library/remove', {name: r.dataset.remove});
       if (gone && gone.note) alert(gone.note);
       load();
     }
-  });
+  }
 
   async function outlineOf(name) {
     const d = await api('/api/library/outline?name=' + encodeURIComponent(name));

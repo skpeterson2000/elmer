@@ -2611,16 +2611,14 @@ def api_awards_print():
 
 @app.route("/api/library")
 def api_library():
-    """What is on the shelf and how current each index is. Reading only:
-    indexing a thousand-page manual takes a while and is asked for."""
-    from . import manual
+    """What is in the Library, where each book is (the table or the shelf)
+    and how current each index is. Reading only: indexing a thousand-page
+    manual takes a while and is asked for."""
     tools = library.tools_present()
     return jsonify({"path": str(library.SHELF), "tools": tools,
                     "tools_note": None if tools["pdftotext"] else library.missing_tools_note(),
-                    "shelf": library.catalogue(), "topics": library.topic_map(),
+                    "shelf": library.catalogue(conn().user_id), "topics": library.topic_map(),
                     "mine": library.mine(conn()),
-                    "hidden": library.hidden_books(),
-                    "manual": manual.status(conn()),
                     "reindex_days": library.REINDEX_DAYS})
 
 
@@ -2648,13 +2646,14 @@ def api_library_index():
     # shelf from this answer, and an answer without the tools in it had the
     # page announce "nothing can be read" over three books it had just read.
     tools = library.tools_present()
-    return jsonify({"report": report, "shelf": library.catalogue(),
+    return jsonify({"report": report, "shelf": library.catalogue(conn().user_id),
                     "topics": library.topic_map(), "tools": tools,
                     "tools_note": None if tools["pdftotext"] else library.missing_tools_note()})
 
 
 @app.route("/api/library/search")
 def api_library_search():
+    """The pages that say it: the table's, then the shelf's beneath."""
     q = (request.args.get("q") or "").strip()[:200]
     try:
         limit = max(1, min(100, int(request.args.get("limit") or 30)))
@@ -2709,12 +2708,25 @@ def api_library_add():
     if target.stat().st_size > library.MAX_PDF_MB * 1024 * 1024:
         target.unlink()
         abort(400, f"larger than {library.MAX_PDF_MB} MB - not a manual")
-    log.info("library: %s added to the shelf", name)
+    log.info("library: %s added to the Library", name)
+    # A book brought in is a book wanted: it goes on the table, even if one
+    # of the same name was once returned to the shelf.
+    if library.place(name) == "shelf":
+        try:
+            library.set_shelved(name, False)
+        except OSError as exc:
+            log.warning("library: %s added, but left on the shelf - the list would not save: %s", name, exc)
+    # Whoever added it may take the file back out; everybody else reads it
+    # here. A book of somebody's with no name on it is lent to nobody.
+    try:
+        library.set_added_by(name, conn().user_id)
+    except OSError as exc:
+        log.warning("library: %s added, but who added it was not saved - it is for reference only: %s", name, exc)
     report = library.refresh(only=name)
     # Whoever brought the manual has the radio, until they say otherwise.
     library.set_mine(conn(), name, True)
     return jsonify({"added": name, "report": report,
-                    "shelf": library.catalogue(), "mine": library.mine(conn())})
+                    "shelf": library.catalogue(conn().user_id), "mine": library.mine(conn())})
 
 
 @app.route("/api/library/mine", methods=["POST"])
@@ -2736,55 +2748,76 @@ def api_library_gear():
 
 @app.route("/api/library/remove", methods=["POST"])
 def api_library_remove():
-    """Take a book off the shelf. Its index goes with it. The User's Guide
-    comes back when ELMER next starts unless it is declined, and the reply
-    says so."""
-    from . import manual
+    """Delete a book from the unit, and its index with it. Only one somebody
+    added, and only by them (or anybody, when nobody's name is on it). A book
+    that came with ELMER and ELMER's own guide are never deleted: they can
+    go on the shelf instead."""
     body = request.get_json(silent=True) or {}
     pdf = library.book(body.get("name"))
     if pdf is None:
         abort(404, "no such book")
     if library.is_shipped(pdf):
         # Part of the program: deleting it would dirty the checkout and the
-        # next update would put it back. Hiding is what the operator wants.
+        # next update would put it back. The shelf is what the operator wants.
         return jsonify({"ok": False, "shipped": True,
-                        "error": "this book ships with ELMER - it can be hidden, not deleted"}), 409
+                        "error": "this book ships with ELMER - it can be returned to the shelf, not deleted"}), 409
+    if library.is_guide(pdf):
+        return jsonify({"ok": False, "guide": True,
+                        "error": "the User's Guide stays in the Library - return it to the shelf if it is in the way"}), 409
+    if not library.removable(pdf, conn().user_id):
+        return jsonify({"ok": False, "error": "somebody else added this book - only they can remove it"}), 403
     pdf.unlink()
     library.refresh()                    # drops the orphaned index
-    log.info("library: %s removed from the shelf", pdf.name)
-    note = ("The User's Guide comes back when ELMER next starts, and the doctor's Fix "
-            "brings it back sooner. To keep it off, decline it below."
-            if pdf.name == manual.NAME and not manual.declined(conn()) else "")
-    return jsonify({"removed": pdf.name, "shelf": library.catalogue(), "note": note})
+    log.info("library: %s removed from the Library", pdf.name)
+    if library.place(pdf.name) == "shelf":
+        try:
+            library.set_shelved(pdf.name, False)
+        except OSError as exc:
+            # Harmless: a name on the list with no book behind it is never shown.
+            log.warning("library: %s stays on the shelved list: %s", pdf.name, exc)
+    try:
+        library.set_added_by(pdf.name, None)
+    except OSError as exc:
+        # Harmless: a name with no book behind it lends nothing.
+        log.warning("library: %s stays on the list of who added what: %s", pdf.name, exc)
+    return jsonify({"removed": pdf.name, "shelf": library.catalogue(conn().user_id)})
 
 
-@app.route("/api/library/hide", methods=["POST"])
-def api_library_hide():
-    """Hide a book that ships with ELMER, or show it again. For the unit,
-    like the shelf itself, and kept through updates."""
+@app.route("/api/library/claim", methods=["POST"])
+def api_library_claim():
+    """"This is my copy": a book copied into the folder by hand, with nobody's
+    name on it, becomes the presser's - theirs to take and to remove, and for
+    reading here to everybody else. Once: a book with a name on it is refused."""
     body = request.get_json(silent=True) or {}
     pdf = library.book(body.get("name"))
-    if pdf is None or not library.is_shipped(pdf):
-        abort(404, "no shipped book of that name")
+    if pdf is None:
+        abort(404, "no such book")
+    if not library.claimable(pdf):
+        return jsonify({"ok": False, "error": "this book already has an owner, or is free to take"}), 409
     try:
-        library.set_hidden(pdf.name, bool(body.get("hidden", True)))
+        library.set_added_by(pdf.name, conn().user_id)
     except OSError as exc:
-        log.error("library: could not save the hidden list: %s", exc)
+        log.error("library: could not save who owns %s: %s", pdf.name, exc)
         return jsonify({"ok": False, "error": "the state directory would not take the change"}), 503
-    return jsonify({"ok": True, "shelf": library.catalogue(), "hidden": library.hidden_books()})
+    log.info("library: %s claimed as their copy by user %s", pdf.name, conn().user_id)
+    return jsonify({"ok": True, "shelf": library.catalogue(conn().user_id)})
 
 
-@app.route("/api/library/manual", methods=["POST"])
-def api_library_manual():
-    """The operator's word on ELMER's own guide: declined, it comes off the
-    shelf and is never put back; accepted again, it is placed now. A setting
-    of the unit, since the shelf is shared."""
-    from . import manual
+@app.route("/api/library/shelve", methods=["POST"])
+def api_library_shelve():
+    """Return a book to the shelf, or bring it to the table. Any book, the
+    operator's or one that ships with ELMER; for the unit, like the Library
+    itself, and kept through updates."""
     body = request.get_json(silent=True) or {}
-    out = manual.decline(conn(), bool(body.get("declined")))
-    if not out["declined"]:
-        library.refresh(only=manual.NAME)
-    return jsonify({"manual": manual.status(conn()), "shelf": library.catalogue(), **out})
+    pdf = library.book(body.get("name"))
+    if pdf is None:
+        abort(404, "no such book")
+    try:
+        library.set_shelved(pdf.name, bool(body.get("shelved", True)))
+    except OSError as exc:
+        log.error("library: could not save where %s is: %s", pdf.name, exc)
+        return jsonify({"ok": False, "error": "the state directory would not take the change"}), 503
+    return jsonify({"ok": True, "place": library.place(pdf.name), "shelf": library.catalogue(conn().user_id)})
 
 
 @app.route("/library/read/<path:name>")
@@ -2799,7 +2832,8 @@ def library_read(name):
     pdf = library.book(name)
     if pdf is None:
         abort(404, "no such book")
-    meta = next((b for b in library.catalogue() if b["name"] == pdf.name), {})
+    meta = next((b for b in library.catalogue(conn().user_id) if b["name"] == pdf.name), {})
+    lend = library.lending(pdf, conn().user_id)
     try:
         page = max(1, int(request.args.get("page") or 1))
     except ValueError:
@@ -2807,7 +2841,8 @@ def library_read(name):
     query = (request.args.get("q") or "").strip()[:200]
     hits = []
     if query:
-        hits = [h for h in library.search(query, limit=200)["hits"] if h["book"] == pdf.name][:40]
+        # This book, wherever it is: one opened from the shelf is searched too.
+        hits = library.search(query, limit=40, book_name=pdf.name)["hits"]
     # Where Back goes: the Library unless the caller said otherwise, and
     # only ever a page of this program's own.
     back = request.args.get("back") or "/library"
@@ -2817,6 +2852,9 @@ def library_read(name):
                            title=meta.get("title") or pdf.stem, pages=meta.get("pages") or 0,
                            page=page, query=query, hits=hits,
                            outline=library.outline(pdf.name), back=back,
+                           # The file itself - the browser's viewer, with its
+                           # print and save - only where it may be taken.
+                           lendable=lend != "reference",
                            # Whether the reader can draw the page itself (poppler
                            # is here) rather than trust the browser's viewer to
                            # open at it, which the Edge window does not.
@@ -2910,10 +2948,14 @@ def library_page_image(name, n):
 @app.route("/library/book/<path:name>")
 def library_book(name):
     """The PDF itself, for the browser's own viewer - `#page=N` on the end
-    opens it at the page the search found."""
+    opens it at the page the search found. Only a book this person may take:
+    somebody else's copy is read in the reader, a page at a time."""
     pdf = library.book(name)
     if pdf is None:
         abort(404, "no such book")
+    if library.lending(pdf, conn().user_id) == "reference":
+        log.info("library: the file of %s not handed out - somebody else's copy, for reading here", pdf.name)
+        abort(403, "this book is for reading in the Library - somebody else added it, and it is their copy")
     return send_from_directory(str(pdf.parent), pdf.name,
                                mimetype="application/pdf", max_age=0)
 
@@ -8061,16 +8103,14 @@ def _remedy_manual():
     """Put the User's Guide back on the shelf, or bring it up to date."""
     from . import manual
     done = manual.place(conn(), force=True)
-    if done["did"] == "declined":
-        return False, "the guide is declined on the Library page - take that back first"
     if done["did"] == "built":
         library.refresh(only=manual.NAME)
-        return True, f"{manual.NAME} is on the shelf and indexed"
+        return True, f"{manual.NAME} is in the Library and indexed"
     return False, done.get("why") or done["did"]
 
 
 REMEDIES = {
-    "manual": ("put the User's Guide back on the shelf", _remedy_manual),
+    "manual": ("put the User's Guide back in the Library", _remedy_manual),
     "start-menu": ("put ELMER on the Start Menu, with its icon", _remedy_start_menu),
     "forget-net": ("forget the net this table remembers", _remedy_forget_net),
     "leave-net": ("cut this table loose from the net it is reporting to", _remedy_leave_net),

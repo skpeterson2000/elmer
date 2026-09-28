@@ -94,7 +94,7 @@ def main():
         check("  the pages, drawn", (cl.get("/papers/page/amateur/1.png").status_code, cl.get("/papers/page/amateur/2.png").status_code), (200, 200))
         check("  and not a third", cl.get("/papers/page/amateur/3.png").status_code, 404)
     check("the Library carries the card", "Your licenses" in cl.get("/library").get_data(as_text=True), True)
-    check("nothing of it on the shelf", library.shelf(), [])
+    check("nothing of it on the shelf", library.books(), [])
 
     print("\n-- theirs alone --")
     r = cl.post("/api/users/add", json={"name": "Second", "shared": False})

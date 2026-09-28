@@ -83,6 +83,13 @@ FIGURES = [
     {"name": "study-explain", "chapter": "study", "url": "/study/tech2026",
      "where": ".panel", "settle": 3.0,
      "why": "A question with its explanation open, which is the whole of the drill."},
+    # -- The Library: the card catalogue, every book on the table or the
+    # shelf. Take it on a unit with at least one book on each - the
+    # operator's own manuals are in this picture, so a scratch ELMER_STATE
+    # is the place to take it.
+    {"name": "library", "chapter": "library", "url": "/library",
+     "where": "#lib-catalogue", "settle": 4.0,
+     "why": "The card catalogue: every book, where it is, and whether it may be taken away."},
 ]
 
 

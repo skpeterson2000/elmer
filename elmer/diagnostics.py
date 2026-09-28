@@ -391,19 +391,21 @@ def check_tools():
 def check_library():
     """The operator's manuals, and whether ELMER has read them."""
     from . import library
-    books = library.shelf()
+    books = library.books()
     if not books:
-        _line(OK, "library", f"nothing on the shelf at {library.SHELF} - copy "
+        _line(OK, "library", f"no books in the Library at {library.SHELF} - copy "
               "your manuals in and ELMER will index them")
         return True
     rows = library.catalogue()
     stale = [r["name"] for r in rows if r["stale"]]
     pages = sum(r["pages"] or 0 for r in rows if r["indexed"])
+    shelved = sum(1 for r in rows if r["place"] == "shelf")
+    where = f" ({len(rows) - shelved} on the table, {shelved} on the shelf)" if shelved else ""
     if stale:
-        _line(WARN, "library", f"{len(rows)} on the shelf, {len(stale)} to "
+        _line(WARN, "library", f"{len(rows)} in the Library{where}, {len(stale)} to "
               f"(re)index - open the Library page or run --index-library")
     else:
-        _line(OK, "library", f"{len(rows)} book{'s' if len(rows) != 1 else ''}, "
+        _line(OK, "library", f"{len(rows)} book{'s' if len(rows) != 1 else ''}{where}, "
               f"{pages} pages indexed")
     return True
 
@@ -438,23 +440,21 @@ def check_accounts():
 
 
 def check_manual():
-    """ELMER's own guide, on the shelf with the operator's manuals."""
+    """ELMER's own guide, in the Library with the operator's manuals."""
     from . import db, manual
     try:
         st = manual.status(db.connect())
     except Exception as exc:
         _line(WARN, "user's guide", f"could not look: {type(exc).__name__}: {exc}")
         return True
-    if st["declined"]:
-        _line(OK, "user's guide", "declined on the Library page - not on the shelf, and not put back")
-    elif not st["source"]:
+    if not st["source"]:
         _line(WARN, "user's guide", "USER-GUIDE.md is not in this checkout, so there is nothing to build it from")
     elif not st["present"]:
-        _line(WARN, "user's guide", f"not on the shelf - it comes back when ELMER next starts, or now", fix="manual")
+        _line(WARN, "user's guide", "not in the Library - it comes back when ELMER next starts, or now", fix="manual")
     elif st["stale"]:
-        _line(WARN, "user's guide", "on the shelf, but the text has changed since it was built - rebuilt when ELMER next starts, or now", fix="manual")
+        _line(WARN, "user's guide", "in the Library, but the text has changed since it was built - rebuilt when ELMER next starts, or now", fix="manual")
     else:
-        _line(OK, "user's guide", f"{manual.NAME} on the shelf")
+        _line(OK, "user's guide", f"{manual.NAME} in the Library")
     return True
 
 

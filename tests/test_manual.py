@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The User's Guide: built from USER-GUIDE.md onto the Library shelf,
-put back when it goes missing, and kept off when the operator says so.
+"""The User's Guide: built from USER-GUIDE.md into the Library, put back
+when it goes missing, and never removed - it can go on the shelf, and a
+unit that once declined it finds it there.
 
     python3 tests/test_manual.py
 
@@ -69,7 +70,7 @@ def run():
     check("  and the check can see one when there is one",
           manual.stranded([(3, "p", ""), (3, "h2", "Golf"), (4, "p", "")]), [(3, "Golf")])
     st = manual.status(conn)
-    check("  present, current, not declined", (st["present"], st["stale"], st["declined"], st["build"]), (True, False, False, "test"))
+    check("  present and current", (st["present"], st["stale"], st["build"]), (True, False, "test"))
 
     print("\n-- the Library reads it --")
     if library.tools_present().get("pdftotext"):
@@ -78,12 +79,12 @@ def run():
         row = next(r for r in library.catalogue() if r["name"] == manual.NAME)
         check("  its chapters come from the bookmarks the builder wrote", (row["bookmarks"] >= len(heads), row["bookmarks_from"]), (True, "bookmarks"))
         check("  and its title is the guide's", "User" in row["title"], True)
-        found = library.search("decline", 30)
-        check("  search finds the word about declining it, in this book", manual.NAME in str(found), True)
+        found = library.search('"card catalogue"', 30)
+        check("  search finds the card catalogue, in this book", manual.NAME in str(found), True)
     else:
         print("  (no poppler here - the Library's reading of the book is not checked)")
 
-    print("\n-- put back, and kept off --")
+    print("\n-- put back, never kept off --")
     check("in place, place() keeps it", manual.place(conn)["did"], "kept")
     manual.path().unlink()
     check("gone by accident, the doctor sees it", manual.status(conn)["present"], False)
@@ -91,11 +92,15 @@ def run():
     manual.path().write_bytes(b"%PDF-stale")
     (manual.shelf() / manual._MARK).write_text('{"source": "old"}', encoding="utf-8")
     check("the text changed since it was built: stale, and rebuilt", (manual.status(conn)["stale"], manual.place(conn)["did"], manual.status(conn)["stale"]), (True, "built", False))
-    out = manual.decline(conn, True)
-    check("declined: off the shelf now", (out["declined"], manual.path().is_file(), manual.declined(conn)), (True, False, True))
-    check("  and not put back", (manual.place(conn)["did"], manual.path().is_file()), ("declined", False))
-    out = manual.decline(conn, False)
-    check("taken back: placed again", (out["declined"], out["did"], manual.path().is_file()), (False, "built", True))
+    check("there is no declining it any more", (hasattr(manual, "decline"), hasattr(manual, "remove")), (False, False))
+    # A unit that declined it when that could be done: the guide is placed
+    # again, on the shelf rather than the table, and the old word is cleared.
+    db.unit_set(conn, manual.LEGACY_DECLINED_KEY, True)
+    manual.path().unlink()
+    check("once declined: back in the Library", (manual.place(conn)["did"], manual.path().is_file()), ("built", True))
+    check("  on the shelf, not the table", library.place(manual.NAME), "shelf")
+    check("  and the old word is cleared", bool(db.unit_get(conn, manual.LEGACY_DECLINED_KEY, False)), False)
+    library.set_shelved(manual.NAME, False)
 
     print("\n-- the doctor, and the Library page --")
     from elmer import diagnostics
@@ -114,16 +119,19 @@ def run():
     check("  gone, the line warns and offers the fix", ((row or {}).get("state"), (row or {}).get("fix")), ("warn", "manual"))
     r = client.post("/api/doctor/fix", json={"fix": "manual"}, environ_base=local)
     check("  and the fix puts it back", (r.status_code, r.get_json()["ok"], manual.path().is_file()), (200, True, True))
-    d = client.get("/api/library").get_json()
-    check("the Library page is told where the guide stands", (d["manual"]["present"], d["manual"]["declined"]), (True, False))
-    r = client.post("/api/library/manual", json={"declined": True})
-    check("declining from the page takes it off", (r.status_code, r.get_json()["declined"], manual.path().is_file()), (200, True, False))
-    r = client.post("/api/library/remove", json={"name": manual.NAME})
-    check("  removing a book that is not there is a plain 404", r.status_code, 404)
-    r = client.post("/api/library/manual", json={"declined": False})
-    check("taking that back puts it on the shelf", (r.status_code, manual.path().is_file()), (200, True))
-    r = client.post("/api/library/remove", json={"name": manual.NAME})
-    check("removing the guide by hand says it will be back", (r.status_code, "comes back" in (r.get_json().get("note") or "")), (200, True))
+    client.set_cookie("elmer_user", "1")
+    d = client.get("/api/library", environ_base=local).get_json()
+    row = next((b for b in d["shelf"] if b["name"] == manual.NAME), {})
+    check("the Library lists the guide, free to take and not removable",
+          (row.get("guide"), row.get("lending"), row.get("removable")), (True, "free", False))
+    r = client.post("/api/library/remove", json={"name": manual.NAME}, environ_base=local)
+    check("removing the guide is refused, and the file stays",
+          (r.status_code, (r.get_json() or {}).get("guide"), manual.path().is_file()), (409, True, True))
+    r = client.post("/api/library/manual", json={"declined": True}, environ_base=local)
+    check("  and there is no route to decline it", r.status_code in (404, 405), True)
+    r = client.post("/api/library/shelve", json={"name": manual.NAME, "shelved": True}, environ_base=local)
+    check("it can go on the shelf like any book", (r.status_code, library.place(manual.NAME)), (200, "shelf"))
+    client.post("/api/library/shelve", json={"name": manual.NAME, "shelved": False}, environ_base=local)
 
     print("\n-- placed means readable, on the first visit --")
     # Building the guide only put a file on the shelf. Until it is indexed the

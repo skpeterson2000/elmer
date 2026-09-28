@@ -1102,20 +1102,76 @@ if a listed file is missing or its hash has changed, if a PDF is there that
 the manifest does not list, if an entry has no release statement, or if the
 shelf passes 40 MB. The limit keeps the Windows zip and a Pi's clone light,
 and the files are committed as published, never recompressed, because
-recompressing a scan degrades it. The Library shows the two shelves as one,
+recompressing a scan degrades it. The Library shows the two sources as one,
 with the shipped books marked and their statement beside them. Their indexes
 and page pictures are state like any other book's. A shipped book is part of
 the program, so the Library will not delete it: deleting it would dirty the
-checkout, and the next update would put it back. The operator hides it
-instead. The hidden list is the unit's, kept in the state directory, so an
-update that replaces the file does not put the book back on the shelf. An
-operator's own file under a shipped book's name is refused at *Add a manual*,
-so the shelf never has to choose between the two. Nothing is fetched to fill
-the shipped shelf: it arrives with the program, so it adds nothing to *What
-leaves a unit*.
+checkout, and the next update would put it back. The operator returns it to
+the shelf instead (below). An operator's own file under a shipped book's name
+is refused at *Add a book*, so the Library never has to choose between the
+two. Nothing is fetched to fill the shipped books: they arrive with the
+program, so they add nothing to *What leaves a unit*.
+
+**The table, the shelf and the card catalogue.** A library is somewhere one
+can see the whole collection or keep a tidy desk, and a person should be able
+to do either. So every book is in one of two places. *On the table* is what
+is open and in use: the page lists it, search answers from it first, and
+ELMER's topics point into it. *On the shelf* is everything else, and the
+difference from the old "hidden" is the point of it: a shelved book is still
+indexed and still searched, and its pages come after the table's as *Also on
+the shelf*, ten at most, each with *Bring to the table*. And the shelf is
+always reachable by what a person has in mind, the way a library always was:
+*the card catalogue* lists every book, table and shelf alike, one card each
+- title, author or publisher, where it is, whether it may be taken away -
+narrowed by typing part of a title or a name, with *Read* and *Bring to the
+table* on each. A first version had the shelf behind a *Browse the shelves*
+switch that started closed, and a shelved book was, in practice, gone: the
+catalogue is the answer to that, and it is never folded away. The author is
+the manifest's publisher for a shipped book, else the PDF's own Author field
+where it names somebody rather than an account; indexes made before it was
+read say nothing until their next reading. Hiding a book used to take it out of
+search altogether, so tidying the page cost the operator the answer in it;
+now tidying costs nothing. Any book can be shelved - the operator's, a
+shipped one, this guide - and none is asked about, because nothing is lost.
+The list of shelved books is the unit's (`data/library/.shelved.json`), not
+a person's, for the same reason the Library is: one shared collection, read
+once, on one machine; that can become per person if a club table finds it
+onerous. It survives an update that replaces a shipped file. A unit that
+hid books under the old `.hidden.json` finds them on the shelf, carried over
+once. A book added goes on the table, since somebody brought it to use it.
+Topics read only the table - they are the door into the books in use - but
+Make Contact's gear reads the whole Library: shelving a radio's manual tidies
+the table, it does not say the radio was sold, and *mine* is for that. The
+reader searches inside the book it has open wherever the book is; it used to
+filter the Library's search, so a hidden book opened from a link found
+nothing inside itself. The words are a library's rather than a program's -
+*Return to the shelf*, *the card catalogue*, *Catalogue new books* - because
+the page is meant to feel like a reading room with a librarian who knows
+where everything is, not a file manager.
+
+**Free to take, and for reading here.** Some books in a library go home and
+some are read in the building. Here the line is the one copyright draws: a
+publication released to the public - a shipped book, this guide - is *free
+to take*, and anybody may open the file itself, save it and print it. A book
+somebody added is usually one they bought, and the Library is shared by a
+club: anybody may read it in ELMER's reader, a page at a time as poppler
+draws it, but the file is handed out only to the person who added it
+(*yours to take*), and only they may remove it. Who added what is kept
+beside the books (`data/library/.added.json`); a book copied into the folder
+by hand has no name on it and starts *for reading here* to everybody. It
+carries *This is my copy*: the first person to press it owns it, once, and a
+second claim is refused, so the manuals already copied onto a unit before
+this existed do not stay unprintable for the person who bought them. Nothing
+that came with ELMER, and not the guide, can be claimed: they are free to
+take already. `/library/book/` refuses the file to
+anybody else, and the reader offers no *Open as PDF* or browser viewer for
+it, because the browser's viewer carries print and save. It is a courtesy
+kept, not a lock: the pages are on a screen, and the name on a browser is a
+name tag, not a credential. Its job is to keep the Library from being the
+thing that passes somebody's purchase around.
 
 Copy PDFs into `data/library/` (or hand one over from a phone with *Add a
-manual* on the Library page) and the next visit to **Library** indexes them:
+book* on the Library page) and the next visit to **Library** indexes them:
 `pdftotext` for the words on every page, the publisher's own bookmarks for the
 chapters, `pdfinfo` for the title. The search box finds the pages that carry
 every word you typed — quote a phrase to keep it whole — and shows each with
@@ -1132,12 +1188,13 @@ is still a button away (*Browser viewer*) for selecting text or searching
 inside the file, and is what the reader falls back to on a unit without
 poppler. The kiosk's browser has no tab bar, so a PDF opened on its own
 would be a wall with no door. Under it,
-*ELMER's topics in your books*: antennas, propagation, CW, digital modes,
-repeaters, power, safety, rules, satellites, menus, test equipment — each
-listing the chapters on the shelf whose bookmark titles use those words, and
+*ELMER's topics, in the books on the table*: antennas, propagation, CW,
+digital modes, repeaters, power, safety, rules, satellites, menus, test
+equipment — each listing the chapters on the table whose bookmark titles use
+those words, and
 the antenna calculator carries the antenna ones under its advice. `./elmer.py
 --index-library` does the reading from the terminal; `--doctor` says what is
-on the shelf and whether it has been read. Most radio manuals are saved with
+in the Library, how much of it is on the shelf, and whether it has been read. Most radio manuals are saved with
 the PDF "copying not allowed" flag set — both Yaesu manuals on the first shelf
 were — and `pdftohtml` honors it by refusing the whole document, bookmarks
 included, while `pdftotext` reads the same file without a murmur. ELMER reads
@@ -1211,14 +1268,15 @@ subset - title, chapters, sections, paragraphs, bullets, notes, pictures,
 bold, italic, code - so the file reads plainly on GitHub and renders here
 with reportlab alone.
 
-It can be taken off the shelf like any other book, and it comes back when
-ELMER next starts; the doctor has a line for it and a *Fix* that puts it
-back sooner, because a guide deleted by accident on a kiosk is a guide
-nobody can find again. An operator who does not want it ticks *I decline
-the User's Guide and any future updates to it* on the Library page, and it
-is taken off and never put back until they untick it. That is a setting of
-the unit (`manual_declined`), not of whoever is signed in, because the
-shelf is shared. The README says the same in a paragraph, and the guide's
+It is never removed from the Library: nobody is better off without the
+manual to the program in front of them, so the page offers no way to, and
+the route refuses. It can go on the shelf like any book. A file deleted from
+the folder by hand comes back when ELMER next starts, and the doctor has a
+line for it and a *Fix* that puts it back sooner, because a guide deleted on
+a kiosk is a guide nobody can find again. There used to be a checkbox to
+decline it for good, a relic of when the Library was only the operator's own
+manuals; it is gone, and a unit that had ticked it finds the guide on the
+shelf rather than the table, the old setting (`manual_declined`) cleared. The README says the same in a paragraph, and the guide's
 front matter carries the pre-release notice: features will continue to
 appear and be refined, and what a feature does today may not be precisely
 what the final version does, where that latitude exists.

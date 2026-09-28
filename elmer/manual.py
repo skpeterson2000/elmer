@@ -9,13 +9,14 @@ chapter, and placed at `data/library/` when ELMER starts if it is not
 there or the text has changed. The Library indexes it on the next visit as
 it would any book.
 
-It is the operator's shelf, so the guide can be taken off it like any
-other book - and it comes back when ELMER next starts, and the doctor's
-Fix puts it back sooner, because a guide deleted by accident on a kiosk
-is a guide nobody can find again. An operator who does not want it says
-so once, on the Library page - *I decline the User's Guide and any future
-updates to it* - and it is taken off and never put back. That is a setting
-of the unit, not of whoever is signed in, because the shelf is shared.
+The guide cannot be removed from the Library, by the page or by a
+setting. Nobody is better off without the manual to the program in front
+of them, and a guide deleted on a kiosk is a guide nobody can find again.
+It can go on the shelf like any book, out of the way and still in the
+catalogue. A file deleted by hand from the folder comes back when ELMER
+next starts, and the doctor's Fix puts it back sooner. (There used to be a
+way to decline it for good. A unit that did finds the guide on the shelf
+rather than the table - see place().)
 
 The markdown is a small subset, chosen so the file reads plainly on GitHub
 and renders here without a markdown library: `#` the title, `##` a
@@ -43,7 +44,9 @@ log = logging.getLogger("elmer")
 # easy to lose a book on once it fills up. The screenshots stay in docs/.
 SOURCE = paths.ROOT / "USER-GUIDE.md"
 NAME = "ELMER-Users-Guide.pdf"
-DECLINED_KEY = "manual_declined"
+# Where a unit said it declined the guide, when that could be said. Read
+# once, to put the guide on the shelf rather than the table, then cleared.
+LEGACY_DECLINED_KEY = "manual_declined"
 _MARK = ".manual.json"                  # beside the shelf's index: what was built, from what
 
 
@@ -68,18 +71,26 @@ def source_hash(source=None):
         return None
 
 
-def declined(conn=None):
-    conn = conn or db.connect()
-    return bool(db.unit_get(conn, DECLINED_KEY, False))
-
-
-def set_declined(conn, flag):
-    db.unit_set(conn, DECLINED_KEY, bool(flag))
+def _carry_over_decline(conn):
+    """A unit that declined the guide when that was possible gets it back on
+    the shelf, not the table: in the Library, and out of the way of anybody
+    who had said so."""
+    if not db.unit_get(conn, LEGACY_DECLINED_KEY, False):
+        return
+    from . import library
+    try:
+        library.set_shelved(NAME, True)
+    except OSError as exc:
+        # Tried again at the next start; the guide is on the table meanwhile.
+        log.warning("user's guide: was declined, and could not be put on the shelf: %s", exc)
+        return
+    db.unit_set(conn, LEGACY_DECLINED_KEY, False)
+    log.info("user's guide: was declined on this unit - back in the Library, on the shelf")
 
 
 def status(conn=None):
-    """Where the guide stands: on the shelf or not, current or not, declined
-    or not - for the doctor and the Library page."""
+    """Where the guide stands: in the Library or not, current or not - for
+    the doctor."""
     p = path()
     present = p.is_file()
     mark = {}
@@ -89,17 +100,16 @@ def status(conn=None):
         mark = {}
     want = source_hash()
     return {"name": NAME, "path": str(p), "present": present,
-            "source": SOURCE.is_file(), "declined": declined(conn),
+            "source": SOURCE.is_file(),
             "stale": bool(present and want and mark.get("source") != want),
             "built": mark.get("built"), "build": mark.get("build")}
 
 
 def place(conn=None, force=False):
-    """Put the guide on the shelf if it belongs there. Returns what was done:
-    declined, kept, built, or the reason it could not be."""
+    """Put the guide in the Library if it is not there or not current.
+    Returns what was done: kept, built, or the reason it could not be."""
     conn = conn or db.connect()
-    if declined(conn):
-        return {"did": "declined"}
+    _carry_over_decline(conn)
     if not SOURCE.is_file():
         return {"did": "no source", "why": f"{SOURCE} is not in this checkout"}
     st = status(conn)
@@ -121,36 +131,8 @@ def place(conn=None, force=False):
         library.refresh(only=NAME)
     except Exception as exc:                       # no poppler on this unit
         log.info("user's guide: on the shelf but not indexed yet: %s", exc)
-    log.info("user's guide: %s on the shelf", "rebuilt" if st["present"] else "placed")
+    log.info("user's guide: %s in the Library", "rebuilt" if st["present"] else "placed")
     return {"did": "built"}
-
-
-def remove():
-    """Take the guide off the shelf, and its index with it."""
-    from . import library
-    p = path()
-    gone = False
-    if p.is_file():
-        p.unlink()
-        gone = True
-    try:
-        _mark_path().unlink()
-    except OSError:
-        pass
-    library.refresh()
-    return gone
-
-
-def decline(conn, flag):
-    """The operator's word: declined, it comes off and stays off; taken
-    back, it is placed again."""
-    set_declined(conn, flag)
-    if flag:
-        remove()
-        log.info("user's guide: declined - off the shelf and not put back")
-        return {"declined": True}
-    log.info("user's guide: accepted again")
-    return {"declined": False, **place(conn, force=True)}
 
 
 # ------------------------------------------------------------------ the book

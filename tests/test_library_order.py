@@ -45,7 +45,7 @@ def order_of(page):
         ("printed", "What you have printed"),
         ("find", "Find the page"),
         ("index", "ELMER&rsquo;s topics" if "ELMER&rsquo;s topics" in page else "ELMER's topics"),
-        ("shelf", "On the shelf"),
+        ("shelf", "On the table"),
         ("awards", "Awards and certificates"),
         ("elsewhere", "From elsewhere"),
         ("licenses", "Your licenses"),

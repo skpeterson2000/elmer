@@ -116,11 +116,9 @@ at the top of this folder beside this file, where a person who has just
 unzipped it looks. The same text is on the Library shelf of every unit,
 indexed and searched like any book and opened in the same reader, so a
 kiosk with no file manager still has it: built from the file when ELMER
-starts, and rebuilt when the text changes with an update. Taken off the shelf by accident, it
-comes back when ELMER next starts, and the dashboard's self-check can put
-it back sooner. An operator who does not want it ticks *I decline the
-User's Guide and any future updates to it* on the Library page, and it is
-taken off and never put back.
+starts, and rebuilt when the text changes with an update. It is never
+removed from the Library; it can go on the shelf like any book, and a copy
+deleted from the folder by hand comes back when ELMER next starts.
 
 **What it fetches, and what it does not.** Space weather, the ionosonde
 record, the coordinator's plan, the weather at the golf course, the POTA
@@ -193,10 +191,18 @@ work - the spot feed, the FCC's files, the update check, reading new books -
 waits while a game, a net, an exam or a lesson has the unit. The
 Library has a second shelf that ships with the program, for manuals their
 publishers released to the public. Each one is checked against a manifest
-of its release statement, its source and its SHA-256. An operator can hide
-a shipped book but not delete it, and it stays hidden through updates.
-The first book on it is the Army's ATP 6-02.53, *Techniques for Tactical
-Radios and Retransmission* (July 2025).
+of its release statement, its source and its SHA-256. The first book on it
+is the Army's ATP 6-02.53, *Techniques for Tactical Radios and
+Retransmission* (July 2025). Every book in the Library is on the table,
+open for use, or on the shelf: a book returned to the shelf is still indexed
+and searched, its pages offered after the table's as *Also on the shelf*
+with a button to bring it back, and the card catalogue lists every book,
+table and shelf alike, by title and author. Any book can be shelved, the
+operator's own included; a shipped one can be shelved but not deleted, and
+stays where it was put through updates. A book released to the public is
+free to take - save it, print it; one somebody added is read in the
+Library by anybody but handed out as a file only to the person who added
+it.
 Two ELMERs on one network can play one round of golf together, and when a
 host ends a game, the screens, phones and tables playing in it say so in
 those words rather than reading like a lost connection.
