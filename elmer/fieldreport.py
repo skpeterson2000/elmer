@@ -12,6 +12,9 @@ names a station:
 * the correction the unit has learned, by sky, and whether it is applying
   it; which months its calibration covers;
 * how many hall rounds and study answers the week had, as counts;
+* how the kiosk's last launch went, and the evidence for it: the
+  windows on the screen, the window manager, the browser's processes and
+  the window's state second by second - see kiosk.fullscreen;
 * the errors and warnings, counted, and the last few of them in full -
   redacted the same way a problem report is (the unit's callsigns and the
   places it holds, grid, coordinates, network addresses, home directories
@@ -56,9 +59,14 @@ WHAT_IT_SENDS = (
     "question went for the people who met it for the first time (its id, "
     "how many, the miss rate and a time index; no names), how long each "
     "page and call takes on this unit and whether any has crept, and the "
-    "errors and warnings, counted, with the last few in full. Your callsign, grid "
-    "square, coordinates, network addresses and home directory are taken "
-    "out before it is written. Every report is saved here first so you can "
+    "errors and warnings, counted, with the last few in full, and how the "
+    "kiosk's last launch went - the screen, the browser and its messages, "
+    "the window manager, the browser's own processes, and the windows on "
+    "the screen by kind, size and state, with no window's title but the "
+    "kiosk's own and the one it read, and whether wmctrl or xdotool had to "
+    "set it full screen. The callsigns this unit's accounts hold, the places it "
+    "has looked up or kept, the grid square, coordinates, network addresses "
+    "and home directory are taken out before it is written. Every report is saved here first so you can "
     "read it, and it goes to " + mail.CONTACT + " by the drop, or through "
     "your own outgoing-mail settings if you have set them. It is off until "
     "you turn it on."
@@ -143,6 +151,13 @@ def build(conn=None, now=None):
     add("-" * 60)
     try:
         from . import kiosk
+        # The last launch first - its verdict and the evidence it rests on,
+        # the windows, the window manager, the browser's processes and the
+        # window's state second by second - because the facts as they are
+        # now say what would be launched, and only those say what happened.
+        for line in kiosk.last_lines():
+            add("   " + line)
+        add("   now:")
         for line in kiosk.report_lines():
             add("   " + line)
     except Exception as exc:                     # a report never fails on its own subject

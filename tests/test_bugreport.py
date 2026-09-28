@@ -178,8 +178,11 @@ def run():
     text, redacted = bugreport.build(conn, lines=20, said=said, kind="comment")
     check("every callsign and place held is gone",
           [n for n in held if n.lower() in text.lower()], [])
-    check("  each callsign is called a callsign", text.count("[callsign]"), 3)
-    check("  and each place a place", text.count("[place]"), 4)
+    # Counted in the words alone: the header quotes the latest commit's
+    # subject, and a commit about this very rule put "[callsign]" there.
+    words = text[text.index("in the operator's words"):]
+    check("  each callsign is called a callsign", words.count("[callsign]"), 3)
+    check("  and each place a place", words.count("[place]"), 4)
 
     said = ("Question T1A01 showed twice; my Mobile antenna was on 2 m. "
             "W1AW was on the air too.")

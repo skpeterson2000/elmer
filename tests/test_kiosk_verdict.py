@@ -70,8 +70,9 @@ def main():
     logging.getLogger("elmer").setLevel(logging.INFO)
     saved_env = {name: os.environ.get(name) for name in SCREEN_VARS}
     real = {name: getattr(K, name) for name in
-            ("find_browser", "_command", "_which", "_run_tool", "EARLY_S", "WINDOW_WAIT_S")}
-    K.EARLY_S, K.WINDOW_WAIT_S = 2.0, 0.0
+            ("find_browser", "_command", "_which", "_run_tool", "_processes",
+             "EARLY_S", "WINDOW_WAIT_S", "SAMPLE_S", "FORCE_SETTLE_S")}
+    K.EARLY_S, K.WINDOW_WAIT_S, K.SAMPLE_S, K.FORCE_SETTLE_S = 2.0, 0.0, 0.3, 0.0
     python = sys.executable
     running = []
 
@@ -186,6 +187,232 @@ def main():
                                         "-lG": "0x03a00003  0 0    0    1920 1080 unit ELMER\n"})
         _, got = launch()
         check("  and one the size of the desktop is", got["verdict"], K.FULL)
+
+        print("\n-- the evidence: whose window was read, and what else was there --")
+        # The unit that sent "running but not full screen" read a window it
+        # had found by class alone, on a desktop that may have held somebody's
+        # own browser as well. Which window was read, and why, goes with the
+        # verdict now, with everything else on the screen beside it.
+        procs = {1: (0, "systemd", "/sbin/init"),
+                 900: (1, "gnome-shell", "/usr/bin/gnome-shell"),
+                 4000: (1, "chrome", "/usr/lib/chromium/chrome --user-data-dir=/home/op/.config"),
+                 4400: (1, "gedit", "/usr/bin/gedit /home/op/notes.txt")}
+
+        def with_kiosk(child_owns_window):
+            """The launched pid, a child of it, and the processes above."""
+            pid = running[-1].pid if running else 0
+            out = dict(procs)
+            out[pid] = (1, "chromium.launch", "/snap/bin/chromium --kiosk file:///x")
+            out[pid + 1] = (pid, "chrome", "/snap/chromium/current/chrome --kiosk file:///x")
+            return out, (pid + 1 if child_owns_window else pid)
+
+        def desktop(kiosk_state, own=True, kiosk_listed=True, wm_full=True):
+            """Three windows: the kiosk's (owned by a child of the launched
+            pid), the operator's own Chromium, and an editor."""
+            def listed(args):
+                table, owner = with_kiosk(True)
+                rows = []
+                if kiosk_listed:
+                    rows.append(f"0x05000004  0 {owner if own else 4000}   chromium.Chromium  ELMER")
+                rows += ["0x03a00003  0 4000   chromium.Chromium  mail - Chromium",
+                         "0x04400001  0 4400   gedit.Gedit  notes.txt"]
+                return "\n".join(rows) + "\n"
+
+            def state(args):
+                wid = args[args.index("-id") + 1]
+                return {"0x05000004": f"_NET_WM_STATE(ATOM) = {kiosk_state}\n",
+                        "0x03a00003": "_NET_WM_STATE(ATOM) = _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_MAXIMIZED_HORZ\n",
+                        }.get(wid, "_NET_WM_STATE(ATOM) = \n")
+
+            def name(args):
+                wid = args[args.index("-id") + 1] if "-id" in args else ""
+                return {"0x1c00001": '_NET_WM_NAME(UTF8_STRING) = "GNOME Shell"\n',
+                        "0x05000004": '_NET_WM_NAME(UTF8_STRING) = "ELMER"\n',
+                        "0x03a00003": '_NET_WM_NAME(UTF8_STRING) = "mail - Chromium"\n',
+                        "0x04400001": '_NET_WM_NAME(UTF8_STRING) = "notes.txt - secret plans"\n',
+                        }.get(wid)
+            x11(tools=("xprop", "wmctrl"), answers={
+                "-lpx": listed,
+                # The same windows, for a box with xprop and no wmctrl.
+                "-root _NET_CLIENT_LIST": lambda args: "_NET_CLIENT_LIST(WINDOW): window id # " + ", ".join(
+                    row.split()[0] for row in listed(args).splitlines()) + "\n",
+                "_NET_WM_PID WM_CLASS": lambda args: next(
+                    (f'_NET_WM_PID(CARDINAL) = {row.split()[2]}\nWM_CLASS(STRING) = "{row.split()[3]}"\n'
+                     for row in listed(args).splitlines() if row.split()[0] == args[args.index("-id") + 1]), ""),
+                "-lG": "0x05000004  0 0 0 1920 1080 x ELMER\n0x03a00003  0 80 60 1200 900 x mail\n",
+                "_NET_SUPPORTING_WM_CHECK": "_NET_SUPPORTING_WM_CHECK(WINDOW): window id # 0x1c00001\n",
+                "_NET_SUPPORTED": ("_NET_SUPPORTED(ATOM) = _NET_WM_STATE, "
+                                   + ("_NET_WM_STATE_FULLSCREEN" if wm_full else "_NET_WM_STATE_HIDDEN") + "\n"),
+                "_NET_DESKTOP_GEOMETRY": "_NET_DESKTOP_GEOMETRY(CARDINAL) = 1920, 1080\n",
+                "_NET_WORKAREA": "_NET_WORKAREA(CARDINAL) = 0, 32, 1920, 1048\n",
+                "_NET_WM_STATE": state,
+                "_NET_WM_NAME": name,
+            })
+            K._processes = lambda: with_kiosk(True)[0]
+
+        browser(stay)
+        desktop("_NET_WM_STATE_FULLSCREEN, _NET_WM_STATE_FOCUSED")
+        _, got = launch()
+        ev = "\n".join(got.get("evidence") or [])
+        check("the window a child of the launched browser owns is the kiosk's",
+              (got["verdict"], "0x05000004" in got["fullscreen"]), (K.FULL, True))
+        check("  read by its owner, not its class", "owned by the kiosk's process" in ev, True)
+        check("  the operator's own browser beside it is named as another browser",
+              "0x03a00003 another browser" in ev, True)
+        check("  the kiosk's own title is written down", 'title "ELMER"' in ev, True)
+        check("  but no other window's - not the operator's browsing, not another program's",
+              ("mail - Chromium" in ev, "gedit" in ev, "secret plans" in ev), (False, True, False))
+        check("  the window manager, and whether it can do full screen at all",
+              '"GNOME Shell"; full screen supported: yes' in ev, True)
+        check("  the screen and its work area", ("1920, 1080" in ev, "0, 32, 1920, 1048" in ev), (True, True))
+        check("  each window's size and state",
+              "1200x900 at 80,60" in ev and "MAXIMIZED_HORZ" in ev, True)
+        check("  the browser's processes, under the pid launched",
+              ("processes     2 under the launched pid" in ev, "--kiosk file:///x" in ev), (True, True))
+        check("  and the desktop that is running", "desktop runs  gnome-shell" in ev, True)
+        check("  and the window's state second by second from the launch",
+              "timeline" in ev and "  at " in ev, True)
+
+        desktop("_NET_WM_STATE_FOCUSED", kiosk_listed=False)
+        _, got = launch()
+        check("only somebody else's browser on the screen: read, and said to be found by class",
+              (got["verdict"], "(found by class only)" in got["fullscreen"]), (K.NOT_FULL, True))
+        check("  the evidence says none was the kiosk's",
+              "none of the 2 windows is owned by the kiosk's process" in "\n".join(got["evidence"]), True)
+
+        def two_browsers(args):
+            return ("0x05000004  0 4000   chromium.Chromium  ELMER\n"
+                    "0x03a00003  0 4000   chromium.Chromium  mail - Chromium\n")
+        desktop("_NET_WM_STATE_FOCUSED", own=False)
+        K._run_tool = (lambda run: lambda args: two_browsers(args) if "-lpx" in args else run(args))(K._run_tool)
+        _, got = launch()
+        check("two browser windows and neither the kiosk's: not guessed at",
+              (got["verdict"], "cannot be told" in got["fullscreen"]), (K.UNCHECKABLE, True))
+
+        desktop("_NET_WM_STATE_FOCUSED", wm_full=False)
+        _, got = launch()
+        check("a window manager that cannot do full screen says so",
+              "full screen supported: NO" in "\n".join(got["evidence"]), True)
+
+        # A window that goes full screen and is taken out of it again.
+        calls = {"n": 0}
+        desktop("x")
+        inner = K._run_tool
+
+        def flips(args):
+            if "_NET_WM_STATE" in args and "0x05000004" in args:
+                calls["n"] += 1
+                return ("_NET_WM_STATE(ATOM) = _NET_WM_STATE_FULLSCREEN\n" if calls["n"] <= 2
+                        else "_NET_WM_STATE(ATOM) = _NET_WM_STATE_MAXIMIZED_VERT\n")
+            return inner(args)
+        K._run_tool = flips
+        _, got = launch()
+        lines = [ln for ln in got["evidence"] if ln.startswith("  at ")]
+        check("full screen, then taken out of it: the timeline shows both",
+              (any("FULLSCREEN" in ln for ln in lines), any("MAXIMIZED_VERT" in ln for ln in lines)),
+              (True, True))
+        check("  and the verdict is the state at the end", got["verdict"], K.NOT_FULL)
+
+        print("\n-- full screen asked for twice, and set from outside when it is not --")
+        check("Chromium is launched with --start-fullscreen beside --kiosk",
+              "--start-fullscreen" in real["_command"]("/snap/bin/chromium", "chromium", "u", "/p"), True)
+
+        def forcing(tools, takes):
+            """The desktop above, with these tools, where the kiosk window goes
+            full screen once `takes` has asked for it (or never, for None)."""
+            desktop("_NET_WM_STATE_FOCUSED")
+            base = K._run_tool
+            asked = []
+            K._which = lambda name: name if name in ("xprop",) + tools else None
+
+            def run(args):
+                if args[0] in ("wmctrl", "xdotool") and ("add,fullscreen" in args or "FULLSCREEN" in args):
+                    asked.append((args[0], args[-1] if args[0] == "xdotool" else args[3]))
+                    return ""
+                if "_NET_WM_STATE" in args and "0x05000004" in args and takes and any(a[0] == takes for a in asked):
+                    return "_NET_WM_STATE(ATOM) = _NET_WM_STATE_FULLSCREEN\n"
+                return base(args)
+            K._run_tool = run
+            return asked
+
+        asked = forcing(("wmctrl",), "wmctrl")
+        _, got = launch()
+        check("flags not enough, wmctrl present: it is asked, on the kiosk's window",
+              asked[:1], [("wmctrl", "0x05000004")])
+        check("  and the launch ends full screen, saying wmctrl did it",
+              (got["verdict"], "wmctrl did" in got.get("set_by", "")), (K.FULL, True))
+        check("  said in the verdict line itself", "wmctrl did" in K.verdict_line(), True)
+
+        asked = forcing(("xdotool",), "xdotool")
+        _, got = launch()
+        check("only xdotool present: xdotool is asked", [a[0] for a in asked], ["xdotool"])
+        check("  and said to have done it", (got["verdict"], "xdotool did" in got["set_by"]), (K.FULL, True))
+
+        asked = forcing(("wmctrl", "xdotool"), None)
+        _, got = launch()
+        check("neither takes: both are tried", [a[0] for a in asked], ["wmctrl", "xdotool"])
+        check("  and the verdict says none made it full screen",
+              (got["verdict"], "none made it full screen" in K.verdict_line()), (K.NOT_FULL, True))
+
+        asked = forcing((), None)
+        _, got = launch()
+        check("no tool to set it with: the verdict says that",
+              "no wmctrl or xdotool" in got["set_by"], True)
+
+        desktop("_NET_WM_STATE_FOCUSED", kiosk_listed=False)
+        base = K._run_tool
+        asked = []
+        K._run_tool = lambda args: (asked.append(args) or "") if "add,fullscreen" in args else base(args)
+        _, got = launch()
+        check("a window found by class only is never set from outside - it may be the operator's",
+              (asked, "found by class only" in got["set_by"]), ([], True))
+
+        print("\n-- a hand-off to another process holding our profile is seen --")
+        desktop("_NET_WM_STATE_FULLSCREEN", own=False)
+        profile_dir = str(K.PROFILE_DIR / "chromium")
+        handed = dict(procs)
+        handed[4000] = (1, "chrome", f"/snap/chromium/current/chrome --user-data-dir={profile_dir} --kiosk")
+        K._processes = lambda: ({**handed, running[-1].pid: (1, "chromium.launch", "/snap/bin/chromium")}
+                                if running else handed)
+        _, got = launch()
+        ev = "\n".join(got["evidence"])
+        check("a window whose owner holds our --user-data-dir is the kiosk's",
+              ("owned by the kiosk's process" in ev, got["verdict"]), (True, K.FULL))
+        check("  and the profile's holder outside the launched pid is named",
+              "outside the launched pid: 4000" in ev, True)
+        handed.pop(4000)
+        _, got = launch()
+        check("no process holding our profile: said plainly",
+              "NO running process has our --user-data-dir" in "\n".join(got["evidence"]), True)
+
+        print("\n-- the window read, named by its own properties --")
+        desktop("_NET_WM_STATE_FULLSCREEN")
+        base = K._run_tool
+        K._run_tool = lambda args: ('WM_CLASS(STRING) = "chromium", "Chromium"\n'
+                                    '_NET_WM_PID(CARDINAL) = 4242\n'
+                                    '_NET_WM_NAME(UTF8_STRING) = "ELMER"\n'
+                                    if "WM_CLASS" in args and "_NET_WM_NAME" in args else base(args))
+        _, got = launch()
+        check("its WM_CLASS, _NET_WM_PID and title are written down",
+              any(ln.startswith("inspected     0x05000004") and '"chromium", "Chromium"' in ln
+                  and "_NET_WM_PID 4242" in ln and 'title "ELMER"' in ln for ln in got["evidence"]), True)
+        K._processes = lambda: with_kiosk(True)[0]
+
+        print("\n-- the evidence reaches the report and the field report --")
+        from elmer import bugreport, fieldreport
+        section = "\n".join(K.last_lines())
+        check("the Kiosk section carries the timeline", "timeline" in section, True)
+        report = fieldreport.build()
+        check("  and so does the weekly field report, which is the one that is sent",
+              ("timeline" in report, "window read" in report), (True, True))
+        check("a browser's version is not taken for a coordinate",
+              bugreport.redact("Chromium 153.0.7433.47 snap"), "Chromium 153.0.7433.47 snap")
+        check("  while a coordinate still is",
+              bugreport.redact("at 46.5983,-94.3154."), "at [coord],[coord].")
+        # Leave the last launch a good one, which is what follows expects.
+        desktop("_NET_WM_STATE_FULLSCREEN")
+        launch()
+        K._processes = real["_processes"]
 
         print("\n-- what is failed and what is not --")
         check("running full screen is not a failure", K.failed(), None)

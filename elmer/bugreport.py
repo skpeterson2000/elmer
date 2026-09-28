@@ -39,7 +39,9 @@ LOG = paths.STATE / "elmer.log"
 from .mail import CONTACT  # noqa: E402
 
 RE_GRID = re.compile(r"\b([A-R]{2}[0-9]{2})[a-x]{2}\b")
-RE_LATLON = re.compile(r"-?\b\d{1,3}\.\d{4,}\b")
+# Not a piece of a dotted version: "Chromium 153.0.7433.47" came out of a
+# report as "Chromium 153.[coord].47", and the version is the fact wanted.
+RE_LATLON = re.compile(r"(?<![\d.])-?\b\d{1,3}\.\d{4,}\b(?!\.\d)")
 RE_PRIVATE_IP = re.compile(
     r"\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b")
 # An account name is often somebody's actual name, and a log is full of paths.
