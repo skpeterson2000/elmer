@@ -1705,7 +1705,8 @@ async function bpReach(band) {
   bpReachDraw(false);
   if (bpView.zoom >= 1.8) bpRefine();
   document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
-    (d.muf_here ? ' · MUF here ' + d.muf_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
+    (d.muf_here ? ' · MUF(3000) here ' + d.muf_here + ' MHz' : '') +
+    (d.fof2_here ? ' · foF2 ' + d.fof2_here + ' MHz' : '') + (d.muf_source ? ' (' + d.muf_source + ')' : '');
   /* The switch reports what the antenna is, rather than what was last
      asked for. NVIS is not a mode anybody selects: an inverted V at 35 feet
      is an eighth of a wave up on 80 m and has its whole lobe overhead, and
@@ -1747,7 +1748,7 @@ async function bpReach(band) {
          : g.overhead_db <= -4 ? 'The reflection is cancelling straight up: a DX height, with a dip over the county.'
          : 'Neither adding nor cancelling much straight up.')
         + (d.antenna.nvis
-           ? ' <b>At this height on this band that is an NVIS antenna</b>, whatever the switch says - the lobe is overhead and there is no low-angle way out of it. '
+           ? ' <b>At this height on this band that is an NVIS antenna</b>, whatever the switch says - the lobe is overhead, and low angles are weak (' + sgn(g.low_db) + ' at 20°) but not shut: on a mode that decodes deep in the noise, far paths can still open. '
              + (d.antenna.low_angle_ft
                 ? 'About ' + d.antenna.low_angle_ft + ' ft is where the lobe leaves the zenith on ' + escapeHTML(band.name) + '.'
                 : 'No sensible height moves the lobe off the zenith on this band.')

@@ -77,8 +77,11 @@ async function load(force) {
     ['K index', d.k_index, 'geomagnetic, 0-9'],
     ['A index', d.a_index, 'daily average'],
     ['Sunspots', d.sunspots, 'visible count'],
-    [(measured ? 'MUF' : 'Est. MUF'), d.muf + ' MHz', provenance],
-    [(measured ? 'foF2' : 'Est. foF2'), d.fof2 + ' MHz', provenance],
+    /* MUF(3000), said as such: a bare "MUF" read as "anything under this
+       works", and on a night of 8.3 over a foF2 of 2.7 that is true a
+       thousand miles out and false for the next county. */
+    [(measured ? 'MUF(3000)' : 'Est. MUF(3000)'), d.muf + ' MHz', 'a 3,000 km hop; ' + provenance],
+    [(measured ? 'foF2' : 'Est. foF2'), d.fof2 + ' MHz', 'straight up - what near needs; ' + provenance],
     ['Solar wind', Math.round(d.solar_wind) + ' km/s', 'particle speed'],
     ['X-ray', d.xray || 'n/a', 'flare background'],
   ];

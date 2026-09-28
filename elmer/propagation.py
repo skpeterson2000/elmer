@@ -561,7 +561,8 @@ def _build(lat, lon, where, now):
         "is_day": is_day, "located": elevation is not None,
         "bands": _band_rows(ham, regime, muf),
         "vhf": ham["vhf"],
-        "verdict": verdict(sfi, k_index, a_index),
+        "verdict": verdict(sfi, k_index, a_index, fof2=fof2,
+                           hmf2=(cal or {}).get("measured_hmf2"), m3000=(cal or {}).get("m3000")),
         "cached": False,
     }
     with _cache_lock:
@@ -569,8 +570,48 @@ def _build(lat, lon, where, now):
     return data
 
 
-def verdict(sfi, k, a):
-    """One honest sentence about what tonight looks like."""
+def nvis_door(fof2, hmf2=None, m3000=None):
+    """The highest frequency that comes back to a station a few hundred
+    kilometers away: foF2 times the layer's factor for a hop that short -
+    the same door the reach map draws its near zone by, so the words and
+    the map agree."""
+    from . import patterns
+    hmf2 = float(hmf2 or HMF2_DEFAULT)
+    factor = patterns.muf_factor_table(hmf2, patterns.layer_thickness(hmf2), m3000=m3000)
+    return float(fof2) * factor(NVIS_REACH_KM / 2.0)
+
+
+def nvis_band(door):
+    """The highest amateur HF band that comes back from overhead, or None."""
+    under = [(n, f) for n, f, _ in BANDS if f <= 30.0 and f <= door and n not in PERSONAL]
+    return max(under, key=lambda b: b[1])[0] if under else None
+
+
+def near_words(fof2, hmf2=None, m3000=None):
+    """A sentence for the headline when 40 m cannot reach anybody near, or ''.
+
+    The headline said "expect the action on 40m and below" on a night with
+    foF2 at 2.7 MHz, beside a MUF of 8.3: true for a thousand miles out,
+    and read as true for the next county, where 40 m goes straight up and
+    through. The MUF is for a 3,000 km hop; near is foF2's."""
+    if not fof2:
+        return ""
+    door = nvis_door(fof2, hmf2, m3000)
+    if door >= 7.0:
+        return ""
+    band = nvis_band(door)
+    return (f" Near - out to a few hundred miles - "
+            + (f"{band} is the band now" if band else "no HF band comes back from overhead now")
+            + f": foF2 is {float(fof2):.1f} MHz, so 40m goes straight up and through.")
+
+
+def verdict(sfi, k, a, fof2=None, hmf2=None, m3000=None):
+    """One honest sentence about what tonight looks like - and, when 40 m
+    cannot come back from overhead, which band can (see near_words)."""
+    return _verdict(sfi, k, a) + near_words(fof2, hmf2, m3000)
+
+
+def _verdict(sfi, k, a):
     if k >= 6 or a >= 30:
         return ("Geomagnetic storm in progress. Expect absorption and auroral "
                 "flutter on the high bands and poor polar paths.")
