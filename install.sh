@@ -482,6 +482,11 @@ check_bin pdftotext poppler-utils "needed to build the question pools"
 check_bin pdftoppm poppler-utils "needed to build the question pools"
 check_bin pdfimages poppler-utils "needed to build the question pools"
 check_bin ss iproute2 "used to spot an ELMER already running"
+# Needed, not optional: an optional package is only installed alongside a
+# needed one, so a unit that had everything else would never get it - and
+# without it a kiosk whose browser comes up in a window on X cannot be set
+# full screen from outside (see kiosk._force). Small, and harmless headless.
+check_bin wmctrl wmctrl "lets the kiosk set its window full screen when the browser does not"
 check_optional zenity zenity "kiosk mode cannot ask questions without it"
 if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1 \
    || command -v firefox >/dev/null 2>&1; then

@@ -314,6 +314,9 @@ def main():
         check("  and the verdict is the state at the end", got["verdict"], K.NOT_FULL)
 
         print("\n-- full screen asked for twice, and set from outside when it is not --")
+        install = (ROOT / "install.sh").read_text(encoding="utf-8")
+        check("install.sh installs wmctrl as needed, not optional - an optional one never reaches a unit that has the rest",
+              ('check_bin wmctrl wmctrl' in install, 'check_optional wmctrl' in install), (True, False))
         check("Chromium is launched with --start-fullscreen beside --kiosk",
               "--start-fullscreen" in real["_command"]("/snap/bin/chromium", "chromium", "u", "/p"), True)
 
