@@ -143,6 +143,59 @@ def run():
     r = client.get("/report/elmer.log", environ_base=local)
     check("  and only reports", r.status_code, 404)
     path.unlink()
+
+    print("\n-- every name the unit holds comes out, and nothing else --")
+    # A second account with its own callsign and a GMRS call, a QTH, a trip,
+    # a rated ground spot and a place asked of the gazetteer - each kept
+    # where the program keeps it, in this test's own state directory.
+    import json
+    from elmer import geocode, siteground, trip
+    mine = db.get_profile(conn)["settings"]
+    mine["location"] = {"short": "Pequot Lakes", "grid": "EN26uo",
+                        "name": "Pequot Lakes, Crow Wing County, Minnesota"}
+    db.save_settings(conn, mine)
+    other = db.add_user(conn, "Second Op", "KD0XYZ")
+    me, conn.user_id = conn.user_id, other["id"]
+    theirs = db.get_profile(conn)["settings"]
+    theirs["gmrs_call"] = "WRXY123"
+    db.save_settings(conn, theirs)
+    conn.user_id = me
+    conn.commit()
+    trip.STORE.parent.mkdir(parents=True, exist_ok=True)
+    trip.STORE.write_text(json.dumps({"destinations": [
+        {"name": "Grand Marais", "lat": 47.75, "lon": -90.33, "prepared": 1}]}))
+    siteground.CACHE.mkdir(parents=True, exist_ok=True)
+    (siteground.CACHE / "46.1000_-94.2000.json").write_text(json.dumps(
+        {"ok": True, "name": "Uncle Bob's Field", "lat": 46.1, "lon": -94.2, "rated": 1}))
+    geocode.CACHE.mkdir(parents=True, exist_ok=True)
+    (geocode.CACHE / "s_nisswa_1.json").write_text(json.dumps(
+        [{"short": "Nisswa", "name": "Nisswa, Crow Wing County, Minnesota"}]))
+    held = ("KC9SP", "KD0XYZ", "WRXY123", "Pequot Lakes", "Grand Marais",
+            "Uncle Bob's Field", "Nisswa")
+    said = ("KC9SP here with kd0xyz and WRXY123. Home is Pequot Lakes; we "
+            "packed for Grand Marais, rated the ground at Uncle Bob's Field "
+            "and looked up Nisswa.")
+    text, redacted = bugreport.build(conn, lines=20, said=said, kind="comment")
+    check("every callsign and place held is gone",
+          [n for n in held if n.lower() in text.lower()], [])
+    check("  each callsign is called a callsign", text.count("[callsign]"), 3)
+    check("  and each place a place", text.count("[place]"), 4)
+
+    said = ("Question T1A01 showed twice; my Mobile antenna was on 2 m. "
+            "W1AW was on the air too.")
+    text, _ = bugreport.build(conn, lines=20, said=said, kind="comment")
+    check("a question id survives", "T1A01" in text, True)
+    check("  a word that is also a bundled town survives", "Mobile antenna" in text, True)
+    check("  a callsign no account holds is nobody's secret", "W1AW" in text, True)
+    check("  and a held name inside a longer word is left alone",
+          bugreport.redact("Nisswan", places=["Nisswa"]), "Nisswan")
+
+    print("\n-- the log learns them too, as callsigns and as places --")
+    from elmer import logs
+    elmer_app._remember_private_names(conn)
+    check("the log calls a callsign a callsign",
+          logs.clean("second op is KD0XYZ at Grand Marais"),
+          "second op is [callsign] at [place]")
     conn.close()
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))

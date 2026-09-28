@@ -14,6 +14,7 @@ import json
 import logging
 import random
 import re
+import sqlite3
 import threading
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -243,17 +244,16 @@ def asset(filename):
 
 
 def _remember_private_names(connection=None):
-    """Hand the log the names it must never print: every account's callsign
-    and the town each QTH was named as. Called at start and whenever one of
+    """Hand the log the names it must never print: every callsign an account
+    holds and every place the unit has looked up or kept - see
+    bugreport.held_names. Called on the first request and whenever one of
     them is saved; the log's patterns find the rest on their own."""
     try:
-        from . import logs
-        connection = connection or db.connect()
-        for u in db.users(connection):
-            place = (u.get("settings") or {}).get("location") or {}
-            logs.remember_private(u.get("callsign"), place.get("short"), place.get("name"))
-    except Exception:
-        pass
+        calls, places = bugreport.held_names(connection or db.connect())
+        logs.remember_callsign(*calls)
+        logs.remember_private(*places)
+    except (sqlite3.Error, OSError) as exc:
+        log.warning("could not hand the log the unit's private names: %s", exc)
 
 
 def _build():
@@ -8579,6 +8579,7 @@ def _adopt_license(connection, call, settings=None):
             db.save_settings(connection, settings)
         return settings
     db.set_callsign(connection, call or "")
+    logs.remember_callsign(call)
     settings = db.get_profile(connection)["settings"] if save else settings
     found = callsign.lookup(call) if call else None
     if found is not None or not call:
@@ -8620,6 +8621,7 @@ def _adopt_gmrs(call, settings):
         settings.pop("gmrs", None)
         return settings
     settings["gmrs_call"] = call
+    logs.remember_callsign(call)
     found = callsign.lookup(call)
     if found:
         settings["gmrs"] = found
@@ -8666,6 +8668,7 @@ def _adopt_commercial(call, settings):
         settings.pop("commercial_license", None)
         return settings
     settings["commercial_call"] = call
+    logs.remember_callsign(call)
     found = callsign.lookup(call)
     if found:
         settings["commercial_license"] = found

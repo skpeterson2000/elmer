@@ -171,6 +171,8 @@ def prepare(where, radius_km=DEFAULT_RADIUS_KM, progress=None):
     rows = [r for r in _read() if r.get("name") != record["name"]]
     rows.append(record)
     _write(rows)
+    from . import logs
+    logs.remember_private(record["name"])
     return bool(got), ("prepared" if got else "recorded, but nothing was "
                                              "fetched"), record
 

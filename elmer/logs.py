@@ -54,17 +54,20 @@ DATEFMT = "%Y-%m-%d %H:%M:%S"
 # formatter, where the traceback passes through as well. A line that never
 # held the station cannot give it away, whoever reads it.
 #
-# The patterns find callsigns, grids, coordinates, addresses, home folders
-# and tokens on their own. A town is an ordinary word, so the names this
-# unit actually holds are registered here as they are learned - the QTH's
-# town, an account's callsign - and taken out by name.
+# The patterns find grids, coordinates, addresses, home folders and tokens
+# on their own. A town is an ordinary word, and a callsign found by its
+# shape takes question ids like T1A01 with it, so the names this unit
+# actually holds are registered here as they are learned - the accounts'
+# callsigns, the QTH's town, a trip, a rated spot, a place looked up - and
+# taken out by name.
 _private = set()
+_private_calls = set()
 _private_lock = threading.Lock()
 
 
 def remember_private(*words):
-    """Names this unit holds that a log line must not: the QTH's town, a
-    callsign. Short words are left alone - "Ely" is a town and a syllable."""
+    """Places this unit holds that a log line must not name. Short words are
+    left alone - "Ely" is a town and a syllable."""
     with _private_lock:
         for w in words:
             w = str(w or "").strip()
@@ -72,16 +75,31 @@ def remember_private(*words):
                 _private.add(w)
 
 
+def remember_callsign(*calls):
+    """Callsigns an account on this unit holds, taken out as [callsign]."""
+    with _private_lock:
+        for c in calls:
+            c = str(c or "").strip()
+            if len(c) >= 3:
+                _private_calls.add(c)
+
+
 def private_words():
     with _private_lock:
         return list(_private)
+
+
+def private_callsigns():
+    with _private_lock:
+        return list(_private_calls)
 
 
 def clean(text):
     """The text with the station taken out of it."""
     try:
         from . import bugreport
-        return bugreport.redact(text, places=private_words())
+        return bugreport.redact(text, places=private_words(),
+                                callsigns=private_callsigns())
     except Exception:        # the log must never fail for the sake of its filter
         return text
 

@@ -46,11 +46,13 @@ def main():
     keep.setFormatter(logs.CleanFormatter(logs.FMT, logs.DATEFMT))
     log.addHandler(keep)
     logs.remember_private("Pequot Lakes", "Ely")
+    logs.remember_callsign("KC9SP", "W1AW")
 
     print("\n-- what a line may not say --")
     log.info("QTH set to EN26uo (Pequot Lakes) for KC9SP at 46.5983,-94.3154 from /home/scott/elmer")
     line = keep.lines[-1]
     check("the callsign is gone", "KC9SP" in line, False)
+    check("  called a callsign, not a place", "for [callsign] at" in line, True)
     check("  the grid is cut to four characters", ("EN26xx" in line, "EN26uo" in line), (True, False))
     check("  the town the unit holds is gone", "Pequot" in line, False)
     check("  the coordinates are gone", "46.5983" in line, False)
@@ -60,6 +62,11 @@ def main():
     print("\n-- a short name is a syllable, not a secret --")
     log.info("Ely is a town")
     check("three letters are left alone", "Ely" in keep.lines[-1], True)
+
+    print("\n-- a callsign is taken out by name, never by its shape --")
+    log.info("T1A01 answered by N0CALL")
+    check("a question id survives", "T1A01" in keep.lines[-1], True)
+    check("  and so does a callsign nobody here holds", "N0CALL" in keep.lines[-1], True)
 
     print("\n-- a token, and a traceback --")
     log.info("repeaterbook token rbuapp_abcdef123456 refused")

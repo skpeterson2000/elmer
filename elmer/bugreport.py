@@ -8,19 +8,26 @@ pull in opposite directions, so this does both jobs deliberately: it gathers
 the diagnosis, and it takes out the things that identify a station unless the
 operator says otherwise.
 
-What comes out by default: the callsign, the last two characters of the grid
-square, any coordinates, and the addresses of machines on the home network.
+What comes out by default: every callsign an account on the unit holds, the
+names of the places it has looked up or kept, the last two characters of the
+grid square, any coordinates, and the addresses of machines on the home
+network.
 What stays: versions, timings, error text, tracebacks, and the sequence of
 requests - which is the part that actually finds a fault.
 
 The station is told exactly what was removed. Nobody should have to take a
 program's word for what it is about to send on their behalf.
 """
+import json
+import logging
 import platform
 import re
+import sqlite3
 import time
 from pathlib import Path
 from . import paths
+
+log = logging.getLogger("elmer")
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = paths.STATE / "elmer.log"
@@ -35,7 +42,6 @@ RE_GRID = re.compile(r"\b([A-R]{2}[0-9]{2})[a-x]{2}\b")
 RE_LATLON = re.compile(r"-?\b\d{1,3}\.\d{4,}\b")
 RE_PRIVATE_IP = re.compile(
     r"\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b")
-RE_CALL = re.compile(r"\b[AKNW][A-Z]?\d[A-Z]{1,3}\b")
 # An account name is often somebody's actual name, and a log is full of paths.
 # /home/jsmith/ELMER/data/elmer.log says more about a person than the grid
 # square that was so carefully cut down two lines above it.
@@ -48,18 +54,27 @@ RE_HOME = re.compile(r"(/home/|/Users/|\\Users\\)[^/\\ \t\n\"',;:)\]\[]+")
 RE_TOKEN = re.compile(r"\b(?:rbuapp|app)_[A-Za-z0-9._-]{6,}")
 
 
-def redact(text, callsign=None, places=()):
-    """Take the station out of the log, leaving the fault in it."""
-    if callsign:
-        text = re.sub(re.escape(str(callsign)), "[callsign]", text,
-                      flags=re.IGNORECASE)
+def _whole(word):
+    """A pattern for the word standing alone - "Mora" is not in "Moravian"."""
+    return r"(?<![A-Za-z0-9])" + re.escape(word) + r"(?![A-Za-z0-9])"
+
+
+def redact(text, callsign=None, places=(), callsigns=()):
+    """Take the station out of the log, leaving the fault in it.
+
+    Callsigns are taken out by name - the ones the unit's accounts hold -
+    and never by their shape. A pattern that finds a callsign finds things
+    that are not one, and a question id like T1A01 is the most useful word
+    in a report about that question."""
+    calls = {str(c).strip() for c in (callsign, *callsigns) if c}
+    for call in sorted((c for c in calls if len(c) >= 3), key=len, reverse=True):
+        text = re.sub(_whole(call), "[callsign]", text, flags=re.IGNORECASE)
     # The town ELMER named the QTH as is every bit as identifying as the grid
     # square it came from, and no pattern finds it - it is an ordinary string.
     # So the names this install actually holds are removed by name.
-    for name in sorted({str(p) for p in places if p and len(str(p)) > 3},
+    for name in sorted({str(p).strip() for p in places if p and len(str(p).strip()) > 3},
                        key=len, reverse=True):
-        text = re.sub(re.escape(name), "[place]", text, flags=re.IGNORECASE)
-    text = RE_CALL.sub("[callsign]", text)
+        text = re.sub(_whole(name), "[place]", text, flags=re.IGNORECASE)
     # A four-character grid is a hundred kilometers across, which is enough to
     # say "this happens in the upper midwest" and not enough to say whose
     # driveway it is.
@@ -69,6 +84,65 @@ def redact(text, callsign=None, places=()):
     text = RE_HOME.sub(lambda m: m.group(1) + "[user]", text)
     text = RE_TOKEN.sub("[token]", text)
     return text
+
+
+def held_names(conn=None):
+    """(callsigns, places): what this unit holds that says whose it is.
+
+    Every callsign any account holds - amateur, GMRS, commercial - and the
+    name of every place the unit has looked up or kept: each account's QTH,
+    the trip destinations, the spots whose ground was rated, and whatever
+    the gazetteer was asked for and answered. Not the bundled gazetteer:
+    that is a few hundred towns anybody could name, and some of them are
+    words - "a Mobile antenna" is not a place. Never raises; a source that
+    cannot be read is logged and left out."""
+    calls, places = set(), set()
+    if conn is not None:
+        try:
+            from . import db
+            for u in db.users(conn):
+                settings = u.get("settings") or {}
+                calls.update((u.get("callsign"), settings.get("gmrs_call"),
+                              settings.get("commercial_call")))
+                spot = settings.get("location") or {}
+                places.update((spot.get("short"), spot.get("name"), spot.get("grid")))
+        except (sqlite3.Error, AttributeError, TypeError) as exc:
+            log.warning("redaction: could not read the accounts' callsigns: %s", exc)
+    try:
+        from . import trip
+        places.update(d.get("name") for d in trip.listing())
+    except (OSError, ValueError, AttributeError) as exc:
+        log.warning("redaction: could not read the trip destinations: %s", exc)
+    try:
+        from . import siteground
+        places.update(s.get("name") for s in siteground.kept_spots())
+    except (OSError, ValueError, AttributeError) as exc:
+        log.warning("redaction: could not read the rated ground spots: %s", exc)
+    places.update(_looked_up())
+    return ({str(c).strip() for c in calls if c and str(c).strip()},
+            {str(p).strip() for p in places if p and str(p).strip()})
+
+
+def _looked_up():
+    """The names in the gazetteer's own cache: every place it was asked for
+    by name, and every point it was asked to name."""
+    from . import geocode
+    names = set()
+    try:
+        files = list(geocode.CACHE.glob("*.json")) if geocode.CACHE.is_dir() else []
+    except OSError as exc:
+        log.warning("redaction: could not list the gazetteer's cache %s: %s", geocode.CACHE, exc)
+        return names
+    for path in files:
+        try:
+            got = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            log.warning("redaction: could not read looked-up place %s: %s", path.name, exc)
+            continue
+        for row in (got if isinstance(got, list) else [got]):
+            if isinstance(row, dict):
+                names.update((row.get("short"), row.get("name")))
+    return names
 
 
 def build_stamp():
@@ -260,16 +334,7 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
         add("")
         add(f"(a {kind} with nothing written in it)")
 
-    callsign, places = None, []
-    if conn is not None and not include_station:
-        try:
-            from . import db
-            profile = db.get_profile(conn)
-            callsign = profile["callsign"]
-            spot = profile["settings"].get("location") or {}
-            places = [spot.get("short"), spot.get("name"), spot.get("grid")]
-        except Exception:
-            callsign, places = None, []
+    calls, places = held_names(conn) if not include_station else ((), ())
 
     if kind != "problem":
         # A comment, a question or a suggestion: the words and the build
@@ -277,7 +342,7 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
         text = "\n".join(out) + "\n"
         if include_station:
             return text, False
-        return redact(text, callsign, places), True
+        return redact(text, places=places, callsigns=calls), True
 
     # The self-check, embedded. A report that made somebody read four hundred
     # log lines to find what one line of the doctor already knew was a report
@@ -332,7 +397,7 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
     text = "\n".join(out) + "\n"
     if include_station:
         return text, False
-    return redact(text, callsign, places), True
+    return redact(text, places=places, callsigns=calls), True
 
 
 # The name a report file has, and the only names the page may ask for by

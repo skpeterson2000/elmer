@@ -106,8 +106,8 @@ about you travels with those requests beyond the thing asked. The moon, the mete
 from a clock and arithmetic, and fetch nothing. Two things can be sent
 *from* a unit, and both are entirely voluntary: a **problem report**, when you
 press for it, and a **weekly field report**, when you switch it on — each
-written to disk and shown to you before it goes, each redacted of callsign,
-QTH and addresses, each to KC9SP@arrl.net — by the drop, with nothing of
+written to disk and shown to you before it goes, each redacted of the
+unit's callsigns, the places it holds and addresses, each to KC9SP@arrl.net — by the drop, with nothing of
 yours on it, or through your own outgoing-mail settings if you would rather.
 Nothing is sent that you have not either pressed for or switched on and been
 shown the contents of. See *Mail home*, below.

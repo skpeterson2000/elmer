@@ -13,8 +13,9 @@ names a station:
   it; which months its calibration covers;
 * how many hall rounds and study answers the week had, as counts;
 * the errors and warnings, counted, and the last few of them in full -
-  redacted the same way a problem report is (callsign, grid, coordinates,
-  network addresses, home directories out).
+  redacted the same way a problem report is (the unit's callsigns and the
+  places it holds, grid, coordinates, network addresses, home directories
+  out).
 
 It is **off** until the operator turns it on, the switch says exactly what
 the report contains, every report is written to the state directory before
@@ -329,17 +330,8 @@ def build(conn=None, now=None):
             out.extend("   " + f for f in frames)
 
     text = "\n".join(out) + "\n"
-    callsign, places = None, []
-    if conn is not None:
-        try:
-            from . import db
-            profile = db.get_profile(conn)
-            callsign = profile["callsign"]
-            spot = profile["settings"].get("location") or {}
-            places = [spot.get("short"), spot.get("name"), spot.get("grid")]
-        except Exception:
-            pass
-    return bugreport.redact(text, callsign, places)
+    calls, places = bugreport.held_names(conn)
+    return bugreport.redact(text, places=places, callsigns=calls)
 
 
 def write(conn=None, now=None):

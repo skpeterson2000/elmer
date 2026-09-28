@@ -5,6 +5,10 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-28
+
+- A report takes out every callsign an account on the unit holds, as [callsign] - a second account's, a GMRS call - not only the one in the settings, and the log no longer calls a callsign [place]. It also takes out the places the unit has looked up or kept: trip destinations, spots whose ground was rated, places typed into a search, not only the QTH. Both are taken out by name and never by shape, so T1A01 stays in a report about that question, another station's callsign stays in, and "a Mobile antenna" keeps its word: the bundled gazetteer is left alone.
+
 ## 2026-09-27
 
 - The report drop has a rate limit: six reports an hour from one unit, thirty an hour from every unit together, eighty a day. The address is public, a unit's mark is its own word, and the owner's Google account mails about a hundred a day in all, so a unit stuck in a loop, or somebody who has found the URL, could spend the day's mail in an hour. A report over a limit is refused with a sentence saying which and when it resets, and stays on the unit with Open it and Save it beside it. Opening the drop's URL says which limits the deployed version holds. The script's own test runs it in a browser against stand-ins for Google's services.

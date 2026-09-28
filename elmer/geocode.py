@@ -80,6 +80,12 @@ def _cached(name, fetch):
     value = fetch()
     if value is not None:
         path.write_text(json.dumps(value))
+        # A place looked up is one this unit now holds, and the log must not
+        # name it - see bugreport.held_names, which reads this cache.
+        from . import logs
+        for row in (value if isinstance(value, list) else [value]):
+            if isinstance(row, dict):
+                logs.remember_private(row.get("short"), row.get("name"))
     return value
 
 

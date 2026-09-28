@@ -332,6 +332,9 @@ def survey(lat, lon, name="", refresh=False):
     for - which is what makes it work in a field with no signal. Never
     raises; what could not be fetched is listed under "missing"."""
     lat, lon = round(float(lat), 4), round(float(lon), 4)
+    if name:
+        from . import logs
+        logs.remember_private(name)
     kept = cached(lat, lon)
     if kept and not refresh:
         kept["kept"] = True

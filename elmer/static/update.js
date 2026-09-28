@@ -392,7 +392,7 @@ document.addEventListener('click', async e => {
     if (out) out.innerHTML =
       '<p class="tiny" style="margin:.5rem 0 .2rem">Written to <span class="mono">' +
         escapeHTML(d.path) + '</span>' +
-        (d.redacted ? ' &mdash; callsign, QTH and network addresses removed.'
+        (d.redacted ? ' &mdash; callsigns, places and network addresses removed.'
                     : ' &mdash; <b>with your callsign on it</b>, as you asked.') +
         reportLinks(d) +
         (d.way
