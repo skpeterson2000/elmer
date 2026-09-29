@@ -4161,6 +4161,21 @@ def api_calibrate_status():
     return jsonify(calibrate.status())
 
 
+@app.route("/api/calibrate/charts")
+def api_calibrate_charts():
+    """What calibration has done: the table in force, every run's scores,
+    and the live forecast against the sondes - see calcharts. A run not yet
+    summarised is summarised here, once, which on a Pi is some seconds."""
+    import secrets
+    from . import calcharts
+    try:
+        return jsonify({"ok": True, **calcharts.charts()})
+    except Exception:                                   # noqa: BLE001 - said, with a reference
+        ref = "e-" + secrets.token_hex(2)
+        log.exception("calibration charts UNHANDLED  ref %s", ref)
+        return jsonify({"ok": False, "error": f"The charts could not be worked out (reference {ref})."}), 500
+
+
 @app.route("/api/cards")
 def api_cards():
     """A card for a screen that is waiting: the history deck, the quotes,

@@ -147,6 +147,18 @@ class Job:
             self.result = {"before": _slim(bare), "after": _slim(after), "table": table,
                            "held": _slim(held_run) if held_run else None,
                            "held_made": (self.held or {}).get("made")}
+            # Kept for the charts, and the older runs' replay folders let go:
+            # eighteen megabytes each, and a Pi's card filled with them. A
+            # failure here costs the charts a run, never the calibration.
+            try:
+                from . import calcharts
+                key = f"{start:%Y%m%d}-{end:%Y%m%d}-{self.build}"
+                run = next((r for r in calcharts.runs_on_disk() if r["key"] == key), None)
+                if run:
+                    calcharts.summarize(run)
+                    calcharts.prune(key)
+            except Exception:                           # noqa: BLE001 - the charts' loss, not the run's
+                log.exception("calibration: the run's summary for the charts was not kept")
             self.state = "done"
             log.info("calibration: done for %s - %d cells applied, 24h MAE bare %.2f, in force %s, new %.2f",
                      self.place, applied, b24 or 0, f"{h24:.2f}" if h24 else "none", a24 or 0)

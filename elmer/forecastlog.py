@@ -188,6 +188,9 @@ def record(bands, inputs, build, now=None):
                                               "anchor", "lat", "lon", "adjustment")},
         "hours": hours,
         "mufs": [h.get("muf") for h in bands[0]["hours"]],
+        # the model before the unit's corrections, hour by hour - see
+        # propagation.outlook - so a chart can show what they did
+        "mufs_model": [h.get("muf_model") for h in bands[0]["hours"]],
         "regimes": [h.get("regime") for h in bands[0]["hours"]],
         "bands": {b["band"]: [h["score"] for h in b["hours"]] for b in bands if b.get("hours")},
     }

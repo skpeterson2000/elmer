@@ -3134,6 +3134,40 @@ said to be, because a unit between the stations the season was fitted from
 will mostly find the model already fits — and being told so, with an n, is a
 measured answer too. Nothing leaves the unit.
 
+**What calibration has done.** An operator asked whether calibration works as
+intended, and nothing on the page could say: a run printed three numbers while
+it ran and kept only its table. The record to answer from was on the unit all
+along - every run leaves a year of the model against the sondes, bare and with
+its table, and the live forecast keeps its own log - so the Propagation page
+draws it (`calcharts.py`, `calcharts.js`): the live forecast as issued 6 to 24
+hours ahead against the sondes, at the longest lead the log has, since the
+first hours are held to the reading by design; the latest run's year month by
+month, bare and calibrated, with "same as yesterday"; the table in force, every
+month and sky, applied or not and why; and every run's 24-hour error and bias.
+The runs score the model alone, as calibration fits it, and the live forecast
+also blends in the last days' measurements, so the charts label the two and
+never read them as one. The forecast now logs the model's own figure each hour
+beside what it issued (`muf_model`), before calibration, learned bias and the
+blend, so the live chart can show what those corrections did.
+
+What the record showed, on the first unit charted, five runs over three days:
+the table takes the 24-hour bias from about -0.33 MHz to about +0.05, and the
+24-hour error does not move (2.64 bare, 2.66 calibrated, on the latest year).
+A single factor for a month and a sky can shift the month; it cannot follow a
+sky that swings both ways within it. Of 36 cells, 7 were applied and 29 left
+at 1.0 as within ten percent - twilight included, though it runs 1 to 3 MHz
+low on average - and "same as yesterday" beat the bare model in 12 of 13
+months. The guide had said calibration makes every forecast more accurate and
+was the single biggest improvement to make; it now says what the charts show.
+
+A run's replay folders are about eighteen megabytes a pass and were never
+removed; a unit that calibrated a few times carried a couple of hundred
+megabytes of them. Each run is summarised now - a few kilobytes, kept under
+`hindcast/runs/` - and once it is, older runs' folders are removed at the end
+of the next run (`calcharts.prune`); the latest run's stay. A lone bare folder,
+a command-line hindcast or a stopped run, is not a run and is left alone
+(`tests/test_calcharts.py`).
+
 **A month in a few minutes.** `./elmer.py --hindcast 30` fetches the last
 thirty days from the record — every 15-minute ionosonde reading from the North
 American Digisondes (GIRO/DIDBase), every three-hourly Kp (GFZ), the daily

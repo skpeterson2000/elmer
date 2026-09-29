@@ -2147,6 +2147,10 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
         weight = anchor_at(anchor, anchor_sun, elevation, hours_since=step)
         muf, fof2 = levels(sfi, elevation, lat, m3000, weight,
                            drive=f2_drive(lat, lon, when), when=when)
+        # The model's own figure, after the reading's anchor and before the
+        # unit's corrections - calibration, learned bias, the record's blend
+        # - so the forecast log can show what those corrections did.
+        model_muf = muf
         state = sun_regime(elevation, lat, when)
         if (bias or calibration) and muf:
             # How much of the anchor is still holding at this hour: all of it
@@ -2180,7 +2184,8 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         got.update({"at": when.isoformat(), "hour": when.hour,
                     "elevation": round(elevation, 1), "fof2": fof2,
-                    "regime": state, "day": state == "lit"})
+                    "regime": state, "day": state == "lit",
+                    "muf_model": round(model_muf, 1) if model_muf else model_muf})
         out.append(got)
     return out
 

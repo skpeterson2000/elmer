@@ -128,6 +128,8 @@
       findings.scrollTop = findings.scrollHeight;
     }
     if (s.state === 'done' && s.result) paintResult(s.result);
+    // A run just finished while watched: the charts below have a new run.
+    if (s.state === 'done' && poll && typeof calchartsLoad === 'function') calchartsLoad();
     if (!running) {
       clearInterval(poll); poll = null;
       stopCards();

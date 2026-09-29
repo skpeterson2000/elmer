@@ -152,6 +152,49 @@
   <div id="cal-result" class="mt" hidden></div>
 </div>
 
+{# What calibration has done - see calcharts.py. Asked for because nothing on
+   the page could say whether calibration works as intended: a run printed
+   three numbers while it ran and kept only its table. The live forecast
+   leads, because it is the forecast as actually issued; the runs score the
+   model alone, as calibration fits it, and say so. #}
+<div class="panel mt" id="calc-panel">
+  <div class="panel-title">What calibration has done</div>
+  <p class="small muted" style="max-width:80ch;margin:.35rem 0 .2rem">
+    Two records, labelled for what they are. <b>The live forecast</b> is what
+    this unit actually issued a day ahead, against what the sondes then
+    measured. <b>The runs</b> replay a year blind with the model alone, once
+    bare and once with the table each run fitted &mdash; which is how
+    calibration judges itself. The live forecast also leans on the last few
+    days&rsquo; measurements, so the two are never read as one.
+  </p>
+  <div id="calc-body"><span class="small muted">Looking&hellip;</span></div>
+</div>
+<style>
+/* The four charts' colors, validated as sets against the panel (#151b23):
+   the model bare and calibrated, and the three skies. The measured line is
+   the reference, in the page's dim ink. */
+#calc-panel { --calc-bare: #d95926; --calc-cal: #3987e5; --calc-meas: #8b98a5;
+              --calc-lit: #c98500; --calc-gray: #199e70; --calc-dark: #9085e9;
+              --calc-grid: #232c37; --calc-axis: #384658; }
+.calc-chart { margin: 1.1rem 0 0; }
+.calc-chart h3 { font-size: .95rem; margin: 0 0 .15rem; }
+.calc-chart .read { margin: .1rem 0 .45rem; max-width: 90ch; }
+.calc-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.calc-chart svg text { fill: var(--dim); font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+.calc-legend { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin: .35rem 0 0; }
+.calc-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.calc-key-line { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+.calc-key-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.calc-key-bar { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.calc-tip { position: fixed; pointer-events: none; z-index: 50; background: var(--panel-2); border: 1px solid var(--line-2);
+            border-radius: 8px; padding: .4rem .55rem; font-size: .78rem; line-height: 1.45; max-width: 18rem; }
+.calc-tip b { color: var(--text); }
+.calc-tip .k { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: .35rem; }
+.calc-table { font-size: .8rem; border-collapse: collapse; margin: .4rem 0 0; }
+.calc-table th, .calc-table td { padding: .15rem .6rem .15rem 0; text-align: right; font-variant-numeric: tabular-nums; }
+.calc-table th:first-child, .calc-table td:first-child { text-align: left; }
+</style>
+
 {# ---------------------------------------------------------------------
    DEVELOPMENT ONLY. Delete this panel, elmer/devreset.py and the
    /api/dev/reset routes in app.py to take it out. Nothing else uses it.
@@ -173,4 +216,5 @@
 {% block scripts %}
 <script src="{{ asset('propagation.js') }}"></script>
 <script src="{{ asset('calibrate.js') }}"></script>
+<script src="{{ asset('calcharts.js') }}"></script>
 {% endblock %}

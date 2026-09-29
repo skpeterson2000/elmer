@@ -240,7 +240,7 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 
 ### Calibrate my forecast
 
-**What it is for.** ELMER's forecast knows the sun and the flux. It does not know that the F layer over your town runs denser on a winter noon than the sun angle says, or by how much, and that error is different at every latitude. Calibrating measures your own, and makes every forecast this unit gives you more accurate from then on. It is the single biggest thing you can do to improve the band plan's verdicts and the reach map, and most people never need to do it more than a few times a year.
+**What it is for.** ELMER's forecast knows the sun and the flux. It does not know that the F layer over your town runs denser on a winter noon than the sun angle says, or by how much, and that error is different at every latitude. Calibrating measures your own, and corrects the forecast's level for this place, month by month and sky by sky, from then on. What it buys is measured and shown, under **What calibration has done**: on the record so far it takes out the forecast's average bias, running high or low, and moves its hour-by-hour error very little, because a single correction for a month can shift the whole month but cannot follow a sky that swings both ways within it. Most people never need to run it more than a few times a year.
 
 **Before you can run it.** Set your QTH first, at the top of the Propagation page. The forecast is about a place and so is its correction, and the button will tell you so rather than run on a guess. You also need a network for the first minute or so, while it fetches the record. Run it from the unit's own screen: a phone on the table cannot start it, because it is this unit's processor doing the work and this unit's table at the end of it.
 
@@ -253,6 +253,15 @@ The numbers come from hamqsl.com and NOAA's Space Weather Prediction Center, cac
 **Do you have to apply it? No.** The correction is saved when the run finishes and every forecast this unit makes for this place uses it from that moment on.
 
 ![What the five minutes buys: the forecast run blind against a year of real readings, and the gap between the two kept as a correction for this place.](docs/figures/guide/prop-calibrate.png) There is no switch to throw and nothing to accept. You will see it in the band plan's hour-by-hour verdicts, in the reach map and in the propagation outlook, without doing anything else.
+
+**What calibration has done.** Under the button, four charts, each with a sentence saying what it shows, a legend, the values under the pointer, and **As a table** for the numbers themselves.
+
+- **The live forecast, a day ahead, against the sondes.** What this unit actually issued six to twenty-four hours ahead, against what the sondes then measured, over the last sixty days, with each calibration marked. From this build on it also draws the model's own figure before the unit's corrections, so you can see what they did. This is the forecast as you use it, and it leans on the last few days' measurements as well as the model.
+- **The latest run's year, month by month.** The model alone, bare and with the table the run fitted, as calibration judges itself, with "same as yesterday" - the hour's measurement a day before - as the yardstick.
+- **What calibration decided.** Every month and sky: what the sondes read against the model, filled where it was applied and hollow where it was not, and why not - within ten percent of the model, which the fit does not act on, or too few hours to believe.
+- **Run by run.** Each run's 24-hour error bare, with its new table, and with the table that was in force, and the bias each left.
+
+Each run keeps a short summary for these charts. The run's full replay, about eighteen megabytes a pass, is kept only for the latest run; older runs' replays are removed once their summaries are written.
 
 **Choose a depth.** A quarter, a half year or a full year. Each depth refreshes the months it actually covers and leaves the rest exactly as the last run that saw them measured. So a quick run in September sharpens the autumn and leaves December standing on the full year you ran in the spring. Deeper is better and slower; the year is the one to run first.
 
