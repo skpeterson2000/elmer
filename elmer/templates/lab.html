@@ -221,6 +221,13 @@
          is worked out from the frequency. #}
       <div class="field an-when-tw" style="display:none"><label>Wire length, end to end (ft)</label>
         <input id="an-len" value="500"></div>
+      {# Where the ends are tied off - a fence post, a tree, a stake. It is
+         the number somebody knows before they go out, and the droop or the
+         slope is whatever it makes; the slider above and this box are one
+         value, either way round. A terminated wire's ends were the
+         handbook's 6 ft posts, always. #}
+      <div class="field an-when-ends" style="display:none"><label id="an-ends-label">Ends tied off at (ft)</label>
+        <input id="an-ends" inputmode="decimal" placeholder="6"></div>
 
       {# One slider for the angle, whatever the antenna calls it. The type
          above is the selector: a dipole and an end-fed slope, a V droops its

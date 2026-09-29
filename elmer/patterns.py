@@ -257,22 +257,25 @@ class Laid(str):
     string gets the handbook's sizes on 40 m.
     """
 
-    def __new__(cls, kind, length_ft=None, height_ft=None, mhz=None):
+    def __new__(cls, kind, length_ft=None, height_ft=None, mhz=None, end_ft=None):
         obj = super().__new__(cls, kind)
         spec = TRAVELLING.get(kind, {})
         obj.length_ft = float(length_ft or spec.get("length_ft", 250.0))
         obj.height_ft = float(height_ft if height_ft is not None
                               else spec.get("height_ft", 40.0))
         obj.mhz = float(mhz or 7.15)
+        # Where the ends are tied off: the handbook's 6 ft insulator posts,
+        # or the fence post and the tree somebody actually has.
+        obj.end_ft = float(end_ft) if end_ft is not None else TRAVELLING_END_FT
         return obj
 
 
-def laid(kind, length_ft=None, height_ft=None, mhz=None):
-    """The kind, carrying its length and height when it is a terminated
-    wire; any other antenna comes back as it went in."""
+def laid(kind, length_ft=None, height_ft=None, mhz=None, end_ft=None):
+    """The kind, carrying its length, height and end height when it is a
+    terminated wire; any other antenna comes back as it went in."""
     if kind not in TRAVELLING:
         return kind
-    return Laid(kind, length_ft, height_ft, mhz)
+    return Laid(kind, length_ft, height_ft, mhz, end_ft)
 
 
 def is_travelling(kind):
@@ -342,7 +345,7 @@ def _travelling_setup(kind, height_wl=None):
     length_wl = getattr(kind, "length_ft", TRAVELLING.get(kind, {}).get("length_ft", 250.0)) / lam_ft
     if height_wl is None:
         height_wl = getattr(kind, "height_ft", TRAVELLING.get(kind, {}).get("height_ft", 40.0)) / lam_ft
-    end_wl = TRAVELLING_END_FT / lam_ft
+    end_wl = getattr(kind, "end_ft", TRAVELLING_END_FT) / lam_ft
     alpha = math.log(1.0 / TRAVELLING_TO_LOAD) / (2.0 * length_wl)
     return travelling_legs(str(kind), height_wl, length_wl, end_wl), alpha, length_wl
 
@@ -369,6 +372,7 @@ def _travelling_table(kind, height_wl, mhz=None, ground="average"):
     the firing direction is all of it."""
     lam_ft = 983.571 / kind_mhz(kind)
     key = (str(kind), round(getattr(kind, "length_ft", 0.0), 1),
+           round(getattr(kind, "end_ft", TRAVELLING_END_FT), 1),
            round(height_wl, 3), round(kind_mhz(kind), 3),
            round(float(mhz), 3) if mhz else None, ground)
     hit = _TRAVELLING_TABLES.get(key)

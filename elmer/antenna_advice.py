@@ -1153,7 +1153,7 @@ def room_ft(site):
     return (SITES.get(site) or {}).get("room_ft")
 
 
-def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None):
+def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None, end_ft=None):
     """How much ground this antenna covers in a straight line, in feet, or
     None where length is not what it asks of a site (a vertical wants
     radials under the grass, a beam a mast, a whip a car).
@@ -1174,7 +1174,8 @@ def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None):
     if kind == "loop":
         return round(1005.0 / mhz / 4.0)
     if kind in ("tefv", "termsloper") and length_ft:
-        rise = max(0.0, float(height_ft or 0.0) - TW_END_FT)
+        ends = TW_END_FT if end_ft is None else float(end_ft)
+        rise = max(0.0, float(height_ft or 0.0) - ends)
         if kind == "tefv":
             leg = float(length_ft) / 2.0
             return round(2.0 * math.sqrt(max(0.0, leg * leg - min(rise, leg) ** 2)))
@@ -1188,12 +1189,12 @@ def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None):
 TW_END_FT = 6.0
 
 
-def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None):
+def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=None):
     """Whether this antenna fits where somebody lives, lengthwise, and if
     not, what does. None where the site sets no length or the antenna asks
     none of it."""
     room = room_ft(site)
-    need = footprint_ft(kind, mhz, height_ft, length_ft, droop_deg)
+    need = footprint_ft(kind, mhz, height_ft, length_ft, droop_deg, end_ft)
     if not room or not need:
         return None
     label = SITES[site]["label"]
@@ -1218,7 +1219,7 @@ def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None):
         instead.append("Make it a triangle, or stand it on a corner - the wire is the same length "
                        "and the footprint is not a square any more.")
     if kind in ("tefv", "termsloper"):
-        rise = max(0.0, float(height_ft or 0.0) - TW_END_FT)
+        rise = max(0.0, float(height_ft or 0.0) - (TW_END_FT if end_ft is None else float(end_ft)))
         if kind == "tefv":
             longest = 2.0 * math.sqrt((room / 2.0) ** 2 + rise ** 2)
         else:

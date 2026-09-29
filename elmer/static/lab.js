@@ -1027,6 +1027,59 @@ function antAngle() {
    looks at a dipole to compare and comes back should find 45 still there. */
 const angleMemory = {};
 
+/* Where the ends are tied off, for the antennas whose ends hang somewhere:
+   what the box is called for each. A V's two ends, a sloper's low one, a
+   terminated wire's feed and resistor. */
+const ENDS_FOR = {
+  invertedv: 'Ends tied off at (ft)',
+  dipole: 'Low end tied off at (ft)',
+  efhw: 'Low end tied off at (ft)',
+  tefv: 'Ends tied off at (ft) \u2014 the feed and the resistor',
+  termsloper: 'Low end tied off at (ft) \u2014 the resistor',
+};
+/* Once the ends are typed they hold: raise the apex and the droop follows,
+   the way it does when the rope is already tied to the fence. Move the
+   slider and the ends follow it instead. */
+let endsHeld = false;
+
+/* The wire the angle is taken along: a V's leg, a sloping dipole's or an
+   end-fed's whole length, cut for the conductor on screen. */
+function endsWire(type, f) {
+  const k = (COND && COND.k) || 0.95;
+  const whole = 468 / f * k / 0.95;
+  return type === 'invertedv' ? whole / 2 : whole;
+}
+
+/* A terminated wire's end height: the box, or the handbook's posts. */
+function twEnds() {
+  const box = document.getElementById('an-ends');
+  const v = box ? parseFloat(box.value) : NaN;
+  return box && box.value.trim() !== '' && v >= 0 ? v : TW_END_FT;
+}
+
+/* The box and the slider kept as one value. `from` is what just changed. */
+function syncEnds(from) {
+  const type = (document.getElementById('an-type') || {}).value;
+  const box = document.getElementById('an-ends');
+  if (from === 'an-type') { endsHeld = false; if (box) box.value = ''; }
+  if (!box || !ENDS_FOR[type] || isTw(type)) return;
+  const f = num('an-f'), h = num('an-h'), wire = endsWire(type, f);
+  if (!(f > 0) || !(h > 0) || !(wire > 0)) return;
+  const slider = document.getElementById('an-angle');
+  if (from === 'an-ends') endsHeld = box.value.trim() !== '';
+  if (from === 'an-angle') endsHeld = false;
+  if (endsHeld) {
+    const ends = Math.max(0, parseFloat(box.value) || 0);
+    const deg = Math.round(Math.asin(Math.min(1, Math.max(0, (h - ends) / wire))) * 180 / Math.PI);
+    slider.value = String(Math.min(+slider.max, deg));
+    const mirror = document.getElementById('an-angle-2');
+    if (mirror) mirror.value = slider.value;
+  } else {
+    const ends = h - wire * Math.sin(antAngle() * Math.PI / 180);
+    box.value = String(Math.max(0, Math.round(ends * 10) / 10));
+  }
+}
+
 function applyAngle(type) {
   const spec = ANGLE_FOR[type];
   const el = document.getElementById('an-angle');
@@ -1070,6 +1123,9 @@ function antennaFields(type) {
      compass where a wire's only needs half. The mast starts at the
      handbook's height the first time one is chosen. */
   show('.an-when-tw', isTw(type));
+  show('.an-when-ends', !!ENDS_FOR[type]);
+  const endsLabel = document.getElementById('an-ends-label');
+  if (endsLabel && ENDS_FOR[type]) endsLabel.textContent = ENDS_FOR[type];
   ['an-head', 'an-head-2'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = wrapHead(parseFloat(el.value) || 0, type);
@@ -1409,16 +1465,17 @@ function calcAnt() {
   } else if (isTw(type)) {
     shape = 'tw';
     const lenFt = Math.max(20, num('an-len') || TW_DEFAULTS[type].len);
-    const mastFt = Math.max(TW_END_FT + 1, num('an-h') || TW_DEFAULTS[type].mast);
+    const endsFt = twEnds();
+    const mastFt = Math.max(endsFt + 1, num('an-h') || TW_DEFAULTS[type].mast);
     const legs = type === 'tefv' ? 2 : 1;
     const legFt = lenFt / legs;
-    const rise = Math.min(mastFt - TW_END_FT, legFt * 0.999);
+    const rise = Math.min(mastFt - endsFt, legFt * 0.999);
     const run = Math.sqrt(Math.max(0, legFt * legFt - rise * rise));
     if (legs === 2) rows['Each leg, post to mast top'] = legFt;
     rows['Wire, end to end'] = lenFt;
     rows['Ground covered, feed to resistor'] = run * legs;
     rows[legs === 2 ? 'Mast' : 'Support'] = mastFt;
-    rows['End posts'] = TW_END_FT;
+    rows[legs === 2 ? 'Ends tied off at' : 'Low end tied off at'] = endsFt;
     gain = null;
     z = 600;
     gainRef = OVER_GROUND;
@@ -1765,7 +1822,12 @@ function calcAnt() {
      making it look better for distance than it is. */
   const vDrop = type === 'invertedv'
     ? V_CENTROID * legFt * Math.sin(antAngle() * Math.PI / 180) : 0;
-  const effHeight = slope ? Math.max(1, heightFt - slopeDrop / 2)
+  /* The current-weighted height of a sloping wire is its middle. A dipole
+     hangs from its high end, so its middle is slopeDrop below the support
+     (slopeDrop is half its drop, above); an end-fed's is half its drop
+     below. The dipole's was taken as a quarter of its drop - eight feet
+     too high for a 40 m dipole at thirty degrees. */
+  const effHeight = slope ? Math.max(1, heightFt - (type === 'dipole' ? slopeDrop : slopeDrop / 2))
     : vDrop ? Math.max(1, heightFt - vDrop)
       : heightFt;
   const heading = num('an-head');
@@ -1844,7 +1906,7 @@ function drawAntenna(shape, rows, type) {
     const sc = Math.min(room / Math.max(1, covered), headroom / Math.max(1, mast));
     const run = covered * sc;
     const xa = W / 2 - run / 2, xb = W / 2 + run / 2;
-    const yTop = g - mast * sc, post = g - TW_END_FT * sc;
+    const yTop = g - mast * sc, post = g - twEnds() * sc;
     const res = (x, y) => '<rect x="' + (x - 5) + '" y="' + Math.min(y, g - 8) + '" width="10" height="' +
       Math.max(8, g - y) + '" fill="none" stroke="#f47067" stroke-width="2"/>';
     if (type === 'tefv') {
@@ -2159,7 +2221,7 @@ function wirePlanTurn(box, d) {
 
 ['an-type', 'an-f', 'an-h', 'an-len', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-angle', 'an-nvis', 'an-head', 'an-site', 'an-floor',
- 'an-use', 'an-pw']
+ 'an-use', 'an-pw', 'an-ends']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -2170,15 +2232,17 @@ function wirePlanTurn(box, d) {
       // Typed here, so it is a measurement from now on and follows nothing.
       if (id === 'an-h') anHeightSuggested = false;
       antennaFields(document.getElementById('an-type').value);
+      syncEnds(id);
       /* A terminated wire's length, for the band plan's reach map, which has
          no box for it. The Lab's full record is kept only when advice is
          asked for, so 50 ft typed here reached the map as the handbook's
          500 - a different antenna, low and one way where this one is steep
          and nearly all round. This is kept on every change, and nothing
          else in the Lab reads it. */
-      if (id === 'an-type' || id === 'an-len') {
+      if (id === 'an-type' || id === 'an-len' || id === 'an-ends') {
         const type = document.getElementById('an-type').value;
-        if (isTw(type)) remember('lab.antenna.wire', {kind: type, length_ft: Math.max(20, num('an-len') || TW_DEFAULTS[type].len)});
+        if (isTw(type)) remember('lab.antenna.wire', {kind: type, length_ft: Math.max(20, num('an-len') || TW_DEFAULTS[type].len),
+                                                     ends_ft: twEnds()});
       }
       /* The advice panel sits above all this and only refreshed when the
          button was pressed, so changing the antenna underneath it left it
@@ -2215,7 +2279,7 @@ function wirePlanTurn(box, d) {
          degrees and at 45 - which is the whole use of setting the angle on
          the ground before going out with it. The panel follows the slider
          rather than describing the angle it was last asked about. */
-      if (id === 'an-angle') { refreshAdvice(); calcAnt(); return; }
+      if (id === 'an-angle' || id === 'an-ends') { refreshAdvice(); calcAnt(); return; }
       if (id === 'an-site' || id === 'an-use') {
         // The questions changed. A suggested antenna follows them; a chosen
         // one stays, and only the advice about it is refreshed.
@@ -3355,6 +3419,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
                          to choose - so whether it fits the lot is theirs to
                          know. Other wires are cut to the band. */
                       length: isTw(kind) ? Math.max(20, num('an-len') || TW_DEFAULTS[kind].len) : '',
+                      ends: isTw(kind) ? twEnds() : '',
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
                       /* Evaluate sends the height on screen, to be judged
                          beside ELMER's - never replaced by it. */
@@ -4057,7 +4122,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
        heading: heading || 0, nvis: nvisOn, slope: slope || 0,
        conductor: (COND && COND.key) || 'wire14',
        droop: type === 'invertedv' ? antAngle() : '',
-       length: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : ''}));
+       length: isTw(type) ? (num('an-len') || TW_DEFAULTS[type].len) : '',
+       ends: isTw(type) ? twEnds() : ''}));
   } catch (e) { if (asked === patternAsked) box.innerHTML = ''; return; }
   if (asked !== patternAsked) return;      // a newer question is on its way
   const was = LAB_FEED_R;

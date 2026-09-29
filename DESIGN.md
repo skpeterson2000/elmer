@@ -2734,6 +2734,22 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   antenna here. Verticals, beams and whips are not held to a length, and nor
   is the tower "and room for it".
 
+  Where the ends are tied off is asked, not assumed. The Lab marked the
+  high point - an apex, a support, a mast top - and took the ends from an
+  angle, and for the terminated wires from the handbook's 6 ft posts,
+  always; somebody going out with a wire knows the fence post and the tree,
+  not the angle. One box, **Ends tied off at**, is one value with the angle
+  slider either way round (`syncEnds` in lab.js): ends typed for a V set its
+  droop, asin((apex - ends) / leg), and for a sloping dipole or end-fed its
+  slope along the whole wire; a moved slider sets the ends. Typed ends hold,
+  so raising the apex steepens the droop. For a terminated wire the box is
+  the end height itself, carried on the laid kind (`patterns.Laid.end_ft`,
+  in the pattern tables' cache key) to the pattern, the reach map, the fit
+  and the drawing; blank is the posts. On the way, a sloping dipole's
+  effective height is now its middle, where its current is - it hangs from
+  its high end, so that is half its drop below the support; it was a
+  quarter, eight feet too high for a 40 m dipole at thirty degrees.
+
   The terminated wires' side view is drawn to scale, one scale both ways.
   It used to stretch the height to fill the box - six times, for an 18 ft
   mast over 249 ft - and apologise in the caption; a newcomer believes the

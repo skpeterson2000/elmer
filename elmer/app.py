@@ -1774,7 +1774,15 @@ def api_pattern():
         length_ft = None
     if length_ft is not None and not 20.0 <= length_ft <= 2000.0:
         abort(400)
-    kind = patterns.laid(kind, length_ft, height_ft, mhz)
+    # Where a terminated wire's ends are tied off - its posts, a fence, a
+    # tree - when the Lab has said; the handbook's 6 ft posts otherwise.
+    try:
+        end_ft = float(request.args.get("ends")) if request.args.get("ends") else None
+    except ValueError:
+        end_ft = None
+    if end_ft is not None:
+        end_ft = max(0.0, min(end_ft, max(0.0, (height_ft or 0.0) - 0.5)))
+    kind = patterns.laid(kind, length_ft, height_ft, mhz, end_ft)
     # One SWR for one height: the curve reads the resistance the heights
     # table prints for this height. The Lab sends a V's effective height,
     # below its apex, and its droop.
@@ -2131,7 +2139,8 @@ def api_antenna_advice():
     fit_height = _num("height") or out.get("height_ft")
     fit_droop = _num("droop") if out.get("type") == "invertedv" else None
     out["fit"] = antenna_advice.fit(out.get("type"), mhz, request.args.get("site") or None,
-                                    height_ft=fit_height, length_ft=_num("length"), droop_deg=fit_droop)
+                                    height_ft=fit_height, length_ft=_num("length"), droop_deg=fit_droop,
+                                    end_ft=_num("ends"))
     out["harmonics"] = antenna_advice.harmonics(out.get("type"), mhz)
     out["harmonic_words"] = antenna_advice.harmonic_words(out.get("type"), mhz)
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):
@@ -2462,7 +2471,12 @@ def api_bandplan_reach():
                          if request.args.get("length") else None)
         except (TypeError, ValueError):
             length_ft = None
-        antenna = {"kind": patterns.laid(kind, length_ft, height_ft, mhz),
+        try:
+            end_ft = (max(0.0, min(float(request.args.get("ends")), max(0.0, height_ft - 0.5)))
+                      if request.args.get("ends") else None)
+        except (TypeError, ValueError):
+            end_ft = None
+        antenna = {"kind": patterns.laid(kind, length_ft, height_ft, mhz, end_ft), "end_ft": end_ft,
                    "height_ft": height_ft, "heading": heading, "heading_assumed": heading_assumed,
                    "ground": ground, "length_ft": length_ft,
                    "height_wl": max(0.02, height_ft / antenna_advice.wavelength_ft(mhz))}
@@ -2497,7 +2511,8 @@ def api_bandplan_reach():
            (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),
            bool(antenna and antenna.get("heading_assumed")),
            antenna["ground"] if antenna else "",
-           round(antenna["length_ft"]) if antenna and antenna.get("length_ft") else 0)
+           round(antenna["length_ft"]) if antenna and antenna.get("length_ft") else 0,
+           round(antenna["end_ft"], 1) if antenna and antenna.get("end_ft") is not None else None)
     hit = _reach_cache.get(key)
     if hit and time.time() - hit[0] < REACH_CACHE_S:
         return jsonify({"ok": True, "cached": True, **hit[1]})

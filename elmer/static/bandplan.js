@@ -1719,9 +1719,11 @@ function bpReachAntenna() {
     : wire.kind === sel.value && wire.length_ft > 0 ? wire.length_ft
     : lab.kind === sel.value && lab.length_ft > 0 ? lab.length_ft : 0;
   const length = lengthFt > 0 ? String(Math.round(lengthFt)) : '';
+  // where its ends are tied off, as the Lab has it: the handbook's posts otherwise
+  const endsFt = terminated && wire.kind === sel.value && wire.ends_ft >= 0 ? wire.ends_ft : null;
   return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
           heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
-          emission: bpReachEmission(), length: length,
+          emission: bpReachEmission(), length: length, ends: endsFt === null ? '' : String(endsFt),
           // the class being read: whether FM is in bounds is the class's question
           class: typeof bpClass === 'function' ? bpClass() : ''};
 }
