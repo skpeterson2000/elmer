@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The next few hours of the forecast are closer: the ionosonde reading now lets go by three hours, not nine. Held long, it steered the forecast past the point where the record of recent days knew better - at two to six hours out the page erred 2.0 to 2.1 MHz where the record alone erred 1.7 to 1.9. Graded over the year at every lead, the error fell from 1.80 to 1.74 MHz, and was as good or better in every season at every lead, from the first hour on.
+
 - The forecast knows about a geomagnetic storm. Nothing in its MUF did: in hours of Kp 5 and up, every figure ran 1 to 2.6 MHz high. Past K 4 the forecast now comes down by 0.05 for each K, most six to seventeen hours on - fitted on half the year's months and checked on the other half. Regraded over the year, the error in storm hours fell from 3.35 to 3.10 MHz, and at twelve hours in storms by a third of a megahertz or more in every season.
 
 - The forecast a day ahead is closer: where the record of the last three days takes over from the model, the model now keeps a fifth of the figure. Graded season by season over the past year against the sondes, the 24-hour error fell in every season - autumn 1.88 to 1.75 MHz, winter 1.77 to 1.70, spring 2.03 to 1.97, summer 1.70 to 1.66 - and the 12-hour error with it. The share fitted in each season did as well in the others.

@@ -3231,6 +3231,21 @@ storms, autumn 2.92 → 2.50, winter 3.53 → 3.21, spring 3.75 → 3.52, summer
 2.69 → 2.33. One cell went the other way: spring's storm hours at 24 hours,
 3.80 → 3.86.
 
+**The reading lets go by three hours.** The sonde reading used to hold in full
+for three hours and fade by nine - set when a released anchor fell back on
+the model alone, and letting go early was the worse error. With the record
+to fall back on it is not. Graded at every lead from 1 to 24 hours, the page
+under that hold ran well past the record alone at 2 to 6 hours - 2.09 to
+2.14 MHz at 2-3 hours, and 0.64 MHz high at 4-6 hours in summer. Nine
+settings were run over the year; fading from the reading's own hour to
+nothing by three (`ANCHOR_HOLD_HOURS = 0`, `ANCHOR_FADE_HOURS = 3`) erred
+1.740 MHz over every lead against 1.803, and was as good or better in every
+season at every lead: winter at 2-3 hours 2.11 → 1.67, summer at 4-6 hours
+2.03 → 1.66, and even the first hour 1.45-1.69 → 1.35-1.45, since the next
+hour's sky is partly the record's already. Fades of two to five hours all
+came within 0.005 of it; one hour lost the first hour's gain. The reading's
+own hour is the reading, as before.
+
 **Calibrate my forecast**, on the Propagation page, is the same thing for *this*
 place: the nearest sondes' readings, the forecast run blind over them hour by
 hour, and a correction fitted by month and by sky and applied where no fresh

@@ -184,8 +184,8 @@ def main():
                          muf_now=measured)
     check("the curve is scaled to meet what was measured",
           abs(anchored[0]["muf"] - measured) < 0.6, True)
-    check("  and the next hour with it",
-          abs(anchored[1]["muf"] / plain[1]["muf"] - 1.4) < 0.05, True)
+    check("  and two-thirds of it the next hour, as the reading lets go",
+          abs(anchored[1]["muf"] / plain[1]["muf"] - (1 + 0.4 * 2 / 3)) < 0.05, True)
     # Half a day on, the reading is history and the model speaks alone: the
     # same sun angle on the far side of a night is not the same sky.
     check("  but not the far side of the day",

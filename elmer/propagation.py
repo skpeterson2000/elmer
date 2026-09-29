@@ -1932,10 +1932,23 @@ ANCHOR_FADE_DEG = 40.0
 # carrying the afternoon, was being applied in full at six the next morning
 # because the sun was back at the same angle - after seven hours of
 # recombination had taken the layer to its lowest of the day. So the hold is
-# also a matter of time: full for a few hours either side of the reading, gone
-# by the time the other side of the night is reached.
-ANCHOR_HOLD_HOURS = 3.0
-ANCHOR_FADE_HOURS = 9.0
+# also a matter of time.
+#
+# How much time was measured once the record of the last three days had
+# taken over as the anchor let go - before that, the model alone was what a
+# released anchor fell back to, and holding the reading long was the smaller
+# error. With the record there it is not. Graded over the year to September
+# 2026, a season at a time, the forecast as the page runs it: holding the
+# reading full for three hours and fading it by nine erred 1.80 MHz over
+# every lead, and at 2 to 6 hours ran well past the record alone - 2.09 to
+# 2.14 at 2-3 h, and up to +0.64 high at 4-6 h in summer. Fading from the
+# reading's own hour to nothing by three erred 1.74, and was as good or better
+# in every season at every lead, the reading's hour unchanged: 1 h, 1.35 to
+# 1.45 against 1.45 to 1.69; 4-6 h in summer 2.03 -> 1.66. Fades of two to
+# five hours all came within 0.005 of it; one hour, the reading used for its
+# own hour only, lost the first hour's advantage.
+ANCHOR_HOLD_HOURS = 0.0
+ANCHOR_FADE_HOURS = 3.0
 
 
 def anchor_at(anchor, measured_sun, sun, hours_since=None):

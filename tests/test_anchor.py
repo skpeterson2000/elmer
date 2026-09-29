@@ -85,10 +85,15 @@ def main():
     # The same sun angle comes round twice a day and the sky under it is not
     # the same sky: a reading from eleven at night must not be applied in full
     # at six the next morning because the sun is back at -27.
-    check("held in full three hours on", P.anchor_at(0.738, -27.0, -27.0, hours_since=3), 0.738)
-    check("  letting go across the night", 0.738 < P.anchor_at(0.738, -27.0, -27.0, hours_since=6) < 1.0, True)
-    check("  and gone by the other side of it, same sun angle or not",
-          P.anchor_at(0.738, -27.0, -27.0, hours_since=9), 1.0)
+    # Graded over a year once the record took over from a released anchor,
+    # the reading was best let go from its own hour to nothing by three
+    # (ANCHOR_HOLD_HOURS, ANCHOR_FADE_HOURS - the figures are beside them).
+    check("held in full at the reading's own hour", P.anchor_at(0.738, -27.0, -27.0, hours_since=0), 0.738)
+    check("  two-thirds of it an hour on", round(P.anchor_at(0.738, -27.0, -27.0, hours_since=1), 4),
+          round(1 + (0.738 - 1) * 2 / 3, 4))
+    check("  letting go over the next hours", 0.738 < P.anchor_at(0.738, -27.0, -27.0, hours_since=2) < 1.0, True)
+    check("  and gone three hours on, same sun angle or not",
+          P.anchor_at(0.738, -27.0, -27.0, hours_since=3), 1.0)
     check("  whichever has let go further decides",
           P.anchor_at(0.738, -27.0, 44.0, hours_since=1), 1.0)
 
