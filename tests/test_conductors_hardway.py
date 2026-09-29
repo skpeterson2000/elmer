@@ -112,6 +112,12 @@ def the_thin_ones():
           (m26["od_mm"], mid["wire_heat_w"] < 10, any("melts" in i for i in mid["items"])), (0.405, True, False))
     check("  and says the spool's current rating is for a coil, not a wire in the open",
           ("wound tight in a coil" in m26["caution"], "not the limit here" in m26["caution"]), (True, True))
+    m30 = C.INDEX["magnet30"]
+    m30n = A.power_notes("dipole", 7.15, 100, m30["od_mm"], m30["sigma"], material="copper")
+    check("30 AWG is 0.255 mm: an eighth of 100 W lost, a third of 40 AWG's, no word of melting",
+          (m30["od_mm"], 10 < m30n["wire_heat_w"] < 14, round(m30n["wire_heat_w"] / hot["wire_heat_w"], 1),
+           any("melts" in i for i in m30n["items"])), (0.255, True, 0.3, False))
+    check("  and cites the ATP's para. H-50", "para. H-50" in [s["where"] for s in C.sources("magnet30")], True)
     w14 = A.power_notes("dipole", 7.15, 1500, 1.63, 1.0, material="copper")
     check("#14 at the legal limit is nowhere near melting", any("melts" in i for i in w14["items"]), False)
 

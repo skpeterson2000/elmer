@@ -1459,7 +1459,10 @@ quarter of it: 100 W into 40 AWG is 0.9 A against 1.8. No wire a person
 would hang is anywhere near it at the legal limit. Between the two, 26 AWG
 magnet wire, the common hobby spool, loses under a tenth of 100 W on a 40 m
 dipole; its note says that the half-amp current rating on the spool is for a
-wire wound tight in a coil, not one strung in the open.
+wire wound tight in a coil, not one strung in the open. 30 AWG, the
+half-pound spool of 1,660 feet, sits between them: an eighth of 100 W
+lost, a third of 40 AWG's, and 1.1 A at the feed against the 10 A that
+melts it.
 
 **What the Library says about them.** The conductors are checked against the
 books on the shelf before anything else, and each cites what the books say

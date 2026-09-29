@@ -103,6 +103,23 @@ CONDUCTORS = [
                 "melts it, and the enamel goes before that; at 5 W it is fine. "
                 "It breaks with a light tug, so a span needs sheltered supports "
                 "and no wind, and a bird will end it."},
+    # 30 AWG, 0.255 mm, sold as a half-pound spool of some 1,660 feet with a
+    # heavy-build enamel rated 220 C. On a 40 m dipole it loses an eighth of
+    # 100 W; the current at the feed is about a tenth of what melts it.
+    {"key": "magnet30", "label": "30 AWG magnet wire", "od_mm": 0.255,
+     "material": "copper", "sigma": 1.00,
+     "found": "a half-pound spool sold for transformers, motors and pickups",
+     "work": "Burn or scrape the enamel off - heavy-build enamel rated for "
+             "220 C takes a hot iron and patience - tin it, and solder; tie "
+             "off at the ends around something stout, not the wire alone.",
+     "note": "A step up from hair-thin: still near invisible at a distance, "
+             "and a spool holds enough for a dozen dipoles. On a 40 m dipole "
+             "it heats away about an eighth of the power - a third of what "
+             "40 AWG does - and 100 W is well inside what it carries.",
+     "caution": "Its strength is the limit, not the current: it stretches, "
+                "and a long span in wind or ice will part it. A temperature "
+                "rating on the spool is the enamel's, not a current it "
+                "can carry."},
     # The common hobby spool between the two: 26 AWG, 0.405 mm, a few hundred
     # feet for a few dollars. Its listing carries a current rating, and that
     # rating is the lesson: it is for a wire wound tight in a coil, where the
@@ -332,7 +349,7 @@ CITES = {
     "fence": ["wire", "steel"], "hanger": ["steel"], "tape": ["steel"], "emt12": ["steel"],
     "alu12": ["aluminium", "fatigue"], "alu34": ["aluminium", "fatigue"],
     "magnet15": ["wire", "stretch", "plastics"], "magnet26": ["wire", "stretch", "plastics"],
-    "magnet40": ["wire", "stretch", "plastics"],
+    "magnet40": ["wire", "stretch", "plastics"], "magnet30": ["wire", "stretch", "plastics"],
     "alufence": ["wire", "aluminium", "fatigue", "contact"],
     "alucraft": ["aluminium", "fatigue", "contact", "stretch"],
     "zip18": ["wire", "tin", "plastics", "stretch"], "zip22": ["wire", "tin", "plastics", "stretch"],
