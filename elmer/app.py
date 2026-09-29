@@ -6703,7 +6703,11 @@ def ready_png():
     """The icon once ELMER is ready to be looked at, 503 until then - an
     image, because the splash is a file:// page and can only ask by loading
     one."""
-    if not _ready.is_set():
+    # A kiosk still settling its window counts as not ready: the splash is
+    # what should be on screen while it goes full screen, not the program in
+    # the small window the browser opened with (kiosk.settled).
+    from . import kiosk as _kiosk
+    if not _ready.is_set() or not _kiosk.settled():
         with _warming:
             if not _warm_started[0]:
                 _warm_started[0] = True

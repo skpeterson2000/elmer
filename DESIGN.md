@@ -5239,6 +5239,18 @@ that answers but never says ready - an older one without the route, or a
 warm-up that is stuck - is gone to 45 seconds after it first answered,
 because a working program is not to be held behind a picture.
 
+On a kiosk, ready also means the window is done changing. The watcher used
+to look at the window and set it full screen only fifteen seconds after the
+launch (EARLY_S, which is about telling a browser that never started from one
+that did), and on a GNOME box whose Chromium came up merely focused the
+program sat in a small window for ten of those seconds, after the splash had
+handed over, and then jumped to full screen. Now the window is set full
+screen as soon as it is up and Chromium's own flags have had two seconds
+(`kiosk.GRACE_S`), the splash waits for the kiosk's verdict as well as the
+warm-up (`kiosk.settled`, at most 25 seconds), and Chromium is launched
+maximized too, so even the moment before full screen is a window the size of
+the screen.
+
 What that first page actually cost is written down rather than shown — to
 `data/elmer.log`, and to `--doctor`, which reports it as **start** and answers
 over HTTP at `/api/doctor`. So one unit can read what every other unit on the

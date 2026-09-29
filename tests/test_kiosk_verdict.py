@@ -346,6 +346,45 @@ def main():
               (got["verdict"], "wmctrl did" in got.get("set_by", "")), (K.FULL, True))
         check("  said in the verdict line itself", "wmctrl did" in K.verdict_line(), True)
 
+        # Set full screen once the window is up and its flags have had their
+        # grace - not after EARLY_S. On a GNOME box whose Chromium came up
+        # merely focused, the program sat in a small window for ten seconds
+        # after the splash handed over, and then jumped to full screen.
+        early, grace = K.EARLY_S, K.GRACE_S
+        K.EARLY_S, K.GRACE_S = 8.0, 0.5
+        try:
+            asked = forcing(("wmctrl",), "wmctrl")
+            began = time.monotonic()
+            _, got = launch()
+            took = time.monotonic() - began
+        finally:
+            K.EARLY_S, K.GRACE_S = early, grace
+        check("the window is set full screen soon after it is up, not at EARLY_S",
+              (got["verdict"], took < 4.0), (K.FULL, True))
+        # The splash waits on the verdict (app.ready_png), so the program is
+        # never shown in the window the browser opened with.
+        K._settled.clear()
+        K._launched["at"] = time.monotonic()
+        check("a launch not yet at its verdict is not settled", K.settled(), False)
+        K._record(K.FULL, [])
+        check("  and its verdict settles it", K.settled(), True)
+        K._settled.clear()
+        K._launched["at"] = time.monotonic() - K.SETTLE_MOST_S - 1
+        check("  one past SETTLE_MOST_S counts as settled, whatever it is doing", K.settled(), True)
+        K._launched["at"] = None
+        check("  and with no kiosk launched there is nothing to wait on", K.settled(), True)
+        from elmer import app as appmod
+        appmod._ready.set()
+        K._launched["at"] = time.monotonic()
+        K._settled.clear()
+        check("the splash's ready check refuses while the kiosk is settling",
+              appmod.app.test_client().get("/ready.png").status_code, 503)
+        K._record(K.FULL, [])
+        check("  and answers once it has", appmod.app.test_client().get("/ready.png").status_code, 200)
+        K._launched["at"] = None
+        check("Chromium is launched maximized as well, so even before full screen the window fills the screen",
+              "--start-maximized" in real["_command"]("/snap/bin/chromium", "chromium", "u", "/p"), True)
+
         asked = forcing(("xdotool",), "xdotool")
         _, got = launch()
         check("only xdotool present: xdotool is asked", [a[0] for a in asked], ["xdotool"])

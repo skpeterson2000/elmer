@@ -79,6 +79,25 @@ BROWSER_LOG = paths.STATE / "kiosk-browser.log"   # the browser's own stderr, th
 EARLY_S = 15.0          # a browser gone within this of starting failed to start
 WINDOW_WAIT_S = 10.0    # after that, how long to look for its window
 SAMPLE_S = 1.0          # how often the window's state is read until EARLY_S
+# Once the browser's window is up, how long its own flags are given to make it
+# full screen before the window manager is asked. It used to be asked only
+# after EARLY_S, fifteen seconds in - and on a GNOME box whose Chromium came up
+# merely focused, the program sat in a small window for ten of them, after the
+# splash had handed over, and then jumped to full screen.
+GRACE_S = 2.0
+
+# Whether a --kiosk launch has come to its verdict, full screen or not. The
+# splash waits on it (app.ready_png), so the program is never shown in the
+# small window the browser opened with. Nothing launched is nothing to wait on.
+_settled = threading.Event()
+_launched = {"at": None}
+SETTLE_MOST_S = 25.0    # past this a launch counts as settled, whatever it is doing
+
+
+def settled():
+    """Whether the screen is done changing: no kiosk launch, or its verdict in."""
+    at = _launched["at"]
+    return at is None or _settled.is_set() or time.monotonic() - at > SETTLE_MOST_S
 STDERR_TAIL = 12
 
 NOT_FOUND = "browser not found"
@@ -500,6 +519,7 @@ def _force(pid, family, wid, profile):
 
 def _record(verdict, lines, **more):
     """The launch's outcome, to the log and to LAST."""
+    _settled.set()
     data = {"at": time.time(), "verdict": verdict, "lines": list(lines), **more}
     try:
         LAST.parent.mkdir(parents=True, exist_ok=True)
@@ -592,6 +612,10 @@ def _follow(process, family, lines, profile=None):
                 log.debug("kiosk: at %.1f s %s", elapsed, why)
                 timeline.append(f"  at {elapsed:4.1f} s  {why}")
                 seen = why
+            # The window is up and its flags have had their moment: settle it
+            # now, while the splash is still covering, not at EARLY_S.
+            if elapsed >= GRACE_S and not why.startswith("no window"):
+                break
             if elapsed >= EARLY_S:
                 break
         if code is not None:
@@ -871,6 +895,10 @@ def _command(path, family, url, profile):
             # Asked for twice over: --kiosk alone has come up focused and
             # not full screen on GNOME under X, with a snap's Chromium.
             "--start-fullscreen",
+            # And maximized: where neither of those takes, the window is at
+            # least the size of the screen until it is set full screen, not a
+            # small one in the middle of it.
+            "--start-maximized",
             # Its own profile, so an already-open Chromium does not swallow
             # this launch and turn it into a tab in the existing window.
             f"--user-data-dir={profile}",
@@ -1038,6 +1066,10 @@ def launch(url):
     except OSError as exc:
         log.warning("kiosk: no file for the browser's own messages (%s): %s", BROWSER_LOG, exc)
         said = subprocess.DEVNULL
+    # From here the screen is changing until the watcher's verdict; the
+    # splash waits on it (settled()).
+    _settled.clear()
+    _launched["at"] = time.monotonic()
     try:
         # Its own process group, so closing the browser later cannot deliver a
         # signal back to the server that started it.
