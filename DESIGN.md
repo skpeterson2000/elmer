@@ -3216,6 +3216,21 @@ next: at 6 hours in spring and summer the sonde anchor carries the forecast
 record, yesterday - runs 1 to 2.6 MHz high, because nothing in the MUF knows
 about the storm.
 
+**A storm pulls it down.** Nothing in the MUF knew about a storm: the model's
+figure never saw the K index, and the record is of the quiet days before.
+Over the year, what the sondes read against what was forecast fell with the
+Kp at issue - about 0.96 of it at K 4, 0.88 to 0.96 at K 5, and 0.76 to 0.84
+at K 7 and up - deepest 6 to 17 hours on, as a storm's negative phase settles
+in. `propagation.storm_factor` takes 0.05 off for each K past 4, at full
+strength 6 to 17 hours on and half of it nearer and further, from the Kp at
+issue, held (the K is not forecast, like the flux). A table of median ratios
+by K and lead did not carry from odd months to even; this one-number form
+did, both ways, and helped storm hours in every season. Regraded: storm
+hours 3.35 → 3.10 MHz over the year, every hour 1.812 → 1.795; at 12 hours in
+storms, autumn 2.92 → 2.50, winter 3.53 → 3.21, spring 3.75 → 3.52, summer
+2.69 → 2.33. One cell went the other way: spring's storm hours at 24 hours,
+3.80 → 3.86.
+
 **Calibrate my forecast**, on the Propagation page, is the same thing for *this*
 place: the nearest sondes' readings, the forecast run blind over them hour by
 hour, and a correction fitted by month and by sky and applied where no fresh

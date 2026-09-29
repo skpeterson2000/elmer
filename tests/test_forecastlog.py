@@ -164,6 +164,18 @@ check("  with the critical frequency moved to match",
 check("  where the record is silent the model speaks",
       P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, persist=[None] * 25)[24]["muf"], plain1[24]["muf"])
 
+print("\na storm pulls the forecast down, deepest six to seventeen hours on")
+quiet = P.outlook(14.0, 46.36, -94.2, sfi=110, k_index=2.0, start=NOW, muf_now=12.0)
+k7 = P.outlook(14.0, 46.36, -94.2, sfi=110, k_index=7.0, start=NOW, muf_now=12.0)
+check("the reading's own hour is the reading's, storm or not", k7[0]["muf"], quiet[0]["muf"])
+check("  at K 7, twelve hours on the MUF is 0.85 of the quiet figure",
+      abs(k7[12]["muf"] / quiet[12]["muf"] - 0.85) < 0.01, True)
+check("  three hours on, half as much: 0.925", abs(k7[3]["muf"] / quiet[3]["muf"] - 0.925) < 0.01, True)
+check("  and the critical frequency comes down with it",
+      abs(k7[12]["fof2"] / quiet[12]["fof2"] - 0.85) < 0.02, True)
+check("at K 4 and under, nothing", [P.storm_factor(k, 12) for k in (0, 2, 4)], [1.0, 1.0, 1.0])
+check("a K that is not a number is taken as quiet", P.storm_factor("?", 12), 1.0)
+
 print("\nthe calibration: a factor by month and sky, fitted from the bare year")
 table = F.fit_calibration(16, NOW, build="t", stations=["AL945"], acknowledgement="GIRO")
 mon = NOW.strftime("%m")

@@ -2101,6 +2101,34 @@ def reconcile(score, rating, muf_source=None, is_group=True):
 # came out 0.80 to 0.85, and each season's fit did as well in the others.
 RECORD_SHARE = 0.80
 
+# A geomagnetic storm pulls the F2 layer down, and nothing else in the MUF
+# knows it: the model's figure never sees the K index, and the record is of
+# the quiet days before. Graded over the same year, every figure ran 1 to 2.6
+# MHz high in hours of Kp 5 and up, and what the sondes read against what was
+# forecast fell with the K at issue - about 0.96 of it at K 4 and 0.76 to
+# 0.84 at K 7 and up, deepest 6 to 17 hours on as the storm's negative phase
+# settles in. So past K 4 the forecast comes down by STORM_PER_K for each K,
+# at full strength 6 to 17 hours on and half of it nearer and further. Fitted
+# on odd months it helped the even ones and the other way round, and it
+# helped storm hours in every season: autumn 2.28 -> 2.20 MHz, winter 2.19 ->
+# 2.17, spring 3.28 -> 3.05, summer 2.59 -> 2.30. It is the K at issue, held
+# - the K is not forecast here any more than the flux is.
+STORM_K = 4.0
+STORM_PER_K = 0.05
+STORM_DEEPEST = (6, 17)
+
+
+def storm_factor(k_index, hours_on):
+    """What a storm at `k_index` now does to the MUF `hours_on` from now."""
+    try:
+        k = float(k_index or 0.0)
+    except (TypeError, ValueError):
+        return 1.0
+    if hours_on < 1 or k <= STORM_K:
+        return 1.0
+    weight = 1.0 if STORM_DEEPEST[0] <= hours_on <= STORM_DEEPEST[1] else 0.5
+    return max(0.5, 1.0 - STORM_PER_K * (k - STORM_K) * weight)
+
 
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
@@ -2194,6 +2222,13 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
                 if fof2:
                     fof2 = round(fof2 * blended / muf, 2)
                 muf = round(blended, 1)
+        # The storm, last: it pulls down whatever the figure is, model or
+        # record, and the critical frequency with it (see storm_factor).
+        storm = storm_factor(k_index, step)
+        if storm < 1.0 and muf:
+            if fof2:
+                fof2 = round(fof2 * storm, 2)
+            muf = round(max(1.0, muf * storm), 1)
         got = band_score(mhz, muf, elevation, k_index, fof2, hmf2,
                          geomag_lat=geomag, aurora_lat=aurora_lat)
         got.update({"at": when.isoformat(), "hour": when.hour,
