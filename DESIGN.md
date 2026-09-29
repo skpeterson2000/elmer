@@ -504,6 +504,24 @@ because they carry very different authority:
   the trend a log book agrees with, which is what the map is for, and real
   terrain still moves the lobes.
 
+  A zoomed window is the same map, closer: the page asks for it with the
+  same antenna, height, heading, ground, power and mode as the whole one,
+  and draws no answer for settings changed while it was on its way. It
+  used to ask for the window with none of them, and the server drew the
+  sky alone at its default 100 W of SSB; a terminated end-fed vee laid
+  south was right across the world and, zoomed in over North America, lit
+  Hudson Bay as brightly as Texas (`tests/test_reach_zoom.py`). And the
+  line under the map says what the height means for the antenna's shape,
+  which the map's answer now carries: over a horizontal wire the ground's
+  reflection makes the lobe, so the height moves it between the zenith and
+  DX and the NVIS height is up or down from here, whichever it is; a
+  vertical or a terminated travelling-wave wire is weak straight up by its
+  own pattern and sends its power low at any height, so no height makes it
+  an NVIS antenna, and the line says so and names the horizontal wire that
+  would be one. The words had been a horizontal wire's for every antenna,
+  and told the owner of a terminated vee 10 ft up on 40 m that it stood at
+  "a DX height" and should "come down" to 28 ft.
+
   NVIS is decided by one number that the antenna cannot change: the
   critical frequency straight up over the station. A band above it gets
   nothing back from overhead whatever the wire, and the near zone is a

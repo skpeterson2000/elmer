@@ -1339,7 +1339,16 @@ def _antenna_block(antenna, mhz):
     ground = antenna.get("ground") or "average"
     lam_ft = 983.571 / max(0.001, float(mhz))
     low_wl = patterns.low_angle_height_wl(kind, mhz=mhz, ground=ground)
-    return {"kind": kind, "height_wl": round(height_wl, 3),
+    # What shape of antenna it is, because the height means different things:
+    # over a horizontal wire the ground's reflection makes the lobe, so the
+    # height moves it between the zenith and DX; a vertical and a terminated
+    # travelling-wave wire send their power low at any height, and no height
+    # makes either an NVIS antenna. The page's words were a horizontal
+    # wire's for every antenna, and told the owner of a 10 ft terminated vee
+    # that it stood at "a DX height" and should "come down" to 28 ft.
+    shape = ("travelling" if patterns.is_travelling(kind)
+             else patterns.ANTENNA_Q.get(kind, {}).get("shape") or "horizontal")
+    return {"kind": kind, "shape": shape, "height_wl": round(height_wl, 3),
             "height_ft": round(height_wl * lam_ft, 1),
             "heading": antenna.get("heading"), "ground": ground,
             # true when the page's box was blank and north was taken for it

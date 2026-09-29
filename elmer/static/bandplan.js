@@ -1370,10 +1370,17 @@ async function bpRefine() {
   const left = bpView.lon - spanLon * 0.6, span = Math.min(360, spanLon * 1.2);
   const step = bpView.zoom >= 12 ? 0.25 : bpView.zoom >= 6 ? 0.5 : bpView.zoom >= 3 ? 1 : 2.5;
   const key = bpView.band, mode = bpReachMode();
+  /* The window is the same map, closer: the same antenna, power and mode as
+     the whole one. It used to ask for the window without them, and a zoom
+     drew the sky alone at the default 100 W of SSB - every direction alike,
+     so a terminated vee laid south lit Hudson Bay as brightly as Texas. */
+  const ant = bpReachAntenna();
+  const antKey = JSON.stringify(ant);
   try {
-    const r = await fetch('/api/bandplan/reach?' + new URLSearchParams({band: key.split('|')[0], mode: mode, top: top.toFixed(2), bottom: bottom.toFixed(2), left: left.toFixed(2), span: span.toFixed(2), step: step}), {cache: 'no-store'});
+    const r = await fetch('/api/bandplan/reach?' + new URLSearchParams(Object.assign({band: key.split('|')[0], mode: mode, top: top.toFixed(2), bottom: bottom.toFixed(2), left: left.toFixed(2), span: span.toFixed(2), step: step}, ant)), {cache: 'no-store'});
     const w = await r.json();
-    if (!w.ok || bpView.band !== key || bpReachMode() !== mode) return;
+    // An answer for settings changed while it was on its way is not this map.
+    if (!w.ok || bpView.band !== key || bpReachMode() !== mode || JSON.stringify(bpReachAntenna()) !== antKey) return;
     w.band = key;
     bpView.refined = w;
     bpReachDraw(false);
@@ -1525,6 +1532,38 @@ let bpReachCache = {};
    it for a look at another, and that choice is remembered here. Nothing is
    stored twice: the Lab's memory is read, and only the panel's own choice
    is kept by the panel. */
+/* What the height means, in words, for this shape of antenna. Over a
+   horizontal wire the ground's reflection makes the lobe: the height moves
+   it between the zenith and DX, and the NVIS height is up or down from here,
+   whichever it is. A vertical or a terminated wire sends its power low at any
+   height - weak straight up is the antenna's own pattern, not the ground's -
+   and no height makes either an NVIS antenna. These were a horizontal wire's
+   words for every antenna, and told the owner of a 10 ft terminated vee it
+   stood at "a DX height" and should "come down" to 28 ft. */
+function bpHeightWords(a, g, bandName, ft, sgn) {
+  const band = escapeHTML(bandName);
+  if (a.shape === 'vertical' || a.shape === 'travelling') {
+    const own = a.shape === 'vertical'
+      ? 'A vertical sends its power low and little straight up, at any height: that is the antenna, not the ground.'
+      : 'A terminated wire fires low along its length, toward the resistor, and sends little straight up at any height: that is the antenna, not the ground.';
+    return own + ' No height makes it an NVIS antenna; for NVIS on ' + band + ', a horizontal wire about ' + a.nvis_ft + ' ft up.';
+  }
+  const reflection = g.overhead_db >= 2 ? 'The ground’s reflection is adding straight up: the county’s height.'
+    : g.overhead_db <= -4 ? 'The reflection is cancelling straight up: a DX height, with a dip over the county.'
+    : 'Neither adding nor cancelling much straight up.';
+  if (a.nvis) {
+    return reflection + ' <b>At this height on this band that is an NVIS antenna</b>, whatever the switch says - the lobe is overhead, ' +
+      'and low angles are weak (' + sgn(g.low_db) + ' at 20°) but not shut: on a mode that decodes deep in the noise, far paths can still open. ' +
+      (a.low_angle_ft
+        ? 'About ' + a.low_angle_ft + ' ft is where the lobe leaves the zenith on ' + band + '.'
+        : 'No sensible height moves the lobe off the zenith on this band.');
+  }
+  const to = a.nvis_ft;
+  return reflection + (Math.abs(to - ft) <= 2
+    ? ' For NVIS on ' + band + ' this is about the height.'
+    : ' For NVIS on ' + band + ' you would ' + (to < ft ? 'come down' : 'go up') + ' to about ' + to + ' ft.');
+}
+
 function bpReachAntenna() {
   const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
   const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
@@ -1749,16 +1788,7 @@ async function bpReach(band) {
       const ft = Math.round(d.antenna.height_ft || 0);
       gainLine.innerHTML = '<b>This antenna at ' + ft + ' ft is ' + (g.height_wl || 0).toFixed(2) + ' of a wavelength up on ' + escapeHTML(band.name) + ':</b> ' +
         sgn(g.overhead_db) + ' straight up, ' + sgn(g.steep_db) + ' at 45\u00b0, ' + sgn(g.low_db) + ' at 20\u00b0, against a dipole in free space; ' +
-        'its best angle is ' + g.best_deg + '\u00b0 at ' + sgn(g.best_db) + '. ' +
-        (g.overhead_db >= 2 ? 'The ground\u2019s reflection is adding straight up: the county\u2019s height.'
-         : g.overhead_db <= -4 ? 'The reflection is cancelling straight up: a DX height, with a dip over the county.'
-         : 'Neither adding nor cancelling much straight up.')
-        + (d.antenna.nvis
-           ? ' <b>At this height on this band that is an NVIS antenna</b>, whatever the switch says - the lobe is overhead, and low angles are weak (' + sgn(g.low_db) + ' at 20°) but not shut: on a mode that decodes deep in the noise, far paths can still open. '
-             + (d.antenna.low_angle_ft
-                ? 'About ' + d.antenna.low_angle_ft + ' ft is where the lobe leaves the zenith on ' + escapeHTML(band.name) + '.'
-                : 'No sensible height moves the lobe off the zenith on this band.')
-           : ' For NVIS on ' + escapeHTML(band.name) + ' you would come down to about ' + d.antenna.nvis_ft + ' ft.');
+        'its best angle is ' + g.best_deg + '\u00b0 at ' + sgn(g.best_db) + '. ' + bpHeightWords(d.antenna, g, band.name, ft, sgn);
     }
   }
   /* Why the modes draw such different pictures. The map showed the effect
