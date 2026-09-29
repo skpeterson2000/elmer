@@ -1348,7 +1348,17 @@ def _antenna_block(antenna, mhz):
     # that it stood at "a DX height" and should "come down" to 28 ft.
     shape = ("travelling" if patterns.is_travelling(kind)
              else patterns.ANTENNA_Q.get(kind, {}).get("shape") or "horizontal")
-    return {"kind": kind, "shape": shape, "height_wl": round(height_wl, 3),
+    # A terminated wire's pattern is its length's as much as its height's,
+    # and the band plan has no box for the length: it takes the Lab's, or
+    # the handbook's when the Lab has not said. Which one was drawn is said,
+    # because 50 ft and 500 ft of the same wire are different antennas - a
+    # steep, nearly all-round one and a low one-way one with a null close in.
+    wire = None
+    if shape == "travelling":
+        length_ft = float(getattr(kind, "length_ft", 0.0) or 0.0)
+        wire = {"length_ft": round(length_ft), "length_wl": round(length_ft / lam_ft, 2),
+                "from": "given" if antenna.get("length_ft") else "handbook"}
+    return {"kind": kind, "shape": shape, "wire": wire, "height_wl": round(height_wl, 3),
             "height_ft": round(height_wl * lam_ft, 1),
             "heading": antenna.get("heading"), "ground": ground,
             # true when the page's box was blank and north was taken for it

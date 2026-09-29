@@ -2138,6 +2138,16 @@ function wirePlanTurn(box, d) {
       // Typed here, so it is a measurement from now on and follows nothing.
       if (id === 'an-h') anHeightSuggested = false;
       antennaFields(document.getElementById('an-type').value);
+      /* A terminated wire's length, for the band plan's reach map, which has
+         no box for it. The Lab's full record is kept only when advice is
+         asked for, so 50 ft typed here reached the map as the handbook's
+         500 - a different antenna, low and one way where this one is steep
+         and nearly all round. This is kept on every change, and nothing
+         else in the Lab reads it. */
+      if (id === 'an-type' || id === 'an-len') {
+        const type = document.getElementById('an-type').value;
+        if (isTw(type)) remember('lab.antenna.wire', {kind: type, length_ft: Math.max(20, num('an-len') || TW_DEFAULTS[type].len)});
+      }
       /* The advice panel sits above all this and only refreshed when the
          button was pressed, so changing the antenna underneath it left it
          describing whichever one you last asked about. That was harmless

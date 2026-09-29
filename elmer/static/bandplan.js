@@ -1570,9 +1570,17 @@ function bpReachAntenna() {
   if (!sel) return {};
   /* A terminated wire's pattern needs its length; the Lab's, when the Lab
      last designed that kind, and the handbook's size otherwise. */
+  /* The wire the Lab has on screen for this kind, kept every time its type
+     or length changes there (lab.antenna.wire). The Lab's full record is
+     kept only when advice is asked for, and a length typed without that
+     never arrived: 50 ft in the Lab, and the map drew the handbook's 500. */
   const lab = recall('lab.antenna', null) || {};
-  const length = (sel.value === 'tefv' || sel.value === 'termsloper') && lab.kind === sel.value &&
-                 lab.length_ft > 0 ? String(Math.round(lab.length_ft)) : '';
+  const wire = recall('lab.antenna.wire', null) || {};
+  const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
+  const lengthFt = !terminated ? 0
+    : wire.kind === sel.value && wire.length_ft > 0 ? wire.length_ft
+    : lab.kind === sel.value && lab.length_ft > 0 ? lab.length_ft : 0;
+  const length = lengthFt > 0 ? String(Math.round(lengthFt)) : '';
   return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
           heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
           emission: bpReachEmission(), length: length};
@@ -1603,9 +1611,28 @@ function bpReachLaid(d) {
     : a.kind === 'yagi'
       ? 'Laid is the way the beam points, in degrees from north.'
       : 'Laid is the way the wire runs, in degrees from north. A wire fires broadside, both ways, so 0 and 180 draw the same.';
-  box.innerHTML = a.heading_assumed
+  box.innerHTML = (a.heading_assumed
     ? '<b style="color:var(--amber)">Laid toward north (0°) - assumed, because the box is empty.</b> The shape is right; the direction is a guess until you set it. ' + how
-    : '<b>Laid at ' + h + '°</b>' + (terminated ? ', so it fires ' + toward + ' and the lobe on the map should point that way. If it points somewhere you did not mean, it is the wire that needs turning.' : '.') + ' ' + (terminated ? '' : how);
+    : '<b>Laid at ' + h + '°</b>' + (terminated ? ', so it fires ' + toward + ' and the lobe on the map should point that way. If it points somewhere you did not mean, it is the wire that needs turning.' : '.') + ' ' + (terminated ? '' : how))
+    + (terminated ? ' ' + bpWireWords(a.wire) : '');
+}
+/* Which wire the map drew, and what its length does to it. The band plan has
+   no box for a terminated wire's length; it takes the Lab's, or the
+   handbook's when the Lab has not said, and the two can be different
+   antennas: a short one is steep and nearly all round, a long one low and
+   one way, with lobes stacked above the main one and nulls between them. */
+function bpWireWords(w) {
+  if (!w || !w.length_ft) return '';
+  const said = w.from === 'given'
+    ? '<b>Drawn as ' + w.length_ft + ' ft of wire</b>, as the Lab has it - ' + w.length_wl.toFixed(1) + ' wavelengths here.'
+    : '<b>Drawn as ' + w.length_ft + ' ft of wire, the handbook’s size</b> - ' + w.length_wl.toFixed(1) +
+      ' wavelengths here. Set the length in the Lab and the map draws yours.';
+  const lobes = w.length_wl >= 2
+    ? ' A terminated wire this long fires in lobes: the main one low, smaller ones above it, and nulls between them - so a ring close in, where a hop needs a steep angle, can be dark. The model draws those nulls clean; real ground, the lie of the land and a sagging wire fill them part way.'
+    : w.length_wl < 1
+      ? ' A terminated wire this short is less than a wavelength long, too short to build the one-way low lobe it is known for: most of it goes up, and round.'
+      : '';
+  return said + lobes;
 }
 /* What the panel keeps between visits: the choices, with the operator's
    own watts rather than the CB ceiling standing in for them. */

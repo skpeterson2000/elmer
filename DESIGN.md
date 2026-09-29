@@ -522,6 +522,24 @@ because they carry very different authority:
   and told the owner of a terminated vee 10 ft up on 40 m that it stood at
   "a DX height" and should "come down" to 28 ft.
 
+  A terminated wire's length comes from the Lab, because the band plan has
+  no box for it, and it used to arrive only when the Lab's advice had been
+  asked for - the Lab keeps its full record then and not before. A vee set
+  to 50 ft in the Lab reached the map as the handbook's 500, and the two
+  disagreed: the Lab drew a steep, nearly round pattern (50 ft is a third of
+  a wavelength on 40 m) and the map a low, one-way one with a dark ring
+  close in. Both draw from `patterns.laid`, so neither was wrong about its
+  own wire; they were drawing different wires. The Lab now keeps the wire's
+  kind and length (`lab.antenna.wire`) whenever either changes, the band
+  plan asks for it, and the map's answer says which wire it drew, in feet
+  and wavelengths, and whether the length was given or the handbook's. For
+  a wire two wavelengths or more, the page says why a ring close in can be
+  dark: a long travelling-wave wire fires in lobes - the main one low,
+  smaller ones stacked above it, nulls between - and the first null on 40 m
+  at 500 ft falls where a 300 km hop leaves. The model's nulls are clean,
+  and the page says real ground and a sagging wire fill them part way
+  (`tests/test_reach_wire.py`).
+
   NVIS is decided by one number that the antenna cannot change: the
   critical frequency straight up over the station. A band above it gets
   nothing back from overhead whatever the wire, and the near zone is a
