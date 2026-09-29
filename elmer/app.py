@@ -2983,6 +2983,16 @@ def library_page_image(name, n):
     return send_from_directory(str(made.parent), made.name, mimetype="image/png", max_age=86400)
 
 
+@app.route("/library/cover/<path:name>.png")
+def library_cover(name):
+    """A book's first page, small - the cover beside it on the table. Anybody
+    who may read the book in the reader may see its cover."""
+    made = library.cover_image(name)
+    if made is None:
+        abort(404, "no such book, or poppler is not on this unit")
+    return send_from_directory(str(made.parent), made.name, mimetype="image/png", max_age=86400)
+
+
 @app.route("/library/book/<path:name>")
 def library_book(name):
     """The PDF itself, for the browser's own viewer - `#page=N` on the end

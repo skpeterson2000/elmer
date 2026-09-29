@@ -44,6 +44,8 @@ log = logging.getLogger("elmer")
 # easy to lose a book on once it fills up. The screenshots stay in docs/.
 SOURCE = paths.ROOT / "USER-GUIDE.md"
 NAME = "ELMER-Users-Guide.pdf"
+COVER_ART = "elmer/static/icon.png"     # the program's icon, the guide's cover
+COVER_DARK = "#0b1017"                  # the program's own background
 # Where a unit said it declined the guide, when that could be said. Read
 # once, to put the guide on the shelf rather than the table, then cleared.
 LEGACY_DECLINED_KEY = "manual_declined"
@@ -63,10 +65,16 @@ def _mark_path():
     return shelf() / _MARK
 
 
+# Bumped when the book's layout changes, so a unit whose guide was built
+# from the same text by the old layout builds it again - the text alone
+# decided that, and a new cover would have waited for the next edit.
+LAYOUT = "2026-09-29 cover"
+
+
 def source_hash(source=None):
     source = Path(source or SOURCE)
     try:
-        return hashlib.sha1(source.read_bytes()).hexdigest()[:12]
+        return hashlib.sha1(source.read_bytes() + LAYOUT.encode()).hexdigest()[:12]
     except OSError:
         return None
 
@@ -221,8 +229,8 @@ def build(source, target, build_id=None):
     from reportlab.lib.pagesizes import LETTER
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether, PageBreak,
-                                    PageTemplate, Paragraph, Spacer)
+    from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether, NextPageTemplate,
+                                    PageBreak, PageTemplate, Paragraph, Spacer)
     from reportlab.platypus.tableofcontents import TableOfContents
 
     source, target = Path(source), Path(target)
@@ -307,20 +315,61 @@ def build(source, target, build_id=None):
         canv.drawRightString(LETTER[0] - 0.8 * inch, 0.55 * inch, f"page {doc.page}")
         canv.restoreState()
 
+    # The cover: the Library shows the first page of every book on the table
+    # as its cover, and the guide's first page was its contents. So it has
+    # one - the program's own icon on the program's own dark, the title under
+    # it, and the build at the foot - drawn on the canvas, with the contents
+    # starting on the page after.
+    first_words = next((t for k, t in items if k == "p"), "")
+
+    def cover(canv, doc):
+        width, height = LETTER
+        canv.saveState()
+        canv.setFillColor(colors.HexColor(COVER_DARK))
+        canv.rect(0, 0, width, height, stroke=0, fill=1)
+        art = paths.ROOT / COVER_ART
+        size = 4.6 * inch
+        top = height - 1.1 * inch
+        if art.is_file():
+            try:
+                canv.drawImage(str(art), (width - size) / 2, top - size, size, size, mask="auto")
+            except (OSError, ValueError) as exc:
+                log.warning("guide: the cover's picture %s could not be drawn: %s", art, exc)
+        else:
+            log.warning("guide: no cover picture at %s - the cover is the title alone", art)
+        canv.setFillColor(colors.HexColor("#e6edf3"))
+        canv.setFont("Helvetica-Bold", 30)
+        canv.drawCentredString(width / 2, top - size - 0.75 * inch, "User's Guide")
+        canv.setFillColor(colors.HexColor("#ffb454"))
+        canv.rect(width / 2 - 0.9 * inch, top - size - 0.98 * inch, 1.8 * inch, 2.2, stroke=0, fill=1)
+        if first_words:
+            words = Paragraph(_inline(first_words), ParagraphStyle(
+                "cv", parent=base["Normal"], fontSize=11.5, leading=16, alignment=1,
+                textColor=colors.HexColor("#8b98a5")))
+            w, h = words.wrap(width - 2.4 * inch, 2.5 * inch)
+            words.drawOn(canv, 1.2 * inch, top - size - 1.3 * inch - h)
+        canv.setFont("Helvetica", 8.5)
+        canv.setFillColor(colors.HexColor("#626e7b"))
+        canv.drawCentredString(width / 2, 0.7 * inch,
+                               (f"build {build_id}  ·  " if build_id else "") + time.strftime("%d %B %Y"))
+        canv.restoreState()
+
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(".pdf.tmp")
     doc = Guide(str(tmp), pagesize=LETTER, leftMargin=0.8 * inch, rightMargin=0.8 * inch,
                 topMargin=0.8 * inch, bottomMargin=0.9 * inch, title=title, author="ELMER",
                 subject="How to use ELMER", creator="ELMER")
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="body")
-    doc.addPageTemplates([PageTemplate(id="page", frames=[frame], onPage=footer)])
+    doc.addPageTemplates([PageTemplate(id="cover", frames=[frame], onPage=cover),
+                          PageTemplate(id="page", frames=[frame], onPage=footer)])
 
     toc = TableOfContents()
     toc.levelStyles = [
         ParagraphStyle("toc0", parent=base["Normal"], fontSize=10.5, leading=15, leftIndent=0),
         ParagraphStyle("toc1", parent=base["Normal"], fontSize=9.5, leading=13, leftIndent=16),
     ]
-    flow = []
+    # The cover page holds nothing but what cover() draws on it.
+    flow = [NextPageTemplate("page"), Spacer(1, 1), PageBreak()]
     sub_lines = []
     body_started = False
     for kind, text in items:
@@ -375,6 +424,8 @@ def build(source, target, build_id=None):
             "name": target.name}
     try:
         (target.parent / _MARK).write_text(json.dumps(mark), encoding="utf-8")
-    except OSError:
-        pass
+    except OSError as exc:
+        # The guide is built and on the shelf; without its mark it is only
+        # built again at the next start, which costs time and nothing else.
+        log.warning("user's guide: built, but its mark could not be written: %s", exc)
     return doc.page

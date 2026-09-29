@@ -678,14 +678,35 @@ def _pdfinfo(pdf):
 def _title(pdf, raw=None):
     raw = _pdfinfo(pdf) if raw is None else raw
     m = re.search(r"^Title:\s*(.+)$", raw, re.M)
-    title = (m.group(1).strip() if m else "")
-    # Word's default and the like are not titles, and neither is the name of
-    # the layout file the magazine's artist saved ("Taylor.indd").
+    return clean_title(m.group(1) if m else "")
+
+
+def clean_title(title):
+    """A PDF's own Title field, or "" where it is not a title.
+
+    Word's default and the like are not titles, and neither is the name of
+    the layout file the magazine's artist saved ("Taylor.indd"). Nor is a
+    label left in a template: the ATP's Title field is "Subject:", and the
+    AUXFOG's "[Add Logo Here]" - which the index of topics printed as the
+    name of the book, chapter after chapter."""
+    title = (title or "").strip()
     if title.lower() in ("untitled", "microsoft word", "document") or len(title) < 3:
         return ""
     if re.search(r"\.(indd|qxd|pmd|docx?|odt|tex|fm|pdf)$", title, re.I):
         return ""
+    if title.endswith(":") or re.fullmatch(r"[\[<{(].*[\]>})]", title):
+        return ""
     return title[:120]
+
+
+def book_title(pdf, meta=None):
+    """What a book is called, one way everywhere: the manifest's title for a
+    book that came with ELMER, else the PDF's own title where it is one, else
+    the file's name. The card catalogue had the first; the index of topics
+    and search had only the second, and printed "Subject:" for the ATP."""
+    about = manifest().get(pdf.name) if is_shipped(pdf) else None
+    return ((about or {}).get("title") or clean_title((meta or {}).get("title"))
+            or pdf.stem.replace("_", " "))
 
 
 # The publisher's own numbering, one heading to a line as pdftotext prints
@@ -949,8 +970,7 @@ def catalogue(user_id=None):
             "lending": lending(pdf, user_id),
             "removable": removable(pdf, user_id),
             "claimable": claimable(pdf),
-            "title": ((about or {}).get("title") or (meta or {}).get("title")
-                      or pdf.stem.replace("_", " ")),
+            "title": book_title(pdf, meta),
             "size_mb": round(pdf.stat().st_size / (1024 * 1024), 1),
             "pages": (meta or {}).get("pages"),
             # Pictures of pages, not pages: a scan has nothing for search to
@@ -1080,6 +1100,16 @@ def page_image(name, n, dpi=PAGE_DPI):
     return out
 
 
+# A book's cover is its first page, drawn small: the table shows one beside
+# each book, so the shelf reads like a shelf. Kept like any page picture.
+COVER_DPI = 30
+
+
+def cover_image(name):
+    """The PNG of a book's first page at thumbnail size, or None."""
+    return page_image(name, 1, dpi=COVER_DPI)
+
+
 def can_draw_pages():
     """Whether the reader can draw pages itself - poppler is here."""
     return bool(tool("pdftoppm"))
@@ -1156,7 +1186,7 @@ def _pages_with(terms, indexed, limit):
             score = sum(counts)
             if low.find(terms[0]) < max(1, len(low) // 4):
                 score += 0.5
-            hits.append({"book": pdf.name, "title": meta.get("title") or pdf.stem,
+            hits.append({"book": pdf.name, "title": book_title(pdf, meta),
                          "page": n, "score": score,
                          "snippet": _snippet(text, terms[0]),
                          "chapter": _chapter_of(meta.get("outline") or [], n)})
@@ -1211,12 +1241,12 @@ def pointers(topic=None, words=None):
     out = []
     for pdf, meta in _indexes("table"):
         outline = (meta or {}).get("outline") or []
-        book_title = (meta or {}).get("title") or pdf.stem.replace("_", " ")
+        called = book_title(pdf, meta)
         chapters = []
         for item in outline:
             hit = matched(item["title"])
             if hit:
-                chapters.append({"book": pdf.name, "book_title": book_title,
+                chapters.append({"book": pdf.name, "book_title": called,
                                  "title": item["title"], "page": item["page"],
                                  "level": item["level"], "matched": hit})
         if chapters:
@@ -1229,10 +1259,10 @@ def pointers(topic=None, words=None):
             # metadata ("Hamstiks instructions") does not, and a paper on
             # FT8 whose chapters are "Modulation" and "Decoding" is an FT8
             # paper by its name, whole.
-            hit = matched(book_title) or matched(pdf.stem.replace("_", " ").replace("-", " "))
+            hit = matched(called) or matched(pdf.stem.replace("_", " ").replace("-", " "))
             if hit:
-                out.append({"book": pdf.name, "book_title": book_title,
-                            "title": book_title, "page": 1, "level": 0,
+                out.append({"book": pdf.name, "book_title": called,
+                            "title": called, "page": 1, "level": 0,
                             "matched": hit, "by_title": True})
     # A whole book on the topic ahead of a chapter in a book about something
     # else: the Hamstick fact sheet before the FT-991A's antenna page.

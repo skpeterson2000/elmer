@@ -230,6 +230,9 @@
 /* A book's row: what it is on the left, wrapping as it needs to; what can be
    done with it on the right, together and in the same order on every row. */
 .lib-row { display: flex; gap: .6rem 1.2rem; align-items: flex-start; }
+/* A book's cover, beside it on the table: its first page, drawn small. */
+.lib-cover { flex: none; width: 58px; border-radius: 3px; border: 1px solid var(--line);
+             background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); display: block; }
 .lib-row .info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem .8rem; align-items: baseline; }
 .lib-row .acts { flex: none; display: flex; gap: .4rem; align-items: center; white-space: nowrap; }
 @media (max-width: 760px) {
@@ -245,6 +248,9 @@
 .lib-outline li.l1 { padding-left: 1rem; }
 .lib-outline li.l2 { padding-left: 2rem; }
 .lib-topics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .5rem 1.6rem; }
+.lib-topic-book { list-style: none; margin-left: -1rem; }
+.lib-topic-book .lib-topic-title { color: var(--text, #e6edf3); font-style: italic; }
+.lib-topic-book ul { margin: .15rem 0 .35rem; }
 .lib-topic { margin: .2rem 0 .4rem; }
 .lib-topic ul { margin: .2rem 0 0; padding-left: 1.1rem; line-height: 1.5; }
 .lib-topic details summary { cursor: pointer; color: var(--dim); font-size: .8rem; padding: .15rem 0; list-style: none; }
@@ -257,6 +263,11 @@
 <script>
 (() => {
   const shelfBox = document.getElementById('lib-shelf');
+  /* A cover that cannot be drawn - no poppler on this unit, a file that
+     will not render - is left out rather than shown broken. */
+  shelfBox.addEventListener('error', e => {
+    if (e.target.classList && e.target.classList.contains('lib-cover')) e.target.closest('a').remove();
+  }, true);
   const topicsBox = document.getElementById('lib-topics');
   const results = document.getElementById('lib-results');
   const q = document.getElementById('lib-q');
@@ -306,6 +317,7 @@
     return `
       <div class="lib-book${away ? ' on-shelf' : ''}" data-book="${escapeHTML(b.name)}">
         <div class="lib-row">
+          ${away ? '' : `<a href="/library/read/${encodeURIComponent(b.name)}" title="Open ${escapeHTML(b.title)}"><img class="lib-cover" loading="lazy" alt="" src="/library/cover/${encodeURIComponent(b.name)}.png"></a>`}
           <div class="info">
             <b>${escapeHTML(b.title)}</b>
             ${b.rig && b.rig.kind !== 'book' ? '<span class="tiny muted">' + escapeHTML(b.rig.make !== '-' ? b.rig.make + ' ' + b.rig.model + ' \u2014 ' : '') + escapeHTML(b.rig.word) + '</span>' : ''}
@@ -418,17 +430,31 @@
        said as the book, not as "Book - Book". Past eight the rest fold: the
        Antenna Book alone has more antenna chapters than a door needs. */
     const SHOW = 8;
-    const item = p => `<li>${p.by_title
-        ? `<a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.book_title)}</a> <span class="muted">(the whole book)</span>`
-        : `${escapeHTML(p.book_title)} &mdash; <a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.title)}</a>
-           <span class="muted mono">p. ${p.page}</span>`}</li>`;
+    const chapter = p => `<li><a href="/library/read/${encodeURIComponent(p.book)}?page=${p.page}">${escapeHTML(p.title)}</a>
+           <span class="muted mono">p. ${p.page}</span></li>`;
+    /* Each book named once, its chapters under it. The index used to print
+       the book's name in front of every chapter - which, while the ATP's own
+       title field said "Subject:", was "Subject: - Remote Antennas" fifty
+       times, and with its real name was fifty repeats of a long one. */
+    const byBook = pointers => {
+      const groups = [];
+      pointers.forEach(p => {
+        const last = groups[groups.length - 1];
+        if (last && last.book === p.book && !p.by_title && !last.whole) last.items.push(p);
+        else groups.push({book: p.book, title: p.book_title, whole: !!p.by_title, items: [p]});
+      });
+      return groups.map(g => g.whole
+        ? `<li><a href="/library/read/${encodeURIComponent(g.book)}?page=${g.items[0].page}">${escapeHTML(g.title)}</a> <span class="muted">(the whole book)</span></li>`
+        : `<li class="lib-topic-book"><span class="lib-topic-title">${escapeHTML(g.title)}</span>
+             <ul>${g.items.map(chapter).join('')}</ul></li>`).join('');
+    };
     topicsBox.innerHTML = topics.map(t => {
       const first = t.pointers.slice(0, SHOW), rest = t.pointers.slice(SHOW);
       return `
       <div class="lib-topic">
         <b class="small">${escapeHTML(t.label)}</b> <span class="tiny muted">${t.pointers.length}</span>
-        <ul class="tiny">${first.map(item).join('')}</ul>
-        ${rest.length ? `<details><summary>and ${rest.length} more&hellip;</summary><ul class="tiny">${rest.map(item).join('')}</ul></details>` : ''}
+        <ul class="tiny">${byBook(first)}</ul>
+        ${rest.length ? `<details><summary>and ${rest.length} more&hellip;</summary><ul class="tiny">${byBook(rest)}</ul></details>` : ''}
       </div>`;
     }).join('') + waitingLine;
   }

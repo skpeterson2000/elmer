@@ -1207,6 +1207,25 @@ is refused at *Add a book*, so the Library never has to choose between the
 two. Nothing is fetched to fill the shipped books: they arrive with the
 program, so they add nothing to *What leaves a unit*.
 
+**What a book is called, and its cover.** One rule, everywhere a book is
+named (`library.book_title`): a book that came with ELMER is called what its
+manifest says; any other by its PDF's own Title field, unless that is a
+label or a placeholder (`library.clean_title` - a field ending in a colon, or
+wholly in brackets); else its file's name. The card catalogue had the first,
+while the index of topics and search had only the second, and printed
+"Subject:" in front of every ATP chapter and "[Add Logo Here]" for the
+AUXFOG - both publishers' template labels, left in the file. The index now
+names each book once, in italics, with its chapters under it. Each book on
+the table shows its cover, which is its first page drawn at 30 dpi by the
+same poppler render the reader uses and kept beside its pages
+(`library.cover_image`, `/library/cover/<name>.png`); tapping it opens the
+book, and one that cannot be drawn is left out rather than shown broken.
+The User's Guide's first page was its contents, so it has a cover of its
+own: the program's icon on the program's dark, the title, the first
+paragraph, the build (`manual.COVER_ART`). A change of the guide's layout
+builds it again on every unit (`manual.LAYOUT`, folded into the hash that
+decides), where the text alone used to decide.
+
 **The table, the shelf and the card catalogue.** A library is somewhere one
 can see the whole collection or keep a tidy desk, and a person should be able
 to do either. So every book is in one of two places. *On the table* is what
