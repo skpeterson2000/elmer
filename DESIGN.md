@@ -1764,7 +1764,16 @@ The page says which of the two the figures came from.
 Above 50 MHz "what can I reach" is answered by repeaters, not by towns. Three
 routes feed one list, and the list says which fed it.
 
-The first is the operator's own RepeaterBook account. RepeaterBook's API is
+The first is the operator's own RepeaterBook account - built, and not the
+way in. As of September 2026 the API still answers (a request without a
+token gets `401 auth_missing`), but only to programs RepeaterBook has
+approved, and ELMER's application was never granted; RepeaterBook's own
+route from a listing to a radio is now paid and its own - RepeaterBook
+Connect, an app that programs supported Icom, Kenwood and Yaesu radios over
+USB or Bluetooth, and RepeaterBook Plus exports for CHIRP, RT Systems and
+the makers' software. So the route below stays in the code for the day it
+is approved, and repeaters reach ELMER through TowerWitch, which holds the
+station's repeater data, or an import. How it would work: RepeaterBook's API is
 open to approved programs, in two steps: the program's author applies once,
 naming the User-Agent it sends (ELMER's is in `repeaters.py` and must not
 drift from the form), and RepeaterBook lists it as an app; then each of its

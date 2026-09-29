@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The notes say where RepeaterBook stands now. Its API still answers, but only to programs RepeaterBook has approved, and ELMER is not one, so a token made today fetches nothing; RepeaterBook's own route to a radio is its paid RepeaterBook Connect app and RepeaterBook Plus exports. The Station panel's token line says so, and points at TowerWitch, which holds the station's repeater data, or an import.
+
 - A cold start no longer outlasts the splash. The splash lifted as soon as the server would serve it a file, which is almost as soon as it is listening, and the dashboard was then built and filled in its panels in front of you. It now waits until ELMER has built the dashboard and fetched its propagation and update panels once, still never less than four seconds, and goes anyway after 45 if the program answers but never says it is ready.
 
 - Local and Zulu clocks in the top bar on every page: local with its time zone, Zulu in amber as a log writes it, each with its date on hover. On a phone the bar shows Zulu; a tap shows local for ten seconds, labelled, and it goes back to Zulu on its own, so it is never left on local by mistake.

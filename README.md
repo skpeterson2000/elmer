@@ -229,8 +229,12 @@ those words rather than reading like a lost connection.
   typical wind.
 - Sound effects for golf are on the bench, unwired.
 - A player's record and awards do not yet travel between units.
-- RepeaterBook's API route is built and waits on RepeaterBook listing ELMER
-  as an app; until then the CSV import is the way in. The FCC license files
+- RepeaterBook's API route is built, and not the way in. The API still
+  answers (September 2026), but only to programs RepeaterBook has approved,
+  and ELMER is not one; RepeaterBook's own route to a radio is now its paid
+  RepeaterBook Connect app and RepeaterBook Plus exports. Repeaters reach
+  ELMER through TowerWitch, which holds the station's repeater data, or a
+  CSV import. The FCC license files
   have been read on the laptop and not yet timed on a Pi.
 - LoRa: not started. The design is in [DESIGN.md](DESIGN.md), the radios are
   not on the bench.
