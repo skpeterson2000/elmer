@@ -140,6 +140,24 @@ CONDUCTORS = [
                 "length and carries the 1 A of 100 W at the feed - the rating "
                 "is not the limit here. Its strength is: it stretches, and a "
                 "long span in wind will part it."},
+    # 23 AWG, 0.573 mm, a half-pound spool of some 315 feet: the stoutest of
+    # the hobby magnet wires, and a pathway rather than a lesson - about one
+    # watt in twenty lost on a 40 m dipole, and enough on the spool for four
+    # of them or two for 80 m.
+    {"key": "magnet23", "label": "23 AWG magnet wire", "od_mm": 0.573,
+     "material": "copper", "sigma": 1.00,
+     "found": "a half-pound spool of about 315 feet, sold for motors and transformers",
+     "work": "Scrape or burn the enamel off - heavy-build enamel rated for "
+             "220 C takes a hot iron and patience - tin it, and solder; tie "
+             "off at the ends around something stout, not the wire alone.",
+     "note": "The sturdiest of the thin ones and still hard to see at a "
+             "distance. One spool is four 40 m dipoles or two for 80 m. On "
+             "40 m it heats away about one watt in twenty, and 100 W is far "
+             "inside what it carries.",
+     "caution": "Soft copper: it stretches, and a long span in wind or ice "
+                "will part it - give it a spring or a length of inner tube at "
+                "one end. The 220 C on the spool is the enamel's rating, not "
+                "a current it can carry."},
     # Two-conductor zip cord - speaker wire, lamp cord - sized by the AWG of
     # each conductor (18 AWG 1.024 mm, 22 AWG 0.644 mm). Twenty meters of it
     # is the thrifty 40 m dipole: 65.6 ft is a half wave at about 7.1 MHz.
@@ -349,7 +367,7 @@ CITES = {
     "fence": ["wire", "steel"], "hanger": ["steel"], "tape": ["steel"], "emt12": ["steel"],
     "alu12": ["aluminium", "fatigue"], "alu34": ["aluminium", "fatigue"],
     "magnet15": ["wire", "stretch", "plastics"], "magnet26": ["wire", "stretch", "plastics"],
-    "magnet40": ["wire", "stretch", "plastics"], "magnet30": ["wire", "stretch", "plastics"],
+    "magnet40": ["wire", "stretch", "plastics"], "magnet23": ["wire", "stretch", "plastics"], "magnet30": ["wire", "stretch", "plastics"],
     "alufence": ["wire", "aluminium", "fatigue", "contact"],
     "alucraft": ["aluminium", "fatigue", "contact", "stretch"],
     "zip18": ["wire", "tin", "plastics", "stretch"], "zip22": ["wire", "tin", "plastics", "stretch"],

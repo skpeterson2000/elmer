@@ -1462,7 +1462,8 @@ dipole; its note says that the half-amp current rating on the spool is for a
 wire wound tight in a coil, not one strung in the open. 30 AWG, the
 half-pound spool of 1,660 feet, sits between them: an eighth of 100 W
 lost, a third of 40 AWG's, and 1.1 A at the feed against the 10 A that
-melts it.
+melts it. And 23 AWG, the 315-foot spool, is a pathway more than a
+lesson: one watt in twenty lost on 40 m, and four dipoles on the spool.
 
 **What the Library says about them.** The conductors are checked against the
 books on the shelf before anything else, and each cites what the books say
