@@ -1489,9 +1489,24 @@ longer because it is "an idealized model in which the terminal condition is
 not considered", and the Lab's starts from 468/f, which is wire as it is
 hung. The books do not cover a wire's fusing current, wire gauges or
 anodizing, and the notes say those without a book to lean on - Preece for
-the fusing current, the AWG table for the gauges. They do not cover how much
-an insulating jacket shortens a wire, either, which is why the Lab does not
-yet correct for it.
+the fusing current, the AWG table for the gauges.
+
+**Insulated wire, by the AUXFOG.** The AUXFOG 1.1 (DHS Office of Emergency
+Communications, June 2016) ships with ELMER on the same 17 U.S.C. 105 basis
+as the NIFOG, and it is the Library's word on a jacket. Its p. D-6: "the
+insulation adds dielectric loading. This results in the radial being
+electrically longer by roughly 4%." Its Table D-7 gives #14 bare and
+insulated side by side; five of its six rows put insulated at 0.950 to 0.959
+of bare, and their mean, 0.954, is `conductors.INSULATED_K`. The sixth,
+5.370 MHz, prints 42.8 ft insulated against 87.2 bare, a slip for about 83,
+and is left out - the test reads the table out of the shipped book and
+checks both. A conductor marked `insulated` (#14 THHN, a new entry, and zip
+cord) has its cut factor multiplied by it, so the Lab and the cut sheet both
+follow, and both say the jacket is why: #14 insulated on 40 m cuts to 0.906
+of a half wave where bare is 0.950, and at 7.200 MHz the sheet's length is
+within a foot of the table's 61.8 ft. Magnet wire's enamel is a far thinner
+coat than the jacket the table measured and is not counted; zip cord's is
+thicker than THHN's, and its caution says to cut a little long and trim.
 
 The bowtie is also drawn at the shape it actually is. It was being drawn as a
 slender dart about a fifth as wide as it is long, when the dimensions beside

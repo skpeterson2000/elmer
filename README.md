@@ -195,7 +195,9 @@ of its release statement, its source and its SHA-256. The first book on it
 is the Army's ATP 6-02.53, *Techniques for Tactical Radios and
 Retransmission* (July 2025), and beside it CISA's NIFOG 2.02 (January 2025),
 whose channel tables the band plan reads when a unit has not fetched a newer
-edition. The Propagation page draws what calibration has done: the live forecast a
+edition, and the AUXFOG 1.1 (June 2016), the Auxiliary Communications Field
+Operations Guide, whose table of bare and insulated dipole lengths sets how
+much shorter the Lab cuts a jacketed wire. The Propagation page draws what calibration has done: the live forecast a
 day ahead against the sondes, each run's year bare and calibrated beside
 "same as yesterday", the table in force, and every run's error and bias. The
 reach map fills land and water - a dim sea, a dim land, lakes as

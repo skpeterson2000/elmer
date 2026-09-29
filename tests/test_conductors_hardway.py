@@ -151,6 +151,49 @@ def the_sources():
     check("  on the page cited", C.SOURCES["wire"]["says"][:40] in re.sub(r"\s+", " ", text.split("\f")[C.SOURCES["wire"]["page"] - 1]), True)
 
 
+def the_jacket():
+    print("\n-- an insulated wire is cut shorter, by the AUXFOG's table --")
+    import re
+    import subprocess as sp
+    import tempfile
+    from elmer import library, antennapdf
+    book = Path(__file__).resolve().parents[1] / "data" / "shelf" / "AUXFOG-1.1-2016.pdf"
+    pdftotext = library.tool("pdftotext") or "pdftotext"
+    pages = sp.run([pdftotext, "-enc", "UTF-8", str(book), "-"], capture_output=True).stdout.decode("utf-8", "ignore").split("\f")
+    # The factor is read back out of the book: Table D-7's rows, bare and
+    # insulated #14, less the 5.370 MHz row whose 42.8 is a slip for about 83.
+    at = str(C.SOURCES["jacket_table"]["page"])
+    table = re.sub(r"\s+", " ", sp.run([pdftotext, "-enc", "UTF-8", "-layout", "-f", at, "-l", at, str(book), "-"],
+                                         capture_output=True).stdout.decode("utf-8", "ignore"))
+    rows = [(float(f), float(b), float(i)) for f, b, i in
+            re.findall(r"(\d+\.\d{3}) MHz (\d+\.\d) (\d+\.\d)", table)]
+    check("Table D-7 is on the page cited, six rows", len(rows), 6)
+    check("  its bare column is 468/f", all(abs(b - 468.0 / f) < 0.3 for f, b, _ in rows), True)
+    odd = [f for f, b, i in rows if not 0.9 < i / b < 1.0]
+    check("  and only the 5.370 MHz row is out of line", odd, [5.37])
+    good = [i / b for f, b, i in rows if f not in odd]
+    check("the Lab's factor is the mean of the other five", round(sum(good) / len(good), 3), C.INSULATED_K)
+    # The quote. "non-insulated" breaks at its hyphen at a line end, and
+    # pdftotext joins it as "noninsulated"; the table heading has the hyphen.
+    d6 = re.sub(r"\s+", " ", pages[C.SOURCES["jacket"]["page"] - 1]).replace("noninsulated", "non-insulated")
+    check("the AUXFOG is quoted word for word on p. D-6", C.SOURCES["jacket"]["says"] in d6, True)
+    bare, thhn, zip18, enamel = (C.describe(k, 7.15) for k in ("wire14", "wire14i", "zip18", "magnet15"))
+    check("#14 insulated is #14 bare times the factor", thhn["k"], round(bare["k"] * C.INSULATED_K, 4))
+    check("  zip cord is insulated, magnet wire's enamel is not counted",
+          (zip18["insulated"], zip18["k"] < bare["k"], enamel["insulated"], enamel["k"] == bare["k"]), (True, True, False, True))
+    check("  both cite the AUXFOG's page and table",
+          [s["where"] for s in C.sources("wire14i") if s["file"].startswith("AUXFOG")], ["p. D-6", "p. D-7"])
+    check("the cut sheet's #14 insulated dipole is AUXFOG's 7.200 MHz length, to a foot",
+          abs(antennapdf.dimensions("dipole", 7.2, "wire14i")["overall_ft"] - 61.8) < 1.0, True)
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "sheet.pdf"
+        out.write_bytes(antennapdf.build("dipole", 7.15, 30, "wire14i", "house"))
+        sheet = re.sub(r"\s+", " ", sp.run([pdftotext, "-enc", "UTF-8", str(out), "-"],
+                                           capture_output=True).stdout.decode("utf-8", "ignore"))
+    check("  and the sheet says the jacket is why, not thickness",
+          ("the jacket loads it" in sheet, "fatter conductor" in sheet), (True, False))
+
+
 def the_lab():
     print("\n-- the Lab says it --")
     check("chromium is on this machine", bool(_browser.available()), True)
@@ -183,8 +226,13 @@ def the_lab():
           const craft = document.getElementById('an-out').innerText;
           sel.value = 'alufence'; sel.dispatchEvent(new Event('input')); sel.dispatchEvent(new Event('change'));
           await new Promise(res => setTimeout(res, 600)); calcAnt(); await new Promise(res => setTimeout(res, 600));
+          const fence = document.getElementById('an-out').innerText;
           const links = [...document.querySelectorAll('#an-out a')].map(a => a.getAttribute('href')).filter(h => h.indexOf('/library/read/') === 0);
-          r(JSON.stringify({offered: [...sel.options].map(o => o.value), out: craft, fence: document.getElementById('an-out').innerText, links: links}));
+          sel.value = 'wire14i'; sel.dispatchEvent(new Event('input')); sel.dispatchEvent(new Event('change'));
+          await new Promise(res => setTimeout(res, 600)); calcAnt(); await new Promise(res => setTimeout(res, 600));
+          const thhn = document.getElementById('an-out').innerText;
+          const auxfog = [...document.querySelectorAll('#an-out a')].map(a => a.getAttribute('href')).filter(h => h.indexOf('/library/read/AUXFOG') === 0);
+          r(JSON.stringify({offered: [...sel.options].map(o => o.value), out: craft, fence: fence, links: links, thhn: thhn, auxfog: auxfog}));
         })"""
         got = json.loads(_browser.evaluate(f"http://127.0.0.1:{port}/lab#ant", js, settle=0.5,
                                            cookies={"elmer_user": "1"}) or "{}")
@@ -198,6 +246,12 @@ def the_lab():
               (True, True, True))
         check("  and the ATP, which ships with ELMER, opens at its page",
               any(h.startswith("/library/read/ATP-6-02.53-2025.pdf?page=134") for h in got.get("links") or []), True)
+        thhn = got.get("thhn") or ""
+        check("#14 insulated: the Lab says its jacket shortens the cut, and to what",
+              ("Its jacket loads it" in thhn, "%.3f" % C.describe("wire14i", 7.15)["k"] in thhn), (True, True))
+        check("  and the AUXFOG, which ships with ELMER, opens at its page and table",
+              sorted(h.split("&")[0] for h in got.get("auxfog") or []),
+              ["/library/read/AUXFOG-1.1-2016.pdf?page=98", "/library/read/AUXFOG-1.1-2016.pdf?page=99"])
     finally:
         server.terminate()
         try:
@@ -210,6 +264,7 @@ if __name__ == "__main__":
     the_table()
     the_thin_ones()
     the_sources()
+    the_jacket()
     the_lab()
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     sys.exit(1 if FAILS else 0)

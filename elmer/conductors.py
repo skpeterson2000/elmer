@@ -33,6 +33,22 @@ CONDUCTORS = [
      "note": "The default, and what most wire antennas are. Every rule of "
              "thumb in the books - 468/f and the rest - assumes something "
              "about this thick."},
+    # The same #14 in its jacket - THHN building wire, the spool most dipoles
+    # are actually hung from. The jacket loads it, and the AUXFOG's table of
+    # dipole lengths gives insulated #14 beside bare: the Lab's cut follows it.
+    {"key": "wire14i", "label": "#14 AWG insulated wire (THHN)", "od_mm": 1.63,
+     "material": "copper", "sigma": 1.00, "insulated": True,
+     "found": "the building-wire spools at any hardware store, in any color",
+     "work": "Strip the ends with a wire stripper, twist, solder, and seal "
+             "the joint with tape or heat-shrink - water wicks under a jacket "
+             "and turns the copper green inside it.",
+     "note": "What most dipoles are hung from: cheaper than bare copper, and "
+             "the jacket keeps the weather off it. The jacket also makes it "
+             "electrically longer, so the Lab cuts it shorter than bare wire, "
+             "by the AUXFOG's table.",
+     "caution": "Plastics degrade in sunlight; a black, sunlight-resistant "
+                "jacket outlasts a colored one. The table's lengths are a "
+                "starting point like any other - cut a little long and trim."},
     {"key": "wire18", "label": "#18 AWG wire / speaker flex", "od_mm": 1.02,
      "material": "copper", "sigma": 1.00,
      "found": "out of anything with a loudspeaker in it",
@@ -162,7 +178,7 @@ CONDUCTORS = [
     # each conductor (18 AWG 1.024 mm, 22 AWG 0.644 mm). Twenty meters of it
     # is the thrifty 40 m dipole: 65.6 ft is a half wave at about 7.1 MHz.
     {"key": "zip18", "label": "Zip cord / speaker wire, 18 AWG pair", "od_mm": 1.02,
-     "material": "copper", "sigma": 1.00,
+     "material": "copper", "sigma": 1.00, "insulated": True,
      "found": "the speaker-wire and lamp-cord reel in any hardware store",
      "work": "Pull the two conductors apart by hand - they split cleanly - "
              "strip, twist and solder; it is stranded, so it bends without "
@@ -174,19 +190,21 @@ CONDUCTORS = [
              "at the middle. Stranded and flexible, so it packs and unpacks "
              "without fatigue.",
      "caution": "Its plastic jacket makes it electrically longer, so it "
-                "resonates below where bare wire of the same length would - "
-                "cut long and trim. As a feed line it is not 50 ohm coax: it "
+                "resonates below where bare wire of the same length would. "
+                "The Lab's length allows for a jacket by the AUXFOG's table "
+                "for insulated #14; zip cord's is thicker, so cut a little "
+                "long and trim. As a feed line it is not 50 ohm coax: it "
                 "is a lossy two-wire line that wants a balun or a tuner at "
                 "the radio, and it is best kept short."},
     {"key": "zip22", "label": "Zip cord / speaker wire, 22 AWG pair", "od_mm": 0.644,
-     "material": "copper", "sigma": 1.00,
+     "material": "copper", "sigma": 1.00, "insulated": True,
      "found": "the thin speaker wire and hookup-wire reels",
      "work": "Split, strip, twist and solder, as the 18 AWG - the strands "
              "are fine, so twist them tight before soldering.",
      "note": "The same trick in lighter wire: less to carry, easier to hide, "
              "and still stranded.",
      "caution": "Thin enough that the Lab's loss is worth reading, and the "
-                "jacket shortens it like any insulated wire. Weak in a long "
+                "Lab's length allows for its jacket as for the 18 AWG's. Weak in a long "
                 "span: support it, or keep it short."},
     {"key": "alufence", "label": "Aluminium electric-fence wire (14 ga, 2.0 mm)",
      "od_mm": 2.0, "material": "aluminium", "sigma": 0.61,
@@ -327,10 +345,12 @@ CONDUCTORS = [
 # where this unit has it; the ATP ships with ELMER, the others are an
 # operator's own copies and are cited whether or not they are on the shelf.
 # What the books do not cover - the fusing current (Preece), wire gauges,
-# anodizing - is said in the notes without a book to lean on.
+# anodizing - is said in the notes without a book to lean on. The AUXFOG,
+# which ships with ELMER, is the Library's word on insulated wire.
 ATP = "ATP 6-02.53, Techniques for Tactical Radios and Retransmission"
 MCRP = "MCRP 3-40.3C (MCRP 6-22D), Antenna Handbook"
 AEH = "Antenna Engineering Handbook, 3rd ed. (Johnson)"
+AUXFOG = "AUXFOG: Auxiliary Communications Field Operations Guide, v1.1"
 SOURCES = {
     "wire": {"title": ATP, "where": "para. H-50", "file": "ATP-6-02.53-2025.pdf", "page": 134, "kind": "quote",
              "says": "The best kinds of wire for antennas are copper and aluminum. In an emergency, operators "
@@ -361,16 +381,25 @@ SOURCES = {
                  "kind": "quote",
                  "says": "Plastics do not corrode, but they degrade by oxidation and the action of ultraviolet "
                          "light."},
+    "jacket": {"title": AUXFOG, "where": "p. D-6", "file": "AUXFOG-1.1-2016.pdf", "page": 98, "kind": "quote",
+               "says": "The functional difference between insulated and non-insulated wire is that the insulation "
+                       "adds dielectric loading. This results in the radial being electrically longer by roughly 4%."},
+    "jacket_table": {"title": AUXFOG, "where": "p. D-7", "file": "AUXFOG-1.1-2016.pdf", "page": 99, "kind": "table",
+                     "says": "Suggested dipole wire length, 14 AWG, bare and insulated: 3.800 MHz, 123.2 and 118.2 ft; "
+                             "7.200 MHz, 65.0 and 61.8 ft; 14.200 MHz, 33.0 and 31.4 ft - insulated is 0.95 to "
+                             "0.96 of bare."},
 }
 CITES = {
     "wire14": ["wire"], "wire12": ["wire"], "wire18": ["wire"],
+    "wire14i": ["wire", "jacket", "jacket_table", "plastics"],
     "fence": ["wire", "steel"], "hanger": ["steel"], "tape": ["steel"], "emt12": ["steel"],
     "alu12": ["aluminium", "fatigue"], "alu34": ["aluminium", "fatigue"],
     "magnet15": ["wire", "stretch", "plastics"], "magnet26": ["wire", "stretch", "plastics"],
     "magnet40": ["wire", "stretch", "plastics"], "magnet23": ["wire", "stretch", "plastics"], "magnet30": ["wire", "stretch", "plastics"],
     "alufence": ["wire", "aluminium", "fatigue", "contact"],
     "alucraft": ["aluminium", "fatigue", "contact", "stretch"],
-    "zip18": ["wire", "tin", "plastics", "stretch"], "zip22": ["wire", "tin", "plastics", "stretch"],
+    "zip18": ["wire", "jacket", "jacket_table", "tin", "plastics", "stretch"],
+    "zip22": ["wire", "jacket", "jacket_table", "tin", "plastics", "stretch"],
 }
 
 
@@ -432,6 +461,15 @@ def velocity_factor(mhz, od_mm):
 
 REFERENCE_K = 0.95
 
+# An insulating jacket loads a wire and it resonates lower, so it is cut
+# shorter. The AUXFOG's Table D-7 (p. D-7) gives #14 bare and insulated side
+# by side; five of its six rows put insulated at 0.950 to 0.959 of bare, and
+# this is their mean. The sixth, 5.370 MHz, prints 42.8 ft insulated against
+# 87.2 bare - a slip for about 83 - and is left out. Its text, p. D-6, says
+# "roughly 4%". Enamel is a far thinner coat than that jacket and is not
+# counted; zip cord's jacket is thicker, and its caution says to trim.
+INSULATED_K = 0.954
+
 
 def q_scale(mhz, od_mm):
     """How this conductor's Q compares with ordinary wire's at the same
@@ -455,7 +493,8 @@ def describe(key, mhz):
         "work": spec.get("work", ""),
         # what the Library's books say about it, cited to the page
         "sources": sources(spec["key"]),
-        "k": round(velocity_factor(mhz, spec["od_mm"]), 4),
+        "k": round(velocity_factor(mhz, spec["od_mm"]) * (INSULATED_K if spec.get("insulated") else 1.0), 4),
+        "insulated": bool(spec.get("insulated")),
         "q_scale": round(scale, 3),
         "band_scale": round(1.0 / scale, 2) if scale else 1.0,
         "reference": bool(spec.get("reference")),
@@ -478,8 +517,8 @@ BUILT_FROM = {
     # is small beside what the resistor takes.
     # Aluminium fence wire belongs here most of all: the quarter-mile spool
     # is what these antennas are cheaply built from.
-    "tefv": ["wire14", "wire12", "wire18", "alufence", "magnet15", "fence"],
-    "termsloper": ["wire14", "wire12", "wire18", "alufence", "magnet15", "fence"],
+    "tefv": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
+    "termsloper": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
 }
 
 

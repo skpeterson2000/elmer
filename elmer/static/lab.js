@@ -1549,6 +1549,13 @@ function calcAnt() {
             '&times;</b> the 2:1 bandwidth of #14 wire, and the element wants ' +
             'cutting to <b>' + COND.k.toFixed(3) + '</b> of a half wavelength ' +
             'rather than 0.95 &mdash; fatter resonates shorter.'
+          : '') +
+        /* A jacket loads the wire, and the cut follows the AUXFOG's table
+           of bare and insulated #14 - said, so a shorter length is not a
+           surprise against a book's 468/f. */
+        (COND.insulated
+          ? ' Its jacket loads it, so the Lab cuts it to <b>' + COND.k.toFixed(3) +
+            '</b> of a half wavelength rather than bare wire&rsquo;s 0.95.'
           : ''));
       if (COND.caution) {
         notes.push('<b>Watch out:</b> ' + escapeHTML(COND.caution));

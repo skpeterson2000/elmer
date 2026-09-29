@@ -414,7 +414,17 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
             "move resonance, and taking wire off is easy where putting it back "
             "is not. Trim both legs equally, an inch at a time, and check "
             "after each cut.", st["body"]))
-        if abs(dims["shorter_by_in"]) >= 0.5:
+        if abs(dims["shorter_by_in"]) >= 0.5 and spec.get("insulated"):
+            # The jacket, not the thickness, is what shortens it; the figure
+            # is the AUXFOG's (conductors.INSULATED_K).
+            flow.append(Paragraph(
+                f"This comes out {units.say_in(abs(dims['shorter_by_in']), unit)} "
+                f"shorter than the 468/f a book would give you, because that "
+                f"rule is for bare wire and this is {spec['label']}: the jacket "
+                f"loads it and it resonates lower. The AUXFOG's table of "
+                f"dipole lengths (p. D-7) puts insulated #14 at 0.95 to 0.96 "
+                f"of bare.", st["body"]))
+        elif abs(dims["shorter_by_in"]) >= 0.5:
             flow.append(Paragraph(
                 f"This comes out {units.say_in(abs(dims['shorter_by_in']), unit)} "
                 f"{'shorter' if dims['shorter_by_in'] > 0 else 'longer'} than "

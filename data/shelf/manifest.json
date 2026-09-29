@@ -24,6 +24,19 @@
       "note": "Page 159 reprints an RJ-45 pinout marked 'Copyright 2021 ShowMeCables. All rights reserved.', as CISA publishes it.",
       "sha256": "45c2f5d94861b3ed1b80f7ce5962a160fdd56092211586bdee711b68ca3d3142",
       "bytes": 6735362
+    },
+    {
+      "file": "AUXFOG-1.1-2016.pdf",
+      "key": "auxfog",
+      "title": "AUXFOG: Auxiliary Communications Field Operations Guide, Version 1.1",
+      "edition": "Version 1.1, June 2016",
+      "publisher": "US Department of Homeland Security, Office of Emergency Communications (now CISA), SAFECOM",
+      "source": "https://www.cisa.gov/safecom/safecom-resource-library",
+      "published_file": "https://www.cisa.gov/sites/default/files/publications/AUXFOG%20June%202016%20-%20508%20Reviewed%20-%20Final%20(2-16-17).pdf",
+      "basis": "A work of the United States Government (DHS Office of Emergency Communications): not subject to copyright in the United States, 17 U.S.C. 105. The cover carries no release statement.",
+      "note": "Figures on pp. D-2, D-3 and D-5 are marked 'Courtesy of Tom Brown / N4TAB' and one on p. E-3 'Courtesy of Dave Jordan / WA3GIN'; p. C-40 is adapted from an FCC page; LMR is named as a registered trademark of Times Microwave Systems. As CISA publishes it. CISA lists this edition in its resource library as archived.",
+      "sha256": "9dd33816afd6e3e388532186f876f43c80258eafb77fed75e596807116dc687f",
+      "bytes": 3427518
     }
   ]
 }
