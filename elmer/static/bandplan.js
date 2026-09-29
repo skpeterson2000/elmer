@@ -1013,13 +1013,112 @@ function vhfBox(band) {
 let bpCoast = null, bpReachFor = null;
 fetch('/static/maps/coast.json').then(r => r.json()).then(c => { bpCoast = c; if (bpReachFor) bpReachDraw(false); }).catch(() => {});
 
+/* Land and water, filled. The map drew only coastlines over land and sea of
+   the same near-black, so the band's glow read as sitting on the lines
+   rather than on an ocean or a continent. Now the sea is a dim blue-slate
+   and the land a dim warm charcoal, both close to the background so that
+   the band's color is still the only thing on the map that means anything:
+   the tint shows where the reach is weak or nothing and fades out as it
+   brightens, and at a strong signal a pixel is the band's color alone.
+   Natural Earth's shapes (tools/land.py); the coarse one with the page, the
+   fine one fetched the first time the map is zoomed to want it. Without
+   either, the map is drawn as it always was. */
+const REACH_WATER = [10, 24, 44];
+const REACH_LAND = [30, 30, 27];
+const REACH_TINT_FADE = 60;                 // by this score the tint is gone
+let bpLand = null;
+fetch('/static/maps/land.json').then(r => r.json()).then(l => { bpLand = l; bpGlobeMask = null; if (bpReachFor) bpReachDraw(false); })
+  .catch(() => { /* no fill: the map is drawn as it always was */ });
+
+/* The shapes to fill at this zoom: the fine ones once they are here. */
+function bpLandFor(zoom) {
+  return (zoom >= 3 && bpLayer('land50')) || bpLand;
+}
+
+/* Each ring's box, [west, south, east, north], worked out once per set of
+   shapes, so a view draws only the rings it can see. */
+function bpRingBoxes(rings) {
+  return rings.map(r => {
+    let w = 180, s = 90, e = -180, n = -90;
+    r.forEach(p => { if (p[0] < w) w = p[0]; if (p[0] > e) e = p[0]; if (p[1] < s) s = p[1]; if (p[1] > n) n = p[1]; });
+    return [w, s, e, n];
+  });
+}
+
+/* Fill land white and lakes black into a W x H canvas, with `x(lon)` and
+   `y(lat)` linear in longitude - a ring is drawn once more a whole turn to
+   either side, so land across the edge of the view is filled on both sides
+   of it. `view` is [west, south, east, north] in degrees, west possibly
+   below -180 or east above 180: only rings whose box meets it are drawn.
+   Drawing all of them made a zoomed drag ten times slower - the fine
+   shapes are 73,000 points and most of the world is off the screen.
+   Returns the coverage per pixel, 0 to 255: the fill's own antialiasing,
+   so a coast is soft rather than stepped. */
+function bpFillMask(W, H, land, x, y, turn, view) {
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const g = off.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  if (!land.boxes) land.boxes = {land: bpRingBoxes(land.land || []), lakes: bpRingBoxes(land.lakes || [])};
+  const fill = (rings, boxes, style) => {
+    g.fillStyle = style; g.beginPath();
+    [-360, 0, 360].forEach((deg, j) => {
+      const shift = [-turn, 0, turn][j];
+      rings.forEach((r, k) => {
+        const b = boxes[k];
+        if (view && (b[2] + deg < view[0] || b[0] + deg > view[2] || b[3] < view[1] || b[1] > view[3])) return;
+        r.forEach((p, i) => { const px = x(p[0]) + shift, py = y(p[1]); if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+        g.closePath();
+      });
+    });
+    g.fill('evenodd');
+  };
+  fill(land.land || [], land.boxes.land, '#fff');
+  fill(land.lakes || [], land.boxes.lakes, '#000');
+  const rgba = g.getImageData(0, 0, W, H).data;
+  const out = new Uint8Array(W * H);
+  for (let i = 0; i < out.length; i++) out[i] = rgba[i * 4];
+  return out;
+}
+
+/* The whole world as a land mask, for the great-circle view, where a pixel
+   is found from its latitude and longitude rather than by drawing the
+   shapes: they cross the rim, the far side of the world, in ways a filled
+   path cannot follow. Made once, a sixth of a degree to a pixel, from the
+   coarse shapes whatever the zoom: made from the fine ones it cost 600 ms
+   in one piece on a desktop, seconds on a Pi, and at a sixth of a degree
+   the two are nearly the same mask. The fine coastline is drawn over it. */
+let bpGlobeMask = null;
+function bpGlobeLand(land) {
+  if (!land) return null;
+  if (bpGlobeMask && bpGlobeMask.land === land) return bpGlobeMask;
+  const W = 2048, H = 1024;
+  const mask = bpFillMask(W, H, land, lon => (lon + 180) * W / 360, lat => (90 - lat) * H / 180, W);
+  bpGlobeMask = {land: land, W: W, H: H, mask: mask};
+  return bpGlobeMask;
+}
+
+/* A pixel's color: the band's, over the land's or the water's tint as far
+   as the reach is weak, all under the night's shade. `m` is 0 at sea, 255
+   on land, between at the coast. */
+function reachPixel(px, o, v, m, shade) {
+  const k = Math.round(v) * 3;
+  const f = Math.max(0, 1 - v / REACH_TINT_FADE) * (m === null ? 0 : 1);
+  const t = (m || 0) / 255;
+  for (let i = 0; i < 3; i++) {
+    const base = REACH_WATER[i] + (REACH_LAND[i] - REACH_WATER[i]) * t;
+    px[o + i] = (REACH_LUT[k + i] + (base - REACH_BG[i]) * f) * shade;
+  }
+  px[o + 3] = 255;
+}
+
 /* The borders, and a finer coast, each fetched the first time the zoom
    wants it and never before: countries are small and always drawn,
    states arrive at a few times in, US counties well in - a person
    estimating a null's edge against a county line has zoomed to where a
    county is a shape. "Auto" is that rule; the select overrides it. */
-const bpLayers = {countries: null, states: null, counties: null, coast50: null};
-const bpLayerFiles = {countries: 'borders-countries.json', states: 'borders-states.json', counties: 'borders-counties.json', coast50: 'coast-50m.json'};
+const bpLayers = {countries: null, states: null, counties: null, coast50: null, land50: null};
+const bpLayerFiles = {countries: 'borders-countries.json', states: 'borders-states.json', counties: 'borders-counties.json',
+                      coast50: 'coast-50m.json', land50: 'land-50m.json'};
 function bpLayer(name) {
   if (bpLayers[name] || bpLayers[name] === false) return bpLayers[name] || null;
   bpLayers[name] = false;                          // asked for; not here yet
@@ -1137,6 +1236,7 @@ function bpReachDrawGlobe(coarse) {
   const img = ctx.createImageData(W, H);
   const px = img.data;
   const score = new Float32Array(W * H);
+  const gm = bpGlobeLand(bpLand);     // land and water, looked up by place
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const o = (y * W + x) * 4;
@@ -1154,11 +1254,12 @@ function bpReachDrawGlobe(coarse) {
       const latD = lat / D2R, lonD = ((lon / D2R + 540) % 360) - 180;
       const v = reachAt(d, latD, lonD);
       score[y * W + x] = v;
-      const k = Math.round(v) * 3;
       const alt = Math.asin(sl * sd + Math.cos(lat) * cd * Math.cos((d.sun.gha + lonD) * D2R)) / D2R;
       const t = Math.max(0, Math.min(1, (alt + 12) / 18));
       const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
-      px[o] = REACH_LUT[k] * shade; px[o + 1] = REACH_LUT[k + 1] * shade; px[o + 2] = REACH_LUT[k + 2] * shade; px[o + 3] = 255;
+      const m = gm ? gm.mask[Math.min(gm.H - 1, Math.floor((90 - latD) * gm.H / 180)) * gm.W +
+                             Math.min(gm.W - 1, Math.floor((lonD + 180) * gm.W / 360))] : null;
+      reachPixel(px, o, v, m, shade);
     }
   }
   if (!coarse) {
@@ -1272,6 +1373,11 @@ function bpReachDraw(coarse) {
   const score = new Float32Array(W * H);
   const D2R = Math.PI / 180;
   const sd = Math.sin(d.sun.dec * D2R), cd = Math.cos(d.sun.dec * D2R);
+  // Land and water under the reach, filled at this view's own resolution.
+  const land = bpLandFor(view.zoom);
+  const left = view.lon - spanLon / 2, topLat = view.lat + spanLat / 2;
+  const mask = land ? bpFillMask(W, H, land, lon => (lon - left) * W / spanLon, lat => (topLat - lat) * H / spanLat, 360 * W / spanLon,
+                                 [left, topLat - spanLat, left + spanLon, topLat]) : null;
   for (let y = 0; y < H; y++) {
     const lat = latAt(y);
     const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
@@ -1279,12 +1385,10 @@ function bpReachDraw(coarse) {
       const lon = lonAt(x);
       const v = (fine && inWindow(fine, lat, lon)) ? reachAt(fine, lat, lon) : reachAt(d, lat, lon);
       score[y * W + x] = v;
-      const k = Math.round(v) * 3;
       const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
       const t = Math.max(0, Math.min(1, (alt + 12) / 18));
       const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
-      const o = (y * W + x) * 4;
-      px[o] = REACH_LUT[k] * shade; px[o + 1] = REACH_LUT[k + 1] * shade; px[o + 2] = REACH_LUT[k + 2] * shade; px[o + 3] = 255;
+      reachPixel(px, (y * W + x) * 4, v, mask ? mask[y * W + x] : null, shade);
     }
   }
   /* The isolines: where the score crosses a contour between a pixel and

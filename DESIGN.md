@@ -504,6 +504,24 @@ because they carry very different authority:
   the trend a log book agrees with, which is what the map is for, and real
   terrain still moves the lobes.
 
+  Land and water are filled under the reach. The map drew only coastlines
+  over land and sea of the same near-black, so the band's glow read as
+  sitting on the lines rather than on an ocean or a continent. The sea is a
+  dim blue-slate and the land a dim charcoal, both near the background, and
+  the tint fades out as the reach brightens - gone by a score of 60 - so
+  where the band is strong the pixel is the band's color alone and the band
+  stays the only thing on the map that means anything. The shapes are
+  Natural Earth's land and lakes (`tools/land.py`, public domain): a coarse
+  set with the page and a fine one fetched when the zoom wants it, as the
+  coastline is. The flat map fills them into a mask at its own resolution
+  on every draw, with each ring's box worked out once so a view draws only
+  the rings it can see - drawing all 73,000 points of the fine set made a
+  zoomed drag ten times slower, and with the boxes it costs about ten
+  percent. The great-circle view looks each pixel up in a whole-world mask
+  a sixth of a degree to a pixel, made once from the coarse set, because
+  the shapes cross its rim in ways a filled path cannot follow; the fine
+  coastline is drawn over it (`tests/test_reach_land.py`).
+
   A zoomed window is the same map, closer: the page asks for it with the
   same antenna, height, heading, ground, power and mode as the whole one,
   and draws no answer for settings changed while it was on its way. It
