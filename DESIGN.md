@@ -5287,6 +5287,21 @@ person. Everyone gets their own cards, their own review schedule, their own
 titles, streak, XP, achievements and notes. Nothing is pooled and nothing is
 averaged.
 
+One antenna, whichever page it was chosen on. The Lab, the Band Plan's reach
+map and the analyzer on Tools each had a picker and a memory of its own, and
+an inverted V chosen on the Band Plan was a dipole in the Lab. They share one
+record now (`stationAntenna` / `setStationAntenna` in elmer.js): the kind,
+its height, which way it is laid, the ground under it, and a terminated
+wire's length and ends. Each page writes what a person sets on it and reads
+the record on opening, the newest word winning; a page open in another
+window follows through the browser's storage event. A new kind drops the old
+one's details. What a page sets on its own - the Lab's suggested antenna, the
+Band Plan's NVIS stand-in wire - is not somebody's choice and is not written,
+and a cable picked on the analyzer is a cable being measured, not the
+station's antenna. The Band Plan offers all fifteen antennas the Lab does,
+where it had nine. Watts and mode are not the antenna and stay with the page
+that set them. Per browser, like everything remembered about where you were.
+
 The top bar carries two clocks, Local and Zulu. Every QSO, net, contest
 and spot is in UTC, and working it out from local in your head at the moment
 of a contact is how a log gets an hour wrong. Both are the browser's own

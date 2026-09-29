@@ -1080,6 +1080,49 @@ function syncEnds(from) {
   }
 }
 
+/* The station's antenna (elmer.js), both ways. What a person sets here -
+   the kind, its height, which way it is laid, a terminated wire's length
+   and ends - is written for the Band Plan and the analyzer; what the Lab
+   sets on its own, a suggested antenna, is not somebody's choice and is
+   not written. */
+function labToStation() {
+  const type = (document.getElementById('an-type') || {}).value;
+  if (!type) return;
+  const head = num('an-head');
+  const box = document.getElementById('an-ends');
+  setStationAntenna({
+    kind: type,
+    height_ft: num('an-h') > 0 ? num('an-h') : undefined,
+    heading_deg: Number.isFinite(head) ? wrapHead(head, type) : undefined,
+    length_ft: isTw(type) ? Math.max(20, num('an-len') || TW_DEFAULTS[type].len) : undefined,
+    ends_ft: isTw(type) && box && box.value.trim() !== '' ? twEnds() : undefined,
+  }, 'lab');
+}
+/* Set the form to the station's antenna, as a choice - so the Lab
+   evaluates it rather than suggesting something else in its place. */
+function labApplyStation(st) {
+  st = st || stationAntenna();
+  const sel = document.getElementById('an-type');
+  if (!st || !sel || ![...sel.options].some(o => o.value === st.kind)) return false;
+  sel.value = st.kind;
+  anTypeByHand = true;
+  if (st.height_ft > 0) { document.getElementById('an-h').value = Math.round(st.height_ft); anHeightSuggested = false; }
+  antennaFields(st.kind);
+  if (isTw(st.kind)) {
+    if (st.length_ft > 0) document.getElementById('an-len').value = Math.round(st.length_ft);
+    const box = document.getElementById('an-ends');
+    if (box) box.value = st.ends_ft >= 0 ? String(st.ends_ft) : '';
+  } else {
+    syncEnds(null);
+  }
+  if (st.heading_deg >= 0) setHead(st.heading_deg, false);
+  return true;
+}
+/* Changed on the Band Plan in another window of this browser: follow it. */
+document.addEventListener('station-antenna', e => {
+  if (labApplyStation(e.detail)) calcAnt();
+});
+
 function applyAngle(type) {
   const spec = ANGLE_FOR[type];
   const el = document.getElementById('an-angle');
@@ -2233,6 +2276,7 @@ function wirePlanTurn(box, d) {
       if (id === 'an-h') anHeightSuggested = false;
       antennaFields(document.getElementById('an-type').value);
       syncEnds(id);
+      if (['an-type', 'an-h', 'an-head', 'an-len', 'an-ends'].includes(id)) labToStation();
       /* A terminated wire's length, for the band plan's reach map, which has
          no box for it. The Lab's full record is kept only when advice is
          asked for, so 50 ft typed here reached the map as the handbook's
@@ -3713,19 +3757,29 @@ const recallAntenna = () => recall('lab.antenna', null);
     if (asClass) { anAsClass = asClass; anClassFrom = 'bandplan'; }
     const ctx = {mhz: f, use: q.get('use') || '', kind: q.get('kind') || '',
                  asClass: asClass || ''};
+    // The station's antenna, when it is the one asked about (or none was):
+    // evaluated as it stands rather than suggested over.
+    const st = stationAntenna();
+    const mine = st && (!ctx.kind || ctx.kind === st.kind) && labApplyStation(st);
+    if (mine) ctx.kind = st.kind;
     rememberAntenna(ctx);
     selectTab('ant');
     history.replaceState(null, '', location.pathname + '#ant');
-    antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+    antennaAdvice(ctx.mhz, ctx.use, ctx.kind, mine ? 'evaluate' : undefined);
     return;
   }
   /* No frequency on the URL: either a plain visit or a return trip. Restore
      what was last set up, without stealing the tab - somebody arriving at
      #smith wanted the Smith chart. */
   const ctx = recallAntenna();
+  // The antenna chosen last, wherever it was chosen - the Band Plan, the
+  // analyzer or here - is the one on the form.
+  const mine = labApplyStation();
   if (ctx && ctx.mhz) {
     if (ctx.asClass) { anAsClass = ctx.asClass; anClassFrom = 'bandplan'; }
-    antennaAdvice(ctx.mhz, ctx.use, ctx.kind);
+    antennaAdvice(ctx.mhz, ctx.use, mine ? stationAntenna().kind : ctx.kind, mine ? 'evaluate' : undefined);
+  } else if (mine) {
+    calcAnt();
   }
 })();
 
@@ -4982,6 +5036,25 @@ document.addEventListener('click', e => {
 });
 
 if (document.getElementById('vn-chart')) {
+  /* The analyzer's antenna is the station's (elmer.js): it opens on the one
+     chosen last anywhere, and choosing one here chooses it everywhere. A
+     length of coax on the analyzer is a cable being measured, not the
+     station's antenna, and is not written. */
+  const vnKind = document.getElementById('vn-kind');
+  if (vnKind) {
+    const st = stationAntenna();
+    if (st && [...vnKind.options].some(o => o.value === st.kind)) vnKind.value = st.kind;
+    vnKind.addEventListener('change', () => {
+      if (ANTENNA_KINDS.includes(vnKind.value)) setStationAntenna({kind: vnKind.value}, 'analyzer');
+    });
+    document.addEventListener('station-antenna', e => {
+      const got = e.detail;
+      if (got && [...vnKind.options].some(o => o.value === got.kind) && vnKind.value !== got.kind) {
+        vnKind.value = got.kind;
+        vnSoon(vnUpdate);
+      }
+    });
+  }
   ['vn-f0', 'vn-center', 'vn-span', 'vn-kind', 'vn-line', 'vn-feet'].forEach(id => {
     const el = document.getElementById(id);
     // Moving the window by hand is a request to look somewhere else, so the

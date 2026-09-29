@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The antenna you choose on the Band Plan, in the Lab or on the analyzer in Tools is the one all three open on: kind, height, which way it is laid, ground, and a terminated wire's length and ends. Change it in one and the others follow, even open in another window. The Band Plan's map now offers every antenna the Lab does.
+
 - On a kiosk whose browser does not come up full screen by itself, the program no longer appears in a small window and then jumps. ELMER used to set the window full screen fifteen seconds after the launch, well after the splash had handed over; it now does it as soon as the window is up, the splash waits until the window is settled, and Chromium starts maximized so even the first moment fills the screen.
 
 - The notes say where RepeaterBook stands now. Its API still answers, but only to programs RepeaterBook has approved, and ELMER is not one, so a token made today fetches nothing; RepeaterBook's own route to a radio is its paid RepeaterBook Connect app and RepeaterBook Plus exports. The Station panel's token line says so, and points at TowerWitch, which holds the station's repeater data, or an import.

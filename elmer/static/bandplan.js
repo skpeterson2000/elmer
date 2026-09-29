@@ -1713,7 +1713,12 @@ function bpReachAntenna() {
      kept only when advice is asked for, and a length typed without that
      never arrived: 50 ft in the Lab, and the map drew the handbook's 500. */
   const lab = recall('lab.antenna', null) || {};
-  const wire = recall('lab.antenna.wire', null) || {};
+  // The station's antenna first (elmer.js), when it is this kind; then the
+  // Lab's wire record, which it replaced.
+  const station = stationAntenna();
+  const wire = station && station.kind === sel.value
+    ? {kind: station.kind, length_ft: station.length_ft, ends_ft: station.ends_ft}
+    : (recall('lab.antenna.wire', null) || {});
   const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
   const lengthFt = !terminated ? 0
     : wire.kind === sel.value && wire.length_ft > 0 ? wire.length_ft
@@ -1803,6 +1808,7 @@ function bpReachSeed() {
   if (hd) hd.value = labLaid ? Math.round(lab.heading_deg)
     : (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
+  bpApplyStation();
   /* The ground, rated rather than guessed: the soil and water surveys at the
      QTH (siteground.py), turned into the four grounds the map knows. Kept on
      the unit once rated, so it answers again without a signal. */
@@ -1874,11 +1880,46 @@ function bpReachSeed() {
   [sel, h, w, hd, gnd].concat(ems).forEach(el => el && el.addEventListener('change', () => {
     const band = bpData && bpData.bands.find(b => b.name === bpBand);
     if (el.name === 'bp-reach-em') bpReachLaw(band);    // a new mode on CB moves the ceiling
+    if ([sel, h, hd, gnd].includes(el)) bpToStation();
     bpReachRemember();
     bpReachCache = {}; bpView.refined = null;
     if (band) bpReach(band);
   }));
 }
+/* The station's antenna (elmer.js), both ways. Chosen here, it is the Lab's
+   and the analyzer's too; chosen there, it is this map's. The NVIS switch's
+   stand-in wire is a what-if and is not written - only a choice made here. */
+function bpToStation() {
+  const sel = document.getElementById('bp-reach-ant');
+  if (!sel || sel.value === 'none') return;
+  const h = document.getElementById('bp-reach-h'), hd = document.getElementById('bp-reach-hd');
+  const gnd = document.getElementById('bp-reach-gnd');
+  setStationAntenna({kind: sel.value,
+                     height_ft: h && +h.value > 0 ? +h.value : undefined,
+                     heading_deg: hd && hd.value !== '' ? +hd.value : undefined,
+                     ground: gnd ? gnd.value : undefined}, 'bandplan');
+}
+function bpApplyStation() {
+  const st = stationAntenna();
+  const nvis = document.getElementById('bp-reach-nvis');
+  if (!st || (nvis && nvis.checked)) return false;
+  const sel = document.getElementById('bp-reach-ant'), h = document.getElementById('bp-reach-h');
+  const hd = document.getElementById('bp-reach-hd'), gnd = document.getElementById('bp-reach-gnd');
+  if (!sel || ![...sel.options].some(o => o.value === st.kind)) return false;
+  sel.value = st.kind;
+  if (h && st.height_ft > 0) h.value = Math.round(st.height_ft);
+  if (hd) hd.value = st.heading_deg >= 0 ? Math.round(st.heading_deg) : '';
+  if (gnd && st.ground && [...gnd.options].some(o => o.value === st.ground)) gnd.value = st.ground;
+  return true;
+}
+/* Changed in the Lab in another window of this browser: follow it. */
+document.addEventListener('station-antenna', () => {
+  if (!bpApplyStation()) return;
+  bpReachRemember();
+  bpReachCache = {}; bpView.refined = null;
+  const band = bpData && bpData.bands.find(b => b.name === bpBand);
+  if (band) bpReach(band);
+});
 async function bpReach(band) {
   const box = document.getElementById('bp-reach');
   if (!box) return;

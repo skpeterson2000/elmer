@@ -464,6 +464,42 @@ function recall(key, fallback) {
   }
 }
 
+/* The station's antenna: one record, whichever page it was chosen on.
+   The Lab, the Band Plan's reach map and the analyzer on Tools each had a
+   picker and a memory of its own, and a V chosen on the Band Plan was a
+   dipole in the Lab. Each now writes what it is set to here and reads it on
+   opening, the newest word winning: the kind, its height, which way it is
+   laid, the ground under it, and a terminated wire's length and ends. Watts
+   and mode are not the antenna, and stay with the page that set them.
+   Kept like everything remembered here - per browser (see remember above). */
+const STATION_ANTENNA_KEY = 'station.antenna';
+const ANTENNA_KINDS = ['dipole', 'invertedv', 'efhw', 'bowtie', 'loop', 'quarter', 'fiveeighth',
+                       'jpole', 'groundplane', 'yagi', 'whip', 'whipdipole', 'screwdriver', 'tefv',
+                       'termsloper'];
+
+function stationAntenna() {
+  const got = recall(STATION_ANTENNA_KEY, null);
+  return got && ANTENNA_KINDS.includes(got.kind) ? got : null;
+}
+
+/* Merge what this page knows into the record. A new kind drops the details
+   that belonged to the old one - a Yagi does not inherit a vee's length. */
+function setStationAntenna(fields, from) {
+  if (!fields || (fields.kind && !ANTENNA_KINDS.includes(fields.kind))) return;
+  const was = recall(STATION_ANTENNA_KEY, null) || {};
+  const base = fields.kind && fields.kind !== was.kind ? {kind: fields.kind} : was;
+  const next = Object.assign({}, base, fields, {at: Date.now(), from: from || ''});
+  Object.keys(next).forEach(k => { if (next[k] === undefined || next[k] === null || next[k] === '') delete next[k]; });
+  remember(STATION_ANTENNA_KEY, next);
+}
+
+/* Another page of ELMER open in this browser changed it: tell this one. */
+window.addEventListener('storage', e => {
+  if (e.key === 'elmer.' + STATION_ANTENNA_KEY) {
+    document.dispatchEvent(new CustomEvent('station-antenna', {detail: stationAntenna()}));
+  }
+});
+
 function isTyping(event) {
   const el = event.target;
   if (!el) return false;
