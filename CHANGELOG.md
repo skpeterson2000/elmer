@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- A cold start no longer outlasts the splash. The splash lifted as soon as the server would serve it a file, which is almost as soon as it is listening, and the dashboard was then built and filled in its panels in front of you. It now waits until ELMER has built the dashboard and fetched its propagation and update panels once, still never less than four seconds, and goes anyway after 45 if the program answers but never says it is ready.
+
 - Local and Zulu clocks in the top bar on every page: local with its time zone, Zulu in amber as a log writes it, each with its date on hover. On a phone the bar shows Zulu; a tap shows local for ten seconds, labelled, and it goes back to Zulu on its own, so it is never left on local by mistake.
 
 - The Lab asks where a wire's ends are tied off. It marked the apex or the support and took the ends from an angle - and a terminated wire's from the handbook's 6 ft posts, always. Now an inverted-V, a sloping dipole or end-fed and the terminated wires have **Ends tied off at**: type the fence post's height and the droop or slope follows, move the slider and the ends follow; a terminated wire's ends go into its pattern, drawing, table, fit and the reach map. A sloping dipole's pattern is now drawn from its middle, where its current is: it was placed a quarter of the way down the slope, eight feet too high at thirty degrees on 40 m.

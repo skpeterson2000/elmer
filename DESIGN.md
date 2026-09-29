@@ -5213,11 +5213,22 @@ first time a page asks for one, which is why the socket can be bound in a tenth
 of a second while the first page still takes five. The browser opens straight
 away on a splash screen held on disk — the owl tile out of `artwork/Mixed.jpg` —
 and the kiosk asks for the first page behind it, so the pools are coming off the
-card during the hold rather than after it. The splash lifts once the server
-answers and never sooner than four seconds, which is set to about the median
+card during the hold rather than after it. The splash lifts once ELMER is
+ready and never sooner than four seconds, which is set to about the median
 start rather than to the slowest board: a fast machine would otherwise flash the
 splash and be gone while a slow one sat on it, and every board should open the
 same way.
+
+Ready, not merely listening. The splash used to lift when the server would
+serve it a static file, which it does almost as soon as the socket is bound -
+and then the dashboard was built and fetched its panels in front of the
+operator, so a cold start outlasted the splash that was there to cover it. It
+now asks `/ready.png`, which refuses until the program has built the
+dashboard and fetched the propagation and update panels once (`READY_PATHS`
+in app.py), and starts that work on the first ask if nothing has. A server
+that answers but never says ready - an older one without the route, or a
+warm-up that is stuck - is gone to 45 seconds after it first answered,
+because a working program is not to be held behind a picture.
 
 What that first page actually cost is written down rather than shown — to
 `data/elmer.log`, and to `--doctor`, which reports it as **start** and answers

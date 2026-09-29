@@ -6668,6 +6668,54 @@ def api_net_open():
     return jsonify(running.board())
 
 
+# ------------------------------------------------------------- ready
+# The splash (static/splash.html) used to hand over the moment the server
+# could serve a static file, which it can almost as soon as the socket is
+# bound - and then the dashboard was built, and fetched its panels, in front
+# of the operator: a cold start outlasting the splash that was meant to cover
+# it. So the splash asks here instead, and this answers only once the
+# program has done the first start's work - the dashboard built, the
+# propagation and update panels fetched - so what it hands over to is ready.
+# The first ask starts that work if nobody has; a kiosk's own warm-up
+# (kiosk.fetch_home) running beside it costs nothing extra.
+READY_PATHS = ("/", "/api/propagation", "/api/update")
+_ready = threading.Event()
+_warming = threading.Lock()
+_warm_started = [False]
+
+
+def _warm_up():
+    began = time.monotonic()
+    try:
+        with app.test_client() as client:
+            for path in READY_PATHS:
+                try:
+                    client.get(path, headers={"User-Agent": "ELMER/warm-up"})
+                except Exception:                 # one panel failing must not hold the splash
+                    log.exception("ready: warming %s failed", path)
+    finally:
+        _ready.set()
+        log.info("ready: warmed the first page and its panels in %.1fs", time.monotonic() - began)
+
+
+@app.route("/ready.png")
+def ready_png():
+    """The icon once ELMER is ready to be looked at, 503 until then - an
+    image, because the splash is a file:// page and can only ask by loading
+    one."""
+    if not _ready.is_set():
+        with _warming:
+            if not _warm_started[0]:
+                _warm_started[0] = True
+                threading.Thread(target=_warm_up, name="ready-warm", daemon=True).start()
+        response = app.response_class("warming", status=503, mimetype="text/plain")
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    response = send_from_directory(app.static_folder, "icon.png", mimetype="image/png")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/api/ping")
 def api_ping():
     """The cheapest possible answer, for measuring the wire and nothing else.

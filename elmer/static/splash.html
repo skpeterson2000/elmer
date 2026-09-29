@@ -47,7 +47,15 @@
 
    The probe is an image rather than a fetch because this page is a file:// and
    a fetch to http://localhost is another origin; an <img> reports load and
-   error either way, which is the whole question being asked. */
+   error either way, which is the whole question being asked.
+
+   What it asks is whether ELMER is ready, not whether it is listening: the
+   static icon it used to load answered as soon as the socket was bound, and
+   the dashboard was then built and filled in front of the operator - a cold
+   start that outlasted the splash. /ready.png answers once the first page
+   and its panels are done (app.ready_png). If the program answers but is not
+   ready within READY_MS, the splash goes anyway rather than hold a working
+   program behind a picture. */
 var params = new URLSearchParams(location.search);
 var port = params.get('port') || '5000';
 var base = 'http://127.0.0.1:' + port;
@@ -61,6 +69,9 @@ var began = Date.now();
 
 // Kept in step with kiosk.HOLD_SECONDS by hand - there is no server to ask.
 var HOLD_MS = 4000;
+// The most the splash waits on "ready" once the server is answering at all.
+// A test shortens it with ?ready_ms=; nothing else passes one.
+var READY_MS = +params.get('ready_ms') || 45000;
 
 // Beside this file, so it is on screen without waiting for anything - the
 // probe below is a second, cache-busted request to the server.
@@ -86,13 +97,34 @@ setTimeout(function () {
     + 'the log: <span style="color:#e6edf3">data/elmer.log</span>';
 }, 90000);
 
+var gone = false;
+function leave() { if (!gone) { gone = true; go(); } }
+
 function probe() {
+  if (gone) return;
   var test = new Image();
-  test.onload = go;
+  test.onload = leave;
   test.onerror = function () { setTimeout(probe, 500); };
-  test.src = base + '/static/icon.png?probe=' + Date.now();
+  test.src = base + '/ready.png?probe=' + Date.now();
 }
 probe();
+
+// The backstop: a server that answers but never says ready - an old one
+// without /ready.png, or one whose warm-up is stuck - is still gone to,
+// READY_MS after it first answered.
+var answering = 0;
+function listening() {
+  if (gone) return;
+  var test = new Image();
+  test.onload = function () {
+    if (!answering) answering = Date.now();
+    if (Date.now() - answering >= READY_MS) { say.textContent = 'opening'; leave(); }
+    else setTimeout(listening, 1000);
+  };
+  test.onerror = function () { setTimeout(listening, 1000); };
+  test.src = base + '/static/icon.png?probe=' + Date.now();
+}
+listening();
 </script>
 </body>
 </html>
