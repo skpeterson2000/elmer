@@ -5255,6 +5255,17 @@ person. Everyone gets their own cards, their own review schedule, their own
 titles, streak, XP, achievements and notes. Nothing is pooled and nothing is
 averaged.
 
+The top bar carries two clocks, Local and Zulu. Every QSO, net, contest
+and spot is in UTC, and working it out from local in your head at the moment
+of a contact is how a log gets an hour wrong. Both are the browser's own
+time - the unit's clock on its screen, the phone's on a phone - ticked on the
+second so they change together, Zulu 24-hour with its Z, local in the
+reader's own habit with its zone, and each with its date on hover, since
+Zulu's turns over in the evening west of Greenwich. A phone has room for
+one, and it is Zulu. A tap shows local in its place, label and all, and it
+goes back to Zulu after ten seconds on its own: a glance, never a state it
+can be left in and a log written from. Every page starts on Zulu.
+
 The top bar names whoever is at it. Pressing it lists everybody on the unit,
 switches between them in one press, and takes a name and an optional callsign to
 add somebody new.

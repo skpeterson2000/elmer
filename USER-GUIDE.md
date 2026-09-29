@@ -108,7 +108,7 @@ Scroll down and the rest of the first screen is already there, waiting for a rec
 
 ### The status strip
 
-To the right of the tabs: the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best.
+To the right of the tabs: two clocks, **Local** with your time zone and **Zulu** in amber - UTC, the time every log, net, contest and spot is kept in - each with its date when you hover over it; on a phone there is room for one, so it shows Zulu, and a tap shows local in its place for ten seconds before it goes back. Then the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best.
 
 ![The dashboard a few days in: the space weather strip, the standing, and the tracks](docs/screenshots/guide/dashboard.png)
 

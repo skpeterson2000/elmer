@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- Local and Zulu clocks in the top bar on every page: local with its time zone, Zulu in amber as a log writes it, each with its date on hover. On a phone the bar shows Zulu; a tap shows local for ten seconds, labelled, and it goes back to Zulu on its own, so it is never left on local by mistake.
+
 - The Lab asks where a wire's ends are tied off. It marked the apex or the support and took the ends from an angle - and a terminated wire's from the handbook's 6 ft posts, always. Now an inverted-V, a sloping dipole or end-fed and the terminated wires have **Ends tied off at**: type the fence post's height and the droop or slope follows, move the slider and the ends follow; a terminated wire's ends go into its pattern, drawing, table, fit and the reach map. A sloping dipole's pattern is now drawn from its middle, where its current is: it was placed a quarter of the way down the slope, eight feet too high at thirty degrees on 40 m.
 
 - Sending feedback is one press after writing it. The report panel had a Mail home fold beside it that asked for your own mail server, login and app password - left from before the project's drop worked, needed by nothing, and on a kiosk-height screen it was what you saw while the Send button sat below the edge. It is gone, and a unit keeps no mail password; the doctor names an old data/mail.json so it can be deleted. After **Write it**, **Send it to KC9SP** is brought into view with the focus on it. The fold is now **Where reports go**, with the weekly field report. A report mailed by hand goes to elmeramateurradio@gmail.com, the project's reports mailbox, where it arrived late through the arrl.net forwarder.

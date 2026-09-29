@@ -45,6 +45,20 @@
     <a href="/library" {% if request.path.startswith('/library') %}class="on"{% endif %}>Library</a>
   </nav>
   <div class="status">
+    {# Two clocks: the one the operator lives by, and the one the log is kept
+       in. Zulu is the amateur's time - every QSO, every net, every contest
+       and every spot is in it - and working it out from local in your head
+       at the moment of a contact is how a log gets an hour wrong. The time is
+       the browser's own: the unit's clock on its screen, the phone's on a
+       phone. Filled in by elmer.js; the dashes are what shows without it. #}
+    <div class="clocks" id="clocks">
+      <div class="clock-cell" id="clock-local" title="local time">
+        <span class="clock-lab">Local</span><span class="clock-t">--:--:--</span>
+      </div>
+      <div class="clock-cell" id="clock-utc" title="UTC - the time a log is kept in">
+        <span class="clock-lab">Zulu</span><span class="clock-t">--:--:--Z</span>
+      </div>
+    </div>
     <div class="who">
       <button type="button" class="who-btn" id="who-btn"
               title="who is playing - switch, or add somebody">

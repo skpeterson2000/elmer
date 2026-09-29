@@ -108,6 +108,17 @@ p { margin: 0 0 .8rem; }
 }
 
 .status { display: flex; align-items: center; gap: .85rem; margin-left: auto; }
+/* Local and Zulu, labelled the way the rank is, the digits in the mono face
+   so they do not shuffle as they tick. Zulu in amber: it is the one a log is
+   written in. */
+.clocks { display: flex; gap: 1rem; margin-right: .5rem; }
+.clock-cell { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.clock-lab {
+  font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dimmer);
+}
+.clock-t { font: .9rem var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+#clock-utc .clock-t { color: var(--amber); }
 
 /* The corner, and it is a corner on every screen.
  *
@@ -581,6 +592,13 @@ a.band-tag:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
   .status-xp { display: none; }
+  /* On a phone there is room for one clock, and it is Zulu - the one a log
+     needs. A tap shows local in its place, label and all, and it goes back
+     to Zulu on its own (elmer.js): a glance, never a state somebody can
+     leave it in and then log from. */
+  .clocks { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .clocks:not(.show-local) #clock-local { display: none; }
+  .clocks.show-local #clock-utc { display: none; }
   /* Not hidden any more. It was, to save room in a cramped bar, which left a
      phone showing a bare "Technician Operator" beside a callsign and nothing
      at all to say it was a study rank. That is the one thing this must never

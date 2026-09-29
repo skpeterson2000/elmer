@@ -884,3 +884,54 @@ window.addEventListener('pageshow', e => {
     a.classList.remove('going'));
   goingTab = null;
 });
+
+/* Local and Zulu in the bar (base.html). Ticked on the second rather than
+   every thousand milliseconds from whenever the page loaded, so the two
+   clocks change together and on time. Zulu is 24-hour with its Z, as a log
+   writes it; local is in the reader's own habit, with the zone it is in.
+   Each says its whole date on hover: Zulu's turns over in the evening for
+   anybody west of Greenwich, and the date is the half of a log entry that
+   goes wrong. */
+(function clocks() {
+  const local = document.querySelector('#clock-local .clock-t');
+  const utc = document.querySelector('#clock-utc .clock-t');
+  if (!local || !utc) return;
+  const localLab = document.querySelector('#clock-local .clock-lab');
+  const two = n => String(n).padStart(2, '0');
+  let zone = '';
+  try {
+    zone = (new Intl.DateTimeFormat(undefined, {timeZoneName: 'short'})
+      .formatToParts(new Date()).find(p => p.type === 'timeZoneName') || {}).value || '';
+  } catch (e) { zone = ''; }       // an old browser: the label is plain "Local"
+  if (localLab && zone) localLab.textContent = 'Local ' + zone;
+  const tick = () => {
+    const now = new Date();
+    local.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    utc.textContent = two(now.getUTCHours()) + ':' + two(now.getUTCMinutes()) + ':' +
+                      two(now.getUTCSeconds()) + 'Z';
+    local.parentElement.title = 'local time - ' + now.toLocaleDateString([], {
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
+    utc.parentElement.title = 'UTC, the time a log is kept in - ' + now.getUTCFullYear() + '-' +
+      two(now.getUTCMonth() + 1) + '-' + two(now.getUTCDate());
+    setTimeout(tick, 1000 - now.getMilliseconds() + 5);
+  };
+  tick();
+  /* A phone shows one clock (elmer.css). A tap turns it to local for
+     LOCAL_GLANCE_MS and back; a second tap turns it back at once. Every page
+     starts on Zulu. */
+  const box = document.getElementById('clocks');
+  const LOCAL_GLANCE_MS = 10000;
+  let back = null;
+  if (box) {
+    box.setAttribute('role', 'button');
+    box.setAttribute('tabindex', '0');
+    box.setAttribute('aria-label', 'show local time for a moment');
+    const flip = () => {
+      clearTimeout(back);
+      const on = box.classList.toggle('show-local');
+      if (on) back = setTimeout(() => box.classList.remove('show-local'), LOCAL_GLANCE_MS);
+    };
+    box.addEventListener('click', flip);
+    box.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+  }
+})();
