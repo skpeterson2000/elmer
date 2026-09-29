@@ -1423,6 +1423,22 @@ as the approximation it is. Steel choices carry their own warning: fence wire,
 conduit and coat hangers conduct about a tenth as well as copper, which a
 full-size resonant element mostly forgives and a loaded one does not.
 
+Three wires a new operator is offered, or finds where they shop, are in the
+list for what they teach: enameled magnet wire (#15, 1.450 mm), aluminium
+electric-fence wire (14 gauge, which is 2.0 mm - fence wire is sold by the
+steel wire gauge, not AWG, so it is fatter than #14 copper), and colored
+aluminium craft wire (16 ga, 1.291 mm). Electrically each is practically #14:
+the same cut, the band within a few percent. What each teaches is mechanical
+and chemical, and it is usually learned from an antenna that will not
+connect, will not stay tuned, or corrodes open. Magnet wire's enamel is an
+insulator over its whole surface, and its soft copper stretches under a span
+and snaps where it flexes. The craft wire is aluminium whatever color it is
+sold in - the copper color is dye in an anodized surface, an oxide that does
+not conduct - and it is dead soft. Aluminium clamped straight to copper
+corrodes at the joint. So a conductor's "how to work it" - which had reached
+only Make Contact's list of things to improvise from - is shown in the Lab
+too, beside its note and its caution (`tests/test_conductors_hardway.py`).
+
 The bowtie is also drawn at the shape it actually is. It was being drawn as a
 slender dart about a fifth as wide as it is long, when the dimensions beside
 it said the tips are *wider* than each half is long - so the picture argued

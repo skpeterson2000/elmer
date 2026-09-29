@@ -62,6 +62,59 @@ CONDUCTORS = [
                 "effect makes that worse at RF. On a full-size resonant "
                 "element the loss is small; on anything loaded or short it is "
                 "not."},
+    # Three wires a new operator is offered, or finds on a shelf, and learns
+    # about the hard way or the heard way. The sizes are the metal's, which
+    # is where RF runs: magnet wire and craft wire are sized in AWG (15 AWG
+    # is 1.450 mm, 16 AWG 1.291 mm), and electric-fence wire by the steel
+    # wire gauge whatever it is made of, so "14 gauge" aluminium fence wire
+    # is 2.0 mm - fatter than #14 copper, which is 1.63.
+    {"key": "magnet15", "label": "#15 enameled magnet wire", "od_mm": 1.45,
+     "material": "copper", "sigma": 1.00,
+     "found": "on a spool sold for winding motors and transformers, or in "
+              "the windings of a dead one",
+     "work": "Scrape or burn the enamel off before anything will solder or "
+             "make contact - it is an insulator, and it is the whole surface. "
+             "Twist, then solder.",
+     "note": "Solid copper under a varnish thin enough not to change the "
+             "length you cut, and nearly invisible against the sky: the "
+             "classic stealth wire. Five hundred feet on a small spool is "
+             "a big loop or several dipoles.",
+     "caution": "Soft copper stretches under the pull of a span, so a dipole "
+                "cut to length slowly grows and drifts low in frequency. It "
+                "work-hardens and snaps where it flexes - at an insulator, in "
+                "the wind - and the enamel is made for the inside of a motor, "
+                "not years of sun."},
+    {"key": "alufence", "label": "Aluminium electric-fence wire (14 ga, 2.0 mm)",
+     "od_mm": 2.0, "material": "aluminium", "sigma": 0.61,
+     "found": "the farm store, in quarter-mile spools, or off an old "
+              "electric fence",
+     "work": "Side cutters. It will not take ordinary solder: clamp it, "
+             "and where it meets copper, use a connector made for "
+             "aluminium to copper.",
+     "note": "The cheap way to hang a very long wire - a long-wire, a "
+             "terminated antenna or a receiving antenna hundreds of feet "
+             "long - and light for its strength: 14 gauge aluminium is "
+             "rated to about 215 lb breaking load. Sold by the steel wire "
+             "gauge, so it is fatter than #14 copper.",
+     "caution": "Clamped straight to copper, the two metals corrode each "
+                "other at the joint, and a joint that corrodes is a joint "
+                "that goes noisy and then open. Like any solid wire it "
+                "fatigues where it flexes."},
+    {"key": "alucraft", "label": "Colored aluminium craft wire (16 ga)", "od_mm": 1.29,
+     "material": "aluminium", "sigma": 0.61,
+     "found": "the craft and jewelry aisle, in every color including copper",
+     "work": "Scrape the colored surface back to bright metal at every "
+             "connection - it will not conduct through it - and clamp; it "
+             "will not take ordinary solder.",
+     "note": "It is aluminium whatever color it is sold in. The copper, "
+             "gold and bronze are dye in an anodized surface, and anodizing "
+             "is a layer of oxide, which does not conduct: the RF runs in "
+             "the metal beneath it, so the antenna works, but a connection "
+             "made to the color is no connection. Fine for a short portable "
+             "dipole, a small loop, a vertical element or a counterpoise.",
+     "caution": "Sold as bendable, which means dead soft. Under the pull of a "
+                "long horizontal span it stretches - detuning as it goes - "
+                "and then parts. Keep the spans short, or give it support."},
     {"key": "hanger", "label": "Coat hanger / welding rod", "od_mm": 2.5,
      "material": "steel", "sigma": 0.10,
      "found": "a closet, a motel wardrobe, a welding kit",
@@ -223,6 +276,9 @@ def describe(key, mhz):
         "key": spec["key"], "label": spec["label"], "od_mm": spec["od_mm"],
         "material": spec["material"], "note": spec.get("note", ""),
         "caution": spec.get("caution", ""),
+        # how to cut, join and connect it - where most of the hard-won
+        # lessons about a material live, and the Lab shows it
+        "work": spec.get("work", ""),
         "k": round(velocity_factor(mhz, spec["od_mm"]), 4),
         "q_scale": round(scale, 3),
         "band_scale": round(1.0 / scale, 2) if scale else 1.0,
@@ -244,8 +300,10 @@ BUILT_FROM = {
     # tube or a tape measure could be. The conductor does not set a length
     # here - nothing is resonant - only the loss, which on this much wire
     # is small beside what the resistor takes.
-    "tefv": ["wire14", "wire12", "wire18", "fence"],
-    "termsloper": ["wire14", "wire12", "wire18", "fence"],
+    # Aluminium fence wire belongs here most of all: the quarter-mile spool
+    # is what these antennas are cheaply built from.
+    "tefv": ["wire14", "wire12", "wire18", "alufence", "magnet15", "fence"],
+    "termsloper": ["wire14", "wire12", "wire18", "alufence", "magnet15", "fence"],
 }
 
 

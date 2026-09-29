@@ -1553,6 +1553,13 @@ function calcAnt() {
       if (COND.caution) {
         notes.push('<b>Watch out:</b> ' + escapeHTML(COND.caution));
       }
+      /* How to cut it, join it and connect to it. Most of what a new
+         operator learns about a material the hard way is here - the enamel
+         that has to come off, the aluminium that will not solder - and it
+         used to reach only the Make Contact page. */
+      if (COND.work) {
+        notes.push('<b>Working it:</b> ' + escapeHTML(COND.work));
+      }
     }
     if (type === 'quarter' || type === 'groundplane') notes.push(
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +
