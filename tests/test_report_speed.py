@@ -158,8 +158,55 @@ def main():
         D._ask_internet, gps.read_fix = real_ask, real_read
         D._collected = None
 
+    side_by_side()
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
+
+
+def side_by_side():
+    """The checks run at once: two that each wait a second take about one,
+    their lines come back in the checks' order, and one that raises is a
+    line of its own. A field report had POST /api/report at 6-9 s."""
+    print("\n-- the checks run side by side, and keep their order --")
+    from elmer import diagnostics as D
+    names = ("check_pools", "check_figures", "check_mail", "check_internet")
+    real = {n: getattr(D, n) for n in names}
+
+    def slow(label):
+        def run():
+            time.sleep(1.0)
+            D._line(D.OK, label, "waited a second")
+        return run
+
+    def broken():
+        raise OSError("the stand-in cannot be asked")
+    try:
+        D.check_figures, D.check_internet = broken, (lambda: D._line(D.OK, "last quick"))
+        # The rest of the self-check is real and takes what it takes here, so
+        # the same run with two quick stand-ins is the yardstick.
+        D.check_pools = lambda: D._line(D.OK, "first slow")
+        D.check_mail = lambda: D._line(D.OK, "second slow")
+        started = time.perf_counter()
+        D.collect()
+        base = time.perf_counter() - started
+        D.check_pools, D.check_mail = slow("first slow"), slow("second slow")
+        started = time.perf_counter()
+        rows = D.collect()
+        took = time.perf_counter() - started
+        labels = [r["label"] for r in rows]
+        check("two checks that each wait a second add about one to the self-check, not two",
+              took - base < 1.6, True)
+        check("  the lines keep the checks' order",
+              (labels.index("first slow") < labels.index("broken") < labels.index("second slow")
+               < labels.index("last quick")), True)
+        check("  a check that raises is a line of its own, and the rest still run",
+              next((r["detail"] for r in rows if r["label"] == "broken"), ""), "OSError: the stand-in cannot be asked")
+        check("  each line carries its own check's time",
+              next(r["ms"] for r in rows if r["label"] == "first slow") >= 1000, True)
+        check("  and nothing is left collecting afterwards", (D._collected, getattr(D._rows, "rows", None)), (None, None))
+    finally:
+        for n, f in real.items():
+            setattr(D, n, f)
 
 
 if __name__ == "__main__":

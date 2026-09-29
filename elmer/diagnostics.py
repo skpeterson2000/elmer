@@ -5,6 +5,7 @@ server can actually be reached on, proves the pools and database are usable,
 and says plainly which part is at fault.
 """
 import json
+import logging
 import os
 import socket
 import shutil
@@ -124,7 +125,12 @@ def check_load():
 # asking the same questions the terminal does - checks are collected here as
 # they run. One set of checks, two ways of reading them: a self-check that only
 # worked from a terminal was a self-check most operators never ran.
+log = logging.getLogger("elmer")
+
 _collected = None
+# While collect() runs, each check writes to its own list on its own thread,
+# and the lists are put back together in the checks' order.
+_rows = threading.local()
 
 
 def _line(state, label, detail="", fix=None):
@@ -132,44 +138,67 @@ def _line(state, label, detail="", fix=None):
     a press on the local screen can do about this line - or is None: the
     doctor looks and changes nothing, and a fix is a separate press, so the
     person stays in charge and nothing here needs a terminal."""
+    row = {"state": state.strip(), "label": label, "detail": detail, "fix": fix}
+    rows = getattr(_rows, "rows", None)
+    if rows is not None:
+        rows.append(row)
+        return
     if _collected is not None:
-        _collected.append({"state": state.strip(), "label": label,
-                           "detail": detail, "fix": fix})
+        _collected.append(row)
         return
     print(f"  [{state}] {label}" + (f"  -  {detail}" if detail else ""))
 
 
+CHECKS_AT_ONCE = 8
+
+
+def _timed(check, *args, quiet=False):
+    """One check on this thread, its lines and its time. A check that raises
+    is a line of its own, not the end of the self-check - unless `quiet`,
+    for the server check, whose failure the page says for itself."""
+    _rows.rows = []
+    started = time.perf_counter()
+    try:
+        check(*args)
+    except Exception as exc:              # one check that cannot be made must not cost the rest
+        if quiet:
+            log.debug("self-check: %s could not be made: %s", check.__name__, exc)
+        else:
+            _rows.rows.append({"state": BAD.strip(), "label": check.__name__,
+                               "detail": f"{type(exc).__name__}: {exc}"})
+    took = round((time.perf_counter() - started) * 1000)
+    rows, _rows.rows = _rows.rows, None
+    for row in rows:
+        row["ms"] = took
+    return rows
+
+
 def collect(port=5000):
-    """Run every check and return what they found, instead of printing it."""
+    """Run every check and return what they found, instead of printing it.
+
+    The checks run side by side, CHECKS_AT_ONCE at a time, and their lines
+    come back in the order below. Most of a check's time is waiting - on a
+    socket, a subprocess, gpsd, the network - and one after another those
+    waits added up to the three to nine seconds a problem report took to
+    write; side by side it takes about as long as the slowest one.
+    """
+    from concurrent.futures import ThreadPoolExecutor
     global _collected
     _collected = []
     try:
-        for check in (check_pools, check_figures, check_explanations,
-                      check_database, check_accounts, check_templates, check_tools, check_manual,
-                      check_kiosk, check_launcher, check_updates,
-                      check_location, check_gps, check_position, check_repeaters,
-                      check_towerwitch_service, check_towerwitch_beside,
-                      check_neighbours_known,
-                      check_net_role, check_hall, check_node, check_mail,
-                      check_load, check_op25, check_internet, check_start):
-            # Each check's time goes on its own lines: a report that took
-            # six seconds to write said nothing of where they went.
-            before, started = len(_collected), time.perf_counter()
-            try:
-                check()
-            except Exception as exc:
-                _collected.append({"state": BAD.strip(), "label": check.__name__,
-                                   "detail": f"{type(exc).__name__}: {exc}"})
-            took = round((time.perf_counter() - started) * 1000)
-            for row in _collected[before:]:
-                row["ms"] = took
-        try:
-            before, started = len(_collected), time.perf_counter()
-            check_server(port)
-            for row in _collected[before:]:
-                row["ms"] = round((time.perf_counter() - started) * 1000)
-        except Exception:                # a server that cannot be asked is said by the page itself
-            pass
+        checks = (check_pools, check_figures, check_explanations,
+                  check_database, check_accounts, check_templates, check_tools, check_manual,
+                  check_kiosk, check_launcher, check_updates,
+                  check_location, check_gps, check_position, check_repeaters,
+                  check_towerwitch_service, check_towerwitch_beside,
+                  check_neighbours_known,
+                  check_net_role, check_hall, check_node, check_mail,
+                  check_load, check_op25, check_internet, check_start)
+        with ThreadPoolExecutor(max_workers=CHECKS_AT_ONCE, thread_name_prefix="self-check") as pool:
+            running = [pool.submit(_timed, check) for check in checks]
+            server = pool.submit(_timed, check_server, port, quiet=True)
+            for job in running + [server]:
+                _collected.extend(job.result())
         return list(_collected)
     finally:
         _collected = None

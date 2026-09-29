@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- A problem report is written faster. Its self-check ran some twenty-five checks one after another, most of each spent waiting on a socket, gpsd or the network, and a field report had sending one take 6 to 9 seconds. They now run side by side and come back in the same order; on the bench a report went from 4.8 seconds to 2.0.
+
 - The next few hours of the forecast are closer: the ionosonde reading now lets go by three hours, not nine. Held long, it steered the forecast past the point where the record of recent days knew better - at two to six hours out the page erred 2.0 to 2.1 MHz where the record alone erred 1.7 to 1.9. Graded over the year at every lead, the error fell from 1.80 to 1.74 MHz, and was as good or better in every season at every lead, from the first hour on.
 
 - The forecast knows about a geomagnetic storm. Nothing in its MUF did: in hours of Kp 5 and up, every figure ran 1 to 2.6 MHz high. Past K 4 the forecast now comes down by 0.05 for each K, most six to seventeen hours on - fitted on half the year's months and checked on the other half. Regraded over the year, the error in storm hours fell from 3.35 to 3.10 MHz, and at twelve hours in storms by a third of a megahertz or more in every season.

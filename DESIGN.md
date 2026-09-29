@@ -4763,6 +4763,16 @@ it can hear, the hall it remembers, the mail path and the port, then prints
 every address the server can be reached on. The dashboard's **Self-check**
 runs the same checks and shows the same lines.
 
+Collected for the dashboard or a problem report, the checks run side by
+side, eight at a time (`diagnostics.CHECKS_AT_ONCE`), each writing its lines
+to its own list, put back in the checks' order. Most of a check's time is
+waiting - a socket, a subprocess, gpsd, the network - and one after another
+those waits added up: a field report had sending a problem report at 6 to 9
+seconds. Side by side it takes about as long as the slowest check; on the
+bench a report went from 4.8 seconds to 2.0. A check that raises is a line
+of its own and the rest still run. At a terminal, `--doctor` prints as it
+goes, one after another, as before.
+
 Where a line has one known remedy, the unit's own screen gets a **Fix**
 beside it: a copy that is not connected to the repository is connected
 (`--adopt`, from the dashboard); a Start Menu entry that is missing or points
