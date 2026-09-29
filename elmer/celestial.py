@@ -23,6 +23,7 @@ interpolation between printed rows.
     a band prediction and twenty-six nautical miles to a navigator. The two
     cannot share a sun.
 """
+import functools
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -55,7 +56,17 @@ def sun_position(when):
     Greenwich hour angle is how far west of Greenwich it is. Together they are
     the geographical position: the one point on earth with the sun exactly
     overhead at this instant, and the center of every circle of position.
+
+    It depends on the instant alone, not the place, and a reach map asks for
+    the same few instants from every one of its cells - 60,000 times for
+    3,600 cells - so it is worked out once per instant and handed out as a
+    copy, which no caller can change for the next.
     """
+    return dict(_sun_position(when))
+
+
+@functools.lru_cache(maxsize=4096)
+def _sun_position(when):
     jd = julian_day(when)
     t = (jd - J2000) / 36525.0
 
@@ -96,6 +107,18 @@ def sun_position(when):
     return {"dec": dec, "gha": gha, "ra": ra,
             "semidiameter_arcmin": 16.0 / radius_au,
             "distance_au": radius_au}
+
+
+def altitude(lat, lon, when, sun=None):
+    """The sun's altitude from a place, in degrees - altitude_azimuth without
+    the bearing, for the reach map's thousands of cells that want only the
+    height."""
+    sun = sun or _sun_position(when)
+    lha = math.radians((sun["gha"] + lon) % 360.0)
+    phi, dec = math.radians(lat), math.radians(sun["dec"])
+    sin_alt = (math.sin(phi) * math.sin(dec)
+               + math.cos(phi) * math.cos(dec) * math.cos(lha))
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_alt))))
 
 
 def altitude_azimuth(lat, lon, when, sun=None):

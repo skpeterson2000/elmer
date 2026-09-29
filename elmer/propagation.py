@@ -171,8 +171,7 @@ def solar_elevation(lat, lon, when=None):
     0.02 MHz against a model whose own error is 1.11, so the constants fitted
     below still stand. It costs about five microseconds a call.
     """
-    alt, _ = celestial.altitude_azimuth(
-        lat, lon, when or datetime.now(timezone.utc))
+    alt = celestial.altitude(lat, lon, when or datetime.now(timezone.utc))
     return alt
 
 

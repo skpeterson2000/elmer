@@ -952,13 +952,19 @@ def hop_for(elev_deg, mhz, fof2, hmf2, ym=YM_DEFAULT_KM):
     return _hop_km(elev_deg, h), h
 
 
+LAND_ANGLE_HALVINGS = 20
+
+
 def _land_angle(km, h):
     """The takeoff angle whose hop off a mirror at h lands `km`, by
     bisection - the hop shortens as the angle steepens."""
     lo, hi = 0.0, 90.0
     if _hop_km(lo, h) < km:
         return None                       # further than one hop off this mirror
-    for _ in range(40):
+    # Twenty halvings pin it to 90 / 2^20, a ten-thousandth of a degree.
+    # It was forty - a ten-billionth - and on a reach map this ran for
+    # every cell's every mirror height, most of the map's time.
+    for _ in range(LAND_ANGLE_HALVINGS):
         mid = (lo + hi) / 2.0
         if _hop_km(mid, h) > km:
             lo = mid

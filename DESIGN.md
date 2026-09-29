@@ -3774,6 +3774,18 @@ big assumption is the whole model's: one sonde's reading anchoring a
 modelled sky, applied everywhere. The footnote says so; what it is right
 about is the shape.
 
+The map has grown since - thousands of cells, the antenna's pattern, land
+and sea under each hop - and a field report had it at 1.2 to 1.6 seconds a
+request. Three things it did that it did not need to: the sun's position,
+which depends on the instant alone, was worked out afresh for every cell's
+every hour behind it - 60,000 times for 3,600 cells, for 26 instants - and is
+now worked out once per instant (`celestial.sun_position`, handed out as a
+copy); the sun's height came with a bearing nobody read (`celestial.altitude`);
+and the takeoff angle for a hop was bisected forty times, to a ten-billionth
+of a degree, where twenty give a ten-thousandth. The world map went from
+0.30-0.39 seconds to 0.17-0.22 on the bench, and eight maps - four bands,
+with and without an antenna - came out identical to the last number.
+
 A path does not stop at the edge of the map, or at the far side of the
 world. Every cell is measured along the great circle from the QTH, so a
 throw that leaves the top of the picture carries on over the pole and

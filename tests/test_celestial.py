@@ -233,6 +233,18 @@ def main():
     check("the year wraps: after the Ursids come the Quadrantids", met["next"]["name"], "Quadrantids")
     check("  nothing is on at the end of December", "now" in met, False)
 
+    # The sun's position is worked out once per instant (a reach map asks
+    # for the same few instants from thousands of cells) and handed out as
+    # a copy, so one caller changing it cannot change it for the next.
+    print("\n-- the sun, once per instant --")
+    when = utc(2026, 9, 29, 17, 23)
+    first = C.sun_position(when)
+    first["dec"] = 99.0
+    check("a caller's copy changed does not change the next caller's", C.sun_position(when)["dec"] != 99.0, True)
+    check("  and the height alone is the height altitude_azimuth gives",
+          [round(C.altitude(lat, lon, when) - C.altitude_azimuth(lat, lon, when)[0], 12)
+           for lat, lon in ((46.4, -94.2), (-33.9, 151.2), (0.0, 0.0), (89.0, 10.0))], [0.0, 0.0, 0.0, 0.0])
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

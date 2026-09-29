@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The reach map draws in a little over half the time, and draws the same map. It was working out the sun's position 60,000 times for 26 different moments, computing a bearing it never used, and pinning each hop's angle to a ten-billionth of a degree; a field report had it at 1.2 to 1.6 seconds a request. On the bench the world map went from 0.30-0.39 seconds to 0.17-0.22.
+
 - A problem report is written faster. Its self-check ran some twenty-five checks one after another, most of each spent waiting on a socket, gpsd or the network, and a field report had sending one take 6 to 9 seconds. They now run side by side and come back in the same order; on the bench a report went from 4.8 seconds to 2.0.
 
 - The next few hours of the forecast are closer: the ionosonde reading now lets go by three hours, not nine. Held long, it steered the forecast past the point where the record of recent days knew better - at two to six hours out the page erred 2.0 to 2.1 MHz where the record alone erred 1.7 to 1.9. Graded over the year at every lead, the error fell from 1.80 to 1.74 MHz, and was as good or better in every season at every lead, from the first hour on.
