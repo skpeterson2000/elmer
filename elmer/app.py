@@ -2188,7 +2188,8 @@ def api_antenna_advice():
             except Exception:                    # a whip that cannot be planned
                 coil = rrad = None
         out["power"] = antenna_advice.power_notes(
-            out.get("type"), mhz, watts, od, sigma, coil, rrad)
+            out.get("type"), mhz, watts, od, sigma, coil, rrad,
+            material=(spec or {}).get("material", "copper"))
     return jsonify(out)
 
 

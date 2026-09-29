@@ -1560,6 +1560,16 @@ function calcAnt() {
       if (COND.work) {
         notes.push('<b>Working it:</b> ' + escapeHTML(COND.work));
       }
+      /* The Library's word on it: the book, the page, and the words - a
+         quotation in quotation marks, a table's rows as its rows - opened
+         at the page where this unit has the book. */
+      if ((COND.sources || []).length) {
+        notes.push('<b>From the Library:</b> ' + COND.sources.map(s =>
+          (s.kind === 'quote' ? '\u201c' + escapeHTML(s.says) + '\u201d' : escapeHTML(s.says)) +
+          ' <span class="muted">&mdash; <i>' + escapeHTML(s.title) + '</i>, ' + escapeHTML(s.where) +
+          (s.have ? ' &middot; <a href="/library/read/' + encodeURIComponent(s.file) + '?page=' + s.page +
+                    '&back=' + encodeURIComponent('/lab#ant') + '">read it</a>' : '') + '</span>').join(' '));
+      }
     }
     if (type === 'quarter' || type === 'groundplane') notes.push(
       'A quarter-wave vertical is half an antenna: the ground plane is the other half. ' +

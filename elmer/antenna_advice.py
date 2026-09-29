@@ -1878,20 +1878,43 @@ LEGAL_LIMIT_W = 1500.0
 def conductor_loss_ohms(mhz, od_mm, sigma_rel, length_m):
     """Effective series loss of a half-wave of this wire, at the feedpoint.
 
-    RF runs in a skin about delta deep; a wire's RF resistance per meter is
-    rho over (pi d delta). Current on a half wave is sinusoidal, so the loss
-    resistance referred to the feedpoint is half the wire's total.
+    RF runs in a skin about delta deep. The current is taken as flowing in
+    a ring that deep inside the surface, pi (d delta - delta^2) in area, and
+    where the wire is no more than two skins across, in all of it. The ring
+    used to be taken as pi d delta, which is the same thing for any wire
+    much fatter than the skin - #14 is sixty-six skins across on 40 m - and
+    wrong for one that is not: 40 AWG magnet wire is three, and the old
+    figure put its loss below its own DC resistance, which no wire has.
+    Current on a half wave is sinusoidal, so the loss resistance referred
+    to the feedpoint is half the wire's total.
     """
     rho = COPPER_RHO / max(sigma_rel, 1e-3)
     f = mhz * 1e6
     delta = math.sqrt(rho / (math.pi * f * 4e-7 * math.pi))
     d = od_mm / 1000.0
-    r_per_m = rho / (math.pi * d * delta)
+    area = math.pi * (d * delta - delta * delta) if d > 2.0 * delta else math.pi * d * d / 4.0
+    r_per_m = rho / area
     return r_per_m * length_m / 2.0
 
 
+# Preece's fusing currents (W. H. Preece, 1884): a wire of diameter d inches
+# in air melts at I = a d^1.5 amperes. It is the current that burns a wire
+# through in seconds, not one it can carry - the enamel or the jacket gives
+# up long before - and a thick wire is nowhere near it at any legal power.
+# A hair-thin one is: 40 AWG copper melts at about 1.8 A, and 100 W into a
+# 40 m dipole of it is nearly 1 A at the feed.
+PREECE_A = {"copper": 10244.0, "aluminium": 7585.0, "steel": 3148.0}
+FUSE_WARN = 0.25                    # a feed current past this share of it is said
+
+
+def fusing_amps(od_mm, material):
+    """Preece's fusing current for a wire of this diameter, or None."""
+    a = PREECE_A.get(material)
+    return a * (float(od_mm) / 25.4) ** 1.5 if a else None
+
+
 def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None,
-                whip_r_rad=None):
+                whip_r_rad=None, material="copper"):
     """What this much power asks of this antenna, in numbers and sentences."""
     watts = float(watts or 0)
     if watts <= 0:
@@ -1911,6 +1934,18 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             f"loss against {r_rad:.0f} of radiation. A thicker wire would lose "
             f"less, not need more: the RF runs on the skin, and a fat wire has "
             f"more skin.")
+        # The current at the feed, where it peaks, against what melts the wire.
+        amps = math.sqrt(watts / (r_rad + r_loss))
+        fuse = fusing_amps(od_mm, material)
+        out["feed_amps"] = round(amps, 2)
+        if fuse and amps >= FUSE_WARN * fuse:
+            out["fusing_amps"] = round(fuse, 2)
+            out["items"].append(
+                f"About {amps:.1f} A flows at the feed at {watts:.0f} W, and this "
+                f"wire melts at about {fuse:.1f} A (Preece's fusing current) - the "
+                f"current that burns it through in seconds, not one it can carry, "
+                f"and the enamel or the jacket gives up well before. On a wire "
+                f"this thin, run QRP.")
     if kind == "efhw":
         r_end = 2500.0
         v_end = math.sqrt(watts * r_end)

@@ -84,6 +84,75 @@ CONDUCTORS = [
                 "work-hardens and snaps where it flexes - at an insulator, in "
                 "the wind - and the enamel is made for the inside of a motor, "
                 "not years of sun."},
+    # The far end of magnet wire: 40 AWG, 0.0799 mm, four thousand feet on a
+    # two-ounce spool. Invisible, and three skin depths across on 40 m, so
+    # the loss is real - a third of the power, on a 40 m dipole - and the
+    # current at 100 W is half what melts it (antenna_advice.fusing_amps).
+    {"key": "magnet40", "label": "40 AWG magnet wire (hair-thin)", "od_mm": 0.0799,
+     "material": "copper", "sigma": 1.00,
+     "found": "a spool sold for winding pickups and tiny coils",
+     "work": "Burn the enamel off the last half inch in a flame or with a "
+             "hot iron and a blob of solder, and solder it to something "
+             "stout at every end - it will not survive being tied.",
+     "note": "The invisible antenna: thinner than most hairs, and four "
+             "thousand feet on a spool that fits in a pocket. It radiates, "
+             "and on FT8 or CW it makes contacts from where no antenna is "
+             "allowed. The Lab's loss figure is not a quibble here - on a "
+             "40 m dipole about a third of the power heats the wire.",
+     "caution": "QRP only. At 100 W the current at the feed is about half what "
+                "melts it, and the enamel goes before that; at 5 W it is fine. "
+                "It breaks with a light tug, so a span needs sheltered supports "
+                "and no wind, and a bird will end it."},
+    # The common hobby spool between the two: 26 AWG, 0.405 mm, a few hundred
+    # feet for a few dollars. Its listing carries a current rating, and that
+    # rating is the lesson: it is for a wire wound tight in a coil, where the
+    # heat cannot get out, not for one strung in open air.
+    {"key": "magnet26", "label": "26 AWG magnet wire", "od_mm": 0.405,
+     "material": "copper", "sigma": 1.00,
+     "found": "the common small spool sold for coils and speakers",
+     "work": "Scrape or burn the enamel off, tin it, and solder; tie off "
+             "at the ends with a knot around something stout, not the wire "
+             "alone.",
+     "note": "Thin enough to disappear against the sky at a distance, sturdy "
+             "enough to hang with care. On a 40 m dipole it loses about a "
+             "seventh of what 40 AWG does - under a tenth of the power - which "
+             "is a fair price for a wire nobody sees.",
+     "caution": "The current rating printed on the spool, half an amp or so, "
+                "is for a wire wound tight in a coil where its heat cannot "
+                "escape. Strung in the open it sheds that heat along its whole "
+                "length and carries the 1 A of 100 W at the feed - the rating "
+                "is not the limit here. Its strength is: it stretches, and a "
+                "long span in wind will part it."},
+    # Two-conductor zip cord - speaker wire, lamp cord - sized by the AWG of
+    # each conductor (18 AWG 1.024 mm, 22 AWG 0.644 mm). Twenty meters of it
+    # is the thrifty 40 m dipole: 65.6 ft is a half wave at about 7.1 MHz.
+    {"key": "zip18", "label": "Zip cord / speaker wire, 18 AWG pair", "od_mm": 1.02,
+     "material": "copper", "sigma": 1.00,
+     "found": "the speaker-wire and lamp-cord reel in any hardware store",
+     "work": "Pull the two conductors apart by hand - they split cleanly - "
+             "strip, twist and solder; it is stranded, so it bends without "
+             "breaking.",
+     "note": "The thrifty dipole. Split it from one end to the middle and "
+             "pull the two wires out in opposite directions: they are the "
+             "legs, and the half left joined is the feed line - one reel, one "
+             "antenna, no coax. Or peel one conductor off whole and cut it "
+             "at the middle. Stranded and flexible, so it packs and unpacks "
+             "without fatigue.",
+     "caution": "Its plastic jacket makes it electrically longer, so it "
+                "resonates below where bare wire of the same length would - "
+                "cut long and trim. As a feed line it is not 50 ohm coax: it "
+                "is a lossy two-wire line that wants a balun or a tuner at "
+                "the radio, and it is best kept short."},
+    {"key": "zip22", "label": "Zip cord / speaker wire, 22 AWG pair", "od_mm": 0.644,
+     "material": "copper", "sigma": 1.00,
+     "found": "the thin speaker wire and hookup-wire reels",
+     "work": "Split, strip, twist and solder, as the 18 AWG - the strands "
+             "are fine, so twist them tight before soldering.",
+     "note": "The same trick in lighter wire: less to carry, easier to hide, "
+             "and still stranded.",
+     "caution": "Thin enough that the Lab's loss is worth reading, and the "
+                "jacket shortens it like any insulated wire. Weak in a long "
+                "span: support it, or keep it short."},
     {"key": "alufence", "label": "Aluminium electric-fence wire (14 ga, 2.0 mm)",
      "od_mm": 2.0, "material": "aluminium", "sigma": 0.61,
      "found": "the farm store, in quarter-mile spools, or off an old "
@@ -215,6 +284,76 @@ CONDUCTORS = [
              "portable vertical."},
 ]
 
+# What the Library's books say about these materials, quoted word for word
+# (a table's rows are given as its rows, not in quotation marks). The
+# conductivities are the Antenna Engineering Handbook's Table 46-2 - 0.61 for
+# aluminium is 3.54 over 5.80 - and the cautions are its chapter 27 and the
+# field manuals'. `file` and `page` open the book at the page in the reader
+# where this unit has it; the ATP ships with ELMER, the others are an
+# operator's own copies and are cited whether or not they are on the shelf.
+# What the books do not cover - the fusing current (Preece), wire gauges,
+# anodizing - is said in the notes without a book to lean on.
+ATP = "ATP 6-02.53, Techniques for Tactical Radios and Retransmission"
+MCRP = "MCRP 3-40.3C (MCRP 6-22D), Antenna Handbook"
+AEH = "Antenna Engineering Handbook, 3rd ed. (Johnson)"
+SOURCES = {
+    "wire": {"title": ATP, "where": "para. H-50", "file": "ATP-6-02.53-2025.pdf", "page": 134, "kind": "quote",
+             "says": "The best kinds of wire for antennas are copper and aluminum. In an emergency, operators "
+                     "use any available wire. The exact length of most antennas is critical."},
+    "stretch": {"title": MCRP, "where": "p. 6-4", "file": "MCRP 3-40.3C With Erratum z.pdf", "page": 137, "kind": "quote",
+                "says": "To keep the antenna taut and to prevent it from breaking or stretching as the trees sway, "
+                        "attach a spring or old inner tube to one end of the antenna."},
+    "aluminium": {"title": AEH, "where": "Table 46-2, p. 46-6", "file": "Antenna Engineering Handbook.pdf",
+                  "page": 1479, "kind": "table",
+                  "says": "Aluminum, commercial hard-drawn, 3.54 × 10⁷ S/m; copper, annealed, "
+                          "5.80 × 10⁷ S/m - aluminium conducts 0.61 as well."},
+    "steel": {"title": AEH, "where": "Table 46-2, p. 46-6", "file": "Antenna Engineering Handbook.pdf",
+              "page": 1479, "kind": "table",
+              "says": "Steel, 0.5 to 1.0 × 10⁷ S/m; zinc, 1.74 × 10⁷; copper, annealed, "
+                      "5.80 × 10⁷ - steel conducts a tenth to a sixth as well, before its magnetism "
+                      "crowds RF further toward the surface."},
+    "tin": {"title": AEH, "where": "Table 46-2, p. 46-6", "file": "Antenna Engineering Handbook.pdf",
+            "page": 1479, "kind": "table",
+            "says": "Tin, 0.869 × 10⁷ S/m; copper, annealed, 5.80 × 10⁷ - tin conducts about "
+                    "a seventh as well, which is why it is a plating over the copper and not the conductor."},
+    "fatigue": {"title": AEH, "where": "p. 27-3", "file": "Antenna Engineering Handbook.pdf", "page": 938, "kind": "quote",
+                "says": "Aluminum and its alloys are very prone to fatigue failure, and the antenna engineer must "
+                        "be aware of this problem."},
+    "contact": {"title": AEH, "where": "p. 27-3", "file": "Antenna Engineering Handbook.pdf", "page": 938, "kind": "quote",
+                "says": "A contact potential of 0.25 V is the maximum permissible for long life in exposed "
+                        "conditions."},
+    "plastics": {"title": AEH, "where": "pp. 27-3 to 27-4", "file": "Antenna Engineering Handbook.pdf", "page": 938,
+                 "kind": "quote",
+                 "says": "Plastics do not corrode, but they degrade by oxidation and the action of ultraviolet "
+                         "light."},
+}
+CITES = {
+    "wire14": ["wire"], "wire12": ["wire"], "wire18": ["wire"],
+    "fence": ["wire", "steel"], "hanger": ["steel"], "tape": ["steel"], "emt12": ["steel"],
+    "alu12": ["aluminium", "fatigue"], "alu34": ["aluminium", "fatigue"],
+    "magnet15": ["wire", "stretch", "plastics"], "magnet26": ["wire", "stretch", "plastics"],
+    "magnet40": ["wire", "stretch", "plastics"],
+    "alufence": ["wire", "aluminium", "fatigue", "contact"],
+    "alucraft": ["aluminium", "fatigue", "contact", "stretch"],
+    "zip18": ["wire", "tin", "plastics", "stretch"], "zip22": ["wire", "tin", "plastics", "stretch"],
+}
+
+
+def sources(key):
+    """The Library's word on a conductor: each source with whether this unit
+    has the book, so the Lab can open it at the page."""
+    from . import library
+    out = []
+    for name in CITES.get(key, []):
+        s = dict(SOURCES[name])
+        try:
+            s["have"] = library.book(s["file"]) is not None
+        except OSError:
+            s["have"] = False            # the shelf unreadable: cite without the link
+        out.append(s)
+    return out
+
+
 INDEX = {c["key"]: c for c in CONDUCTORS}
 REFERENCE = next(c for c in CONDUCTORS if c.get("reference"))
 
@@ -279,6 +418,8 @@ def describe(key, mhz):
         # how to cut, join and connect it - where most of the hard-won
         # lessons about a material live, and the Lab shows it
         "work": spec.get("work", ""),
+        # what the Library's books say about it, cited to the page
+        "sources": sources(spec["key"]),
         "k": round(velocity_factor(mhz, spec["od_mm"]), 4),
         "q_scale": round(scale, 3),
         "band_scale": round(1.0 / scale, 2) if scale else 1.0,

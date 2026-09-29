@@ -1439,6 +1439,56 @@ corrodes at the joint. So a conductor's "how to work it" - which had reached
 only Make Contact's list of things to improvise from - is shown in the Lab
 too, beside its note and its caution (`tests/test_conductors_hardway.py`).
 
+Two more at the thin end. Zip cord - speaker wire, lamp cord, 18 and 22 AWG
+pairs - is the thrifty 40 m dipole: twenty meters of it is a half wave at
+about 7.1 MHz, and split from one end to the middle it is two legs and a
+feed line from one reel; its note says so, and its caution that the jacket
+lengthens it electrically and that as a feed line it is a lossy two-wire
+line, not coax. And 40 AWG magnet wire, 0.0799 mm, the invisible antenna,
+which found a bug. The Lab's loss took the RF as flowing in a ring pi d delta
+in area, which is right for any wire much fatter than the skin - #14 is
+sixty-six skins across on 40 m - and wrong for one that is not: 40 AWG is
+three, and the Lab put its loss at 29 ohms, under its own DC resistance of
+36, which no wire has. The ring now has the skin's thickness, pi (d delta -
+delta^2), and the whole wire where it is two skins across or less: 42 ohms
+for 40 AWG, 1.45 for #14 where it was 1.43. A third of 100 W heats a 40 m
+dipole of it, and the Lab says so. It also now says when the current at the
+feed nears what melts the wire - Preece's fusing current, I = a d^1.5 (a =
+10244 for copper, 7585 for aluminium, 3148 for iron, d in inches), past a
+quarter of it: 100 W into 40 AWG is 0.9 A against 1.8. No wire a person
+would hang is anywhere near it at the legal limit. Between the two, 26 AWG
+magnet wire, the common hobby spool, loses under a tenth of 100 W on a 40 m
+dipole; its note says that the half-amp current rating on the spool is for a
+wire wound tight in a coil, not one strung in the open.
+
+**What the Library says about them.** The conductors are checked against the
+books on the shelf before anything else, and each cites what the books say
+(`conductors.SOURCES`, shown in the Lab as "From the Library", opened at the
+page where the unit has the book). The conductivities are the Antenna
+Engineering Handbook's (3rd ed.) Table 46-2: aluminium, commercial
+hard-drawn, 3.54 x 10^7 S/m against annealed copper's 5.80 x 10^7 - the 0.61
+this program uses - steel 0.5 to 1.0 x 10^7, and tin 0.869 x 10^7, which is
+why zip cord's tin is a plating and not the conductor; the loss formula's
+1.72 x 10^-8 ohm meters is annealed copper's. Its page 27-3 is the source for
+aluminium's fatigue ("very prone to fatigue failure"), for keeping unlike
+metals apart ("a contact potential of 0.25 V is the maximum permissible for
+long life in exposed conditions") and for plastics degrading in sunlight. The
+ATP, which ships with ELMER, gives the field rule at para. H-50 - "The best
+kinds of wire for antennas are copper and aluminum. In an emergency,
+operators use any available wire" - and the Marine Corps' antenna handbook
+(MCRP 3-40.3C, p. 6-4) the spring or inner tube that keeps a wire from
+stretching. The handbook's equation 4-1 checks the Lab's shortening with
+thickness: an ideal dipole in free space resonates at 0.974 of a half wave
+for thin wire and 0.910 at a half-length ten diameters, where the Lab cuts to
+0.950 and 0.900. The trend is the same; the book's is 1 to 2.5 percent
+longer because it is "an idealized model in which the terminal condition is
+not considered", and the Lab's starts from 468/f, which is wire as it is
+hung. The books do not cover a wire's fusing current, wire gauges or
+anodizing, and the notes say those without a book to lean on - Preece for
+the fusing current, the AWG table for the gauges. They do not cover how much
+an insulating jacket shortens a wire, either, which is why the Lab does not
+yet correct for it.
+
 The bowtie is also drawn at the shape it actually is. It was being drawn as a
 slender dart about a fifth as wide as it is long, when the dimensions beside
 it said the tips are *wider* than each half is long - so the picture argued
