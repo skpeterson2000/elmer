@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The kiosk fills the screen on a unit without wmctrl or xdotool. A field report from Ubuntu GNOME had snap Chromium come up merely focused despite --kiosk --start-fullscreen, and nothing on the box to set it; ELMER now asks X itself, sending the same full-screen request those tools send through the X library every desktop has, and the verdict says when that is what did it.
+
 - The AUXFOG, the Auxiliary Communications Field Operations Guide, now comes with ELMER in the Library, and the Lab cuts insulated wire shorter by its table. The AUXFOG's Table D-7 gives #14 bare and insulated side by side - insulated is 0.95 to 0.96 of bare - and its p. D-6 says a jacket makes a wire "electrically longer by roughly 4%". A new conductor, #14 insulated (THHN), and zip cord are cut to 0.954 of what bare wire would be; the Lab and the cut sheet say the jacket is why, and "From the Library" quotes the page and opens the book at it. Magnet wire's enamel is too thin to count. The table's 5.370 MHz row prints 42.8 ft for about 83 and is left out.
 
 - A kiosk test that printed FAIL and still passed now fails: its last checks, on the facts a problem report carries about the screen and the browser, ran after the script had already decided. The check they hid was looking for words the report never had; it now looks for the report's Kiosk section. The report logs, with its traceback, when that section cannot be gathered.

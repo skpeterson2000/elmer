@@ -357,10 +357,44 @@ def main():
         check("  and the verdict says none made it full screen",
               (got["verdict"], "none made it full screen" in K.verdict_line()), (K.NOT_FULL, True))
 
-        asked = forcing((), None)
-        _, got = launch()
-        check("no tool to set it with: the verdict says that",
-              "no wmctrl or xdotool" in got["set_by"], True)
+        # No tool at all, and X itself asked - the Ubuntu GNOME field report:
+        # snap Chromium left merely focused, neither wmctrl nor xdotool.
+        real_x = K._x_fullscreen
+        try:
+            K._x_fullscreen = lambda wid: None
+            asked = forcing((), None)
+            _, got = launch()
+            check("no tool and no libX11: the verdict says that",
+                  ("no wmctrl or xdotool" in got["set_by"], "libX11" in got["set_by"]), (True, True))
+
+            sent = []
+            asked = forcing((), None)
+            inner = K._run_tool
+
+            def after_x(args):
+                if "_NET_WM_STATE" in args and "0x05000004" in args and sent:
+                    return "_NET_WM_STATE(ATOM) = _NET_WM_STATE_FULLSCREEN" + chr(10)
+                return inner(args)
+            K._run_tool = after_x
+            K._x_fullscreen = lambda wid: sent.append(wid) or True
+            _, got = launch()
+            check("no tool, but X asked directly on the kiosk's window: it goes full screen",
+                  (sent[:1], got["verdict"], "X directly (libX11) did" in got.get("set_by", "")),
+                  (["0x05000004"], K.FULL, True))
+
+            sent.clear()
+            K._run_tool = inner
+            K._x_fullscreen = lambda wid: sent.append(wid) or True
+            asked = forcing(("wmctrl",), None)
+            _, got = launch()
+            check("  and it is the last resort: wmctrl first, then X, and both said when neither takes",
+                  ([a[0] for a in asked], sent[:1], "wmctrl: not full screen" in got["set_by"],
+                   "X directly (libX11): not full screen" in got["set_by"]),
+                  (["wmctrl"], ["0x05000004"], True, True))
+        finally:
+            K._x_fullscreen = real_x
+        check("on this machine the real X request stands aside without a display",
+              K._x_fullscreen("0x1") if (os.name == "nt" or not os.environ.get("DISPLAY")) else None, None)
 
         desktop("_NET_WM_STATE_FOCUSED", kiosk_listed=False)
         base = K._run_tool

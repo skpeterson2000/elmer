@@ -1018,7 +1018,13 @@ puts one line on the dashboard with **Report this** beside it. That press
 opens the same three-press report with the verdict already said; it sends
 nothing. Full screen is read from X with `xprop` or `wmctrl` and is never
 guessed: on Wayland no program may read another's window, and the verdict
-says it cannot be checked. A browser that dies within fifteen seconds of
+says it cannot be checked. When Chromium's own flags have not made it full
+screen, the window manager is asked with `wmctrl`, then `xdotool`, then X
+directly: `kiosk._x_fullscreen` sends the same EWMH `_NET_WM_STATE` client
+message those tools send, through libX11 by `ctypes` - no new dependency, and
+every X desktop has the library. A field report from Ubuntu GNOME on X11
+(snap Chromium 153) had neither tool, and the window came up merely focused.
+A browser that dies within fifteen seconds of
 starting no longer stops the server with it - a dark unit cannot say why. The settings, a test message down whichever door is open,
 and both reports live under **Mail home** on the dashboard's update panel,
 local screen only.

@@ -401,10 +401,75 @@ FORCERS = (
 FORCE_SETTLE_S = 1.5    # how long a window manager is given to act on it
 
 
+X_DIRECT = "X directly (libX11)"
+
+
+def _x_fullscreen(wid):
+    """Ask for full screen the way wmctrl does - an EWMH _NET_WM_STATE client
+    message to the root window - through libX11 itself, which every X desktop
+    has, so a unit without wmctrl or xdotool is not left in a window. A field
+    report from Ubuntu GNOME had neither, and Chromium's own --kiosk
+    --start-fullscreen left it merely focused. True if the request was sent,
+    False if X refused it, None if there is no libX11 or display to ask."""
+    if os.name == "nt" or not os.environ.get("DISPLAY"):
+        return None
+    import ctypes
+    import ctypes.util
+    name = ctypes.util.find_library("X11")
+    if not name:
+        return None
+    try:
+        x = ctypes.CDLL(name)
+    except OSError as exc:
+        log.warning("kiosk: libX11 would not load from %s: %s", name, exc)
+        return None
+    x.XOpenDisplay.restype = ctypes.c_void_p
+    x.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    x.XDefaultRootWindow.restype = ctypes.c_ulong
+    x.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
+    x.XInternAtom.restype = ctypes.c_ulong
+    x.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    x.XSendEvent.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_long, ctypes.c_void_p]
+    x.XFlush.argtypes = [ctypes.c_void_p]
+    x.XCloseDisplay.argtypes = [ctypes.c_void_p]
+
+    class ClientMessage(ctypes.Structure):
+        _fields_ = [("type", ctypes.c_int), ("serial", ctypes.c_ulong), ("send_event", ctypes.c_int),
+                    ("display", ctypes.c_void_p), ("window", ctypes.c_ulong),
+                    ("message_type", ctypes.c_ulong), ("format", ctypes.c_int),
+                    ("data", ctypes.c_long * 5)]
+
+    class Event(ctypes.Union):            # XEvent is padded to 24 longs
+        _fields_ = [("xclient", ClientMessage), ("pad", ctypes.c_long * 24)]
+
+    display = x.XOpenDisplay(None)
+    if not display:
+        log.warning("kiosk: libX11 could not open display %s", os.environ.get("DISPLAY"))
+        return None
+    try:
+        event = Event()
+        event.xclient.type = 33                   # ClientMessage
+        event.xclient.send_event = 1
+        event.xclient.display = display
+        event.xclient.window = int(wid, 16)
+        event.xclient.message_type = x.XInternAtom(display, b"_NET_WM_STATE", 0)
+        event.xclient.format = 32
+        event.xclient.data[0] = 1                 # _NET_WM_STATE_ADD
+        event.xclient.data[1] = x.XInternAtom(display, b"_NET_WM_STATE_FULLSCREEN", 0)
+        event.xclient.data[3] = 1                 # asked by a normal application
+        redirect_and_notify = (1 << 20) | (1 << 19)
+        sent = x.XSendEvent(display, x.XDefaultRootWindow(display), 0,
+                            redirect_and_notify, ctypes.byref(event))
+        x.XFlush(display)
+        return bool(sent)
+    finally:
+        x.XCloseDisplay(display)
+
+
 def _force(pid, family, wid, profile):
     """Ask the window manager to make window `wid` full screen, with each
-    tool in FORCERS that is present, until one does it. Returns (full, why,
-    tried): tried names each tool and what came of it."""
+    tool in FORCERS that is present, then X directly, until one does it.
+    Returns (full, why, tried): tried names each and what came of it."""
     tried = []
     full, why = False, ""
     for name, command in FORCERS:
@@ -419,6 +484,17 @@ def _force(pid, family, wid, profile):
         log.info("kiosk: set full screen with %s on %s - %s", name, wid, why)
         if full:
             return True, why, tried
+    try:
+        sent = _x_fullscreen(wid)
+    except (OSError, ValueError, AttributeError) as exc:     # a libX11 without a symbol, a bad wid
+        log.warning("kiosk: asking X directly for full screen failed on %s: %s", wid, exc)
+        sent = False
+    if sent is not None:
+        time.sleep(FORCE_SETTLE_S)
+        full, why = fullscreen(pid, family, profile=profile)
+        tried.append(f"{X_DIRECT}: {'full screen' if full else 'not full screen'}"
+                     f"{'' if sent else ' (X refused the request)'}")
+        log.info("kiosk: set full screen with %s on %s - %s", X_DIRECT, wid, why)
     return full, why, tried
 
 
@@ -546,7 +622,8 @@ def _follow(process, family, lines, profile=None):
             forced, forced_why, tried = _force(process.pid, family, found["wid"], profile)
             if not tried:
                 set_by = (f"the browser's own flags ({steps}) did not, and there is no wmctrl "
-                          f"or xdotool to set it - none of them made it full screen")
+                          f"or xdotool to set it, nor a libX11 and display to ask X directly - "
+                          f"none of them made it full screen")
             elif forced:
                 set_by = f"the browser's own flags ({steps}) did not; {tried[-1].split(':')[0]} did"
                 full, why = True, forced_why
