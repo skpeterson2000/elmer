@@ -167,13 +167,19 @@ def _days_back(n, until=None):
 
 # ------------------------------------------------------------------ writing
 
-def record(bands, inputs, build, now=None):
+def record(bands, inputs, build, now=None, drift_check=True):
     """Write this hour's outlook down. Returns the drift verdict against
     the previous one, or None when there was nothing to compare.
 
     `bands` is the outlook's own list - name, hours with at/score/muf/regime.
     One entry per UTC hour: a page reloaded three times in an hour
     replaces rather than repeats.
+
+    `drift_check` off skips comparing with the previous outlook, and so its
+    log line: a hindcast replays a year an hour at a time, and a note per
+    replayed hour - three passes of 8,800 in a calibration run - filled a
+    field report's log, 2,719 of its last 3,000 lines, with drift that says
+    nothing about this unit's live forecast.
     """
     now = now or datetime.now(timezone.utc)
     if not bands or not bands[0].get("hours"):
@@ -197,7 +203,7 @@ def record(bands, inputs, build, now=None):
     for key in ("lat", "lon"):
         if entry["inputs"].get(key) is not None:
             entry["inputs"][key] = round(float(entry["inputs"][key]), 1)
-    previous = latest(before=entry["hour"], now=now)
+    previous = latest(before=entry["hour"], now=now) if drift_check else None
     day = _day(now)
     data = _load(day)
     data["forecasts"] = [e for e in data["forecasts"] if e["hour"] != entry["hour"]]

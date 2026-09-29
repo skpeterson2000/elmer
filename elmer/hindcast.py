@@ -542,7 +542,7 @@ def run(start, end, lat, lon, data, bands=(7.0, 14.0), step_hours=1,
                                      "m3000": cal["m3000"] if cal else None,
                                      "anchor": cal["factor"] if cal else 1.0,
                                      "lat": lat, "lon": lon, "adjustment": bias or {}},
-                               build, now=when)
+                               build, now=when, drift_check=False)
             hours += 1
             if progress and hours % 24 == 0:
                 progress(when, hours)

@@ -77,8 +77,38 @@ syn = {"stations": {"AL945": made},
        "kp": [[(start + timedelta(hours=3 * i)).isoformat().replace("+00:00", "Z"), 1.3] for i in range(-2, 20)],
        "f107": [[(start + timedelta(days=d)).isoformat()[:19], 110.0] for d in range(-1, 4)]}
 end = start + timedelta(days=2)
-res = H.run(start, end, 45.5, -84.0, syn, build="test", ledger=H.CACHE / "ledger-test")
+import logging  # noqa: E402
+
+
+class _Lines(logging.Handler):
+    def __init__(self):
+        super().__init__(logging.DEBUG)
+        self.lines = []
+
+    def emit(self, record):
+        self.lines.append(record.getMessage())
+
+
+_said = _Lines()
+_level = logging.getLogger("elmer").level
+logging.getLogger("elmer").setLevel(logging.DEBUG)      # the drift note is INFO
+logging.getLogger("elmer").addHandler(_said)
+# This steady synthetic sky would never move enough to be called drift, so
+# drift is made to say it always moved: only not asking keeps the log clean.
+from elmer import forecastlog as _F  # noqa: E402
+_drift = _F.drift
+_F.drift = lambda prev, entry: {"moved": True, "inputs_moved": True, "build_changed": False, "note": "forced"}
+try:
+    res = H.run(start, end, 45.5, -84.0, syn, build="test", ledger=H.CACHE / "ledger-test")
+finally:
+    logging.getLogger("elmer").removeHandler(_said)
+    logging.getLogger("elmer").setLevel(_level)
+    _F.drift = _drift
 check("every hour was forecast", res["hours"], 49)
+# A replay's hour-to-hour drift says nothing about the live forecast, and a
+# note per replayed hour once made 2,719 of a unit's last 3,000 log lines.
+check("  and not one drift note in the unit's log for the replayed hours",
+      [ln for ln in _said.lines if "the outlook moved" in ln], [])
 check("  every hour had the station in reach", res["hours_with_reading"], 49)
 check("  and the ledger was written where asked", Path(res["ledger"]).is_dir() and any(Path(res["ledger"]).glob("*.json")), True)
 # A long run must keep every day it forecast: the live unit's sixty-day

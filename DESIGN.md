@@ -3276,6 +3276,13 @@ rather than by whether a curve looks plausible. Sources carry their terms:
 GIRO data is CC-BY-NC-SA 4.0 and the report acknowledges each station's data
 provider; Kp is CC BY 4.0.
 
+A replay writes its outlooks to a ledger of its own, and does not ask
+whether each one drifted from the last (`forecastlog.record(...,
+drift_check=False)`): drift is a question about the live forecast from one
+issue hour to the next, and a calibration run's three passes of 8,800
+replayed hours once put a note apiece into the unit's log - 2,719 of a field
+report's last 3,000 lines.
+
 **The Elmer's class report.** The same measure, on the Progress page: *Where
 people on this unit get lost* — the twelve questions this unit's students found
 hardest, each with how many met it, how many missed it first time, and how long
