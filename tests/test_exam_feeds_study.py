@@ -97,9 +97,15 @@ check("  every miss is lapsed", sorted(missed - lapsed), [])
 check("  and nothing answered right is", sorted(right & lapsed), [])
 check("  a blank counts as a miss, not as unseen",
       all((cards[items[i]['question_id']] or {})["seen"] == 1 for i in BLANK), True)
-# A lapse is a setback, not a restart: it comes back within minutes.
-soon = [q for q in missed if (cards[q]["due"] or "") <= db.utcnow().isoformat()[:10] + "T99"]
-check("  and they are due back the same day", len(soon), len(missed))
+# A lapse is a setback, not a restart: it comes back within minutes. Measured
+# as time from now, the way the schedule reads it - not as "before the end of
+# today's UTC date", which failed every exam taken in the ten minutes before
+# midnight UTC (7 pm in Minnesota in the summer), when the misses were due
+# back, correctly, a few minutes into tomorrow's date.
+from datetime import datetime, timedelta  # noqa: E402
+latest = db.utcnow() + timedelta(days=srs.RELEARN_DAYS, minutes=1)
+soon = [q for q in missed if cards[q]["due"] and datetime.fromisoformat(cards[q]["due"]) <= latest]
+check("  and they are due back within minutes", len(soon), len(missed))
 
 print("\nand it is written down as an exam, not disguised as drilling")
 log = db.connect().execute(
