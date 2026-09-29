@@ -1,8 +1,8 @@
 """The drop: a report leaves the unit with nothing of the operator's on it.
 
-The mail path in mail.py asks the operator for an outgoing mail server and
-an app password before a single report can go, and a Pi in a club hall has
-nobody to type those in. The drop asks for nothing. A unit posts the report
+The mail path that came before it asked the operator for an outgoing mail
+server and an app password before a single report could go, and a Pi in a
+club hall has nobody to type those in; it is gone. The drop asks for nothing. A unit posts the report
 to one public address - a Google Apps Script that its owner deployed from
 their own account - and the script mails it on, or files it in a GitHub
 folder, or both, with every credential for that held on the script's side

@@ -9449,7 +9449,7 @@ def api_report():
                  "redacted" if redacted else "with station detail",
                  ", with the operator's account" if said.strip() else "")
     out = {"path": str(path), "redacted": redacted, "text": text,
-           "contact": mail.CONTACT, "mail": mail.configured(), "way": wayhome.way(),
+           "contact": mail.CONTACT, "contact_name": mail.CONTACT_NAME, "way": wayhome.way(),
            # Where to open it and where to save it from - a path on a kiosk
            # with no file manager is a fact, not a thing anybody can press.
            "view": url_for("report_file", name=path.name),
@@ -9496,17 +9496,14 @@ def report_file(name):
 # The settings are the mail door's; the page is told which door is open
 # (wayhome.way()), because with the drop deployed most units never set these.
 
-@app.route("/api/mail", methods=["GET", "POST"])
+@app.route("/api/mail")
 def api_mail():
+    """Where reports go from this unit. It took mail-server settings once;
+    reports go by the drop now, and nothing here is set - see mail.py."""
     if not _is_local(request.remote_addr):
         abort(403)
-    if request.method == "POST":
-        body = request.get_json(silent=True) or {}
-        if body.get("forget"):
-            return jsonify(mail.forget())
-        return jsonify(dict(mail.save(**{k: body.get(k) for k in mail.FIELDS if k in body}),
-                            way=wayhome.way()))
-    return jsonify(dict(mail.public_settings(), way=wayhome.way()))
+    return jsonify({"contact": mail.CONTACT, "contact_name": mail.CONTACT_NAME,
+                    "way": wayhome.way(), "old_settings": bool(mail.old_settings())})
 
 
 @app.route("/api/mail/test", methods=["POST"])
@@ -9515,7 +9512,7 @@ def api_mail_test():
         abort(403)
     # Tests the door reports actually leave by, whichever it is.
     ok, detail = wayhome.test()
-    return jsonify({"sent": ok, "detail": detail, "to": mail.CONTACT})
+    return jsonify({"sent": ok, "detail": detail, "to": mail.CONTACT_NAME})
 
 
 @app.route("/api/fieldreport", methods=["GET", "POST"])
@@ -9530,16 +9527,13 @@ def api_fieldreport():
         if body.get("preview"):
             path, text = fieldreport.write(conn())
             return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
-                            "latest": {"path": str(path), "text": text}, "mail": mail.configured(),
-                            "way": wayhome.way()})
+                            "latest": {"path": str(path), "text": text}, "way": wayhome.way()})
         if body.get("send"):
             result = fieldreport.send_now(conn(), reason="pressed")
             return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
-                            "result": result, "latest": fieldreport.latest(),
-                            "mail": mail.configured(), "way": wayhome.way()})
+                            "result": result, "latest": fieldreport.latest(), "way": wayhome.way()})
     return jsonify({"settings": fieldreport.settings(), "what": fieldreport.WHAT_IT_SENDS,
-                    "latest": fieldreport.latest(), "mail": mail.configured(),
-                    "way": wayhome.way(), "contact": mail.CONTACT})
+                    "latest": fieldreport.latest(), "way": wayhome.way(), "contact": mail.CONTACT})
 
 
 @app.route("/api/log")

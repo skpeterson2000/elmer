@@ -32,10 +32,8 @@ log = logging.getLogger("elmer")
 ROOT = Path(__file__).resolve().parents[1]
 LOG = paths.STATE / "elmer.log"
 
-# Where to send one: KC9SP's arrl.net forwarder, chosen by him for exactly
-# this - it forwards to his inbox and is filtered on the way. The address
-# and the sending path live in mail.py; this is the name the report page
-# shows beside the file it wrote.
+# Where to send one by hand, when the drop cannot take it: the address lives
+# in mail.py, and this is the name the report page shows beside the file.
 from .mail import CONTACT  # noqa: E402
 
 RE_GRID = re.compile(r"\b([A-R]{2}[0-9]{2})[a-x]{2}\b")

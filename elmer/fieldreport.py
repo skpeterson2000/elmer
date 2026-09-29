@@ -23,8 +23,7 @@ names a station:
 It is **off** until the operator turns it on, the switch says exactly what
 the report contains, every report is written to the state directory before
 it is sent so it can be read, and the last one written is a click away. It
-goes by whichever door is open - the drop, or the operator's own outgoing-
-mail settings; see home.py - to the project's address, and nowhere else.
+goes by the drop (see home.py) to the project's address, and nowhere else.
 """
 import json
 import logging
@@ -67,9 +66,8 @@ WHAT_IT_SENDS = (
     "set it full screen. The callsigns this unit's accounts hold, the places it "
     "has looked up or kept, the grid square, coordinates, network addresses "
     "and home directory are taken out before it is written. Every report is saved here first so you can "
-    "read it, and it goes to " + mail.CONTACT + " by the drop, or through "
-    "your own outgoing-mail settings if you have set them. It is off until "
-    "you turn it on."
+    "read it, and it goes to " + mail.CONTACT_NAME + " by the project's drop, with "
+    "nothing of yours on it. It is off until you turn it on."
 )
 
 

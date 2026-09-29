@@ -31,7 +31,7 @@ def check(label, got, want):
 
 def main():
     print("-- the address --")
-    check("reports go to the arrl.net forwarder", mail.CONTACT, "KC9SP@arrl.net")
+    check("reports go to the project's reports mailbox", mail.CONTACT, "elmeramateurradio@gmail.com")
     check("  and the problem report page shows the same one", bugreport.CONTACT, mail.CONTACT)
 
     print("\n-- the subject --")
@@ -42,81 +42,72 @@ def main():
     check("  once", mail.subject_line("[ELMER] test"), "[ELMER] test")
     check("  and an empty one is the tag alone", mail.subject_line(""), "[ELMER]")
 
-    print("\n-- a big provider's refusal is named, not left cryptic --")
-    # Yahoo drops the socket mid-login rather than returning a clean 535, and
-    # smtplib reports "Connection unexpectedly closed" - which sends an
-    # operator looking at the network when the answer is the app password.
-    import smtplib
-
-    class Drop:
-        def __init__(self, *a, **k): pass
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
-        def ehlo(self): pass
-        def login(self, u, p): raise smtplib.SMTPServerDisconnected("Connection unexpectedly closed")
-        def send_message(self, m): pass
-
-    was = smtplib.SMTP_SSL
-    smtplib.SMTP_SSL = Drop
-    try:
-        y = {"host": "smtp.mail.yahoo.com", "port": 465, "security": "ssl",
-             "user": "someone@yahoo.com", "password": "x" * 16,
-             "sender": "someone@yahoo.com"}
-        ok, why = mail.send("test", "body", s=y)
-        check("Yahoo's mid-login drop is not sent", ok, False)
-        check("  and is read as a login refusal, not a lost network",
-              "app password" in why and "Yahoo" in why, True)
-        check("  naming the address to use", "someone@yahoo.com" in why, True)
-    finally:
-        smtplib.SMTP_SSL = was
-
-    print("\n-- outgoing mail on this unit --")
-    check("nothing is set to begin with", mail.configured(), False)
-    ok, why = mail.send("test", "body")
-    check("  so nothing is sent, and it says why", (ok, "no outgoing mail server" in why), (False, True))
-    pub = mail.save(host="smtp.example.net", port="", security="starttls",
-                    user="kc9sp", password="hunter2", sender="unit@example.net")
-    check("saved settings are configured", pub["configured"], True)
-    check("  the port defaults for the security", mail.settings()["port"], 587)
-    check("  the password never comes back to the page",
-          ("password" in pub, pub["has_password"]), (False, True))
-    mail.save(password="")
-    check("  a blank password on save keeps the old one", mail.settings()["password"], "hunter2")
+    print("\n-- one way home: the drop --")
+    # The operator's own mail server was a second door, with a panel that
+    # asked for a host, a login and an app password beside the report. It
+    # is gone: a unit keeps no mail password, and nothing can send but the drop.
+    check("the mail module sends nothing and keeps no settings",
+          [hasattr(mail, n) for n in ("send", "save", "settings", "configured", "SETTINGS")],
+          [False, False, False, False, False])
+    from elmer import home, diagnostics as D
     import os as _os
+    was = _os.environ.get("ELMER_DROP_URL")
+    _os.environ["ELMER_DROP_URL"] = "http://127.0.0.1:9/exec"
+    try:
+        check("with the drop set, it is the way home, named by callsign",
+              (home.way() or {}).get("via"), "drop")
+        check("  and the Send button says who it reaches", (home.way() or {}).get("to"), mail.CONTACT_NAME)
+    finally:
+        if was is None:
+            _os.environ.pop("ELMER_DROP_URL", None)
+        else:
+            _os.environ["ELMER_DROP_URL"] = was
+    check("without it there is no way, and the report is written for sending by hand", home.way(), None)
+    # A unit that used the old door still has its settings, password and all.
+    mail.OLD_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    mail.OLD_SETTINGS.write_text('{"host": "smtp.example.net", "password": "hunter2"}')
+    try:
+        rows = []
+        D._collected = rows
+        D.check_mail()
+        D._collected = None
+        old = [r for r in rows if r["label"] == "old mail settings"]
+        check("a leftover data/mail.json is named by the doctor, as a password nothing uses",
+              (len(old), old[0]["state"] if old else None, "password" in (old[0]["detail"] if old else "")),
+              (1, "warn", True))
+    finally:
+        D._collected = None
+        mail.OLD_SETTINGS.unlink()
+
+    print("\n-- a private file is its owner's alone --")
+    # paths.keep_private guards the roster's signing key; checked here since
+    # the mail settings it was first written for.
+    import subprocess as _sp
+    from elmer import paths as _paths
+    scratch = _paths.STATE / "private-test.txt"
+    scratch.parent.mkdir(parents=True, exist_ok=True)
+    scratch.write_text("secret")
     if _os.name != "nt":
-        check("  the file is the operator's alone", oct(mail.SETTINGS.stat().st_mode & 0o777), "0o600")
+        _paths.keep_private(scratch)
+        check("  the file is the operator's alone", oct(scratch.stat().st_mode & 0o777), "0o600")
     else:
         # Windows has no mode bits, so the question is asked the way Windows
-        # answers it: who is on the file's permission list. No group - not
-        # Users, not Everyone, not every signed-in account - may be.
-        import subprocess as _sp
-        acl = _sp.run(["icacls", str(mail.SETTINGS)], capture_output=True, text=True).stdout
-        broad = [g for g in ("BUILTIN\\Users", "Everyone", "Authenticated Users") if g in acl]
-        check("  the file is the operator's alone", (broad, _os.environ.get("USERNAME", "?") in acl), ([], True))
-        # And that it is made so, not merely inherited so: a file every user
+        # answers it: who is on the file's permission list. A file every user
         # on the machine can read is handed to keep_private, and comes back
         # the owner's alone.
-        from elmer import paths as _paths
-        scratch = mail.SETTINGS.parent / "wide-open.txt"
-        scratch.write_text("secret")
         _sp.run(["icacls", str(scratch), "/grant", "*S-1-5-32-545:R"], capture_output=True, text=True)
         before = "BUILTIN\\Users" in _sp.run(["icacls", str(scratch)], capture_output=True, text=True).stdout
         made = _paths.keep_private(scratch)
         after = _sp.run(["icacls", str(scratch)], capture_output=True, text=True).stdout
         check("  a file every user could read is made the owner's alone",
               (before, made, "BUILTIN\\Users" in after, _os.environ.get("USERNAME", "?") in after), (True, True, False, True))
-        scratch.unlink()
-    ok, why = mail.send("test", "body")
-    check("a server that is not there is a plain failure, not an exception", ok, False)
-    check("  with the reason in words", bool(why), True)
-    mail.forget()
-    check("forgotten is unconfigured again", mail.configured(), False)
+    scratch.unlink()
 
     print("\n-- the field report --")
     check("off until switched on", F.settings()["opt_in"], False)
     check("  and not due while off", F.due(), False)
     check("the switch's text names what it sends and where",
-          all(w in F.WHAT_IT_SENDS for w in ("forecast", "errors", "callsign", mail.CONTACT, "off until")), True)
+          all(w in F.WHAT_IT_SENDS for w in ("forecast", "errors", "callsign", mail.CONTACT_NAME, "off until")), True)
     conn = db.connect()
     text = F.build(conn)
     check("it names the build and the machine", ("build" in text and "machine" in text), True)

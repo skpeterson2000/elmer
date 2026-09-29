@@ -88,7 +88,6 @@ def _run():
     global STATUS, REPLY
     print("\n-- with nothing set, there is no door --")
     check("no drop", drop.configured(), False)
-    check("no mail", mail.configured(), False)
     check("no way home", home.way(), None)
     sent, detail = home.deliver("problem report", "the body")
     check("  and delivering says so", sent, False)
@@ -102,7 +101,7 @@ def _run():
     check("configured", drop.configured(), True)
     way = home.way()
     check("the door is the drop", way and way["via"], "drop")
-    check("  to the project's address", way and way["to"], mail.CONTACT)
+    check("  to the project, named by callsign - the drop decides the mailbox", way and way["to"], mail.CONTACT_NAME)
 
     print("\n-- a report goes by it --")
     POSTED.clear()
@@ -160,14 +159,13 @@ def _run():
     drop.send("x", "y" * (drop.MOST + 10))
     check("cut", len(POSTED[0]["body"]), drop.MOST)
 
-    print("\n-- mail settings are the choice of the other door --")
-    mail.save(host="smtp.example.com", sender="me@example.com", security="none")
-    way = home.way()
-    check("the door is now mail", way and way["via"], "mail")
-    check("  naming the server", "smtp.example.com" in way["detail"], True)
-    check("  the drop is still there underneath", drop.configured(), True)
-    mail.forget()
-    check("forgetting goes back to the drop", home.way()["via"], "drop")
+    print("\n-- the drop is the only door --")
+    # The operator's own mail server was a second one, chosen by filling in
+    # its settings; it is gone, and a leftover settings file changes nothing.
+    mail.OLD_SETTINGS.write_text('{"host": "smtp.example.com", "sender": "me@example.com"}')
+    check("an old mail.json does not make mail the door", home.way()["via"], "drop")
+    check("  and the door is named by callsign", home.way()["to"], mail.CONTACT_NAME)
+    mail.OLD_SETTINGS.unlink()
 
     print("\n-- the project's own drop, baked into the program --")
     drop.SETTINGS.unlink()

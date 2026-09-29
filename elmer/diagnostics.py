@@ -940,36 +940,25 @@ def check_net_role():
 
 
 def check_mail():
-    """Whether reports can leave this unit, and by which door.
+    """Whether reports can leave this unit, and whether a retired mail
+    password is still on it.
 
-    Never sends. It says what is set and, for the providers that refuse an
-    account's own password, what they will want - the same words the refusal
-    would use, said before the first refusal instead of after it.
+    Never sends. Reports go by the drop and only the drop; the operator's
+    own mail server was a second door, retired, and a unit that used it
+    still has its settings - a mail password - in data/mail.json, which
+    nothing reads now. That is said, so it can be deleted.
     """
     from . import drop, mail
-    s = mail.settings()
-    if not mail.configured(s):
-        if drop.configured():
-            _line(OK, "mail home", f"reports go to {mail.CONTACT} by the drop - "
-                  "nothing of the operator's on them; set an outgoing mail "
-                  "server on the dashboard to send through your own account instead")
-        else:
-            _line(OK, "mail home", "no drop and no outgoing mail server set - reports "
-                  f"are written to data/ and the page says where to send them ({mail.CONTACT})")
-        _last_send(mail)
-        return True
-    known = mail.provider(s.get("host"))
-    detail = (f"{s.get('sender')} via {s.get('host')}:{s.get('port') or '?'} "
-              f"({s.get('security') or 'starttls'})"
-              + (", login set" if s.get("user") else ", no login"))
-    if known and not s.get("password"):
-        _line(WARN, "mail home", detail + f" - {known.split(' (')[0]} will want an app "
-              "password, and none is set")
-    elif known and "yahoo" in (s.get("host") or "").lower() and (s.get("security") or "") != "ssl":
-        _line(WARN, "mail home", detail + " - Yahoo wants port 465 and ssl")
+    if drop.configured():
+        _line(OK, "mail home", f"reports go to {mail.CONTACT_NAME} by the drop - "
+              "nothing of the operator's on them")
     else:
-        _line(OK, "mail home", detail + f" - reports go to {mail.CONTACT} with [ELMER] "
-              "in the subject; Send a test on the dashboard proves the path")
+        _line(OK, "mail home", "no drop set on this unit - reports are written to data/ "
+              f"and the page says where to send them ({mail.CONTACT})")
+    old = mail.old_settings()
+    if old:
+        _line(WARN, "old mail settings", f"{old} holds a mail password and nothing uses it "
+              "any more - reports go by the drop. Delete the file.")
     _last_send(mail)
     return True
 

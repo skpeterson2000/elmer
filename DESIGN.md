@@ -107,8 +107,8 @@ from a clock and arithmetic, and fetch nothing. Two things can be sent
 *from* a unit, and both are entirely voluntary: a **problem report**, when you
 press for it, and a **weekly field report**, when you switch it on — each
 written to disk and shown to you before it goes, each redacted of the
-unit's callsigns, the places it holds and addresses, each to KC9SP@arrl.net — by the drop, with nothing of
-yours on it, or through your own outgoing-mail settings if you would rather.
+unit's callsigns, the places it holds and addresses, each to KC9SP by the
+project's drop, with nothing of yours on it.
 Nothing is sent that you have not either pressed for or switched on and been
 shown the contents of. See *Mail home*, below.
 
@@ -976,14 +976,17 @@ miles of road rather than DX.
 
 ## Mail home
 
-Reports go to **KC9SP@arrl.net** — an arrl.net forwarder, chosen for exactly
-this: it forwards to its owner's inbox and is filtered on the way. Every
+Reports go to **elmeramateurradio@gmail.com**, the project's reports
+mailbox, set up for this and nothing else - the drop's script mails the same
+box (its `MAIL_TO`), so a report sent and one mailed by hand land together.
+It was KC9SP's arrl.net forwarder, which filtered each report through
+enough layers that it arrived late. Every
 subject a unit sends begins **[ELMER]**, put on by the sending path rather
 than left to each caller, so one filter at the far end catches all of them —
 the first ones landed in a spam folder. ELMER carries no mail account.
 
-A report leaves a unit by one of three doors, and which one is expressed by
-what you set up rather than by a switch beside it:
+A report leaves a unit by the drop, or, where the drop cannot take it, by
+hand:
 
 - **The drop.** With nothing set, a report goes to one public address — a
   Google Apps Script the project's owner deployed from their own account —
@@ -998,11 +1001,7 @@ what you set up rather than by a switch beside it:
   this way. The script and its five-minute setup are in
   [`tools/report_drop.gs`](tools/report_drop.gs); a club running its own
   points its units at it with `data/drop.json`.
-- **Your own outgoing mail server** — the SMTP host, port and login you
-  would give any mail program — kept in `data/mail.json` on that unit
-  alone, readable by nobody else. Filling it in is the choice: reports then
-  go through your account and not by the drop, and *Forget* goes back.
-- **By hand.** With neither — or when the door that is set refuses — the
+- **By hand.** With no drop set — or when it refuses — the
   report is still written, and the page gives you *Open it* and *Save it*
   beside the file's name and the address as a mail link, so it can be read,
   copied or attached from the screen it was written on. A path on a kiosk
@@ -1025,15 +1024,27 @@ message those tools send, through libX11 by `ctypes` - no new dependency, and
 every X desktop has the library. A field report from Ubuntu GNOME on X11
 (snap Chromium 153) had neither tool, and the window came up merely focused.
 A browser that dies within fifteen seconds of
-starting no longer stops the server with it - a dark unit cannot say why. The settings, a test message down whichever door is open,
-and both reports live under **Mail home** on the dashboard's update panel,
-local screen only.
+starting no longer stops the server with it - a dark unit cannot say why. Where reports go
+and the weekly field report live under **Where reports go** on the
+dashboard's update panel, local screen only.
 
-`data/mail.json` and `data/drop.json` are ignored by git and must stay that
-way: one holds a mail password, the other a club's own address. If you fork
-this and commit from a unit, check `git status` shows neither. A password
-that reaches a public repository is public from that moment, whatever is
-done to the history afterwards — revoke it and make another.
+There used to be a third door: the operator's own outgoing mail server,
+host, port, login and app password typed into a **Mail home** panel beside
+the report and kept in `data/mail.json`. It came before the drop, and once
+the drop worked it was an obstacle - a form asking for an account and a
+password, beside a Send button that did not need it, which on a
+kiosk-height screen was what showed while Send sat under the edge. It is
+gone, and a unit keeps no mail password. A unit that used it still has the
+file, which nothing reads; the doctor says so, as a password to delete.
+After **Write it**, the page brings **Send it to KC9SP** into view and puts
+the focus on it. The button names the callsign, not an address: the drop,
+not the page, decides the mailbox.
+
+`data/drop.json` is ignored by git and must stay that way - it holds a
+club's own address - and so is any `data/mail.json` a unit still has. If you
+fork this and commit from a unit, check `git status` shows neither. A
+password that reaches a public repository is public from that moment,
+whatever is done to the history afterwards — revoke it and make another.
 
 Two things can go:
 
@@ -4866,7 +4877,7 @@ nothing on either screen says so — each just plays alone:
 [  ok  ] other ELMERs  -  2 heard - Bench at 192.168.1.119 (running Technician net);
                           Duluth at 192.168.1.31 (reporting to http://192.168.1.119:5000, which has not answered it)
 [  ok  ] hall          -  remembers http://192.168.1.119:5000, which is running Technician net (3 tables present)
-[  ok  ] mail home     -  kc9sp@yahoo.com via smtp.mail.yahoo.com:465 (ssl), login set - reports go to KC9SP@arrl.net
+[  ok  ] mail home     -  reports go to KC9SP by the drop - nothing of the operator's on them
 ```
 
 The doctor listens on the discovery port for a whole announce interval — ten
@@ -4876,9 +4887,9 @@ its net has heard back from it; one that only has an address is pointed at a
 net that has not answered, which is how a Pi left pointing at last week's
 host shows up. The **hall** line says which net this unit remembers and asks
 it whether it is still there — and whether it is still the *same* net, by
-token, or a new one at the old address. The **mail home** line says which
-door reports would leave by, and, for the providers that refuse an account's
-own password, what they will want, before the first refusal rather than after.
+token, or a new one at the old address. The **mail home** line says whether
+reports can leave by the drop, and warns when a retired `data/mail.json` -
+a mail password nothing reads - is still on the unit.
 
 Then watch the log while you try to load the page:
 

@@ -85,11 +85,11 @@ function renderUpdate(d) {
         'others carry your words and the build. Your callsign, QTH and network addresses ' +
         'are taken out. Nothing is sent until you press send.</span>' +
       '</div><div id="report-out"></div>' +
-      /* Mail home: the unit's own outgoing-mail settings, and the weekly
+      /* Where reports go - the drop - and the weekly
          field report, which is off until switched on and says what it
          carries. Both local-only, like the report. */
       '<details class="derivation" id="mail-fold"><summary class="tiny muted" ' +
-        'style="cursor:pointer">Mail home &mdash; reports to the project</summary>' +
+        'style="cursor:pointer">Where reports go, and the weekly field report</summary>' +
         '<div id="mail-out" class="tiny muted" style="margin:.4rem 0">Loading&hellip;</div>' +
       '</details>' +
       /* The log itself, for a screen with no terminal behind it. Loaded when
@@ -403,7 +403,7 @@ document.addEventListener('click', async e => {
                     : ' &mdash; <b>with your callsign on it</b>, as you asked.') +
         reportLinks(d) +
         (d.way
-            ? ' <button class="btn sm" data-report-send="1">Send it to ' + escapeHTML(d.contact) + '</button>' +
+            ? ' <button class="btn sm primary" data-report-send="1">Send it to ' + escapeHTML(d.contact_name || d.contact) + '</button>' +
               ' <span class="muted">' + escapeHTML(d.way.detail) + '</span>'
             : '') +
         '<span id="report-sent"></span>' +
@@ -414,6 +414,16 @@ document.addEventListener('click', async e => {
         'Read it before you send it</summary>' +
         '<pre class="tiny" style="max-height:16rem;overflow:auto;white-space:pre-wrap">' +
         escapeHTML(d.text.slice(0, 20000)) + '</pre></details>';
+    /* The next press, where it can be seen. The report was written below
+       the button that wrote it, at the foot of a long page, and on a
+       kiosk-height screen Send landed under the edge - with the mail
+       settings' fold beside it looking like the way to send. */
+    const send = out && out.querySelector('[data-report-send]');
+    const next = send || (out && out.querySelector('p'));
+    if (next) {
+      next.scrollIntoView({block: 'center', behavior: 'smooth'});
+      if (send) send.focus({preventScroll: true});
+    }
   } catch (err) {
     if (out) out.innerHTML = '<p class="tiny warntext">Could not write a report.</p>';
   }
@@ -449,46 +459,29 @@ document.addEventListener('click', async e => {
   btn.disabled = false;
 });
 
-/* ---- mail home: the outgoing-mail settings and the weekly field report */
+/* ---- where reports go, and the weekly field report */
 async function renderMail() {
   const box = document.getElementById('mail-out');
   if (!box) return;
   let m, f;
   try {
     [m, f] = await Promise.all([api('/api/mail'), api('/api/fieldreport')]);
-  } catch (err) { box.textContent = 'Could not read the mail settings.'; return; }
+  } catch (err) { box.textContent = 'Could not read where reports go.'; return; }
   const s = f.settings || {};
   const last = s.last_result;
-  const way = m.way;   // which door reports leave by now, or null
-  const door = !way ? 'Nothing is set to send with: a report is written here and the page says where to mail it.'
-    : way.via === 'drop' ? 'They go <b>by the drop</b> &mdash; a public address that only takes reports in, ' +
-        'with nothing of yours on them and nothing to set up. Fill in the mail settings below ' +
-        'only if you would rather they went through your own account.'
-    : 'They go <b>through your own mail server</b>, ' + escapeHTML(m.host || '') +
-        '. Press Forget and they go by the drop instead, with nothing of yours on them.';
+  const way = m.way;   // the drop, or null where this unit has none
+  /* Reports go by the drop and only the drop. This panel held the unit's
+     own mail-server settings once - host, login, app password - a form
+     beside the report that nothing needed; see mail.py. */
   box.innerHTML =
-    '<p class="tiny" style="margin:.2rem 0 .5rem;color:var(--text)">Reports go to <span class="mono">' +
-      escapeHTML(m.contact) + '</span>. ' + door + '</p>' +
-    '<p class="tiny muted" style="margin:.2rem 0 .5rem">Your own outgoing mail server is the ' +
-      'host, port and login you would give any mail program. ELMER carries no mail account; ' +
-      'these are kept in <span class="mono">data/mail.json</span> on this unit only. ' +
-      'Gmail, Yahoo, Outlook and iCloud all want an <b>app password</b> here, made on the ' +
-      'account\u2019s security page, not the password you sign in with; the user name is the ' +
-      'full address, and From has to be that same address. Yahoo: ' +
-      '<span class="mono">smtp.mail.yahoo.com</span>, 465, ssl.</p>' +
-    '<div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center">' +
-      '<input class="mono" id="mail-host" placeholder="smtp.example.com" value="' + escapeHTML(m.host || '') + '" style="width:12rem">' +
-      '<input class="mono" id="mail-port" placeholder="587" value="' + escapeHTML(m.port || '') + '" style="width:4.5rem">' +
-      '<select id="mail-sec">' + ['starttls', 'ssl', 'none'].map(x =>
-        '<option value="' + x + '"' + ((m.security || 'starttls') === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
-      '<input class="mono" id="mail-user" placeholder="login" value="' + escapeHTML(m.user || '') + '" style="width:12rem">' +
-      '<input class="mono" id="mail-pass" type="password" placeholder="' + (m.has_password ? 'password (kept)' : 'password') + '" style="width:10rem">' +
-      '<input class="mono" id="mail-from" placeholder="from: you@example.com" value="' + escapeHTML(m.sender || '') + '" style="width:14rem">' +
-      '<button class="btn sm" id="mail-save">Save</button>' +
-      '<button class="btn sm ghost" id="mail-test"' + (way ? '' : ' disabled') + '>Send a test</button>' +
-      (m.configured ? '<button class="btn sm ghost" id="mail-forget">Forget</button>' : '') +
-      '<span id="mail-said"></span>' +
-    '</div>' +
+    '<p class="tiny" style="margin:.2rem 0 .5rem;color:var(--text)">' +
+      (way ? 'Reports go to <b>' + escapeHTML(m.contact_name) + '</b> by the project&rsquo;s drop, ' +
+             'with nothing of yours on them and nothing to set up.'
+           : 'Nothing is set to send with on this unit: a report is written here, and the page ' +
+             'says where to mail it (<span class="mono">' + escapeHTML(m.contact) + '</span>).') +
+      (m.old_settings ? ' <span class="warntext">An old <span class="mono">data/mail.json</span> is still ' +
+         'on this unit with a mail password in it; nothing uses it now, and it can be deleted.</span>' : '') +
+    '</p>' +
     '<div style="margin-top:.8rem;border-top:1px solid var(--line);padding-top:.6rem">' +
       '<label class="tiny" style="display:flex;gap:.5rem;align-items:flex-start;cursor:pointer;color:var(--text)">' +
         '<input type="checkbox" id="fr-optin"' + (s.opt_in ? ' checked' : '') + ' style="margin-top:.2rem">' +
@@ -504,29 +497,6 @@ async function renderMail() {
       '<div id="fr-out"></div>' +
     '</div>';
 
-  const said = document.getElementById('mail-said');
-  document.getElementById('mail-save').onclick = async () => {
-    await api('/api/mail', {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({host: document.getElementById('mail-host').value,
-                            port: document.getElementById('mail-port').value,
-                            security: document.getElementById('mail-sec').value,
-                            user: document.getElementById('mail-user').value,
-                            password: document.getElementById('mail-pass').value,
-                            sender: document.getElementById('mail-from').value})});
-    renderMail();
-  };
-  document.getElementById('mail-test').onclick = async () => {
-    said.textContent = 'sending…';
-    const r = await api('/api/mail/test', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
-    said.innerHTML = r.sent ? '<span style="color:var(--green)">sent to ' + escapeHTML(r.to) + '</span>'
-                            : '<span class="warntext">' + escapeHTML(r.detail || 'not sent') + '</span>';
-  };
-  const forget = document.getElementById('mail-forget');
-  if (forget) forget.onclick = async () => {
-    if (!confirm('Forget the mail settings on this unit?')) return;
-    await api('/api/mail', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({forget: true})});
-    renderMail();
-  };
   document.getElementById('fr-optin').onchange = async e => {
     await api('/api/fieldreport', {method: 'POST', headers: {'Content-Type': 'application/json'},
                                    body: JSON.stringify({opt_in: e.target.checked})});
