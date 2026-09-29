@@ -215,6 +215,9 @@
     <span class="tiny muted" id="bp-reach-when"></span>
   </div>
   <canvas id="bp-reach-map" width="1440" height="720" style="width:100%;display:block;margin:.5rem auto 0;border-radius:10px;border:1px solid var(--line);touch-action:none;cursor:grab"></canvas>
+  {# Out of bounds: an emission the class being read may not transmit on this
+     band. No map is drawn for it; the owl says so, with the rule quoted. #}
+  <div class="lapse" id="bp-reach-oob" hidden style="margin-top:.5rem"></div>
   <div class="row" style="justify-content:space-between;align-items:center;margin-top:.3rem;flex-wrap:wrap;gap:.5rem">
     <span class="tiny mono muted" id="bp-reach-zoom"></span>
     <span class="row" style="gap:.5rem;align-items:center">

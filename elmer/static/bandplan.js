@@ -1628,6 +1628,40 @@ function bpReachLaw(band) {
     if (w.dataset.was) w.value = w.dataset.was;
     delete w.dataset.cb; delete w.dataset.cap; delete w.dataset.was;
   }
+  /* FM where the rules let the class being read transmit it - the server's
+     bandplan.fm_permission, with the rule. Out of bounds, the choice stays
+     on the panel, so that pressing it can say why, and is marked. */
+  const fm = document.querySelector('input[name="bp-reach-em"][value="fm"]');
+  const label = fm && fm.closest('label');
+  if (label && band && band.fm) {
+    const out = band.fm.permitted === false;
+    label.classList.toggle('oob', out);
+    label.title = out ? 'Out of bounds for the class shown on ' + band.name + ': ' + band.fm.why : '';
+  }
+}
+/* The owl, where FM is out of bounds: no map for an emission the class shown
+   may not transmit here, and the rule that says so, quoted. A map of how far
+   it would carry is the kind of answer that invites the transmission. */
+function bpReachOutOfBounds(perm, bandName) {
+  const box = document.getElementById('bp-reach-oob');
+  const canvas = document.getElementById('bp-reach-map');
+  if (!box) return;
+  box.hidden = !perm;
+  if (canvas) canvas.style.opacity = perm ? '0.18' : '';
+  if (!perm) return;
+  ['bp-reach-gain', 'bp-reach-mode', 'bp-reach-far', 'bp-reach-laid', 'bp-reach-nvis-words'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.hidden = true;
+  });
+  // the note under the map describes a map, and there is none
+  const note = document.getElementById('bp-reach-note');
+  if (note) note.textContent = '';
+  const rules = (perm.rules || []).filter(r => r.quote).map(r =>
+    '<blockquote class="small" style="margin:.4rem 0 0 0">' + escapeHTML(r.quote) + ' <a href="' + escapeHTML(r.url) +
+    '" class="tiny muted">' + escapeHTML(r.citation) + '</a></blockquote>').join('');
+  box.innerHTML = '<img src="/static/owl-mind.png" alt="" class="lapse-owl">' +
+    '<div><b>Out of bounds: FM on ' + escapeHTML(bandName) + ' for the class shown.</b> ' + escapeHTML(perm.why) +
+    ' No map is drawn for it.' + rules + '</div>';
+  document.getElementById('bp-reach-when').textContent = 'out of bounds';
 }
 let bpReachCache = {};
 /* The operator's own antenna, for the map. The Lab remembers what was last
@@ -1687,7 +1721,9 @@ function bpReachAntenna() {
   const length = lengthFt > 0 ? String(Math.round(lengthFt)) : '';
   return {antenna: sel.value, height: h && h.value ? h.value : '30', watts: w && w.value ? w.value : '100',
           heading: hd && hd.value !== '' ? hd.value : '', ground: gnd ? gnd.value : 'average',
-          emission: bpReachEmission(), length: length};
+          emission: bpReachEmission(), length: length,
+          // the class being read: whether FM is in bounds is the class's question
+          class: typeof bpClass === 'function' ? bpClass() : ''};
 }
 /* Which way the antenna is laid, said where the box is. A blank box is
    drawn as north rather than as all round - all round drew a Yagi or a
@@ -1854,6 +1890,16 @@ async function bpReach(band) {
   if (!hf) return;
   document.getElementById('bp-reach-band').innerHTML = bandTag(band.name);
   reachPaint(band.name);
+  /* FM out of bounds for the class shown: the owl, and no map. The last map
+     is cleared rather than left under it, and a zoom does not redraw it. */
+  const oob = ant.emission === 'fm' && band.fm && band.fm.permitted === false ? band.fm : null;
+  bpReachOutOfBounds(oob, band.name);
+  const clear = () => {
+    bpReachFor = null; bpView.refined = null;
+    const c = document.getElementById('bp-reach-map');
+    if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  };
+  if (oob) { clear(); return; }
   let d = bpReachCache[key];
   if (!d) {
     document.getElementById('bp-reach-when').textContent = 'working it out…';
@@ -1865,6 +1911,8 @@ async function bpReach(band) {
       document.getElementById('bp-reach-note').textContent = 'no map just now';
       return;
     }
+    // The server's own word on the rule - a page older than the rule, say.
+    if (d.out_of_bounds) { bpReachOutOfBounds(d.out_of_bounds, d.band || band.name); clear(); return; }
     if (!d.ok) { document.getElementById('bp-reach-note').textContent = d.error || 'no map just now'; return; }
     bpReachCache[key] = d;
   }
@@ -1971,6 +2019,27 @@ async function bpReach(band) {
         s += ' The other modes are copied in different widths and need different margins: '
           + alts.join(', ') + '. Press one and the map is worked out again for it.'
           + ' The same gap on every band - it is the mode’s own, and does not move with frequency.';
+      }
+      /* FM over the sky: what the fade allowance is for, and why a 10 m FM
+         signal can reach farther than a broadcast station without the map
+         having lost its mind. */
+      if (md.sky_fade_db > 0) {
+        s += ' <b>Over the sky, FM needs ' + md.sky_fade_db.toFixed(1) + ' dB more.</b> The sky fades, and FM drops out'
+          + ' all at once below its threshold where SSB only gets weaker, so the map rates FM to stay above it '
+          + Math.round((md.fade_availability || 0.9) * 100) + '% of the time. In an opening, 10 m FM still carries'
+          + ' across a continent - farther than a broadcast FM station, which is on VHF, where nothing comes back'
+          + ' from the sky and the horizon is the edge - but it comes and goes where SSB would hold.';
+      }
+      /* FM where it is in bounds: the rule that shapes it, quoted, and - a
+         different matter - whether anybody operates it here. Narrow FM is
+         legal on 20 m for a General, and nobody there is listening for it. */
+      if (md.mode === 'fm' && band.fm && band.fm.permitted) {
+        const narrow = (band.fm.rules || []).find(r => r.quote);
+        s += ' ' + escapeHTML(band.fm.why)
+          + (narrow ? ' <span class="muted">' + escapeHTML(narrow.quote) + ' <a class="tiny muted" href="' + escapeHTML(narrow.url) + '">'
+                      + escapeHTML(narrow.citation) + '</a></span>' : '')
+          + (band.fm_used === false ? ' <b>Legal here, and not used:</b> the band plan has no FM activity on '
+             + escapeHTML(band.name) + ', so few will be listening for it.' : '');
       }
       modeLine.innerHTML = s;
     }

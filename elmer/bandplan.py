@@ -419,6 +419,78 @@ def privileges_for(band_name, license_class):
     return PRIVILEGES.get(band_name, {}).get(license_class, [])
 
 
+# FM - F3E, an angle-modulated phone emission - and where the rules let a
+# class transmit it below 30 MHz. The reach map offered FM on every HF band;
+# then, for a while, on the bands the band plan has FM activity on. Neither
+# is the rule. The rule is 47 CFR, quoted here from ELMER's own copy and
+# never paraphrased: FM is phone, so it goes where 97.305(c) authorizes
+# phone within the class's privileges (97.301), narrow below 29.0 MHz
+# (97.307(f)(1)); not on 30 m, where 97.305(c) authorizes RTTY and data only;
+# not on 60 m, where phone is the one designator 2K80J3E (97.303(h)(3)); and
+# not by a Novice or Technician, whose 10 m phone is J3E and R3E only
+# (97.307(f)(10)). CB is Part 95, where FM has been allowed since 2021.
+FM_NARROW_BELOW_MHZ = 29.0
+FM_RULES = {
+    "narrow": ("97.307", "97.307(f)(1)", "(1) No angle-modulated emission"),
+    "novice_tech": ("97.307", "97.307(f)(10)", "(10) A station having a control operator holding a Novice"),
+    "60m": ("97.303", "97.303(h)(3)", "(3) In the 5330.5-5406.4 kHz band"),
+    "30m": ("97.305", "97.305(c)(3)(viii)", "(viii) 30 m |"),
+}
+
+
+def _rule(key):
+    """One rule, word for word from ELMER's copy of Part 97, with where it is."""
+    from . import explain
+    section, citation, starts = FM_RULES[key]
+    paragraphs = ((explain.part97() or {}).get(section) or {}).get("paragraphs") or []
+    quote = next((p for p in paragraphs if p.startswith(starts)), None)
+    return {"citation": "§ " + citation, "quote": quote,
+            "url": f"https://www.ecfr.gov/current/title-47/part-97/section-{section}"}
+
+
+def fm_permission(band_name, license_class):
+    """Whether a station operated by this class may transmit FM on this band,
+    below 30 MHz, and the rule that says so.
+
+    Returns {"permitted", "segments" (MHz pairs where it may), "narrow"
+    (True where any of those is below 29.0 MHz, where the index is limited),
+    "why" (one sentence of ELMER's own), "rules" (the rule text, quoted)}.
+    """
+    band = BAND_INDEX.get(band_name) or next((b for b in PERSONAL_BANDS if b["name"] == band_name), None)
+    if band and band.get("personal") == "CB":
+        return {"permitted": True, "segments": [[band["low"], band["high"]]], "narrow": False, "part95": True,
+                "why": "CB is Part 95, not Part 97: FM has been allowed there since 2021, at 4 W carrier.",
+                "rules": []}
+    if band_name == "30 m":
+        return {"permitted": False, "segments": [], "narrow": False,
+                "why": "30 m is authorized for RTTY and data only - no phone of any kind, and FM is phone.",
+                "rules": [_rule("30m")]}
+    if band_name == "60 m":
+        return {"permitted": False, "segments": [], "narrow": False,
+                "why": "On 60 m the only phone emission is upper sideband, 2K80J3E - not FM.",
+                "rules": [_rule("60m")]}
+    # A visiting operator is drawn at the Extra ceiling, as privileges_for
+    # draws them - and said the same way, so the two views are one view.
+    if license_class == RECIPROCAL:
+        license_class = "Extra"
+    phone = [s for s in privileges_for(band_name, license_class) if "phone" in s[2].lower()]
+    shown = license_class
+    if not phone:
+        return {"permitted": False, "segments": [], "narrow": False,
+                "why": f"The {shown} privileges on {band_name} include no phone, and FM is phone.",
+                "rules": []}
+    if license_class in ("Novice", "Technician"):
+        return {"permitted": False, "segments": [], "narrow": False,
+                "why": f"A {license_class} may use phone on {band_name}, but only single sideband - J3E or R3E - not FM.",
+                "rules": [_rule("novice_tech")]}
+    segs = [[lo, hi] for lo, hi, _ in phone]
+    narrow = any(lo < FM_NARROW_BELOW_MHZ for lo, hi in segs)
+    return {"permitted": True, "segments": segs, "narrow": narrow,
+            "why": (f"FM is phone, and phone is within the {shown} privileges on {band_name}"
+                    + (" - narrow FM below 29.0 MHz, a modulation index no greater than 1." if narrow else ".")),
+            "rules": [_rule("narrow")] if narrow else []}
+
+
 # The far end of a round trip. The reach map rates both legs of a contact;
 # this says what the other station needs to make the reply - the gear, and
 # in the US the license - so a map that lights up a county in Ohio also

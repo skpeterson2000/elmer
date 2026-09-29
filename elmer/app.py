@@ -1147,10 +1147,16 @@ def _bands_for_page(license):
                 {"low": a, "high": b, "kind": k, "label": l,
                  "you": _usable(a, b, k, band["name"], license)}
                 for a, b, k, l in bandplan.activity_for(band["name"])],
+            # whether this class may transmit FM here, with the rule - and
+            # whether anybody does, which is a different question
+            "fm": bandplan.fm_permission(band["name"], license),
+            "fm_used": propagation.fm_used(band["name"]),
         })
         for extra in bandplan.PERSONAL_BANDS:
             if extra["after"] == band["name"]:
-                out.append(bandplan.personal_band_view(extra))
+                out.append({**bandplan.personal_band_view(extra),
+                            "fm": bandplan.fm_permission(extra["name"], license),
+                            "fm_used": propagation.fm_used(extra["name"])})
     return out
 
 
@@ -2458,6 +2464,21 @@ def api_bandplan_reach():
     if emission not in groundwave.MODES:
         emission = "ssb"
     watts, emission, watts_cap = propagation.lawful(name, watts, emission)
+    # FM only where the rules let the class being read transmit it
+    # (bandplan.fm_permission, which quotes them). Out of bounds, there is no
+    # map to draw: a picture of how far an emission would carry that the
+    # station may not transmit is the kind of answer that invites the
+    # transmission. The rule comes back instead, for the page's owl.
+    if emission == "fm":
+        cls = request.args.get("class") or _own_class() or "Extra"
+        if cls not in bandplan.CHOICES:
+            cls = _own_class() or "Extra"
+        shown = next((b["name"] for b in list(bandplan.BANDS) + list(bandplan.PERSONAL_BANDS)
+                      if b["name"].replace(" ", "") == name), name)
+        permission = bandplan.fm_permission(shown, cls)
+        if not permission["permitted"]:
+            return jsonify({"ok": False, "out_of_bounds": permission, "band": shown, "class": cls,
+                            "error": "FM is out of bounds here - " + permission["why"]})
     key = (name, round(place["lat"], 1), round(place["lon"], 1), snap.get("fetched"), snap.get("muf"), window, step, mode,
            kind if antenna else "", round(antenna["height_ft"]) if antenna else 0, round(watts, 1), emission,
            (round(antenna["heading"]) if antenna and antenna["heading"] is not None else None),

@@ -54,6 +54,34 @@ PERSONAL_WATTS = {"11m": {"am": 4.0, "fm": 4.0, "ssb": 12.0}}
 PERSONAL_MODE = {"11m": "am"}
 
 
+# FM over the sky. The HF skywave fades: ITU-R F.1487's model of the channel
+# (Watterson's) is one or more paths, each fading with a Rayleigh-distributed
+# strength, and it is stated as valid up to 12 kHz - the width FM is copied
+# in here. SSB, AM and CW get weaker through a fade and the ear rides it; FM
+# has a threshold, and below it the demodulator loses the signal outright.
+# So on a sky path FM must stay above its threshold through the fades, not
+# on average. For a Rayleigh-fading signal the chance of falling below x
+# times its mean power is 1 - exp(-x); staying above for this share of the
+# time takes -ln(availability) of the mean, which is this many decibels.
+# The number is the formula's, not a choice: 90 percent gives 9.8 dB.
+FM_FADE_AVAILABILITY = 0.90
+FM_SKY_FADE_DB = round(-10.0 * math.log10(-math.log(FM_FADE_AVAILABILITY)), 1)
+
+
+def fm_used(band):
+    """Whether FM is operated on this band, below 30 MHz: the band plan has
+    an FM segment on it (10 m's 29.5-29.7 MHz), or it is CB. Convention,
+    not law - whether a station may transmit FM is bandplan.fm_permission,
+    from the rules. Narrow FM is legal on 20 m for a General, and nobody
+    there is listening for it; the page says both."""
+    from . import bandplan
+    key = str(band).replace(" ", "")
+    if "fm" in (PERSONAL_WATTS.get(key) or {}):
+        return True
+    segs = next((s for n, s in bandplan.ACTIVITY.items() if n.replace(" ", "") == key), None)
+    return any("FM" in str(seg[3]) for seg in segs or [])
+
+
 def lawful(band, watts, emission="ssb"):
     """The power and the emission the rules allow on this band, given what
     was asked for: (watts, emission, cap) - the cap None where the amateur
@@ -982,6 +1010,11 @@ def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DE
     needed = linkbudget.needed_dbm(mhz, emission, site,
                                    sun_deg=elevation if noise_sun_deg is None else noise_sun_deg,
                                    when=when, lat=lat)
+    # FM must clear its threshold through the sky's fades, not on average -
+    # see FM_SKY_FADE_DB. The other modes degrade through a fade and are
+    # rated on the average, as they were.
+    fade = FM_SKY_FADE_DB if emission == "fm" else 0.0
+    needed += fade
     margin = arrives - needed
     if margin >= SKY_SOLID_DB:
         verdict = "solid"
@@ -1003,6 +1036,7 @@ def sky_budget(mhz, km, hops, watts, emission="ssb", elevation=0.0, hmf2=HMF2_DE
             "arrives_dbm": round(arrives, 1), "needed_dbm": round(needed, 1),
             "fspl_db": round(fspl, 1), "absorb_db": round(absorb, 1), "extra_db": round(extra, 1),
             "ray_km": round(ray_km), "watts": round(float(watts), 1), "emission": emission,
+            "fade_db": fade,
             "watts_for": None if watts_for is None else round(watts_for, 0),
             "legal": legal,
             "daylight": absorb >= 6.0}
@@ -1313,7 +1347,10 @@ def _mode_depth(mhz, emission, watts):
             "bandwidth_hz": int(shape["bandwidth_hz"]), "snr_db": round(shape["snr"], 1),
             "vs_ssb_db": round(deeper, 1), "times": round(times, 1),
             "as_ssb_watts": round(float(watts) * times),
-            "legal_watts": LEGAL_WATTS, "others": others}
+            "legal_watts": LEGAL_WATTS, "others": others,
+            # FM's extra need on a sky path, for the page to say - see FM_SKY_FADE_DB
+            "sky_fade_db": FM_SKY_FADE_DB if emission == "fm" else 0.0,
+            "fade_availability": FM_FADE_AVAILABILITY}
 
 
 def _antenna_block(antenna, mhz):

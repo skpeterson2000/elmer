@@ -300,6 +300,11 @@ input.btn.num { width: 4.2rem; text-align: right; font-family: var(--mono); }
 }
 .lapse-owl { width: 34px; height: 34px; flex: 0 0 34px; }
 .stern-owl { width: 26px; height: 26px; vertical-align: -7px; margin-right: .45rem; }
+/* A choice the rules put out of bounds for the class shown: still pressable,
+   so pressing it can say why - the owl, under the map - and marked as such. */
+label.oob { text-decoration: line-through; color: var(--dimmer); }
+label.oob::after { content: "out of bounds"; margin-left: .3rem; font-size: .66rem; color: var(--amber);
+                   text-decoration: none; display: inline-block; }
 
 /* ---------- read off the wire, not the screen ---------- */
 /* The owl again, and the only other place it appears in the drill. Cyan

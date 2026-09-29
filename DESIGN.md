@@ -522,6 +522,36 @@ because they carry very different authority:
   the shapes cross its rim in ways a filled path cannot follow; the fine
   coastline is drawn over it (`tests/test_reach_land.py`).
 
+  FM is drawn where the rules put it, and rated for the sky's fades. The
+  map offered FM on every HF band and rated it like a steady signal, so
+  100 W of FM lit 5,000 km on 20 m; an operator asked, reasonably, whether
+  it claimed a 50 ft antenna outreached a broadcast station. A first answer
+  offered FM only where the band plan has FM activity - convention, and
+  wrong both ways: narrow FM is legal on 20 m for a General, and a
+  Technician may not transmit FM on 10 m at all. The rule is 47 CFR, and
+  `bandplan.fm_permission` reads it for a band and a class, quoting ELMER's
+  own copy word for word: FM is phone, so it goes where 97.305(c)
+  authorizes phone within the class's privileges, narrow below 29.0 MHz
+  (97.307(f)(1)); never on 30 m (97.305(c)(3)(viii), RTTY and data only);
+  never on 60 m (97.303(h)(3), phone there is 2K80J3E only); never by a
+  Novice or Technician (97.307(f)(10), J3E and R3E only); CB under Part 95.
+  Out of bounds for the class being read, the map is not drawn - a picture
+  of how far an emission would carry that the station may not transmit is
+  the kind of answer that invites the transmission - and the reach route
+  answers with the rule instead; the page strikes FM through on the panel
+  and shows the stern owl in the map's place with the rule quoted, which is
+  the owl's job: a license somebody can exceed with a transmitter. Where FM
+  is legal and nobody operates it (`propagation.fm_used`, the band plan's
+  FM segments), the map is drawn and says both. Over the sky FM gets a
+  fade allowance the other modes do not. ITU-R F.1487's model of the HF
+  channel (Watterson's) is paths fading with a Rayleigh-distributed
+  strength, valid to 12 kHz - FM's width here - and FM has a threshold below
+  which it drops out rather than getting weaker. Staying above it for a
+  share p of the time takes -ln(p) of the mean power: 9.8 dB for 90 percent
+  (`FM_SKY_FADE_DB`, computed from the formula). With it, 100 W of 10 m FM
+  to a 50 ft dipole in a daytime opening lights 2,900 km dimly, where it had
+  lit 6,100 and SSB lights 8,800 (`tests/test_reach_fm.py`).
+
   A zoomed window is the same map, closer: the page asks for it with the
   same antenna, height, heading, ground, power and mode as the whole one,
   and draws no answer for settings changed while it was on its way. It
