@@ -154,9 +154,13 @@ p_out = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0,
                   persist=[{"muf": 16.0, "days": 3}] * 25)
 plain1 = P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0)
 check("the anchored hour stays the reading's", p_out[0]["muf"], plain1[0]["muf"])
-check("  and a day out the curve is the record's", abs(p_out[24]["muf"] - 16.0) < 0.05, True)
+# A day out the record carries four-fifths and the model a fifth - the
+# share that beat the record alone in every season of a year's grading.
+day_out = P.RECORD_SHARE * 16.0 + (1 - P.RECORD_SHARE) * plain1[24]["muf"]
+check("  and a day out the curve is four-fifths the record's, a fifth the model's",
+      (P.RECORD_SHARE, abs(p_out[24]["muf"] - day_out) < 0.1), (0.8, True))
 check("  with the critical frequency moved to match",
-      abs(p_out[24]["fof2"] / plain1[24]["fof2"] - 16.0 / plain1[24]["muf"]) < 0.02, True)
+      abs(p_out[24]["fof2"] / plain1[24]["fof2"] - p_out[24]["muf"] / plain1[24]["muf"]) < 0.02, True)
 check("  where the record is silent the model speaks",
       P.outlook(14.0, 46.36, -94.2, sfi=110, start=NOW, muf_now=12.0, persist=[None] * 25)[24]["muf"], plain1[24]["muf"])
 

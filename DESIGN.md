@@ -3202,6 +3202,20 @@ month; the gray line — the weakest sky — 3.58 → 1.97; night 2.57 → 1.62;
 shape between, and the strip says when the record is speaking. A unit's first
 day has no record and runs on the model; by the fourth it has all three.
 
+**Not the record alone.** Where the record takes over it takes four-fifths
+of the figure, and the model keeps a fifth (`RECORD_SHARE = 0.80`). Graded a
+season at a time over the year to September 2026, at the calibration's QTH,
+the forecast as the page runs it against the sondes: at 24 hours, autumn
+1.88 → 1.75 MHz, winter 1.77 → 1.70, spring 2.03 → 1.97, summer 1.70 →
+1.66; at 12 hours 1.88 → 1.79, 1.77 → 1.71, 2.03 → 1.95, 1.69 → 1.63; over
+every graded hour, 1.852 → 1.812. The share was fitted in each season on its
+own - 0.80 to 0.85 - and each season's fit did as well in the other three,
+so it is not the year memorised. Two things it did not fix, and they are
+next: at 6 hours in spring and summer the sonde anchor carries the forecast
+0.4 to 0.5 MHz high, and in storm hours (Kp 5 and up) every figure - model,
+record, yesterday - runs 1 to 2.6 MHz high, because nothing in the MUF knows
+about the storm.
+
 **Calibrate my forecast**, on the Propagation page, is the same thing for *this*
 place: the nearest sondes' readings, the forecast run blind over them hour by
 hour, and a correction fitted by month and by sky and applied where no fresh

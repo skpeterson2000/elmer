@@ -2093,6 +2093,15 @@ def reconcile(score, rating, muf_source=None, is_group=True):
     return out
 
 
+# How much of the forecast the record carries once the anchor has let go;
+# the model carries the rest. Graded against the sondes over a year, season
+# by season (autumn 2025 to summer 2026), a day ahead: the record alone
+# erred 1.88, 1.77, 2.03 and 1.70 MHz; four-fifths record and a fifth model,
+# 1.75, 1.70, 1.97 and 1.66. Fitted in each season on its own the share
+# came out 0.80 to 0.85, and each season's fit did as well in the others.
+RECORD_SHARE = 0.80
+
+
 def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             muf_now=None, anchor=None, m3000=None, aurora_lat=None,
             anchor_sun=None, hmf2=HMF2_DEFAULT, bias=None, calibration=None,
@@ -2118,8 +2127,12 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
     `persist` is the record's own forecast for each hour - the measured MUF
     at that hour of day over the last few days (forecastlog.persistence) -
     and where it exists it takes over from the model as the anchor lets go,
-    because over a year it beat the model at every lead past six hours. The
-    model keeps the hours the record cannot speak for, and the shape between.
+    because over a year it beat the model at every lead past six hours. It
+    takes over as RECORD_SHARE of the figure, not all of it: graded season by
+    season, a fifth of the model kept beside the record beat the record alone
+    in every season, the share fitted in any one holding in the other three.
+    The model keeps the hours the record cannot speak for, and the shape
+    between.
     """
     start = (start or datetime.now(timezone.utc)).replace(minute=0, second=0,
                                                           microsecond=0)
@@ -2175,7 +2188,8 @@ def outlook(mhz, lat, lon, sfi, k_index=2.0, hours=24, start=None,
             held = 0.0
             if anchor not in (None, 1.0):
                 held = max(0.0, min(1.0, (weight - 1.0) / (anchor - 1.0)))
-            blended = held * muf + (1.0 - held) * float(persist[step]["muf"])
+            record = RECORD_SHARE * float(persist[step]["muf"]) + (1.0 - RECORD_SHARE) * muf
+            blended = held * muf + (1.0 - held) * record
             if abs(blended - muf) > 1e-9:
                 if fof2:
                     fof2 = round(fof2 * blended / muf, 2)
