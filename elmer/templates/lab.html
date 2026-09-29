@@ -209,7 +209,7 @@
         <button class="btn sm ghost" id="an-suggest">Not sure &mdash; suggest one</button>
         <button class="btn sm ghost" id="an-print">Print the sheet (PDF)</button>
       </div>
-      <div class="tiny muted">The sheet is the part that goes outside: cut
+      <div class="tiny muted" style="margin-bottom:.9rem">The sheet is the part that goes outside: cut
         lengths for the material you picked, the height this job wants, the
         takeoff angle you will get at the height you have, and what to expect
         from it. A tape measure does not have a screen.</div>
@@ -236,8 +236,11 @@
         <span class="sim-out" id="an-angle-v"></span></div>
 
       <div class="field an-when-heading"><label>Which way is it laid?</label>
-        <input class="an-head-num btn sm" style="width:5rem" type="number" id="an-head" step="1" value="90" inputmode="numeric"
-               title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;
+        {# The box and its degree sign on one line: the input is a block in a
+           field, and the sign used to wrap under it on its own. #}
+        <span style="display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap">
+        <input class="an-head-num btn sm" style="width:5rem;display:inline-block" type="number" id="an-head" step="1" value="90" inputmode="numeric"
+               title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;</span>
         <span class="sim-out" id="an-head-v"></span></div>
 
       <label class="an-when-nvis" style="display:flex;align-items:center;gap:.45rem;
@@ -294,8 +297,9 @@
       <div id="an-pattern" class="mt"></div>
       <div class="an-turn">
         <div class="field an-when-heading"><label>Turn it &mdash; which way is it laid?</label>
-          <input class="an-head-num btn sm" style="width:5rem" type="number" id="an-head-2" step="1" value="90" inputmode="numeric"
-                 title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;
+          <span style="display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap">
+          <input class="an-head-num btn sm" style="width:5rem;display:inline-block" type="number" id="an-head-2" step="1" value="90" inputmode="numeric"
+                 title="degrees from north - the arrow keys turn it a degree, with Shift fifteen; it goes on round past 359">&deg;</span>
           <span class="sim-out" id="an-head-2-v"></span>
           <div class="tiny muted">Drag round the compass to turn it, or tap a place on its rim to aim at it.</div></div>
         <div class="field an-when-angle"><label id="an-angle-2-label">Slope from horizontal (&deg;)</label>

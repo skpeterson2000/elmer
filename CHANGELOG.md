@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- The Lab says when an antenna does not fit where you live. A site held a height and never a length, so a small lot was handed 250 ft of terminated wire on 160 m without a word. Each site now has a usual straight run - a house about 150 ft, a small lot 70, an attic 40 - and each wire antenna a footprint; when it needs more, the Lab says by how much and what fits instead. The compass under it now says where the lobe lands before how far the lower rays reach ("lands about 118 mi; lower rays reach 679 mi", where it said only "reach about 679 mi" under "at 74 degrees"). And four small things on the same screen: the degree sign kept to its heading box, the feed's label clear of the wire, town names off the compass letters, and room under the PDF note. The terminated vee and sloper are drawn to scale: the picture stretched the height six times and said so in its caption, and an 18 ft mast over 249 ft of wire is a nearly flat line along the grass - which is why it fires high.
+
 - The reach map draws in a little over half the time, and draws the same map. It was working out the sun's position 60,000 times for 26 different moments, computing a bearing it never used, and pinning each hop's angle to a ten-billionth of a degree; a field report had it at 1.2 to 1.6 seconds a request. On the bench the world map went from 0.30-0.39 seconds to 0.17-0.22.
 
 - A problem report is written faster. Its self-check ran some twenty-five checks one after another, most of each spent waiting on a socket, gpsd or the network, and a field report had sending one take 6 to 9 seconds. They now run side by side and come back in the same order; on the bench a report went from 4.8 seconds to 2.0.

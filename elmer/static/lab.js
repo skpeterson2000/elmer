@@ -1830,40 +1830,48 @@ function drawAntenna(shape, rows, type) {
       lbl(W / 2, cy + halfW + 22, 'wide element = low Q = wide band') +
       lbl(W / 2 + 40, (cy + g) / 2, 'height', 'start');
   } else if (shape === 'tw') {
-    /* Drawn with the height stretched, because to scale 50 ft over 500 of
-       wire is a line along the ground and the picture would teach nothing.
-       The label says by how much. Feed on the left, resistor on the right,
-       which is also the way it fires. */
+    /* To scale, both ways. It used to stretch the height to fill the box -
+       six times, for an 18 ft mast over 249 ft of wire - and say so in the
+       caption: a steep triangle nobody builds, apologised for underneath.
+       The picture is what a newcomer believes, and the truth is the lesson:
+       a wire that low is nearly along the grass for most of its run, which
+       is why it fires high. So one scale, the smaller of what the run and
+       the height allow, the run centred. Feed on the left, resistor on the
+       right, which is also the way it fires. */
     const mast = rows['Mast'] || rows['Support'] || 40;
     const covered = rows['Ground covered, feed to resistor'] || 1;
-    const x0 = 70, x1 = 550, yTop = 45, post = g - 16;
-    const stretch = ((post - yTop) / Math.max(1, mast - TW_END_FT)) /
-                    ((x1 - x0) / Math.max(1, covered));
-    const res = (x, y) => '<rect x="' + (x - 5) + '" y="' + (y + 4) + '" width="10" height="' +
-      Math.max(8, g - y - 8) + '" fill="none" stroke="#f47067" stroke-width="2"/>';
+    const room = 480, headroom = g - 45;
+    const sc = Math.min(room / Math.max(1, covered), headroom / Math.max(1, mast));
+    const run = covered * sc;
+    const xa = W / 2 - run / 2, xb = W / 2 + run / 2;
+    const yTop = g - mast * sc, post = g - TW_END_FT * sc;
+    const res = (x, y) => '<rect x="' + (x - 5) + '" y="' + Math.min(y, g - 8) + '" width="10" height="' +
+      Math.max(8, g - y) + '" fill="none" stroke="#f47067" stroke-width="2"/>';
     if (type === 'tefv') {
-      const xm = (x0 + x1) / 2;
+      const xm = (xa + xb) / 2;
       body =
-        '<line x1="' + xm + '" y1="' + (yTop - 8) + '" x2="' + xm + '" y2="' + g +
+        '<line x1="' + xm + '" y1="' + yTop + '" x2="' + xm + '" y2="' + g +
           '" stroke="#2a3441" stroke-width="3"/>' +
-        '<polyline points="' + x0 + ',' + post + ' ' + xm + ',' + yTop + ' ' + x1 + ',' + post +
+        '<polyline data-tw="1" points="' + xa + ',' + post + ' ' + xm + ',' + yTop + ' ' + xb + ',' + post +
           '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
-        '<circle cx="' + x0 + '" cy="' + post + '" r="5" fill="#58a6ff"/>' + res(x1, post) +
-        lbl(x0, post - 12, '12:1, fed here', 'start') +
-        lbl(x1, g + 16, '600 \u03a9 to ground', 'end') +
-        lbl(xm + 8, yTop + 4, mast.toFixed(0) + ' ft mast', 'start');
+        '<circle cx="' + xa + '" cy="' + post + '" r="5" fill="#58a6ff"/>' + res(xb, post) +
+        /* Under the ground line, level with the resistor's label: above the
+           feed, the rising leg ran through it. */
+        lbl(xa - 6, g + 16, '12:1, fed here', 'start') +
+        lbl(xb + 6, g + 16, '600 Ω to ground', 'end') +
+        lbl(xm, yTop - 8, mast.toFixed(0) + ' ft mast', 'middle');
     } else {
       body =
-        '<line x1="' + x0 + '" y1="' + (yTop - 8) + '" x2="' + x0 + '" y2="' + g +
+        '<line x1="' + xa + '" y1="' + yTop + '" x2="' + xa + '" y2="' + g +
           '" stroke="#2a3441" stroke-width="3"/>' +
-        '<line x1="' + x0 + '" y1="' + yTop + '" x2="' + x1 + '" y2="' + post +
+        '<line data-tw="1" x1="' + xa + '" y1="' + yTop + '" x2="' + xb + '" y2="' + post +
           '" stroke="#ffb454" stroke-width="2.5"/>' +
-        '<circle cx="' + x0 + '" cy="' + yTop + '" r="5" fill="#58a6ff"/>' + res(x1, post) +
-        lbl(x0 + 10, yTop - 6, '12:1, fed at the top', 'start') +
-        lbl(x1, g + 16, '600 \u03a9 to ground', 'end');
+        '<circle cx="' + xa + '" cy="' + yTop + '" r="5" fill="#58a6ff"/>' + res(xb, post) +
+        lbl(xa + 10, yTop - 8, '12:1, fed at the top of ' + mast.toFixed(0) + ' ft', 'start') +
+        lbl(xb + 6, g + 16, '600 Ω to ground', 'end');
     }
-    body += lbl(W / 2, g + 30, 'fires this way \u2192   (height drawn ' +
-      Math.max(1, Math.round(stretch)) + '\u00d7 its true scale)');
+    body += lbl(W / 2, g + 32, 'fires this way →   ' + covered.toFixed(0) +
+      ' ft of ground, feed to resistor · drawn to scale');
   } else if (shape === 'wire') {
     const y = 90;
     /* The angle on the screen is the angle you set. Both of these used to be
@@ -3343,6 +3351,10 @@ async function antennaAdvice(mhz, use, kind, quiet) {
                          somebody is going to tie, so they can set it on the
                          ground and deploy knowing what to expect. */
                       droop: kind === 'invertedv' ? antAngle() : '',
+                      /* A terminated wire's length, which is the operator's
+                         to choose - so whether it fits the lot is theirs to
+                         know. Other wires are cut to the band. */
+                      length: isTw(kind) ? Math.max(20, num('an-len') || TW_DEFAULTS[kind].len) : '',
                       watts: num('an-pw') > 0 ? num('an-pw') : '',
                       /* Evaluate sends the height on screen, to be judged
                          beside ELMER's - never replaced by it. */
@@ -3454,6 +3466,13 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     /* What is actually possible where somebody lives. "Half a wavelength up"
        is 69 ft on 40m: a mast on a farm and a daydream in a flat, and printing
        it at somebody in a flat is not advice, it is a door closing. */
+    /* Whether it fits lengthwise. The site's heights were always here; its
+       length was not, and 250 ft of wire went onto a small lot unremarked. */
+    (d.fit && !d.fit.fits
+      ? '<div class="nvis mt"><b class="warn">It does not fit.</b> ' + escapeHTML(d.fit.words) +
+        '<ul class="facts small">' +
+        (d.fit.instead || []).map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul></div>'
+      : '') +
     (d.reality
       ? '<div class="nvis mt"><b>' + escapeHTML(d.reality.label) + '.</b> ' +
         (d.reality.capped
@@ -4232,16 +4251,25 @@ function planPlot(d) {
     g.push('<text x="' + cx + '" y="' + (cy - rin - 4).toFixed(1) +
            '" fill="#f85149" font-size="8" text-anchor="middle">skip zone</text>');
   }
+  /* Where it lands, and how far it can. For one hop the reach is the far
+     edge - the hop off the lobe's low side - and printed alone under "at 74
+     degrees, where it works" it read as that steep ray reaching 679 miles,
+     where it comes down about ninety out. So the landing comes first, off
+     the angle the legend names, and the far edge after it as what it is. */
   if (d.reach && d.reach.radius_km) {
-    g.push('<text x="' + cx + '" y="' + (cy + R + 42) +
-           '" fill="#626e7b" font-size="9" text-anchor="middle">reach about ' +
-           awayText(d.reach.radius_km) + '</text>');
+    const lands = d.reach.typical_km && d.reach.typical_km < d.reach.radius_km * 0.9;
+    g.push('<text x="' + cx + '" y="' + (cy + R + 46) +
+           '" fill="#626e7b" font-size="9" text-anchor="middle">' +
+           (lands
+             ? 'lands about ' + awayText(d.reach.typical_km) + '; lower rays reach ' +
+               awayText(d.reach.radius_km)
+             : 'reach about ' + awayText(d.reach.radius_km)) + '</text>');
   }
   /* Which trace is which. Only when they differ enough to be worth telling
      apart - on a beam they lie on top of each other and a legend would be
      two labels for one shape. */
   if (apart) {
-    g.push('<text x="' + cx + '" y="' + (cy + R + 30) + '" text-anchor="middle" font-size="9">' +
+    g.push('<text x="' + cx + '" y="' + (cy + R + 34) + '" text-anchor="middle" font-size="9">' +
            '<tspan fill="#3fb950">▰ at ' + Math.round(lobeDeg) + '°, where it works</tspan>' +
            '<tspan fill="#8b98a5">   ▱ along the ground</tspan></text>');
   }
@@ -4275,9 +4303,16 @@ function planPlot(d) {
        at a glance. Two short lines read; one clipped word does not. */
     const lines = wrapName(t.name);
     const dy = -(lines.length - 1) * 4.5;
-    g.push('<text x="' + lx + '" y="' + (+ly + 3 + dy) + '" fill="' +
-           (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="middle"' + aim + '>' +
-           lines.map((line, n) => '<tspan x="' + lx + '" dy="' + (n ? 9 : 0) +
+    /* Read outward. Centered on its spot, a name due east or west ran back
+       over the ring and the compass letter - "Ste. Marie" sat on the E - so
+       one on the east side starts at its spot and one on the west ends at
+       it; north and south stay centered. */
+    const b = ((t.bearing % 360) + 360) % 360;
+    const side = (b > 30 && b < 150) ? 'start' : (b > 210 && b < 330) ? 'end' : 'middle';
+    const nudge = side === 'start' ? -6 : side === 'end' ? 6 : 0;
+    g.push('<text x="' + (+lx + nudge) + '" y="' + (+ly + 3 + dy) + '" fill="' +
+           (weak ? '#f85149' : '#8b98a5') + '" font-size="8" text-anchor="' + side + '"' + aim + '>' +
+           lines.map((line, n) => '<tspan x="' + (+lx + nudge) + '" dy="' + (n ? 9 : 0) +
                      '">' + escapeHTML(line) + '</tspan>').join('') +
            '</text>');
   });

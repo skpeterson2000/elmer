@@ -901,6 +901,7 @@ SITES = {
     "house": {
         "label": "A house, a garden, some trees",
         "max_ft": 35,
+        "room_ft": 150,
         "works": ["A wire from the roofline to a tree, which is most of the "
                   "wire antennas in the world.",
                   "A vertical at the bottom of the garden, where its radials "
@@ -914,6 +915,7 @@ SITES = {
     "small": {
         "label": "A small lot or a short garden",
         "max_ft": 22,
+        "room_ft": 70,
         "works": ["A low dipole or inverted-V. At this height on the low bands "
                   "it is a near-vertical antenna, which is a capability rather "
                   "than a compromise - it will work the whole state reliably "
@@ -929,6 +931,7 @@ SITES = {
     "attic": {
         "label": "Indoors - the attic or roof space",
         "max_ft": 25,
+        "room_ft": 40,
         "works": ["A dipole folded to fit the roof line. Bending the ends down "
                   "or back costs less than not having an antenna.",
                   "Anything on 20m and up, where the wire is short enough to "
@@ -1132,6 +1135,119 @@ def site_cap(site, floor=None):
     if site == "apartment" and floor:
         return floor_height_ft(floor)
     return spec["max_ft"]
+
+
+# How far a wire can run in a straight line here, in feet - the other half
+# of what a site allows. The heights were always there; the length was not,
+# and a small lot was handed 250 ft of terminated wire on 160 m without a
+# word. These are what such a place usually offers end to end, not a survey
+# of anybody's: a city lot's back yard, a suburban garden's diagonal, the
+# length of a roof space. A site without one - the tower "and room for it",
+# the field, the car, the balcony - is not held to a length here.
+ROOM_NOTE = ("usually about %d ft end to end - if yours is longer, it is "
+             "yours that counts")
+
+
+def room_ft(site):
+    """The longest straight run a site usually offers, or None."""
+    return (SITES.get(site) or {}).get("room_ft")
+
+
+def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None):
+    """How much ground this antenna covers in a straight line, in feet, or
+    None where length is not what it asks of a site (a vertical wants
+    radials under the grass, a beam a mast, a whip a car).
+
+    A dipole is its whole length, 468/f; an inverted-V its legs laid out at
+    their droop; an end-fed half wave the same 468/f run out from the feed;
+    a full-wave loop a square a quarter wave on a side. A terminated wire is
+    its legs from the mast top down to its end posts, TW_END_FT up - so the
+    same 250 ft is a shorter run from a taller mast, which is the one thing
+    about it the operator can change without buying wire."""
+    mhz = float(mhz)
+    half = 468.0 / mhz
+    if kind in ("dipole", "bowtie", "efhw"):
+        return round(half)
+    if kind == "invertedv":
+        droop = DEFAULT_DROOP_DEG if droop_deg is None else float(droop_deg)
+        return round(half * math.cos(math.radians(droop)))
+    if kind == "loop":
+        return round(1005.0 / mhz / 4.0)
+    if kind in ("tefv", "termsloper") and length_ft:
+        rise = max(0.0, float(height_ft or 0.0) - TW_END_FT)
+        if kind == "tefv":
+            leg = float(length_ft) / 2.0
+            return round(2.0 * math.sqrt(max(0.0, leg * leg - min(rise, leg) ** 2)))
+        length = float(length_ft)
+        return round(math.sqrt(max(0.0, length * length - min(rise, length) ** 2)))
+    return None
+
+
+# The end posts a terminated wire comes down to, as the Lab draws them
+# (lab.js TW_END_FT): the resistor and the feed are that far off the ground.
+TW_END_FT = 6.0
+
+
+def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None):
+    """Whether this antenna fits where somebody lives, lengthwise, and if
+    not, what does. None where the site sets no length or the antenna asks
+    none of it."""
+    room = room_ft(site)
+    need = footprint_ft(kind, mhz, height_ft, length_ft, droop_deg)
+    if not room or not need:
+        return None
+    label = SITES[site]["label"]
+    out = {"need_ft": need, "room_ft": room, "fits": need <= room,
+           "site_note": ROOM_NOTE % room}
+    if out["fits"]:
+        return out
+    band = f"{mhz:g} MHz"
+    out["words"] = (f"This wants about {need} ft of ground in a straight line, and "
+                    f"{label[0].lower() + label[1:]} is {ROOM_NOTE % room}.")
+    instead = []
+    if kind in ("dipole", "bowtie", "efhw"):
+        instead.append("Bend it. An inverted-V from one support takes less ground, and the last "
+                       "sixth of each end can hang down, turn along a fence or run back toward "
+                       "the middle at little cost - the current, and the radiation, is in the middle.")
+        instead.append(f"Load it. Coils or linear loading shorten a {band} wire to what the "
+                       "yard has, for some bandwidth and a little loss.")
+    if kind == "invertedv":
+        instead.append("Droop it further. Steeper legs take less ground; past about 60 degrees the "
+                       "ends come near the ground and want to be well clear of people.")
+    if kind == "loop":
+        instead.append("Make it a triangle, or stand it on a corner - the wire is the same length "
+                       "and the footprint is not a square any more.")
+    if kind in ("tefv", "termsloper"):
+        rise = max(0.0, float(height_ft or 0.0) - TW_END_FT)
+        if kind == "tefv":
+            longest = 2.0 * math.sqrt((room / 2.0) ** 2 + rise ** 2)
+        else:
+            longest = math.sqrt(room * room + rise * rise)
+        mast = round(height_ft or 0)
+        article = "an" if str(mast)[0] == "8" or mast in (11, 18) else "a"
+        waves = longest / wavelength_ft(mhz)
+        if waves >= 1.0:
+            instead.append(f"The longest terminated wire this room takes from {article} {mast} ft "
+                           f"mast is about {round(longest)} ft - {waves:.1f} wavelengths here. Shorter "
+                           "than the handbook's, it is less directional and more of the power ends in "
+                           "the resistor, and it still works.")
+        else:
+            # A terminated wire under a wavelength is the resistor's antenna,
+            # as the type's own caution says - so the length the lot takes is
+            # said with the band it does suit, not offered for this one.
+            suits = wavelength_ft(1.0) / longest
+            instead.append(f"The longest terminated wire this room takes from {article} {mast} ft "
+                           f"mast is about {round(longest)} ft - {waves:.2f} of a wavelength on "
+                           f"{mhz:g} MHz, where it wants at least one; this short, it mostly heats "
+                           f"the resistor. That length is a wavelength on about {suits:.0f} MHz, so "
+                           "here it is an antenna for the upper bands.")
+        instead.append("A taller mast shortens the run for the same wire: the legs come down "
+                       "more steeply.")
+    if mhz < 10.0:
+        instead.append("A vertical needs height rather than length, and its radials fit under "
+                       "grass - on the low bands it is the usual answer to a small lot.")
+    out["instead"] = instead
+    return out
 
 
 # The lowest a wire is worth hanging at all. Twelve to sixteen feet is

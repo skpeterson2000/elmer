@@ -2120,6 +2120,18 @@ def api_antenna_advice():
     if request.args.get("height"):
         out["yours"] = antenna_advice.judge_height(out.get("type"), mhz, out.get("use"),
                                                    request.args.get("height"), out.get("height_ft"))
+    # Whether it fits, lengthwise, where they live: a small lot was handed
+    # 250 ft of terminated wire on 160 m without a word. The operator's own
+    # height and wire length when they have said them, else ELMER's.
+    def _num(name):
+        try:
+            return float(request.args.get(name)) if request.args.get(name) else None
+        except ValueError:
+            return None
+    fit_height = _num("height") or out.get("height_ft")
+    fit_droop = _num("droop") if out.get("type") == "invertedv" else None
+    out["fit"] = antenna_advice.fit(out.get("type"), mhz, request.args.get("site") or None,
+                                    height_ft=fit_height, length_ft=_num("length"), droop_deg=fit_droop)
     out["harmonics"] = antenna_advice.harmonics(out.get("type"), mhz)
     out["harmonic_words"] = antenna_advice.harmonic_words(out.get("type"), mhz)
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):

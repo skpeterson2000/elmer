@@ -2687,6 +2687,28 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   yourself, and then it is yours and stays put. The textbook dipole is one
   click away for anybody who wants it.
 
+  A site is a length as well as a height. Each held a height cap and
+  nothing else, and a small lot was handed 250 ft of terminated wire on
+  160 m without a word. Now a house is usually about 150 ft end to end, a
+  small lot 70, an attic 40 (`room_ft` in `antenna_advice.SITES`, said as
+  "usually", and "if yours is longer, it is yours that counts"), and every
+  wire antenna has a footprint (`antenna_advice.footprint_ft`): a dipole or
+  an end-fed half wave 468/f, an inverted-V its legs laid out at their droop,
+  a full-wave loop a square a quarter wave on a side, a terminated wire its
+  legs from the mast top down to the 6 ft end posts - so the same wire covers
+  less ground from a taller mast. When it does not fit the Lab says so, by how
+  much, and what does: bend or load a dipole, droop a V further, make a loop a
+  triangle, a vertical on the low bands, and for a terminated wire the longest
+  the lot takes from that mast - said as a fraction of a wavelength, with the
+  band it would suit, when it is too short to be anything but the resistor's
+  antenna here. Verticals, beams and whips are not held to a length, and nor
+  is the tower "and room for it".
+
+  The terminated wires' side view is drawn to scale, one scale both ways.
+  It used to stretch the height to fill the box - six times, for an 18 ft
+  mast over 249 ft - and apologise in the caption; a newcomer believes the
+  picture, not the caption, and the flat line is the lesson.
+
   What you have to work with is remembered, and put back before a frequency
   handed in from the band plan is answered — otherwise **Set up an antenna for
   this** on 160 m was answered for nobody's garden at all, and the textbook
