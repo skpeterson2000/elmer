@@ -333,6 +333,7 @@ def build(conn=None, lines=400, include_station=False, said="", kind="problem"):
         for line in _kiosk.report_lines():
             add(line)
     except Exception as exc:              # one section that cannot be gathered must not cost the report
+        log.exception("bug report: the kiosk section could not be gathered")
         add(f"could not be gathered: {exc}")
 
     said = str(said or "").strip()[:SAID_MOST]

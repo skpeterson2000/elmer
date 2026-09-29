@@ -198,10 +198,6 @@ try:
 finally:
     kiosk.SPLASH = was
 
-print()
-if FAILS:
-    print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
-    sys.exit(1)
 print("\nthe screen and the browser, gathered for a report")
 # A kiosk that comes up in a window rather than filling the screen used to
 # leave nothing behind: a name, a pid, and the command only at debug, which
@@ -226,7 +222,13 @@ from elmer import bugreport as _br
 _got = _br.build(said="the kiosk did not go full screen")
 _text = _got[0] if isinstance(_got, tuple) else _got
 if not isinstance(_text, str): _text = "\n".join(_text)
-check("and the bug report carries them", "the screen, and the browser" in _text, True)
+check("and the bug report carries them in its Kiosk section", "\nKiosk\n" in _text, True)
 check("  with the command in it", "--kiosk" in _text, True)
 
+# Every check above counts: the exit used to sit before this last group,
+# so a failure here printed FAIL and the script still passed.
+print()
+if FAILS:
+    print(f"{len(FAILS)} failed: " + ", ".join(FAILS))
+    sys.exit(1)
 print("all good")
