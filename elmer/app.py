@@ -3540,6 +3540,8 @@ def _qso_reply(state, text, notes=None, fresh=None):
                     "groups": cw.encode(text) if text else [],
                     "timing": cw.timing(state["wpm"]), "wpm": state["wpm"],
                     "phase": state["phase"], "notes": notes or [],
+                    # How the partner sounds: S-units and how deep the path fades.
+                    "strength": state["partner"].get("strength"), "fade": state["partner"].get("fade", 0.0),
                     "summary": qso_mod.summary(state), "achievements": fresh or []})
 
 
@@ -3554,11 +3556,37 @@ def api_cw_qso_start():
     except (TypeError, ValueError):
         wpm = 18.0
     connection = conn()
-    state, say = qso_mod.start(cq, wpm)
+    # Where the partner is: somewhere the band reaches from here now, in CW.
+    # With no QTH or no sky, a partner from anywhere, and the page says why.
+    try:
+        band = float(body.get("band") or 7.0)
+    except (TypeError, ValueError):
+        band = 7.0
+    where, notes = None, []
+    place = qth_for(connection, db.get_profile(connection))
+    snap = None
+    if place.get("lat") is not None:
+        try:
+            got = propagation.snapshot(lat=place["lat"], lon=place["lon"])
+            snap = got if got.get("ok") else None
+        except Exception:                       # the sky must never cost the contact
+            log.info("cw qso: no sky to place the partner", exc_info=False)
+    if snap:
+        where = qso_mod.place(band, place["lat"], place["lon"], snap)
+        if not where:
+            # Nobody to work on this band just now: say which bands are open.
+            return jsonify({"closed": True, "band": band,
+                            "open": qso_mod.open_bands(place["lat"], place["lon"], snap)})
+    else:
+        notes.append("Set your QTH in the Station panel and the partner will be somewhere "
+                     "your band actually reaches, sounding like the path.")
+    state, say = qso_mod.start(cq, wpm, where=where)
+    state["band"] = band
     db.kv_set(connection, QSO_KEY, state)
     connection.commit()
-    log.info("cw qso: started, %s calls, %d wpm, partner %s", cq, state["wpm"], state["partner"]["call"])
-    return _qso_reply(state, say)
+    log.info("cw qso: started on %g MHz, %s calls, %d wpm, partner %s %s", band, cq, state["wpm"],
+             state["partner"]["call"], state["partner"]["qth"])
+    return _qso_reply(state, say, notes)
 
 
 @app.route("/api/cw/qso/turn", methods=["POST"])

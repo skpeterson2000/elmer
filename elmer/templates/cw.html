@@ -447,6 +447,7 @@
   <div class="spread">
     <div class="panel-title" style="margin:0">Contact &mdash; a CW QSO with a virtual partner</div>
     <div class="row" style="gap:.4rem">
+      <select class="btn sm" id="cw-qso-band" title="the band - the partner is somewhere it reaches from your QTH right now, and sounds like the path"><option value="1.8">160 m</option><option value="3.5">80 m</option><option value="7.0" selected>40 m</option><option value="10.1">30 m</option><option value="14.0">20 m</option><option value="18.1">17 m</option><option value="21.0">15 m</option><option value="24.9">12 m</option><option value="28.0">10 m</option></select>
       <button class="btn sm primary" data-qso-start="them">Answer a CQ</button>
       <button class="btn sm ghost" data-qso-start="me">Call CQ</button>
     </div>
@@ -463,6 +464,7 @@
     <button class="btn sm primary" id="cw-qso-over" disabled>Over</button>
     <button class="btn sm ghost" id="cw-qso-again" disabled>Hear theirs again</button>
     <label class="tiny muted"><input type="checkbox" id="cw-qso-show"> show their text</label>
+    <label class="tiny muted"><input type="checkbox" id="cw-qso-noise" checked> band noise</label>
   </div>
   <div class="row mt" style="gap:.4rem">
     <input id="cw-qso-type" class="cw-input mono" style="flex:1;min-width:12rem" placeholder="or type your over"

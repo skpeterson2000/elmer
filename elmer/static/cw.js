@@ -2816,6 +2816,43 @@ function qsoArm(on) {
   });
 }
 
+/* How the partner sounds: their strength as a level, and a thin path's
+   fading as a slow swell and sag across the over - the QSB a real contact
+   has, which is half of learning to copy one. */
+function qsoShape(res) {
+  const s = Math.max(3, Math.min(9, res.strength || 9));
+  const scale = 0.3 + 0.7 * (s - 3) / 6;
+  const depth = Math.max(0, Math.min(0.9, res.fade || 0));
+  const period = 5 + Math.random() * 5, phase = Math.random() * 6.3;
+  return at => scale * (1 - depth * (0.5 + 0.5 * Math.sin(2 * Math.PI * at / period + phase)));
+}
+
+/* The band under them: a soft hiss, filtered around the tone the way a CW
+   filter passes it, louder against a weak signal. Off with the tick. */
+let qsoHiss = null;
+function qsoNoise(res) {
+  qsoQuiet();
+  const box = document.getElementById('cw-qso-noise');
+  if (!box || !box.checked || !player.ctx) return;
+  const ctx = player.ctx;
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = cwPrefs().tone; bp.Q.value = 3;
+  const g = ctx.createGain();
+  const s = Math.max(3, Math.min(9, res.strength || 9));
+  g.gain.value = player.level * (0.10 + 0.25 * (9 - s) / 6);
+  src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+  src.start();
+  qsoHiss = {src: src, gain: g};
+}
+function qsoQuiet() {
+  if (!qsoHiss) return;
+  try { qsoHiss.src.stop(); } catch (e) { /* already stopped - nothing to do */ }
+  qsoHiss = null;
+}
+
 function qsoPlay(res) {
   qso.last = res;
   if (!res.send) { qso.busy = false; return; }
@@ -2823,12 +2860,20 @@ function qsoPlay(res) {
   qsoPaint();
   qso.busy = true;
   qsoStatus('Listening\u2026 ' + res.wpm + ' wpm');
+  player.ensure();
+  player.shape = qsoShape(res);
+  qsoNoise(res);
   player.send(res.groups, res.timing, null, () => {
+    player.shape = null;
+    qsoQuiet();
     qso.busy = false;
     if (res.phase === 'done') {
       const s = res.summary || {};
       const h = s.heard || {};
-      qsoStatus('73. They copied you as ' + (h.call || '?') + (h.name ? ', ' + h.name : '') +
+      const pt = s.partner || {};
+      qsoStatus('73. That was ' + (pt.call || '?') + ' in ' + (pt.qth || '?') +
+        (pt.km ? ', ' + awayText(pt.km) + ' away' : '') + '. They copied you as ' + (h.call || '?') +
+        (h.name ? ', ' + h.name : '') +
         (s.fist !== null && s.fist !== undefined ? ' \u2014 your fist about ' + Math.round(s.fist * 100) + '%' : '') + '.');
       showAchievements(res.achievements);
       qsoArm(false);
@@ -2845,7 +2890,25 @@ async function qsoStart(cq) {
   keyDecoder.text = ''; keyDecoder.symbols = [];
   qso = {on: true, busy: false, last: null, seen: '', changed: 0, watch: null, log: []};
   qsoArm(true);
-  const res = await postJSON('/api/cw/qso/start', {cq: cq, wpm: settings.wpm});
+  const bandSel = document.getElementById('cw-qso-band');
+  const band = bandSel ? bandSel.value : '7.0';
+  remember('cw.qso.band', band);
+  const res = await postJSON('/api/cw/qso/start', {cq: cq, wpm: settings.wpm, band: band});
+  if (res.closed) {
+    /* Nobody on this band from here just now - so say which bands are
+       open, and make each a button that starts there. */
+    qsoArm(false);
+    qso.on = false;
+    const name = bandSel ? bandSel.options[bandSel.selectedIndex].text : band + ' MHz';
+    const el = document.getElementById('cw-qso-status');
+    el.innerHTML = escapeHTML(name) + ' reaches nobody from here just now' +
+      (res.open && res.open.length
+        ? ' \u2014 open now: ' + res.open.map(o =>
+            '<button class="btn sm ghost" data-qso-band="' + o.mhz + '" data-qso-cq="' + cq + '">' +
+            escapeHTML(o.band.replace(/(\d)m$/, '$1 m')) + '</button>').join(' ')
+        : '. Try again later: the bands move with the sun.');
+    return;
+  }
   qsoPaint();
   if (res.send) qsoPlay(res);
   else qsoStatus('Call CQ: CQ CQ DE and your call twice, then K.');
@@ -2900,6 +2963,16 @@ async function qsoSend(typed) {
     }
   });
   document.getElementById('cw-qso-show').addEventListener('change', qsoPaint);
+  const bandSel = document.getElementById('cw-qso-band');
+  const kept = recall('cw.qso.band', '');
+  if (bandSel && kept && [...bandSel.options].some(o => o.value === kept)) bandSel.value = kept;
+  document.getElementById('cw-qso-status').addEventListener('click', e => {
+    const b = e.target.closest('[data-qso-band]');
+    if (!b || !bandSel) return;
+    const want = [...bandSel.options].find(o => Math.abs(+o.value - +b.dataset.qsoBand) < 0.2);
+    if (want) bandSel.value = want.value;
+    qsoStart(b.dataset.qsoCq || 'them');
+  });
   document.getElementById('cw-qso-log').addEventListener('click', e => {
     const b = e.target.closest('[data-qso-reveal]');
     if (!b) return;

@@ -2022,6 +2022,15 @@ most comfortably, and it is remembered.
   a garbled call gets QRZ, a misread name is used as read, and below 0.6 it
   asks for QRS; readability in its report follows the fist. The contact is
   kept per account (kv `cw_qso`); done, it earns Ragchew.
+  The partner is placed (`qso.place`): among the bundled towns and a short
+  DX list, one the band reaches from the QTH now in CW, read through
+  `propagation.path_bands` on the current snapshot, a North American
+  station four times in five. Its callsign carries the town's district
+  (`DISTRICT`, `REGION_PREFIX`). The path's margin gives the S-unit
+  (`strength`) and a fading depth (`fading`); the page plays their over
+  through `CWPlayer.shape`, a slow swell and sag at that depth, over a
+  band-passed hiss louder against a weak signal. A band that reaches
+  nowhere returns the open bands (`open_bands`), offered as buttons.
 - **Your sending** turns the space bar or an on-screen paddle into a straight
   key, decodes what you actually sent, and measures your timing against the
   target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your

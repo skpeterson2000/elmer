@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- The CW Contact partner is somewhere real: on the band you pick, in a town that band reaches from your QTH right now, with a callsign of that district. They sound like the path - strong and steady, or weak and fading with the band's hiss under them - and their report carries the same S-unit. A band that reaches nobody just now offers the bands that are open.
+
 - CW has **Contact**: a CW QSO with a virtual partner, the safe place to learn conversational CW. Answer their CQ or call your own, and work the contact the way a ragchew goes - report, name, QTH, rig, weather, 73 and SK - keying with your own key, paddle or audio input. The partner copies what your fist actually sent: a call that would not decode gets QRZ, a misread name is used as read, ragged timing gets PSE QRS and a readability to match. They answer at your speed, repeat for AGN and slow for QRS. Their text stays hidden until you ask for it. A contact worked through earns the Ragchew badge.
 
 - Moving a slider in the Lab keeps evaluating your antenna at your height. It re-asked as a suggestion, without the height, so the answer fell back on a small lot's usual 22 ft and told somebody with a 40 ft support "what fits here is 22 ft".

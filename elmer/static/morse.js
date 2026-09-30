@@ -40,7 +40,7 @@ function cwPrefs() {
 }
 
 class CWPlayer {
-  constructor() { this.ctx = null; this.osc = null; this.gain = null; }
+  constructor() { this.ctx = null; this.osc = null; this.gain = null; this.shape = null; }
 
   /* Browsers keep an AudioContext silent until the page has had a touch or
      a key. A pitch that arrives with a poll is not one, so the first press
@@ -76,7 +76,9 @@ class CWPlayer {
 
   /* Schedule one tone. Times are AudioContext seconds. */
   mark(at, seconds) {
-    const g = this.gain.gain, v = this.level;
+    /* `shape`, when a caller sets one, scales each element by the time it is
+       sent - a distant station's strength, and the fading of its path. */
+    const g = this.gain.gain, v = this.level * (this.shape ? this.shape(at) : 1);
     g.setValueAtTime(0, at);
     g.linearRampToValueAtTime(v, at + RISE);
     g.setValueAtTime(v, Math.max(at + RISE, at + seconds - RISE));

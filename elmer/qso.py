@@ -20,10 +20,12 @@ text it read, with '*' for anything that did not decode, and a quality
 figure for the fist. This module keeps the contact's state and writes the
 partner's next over; the page sends it in code.
 """
+import json
 import logging
 import random
 import re
 from datetime import datetime
+from pathlib import Path
 
 from . import cw
 
@@ -56,8 +58,139 @@ ASK_QRS_BELOW = 0.6
 WPM_MIN, WPM_MAX = 5, 35
 
 
-def persona(rng):
-    """The station at the other end."""
+# --- where the partner is -------------------------------------------------
+# Somewhere the band actually reaches from here, right now, in CW - chosen
+# from real towns, with a callsign whose district is that town's, and a
+# signal that sounds like the path: strong and steady on a good one, weak
+# and fading, with the band's noise under it, on a thin one.
+#
+# US call districts by state; Canada, Mexico and the islands by their
+# prefixes. A partner in Duluth is a 0, in Tucson a 7.
+DISTRICT = {}
+for digit, states in (("1", "ME NH VT MA RI CT"), ("2", "NY NJ"), ("3", "PA DE MD DC"),
+                      ("4", "AL FL GA KY NC SC TN VA"), ("5", "AR LA MS NM OK TX"), ("6", "CA"),
+                      ("7", "AZ ID MT NV OR UT WA WY"), ("8", "MI OH WV"), ("9", "IL IN WI"),
+                      ("0", "CO IA KS MN MO NE ND SD")):
+    for st in states.split():
+        DISTRICT[st] = digit
+REGION_PREFIX = {"AK": "KL7", "HI": "KH6", "PR": "KP4", "AB": "VE6", "BC": "VE7", "MB": "VE4",
+                 "SK": "VE5", "ON": "VE3", "QC": "VE2", "NB": "VE9", "NS": "VE1", "NL": "VO1",
+                 "NT": "VE8", "YT": "VY1", "MX": "XE1", "BM": "VP9", "BS": "C6A", "CU": "CO2"}
+# A handful of the world, for DX: city, country as said on the air, prefix.
+DX_PLACES = [
+    ("LONDON", "ENGLAND", "G", 51.51, -0.13), ("BERLIN", "GERMANY", "DL", 52.52, 13.40),
+    ("PARIS", "FRANCE", "F", 48.86, 2.35), ("ROME", "ITALY", "I", 41.90, 12.50),
+    ("MADRID", "SPAIN", "EA", 40.42, -3.70), ("TOKYO", "JAPAN", "JA", 35.68, 139.69),
+    ("SYDNEY", "AUSTRALIA", "VK", -33.87, 151.21), ("AUCKLAND", "NEW ZEALAND", "ZL", -36.85, 174.76),
+    ("SAO PAULO", "BRAZIL", "PY", -23.55, -46.63), ("BUENOS AIRES", "ARGENTINA", "LU", -34.60, -58.38),
+    ("HELSINKI", "FINLAND", "OH", 60.17, 24.94), ("STOCKHOLM", "SWEDEN", "SM", 59.33, 18.07),
+    ("OSLO", "NORWAY", "LA", 59.91, 10.75), ("AMSTERDAM", "NETHERLANDS", "PA", 52.37, 4.90),
+    ("ZURICH", "SWITZERLAND", "HB9", 47.38, 8.54), ("WARSAW", "POLAND", "SP", 52.23, 21.01),
+    ("PRAGUE", "CZECH REP", "OK", 50.08, 14.44), ("ATHENS", "GREECE", "SV", 37.98, 23.73),
+    ("DUBLIN", "IRELAND", "EI", 53.35, -6.26), ("LISBON", "PORTUGAL", "CT", 38.72, -9.14),
+    ("SEOUL", "KOREA", "HL", 37.57, 126.98), ("JOHANNESBURG", "SOUTH AFRICA", "ZS", -26.20, 28.05),
+    ("SANTIAGO", "CHILE", "CE", -33.45, -70.67), ("REYKJAVIK", "ICELAND", "TF", 64.15, -21.94),
+]
+PLACES = Path(__file__).resolve().parents[1] / "data" / "places.json"
+MIN_KM = 40.0                 # closer than this is across town, not a contact
+
+
+def _places():
+    try:
+        rows = json.loads(PLACES.read_text(encoding="utf-8"))["places"]
+    except (OSError, ValueError, KeyError) as exc:
+        log.warning("qso: no places to put a partner in: %s", exc)
+        rows = []
+    out = [{"city": r["name"].upper(), "where": r["region"], "lat": r["lat"], "lon": r["lon"],
+            "dx": False} for r in rows]
+    out += [{"city": c, "where": country, "prefix": pre, "lat": la, "lon": lo, "dx": True}
+            for c, country, pre, la, lo in DX_PLACES]
+    return out
+
+
+def call_for(place, rng):
+    """A callsign that belongs where the partner is."""
+    suffix = "".join(rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(rng.randint(2, 3)))
+    if place.get("dx"):
+        pre = place["prefix"]
+        return f"{pre}{'' if pre[-1].isdigit() else rng.randint(1, 9)}{suffix}"
+    region = place["where"]
+    if region in REGION_PREFIX:
+        return REGION_PREFIX[region] + suffix
+    digit = DISTRICT.get(region, str(rng.randint(0, 9)))
+    return f"{rng.choice(cw.CALL_PREFIXES)}{digit}{suffix}"
+
+
+def strength(margin):
+    """An S-unit for a path this far above what CW needs."""
+    for bar, s in ((40, 9), (30, 8), (20, 7), (15, 6), (10, 5), (5, 4)):
+        if margin >= bar:
+            return s
+    return 3
+
+
+def fading(margin):
+    """How deep the signal fades, 0 to 1: a thin path breathes."""
+    return 0.0 if margin >= 20 else round(min(0.85, 0.25 + (20 - margin) * 0.035), 2)
+
+
+def place(band_mhz, lat, lon, snap, rng=None, dx=None):
+    """Where the partner is: a real town the band reaches from here, now, in
+    CW, with the path's margin. None if the band reaches nowhere just now -
+    the caller then offers the bands that do."""
+    from . import geo, propagation
+    rng = rng or random.Random()
+    band = f"{band_mhz:g}"
+    rows, cache = [], {}
+    for pl in _places():
+        km, brg = geo.great_circle(lat, lon, pl["lat"], pl["lon"])
+        if km < MIN_KM or (dx is not None and pl["dx"] != dx):
+            continue
+        key = int(km // 50)
+        if key not in cache:
+            cache[key] = {r["band"]: r for r in propagation.path_bands(
+                km, fof2=snap.get("fof2"), hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
+                elevation=snap.get("elevation") or 0.0, k_index=snap.get("k_index") or 2.0,
+                muf=snap.get("muf"), watts=100.0, emission="cw")["bands"]}
+        row = next((r for r in cache[key].values() if f"{r['mhz']:g}" == band
+                    or abs(float(r["mhz"]) - float(band_mhz)) < 0.6), None)
+        margin = (row.get("budget") or {}).get("margin_db") if row else None
+        if row and row.get("works") and margin is not None and margin >= 0:
+            rows.append(dict(pl, km=round(km), bearing=round(brg), margin=round(margin, 1)))
+    if not rows:
+        return None
+    # DX is a treat, not the rule: a North American station most of the time.
+    near = [r for r in rows if not r["dx"]] or rows
+    pick = rng.choice(rows if (dx or rng.random() < 0.2) else near)
+    return pick
+
+
+def open_bands(lat, lon, snap, km=800):
+    """The bands that carry CW some useful distance from here now, best
+    first - offered when the one asked for reaches nowhere."""
+    from . import propagation
+    out = []
+    for dist in (km, 2500):
+        for r in propagation.path_bands(dist, fof2=snap.get("fof2"),
+                                        hmf2=snap.get("hmf2") or propagation.HMF2_DEFAULT,
+                                        elevation=snap.get("elevation") or 0.0,
+                                        k_index=snap.get("k_index") or 2.0, muf=snap.get("muf"),
+                                        watts=100.0, emission="cw")["bands"]:
+            m = (r.get("budget") or {}).get("margin_db")
+            if r.get("works") and m is not None and m >= 0 and r["band"] not in [o["band"] for o in out]:
+                out.append({"band": r["band"], "mhz": r["mhz"], "margin": round(m)})
+    return sorted(out, key=lambda o: -o["margin"])[:4]
+
+
+def persona(rng, where=None):
+    """The station at the other end - placed, when a place is given."""
+    if where:
+        qth = f"{where['city']} {where['where']}"
+        return {"call": call_for(where, rng), "name": rng.choice(NAMES), "qth": qth,
+                "rig": rng.choice(RIGS), "ant": rng.choice(ANTS), "pwr": rng.choice(POWERS),
+                "wx": rng.choice(SKIES), "temp": rng.randint(18, 88), "age": rng.randint(24, 84),
+                "strength": strength(where["margin"]), "fade": fading(where["margin"]),
+                "km": where["km"], "bearing": where["bearing"], "margin": where["margin"]}
     return {"call": cw._callsign(rng), "name": rng.choice(NAMES), "qth": rng.choice(QTHS),
             "rig": rng.choice(RIGS), "ant": rng.choice(ANTS), "pwr": rng.choice(POWERS),
             "wx": rng.choice(SKIES), "temp": rng.randint(18, 88),
@@ -139,11 +272,12 @@ def readability(quality):
     return next(r for bar, r in READABLE if q >= bar)
 
 
-def start(cq="them", wpm=18, seed=None, hour=None):
+def start(cq="them", wpm=18, seed=None, hour=None, where=None):
     """A new contact. `cq` says who calls: "them" and the partner calls CQ
-    for you to answer; "me" and you call, and the partner answers."""
+    for you to answer; "me" and you call, and the partner answers. `where`
+    is place()'s pick, when the station's QTH and the sky are known."""
     rng = random.Random(seed)
-    p = persona(rng)
+    p = persona(rng, where)
     state = {"partner": p, "cq": cq, "phase": "cq_them" if cq == "them" else "cq_me",
              "wpm": int(max(WPM_MIN, min(WPM_MAX, round(float(wpm or 18))))), "adjust": 0,
              "heard": {}, "told": [], "turns": 0, "qualities": [], "last": "", "seed": seed,
@@ -276,7 +410,7 @@ def turn(state, text, quality=None, wpm=None):
     for q in sorted(got["asks"]):
         if q == "hw":
             parts.append(f"UR SIGS {_rst(p, quality)}"
-                         + (" SOLID CPY" if readability(quality) >= 5 else " QSB"))
+                         + (" QSB" if p.get("fade", 0) >= 0.4 or readability(quality) < 5 else " SOLID CPY"))
         elif q in ("name", "qth", "rig", "ant", "wx", "age", "pwr"):
             parts.append(_tell(p, q))
             if q in ("rig", "ant", "pwr"):
@@ -315,4 +449,7 @@ def summary(state):
     return {"heard": dict(state.get("heard") or {}), "turns": state.get("turns", 0),
             "fist": round(sum(qs) / len(qs), 2) if qs else None, "done": state.get("phase") == "done",
             "partner": {"call": state["partner"]["call"], "name": state["partner"]["name"],
-                        "qth": state["partner"]["qth"]}}
+                        "qth": state["partner"]["qth"], "km": state["partner"].get("km"),
+                        "bearing": state["partner"].get("bearing"),
+                        "strength": state["partner"].get("strength"),
+                        "fade": state["partner"].get("fade", 0.0)}}

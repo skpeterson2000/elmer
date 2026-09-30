@@ -17,7 +17,11 @@ fist actually sent, not what they meant. What is held here:
   - they use what they copied, wrong letters and all;
   - on the page: the contact keys through "Your sending", their text is
     hidden until asked for, a typed over is answered, and a keyed over
-    ending in K is sent by itself once the key has been quiet.
+    ending in K is sent by itself once the key has been quiet;
+  - the partner is somewhere the band reaches from the QTH now, in CW, with
+    a callsign of that district; strong and steady on a good path, weaker
+    and fading on a thin one; and a band that reaches nobody offers the
+    bands that do.
 """
 import json
 import os
@@ -96,6 +100,72 @@ def unit():
           (say.startswith("R R GM SCOTT TNX FER 579"), "UR RST" in say), (True, True))
 
 
+DAY = {"fof2": 6.0, "hmf2": 300.0, "elevation": 30.0, "k_index": 2.0, "muf": 20.0}
+NIGHT = {"fof2": 3.0, "hmf2": 300.0, "elevation": -20.0, "k_index": 2.0, "muf": 9.0}
+QTH = (46.6, -94.3)
+
+
+def placed():
+    import random
+    print()
+    print("-- where the partner is --")
+    rng = random.Random(1)
+    import re
+    digit = lambda call: re.search(r"\d", call).group(0)  # noqa: E731 - the call's district
+    check("a partner in Duluth is a 0, in Tucson a 7, in Kelowna a VE7",
+          [digit(qso.call_for({"where": "MN", "dx": False}, rng)),
+           digit(qso.call_for({"where": "AZ", "dx": False}, rng)),
+           qso.call_for({"where": "BC", "dx": False}, rng)[:3]], ["0", "7", "VE7"])
+    check("a DX partner carries its country's prefix",
+          qso.call_for({"dx": True, "prefix": "DL"}, rng).startswith("DL"), True)
+    check("strength follows the margin: 40 dB is S9, 12 dB S5, 2 dB S3",
+          [qso.strength(m) for m in (40, 12, 2)], [9, 5, 3])
+    check("a strong path is steady, a thin one fades", (qso.fading(30), qso.fading(5) > 0.5), (0.0, True))
+    check("160 m by day reaches nobody from here", qso.place(1.8, *QTH, DAY, random.Random(2)), None)
+    night = qso.place(1.8, *QTH, NIGHT, random.Random(2))
+    check("  after dark it does, and somewhere real", bool(night and night["km"] > 40 and night["city"]), True)
+    check("  and the bands open by day are offered instead",
+          "40m" in [o["band"] for o in qso.open_bands(*QTH, DAY)], True)
+    w = qso.place(7.0, *QTH, DAY, random.Random(3))
+    s, say = qso.start("them", 18, seed=4, where=w)
+    check("a placed partner calls from its town, at the path's strength",
+          (s["partner"]["qth"].startswith(w["city"]), s["partner"]["strength"] == qso.strength(w["margin"])),
+          (True, True))
+
+
+SNAP = {"sfi": 120.0, "k_index": 2.0, "hmf2": 300.0, "muf": 20.0, "fof2": 6.0, "elevation": 30.0,
+        "muf_source": "test", "calibration": {"factor": 1.0, "m3000": 3.1}, "fetched": 1, "ok": True, "bands": []}
+SERVE = """import sys
+sys.path.insert(0, %r)
+from elmer import app as appmod, places, propagation
+propagation.snapshot = lambda *a, **k: dict(%r)
+places.refresh_in_background = lambda *a, **k: None
+appmod._prefetch_regional = lambda place: None
+appmod.app.run(host='127.0.0.1', port=%d, threaded=True, use_reloader=False)
+"""
+
+PLACED = """
+new Promise(async resolve => {
+  const nap = ms => new Promise(r => setTimeout(r, ms || 150));
+  const until = async (f, ms) => { const t0 = Date.now(); while (!f() && Date.now() - t0 < ms) await nap(); return f(); };
+  await until(() => typeof qsoStart === 'function', 10000);
+  settings.wpm = 35; showMode('contact');
+  document.getElementById('cw-qso-band').value = '1.8';
+  document.querySelector('[data-qso-start="them"]').click();
+  await until(() => document.querySelector('#cw-qso-status [data-qso-band]'), 8000);
+  const out = {closed: document.getElementById('cw-qso-status').innerText,
+               offered: [...document.querySelectorAll('#cw-qso-status [data-qso-band]')].map(b => b.innerText)};
+  const forty = [...document.querySelectorAll('#cw-qso-status [data-qso-band]')].find(b => b.innerText === '40 m');
+  if (forty) forty.click();
+  await until(() => qso.log.length >= 1, 8000);
+  out.band = document.getElementById('cw-qso-band').value;
+  out.shaped = !!player.shape;
+  out.strength = qso.last && qso.last.strength;
+  out.km = qso.last && qso.last.summary && qso.last.summary.partner.km;
+  resolve(JSON.stringify(out));
+})
+"""
+
 DRIVE = """
 new Promise(async resolve => {
   const nap = ms => new Promise(r => setTimeout(r, ms || 150));
@@ -128,6 +198,7 @@ new Promise(async resolve => {
 
 def main():
     unit()
+    placed()
     check("chromium is on this machine", bool(_browser.available()), True)
     if not _browser.available():
         return
@@ -158,6 +229,39 @@ def main():
     check("a typed over is answered with a report", "UR RST" in (got.get("answer") or ""), True)
     check("a keyed over ending in K goes by itself once the key is quiet",
           (got.get("keyed"), got.get("reply")), ("R R NAME SCOTT K", "them"))
+
+    print()
+    print("-- placed, with a QTH and a daytime sky --")
+    from elmer import db
+    conn = db.connect()
+    settings = db.get_profile(conn)["settings"]
+    settings["location"] = {"lat": QTH[0], "lon": QTH[1], "kind": "town", "grid": "EN26uo",
+                            "short": "Pequot Lakes", "name": "Pequot Lakes"}
+    db.save_settings(conn, settings)
+    conn.commit()
+    port = _browser._free_port()
+    server = subprocess.Popen([sys.executable, "-c", SERVE % (str(ROOT), SNAP, port)], env=dict(os.environ),
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(100):
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/api/ping", timeout=1)
+                break
+            except OSError:
+                time.sleep(0.2)
+        got = json.loads(_browser.evaluate(f"http://127.0.0.1:{port}/cw", PLACED, width=1300, height=1400,
+                                           settle=1.5, cookies={"elmer_user": "1"}) or "{}")
+    finally:
+        server.terminate()
+        try:
+            server.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            server.kill()
+    check("160 m by day: nobody, and the open bands offered as buttons",
+          ("reaches nobody" in (got.get("closed") or ""), "40 m" in (got.get("offered") or [])), (True, True))
+    check("  40 m pressed: the contact starts there", got.get("band"), "7.0")
+    check("  with a partner placed on the path, heard at its strength",
+          (bool(got.get("km")), got.get("strength") in range(3, 10), got.get("shaped")), (True, True, True))
 
 
 if __name__ == "__main__":
