@@ -23,6 +23,12 @@ ACHIEVEMENTS = [
     ("run_10", "Clean Run", "10 correct answers in a row"),
     ("run_25", "Pileup", "25 correct answers in a row"),
     ("run_50", "Solid Copy", "50 correct answers in a row"),
+    # The long runs. The short ones cheer somebody learning; these are the
+    # streak worth admiring in somebody who already holds the license - a
+    # run that outlasts weeks of keeping, not a week of cramming.
+    ("run_100", "Full Quieting", "100 correct answers in a row"),
+    ("run_250", "Five by Nine", "250 correct answers in a row"),
+    ("run_500", "Rock Steady", "500 correct answers in a row"),
     ("streak_3", "Warming Up", "Study 3 days running"),
     ("streak_7", "Full Week", "Study 7 days running"),
     ("streak_30", "Dedicated", "Study 30 days running"),
@@ -34,12 +40,8 @@ ACHIEVEMENTS = [
     ("pass_grol", "GROL Ready", "Pass an Element 3 mock exam"),
     ("pass_radar", "Radar Ready", "Pass an Element 8 mock exam"),
     ("perfect_exam", "Clean Sweep", "Score 100% on a mock exam"),
-    # The longer ones: a habit kept over seasons, and papers that keep
-    # coming back clean. Anybody can earn them; they are the streaks worth
-    # admiring in somebody who already holds the license.
-    ("weeks_4", "Regular", "Study in 4 weeks running"),
-    ("weeks_13", "A Season", "Study in 13 weeks running"),
-    ("weeks_52", "A Year of It", "Study in 52 weeks running"),
+    # Papers that keep coming back clean: the same streak of right answers,
+    # counted a mock exam at a time.
     ("clean_3", "Steady Hand", "3 mock exams in a row, none with more than 2 missed"),
     ("clean_10", "Old Hand", "10 mock exams in a row, none with more than 2 missed"),
     ("sweep_3", "Clean Sheets", "3 perfect mock exams in a row"),
@@ -167,7 +169,6 @@ def touch_streak(conn):
         streak = 1
         db.kv_set(conn, "rest_spent", 0)
 
-    _touch_weeks(conn, now)
     best = max(streak, row["best_streak"])
     conn.execute(
         "UPDATE profile SET streak_days = ?, best_streak = ?, last_study_day = ? "
@@ -177,44 +178,6 @@ def touch_streak(conn):
         log = __import__("logging").getLogger("elmer")
         log.info("streak: a rest day covered the gap, now %d days", streak)
     return streak
-
-
-def _week(day):
-    y, w, _ = date.fromisoformat(day).isocalendar()
-    return f"{y}-W{w:02d}"
-
-
-def _touch_weeks(conn, day):
-    """The weekly streak: weeks running with any study in them.
-
-    The daily streak suits somebody working toward an exam date. Somebody
-    keeping a license they hold studies less often and for longer, and a
-    streak that counts weeks is the one that fits them - a busy Tuesday
-    costs nothing, and a year of it is worth a badge.
-    """
-    from . import db
-    this = _week(day)
-    last = db.kv_get(conn, "study_week")
-    weeks = db.kv_get(conn, "week_streak", 0) or 0
-    if last == this:
-        return weeks
-    prior = _week((date.fromisoformat(day) - timedelta(days=7)).isoformat())
-    weeks = weeks + 1 if last == prior else 1
-    db.kv_set(conn, "study_week", this)
-    db.kv_set(conn, "week_streak", weeks)
-    db.kv_set(conn, "best_week_streak", max(weeks, db.kv_get(conn, "best_week_streak", 0) or 0))
-    return weeks
-
-
-def week_streak(conn):
-    """Weeks running, as it stands - zero once a whole week has gone by."""
-    from . import db
-    last = db.kv_get(conn, "study_week")
-    now = today()
-    prior = _week((date.fromisoformat(now) - timedelta(days=7)).isoformat())
-    if last in (_week(now), prior):
-        return db.kv_get(conn, "week_streak", 0) or 0
-    return 0
 
 
 def bump_run(conn, correct):
@@ -246,7 +209,7 @@ def earned(conn):
 # somebody working toward a first license - encouragement matters most there.
 # For somebody who already holds one they are still counted as they happen,
 # only quietly: a line in the verdict, no toast and no fanfare.
-SHORT = {"first_light", "century", "run_10", "run_25", "streak_3", "streak_7",
+SHORT = {"first_light", "century", "run_10", "run_25", "run_50", "streak_3", "streak_7",
          "first_exam", "pass_any", "section_master", "pool_half"}
 
 
@@ -304,15 +267,12 @@ def check_answer_achievements(conn, run, total_answers, streak_days, hour):
         codes.append("century")
     if total_answers >= 1000:
         codes.append("kilo")
-    for n, code in ((10, "run_10"), (25, "run_25"), (50, "run_50")):
+    for n, code in ((10, "run_10"), (25, "run_25"), (50, "run_50"),
+                    (100, "run_100"), (250, "run_250"), (500, "run_500")):
         if run >= n:
             codes.append(code)
     for n, code in ((3, "streak_3"), (7, "streak_7"), (30, "streak_30")):
         if streak_days >= n:
-            codes.append(code)
-    weeks = week_streak(conn)
-    for n, code in ((4, "weeks_4"), (13, "weeks_13"), (52, "weeks_52")):
-        if weeks >= n:
             codes.append(code)
     if 3 <= hour < 5:
         codes.append("night_owl")

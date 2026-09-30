@@ -237,9 +237,9 @@ Every group worked is a badge per pool.
 milestones suit somebody working toward a first license, where encouragement
 matters most. For somebody licensed those milestones - and a pass on a pool
 the license covers - are still counted, but `quiet`: noted in the verdict,
-no toast, no chime. The longer ones are for everybody and mean most to the
-licensed: weeks running (`game._touch_weeks`), and mock exams in a row with
-no more than two missed, or perfect.
+no toast, no chime. The longer ones are the same streak in a different skin, for everybody
+and meaning most to the licensed: runs of right answers to 100, 250 and 500,
+and mock exams in a row with no more than two missed, or perfect.
 
 **A rest day is earned for every seven studied.** Missing a single day spends
 one if the bank holds any, and the streak carries on; missing two ends it
@@ -3199,8 +3199,8 @@ one.
 XP is kept as a pure effort meter and no longer confers any title. It is
 weighted so the answers worth the most are the ones that teach you the
 most — a hard, overdue, previously-failed question pays several times what a
-question you already own does. Alongside it sit daily and weekly streaks, 45
-achievements and a timed contest mode.
+question you already own does. Alongside it sit daily streaks, 45 achievements
+and a timed contest mode.
 
 ---
 

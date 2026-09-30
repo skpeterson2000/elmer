@@ -86,7 +86,7 @@
     </div>
     <div class="status-xp" title="experience points - effort, not rank">{{ '{:,}'.format(profile.xp) }} XP</div>
     <div class="status-streak {% if profile.streak_days %}lit{% endif %}"
-         title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}{% if weeks %}; {{ weeks }} week{{ 's' if weeks != 1 }} running{% endif %}">
+         title="{{ profile.streak_days }}-day streak, best {{ profile.best_streak }}">
       &#9679; {{ profile.streak_days }}d
     </div>
     {# The things somebody is asked once, on the way in, gathered where they

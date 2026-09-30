@@ -6,14 +6,14 @@
 A daily streak suits somebody working toward a first license, and its short
 milestones - three days, a hundred answers, ten in a row - are encouragement
 that matters most there. Somebody who already holds the license is better
-served by longer measures: weeks running rather than days, and mock exams
-that keep coming back clean. What is held here:
+served by the same animal in a different skin: longer runs of right answers,
+and mock exams that keep coming back clean. What is held here:
 
   - the short milestones are counted for everybody, and cheered only for
     the unlicensed: for a licensed operator they are quiet;
   - a pass on a pool the license already covers is quiet too; a pass on
     the next one up is not;
-  - weeks running: a week missed ends it, a busy day does not;
+  - runs of right answers go on past fifty, to a hundred, 250 and 500;
   - papers in a row with no more than two missed, and perfect ones in a
     row, earn their own badges;
   - Worked All Groups is a badge per pool, once every group is worked;
@@ -64,13 +64,13 @@ def main():
     check("  an Extra pass, and a month's streak, are cheered", (got["pass_extra"], got["streak_30"]), (False, False))
     check("  and the quiet ones are still counted", {"first_light", "pass_tech"} <= set(game.earned(conn)), True)
 
-    print("\n-- weeks running --")
-    for key in ("study_week", "week_streak"):
-        conn.execute("DELETE FROM kv WHERE user_id = ? AND k = ?", (conn.user_id, key))
-    days = ["2026-09-01", "2026-09-03", "2026-09-09", "2026-09-15", "2026-09-22"]
-    got = [game._touch_weeks(conn, d) for d in days]
-    check("a day in each week, however spaced: the count climbs", got, [1, 1, 2, 3, 4])
-    check("  a week with nothing in it ends it", game._touch_weeks(conn, "2026-10-06"), 1)
+    print("\n-- the long runs --")
+    fresh_badges(conn)
+    got = {a["code"]: a["quiet"] for a in game.check_answer_achievements(conn, 260, 300, 0, 12)}
+    check("a run of 260 right: every rung to 250, not 500",
+          ("run_250" in got, "run_500" in got), (True, False))
+    check("  for a General, fifty and under are quiet, a hundred and up are cheered",
+          (got["run_10"], got["run_50"], got["run_100"], got["run_250"]), (True, True, False, False))
 
     print("\n-- papers that keep coming back clean --")
     for key in ("exam_clean_run", "exam_perfect_run"):

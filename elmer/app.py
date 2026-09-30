@@ -753,7 +753,6 @@ def profile_block(connection):
             "offer_password": db.should_offer_password(connection,
                                                        connection.user_id),
             "answered": answered, "today": today_count,
-            "weeks": game.week_streak(connection),
             "achievements": game.earned(connection),
             # The wall, not the whole list: a badge that is a joke about
             # somebody who went digging must not be printed as a hollow star
