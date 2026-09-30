@@ -570,7 +570,11 @@ because they carry very different authority:
   and told the owner of a terminated vee 10 ft up on 40 m that it stood at
   "a DX height" and should "come down" to 28 ft.
 
-  A terminated wire's length comes from the Lab, because the band plan has
+  A terminated wire's length is asked beside the antenna on the band plan
+  now - a length box and an ends box, shown for the vee and the sloper -
+  because it decides the takeoff angle more than the height does, and a
+  choice made there has to carry to the Lab whole (the station antenna,
+  elmer.js). Before that it came from the Lab, because the band plan had
   no box for it, and it used to arrive only when the Lab's advice had been
   asked for - the Lab keeps its full record then and not before. A vee set
   to 50 ft in the Lab reached the map as the handbook's 500, and the two

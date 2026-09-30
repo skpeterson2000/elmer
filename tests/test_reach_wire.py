@@ -146,10 +146,10 @@ def the_pages(handbook, given):
         check("  and not for a different kind of wire", got.get("sloper"), "")
         g, hb = got.get("given", ""), got.get("handbook", "")
         check("the page says the 50 ft wire was drawn, and that it is short and steep",
-              ("Drawn as 50 ft of wire" in g, "as the Lab has it" in g, "most of it goes up, and round" in g),
+              ("Drawn as 50 ft of wire" in g, "as you have it" in g, "most of it goes up, and round" in g),
               (True, True, True))
         check("the handbook's wire is said to be the handbook's, with where to set yours",
-              ("the handbook’s size" in hb, "Set the length in the Lab" in hb), (True, True))
+              ("the handbook’s size" in hb, "Set its length beside the antenna" in hb), (True, True))
         check("  and why a ring close in can be dark under it",
               ("nulls between them" in hb, "fill them part way" in hb), (True, True))
     finally:

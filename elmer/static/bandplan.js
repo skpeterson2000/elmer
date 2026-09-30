@@ -1720,6 +1720,10 @@ function bpReachAntenna() {
     ? {kind: station.kind, length_ft: station.length_ft, ends_ft: station.ends_ft}
     : (recall('lab.antenna.wire', null) || {});
   const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
+  // What is typed beside the antenna here comes first of all.
+  const lenBox = document.getElementById('bp-reach-len'), endsBox = document.getElementById('bp-reach-ends');
+  if (terminated && lenBox && +lenBox.value >= 20) { wire.kind = sel.value; wire.length_ft = +lenBox.value; }
+  if (terminated && endsBox && endsBox.value !== '' && +endsBox.value >= 0) { wire.kind = sel.value; wire.ends_ft = +endsBox.value; }
   const lengthFt = !terminated ? 0
     : wire.kind === sel.value && wire.length_ft > 0 ? wire.length_ft
     : lab.kind === sel.value && lab.length_ft > 0 ? lab.length_ft : 0;
@@ -1771,9 +1775,9 @@ function bpReachLaid(d) {
 function bpWireWords(w) {
   if (!w || !w.length_ft) return '';
   const said = w.from === 'given'
-    ? '<b>Drawn as ' + w.length_ft + ' ft of wire</b>, as the Lab has it - ' + w.length_wl.toFixed(1) + ' wavelengths here.'
+    ? '<b>Drawn as ' + w.length_ft + ' ft of wire</b>, as you have it - ' + w.length_wl.toFixed(1) + ' wavelengths here.'
     : '<b>Drawn as ' + w.length_ft + ' ft of wire, the handbook’s size</b> - ' + w.length_wl.toFixed(1) +
-      ' wavelengths here. Set the length in the Lab and the map draws yours.';
+      ' wavelengths here. Set its length beside the antenna and the map draws yours - and the Lab has it too.';
   const lobes = w.length_wl >= 2
     ? ' A terminated wire this long fires in lobes: the main one low, smaller ones above it, and nulls between them - so a ring close in, where a hop needs a steep angle, can be dark. The model draws those nulls clean; real ground, the lie of the land and a sagging wire fill them part way.'
     : w.length_wl < 1
@@ -1809,6 +1813,7 @@ function bpReachSeed() {
     : (own && own.heading !== undefined) ? own.heading : (lab.heading_deg >= 0 ? Math.round(lab.heading_deg) : '');
   if (gnd && own && own.ground) gnd.value = own.ground;
   bpApplyStation();
+  bpTwFields();
   /* The ground, rated rather than guessed: the soil and water surveys at the
      QTH (siteground.py), turned into the four grounds the map knows. Kept on
      the unit once rated, so it answers again without a signal. */
@@ -1877,10 +1882,17 @@ function bpReachSeed() {
     });
   }
   const ems = Array.from(document.querySelectorAll('input[name="bp-reach-em"]'));
-  [sel, h, w, hd, gnd].concat(ems).forEach(el => el && el.addEventListener('change', () => {
+  const len = document.getElementById('bp-reach-len'), endsBox = document.getElementById('bp-reach-ends');
+  [sel, h, w, hd, gnd, len, endsBox].concat(ems).forEach(el => el && el.addEventListener('change', () => {
     const band = bpData && bpData.bands.find(b => b.name === bpBand);
     if (el.name === 'bp-reach-em') bpReachLaw(band);    // a new mode on CB moves the ceiling
-    if ([sel, h, hd, gnd].includes(el)) bpToStation();
+    if (el === sel) {
+      // A new antenna: the length and ends were the old one's.
+      if (len) len.value = '';
+      if (endsBox) endsBox.value = '';
+      bpTwFields();
+    }
+    if ([sel, h, hd, gnd, len, endsBox].includes(el)) bpToStation();
     bpReachRemember();
     bpReachCache = {}; bpView.refined = null;
     if (band) bpReach(band);
@@ -1894,10 +1906,21 @@ function bpToStation() {
   if (!sel || sel.value === 'none') return;
   const h = document.getElementById('bp-reach-h'), hd = document.getElementById('bp-reach-hd');
   const gnd = document.getElementById('bp-reach-gnd');
+  const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
+  const len = document.getElementById('bp-reach-len'), ends = document.getElementById('bp-reach-ends');
   setStationAntenna({kind: sel.value,
                      height_ft: h && +h.value > 0 ? +h.value : undefined,
                      heading_deg: hd && hd.value !== '' ? +hd.value : undefined,
-                     ground: gnd ? gnd.value : undefined}, 'bandplan');
+                     ground: gnd ? gnd.value : undefined,
+                     length_ft: terminated && len && +len.value >= 20 ? +len.value : undefined,
+                     ends_ft: terminated && ends && ends.value !== '' ? +ends.value : undefined}, 'bandplan');
+}
+/* The length and ends boxes, shown for a terminated wire only. */
+function bpTwFields() {
+  const sel = document.getElementById('bp-reach-ant'), box = document.getElementById('bp-reach-tw');
+  if (!sel || !box) return;
+  box.hidden = !(sel.value === 'tefv' || sel.value === 'termsloper');
+  box.style.display = box.hidden ? 'none' : 'inline-flex';
 }
 function bpApplyStation() {
   const st = stationAntenna();
@@ -1910,6 +1933,10 @@ function bpApplyStation() {
   if (h && st.height_ft > 0) h.value = Math.round(st.height_ft);
   if (hd) hd.value = st.heading_deg >= 0 ? Math.round(st.heading_deg) : '';
   if (gnd && st.ground && [...gnd.options].some(o => o.value === st.ground)) gnd.value = st.ground;
+  const len = document.getElementById('bp-reach-len'), ends = document.getElementById('bp-reach-ends');
+  if (len) len.value = st.length_ft > 0 ? Math.round(st.length_ft) : '';
+  if (ends) ends.value = st.ends_ft >= 0 ? st.ends_ft : '';
+  bpTwFields();
   return true;
 }
 /* Changed in the Lab in another window of this browser: follow it. */

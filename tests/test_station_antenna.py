@@ -92,6 +92,23 @@ new Promise(async resolve => {
   vk.value = 'rg58'; vk.dispatchEvent(new tools.contentWindow.Event('change'));
   await nap(300);
   out.afterCable = stationAntenna().kind;
+  // A terminated vee chosen here, with its length and ends - which decide
+  // its takeoff angle more than its height does - reaches the Lab whole.
+  const twBox = () => { const b = document.getElementById('bp-reach-tw'); return !!b && !b.hidden; };
+  out.twHiddenForYagi = !twBox();
+  put('bp-reach-ant', 'tefv');
+  out.twShownForVee = twBox();
+  put('bp-reach-len', '150'); put('bp-reach-ends', '10');
+  out.veeRecord = stationAntenna();
+  out.veeDrawn = bpReachAntenna();
+  const lab2 = await frame('/lab#ant');
+  const L2 = lab2.contentWindow, LD2 = lab2.contentDocument;
+  await until(() => typeof L2.antennaFields === 'function' && LD2.getElementById('an-type').value === 'tefv', 10000);
+  await nap(800);
+  out.lab2 = {type: LD2.getElementById('an-type').value, len: LD2.getElementById('an-len').value,
+              ends: LD2.getElementById('an-ends').value};
+  put('bp-reach-ant', 'dipole');
+  out.afterDipole = {shown: twBox(), len: document.getElementById('bp-reach-len').value};
   resolve(JSON.stringify(out));
 })
 """
@@ -142,6 +159,18 @@ def main():
     print("\n-- the analyzer --")
     check("opens on the station's antenna", got.get("analyzer"), "yagi")
     check("  and a cable picked there is not taken for the antenna", got.get("afterCable"), "yagi")
+    print("\n-- a terminated wire's length and ends, chosen on the Band Plan --")
+    check("the length and ends boxes are shown for a terminated wire only",
+          (got.get("twHiddenForYagi"), got.get("twShownForVee")), (True, True))
+    vee = got.get("veeRecord") or {}
+    check("150 ft with ends at 10 ft is the station's antenna",
+          (vee.get("kind"), vee.get("length_ft"), vee.get("ends_ft")), ("tefv", 150, 10))
+    drawn = got.get("veeDrawn") or {}
+    check("  the map is drawn from them", (drawn.get("length"), drawn.get("ends")), ("150", "10"))
+    check("  and the Lab opens on the same wire",
+          tuple((got.get("lab2") or {}).get(k) for k in ("type", "len", "ends")), ("tefv", "150", "10"))
+    check("a new antenna hides the boxes and does not keep the wire's length",
+          ((got.get("afterDipole") or {}).get("shown"), (got.get("afterDipole") or {}).get("len")), (False, ""))
 
 
 if __name__ == "__main__":
