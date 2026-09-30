@@ -165,7 +165,13 @@ function wireNote(wire) {
  * they stay until the next question is asked for. */
 function badgeNote(list) {
   if (!list || !list.length) return '';
-  return '<div class="badges">' + list.map(a =>
+  const loud = list.filter(a => !a.quiet), soft = list.filter(a => a.quiet);
+  const quietLine = soft.length
+    ? '<div class="badges quiet tiny muted">Counted: ' +
+      soft.map(a => escapeHTML(a.name)).join(', ') + '</div>'
+    : '';
+  if (!loud.length) return quietLine;
+  return quietLine + '<div class="badges">' + loud.map(a =>
     '<div><span class="badge-mark">\u{1F3C5}</span> <b>' + escapeHTML(a.name) +
     '</b> <span class="small muted">' + escapeHTML(a.description) + '</span></div>'
   ).join('') + '</div>';
@@ -179,7 +185,7 @@ function sound(res) {
   if (typeof Chime === 'undefined') return;
   const L = res.ladder;
   if (res.promoted) return Chime.promoted();
-  if (res.achievements && res.achievements.length) return Chime.badge();
+  if ((res.achievements || []).some(a => !a.quiet)) return Chime.badge();
   if (L && (L.hit_target || L.reached)) return Chime.rung(L.hit_target ? L.target : L.reached);
   if (L && L.improved) return Chime.further();
   return res.correct ? Chime.right() : Chime.wrong();
@@ -197,14 +203,48 @@ function hud() {
   }
 }
 
-async function nextQuestion() {
+/* Worked All Groups, on the answers that moved it: a group worked for the
+ * first time, or lit again after fading. Silent otherwise. */
+function groupNote(g) {
+  if (!g) return '';
+  const tally = ' &mdash; ' + g.worked + ' of ' + g.total + ' groups worked.';
+  return '<div class="wag-note">' + (g.event === 'worked'
+    ? '▲ <b>' + escapeHTML(g.code) + '</b> worked' + tally
+    : '<b>' + escapeHTML(g.code) + '</b> lit again.') + '</div>';
+}
+
+/* Sets of ten. Stopping after a set is finishing something, not walking
+ * away from a pile: the page says how the set went and offers another,
+ * and "that will do" is a perfectly good answer. Not in a contest, which
+ * has its own clock. */
+const SET_SIZE = 10;
+
+function setBreak() {
+  const from = state.setFrom || 0;
+  const n = state.count - from, right = state.right - (state.setRight || 0);
+  card.innerHTML = '<h2>That is a set</h2>' +
+    '<p class="muted">' + right + ' of ' + n + ' right.' +
+    (right === n ? ' Clean.' : '') + ' Another, or leave it there &mdash; either is fine.</p>' +
+    '<button class="btn primary" id="another">Another set</button> ' +
+    '<a class="btn" href="/">That will do</a>';
+  document.getElementById('another').addEventListener('click', () => {
+    state.setFrom = state.count; state.setRight = state.right;
+    nextQuestion(true);
+  });
+}
+
+async function nextQuestion(pastBreak) {
+  if (!S.rapid && pastBreak !== true && state.count &&
+      state.count - (state.setFrom || 0) >= SET_SIZE) {
+    return setBreak();
+  }
   card.innerHTML = '<div class="muted">Loading question&hellip;</div>';
   const params = new URLSearchParams({ pool: S.pool, mode: S.mode });
   if (S.section) params.set('section', S.section);
   if (state.recent.length) params.set('exclude', state.recent.slice(-25).join(','));
   const q = await api('/api/next?' + params);
   if (q.done) {
-    card.innerHTML = '<h2>Nothing left in this selection</h2><p class="muted">' +
+    card.innerHTML = '<h2>' + escapeHTML(q.title || 'Nothing left in this selection') + '</h2><p class="muted">' +
       escapeHTML(q.reason) + '</p><a class="btn primary" href="/study/' + S.pool + '">Back to drill</a>';
     return;
   }
@@ -257,8 +297,8 @@ async function answer(index) {
   sound(res);
 
   const nextDue = res.interval_days >= 1
-    ? 'next review in ' + Math.round(res.interval_days) + ' day' + (res.interval_days >= 1.5 ? 's' : '')
-    : 'scheduled to come back this session';
+    ? 'comes round again in about ' + Math.round(res.interval_days) + ' day' + (res.interval_days >= 1.5 ? 's' : '')
+    : 'back again shortly, while it is fresh';
   document.getElementById('verdict').innerHTML =
     '<div class="verdict ' + (res.correct ? 'right' : 'wrong') + '">' +
       '<div class="verdict-head">' +
@@ -268,6 +308,7 @@ async function answer(index) {
       lapseNote(res) +
       wireNote(res.wire) +
       ladderNote(res.ladder) +
+      groupNote(res.group) +
       badgeNote(res.achievements) +
       promotionNote(res.promoted) +
       '<div class="small muted">' + res.explain.map(escapeHTML).join(' &middot; ') + '</div>' +
@@ -314,6 +355,17 @@ document.addEventListener('keydown', e => {
 (function mountSound() {
   const slot = document.getElementById('h-sound');
   if (slot && typeof chimeControl === 'function') slot.appendChild(chimeControl());
+})();
+
+/* Keep or learn: the switch under the pool's name. */
+(function styleSwitch() {
+  const box = document.getElementById('study-style');
+  if (!box) return;
+  box.querySelectorAll('a[data-style]').forEach(a => a.addEventListener('click', async e => {
+    e.preventDefault();
+    await postJSON('/api/study/style', { pool: S.pool, style: a.dataset.style });
+    location.reload();
+  }));
 })();
 
 paintLadder();

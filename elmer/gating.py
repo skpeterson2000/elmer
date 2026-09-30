@@ -75,6 +75,35 @@ def _rung_from_standings(standings):
     return best
 
 
+STYLE = "study_style"          # {pool_id: "keep" | "learn"}, when chosen
+
+
+def held_covers(pool_id, license_class):
+    """Whether the class held already covers this pool - an Extra's
+    Technician, General and Extra pools, a General's Technician and General.
+    Those are kept rather than learned; see srs.KEEP_RETENTION."""
+    rung = _rung_from_class(license_class)
+    return (rung is not None and pool_id in AMATEUR_LADDER
+            and AMATEUR_LADDER.index(pool_id) <= rung)
+
+
+def study_style(pool_id, settings=None):
+    """How this pool is studied: "keep" or "learn", and whether that was
+    the operator's choice or follows from the class held.
+
+    Keeping is the default for a pool the license already covers. Anybody
+    may choose to learn one in full instead - somebody teaching a class,
+    say - and that choice is theirs and is kept.
+    """
+    settings = settings or {}
+    chosen = (settings.get(STYLE) or {}).get(pool_id)
+    from . import callsign as _callsign
+    covered = held_covers(pool_id, _callsign.held(settings)["class"])
+    if chosen in ("keep", "learn"):
+        return {"style": chosen, "chosen": True, "covered": covered}
+    return {"style": "keep" if covered else "learn", "chosen": False, "covered": covered}
+
+
 def reach(settings=None, standings=None):
     """How far up the amateur ladder this user has opened, and why.
 

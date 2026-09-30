@@ -228,8 +228,10 @@ function toast(title, text, ms) {
   setTimeout(() => el.remove(), ms || 5200);
 }
 
+/* A quiet badge is a short milestone for somebody already licensed: it is
+   counted, and the verdict notes it, but it gets no toast. */
 function showAchievements(list) {
-  (list || []).forEach(a => toast('🏅 ' + a.name, a.description, 7000));
+  (list || []).filter(a => !a.quiet).forEach(a => toast('🏅 ' + a.name, a.description, 7000));
 }
 
 /* Mastery color bands: red below 50%, amber to 80%, green above. */
@@ -924,7 +926,8 @@ window.addEventListener('pageshow', e => {
 /* Local and Zulu in the bar (base.html). Ticked on the second rather than
    every thousand milliseconds from whenever the page loaded, so the two
    clocks change together and on time. Zulu is 24-hour with its Z, as a log
-   writes it; local is in the reader's own habit, with the zone it is in.
+   writes it; local is in the reader's own habit, with the zone it is in -
+   or 24-hour as well, where the Station panel says so (data-local24).
    Each says its whole date on hover: Zulu's turns over in the evening for
    anybody west of Greenwich, and the date is the half of a log entry that
    goes wrong. */
@@ -934,6 +937,7 @@ window.addEventListener('pageshow', e => {
   if (!local || !utc) return;
   const localLab = document.querySelector('#clock-local .clock-lab');
   const two = n => String(n).padStart(2, '0');
+  const local24 = (document.getElementById('clocks') || {dataset: {}}).dataset.local24 === '1';
   let zone = '';
   try {
     zone = (new Intl.DateTimeFormat(undefined, {timeZoneName: 'short'})
@@ -942,7 +946,9 @@ window.addEventListener('pageshow', e => {
   if (localLab && zone) localLab.textContent = 'Local ' + zone;
   const tick = () => {
     const now = new Date();
-    local.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    local.textContent = local24
+      ? two(now.getHours()) + ':' + two(now.getMinutes()) + ':' + two(now.getSeconds())
+      : now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
     utc.textContent = two(now.getUTCHours()) + ':' + two(now.getUTCMinutes()) + ':' +
                       two(now.getUTCSeconds()) + 'Z';
     local.parentElement.title = 'local time - ' + now.toLocaleDateString([], {

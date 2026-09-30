@@ -111,13 +111,13 @@ p { margin: 0 0 .8rem; }
 /* Local and Zulu, labelled the way the rank is, the digits in the mono face
    so they do not shuffle as they tick. Zulu in amber: it is the one a log is
    written in. */
-.clocks { display: flex; gap: 1rem; margin-right: .5rem; }
+.clocks { display: flex; gap: 1.75rem; margin-right: .75rem; }
 .clock-cell { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 .clock-lab {
-  font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  font: .66rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
   color: var(--dimmer);
 }
-.clock-t { font: .9rem var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.clock-t { font: 1.08rem var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
 #clock-utc .clock-t { color: var(--amber); }
 
 /* The corner, and it is a corner on every screen.
@@ -354,6 +354,31 @@ label.oob::after { content: "out of bounds"; margin-left: .3rem; font-size: .66r
 }
 .promoted b { color: var(--amber); letter-spacing: .01em; }
 .chime-btn { font-size: .9rem; line-height: 1; padding: .2rem .4rem; }
+/* A badge counted quietly: a short milestone for somebody already licensed.
+   Noted, not cheered. */
+.badges.quiet { border-color: var(--line); background: none; }
+
+/* ---------- Worked All Groups ---------- */
+/* One cell a question group. Lit green while it holds, dimming toward a
+   floor as it fades (--glow, 0..1, set per cell), empty until worked. The
+   code is printed in every cell, so the state is never color alone. */
+.wag-grid {
+  display: grid; gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(3.2rem, 1fr));
+}
+.wag-cell {
+  display: block; text-align: center; padding: .3rem 0;
+  font-family: var(--mono); font-size: .75rem;
+  border: 1px solid var(--line); border-radius: 6px;
+  color: var(--dimmer); text-decoration: none;
+}
+.wag-cell.worked {
+  color: var(--text);
+  border-color: rgba(63, 185, 80, calc(.25 + .5 * var(--glow)));
+  background: rgba(63, 185, 80, calc(.06 + .3 * var(--glow)));
+}
+.wag-cell.open { border-style: dashed; border-color: var(--amber-dim); }
+.wag-note { margin-top: .35rem; font-size: .8rem; color: var(--green); }
 
 /* ---------- go and sit the real exam ---------- */
 /* The dashboard panel for somebody with no license on record whose own

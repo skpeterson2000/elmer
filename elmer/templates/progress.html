@@ -8,7 +8,7 @@
     <div class="quiz-context">{{ pool.long_name }} &middot; {{ pool.edition }}</div>
   </div>
   <div class="row">
-    <a class="btn primary sm" href="/study/{{ pool.pool_id }}?mode=weak">Drill weak spots</a>
+    <a class="btn primary sm" href="/study/{{ pool.pool_id }}?mode=weak">Brush up</a>
     <a class="btn sm" href="/exam/{{ pool.pool_id }}">Mock exam</a>
   </div>
 </div>
@@ -33,7 +33,25 @@
   <div class="panel stat">
     <span class="stat-label">Coverage</span>
     <span class="stat-value">{{ stats.seen }}/{{ pool.questions|length }}</span>
-    <span class="stat-note">{{ stats.unseen }} never seen{% if stats.due_now %}, {{ stats.due_now }} due for review{% endif %}</span>
+    <span class="stat-note">{{ stats.unseen }} never seen</span>
+  </div>
+</div>
+
+{#- Worked All Groups. A group lights when a question in it is answered
+    right, dims gently as that fades, and never goes out once worked -
+    lighting it again is a small win, not a debt paid. -#}
+<div class="panel mt" id="wag">
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Worked All Groups &mdash; {{ stats.groups.worked }} of {{ stats.groups.total }}</div>
+    <span class="tiny muted">bright holds &middot; dim has faded &middot; empty not yet worked</span>
+  </div>
+  <div class="wag-grid mt">
+    {% for g in stats.groups.groups %}
+      <a class="wag-cell{% if g.worked %} worked{% endif %}{% if g.open %} open{% endif %}"
+         href="/study/{{ pool.pool_id }}?mode=drill&section={{ g.code }}"
+         style="--glow:{{ g.glow }}"
+         title="{{ g.code }} {{ g.title }} - {% if not g.worked %}not yet worked{% elif g.glow >= 1 %}holding{% else %}faded a little{% endif %}{% if g.open %}, a miss to put right{% endif %}">{{ g.code }}</a>
+    {% endfor %}
   </div>
 </div>
 

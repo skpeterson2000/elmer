@@ -13,7 +13,9 @@ bar carries both. What is held here:
   - each says its date on hover - Zulu's is the one that turns over;
   - on a phone the bar keeps Zulu, the one a log needs; a tap shows local
     in its place, label and all, and it goes back to Zulu on its own - a
-    glance, never a state it can be left in and logged from.
+    glance, never a state it can be left in and logged from;
+  - the Station panel has a switch for Local in 24-hour time, and with it
+    on the Local clock reads 14:05:09, not 2:05:09 PM.
 """
 import json
 import os
@@ -54,6 +56,8 @@ new Promise(async resolve => {
     utcLab: (document.querySelector('#clock-utc .clock-lab') || {}).textContent || '',
     local: t('#clock-local'), utc: first, utcLater: t('#clock-utc'), wantHm: want,
     utcTitle: (document.getElementById('clock-utc') || {}).title || '',
+    hasSwitch: !!document.getElementById('setup-clock24'),
+    wantLocalH: String(new Date().getHours()).padStart(2, '0'),
     localShown: shown('#clock-local'), utcShown: shown('#clock-utc'),
   }));
 })
@@ -102,6 +106,11 @@ def main():
                                              settle=1.0, cookies={"elmer_user": "1"}) or "{}")
         tap = json.loads(_browser.evaluate(f"http://127.0.0.1:{port}/lab", TAP, width=400, height=800,
                                            settle=1.0, cookies={"elmer_user": "1"}) or "{}")
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/settings", data=b'{"clock24": true}',
+                                     headers={"Content-Type": "application/json", "Cookie": "elmer_user=1"})
+        urllib.request.urlopen(req, timeout=10).read()
+        h24 = json.loads(_browser.evaluate(f"http://127.0.0.1:{port}/lab", DRIVE, width=1400, height=700,
+                                           settle=1.0, cookies={"elmer_user": "1"}) or "{}")
     finally:
         server.terminate()
         try:
@@ -119,6 +128,12 @@ def main():
     check("they tick", utc != wide.get("utcLater"), True)
     check("Zulu says its date on hover",
           bool(re.search(r"\d{4}-\d\d-\d\d$", wide.get("utcTitle", ""))), True)
+    print("\n-- Local in 24-hour --")
+    check("the Station panel has the switch", wide.get("hasSwitch"), True)
+    local = h24.get("local", "")
+    check("  switched on, Local reads as a 24-hour time with no AM or PM",
+          bool(re.fullmatch(r"\d\d:\d\d:\d\d", local)), True)
+    check("  and it is the local hour", local[:2], h24.get("wantLocalH"))
     print("\n-- on a phone --")
     check("the bar keeps Zulu, the one a log needs", (phone.get("utcShown"), phone.get("localShown")), (True, False))
     check("  it starts on Zulu", tap.get("start"), [True, False])

@@ -164,10 +164,13 @@ the readiness number stays honest instead of flattering you.
 
 Study modes:
 
-- **Drill** — overdue reviews first, then new material
-- **Weak spots** — lowest estimated mastery first
+- **Drill** — what has most likely faded first, then new material; on a pool
+  the license covers, **Keep it fresh** (below)
+- **Brush up** — everything faded, most faded first (`srs.recall`), then the
+  weakest answered, then the unmet. It used to rank on seen-then-skill alone,
+  so a question that had slipped could sit behind one merely thin
 - **New** — questions you have never seen
-- **Needs review** — the ones that have caught you out before, from any mode: the
+- **Put right** — the ones that have caught you out before, from any mode: the
   three places an answer is written down (the study API, the exam scorer and
   `_credit_card`, which the table games use) all grade the card the same way, and
   a wrong answer is always below the passing quality, so it always lapses. The
@@ -202,6 +205,41 @@ when both are spent ELMER says what was done and that tomorrow is when the rest
 will do the most good. Only drill is rationed — weak spots, new, lapses and
 contest are deliberate choices to work on something specific, and somebody who
 wants to keep going should not have to argue with the program about it.
+
+**Nothing is due; things fade.** No screen says "due" or "overdue" any more,
+and none shows a count of what is waiting: a due date turns time away into a
+pile, and a pile is a reason not to come back. What decides what is worth a
+look is `srs.recall`, the forgetting curve's estimate of the chance a card is
+still known, and a set is the lowest of those whether somebody was away a day
+or a season. The page breaks every ten answers to say how the set went and
+offer another, so stopping is finishing something. The dashboard shows groups
+worked instead, which only grows.
+
+**Keeping, not learning, what the license already covers.** A pool at or
+below the class held (`gating.held_covers`) is kept by default, and anybody
+may choose to learn it in full instead (`study_style` in settings). Kept, the
+recall bar is 80% rather than 90% - about twice the spacing for the same one
+glance - a question right on first sight goes to thirty days, a right answer
+after a long gap is credited with the gap it survived, and the ceiling is a
+year. The drill (`srs.keeping_queue`) samples the pool as the exam does: one
+question from each group whose best evidence has faded below the bar, the one
+least recently met; a miss comes back in minutes and opens that group alone
+until the miss is put right and three more of its questions have followed. The
+day is fifteen questions, and an empty queue is the good answer. Brush up,
+New, Put right and Contest are unchanged by it.
+
+**Worked All Groups.** A group is worked once a question in it is answered
+right, and like a state for WAS it is not taken away. Its glow on the
+Progress map is its best recall against the bar, never below 0.3 once worked.
+Every group worked is a badge per pool.
+
+**Streaks for the learner and for the licensed.** The day streak and its short
+milestones suit somebody working toward a first license, where encouragement
+matters most. For somebody licensed those milestones - and a pass on a pool
+the license covers - are still counted, but `quiet`: noted in the verdict,
+no toast, no chime. The longer ones are for everybody and mean most to the
+licensed: weeks running (`game._touch_weeks`), and mock exams in a row with
+no more than two missed, or perfect.
 
 **A rest day is earned for every seven studied.** Missing a single day spends
 one if the bank holds any, and the streak carries on; missing two ends it
@@ -3161,8 +3199,8 @@ one.
 XP is kept as a pure effort meter and no longer confers any title. It is
 weighted so the answers worth the most are the ones that teach you the
 most — a hard, overdue, previously-failed question pays several times what a
-question you already own does. Alongside it sit daily streaks, 34 achievements
-and a timed contest mode.
+question you already own does. Alongside it sit daily and weekly streaks, 45
+achievements and a timed contest mode.
 
 ---
 

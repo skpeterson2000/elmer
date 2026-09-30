@@ -45,14 +45,17 @@
   </div>
 
   <div class="row tiny muted">
-    {% if row.due_now %}<span class="pill warn">{{ row.due_now }} due for review</span>{% endif %}
+    {#- Worked All Groups, where a count of what was due used to be: this
+        one only grows. -#}
+    {% if row.groups and row.groups.worked %}<span class="pill{% if row.groups.worked == row.groups.total %} good{% endif %}"
+      title="Question groups answered right at least once">{{ row.groups.worked }}/{{ row.groups.total }} groups worked</span>{% endif %}
     <span class="pill">{{ row.pool.exam_questions }}-question exam</span>
     {% if row.pool.valid_to %}<span class="pill">pool valid to {{ row.pool.valid_to }}</span>{% endif %}
   </div>
 
   <div class="pool-actions">
     <a class="btn primary sm" href="/study/{{ row.pool.pool_id }}">Study</a>
-    <a class="btn sm" href="/study/{{ row.pool.pool_id }}?mode=weak">Weak spots</a>
+    <a class="btn sm" href="/study/{{ row.pool.pool_id }}?mode=weak">Brush up</a>
     <a class="btn sm" href="/exam/{{ row.pool.pool_id }}">Mock exam</a>
     <a class="btn sm" href="/progress/{{ row.pool.pool_id }}">Progress</a>
     <a class="btn sm ghost" href="/browse/{{ row.pool.pool_id }}">Browse</a>

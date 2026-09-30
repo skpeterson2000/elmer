@@ -462,7 +462,38 @@ def pool_stats(pool, cards, trials=1500):
         "per_subelement": per_sub, "mastery": overall, "readiness": ready,
         "seen": seen, "unseen": len(pool.questions) - seen,
         "due_now": due_now, "queue_len": due,
+        # Worked All Groups: what the screens show instead of a count of
+        # what is due. A count of what is due is a pile; this only grows.
+        "groups": srs.groups(pool, cards, now),
     }
+
+
+def _style(connection, pool_id):
+    """Keep or learn, for this pool - see gating.study_style."""
+    return gating.study_style(pool_id, db.get_profile(connection)["settings"])
+
+
+def _keeping(connection, pool_id):
+    return _style(connection, pool_id)["style"] == "keep"
+
+
+def _group_news(pool, before, after, section, keeping):
+    """What an answer did to its question group, for the verdict: worked
+    for the first time, or lit again after fading. None otherwise - a line
+    on every answer is wallpaper."""
+    now = db.utcnow()
+    was = srs.group_state(pool, before, section, now, keeping)
+    got = srs.group_state(pool, after, section, now, keeping)
+    event = None
+    if got["worked"] and not was["worked"]:
+        event = "worked"
+    elif was["worked"] and was["glow"] < 1.0 and got["glow"] >= 1.0:
+        event = "relit"
+    if not event:
+        return None
+    tally = srs.groups(pool, after, now, keeping)
+    return {"event": event, "code": section, "title": pool.section_title(section),
+            "worked": tally["worked"], "total": tally["total"]}
 
 
 STANDING_REFRESH_EVERY = 20     # answers, between background recomputes
@@ -722,6 +753,7 @@ def profile_block(connection):
             "offer_password": db.should_offer_password(connection,
                                                        connection.user_id),
             "answered": answered, "today": today_count,
+            "weeks": game.week_streak(connection),
             "achievements": game.earned(connection),
             # The wall, not the whole list: a badge that is a joke about
             # somebody who went digging must not be printed as a hollow star
@@ -879,6 +911,7 @@ def home():
             "mastery": stats["mastery"],
             "readiness": stats["readiness"], "seen": stats["seen"],
             "due_now": stats["due_now"], "total": len(pool.questions),
+            "groups": stats["groups"],
         })
     connection.commit()
     profile = db.get_profile(connection)
@@ -944,6 +977,7 @@ def study(pool_id):
     waiting = sum(1 for c in db.cards_for_pool(conn(), pool.pool_id).values()
                   if srs.missed_last(c))
     return render_template("study.html", pool=pool, mode=mode, section=section,
+                           style=_style(conn(), pool.pool_id),
                            section_title=pool.section_title(section) if section else None,
                            needs_review=waiting,
                            # The page opens on the run ladder as it stands,
@@ -3725,18 +3759,34 @@ def api_next():
     cards = db.cards_for_pool(connection, pool.pool_id)
 
     sections = {section} if section else None
+    keeping = _keeping(connection, pool.pool_id)
     # Drill is the mode with a day that can be finished; the others are
     # deliberate choices to work on something specific and are not rationed.
-    plan = srs.day_plan(connection, pool.pool_id) if mode == "drill" else None
-    queue = srs.due_queue(
-        pool, cards, limit=None, sections=sections,
-        new_left=plan["new_left"] if plan else None,
-        review_left=plan["review_left"] if plan else None)
+    plan = srs.day_plan(connection, pool.pool_id, keeping=keeping) if mode == "drill" else None
+    if plan and keeping and not section:
+        # Keeping a pool the license already covers: a question from each
+        # group that has faded, and closer work only where a miss opened one.
+        queue = srs.keeping_queue(pool, cards, left=plan["left"])
+        if not queue:
+            return jsonify({
+                "done": True, "finished_today": plan["done"], "plan": plan,
+                "title": "That will do nicely" if plan["done"] else "Everything is holding",
+                "reason": (f"That is today's keeping done - {plan['new_done'] + plan['review_done']} "
+                           f"questions. Nothing waits on you; it will be here when you are."
+                           if plan["done"] else
+                           f"Every group of {pool.name} you hold is holding. Nothing needs you "
+                           f"today - Brush up or a mock exam are there if you fancy one.")})
+    else:
+        queue = srs.due_queue(
+            pool, cards, limit=None, sections=sections,
+            new_left=plan["new_left"] if plan else None,
+            review_left=plan["review_left"] if plan else None)
     if plan and not queue:
         return jsonify({
             "done": True, "finished_today": True, "plan": plan,
+            "title": "That is the day's study",
             "reason": (f"That is today's study done - {plan['new_done']} new "
-                       f"and {plan['review_done']} reviewed. More tomorrow, "
+                       f"and {plan['review_done']} again. More tomorrow, "
                        f"when it will do the most good.")})
 
     if mode == "new":
@@ -3747,6 +3797,10 @@ def api_next():
         # had been put right, and the list could never be emptied.
         queue = [q for q in queue if srs.missed_last(cards.get(q))]
     elif mode == "weak":
+        # Brush up. What has faded comes first - all of it, most faded
+        # first, where it used to be ranked on skill alone and a question
+        # that had slipped could sit behind one that was merely thin. Then
+        # the weakest of what has been answered, and only then the unmet.
         per_q, _, _, _ = srs.pool_skills(pool, cards)
         # Measured weakness first, and only then the unmeasured. A question
         # nobody has answered is not a weak spot; it is an unknown, and
@@ -3758,8 +3812,7 @@ def api_next():
         # exam had just caught. The exam's own button pointed here, so from
         # the outside it looked as though a mock exam taught the program
         # nothing at all.
-        queue = sorted(queue, key=lambda q: (0 if cards.get(q, {}).get("seen") else 1,
-                                             per_q.get(q, 0.0)))[:200]
+        queue = srs.brush_up_order(pool, cards, per_q, sections=sections, keeping=keeping)
     elif mode == "rapid":
         random.shuffle(queue)
 
@@ -3818,14 +3871,16 @@ def api_answer():
     now = db.utcnow()
     was_due = bool(card and card["due"] and card["due"] <= now.isoformat())
 
+    keeping = _keeping(connection, pool.pool_id)
     quality = srs.grade(correct, ms)
-    fields = srs.schedule(card, quality, now)
+    fields = srs.schedule(card, quality, now, keeping=keeping)
     fields.update({
         "seen": (card["seen"] if card else 0) + 1,
         "correct": (card["correct"] if card else 0) + int(correct),
         "run": ((card["run"] if card else 0) + 1) if correct else 0,
         "last_ms": ms,
     })
+    before = db.cards_for_pool(connection, pool.pool_id)
     db.upsert_card(connection, pool.pool_id, question["id"], **fields)
     db.log_answer(connection, pool.pool_id, question["id"], question["section"],
                   correct, chosen_original, ms, mode)
@@ -3855,6 +3910,19 @@ def api_answer():
     if wire:
         fresh = fresh + game.award(connection, [peeking.BADGE])
 
+    # The question's group on the Worked All Groups map: worked for the
+    # first time, or lit again. Never allowed to cost the answer.
+    group = None
+    try:
+        after = dict(before)
+        after[question["id"]] = dict(before.get(question["id"]) or {}, **fields)
+        group = _group_news(pool, before, after, question["section"], keeping)
+        if group and group["event"] == "worked":
+            fresh = fresh + game.check_group_achievements(
+                connection, pool.pool_id, group["worked"], group["total"])
+    except (KeyError, TypeError, ValueError) as exc:
+        log.warning("worked all groups: %s on %s", exc, question["id"])
+
     # The lower rungs move with coverage and mastery, so refresh occasionally
     # rather than on every answer - the Monte Carlo is too costly per keystroke.
     cache = db.kv_get(connection, "standings", {}) or {}
@@ -3879,7 +3947,7 @@ def api_answer():
             pool, question, db.get_note(connection, pool.pool_id, question["id"])),
         "xp": points, "total_xp": prof["xp"], "promoted": promoted,
         "streak_days": streak_days, "run": run, "ladder": ladder,
-        "wire": wire,
+        "wire": wire, "group": group, "keeping": keeping,
         "interval_days": fields["interval"],
         # Forgetting something you had learned is a different event from
         # missing something new, and only the first is worth remarking on.
@@ -3892,6 +3960,29 @@ def api_answer():
         "was_interval": round(card["interval"], 1) if card else 0.0,
         "achievements": fresh,
     })
+
+
+@app.route("/api/study/style", methods=["POST"])
+def api_study_style():
+    """Keep a pool or learn it in full. "auto" goes back to what the class
+    held says - keeping for a pool the license covers, learning otherwise."""
+    body = request.get_json(silent=True) or {}
+    pool = _pool_or_404(str(body.get("pool") or ""))
+    style = str(body.get("style") or "")
+    if style not in ("keep", "learn", "auto"):
+        abort(400, "style must be keep, learn or auto")
+    connection = conn()
+    settings = db.get_profile(connection)["settings"]
+    chosen = dict(settings.get(gating.STYLE) or {})
+    if style == "auto":
+        chosen.pop(pool.pool_id, None)
+    else:
+        chosen[pool.pool_id] = style
+    settings[gating.STYLE] = chosen
+    db.save_settings(connection, settings)
+    connection.commit()
+    log.info("study style: %s is now %s", pool.pool_id, style)
+    return jsonify(_style(connection, pool.pool_id))
 
 
 def _explain(pool, question):
@@ -3983,11 +4074,12 @@ def api_exam_submit(exam_id):
 
     # An exam is also study: fold every answer into the schedule.
     pool = get_pool(exam["pool_id"])
+    keeping = _keeping(connection, pool.pool_id)
     for item, res in zip(exam["items"], result["results"]):
         question = pool.by_id[item["question_id"]]
         card = db.get_card(connection, pool.pool_id, question["id"])
         quality = srs.grade(res["correct"], None)
-        fields = srs.schedule(card, quality)
+        fields = srs.schedule(card, quality, keeping=keeping)
         fields.update({
             "seen": (card["seen"] if card else 0) + 1,
             "correct": (card["correct"] if card else 0) + int(res["correct"]),
@@ -4007,7 +4099,11 @@ def api_exam_submit(exam_id):
     game.add_xp(connection, points)
     game.touch_streak(connection)
     fresh = game.check_exam_achievements(
-        connection, exam["pool_id"], result["passed"], result["perfect"])
+        connection, exam["pool_id"], result["passed"], result["perfect"],
+        missed=result["total"] - result["score"])
+    tally = srs.groups(pool, db.cards_for_pool(connection, pool.pool_id))
+    fresh = fresh + game.check_group_achievements(
+        connection, pool.pool_id, tally["worked"], tally["total"])
     connection.commit()
 
     log.info("exam %s finished: %s %d/%d %s in %ss", exam_id, exam["pool_id"],
@@ -5474,7 +5570,8 @@ def _credit_card(connection, pool_id, question_id, correct, ms):
         card = db.get_card(connection, pool_id, question_id)
         now = db.utcnow()
         was_due = bool(card and card["due"] and card["due"] <= now.isoformat())
-        fields = srs.schedule(card, srs.grade(correct, ms), now)
+        keeping = gating.study_style(pool_id, db.get_profile(connection)["settings"])["style"] == "keep"
+        fields = srs.schedule(card, srs.grade(correct, ms), now, keeping=keeping)
         fields.update({
             "seen": (card["seen"] if card else 0) + 1,
             "correct": (card["correct"] if card else 0) + int(correct),
@@ -9011,6 +9108,9 @@ def api_settings():
         settings["state"] = body["state"]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
+    if "clock24" in body:
+        # The Local clock in the bar in 24-hour time; Zulu always is.
+        settings["clock24"] = bool(body["clock24"])
     if "announce" in body:
         # Whether the unit says its own name in code when it opens. Absent
         # means yes; a station that wants quiet says so once and is quiet.

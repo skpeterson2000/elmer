@@ -10,23 +10,41 @@
         {{ pool.long_name }}
         {% if section %} &middot; <span class="qid">{{ section }}</span> {{ section_title }}{% endif %}
       </div>
+      {#- Keep or learn. A pool the license already covers is kept: one
+          question from a group now and then, closer work only where a miss
+          opens one. Anybody may learn it in full instead, and go back. -#}
+      {% if style.covered or style.chosen %}
+      <div class="tiny muted" id="study-style" style="margin-top:.25rem">
+        {% if style.style == 'keep' %}
+          Keeping &mdash; {% if style.covered %}your license covers this pool, so{% else %}by your choice,{% endif %}
+          ELMER asks one question from a group now and then, and more only where one slips.
+          <a href="#" data-style="learn">Learn it in full instead</a>
+        {% else %}
+          Learning in full{% if style.covered %}, by your choice{% endif %}.
+          <a href="#" data-style="{{ 'auto' if style.covered else 'keep' }}">{{ 'Go back to keeping' if style.covered else 'Just keep it' }}</a>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
     <div class="row">
-      {# "Lapses" is what the schedule calls it; "Needs review" is what it is,
+      {# "Lapses" is what the schedule calls it; "Put right" is what it is for,
          and it carries its count, because a list nobody can see the size of
          is not a list somebody works through. Everything got wrong anywhere -
          the drill, a contest round, a mock exam, a hole of golf at a table -
-         is in it. #}
+         is in it. Nothing on this row says due or overdue: what comes back
+         comes back because it has likely faded, and that is not a debt. #}
       {% for m, label, hint in [
-          ('drill','Drill','Due reviews first, then new material'),
-          ('weak','Weak spots','What you have got wrong, weakest first, then what you have never met'),
+          ('drill', 'Keep it fresh' if style.style == 'keep' else 'Drill',
+                    'A question from each group that has faded, and more only where one slips' if style.style == 'keep'
+                    else 'What has faded first, then new material'),
+          ('weak','Brush up','What has faded first, then your weakest, then what you have never met'),
           ('new','New','Questions you have never seen'),
-          ('review','Needs review','Everything you have got wrong and not yet put right, wherever you got it wrong'),
+          ('review','Put right','Everything you have got wrong and not yet put right, wherever you got it wrong'),
           ('rapid','Contest','Fast random-fire round')] %}
         <a class="btn sm {% if mode == m %}primary{% else %}ghost{% endif %}"
            title="{{ hint }}"
            href="/study/{{ pool.pool_id }}?mode={{ m }}{% if section %}&section={{ section }}{% endif %}">{{ label }}{%
-           if m == 'review' and needs_review %} <span class="pill bad">{{ needs_review }}</span>{% endif %}</a>
+           if m == 'review' and needs_review %} <span class="pill">{{ needs_review }}</span>{% endif %}</a>
       {% endfor %}
     </div>
   </div>
@@ -87,6 +105,7 @@ window.STUDY = {
   mode: {{ mode|tojson }},
   section: {{ section|tojson }},
   rapid: {{ (mode == 'rapid')|tojson }},
+  keeping: {{ (style.style == 'keep')|tojson }},
   ladder: {{ ladder|tojson }}
 };
 </script>

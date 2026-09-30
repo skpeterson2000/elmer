@@ -108,7 +108,7 @@ Scroll down and the rest of the first screen is already there, waiting for a rec
 
 ### The status strip
 
-To the right of the tabs: two clocks, **Local** with your time zone and **Zulu** in amber - UTC, the time every log, net, contest and spot is kept in - each with its date when you hover over it; on a phone there is room for one, so it shows Zulu, and a tap shows local in its place for ten seconds before it goes back. Then the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best.
+To the right of the tabs: two clocks, **Local** with your time zone and **Zulu** in amber - UTC, the time every log, net, contest and spot is kept in - each with its date when you hover over it; on a phone there is room for one, so it shows Zulu, and a tap shows local in its place for ten seconds before it goes back. Local follows your own habit, 12- or 24-hour; **Local time in 24-hour** in the Station panel makes it 24-hour like Zulu. Then the operator chip, your standing on each track you study, your XP, and your streak. Standing is ELMER's own study rank, five steps from Listener to Elmer, earned against its copy of the question pools; it grants no operating privilege of any kind, and the dashboard says so in bold. XP is effort, not rank. The streak is days in a row with an answer, and the tooltip remembers your best and counts the weeks running.
 
 ![The dashboard a few days in: the space weather strip, the standing, and the tracks](docs/screenshots/guide/dashboard.png)
 
@@ -155,7 +155,7 @@ Click the operator chip for the menu **Who is at the controls?** It lists every 
 
 **Come back tomorrow.** ELMER decides when to show you a question again by working out when you are about to forget it, and aiming to catch you just before you do - it picks the gap so that you have about a nine-in-ten chance of still knowing the answer when it comes round. That is the whole mechanism, and it cannot work on somebody who appears once a week. Twenty minutes a day beats three hours on a Sunday, and it is not close.
 
-**A short session is a real session.** Open the pool, press **Study**, answer what it gives you, stop when you want to. There is no session length to complete. The dashboard keeps a day streak for exactly this reason.
+**A short session is a real session.** Open the pool, press **Study**, answer what it gives you, stop when you want to. Questions come in sets of ten: after each set the page says how it went and offers another, and **That will do** is a perfectly good answer. There is no session length to complete, and nothing piles up while you are away. The dashboard keeps a day streak for exactly this reason.
 
 **Getting one wrong is not a setback, it is the point.** A question you miss comes back in about ten minutes, and then keeps a share of the spacing it had already earned rather than starting again from nothing. Pressing `?` to reveal an answer counts as wrong on purpose: guessing right teaches the program that you knew it, and then it will not show you that question again for a month.
 
@@ -176,7 +176,7 @@ Click the operator chip for the menu **Who is at the controls?** It lists every 
 
 ### The cards
 
-Each question pool has a card on the dashboard: Technician, General and Extra under **Amateur radio**, and with the switch on, the Marine Radio Operator Permit, the GROL and the Ship Radar endorsement under **Commercial**. A card shows three numbers. **Mastery** is ELMER's estimate of your chance of knowing an average question right now. **Exam odds** is your chance of passing, from thousands of simulated exams against your record, and it stays deliberately pessimistic while more than a third of the pool is unseen. **Coverage** is how much of the pool you have met. Five buttons: **Study**, **Weak spots**, **Mock exam**, **Progress** and **Browse**.
+Each question pool has a card on the dashboard: Technician, General and Extra under **Amateur radio**, and with the switch on, the Marine Radio Operator Permit, the GROL and the Ship Radar endorsement under **Commercial**. A card shows three numbers. **Mastery** is ELMER's estimate of your chance of knowing an average question right now. **Exam odds** is your chance of passing, from thousands of simulated exams against your record, and it stays deliberately pessimistic while more than a third of the pool is unseen. **Coverage** is how much of the pool you have met. Under them, how many of the pool's question groups you have worked (see Worked All Groups, below). Five buttons: **Study**, **Brush up**, **Mock exam**, **Progress** and **Browse**.
 
 Some pools are gated until you have shown something in the one before. A gated card says why, and **Open every pool anyway** does what it says.
 
@@ -184,15 +184,33 @@ Some pools are gated until you have shown something in the one before. A gated c
 
 One question at a time. Five modes across the top, and the short answer is that **Drill** is the one to use almost always:
 
-- **Drill** puts what is due for review first, then new material. This is the default and the one the schedule is built around. If you are not sure, press this.
+- **Drill** puts what has most likely faded first, then new material. This is the default and the one the schedule is built around. If you are not sure, press this. On a pool your license already covers it is called **Keep it fresh** and works differently; see below.
 - **New** shows only what you have never seen. Use it early, when you want to get round the pool faster than the drill will take you, and accept that you are meeting questions rather than learning them.
-- **Weak spots** starts with what you have actually got wrong, weakest first, and only then moves on to what you have never met. Use it after a mock exam has told you where you are thin, or in the last fortnight before a test. The distinction matters: a question nobody has answered is not a weak spot, it is an unknown, and if the two are ranked together the unknowns bury the things you just missed.
-- **Needs review** is everything you have got wrong, wherever you got it wrong - in the drill, in a contest round, on a mock exam, or at a table in a hall playing a hole of golf. The button carries the count, so you can see how much of it there is without going in. Use it when the same few questions keep catching you and you want them dealt with in one sitting. Nothing you answer anywhere is exempt: a revealed answer counts as a miss too, because guessing right teaches the program something that is not true.
+- **Brush up** starts with everything that has faded - every one of them, the most faded first, and a question you just missed is the most faded of all - then the weakest of what you have answered, and only then what you have never met. Use it after a mock exam has told you where you are thin, after time away, or in the last fortnight before a test. A question nobody has answered is not a weak spot, it is an unknown, so the unknowns come last.
+- **Put right** is everything you have got wrong, wherever you got it wrong - in the drill, in a contest round, on a mock exam, or at a table in a hall playing a hole of golf. The button carries the count, so you can see how much of it there is without going in. Use it when the same few questions keep catching you and you want them dealt with in one sitting. Nothing you answer anywhere is exempt: a revealed answer counts as a miss too, because guessing right teaches the program something that is not true.
 - **Contest** is a fast random round against a clock. It is for the evening you do not feel like studying, and it still counts.
 
 ![What each mode draws from. If you are not sure, the answer is Drill.](docs/figures/guide/study-modes.png)
 
 The keys: `1` to `4` or `a` to `d` answer, `space` or `Enter` moves on, `?` reveals the answer and counts as wrong, which is the honest thing to do. After you commit, the card opens: whether you were right, the XP, when it will come round again, and underneath, why this is the answer, what to watch out for, the concept it belongs to with a link to try it in the Lab where one exists, and the FCC rule with a link to the section. There is a box for your own note on any question, saved with the account. A badge earned, or a step up the rank ladder, is written into the card as well as sliding past as a toast, so it is still there when you come back to the screen.
+
+### Keeping a pool you already hold
+
+Most operators learned the answers for the test and keep the parts they use. A schedule built for somebody sitting the exam next Saturday asks a licensed operator for far more than keeping needs, and a treadmill gets switched off. So a pool your license already covers - Technician and General for a General, all three for an Extra - is **kept**, not drilled. The study page says so under the pool's name.
+
+- **One question from a group.** The exam draws one question from each of the pool's groups (T5C and the like), and keeping samples it the same way. Get it right and the whole group counts as holding; ELMER leaves it alone for a couple of months. Get it wrong and only that group opens up: the miss comes back within minutes, and a few more of the group's questions follow until it has been put right.
+- **Known is known.** A question right the first time you see it goes out a month, not a day. A right answer after a long gap is credited with the whole gap. Nothing is spaced further than a year.
+- **A short day.** Fifteen questions at most, and when everything you hold is holding, it asks for nothing at all and says so. Time away does not pile up: a season away is a few more groups worth a look, not a backlog.
+
+**Learn it in full instead**, under the pool's name, puts that pool back on the full drill - worth it if you are teaching a class from it - and **Go back to keeping** undoes it.
+
+### Worked All Groups
+
+Like Worked All States, but for a question pool: each group lights up once you have answered a question in it right. The Progress page draws the map, one cell a group. A lit group dims gently as it fades and brightens again when you get one of its questions right; it never goes out once worked. A dashed edge means a miss there is still to be put right. Click a cell to drill that group. Every group worked earns the pool's **Worked All** badge, and like any badge it prints as a certificate.
+
+### Streaks and badges
+
+The day streak is for somebody working toward a license, and its short milestones - three days, a hundred answers, ten in a row, the first mock exam - are cheered. For somebody already licensed they are still counted, but quietly: a line in the card, no toast and no fanfare. So is a pass on a pool your license already covers. The longer measures are the ones worth having once you hold the license: **weeks running** with any study in them (a busy Tuesday costs nothing), and mock exams that keep coming back clean - three or ten in a row with no more than two missed, and three perfect in a row.
 
 **The run panel, under the drill.** Your run of right answers in this pool, the bar you are working against, your longest ever, and — the part worth watching — where the last few runs actually broke. It will read something like `broke at 4 → 6 → 9`, and that sequence is what learning a pool looks like from the inside. The bar starts at three and moves up a rung each time you reach it: three, five, ten, fifteen and on. **It never moves back down.** Breaking a run short of it costs you nothing at all.
 
@@ -206,7 +224,7 @@ Ten is the number to aim at. Ten right in a row drawn from a whole pool is about
 
 Built the way the real one is: the right number of questions, exactly one drawn at random from each section of the syllabus, choices shuffled, and the pass mark the real exam uses. The timer is a pace target you set yourself, not an official limit. Flag a question with `f` and come back to it from the question map; **Submit exam** scores it.
 
-**Nothing is marked until you submit.** This is the one place in ELMER that tells you nothing while you work — no verdict on an answer, no running score, no sound, no run counter — because the real paper does not either, and the whole point of a mock is to feel like the real thing. Change any answer and move in any order right up to the moment you hand it in. The result shows the score by subelement and lets you review every question you missed, with the right answer in green and yours in red, then offers to drill the weak spots. Every answer here also feeds your review schedule.
+**Nothing is marked until you submit.** This is the one place in ELMER that tells you nothing while you work — no verdict on an answer, no running score, no sound, no run counter — because the real paper does not either, and the whole point of a mock is to feel like the real thing. Change any answer and move in any order right up to the moment you hand it in. The result shows the score by subelement and lets you review every question you missed, with the right answer in green and yours in red, then offers the ones you missed and **Brush up**. Every answer here also feeds your schedule.
 
 ### Progress, and browsing the pool
 

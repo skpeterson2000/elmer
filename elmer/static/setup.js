@@ -155,6 +155,8 @@
       if (unitBox) body.units = unitBox.value;
       const commercialBox = document.getElementById('setup-commercial');
       if (commercialBox) body.commercial = commercialBox.checked;
+      const clockBox = document.getElementById('setup-clock24');
+      if (clockBox) body.clock24 = clockBox.checked;
       const announceBox = document.getElementById('setup-announce');
       if (announceBox) body.announce = announceBox.checked;
       const rbBox = document.getElementById('setup-rb');

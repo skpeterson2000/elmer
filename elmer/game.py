@@ -9,9 +9,12 @@ XP measures effort and nothing more. Titles live in :mod:`elmer.ranks`, where
 they are earned inside the license class they name - a global XP ladder handed
 out a "General" title to someone who had never opened a General question.
 """
+import logging
 from datetime import date, timedelta
 
 from .db import today
+
+log = logging.getLogger("elmer")
 
 ACHIEVEMENTS = [
     ("first_light", "First Light", "Answer your first question"),
@@ -31,6 +34,22 @@ ACHIEVEMENTS = [
     ("pass_grol", "GROL Ready", "Pass an Element 3 mock exam"),
     ("pass_radar", "Radar Ready", "Pass an Element 8 mock exam"),
     ("perfect_exam", "Clean Sweep", "Score 100% on a mock exam"),
+    # The longer ones: a habit kept over seasons, and papers that keep
+    # coming back clean. Anybody can earn them; they are the streaks worth
+    # admiring in somebody who already holds the license.
+    ("weeks_4", "Regular", "Study in 4 weeks running"),
+    ("weeks_13", "A Season", "Study in 13 weeks running"),
+    ("weeks_52", "A Year of It", "Study in 52 weeks running"),
+    ("clean_3", "Steady Hand", "3 mock exams in a row, none with more than 2 missed"),
+    ("clean_10", "Old Hand", "10 mock exams in a row, none with more than 2 missed"),
+    ("sweep_3", "Clean Sheets", "3 perfect mock exams in a row"),
+    # Worked All Groups: every question group in a pool answered right at
+    # least once. Like WAS, earned at any pace and never taken away.
+    ("wag_tech", "Worked All Technician", "Answer right in every question group of the Technician pool"),
+    ("wag_gen", "Worked All General", "Answer right in every question group of the General pool"),
+    ("wag_extra", "Worked All Extra", "Answer right in every question group of the Extra pool"),
+    ("wag_grol", "Worked All Element 3", "Answer right in every question group of Element 3"),
+    ("wag_radar", "Worked All Element 8", "Answer right in every question group of Element 8"),
     ("section_master", "Section Master", "Take any section to 90% mastery"),
     ("pool_half", "Halfway House", "Reach 50% mastery of a whole pool"),
     ("pool_master", "Pool Master", "Reach 90% mastery of a whole pool"),
@@ -148,6 +167,7 @@ def touch_streak(conn):
         streak = 1
         db.kv_set(conn, "rest_spent", 0)
 
+    _touch_weeks(conn, now)
     best = max(streak, row["best_streak"])
     conn.execute(
         "UPDATE profile SET streak_days = ?, best_streak = ?, last_study_day = ? "
@@ -157,6 +177,44 @@ def touch_streak(conn):
         log = __import__("logging").getLogger("elmer")
         log.info("streak: a rest day covered the gap, now %d days", streak)
     return streak
+
+
+def _week(day):
+    y, w, _ = date.fromisoformat(day).isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def _touch_weeks(conn, day):
+    """The weekly streak: weeks running with any study in them.
+
+    The daily streak suits somebody working toward an exam date. Somebody
+    keeping a license they hold studies less often and for longer, and a
+    streak that counts weeks is the one that fits them - a busy Tuesday
+    costs nothing, and a year of it is worth a badge.
+    """
+    from . import db
+    this = _week(day)
+    last = db.kv_get(conn, "study_week")
+    weeks = db.kv_get(conn, "week_streak", 0) or 0
+    if last == this:
+        return weeks
+    prior = _week((date.fromisoformat(day) - timedelta(days=7)).isoformat())
+    weeks = weeks + 1 if last == prior else 1
+    db.kv_set(conn, "study_week", this)
+    db.kv_set(conn, "week_streak", weeks)
+    db.kv_set(conn, "best_week_streak", max(weeks, db.kv_get(conn, "best_week_streak", 0) or 0))
+    return weeks
+
+
+def week_streak(conn):
+    """Weeks running, as it stands - zero once a whole week has gone by."""
+    from . import db
+    last = db.kv_get(conn, "study_week")
+    now = today()
+    prior = _week((date.fromisoformat(now) - timedelta(days=7)).isoformat())
+    if last in (_week(now), prior):
+        return db.kv_get(conn, "week_streak", 0) or 0
+    return 0
 
 
 def bump_run(conn, correct):
@@ -184,10 +242,47 @@ def earned(conn):
         "SELECT code, earned FROM achievement WHERE user_id = ?", (conn.user_id,))}
 
 
+# The short milestones. Worth counting for anybody, and worth a cheer for
+# somebody working toward a first license - encouragement matters most there.
+# For somebody who already holds one they are still counted as they happen,
+# only quietly: a line in the verdict, no toast and no fanfare.
+SHORT = {"first_light", "century", "run_10", "run_25", "streak_3", "streak_7",
+         "first_exam", "pass_any", "section_master", "pool_half"}
+
+
+def _licensed(conn):
+    """The class held, or "" for nobody licensed. Never raises: a badge must
+    not fail because a profile could not be read."""
+    try:
+        from . import callsign, db
+        cls = callsign.held(db.get_profile(conn)["settings"])["class"] or ""
+    except (KeyError, TypeError, ValueError) as exc:
+        log.warning("badges: could not read the class held: %s", exc)
+        return ""
+    return "" if cls.strip().lower() in ("", "none", "no license") else cls
+
+
+def quiet(code, license_class):
+    """Whether this badge is counted quietly for somebody holding this class:
+    a short milestone, or a pass on a pool the license already covers."""
+    if not license_class:
+        return False
+    if code in SHORT:
+        return True
+    from . import gating
+    pool = next((p for p, c in EXAM_BADGE.items() if c == code), None)
+    return bool(pool and gating.held_covers(pool, license_class))
+
+
 def award(conn, codes):
-    """Grant achievements not already held; returns the newly granted ones."""
+    """Grant achievements not already held; returns the newly granted ones.
+
+    Each carries ``quiet`` - see SHORT - so the screens know which ones to
+    cheer and which only to note.
+    """
     have = earned(conn)
     fresh = []
+    held = None
     for code in codes:
         if code in have or code not in ACHIEVEMENT_INDEX:
             continue
@@ -195,7 +290,10 @@ def award(conn, codes):
             "INSERT INTO achievement (user_id, code, earned) VALUES (?, ?, ?)",
             (conn.user_id, code, today()))
         name, desc = ACHIEVEMENT_INDEX[code]
-        fresh.append({"code": code, "name": name, "description": desc})
+        if held is None:
+            held = _licensed(conn)
+        fresh.append({"code": code, "name": name, "description": desc,
+                      "quiet": quiet(code, held)})
         add_xp(conn, 50)
     return fresh
 
@@ -212,6 +310,10 @@ def check_answer_achievements(conn, run, total_answers, streak_days, hour):
     for n, code in ((3, "streak_3"), (7, "streak_7"), (30, "streak_30")):
         if streak_days >= n:
             codes.append(code)
+    weeks = week_streak(conn)
+    for n, code in ((4, "weeks_4"), (13, "weeks_13"), (52, "weeks_52")):
+        if weeks >= n:
+            codes.append(code)
     if 3 <= hour < 5:
         codes.append("night_owl")
     return award(conn, codes)
@@ -223,8 +325,33 @@ EXAM_BADGE = {
 }
 
 
-def check_exam_achievements(conn, pool_id, passed, perfect):
+# At most this many missed and a paper still counts as clean.
+CLEAN_MISSES = 2
+
+
+def exam_runs(conn, missed):
+    """Roll the paper streaks forward with one finished mock exam: papers in
+    a row with no more than CLEAN_MISSES missed, and perfect ones in a row.
+    Returns (clean, perfect)."""
+    from . import db
+    clean = (db.kv_get(conn, "exam_clean_run", 0) or 0) + 1 if missed <= CLEAN_MISSES else 0
+    sweep = (db.kv_get(conn, "exam_perfect_run", 0) or 0) + 1 if missed == 0 else 0
+    db.kv_set(conn, "exam_clean_run", clean)
+    db.kv_set(conn, "exam_perfect_run", sweep)
+    db.kv_set(conn, "best_exam_clean_run", max(clean, db.kv_get(conn, "best_exam_clean_run", 0) or 0))
+    return clean, sweep
+
+
+def check_exam_achievements(conn, pool_id, passed, perfect, missed=None):
     codes = ["first_exam"]
+    if missed is not None:
+        clean, sweep = exam_runs(conn, missed)
+        if clean >= 3:
+            codes.append("clean_3")
+        if clean >= 10:
+            codes.append("clean_10")
+        if sweep >= 3:
+            codes.append("sweep_3")
     if passed:
         codes.append("pass_any")
         if pool_id in EXAM_BADGE:
@@ -270,6 +397,19 @@ def check_ballgame_achievements(conn, hit=False, majors=False, keyed_ask=False):
     if keyed_ask:
         codes.append("cw_qsm")
     return award(conn, codes)
+
+
+WAG_BADGE = {
+    "tech2026": "wag_tech", "gen2023": "wag_gen", "extra2024": "wag_extra",
+    "element3": "wag_grol", "element8": "wag_radar",
+}
+
+
+def check_group_achievements(conn, pool_id, worked, total):
+    """Worked All Groups, once every group in the pool has been worked."""
+    if total and worked >= total and pool_id in WAG_BADGE:
+        return award(conn, [WAG_BADGE[pool_id]])
+    return []
 
 
 def check_mastery_achievements(conn, per_section, overall):

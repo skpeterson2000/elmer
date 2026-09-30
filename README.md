@@ -4,7 +4,10 @@
 question you get wrong — in the drill, in a contest round, on a mock exam, or
 at a table in a hall playing a hole of golf — goes on the review list and
 comes back before you would have forgotten it. Nothing you answer anywhere is
-wasted, and nothing you have already proved wastes your evening.
+wasted, and nothing you have already proved wastes your evening. A pool your
+license already covers is kept rather than drilled: a question from each
+group now and then, the way the exam samples it, and more only where one has
+slipped.
 
 A study assistant, progress tracker and game for the United States radio
 operator examinations — the amateur pools (Technician, General, Extra) and

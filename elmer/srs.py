@@ -45,6 +45,31 @@ EVIDENCE_HALF = 30         # answers before inference about unseen questions is 
 # first time, and only the first is worth a word.
 LEARNED_DAYS = 1.0
 
+# --- keeping what is known --------------------------------------------------
+# Somebody who holds the license a pool is for is not learning it, they are
+# keeping it, and a schedule built for cramming asks them for far more than
+# keeping needs: most operators learned the answers for the test and hold on
+# to the parts they use, and a treadmill of daily Technician reviews for an
+# Extra is a treadmill that gets switched off. So a pool at or below the class
+# held is kept, not drilled:
+#
+#   - a question comes round when its recall has likely fallen to 80%, not
+#     90% - which is about twice the spacing, for the same one glance;
+#   - a question right on first sight goes out a month, and the ceiling is a
+#     year;
+#   - and the pool is sampled the way the exam samples it, one question from
+#     a group. Right, and the whole group counts as holding; wrong, and that
+#     group opens up for closer work until it is put right.
+#
+# Nothing piles up. Time away makes more groups worth a look, and a day's
+# keeping is still a short set.
+KEEP_RETENTION = 0.80
+KEEP_FIRST_DAYS = 30.0
+KEEP_MAX_INTERVAL = 365.0
+KEEP_DAILY = 15          # questions a day, at most, in the keeping drill
+KEEP_OPEN_LAST = 3       # a miss among a group's last three keeps it open
+GLOW_FLOOR = 0.30        # a group once worked never fades below this
+
 
 def grade(correct, ms):
     """Map an answer onto SM-2's 0-5 quality scale."""
@@ -59,8 +84,14 @@ def grade(correct, ms):
     return 3
 
 
-def schedule(card, quality, now=None, rng=None):
+def schedule(card, quality, now=None, rng=None, keeping=False):
     """Return the updated scheduling fields for a card after one answer.
+
+    ``keeping`` is for a pool somebody already holds the license for - see
+    KEEP_RETENTION below. A question answered right on first sight there is
+    known, not new, and goes straight out to a month; a right answer after a
+    long gap is credited with the gap it actually survived; and the ceiling
+    is a year rather than half of one. A miss is a miss either way.
 
     Two things separate this from a plain SM-2 ladder, and both exist because
     a schedule that is punishing is a schedule that gets abandoned.
@@ -100,6 +131,22 @@ def schedule(card, quality, now=None, rng=None):
         # days that slips is not the same as one never seen.
         interval = max(RELEARN_DAYS, interval * LAPSE_KEEP)
         due_in = RELEARN_DAYS
+    elif keeping:
+        if reps == 0 and lapses:
+            interval = max(1.0, interval)
+        elif reps == 0:
+            # Right the first time it is asked, from somebody who passed the
+            # exam it is on: that is a question they know. The 1-day and
+            # 4-day steps are for learning it, and there is nothing to learn.
+            interval = KEEP_FIRST_DAYS
+        else:
+            # Credit the gap it actually survived. Somebody back after four
+            # months who still has it has shown four months, not the ten
+            # days the schedule had asked for.
+            held = max(interval, _elapsed_days(card, now))
+            interval = min(KEEP_MAX_INTERVAL, held * ease)
+        reps += 1
+        due_in = interval
     else:
         if reps == 0 and lapses:
             # Recovering from a lapse: resume at the remembered spacing rather
@@ -434,8 +481,13 @@ DAILY_NEW = 20
 DAILY_REVIEW = 120
 
 
-def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW):
+def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW,
+             keeping=False):
     """How much of today's drill is left, counted separately.
+
+    Keeping a pool is budgeted from one small pot, KEEP_DAILY, because
+    there is no new material in it - an unseen question there is a sample
+    of a group already passed, not something to learn.
 
     Counts distinct questions rather than answers, so a card seen twice in one
     session - which relearning makes ordinary - does not eat two of the day's
@@ -466,6 +518,15 @@ def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW):
     fresh = {q for q in done - older if first_mode[q] == "drill"}
     fresh_done = len(fresh)
     review_done = len(done - fresh)
+    if keeping:
+        both = fresh_done + review_done
+        return {
+            "new_done": fresh_done, "review_done": review_done,
+            "new_left": max(0, KEEP_DAILY - both), "review_left": max(0, KEEP_DAILY - both),
+            "left": max(0, KEEP_DAILY - both),
+            "new_limit": KEEP_DAILY, "review_limit": KEEP_DAILY,
+            "done": both >= KEEP_DAILY, "keeping": True,
+        }
     return {
         "new_done": fresh_done, "new_left": max(0, new_limit - fresh_done),
         "review_done": review_done,
@@ -473,3 +534,159 @@ def day_plan(conn, pool_id, new_limit=DAILY_NEW, review_limit=DAILY_REVIEW):
         "new_limit": new_limit, "review_limit": review_limit,
         "done": fresh_done >= new_limit and review_done >= review_limit,
     }
+
+
+# --- what has faded, and the groups -----------------------------------------
+
+def recall(card, now=None):
+    """How likely this card is to be answered right now, 0..1, from the
+    forgetting curve alone - or None for a card never answered.
+
+    This, not a due date, is what decides what is worth a look. A due date
+    turns time away into a pile; a recall estimate just says which answers
+    have most likely slipped, and a set of ten is the ten lowest whether
+    somebody was away a day or a season. A card last answered wrong is the
+    most faded of all: 0.
+    """
+    if not card or not card["seen"]:
+        return None
+    if missed_last(card):
+        return 0.0
+    interval = card["interval"] or 0.0
+    if interval <= 0:
+        return 0.0
+    return math.exp(-DECAY * _elapsed_days(card, now or utcnow()) / interval)
+
+
+def target(keeping=False):
+    """The recall at which a question is worth a look again."""
+    return KEEP_RETENTION if keeping else TARGET_RETENTION
+
+
+def brush_up_order(pool, cards, per_question, now=None, sections=None,
+                   keeping=False, rng=None, limit=200):
+    """The Brush up queue: what has faded first - every one of them, most
+    faded first - then what has been answered but is weakest, then what has
+    never been met.
+
+    It used to sort on seen-then-skill alone, which put a question that had
+    slipped behind one merely thin, so the answers most likely to have been
+    lost were not the ones asked first.
+    """
+    now = now or utcnow()
+    rng = rng or random
+    bar = target(keeping)
+    faded, thin, unseen = [], [], []
+    for q in pool.questions:
+        if sections and q["section"] not in sections:
+            continue
+        card = cards.get(q["id"])
+        r = recall(card, now)
+        if r is None:
+            unseen.append((q["id"], round(per_question.get(q["id"], 0.0), 3)))
+        elif r < bar:
+            faded.append((q["id"], round(r, 2)))
+        else:
+            thin.append((q["id"], round(per_question.get(q["id"], 0.0), 3)))
+    for group in (faded, thin, unseen):
+        rng.shuffle(group)          # ties come out differently each time
+        group.sort(key=lambda x: x[1])
+    order = [i for i, _ in faded] + [i for i, _ in thin] + [i for i, _ in unseen]
+    return order[:limit] if limit else order
+
+
+def _last_seen(card):
+    return (card["last_seen"] or "") if card else ""
+
+
+def group_state(pool, cards, section, now=None, keeping=False):
+    """One question group - a section, T5C and the like - as Worked All
+    Groups sees it, and as keeping samples it.
+
+      worked  a question in it has been answered right, ever. Like a state
+              for WAS, it is not taken away.
+      recall  the best recall among its questions last answered right: the
+              group's evidence that it is still held. None if there is none.
+      glow    0..1 for the map: 1 while it holds, dimming as it fades, never
+              below GLOW_FLOOR once worked, 0 if never worked.
+      open    a miss among the group's last KEEP_OPEN_LAST answered
+              questions, not yet worked past: it wants closer work.
+    """
+    now = now or utcnow()
+    mine = [cards.get(q["id"]) for q in pool.by_section.get(section, [])]
+    mine = [c for c in mine if c and c["seen"]]
+    worked = any((c["correct"] or 0) > 0 for c in mine)
+    held = [recall(c, now) for c in mine if not missed_last(c)]
+    held = [r for r in held if r is not None]
+    best = max(held) if held else None
+    recent = sorted(mine, key=_last_seen, reverse=True)[:KEEP_OPEN_LAST]
+    # Open while the miss is still wrong, or put right only once: a group
+    # that caught somebody out gets a couple more of its questions before
+    # it is trusted again.
+    opened = any(missed_last(c) or ((c["lapses"] or 0) and (c["reps"] or 0) <= 1)
+                 for c in recent)
+    if not worked:
+        glow = 0.0
+    elif best is None:
+        glow = GLOW_FLOOR
+    else:
+        glow = max(GLOW_FLOOR, min(1.0, best / target(keeping)))
+    return {"code": section, "worked": worked, "recall": best,
+            "glow": round(glow, 2), "open": bool(opened)}
+
+
+def groups(pool, cards, now=None, keeping=False):
+    """Every group in the pool, in the pool's order, and how many are worked."""
+    now = now or utcnow()
+    rows = [dict(group_state(pool, cards, code, now, keeping),
+                 title=pool.section_title(code))
+            for code in pool.section_order if pool.by_section.get(code)]
+    return {"groups": rows, "worked": sum(1 for g in rows if g["worked"]),
+            "total": len(rows)}
+
+
+def keeping_queue(pool, cards, now=None, rng=None, left=None):
+    """What keeping a pool asks for next, and nothing else.
+
+    In order: a question just missed, back within minutes; the questions of
+    a group that a miss has opened; and one question from each group whose
+    evidence has faded below KEEP_RETENTION - or that has none - most faded
+    first. Within a group the question asked is the one least recently met,
+    so over the seasons the whole pool comes round without anybody being
+    asked for all of it at once.
+
+    An empty queue is the good answer: everything held is holding.
+    """
+    from datetime import datetime
+    now = now or utcnow()
+    rng = rng or random
+    back, opened, sampled = [], [], []
+    for code in pool.section_order:
+        questions = pool.by_section.get(code) or []
+        if not questions:
+            continue
+        state = group_state(pool, cards, code, now, keeping=True)
+        for q in questions:
+            card = cards.get(q["id"])
+            if missed_last(card):
+                try:
+                    ready = datetime.fromisoformat(card["due"]) <= now if card["due"] else True
+                except ValueError:
+                    ready = True
+                if ready:
+                    back.append(q["id"])
+        if state["open"]:
+            more = [q for q in questions if not missed_last(cards.get(q["id"]))
+                    and (recall(cards.get(q["id"]), now) or 0.0) < KEEP_RETENTION]
+            rng.shuffle(more)
+            more.sort(key=lambda q: _last_seen(cards.get(q["id"])))
+            opened.extend(q["id"] for q in more)
+        elif state["recall"] is None or state["recall"] < KEEP_RETENTION:
+            pick = list(questions)
+            rng.shuffle(pick)
+            pick.sort(key=lambda q: _last_seen(cards.get(q["id"])))
+            sampled.append((pick[0]["id"], state["recall"] if state["recall"] is not None else -1.0))
+    rng.shuffle(sampled)
+    sampled.sort(key=lambda x: x[1])
+    order = back + [q for q in opened if q not in back] + [q for q, _ in sampled]
+    return order[:max(0, left)] if left is not None else order

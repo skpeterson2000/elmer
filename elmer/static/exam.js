@@ -148,7 +148,7 @@ function renderResults(r) {
           missed.length + ' you missed</a>'
         : '') +
       '<a class="btn' + (missed.length ? '' : ' primary') + '" href="/study/' + E.pool +
-        '?mode=weak">Drill the weak spots</a>' +
+        '?mode=weak">Brush up</a>' +
       '<a class="btn" href="/exam/' + E.pool + '">Another exam</a>' +
       '<a class="btn ghost" href="/progress/' + E.pool + '">Full progress</a>' +
     '</div>';

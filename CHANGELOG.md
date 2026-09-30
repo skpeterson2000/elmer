@@ -5,6 +5,12 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-09-30
+
+- Study no longer keeps a pile. Nothing says "due" or "overdue" and no count of what is waiting is shown: what comes back is what has most likely faded, questions come in sets of ten with a break to say how it went, and time away costs nothing. **Weak spots** is **Brush up**, and asks everything that has faded first - all of it, most faded first - then the weakest, then the unmet; **Needs review** is **Put right**. A pool your license already covers is kept rather than drilled: one question from each group now and then, the way the exam samples it, a month out when you know it, a year at most, and more only in a group where one has slipped - fifteen questions a day at most, and none when everything is holding. **Learn it in full instead** puts a pool back on the full drill. The Progress page has a Worked All Groups map and each pool a Worked All badge. The short milestones are counted quietly for somebody already licensed, and there are longer streaks: weeks running, and mock exams in a row with no more than two missed, or perfect.
+
+- The Local clock can be 24-hour: **Local time in 24-hour** in the Station panel. Both clocks are a little bigger, with more room between them.
+
 ## 2026-09-28
 
 - Golf: one real wind over the course. Each hole's wind was its card's word, fixed to the hole's tee-to-green line, so a dogleg's second shot felt the drive's wind and the Old Course's front holes were downwind every round. The round's wind now has a direction - the forecast's at the real course, else its prevailing wind (south-west at St Andrews, north-west off the Pacific at Pebble Beach) drawn around, and anywhere at Augusta - and each shot feels it along the line it is played on, from the hole's real line on the course map. The table, the phone and the map's arrow show the wind on the shot being played.
