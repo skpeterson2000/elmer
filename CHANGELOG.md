@@ -7,6 +7,10 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- The antenna chosen on the Band Plan now reaches the Lab by the **Set up an antenna for this** button as well. The button sent the band segment's activity - phone, CW - as the antenna kind, and the Lab, finding that was not your antenna, suggested one of its own in its place.
+
+- The Lab draws an inverted-V to scale: the apex at its height, each leg its real length at the droop set, the ends where the ends box says. It hung every V from one point, so a steeper droop drew shorter legs and the ends always sat near the grass. Drooped to the ground, the rest of each leg is drawn lying on it. The V's leg is one length everywhere - 445/f overall, about 5% short of a flat dipole, as the table prints - where the ends box, the NVIS height and the footprint worked from a flat dipole's 468/f.
+
 - Study no longer keeps a pile. Nothing says "due" or "overdue" and no count of what is waiting is shown: what comes back is what has most likely faded, questions come in sets of ten with a break to say how it went, and time away costs nothing. **Weak spots** is **Brush up**, and asks everything that has faded first - all of it, most faded first - then the weakest, then the unmet; **Needs review** is **Put right**. A pool your license already covers is kept rather than drilled: one question from each group now and then, the way the exam samples it, a month out when you know it, a year at most, and more only in a group where one has slipped - fifteen questions a day at most, and none when everything is holding. **Learn it in full instead** puts a pool back on the full drill. The Progress page has a Worked All Groups map and each pool a Worked All badge. The short milestones are counted quietly for somebody already licensed, and there are longer streaks of right answers: runs of 100, 250 and 500, and mock exams in a row with no more than two missed, or perfect.
 
 - The Local clock can be 24-hour: **Local time in 24-hour** in the Station panel. Both clocks are a little bigger, with more room between them.

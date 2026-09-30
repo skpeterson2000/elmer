@@ -867,8 +867,8 @@ def nvis_height_ft(mhz, kind):
     """How high to hang a horizontal antenna when the point is to go up."""
     wanted = NVIS_TARGET * wavelength_ft(mhz)
     if kind == "invertedv":
-        # Half of 468/f, the length each leg actually is.
-        leg = 234.0 / float(mhz)
+        # Half of V_CUT/f, the length each leg actually is.
+        leg = V_CUT / 2.0 / float(mhz)
         wanted += V_CENTROID * leg * math.sin(math.radians(DEFAULT_DROOP_DEG))
     # On 160 m a fifth of a wave is 106 ft, which is "deliberately low" only
     # in the arithmetic. NVIS is forgiving of being lower than its ideal - the
@@ -1170,7 +1170,7 @@ def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None, end_
         return round(half)
     if kind == "invertedv":
         droop = DEFAULT_DROOP_DEG if droop_deg is None else float(droop_deg)
-        return round(half * math.cos(math.radians(droop)))
+        return round(V_CUT / mhz * math.cos(math.radians(droop)))
     if kind == "loop":
         return round(1005.0 / mhz / 4.0)
     if kind in ("tefv", "termsloper") and length_ft:
@@ -1633,10 +1633,15 @@ def v_free_space_ohms(droop_deg):
     return FREE_SPACE_OHMS - 36.0 * x - 21.0 * x * x
 
 
-# Half of 468/f is the length each leg actually is: 234/f feet against a
-# wavelength of 983.571/f, so a leg is this fraction of a wave whatever the
-# band, and the drop below the apex is too.
-V_LEG_WL = 234.0 / 983.571
+# An inverted V is cut about 5% short of a flat dipole - its drooping legs
+# load it - so its overall length is V_CUT/f feet, the figure the Lab's table
+# prints, and each leg half that. The Lab's ends-and-droop geometry, its
+# drawing and this module all cut the same wire; this took a leg of 234/f,
+# a flat dipole's, while the table said to cut 222.5/f.
+V_CUT = 445.0
+# Against a wavelength of 983.571/f a leg is this fraction of a wave whatever
+# the band, and the drop below the apex is too.
+V_LEG_WL = V_CUT / 2.0 / 983.571
 
 
 def v_centroid_drop_wl(droop_deg):

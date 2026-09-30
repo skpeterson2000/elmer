@@ -12,7 +12,7 @@ which read as the steep ray reaching that far; the degree sign after the
 heading box sat on a line of its own; "12:1, fed here" had the wire drawn
 through it, and a town's name sat on the compass's E. What is held here:
 
-  - each wire antenna's footprint - a dipole's 468/f, an inverted-V's legs at
+  - each wire antenna's footprint - a dipole's 468/f, an inverted-V's 445/f of legs at
     their droop, a terminated wire's legs down from its mast to the end
     posts - against the site's usual straight run, and what to do when it
     does not fit: for this one, the longest terminated wire the lot takes;
@@ -69,7 +69,7 @@ def the_arithmetic():
            any(w.startswith("Bend it") for w in A.fit("dipole", 1.843, "small")["instead"])), (254, False, True))
     check("a 20 m dipole fits a small lot", A.fit("dipole", 14.2, "small")["fits"], True)
     check("an inverted-V's legs are laid out at their droop: 80 m at 35 degrees",
-          A.footprint_ft("invertedv", 3.8, droop_deg=35), round(468 / 3.8 * 0.8192))
+          A.footprint_ft("invertedv", 3.8, droop_deg=35), round(445 / 3.8 * 0.8192))
     check("verticals, beams and whips are not held to a length",
           [A.fit(k, 1.843, "small") for k in ("quarter", "yagi", "whip")], [None, None, None])
     check("  nor is the tower site, which has room", A.fit("dipole", 1.843, "tower"), None)

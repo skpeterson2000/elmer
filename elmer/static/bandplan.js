@@ -2296,8 +2296,12 @@ function segCardHTML(a, band, forPick) {
              reading the Extra plan and clicking through was being answered
              against whatever their profile happened to hold, which is a
              different question from the one they were looking at. */
+          /* No kind= either. It carried the segment's activity - phone,
+             CW, calling - which the Lab read as an antenna, found was not
+             the one chosen on the map, and so suggested one in its place:
+             the antenna picked here never arrived. The Lab reads the
+             station's antenna for itself. */
           '<a class="btn sm primary" href="/lab?f=' + segMiddle(a).toFixed(3) +
-            '&kind=' + encodeURIComponent(a.kind) +
             '&class=' + encodeURIComponent(bpClass()) +
             '#ant">Set up an antenna for this →</a>' +
           '<a class="btn sm ghost" href="/propagation">Full conditions</a>' +

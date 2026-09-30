@@ -12,6 +12,9 @@ opened inside the Band Plan so all three are one browser's pages:
   - chosen on the Band Plan - kind, height, which way it is laid, ground -
     the Lab opens on it, as a choice it evaluates, and the analyzer opens on
     its kind;
+  - and so it does by the Band Plan's own "Set up an antenna for this"
+    button, which carried the segment's activity (phone, cw) as the kind -
+    and the Lab, taking that for an antenna, suggested one over the choice;
   - changed in the Lab, the Band Plan open beside it follows at once;
   - the Band Plan offers every antenna the Lab does;
   - a coax cable picked on the analyzer is not taken for the antenna;
@@ -78,6 +81,14 @@ new Promise(async resolve => {
   await nap(800);
   out.lab = {type: LD.getElementById('an-type').value, h: LD.getElementById('an-h').value,
              head: LD.getElementById('an-head').value, byHand: L.eval('anTypeByHand')};
+  // By the button on a picked segment, which used to send kind=phone.
+  const viaLink = await frame('/lab?f=7.200&kind=phone&class=General#ant');
+  const VL = viaLink.contentWindow, VD = viaLink.contentDocument;
+  await until(() => typeof VL.antennaFields === 'function' && VD.getElementById('an-type').value, 10000);
+  await nap(1500);
+  out.viaLink = {type: VD.getElementById('an-type').value, h: VD.getElementById('an-h').value,
+                 byHand: VL.eval('anTypeByHand')};
+  viaLink.remove();
   // Changed in the Lab: the Band Plan beside it follows.
   const setL = (id, v) => { const el = LD.getElementById(id); el.value = v; el.dispatchEvent(new L.Event('input')); };
   setL('an-type', 'yagi'); await nap(300); setL('an-h', '55'); await nap(600);
@@ -151,6 +162,12 @@ def main():
     check("the Lab opens on it, height and heading and all",
           (lab.get("type"), lab.get("h"), lab.get("head")), ("invertedv", "40", "120"))
     check("  as a choice, which it evaluates rather than suggests over", lab.get("byHand"), True)
+    via = got.get("viaLink") or {}
+    check("by the band's own button too, with an old link's kind=phone ignored",
+          (via.get("type"), via.get("h"), via.get("byHand")), ("invertedv", "40", True))
+    bp = (ROOT / "elmer" / "static" / "bandplan.js").read_text(encoding="utf-8")
+    check("  and the button no longer sends the segment's activity as a kind",
+          "'&kind=' + encodeURIComponent(a.kind)" in bp, False)
     print("\n-- changed in the Lab --")
     after = got.get("afterLab") or {}
     check("the Band Plan open beside it follows", (after.get("bandplan"), after.get("h")), ("yagi", "55"))

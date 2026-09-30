@@ -662,7 +662,7 @@ function derivation(type, f, k, rows) {
 
   const kind = {
     dipole: ['&divide; 2', 2, 'A dipole is half a wave: two quarter-wave legs, fed in the middle.'],
-    invertedv: ['&divide; 2', 2, 'Same half wave as a dipole - the droop changes the pattern and the feedpoint, not the length.'],
+    invertedv: ['&divide; 2', 2, 'Same half wave as a dipole to start with. The droop changes the pattern and the feedpoint - and the length, a little: see the last line.'],
     efhw: ['&divide; 2', 2, 'An end-fed half wave is the same half wavelength of wire, fed at the end instead of the middle.'],
     bowtie: ['&divide; 2', 2, 'Still a half wave overall. The width is what buys the bandwidth; it does not change the resonant length much.'],
     quarter: ['&divide; 4', 4, 'A quarter-wave vertical is half an antenna - the ground plane is the other half, which is why the radials matter.'],
@@ -714,6 +714,15 @@ function derivation(type, f, k, rows) {
       'line above - inside the error of your tape and far inside what a ' +
       'gutter or a wet tree will shift it. Cut to either and trim on the ' +
       'analyser; that is what the trimming is for.');
+    if (type === 'invertedv') {
+      steps += step(V_CUT + ' &divide; ' + f.toFixed(3) + ' &times; ' + (k / 0.95).toFixed(4),
+        asLen((V_CUT / f) * (k / 0.95)).toFixed(2) + LEN_U,
+        'What the table prints for a V: about 5% shorter than the flat dipole. ' +
+        'Legs that droop toward each other and toward the ground load the ' +
+        'wire, and it resonates short - so the usual practice is ' + V_CUT +
+        ' &divide; f, cut a little long anyway, and trimmed on the analyser ' +
+        'once it is up at the angle it will live at.');
+    }
   }
 
   return '<details class="derivation"><summary class="tiny">' +
@@ -728,6 +737,11 @@ function derivation(type, f, k, rows) {
 }
 
 /* -------------------------------------------------------------- antennas */
+
+/* An inverted-V's overall length, feet x MHz: the flat dipole's 468 cut
+   about 5% short, because the drooping legs load it. One constant, so the
+   table, the derivation and the ends-and-droop geometry cut the same wire. */
+const V_CUT = 445;
 /* Lengths use the practical constants the pools teach (468/f and friends),
    which already allow for end effect on real wire. Gain figures are honest
    estimates for a competent build, not manufacturer claims. */
@@ -821,7 +835,7 @@ const ANTENNAS = {
   // which is a comparison of pointability rather than of gain.
   invertedv: {shape: 'wire', label: 'Inverted-V dipole', gain: -1.0, z: 50,
     ref: FREE_SPACE,
-    build: f => ({'Overall length': 445 / f, 'Each leg': 222.5 / f})},
+    build: f => ({'Overall length': V_CUT / f, 'Each leg': V_CUT / 2 / f})},
   efhw: {shape: 'wire', label: 'End-fed half wave', gain: 0, z: 2400,
     ref: FREE_SPACE,
     build: f => ({'Wire length': 468 / f})},
@@ -1046,8 +1060,11 @@ let endsHeld = false;
    end-fed's whole length, cut for the conductor on screen. */
 function endsWire(type, f) {
   const k = (COND && COND.k) || 0.95;
-  const whole = 468 / f * k / 0.95;
-  return type === 'invertedv' ? whole / 2 : whole;
+  /* A V's leg is the table's: 445/f overall, cut about 5% short of a flat
+     dipole. This took 468/f, so the ends and the droop were worked from a
+     leg a foot and a half longer on 40 m than the one the table said to cut. */
+  if (type === 'invertedv') return V_CUT / f / 2 * k / 0.95;
+  return 468 / f * k / 0.95;
 }
 
 /* A terminated wire's end height: the box, or the handbook's posts. */
@@ -2036,10 +2053,45 @@ function drawAntenna(shape, rows, type) {
         lbl(310, yMid + 24, 'feed at the middle') +
         lbl(x2, top - 10, 'high end') + lbl(x1, yLow + 16, 'low end') +
         lbl((310 + x2) / 2, (top + yMid) / 2 - 10, slope + '\u00b0');
+    } else if (type === 'invertedv') {
+      /* To scale: the apex at its height, each leg its real length at the
+         droop set, one scale for both directions. It used to hang every V
+         from the same point with a fixed drop, so a steeper droop drew
+         shorter legs - the same wire, half as long at 60 degrees as at 10 -
+         and the ends sat by the grass whatever the apex was. Now the picture
+         is the numbers in the table: raise the apex and the ends come up
+         with it; droop it past where the ends meet the ground and the rest
+         of each leg is drawn lying on the grass, which is what it would do. */
+      const leg = rows['Each leg'] || 1;
+      const apex = Math.max(1, num('an-h') || 0);
+      const rad = antAngle() * Math.PI / 180;
+      const endsFt = apex - leg * Math.sin(rad);
+      const grounded = endsFt < 0;
+      const air = grounded ? apex / Math.sin(rad) : leg;          // leg length in the air
+      const out1 = air * Math.cos(rad);                           // across, to where it leaves the air
+      const across = out1 + (grounded ? leg - air : 0);           // and any of it on the grass
+      const sc = Math.min(250 / Math.max(1, across), (g - 45) / apex);
+      const yA = g - apex * sc;
+      const yE = grounded ? g : g - endsFt * sc;
+      const side = s => {
+        const x1 = 310 + s * out1 * sc, x2 = 310 + s * across * sc;
+        return x1 + ',' + yE + (grounded ? ' ' + x2 + ',' + g : '');
+      };
+      body =
+        '<line x1="310" y1="' + yA + '" x2="310" y2="' + g + '" stroke="#2a3441" stroke-width="3"/>' +
+        '<polyline data-vee="1" points="' + side(-1).split(' ').reverse().join(' ') + ' 310,' + yA + ' ' +
+          side(1) + '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="310" cy="' + yA + '" r="5" fill="#58a6ff"/>' +
+        lbl(310, yA - 10, 'feed at the apex, ' + apex.toFixed(0) + ' ft') +
+        lbl(310 + out1 * sc / 2 + 8, (yA + yE) / 2 - 6, 'leg ' + leg.toFixed(1) + ' ft', 'start') +
+        lbl(310 - out1 * sc / 2 - 8, (yA + yE) / 2 - 6, Math.round(antAngle()) + '\u00b0 droop', 'end') +
+        (grounded ? lbl(310 + across * sc, g - 8, 'ends on the ground', 'end')
+                  : lbl(310 + out1 * sc, Math.min(g - 6, yE + 18), 'ends ' + endsFt.toFixed(1) + ' ft')) +
+        lbl(W / 2, g + 32, (2 * across).toFixed(0) + ' ft end to end \u00b7 drawn to scale');
     } else {
       /* The droop follows the slider now, rather than a fixed 55 pixels that
          made the V look the same at 5 degrees as at 60. */
-      const t = type === 'invertedv' ? tilt(antAngle(), 95) : {span: 200, drop: 0};
+      const t = {span: 200, drop: 0};
       const x1 = 310 - t.span, x2 = 310 + t.span;
       body = '<line x1="' + x1 + '" y1="' + (y + t.drop) + '" x2="310" y2="' + y + '" stroke="#ffb454" stroke-width="2.5"/>' +
         '<line x1="310" y1="' + y + '" x2="' + x2 + '" y2="' + (y + t.drop) + '" stroke="#ffb454" stroke-width="2.5"/>' +
@@ -3755,7 +3807,12 @@ const recallAntenna = () => recall('lab.antenna', null);
        a different question from the one on the screen they left. */
     const asClass = q.get('class');
     if (asClass) { anAsClass = asClass; anClassFrom = 'bandplan'; }
-    const ctx = {mhz: f, use: q.get('use') || '', kind: q.get('kind') || '',
+    /* Only an antenna is a kind. An older link, or a bookmark of one,
+       sends the band segment's activity - phone, cw - which is not, and
+       taken for one it outranked the antenna chosen on the Band Plan. */
+    const askedKind = q.get('kind') || '';
+    const ctx = {mhz: f, use: q.get('use') || '',
+                 kind: ANTENNA_KINDS.includes(askedKind) ? askedKind : '',
                  asClass: asClass || ''};
     // The station's antenna, when it is the one asked about (or none was):
     // evaluated as it stands rather than suggested over.
@@ -3772,6 +3829,8 @@ const recallAntenna = () => recall('lab.antenna', null);
      what was last set up, without stealing the tab - somebody arriving at
      #smith wanted the Smith chart. */
   const ctx = recallAntenna();
+  // A kind remembered from one of those links was an activity, not an antenna.
+  if (ctx && ctx.kind && !ANTENNA_KINDS.includes(ctx.kind)) ctx.kind = '';
   // The antenna chosen last, wherever it was chosen - the Band Plan, the
   // analyzer or here - is the one on the form.
   const mine = labApplyStation();

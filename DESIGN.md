@@ -2774,7 +2774,7 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   small lot 70, an attic 40 (`room_ft` in `antenna_advice.SITES`, said as
   "usually", and "if yours is longer, it is yours that counts"), and every
   wire antenna has a footprint (`antenna_advice.footprint_ft`): a dipole or
-  an end-fed half wave 468/f, an inverted-V its legs laid out at their droop,
+  an end-fed half wave 468/f, an inverted-V its 445/f of legs laid out at their droop,
   a full-wave loop a square a quarter wave on a side, a terminated wire its
   legs from the mast top down to the 6 ft end posts - so the same wire covers
   less ground from a taller mast. When it does not fit the Lab says so, by how
@@ -5343,6 +5343,23 @@ and a cable picked on the analyzer is a cable being measured, not the
 station's antenna. The Band Plan offers all fifteen antennas the Lab does,
 where it had nine. Watts and mode are not the antenna and stay with the page
 that set them. Per browser, like everything remembered about where you were.
+
+The Band Plan's **Set up an antenna for this** button sent `kind=` - the
+picked segment's activity, phone or cw - and the Lab took it for an antenna,
+found it was not the one on the record, and suggested one in its place, so
+the antenna chosen on the map never arrived by the button that says it will.
+The button sends no kind now, and the Lab ignores one that is not an antenna
+(`ANTENNA_KINDS`), from an old link or a remembered one.
+
+**One inverted V.** The Lab's table cut a V to 445/f (`V_CUT`), about 5%
+short of a flat dipole because the drooping legs load it; its ends-and-droop
+geometry, and the server's NVIS apex, effective-height drop and footprint
+(`antenna_advice.V_CUT`, `V_LEG_WL`), all worked from a flat dipole's 468/f,
+so the ends box was a foot and a half of leg out on 40 m. One constant now,
+and the derivation shows the step. The drawing is to scale: it used to hang
+every V from one point with a fixed drop, so a steeper droop drew shorter
+legs and the ends sat by the grass whatever the apex. Drooped to the ground,
+the rest of each leg is drawn lying on it.
 
 The top bar carries two clocks, Local and Zulu. Every QSO, net, contest
 and spot is in UTC, and working it out from local in your head at the moment

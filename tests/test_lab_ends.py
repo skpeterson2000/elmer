@@ -141,14 +141,15 @@ def the_lab():
             server.wait(timeout=10)
         except subprocess.TimeoutExpired:
             server.kill()
-    leg = 468 / 7.15 / 2
+    leg = 468 / 7.15 / 2          # a flat dipole's half, for the sloper
+    vleg = 445 / 7.15 / 2         # a V's leg: cut 5% short, lab.js V_CUT
     check("a V asks where its ends are tied off", (got.get("vShown"), got.get("vLabel")), (True, "Ends tied off at (ft)"))
     check("  ends at 20 ft from a 35 ft apex set the droop, on both sliders",
-          (got.get("vDroop"), got.get("vMirror")), (str(round(math.degrees(math.asin(15 / leg)))),) * 2)
+          (got.get("vDroop"), got.get("vMirror")), (str(round(math.degrees(math.asin(15 / vleg)))),) * 2)
     check("  raising the apex to 40 keeps the ends and steepens the droop",
-          (got.get("vEndsHeld"), got.get("vDroopAfterRaise")), ("20", str(round(math.degrees(math.asin(20 / leg))))))
+          (got.get("vEndsHeld"), got.get("vDroopAfterRaise")), ("20", str(round(math.degrees(math.asin(20 / vleg))))))
     check("  and moving the slider sets the ends instead",
-          got.get("vEndsFromSlider"), str(round((40 - leg * math.sin(math.radians(20))) * 10) / 10))
+          got.get("vEndsFromSlider"), str(round((40 - vleg * math.sin(math.radians(20))) * 10) / 10))
     check("a sloping dipole asks for its low end, which is its height while flat",
           (got.get("dLabel"), got.get("dFlatEnds")), ("Low end tied off at (ft)", "40"))
     check("  and a low end at 10 ft from a 40 ft support is its slope",
