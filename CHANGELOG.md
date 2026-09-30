@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- Moving a slider in the Lab keeps evaluating your antenna at your height. It re-asked as a suggestion, without the height, so the answer fell back on a small lot's usual 22 ft and told somebody with a 40 ft support "what fits here is 22 ft".
+
 - The Lab starts from the antenna you have. Say what it is **Cut for** - in the Lab, or beside the antenna on the Band Plan - and ask about another band, and it shows how to get that antenna there instead of designing a new one: it may already work there; add wire with a link at each end; feed it as a Marconi T, the classic way a dipole gets onto 160 m; a coil in each leg; ladder line and a tuner; jumpers or traps for a band above - each with its feet, microhenries and about what it gives up. Then which of your modes close the path to where you are **Trying to reach**, now and after dark, and the other bands where your antenna works right now. The small-lot note ends on the ways to get more out of a low wire, not on "the fix is height or a different antenna".
 
 - **Set up an antenna for this** on the Band Plan now opens the Lab on your antenna at that band's frequency. The Lab kept the antenna but left its own 14.200 in the frequency box, so the advice spoke of 160 m while the dimensions, the drawing and the pattern were a 20 m wire. A terminated vee chosen there keeps its height, where the handbook's 50 ft mast replaced it. On a small lot with a taller support than such lots usually have, your height counts: a 40 ft support was told "what fits here is 22 ft" and offered 22. The library line no longer reads "In your library: . Search it." with no book in it.

@@ -81,6 +81,12 @@ new Promise(async resolve => {
   out.cut = D.getElementById('an-cut').value;
   out.first = (() => { const a = D.getElementById('an-advice'); const kids = a ? [...a.querySelectorAll('.nvis')] : [];
                        return kids.length ? kids[0].id : ''; })();
+  // A slider moved afterwards: still an evaluation of this antenna at its
+  // own height, never the small lot's usual 22 ft.
+  const ang = D.getElementById('an-angle'); ang.value = '20';
+  ang.dispatchEvent(new f.contentWindow.Event('input'));
+  await nap(1500);
+  out.afterSlider = (D.getElementById('an-advice') || {}).innerText || '';
   if (box) { const top = box.getBoundingClientRect().top + f.contentWindow.scrollY;
              f.contentWindow.scrollTo(0, Math.max(0, top - 150)); await nap(300); }
   resolve(JSON.stringify(out));
@@ -172,6 +178,10 @@ def main():
     check("the Lab leads with that antenna on this band",
           ("Your 40 m antenna on 160 m" in text.replace("YOUR 40 M ANTENNA ON 160 M", "Your 40 m antenna on 160 m"),
            got.get("first")), (True, "an-adapt"))
+    after = got.get("afterSlider") or ""
+    check("a slider moved keeps the operator's 40 ft, not the lot's usual 22",
+          ("what fits here is 22" in after, "Your setup" in after, "Your 40 m antenna on 160 m" in after
+           or "YOUR 40 M ANTENNA ON 160 M" in after), (False, True, True))
     check("  the ways, the modes now and after dark, and where it works now",
           ("Marconi T" in text, "after dark" in text, "as it is" in text), (True, True, True))
 

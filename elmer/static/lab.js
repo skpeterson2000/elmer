@@ -3462,8 +3462,14 @@ function powerHTML(d) {
 function refreshAdvice() {
   const box = document.getElementById('an-advice');
   if (!box || box.hidden) return;
+  /* Still an evaluation of the antenna on screen, when it is somebody's:
+     chosen by hand, or at a height they typed. A slider moved on a V from
+     the Band Plan re-asked as a suggestion, which sends no height - so the
+     answer fell back on the small lot's usual 22 ft and told somebody with
+     a 40 ft support "what fits here is 22 ft", beside their own 45. */
+  const theirs = anTypeByHand || !anHeightSuggested;
   antennaAdvice(num('an-f'), document.getElementById('an-use').value,
-                document.getElementById('an-type').value, true);
+                document.getElementById('an-type').value, theirs ? 'evaluate' : true);
 }
 
 /* Whether the operator may key up where this antenna is being cut for.
