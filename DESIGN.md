@@ -2777,12 +2777,20 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   an end-fed half wave 468/f, an inverted-V its 445/f of legs laid out at their droop,
   a full-wave loop a square a quarter wave on a side, a terminated wire its
   legs from the mast top down to the 6 ft end posts - so the same wire covers
-  less ground from a taller mast. When it does not fit the Lab says so, by how
-  much, and what does: bend or load a dipole, droop a V further, make a loop a
-  triangle, a vertical on the low bands, and for a terminated wire the longest
-  the lot takes from that mast - said as a fraction of a wavelength, with the
-  band it would suit, when it is too short to be anything but the resistor's
-  antenna here. Verticals, beams and whips are not held to a length, and nor
+  less ground from a taller mast. A short lot is a problem to solve, not a
+  verdict: the box is **Making it fit** (it said "It does not fit", which read
+  as the program giving up), and each way is worked out for this wire on this
+  lot - the straight run and where each end goes, down the support and along
+  the fence or the rafters, in feet; the droop that brings a V in whole, or
+  the slope that takes each leg to head height (`END_CLEAR_FT`) at the lot's
+  edge; a coil for each leg (`loading_uh`, the short-monopole figure
+  Z0 / tan(beta l) with Z0 = 60 (ln(2l/a) - 1) for #14 wire - a starting
+  figure, said as one); an inverted-L up the support and along below 10 MHz,
+  with the base coil it wants when it is short; a loop stretched to the lot;
+  the diagonal; a vertical on the low bands; and for a terminated wire the
+  longest the lot takes from that mast - said as a fraction of a wavelength,
+  with the band it would suit, when it is too short to be anything but the
+  resistor's antenna here. Verticals, beams and whips are not held to a length, and nor
   is the tower "and room for it".
 
   Where the ends are tied off is asked, not assumed. The Lab marked the

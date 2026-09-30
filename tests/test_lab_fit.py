@@ -18,7 +18,10 @@ through it, and a town's name sat on the compass's E. What is held here:
     does not fit: for this one, the longest terminated wire the lot takes;
   - verticals, beams and whips are not held to a length, nor is the tower
     site, which is "and room for it";
-  - the Lab says it does not fit, and what instead;
+  - a short lot is a problem to solve, not a verdict: the Lab says how to
+    make it fit - bent ends worked out for the lot, the coil each leg wants,
+    an inverted-L up the support and along, a V sloped to head height at
+    the lot's edge - and never just that it does not;
   - the compass says where the lobe lands before how far the lower rays go;
   - the degree sign keeps to its box, the feed's label clears the wire, and
     no town's name sits on a compass letter.
@@ -64,9 +67,29 @@ def the_arithmetic():
     check("  and on 160 m, a vertical", any("vertical" in w for w in f["instead"]), True)
     check("a taller mast shortens the run for the same wire",
           A.footprint_ft("tefv", 1.843, 60, 250) < A.footprint_ft("tefv", 1.843, 18, 250), True)
-    check("a 160 m dipole is 468/f and does not fit either, and is told to bend or load",
-          (A.fit("dipole", 1.843, "small")["need_ft"], A.fit("dipole", 1.843, "small")["fits"],
-           any(w.startswith("Bend it") for w in A.fit("dipole", 1.843, "small")["instead"])), (254, False, True))
+    d160 = A.fit("dipole", 1.843, "small", height_ft=30)
+    check("a 160 m dipole is 468/f on a small lot, and is shown how to get it up",
+          (d160["need_ft"], d160["fits"], "goes up anyway" in d160["words"]), (254, False, True))
+    ways = " ".join(d160["instead"])
+    check("  bent ends, worked out: 66 ft straight, 94 ft each end, 22 ft of it down from 30 ft",
+          ("middle 66 ft" in ways, "last 94 ft" in ways, "down 22 ft" in ways), (True, True, True))
+    uh = A.loading_uh(1.843, 33)
+    check("  a coil for each 33 ft leg, from the short-monopole figure: about 115 uH",
+          (round(uh), f"about {uh:.0f}" in ways), (115, True))
+    check("  and an inverted-L up the support and along, with the base coil it wants",
+          "inverted-L" in ways and "30 ft up the support" in ways, True)
+    v = A.fit("invertedv", 1.843, "small", height_ft=22)
+    check("a V from 22 ft is sloped to head height at the lot's edge, the rest run along the fence",
+          any("down at 23 degrees" in w and "reaching 8 ft up" in w for w in v["instead"]), True)
+    v80 = A.fit("invertedv", 3.8, "small", height_ft=60)
+    check("  and one that can droop in whole is told the droop and where the ends land",
+          any(w.startswith("Droop it to 56 degrees") for w in v80["instead"]), True)
+    attic = " ".join(A.fit("dipole", 7.15, "attic")["instead"])
+    check("indoors it says rafters, not a fence, and no house to cross or radials to lay",
+          ("rafters" in attic, "fence" in attic, "over the house" in attic, "radials" in attic),
+          (True, False, False, False))
+    check("nothing anywhere says it does not fit",
+          any("not fit" in w for f_ in (d160, v, v80) for w in f_["instead"] + [f_["words"]]), False)
     check("a 20 m dipole fits a small lot", A.fit("dipole", 14.2, "small")["fits"], True)
     check("an inverted-V's legs are laid out at their droop: 80 m at 35 degrees",
           A.footprint_ft("invertedv", 3.8, droop_deg=35), round(445 / 3.8 * 0.8192))
@@ -103,7 +126,7 @@ new Promise(async resolve => {
   await nap(400);
   document.getElementById('an-advise').click();
   const advice = () => (document.getElementById('an-advice') || {}).innerText || '';
-  await until(() => advice().includes('It does not fit'), 10000);
+  await until(() => advice().includes('Making it fit'), 10000);
   const plan = () => document.querySelector('#an-pattern svg[data-plan]');
   await until(() => plan() && plan().dataset.type === 'tefv', 10000);
   await nap(800);
@@ -170,8 +193,9 @@ def the_lab():
         except subprocess.TimeoutExpired:
             server.kill()
     advice = got.get("advice") or ""
-    check("the small lot is told the vee does not fit, and by how much",
-          ("It does not fit" in advice, "249 ft" in advice, "70 ft" in advice), (True, True, True))
+    check("the small lot is shown how to make the vee fit, and by how much",
+          ("Making it fit" in advice, "249 ft" in advice, "70 ft" in advice), (True, True, True))
+    check("  and not told that it does not", "does not fit" in advice, False)
     check("  and what does: the longest wire the lot takes", "about 74 ft" in advice, True)
     check("the degree sign keeps to its box's line, in the list and beside the figure",
           got.get("degreeOnItsLine"), [True, True])

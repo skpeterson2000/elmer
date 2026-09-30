@@ -1189,10 +1189,47 @@ def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None, end_
 TW_END_FT = 6.0
 
 
+# Room left at each end of a straight run for the knot, the insulator and the
+# rope: a wire is never strung tip to tip across the whole lot.
+FIT_MARGIN_FT = 2.0
+# The lowest an end is worth bringing a wire to, for somebody bending one:
+# head height and a bit, out of reach.
+END_CLEAR_FT = 8.0
+# #14 wire, the Lab's default conductor: its radius in feet, for the loading
+# figures below.
+WIRE_RADIUS_FT = 0.064 / 2.0 / 12.0
+
+
+def loading_uh(mhz, leg_ft):
+    """The inductance, microhenries, that resonates a leg this short as a
+    quarter wave - a coil at the feed end of each leg of a shortened dipole,
+    or at the base of a short vertical. The short-monopole approximation:
+    the leg is a transmission line of characteristic impedance
+    60 (ln(2l/a) - 1), and the coil supplies the reactance its shortness
+    leaves, Z0 / tan(beta l). A starting figure for winding a coil and
+    trimming it, not a design; moved out along the leg a coil needs more
+    and radiates better."""
+    lam = wavelength_ft(mhz)
+    bl = 2.0 * math.pi * leg_ft / lam
+    if bl >= math.pi / 2.0 or leg_ft <= 0:
+        return None
+    z0 = 60.0 * (math.log(2.0 * leg_ft / WIRE_RADIUS_FT) - 1.0)
+    return z0 / math.tan(bl) / (2.0 * math.pi * mhz)
+
+
 def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=None):
-    """Whether this antenna fits where somebody lives, lengthwise, and if
-    not, what does. None where the site sets no length or the antenna asks
-    none of it."""
+    """Whether this antenna goes up where somebody lives, lengthwise, and if
+    the straight run is short, how to get it up anyway. None where the site
+    sets no length or the antenna asks none of it.
+
+    A short lot is a problem to solve, not a verdict. It used to say "It does
+    not fit" and offer a line each of "bend it" and "load it" - which reads
+    as the program giving up, and is no use to somebody standing in the
+    garden with the wire. So every way is worked out for this wire on this
+    lot: how much runs straight and where the rest goes, the droop that gets
+    a V in and where its ends land, the coil each leg wants, an inverted-L
+    up the support and along, a loop stretched to the lot's shape.
+    """
     room = room_ft(site)
     need = footprint_ft(kind, mhz, height_ft, length_ft, droop_deg, end_ft)
     if not room or not need:
@@ -1203,21 +1240,101 @@ def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=
     if out["fits"]:
         return out
     band = f"{mhz:g} MHz"
-    out["words"] = (f"This wants about {need} ft of ground in a straight line, and "
-                    f"{label[0].lower() + label[1:]} is {ROOM_NOTE % room}.")
-    instead = []
-    if kind in ("dipole", "bowtie", "efhw"):
-        instead.append("Bend it. An inverted-V from one support takes less ground, and the last "
-                       "sixth of each end can hang down, turn along a fence or run back toward "
-                       "the middle at little cost - the current, and the radiation, is in the middle.")
-        instead.append(f"Load it. Coils or linear loading shorten a {band} wire to what the "
-                       "yard has, for some bandwidth and a little loss.")
-    if kind == "invertedv":
-        instead.append("Droop it further. Steeper legs take less ground; past about 60 degrees the "
-                       "ends come near the ground and want to be well clear of people.")
+    h = float(height_ft) if height_ft else None
+    indoors = site == "attic"
+    along = "the rafters" if indoors else "the fence"
+    run = max(10.0, room - 2 * FIT_MARGIN_FT)          # the straight run the lot gives
+    out["words"] = (f"Straight, this wants about {need} ft, and {label[0].lower() + label[1:]} is "
+                    f"{ROOM_NOTE % room}. It goes up anyway - here is how, for this wire:")
+    ways = []
+
+    if kind in ("dipole", "bowtie", "invertedv", "efhw"):
+        wire = (V_CUT if kind == "invertedv" else 468.0) / mhz
+        if kind == "invertedv" and h:
+            leg = wire / 2.0
+            want = math.degrees(math.acos(min(1.0, run / wire)))
+            ends = h - leg * math.sin(math.radians(want))
+            if ends >= END_CLEAR_FT and want <= 70:
+                # Steep enough to come in whole.
+                ways.append(f"Droop it to {want:.0f} degrees. The legs then span {run:.0f} ft and the "
+                            f"ends come down to {ends:.0f} ft from a {h:.0f} ft apex - tie them off "
+                            "there, out of reach, since the ends are the high-voltage points.")
+            elif h > END_CLEAR_FT:
+                # Not whole: slope each leg to head height at the lot's edge,
+                # and run the rest along it at that height.
+                slope = math.degrees(math.atan((h - END_CLEAR_FT) / (run / 2.0)))
+                if droop_deg is not None and float(droop_deg) < slope:
+                    slope = float(droop_deg)
+                on = (run / 2.0) / math.cos(math.radians(slope))
+                at = h - (run / 2.0) * math.tan(math.radians(slope))
+                rest = leg - on
+                if rest > 0:
+                    ways.append(f"Bend the ends. Slope each leg down at {slope:.0f} degrees to the "
+                                f"edge of the lot, {on:.0f} ft of wire reaching {at:.0f} ft up, and run "
+                                f"the last {rest:.0f} ft of each along {along} at that height, or back "
+                                "toward the middle a few feet out from the wire. The sloping part "
+                                "near the apex carries the current and does nearly all the radiating; "
+                                f"it is still a half wave and still resonates on {band}. Cut long and "
+                                "trim on the analyzer.")
+        tail = (wire - run) / 2.0 if kind != "efhw" else wire - run
+        if tail > 0 and not (kind == "invertedv" and h):
+            down = max(0.0, (h or 0.0) - END_CLEAR_FT) if h else 0.0
+            down = min(down, tail)
+            rest = tail - down
+            where = (f"straight down {down:.0f} ft toward the ground"
+                     + (f", then the last {rest:.0f} ft along {along} or back toward the middle, a few "
+                        "feet out from the wire" if rest >= 1 else "")
+                     if down >= 1 else
+                     f"along {along} at a right angle, or back toward the middle a few feet out "
+                     "from the wire")
+            if kind == "efhw":
+                ways.append(f"Bend it. Run {run:.0f} ft straight from the feed and take the last "
+                            f"{tail:.0f} ft {where}. An end-fed will take almost any shape - up a "
+                            "tree, along a fence, round a corner - and still resonate; the straight "
+                            "part does most of the radiating, so give it the height.")
+            else:
+                ways.append(f"Bend the ends. Run the middle {run:.0f} ft straight - that is where the "
+                            f"current is, and where nearly all the radiating is done - and take the "
+                            f"last {tail:.0f} ft of each end {where}. It is still a half wave and "
+                            f"still resonates on {band}; it comes out a little short of the book "
+                            "figure, so cut long and trim on the analyzer.")
+        if kind != "efhw":
+            leg = run / 2.0
+            uh = loading_uh(mhz, leg)
+            if uh:
+                ways.append(f"Load it. Keep it to {run:.0f} ft end to end and put a coil in each "
+                            f"leg: about {uh:.0f} µH at the feed end of each, as a starting figure - "
+                            "moved out along the leg it needs more and radiates better. Loading costs "
+                            "bandwidth and a little loss, and it is how most short low-band dipoles are "
+                            "built.")
+        if mhz < 10.0:
+            q = 234.0 / mhz
+            up = h or 0.0
+            if up and up + run >= q:
+                ways.append(f"Go up, then along: an inverted-L. A quarter wave on {band} is {q:.0f} ft: "
+                            f"{up:.0f} ft up the support and {q - up:.0f} ft along the lot, fed at the "
+                            "bottom against radials or a counterpoise. On the low bands it is the "
+                            "classic small-lot antenna, and the vertical part is the part that gets "
+                            "out.")
+            elif up:
+                short = q - up - run
+                uh = loading_uh(mhz, up + run)
+                ways.append(f"Go up, then along: an inverted-L. {up:.0f} ft up the support and {run:.0f} ft "
+                            f"along the lot is {up + run:.0f} ft, {short:.0f} ft short of a quarter wave on "
+                            f"{band}" + (f"; about {uh:.0f} µH at the base makes up the difference" if uh else "")
+                            + ", fed against radials or a counterpoise. On the low bands it is the classic "
+                            "small-lot antenna.")
+
     if kind == "loop":
-        instead.append("Make it a triangle, or stand it on a corner - the wire is the same length "
-                       "and the footprint is not a square any more.")
+        per = 1005.0 / mhz
+        side = per / 2.0 - run
+        if side > 0 and side <= run:
+            ways.append(f"Stretch it to the lot. A loop is any shape that closes: {run:.0f} ft by "
+                        f"{side:.0f} ft is the same {per:.0f} ft of wire as the square, and takes "
+                        "the lot's length instead of a square's.")
+        ways.append("Make it a triangle, or stand it on a corner - one high support and two low "
+                    "ones - and the footprint is not a square any more.")
+
     if kind in ("tefv", "termsloper"):
         rise = max(0.0, float(height_ft or 0.0) - (TW_END_FT if end_ft is None else float(end_ft)))
         if kind == "tefv":
@@ -1228,26 +1345,30 @@ def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=
         article = "an" if str(mast)[0] == "8" or mast in (11, 18) else "a"
         waves = longest / wavelength_ft(mhz)
         if waves >= 1.0:
-            instead.append(f"The longest terminated wire this room takes from {article} {mast} ft "
-                           f"mast is about {round(longest)} ft - {waves:.1f} wavelengths here. Shorter "
-                           "than the handbook's, it is less directional and more of the power ends in "
-                           "the resistor, and it still works.")
+            ways.append(f"Shorten it to fit. The longest terminated wire this room takes from {article} "
+                        f"{mast} ft mast is about {round(longest)} ft - {waves:.1f} wavelengths here. "
+                        "Shorter than the handbook's, it is less directional and more of the power "
+                        "ends in the resistor, and it still works.")
         else:
             # A terminated wire under a wavelength is the resistor's antenna,
             # as the type's own caution says - so the length the lot takes is
             # said with the band it does suit, not offered for this one.
             suits = wavelength_ft(1.0) / longest
-            instead.append(f"The longest terminated wire this room takes from {article} {mast} ft "
-                           f"mast is about {round(longest)} ft - {waves:.2f} of a wavelength on "
-                           f"{mhz:g} MHz, where it wants at least one; this short, it mostly heats "
-                           f"the resistor. That length is a wavelength on about {suits:.0f} MHz, so "
-                           "here it is an antenna for the upper bands.")
-        instead.append("A taller mast shortens the run for the same wire: the legs come down "
-                       "more steeply.")
-    if mhz < 10.0:
-        instead.append("A vertical needs height rather than length, and its radials fit under "
-                       "grass - on the low bands it is the usual answer to a small lot.")
-    out["instead"] = instead
+            ways.append(f"Shorten it to fit, for a higher band. The longest terminated wire this room "
+                        f"takes from {article} {mast} ft mast is about {round(longest)} ft - "
+                        f"{waves:.2f} of a wavelength on {mhz:g} MHz, where it wants at least one; this "
+                        f"short, it mostly heats the resistor. That length is a wavelength on about "
+                        f"{suits:.0f} MHz, so it is a fine antenna for the upper bands.")
+        ways.append("Go taller. A taller mast shortens the run for the same wire: the legs come "
+                    "down more steeply.")
+
+    ways.append("Measure corner to corner. The diagonal is longer than the side"
+                + ("" if indoors else ", and a wire can cross over the house") +
+                " - the straight run that counts is the one you actually have.")
+    if mhz < 10.0 and not indoors:
+        ways.append("Or stand it up. A vertical needs height rather than length, and its radials fit "
+                    "under the grass - on the low bands it is the usual answer to a small lot.")
+    out["instead"] = ways
     return out
 
 

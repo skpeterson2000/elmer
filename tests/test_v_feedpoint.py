@@ -57,10 +57,12 @@ def main():
     check("  35 degrees drops about a twentieth of a wave",
           round(A.v_centroid_drop_wl(35), 2), 0.05)
     lam = A.wavelength_ft(3.535)
-    check("  which on 80 m is about fourteen feet",
-          round(A.v_centroid_drop_wl(35) * lam), 14)
-    check("  so a 50 ft apex is a wire at about 36 ft",
-          round(50 - A.v_centroid_drop_wl(35) * lam), 36)
+    # A V's leg is 445/f halved (antenna_advice.V_CUT), cut 5% short of a
+    # flat dipole's 234/f: 0.363 of 62.9 ft, at sin 35, is 13.1 ft.
+    check("  which on 80 m is about thirteen feet",
+          round(A.v_centroid_drop_wl(35) * lam), 13)
+    check("  so a 50 ft apex is a wire at about 37 ft",
+          round(50 - A.v_centroid_drop_wl(35) * lam), 37)
 
     print("\n-- so the table is the V's, not a dipole's --")
     flat = A.matching_heights(3.535, None, 0)

@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- A wire longer than the lot is a problem the Lab solves, not a verdict. The box that said **It does not fit** is **Making it fit**, and works each way out for your wire on your lot: how much runs straight and where each end goes, in feet; the droop or slope that brings an inverted-V in and where its ends land; the coil each leg wants to load it shorter, in microhenries; an inverted-L up your support and along the lot on the low bands; a loop stretched to the lot's shape. A sloper too steep for its support is told the angle it takes, where it was told in red that it did not fit.
+
 - The antenna chosen on the Band Plan now reaches the Lab by the **Set up an antenna for this** button as well. The button sent the band segment's activity - phone, CW - as the antenna kind, and the Lab, finding that was not your antenna, suggested one of its own in its place.
 
 - The Lab draws an inverted-V to scale: the apex at its height, each leg its real length at the droop set, the ends where the ends box says. It hung every V from one point, so a steeper droop drew shorter legs and the ends always sat near the grass. Drooped to the ground, the rest of each leg is drawn lying on it. The V's leg is one length everywhere - 445/f overall, about 5% short of a flat dipole, as the table prints - where the ends box, the NVIS height and the footprint worked from a flat dipole's 468/f.

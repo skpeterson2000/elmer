@@ -1759,7 +1759,7 @@ function calcAnt() {
           Math.max(0, Math.min(1, (hFt - 8) / (wireFt / (type === 'dipole' ? 2 : 1))))
         ) * 180 / Math.PI);
         if (lowEnd < 8) {
-          notes.push('<span style="color:var(--red)"><b>That does not fit.</b></span> ' +
+          notes.push('<b>Set it to ' + maxDeg + '&deg; or less.</b> ' +
             'A ' + wireFt.toFixed(0) + '&nbsp;ft wire at ' + slopeDeg +
             '&deg; drops ' + drop.toFixed(0) + '&nbsp;ft, so from a ' +
             hFt.toFixed(0) + '&nbsp;ft support the far end lands at ' +
@@ -3629,10 +3629,16 @@ async function antennaAdvice(mhz, use, kind, quiet) {
        it at somebody in a flat is not advice, it is a door closing. */
     /* Whether it fits lengthwise. The site's heights were always here; its
        length was not, and 250 ft of wire went onto a small lot unremarked. */
+    /* A short lot is a problem to solve, not a verdict: the heading says
+       what the box is for, and each way leads with what to do, in bold. */
     (d.fit && !d.fit.fits
-      ? '<div class="nvis mt"><b class="warn">It does not fit.</b> ' + escapeHTML(d.fit.words) +
+      ? '<div class="nvis mt"><b>Making it fit.</b> ' + escapeHTML(d.fit.words) +
         '<ul class="facts small">' +
-        (d.fit.instead || []).map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul></div>'
+        (d.fit.instead || []).map(w => {
+          const cut = w.indexOf('. ');
+          return '<li>' + (cut > 0 ? '<b>' + escapeHTML(w.slice(0, cut + 1)) + '</b>' +
+                                     escapeHTML(w.slice(cut + 1)) : escapeHTML(w)) + '</li>';
+        }).join('') + '</ul></div>'
       : '') +
     (d.reality
       ? '<div class="nvis mt"><b>' + escapeHTML(d.reality.label) + '.</b> ' +
