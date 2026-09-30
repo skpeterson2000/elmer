@@ -88,6 +88,9 @@ def the_arithmetic():
     check("indoors it says rafters, not a fence, and no house to cross or radials to lay",
           ("rafters" in attic, "fence" in attic, "over the house" in attic, "radials" in attic),
           (True, False, False, False))
+    mine = A.recommend(1.9, kind="dipole", site="small", have_ft=40)
+    check("a small lot usually allows 22 ft, but somebody with a 40 ft support has 40",
+          (A.recommend(1.9, kind="dipole", site="small")["height_ft"], mine["height_ft"]), (22, 40.0))
     check("nothing anywhere says it does not fit",
           any("not fit" in w for f_ in (d160, v, v80) for w in f_["instead"] + [f_["words"]]), False)
     check("a 20 m dipole fits a small lot", A.fit("dipole", 14.2, "small")["fits"], True)

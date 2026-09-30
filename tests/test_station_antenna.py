@@ -82,12 +82,15 @@ new Promise(async resolve => {
   out.lab = {type: LD.getElementById('an-type').value, h: LD.getElementById('an-h').value,
              head: LD.getElementById('an-head').value, byHand: L.eval('anTypeByHand')};
   // By the button on a picked segment, which used to send kind=phone.
-  const viaLink = await frame('/lab?f=7.200&kind=phone&class=General#ant');
+  remember('lab.antenna.site', 'small');
+  const viaLink = await frame('/lab?f=1.900&kind=phone&class=General#ant');
   const VL = viaLink.contentWindow, VD = viaLink.contentDocument;
   await until(() => typeof VL.antennaFields === 'function' && VD.getElementById('an-type').value, 10000);
   await nap(1500);
   out.viaLink = {type: VD.getElementById('an-type').value, h: VD.getElementById('an-h').value,
-                 byHand: VL.eval('anTypeByHand')};
+                 byHand: VL.eval('anTypeByHand'), f: VD.getElementById('an-f').value,
+                 advice: (VD.getElementById('an-advice').innerText || ''),
+                 legs: [...VD.querySelectorAll('#an-out table.data tr')].map(r => r.innerText).join(' | ')};
   viaLink.remove();
   // Changed in the Lab: the Band Plan beside it follows.
   const setL = (id, v) => { const el = LD.getElementById(id); el.value = v; el.dispatchEvent(new L.Event('input')); };
@@ -117,6 +120,7 @@ new Promise(async resolve => {
   await until(() => typeof L2.antennaFields === 'function' && LD2.getElementById('an-type').value === 'tefv', 10000);
   await nap(800);
   out.lab2 = {type: LD2.getElementById('an-type').value, len: LD2.getElementById('an-len').value,
+              h: LD2.getElementById('an-h').value, bpH: document.getElementById('bp-reach-h').value,
               ends: LD2.getElementById('an-ends').value};
   put('bp-reach-ant', 'dipole');
   out.afterDipole = {shown: twBox(), len: document.getElementById('bp-reach-len').value};
@@ -165,6 +169,19 @@ def main():
     via = got.get("viaLink") or {}
     check("by the band's own button too, with an old link's kind=phone ignored",
           (via.get("type"), via.get("h"), via.get("byHand")), ("invertedv", "40", True))
+    check("  at the band's frequency - 160 m, not the Lab's default 14.200",
+          via.get("f"), "1.900")
+    import re
+    overall = re.search(r"Overall length\s+([\d.]+) ft", via.get("legs") or "")
+    # 445/f on 1.9 MHz is 234 ft, less a little for the conductor on screen;
+    # on the Lab's default 14.2 it would be 31.
+    check("  so the table is a 160 m V's, not a 20 m one's",
+          bool(overall) and 225 < float(overall.group(1)) < 240, True)
+    check("  on a small lot with a 40 ft support, the 40 ft is what counts, not the usual 22",
+          ("what fits here is 22" in (via.get("advice") or ""), "Use 22 ft" in (via.get("advice") or "")),
+          (False, False))
+    check("  and a wire longer than the lot comes with the ways to get it up",
+          "Making it fit" in (via.get("advice") or ""), True)
     bp = (ROOT / "elmer" / "static" / "bandplan.js").read_text(encoding="utf-8")
     check("  and the button no longer sends the segment's activity as a kind",
           "'&kind=' + encodeURIComponent(a.kind)" in bp, False)
@@ -186,6 +203,9 @@ def main():
     check("  the map is drawn from them", (drawn.get("length"), drawn.get("ends")), ("150", "10"))
     check("  and the Lab opens on the same wire",
           tuple((got.get("lab2") or {}).get(k) for k in ("type", "len", "ends")), ("tefv", "150", "10"))
+    l2 = got.get("lab2") or {}
+    check("  at the Band Plan's height, not the handbook mast the vee's fields start at",
+          l2.get("h"), l2.get("bpH"))
     check("a new antenna hides the boxes and does not keep the wire's length",
           ((got.get("afterDipole") or {}).get("shown"), (got.get("afterDipole") or {}).get("len")), (False, ""))
 

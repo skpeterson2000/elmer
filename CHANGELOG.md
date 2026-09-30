@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- **Set up an antenna for this** on the Band Plan now opens the Lab on your antenna at that band's frequency. The Lab kept the antenna but left its own 14.200 in the frequency box, so the advice spoke of 160 m while the dimensions, the drawing and the pattern were a 20 m wire. A terminated vee chosen there keeps its height, where the handbook's 50 ft mast replaced it. On a small lot with a taller support than such lots usually have, your height counts: a 40 ft support was told "what fits here is 22 ft" and offered 22. The library line no longer reads "In your library: . Search it." with no book in it.
+
 - A wire longer than the lot is a problem the Lab solves, not a verdict. The box that said **It does not fit** is **Making it fit**, and works each way out for your wire on your lot: how much runs straight and where each end goes, in feet; the droop or slope that brings an inverted-V in and where its ends land; the coil each leg wants to load it shorter, in microhenries; an inverted-L up your support and along the lot on the low bands; a loop stretched to the lot's shape. A sloper too steep for its support is told the angle it takes, where it was told in red that it did not fit.
 
 - The antenna chosen on the Band Plan now reaches the Lab by the **Set up an antenna for this** button as well. The button sent the band segment's activity - phone, CW - as the antenna kind, and the Lab, finding that was not your antenna, suggested one of its own in its place.

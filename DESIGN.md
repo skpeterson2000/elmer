@@ -5357,7 +5357,12 @@ picked segment's activity, phone or cw - and the Lab took it for an antenna,
 found it was not the one on the record, and suggested one in its place, so
 the antenna chosen on the map never arrived by the button that says it will.
 The button sends no kind now, and the Lab ignores one that is not an antenna
-(`ANTENNA_KINDS`), from an old link or a remembered one.
+(`ANTENNA_KINDS`), from an old link or a remembered one. And the frequency is always
+the question's: evaluating the station's antenna left the operator's numbers
+on the form, the frequency among them, so the advice was for 160 m and the
+table, the drawing and the pattern for the Lab's default 14.200. A site's
+height cap is what such a place usually allows; the operator's own height
+outranks it (`reality(have_ft=)`), as their own run outranks `room_ft`.
 
 **One inverted V.** The Lab's table cut a V to 445/f (`V_CUT`), about 5%
 short of a flat dipole because the drooping legs load it; its ends-and-droop

@@ -1123,8 +1123,11 @@ function labApplyStation(st) {
   if (!st || !sel || ![...sel.options].some(o => o.value === st.kind)) return false;
   sel.value = st.kind;
   anTypeByHand = true;
-  if (st.height_ft > 0) { document.getElementById('an-h').value = Math.round(st.height_ft); anHeightSuggested = false; }
   antennaFields(st.kind);
+  /* The height after the fields, not before: a terminated wire's fields set
+     the handbook's mast the first time one is chosen, and that put 50 ft
+     over the 40 chosen on the Band Plan. */
+  if (st.height_ft > 0) { document.getElementById('an-h').value = Math.round(st.height_ft); anHeightSuggested = false; }
   if (isTw(st.kind)) {
     if (st.length_ft > 0) document.getElementById('an-len').value = Math.round(st.length_ft);
     const box = document.getElementById('an-ends');
@@ -3540,6 +3543,17 @@ async function antennaAdvice(mhz, use, kind, quiet) {
     if (useSel) useSel.value = d.use;
     antennaFields(d.type);
     calcAnt();
+  } else if (d.mhz && Math.abs(num('an-f') - d.mhz) > 1e-6) {
+    /* Whatever else is left alone, the frequency is the question. Evaluating
+       the Band Plan's antenna kept everything on the form, the frequency
+       included - so the advice spoke of 160 m while the dimensions, the
+       drawing and the pattern were a 20 m wire at the Lab's default 14.200. */
+    setFrequency('an-f', d.mhz);
+    if (quiet !== 'evaluate' && anHeightSuggested && d.height_ft) {
+      const h = document.getElementById('an-h');
+      if (h) h.value = d.height_ft;
+    }
+    calcAnt();
   } else if (quiet !== 'evaluate' && anHeightSuggested && d.height_ft) {
     /* Quiet means "leave the operator's numbers alone", and this one is not
        theirs - ELMER put it there for a different band. Leaving it would have
@@ -3694,9 +3708,14 @@ async function libraryPointers(topic, box) {
   const d = libPointerCache[topic];
   if (!d || !d.pointers || !d.pointers.length) return;
   const seen = new Set();
-  const rows = d.pointers.filter(p => p.level === 0 || d.pointers.length < 8)
+  /* The chapters when there are many, else all of them - and when a book
+     marks none as a chapter, its shallowest entries, rather than nothing:
+     that printed "In your library: . Search it." with no book in it. */
+  const top = Math.min(...d.pointers.map(p => p.level || 0));
+  const rows = d.pointers.filter(p => (p.level || 0) === top || d.pointers.length < 8)
     .filter(p => { const k = p.book + p.page; if (seen.has(k)) return false; seen.add(k); return true; })
     .slice(0, 8);
+  if (!rows.length) return;
   box.hidden = false;
   box.innerHTML = '<p class="tiny muted" style="margin:.5rem 0 0"><b>In your library:</b> ' +
     rows.map(p => escapeHTML(p.book_title) + ', <a href="/library/read/' + encodeURIComponent(p.book) +
@@ -3825,6 +3844,8 @@ const recallAntenna = () => recall('lab.antenna', null);
     const st = stationAntenna();
     const mine = st && (!ctx.kind || ctx.kind === st.kind) && labApplyStation(st);
     if (mine) ctx.kind = st.kind;
+    // The frequency asked about is the form's, whatever else is kept.
+    setFrequency('an-f', ctx.mhz);
     rememberAntenna(ctx);
     selectTab('ant');
     history.replaceState(null, '', location.pathname + '#ant');

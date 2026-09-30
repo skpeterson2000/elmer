@@ -2132,6 +2132,15 @@ def api_vna_s1p():
 PAIR_COIL_OHMS = 24.0
 
 
+def _have_ft(text):
+    """A height typed on the Lab's form, in feet, or None."""
+    try:
+        v = float(text) if text else None
+    except ValueError:
+        return None
+    return v if v and 0 < v < 2000 else None
+
+
 @app.route("/api/antenna-advice")
 def api_antenna_advice():
     """What to put up here, and why - for a licensee who has not built one yet."""
@@ -2149,7 +2158,10 @@ def api_antenna_advice():
     out = antenna_advice.recommend(
         mhz, use=request.args.get("use"), kind=request.args.get("kind"),
         site=request.args.get("site") or None, floor=floor,
-        unit=units.system(db.get_profile(conn())["settings"].get("units"))["key"])
+        unit=units.system(db.get_profile(conn())["settings"].get("units"))["key"],
+        # The height on the operator's form, when they evaluate their own:
+        # it outranks what such a site usually allows.
+        have_ft=_have_ft(request.args.get("height")))
     # Where the feed matches, for a horizontal wire: the heights the curve
     # does something at, marked reachable or not by what the site allows.
     # Where else this antenna is resonant, and whether that is a band an

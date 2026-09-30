@@ -1403,16 +1403,24 @@ def reach_for(site, floor=None):
     return cap if cap else DIPOLE_REACH_FT
 
 
-def reality(kind, mhz, wanted_ft, site, floor=None):
+def reality(kind, mhz, wanted_ft, site, floor=None, have_ft=None):
     """What that height means where somebody actually lives.
 
     Returns None when the site imposes nothing, so the ordinary case stays
     uncluttered.
+
+    `have_ft` is the height the operator says they have. A site's cap is
+    what such a place usually allows; somebody on a small lot with a 40 ft
+    support has 40 ft, and was told "what fits here is 22 ft" and offered
+    22 in place of their own. As with the lot's length, if theirs is
+    higher, it is theirs that counts.
     """
     spec = SITES.get(site)
     if not spec:
         return None
     cap = site_cap(site, floor)
+    if cap is not None and have_ft and site != "apartment":
+        cap = max(cap, float(have_ft))
     out = {"site": site, "label": spec["label"], "works": list(spec["works"]),
            "costs": list(spec["costs"]), "good_at": spec["good_at"],
            "wanted_ft": wanted_ft, "max_ft": cap, "capped": False}
@@ -1609,7 +1617,7 @@ def _ordinal(n):
     return "%d%s" % (n, "tsnrhtdd"[(n // 10 % 10 != 1) * (n % 10 < 4) * n % 10::4])
 
 
-def for_type(mhz, kind, use=None, site=None, floor=None):
+def for_type(mhz, kind, use=None, site=None, floor=None, have_ft=None):
     """How to use the antenna somebody has actually chosen.
 
     The other half of `recommend`. That one answers "what should I put up";
@@ -1634,7 +1642,7 @@ def for_type(mhz, kind, use=None, site=None, floor=None):
     # And then what is actually possible where somebody lives. The ideal
     # height is worth knowing; a number they cannot reach is worth less than
     # the truth about the one they can.
-    where = reality(kind, mhz, height, site, floor)
+    where = reality(kind, mhz, height, site, floor, have_ft)
     if where:
         height = where["height_ft"]
     fit = suits(kind, use, mhz)
@@ -2318,14 +2326,16 @@ def _steered_title(kind, site, mhz):
     return _STEERED_TITLES.get((site, kind)) or TYPES[kind]["title"]
 
 
-def recommend(mhz, use=None, kind=None, site=None, floor=None, unit=None):
+def recommend(mhz, use=None, kind=None, site=None, floor=None, unit=None, have_ft=None):
     """A starting antenna for this frequency and intention, with its reasoning.
-    `floor` is which floor a flat's balcony is on, and matters only there."""
+    `floor` is which floor a flat's balcony is on, and matters only there;
+    `have_ft` the height the operator says they have, which outranks the
+    site's usual cap (see reality)."""
     mhz = float(mhz)
     # Somebody who named an antenna wants to be taught that antenna, not
     # talked back to a dipole.
     if kind in TYPES:
-        return for_type(mhz, kind, use, site, floor)
+        return for_type(mhz, kind, use, site, floor, have_ft)
     # What somebody has to work with settles the question before what they
     # want to do with it does, because the site is the thing that rules
     # antennas out. This used to be true only of a vehicle; a flat, an attic
@@ -2335,7 +2345,7 @@ def recommend(mhz, use=None, kind=None, site=None, floor=None, unit=None):
     # short vertical on the rail. The program knew and did not act on it.
     steered = _site_type(mhz, site, use)
     if steered:
-        out = for_type(mhz, steered, use, site, floor)
+        out = for_type(mhz, steered, use, site, floor, have_ft)
         out["title"] = _steered_title(steered, site, mhz)
         out["steered"] = True          # the site chose this, not the intention
         return out
