@@ -2132,6 +2132,41 @@ def api_vna_s1p():
 PAIR_COIL_OHMS = 24.0
 
 
+def _adapt_for(mhz, kind, cut, height, site, use):
+    """adapt.plan for the Lab: where the operator is reaching - a place they
+    typed, or the distance their use implies - and the sky over the QTH."""
+    from . import adapt
+    connection = conn()
+    profile = db.get_profile(connection)
+    place = qth_for(connection, profile)
+    km, said = None, None
+    text = (request.args.get("to") or "").strip()
+    if text:
+        try:
+            km, said = float(text.replace("mi", "").strip()) * 1.609344, f"{text.strip()}"
+            if "km" in text:
+                km, said = float(text.replace("km", "").strip()), text.strip()
+        except ValueError:
+            there = pathto.resolve_to(text)
+            if there and there.get("lat") is not None and place.get("lat") is not None:
+                km = geo.distance_km(place["lat"], place["lon"], there["lat"], there["lon"])
+                said = there.get("short") or there.get("name") or text
+    snap = None
+    if place.get("lat") is not None:
+        try:
+            got = propagation.snapshot(lat=place["lat"], lon=place["lon"])
+            snap = got if got.get("ok") else None
+        except Exception:                       # the sky must never cost the advice
+            log.info("adapt: no sky for the path", exc_info=False)
+    try:
+        watts = float(request.args.get("watts") or 100)
+    except ValueError:
+        watts = 100.0
+    return adapt.plan(mhz, kind, cut, height_ft=height, site=site,
+                      license_class=request.args.get("class") or _class_held() or "Technician",
+                      watts=watts, km=km, reach_said=said, use=use, snap=snap)
+
+
 def _have_ft(text):
     """A height typed on the Lab's form, in feet, or None."""
     try:
@@ -2186,6 +2221,16 @@ def api_antenna_advice():
     out["fit"] = antenna_advice.fit(out.get("type"), mhz, request.args.get("site") or None,
                                     height_ft=fit_height, length_ft=_num("length"), droop_deg=fit_droop,
                                     end_ft=_num("ends"))
+    # The antenna that is up, when it is cut for another band: how to get it
+    # onto this one, which modes then close the path, and the other bands
+    # where it already works. Never allowed to cost the advice.
+    cut = _num("cut")
+    if cut:
+        try:
+            out["adapt"] = _adapt_for(mhz, out.get("type"), cut, fit_height,
+                                      request.args.get("site") or None, out.get("use"))
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            log.warning("adapt: %s for %s cut for %s", exc, out.get("type"), cut)
     out["harmonics"] = antenna_advice.harmonics(out.get("type"), mhz)
     out["harmonic_words"] = antenna_advice.harmonic_words(out.get("type"), mhz)
     if out.get("type") in ("dipole", "invertedv", "bowtie", "loop"):

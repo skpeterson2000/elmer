@@ -279,8 +279,10 @@ def main():
     low = A.recommend(7.1, "dx", "dipole", "mobile")["reality"]
     check("6 ft on 40 m is called what it is",
           "ground under it" in low["means"], True)
+    # Named as ways forward - height first, and the modes that need fewer
+    # decibels - never as more power.
     check("  and the fix is named as height, not power",
-          "rather than power" in low["means"], True)
+          ("ways to get more out of it are height" in low["means"], "power" in low["means"]), (True, False))
     ok_low = A.recommend(7.1, "dx", "dipole", "small")["reality"]
     check("  but 22 ft is still a real regional antenna",
           "region" in ok_low["means"], True)

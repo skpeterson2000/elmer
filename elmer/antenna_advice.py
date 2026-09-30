@@ -1485,10 +1485,11 @@ def reality(kind, mhz, wanted_ft, site, floor=None, have_ft=None):
                 "absorbs the near field faster than the wire radiates it, and "
                 "several decibels go into warming the soil. A deliberately low "
                 "wire for regional work wants a fifth of a wavelength, %d ft "
-                "here; this is a good deal less than that. It will make "
-                "contacts and it is worth having over no antenna at all, but "
-                "it is losing most of what you put into it, and the fix is "
-                "height or a different antenna rather than power."
+                "here; this is a good deal less than that. It makes contacts, "
+                "and the ways to get more out of it are height, a wire on the "
+                "ground beneath it as a reflector, a vertical, which needs no "
+                "height - or a mode that needs fewer decibels: CW wants about "
+                "7 dB less than SSB, and FT8 about 28."
                 % (cap, mhz, waves, round(NVIS_TARGET * wavelength_ft(mhz))))
             return out
         out["means"] = (

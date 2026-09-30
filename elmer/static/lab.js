@@ -1102,13 +1102,29 @@ function syncEnds(from) {
    and ends - is written for the Band Plan and the analyzer; what the Lab
    sets on its own, a suggested antenna, is not somebody's choice and is
    not written. */
+/* Where the operator is trying to reach: a new place re-reads the path, if
+   the advice is up. */
+(function reachBox() {
+  const el = document.getElementById('an-to');
+  if (!el) return;
+  document.getElementById('an-to').addEventListener('change', () => {
+    const box = document.getElementById('an-advice');
+    if (box && !box.hidden) document.getElementById('an-advise').click();
+  });
+})();
+
+/* The kinds adapt.py knows how to put on another band. */
+const ADAPTABLE = ['dipole', 'invertedv', 'efhw', 'bowtie', 'quarter', 'groundplane'];
+
 function labToStation() {
   const type = (document.getElementById('an-type') || {}).value;
   if (!type) return;
   const head = num('an-head');
   const box = document.getElementById('an-ends');
+  const cut = document.getElementById('an-cut');
   setStationAntenna({
     kind: type,
+    cut_mhz: cut && cut.value && ADAPTABLE.includes(type) ? +cut.value : undefined,
     height_ft: num('an-h') > 0 ? num('an-h') : undefined,
     heading_deg: Number.isFinite(head) ? wrapHead(head, type) : undefined,
     length_ft: isTw(type) ? Math.max(20, num('an-len') || TW_DEFAULTS[type].len) : undefined,
@@ -1136,6 +1152,11 @@ function labApplyStation(st) {
     syncEnds(null);
   }
   if (st.heading_deg >= 0) setHead(st.heading_deg, false);
+  const cut = document.getElementById('an-cut');
+  if (cut) {
+    const want = st.cut_mhz > 0 ? [...cut.options].find(o => o.value && Math.abs(+o.value - st.cut_mhz) < 0.01) : null;
+    cut.value = want ? want.value : '';
+  }
   return true;
 }
 /* Changed on the Band Plan in another window of this browser: follow it. */
@@ -1186,6 +1207,7 @@ function antennaFields(type) {
      compass where a wire's only needs half. The mast starts at the
      handbook's height the first time one is chosen. */
   show('.an-when-tw', isTw(type));
+  show('.an-when-cut', ADAPTABLE.includes(type));
   show('.an-when-ends', !!ENDS_FOR[type]);
   const endsLabel = document.getElementById('an-ends-label');
   if (endsLabel && ENDS_FOR[type]) endsLabel.textContent = ENDS_FOR[type];
@@ -2319,7 +2341,7 @@ function wirePlanTurn(box, d) {
 
 ['an-type', 'an-f', 'an-h', 'an-len', 'an-el', 'an-sp', 'an-wh', 'an-loss', 'an-hat',
  'an-k', 'an-cond', 'an-angle', 'an-nvis', 'an-head', 'an-site', 'an-floor',
- 'an-use', 'an-pw', 'an-ends']
+ 'an-use', 'an-pw', 'an-ends', 'an-cut']
   .forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -2331,7 +2353,7 @@ function wirePlanTurn(box, d) {
       if (id === 'an-h') anHeightSuggested = false;
       antennaFields(document.getElementById('an-type').value);
       syncEnds(id);
-      if (['an-type', 'an-h', 'an-head', 'an-len', 'an-ends'].includes(id)) labToStation();
+      if (['an-type', 'an-h', 'an-head', 'an-len', 'an-ends', 'an-cut'].includes(id)) labToStation();
       /* A terminated wire's length, for the band plan's reach map, which has
          no box for it. The Lab's full record is kept only when advice is
          asked for, so 50 ft typed here reached the map as the handbook's
@@ -3243,6 +3265,51 @@ if (document.getElementById('pane-rf')) initRf();
    The multiples that land between bands are shown as well as the ones that
    land in them, because "nothing until 6 m" is the answer somebody needs
    before they cut, not after. */
+/* The antenna that is up, on the band asked about (adapt.py): the ways to
+   get it there with what each gives up, the modes that then close the path
+   now and after dark, and the other bands where it already works. A dead
+   end is never the answer - there is always a way, a mode or a band. */
+const VERDICT_PILL = {solid: 'good', workable: 'good', marginal: 'warn', short: 'bad', closed: 'bad'};
+function adaptHTML(a) {
+  if (!a || !a.ways || !a.ways.length) return '';
+  const cost = db => db >= -0.5 ? 'nothing to speak of' : 'about ' + Math.abs(db).toFixed(0) + ' dB';
+  const where = a.target
+    ? (a.target.said ? escapeHTML(a.target.said) + ', about ' : 'about ') +
+      awayText(a.target.km) + (a.target.said ? '' : ' (from what you want to do - type a place above to be exact)')
+    : '';
+  const modes = (a.modes || []).map(m =>
+    '<tr><td>' + escapeHTML(m.label) + '</td>' +
+    '<td><span class="pill ' + (VERDICT_PILL[m.now] || '') + '">' + m.now + '</span></td>' +
+    '<td><span class="pill ' + (VERDICT_PILL[m.night] || '') + '">' + m.night + '</span></td></tr>').join('');
+  const bands = (a.bands || []).map(b =>
+    '<li><b>' + escapeHTML(b.band.replace(/(\d)m$/, '$1 m')) + '</b> ' +
+    (b.as_is ? 'as it is' : 'adapted, ' + cost(b.cost_db) + ' down') + ' &mdash; ' +
+    b.modes.map(m => escapeHTML(m.mode) + ' ' + m.verdict).join(', ') + ', now.</li>').join('');
+  const want = escapeHTML(a.want.band.replace(/(\d)m$/, '$1 m'));
+  const cut = escapeHTML(a.cut.band.replace(/(\d)m$/, '$1 m'));
+  return '<div class="nvis mt" id="an-adapt"><div class="panel-title" style="margin:0 0 .3rem">' +
+      'Your ' + cut + ' antenna on ' + want + '</div>' +
+    '<ul class="facts small">' + a.ways.map(w =>
+      '<li><b>' + escapeHTML(w.lead) + '</b> ' + escapeHTML(w.text) +
+      ' <span class="muted">Gives up ' + cost(w.loss_db) + '.</span></li>').join('') + '</ul>' +
+    (modes
+      ? '<div class="small" style="margin-top:.5rem">To ' + where + ', with the best of these (' +
+        cost(a.best_loss_db) + ' down), in the modes your license allows on ' + want + ':</div>' +
+        '<table class="facts small"><thead><tr><th></th><th>now</th><th>after dark</th></tr></thead><tbody>' +
+        modes + '</tbody></table>' +
+        '<div class="tiny muted">A compromise antenna costs decibels, and the modes that need fewer ' +
+        'make up for it: CW wants about 7 dB less than SSB, FT8 about 28.</div>'
+      : '') +
+    (bands
+      ? '<div class="small" style="margin-top:.5rem">Or, to the same place, where your antenna works ' +
+        'now:</div><ul class="facts small">' + bands + '</ul>'
+      : '') +
+    '<div class="tiny muted" style="margin-top:.4rem">The figures are starting points from standard ' +
+      'approximations - a short antenna\u2019s radiation resistance against a coil of Q 200 and a ' +
+      'handful of radials - to wind and trim from, not measurements. The dimensions below are a ' +
+      'full-size ' + want + ' antenna, for building one.</div></div>';
+}
+
 function harmonicsHTML(d) {
   const rows = d.harmonics || [];
   if (!rows.length) return '';
@@ -3523,6 +3590,11 @@ async function antennaAdvice(mhz, use, kind, quiet) {
                       /* Evaluate sends the height on screen, to be judged
                          beside ELMER's - never replaced by it. */
                       height: quiet === 'evaluate' && num('an-h') > 0 ? num('an-h') : '',
+                      /* The antenna that is up, if it is cut for another band,
+                         and where the operator is trying to reach. */
+                      cut: ADAPTABLE.includes(kind) ? ((document.getElementById('an-cut') || {}).value || '') : '',
+                      to: ((document.getElementById('an-to') || {}).value || '').trim(),
+                      class: anAsClass || '',
                       conductor: (document.getElementById('an-cond') || {}).value || ''})
         .filter(([, v]) => v !== '')));
   } catch (e) { return; }
@@ -3599,7 +3671,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
       '<span class="tiny muted">' + d.mhz + ' MHz &middot; ' +
         escapeHTML(d.use_label) + ' &middot; wavelength ' + d.wavelength_ft +
         ' ft</span>' +
-    '</div>' + said + yours +
+    '</div>' + said + adaptHTML(d.adapt) + yours +
     '<div class="grid cols-2" style="gap:.9rem;margin-top:.5rem">' +
       '<div>' + d.why.map(w => '<p class="small">' + escapeHTML(w) + '</p>').join('') +
         /* A flat has no height to aim for - the wire starts at the window and
@@ -3645,7 +3717,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
        length was not, and 250 ft of wire went onto a small lot unremarked. */
     /* A short lot is a problem to solve, not a verdict: the heading says
        what the box is for, and each way leads with what to do, in bold. */
-    (d.fit && !d.fit.fits
+    (d.fit && !d.fit.fits && !d.adapt
       ? '<div class="nvis mt"><b>Making it fit.</b> ' + escapeHTML(d.fit.words) +
         '<ul class="facts small">' +
         (d.fit.instead || []).map(w => {

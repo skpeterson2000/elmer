@@ -243,6 +243,24 @@
         <option value="termsloper">a terminated sloping wire</option>
         <option value="none">the sky alone - any antenna</option>
       </select>
+      {#- Which band the antenna that is up is cut for. Blank is "for the band
+          on screen"; set, "Set up an antenna for this" shows how to get that
+          antenna onto the band picked - loaded, as a Marconi T, lengthened. -#}
+      <select class="btn sm" id="bp-reach-cut" title="the band the antenna you have up is cut for - the Lab then shows how to get it onto the band you pick here">
+        <option value="">cut for this band</option>
+        <option value="1.900">cut for 160 m</option>
+        <option value="3.750">cut for 80 m</option>
+        <option value="5.357">cut for 60 m</option>
+        <option value="7.150">cut for 40 m</option>
+        <option value="10.125">cut for 30 m</option>
+        <option value="14.200">cut for 20 m</option>
+        <option value="18.118">cut for 17 m</option>
+        <option value="21.200">cut for 15 m</option>
+        <option value="24.940">cut for 12 m</option>
+        <option value="28.400">cut for 10 m</option>
+        <option value="50.125">cut for 6 m</option>
+        <option value="146.000">cut for 2 m</option>
+      </select>
       <input class="btn sm" id="bp-reach-h" type="number" min="1" max="500" step="1" value="30" style="width:5.5rem" title="height above ground, in feet - a wire a fifth of a wavelength up is an NVIS antenna, its reflection adding straight up; half a wavelength up it is a DX antenna with a dip overhead">
       <span class="tiny muted">ft</span>
       {# A terminated wire's length decides its takeoff angle more than its

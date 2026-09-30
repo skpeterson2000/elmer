@@ -204,6 +204,29 @@
           </optgroup>
         </select>
         <div class="tiny muted" id="an-type-note" hidden></div></div>
+      {#- The antenna that is up. A ham asking about 160 m with a 40 m dipole
+          wants to know how to get that dipole onto 160 - loaded, fed as a
+          Marconi T, lengthened - not how to build a 160 m dipole from
+          scratch. Blank is the old question: design one for this band. -#}
+      <div class="field an-when-cut"><label>Cut for</label>
+        <select id="an-cut">
+          <option value="">the frequency above &mdash; building one for it</option>
+          <option value="1.900">cut for 160 m &mdash; it is up already</option>
+          <option value="3.750">cut for 80 m &mdash; it is up already</option>
+          <option value="5.357">cut for 60 m &mdash; it is up already</option>
+          <option value="7.150">cut for 40 m &mdash; it is up already</option>
+          <option value="10.125">cut for 30 m &mdash; it is up already</option>
+          <option value="14.200">cut for 20 m &mdash; it is up already</option>
+          <option value="18.118">cut for 17 m &mdash; it is up already</option>
+          <option value="21.200">cut for 15 m &mdash; it is up already</option>
+          <option value="24.940">cut for 12 m &mdash; it is up already</option>
+          <option value="28.400">cut for 10 m &mdash; it is up already</option>
+          <option value="50.125">cut for 6 m &mdash; it is up already</option>
+          <option value="146.000">cut for 2 m &mdash; it is up already</option>
+        </select></div>
+      <div class="field"><label>Trying to reach</label>
+        <input id="an-to" placeholder="a callsign, a grid, a town &mdash; or 500 mi" autocomplete="off"
+               title="Where you want to be heard. ELMER reads the path to it - which modes and bands get there now and after dark. Blank takes the distance from what you want to do."></div>
       <div class="row" style="gap:.5rem;flex-wrap:wrap">
         <button class="btn sm primary" id="an-advise">Evaluate this setup &rarr;</button>
         <button class="btn sm ghost" id="an-suggest">Not sure &mdash; suggest one</button>

@@ -1883,7 +1883,8 @@ function bpReachSeed() {
   }
   const ems = Array.from(document.querySelectorAll('input[name="bp-reach-em"]'));
   const len = document.getElementById('bp-reach-len'), endsBox = document.getElementById('bp-reach-ends');
-  [sel, h, w, hd, gnd, len, endsBox].concat(ems).forEach(el => el && el.addEventListener('change', () => {
+  const cutBox = document.getElementById('bp-reach-cut');
+  [sel, h, w, hd, gnd, len, endsBox, cutBox].concat(ems).forEach(el => el && el.addEventListener('change', () => {
     const band = bpData && bpData.bands.find(b => b.name === bpBand);
     if (el.name === 'bp-reach-em') bpReachLaw(band);    // a new mode on CB moves the ceiling
     if (el === sel) {
@@ -1892,7 +1893,7 @@ function bpReachSeed() {
       if (endsBox) endsBox.value = '';
       bpTwFields();
     }
-    if ([sel, h, hd, gnd, len, endsBox].includes(el)) bpToStation();
+    if ([sel, h, hd, gnd, len, endsBox, cutBox].includes(el)) bpToStation();
     bpReachRemember();
     bpReachCache = {}; bpView.refined = null;
     if (band) bpReach(band);
@@ -1913,7 +1914,9 @@ function bpToStation() {
                      heading_deg: hd && hd.value !== '' ? +hd.value : undefined,
                      ground: gnd ? gnd.value : undefined,
                      length_ft: terminated && len && +len.value >= 20 ? +len.value : undefined,
-                     ends_ft: terminated && ends && ends.value !== '' ? +ends.value : undefined}, 'bandplan');
+                     ends_ft: terminated && ends && ends.value !== '' ? +ends.value : undefined,
+                     cut_mhz: (() => { const c = document.getElementById('bp-reach-cut');
+                                       return c && c.value ? +c.value : undefined; })()}, 'bandplan');
 }
 /* The length and ends boxes, shown for a terminated wire only. */
 function bpTwFields() {
@@ -1936,6 +1939,11 @@ function bpApplyStation() {
   const len = document.getElementById('bp-reach-len'), ends = document.getElementById('bp-reach-ends');
   if (len) len.value = st.length_ft > 0 ? Math.round(st.length_ft) : '';
   if (ends) ends.value = st.ends_ft >= 0 ? st.ends_ft : '';
+  const cut = document.getElementById('bp-reach-cut');
+  if (cut) {
+    const want = st.cut_mhz > 0 ? [...cut.options].find(o => o.value && Math.abs(+o.value - st.cut_mhz) < 0.01) : null;
+    cut.value = want ? want.value : '';
+  }
   bpTwFields();
   return true;
 }

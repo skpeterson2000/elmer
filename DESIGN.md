@@ -5364,6 +5364,23 @@ table, the drawing and the pattern for the Lab's default 14.200. A site's
 height cap is what such a place usually allows; the operator's own height
 outranks it (`reality(have_ft=)`), as their own run outranks `room_ft`.
 
+**The antenna that is up** (`elmer/adapt.py`). "Set up an antenna for
+this" from a 160 m segment used to redesign the station's antenna type for
+160 m from scratch - 234 ft of V for a 70 ft lot - which is not the question a
+ham asks. The station record now carries `cut_mhz`, the band the antenna is
+cut for (**Cut for** in the Lab and on the Band Plan; blank is "this band").
+Cut for another band, the Lab leads with `adapt.plan`: the ways to get that
+antenna there (`ways`: harmonic, added wire, Marconi T, coils, ladder line
+and tuner; jumpers or traps above), each with an estimated loss against full
+size - a short antenna's radiation resistance (20 pi^2 (l/lambda)^2 centre-
+loaded, 160 pi^2 (h/lambda)^2 top-loaded) against coil Q 200, tuner Q 100 and
+15 ohms of ground under a vertical - then the modes the class may use there,
+read through `propagation.path_bands` to the distance being reached, now and
+with the sun at -18 degrees, less the best way's loss; and the other bands in
+the privileges where it works as it is or nearly, open now. Where to: a place
+typed in **Trying to reach** (`pathto.resolve_to`), a distance, or the use's.
+The Band Plan's reach map does not yet draw the adapted antenna.
+
 **One inverted V.** The Lab's table cut a V to 445/f (`V_CUT`), about 5%
 short of a flat dipole because the drooping legs load it; its ends-and-droop
 geometry, and the server's NVIS apex, effective-height drop and footprint
