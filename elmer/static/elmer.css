@@ -1613,3 +1613,9 @@ table.worth tr.worth-me td.worth-num { color: var(--text); }
   .firstrun .fr-body { flex-direction: column; }
   .firstrun .fr-shotwrap, .firstrun .fr-words { flex: 1 1 auto; width: 100%; }
 }
+
+/* ---------- CW contact simulator ---------- */
+.cw-qso-log { max-height: 16rem; overflow-y: auto; margin-top: .6rem; }
+.cw-qso-line { padding: .3rem .5rem; border-left: 2px solid var(--line); margin: .25rem 0; }
+.cw-qso-line.them { border-left-color: var(--amber); }
+.cw-qso-line.you { border-left-color: var(--green); }

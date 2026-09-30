@@ -18,6 +18,7 @@
     <button class="btn sm ghost" data-mode="copy">Copy practice</button>
     <button class="btn sm ghost" data-mode="text">Send text</button>
     <button class="btn sm ghost" data-mode="key">Your sending</button>
+    <button class="btn sm ghost" data-mode="contact">Contact</button>
     <button class="btn sm ghost" data-mode="rating">Your rating</button>
     <button class="btn sm ghost" data-mode="qualify">Qualifying run</button>
     <button class="btn sm ghost" data-mode="decode">Decode off air</button>
@@ -438,6 +439,38 @@
 </div>
 
 <!-- --------------------------------------------------------------- key -->
+{#- A CW contact with a virtual partner (qso.py): the safe place to learn
+    conversational CW. It keys through "Your sending", shown beneath it -
+    the same key, paddle or audio input - and the partner copies what the
+    decoder read of your fist, not what you meant. -#}
+<div class="panel mt cw-pane" id="cw-contact" hidden>
+  <div class="spread">
+    <div class="panel-title" style="margin:0">Contact &mdash; a CW QSO with a virtual partner</div>
+    <div class="row" style="gap:.4rem">
+      <button class="btn sm primary" data-qso-start="them">Answer a CQ</button>
+      <button class="btn sm ghost" data-qso-start="me">Call CQ</button>
+    </div>
+  </div>
+  <p class="small muted">Nobody real at the other end, so nothing to be nervous about: a partner who
+    answers your CQ or calls one, gives you a report, asks your name, talks rig and weather and says 73.
+    Key your over with the key below and end it with <b>K</b>, <b>KN</b> or <b>BK</b>, then pause
+    &mdash; or press <b>Over</b>. They copy what your fist actually sent: a call that would not decode
+    gets &ldquo;PSE AGN&rdquo;, ragged timing gets &ldquo;PSE QRS&rdquo;. Send <b>AGN?</b> to hear
+    theirs again, <b>QRS</b> or <b>QRQ</b> to change their speed.</p>
+  <div id="cw-qso-log" class="cw-qso-log"></div>
+  <div class="row mt" style="gap:.5rem;align-items:center;flex-wrap:wrap">
+    <span class="small" id="cw-qso-status">Start a contact.</span>
+    <button class="btn sm primary" id="cw-qso-over" disabled>Over</button>
+    <button class="btn sm ghost" id="cw-qso-again" disabled>Hear theirs again</button>
+    <label class="tiny muted"><input type="checkbox" id="cw-qso-show"> show their text</label>
+  </div>
+  <div class="row mt" style="gap:.4rem">
+    <input id="cw-qso-type" class="cw-input mono" style="flex:1;min-width:12rem" placeholder="or type your over"
+           autocomplete="off" spellcheck="false">
+    <button class="btn sm ghost" id="cw-qso-typed" disabled>Send it typed</button>
+  </div>
+</div>
+
 <div class="panel mt cw-pane" id="cw-key" hidden>
   <div class="spread">
     <div class="panel-title" style="margin:0">Your sending</div>

@@ -290,9 +290,13 @@ function showMode(name) {
     b.classList.toggle('primary', b.dataset.mode === name);
     b.classList.toggle('ghost', b.dataset.mode !== name);
   });
+  /* The Contact simulator keys through "Your sending", so that pane comes
+     with it, below. */
   document.querySelectorAll('.cw-pane').forEach(p => {
-    p.hidden = p.id !== 'cw-' + name;
+    p.hidden = !(p.id === 'cw-' + name || (name === 'contact' && p.id === 'cw-key'));
   });
+  keyDecoder.unknown = name === 'contact' ? '*' : null;
+  if (name !== 'contact') qsoStop();
   if (name !== 'decode') stopMic();
   teachHalt();
   if (learnOn) learnEnd(false);
@@ -2750,3 +2754,160 @@ document.getElementById('cw-q-wpm').addEventListener('input', qHint);
 document.getElementById('cw-q-start').addEventListener('click', qStart);
 document.getElementById('cw-q-stop').addEventListener('click', () => qFinish('stopped'));
 qHint();
+
+
+/* --------------------------------------------------------------- contact */
+/* A CW contact with a virtual partner (elmer/qso.py). You key an over with
+   the key in "Your sending"; when it ends with K, KN or BK and the key has
+   been quiet a moment - or when you press Over - the text the decoder read
+   goes to the partner, '*' for what would not decode, with a figure for how
+   clean the fist was. Their answer comes back in code at about your speed.
+   Their text is hidden unless asked for: copying it is the exercise. */
+/* var, not let: showMode runs on load, above this, and stops any contact. */
+var qso = {on: false, busy: false, last: null, seen: '', changed: 0, watch: null, log: []};
+const QSO_OVER = /(^|\s)(K|KN|BK|SK|AR|\(|\+)$/;
+const QSO_QUIET_MS = 1500;
+
+function qsoQuality() {
+  const text = keyDecoder.text.replace(/\s+/g, '');
+  if (!text) return null;
+  const decoded = 1 - (text.split('*').length - 1) / text.length;
+  if (keyerMode !== 'straight') return +decoded.toFixed(2);
+  /* A straight key's timing: a dah three dits long is the standard, and a
+     fist that wanders from it is harder to copy whatever it decodes to. */
+  const st = keyDecoder.stats();
+  const ratio = st.dit && st.dah ? st.dah / st.dit : 3;
+  const timing = Math.max(0, 1 - Math.abs(ratio - 3) / 3);
+  return +(decoded * (0.6 + 0.4 * timing)).toFixed(2);
+}
+
+function qsoWpm() {
+  return keyerMode === 'straight' && keyDecoder.dit ? Math.round(1200 / keyDecoder.dit) : settings.wpm;
+}
+
+function qsoPaint() {
+  const box = document.getElementById('cw-qso-log');
+  if (!box) return;
+  const show = document.getElementById('cw-qso-show').checked;
+  box.innerHTML = qso.log.map((e, i) => {
+    const who = e.who === 'them' ? 'them' : 'you';
+    const hidden = e.who === 'them' && !show && !e.shown;
+    const words = hidden
+      ? '<button class="btn sm ghost" data-qso-reveal="' + i + '">show what they sent</button>'
+      : '<span class="mono">' + escapeHTML(e.text || '\u2014') + '</span>';
+    /* Their call is part of what is copied: named on the line only once
+       their text is showing. */
+    return '<div class="cw-qso-line ' + who + '"><b>' + (who === 'them' ? (hidden ? 'them' : escapeHTML(e.call || 'them')) : 'you') +
+      '</b> ' + words + (e.notes && e.notes.length
+        ? '<div class="tiny muted">' + e.notes.map(escapeHTML).join(' ') + '</div>' : '') + '</div>';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function qsoStatus(text) {
+  const el = document.getElementById('cw-qso-status');
+  if (el) el.textContent = text;
+}
+
+function qsoArm(on) {
+  ['cw-qso-over', 'cw-qso-again', 'cw-qso-typed'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  });
+}
+
+function qsoPlay(res) {
+  qso.last = res;
+  if (!res.send) { qso.busy = false; return; }
+  qso.log.push({who: 'them', text: res.plain, call: res.summary && res.summary.partner.call, notes: res.notes});
+  qsoPaint();
+  qso.busy = true;
+  qsoStatus('Listening\u2026 ' + res.wpm + ' wpm');
+  player.send(res.groups, res.timing, null, () => {
+    qso.busy = false;
+    if (res.phase === 'done') {
+      const s = res.summary || {};
+      const h = s.heard || {};
+      qsoStatus('73. They copied you as ' + (h.call || '?') + (h.name ? ', ' + h.name : '') +
+        (s.fist !== null && s.fist !== undefined ? ' \u2014 your fist about ' + Math.round(s.fist * 100) + '%' : '') + '.');
+      showAchievements(res.achievements);
+      qsoArm(false);
+      document.getElementById('cw-qso-again').disabled = false;
+    } else {
+      qsoStatus('Your turn \u2014 key your over and end it with K.');
+    }
+  });
+}
+
+async function qsoStart(cq) {
+  qsoStop();
+  player.ensure();
+  keyDecoder.text = ''; keyDecoder.symbols = [];
+  qso = {on: true, busy: false, last: null, seen: '', changed: 0, watch: null, log: []};
+  qsoArm(true);
+  const res = await postJSON('/api/cw/qso/start', {cq: cq, wpm: settings.wpm});
+  qsoPaint();
+  if (res.send) qsoPlay(res);
+  else qsoStatus('Call CQ: CQ CQ DE and your call twice, then K.');
+  qso.watch = setInterval(qsoWatch, 300);
+}
+
+function qsoStop() {
+  if (!qso) return;
+  if (qso.watch) clearInterval(qso.watch);
+  qso.on = false;
+}
+
+/* The over ends when the decoded text ends with a hand-over and the key has
+   been quiet a moment - the pause an operator leaves before the other end
+   comes back. */
+function qsoWatch() {
+  if (!qso.on || qso.busy) return;
+  const text = keyDecoder.text.trim();
+  if (text !== qso.seen) { qso.seen = text; qso.changed = performance.now(); return; }
+  if (text && QSO_OVER.test(text) && performance.now() - qso.changed > QSO_QUIET_MS) qsoSend();
+}
+
+async function qsoSend(typed) {
+  if (!qso.on || qso.busy) return;
+  const text = (typed !== undefined ? typed : keyDecoder.flush() || keyDecoder.text).trim();
+  if (!text) return;
+  const quality = typed !== undefined ? null : qsoQuality();
+  const wpm = typed !== undefined ? settings.wpm : qsoWpm();
+  keyDecoder.text = ''; keyDecoder.symbols = []; keyDecoder.marks = []; keyDecoder.gaps = [];
+  qso.seen = '';
+  renderKey();
+  qso.log.push({who: 'you', text: text});
+  qsoPaint();
+  qso.busy = true;
+  try {
+    qsoPlay(await postJSON('/api/cw/qso/turn', {text: text, quality: quality, wpm: wpm}));
+  } catch (e) {
+    qso.busy = false;
+    qsoStatus('That over did not reach the partner \u2014 ' + (e.message || 'try again') + '.');
+  }
+}
+
+(function contactControls() {
+  if (!document.getElementById('cw-contact')) return;
+  document.querySelectorAll('[data-qso-start]').forEach(b =>
+    b.addEventListener('click', () => qsoStart(b.dataset.qsoStart)));
+  document.getElementById('cw-qso-over').addEventListener('click', () => qsoSend());
+  document.getElementById('cw-qso-again').addEventListener('click', () => {
+    if (qso.last && qso.last.groups && !qso.busy) {
+      qso.busy = true;
+      player.send(qso.last.groups, qso.last.timing, null, () => { qso.busy = false; });
+    }
+  });
+  document.getElementById('cw-qso-show').addEventListener('change', qsoPaint);
+  document.getElementById('cw-qso-log').addEventListener('click', e => {
+    const b = e.target.closest('[data-qso-reveal]');
+    if (!b) return;
+    qso.log[+b.dataset.qsoReveal].shown = true;
+    qsoPaint();
+  });
+  const typed = document.getElementById('cw-qso-type');
+  const sendTyped = () => { if (typed.value.trim()) { qsoSend(typed.value.trim().toUpperCase()); typed.value = ''; } };
+  document.getElementById('cw-qso-typed').addEventListener('click', sendTyped);
+  typed.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendTyped(); } });
+})();

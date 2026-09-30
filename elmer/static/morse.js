@@ -213,7 +213,11 @@ class MorseDecoder {
 
   flush() {
     if (!this.symbols.length) return;
-    this.text += codeToChar(this.symbols.join(''));
+    const code = this.symbols.join('');
+    /* What would not decode is '?' by default - which is also a real
+       character. A caller that needs the two told apart (the Contact
+       simulator does: a garbled call is not a question) sets `unknown`. */
+    this.text += FROM_CODE[code] || PROSIGN_CODE[code] || this.unknown || '?';
     this.symbols = [];
   }
 

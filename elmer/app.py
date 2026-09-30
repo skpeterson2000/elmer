@@ -47,6 +47,7 @@ from . import (
     whipbuild,
 )
 from . import supporter
+from . import qso as qso_mod
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
 # because home() is the front page a few thousand lines down.
@@ -3528,6 +3529,62 @@ def api_cw_encode():
                     "groups": groups, "skipped": skipped,
                     "characters": sum(len(w) for w in groups),
                     "timing": cw.timing(wpm, effective)})
+
+
+QSO_KEY = "cw_qso"                 # the contact in progress, per account
+
+
+def _qso_reply(state, text, notes=None, fresh=None):
+    """The partner's over as code to send, and what the page shows."""
+    return jsonify({"send": text, "plain": qso_mod.cw.plain(text) if text else "",
+                    "groups": cw.encode(text) if text else [],
+                    "timing": cw.timing(state["wpm"]), "wpm": state["wpm"],
+                    "phase": state["phase"], "notes": notes or [],
+                    "summary": qso_mod.summary(state), "achievements": fresh or []})
+
+
+@app.route("/api/cw/qso/start", methods=["POST"])
+def api_cw_qso_start():
+    """A new contact with the virtual partner. `cq` is who calls: "them"
+    (the partner calls CQ for you to answer) or "me"."""
+    body = request.get_json(silent=True) or {}
+    cq = "me" if body.get("cq") == "me" else "them"
+    try:
+        wpm = float(body.get("wpm") or 18)
+    except (TypeError, ValueError):
+        wpm = 18.0
+    connection = conn()
+    state, say = qso_mod.start(cq, wpm)
+    db.kv_set(connection, QSO_KEY, state)
+    connection.commit()
+    log.info("cw qso: started, %s calls, %d wpm, partner %s", cq, state["wpm"], state["partner"]["call"])
+    return _qso_reply(state, say)
+
+
+@app.route("/api/cw/qso/turn", methods=["POST"])
+def api_cw_qso_turn():
+    """One over from the operator: the text their keying decoded to, with
+    '*' for what would not decode, and a quality figure for the fist."""
+    body = request.get_json(silent=True) or {}
+    connection = conn()
+    state = db.kv_get(connection, QSO_KEY)
+    if not state:
+        abort(400, "no contact in progress - start one")
+    try:
+        quality = None if body.get("quality") is None else max(0.0, min(1.0, float(body["quality"])))
+        wpm = float(body["wpm"]) if body.get("wpm") else None
+    except (TypeError, ValueError):
+        abort(400, "check the numbers")
+    was = state.get("phase")
+    state, say, notes = qso_mod.turn(state, str(body.get("text") or "")[:600], quality, wpm)
+    fresh = []
+    if state["phase"] == "done" and was != "done":
+        fresh = game.check_cw_achievements(connection, {}, ragchew=True)
+        log.info("cw qso: worked %s in %d overs, fist %s", state["partner"]["call"], state["turns"],
+                 qso_mod.summary(state)["fist"])
+    db.kv_set(connection, QSO_KEY, state)
+    connection.commit()
+    return _qso_reply(state, say, notes, fresh)
 
 
 @app.route("/api/cw/ladder")

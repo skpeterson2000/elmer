@@ -2009,6 +2009,19 @@ most comfortably, and it is remembered.
   between the Q signal QRM and a prosign, which has no gaps inside it at all
   and is one sound. And a question mark makes one a question — QRL? asks
   whether the frequency is busy, QRL answers that it is.
+- **Contact** (`elmer/qso.py`) is a CW contact with a virtual partner, keyed
+  through Your sending's own decoder. The page posts each over as the text the
+  decoder read, '*' for a code that would not decode (the decoder's `unknown`,
+  set in this mode so a garbled call is not a question mark), and a fist
+  quality: the share of characters decoded, and on a straight key how far the
+  dah sits from three dits. The partner reads the over as an operator would -
+  calls, RST (5NN as 599), NAME, QTH, RIG, ANT, WX, AGE, questions, AGN, QRS,
+  QRQ, 73 and SK, and a prosign keyed run-together, which decodes as its
+  punctuation twin (AR "+", BT "=", KN "(") - and answers with a persona of
+  its own, at the operator's measured speed. It copies what was decoded:
+  a garbled call gets QRZ, a misread name is used as read, and below 0.6 it
+  asks for QRS; readability in its report follows the fist. The contact is
+  kept per account (kv `cw_qso`); done, it earns Ragchew.
 - **Your sending** turns the space bar or an on-screen paddle into a straight
   key, decodes what you actually sent, and measures your timing against the
   target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your

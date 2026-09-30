@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- CW has **Contact**: a CW QSO with a virtual partner, the safe place to learn conversational CW. Answer their CQ or call your own, and work the contact the way a ragchew goes - report, name, QTH, rig, weather, 73 and SK - keying with your own key, paddle or audio input. The partner copies what your fist actually sent: a call that would not decode gets QRZ, a misread name is used as read, ragged timing gets PSE QRS and a readability to match. They answer at your speed, repeat for AGN and slow for QRS. Their text stays hidden until you ask for it. A contact worked through earns the Ragchew badge.
+
 - Moving a slider in the Lab keeps evaluating your antenna at your height. It re-asked as a suggestion, without the height, so the answer fell back on a small lot's usual 22 ft and told somebody with a 40 ft support "what fits here is 22 ft".
 
 - The Lab starts from the antenna you have. Say what it is **Cut for** - in the Lab, or beside the antenna on the Band Plan - and ask about another band, and it shows how to get that antenna there instead of designing a new one: it may already work there; add wire with a link at each end; feed it as a Marconi T, the classic way a dipole gets onto 160 m; a coil in each leg; ladder line and a tuner; jumpers or traps for a band above - each with its feet, microhenries and about what it gives up. Then which of your modes close the path to where you are **Trying to reach**, now and after dark, and the other bands where your antenna works right now. The small-lot note ends on the ways to get more out of a low wire, not on "the fix is height or a different antenna".

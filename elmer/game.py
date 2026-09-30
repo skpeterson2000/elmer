@@ -71,6 +71,7 @@ ACHIEVEMENTS = [
     ("cw_copy_20", "Twenty Words", "Rated copying at 20 wpm"),
     ("cw_fist", "Clean Fist", "Rated sending at 90% accuracy"),
     ("cw_qsm", "QSM?", "Ask for a resend in code, and be answered"),
+    ("cw_ragchew", "Ragchew", "Work a CW contact with the simulator, CQ to SK"),
     ("cw_hit", "Base Hit", "Copy a pitch clean in CW Baseball"),
     ("cw_majors", "Big League", "Copy a pitch clean in the majors"),
     # Earned by answering the drill out of the network tab rather than off
@@ -321,7 +322,8 @@ def check_exam_achievements(conn, pool_id, passed, perfect, missed=None):
     return award(conn, codes)
 
 
-def check_cw_achievements(conn, progress, session_pct=None, resends=None, streak=None, rating=None):
+def check_cw_achievements(conn, progress, session_pct=None, resends=None, streak=None, rating=None,
+                          ragchew=False):
     """The code's badges, from whatever the caller has just learned: the
     per-character record after a copy session (with that session's score
     and how many resends it took), the practice streak, or the rating."""
@@ -343,6 +345,8 @@ def check_cw_achievements(conn, progress, session_pct=None, resends=None, streak
             codes.append(code)
     if (rating.get("send_accuracy") or 0) >= 90:
         codes.append("cw_fist")
+    if ragchew:
+        codes.append("cw_ragchew")
     return award(conn, codes)
 
 

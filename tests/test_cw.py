@@ -276,8 +276,10 @@ def main():
     check("the ballgame: a hit in the little league is Base Hit", names(game.check_ballgame_achievements(conn2, hit=True)), ["Base Hit"])
     check("  one in the majors is Big League as well", names(game.check_ballgame_achievements(conn2, hit=True, majors=True)), ["Big League"])
     check("  a resend asked for in code and answered is QSM?", names(game.check_ballgame_achievements(conn2, keyed_ask=True)), ["QSM?"])
-    check("all twelve are on the list", sum(1 for c, _, _ in game.ACHIEVEMENTS if c.startswith("cw_")), 12)
-    check("  and every one earned here is held", len([c for c in game.earned(conn2) if c.startswith("cw_")]), 12)
+    check("a contact worked with the simulator, CQ to SK, is Ragchew",
+          names(game.check_cw_achievements(conn2, {}, ragchew=True)), ["Ragchew"])
+    check("all thirteen are on the list", sum(1 for c, _, _ in game.ACHIEVEMENTS if c.startswith("cw_")), 13)
+    check("  and every one earned here is held", len([c for c in game.earned(conn2) if c.startswith("cw_")]), 13)
 
     return 1 if FAILS else 0
 

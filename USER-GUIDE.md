@@ -34,6 +34,7 @@ This guide is long because ELMER does a lot, and a long guide is no use to someb
 - Find out what speed I copy and send at - *CW: Your rating*
 - Decode what is coming out of the receiver - *CW: Decode off air*
 - Practice with a real key or paddle - *CW: Your sending*
+- Work a CW contact with a virtual partner - *CW: Contact*
 
 **Antennas and the station**
 
@@ -327,7 +328,7 @@ It is a view and not a class. It cannot be set as your license in the Station pa
 
 Learn it, copy it, send it, and decode what is coming out of the receiver. The settings bar at the top is always in view: tone, volume, character speed and effective speed. The tone starts at 1020 Hz, the pitch aviation identifies in code on: ICAO gives VOR, ILS and NDB stations 1020 Hz for their idents, and the TONE switch on a military UHF set keys 1020 Hz for a direction-finding steer. Put it wherever you hear it most comfortably, anywhere from 300 to 1200 Hz, and it is remembered. The volume is ELMER's own and sits under the system volume, and it starts most of the way up, because a unit wired to a monitor with no volume button of its own has no other way to be heard. The two speeds are Farnsworth timing, characters sent fast with the gaps stretched, so you learn the sound of a letter at the speed you will eventually copy it.
 
-The row of buttons across the top is the page: **Next session**, **Learn**, **Chart**, **Copy practice**, **Send text**, **Your sending**, **Your rating**, **Qualifying run** and **Decode off air**. Nothing on this page needs a network.
+The row of buttons across the top is the page: **Next session**, **Learn**, **Chart**, **Copy practice**, **Send text**, **Your sending**, **Contact**, **Your rating**, **Qualifying run** and **Decode off air**. Nothing on this page needs a network.
 
 ### Next session - the door
 
@@ -452,6 +453,12 @@ Every rung with a claim in it carries a source you can follow, which is the poin
 **Your rating** measures your copying and your sending in words per minute and keeps both with your account. The CW games set their level from it. Resends on the ladder are counted and said with the result, and the rung of the ladder above is named from the list two sections up, so a number that has just moved says what it is now for.
 
 ![Your rating: the speed copied, the speed sent, and where each one sits](docs/screenshots/guide/cw-rating.png)
+
+### Contact
+
+**Contact** is a CW contact with a virtual partner - the safe place to learn to talk in code, with nobody real at the other end. **Answer a CQ** and the partner calls one for you to answer; **Call CQ** and you call, and they answer. From there it runs the way a ragchew does: a report, names, QTHs, rig and antenna, the weather, 73 and SK. You key with the key under it - the same straight key, paddle or audio input as **Your sending** - and end each over with **K**, **KN** or **BK**, then pause, or press **Over**. The partner answers in code at about your speed.
+
+They copy what your fist actually sent, not what you meant. A call with a character in it that would not decode gets "QRZ?"; a name that came through as JOM is JOM; ragged timing gets "PSE QRS" and a readability in your report to match. Send **AGN?** to hear their last over again, **QRS** or **QRQ** to change their speed, and **73** with **SK** to close. Their text stays hidden - copying it is the exercise - until you press **show what they sent** on a line, or tick **show their text**. At the end the page says what they copied of you and how clean your fist was. A contact worked from CQ to SK earns the **Ragchew** badge. There is a box to type an over instead, for when there is no key to hand.
 
 ### Decode off air
 
