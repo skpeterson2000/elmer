@@ -114,6 +114,7 @@ check("  so no wind moves it", golf.wind_drift(9, 40, "putter"), 0.0)
 print("\nthe hour is inside the arc the card asked for, and holds still")
 course = json.loads((ROOT / "data" / "golf" / "pebble-beach.json").read_text(encoding="utf-8"))
 game = golf.Golf(["a"], course, seed=1, seconds=30)
+game._lines = {}   # with no course map: the card's arcs, as always (a mapped course: test_golf_true_wind)
 hours = {}
 for h in course["holes"]:
     hour = game.wind_clock(h)
@@ -129,6 +130,7 @@ check("  each one inside the arc its card asked for",
           for h in course["holes"]), True)
 
 again = golf.Golf(["a"], course, seed=99, seconds=30)
+again._lines = {}
 check("  the same hole is the same wind in a different round",
       {h["n"]: again.wind_clock(h) for h in course["holes"]}, hours)
 check("  but the eighteen are not all quartering the same way",

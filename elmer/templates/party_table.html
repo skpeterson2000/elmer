@@ -868,7 +868,10 @@ function dayWords(gf) {
 }
 
 function golfHead(gf) {
-  const wind = gf.hole_wind === 'swirling' ? 'swirling' : gf.hole_wind;
+  // The wind on the shot being played - whoever is away, along their own
+  // line - and the hole's from the tee when nobody is.
+  const awayBall = (gf.balls || {})[gf.away];
+  const wind = (awayBall && awayBall.wind) || gf.hole_wind;
   return `<div class="chip">${esc(gf.course_name)}</div>
     <p class="qtext" style="margin:.4rem 0 .2rem"><b>${gf.hole}${ordinal(gf.hole)}</b>${gf.hole_name ? ' &middot; ' + esc(gf.hole_name) : ''}
       &middot; par ${gf.par} &middot; ${gf.yards} yards &middot; ${gf.wind_mph} mph ${esc(wind || '')}${dayWords(gf)}

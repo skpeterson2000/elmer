@@ -502,7 +502,11 @@ def run():
             g.play_one(p, {"correct": True, "club": "driver"})
         apart += len({g.balls[p].at for p in ("a", "b", "c")}) == 3
     check("three right answers off the tee land in three places, so somebody is away", apart >= 15, True)
-    check("  the farthest out", g.away(), min(("a", "b", "c"), key=lambda p: g.balls[p].at))
+    # Farthest from the hole as the crow flies, along and across both - a
+    # crosswind puts drives off the line, and the one a yard further along
+    # but ten yards wider is farther away (see Golf.away).
+    check("  the farthest out", g.away(), max(("a", "b", "c"), key=lambda p: (
+        (g.hole()["yards"] - g.balls[p].at) ** 2 + (g.balls[p].off or 0) ** 2) ** 0.5))
 
     print("\n-- the green: everyone wants the cup, and the green decides --")
     def putt(feet, across=0, right=True, ms=1000, adept=False, slope=None, aim=None, seed=1):

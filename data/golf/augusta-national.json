@@ -9,7 +9,8 @@
  "wind": {
   "typical_mph": 9,
   "from": "swirling in the pines; unreadable at the 12th",
-  "note": "light, but it turns in Amen Corner and the greens punish anything slow"
+  "note": "light, but it turns in Amen Corner and the greens punish anything slow",
+  "from_deg": null
  },
  "notes": "Card from the tournament tees. Rae's Creek and the ponds are where they are; bunkers are the ones that decide holes.",
  "holes": [

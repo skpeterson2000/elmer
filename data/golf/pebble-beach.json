@@ -9,7 +9,8 @@
  "wind": {
   "typical_mph": 12,
   "from": "the Pacific, off the left on the ocean holes",
-  "note": "steady afternoon sea breeze; the 6th to the 10th and the 17th and 18th feel it most"
+  "note": "steady afternoon sea breeze; the 6th to the 10th and the 17th and 18th feel it most",
+  "from_deg": 300
  },
  "weather": "Fetched from the National Weather Service for these coordinates when the unit has a network; the card's typical wind otherwise.",
  "notes": "Card from the resort tees. Hazards are the famous ones, placed approximately. Greens fall toward the ocean and the front, placed approximately too. Dog-legs and fairway widths are placed approximately too.",

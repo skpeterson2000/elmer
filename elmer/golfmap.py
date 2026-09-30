@@ -157,7 +157,9 @@ SIDE = {"left": (FAIR_L - 34, FAIR_L - 4), "right": (FAIR_R + 4, FAIR_R + 34),
         "center": (FAIR_L + 10, FAIR_R - 10), "around": (FAIR_L - 30, FAIR_R + 30),
         "beyond": (FAIR_L - 10, FAIR_R + 10), "": (FAIR_L, FAIR_R)}
 FILL = {"water": "#2f6f9f", "bunker": "#d9c48a", "rough": "#4c6b2f"}
-WIND_ARROW = {"with": "↑", "into": "↓", "across": "→", "swirling": "↻"}
+WIND_ARROW = {"with": "↑", "into": "↓", "across": "→", "swirling": "↻",
+              # blowing from that side toward the other
+              "across off the left": "→", "across off the right": "←"}
 LIE_MARK = {"tee": "#e8e8e8", "fairway": "#e8e8e8", "rough": "#c9d13a", "sand": "#d9c48a",
             "green": "#8fe39a", "fringe": "#6fbf7a", "water": "#7fbfff"}
 GREEN_FILL, FRINGE_FILL, FAIRWAY_FILL, ROUGH_FILL, GROUND = "#8fe39a", "#5fa86a", "#4a8a3a", "#2a4a24", "#16221a"

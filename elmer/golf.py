@@ -56,9 +56,13 @@ table switched it on, is strokes given, taken off at the end: a poor
 player and a fair one can play the same card. A tie for the lead at the
 end is a playoff, hole by hole, sudden death.
 
-**The wind is drawn each round** around the hole's typical, so no two
-rounds play the same; the 12th at Augusta swirls, which means it is drawn
-for every shot.
+**The wind is one wind over the course**, with a bearing: the forecast's
+where the unit has one, else the course's prevailing wind drawn around, and
+it backs and veers a little from hole to hole. Each shot feels it along the
+line it is played on, from the hole's real line on the course map, so a
+dogleg's second shot is not the drive's and holes that run different ways
+play the same wind differently. The 12th at Augusta swirls, which means it
+is drawn for every shot; a course with no map plays its card.
 
 Nothing here has a clock or a question in it. The room says who is away,
 which club they chose and whether they were right; this says where the
@@ -690,6 +694,15 @@ def side_of(off, half=None):
         return "right"
     return ""
 LEAK_CALLS = ["Leaked it.", "Pushed it a touch.", "Pulled it a hair.", "That got away from him."]
+COMPASS = {name: i * 22.5 for i, name in enumerate(
+    "N NNE NE ENE E ESE SE SSE S SSW SW WSW W WNW NW NNW".split())}
+
+
+def compass_deg(point):
+    """A compass point as a bearing - "WNW" is 292.5 - or None."""
+    return COMPASS.get(str(point or "").strip().upper())
+
+
 def wind_parts(hour):
     """A clock hour as (tail, cross): how much of the wind is behind you,
     and how much is across you. ``None`` is no wind at all, which is what a
@@ -1205,9 +1218,31 @@ class Day:
     WIND_DRY = 0.001            # more, per mile an hour
     STEP = {"sun": (("cloud", 0.15),), "cloud": (("sun", 0.25), ("shower", 0.2)), "shower": (("cloud", 0.5),)}
 
-    def __init__(self, rng, typical_mph=10, forecast=None):
+    DIR_SPREAD = 20.0           # degrees a round's wind lies off the course's prevailing
+    DIR_MOST = 50.0             # and never more than this
+    DIR_WALK = 8.0              # degrees it may back or veer between holes
+
+    def __init__(self, rng, typical_mph=10, forecast=None, from_deg=None):
         self.rng = rng
         self.forecast = forecast or None
+        # Which way the wind blows from, a real bearing, so each hole and each
+        # shot feels it along its own line - see Golf.wind_clock. Drawn from a
+        # generator of its own, seeded from the round's without advancing it,
+        # so every other draw in a round is what it always was.
+        self.dir_rng = random.Random(hash(rng.getstate()))
+        said = compass_deg((forecast or {}).get("wind_from"))
+        if said is not None:
+            self.base_deg = said                         # the forecast's own
+            self.wind_deg = said
+        elif from_deg is not None:
+            self.base_deg = float(from_deg)
+            # around the prevailing, and never so far from it that the course
+            # stops being itself: a tail of the bell curve is cut at DIR_MOST
+            off = max(-self.DIR_MOST, min(self.DIR_MOST, self.dir_rng.gauss(0.0, self.DIR_SPREAD)))
+            self.wind_deg = (self.base_deg + off) % 360.0
+        else:
+            self.base_deg = self.dir_rng.uniform(0.0, 360.0)     # a course with no prevailing wind
+            self.wind_deg = self.base_deg
         if forecast:
             # The day's wind, not the minute's. The forecast's current hour
             # is a single sample, and somebody teeing off in a lull on a
@@ -1237,6 +1272,10 @@ class Day:
         self.holes += 1
         drift = self.rng.uniform(-self.WALK, self.WALK) + self.PULL * (self.mean - self.wind_mph)
         self.wind_mph = max(0, min(40, round(self.wind_mph + drift)))
+        # and backs or veers a little, pulled toward where it came from
+        off = ((self.wind_deg - self.base_deg + 180.0) % 360.0) - 180.0
+        self.wind_deg = (self.wind_deg + self.dir_rng.uniform(-self.DIR_WALK, self.DIR_WALK)
+                         - self.PULL * off) % 360.0
         r = self.rng.random()
         for to, odds in self.STEP[self.sky]:
             # the forecast's rain chance leans the step toward a shower
@@ -1356,7 +1395,11 @@ class Golf:
         self.power = {p: 1.0 for p in self.players}
         self.wild = {p: 1.0 for p in self.players}
         self.balls = {}
-        self.day = Day(self.rng, (course.get("wind") or {}).get("typical_mph", 10), forecast)
+        self.day = Day(self.rng, (course.get("wind") or {}).get("typical_mph", 10), forecast,
+                       (course.get("wind") or {}).get("from_deg"))
+        # Each hole's real line of play, from the course map, for the wind.
+        from . import coursemap
+        self._lines = (coursemap.load(course.get("id")) or {}).get("holes") or {}
         self.playoff = []          # players still in a playoff, if one
         self.playoff_holes = 0
         self._winner = None
@@ -1426,7 +1469,56 @@ class Golf:
             w = self.rng.choice(("with", "into", "across"))
         return w
 
-    def wind_clock(self, h, kind=None):
+    def shot_bearing(self, h, player=None):
+        """The bearing this shot is played along, from the hole's own line on
+        the course map: from the ball toward where it is aimed - so the second
+        shot on a dogleg is played along the second leg, not the drive's. The
+        tee's line when no player is asked about. None with no map."""
+        line = self._lines.get(str(h.get("n")))
+        if not line or len(line) < 2:
+            return None
+        legs, total = [], 0.0
+        for (x1, y1), (x2, y2) in zip(line, line[1:]):
+            d = math.hypot(x2 - x1, y2 - y1)
+            legs.append((total, d, x1, y1, x2, y2))
+            total += d
+        if total <= 0:
+            return None
+        per_yard = total / float(h.get("yards") or total / 0.9144)     # map metres per card yard
+
+        def point(yards):
+            m = max(0.0, min(total, yards * per_yard))
+            for start, d, x1, y1, x2, y2 in legs:
+                if m <= start + d or (start, d) == legs[-1][:2]:
+                    t = 0.0 if d == 0 else (m - start) / d
+                    return x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
+            return line[-1]
+        ball = self.balls.get(player) if player is not None else None
+        at = float(ball.at) if ball is not None else 0.0
+        # Toward the golfer's own mark, else this hole's pin - read from `h`,
+        # not from whichever hole the round is on.
+        mark = self.aims.get(player) if ball is not None else None
+        to = float(mark["at"]) if mark else float(h["yards"])
+        if abs(to - at) < 5:
+            to = at + (5 if to >= at else -5)
+        (x1, y1), (x2, y2) = point(at), point(to)
+        if math.hypot(x2 - x1, y2 - y1) < 1e-6:
+            return None
+        return math.degrees(math.atan2(x2 - x1, y2 - y1)) % 360.0
+
+    def wind_words(self, h, player=None):
+        """The wind on this shot in the card's words - with, into, across
+        off the left or right - from its hour."""
+        hour = self.wind_clock(h, player=player)
+        if hour is None:
+            return h.get("wind")
+        if hour in (5, 6, 7):
+            return "with"
+        if hour in (11, 12, 1):
+            return "into"
+        return "across off the right" if hour in (2, 3, 4) else "across off the left"
+
+    def wind_clock(self, h, kind=None, player=None):
         """Which hour of the clock this hole's wind is out of.
 
         The card gives the arc - with, into or across, and across off the
@@ -1437,6 +1529,18 @@ class Golf:
         resolved for this shot, which matters on a swirling hole where it
         is drawn afresh each time.
         """
+        # One real wind over the course, felt along this shot's own line:
+        # the day's bearing against the bearing the shot is played on, as a
+        # clock - twelve dead ahead, six behind, three off the right. The
+        # card's with/into/across used to be the wind, fixed to each hole,
+        # so a dogleg's second shot felt the drive's wind and the front nine
+        # at the Old Course was downwind every round. A swirling hole keeps
+        # its swirl, drawn each shot, and a course with no map keeps its card.
+        if h.get("wind") != "swirling":
+            line = self.shot_bearing(h, player)
+            if line is not None:
+                rel = (self.day.wind_deg - line) % 360.0
+                return int(round(rel / 30.0)) % 12 or 12
         kind = kind or h.get("wind", "across")
         if kind == "across":
             kind = f"across-{self.wind_from(h)}"
@@ -1489,7 +1593,7 @@ class Golf:
         if not club or club == "putter":
             return []
         mark = self.aim(player) or {"at": h["yards"], "off": 0}
-        reach = self.reach(player, club) + self.expected_roll(club, "fairway", self.wind_clock(h)) * ROLL_NOISE[1]
+        reach = self.reach(player, club) + self.expected_roll(club, "fairway", self.wind_clock(h, player=player)) * ROLL_NOISE[1]
         half = fairway_half(h)
         # the sides the line runs through: the ball's, the mark's, and the
         # middle when either is near it
@@ -1541,7 +1645,7 @@ class Golf:
         for club in allowed:
             # with room for the club's spread and a lively bounce
             far = (ball.at + self.reach(player, club) + CLUB_SPREAD.get(club, AIM)
-                   + self.expected_roll(club, "fairway", self.wind_clock(h)) * ROLL_NOISE[1])
+                   + self.expected_roll(club, "fairway", self.wind_clock(h, player=player)) * ROLL_NOISE[1])
             water = self._in_band(h, int(far), kinds=("water",))
             crossing = [hz for hz in h.get("hazards", []) if hz["kind"] == "water"
                         and hz.get("side", "") in SIDE_BANDS[""] and ball.at < hz["from"] <= far]
@@ -1570,7 +1674,7 @@ class Golf:
         afresh on every read of the table's state, which a table with four
         players does several times a second."""
         h = self.hole()
-        hour = self.wind_clock(h) if h else None
+        hour = self.wind_clock(h, player=player) if h else None
         ball = self.balls.get(player)
         clubs = tuple(c for c in self.clubs_for(player) if c != "putter")
         key = (ball.lie if ball else None, self.power.get(player, 1.0), self._hand(player),
@@ -1587,7 +1691,7 @@ class Golf:
         """How far this club gets from here in today's wind - the steady
         wind, not a gust, since this is what a golfer reckons at address."""
         h = self.hole()
-        hour = self.wind_clock(h) if h else None
+        hour = self.wind_clock(h, player=player) if h else None
         most = self.reach(player, club, lie)
         spin, shape = self._hand(player)
         return most + wind_on_carry(club, 1.0, hour, float(self.wind_mph or 0), spin, shape) * most / CLUBS[club]
@@ -1683,7 +1787,7 @@ class Golf:
         runs = None
         if reaches:
             lands_on = on_the_green(h, float(mark["at"]), float(mark["off"])) or "fairway"
-            runs = int(round(self.expected_roll(club, lands_on, self.wind_clock(h), yards,
+            runs = int(round(self.expected_roll(club, lands_on, self.wind_clock(h, player=player), yards,
                                                 CLUBS[club] * LIES[ball.lie][0] * self.power.get(player, 1.0))))
             checks = lands_on == "green" and club in WEDGES
             after = "it checks where it lands" if checks else f"it runs about {runs}" if runs >= 2 else "it sits down"
@@ -1856,7 +1960,7 @@ class Golf:
         mark = self.aim(player)
         to_mark = float(mark["at"]) - ball.at
         most = CLUBS[club] * LIES[ball.lie][0] * self.power.get(player, 1.0)
-        hour = self.wind_clock(h)
+        hour = self.wind_clock(h, player=self._who)
         if not mark.get("set") and most >= to_mark:
             to_mark -= int(round(self.expected_roll(club, "green", hour, to_mark, most) * 0.8))
         spin, shape = self._hand(player)
@@ -1917,7 +2021,7 @@ class Golf:
         # ball could be held up by twenty-five and blown sideways by
         # fifteen on the same swing. The hour it is out of, and the mph it
         # is blowing at this instant, are settled here and handed on.
-        hour = self.wind_clock(h, wind)
+        hour = self.wind_clock(h, wind, player=self._who)
         mph = self.day.gust()
         if club == "putter" or ball.lie == "green":
             return self._putt(h, ball, right=True, adept=adept)
@@ -2922,7 +3026,9 @@ class Golf:
             "course": self.course["id"], "course_name": self.course["name"],
             "hole": h["n"] if h else None, "par": h["par"] if h else None,
             "yards": h["yards"] if h else None, "hole_name": (h.get("name") or "") if h else "",
-            "hole_wind": h.get("wind") if h else None, "wind_mph": self.day.wind_mph,
+            # the wind along the hole from the tee; each ball has its own below
+            "hole_wind": self.wind_words(h) if h else None, "wind_mph": self.day.wind_mph,
+            "wind_from_deg": round(self.day.wind_deg),
             "day": self.day.state(), "ground_words": self.day.ground_words,
             "holes_played": self.hole_index, "holes": len(self.holes),
             "slope": self.slope(h) if h else None,
@@ -2937,6 +3043,9 @@ class Golf:
                           # choice, else whether the green is the target
                           "approaching": self.zoomed(p),
                           "reaches_green": self.approaching(p),
+                          # the wind on this ball's next shot, along its own line
+                          "wind": self.wind_words(h, p) if h else None,
+                          "wind_hour": self.wind_clock(h, player=p) if h else None,
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           # what each club gets from here today, for the picker

@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- Golf: one real wind over the course. Each hole's wind was its card's word, fixed to the hole's tee-to-green line, so a dogleg's second shot felt the drive's wind and the Old Course's front holes were downwind every round. The round's wind now has a direction - the forecast's at the real course, else its prevailing wind (south-west at St Andrews, north-west off the Pacific at Pebble Beach) drawn around, and anywhere at Augusta - and each shot feels it along the line it is played on, from the hole's real line on the course map. The table, the phone and the map's arrow show the wind on the shot being played.
+
 - Golf: the phone's map zooms to the green whenever any club in your bag can reach it, for a fine mark. It zoomed only when the club ELMER would hand you reached the pin - and that club is the one for your own mark, so a mark set short of the green, or going for a par five in two, stayed on the whole hole. **Whole hole** and **Zoom to the green** switch it either way for the stroke.
 
 - A terminated vee or sloper chosen on the Band Plan carries its length and ends to the Lab. Its length decides its takeoff angle more than its height does - 50 ft of vee on 40 m is steep and nearly all round, 500 ft low and one way - and the Band Plan had no box for it, so the Lab opened on its own last length or the handbook's 500. Choosing either wire now shows a wire-length and an ends box beside the height.
