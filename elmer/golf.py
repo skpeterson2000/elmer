@@ -1336,6 +1336,9 @@ class Golf:
         self.hole_index = 0
         self.swing = self.rng          # this stroke's draw; seeded by its timing when known
         self.aims = {}                 # player -> {"at", "off"}: the mark they set, for one stroke
+        # player -> (view, strokes): "green" or "hole", chosen on the phone for
+        # this stroke; gone once the ball has been hit (see zoomed).
+        self.views = {}
         self.setup = {}                # player -> {"shape", "spin"}: the shot they set up - see set_setup
         self.before = {}                 # player -> the ball before their last stroke, for a mulligan
         # Luck, earned: a player who answered along with somebody else's
@@ -1763,8 +1766,32 @@ class Golf:
         left = abs(h["yards"] - ball.at)
         if left <= APPROACH_FROM:
             return True
-        club = self.default_club(player)
-        return bool(club and club != "putter" and self.reach(player, club) >= left)
+        # Any club in the bag that gets there from this lie, not only the one
+        # ELMER would hand over: going for a par five in two with more club
+        # than suggested is aiming at the green, and was shown the whole hole.
+        clubs = [c for c in self.clubs_for(player) if c != "putter"]
+        return bool(clubs and max(self.reach(player, c) for c in clubs) >= left)
+
+    def zoomed(self, player):
+        """Whether this player's map is zoomed to the green: their own choice
+        for this stroke if they made one on the phone, else whether the green
+        is the target (approaching). A ball on the green has its own view."""
+        ball = self.balls.get(player)
+        if ball is None or ball.done() or ball.lie in ("green", "fringe"):
+            return False
+        chosen = self.views.get(player)
+        if chosen and chosen[1] == ball.strokes:
+            return chosen[0] == "green"
+        return self.approaching(player)
+
+    def set_view(self, player, view):
+        """The phone's switch: "green" to zoom to it, "hole" for the whole
+        hole, for this stroke only. Returns whether the map is zoomed now."""
+        ball = self.balls.get(player)
+        if ball is None or ball.done() or view not in ("green", "hole"):
+            return self.zoomed(player)
+        self.views[player] = (view, ball.strokes)
+        return self.zoomed(player)
 
     def expected_roll(self, club, lie="fairway", hour=None, carry=None, most=None, flair=None):
         """How far a ball with this club is expected to run on after it
@@ -2906,7 +2933,10 @@ class Golf:
                           # nothing that a ball filed at the pin came to.
                           "picked_up": b.picked_up, "left": int(round(abs(h["yards"] - b.at))) if h else 0,
                           "feet": (int(round(((b.at - h["yards"]) ** 2 + b.off ** 2) ** 0.5 * 3)) if h and b.lie in ("green", "fringe") else None),
-                          "approaching": self.approaching(p),
+                          # zoomed to the green on the map: this stroke's own
+                          # choice, else whether the green is the target
+                          "approaching": self.zoomed(p),
+                          "reaches_green": self.approaching(p),
                           "aim": self.aim(p), "last_aim": b.last_aim,
                           "clubs": self.clubs_for(p), "default_club": self.default_club(p),
                           # what each club gets from here today, for the picker

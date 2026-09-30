@@ -6367,6 +6367,24 @@ def api_party_aim():
     return jsonify({"ok": True, "aim": g.aim(player)})
 
 
+@app.route("/api/party/golf/view", methods=["POST"])
+def api_party_golf_view():
+    """The phone's zoom switch: the green or the whole hole, for this
+    stroke. Their own ball only."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        player = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    if player not in room.players:
+        abort(404, "not at this table")
+    g = room.golf
+    if g is None or g.over():
+        abort(409, "no round is on")
+    return jsonify({"ok": True, "zoomed": g.set_view(player, str(body.get("view") or ""))})
+
+
 @app.route("/api/party/shape", methods=["POST"])
 def api_party_shape():
     """The shot a golfer sets up before the question: its shape and spin."""

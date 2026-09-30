@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-28
 
+- Golf: the phone's map zooms to the green whenever any club in your bag can reach it, for a fine mark. It zoomed only when the club ELMER would hand you reached the pin - and that club is the one for your own mark, so a mark set short of the green, or going for a par five in two, stayed on the whole hole. **Whole hole** and **Zoom to the green** switch it either way for the stroke.
+
 - A terminated vee or sloper chosen on the Band Plan carries its length and ends to the Lab. Its length decides its takeoff angle more than its height does - 50 ft of vee on 40 m is steep and nearly all round, 500 ft low and one way - and the Band Plan had no box for it, so the Lab opened on its own last length or the handbook's 500. Choosing either wire now shows a wire-length and an ends box beside the height.
 
 - The antenna you choose on the Band Plan, in the Lab or on the analyzer in Tools is the one all three open on: kind, height, which way it is laid, ground, and a terminated wire's length and ends. Change it in one and the others follow, even open in another window. The Band Plan's map now offers every antenna the Lab does.
