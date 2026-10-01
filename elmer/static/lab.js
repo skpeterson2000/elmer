@@ -839,7 +839,9 @@ function beamNotes(type, f, notes) {
 function hexBand(f) {
   return HEX_BANDS.reduce((a, b) => Math.abs(b.mhz - f) < Math.abs(a.mhz - f) ? b : a);
 }
-const BEAM_KINDS = ['yagi', 'moxon', 'hexbeam', 'quad'];
+const BEAM_KINDS = ['yagi', 'moxon', 'hexbeam', 'quad', 'phased2', 'foursquare'];
+/* Aimed by phasing rather than turned: they fire down the heading but have no boom. */
+function isPhased(type) { return type === 'phased2' || type === 'foursquare'; }
 function isBeam(type) { return BEAM_KINDS.includes(type); }
 
 /* Free-space gain in dBd for `n` elements at `spacing` wavelengths apart. */
@@ -865,6 +867,20 @@ const FREE_SPACE = 'free space';
 const OVER_GROUND = 'over an average ground plane';
 
 const ANTENNAS = {
+  /* Verticals with a direction, and the all-round one with gain (sources in
+     antenna_advice.TYPES). Gains over a single vertical on the same ground. */
+  phased2: {shape: 'varray', label: 'Two phased verticals', gain: 2.9, z: 50, ref: OVER_GROUND,
+    build: f => ({'Each vertical': 234 / f, 'Spacing, a quarter wave': 246 / f,
+                  'Each radial (16+ under each)': 234 / f})},
+  foursquare: {shape: 'varray', label: '4-square', gain: 4.0, z: 50, ref: OVER_GROUND,
+    build: f => ({'Each of the four verticals': 234 / f, 'Side of the square': 246 / f,
+                  'Diagonal, the way it fires': 1.414 * 246 / f, 'Each radial (16+ under each)': 234 / f})},
+  deltaloop: {shape: 'varray', label: 'Delta loop, vertically polarised', gain: 1.1, z: 115, ref: FREE_SPACE,
+    build: f => ({'Loop, all the way round': 1038 / f, 'Each side (equilateral)': 1038 / 3 / f,
+                  'Feed, down one side from the apex': 1038 / 4 / f})},
+  collinear: {shape: 'vert', label: 'Collinear vertical', gain: 3.0, z: 50, ref: OVER_GROUND,
+    build: f => ({'Upper section, five-eighths wave': 584 / f, 'Lower section, quarter wave': 234 / f,
+                  'Each of 4 radials': 246 / f})},
   /* The beams beside the Yagi. Dimensions and figures are their designers'
      published ones (antenna_advice.TYPES gives the sources): the Moxon's
      from Cebik's #14 wire table, worked back to feet over f; the hexbeam's
@@ -1829,6 +1845,10 @@ function calcAnt() {
     z = spec.z;
     if (type === 'hexbeam') gain = hexBand(f).dbd;
     if (isBeam(type)) beamNotes(type, f, notes);
+    if (type === 'phased2') notes.push('<b>Just under 3&nbsp;dB over one vertical</b> (DF6QV), a cardioid aimed by which element is delayed 90&deg;. Equal currents in the two are the design: W7EL\'s current-forcing quarter-wave lines, not equal lengths of coax.');
+    if (type === 'foursquare') notes.push('<b>About 4&nbsp;dB over one vertical</b>, a lobe about 92&deg; wide and more than 20&nbsp;dB front to back over 120&deg; (Comtek\'s ACB-4 manual), switched to four headings across the diagonals.');
+    if (type === 'deltaloop') notes.push('<b>About 3.3&nbsp;dBi in free space</b> (Cebik, 40&nbsp;m), fed a quarter of the way round from the apex for vertical polarisation; about 115&nbsp;&Omega; there, so a quarter wave of 75&nbsp;&Omega; coax to bring it near 50. It fires through the triangle, both ways.');
+    if (type === 'collinear') notes.push('<b>About 3&nbsp;dB over a quarter-wave ground plane</b> (Cebik: 3.25&nbsp;dB on 6&nbsp;m, 2.6 to 2.9 on 70&nbsp;cm), all round: the gain is the pattern flattened toward the horizon, not aimed.');
     if (type === 'groundplane') z = radialZ(antAngle());
     gainRef = spec.ref || FREE_SPACE;
     if (type === 'efhw') {
@@ -2232,6 +2252,26 @@ function drawAntenna(shape, rows, type) {
     }
     body += lbl(W / 2, g + 32, 'fires this way →   ' + covered.toFixed(0) +
       ' ft of ground, feed to resistor · drawn to scale');
+  } else if (shape === 'varray') {
+    const cx = W / 2, cy = 110;
+    if (type === 'deltaloop') {
+      /* From the side: the triangle on its support, apex up. */
+      const side = rows['Each side (equilateral)'] || 48, sc = Math.min(150 / (side * 0.866), 300 / side);
+      const top = g - 20 - side * 0.866 * sc, hw = side * sc / 2;
+      body = '<line x1="' + cx + '" y1="' + (top - 6) + '" x2="' + cx + '" y2="' + g + '" stroke="#2a3441" stroke-width="3"/>' +
+        '<polygon points="' + cx + ',' + top + ' ' + (cx - hw) + ',' + (g - 20) + ' ' + (cx + hw) + ',' + (g - 20) + '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="' + (cx + hw / 2) + '" cy="' + ((top + g - 20) / 2) + '" r="5" fill="#58a6ff"/>' +
+        lbl(cx + hw / 2 + 10, (top + g - 20) / 2, 'fed a quarter of the way round', 'start') +
+        lbl(cx, g + 16, 'seen from the side: it fires toward you and away from you');
+    } else {
+      /* From above: the verticals as dots, the one firing direction marked. */
+      const s = 110;
+      const dots = type === 'phased2'
+        ? [[cx, cy + s / 2, 'rear, delayed 90\u00b0'], [cx, cy - s / 2, 'front']]
+        : [[cx - s / 2, cy - s / 2, ''], [cx + s / 2, cy - s / 2, ''], [cx - s / 2, cy + s / 2, ''], [cx + s / 2, cy + s / 2, '']];
+      body = dots.map(d => '<circle cx="' + d[0] + '" cy="' + d[1] + '" r="7" fill="#ffb454"/>' + (d[2] ? lbl(d[0] + 14, d[1] + 4, d[2], 'start') : '')).join('') +
+        lbl(cx, g + 16, (type === 'phased2' ? 'fires toward the front element \u2191' : 'fires across a diagonal, switched to any of four') + '   seen from above');
+    }
   } else if (shape === 'beam') {
     /* From above, as the beam is seen on its mast: the reflector at the back,
        the driven element in front, firing up the page. */
@@ -2495,7 +2535,11 @@ function wrapHead(v, type) {
   return ((Math.round(v) % span) + span) % span;
 }
 function headWordsFor(type, heading) {
-  return isBeam(type)
+  return isPhased(type)
+    ? 'fires ' + heading + '° ' + compass(heading) + ', switched by the feed'
+    : type === 'deltaloop'
+    ? 'triangle\'s face toward ' + ((heading + 90) % 360) + '° and ' + ((heading + 270) % 360) + '°'
+    : isBeam(type)
     ? 'boom points ' + heading + '° ' + compass(heading)
     : type === 'vbeam'
     ? 'fires ' + heading + '° ' + compass(heading) + ' past the open end, and ' +
@@ -4976,7 +5020,9 @@ function planWords(d) {
       '</b>, weakest toward <b>' + say(nulls) + '</b> &mdash; <b>' +
       (downDb > 30 ? 'a deep null' : downDb.toFixed(1) + ' dB down') +
       '</b> at the <b>' + lobeDeg + '&deg;</b> it works at. ' +
-      (isBeam(d.type)
+      (isPhased(d.type)
+        ? 'Switch the feed and the whole pattern turns with it - no rotator, no boom.'
+        : isBeam(d.type)
         ? 'Turn the boom and the whole pattern turns with it.'
         : d.type === 'vbeam'
         ? 'It fires along the line that halves the V, both ways &mdash; lay ' +

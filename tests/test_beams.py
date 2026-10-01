@@ -78,6 +78,32 @@ def main():
     station = (ROOT / "elmer" / "static" / "elmer.js").read_text(encoding="utf-8")
     check("and the station antenna remembers them", all(f"'{k}'" in station for k in NEW), True)
 
+    print("\n-- the verticals with a direction, and the one with gain all round --")
+    check("two phased verticals fire one way, a cardioid with a 20 dB back", fb("phased2"), 20.0)
+    check("the 4-square is narrower than the pair",
+          P.field_at("foursquare", 60, 0) < P.field_at("phased2", 60, 0), True)
+    half = next(b for b in range(0, 181) if P.field_at("foursquare", b, 0) < 0.7071)
+    check("  its half-power width is near Comtek's 92 degrees", 84 <= 2 * half <= 100, True)
+    check("a delta loop fires through its face, both ways, as a wire fires broadside",
+          (round(P.field_at("deltaloop", 90, 0), 2), fb("deltaloop"), P.boresight("deltaloop", 0)),
+          (1.0, 0.0, 90.0))
+    check("the collinear is all round", (P.field_at("collinear", 0, 0), P.field_at("collinear", 137, 0)),
+          (1.0, 1.0))
+    lobe = lambda k: max(P.elevation(k, 0.0, mhz=146.52), key=lambda p: p["field"])["deg"]  # noqa: E731
+    check("  and flatter than a single vertical - its gain is the pattern pulled down",
+          lobe("collinear") < lobe("quarter"), True)
+    check("the arrays and the loop keep a vertical's low angle over ground",
+          [lobe(k) <= lobe("quarter") + 0.5 for k in ("phased2", "foursquare", "deltaloop")], [True] * 3)
+    for k in ("phased2", "foursquare", "deltaloop", "collinear"):
+        check(f"{k}: vertically polarised, with its source named, and a sheet note",
+              (A.TYPES[k]["polarisation"], bool(A.TYPES[k].get("source")), k in antennapdf.NOT_CUT),
+              ("vertical", True, True))
+    for page in ("elmer/templates/lab.html", "elmer/templates/bandplan.html", "elmer/templates/tools.html"):
+        html = (ROOT / page).read_text(encoding="utf-8")
+        check(f"{page.split('/')[-1]} offers the four",
+              [k for k in ("phased2", "foursquare", "deltaloop", "collinear") if f'<option value="{k}"' in html],
+              ["phased2", "foursquare", "deltaloop", "collinear"])
+
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
 

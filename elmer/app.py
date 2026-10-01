@@ -2566,7 +2566,7 @@ def api_bandplan_reach():
         # instead, and the page says the direction is assumed: the shape is
         # there at once, and so is the reason to set it.
         heading_assumed = False
-        if heading is None and patterns.ANTENNA_Q.get(kind, {}).get("shape") != "vertical":
+        if heading is None and patterns.ANTENNA_Q.get(kind, {}).get("shape") not in ("vertical",):
             heading, heading_assumed = 0.0, True
         ground = str(request.args.get("ground") or "average").lower()
         if ground not in patterns.GROUNDS or ground == "perfect":

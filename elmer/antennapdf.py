@@ -80,6 +80,18 @@ CUTS = {
 }
 
 NOT_CUT = {
+    "phased2": "Two quarter-wave verticals (234/f ft each) a quarter wave apart (246/f ft), the rear "
+               "fed 90 degrees behind the front through quarter-wave current-forcing lines; each on its "
+               "own radials. Swap the delay to reverse it.",
+    "foursquare": "Four quarter-wave verticals (234/f ft) on a square 246/f ft a side, fed through a "
+                  "hybrid coupler and switch box on quarter-wave 75 ohm lines, firing across a diagonal; "
+                  "each on its own radials. Build to the coupler maker's figures.",
+    "deltaloop": "About 1038/f ft of wire in an equilateral triangle, apex up from one support, fed a "
+                 "quarter of the way round from the apex for vertical polarisation - about 115 ohms, "
+                 "a quarter wave of 75 ohm coax to bring it near 50.",
+    "collinear": "A five-eighths wave upper section (584/f ft) over a quarter-wave lower one (234/f), "
+                 "a phasing coil between them, on four radials (246/f): build to a published design; "
+                 "the coil is what makes it work.",
     "moxon": "Two elements folded into a rectangle; for #14 wire, from L. B. Cebik's table: A, each "
              "element tip to tip, 354/f ft; B, the driver's tail, 56/f; C, the gap between the tails, "
              "10/f; D, the reflector's tail, 68.8/f; E, front to back, 135.6/f. The gap C is the "

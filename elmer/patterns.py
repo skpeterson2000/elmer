@@ -82,6 +82,18 @@ ANTENNA_Q = {
                     "fed": "about 50 ohms, straight off coax through a choke"},
     "hexbeam":     {"q": 8.0, "r": 50.0, "shape": "horizontal",
                     "fed": "50 ohm coax at the centre post, the bands' feedpoints linked by 50 ohm coax"},
+    # Vertically polarised antennas with a direction: "varray" - a vertical's
+    # elevation, its own azimuth. The pair and the 4-square fire one way down
+    # their heading; the delta loop broadside both ways, like a wire.
+    "phased2":     {"q": 12.0, "r": 50.0, "shape": "varray",
+                    "fed": "each vertical through its own quarter-wave line, the rear one delayed 90 degrees"},
+    "foursquare":  {"q": 12.0, "r": 50.0, "shape": "varray",
+                    "fed": "four quarter-wave 75 ohm lines to a hybrid coupler and switch box"},
+    "deltaloop":   {"q": 10.0, "r": 50.0, "shape": "varray",
+                    "fed": "about 115 ohms a quarter wave down from the apex, through 75 ohm coax"},
+    # Two in-phase sections stacked: all round, flatter than a single vertical.
+    "collinear":   {"q": 10.0, "r": 50.0, "shape": "vertical",
+                    "fed": "about 50 ohms at the base, the phasing coil doing the rest"},
     "quad":        {"q": 18.0, "r": 50.0, "shape": "horizontal",
                     "fed": "about 100 ohms, through a quarter wave of 75 ohm coax to 50"},
     "whip":        {"q": 55.0, "r": 50.0, "shape": "vertical",
@@ -203,6 +215,19 @@ def _horizontal_over_ground(rad, height_wl, mhz=None, ground="perfect"):
         return abs(2 * math.sin(2 * math.pi * height_wl * math.sin(rad)))
     r_h, _ = fresnel(rad, mhz, ground)
     return _image(rad, height_wl, r_h)
+
+
+# A collinear is two sections fed in phase, one above the other, their
+# centres about 0.6 of a wavelength apart: the array factor of the pair,
+# cos(pi d sin e), takes from the high angles and leaves the horizon alone,
+# which is the whole of where its gain comes from - flattened, not aimed.
+COLLINEAR_SPACING_WL = 0.6
+
+
+def _stack(kind, rad):
+    if kind != "collinear":
+        return 1.0
+    return abs(math.cos(math.pi * COLLINEAR_SPACING_WL * math.sin(rad)))
 
 
 def _vertical_over_ground(rad, height_wl, mhz=None, ground="perfect"):
@@ -573,8 +598,8 @@ def elevation_raw(kind, height_wl, points=181, mhz=None, ground="average"):
     for n in range(points):
         deg = 90.0 * n / (points - 1)
         rad = math.radians(deg)
-        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
-            field = _vertical_over_ground(rad, height_wl, mhz, ground)
+        if ANTENNA_Q.get(kind, {}).get("shape") in ("vertical", "varray"):
+            field = _vertical_over_ground(rad, height_wl, mhz, ground) * _stack(kind, rad)
             if kind in GROUND_FED and height_wl < GROUND_FED_WL:
                 field *= MONOPOLE_POWER
         else:
@@ -705,12 +730,12 @@ def _elevation_plain(kind, height_wl, points=181, mhz=None, ground="average"):
     for n in range(points):
         deg = 90.0 * n / (points - 1)
         rad = math.radians(deg)
-        if ANTENNA_Q.get(kind, {}).get("shape") == "vertical":
+        if ANTENNA_Q.get(kind, {}).get("shape") in ("vertical", "varray"):
             # A monopole over ground: over a perfect one, maximum along the
             # ground and nothing straight up; over real earth the image
             # gives out at low angles and the lobe lifts. Its base is at
             # the height given, which for a ground-mounted vertical is nought.
-            field = _vertical_over_ground(rad, height_wl, mhz, ground)
+            field = _vertical_over_ground(rad, height_wl, mhz, ground) * _stack(kind, rad)
         else:
             # Broadside element, so the free-space term is flat in this plane;
             # the height interference is what shapes it.
@@ -776,6 +801,12 @@ BEAMS = {
     "moxon": {"fb_db": 30.0, "lobe": 1.1},
     "hexbeam": {"fb_db": 20.0, "lobe": 1.3},
     "quad": {"fb_db": 24.0, "lobe": 1.5},
+    # The vertical arrays aimed by phasing, not a rotator. A pair a quarter
+    # wave apart fed 90 degrees apart is a cardioid; the 4-square is
+    # narrower, about 92 degrees at the half-power points (Comtek's ACB-4
+    # manual) with more than 20 dB front to back over 120 degrees.
+    "phased2": {"fb_db": 20.0, "lobe": 1.0},
+    "foursquare": {"fb_db": 20.0, "lobe": 2.1},
 }
 
 
@@ -823,6 +854,8 @@ def field_toward(kind, elev_deg, bearing, heading=None):
     if heading is None:
         return 1.0
     shape = ANTENNA_Q.get(kind, {}).get("shape")
+    if shape == "varray":
+        return field_at(kind, bearing, heading)
     if shape == "vertical":
         return 1.0
     if shape == "travelling":
@@ -1640,6 +1673,12 @@ def field_at(kind, bearing, heading=0.0):
     the whole reason it gets called omnidirectional.
     """
     shape = ANTENNA_Q.get(kind, {}).get("shape")
+    if str(kind) == "deltaloop":
+        # A loop stood on edge fires broadside to its plane, both ways, and
+        # is filled in off its edges - half way to round, like the flat
+        # loop. `heading` is the way its plane runs, as a wire's is.
+        along = math.cos(math.radians(bearing - heading))
+        return 0.5 + 0.5 * _wire_factor(along)
     if shape == "vertical":
         return 1.0
     if shape == "travelling":
@@ -1854,7 +1893,9 @@ def advise_empty(span, mhz, kind, height_ft, use=None, bundled=False):
                             "opened the hole. Fewer wavelengths of wire stand "
                             "the lobe up and bring the first hop in."),
                 })
-            else:
+            elif ANTENNA_Q.get(str(kind), {}).get("shape") not in ("vertical", "varray"):
+                # A vertical's lobe is low at any height: lowering it does
+                # not stand the lobe up, and it is not a wire to droop.
                 out.append({
                     "do": "Lower the antenna, or feed it as an inverted V",
                     "why": ("Height buys distance by lowering the takeoff angle, "

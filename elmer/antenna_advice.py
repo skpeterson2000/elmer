@@ -582,6 +582,113 @@ TYPES = {
             "Height first, as with any horizontal beam.",
         ],
     },
+    # Verticals with a direction, and the one with gain all round. Figures
+    # are the cited sources'; where they disagree the range is given.
+    "phased2": {
+        "title": "Two phased verticals - aimed by the feed, not a rotator",
+        "height": (0, 0, 10),
+        "polarisation": "vertical",
+        "source": "DF6QV, \"4-Square Antenna in Theory and Practice\" (2014), section 1.1; L. B. Cebik "
+                  "W4RNL, \"Don't Be Phased By Phasing\", QRP Quarterly, January 1998",
+        "why": [
+            "Two quarter-wave verticals a quarter wavelength apart, the rear one fed 90 degrees behind the "
+            "front. Toward the front the two waves arrive in step and add; toward the back they arrive half "
+            "a cycle apart and cancel. The pattern is a cardioid, and swapping which one is delayed turns "
+            "it round - a beam with no rotator.",
+            "The gain is \"slightly less than 3 dB\" over one vertical (DF6QV), at the low angles a vertical "
+            "works DX at - on 80 and 160 m, where a rotatable beam is out of the question.",
+        ],
+        "watch": [
+            "The phasing is the antenna. Each vertical draws a different feed impedance because of the "
+            "other, and getting equal currents in them is what the quarter-wave feed lines - W7EL's "
+            "current-forcing method - are for. Equal lengths of coax to each will not do it.",
+            "Each vertical wants its own radials, and the two sets overlap; they are bonded where they "
+            "cross.",
+            "The deep null is narrow-band: Cebik finds over 40 dB at the ideal current and phase, holding "
+            "over only part of a band.",
+        ],
+        "better": [
+            "Switch the delay to the other element and the cardioid points the other way.",
+            "Four in a square, fed in turn, cover all four quadrants: the 4-square.",
+        ],
+    },
+    "foursquare": {
+        "title": "4-square - four phased verticals, switched to four headings",
+        "height": (0, 0, 10),
+        "polarisation": "vertical",
+        "source": "Comtek ACB-4 Four-Square Arrays manual, Rev 4b (2017); DF6QV, \"4-Square Antenna in "
+                  "Theory and Practice\" (2014)",
+        "why": [
+            "Four quarter-wave verticals on the corners of a square a quarter wavelength on a side, fed "
+            "through a hybrid coupler so the array fires across a diagonal, switched to any of the four. "
+            "The low-band DX station's antenna: the gain of a beam at a vertical's low angle, turned by a "
+            "switch.",
+            "Comtek gives 4 dB over a single vertical, more than 20 dB front to back over 120 degrees, and "
+            "a lobe about 92 degrees wide; higher figures are quoted for well-built arrays (K3LC models "
+            "5.4 dBi over good ground on 80 m).",
+        ],
+        "watch": [
+            "It takes ground: on 160 m the square and its radials cover about 400 by 400 ft, on 80 m about "
+            "200 by 200.",
+            "Symmetry matters - Comtek asks for the elements to match within a foot - and every vertical "
+            "wants a full radial field.",
+            "The hybrid coupler dumps the imbalance into a load resistor; a hot load means the array is "
+            "not balanced.",
+        ],
+        "better": [
+            "Listen with it first: its front to back on receive is the reason most people build one.",
+            "Elevated radials on short masts work if the ground cannot be dug.",
+        ],
+    },
+    "deltaloop": {
+        "title": "Delta loop - a full-wave triangle, vertically polarised",
+        "height": (0.05, 10, None),
+        "polarisation": "vertical",
+        "source": "L. B. Cebik W4RNL, \"SCV Polarized Wire Antennas: The Delta Branch\" and \"Antennas "
+                  "from the Ground Up\" No. 19 (archived at q82.uk/cebik)",
+        "why": [
+            "A wavelength of wire in a triangle hung from one high support, apex up, fed a quarter of the "
+            "way round from the apex so the current makes it vertically polarised. It fires broadside to "
+            "the triangle, both ways, at a low angle - a vertical's low angle with no radials.",
+            "About 3.3 dBi in free space (Cebik, 40 m), more than a dipole; over ground its lobe sits near "
+            "20 degrees with the base 20 ft up.",
+            "One support: a tree or a mast holds the apex and the two lower corners are tied off low.",
+        ],
+        "watch": [
+            "About 115 ohms at the feed: a quarter wave of 75 ohm coax brings it near 50.",
+            "One band. Its harmonics are not where a dipole's are.",
+            "The lower corners carry voltage; keep them above head height.",
+        ],
+        "better": [
+            "Turn the triangle's face toward where you want to work - it fires through the triangle, not "
+            "along it.",
+            "Raise the base: Cebik's figures gain a little and lower the angle a few degrees from 10 ft to "
+            "30.",
+        ],
+    },
+    "collinear": {
+        "title": "Collinear vertical - two sections in phase, gain all round",
+        "height": (0, 15, None),
+        "polarisation": "vertical",
+        "source": "L. B. Cebik W4RNL, \"Improved Antenna Performance for VHF FM\" and \"The Case of the "
+                  "Curly Collinear\" (archived at q82.uk/cebik)",
+        "why": [
+            "A five-eighths wave section stacked over a lower one, a phasing coil between them so the two "
+            "radiate in step. It is still all round; the gain comes from flattening the pattern - power "
+            "that a single vertical sends up into the sky goes toward the horizon instead.",
+            "About 3 dB over a quarter-wave ground plane in Cebik's models (3.25 dB on 6 m, 2.6 to 2.9 at "
+            "435 MHz): the most a single all-round antenna gets, and why repeaters use them.",
+        ],
+        "watch": [
+            "Flatter means less high-angle coverage: a station close by and below on a hillside can be in "
+            "the thinner part of the pattern.",
+            "The advertised gain of a single five-eighths is not reached over real ground, Cebik notes; "
+            "the collinear's is closer to its claim.",
+        ],
+        "better": [
+            "Height is everything on VHF: the horizon moves out with the square root of it.",
+        ],
+    },
     "whip": {
         "title": "Loaded mobile whip",
         "height": (0, 4, 12),

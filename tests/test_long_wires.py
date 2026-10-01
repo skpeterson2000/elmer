@@ -106,11 +106,11 @@ def main():
     named = {label.split(" &mdash;")[0] + " " + label.split("&mdash; ")[1].split(",")[0]: kinds
              for label, kinds in groups.items() if "&mdash;" in label}
     check("all round: the verticals and the whips, nothing that must be aimed",
-          named.get("All round no aiming"), ["quarter", "groundplane", "fiveeighth", "jpole", "whip", "screwdriver"])
+          named.get("All round no aiming"), ["quarter", "groundplane", "fiveeighth", "jpole", "whip", "screwdriver", "collinear"])
     check("two ways: the wires that fire broadside, and the V along itself",
-          named.get("Aim it two ways"), ["dipole", "invertedv", "efhw", "bowtie", "loop", "whipdipole", "vbeam"])
+          named.get("Aim it two ways"), ["dipole", "invertedv", "efhw", "bowtie", "loop", "whipdipole", "vbeam", "deltaloop"])
     check("one way: the beams, the rhombic and the terminated wires",
-          named.get("Aim it one way"), ["yagi", "moxon", "hexbeam", "quad", "rhombic", "tefv", "termsloper"])
+          named.get("Aim it one way"), ["yagi", "moxon", "hexbeam", "quad", "phased2", "foursquare", "rhombic", "tefv", "termsloper"])
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
