@@ -760,6 +760,76 @@ TYPES = {
             "ground.",
         ],
     },
+    # The long horizontal wires: the V and the rhombic. Their patterns are
+    # worked out leg by leg in patterns.py, by the same sum as the
+    # terminated wires; the V's angle is ATP 6-02.53's Table E-3.
+    "vbeam": {
+        "title": "V-beam - two long wires in a V",
+        "height": (0.5, 20, None),
+        "polarisation": "horizontal",
+        "source": "ATP 6-02.53 (31 July 2025), E-33 and E-34, Figure E-5 and Table E-3, pp. 90-91",
+        "why": [
+            "Two long wires from one feed point, spread apart in a V and fed between them. Each leg is "
+            "several wavelengths long and throws its lobes at a shallow angle off its own line; lay the "
+            "legs at the right angle and the two legs' lobes add along the line that halves the V.",
+            "It fires both ways along that line - out past the open end of the V, and back past the "
+            "apex - and the Army rates it a medium- to long-range skywave antenna for paths beyond "
+            "4,000 km (ATP 6-02.53, E-33). The right angle depends on how many wavelengths long the legs "
+            "are: the ATP's Table E-3 gives 90 degrees at one wavelength, 70 at two and 33 at ten, and "
+            "the Lab lays it at that angle for the band you ask about.",
+            "The gain grows with the legs. Worked out here, two wavelengths of leg is about 7.5 dBi in "
+            "free space and four about 9.7: the gain of a good Yagi from two wires, with no rotator - "
+            "aimed by where you lay it.",
+        ],
+        "watch": [
+            "The angle suits one band. On another band the legs are a different number of wavelengths and "
+            "the best angle moves; for a V used on several bands the ATP says to use \"an apex angle that "
+            "is midway between the extreme angles as determined in table E-3\" (E-34).",
+            "It is not resonant and its feed is several hundred ohms. Feed it with open-wire or ladder "
+            "line to a tuner; coax straight to the apex would carry current on its outside and radiate.",
+            "It takes ground: two legs of 140 ft laid at 70 degrees cover about 115 ft from the apex to "
+            "the open end and 160 ft across it, with a support at each of the three corners.",
+        ],
+        "better": [
+            "Lay it on the heading you want. The line that halves the V is the beam heading, both ways - "
+            "a V laid toward Europe from the east coast also covers the Pacific behind it.",
+            "Make it one way with resistors. \"Adding 300 ohm terminating resistors to the far end of each "
+            "leg makes the pattern unidirectional (in the direction away from the apex angle)\" (ATP "
+            "6-02.53, E-33) - at the cost of the power they take, about half.",
+            "Longer legs before more height. Each wavelength of leg narrows and lowers the lobe more than "
+            "raising the wires does.",
+        ],
+    },
+    "rhombic": {
+        "title": "Rhombic - a terminated diamond of long wires",
+        "height": (0.5, 30, None),
+        "polarisation": "horizontal",
+        "source": "worked out leg by leg here; the design angle is the travelling-wave wire's "
+                  "(Kraus, Antennas, ch. 14)",
+        "why": [
+            "Four long wires in a diamond, fed at one corner and ended through a resistor at the opposite "
+            "one, so the wave runs out along both sides and round to the resistor. Each leg is laid so its "
+            "own lobe points down the long axis, and the four add up in one direction.",
+            "Terminated, it fires one way, toward the resistor, and has no resonance - like the terminated "
+            "vee, one feedline covers a wide range of bands. It was the long-haul point-to-point antenna "
+            "of the HF era for that reason.",
+            "It is the highest-gain wire antenna in this list. With three wavelengths of leg the Lab works "
+            "out about 10.8 dBi in free space, after the half of the power the resistor takes.",
+        ],
+        "watch": [
+            "Size. Four legs of three wavelengths on 20 m are 210 ft each, and laid at the design angle the "
+            "diamond is about 380 ft long and 175 ft across, on four supports.",
+            "The resistor takes about half the power and must be rated for it - non-inductive, and "
+            "matched to the antenna's own impedance of several hundred ohms.",
+            "The angle is set for one band. Each leg's angle off the long axis is chosen for one leg length "
+            "in wavelengths; on other bands the lobe splits or tilts, as the Lab's plan view shows.",
+        ],
+        "better": [
+            "Point the resistor at the target - the rhombic has almost nothing off its back.",
+            "Height sets the wave angle: half a wavelength or more for long paths.",
+            "Feed it with open-wire line and a tuner or a matching balun to coax.",
+        ],
+    },
     "termsloper": {
         "title": "Terminated sloping wire",
         "height": (0, 40, 40),
@@ -824,6 +894,12 @@ LOW_ANGLE = {"quarter", "fiveeighth", "groundplane", "jpole", "whip"}
 # Terminated wires: a resistor at the far end, a travelling wave, no
 # resonance. See patterns.TRAVELLING for how their pattern is worked out.
 TRAVELLING = {"tefv", "termsloper"}
+# The long horizontal wires, worked out leg by leg like the terminated ones;
+# the rhombic is terminated too, the V is not (patterns.to_load).
+LONG_WIRES = {"vbeam", "rhombic"}
+LONG_WIRE_FEED = ("Not coax to the antenna: the feed is several hundred ohms and not resonant, so "
+                  "open-wire or ladder line runs to a tuner, or to a balun and then coax close to "
+                  "the shack. Ladder line's loss is small even where the mismatch is large.")
 
 
 # Near-vertical incidence wants the antenna low, and "low" is a fraction of a
@@ -1268,7 +1344,11 @@ def judge_height(kind, mhz, use, yours_ft, suggested_ft):
     shown = ("%g" % round(yours, 1))
     out = {"height_ft": round(yours, 1), "waves": round(waves, 2), "suggested_ft": suggested or None,
            "close": close}
-    if kind in TRAVELLING:
+    if kind in LONG_WIRES:
+        words = ("The wires at %s ft - %.2f of a wavelength on %g MHz. A long wire's lobe is set by "
+                 "how many wavelengths its legs are as much as by its height; the pattern on this "
+                 "page is drawn for both." % (shown, waves, mhz))
+    elif kind in TRAVELLING:
         words = ("The mast at %s ft. A terminated wire's lobe is set mostly by how many "
                  "wavelengths of wire it has, and much less by the mast; the pattern on this "
                  "page is drawn for your mast." % shown)
@@ -1391,6 +1471,17 @@ def footprint_ft(kind, mhz, height_ft=None, length_ft=None, droop_deg=None, end_
         return round(V_CUT / mhz * math.cos(math.radians(droop)))
     if kind == "loop":
         return round(1005.0 / mhz / 4.0)
+    if kind in LONG_WIRES:
+        # From the feed corner to the far end, along the long axis: the V's
+        # legs at its apex angle, the rhombic's two legs a side at theirs.
+        from . import patterns
+        leg = float(length_ft or patterns.TRAVELLING[kind]["length_ft"])
+        leg_wl = leg / wavelength_ft(mhz)
+        if kind == "vbeam":
+            half = patterns.vbeam_apex_deg(leg_wl) / 2.0
+            return round(leg * math.cos(math.radians(half)))
+        half = patterns.rhombic_half_apex_deg(leg_wl)
+        return round(2.0 * leg * math.cos(math.radians(half)))
     if kind in ("tefv", "termsloper") and length_ft:
         ends = TW_END_FT if end_ft is None else float(end_ft)
         rise = max(0.0, float(height_ft or 0.0) - ends)
@@ -1745,6 +1836,20 @@ def suits(kind, use, mhz):
                         "to this antenna will get that back."
                         % (spec["title"].lower(), spec["polarisation"], use,
                            want[1])}
+    if kind in LONG_WIRES:
+        if mhz > 30.0:
+            return {"verdict": "out of its range here",
+                    "note": "Worked out here for HF. On VHF the same shapes are a few feet of rod, and a "
+                            "Yagi does the job on a boom."}
+        if use == "regional":
+            return {"verdict": "wrong shape for the near end",
+                    "note": "Long wires fire low, at the shallow angles long paths leave at; the county "
+                            "wants a low dipole firing straight up."}
+        if use in ("dx", "digital"):
+            return {"verdict": "well suited",
+                    "note": "Low and narrow along its heading - the gain of a beam from wire, aimed by "
+                            "where it is laid."}
+        return None
     if kind in TRAVELLING:
         # Polarised vertically, like the verticals, but nothing like them
         # in what they are for: a long wire with a direction and a low
@@ -1904,7 +2009,7 @@ def for_type(mhz, kind, use=None, site=None, floor=None, have_ft=None):
         "reality": where,
         "nvis": use == "regional" and spec["polarisation"] == "horizontal",
         "alternative": None,
-        "feedline": _feedline(mhz),
+        "feedline": LONG_WIRE_FEED if kind in LONG_WIRES else _feedline(mhz),
         "context": frequency_context(mhz),
     }
 
@@ -2442,6 +2547,12 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             "core that saturates heats, the match drifts, and the coax braid "
             "starts radiating. Buy the rating for the power you will actually "
             "run" + (", and at this level that is a large core." if watts > 400 else "."))
+    if kind == "rhombic":
+        out["resistor_w"] = round(watts / 2.0)
+        out["items"].append(
+            f"The resistor at the far corner takes about {watts / 2.0:.0f} W of your {watts:.0f} W and "
+            f"must be rated for it continuously - non-inductive, outdoors, and matched to the antenna's "
+            f"own impedance of several hundred ohms.")
     if kind in TRAVELLING:
         # The handbook's figure: the resistor is sized for half the power
         # because half is what reaches it (MCRP 3-40.3C, p. 4-38).

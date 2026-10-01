@@ -185,28 +185,31 @@
       <div class="field"><label>Antenna</label>
         <select id="an-type">
           <option value="" selected>let ELMER suggest one from the above</option>
-          <optgroup label="Wire">
+          {#- Grouped by the one question that decides how an antenna is used:
+              does it have to be aimed? Only an omnidirectional antenna does
+              not; every other one has a strongest way and nulls, and knowing
+              where they fall is part of using it - a plain dipole included,
+              which is strongest broadside and deaf off its ends. -#}
+          <optgroup label="All round &mdash; no aiming">
+            <option value="quarter">Quarter-wave vertical</option>
+            <option value="groundplane">Ground plane, drooping radials</option>
+            <option value="fiveeighth">5/8-wave vertical</option>
+            <option value="jpole">J-pole</option>
+            <option value="whip">Loaded mobile whip &mdash; mag-mount or bumper</option>
+            <option value="screwdriver">Screwdriver &mdash; motor-tuned mobile vertical</option>
+          </optgroup>
+          <optgroup label="Aim it &mdash; two ways, broadside, nulls off the ends">
             <option value="dipole">Half-wave dipole</option>
             <option value="invertedv">Inverted-V dipole</option>
             <option value="efhw">End-fed half wave</option>
             <option value="bowtie">Bowtie dipole (wideband)</option>
             <option value="loop">Full-wave loop</option>
-          </optgroup>
-          <optgroup label="Vertical &mdash; full size">
-            <option value="quarter">Quarter-wave vertical</option>
-            <option value="fiveeighth">5/8-wave vertical</option>
-            <option value="jpole">J-pole</option>
-            <option value="groundplane">Ground plane, drooping radials</option>
-          </optgroup>
-          <optgroup label="Directional">
-            <option value="yagi">Yagi-Uda beam</option>
-          </optgroup>
-          <optgroup label="Loaded whips &mdash; on a vehicle, or a pair with none">
-            <option value="whip">Loaded mobile whip &mdash; mag-mount or bumper</option>
             <option value="whipdipole">Two loaded whips as a dipole &mdash; the hamstick dipole</option>
-            <option value="screwdriver">Screwdriver &mdash; motor-tuned mobile vertical</option>
+            <option value="vbeam">V-beam &mdash; two long wires in a V, fires both ways along it</option>
           </optgroup>
-          <optgroup label="Terminated &mdash; one way, every band, from the Marines' handbook">
+          <optgroup label="Aim it &mdash; one way, gain toward the target">
+            <option value="yagi">Yagi-Uda beam</option>
+            <option value="rhombic">Rhombic &mdash; a terminated diamond of long wires</option>
             <option value="tefv">Terminated end-fed vee (vertical half-rhombic)</option>
             <option value="termsloper">Terminated sloping wire</option>
           </optgroup>
@@ -250,7 +253,7 @@
       {# A terminated wire's length is the operator's, set by the room and
          not by the band - so it is asked, where every other wire's length
          is worked out from the frequency. #}
-      <div class="field an-when-tw" style="display:none"><label>Wire length, end to end (ft)</label>
+      <div class="field an-when-tw" style="display:none"><label id="an-len-label">Wire length, end to end (ft)</label>
         <input id="an-len" value="500"></div>
       {# Where the ends are tied off - a fence post, a tree, a stake. It is
          the number somebody knows before they go out, and the droop or the

@@ -477,7 +477,7 @@ function recall(key, fallback) {
 const STATION_ANTENNA_KEY = 'station.antenna';
 const ANTENNA_KINDS = ['dipole', 'invertedv', 'efhw', 'bowtie', 'loop', 'quarter', 'fiveeighth',
                        'jpole', 'groundplane', 'yagi', 'whip', 'whipdipole', 'screwdriver', 'tefv',
-                       'termsloper'];
+                       'termsloper', 'vbeam', 'rhombic'];
 
 function stationAntenna() {
   const got = recall(STATION_ANTENNA_KEY, null);

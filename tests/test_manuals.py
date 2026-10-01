@@ -68,6 +68,24 @@ def on_the_page():
           [r for r in t["rows"] if r[0] in (70, 80)], [(70, 153, 95, 290, 180), (80, 80, 50, 145, 90)])
 
 
+def v_apex_on_the_page():
+    print("\n-- Table E-3, the V's apex angle by leg length, is on page 91 --")
+    t = manuals.V_APEX
+    pdf = SHIPPED / t["book"]["file"]
+    if not pdf.exists() or not shutil.which("pdftotext"):
+        check("the ATP and pdftotext are here", False, True)
+        return
+    text = subprocess.run(["pdftotext", "-f", str(t["pdf_page"]), "-l", str(t["pdf_page"]), str(pdf), "-"],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
+    check("the PDF's page carries the table's name", t["name"] in text, True)
+    # The text layer prints the table as its two rows, lengths then angles.
+    check("its lengths, in order", "Antenna Length (Wavelength) 1 2 3 4 6 8 10" in " ".join(text.split()), True)
+    check("its angles, in order", "Optimum Apex Angle (Degrees) 90 70 58 50 40 35 33" in " ".join(text.split()), True)
+    check("the module's rows are those", [list(r) for r in t["rows"]],
+          [[1, 90], [2, 70], [3, 58], [4, 50], [6, 40], [8, 35], [10, 33]])
+    check("and E-34, quoted, is on the same page", _squash(t["rule"]) in _squash(text), True)
+
+
 def lookups():
     print("\n-- a row where the table prints one, the two either side where it does not --")
     at25 = manuals.takeoff_distance(25)
@@ -223,6 +241,7 @@ def plans():
 
 def main():
     on_the_page()
+    v_apex_on_the_page()
     lookups()
     plans()
     in_the_lab()

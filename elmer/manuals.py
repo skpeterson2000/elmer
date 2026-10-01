@@ -58,6 +58,25 @@ TAKEOFF_DISTANCE = {
 }
 
 
+# Table E-3, printed page 91 (the PDF's page 101): the V antenna's optimum
+# apex angle by the length of its legs in wavelengths. "When using the V
+# antenna with more than one frequency or wavelength, operators should use an
+# apex angle that is midway between the extreme angles as determined in
+# table E-3" (E-34, the same page).
+V_APEX = {
+    "book": ATP,
+    "name": "Table E-3. Leg angle for V antenna",
+    "page": 91,
+    "pdf_page": 101,
+    "columns": ["Antenna Length (Wavelength)", "Optimum Apex Angle (Degrees)"],
+    "rows": [(1, 90), (2, 70), (3, 58), (4, 50), (6, 40), (8, 35), (10, 33)],
+    "rule": "E-34. The angle between the legs varies with the length of the legs to achieve maximum "
+            "performance. Table E-3 shows the angle and the length of the legs. When using the V antenna with "
+            "more than one frequency or wavelength, operators should use an apex angle that is midway between "
+            "the extreme angles as determined in table E-3.",
+}
+
+
 def _row(r):
     return {"deg": r[0], "day_km": r[1], "day_mi": r[2], "night_km": r[3], "night_mi": r[4]}
 
@@ -108,7 +127,8 @@ def for_page():
     """What a page needs to look rows up for itself as its inputs move: the
     tables and their citations, small enough to hand over with the page."""
     return {"takeoff_distance": {"rows": [_row(r) for r in TAKEOFF_DISTANCE["rows"]],
-                                 "cite": cite(TAKEOFF_DISTANCE)}}
+                                 "cite": cite(TAKEOFF_DISTANCE)},
+            "v_apex": {"rows": [list(r) for r in V_APEX["rows"]], "cite": cite(V_APEX)}}
 
 
 AUXFOG = {"file": "AUXFOG-1.1-2016.pdf",

@@ -107,6 +107,17 @@ NOT_CUT = {
                   "is the Octopus (N1GY, QST December 2007): only the "
                   "resonant pair radiates, so no switching, and each pair "
                   "points its own way.",
+    # ATP 6-02.53 (2025), E-33 and E-34, Table E-3.
+    "vbeam": "Not cut to a band: two long legs from one feed, spread at the angle their length in "
+             "wavelengths wants - ATP 6-02.53's Table E-3 gives 90 degrees at one wavelength of leg, "
+             "70 at two, 33 at ten; for several bands, midway between. Fed at the apex on open-wire "
+             "line to a tuner. It fires both ways along the line that halves the V; 300 ohm "
+             "resistors from the far end of each leg make it one way, away from the apex.",
+    "rhombic": "Not cut to a band: a diamond of four long legs, fed at one corner and ended through "
+               "a non-inductive resistor matched to the antenna - several hundred ohms, rated for half "
+               "the power - at the opposite one. Each leg is laid off the long axis so its own lobe "
+               "points down it. It fires one way, toward the resistor. Fed on open-wire line to a "
+               "tuner or a matching balun.",
     # USMC MCRP 3-40.3C, Antenna Handbook (1999), pp. 4-33 to 4-39 and 6-14.
     "tefv": "Not cut to a band: a terminated antenna has no resonance, so one "
             "length works from the lowest frequency it is long enough for "

@@ -1966,7 +1966,7 @@ function bpReachAntenna() {
   const wire = station && station.kind === sel.value
     ? {kind: station.kind, length_ft: station.length_ft, ends_ft: station.ends_ft}
     : (recall('lab.antenna.wire', null) || {});
-  const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
+  const terminated = BP_WIRE_KINDS.includes(sel.value);
   // What is typed beside the antenna here comes first of all.
   const lenBox = document.getElementById('bp-reach-len'), endsBox = document.getElementById('bp-reach-ends');
   if (terminated && lenBox && +lenBox.value >= 20) { wire.kind = sel.value; wire.length_ft = +lenBox.value; }
@@ -2004,7 +2004,11 @@ function bpReachLaid(d) {
   const h = Math.round(a.heading) % 360;
   const toward = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(h / 45) % 8];
   const terminated = a.kind === 'tefv' || a.kind === 'termsloper';
-  const how = terminated
+  const how = a.kind === 'vbeam'
+    ? 'A V-beam fires both ways along the line that halves the V. Laid is that line toward the open end, in degrees from north; it fires that way and back past the apex alike.'
+    : a.kind === 'rhombic'
+    ? 'A rhombic fires one way, along its long axis toward the resistor. Laid is the bearing from the feed corner to the resistor, in degrees from north.'
+    : terminated
     ? 'A terminated wire fires one way, off its resistor end. Laid is the bearing from the feed end to the resistor, in degrees from north - stand at the feed, face the resistor, and read the compass.'
     : a.kind === 'yagi'
       ? 'Laid is the way the beam points, in degrees from north.'
@@ -2154,7 +2158,7 @@ function bpToStation() {
   if (!sel || sel.value === 'none') return;
   const h = document.getElementById('bp-reach-h'), hd = document.getElementById('bp-reach-hd');
   const gnd = document.getElementById('bp-reach-gnd');
-  const terminated = sel.value === 'tefv' || sel.value === 'termsloper';
+  const terminated = BP_WIRE_KINDS.includes(sel.value);
   const len = document.getElementById('bp-reach-len'), ends = document.getElementById('bp-reach-ends');
   setStationAntenna({kind: sel.value,
                      height_ft: h && +h.value > 0 ? +h.value : undefined,
@@ -2165,12 +2169,21 @@ function bpToStation() {
                      cut_mhz: (() => { const c = document.getElementById('bp-reach-cut');
                                        return c && c.value ? +c.value : undefined; })()}, 'bandplan');
 }
-/* The length and ends boxes, shown for a terminated wire only. */
+/* The wires whose length is the operator's: the terminated ones, and the V
+   and the rhombic, whose legs are. */
+const BP_WIRE_KINDS = ['tefv', 'termsloper', 'vbeam', 'rhombic'];
+/* The length and ends boxes, shown for those wires only; a V's and a
+   rhombic's length is a leg's, and they have no ends to tie off. */
 function bpTwFields() {
   const sel = document.getElementById('bp-reach-ant'), box = document.getElementById('bp-reach-tw');
   if (!sel || !box) return;
-  box.hidden = !(sel.value === 'tefv' || sel.value === 'termsloper');
+  box.hidden = !BP_WIRE_KINDS.includes(sel.value);
   box.style.display = box.hidden ? 'none' : 'inline-flex';
+  const legs = sel.value === 'vbeam' || sel.value === 'rhombic';
+  const words = document.getElementById('bp-reach-len-words');
+  if (words) words.textContent = legs ? 'ft each leg' : 'ft of wire';
+  const ends = document.getElementById('bp-reach-ends-wrap');
+  if (ends) ends.style.display = legs ? 'none' : 'inline-flex';
 }
 function bpApplyStation() {
   const st = stationAntenna();

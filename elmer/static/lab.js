@@ -878,13 +878,40 @@ const ANTENNAS = {
     z: 600, ref: OVER_GROUND},
   termsloper: {shape: 'tw', label: 'Terminated sloping wire', gain: null,
     z: 600, ref: OVER_GROUND},
+  // The long horizontal wires, worked out leg by leg on the server like the
+  // terminated ones (patterns.py). The length asked is one leg's.
+  vbeam: {shape: 'lw', label: 'V-beam', gain: null, z: 600, ref: OVER_GROUND},
+  rhombic: {shape: 'lw', label: 'Rhombic', gain: null, z: 600, ref: OVER_GROUND},
 };
 
 /* A resistor at the far end, a wave that runs one way and does not come
    back. Length and mast are the operator's; the handbook's sizes are where
-   the fields start. */
-const TW_DEFAULTS = {tefv: {len: 500, mast: 50}, termsloper: {len: 250, mast: 40}};
+   the fields start. The V and the rhombic come along: their legs are the
+   operator's too, and their pattern is worked out the same way - `len` is
+   one leg for them, and `mast` the height the wires are strung at. */
+const TW_DEFAULTS = {tefv: {len: 500, mast: 50}, termsloper: {len: 250, mast: 40},
+                     vbeam: {len: 140, mast: 40}, rhombic: {len: 210, mast: 50}};
 function isTw(type) { return !!TW_DEFAULTS[type]; }
+function isLongWire(type) { return type === 'vbeam' || type === 'rhombic'; }
+/* The V's apex angle for legs this many wavelengths long: ATP 6-02.53's
+   Table E-3, handed over with the page, straight between its rows (a wire
+   has to be laid at some angle) and its end rows beyond them. The same
+   arithmetic as patterns.vbeam_apex_deg, so the drawing and the pattern
+   agree. */
+function vApexDeg(legWl) {
+  const t = ((window.MANUAL_TABLES || {}).v_apex || {}).rows || [[1, 90], [2, 70], [3, 58], [4, 50], [6, 40], [8, 35], [10, 33]];
+  const x = Math.max(t[0][0], Math.min(t[t.length - 1][0], legWl));
+  for (let i = 1; i < t.length; i++) {
+    if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]);
+  }
+  return t[t.length - 1][1];
+}
+/* Each leg of a rhombic off its long axis: the travelling-wave wire's lobe
+   angle, 1 - 0.371/L, tipped for a 15 degree wave angle (patterns.py). */
+function rhombicHalfDeg(legWl) {
+  const lobe = Math.max(-1, Math.min(1, 1 - 0.371 / Math.max(0.4, legWl)));
+  return Math.acos(Math.max(-1, Math.min(1, lobe / Math.cos(15 * Math.PI / 180)))) * 180 / Math.PI;
+}
 const TW_END_FT = 6;          // the insulator posts at the ends, figure 4-30
 
 /* Feedpoint resistance of a quarter wave against its radials, as they are
@@ -1215,6 +1242,8 @@ function antennaFields(type) {
     const el = document.getElementById(id);
     if (el) el.value = wrapHead(parseFloat(el.value) || 0, type);
   });
+  const lenLabel = document.getElementById('an-len-label');
+  if (lenLabel) lenLabel.textContent = isLongWire(type) ? 'Each leg (ft)' : 'Wire length, end to end (ft)';
   const lenEl = document.getElementById('an-len');
   if (isTw(type) && lenEl && lenEl.dataset.forType !== type) {
     lenEl.value = TW_DEFAULTS[type].len;
@@ -1235,6 +1264,7 @@ function antennaFields(type) {
       : type === 'invertedv' ? 'Height of the apex (ft)'
       : type === 'tefv' ? 'Height of the mast top (ft)'
       : type === 'termsloper' ? 'Height of the support, the feed end (ft)'
+      : isLongWire(type) ? 'Height the wires are strung at (ft)'
       : type === 'dipole' ? 'Height of the support (ft)'
       : 'Height above ground (ft)';
   }
@@ -1616,6 +1646,58 @@ function calcAnt() {
       'The heading set here is <b>this band\'s pair</b>; the other three lie 45&deg;, 90&deg; ' +
       'and 135&deg; round from it, so mark one whip as the pointer and color the rotator dial ' +
       'by band.');
+  } else if (isLongWire(type)) {
+    /* The V and the rhombic: legs of the operator's length at the height
+       they are strung, laid at the angle the legs' length in wavelengths
+       on this band wants. The pattern and the gain come back from the
+       server, worked out leg by leg (patterns.py). */
+    shape = 'lw';
+    const legFt = Math.max(20, num('an-len') || TW_DEFAULTS[type].len);
+    const hFt = Math.max(1, num('an-h') || TW_DEFAULTS[type].mast);
+    const legWl = legFt / lamFt;
+    const half = type === 'vbeam' ? vApexDeg(legWl) / 2 : rhombicHalfDeg(legWl);
+    const rad = half * Math.PI / 180;
+    const legs = type === 'vbeam' ? 2 : 4;
+    rows['Each leg'] = legFt;
+    rows['Wire in all'] = legFt * legs;
+    rows[type === 'vbeam' ? 'Apex to the open end' : 'Feed corner to resistor'] =
+      legFt * Math.cos(rad) * (type === 'vbeam' ? 1 : 2);
+    rows['Across, at the widest'] = 2 * legFt * Math.sin(rad);
+    rows['Height of the wires'] = hFt;
+    gain = null;
+    z = 600;
+    gainRef = OVER_GROUND;
+    const t = (window.MANUAL_TABLES || {}).v_apex;
+    if (type === 'vbeam') {
+      const where = t ? escapeHTML(t.cite.book + ', ' + t.cite.table.split('.')[0] + ', p. ' + t.cite.page) : 'ATP 6-02.53, Table E-3, p. 91';
+      notes.push('<b>The angle.</b> ' + legFt.toFixed(0) + '&nbsp;ft is <b>' + legWl.toFixed(1) +
+        ' wavelengths</b> of leg here, and the Army\'s table of the V\'s angle by leg length gives ' +
+        '<b>' + (2 * half).toFixed(0) + '&deg;</b> between the legs' +
+        ((t ? t.rows.map(r => r[0]) : [1, 2, 3, 4, 6, 8, 10]).some(r => Math.abs(legWl - r) < 0.05)
+          ? '' : ' &mdash; taken in a straight line between its rows') + ' (' +
+        (t && t.cite.link ? '<a href="' + escapeHTML(t.cite.link) + '">' + where + '</a>' : where) + '). ' +
+        'On another band the legs are a different number of wavelengths and the best angle moves; ' +
+        'for several bands the ATP says to lay it midway between the extremes.');
+      notes.push('<b>Which way.</b> It fires both ways along the line that halves the V, out past the ' +
+        'open end and back past the apex, and is weakest across it. 300&nbsp;&Omega; resistors from the far ' +
+        'end of each leg make it one way, away from the apex (ATP 6-02.53, E-33), for about half the power.');
+      notes.push('<b>Feeding it.</b> Not resonant, and several hundred ohms at the apex: open-wire or ' +
+        'ladder line to a tuner. Coax straight to the apex would radiate from its outside.');
+    } else {
+      notes.push('<b>The angle.</b> ' + legFt.toFixed(0) + '&nbsp;ft is <b>' + legWl.toFixed(1) +
+        ' wavelengths</b> of leg here, so each leg is laid <b>' + half.toFixed(0) + '&deg;</b> off the long ' +
+        'axis &mdash; ' + (2 * half).toFixed(0) + '&deg; between the legs at the feed and resistor corners &mdash; ' +
+        'where each leg\'s own lobe points down the axis at a 15&deg; wave angle. A travelling wave on a wire ' +
+        'L wavelengths long throws its lobe at the angle whose cosine is 1&nbsp;&minus;&nbsp;0.371/L.');
+      notes.push('<b>Which way.</b> It fires one way along its long axis, toward the resistor, with very ' +
+        'little behind it. At the far corner a non-inductive resistor matched to the antenna &mdash; ' +
+        'several hundred ohms &mdash; takes about half the power, and in return it has no resonance and ' +
+        'one feedline covers every band it is long enough for.');
+    }
+    notes.push('<span class="tiny">The pattern is worked out as currents on straight wires over average ground ' +
+      (type === 'vbeam' ? '&mdash; the standing wave on each open leg as its outgoing wave and the wave ' +
+        'reflected from its end' : 'with half the power left in the resistor') +
+      ': the shape and the trend, not a measurement.</span>');
   } else if (isTw(type)) {
     shape = 'tw';
     const lenFt = Math.max(20, num('an-len') || TW_DEFAULTS[type].len);
@@ -2088,6 +2170,39 @@ function drawAntenna(shape, rows, type) {
     }
     body += lbl(W / 2, g + 32, 'fires this way →   ' + covered.toFixed(0) +
       ' ft of ground, feed to resistor · drawn to scale');
+  } else if (shape === 'lw') {
+    /* From above, to scale: the only view that shows what a V or a rhombic
+       is, since every wire is at the same height. Feed on the left, the way
+       it fires to the right. */
+    const legFt = rows['Each leg'] || 100;
+    const depth = rows['Apex to the open end'] || rows['Feed corner to resistor'] || 1;
+    const across = rows['Across, at the widest'] || 1;
+    const sc = Math.min(470 / Math.max(1, depth), 170 / Math.max(1, across));
+    const x0 = W / 2 - depth * sc / 2, yc = 115;
+    const hw = across * sc / 2;
+    if (type === 'vbeam') {
+      const x1 = x0 + depth * sc;
+      body =
+        '<polyline data-tw="1" points="' + x1 + ',' + (yc - hw) + ' ' + x0 + ',' + yc + ' ' + x1 + ',' + (yc + hw) +
+          '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="' + x0 + '" cy="' + yc + '" r="5" fill="#58a6ff"/>' +
+        '<line x1="' + x0 + '" y1="' + yc + '" x2="' + x1 + '" y2="' + yc +
+          '" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4 4"/>' +
+        lbl(x0 - 8, yc + 4, 'fed here', 'end') +
+        lbl((x0 + x1) / 2, yc - hw / 2 - 10, legFt.toFixed(0) + ' ft each leg', 'middle') +
+        lbl(W / 2, g + 16, '\u2190 fires both ways along the dashed line →   seen from above, to scale');
+    } else {
+      const xm = x0 + depth * sc / 2, x1 = x0 + depth * sc;
+      body =
+        '<polygon data-tw="1" points="' + x0 + ',' + yc + ' ' + xm + ',' + (yc - hw) + ' ' + x1 + ',' + yc + ' ' +
+          xm + ',' + (yc + hw) + '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<circle cx="' + x0 + '" cy="' + yc + '" r="5" fill="#58a6ff"/>' +
+        '<rect x="' + (x1 - 5) + '" y="' + (yc - 5) + '" width="10" height="10" fill="none" stroke="#f47067" stroke-width="2"/>' +
+        lbl(x0 - 8, yc + 4, 'fed here', 'end') +
+        lbl(x1 + 8, yc + 4, 'resistor', 'start') +
+        lbl((x0 + xm) / 2, yc - hw / 2 - 10, legFt.toFixed(0) + ' ft each leg', 'middle') +
+        lbl(W / 2, g + 16, 'fires this way →   seen from above, to scale');
+    }
   } else if (shape === 'wire') {
     const y = 90;
     /* The angle on the screen is the angle you set. Both of these used to be
@@ -2277,7 +2392,7 @@ function drawAntenna(shape, rows, type) {
    keys and fifteen with Shift, and go on round past 359. A wire fires
    broadside both ways, so 30 and 210 are the same wire and its heading
    stays within half the circle; everything with a front gets all of it. */
-const oneWay = type => type === 'yagi' || isTw(type);
+const oneWay = type => type === 'yagi' || (isTw(type) && type !== 'vbeam');
 function wrapHead(v, type) {
   const span = oneWay(type) ? 360 : 180;
   return ((Math.round(v) % span) + span) % span;
@@ -2285,6 +2400,11 @@ function wrapHead(v, type) {
 function headWordsFor(type, heading) {
   return type === 'yagi'
     ? 'boom points ' + heading + '° ' + compass(heading)
+    : type === 'vbeam'
+    ? 'fires ' + heading + '° ' + compass(heading) + ' past the open end, and ' +
+      ((heading + 180) % 360) + '° ' + compass((heading + 180) % 360) + ' back past the apex'
+    : type === 'rhombic'
+    ? 'fires ' + heading + '° ' + compass(heading) + ', feed corner to resistor'
     : isTw(type)
     ? 'fires ' + heading + '° ' + compass(heading) + ', feed to resistor'
     : 'wire runs ' + heading + '° ' + compass(heading) + ' to ' +
@@ -4451,6 +4571,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         '&deg;</b> above the horizon.' + vNote + ' ' +
         (d.shape === 'vertical'
           ? 'A vertical nulls straight up, along its own axis, and is strongest out along the ground &mdash; so its lobe is low whatever its height, which is why it works DX off a small plot. The last few degrees are the ground\'s doing, not the antenna\'s: drawn over average earth, where the reflection turns against the direct wave at grazing angles, so the field falls away to nothing right at the horizon and the lobe peaks a little above it. Over perfect ground it would run all the way down to zero degrees, and perfect ground is not a thing anybody has.'
+          : d.shape === 'travelling' && isLongWire(type)
+          ? 'Length and height both set this: the more wavelengths of leg, the lower and narrower the lobe the legs throw, and the height decides where the ground reflection adds to it. Drawn over average ground, which takes the last few degrees along the horizon.'
           : d.shape === 'travelling'
           ? 'Length sets this more than height does: the more wavelengths of wire, the lower the lobe off the resistor end. Drawn over average ground, which takes the last few degrees along the horizon.'
           : 'Height sets this, not the antenna: the ground reflection interferes with the direct wave, and where they add is where you radiate. Drawn over average ground &mdash; a real reflection, weaker and turned at low angles &mdash; so the deepest nulls are filled rather than bottomless.') +
@@ -4464,6 +4586,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
           ? 'A vertical’s pattern is a doughnut, the same in every direction round it &mdash; so the side view is two lobes and the plan view is a circle. There is no front to it.'
           : type === 'yagi'
             ? 'A beam is the one antenna where the two halves differ, and the difference is what you bought it for: the rear lobe is held at ' + d.front_to_back_db + ' dB down, which is a good three-element Yagi rather than the hole a bare cosine would draw.'
+            : type === 'vbeam'
+            ? 'A V-beam fires both ways along the line that halves it, so the two halves are near mirror images. Laying it aims both lobes at once.'
             : d.shape === 'travelling'
             ? 'A terminated wire fires one way, off the resistor end, and what is behind it is what the resistor did not quite swallow. Turning it does aim it.'
             : 'A wire radiates broadside, both ways, so the two lobes are mirror images &mdash; there is as much behind it as in front. Turning it does not aim it; it moves the nulls off the ends.') +
@@ -4629,7 +4753,11 @@ function planPlot(d) {
     const lands = d.reach.typical_km && d.reach.typical_km < d.reach.radius_km * 0.9;
     g.push('<text x="' + cx + '" y="' + (cy + R + 46) +
            '" fill="#626e7b" font-size="9" text-anchor="middle">' +
-           (lands
+           (d.reach.through
+             ? (d.reach.inner_km
+                 ? 'tonight the main lobe goes through; nothing returns inside ' + awayText(d.reach.inner_km)
+                 : 'tonight nothing this antenna sends comes back')
+             : lands
              ? 'lands about ' + awayText(d.reach.typical_km) + '; lower rays reach ' +
                awayText(d.reach.radius_km)
              : 'reach about ' + awayText(d.reach.radius_km)) + '</text>');
@@ -4703,12 +4831,18 @@ function planWords(d) {
   }
   /* A beam and a terminated wire each fire one way, down the heading, and
      are weakest straight behind; a plain wire fires broadside both ways. */
-  const oneWay = d.type === 'yagi' || isTw(d.type);
+  const oneWay = d.type === 'yagi' || (isTw(d.type) && d.type !== 'vbeam');
+  /* A V fires along the line that halves it, both ways, and is weakest
+     across it: the opposite of a plain wire, which fires across itself. */
   const best = oneWay
     ? [d.heading]
+    : d.type === 'vbeam'
+    ? [d.heading % 360, (d.heading + 180) % 360]
     : [(d.heading + 90) % 360, (d.heading + 270) % 360];
   const nulls = oneWay
     ? [(d.heading + 180) % 360]
+    : d.type === 'vbeam'
+    ? [(d.heading + 90) % 360, (d.heading + 270) % 360]
     : [d.heading % 360, (d.heading + 180) % 360];
   const say = a => a.map(b => Math.round(b) + '&deg; ' + compass(b)).join(' and ');
   /* How much direction there actually is at the angle this antenna works at.
@@ -4747,6 +4881,12 @@ function planWords(d) {
       '</b> at the <b>' + lobeDeg + '&deg;</b> it works at. ' +
       (d.type === 'yagi'
         ? 'Turn the boom and the whole pattern turns with it.'
+        : d.type === 'vbeam'
+        ? 'It fires along the line that halves the V, both ways &mdash; lay ' +
+          'the V and you have aimed it.'
+        : d.type === 'rhombic'
+        ? 'It fires along its long axis, toward the resistor &mdash; lay the ' +
+          'diamond and you have aimed it.'
         : isTw(d.type)
         ? 'It fires off the resistor end, along itself &mdash; turn the wire ' +
           'and the pattern turns with it.'

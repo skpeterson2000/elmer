@@ -1863,12 +1863,16 @@ def api_pattern():
     # tool: the snapshot is cached for fifteen minutes and the sonde is read
     # from cache only, and if either is missing the model says so and falls
     # back to the 300-mile average.
-    fof2 = hmf2 = None
-    if nvis or use == "regional":
+    fof2 = hmf2 = snap_hmf2 = None
+    # Every HF answer, not only NVIS: a lobe that leaves steeper than the
+    # sky returns tonight does not land at all, and the Lab said where it
+    # would land while the reach map, reading the same sky, drew it dark.
+    if nvis or use == "regional" or mhz < 30.0:
         try:
             snap = propagation.snapshot(lat=place.get("lat"), lon=place.get("lon"))
             if snap.get("ok"):
                 fof2 = snap.get("fof2")
+                snap_hmf2 = snap.get("hmf2")
         except Exception:
             log.info("no space weather for the NVIS footprint", exc_info=False)
         try:
@@ -1879,6 +1883,11 @@ def api_pattern():
         except Exception:
             pass
 
+    # A hop's skip is the reach map's when it is the reach map's question: the
+    # layer at the reading's height, or 300 km, as the map takes it - not the
+    # day-or-night figure the Lab's own geometry would otherwise use.
+    if not (nvis or use == "regional") and fof2 and hmf2 is None:
+        hmf2 = float(snap_hmf2 or propagation.HMF2_DEFAULT)
     span = patterns.qualify(
         patterns.reach(kind, use, mhz, height_ft, nvis, slope, day, fof2, hmf2),
         mhz)

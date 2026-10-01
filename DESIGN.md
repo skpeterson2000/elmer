@@ -1467,6 +1467,16 @@ for search to read* on the shelf, so an empty result reads as what it is
 rather than as the word not being in the book. It opens and reads like any
 other; ELMER does not OCR it.
 
+### Aimed or not, and the long wires
+
+The antenna menu was grouped by construction - wire, vertical, directional, whips, terminated - which put the terminated wires, which fire one way, apart from the Yagi, and a plain dipole, which is deaf off its ends, among the things nobody aims. Scott put the right question: every directional antenna wants aiming and an eye on its nulls; only an omnidirectional one does not. So the groups are **All round - no aiming**, **Aim it - two ways** and **Aim it - one way**, and gain is said for what it is: not more power but the same power taken from where it is not wanted - reach toward the target, paid for in the directions behind and beside it.
+
+The V-beam and the rhombic are the first of the higher-gain antennas asked for, and the cheapest to add honestly, because the terminated vee's arithmetic already sums straight legs carrying a current, with their ground reflections. It was generalised from one path to several, each with its own amplitude: a rhombic is two paths of two legs, fed from opposite sides, meeting at the resistor; a V is two open legs, each carrying its outgoing wave and that wave reflected from the open end - the standing wave on an unterminated wire, as two travelling ones. No pattern is looked up. The V's apex angle is ATP 6-02.53's Table E-3 (`manuals.V_APEX`), straight between its rows where a leg falls between them, since a wire has to be laid at some angle; the rhombic's legs are laid where the travelling-wave wire's lobe, at the angle whose cosine is 1 - 0.371/L, points down the axis at a 15 degree wave angle. Two wavelengths of V leg come out at about 7.5 dBi in free space, both ways, and three of rhombic leg at about 10.8 dBi one way after the resistor's half; the terminated vee and sloper come out as they did (`tests/test_long_wires.py`, `tests/test_travelling.py`).
+
+### One sky for the Lab and the map
+
+The Lab's compass said where an antenna's lobe lands - one hop, geometry only - and read the critical frequency only for NVIS. The reach map rates every cell against the measured sky. So a 20 m inverted V 39 ft up, used on 40 m at night with foF2 at 3.1 MHz, landed 250 km out on the Lab and sat in a dark hole 1,600 km wide on the map. Both answered their own question; Scott saw they disagreed, and the Lab now answers the map's whenever the sky has been read. Any HF question reads it. When the main lobe is steeper than the steepest ray the layer turns back, the Lab says the lobe goes through, puts the skip where the map gates its cells (`propagation.skip_km`, at the reading's layer height, or 300 km, as the map takes it), and says what comes back beyond it: the lower part of the lobe, or the radiation under its half-power edge, which is weaker but is what the map shows working. "Nothing comes back" is said only when no angle returns at all. A shared skip built on the map's layer-shape model was tried first and put the Lab 70 km off the map's own gate - the fix is one function for both, not a better one for one of them (`tests/test_lab_sky.py`).
+
 ### The manuals' tables, where they are used
 
 The shelf's books hold tables an operator wants without opening a

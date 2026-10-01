@@ -519,6 +519,9 @@ BUILT_FROM = {
     # is what these antennas are cheaply built from.
     "tefv": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
     "termsloper": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
+    # The V and the rhombic are the same long wire, laid flat and high.
+    "vbeam": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
+    "rhombic": ["wire14", "wire14i", "wire12", "wire18", "alufence", "magnet15", "fence"],
 }
 
 

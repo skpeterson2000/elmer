@@ -102,6 +102,14 @@ ANTENNA_Q = {
     "termsloper":  {"q": 0.3, "r": 50.0, "shape": "travelling",
                     "fed": "about 600 ohms at the feed, through a 12:1 balun or "
                            "the radio's coupler, at every frequency it is long enough for"},
+    # The long horizontal wires share the sum. The rhombic is terminated and
+    # as flat as the vee; the V is not, and is fed through a tuner on
+    # open-wire line, so its sweep is broad but not flat.
+    "vbeam":       {"q": 3.0, "r": 50.0, "shape": "travelling",
+                    "fed": "several hundred ohms at the apex, on open-wire line to a tuner"},
+    "rhombic":     {"q": 0.3, "r": 50.0, "shape": "travelling",
+                    "fed": "several hundred ohms at the feed corner, on open-wire line to a tuner "
+                           "or a matching balun, at every frequency it is long enough for"},
 }
 
 # A screwdriver is not one antenna but the same antenna at every frequency it
@@ -240,9 +248,50 @@ TRAVELLING = {
     # sloping-vee mast - stands in.
     "tefv": {"length_ft": 500.0, "height_ft": 50.0},
     "termsloper": {"length_ft": 250.0, "height_ft": 40.0},
+    # The long horizontal wires, worked out by the same sum. For these the
+    # length is one leg's - a V and a rhombic are spoken of by their legs,
+    # and ATP 6-02.53's Table E-3 gives the V's angle by leg length. Two
+    # wavelengths of leg on 20 m for the V, three for the rhombic, at the
+    # heights a field or a farm gives them.
+    "vbeam": {"length_ft": 140.0, "height_ft": 40.0, "to_load": 0.0},
+    "rhombic": {"length_ft": 210.0, "height_ft": 50.0},
 }
 TRAVELLING_END_FT = 6.0          # the insulator posts at each end, figure 4-30
 TRAVELLING_TO_LOAD = 0.5         # the share of the power the resistor takes
+
+# A rhombic is laid so each leg's own lobe points the way the whole antenna
+# fires: a terminated wire L wavelengths long throws its main lobe at the
+# angle whose cosine is 1 - 0.371 / L from its own axis (Kraus, *Antennas*,
+# ch. 14), so each leg is set that far off the centre line, and a little
+# less to lift the lobe to the elevation a DX path leaves at.
+RHOMBIC_WAVE_ANGLE_DEG = 15.0
+
+
+def to_load(kind):
+    """The share of the power the far-end resistor takes; none for a V-beam,
+    which has no resistor and rings with a standing wave instead."""
+    return TRAVELLING.get(str(kind), {}).get("to_load", TRAVELLING_TO_LOAD)
+
+
+def vbeam_apex_deg(leg_wl):
+    """The V's apex angle for legs this many wavelengths long, from ATP
+    6-02.53's Table E-3 (manuals.V_APEX), read straight off where the table
+    prints the length and taken in a straight line between two of its rows
+    otherwise, since a wire has to be laid at some angle. Outside the
+    table's 1 to 10 wavelengths, its end row."""
+    from .manuals import V_APEX
+    rows = V_APEX["rows"]
+    x = max(rows[0][0], min(rows[-1][0], float(leg_wl)))
+    for (l0, a0), (l1, a1) in zip(rows, rows[1:]):
+        if l0 <= x <= l1:
+            return a0 + (a1 - a0) * (x - l0) / (l1 - l0)
+    return float(rows[-1][1])
+
+
+def rhombic_half_apex_deg(leg_wl, wave_deg=RHOMBIC_WAVE_ANGLE_DEG):
+    """Each leg's angle off the rhombic's centre line, in degrees."""
+    lobe = max(-1.0, min(1.0, 1.0 - 0.371 / max(0.4, float(leg_wl))))
+    return math.degrees(math.acos(max(-1.0, min(1.0, lobe / math.cos(math.radians(wave_deg))))))
 
 
 class Laid(str):
@@ -257,8 +306,11 @@ class Laid(str):
     string gets the handbook's sizes on 40 m.
     """
 
-    def __new__(cls, kind, length_ft=None, height_ft=None, mhz=None, end_ft=None):
+    def __new__(cls, kind, length_ft=None, height_ft=None, mhz=None, end_ft=None, apex_deg=None):
         obj = super().__new__(cls, kind)
+        # A V's or a rhombic's angle, when somebody has laid theirs at one;
+        # None works it out from the leg's length on this band.
+        obj.apex_deg = float(apex_deg) if apex_deg is not None else None
         spec = TRAVELLING.get(kind, {})
         obj.length_ft = float(length_ft or spec.get("length_ft", 250.0))
         obj.height_ft = float(height_ft if height_ft is not None
@@ -270,27 +322,56 @@ class Laid(str):
         return obj
 
 
-def laid(kind, length_ft=None, height_ft=None, mhz=None, end_ft=None):
+def laid(kind, length_ft=None, height_ft=None, mhz=None, end_ft=None, apex_deg=None):
     """The kind, carrying its length, height and end height when it is a
-    terminated wire; any other antenna comes back as it went in."""
+    long wire worked out leg by leg; any other antenna comes back as it went in."""
     if kind not in TRAVELLING:
         return kind
-    return Laid(kind, length_ft, height_ft, mhz, end_ft)
+    return Laid(kind, length_ft, height_ft, mhz, end_ft, apex_deg)
 
 
 def is_travelling(kind):
     return ANTENNA_Q.get(kind, {}).get("shape") == "travelling"
 
 
-def travelling_legs(kind, height_wl, length_wl, end_wl):
-    """The straight legs, in wavelengths, from the feed to the resistor.
+def travelling_legs(kind, height_wl, length_wl, end_wl, apex_deg=None):
+    """The current paths, in wavelengths: each is (amplitude, legs), the legs
+    straight wires end to end that one wave runs along in turn.
 
-    x runs toward the resistor - the way the antenna fires - and z is up.
-    A vertical half-rhombic is two legs, up to the mast top and down
-    again; a sloping wire is one, from the top of its support down to the
-    resistor. A wire too short to reach the mast top it is hung from is
-    drawn as steep as it will go rather than refused.
+    x runs the way the antenna fires - toward the resistor - and z is up.
+    A vertical half-rhombic is one path of two legs, up to the mast top and
+    down again; a sloping wire is one leg, from the top of its support down
+    to the resistor. A wire too short to reach the mast top it is hung from
+    is drawn as steep as it will go rather than refused.
+
+    The horizontal long wires are fed between two sides, so the current
+    leaving the feed runs out along one side and the same current, the other
+    way about, along the other: two paths, of opposite sign. A rhombic's
+    sides are two legs each, meeting again at the resistor. A V's are one
+    leg each and open at the far end, where the wave reflects and comes
+    back: so each side is its outgoing wave and that wave returned, starting
+    at the tip with the current it arrived with - the standing wave on an
+    unterminated wire, as two travelling ones.
     """
+    if kind in ("vbeam", "rhombic"):
+        h = height_wl
+        if kind == "vbeam":
+            half = math.radians((apex_deg if apex_deg is not None else vbeam_apex_deg(length_wl)) / 2.0)
+        else:
+            half = math.radians(apex_deg / 2.0 if apex_deg is not None else rhombic_half_apex_deg(length_wl))
+        paths = []
+        for side in (1.0, -1.0):
+            out = (math.cos(half), side * math.sin(half), 0.0)
+            if kind == "vbeam":
+                tip = (out[0] * length_wl, out[1] * length_wl, h)
+                back = (-out[0], -out[1], 0.0)
+                paths.append((side, [((0.0, 0.0, h), out, length_wl)]))
+                paths.append((side * cmath.exp(-2j * math.pi * length_wl), [(tip, back, length_wl)]))
+            else:
+                corner = (out[0] * length_wl, out[1] * length_wl, h)
+                inward = (math.cos(half), -side * math.sin(half), 0.0)
+                paths.append((side, [((0.0, 0.0, h), out, length_wl), (corner, inward, length_wl)]))
+        return paths
     top = max(height_wl, end_wl)
     if kind == "tefv":
         leg = length_wl / 2.0
@@ -298,28 +379,29 @@ def travelling_legs(kind, height_wl, length_wl, end_wl):
         run = math.sqrt(max(1e-9, leg * leg - rise * rise))
         t_up = (run / leg, 0.0, rise / leg)
         t_down = (run / leg, 0.0, -rise / leg)
-        return [((0.0, 0.0, end_wl), t_up, leg),
-                ((run, 0.0, end_wl + rise), t_down, leg)]
+        return [(1.0, [((0.0, 0.0, end_wl), t_up, leg),
+                       ((run, 0.0, end_wl + rise), t_down, leg)])]
     rise = min(top - end_wl, length_wl * 0.999)
     run = math.sqrt(max(1e-9, length_wl * length_wl - rise * rise))
-    return [((0.0, 0.0, end_wl + rise), (run / length_wl, 0.0, -rise / length_wl),
-             length_wl)]
+    return [(1.0, [((0.0, 0.0, end_wl + rise), (run / length_wl, 0.0, -rise / length_wl),
+                    length_wl)])]
 
 
-def _travelling_sum(legs, u, theta_hat, phi_hat, alpha):
-    """The legs' field toward u, split into its vertical-plane and
+def _travelling_sum(paths, u, theta_hat, phi_hat, alpha):
+    """The paths' field toward u, split into its vertical-plane and
     horizontal parts."""
     k = 2.0 * math.pi
     d_theta = d_phi = 0j
-    start = 1.0 + 0j
-    for (x0, y0, z0), (tx, ty, tz), length in legs:
-        along = u[0] * tx + u[1] * ty + u[2] * tz
-        c = complex(-alpha, k * (along - 1.0))
-        integral = (cmath.exp(c * length) - 1.0) / c if abs(c) > 1e-9 else complex(length)
-        term = start * cmath.exp(1j * k * (u[0] * x0 + u[1] * y0 + u[2] * z0)) * integral
-        d_theta += term * (tx * theta_hat[0] + ty * theta_hat[1] + tz * theta_hat[2])
-        d_phi += term * (tx * phi_hat[0] + ty * phi_hat[1])
-        start *= cmath.exp(complex(-alpha, -k) * length)
+    for amp, legs in paths:
+        start = complex(amp)
+        for (x0, y0, z0), (tx, ty, tz), length in legs:
+            along = u[0] * tx + u[1] * ty + u[2] * tz
+            c = complex(-alpha, k * (along - 1.0))
+            integral = (cmath.exp(c * length) - 1.0) / c if abs(c) > 1e-9 else complex(length)
+            term = start * cmath.exp(1j * k * (u[0] * x0 + u[1] * y0 + u[2] * z0)) * integral
+            d_theta += term * (tx * theta_hat[0] + ty * theta_hat[1] + tz * theta_hat[2])
+            d_phi += term * (tx * phi_hat[0] + ty * phi_hat[1])
+            start *= cmath.exp(complex(-alpha, -k) * length)
     return d_theta, d_phi
 
 
@@ -346,8 +428,15 @@ def _travelling_setup(kind, height_wl=None):
     if height_wl is None:
         height_wl = getattr(kind, "height_ft", TRAVELLING.get(kind, {}).get("height_ft", 40.0)) / lam_ft
     end_wl = getattr(kind, "end_ft", TRAVELLING_END_FT) / lam_ft
-    alpha = math.log(1.0 / TRAVELLING_TO_LOAD) / (2.0 * length_wl)
-    return travelling_legs(str(kind), height_wl, length_wl, end_wl), alpha, length_wl
+    # The decay that leaves the resistor its share at the end of the path the
+    # wave runs: one wire, the vee's two legs, a rhombic side's two. A V-beam
+    # has no resistor: what it does not radiate comes back, and the standing
+    # wave is taken as the lossless textbook one.
+    share = to_load(kind)
+    path_wl = length_wl * (2.0 if str(kind) == "rhombic" else 1.0)
+    alpha = math.log(1.0 / share) / (2.0 * path_wl) if share > 0 else 0.0
+    paths = travelling_legs(str(kind), height_wl, length_wl, end_wl, getattr(kind, "apex_deg", None))
+    return paths, alpha, length_wl
 
 
 def kind_mhz(kind):
@@ -371,8 +460,10 @@ def _travelling_table(kind, height_wl, mhz=None, ground="average"):
     share taken off. Symmetric left and right, so 0 to 180 degrees from
     the firing direction is all of it."""
     lam_ft = 983.571 / kind_mhz(kind)
+    apex = getattr(kind, "apex_deg", None)
     key = (str(kind), round(getattr(kind, "length_ft", 0.0), 1),
            round(getattr(kind, "end_ft", TRAVELLING_END_FT), 1),
+           round(apex, 1) if apex is not None else None,
            round(height_wl, 3), round(kind_mhz(kind), 3),
            round(float(mhz), 3) if mhz else None, ground)
     hit = _TRAVELLING_TABLES.get(key)
@@ -394,7 +485,7 @@ def _travelling_table(kind, height_wl, mhz=None, ground="average"):
             peak = max(peak, f2)
     mean = total / sum(math.cos(math.radians(-90.0 + 180.0 * (i + 0.5) / n_t)) for i in range(n_t)) / n_p
     directivity = peak / mean if mean > 0 else 1.0
-    gain = directivity * (1.0 - TRAVELLING_TO_LOAD)
+    gain = directivity * (1.0 - to_load(kind))
     level = math.sqrt(gain / DIPOLE_DIRECTIVITY) / math.sqrt(peak) if peak > 0 else 0.0
     elevs = [TRAVELLING_ELEV_STEP * i for i in range(int(90 / TRAVELLING_ELEV_STEP) + 1)]
     azs = [TRAVELLING_AZ_STEP * j for j in range(int(180 / TRAVELLING_AZ_STEP) + 1)]
@@ -1187,6 +1278,10 @@ def _gap_note(mhz, height_ft, fof2):
                 "does it: at that height it returns in step straight overhead "
                 "instead of cancelling there."
                 % (mhz, fill["fof2"], fill["from_ft"], fill["to_ft"]))
+    if fof2 and mhz <= fof2:
+        return (" And %.3f MHz is under the %.1f MHz critical frequency now, so what goes "
+                "straight up comes straight back: there is no skip zone tonight, and the "
+                "near edge is as close as the ground wave leaves off." % (mhz, fof2))
     if fof2 and mhz > fof2:
         return (" Nothing comes back from overhead at %.3f MHz while the "
                 "critical frequency is %.1f, so no height will fill it - that "
@@ -1242,6 +1337,9 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
         return {"kind": "dx", "radius_km": None,
                 "note": "Ionospheric propagation, so distance depends on the "
                         "band and the hour rather than on the antenna alone."}
+    through = _through(mhz, ring, fof2, hmf2)
+    if through:
+        return through
     return {
         "kind": "dx", "radius_km": ring["far_km"], "inner_km": ring["near_km"],
         "outer_km": ring["far_km"], "typical_km": ring["typical_km"],
@@ -1253,6 +1351,62 @@ def reach(kind, use, mhz, height_ft=0.0, nvis=False, slope_deg=0.0,
                  f"{ring['typical_km']}. Inside the near edge is the skip "
                  f"zone." + _gap_note(mhz, height_ft, fof2)),
     }
+
+
+def _through(mhz, ring, fof2, hmf2):
+    """The hop when the sky is read and the main lobe is too steep for it.
+
+    The ring is geometry: where a ray leaving at each angle would come
+    down if the layer turned it back. Above the critical frequency the
+    layer turns back only the rays that meet it at a glancing angle, and
+    a lobe steeper than that goes through it and is lost. A 20 m V on 40 m
+    at 39 ft fires near 69 degrees; with foF2 at 3.1 MHz nothing steeper
+    than about 23 comes back, so the Lab said it landed 250 km out while
+    the reach map, reading the same sky, drew everything inside 1,000 km
+    dark. Both were right about their own question; this says the second
+    one where the first is asked.
+
+    None when the sky is not read, or the main lobe still comes back.
+    """
+    if not fof2 or mhz <= fof2:
+        return None
+    # The same steepest ray and the same skip the reach map gates its
+    # cells with (propagation.skip_km), so the two pages draw one sky.
+    height = float(hmf2 or ring["layer_km"])
+    steepest = _max_takeoff(mhz, fof2, height)
+    low, high = ring["lobe_deg"]
+    if steepest is not None and ring["takeoff_deg"] <= steepest:
+        return None
+    if steepest is None:
+        # Not even a ray along the horizon comes back: the band is shut.
+        return {"kind": "dx", "radius_km": None, "through": True, "returns_deg": None,
+                "note": (f"At this hour {mhz:g} MHz is too far above the {fof2:.1f} MHz critical "
+                         f"frequency for the layer to turn back a ray at any angle, the lowest "
+                         f"included: the band is shut from here, whatever the antenna. A lower band "
+                         f"is what reaches anybody tonight.")}
+    skip = hop_km(steepest, height)
+    # Which part of the pattern the sky returns. Below the main lobe's
+    # half-power edge the antenna still radiates, only weaker - and that is
+    # what the reach map shows working when the lobe itself goes through.
+    if low < steepest:
+        part = (f"the lower part of its lobe, from about {low:.0f}\u00b0 up to "
+                f"{steepest:.0f}\u00b0, comes back")
+    else:
+        part = (f"what comes back is the radiation under its main lobe - below "
+                f"{steepest:.0f}\u00b0, where the pattern is already more than 3 dB down "
+                f"from its peak at {ring['takeoff_deg']:.0f}\u00b0 - weaker, but it is what works")
+    return {"kind": "dx", "radius_km": ring["far_km"], "inner_km": round(skip), "outer_km": ring["far_km"],
+            "typical_km": None, "through": True, "returns_deg": round(steepest, 1),
+            "takeoff_deg": ring["takeoff_deg"], "lobe_deg": ring["lobe_deg"],
+            "layer_km": round(height),
+            "note": (f"The main lobe leaves at about {ring['takeoff_deg']:.0f}\u00b0, and at this hour "
+                     f"most of it goes straight through: {mhz:g} MHz is above the {fof2:.1f} MHz "
+                     f"critical frequency, so the layer turns back only rays leaving below about "
+                     f"{steepest:.0f}\u00b0. Nothing comes down inside about {skip:.0f} km - that is "
+                     f"skip zone - and beyond it {part}. The reach map on the Band Plan draws the "
+                     f"same sky: dark inside, brightening past the skip. A lower band comes back "
+                     f"from overhead; on this one, a lower lobe - more height, a vertical - puts "
+                     f"more where the sky returns it.")}
 
 
 # What the geometry says, and what the day says. Both are true; only one of
@@ -1632,9 +1786,10 @@ def advise_empty(span, mhz, kind, height_ft, use=None, bundled=False):
             if is_travelling(kind):
                 # Its takeoff is set by how many wavelengths of wire it is,
                 # not by how high it hangs, so height is the wrong knob.
+                legs = str(kind) in ("vbeam", "rhombic")
                 out.append({
-                    "do": "Use a shorter wire on this band",
-                    "why": ("A terminated wire's lobe comes down as it gets "
+                    "do": "Use shorter legs on this band" if legs else "Use a shorter wire on this band",
+                    "why": (("A long wire's" if legs else "A terminated wire's") + " lobe comes down as it gets "
                             "longer in wavelengths, and that low lobe is what "
                             "opened the hole. Fewer wavelengths of wire stand "
                             "the lobe up and bring the first hop in."),

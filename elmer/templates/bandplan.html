@@ -239,6 +239,8 @@
         <option value="whipdipole">a hamstick dipole</option>
         <option value="screwdriver">a screwdriver antenna</option>
         <option value="yagi">a Yagi</option>
+        <option value="vbeam">a V-beam</option>
+        <option value="rhombic">a rhombic</option>
         <option value="tefv">a terminated end-fed vee</option>
         <option value="termsloper">a terminated sloping wire</option>
         <option value="none">the sky alone - any antenna</option>
@@ -269,9 +271,12 @@
          not left to the Lab. Shown only for the two terminated wires. #}
       <span id="bp-reach-tw" hidden style="display:inline-flex;gap:.35rem;align-items:center;margin-left:.3rem">
         <input class="btn sm" id="bp-reach-len" type="number" min="20" max="2000" step="1" placeholder="500" style="width:5.5rem" title="the wire's length, end to end, in feet - it sets how many wavelengths the terminated wire is, and so how low and one-way its lobe is: under a wavelength it goes up and round, several wavelengths and it fires low off the resistor end. Blank is the handbook's 500 ft for the vee.">
-        <span class="tiny muted">ft of wire, ends at</span>
+        <span class="tiny muted" id="bp-reach-len-words">ft of wire</span>
+        {#- A V's and a rhombic's wires are all at one height, so they have legs and no ends. -#}
+        <span id="bp-reach-ends-wrap" style="display:inline-flex;gap:.35rem;align-items:center">
+        <span class="tiny muted">ends at</span>
         <input class="btn sm" id="bp-reach-ends" type="number" min="0" max="100" step="1" placeholder="6" style="width:4.5rem" title="how high the ends are tied off - the feed and the resistor - in feet. Blank is the handbook's 6 ft posts.">
-        <span class="tiny muted">ft</span>
+        <span class="tiny muted">ft</span></span>
       </span>
       <input class="btn sm" id="bp-reach-w" type="number" min="1" max="1500" step="1" value="100" style="width:5.5rem" title="power, in watts - it sets the ground wave, and how much of the sky's reach can be heard at the far end: solid stays bright, the edge of copy is dim, twenty decibels short is dark, and ten is the faint long shot it is. On 11 m the law sets it: 4 W carrier on AM or FM, 12 W PEP on SSB">
       <span class="tiny muted">W</span>
