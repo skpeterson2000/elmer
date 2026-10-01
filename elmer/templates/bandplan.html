@@ -292,19 +292,31 @@
         <option value="sea">salt water</option>
       </select>
       <button class="btn sm ghost" id="bp-reach-gnd-rate" type="button" title="rate the ground at your QTH from the soil and water surveys, and use it">rate mine</button>
-      <label class="tiny muted" for="bp-reach-borders" style="margin-left:.6rem">Borders</label>
+      <span class="bp-pair"><label class="tiny muted" for="bp-reach-borders" style="margin-left:.6rem">Borders</label>
       <select class="btn sm" id="bp-reach-borders" title="which borders are drawn - auto follows the zoom: countries, then states, then US counties">
         <option value="auto" selected>auto, by zoom</option>
         <option value="countries">countries</option>
         <option value="states">states and provinces</option>
         <option value="counties">counties (US)</option>
         <option value="none">none</option>
-      </select>
-      <label class="tiny muted" for="bp-reach-proj" style="margin-left:.6rem">View</label>
+      </select></span>
+      <span class="bp-pair"><label class="tiny muted" for="bp-reach-proj" style="margin-left:.6rem">View</label>
       <select class="btn sm" id="bp-reach-proj" title="the flat map, or the great-circle view centered on you: every straight line from the middle is a real beam heading, the distance from the middle is the real distance, and the rim is the far side of the world">
         <option value="flat" selected>flat map</option>
         <option value="globe">great circle, from here</option>
-      </select>
+      </select></span>
+      {# What the forecast is drawn over: the raised-relief globe, with the
+         forecast as a cloud over it, or the plain tints. The cloud's
+         strength is its own slider; the isolines stay whatever it says.
+         "Map", not "Ground": the ground choice above is the soil. #}
+      <span class="bp-pair"><label class="tiny muted" for="bp-reach-base" style="margin-left:.6rem">Map</label>
+      <select class="btn sm" id="bp-reach-base" title="relief: the land and sea as a raised-relief globe, with the forecast drawn over it as a cloud; plain: the dim tints, with the forecast in the band's color">
+        <option value="relief" selected>relief</option>
+        <option value="plain">plain</option>
+      </select></span>
+      <label class="tiny muted bp-pair" id="bp-reach-cloud-wrap" for="bp-reach-cloud" title="how thick the forecast's cloud is drawn over the ground - the lines and their numbers stay at full strength, so at 0% the map is the ground with the forecast drawn on it in lines">Cloud
+        <input type="range" id="bp-reach-cloud" min="0" max="100" step="5" value="85" style="width:6rem;vertical-align:middle">
+        <span class="mono" id="bp-reach-cloud-pct">85%</span></label>
       <button class="btn sm ghost" id="bp-reach-reset">The whole world</button>
     </span>
   </div>
@@ -312,7 +324,7 @@
     <span class="tiny muted">shut</span>
     <i class="bp-reach-ramp"></i>
     <span class="tiny muted">good</span>
-    <span class="tiny muted">&middot; centerd on you, the ring &middot; the night side shaded, the terminator as its twilight</span>
+    <span class="tiny muted">&middot; centered on you, the ring &middot; the numbered lines mark 20, 40, 60 and 80 &middot; the night side shaded, the terminator as its twilight</span>
   </div>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-laid" hidden></p>
   <p class="small" style="margin:.5rem 0 0" id="bp-reach-gain" hidden></p>

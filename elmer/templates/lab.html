@@ -146,13 +146,21 @@
           <option value="small">A small lot or a short garden</option>
           <option value="attic">Indoors &mdash; the attic or roof space</option>
           <option value="apartment">A flat &mdash; a balcony, or a window</option>
+          <option value="rooftop">A rooftop &mdash; height, and a small square of roof</option>
+          <option value="acreage">Acreage &mdash; a farm or a rural lot, room for long wires</option>
           <option value="mobile">In the vehicle &mdash; on the car or truck</option>
+          <option value="boat">Afloat &mdash; a sailboat or a powerboat</option>
+          <option value="aircraft">Aloft &mdash; in a light aircraft</option>
           <option value="portable">Nothing at home &mdash; I go out</option>
+          <option value="field">An open field &mdash; room to spread out, nothing to tie to</option>
+          <option value="trees">Tall trees &mdash; a line thrown over a high branch</option>
+          <option value="shore">By salt water &mdash; a beach or a shore</option>
         </select></div>
       {# A balcony is on a floor, and the tenth floor is not the first: the
          height is real height for the pattern and the horizon, and above
-         most of the street's noise. Asked only when a flat is chosen. #}
-      <div class="field" id="an-floor-field" hidden><label>Which floor is the balcony on?</label>
+         most of the street's noise. Asked only when a flat is chosen - and
+         for a rooftop, as how many floors the building has. #}
+      <div class="field" id="an-floor-field" hidden><label id="an-floor-label">Which floor is the balcony on?</label>
         <input id="an-floor" type="number" min="1" max="120" value="1" style="width:6rem"
                title="1 is the ground floor; each floor is about ten feet"></div>
       <div class="field"><label>What do you want to do with it?</label>
@@ -566,7 +574,9 @@
 {% endblock %}
 {% block scripts %}
 <script>window.QTH = {{ (qth or {})|tojson }};
-window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+window.CALLSIGN = {{ (profile.callsign or '')|tojson }};
+{# The manuals' tables the Lab looks rows up in as its inputs move (manuals.py). #}
+window.MANUAL_TABLES = {{ (manual_tables or {})|tojson }};</script>
 <script src="{{ asset('bench.js') }}"></script>
 <script src="{{ asset('lab.js') }}"></script>
 {% endblock %}

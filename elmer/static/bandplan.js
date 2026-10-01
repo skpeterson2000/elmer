@@ -1035,6 +1035,167 @@ function bpLandFor(zoom) {
   return (zoom >= 3 && bpLayer('land50')) || bpLand;
 }
 
+/* The ground as a raised-relief globe: green lowland, tan plateau, brown
+   mountain and snow, the shelf pale and the deep sea dark - Natural Earth's
+   shaded relief, turned down a touch (tools/relief.py). With it under the
+   map, the forecast is drawn as a cloud over the ground the way a weather
+   map draws one, and **Map** puts back the plain tints. One picture comes
+   with the page, a sharper one the first time the map is zoomed in to want
+   it; each is read once into its pixels, which the map samples by latitude
+   and longitude in either view. Without them the plain map is drawn. */
+const bpRelief = {coarse: null, fine: null};      // {W, H, data}; false while on its way
+function bpReliefLoad(which, file) {
+  if (bpRelief[which] !== null) return;
+  bpRelief[which] = false;
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      bpRelief[which] = {W: c.width, H: c.height, data: g.getImageData(0, 0, c.width, c.height).data};
+      if (bpReachFor) bpReachDraw(false);
+    } catch (e) {
+      console.warn('relief ' + file + ' could not be read: ' + e);
+      bpRelief[which] = undefined;              // given up on; the plain map stands
+    }
+  };
+  img.onerror = () => { console.warn('relief ' + file + ' did not load; drawing the plain map'); bpRelief[which] = undefined; };
+  img.src = '/static/maps/' + file;
+}
+function bpReliefFor(zoom) {
+  if (bpView.base !== 'relief') return null;
+  bpReliefLoad('coarse', 'relief.jpg');
+  if (zoom >= 3) bpReliefLoad('fine', 'relief-4k.jpg');
+  return (zoom >= 3 && bpRelief.fine) || bpRelief.coarse || null;
+}
+/* The ground's color at a place, blended from the four nearest pixels so a
+   close zoom is soft rather than blocky; the world wraps east to west. */
+function reliefAt(r, lat, lon, out) {
+  const fx = (lon + 180) / 360 * r.W - 0.5, fy = (90 - lat) / 180 * r.H - 0.5;
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+  const xa = ((x0 % r.W) + r.W) % r.W, xb = (xa + 1) % r.W;
+  const ya = Math.max(0, Math.min(r.H - 1, y0)), yb = Math.max(0, Math.min(r.H - 1, y0 + 1));
+  const d = r.data, a = (ya * r.W + xa) * 4, b = (ya * r.W + xb) * 4, c = (yb * r.W + xa) * 4, e = (yb * r.W + xb) * 4;
+  for (let i = 0; i < 3; i++) {
+    const top = d[a + i] + (d[b + i] - d[a + i]) * tx, bot = d[c + i] + (d[e + i] - d[c + i]) * tx;
+    out[i] = top + (bot - top) * ty;
+  }
+}
+
+/* The forecast as a cloud. It thickens and whitens as the reach strengthens,
+   all the way to the top of the scale, and where it is strongest it takes a
+   wash of the band's own color, so which band it is still shows in the
+   cloud and not only in its lines. Night falls on the ground and not on the
+   cloud. A soft shadow under it, a few pixels down and to the right, lifts
+   it off the ground. **Cloud** fades the cloud alone: the isolines stay at
+   full strength, so at nothing the map is the ground with the forecast
+   drawn on it in lines. The field under it is worked out once a view and
+   kept, so moving the slider only blends again - instant, even on a Pi. */
+const CLOUD_DIM = [206, 212, 218];
+let REACH_RGB = [74, 222, 128];
+function smooth01(e0, e1, x) { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); }
+function cloudAlpha(v) { return Math.pow(smooth01(5, 100, v), 0.8) * 0.92; }
+function cloudColor(v, lit, out) {
+  const wash = smooth01(55, 100, v) * 0.35;
+  for (let i = 0; i < 3; i++) {
+    const white = CLOUD_DIM[i] + (255 - CLOUD_DIM[i]) * v / 100;
+    out[i] = (white * (1 - wash) + REACH_RGB[i] * wash) * lit;
+  }
+}
+/* The field kept for one view: the score, the night's shade and the shaded
+   ground under each pixel. A score below zero is past the far side of the
+   world in the great-circle view. */
+let bpCloudKept = null;
+function bpCloudField(parts, W, H) {
+  const k = bpCloudKept;
+  if (k && k.W === W && k.H === H && k.parts.length === parts.length && k.parts.every((p, i) => p === parts[i])) return {kept: true, f: k};
+  bpCloudKept = {parts: parts, W: W, H: H, score: new Float32Array(W * H), shade: new Float32Array(W * H), ground: new Uint8ClampedArray(W * H * 3)};
+  return {kept: false, f: bpCloudKept};
+}
+function bpCloudPaint(px, f, coarse) {
+  const {W, H, score, shade, ground} = f;
+  const op = Math.max(0, Math.min(100, bpView.cloud)) / 100;
+  const alpha = new Float32Array(W * H);
+  for (let i = 0; i < alpha.length; i++) alpha[i] = score[i] < 0 ? 0 : cloudAlpha(score[i]) * op;
+  // the shadow: the cloud's own thickness averaged in 4-pixel blocks, read up and to the left
+  const S = 4, sw = Math.ceil(W / S), sh = Math.ceil(H / S), small = new Float32Array(sw * sh);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) small[((y / S) | 0) * sw + ((x / S) | 0)] += alpha[y * W + x] / (S * S);
+  const off = 5 / (coarse ? 2 : 1);
+  const cl = [0, 0, 0];
+  for (let y = 0; y < H; y++) {
+    const fy = Math.max(0, Math.min(sh - 1.001, (y - off) / S - 0.5)), y0 = fy | 0, ty = fy - y0;
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x, o = i * 4;
+      if (score[i] < 0) { px[o] = REACH_BG[0]; px[o + 1] = REACH_BG[1]; px[o + 2] = REACH_BG[2]; px[o + 3] = 255; continue; }
+      const fx = Math.max(0, Math.min(sw - 1.001, (x - off) / S - 0.5)), x0 = fx | 0, tx = fx - x0;
+      const s0 = small[y0 * sw + x0] + (small[y0 * sw + x0 + 1] - small[y0 * sw + x0]) * tx;
+      const s1 = small[(y0 + 1) * sw + x0] + (small[(y0 + 1) * sw + x0 + 1] - small[(y0 + 1) * sw + x0]) * tx;
+      const k = 1 - 0.35 * (s0 + (s1 - s0) * ty);
+      const a = alpha[i];
+      cloudColor(score[i], 0.92 + 0.08 * shade[i], cl);
+      for (let c = 0; c < 3; c++) px[o + c] = ground[i * 3 + c] * k * (1 - a) + cl[c] * a;
+      px[o + 3] = 255;
+    }
+  }
+  /* The isolines, two pixels wide in the band's color: one dark pixel is
+     lost on a busy ground. Not while the hand is moving. */
+  if (coarse) return;
+  const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
+  const ink = REACH_RGB.map(c => c * 0.85);
+  const mark = j => { const o = j * 4; px[o] = ink[0]; px[o + 1] = ink[1]; px[o + 2] = ink[2]; };
+  for (let y = 0; y < H - 1; y++) {
+    for (let x = 0; x < W - 1; x++) {
+      const i = y * W + x;
+      if (score[i] < 0 || score[i + 1] < 0 || score[i + W] < 0) continue;
+      const b = band(score[i]);
+      if (b !== band(score[i + 1]) || b !== band(score[i + W])) { mark(i); mark(i + 1); mark(i + W); }
+    }
+  }
+}
+
+/* The isolines' numbers, the way a weather map labels its isobars: a few on
+   each line, turned to run along it and kept upright, spread apart and clear
+   of the station's mark. The strongest lines are labelled first: they are
+   the small inner loops, and labelled last they found the outer line's
+   numbers already sitting in their room. The same map labels the same
+   places: candidates are taken in a fixed scattered order, not top to
+   bottom, so the numbers do not all pile up along the first line the scan
+   meets. */
+function bpContourLabels(ctx, score, W, H, avoid) {
+  const placed = avoid ? [avoid] : [];
+  const gap = 130, margin = 26, step = 3;
+  ctx.save();
+  ctx.font = 'bold 13px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(13,17,23,.85)'; ctx.fillStyle = '#fff';
+  REACH_CONTOURS.slice().reverse().forEach(level => {
+    const cand = [];
+    for (let y = margin; y < H - margin; y += step) {
+      for (let x = margin; x < W - margin; x += step) {
+        const i = y * W + x, a = score[i], b = score[i + step], c = score[i + step * W];
+        if (a < 0 || b < 0 || c < 0) continue;
+        if ((a >= level) !== (b >= level) || (a >= level) !== (c >= level)) cand.push(i);
+      }
+    }
+    const n = cand.length, stride = n % 7919 ? 7919 : 1;
+    let count = 0;
+    for (let k = 0; k < n && count < 3; k++) {
+      const i = cand[(k * stride) % n], x = i % W, y = (i - x) / W;
+      if (placed.some(p => (p[0] - x) * (p[0] - x) + (p[1] - y) * (p[1] - y) < gap * gap)) continue;
+      // the score climbs across the line, so the line runs at right angles to that
+      let ang = Math.atan2(score[i + 1] - score[i - 1], -(score[i + W] - score[i - W]));
+      if (ang > Math.PI / 2) ang -= Math.PI;
+      if (ang < -Math.PI / 2) ang += Math.PI;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+      ctx.strokeText(String(level), 0, 0); ctx.fillText(String(level), 0, 0);
+      ctx.restore();
+      placed.push([x, y]);
+      count++;
+    }
+  });
+  ctx.restore();
+}
+
 /* Each ring's box, [west, south, east, north], worked out once per set of
    shapes, so a view draws only the rings it can see. */
 function bpRingBoxes(rings) {
@@ -1168,9 +1329,27 @@ let REACH_LUT = reachLUT(reachStops(REACH_FALLBACK));
 function reachPaint(bandName) {
   const stops = reachStops(bandColor(bandName));
   REACH_LUT = reachLUT(stops);
+  REACH_RGB = stops[3][1];                           // the band's own hue, at 70
+  reachLegend();
+}
+/* The legend is the map's own colors: the band's ramp on the plain ground,
+   and on the relief the cloud at the slider's strength over a mid-tone of
+   the ground, from bare at shut to the band-washed white at the best. */
+function reachLegend() {
   const ramp = document.querySelector('#bp-reach .bp-reach-ramp');
-  if (ramp) ramp.style.background = 'linear-gradient(90deg, ' +
-    stops.map(([v, c]) => 'rgb(' + c.join(',') + ') ' + v + '%').join(', ') + ')';
+  if (!ramp) return;
+  let stops;
+  if (bpView.base === 'relief') {
+    const ground = [96, 112, 104], op = bpView.cloud / 100, cl = [0, 0, 0];
+    stops = [0, 20, 40, 60, 80, 100].map(v => {
+      const a = cloudAlpha(v) * op;
+      cloudColor(v, 1, cl);
+      return [v, ground.map((g, i) => Math.round(g * (1 - a) + cl[i] * a))];
+    });
+  } else {
+    stops = [0, 15, 40, 70, 100].map(v => [v, [REACH_LUT[v * 3], REACH_LUT[v * 3 + 1], REACH_LUT[v * 3 + 2]]]);
+  }
+  ramp.style.background = 'linear-gradient(90deg, ' + stops.map(([v, c]) => 'rgb(' + c.join(',') + ') ' + v + '%').join(', ') + ')';
 }
 const REACH_CONTOURS = [20, 40, 60, 80];        // the isolines, like a weather map's
 
@@ -1208,7 +1387,13 @@ function inWindow(w, lat, lon) {
 /* The viewport: the middle of the picture and how far in it is. Zoom 1 is
    the whole world with the operator at the center. */
 const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: null, band: null,
-                proj: recall('bandplan.proj', 'flat')};   // 'flat', or 'globe' - see bpReachDrawGlobe
+                proj: recall('bandplan.proj', 'flat'),    // 'flat', or 'globe' - see bpReachDrawGlobe
+                base: recall('bandplan.base', 'relief') === 'plain' ? 'plain' : 'relief',   // the ground - see bpReliefFor
+                cloud: bpCloudRecalled()};               // the cloud's strength, 0-100 - see bpCloudPaint
+function bpCloudRecalled() {
+  const n = Number(recall('bandplan.cloud', 85));
+  return isFinite(n) ? Math.max(0, Math.min(100, n)) : 85;
+}
 
 /* The great-circle view: azimuthal equidistant, centered on the QTH. On
    the flat map a throw that runs off the top carries on over the pole and
@@ -1235,34 +1420,47 @@ function bpReachDrawGlobe(coarse) {
   const bg = [13, 17, 23];
   const img = ctx.createImageData(W, H);
   const px = img.data;
-  const score = new Float32Array(W * H);
-  const gm = bpGlobeLand(bpLand);     // land and water, looked up by place
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const o = (y * W + x) * 4;
-      const dx = (x + 0.5 - cx) / R * PI, dy = (cy - (y + 0.5)) / R * PI;
-      const c = Math.hypot(dx, dy);
-      if (c > PI) {                      // past the far side of the world
-        score[y * W + x] = -1;
-        px[o] = bg[0]; px[o + 1] = bg[1]; px[o + 2] = bg[2]; px[o + 3] = 255;
-        continue;
+  const relief = bpReliefFor(view.zoom);
+  // On the relief the field is kept for the view, so the cloud slider only blends again.
+  const field = relief ? bpCloudField(['globe', d, view.zoom, relief], W, H) : null;
+  const score = field ? field.f.score : new Float32Array(W * H);
+  const gm = relief ? null : bpGlobeLand(bpLand);     // land and water, looked up by place
+  const rgb = [0, 0, 0];
+  if (!field || !field.kept) {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x, o = i * 4;
+        const dx = (x + 0.5 - cx) / R * PI, dy = (cy - (y + 0.5)) / R * PI;
+        const c = Math.hypot(dx, dy);
+        if (c > PI) {                      // past the far side of the world
+          score[i] = -1;
+          px[o] = bg[0]; px[o + 1] = bg[1]; px[o + 2] = bg[2]; px[o + 3] = 255;
+          continue;
+        }
+        const az = Math.atan2(dx, dy), sc = Math.sin(c), cc = Math.cos(c);
+        const sl = sp0 * cc + cp0 * sc * Math.cos(az);
+        const lat = Math.asin(Math.max(-1, Math.min(1, sl)));
+        const lon = l0 + Math.atan2(Math.sin(az) * sc * cp0, cc - sp0 * sl);
+        const latD = lat / D2R, lonD = ((lon / D2R + 540) % 360) - 180;
+        const v = reachAt(d, latD, lonD);
+        score[i] = v;
+        const alt = Math.asin(sl * sd + Math.cos(lat) * cd * Math.cos((d.sun.gha + lonD) * D2R)) / D2R;
+        const t = Math.max(0, Math.min(1, (alt + 12) / 18));
+        const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
+        if (field) {
+          reliefAt(relief, latD, lonD, rgb);
+          field.f.shade[i] = shade;
+          field.f.ground[i * 3] = rgb[0] * shade; field.f.ground[i * 3 + 1] = rgb[1] * shade; field.f.ground[i * 3 + 2] = rgb[2] * shade;
+          continue;
+        }
+        const m = gm ? gm.mask[Math.min(gm.H - 1, Math.floor((90 - latD) * gm.H / 180)) * gm.W +
+                               Math.min(gm.W - 1, Math.floor((lonD + 180) * gm.W / 360))] : null;
+        reachPixel(px, o, v, m, shade);
       }
-      const az = Math.atan2(dx, dy), sc = Math.sin(c), cc = Math.cos(c);
-      const sl = sp0 * cc + cp0 * sc * Math.cos(az);
-      const lat = Math.asin(Math.max(-1, Math.min(1, sl)));
-      const lon = l0 + Math.atan2(Math.sin(az) * sc * cp0, cc - sp0 * sl);
-      const latD = lat / D2R, lonD = ((lon / D2R + 540) % 360) - 180;
-      const v = reachAt(d, latD, lonD);
-      score[y * W + x] = v;
-      const alt = Math.asin(sl * sd + Math.cos(lat) * cd * Math.cos((d.sun.gha + lonD) * D2R)) / D2R;
-      const t = Math.max(0, Math.min(1, (alt + 12) / 18));
-      const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
-      const m = gm ? gm.mask[Math.min(gm.H - 1, Math.floor((90 - latD) * gm.H / 180)) * gm.W +
-                             Math.min(gm.W - 1, Math.floor((lonD + 180) * gm.W / 360))] : null;
-      reachPixel(px, o, v, m, shade);
     }
   }
-  if (!coarse) {
+  if (field) bpCloudPaint(px, field.f, coarse);
+  else if (!coarse) {
     const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
     for (let y = 0; y < H - 1; y++) {
       for (let x = 0; x < W - 1; x++) {
@@ -1320,6 +1518,7 @@ function bpReachDrawGlobe(coarse) {
   }
   const coast = view.zoom >= 3 ? (bpLayer('coast50') || bpCoast) : bpCoast;
   strokeLines(coast, 'rgba(245,248,252,.65)', view.zoom >= 3 ? 1.5 : 1.2);
+  if (!coarse) bpContourLabels(ctx, score, W, H, [cxf, cyf]);
   /* The distance rings and the bearings: what this view is for. */
   ctx.save();
   ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.fillStyle = 'rgba(255,255,255,.62)';
@@ -1370,31 +1569,46 @@ function bpReachDraw(coarse) {
   const fine = view.refined && view.refined.band === view.band ? view.refined : null;
   const img = ctx.createImageData(W, H);
   const px = img.data;
-  const score = new Float32Array(W * H);
   const D2R = Math.PI / 180;
   const sd = Math.sin(d.sun.dec * D2R), cd = Math.cos(d.sun.dec * D2R);
-  // Land and water under the reach, filled at this view's own resolution.
-  const land = bpLandFor(view.zoom);
   const left = view.lon - spanLon / 2, topLat = view.lat + spanLat / 2;
+  const relief = bpReliefFor(view.zoom);
+  // On the relief the field is kept for the view, so the cloud slider only blends again.
+  const field = relief ? bpCloudField(['flat', d, fine, view.zoom, view.lat, view.lon, relief], W, H) : null;
+  const score = field ? field.f.score : new Float32Array(W * H);
+  // Land and water under the reach, filled at this view's own resolution - the plain ground only.
+  const land = relief ? null : bpLandFor(view.zoom);
   const mask = land ? bpFillMask(W, H, land, lon => (lon - left) * W / spanLon, lat => (topLat - lat) * H / spanLat, 360 * W / spanLon,
                                  [left, topLat - spanLat, left + spanLon, topLat]) : null;
-  for (let y = 0; y < H; y++) {
-    const lat = latAt(y);
-    const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
-    for (let x = 0; x < W; x++) {
-      const lon = lonAt(x);
-      const v = (fine && inWindow(fine, lat, lon)) ? reachAt(fine, lat, lon) : reachAt(d, lat, lon);
-      score[y * W + x] = v;
-      const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
-      const t = Math.max(0, Math.min(1, (alt + 12) / 18));
-      const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
-      reachPixel(px, (y * W + x) * 4, v, mask ? mask[y * W + x] : null, shade);
+  const rgb = [0, 0, 0];
+  if (!field || !field.kept) {
+    for (let y = 0; y < H; y++) {
+      const lat = latAt(y);
+      const sl = Math.sin(lat * D2R), cl = Math.cos(lat * D2R);
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const lon = lonAt(x);
+        const v = (fine && inWindow(fine, lat, lon)) ? reachAt(fine, lat, lon) : reachAt(d, lat, lon);
+        score[i] = v;
+        const alt = Math.asin(sl * sd + cl * cd * Math.cos((d.sun.gha + lon) * D2R)) / D2R;
+        const t = Math.max(0, Math.min(1, (alt + 12) / 18));
+        const shade = 0.42 + 0.58 * t * t * (3 - 2 * t);
+        if (field) {
+          reliefAt(relief, lat, lon, rgb);
+          field.f.shade[i] = shade;
+          field.f.ground[i * 3] = rgb[0] * shade; field.f.ground[i * 3 + 1] = rgb[1] * shade; field.f.ground[i * 3 + 2] = rgb[2] * shade;
+        } else {
+          reachPixel(px, i * 4, v, mask ? mask[i] : null, shade);
+        }
+      }
     }
   }
   /* The isolines: where the score crosses a contour between a pixel and
      its neighbour, that pixel is drawn a shade darker - a line one pixel
-     wide at every threshold, the way a weather map draws its fronts. */
-  if (!coarse) {
+     wide at every threshold, the way a weather map draws its fronts. On
+     the relief the cloud draws its own, in the band's color. */
+  if (field) bpCloudPaint(px, field.f, coarse);
+  else if (!coarse) {
     const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
     for (let y = 0; y < H - 1; y++) {
       for (let x = 0; x < W - 1; x++) {
@@ -1446,6 +1660,7 @@ function bpReachDraw(coarse) {
   }
   const coast = view.zoom >= 3 ? (bpLayer('coast50') || bpCoast) : bpCoast;
   strokeLines(coast, 'rgba(245,248,252,.65)', view.zoom >= 3 ? 1.5 : 1.2);
+  if (!coarse) bpContourLabels(ctx, score, W, H, d.qth ? [X(d.qth.lon), Y(d.qth.lat)] : null);
   if (d.qth) {
     const x = X(d.qth.lon), y = Y(d.qth.lat);
     if (x >= -20 && x <= full.w + 20 && y >= -20 && y <= full.h + 20) {
@@ -1583,6 +1798,38 @@ function bpReachBind() {
   }
   const reset = document.getElementById('bp-reach-reset');
   if (reset) reset.addEventListener('click', () => { bpView.zoom = 1; bpView.lat = 0; bpView.lon = bpReachFor && bpReachFor.qth ? bpReachFor.qth.lon : 0; bpView.refined = null; bpReachDraw(false); });
+  /* The ground, and the cloud's strength over it. The slider blends the
+     kept field again on every step of the hand, a frame at a time. */
+  const base = document.getElementById('bp-reach-base');
+  const cloud = document.getElementById('bp-reach-cloud');
+  const cloudPct = document.getElementById('bp-reach-cloud-pct');
+  const cloudWrap = document.getElementById('bp-reach-cloud-wrap');
+  const showCloud = () => {
+    if (cloudWrap) cloudWrap.hidden = bpView.base !== 'relief';
+    if (cloud) cloud.value = bpView.cloud;
+    if (cloudPct) cloudPct.textContent = Math.round(bpView.cloud) + '%';
+  };
+  if (base) {
+    base.value = bpView.base;
+    base.addEventListener('change', () => {
+      bpView.base = base.value === 'plain' ? 'plain' : 'relief';
+      remember('bandplan.base', bpView.base);
+      bpCloudKept = null;
+      showCloud(); reachLegend(); bpReachDraw(false);
+    });
+  }
+  if (cloud) {
+    let queued = false;
+    cloud.addEventListener('input', () => {
+      bpView.cloud = Math.max(0, Math.min(100, Number(cloud.value) || 0));
+      showCloud(); reachLegend();
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; bpReachDraw(false); });
+    });
+    cloud.addEventListener('change', () => remember('bandplan.cloud', bpView.cloud));
+  }
+  showCloud();
 }
 
 /* One way or the round trip - see propagation.reach_map. */

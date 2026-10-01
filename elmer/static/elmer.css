@@ -852,6 +852,9 @@ table.data tr.denied td { opacity: .45; }
 /* The ramp's gradient is set by bandplan.js from the same stops the map is
    drawn with - the band's own color, dark to bright - so the legend cannot
    drift from the picture. */
+/* A label and its control under the reach map wrap as one, so a narrow
+   screen never leaves "View" at the end of one line and its menu on the next. */
+.bp-pair { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
 .bp-reach-ramp { display: inline-block; width: 12rem; max-width: 40vw; height: .7rem; border-radius: 4px; border: 1px solid rgba(255,255,255,.15);
   background: var(--line); }
 /* The sliders that turn the antenna's picture sit right under it, above
@@ -1630,3 +1633,14 @@ table.worth tr.worth-me td.worth-num { color: var(--text); }
 }
 .cw-lamp.lit { background: #fffbe6; box-shadow: 0 0 2.5rem #fff3b0; border-color: #fff3b0; }
 .cw-lamp:fullscreen { width: 100vw; height: 100vh; border-radius: 0; border: 0; }
+/* The manuals' plans under the Lab's advice: folded shut until opened, the
+   figure on white as the page prints it, the table as the book sets it. */
+.manual-plan { border: 1px solid var(--line); border-radius: 8px; padding: .45rem .7rem; margin-top: .45rem; }
+.manual-plan summary { cursor: pointer; }
+.manual-plan blockquote { margin: .45rem 0 0 0; }
+.manual-fig { margin: .6rem 0 0 0; }
+.manual-fig img { display: block; max-width: min(100%, 560px); height: auto; background: #fff; border-radius: 6px; padding: .4rem; }
+.manual-table { border-collapse: collapse; margin-top: .6rem; }
+.manual-table caption { text-align: left; caption-side: top; padding-bottom: .2rem; }
+.manual-table th, .manual-table td { border: 1px solid var(--line); padding: .15rem .5rem; text-align: right; }
+.manual-table th:first-child, .manual-table td:first-child { text-align: left; }

@@ -560,6 +560,50 @@ because they carry very different authority:
   the shapes cross its rim in ways a filled path cannot follow; the fine
   coastline is drawn over it (`tests/test_reach_land.py`).
 
+  The ground can be the ground. With the plain tints the band's color had
+  to be the only thing on the map, so land and sea were kept near black.
+  Scott asked for the land drawn the way the raised-relief globes of the
+  1980s drew it - green lowland, tan plateau, brown mountain, snow - with
+  the forecast laid over it the way a weather map lays its cloud. **Map**
+  chooses **relief**, now what opens, or **plain**, the map as it was. The
+  relief is Natural Earth's cross-blended hypsometric tints with shaded
+  relief and water (1:50m, public domain), turned to nine-tenths its
+  saturation and 95% its brightness by `tools/relief.py` so a white cloud
+  stands off it, and shipped as two JPEGs: 2048 x 1024 (191 KB) with the
+  page and 4096 x 2048 (688 KB) the first time the map is zoomed to 3x.
+  Each is read once into its pixels and sampled by latitude and longitude,
+  blended from the four nearest so a close zoom is soft rather than
+  blocky; 8192 was left out because its pixels are 128 MB, which is not a
+  Pi's to spend on a background.
+
+  Three looks were drawn from the live forecast and compared before any of
+  it was built: the band's ramp as a colored cloud over a muted relief, a
+  white cloud with the band's color only in the isolines, and the map as it
+  was. Scott chose the white cloud, and the cloud was then given what the
+  colored one had over it. It thickens and whitens all the way to the top
+  of the scale, so strong and very strong still differ (a cloud that stopped
+  at 75 left that to the lines); where it is strongest it takes a wash of
+  the band's color, so 40 m and 80 m are told apart in the cloud and not
+  only in the lines; and night falls on the ground and not on the cloud,
+  which had gone a dusty gray over exactly the night side where the low
+  bands are working. A soft shadow a few pixels down and to the right lifts
+  it off the ground. The isolines are drawn two pixels wide in the band's
+  color - one dark pixel is lost on a busy ground - and numbered, 20 to 80,
+  the way a weather map numbers its isobars: a few to a line, turned to run
+  along it, the inner loops labelled first and every number kept clear of
+  the station's mark. The plain map has the numbers too.
+
+  **Cloud** sets the cloud's strength, 0 to 100%, opening at 85. It fades
+  the cloud alone; the isolines and their numbers stay at full strength, so
+  at 0% the map is the ground with the forecast drawn on it in lines. The
+  score, the night's shade and the shaded ground under every pixel are kept
+  for the view, so moving the slider blends again and redraws the lines
+  without asking the model or the relief anything - a frame at a time,
+  instant on a desktop and quick on a Pi. One canvas still, rather than a
+  cloud layer stacked over a ground layer: the page's tests and the guide's
+  pictures read the map's pixels, and a stack would have split them
+  (`tests/test_reach_relief.py`).
+
   FM is drawn where the rules put it, and rated for the sky's fades. The
   map offered FM on every HF band and rated it like a steady signal, so
   100 W of FM lit 5,000 km on 20 m; an operator asked, reasonably, whether
@@ -1422,6 +1466,41 @@ whose pages are pictures with no text under them is marked *a scan — nothing
 for search to read* on the shelf, so an empty result reads as what it is
 rather than as the word not being in the book. It opens and reads like any
 other; ELMER does not OCR it.
+
+### The manuals' tables, where they are used
+
+The shelf's books hold tables an operator wants without opening a
+160-page PDF, and Scott asked for the pertinent ones pulled into the pages
+that use them - not the manuals reproduced. `elmer/manuals.py` holds them
+copied from the page, never paraphrased, each with its book, its own name,
+its printed page and the PDF page the reader opens to. The first is ATP
+6-02.53's Table E-1, take-off angle against distance off the F2 layer by
+day and by night (p. 87): the Lab shows the row for the main lobe's angle
+beside it, in the operator's unit as the table prints it, and between two
+rows it shows both rather than drawing a line the Army did not. The rows
+were read off the rendered page, because the PDF's text layer lays the
+angle column out apart from the distances; `tests/test_manuals.py` finds
+every number on that page of the shipped file. A printed slip is kept as
+printed and said beside it, never corrected in silence.
+
+The plans followed: under the Lab's advice, the manuals' own plans for the
+antenna on the screen (`manuals.PLANS`, shown by antenna type and frequency
+so a 40 m vertical is not handed a 2 m ground plane). Each card is the
+figure where the figure is free to copy - taken as embedded in the PDF and
+flattened onto white, never redrawn - the manual's words quoted, a slip said
+beside them, and the page. Not reproducing the manuals is the point: a card
+holds the passage that builds the thing, and the book is a tap away for the
+rest. Two guards: the AUXFOG's figures marked "Courtesy of Tom Brown /
+N4TAB" are an amateur's own, not the government's, so they are named and
+linked but not copied; and every quoted paragraph is found again on the page
+it names in the shipped PDF by `tests/test_manuals.py`, which is how a
+boxed note from p. D-1 that had been filed under the dipole's p. D-6 was
+caught before it shipped.
+
+Not everything asked for is in the books. A 12:1 balun is named in the
+Marines' Antenna Handbook (MCRP 3-40.3C, pp. 4-24, 4-31, 4-38) only as a
+part to use if available; none of the four manuals says how to build one,
+or a loading coil, so ELMER's coil figures remain its own.
 
 ### The User's Guide, on the same shelf
 
@@ -2810,6 +2889,27 @@ sight, and a Lab that mixes the two makes the syllabus look bigger than it is.
   questions — change what you have and it changes — until you pick an antenna
   yourself, and then it is yours and stays put. The textbook dipole is one
   click away for anybody who wants it.
+
+  The list was too short. "Nothing at home - I go out" was the only outdoor
+  answer, and a city roof had to call itself a flat's window, which offered
+  no beam and no way to load a wire. Scott asked for more, and there are
+  seven more, each named for what it gives rather than what it is:
+  a rooftop (asked how many floors, 10 ft a storey and a 10 ft mast; about
+  30 ft of roof, so a beam on 20 m and up and below it a loaded dipole, with
+  Making it fit giving the coil), acreage (a 1000 ft run, the full-size
+  dipole), afloat and aloft, and for going out an open field (a 33 ft
+  telescoping pole: a quarter wave on 40 m, an inverted-V below), tall trees
+  ("a line thrown over a high branch" - the support named, since the support
+  is the point; 60 ft, half a wave up on 40 m) and salt water (a vertical,
+  which is what the sea pays off). "I go out" stays, for not knowing what
+  will be there. Afloat and aloft quote 47 CFR 97.11 word for word from the
+  bundled Part 97 (`antenna_advice.site_rules`): a station aboard is the
+  master's or the pilot's to approve, and aloft (c) bars operation under
+  instrument flight rules. An aircraft has no height cap - nothing under it
+  shapes the pattern - and says what its altitude buys instead, the horizon.
+  A roof, a hull and an airframe are not the earth, so the low wire's
+  advice ("leave it low", "lay a reflector on the ground") is not offered
+  there (`ABOVE_GROUND`).
 
   A site is a length as well as a height. Each held a height cap and
   nothing else, and a small lot was handed 250 ft of terminated wire on

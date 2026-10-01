@@ -88,10 +88,13 @@ Natural Earth - public domain
     elmer/static/maps/coast-50m.json           the coastline at 1:50,000,000, for the reach map zoomed in
     elmer/static/maps/borders-countries.json   country boundaries, 1:110,000,000
     elmer/static/maps/borders-states.json      state and province boundaries, 1:50,000,000
+    elmer/static/maps/relief.jpg               cross-blended hypsometric tints with shaded relief and water, 1:50,000,000
+    elmer/static/maps/relief-4k.jpg            the same at twice the size, for the reach map zoomed in
 
     Natural Earth's coastlines and boundaries, snapped to a pixel's grid by
-    tools/coastline.py and tools/borders.py, so that the EME page and the
-    band plan's reach map can draw the Earth on a unit with no network.
+    tools/coastline.py and tools/borders.py, and its shaded relief, toned
+    and resized by tools/relief.py, so that the EME page and the band
+    plan's reach map can draw the Earth on a unit with no network.
     Natural Earth is in the public domain and asks for no credit; it gets
     one anyway. https://www.naturalearthdata.com/
 
@@ -105,6 +108,25 @@ US Census Bureau - public domain
     The counties the reach map draws when zoomed well in, one shared border
     kept once, by tools/borders.py. Census Bureau data is in the public
     domain. https://www.census.gov/geographies/mapping-files.html
+
+
+The manuals on the shelf - US Government works
+----------------------------------------------
+
+    elmer/static/manuals/atp-e11-dipole.png        ATP 6-02.53 (31 July 2025), Figure E-11, p. 96
+    elmer/static/manuals/atp-e12-center-fed.png    ATP 6-02.53, Figure E-12, p. 97
+    elmer/static/manuals/atp-e13-vertical.png      ATP 6-02.53, Figure E-13, p. 98
+    elmer/static/manuals/atp-h19-insulators.png    ATP 6-02.53, Figure H-19, p. 145
+    elmer/static/manuals/auxfog-d4-coax-sleeve.png AUXFOG 1.1 (June 2016), Figure 3, p. D-4
+
+    Figures taken from the books in data/shelf/ as they are embedded in the
+    PDFs, flattened onto white, and shown in the Lab with the passages they
+    illustrate, quoted word for word in elmer/manuals.py with their pages.
+    ATP 6-02.53 is "Approved for public release; distribution is
+    unlimited"; the AUXFOG is a work of the United States Government, not
+    subject to copyright in the United States (17 U.S.C. 105). The AUXFOG's
+    figures marked "Courtesy of Tom Brown / N4TAB" (pp. D-2, D-3, D-5) are
+    his and are not copied; the Lab says where they are.
 
 
 Fetched at runtime, not shipped

@@ -18,10 +18,13 @@ with, which is what somebody needs before they have the experience to disagree
 with it.
 """
 
+import logging
 import math
 
 from . import units
 import re
+
+log = logging.getLogger("elmer")
 
 C_FT = 983.571                      # speed of light, feet per microsecond
 
@@ -848,6 +851,10 @@ DEFAULT_DROOP_DEG = 35.0          # what the Lab's droop slider starts at
 # near-vertical incidence it is precisely wrong, and it was being printed under
 # a height that had just been chosen to be low - so the tool told somebody to
 # put an inverted-V at 35 feet and then, in the next paragraph, to raise it.
+# Sites where the antenna stands on something that is not the earth - a
+# building, a hull, an airframe - so the low wire's advice does not apply.
+ABOVE_GROUND = ("rooftop", "boat", "aircraft")
+
 NVIS_BETTER = [
     "Leave it low. This is the one case in the book where higher is worse: "
     "take it up toward half a wavelength and the lobe splits, and a skip zone "
@@ -1031,7 +1038,202 @@ SITES = {
         "good_at": "having a better antenna than your house allows, which is "
                    "most of why people do this",
     },
+    # A roof is the other urban site: the flat's height without its window,
+    # and a square of roof rather than a run of garden - room to turn a
+    # small beam, not to stretch a wire. Its height is the building's,
+    # asked the way the flat asks for its floor (site_cap).
+    "rooftop": {
+        "label": "A rooftop - height, and a small square of roof",
+        "max_ft": 50,
+        "room_ft": 30,
+        "works": ["A small beam on a short mast and a rotator: a Yagi or a hexbeam for 20 m and "
+                  "up, or a VHF and UHF beam, which is a few feet across. The building is the "
+                  "tower, and turning the beam is worth more than the height on top of it.",
+                  "A wire made short with coils - a loaded dipole, or two mobile whips on a "
+                  "dipole mount - when the low bands' half wave is longer than the roof. The "
+                  "coil stands in for the wire that does not fit; Making it fit, below, works "
+                  "out the coil for the wire that is up.",
+                  "A vertical with a few radials raised off the roof. The roof is not ground - "
+                  "membrane, gravel and steel deck all look different to RF - so the radials are "
+                  "the ground, lifted clear of it."],
+        "costs": ["It is somebody's building. The owner, the lease or the board says yes first, "
+                  "and a fixed antenna may need the building's engineer to say where it can sit.",
+                  "Lightning and the building's ground: the mast and the feedline are bonded to "
+                  "the building's grounding system, and the feedline is grounded where it comes "
+                  "inside.",
+                  "People walk on roofs. Keep the beam where nobody stands in front of it, and "
+                  "do the RF exposure evaluation for the roof as it is used."],
+        "good_at": "20 m and up from a small beam at a height a garden station needs a tower "
+                   "for, and VHF and UHF from the best seat in the neighborhood",
+    },
+    # The places people go out to, each named for what it gives: "I go out"
+    # above is for not knowing what will be there. A pole is what most
+    # people carry - ten meters of telescoping fiberglass, 33 ft - so the
+    # field and the shore are capped there, and the trees at what a throw
+    # weight reliably gets over a branch.
+    "field": {
+        "label": "An open field - room to spread out, nothing to tie to",
+        "max_ft": 33,
+        "works": ["A vertical with its radials spread across the grass. A field has room for as "
+                  "many as you care to unroll, a vertical needs no height and leaves the ground "
+                  "at a low angle, and a quarter wave on 40 m stands 33 ft - the same telescoping "
+                  "pole a wire would hang from.",
+                  "An inverted-V or an end-fed half wave from a telescoping fiberglass pole, guyed "
+                  "or strapped to a drive-on mount. Thirty-odd feet is a quarter of a wave on "
+                  "40 m, a fair NVIS antenna, and half a wave on 10 m.",
+                  "The long wires nobody has room for at home: a full-size half wave on 80 m "
+                  "between two poles, or a terminated sloper or vee laid out on a pole and stakes "
+                  "toward where you want to work."],
+        "costs": ["Everything that goes up, you carried and must hold up. A pole standing on its "
+                  "own wants guys or a mount, and the wind across an open field finds every weak "
+                  "point.",
+                  "You and a metal pole are the tallest things for a mile. Take it down when "
+                  "thunder is heard, not when the rain starts.",
+                  "Ask whose field it is. A park's rules or a farmer's say-so come before the "
+                  "first stake goes in."],
+        "good_at": "low-angle work from a vertical with a proper radial field, and anything the "
+                   "back yard is too small for",
+    },
+    "trees": {
+        "label": "Tall trees - a line thrown over a high branch",
+        "max_ft": 60,
+        "works": ["A dipole or inverted-V hauled up over a branch fifty or sixty feet up. That is "
+                  "half a wave up on 40 m - the height the books draw for working distance - and "
+                  "nothing else on this list gets there without a tower.",
+                  "An end-fed half wave hanging down from the branch, or sloping from it to a "
+                  "stake: one line, one support, and the feed down near the ground where the "
+                  "radio is.",
+                  "A throw weight on a light line, a slingshot or an air launcher gets the line "
+                  "over. Pull a stronger rope up behind it and hang the antenna from that through "
+                  "a pulley, so it can come down again without anybody climbing."],
+        "costs": ["Once it is up you cannot reach it. Trim the wire on the ground first, and "
+                  "leave a halyard - a rope over a pulley - so it can be lowered to adjust.",
+                  "Trees move. Tie one end off through a weight or a bungee so a gust swings the "
+                  "branch rather than snapping the wire, and expect a rope in the sun to need "
+                  "replacing after a few seasons.",
+                  "The wire's ends are its high-voltage points. Keep them clear of the leaves - "
+                  "wet foliage there costs signal - and out of anybody's reach.",
+                  "Throw away from power lines, never over or near one. A line that falls across "
+                  "a power line is a path to whoever is holding the other end."],
+        "good_at": "height - the one thing that matters most for a horizontal wire on 40 m and "
+                   "80 m, and the hardest one to buy",
+    },
+    "acreage": {
+        "label": "Acreage - a farm or a rural lot, room for long wires",
+        "max_ft": 40,
+        "room_ft": 1000,
+        "works": ["A full-size half wave on 160 m or 80 m, end to end: about 260 ft and 130 ft, "
+                  "which a town lot never sees and a farm hardly notices.",
+                  "A terminated vee or sloper hundreds of feet long, laid toward where you want "
+                  "to work. The handbook's 500 ft is one fence line here.",
+                  "A Beverage for listening on the low bands: a wire a few feet up, a wavelength "
+                  "or more long and terminated at the far end, that hears one way and hears it "
+                  "quietly. On a quiet farm it is often the difference between copying a station "
+                  "and not.",
+                  "Radials as long as you like for a vertical, under a pasture where no mower "
+                  "will find them."],
+        "costs": ["Long runs mean long feedlines or a remote tuner, and the feedline is where the "
+                  "losses hide: a few hundred feet of thin coax on 10 m throws away most of the "
+                  "power before it reaches the wire.",
+                  "Livestock and machinery. A wire at head height across a field is a hazard to "
+                  "both - keep it high, or keep it fenced.",
+                  "A long wire in open country gathers lightning. Ground the feedline where it "
+                  "comes into the house, and disconnect it when a storm is coming."],
+        "good_at": "the low bands, and listening - the quiet of the country is often worth more "
+                   "than any antenna",
+    },
+    "shore": {
+        "label": "By salt water - a beach or a shore",
+        "max_ft": 33,
+        "works": ["A vertical at the water's edge. Salt water is the best ground there is, and a "
+                  "vertical standing on it gains several decibels at low angles over the same "
+                  "antenna inland - which is why island and park activators set up on the beach. "
+                  "The closer to the water the more it gains; a few hundred feet back, most of "
+                  "it is gone.",
+                  "A quarter wave on a telescoping pole with a few radials lying on the wet sand, "
+                  "or a vertical dipole up the pole, which needs no radials at all.",
+                  "A horizontal wire works here too, but it gains much less: the sea's gift is at "
+                  "the low angles, and a low horizontal wire sends little there."],
+        "costs": ["Salt spray gets into every connector and clamp in a weekend. Tape them, and "
+                  "rinse the gear in fresh water when you get home.",
+                  "The tide. A vertical set at the waterline at low tide can be standing in the "
+                  "sea at high tide - look up the tide table first.",
+                  "Sand will not hold a stake. Bury a sandbag or use a drive-on mount, and guy "
+                  "the pole against the sea breeze."],
+        "good_at": "working distance from a vertical and a few watts, where an inland station "
+                   "would need a tower",
+    },
+    "boat": {
+        "label": "Afloat - a sailboat or a powerboat",
+        "max_ft": 40,
+        "means": ("A boat's height is its stay or its whip, and what it stands on matters more "
+                  "than how tall it is: a vertical's ground here is the sea itself."),
+        "works": ["An insulated backstay on a sailboat: insulators let into the stay make 30 to "
+                  "50 ft of it a vertical wire, fed by an automatic tuner at its foot. It is the "
+                  "classic blue-water antenna, and it is already up.",
+                  "A long whip - 23 ft is the marine standard - with an automatic tuner at its "
+                  "base, on a powerboat or a sailboat with no stay to spare.",
+                  "Over salt water a vertical is at its best: the sea is the ground the books "
+                  "wish they had, and a modest station on a boat works across oceans. The "
+                  "Maritime Mobile Service Network meets on 14.300 MHz for exactly this traffic, "
+                  "and it is customary to sign /MM after your call."],
+        "costs": ["The ground is the hard part. The tuner wants a solid RF ground to the sea - "
+                  "copper strap to a bronze through-hull or a ground plate - and a poor one puts "
+                  "RF on the instruments, the autopilot and you.",
+                  "Interference both ways: the boat's electronics hear the transmitter, and its "
+                  "alternator, inverter and refrigeration are your noise floor.",
+                  "In another country's waters, that country's rules and its permission apply "
+                  "as well."],
+        "rules": [("97.11", "97.11(a)", "(a)"), ("97.11", "97.11(b)", "(b)")],
+        "good_at": "long-haul HF from a vertical over the best ground there is, and staying in "
+                   "touch where the phone gives out",
+    },
+    "aircraft": {
+        "label": "Aloft - in a light aircraft",
+        # Height is the aircraft's, and it is not a wire's: nothing on the
+        # ground under it shapes the pattern. No cap, and the sentence says
+        # what the altitude is worth instead.
+        "max_ft": None,
+        "means": ("Up here the ground is a mile away and takes no part in the pattern; what the "
+                  "height buys is the horizon. At 5,000 ft the radio horizon on VHF is about 100 "
+                  "miles out, and at 10,000 ft about 140."),
+        "works": ["VHF and UHF, which is where this site shines: a handheld on 2 m simplex is "
+                  "heard across several states. Stay on simplex - keyed up at altitude, a "
+                  "handheld opens dozens of repeaters at once and ties them all up.",
+                  "The handheld's own antenna, inside the cockpit. The airframe shields some of "
+                  "it, and that is the trade for not altering the aircraft: an antenna outside "
+                  "is a change to the aircraft, for its owner and a mechanic to approve, not the "
+                  "radio.",
+                  "HF from a light aircraft is rare and hard - an installed antenna or a trailing "
+                  "wire approved for that aircraft, and a great deal of noise from the engine "
+                  "and avionics. It is customary to sign /AM after your call."],
+        "costs": ["The aircraft comes first. The pilot's radios and the controller always outrank "
+                  "the amateur one, and if you are the pilot in command, the radio waits for "
+                  "cruise.",
+                  "On an airliner the answer is no: the airline does not approve it, and the "
+                  "rule makes that approval the condition."],
+        "rules": [("97.11", "97.11(a)", "(a)"), ("97.11", "97.11(b)", "(b)"),
+                  ("97.11", "97.11(c)", "(c)")],
+        "good_at": "VHF and UHF simplex over a horizon a hundred miles away - more range from a "
+                   "handheld than any mast on the ground gives",
+    },
 }
+
+
+def site_rules(site):
+    """The rules a site is under, word for word from ELMER's copy of Part 97,
+    each with its citation and where to read it. Empty for most sites."""
+    from . import explain
+    out = []
+    for section, citation, starts in (SITES.get(site) or {}).get("rules", []):
+        paragraphs = ((explain.part97() or {}).get(section) or {}).get("paragraphs") or []
+        quote = next((p for p in paragraphs if p.startswith(starts)), None)
+        if not quote:
+            log.warning("no paragraph %s in the Part 97 copy for site %s", citation, site)
+            continue
+        out.append({"citation": "§ " + citation, "quote": quote,
+                    "url": f"https://www.ecfr.gov/current/title-47/part-97/section-{section}"})
+    return out
 
 
 def takeoff_deg(height_ft, mhz):
@@ -1126,6 +1328,20 @@ def floor_height_ft(floor):
     return RAIL_FT + STOREY_FT * (n - 1)
 
 
+# A roof antenna stands on a short mast: the roof is the floors times a
+# storey, and a mast clears the parapet and the people on the roof.
+ROOF_MAST_FT = 10
+
+
+def roof_height_ft(floors):
+    """How high an antenna on the roof is, for a building of this many floors."""
+    try:
+        n = max(1, min(120, int(floors)))
+    except (TypeError, ValueError):
+        n = 1
+    return STOREY_FT * n + ROOF_MAST_FT
+
+
 def site_cap(site, floor=None):
     """The height a site allows, in feet: the site's own cap, or for a flat
     the floor its balcony is on. None means no cap."""
@@ -1134,6 +1350,8 @@ def site_cap(site, floor=None):
         return None
     if site == "apartment" and floor:
         return floor_height_ft(floor)
+    if site == "rooftop" and floor:
+        return roof_height_ft(floor)
     return spec["max_ft"]
 
 
@@ -1242,7 +1460,8 @@ def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=
     band = f"{mhz:g} MHz"
     h = float(height_ft) if height_ft else None
     indoors = site == "attic"
-    along = "the rafters" if indoors else "the fence"
+    roof = site == "rooftop"
+    along = "the rafters" if indoors else "the parapet" if roof else "the fence"
     run = max(10.0, room - 2 * FIT_MARGIN_FT)          # the straight run the lot gives
     out["words"] = (f"Straight, this wants about {need} ft, and {label[0].lower() + label[1:]} is "
                     f"{ROOM_NOTE % room}. It goes up anyway - here is how, for this wire:")
@@ -1363,9 +1582,12 @@ def fit(kind, mhz, site, height_ft=None, length_ft=None, droop_deg=None, end_ft=
                     "down more steeply.")
 
     ways.append("Measure corner to corner. The diagonal is longer than the side"
-                + ("" if indoors else ", and a wire can cross over the house") +
+                + ("" if indoors or roof else ", and a wire can cross over the house") +
                 " - the straight run that counts is the one you actually have.")
-    if mhz < 10.0 and not indoors:
+    if mhz < 10.0 and roof:
+        ways.append("Or stand it up. A vertical needs height rather than length, and a few radials "
+                    "raised a foot or two off the roof are its ground - the roof itself is not one.")
+    elif mhz < 10.0 and not indoors:
         ways.append("Or stand it up. A vertical needs height rather than length, and its radials fit "
                     "under the grass - on the low bands it is the usual answer to a small lot.")
     out["instead"] = ways
@@ -1423,7 +1645,12 @@ def reality(kind, mhz, wanted_ft, site, floor=None, have_ft=None):
         cap = max(cap, float(have_ft))
     out = {"site": site, "label": spec["label"], "works": list(spec["works"]),
            "costs": list(spec["costs"]), "good_at": spec["good_at"],
-           "wanted_ft": wanted_ft, "max_ft": cap, "capped": False}
+           "wanted_ft": wanted_ft, "max_ft": cap, "capped": False,
+           "rules": site_rules(site)}
+    if spec.get("means"):
+        out["means"] = spec["means"]
+    if site == "rooftop" and floor:
+        out["floors"] = max(1, int(floor))
     if site == "apartment" and floor:
         n = max(1, int(floor))
         out["floor"] = n
@@ -1631,7 +1858,11 @@ def for_type(mhz, kind, use=None, site=None, floor=None, have_ft=None):
     use = use if use in USES else default_use(mhz, kind)
     # The height follows what the antenna is being used for, not only what it
     # is. Half a wavelength is right for distance and wrong for the county.
-    hanging_low = use == "regional" and spec["polarisation"] == "horizontal"
+    # Not where there is no earth under it to hang low over: a wire on a
+    # twelve-storey roof was told "leave it low" and to lay a reflector on the
+    # ground beneath it.
+    hanging_low = (use == "regional" and spec["polarisation"] == "horizontal"
+                   and site not in ABOVE_GROUND)
     if hanging_low:
         height = nvis_height_ft(mhz, kind)
     else:
@@ -2286,6 +2517,10 @@ def _site_type(mhz, site, use):
     if mhz > 30.0:
         if site in ("apartment", "attic"):
             return "jpole"
+        if site == "rooftop":
+            return "yagi"
+        if site == "aircraft":
+            return "quarter"
         return None                          # small, portable: the use decides
     half = wavelength_ft(mhz) / 2.0
     if site == "apartment":
@@ -2296,6 +2531,23 @@ def _site_type(mhz, site, use):
         return "invertedv" if half <= 35.0 else "efhw"
     if site == "portable":
         return "efhw"
+    if site == "rooftop":
+        # a beam where it fits a roof and a rotator; below 20 m its elements
+        # are longer than the roof, and the wire is loaded instead
+        return "yagi" if mhz >= 14.0 else "whipdipole"
+    if site == "aircraft":
+        return "whip"
+    if site == "field":
+        return "quarter" if 234.0 / mhz <= SITES["field"]["max_ft"] else "invertedv"
+    if site == "trees":
+        return "invertedv"
+    if site == "shore":
+        return "quarter" if 234.0 / mhz <= SITES["shore"]["max_ft"] else "whip"
+    if site == "boat":
+        return "quarter"
+    if site == "acreage":
+        # the room is the point: the full-size wire a town lot never sees
+        return "dipole"
     return None
 
 
@@ -2320,6 +2572,19 @@ _STEERED_TITLES = {
     ("mobile", "whip"): "A loaded whip on the vehicle - mag-mount or bumper",
     ("mobile", "fiveeighth"): "A five-eighths wave whip on the roof, which is a "
                               "good ground plane at last",
+    ("rooftop", "yagi"): "A small beam on a short mast and a rotator, the building as the tower",
+    ("rooftop", "whipdipole"): "A loaded dipole on the roof - two whips, the coils standing in "
+                               "for the wire that does not fit",
+    ("field", "quarter"): "A quarter-wave vertical up a telescoping pole, radials across the grass",
+    ("field", "invertedv"): "An inverted-V from a telescoping pole, legs staked out across the field",
+    ("trees", "invertedv"): "An inverted-V hauled up over a high branch, legs down to stakes",
+    ("acreage", "dipole"): "A full-size half-wave dipole, end to end, as high as the farm allows",
+    ("shore", "quarter"): "A quarter-wave vertical at the water's edge, radials on the wet sand",
+    ("shore", "whip"): "A loaded vertical at the water's edge, radials on the wet sand",
+    ("boat", "quarter"): "An insulated backstay or a long whip through an automatic tuner, "
+                         "grounded to the sea",
+    ("aircraft", "quarter"): "The handheld's own antenna, from inside the cockpit",
+    ("aircraft", "whip"): "An antenna installed and approved for the aircraft - not one added to it",
 }
 
 

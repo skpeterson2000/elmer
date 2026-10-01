@@ -1335,6 +1335,71 @@ function nvisBlock(type, f, lamFt, heightFt, legFt) {
     freqNote + '</div>';
 }
 
+/* Where a wave leaving at this angle comes down, from the Army's own table -
+   ATP 6-02.53, Table E-1 - by day and by night off the F2 layer. The row
+   itself where the angle is one the table prints, else the rows either side;
+   nothing is drawn between them, because the table is the Army's and what
+   lies between its rows is not. Miles as the table prints them for an
+   operator in miles; kilometers otherwise. The table is handed over with
+   the page (manuals.py), so this follows the height as it is typed. */
+function takeoffTableNote(deg) {
+  const t = (window.MANUAL_TABLES || {}).takeoff_distance;
+  if (!t || !(deg >= 0 && deg <= 90)) return '';
+  const near = Math.round(deg);
+  const exact = t.rows.find(r => r.deg === near);
+  const below = t.rows.filter(r => r.deg <= deg).pop();
+  const above = t.rows.find(r => r.deg >= deg);
+  const rows = exact ? [exact] : (below === above ? [below] : [below, above]);
+  const mi = unitSystem().short === 'mi';
+  const far = (km, miles) => mi ? miles.toLocaleString() + ' mi' : km.toLocaleString() + ' km';
+  const say = r => 'at ' + r.deg + '&deg; about <b>' + far(r.day_km, r.day_mi) + '</b> by day and <b>' +
+    far(r.night_km, r.night_mi) + '</b> by night';
+  const c = t.cite;
+  const where = escapeHTML(c.book + ', ' + c.table.split('.')[0] + ', p. ' + c.page);
+  return " <span class='manual-note'>The Army's table of where a wave comes down off the F2 layer puts it " +
+    (rows.length === 1 ? say(rows[0]) : say(rows[0]) + ', and ' + say(rows[1])) +
+    ' (' + (c.link ? '<a href="' + escapeHTML(c.link) + '">' + where + '</a>' : where) + ').</span>';
+}
+
+/* The manuals' plans for this antenna (manuals.py): each folded shut under
+   its title so the advice stays readable, and open, the manual's figure, its
+   own words quoted, any slip in them said beside them, and the page - which
+   opens the book there when it is on this unit's shelf. */
+function plansHTML(plans) {
+  if (!plans || !plans.length) return '';
+  const cite = (book, page, link) => {
+    const words = escapeHTML(book + ', p. ' + page);
+    return link ? '<a href="' + escapeHTML(link) + '">' + words + '</a>' : words;
+  };
+  return '<div class="panel-title mt">From the manuals on the shelf</div>' +
+    plans.map(p =>
+      '<details class="manual-plan"><summary><b>' + escapeHTML(p.title) + '</b> ' +
+        '<span class="tiny muted">' + escapeHTML(p.book) + ', p. ' + escapeHTML(String(p.page)) + '</span></summary>' +
+        (p.figures || []).map(f =>
+          '<figure class="manual-fig"><img src="' + escapeHTML(f.src) + '" alt="' + escapeHTML(f.name) + '" loading="lazy">' +
+          '<figcaption class="tiny muted">' + escapeHTML(f.name) + ' &middot; ' + cite(p.book, f.page, f.link) + '</figcaption></figure>').join('') +
+        (p.words || []).map(w => '<blockquote class="small">' + escapeHTML(w) + '</blockquote>').join('') +
+        (p.table
+          ? '<table class="manual-table small"><caption class="tiny muted">' + escapeHTML(p.table.name) + ' &middot; ' +
+              cite(p.book, p.table.page, p.table.link) + '</caption><tr>' +
+              p.table.columns.map(c => '<th>' + escapeHTML(c) + '</th>').join('') + '</tr>' +
+              p.table.rows.map(r => '<tr>' + r.map(c => '<td class="mono">' + escapeHTML(c) + '</td>').join('') + '</tr>').join('') +
+              '</table>' + (p.table.footnote ? '<p class="tiny muted">' + escapeHTML(p.table.footnote) + '</p>' : '')
+          : '') +
+        (p.aside
+          ? '<blockquote class="small">' + escapeHTML(p.aside.words) + ' <span class="tiny muted">(' +
+              cite(p.book, p.aside.page, p.aside.link) + ')</span></blockquote>'
+          : '') +
+        (p.slips || []).map(s => '<p class="small"><b>As printed:</b> ' + escapeHTML(s) + '</p>').join('') +
+        (p.elsewhere
+          ? '<p class="tiny muted">' + escapeHTML(p.elsewhere) +
+              (p.elsewhere_link ? ' <a href="' + escapeHTML(p.elsewhere_link) + '">Open the page</a>' : '') + '</p>'
+          : '') +
+        '<p class="tiny muted">Quoted from ' + escapeHTML(p.book_title) + ', ' + escapeHTML(p.edition) + ' &middot; ' +
+          cite(p.book, p.page, p.link) + '</p>' +
+      '</details>').join('');
+}
+
 /* Whether the antenna in the selector was ELMER's suggestion or somebody's
    own choice. A suggestion follows the questions above it - change what you
    have to work with and the suggestion changes; a choice is a fact about
@@ -1345,15 +1410,19 @@ function anSiteValue() {
   const v = (document.getElementById('an-site') || {}).value || '';
   return v === 'textbook' ? '' : v;      // "nothing in particular" imposes nothing
 }
-/* Which floor a flat's balcony is on - asked only for a flat, sent only then. */
+/* Which floor a flat's balcony is on, or how many floors a roof is on top
+   of - asked only for those two, sent only then. */
 function anFloorValue() {
-  if (anSiteValue() !== 'apartment') return '';
+  if (anSiteValue() !== 'apartment' && anSiteValue() !== 'rooftop') return '';
   const n = parseInt((document.getElementById('an-floor') || {}).value, 10);
   return n > 0 ? String(n) : '';
 }
 function paintFloorField() {
   const f = document.getElementById('an-floor-field');
-  if (f) f.hidden = anSiteValue() !== 'apartment';
+  const site = anSiteValue();
+  if (f) f.hidden = site !== 'apartment' && site !== 'rooftop';
+  const label = document.getElementById('an-floor-label');
+  if (label) label.textContent = site === 'rooftop' ? 'How many floors is the building?' : 'Which floor is the balcony on?';
 }
 
 /* The questions have been answered enough to suggest from: what you have to
@@ -1842,7 +1911,7 @@ function calcAnt() {
         '&deg;</b> elevation. ' + (takeoff > 45
           ? 'That is high-angle NVIS coverage — good for regional work, poor for DX.'
           : takeoff > 25 ? 'Reasonable for medium haul; get it higher for DX.'
-          : 'A useful low angle for DX.'));
+          : 'A useful low angle for DX.') + takeoffTableNote(takeoff));
     }
   }
 
@@ -3690,6 +3759,13 @@ async function antennaAdvice(mhz, use, kind, quiet) {
             ? 'Height: the window or rail you start from, and the slope down from it does the rest.'
             : d.reality && d.reality.site === 'mobile'
               ? 'Height: the roof of the vehicle.'
+            : d.reality && d.reality.site === 'aircraft'
+              ? "Height: the aircraft's - what it buys is the horizon."
+            : d.reality && d.reality.site === 'boat'
+              ? 'Height: the stay or the whip, standing on the sea.'
+            : d.reality && d.reality.floors
+              ? 'Height: the roof of ' + d.reality.floors + ' floor' + (d.reality.floors === 1 ? '' : 's') +
+                ' and a short mast, about ' + d.reality.max_ft + ' ft.'
               : 'Height to aim for: ' + d.height_ft + ' ft.') + '</b> ' +
         escapeHTML(d.feedline) + '</p>' +
         matchingHeightsHTML(d) + harmonicsHTML(d) + tuningHTML(d) + powerHTML(d) + '</div>' +
@@ -3752,7 +3828,15 @@ async function antennaAdvice(mhz, use, kind, quiet) {
             d.reality.costs.map(w => '<li>' + escapeHTML(w) + '</li>').join('') +
             '</ul></div>'
           : '') +
-        '<div class="small">And what it is <b>good at</b>: ' +
+        /* The rule a site is under, word for word from Part 97 - a boat's
+           or an aircraft's station is the master's or the pilot's to approve. */
+        ((d.reality.rules || []).length
+          ? '<div><b>The rule:</b>' + d.reality.rules.map(r =>
+              '<blockquote class="small" style="margin:.3rem 0 0 0">' + escapeHTML(r.quote) +
+              ' <a href="' + escapeHTML(r.url) + '" class="tiny muted">' + escapeHTML(r.citation) + '</a></blockquote>').join('') +
+            '</div>'
+          : '') +
+        '<div class="small" style="margin-top:.4rem">And what it is <b>good at</b>: ' +
         escapeHTML(d.reality.good_at) + '.</div></div>'
       : '') +
     (d.better && d.better.length
@@ -3760,6 +3844,7 @@ async function antennaAdvice(mhz, use, kind, quiet) {
         '<ul class="facts small">' +
         d.better.map(b => '<li>' + escapeHTML(b) + '</li>').join('') + '</ul>'
       : '') +
+    plansHTML(d.plans) +
     '<p class="tiny muted" style="margin:.5rem 0 0">' +
       (d.chosen
         ? 'How to get the best out of the antenna you picked, at this ' +

@@ -203,9 +203,11 @@ Operations Guide, whose table of bare and insulated dipole lengths sets how
 much shorter the Lab cuts a jacketed wire. The Propagation page draws what calibration has done: the live forecast a
 day ahead against the sondes, each run's year bare and calibrated beside
 "same as yesterday", the table in force, and every run's error and bias. The
-reach map fills land and water - a dim sea, a dim land, lakes as
-water - under the band's color, which fades them out where the band is
-strong. Every book in the Library is on the table,
+reach map is drawn over a raised-relief globe - green lowland, tan
+plateau, mountain and snow - with the forecast as a cloud over it and
+numbered isolines in the band's color, the way a weather map draws one; a
+slider sets how thick the cloud is, and **plain** puts back the dim land
+and sea. Every book in the Library is on the table,
 open for use, or on the shelf: a book returned to the shelf is still indexed
 and searched, its pages offered after the table's as *Also on the shelf*
 with a button to bring it back, and the card catalogue lists every book,

@@ -37,7 +37,7 @@ from . import (
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
     fieldreport, forecastlog, game, gating, geo, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
-    landmarks, ledger, library, logs, mail, monitoring, nanovna,
+    landmarks, ledger, library, logs, mail, manuals, monitoring, nanovna,
     netcontrol, netwatch, op25, papers, party, pathto, patterns,
     paths, personal, phonegps, places, pota, prints, programs, provenance,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
@@ -2225,6 +2225,8 @@ def api_antenna_advice():
     out["fit"] = antenna_advice.fit(out.get("type"), mhz, request.args.get("site") or None,
                                     height_ft=fit_height, length_ft=_num("length"), droop_deg=fit_droop,
                                     end_ft=_num("ends"))
+    # The manuals' own plans for this antenna, in their words (manuals.py).
+    out["plans"] = manuals.plans_for(out.get("type"), mhz)
     # The antenna that is up, when it is cut for another band: how to get it
     # onto this one, which modes then close the path, and the other bands
     # where it already works. Never allowed to cost the advice.
@@ -3755,6 +3757,7 @@ def lab():
     benches = bench.for_page("lab")
     return render_template("lab.html", benches=benches,
                            bench_questions=bench.questions_for(benches, load_pools()),
+                           manual_tables=manuals.for_page(),
                            **profile_block(conn()))
 
 

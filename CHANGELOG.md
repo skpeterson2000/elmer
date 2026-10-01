@@ -5,6 +5,16 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-01
+
+- The Lab shows the manuals' own plans. Under the advice for an antenna, **From the manuals on the shelf** has the plans the shipped manuals give for it, each the manual's figure and its words quoted, with the page that opens the book there: for a dipole the Army's improvised half-wave dipole and center-fed half-wave on wood, insulators from a spoon, a button or a bottleneck, and the AUXFOG's steps and wire-length table for building and trimming one; for a 2 m or 70 cm vertical the Army's vertical half-wave hung from a tree, and the AUXFOG's ground plane and coaxial sleeve built from the coax itself. Where a manual's text and its figure disagree, or a figure is a slip, the card says so beside it.
+
+- The Lab says where the lobe comes down, from the Army's own table. Beside the main lobe's angle it now gives the row of ATP 6-02.53's Table E-1 - take-off angle against distance off the F2 layer, by day and by night - for that angle, in your unit, with the citation opening the manual at page 87. A 20 m dipole 35 ft up fires near 30 degrees: about 450 miles by day and 825 by night.
+
+- The Lab asks about more places. **What have you got to work with?** now offers a rooftop, acreage, afloat, aloft, an open field, tall trees with a line over a high branch, and a beach on salt water, each with what works there, what it costs and the antenna to start from. A rooftop is asked how many floors the building has and gets a small beam on 20 m and up, and below that a loaded dipole, with the coil worked out for a 30 ft roof; acreage the full-size dipole; the field a quarter-wave vertical up a telescoping pole; the trees an inverted-V near 60 ft; salt water and a boat a vertical over the best ground there is. Afloat and aloft quote 47 CFR 97.11: the master or the pilot in command approves the station. A wire on a roof, a boat or an aircraft is no longer told to hang low and lay a reflector on the ground.
+
+- The reach map is drawn the way a weather map draws cloud. The land and sea are a raised-relief globe - green lowland, tan plateau, brown mountain and snow, the shelf pale and the deep sea dark - and the forecast is a cloud over it, thin where the band is weak, thick and white where it is good, and washed with the band's own color where it is best. Night darkens the ground and leaves the cloud lit. The lines through it are in the band's color and numbered 20, 40, 60 and 80, like isobars, on the plain map too. **Cloud** sets how thick the cloud is drawn, instantly, down to 0%, where the map is the ground with the forecast in lines; **Map** switches to **plain** for the map as it was. Both are remembered. The relief is Natural Earth's, 191 KB with the page and a sharper 688 KB the first time the map is zoomed in.
+
 ## 2026-09-30
 
 - CW Contact can work another person: two operators on the unit, each on their own phone or computer, tune to one of its frequencies and key to each other. Each word goes out as you finish it, with your own fist - the timing as keyed - and theirs plays back the same way, on the lamp too if you send by lamp. A third on the frequency is QRM.

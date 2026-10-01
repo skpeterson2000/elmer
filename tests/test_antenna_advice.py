@@ -509,8 +509,9 @@ def main():
     check("the power note heats two coils", "two coils" in power["items"][0], True)
     check("  and wants a balun", any("balun" in i for i in power["items"]), True)
     check("  and does not heat a wire it has not got", "wire_heat_w" in power, False)
-    sites = " ".join(" ".join(v["works"]) for v in A.SITES.values()).lower()
-    check("the balcony and the car park both offer it", sites.count("dipole mount"), 2)
+    offers = [k for k, v in A.SITES.items() if "dipole mount" in " ".join(v["works"]).lower()]
+    check("the balcony and the car park both offer it",
+          ("apartment" in offers, "portable" in offers), (True, True))
     tune = A.for_type(7.2, "whip", site="mobile")["tuning"]
     check("a bought whip's advice says where to start the stinger", (tune["model"], tune["inches"], tune["pair"]),
           ("#9140", 37.8, False))
@@ -522,6 +523,48 @@ def main():
     check("its 2:1 bandwidths come out near the measured 20/40/100 kHz",
           [P.usable_bandwidth("whipdipole", f, q=P.base_q("whipdipole", f))["khz"]
            for f in (3.9, 7.2, 14.2)], [19, 43, 99])
+
+    print("\n-- the places people go out to, the roof, the farm, the boat and the airplane --")
+    # "Nothing at home - I go out" was the only outdoor answer, and a roof in
+    # a city was a flat's window. Each new site steers to what it is for.
+    check("an open field stands a quarter wave up the pole on 40 m",
+          A.recommend(7.15, site="field")["type"], "quarter")
+    check("  and hangs a V from it on 80 m, where a quarter wave is taller than the pole",
+          A.recommend(3.6, site="field")["type"], "invertedv")
+    check("tall trees get a wire up near 60 ft on 80 m",
+          (A.recommend(3.6, site="trees")["type"], A.recommend(3.6, site="trees")["height_ft"]),
+          ("invertedv", 60))
+    check("acreage gets the full-size dipole on 160 m",
+          A.recommend(1.85, site="acreage")["type"], "dipole")
+    check("  and a long wire's room", A.room_ft("acreage"), 1000)
+    check("by salt water a vertical, loaded where a quarter wave will not stand",
+          (A.recommend(7.15, site="shore")["type"], A.recommend(3.6, site="shore")["type"]), ("quarter", "whip"))
+    check("a rooftop turns a beam on 20 m and on 2 m",
+          (A.recommend(14.2, site="rooftop")["type"], A.recommend(146.52, site="rooftop")["type"]),
+          ("yagi", "yagi"))
+    check("  and loads the wire on 40 m, where a beam's elements are longer than the roof",
+          A.recommend(7.15, site="rooftop")["type"], "whipdipole")
+    check("  its height is the building's floors and a short mast",
+          A.recommend(14.2, site="rooftop", floor=12)["reality"]["max_ft"], 130)
+    roof_fit = A.fit("dipole", 7.15, "rooftop")
+    check("  a 40 m dipole on the roof is offered a coil in each leg",
+          any(w.startswith("Load it.") for w in roof_fit["instead"]), True)
+    check("  and is not told about the fence, the house or the grass",
+          any(w in " ".join(roof_fit["instead"]) for w in ("the fence", "over the house", "under the grass")),
+          False)
+    boat = A.recommend(14.2, site="boat")["reality"]
+    check("afloat, the master's approval is quoted from 97.11 word for word",
+          [r["citation"] for r in boat["rules"]], ["§ 97.11(a)", "§ 97.11(b)"])
+    check("  in the rule's own words",
+          boat["rules"][0]["quote"].startswith("(a) The installation and operation of an amateur station on a ship"),
+          True)
+    air = A.recommend(146.52, site="aircraft")["reality"]
+    check("aloft, 97.11(c) comes too - the instrument flight rule",
+          "Instrument Flight Rules" in air["rules"][-1]["quote"], True)
+    check("  and the altitude is said as the horizon it buys, not capped",
+          (air["max_ft"], "horizon" in air.get("means", "")), (None, True))
+    check("every site has a label, what works and what it is good at",
+          [k for k, v in A.SITES.items() if not (v.get("label") and v.get("works") and v.get("good_at"))], [])
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0
