@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- CW Contact can work another person: two operators on the unit, each on their own phone or computer, tune to one of its frequencies and key to each other. Each word goes out as you finish it, with your own fist - the timing as keyed - and theirs plays back the same way, on the lamp too if you send by lamp. A third on the frequency is QRM.
+
 - CW can send by lamp: **Send by** sound, lamp - silent - or both, and everything the page sends flashes on a lamp that can fill the screen, your own keying included, with the phone's flashlight where the browser allows it. **Decode off air** can read a lamp through the camera. Under the lamp, **Code without a radio**: Morse by signal lamp at sea, Jeremiah Denton blinking TORTURE in 1966, the Tennessee couple and the keypad's beeps, and Morse as a voice for people who cannot use a keyboard - with sources.
 
 - The CW Contact partner is somewhere real: on the band you pick, in a town that band reaches from your QTH right now, with a callsign of that district. They sound like the path - strong and steady, or weak and fading with the band's hiss under them - and their report carries the same S-unit. A band that reaches nobody just now offers the bands that are open.

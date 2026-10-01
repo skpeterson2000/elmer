@@ -48,6 +48,7 @@ from . import (
 )
 from . import supporter
 from . import qso as qso_mod
+from . import sked
 from .content import get_pool, load_pools, presentation
 # The way home - which door a report leaves by. Under its own name here
 # because home() is the front page a few thousand lines down.
@@ -381,6 +382,8 @@ def _note_activity():
         activity.touch("table")
     elif path.startswith("/api/net/") and path not in ("/api/net/checkin", "/api/net/report"):
         activity.touch("net")
+    elif path.startswith("/api/cw/sked/"):
+        activity.touch("air")
     return None
 
 
@@ -3613,6 +3616,61 @@ def api_cw_qso_turn():
     db.kv_set(connection, QSO_KEY, state)
     connection.commit()
     return _qso_reply(state, say, notes, fresh)
+
+
+def _sked_me():
+    """Who is keying: this account, by callsign and name."""
+    connection = conn()
+    prof = db.get_profile(connection)
+    return connection.user_id, (prof.get("callsign") or "").upper(), prof.get("name") or ""
+
+
+@app.route("/api/cw/sked/tune", methods=["POST"])
+def api_cw_sked_tune():
+    """Tune to one of the unit's frequencies, to work another operator."""
+    body = request.get_json(silent=True) or {}
+    user, call, name = _sked_me()
+    try:
+        return jsonify(sked.tune(str(body.get("freq") or ""), user, call, name))
+    except KeyError:
+        abort(400, "no such frequency - one of " + ", ".join(sked.FREQS))
+
+
+@app.route("/api/cw/sked/send", methods=["POST"])
+def api_cw_sked_send():
+    """A word keyed on the frequency: its text and its fist."""
+    body = request.get_json(silent=True) or {}
+    user, _, _ = _sked_me()
+    try:
+        seq = sked.send(str(body.get("freq") or ""), user, body.get("text"),
+                        body.get("elements"), body.get("wpm"))
+    except KeyError:
+        abort(400, "no such frequency")
+    except LookupError:
+        abort(409, "tune to the frequency first")
+    except (TypeError, ValueError):
+        abort(400, "elements are [kind, ms] pairs")
+    return jsonify({"seq": seq})
+
+
+@app.route("/api/cw/sked/poll")
+def api_cw_sked_poll():
+    """What has been keyed on the frequency since `after`, and who is there."""
+    user, _, _ = _sked_me()
+    try:
+        after = int(request.args.get("after") or 0)
+        return jsonify(sked.poll(request.args.get("freq") or "", user, after))
+    except KeyError:
+        abort(400, "no such frequency")
+    except ValueError:
+        abort(400, "after is a number")
+
+
+@app.route("/api/cw/sked/leave", methods=["POST"])
+def api_cw_sked_leave():
+    user, _, _ = _sked_me()
+    sked.leave(user)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/cw/ladder")

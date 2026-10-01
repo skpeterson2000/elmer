@@ -61,7 +61,7 @@ BACKSTOP_QUIET_S = 300
 POLL_S = 30.0               # how often a waiting loop looks again
 CACHE_S = 5.0               # one answer serves every loop that asks within this
 
-KINDS = ("table", "net", "exam")
+KINDS = ("table", "net", "exam", "air")      # air: two operators keying on a frequency (sked.py)
 
 # When each deferred job began waiting, by the wall clock, because it has to
 # mean the same thing after a restart and the monotonic clock does not.
@@ -165,6 +165,7 @@ def busy(conn=None, fresh=False, within=ACTIVE_S):
             return _cache["value"]
     found = None
     for name, check in (("table", lambda: _table(within)), ("net", lambda: _net(within)),
+                        ("air", lambda: "a CW contact on the air" if _recent("air", within) else None),
                         ("desk", lambda: _desk(conn, within))):
         try:
             found = check()

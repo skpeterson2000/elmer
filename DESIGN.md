@@ -2035,6 +2035,16 @@ most comfortably, and it is remembered.
   key, decodes what you actually sent, and measures your timing against the
   target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your
   own swing; a chart shows it.
+- **On the air** (`elmer/sked.py`): a handful of frequencies held in memory,
+  for two operators on their own devices, each signed in as themselves. The
+  CW page wraps its key decoder's mark and space so that, while tuned, every
+  element is kept as keyed; a finished word (a space after it, or the key
+  quiet 1.5 s) is posted with its text and that fist, and the other end
+  polls every 0.6 s and plays it through `CWPlayer.playElements` - the
+  sender's own timing, queued behind whatever is sounding, gaps held to a
+  second and a half. A typed word is given clean timing (`sked.keyed`).
+  Whoever has polled in the last 20 s is tuned; words keep ten minutes.
+  Keying there is activity kind "air", so the unit's background work waits.
 - **The lamp.** `cwOutput()` (morse.js) reads the CW page's **Send by** -
   sound, lamp or both - and `CWPlayer.mark` schedules the lamp against the
   same audio clock as the tone, lit at an element's start and dark at its end;

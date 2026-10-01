@@ -366,7 +366,7 @@ function showMode(name) {
     p.hidden = !(p.id === 'cw-' + name || (name === 'contact' && p.id === 'cw-key'));
   });
   keyDecoder.unknown = name === 'contact' ? '*' : null;
-  if (name !== 'contact') qsoStop();
+  if (name !== 'contact') { qsoStop(); airLeave(); }
   if (name !== 'decode') { stopMic(); stopCam(); }
   teachHalt();
   if (learnOn) learnEnd(false);
@@ -3146,4 +3146,135 @@ function stopCam() {
   const a = document.getElementById('cw-cam'), b = document.getElementById('cw-cam-stop');
   if (a) a.addEventListener('click', startCam);
   if (b) b.addEventListener('click', stopCam);
+})();
+
+
+/* ------------------------------------------------------------- on the air */
+/* Two operators, each on their own device, tuned to one of the unit's
+   frequencies (sked.py). The key's decoder is wrapped so that, while tuned,
+   every mark and space is kept as keyed; each finished word goes out with
+   its text and that fist, and the other end plays it back as it was sent.
+   var, not let: showMode runs on load, above this. */
+var air = {on: false, freq: null, after: 0, timer: null, sent: 0, els: [], lastKey: 0, until: 0, log: []};
+const AIR_POLL_MS = 600, AIR_WORD_IDLE_MS = 1500;
+
+(function wrapKeyDecoder() {
+  const mark = keyDecoder.mark.bind(keyDecoder), space = keyDecoder.space.bind(keyDecoder);
+  keyDecoder.mark = ms => { if (air.on) { air.els.push(['m', ms]); air.lastKey = performance.now(); } mark(ms); };
+  keyDecoder.space = ms => { if (air.on) air.els.push(['s', ms]); space(ms); };
+})();
+
+function airLog(who, call, text) {
+  const last = air.log[air.log.length - 1];
+  if (last && last.who === who && last.call === call) last.text += ' ' + text;
+  else air.log.push({who: who, call: call, text: text});
+  qso.log = air.log;
+  qsoPaint();
+}
+
+async function airTick() {
+  if (!air.on) return;
+  /* Out: a finished word - a space after it, or the key quiet a moment. */
+  const text = keyDecoder.text;
+  if (text.length > air.sent) {
+    const pending = text.slice(air.sent);
+    const idle = performance.now() - air.lastKey > AIR_WORD_IDLE_MS;
+    if (/\s$/.test(pending) || (idle && !keyDecoder.symbols.length)) {
+      const word = pending.trim();
+      const els = air.els;
+      air.els = [];
+      air.sent = text.length;
+      if (word) {
+        airLog('you', 'you', word);
+        try {
+          await postJSON('/api/cw/sked/send', {freq: air.freq, text: word, elements: els, wpm: qsoWpm()});
+        } catch (e) {
+          document.getElementById('cw-air-who').textContent = 'That word did not go out \u2014 ' + (e.message || 'tune in again') + '.';
+        }
+      }
+    }
+  }
+  /* In: what the others keyed, played as they keyed it, queued behind
+     whatever is still sounding. */
+  try {
+    const got = await api('/api/cw/sked/poll?freq=' + encodeURIComponent(air.freq) + '&after=' + air.after);
+    air.after = got.seq;
+    got.words.forEach(w => {
+      air.until = player.playElements(w.elements, air.until);
+      airLog('them', w.call || 'them', w.text);
+    });
+    const others = got.tuned.filter(t => !t.me);
+    document.getElementById('cw-air-who').textContent = others.length
+      ? 'on ' + air.freq + ': ' + others.map(t => t.call || t.name || 'somebody').join(', ')
+      : 'on ' + air.freq + ' \u2014 nobody else yet. Have them tune here too.';
+  } catch (e) {
+    document.getElementById('cw-air-who').textContent = 'Lost the frequency \u2014 ' + (e.message || 'tune in again') + '.';
+  }
+}
+
+async function airTune() {
+  const freq = document.getElementById('cw-air-freq').value;
+  player.ensure();
+  qsoStop();
+  const got = await postJSON('/api/cw/sked/tune', {freq: freq});
+  keyDecoder.text = ''; keyDecoder.symbols = [];
+  air = Object.assign(air, {on: true, freq: freq, after: got.seq, sent: 0, els: [], log: [], until: 0});
+  qso.log = air.log;
+  qsoPaint();
+  clearInterval(air.timer);
+  air.timer = setInterval(airTick, AIR_POLL_MS);
+  document.getElementById('cw-air-tune').hidden = true;
+  document.getElementById('cw-air-leave').hidden = false;
+  qsoStatus('Tuned to ' + freq + ' \u2014 key away.');
+  remember('cw.air.freq', freq);
+}
+
+function airLeave() {
+  if (!air || !air.on) return;
+  air.on = false;
+  clearInterval(air.timer);
+  postJSON('/api/cw/sked/leave', {}).catch(() => { /* gone either way: polls stop, and the unit forgets us */ });
+  const t = document.getElementById('cw-air-tune'), l = document.getElementById('cw-air-leave');
+  if (t) t.hidden = false;
+  if (l) l.hidden = true;
+  const who = document.getElementById('cw-air-who');
+  if (who) who.textContent = '';
+}
+
+(function airControls() {
+  const box = document.getElementById('cw-air');
+  if (!box) return;
+  const freq = document.getElementById('cw-air-freq');
+  const kept = recall('cw.air.freq', '');
+  if (kept && [...freq.options].some(o => o.value === kept)) freq.value = kept;
+  document.getElementById('cw-air-tune').addEventListener('click', airTune);
+  document.getElementById('cw-air-leave').addEventListener('click', airLeave);
+  /* The simulator or a person: the simulator's buttons step aside for the
+     frequency, and the typed box sends a word on the air instead. */
+  document.querySelectorAll('[data-work]').forEach(b => b.addEventListener('click', () => {
+    const onAir = b.dataset.work === 'air';
+    document.querySelectorAll('[data-work]').forEach(x => {
+      x.classList.toggle('primary', x === b);
+      x.classList.toggle('ghost', x !== b);
+    });
+    box.hidden = !onAir;
+    document.querySelectorAll('[data-qso-start], #cw-qso-band, #cw-qso-over, #cw-qso-again').forEach(el => { el.hidden = onAir; });
+    document.getElementById('cw-qso-typed').disabled = false;
+    if (onAir) { qsoStop(); qsoStatus('Tune to a frequency to work another operator.'); }
+    else { airLeave(); qso.log = []; qsoPaint(); qsoStatus('Start a contact.'); }
+  }));
+  /* A typed word, on the air: the unit keys it cleanly for them. */
+  const typed = document.getElementById('cw-qso-type');
+  const sendTyped = e => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const word = typed.value.trim().toUpperCase();
+    typed.value = '';
+    if (!word) return;
+    airLog('you', 'you', word);
+    postJSON('/api/cw/sked/send', {freq: air.freq, text: word, elements: [], wpm: settings.wpm})
+      .catch(e2 => { document.getElementById('cw-air-who').textContent = 'That did not go out \u2014 ' + e2.message; });
+  };
+  typed.addEventListener('keydown', e => { if (air.on && e.key === 'Enter') sendTyped(e); }, true);
+  document.getElementById('cw-qso-typed').addEventListener('click', e => { if (air.on) sendTyped(e); }, true);
 })();

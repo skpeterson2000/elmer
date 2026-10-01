@@ -505,6 +505,26 @@
     &mdash; or press <b>Over</b>. They copy what your fist actually sent: a call that would not decode
     gets &ldquo;PSE AGN&rdquo;, ragged timing gets &ldquo;PSE QRS&rdquo;. Send <b>AGN?</b> to hear
     theirs again, <b>QRS</b> or <b>QRQ</b> to change their speed.</p>
+  {#- Or a person: two operators, each on their own device, tuned to one of
+      the unit's frequencies (sked.py). Each word goes out as it is keyed,
+      with the fist that keyed it. -#}
+  <div class="row mt" style="gap:.4rem;align-items:center;flex-wrap:wrap">
+    <span class="tiny muted">Work</span>
+    <button class="btn sm primary" data-work="sim">the simulator</button>
+    <button class="btn sm ghost" data-work="air">another operator</button>
+  </div>
+  <div id="cw-air" class="mt" hidden>
+    <p class="small muted" style="margin:0 0 .4rem">Another operator on this unit, on their own phone or
+      computer, signed in as themselves: tune to the same frequency and work each other. What you key
+      goes out word by word, as your own fist, and theirs comes back the same way &mdash; on the lamp too,
+      if that is how you send. A third on the frequency is QRM, as on the air.</p>
+    <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap">
+      <select class="btn sm" id="cw-air-freq"><option value="7.030">7.030</option><option value="7.040">7.040</option><option value="7.055">7.055</option><option value="14.050">14.050</option><option value="14.060">14.060</option></select>
+      <button class="btn sm primary" id="cw-air-tune">Tune in</button>
+      <button class="btn sm" id="cw-air-leave" hidden>Leave</button>
+      <span class="small" id="cw-air-who"></span>
+    </div>
+  </div>
   <div id="cw-qso-log" class="cw-qso-log"></div>
   <div class="row mt" style="gap:.5rem;align-items:center;flex-wrap:wrap">
     <span class="small" id="cw-qso-status">Start a contact.</span>

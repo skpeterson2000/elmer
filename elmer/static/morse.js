@@ -163,6 +163,21 @@ class CWPlayer {
     return marks;
   }
 
+  /* Play a fist as it was keyed: [["m", ms], ["s", ms], ...], from `from`
+     (an audio time) or now, whichever is later. Returns when it ends, so a
+     caller can queue the next word behind it. A gap is held to a second and
+     a half - a pause to think is not dead air worth waiting through. */
+  playElements(els, from) {
+    this.ensure();
+    let t = Math.max(this.ctx.currentTime + 0.08, from || 0);
+    for (const [kind, ms] of els || []) {
+      const s = Math.max(0.001, ms / 1000);
+      if (kind === 'm') { this.mark(t, s); t += s; } else t += Math.min(s, 1.5);
+    }
+    this.playingUntil = t;
+    return t;
+  }
+
   stop() {
     clearTimeout(this.doneTimer);
     this.silence();
