@@ -25,6 +25,45 @@
   </div>
 </div>
 
+{#- The lamp, and what code has been used for without a radio. -#}
+<div class="panel tight mt" id="cw-lamp-panel" hidden>
+  <div class="spread" style="align-items:flex-start">
+    <div class="cw-lamp" id="cw-lamp" title="the lamp - it flashes whatever this page sends"></div>
+    <div style="flex:1;margin-left:1rem">
+      <div class="panel-title" style="margin:0">The lamp</div>
+      <p class="small muted" style="margin:.3rem 0">Everything this page sends flashes here, and so does
+        your own keying. Copy it by eye the way a signalman copies a ship&rsquo;s lamp.</p>
+      <div class="row" style="gap:.5rem;flex-wrap:wrap">
+        <button class="btn sm" id="cw-lamp-full">Full screen</button>
+        <label class="tiny muted"><input type="checkbox" id="cw-torch"> this phone&rsquo;s flashlight too</label>
+        <span class="tiny muted" id="cw-torch-status"></span>
+      </div>
+    </div>
+  </div>
+  <details class="small mt">
+    <summary>Code without a radio</summary>
+    <p><b>At sea, by lamp.</b> Navies still send Morse by signal lamp between ships &mdash; a
+      shuttered light, aimed, that makes no sound and radiates nothing an enemy can direction-find.</p>
+    <p><b>Blinked on television.</b> In May 1966 Commander Jeremiah Denton, a prisoner of war in
+      Hanoi, was made to give a filmed interview. While he answered, he blinked T-O-R-T-U-R-E in
+      Morse &mdash; the first confirmation that American prisoners were being tortured. He later
+      served as a United States senator.
+      (<a href="https://en.wikipedia.org/wiki/Jeremiah_Denton" target="_blank" rel="noopener">Wikipedia</a>)</p>
+    <p><b>A trained ear, decades on.</b> In March 2021 an elderly couple in the memory-care unit
+      of an assisted-living home in Lebanon, Tennessee walked out through its coded door. The man
+      said he had worked with Morse in the military, and had worked the code out by listening to
+      the keypad&rsquo;s beeps as staff pressed it. A passer-by found them unharmed about half an
+      hour later; the state fined the home $2,000 for not keeping track of its residents. Whatever
+      else it is, it is a story about an ear that still hears patterns in tones.
+      (<a href="https://www.newsweek.com/elderly-couple-use-morse-code-escape-assisted-living-facility-1588033" target="_blank" rel="noopener">Newsweek</a>,
+      <a href="https://www.fox29.com/news/elderly-couple-escape-tennessee-assisted-living-facility-using-military-morse-code-training" target="_blank" rel="noopener">FOX 29</a>)</p>
+    <p><b>A voice for those without one.</b> Morse is a way to type with a single switch &mdash; a
+      puff, a blink, one finger &mdash; and people who cannot use a keyboard write and speak with it.
+      Google put a Morse keyboard into Gboard in 2018, built with Tania Finlayson, who has used
+      Morse to communicate since childhood.</p>
+  </details>
+</div>
+
 <div class="panel tight mt">
   <div class="cw-settings">
     <div class="field">
@@ -46,6 +85,14 @@
     <div class="field" title="Seconds counted down before copy practice sends, with a tick each second, so there is time to get a hand to the keyboard or a pencil. Any key starts it at once. 0 turns it off.">
       <label>Countdown <span class="tiny muted" id="cw-countdown-v"></span></label>
       <input type="range" id="cw-countdown" min="0" max="5" step="1" value="3">
+    </div>
+    <div class="field" title="How code leaves this page: the tone, a lamp that flashes it, or both. The lamp is the silent way - a signal lamp, a phone's flashlight - and it is code all the same.">
+      <label>Send by</label>
+      <select class="btn sm" id="cw-output">
+        <option value="sound">sound</option>
+        <option value="lamp">lamp &mdash; silent</option>
+        <option value="both">sound and lamp</option>
+      </select>
     </div>
     <div class="field" style="align-self:end">
       <button class="btn sm" id="cw-test">Test tone</button>
@@ -540,6 +587,25 @@
 
 <!-- ------------------------------------------------------------ decode -->
 <div class="panel mt cw-pane" id="cw-decode" hidden>
+  {#- Reading a lamp: the camera watching a light, and the same decoder that
+      reads the key. For two phones in a silent room, or a lamp across one. -#}
+  <div class="spread" style="margin-bottom:.6rem">
+    <div class="panel-title" style="margin:0">Read a lamp with the camera</div>
+    <div class="row">
+      <button class="btn sm" id="cw-cam">Start the camera</button>
+      <button class="btn sm" id="cw-cam-stop" hidden>Stop</button>
+    </div>
+  </div>
+  <p class="small muted">Point the camera at a flashing light &mdash; another phone&rsquo;s lamp or
+    flashlight, a torch, a signal lamp &mdash; with the light filling the middle of the picture.
+    ELMER reads its brightness coming and going and decodes it as it would a key. A camera sees
+    about thirty pictures a second, so keep the sending to about 15 wpm or slower.</p>
+  <div class="row">
+    <video id="cw-cam-video" playsinline muted hidden style="width:160px;border-radius:6px"></video>
+    <span class="tiny muted" id="cw-cam-status"></span>
+  </div>
+  <div id="cw-cam-decoded" class="cw-decoded"></div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:1rem 0">
   <div class="spread">
     <div class="panel-title" style="margin:0">Decode off air</div>
     <div class="row">

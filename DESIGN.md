@@ -2035,6 +2035,17 @@ most comfortably, and it is remembered.
   key, decodes what you actually sent, and measures your timing against the
   target — dit, dah, the gaps, and the dah-to-dit ratio. You cannot hear your
   own swing; a chart shows it.
+- **The lamp.** `cwOutput()` (morse.js) reads the CW page's **Send by** -
+  sound, lamp or both - and `CWPlayer.mark` schedules the lamp against the
+  same audio clock as the tone, lit at an element's start and dark at its end;
+  key down and up light it by hand. `lampSet` lights every `.cw-lamp` and a
+  hook - the phone's flashlight, through the camera track's `torch`
+  constraint where the browser offers it. Other pages are sound, as ever.
+  **Read a lamp** samples the middle of the camera picture each frame and
+  `lampStep` turns its brightness, against a floor and peak that follow it,
+  into marks and spaces for a MorseDecoder that starts at a lamp's pace
+  (12 wpm) rather than a key's. Camera and flashlight need a secure context:
+  the unit's own browser, or https.
 - **Decode off air** listens through the microphone, locks onto the strongest
   tone between 250 and 1400 Hz, and decodes the timing. It learns the sending
   speed as it goes, so expect the first character or two to garble before it

@@ -1619,3 +1619,14 @@ table.worth tr.worth-me td.worth-num { color: var(--text); }
 .cw-qso-line { padding: .3rem .5rem; border-left: 2px solid var(--line); margin: .25rem 0; }
 .cw-qso-line.them { border-left-color: var(--amber); }
 .cw-qso-line.you { border-left-color: var(--green); }
+
+/* ---------- the CW lamp ---------- */
+/* Dark until lit, then as bright as the screen allows: a lamp is read by
+   its contrast. Full screen, it fills the display. */
+.cw-lamp {
+  width: 7rem; height: 7rem; border-radius: 50%; flex: none;
+  background: #1a1f26; border: 2px solid var(--line);
+  transition: background 8ms linear;
+}
+.cw-lamp.lit { background: #fffbe6; box-shadow: 0 0 2.5rem #fff3b0; border-color: #fff3b0; }
+.cw-lamp:fullscreen { width: 100vw; height: 100vh; border-radius: 0; border: 0; }

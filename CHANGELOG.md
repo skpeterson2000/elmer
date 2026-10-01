@@ -7,6 +7,8 @@ short commit id on its dashboard and in every problem report.
 
 ## 2026-09-30
 
+- CW can send by lamp: **Send by** sound, lamp - silent - or both, and everything the page sends flashes on a lamp that can fill the screen, your own keying included, with the phone's flashlight where the browser allows it. **Decode off air** can read a lamp through the camera. Under the lamp, **Code without a radio**: Morse by signal lamp at sea, Jeremiah Denton blinking TORTURE in 1966, the Tennessee couple and the keypad's beeps, and Morse as a voice for people who cannot use a keyboard - with sources.
+
 - The CW Contact partner is somewhere real: on the band you pick, in a town that band reaches from your QTH right now, with a callsign of that district. They sound like the path - strong and steady, or weak and fading with the band's hiss under them - and their report carries the same S-unit. A band that reaches nobody just now offers the bands that are open.
 
 - CW has **Contact**: a CW QSO with a virtual partner, the safe place to learn conversational CW. Answer their CQ or call your own, and work the contact the way a ragchew goes - report, name, QTH, rig, weather, 73 and SK - keying with your own key, paddle or audio input. The partner copies what your fist actually sent: a call that would not decode gets QRZ, a misread name is used as read, ragged timing gets PSE QRS and a readability to match. They answer at your speed, repeat for AGN and slow for QRS. Their text stays hidden until you ask for it. A contact worked through earns the Ragchew badge.

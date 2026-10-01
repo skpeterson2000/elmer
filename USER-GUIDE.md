@@ -454,6 +454,12 @@ Every rung with a claim in it carries a source you can follow, which is the poin
 
 ![Your rating: the speed copied, the speed sent, and where each one sits](docs/screenshots/guide/cw-rating.png)
 
+### The lamp
+
+**Send by** beside the speed sliders chooses how code leaves the page: **sound**, **lamp** - silent - or **sound and lamp**. With the lamp on, a lamp appears under the settings and flashes everything the page sends - lessons, copy practice, the Contact partner - and your own keying too. **Full screen** makes it the whole display, for copying across a room or holding a phone up as a signal lamp; a tap brings it back. **This phone's flashlight too** keys the phone's own flashlight with it, where the browser allows a page to: Android's Chrome, with ELMER opened on the unit itself or over https. Under the lamp, **Code without a radio** tells a few true stories of Morse sent by light, blink and ear, with their sources.
+
+**Read a lamp with the camera**, at the top of **Decode off air**, reads a flashing light the way the page reads your key: point the camera at the light, with it filling the middle of the picture. A camera sees about thirty pictures a second, so keep it to about 15 wpm or slower. Two phones can work each other this way in a silent room. Like the microphone, the camera needs ELMER opened on the unit itself or over https; a phone reaching it over plain http is not allowed a camera by its browser.
+
 ### Contact
 
 **Contact** is a CW contact with a virtual partner - the safe place to learn to talk in code, with nobody real at the other end. **Answer a CQ** and the partner calls one for you to answer; **Call CQ** and you call, and they answer. From there it runs the way a ragchew does: a report, names, QTHs, rig and antenna, the weather, 73 and SK. You key with the key under it - the same straight key, paddle or audio input as **Your sending** - and end each over with **K**, **KN** or **BK**, then pause, or press **Over**. The partner answers in code at about your speed.

@@ -34,13 +34,28 @@ function basePrefs() {
   return {tone: CW_TONE, volume: CW_VOLUME};
 }
 
+/* Sound, lamp or both: how code leaves this page. The CW page keeps the
+   choice in its settings; every other page is sound, as it always was. */
+function cwOutput() {
+  const o = typeof settings !== 'undefined' && settings && settings.output;
+  return o === 'lamp' || o === 'both' ? o : 'sound';
+}
+
+/* The lamp: every .cw-lamp on the page lit or dark together, and a hook for
+   anything else that should follow it - the phone's flashlight. */
+let lampHook = null;
+function lampSet(on) {
+  document.querySelectorAll('.cw-lamp').forEach(el => el.classList.toggle('lit', !!on));
+  if (lampHook) lampHook(!!on);
+}
+
 function cwPrefs() {
   const prefs = basePrefs();
   return toneHold ? {tone: toneHold, volume: prefs.volume} : prefs;
 }
 
 class CWPlayer {
-  constructor() { this.ctx = null; this.osc = null; this.gain = null; this.shape = null; }
+  constructor() { this.ctx = null; this.osc = null; this.gain = null; this.shape = null; this.lampTimers = []; }
 
   /* Browsers keep an AudioContext silent until the page has had a touch or
      a key. A pitch that arrives with a poll is not one, so the first press
@@ -78,6 +93,15 @@ class CWPlayer {
   mark(at, seconds) {
     /* `shape`, when a caller sets one, scales each element by the time it is
        sent - a distant station's strength, and the fading of its path. */
+    const out = cwOutput();
+    if (out !== 'sound') {
+      /* The lamp follows the same timeline as the tone: lit at the element's
+         start, dark at its end, scheduled against the audio clock. */
+      const wait = Math.max(0, (at - this.ctx.currentTime) * 1000);
+      this.lampTimers.push(setTimeout(() => lampSet(true), wait),
+                           setTimeout(() => lampSet(false), wait + seconds * 1000));
+      if (out === 'lamp') return;
+    }
     const g = this.gain.gain, v = this.level * (this.shape ? this.shape(at) : 1);
     g.setValueAtTime(0, at);
     g.linearRampToValueAtTime(v, at + RISE);
@@ -87,15 +111,21 @@ class CWPlayer {
 
   /* Key down/up for hand sending. */
   down() { this.ensure(); const t = this.ctx.currentTime;
+           if (cwOutput() !== 'sound') lampSet(true);
+           if (cwOutput() === 'lamp') return;
            this.gain.gain.cancelScheduledValues(t);
            this.gain.gain.setValueAtTime(this.gain.gain.value, t);
            this.gain.gain.linearRampToValueAtTime(this.level, t + RISE); }
   up() { if (!this.ctx) return; const t = this.ctx.currentTime;
+         lampSet(false);
          this.gain.gain.cancelScheduledValues(t);
          this.gain.gain.setValueAtTime(this.gain.gain.value, t);
          this.gain.gain.linearRampToValueAtTime(0, t + RISE); }
 
   silence() {
+    this.lampTimers.forEach(clearTimeout);
+    this.lampTimers = [];
+    lampSet(false);
     if (!this.ctx) return;
     this.gain.gain.cancelScheduledValues(this.ctx.currentTime);
     this.gain.gain.setValueAtTime(0, this.ctx.currentTime);

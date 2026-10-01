@@ -70,6 +70,76 @@ function bindSetting(id, key, fmt) {
   });
 }
 
+/* Send by sound, lamp or both. The lamp panel shows whenever the lamp is on. */
+(function outputSetting() {
+  const sel = document.getElementById('cw-output');
+  if (!sel) return;
+  sel.value = ['sound', 'lamp', 'both'].includes(settings.output) ? settings.output : 'sound';
+  const show = () => {
+    const panel = document.getElementById('cw-lamp-panel');
+    if (panel) panel.hidden = sel.value === 'sound';
+  };
+  show();
+  sel.addEventListener('change', () => {
+    settings.output = sel.value;
+    if (sel.value === 'sound') lampSet(false);
+    show();
+    saveSettings();
+  });
+})();
+
+/* Full screen: the lamp as big as the screen, for copying across a room or
+   for a phone held up as a signal lamp. Any tap or key brings it back. */
+(function lampControls() {
+  const full = document.getElementById('cw-lamp-full');
+  const lamp = document.getElementById('cw-lamp');
+  if (!full || !lamp) return;
+  full.addEventListener('click', () => {
+    const go = lamp.requestFullscreen || lamp.webkitRequestFullscreen;
+    if (go) go.call(lamp).catch(() => { /* refused: the lamp stays where it is */ });
+  });
+  lamp.addEventListener('click', () => {
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+  });
+
+  /* The phone's own flashlight, following the lamp - where the browser lets
+     a page reach it: Android's Chrome, over a secure connection. */
+  const torchBox = document.getElementById('cw-torch');
+  const say = document.getElementById('cw-torch-status');
+  let track = null;
+  torchBox.addEventListener('change', async () => {
+    if (!torchBox.checked) {
+      lampHook = null;
+      if (track) { track.stop(); track = null; }
+      say.textContent = '';
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      torchBox.checked = false;
+      say.textContent = 'This browser keeps the flashlight from pages it reaches over plain http - ' +
+        'open ELMER on the unit itself, or over https, to use it. The screen lamp works everywhere.';
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+      track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (!caps.torch) {
+        track.stop(); track = null; torchBox.checked = false;
+        say.textContent = 'This device does not let a page switch its flashlight - the screen lamp works instead.';
+        return;
+      }
+      lampHook = on => track && track.applyConstraints({advanced: [{torch: on}]}).catch(() => {
+        /* a flashlight that misses one switch is not worth stopping for */
+      });
+      say.textContent = 'flashlight follows the lamp';
+    } catch (e) {
+      torchBox.checked = false;
+      say.textContent = 'No flashlight: ' + (e.name === 'NotAllowedError' ? 'permission refused' : e.message);
+    }
+  });
+})();
+
 let saveTimer = null;
 function saveSettings() {
   clearTimeout(saveTimer);
@@ -297,7 +367,7 @@ function showMode(name) {
   });
   keyDecoder.unknown = name === 'contact' ? '*' : null;
   if (name !== 'contact') qsoStop();
-  if (name !== 'decode') stopMic();
+  if (name !== 'decode') { stopMic(); stopCam(); }
   teachHalt();
   if (learnOn) learnEnd(false);
   cancelCountdown();
@@ -2983,4 +3053,97 @@ async function qsoSend(typed) {
   const sendTyped = () => { if (typed.value.trim()) { qsoSend(typed.value.trim().toUpperCase()); typed.value = ''; } };
   document.getElementById('cw-qso-typed').addEventListener('click', sendTyped);
   typed.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendTyped(); } });
+})();
+
+
+/* ------------------------------------------------------------ lamp reader */
+/* A light read by the camera: the brightness of the middle of the picture,
+   against a floor and a peak that follow it, crossing a threshold between
+   them is the key going down and up. The same decoder as the key and the
+   microphone does the rest. `lampStep` is the whole of it, given a level
+   and a time, so it can be fed without a camera. */
+/* var, not let: showMode runs on load, above this, and stops the camera. */
+var camStream = null, camTimer = null, camDecoder = null;
+var camState = {on: false, since: 0, floor: 255, peak: 0};
+
+function lampStep(level, now) {
+  camState.peak = Math.max(camState.peak * 0.995, level);
+  camState.floor = Math.min(camState.floor * 1.005 + 0.05, level);
+  const span = camState.peak - camState.floor;
+  const on = span > 25 && level > camState.floor + span * 0.5;
+  if (on !== camState.on) {
+    const held = now - camState.since;
+    if (held > 20) {
+      if (camState.on) camDecoder.mark(held); else camDecoder.space(held);
+      camState.since = now;
+      camState.on = on;
+    }
+  } else if (!on && now - camState.since > camDecoder.dit * 7) {
+    camDecoder.flush();
+  }
+  return on;
+}
+
+function lampReaderReset(now) {
+  camDecoder = new MorseDecoder(null);            // adaptive: learn the sender's speed
+  /* ...starting from a lamp's pace rather than a key's. A camera cannot
+     follow much past 15 wpm, and the decoder's usual first guess is 20:
+     from there a letter gap at 12 wpm read as the gap between words. */
+  camDecoder.dit = 100;
+  camState = {on: false, since: now === undefined ? performance.now() : now, floor: 255, peak: 0};
+}
+
+async function startCam() {
+  const status = document.getElementById('cw-cam-status');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.textContent = 'This browser keeps the camera from pages it reaches over plain http - open ' +
+      'ELMER on the unit itself, or over https, to read a lamp.';
+    return;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}});
+  } catch (e) {
+    status.textContent = 'No camera: ' + (e.name === 'NotAllowedError' ? 'permission refused' : e.message);
+    return;
+  }
+  const video = document.getElementById('cw-cam-video');
+  video.srcObject = camStream;
+  video.hidden = false;
+  await video.play().catch(() => { /* a muted inline video plays; if not, frames still arrive */ });
+  const canvas = document.createElement('canvas');
+  canvas.width = 32; canvas.height = 24;
+  const g = canvas.getContext('2d', {willReadFrequently: true});
+  lampReaderReset();
+  document.getElementById('cw-cam').hidden = true;
+  document.getElementById('cw-cam-stop').hidden = false;
+  status.textContent = 'watching';
+  const out = document.getElementById('cw-cam-decoded');
+  const tick = () => {
+    g.drawImage(video, 0, 0, 32, 24);
+    const px = g.getImageData(10, 7, 12, 10).data;       // the middle of the picture
+    let sum = 0;
+    for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+    lampStep(sum / (px.length / 4) / 3, performance.now());
+    out.textContent = camDecoder.text || '\u00a0';
+    camTimer = requestAnimationFrame(tick);
+  };
+  camTimer = requestAnimationFrame(tick);
+}
+
+function stopCam() {
+  if (camTimer) cancelAnimationFrame(camTimer);
+  camTimer = null;
+  if (camStream) camStream.getTracks().forEach(t => t.stop());
+  camStream = null;
+  const video = document.getElementById('cw-cam-video');
+  if (video) video.hidden = true;
+  const a = document.getElementById('cw-cam'), b = document.getElementById('cw-cam-stop');
+  if (a) a.hidden = false;
+  if (b) b.hidden = true;
+}
+
+(function camControls() {
+  const a = document.getElementById('cw-cam'), b = document.getElementById('cw-cam-stop');
+  if (a) a.addEventListener('click', startCam);
+  if (b) b.addEventListener('click', stopCam);
 })();
