@@ -109,8 +109,8 @@ def main():
           named.get("All round no aiming"), ["quarter", "groundplane", "fiveeighth", "jpole", "whip", "screwdriver"])
     check("two ways: the wires that fire broadside, and the V along itself",
           named.get("Aim it two ways"), ["dipole", "invertedv", "efhw", "bowtie", "loop", "whipdipole", "vbeam"])
-    check("one way: the beam, the rhombic and the terminated wires",
-          named.get("Aim it one way"), ["yagi", "rhombic", "tefv", "termsloper"])
+    check("one way: the beams, the rhombic and the terminated wires",
+          named.get("Aim it one way"), ["yagi", "moxon", "hexbeam", "quad", "rhombic", "tefv", "termsloper"])
 
     print("\n" + ("ALL PASS" if not FAILS else f"FAILURES: {FAILS}"))
     return 1 if FAILS else 0

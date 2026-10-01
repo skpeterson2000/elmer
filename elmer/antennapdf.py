@@ -80,6 +80,17 @@ CUTS = {
 }
 
 NOT_CUT = {
+    "moxon": "Two elements folded into a rectangle; for #14 wire, from L. B. Cebik's table: A, each "
+             "element tip to tip, 354/f ft; B, the driver's tail, 56/f; C, the gap between the tails, "
+             "10/f; D, the reflector's tail, 68.8/f; E, front to back, 135.6/f. The gap C is the "
+             "design - set it last. About 50 ohms, coax through a choke.",
+    "hexbeam": "G3TXQ's broadband hexbeam: a driven W and a reflector W per band on six spreaders, "
+               "20 to 10 m, all fed at the centre post in 50 ohm coax. Build to his published "
+               "dimensions for bare #14 or #16 copper (karinya.net/g3txq/hexbeam); the tip spacing on "
+               "12 and 10 m is critical.",
+    "quad": "Two full-wave loops an eighth of a wavelength apart, from L. B. Cebik's design: the "
+            "driven loop about 987/f ft round, the reflector about 1040/f ft, the spacing 123/f ft. "
+            "About 100 ohms at the feed: a quarter wave of 75 ohm coax brings it to 50.",
     "yagi": "A Yagi is a driven element, a reflector and one or more directors "
             "on a boom, and no single length describes it. The driven element "
             "is near a half wave, the reflector about 5% longer and each "

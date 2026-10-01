@@ -75,6 +75,15 @@ ANTENNA_Q = {
                     "fed": "radials drooped to bring the feedpoint to 50 ohms"},
     "yagi":        {"q": 22.0, "r": 50.0, "shape": "horizontal",
                     "fed": "25 ohms at the driven element, through a gamma or hairpin"},
+    # The other beams. Their Q is set from what their designers publish: the
+    # Moxon covers 20 m in wire, the broadband hexbeam all of 20 m and 10 m,
+    # and a quad holds its front-to-back over a few hundred kilohertz.
+    "moxon":       {"q": 10.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "about 50 ohms, straight off coax through a choke"},
+    "hexbeam":     {"q": 8.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "50 ohm coax at the centre post, the bands' feedpoints linked by 50 ohm coax"},
+    "quad":        {"q": 18.0, "r": 50.0, "shape": "horizontal",
+                    "fed": "about 100 ohms, through a quarter wave of 75 ohm coax to 50"},
     "whip":        {"q": 55.0, "r": 50.0, "shape": "vertical",
                     "fed": "through its matching network - and the Q is brutal"},
     "screwdriver": {"q": 100.0, "r": 50.0, "shape": "vertical",
@@ -755,9 +764,32 @@ def _wire_factor(along):
 YAGI_FB_DB = 20.0
 
 
-def _yagi_floor(field):
+# The beams, each with its front-to-back and the width of its front lobe:
+# the exponent sharpens the cardioid 0.5 + 0.5 cos into a narrower lobe. The
+# Yagi's is the generic three-element beam above. The others are their
+# designers' published figures - L. B. Cebik for the Moxon (front-to-back
+# over 30 dB in #14 wire, a front lobe "nearly cardioidal") and the 2-element
+# quad (about 24 dB at 0.125 wavelength spacing), S. Hunt G3TXQ for the
+# broadband hexbeam (peaks of 13 to 22 dB by band, about 20 on 20 m).
+BEAMS = {
+    "yagi": {"fb_db": YAGI_FB_DB, "lobe": 1.6},
+    "moxon": {"fb_db": 30.0, "lobe": 1.1},
+    "hexbeam": {"fb_db": 20.0, "lobe": 1.3},
+    "quad": {"fb_db": 24.0, "lobe": 1.5},
+}
+
+
+def is_beam(kind):
+    return str(kind) in BEAMS
+
+
+def front_to_back_db(kind):
+    return (BEAMS.get(str(kind)) or {}).get("fb_db")
+
+
+def _yagi_floor(field, kind="yagi"):
     """A beam's pattern with its front-to-back held to something real."""
-    back = 10.0 ** (-YAGI_FB_DB / 20.0)
+    back = 10.0 ** (-(front_to_back_db(kind) or YAGI_FB_DB) / 20.0)
     return back + (1.0 - back) * field
 
 
@@ -795,7 +827,7 @@ def field_toward(kind, elev_deg, bearing, heading=None):
         return 1.0
     if shape == "travelling":
         return _travelling_toward(kind, elev_deg, bearing, heading)
-    if kind == "yagi":
+    if is_beam(kind):
         return field_at(kind, bearing, heading)
     elev = math.radians(max(0.0, min(90.0, float(elev_deg))))
     along = math.cos(elev) * math.cos(math.radians(bearing - heading))   # cosine of the angle from the wire's axis
@@ -831,7 +863,7 @@ def boresight(kind, heading=0.0):
     heading = float(heading or 0.0)
     # A terminated wire fires off its resistor end, and `heading` is laid
     # that way: from the feed toward the resistor.
-    if ANTENNA_Q.get(kind, {}).get("shape") in ("vertical", "travelling") or kind == "yagi":
+    if ANTENNA_Q.get(kind, {}).get("shape") in ("vertical", "travelling") or is_beam(kind):
         return heading % 360
     return (heading + 90.0) % 360
 
@@ -1612,9 +1644,9 @@ def field_at(kind, bearing, heading=0.0):
         return 1.0
     if shape == "travelling":
         return _travelling_toward(kind, 0.0, bearing, heading)
-    if kind == "yagi":
+    if is_beam(kind):
         off = math.radians((bearing - heading + 180) % 360 - 180)
-        return _yagi_floor(abs(0.5 + 0.5 * math.cos(off)) ** 1.6)
+        return _yagi_floor(abs(0.5 + 0.5 * math.cos(off)) ** BEAMS[str(kind)]["lobe"], kind)
     # A wire radiates broadside: strongest across itself, nothing off the ends.
     # Along the ground, which is what a plan view is, so this is field_toward
     # at nought degrees of elevation and must stay equal to it - it used to be
@@ -1772,7 +1804,35 @@ def advise_empty(span, mhz, kind, height_ft, use=None, bundled=False):
                     "neighbours."),
         })
 
-    if reach_kind == "dx":
+    if reach_kind == "dx" and span.get("through") and not span.get("radius_km"):
+        # The band is shut at this hour: no ring to work, and no antenna
+        # changes it.
+        out.append({
+            "do": "Drop a band",
+            "why": ("At this hour the layer turns nothing back on this band at any angle. A "
+                    "lower band comes back; this one may open again with the sun."),
+        })
+    elif reach_kind == "dx" and span.get("through"):
+        # The main lobe goes through: a lower lobe, not a lower wire.
+        out.append({
+            "do": "Drop a band",
+            "why": (f"Everything inside {span.get('inner_km') or 0} km is skip zone tonight - this "
+                    f"band is above the critical frequency and the steep rays go through the "
+                    f"layer. A lower band comes back from overhead."),
+        })
+        out.append({
+            "do": "Lower the lobe, not the wire",
+            "why": ("Only the shallow rays come back at this hour, so more height for a horizontal "
+                    "wire, or a vertical, which fires low at any height, puts more of the signal "
+                    "where the sky returns it. Lowering the wire would send more straight up and "
+                    "through."),
+        })
+        out.append({
+            "do": "Work the ring, not the middle",
+            "why": (f"Tonight the contacts start about {span.get('inner_km') or 0} km out. Point the "
+                    f"antenna and the expectations there."),
+        })
+    elif reach_kind == "dx":
         inner = span.get("inner_km") or 0
         if inner > 200:
             out.append({

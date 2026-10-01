@@ -2010,7 +2010,7 @@ function bpReachLaid(d) {
     ? 'A rhombic fires one way, along its long axis toward the resistor. Laid is the bearing from the feed corner to the resistor, in degrees from north.'
     : terminated
     ? 'A terminated wire fires one way, off its resistor end. Laid is the bearing from the feed end to the resistor, in degrees from north - stand at the feed, face the resistor, and read the compass.'
-    : a.kind === 'yagi'
+    : ['yagi', 'moxon', 'hexbeam', 'quad'].includes(a.kind)
       ? 'Laid is the way the beam points, in degrees from north.'
       : 'Laid is the way the wire runs, in degrees from north. A wire fires broadside, both ways, so 0 and 180 draw the same.';
   box.innerHTML = (a.heading_assumed

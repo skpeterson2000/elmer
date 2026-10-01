@@ -494,6 +494,94 @@ TYPES = {
             "source is a trick a dipole cannot do at all.",
         ],
     },
+    # The other beams. Their figures are their designers' published ones,
+    # cited in "source"; L. B. Cebik's are read from the archive of his
+    # articles, since cebik.com is gone.
+    "moxon": {
+        "title": "Moxon rectangle - a two-element beam folded into a rectangle",
+        "height": (0.5, 20, None),
+        "polarisation": "horizontal",
+        "source": "L. B. Cebik W4RNL, \"Designing Moxon Rectangles by Equation and by Model\" and \"The "
+                  "Moxon Rectangle: A Review\" (archived at q82.uk/cebik)",
+        "why": [
+            "A driven element and a reflector, each with its ends folded back toward the other so the "
+            "tips nearly touch. The coupling across that small gap is the design: it gives a two-element "
+            "beam a front-to-back ratio better than many three-element Yagis - over 30 dB in Cebik's #14 "
+            "wire models - in about 70% of a Yagi's width.",
+            "Gain is about 5.8 dBi in free space, a fifth of a decibel under a full-size two-element "
+            "Yagi, and the front lobe is broad - \"nearly cardioidal\" - so it needs aiming only roughly.",
+            "The feedpoint is about 50 ohms, straight off coax, and a wire one built for 20 m covers the "
+            "band.",
+        ],
+        "watch": [
+            "The gap between the tails is the whole antenna: an inch or two off and the front-to-back "
+            "goes. Build it to the dimensions for your wire and measure the gap last.",
+            "Four corners to hold square: an X of spreaders on a mast to turn it, or four supports to "
+            "fix it on one heading.",
+            "Its front-to-back is sharpest at the design frequency and nearer 20 dB at the band edges.",
+        ],
+        "better": [
+            "Put it on a rotator. It is light enough for a TV rotator on 20 m and up.",
+            "Height before anything else, as with every horizontal beam: half a wavelength up and its "
+            "lobe is at the angles DX arrives at.",
+            "Choke the coax at the feed: a balanced antenna on unbalanced line radiates from the braid.",
+        ],
+    },
+    "hexbeam": {
+        "title": "Hexbeam - five bands of two-element beam on one umbrella frame",
+        "height": (0.5, 20, None),
+        "polarisation": "horizontal",
+        "source": "S. Hunt G3TXQ, \"Broadband Hexbeam\" (karinya.net/g3txq/hexbeam; Antennex, December 2007)",
+        "why": [
+            "A driven element and a reflector for each band, bent into Ws on six fibreglass spreaders "
+            "like an upturned umbrella, all fed together at the centre post. G3TXQ's broadband design "
+            "covers 20, 17, 15, 12 and 10 m in a turning radius of about 11 ft.",
+            "Peak gain by his figures is 3.0 to 3.8 dBd (about 5 to 6 dBi in free space) and peak "
+            "front-to-back 13 to 22 dB, best on 20 m - a two-element beam's figures, not a long Yagi's, "
+            "on five bands with one feedline.",
+            "It weighs 13 to 22 lb, so a light rotator turns it: the beam a garden or a roof can carry.",
+        ],
+        "watch": [
+            "The wire spacing at the tips is critical on 12 and 10 m; the dimensions are G3TXQ's for "
+            "bare #14 or #16 copper and are not to be eyeballed.",
+            "The figures are peaks. Front-to-back falls toward the band edges, to 14 dB on 20 m in his "
+            "model.",
+            "It is designed for 20 to 10 m. Below 20 m the elements would not fit the frame.",
+        ],
+        "better": [
+            "Tune each band by its reflector: on 20 m an inch of reflector moves it about 34 kHz.",
+            "Height first, as with any horizontal beam.",
+        ],
+    },
+    "quad": {
+        "title": "Cubical quad - two full-wave loops, a beam with loops for elements",
+        "height": (0.5, 20, None),
+        "polarisation": "horizontal",
+        "source": "L. B. Cebik W4RNL, \"Some Model Quads 1: Full-Size 2-Element Quads\" (archived at "
+                  "q82.uk/cebik)",
+        "why": [
+            "Each element is a full-wavelength loop on a cross of spreaders - a driven loop and a "
+            "reflector loop a little bigger, an eighth of a wavelength behind it. Two quad elements "
+            "give about what three Yagi elements do: about 7.1 dBi in free space in Cebik's models.",
+            "Fed at the bottom of the loop it is horizontally polarised. The loops' extra height gives "
+            "a slightly lower angle than a Yagi at the same boom height, and many operators find it "
+            "quieter on receive.",
+            "The feedpoint is about 100 ohms at that spacing: a quarter wave of 75 ohm coax brings it "
+            "to 50.",
+        ],
+        "watch": [
+            "It is a big, three-dimensional structure in the wind - eight spreaders for two elements - "
+            "and ice loads it heavily.",
+            "Its front-to-back is narrow-band: Cebik finds 20 dB holding for about 500 kHz on 10 m. Set "
+            "the reflector for the part of the band you use.",
+            "The SWR rises much faster below resonance than above it - cut a little long.",
+        ],
+        "better": [
+            "Spacing trades gain for front-to-back: Cebik's models run from 0.125 wavelength (7.2 dBi, "
+            "about 24 dB) to 0.2 (6.8 dBi), with the best front-to-back near 0.16.",
+            "Height first, as with any horizontal beam.",
+        ],
+    },
     "whip": {
         "title": "Loaded mobile whip",
         "height": (0, 4, 12),
@@ -2580,7 +2668,7 @@ def power_notes(kind, mhz, watts, od_mm=1.63, sigma_rel=1.0, coil_loss_ohms=None
             "Coax has a power rating and it falls with SWR. RG-58 is not for "
             "this; RG-8X is marginal above a few hundred watts; RG-213 or "
             "LMR-400 is the honest choice, and the connectors matter as much.")
-    if kind in ("dipole", "invertedv", "bowtie", "loop", "yagi", "whipdipole"):
+    if kind in ("dipole", "invertedv", "bowtie", "loop", "yagi", "whipdipole", "moxon", "hexbeam", "quad"):
         out["items"].append(
             "A 1:1 current balun at the feed keeps the coax from becoming part "
             "of the antenna. Its core is rated too; above a few hundred watts "

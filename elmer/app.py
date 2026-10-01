@@ -1931,7 +1931,7 @@ def api_pattern():
         # takeoff figures are read from and what the printed sheet uses.
         "elevation_cut": patterns.elevation_slice(
             kind, height_wl, slope_deg=slope, mhz=mhz, heading=heading),
-        "front_to_back_db": patterns.YAGI_FB_DB if kind == "yagi" else None,
+        "front_to_back_db": patterns.front_to_back_db(kind),
         # A terminated wire's gain depends on the band, so it comes from the
         # model here rather than from a figure in the page's table.
         "gain_dbi": (patterns.travelling_gain_dbi(kind, height_wl, mhz)

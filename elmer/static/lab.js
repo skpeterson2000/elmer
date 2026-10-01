@@ -803,6 +803,45 @@ function spacingPenalty(spacing) {
   return Math.min(3.0, 26 * off * off);
 }
 
+/* G3TXQ's broadband hexbeam, band by band, in inches for bare #14 or #16
+   copper: the driver's half length, the reflector end to end, the gap
+   between the tips; and his peak gain (dBd) and front-to-back (dB). The
+   design covers 20 to 10 m, so the nearest of its bands is the one built. */
+const HEX_BANDS = [
+  {band: '20 m', mhz: 14.175, driver: 218, reflector: 412, tips: 24, dbd: 3.8, fb: 22},
+  {band: '17 m', mhz: 18.118, driver: 169.5, reflector: 321, tips: 18.5, dbd: 3.2, fb: 19},
+  {band: '15 m', mhz: 21.225, driver: 144.5, reflector: 274.4, tips: 16, dbd: 3.5, fb: 16},
+  {band: '12 m', mhz: 24.94, driver: 121.7, reflector: 232, tips: 13.5, dbd: 3.0, fb: 13},
+  {band: '10 m', mhz: 28.5, driver: 106.8, reflector: 204.4, tips: 12, dbd: 3.6, fb: 16},
+];
+/* What the Lab says beside a beam's dimensions: where its figures are
+   from, and what the published design is for. */
+function beamNotes(type, f, notes) {
+  if (type === 'moxon') {
+    notes.push('<b>About 5.8&nbsp;dBi in free space and over 30&nbsp;dB front to back</b> in #14 wire, ' +
+      'from L.&nbsp;B. Cebik\'s models: a two-element beam\'s gain with a better back than many ' +
+      'three-element Yagis, because of the coupling across the gap C. The gap is the design &mdash; ' +
+      'build to these figures and set it last. About 56&nbsp;&Omega;: coax straight on, through a choke.');
+  } else if (type === 'hexbeam') {
+    const b = hexBand(f);
+    notes.push('<b>G3TXQ\'s broadband hexbeam, ' + b.band + ' wires</b>' +
+      (Math.abs(b.mhz - f) > 1.5 ? ' &mdash; the nearest band the design covers; it is built for 20 to 10&nbsp;m only' : '') +
+      '. His peak figures on this band: <b>' + b.dbd.toFixed(1) + '&nbsp;dBd, ' + b.fb + '&nbsp;dB front to back</b>, ' +
+      'falling toward the band edges. All five bands share six spreaders and one 50&nbsp;&Omega; feed at the post; ' +
+      'tune each by its reflector.');
+  } else if (type === 'quad') {
+    notes.push('<b>About 7.1&nbsp;dBi in free space, about 24&nbsp;dB front to back</b>, at an eighth of a ' +
+      'wavelength between the loops, from L.&nbsp;B. Cebik\'s models: two loops for a three-element Yagi\'s ' +
+      'gain. About 100&nbsp;&Omega; at the feed: a quarter wave of 75&nbsp;&Omega; coax brings it to 50. ' +
+      'Fed at the bottom of the loop it is horizontally polarised.');
+  }
+}
+function hexBand(f) {
+  return HEX_BANDS.reduce((a, b) => Math.abs(b.mhz - f) < Math.abs(a.mhz - f) ? b : a);
+}
+const BEAM_KINDS = ['yagi', 'moxon', 'hexbeam', 'quad'];
+function isBeam(type) { return BEAM_KINDS.includes(type); }
+
 /* Free-space gain in dBd for `n` elements at `spacing` wavelengths apart. */
 function yagiGain(n, spacing) {
   if (!(n >= 2)) return 0;                  // a driven element on its own
@@ -826,6 +865,25 @@ const FREE_SPACE = 'free space';
 const OVER_GROUND = 'over an average ground plane';
 
 const ANTENNAS = {
+  /* The beams beside the Yagi. Dimensions and figures are their designers'
+     published ones (antenna_advice.TYPES gives the sources): the Moxon's
+     from Cebik's #14 wire table, worked back to feet over f; the hexbeam's
+     G3TXQ's own, by band; the quad's from Cebik's 0.125 wavelength design.
+     Gains are free space, against a dipole. */
+  moxon: {shape: 'beam', label: 'Moxon rectangle', gain: 3.6, z: 56, ref: FREE_SPACE,
+    build: f => ({'A - each element, tip to tip': 354 / f, 'B - driver tail': 56 / f,
+                  'C - gap between the tails': 10 / f, 'D - reflector tail': 68.8 / f,
+                  'E - front to back': 135.6 / f})},
+  hexbeam: {shape: 'beam', label: 'Hexbeam (broadband)', gain: 3.5, z: 50, ref: FREE_SPACE,
+    build: f => {
+      const b = hexBand(f);
+      return {'Driver, each half': b.driver / 12, 'Reflector, end to end': b.reflector / 12,
+              'Gap between the tips': b.tips / 12, 'Spreader, post to wire': 130 / 12};
+    }},
+  quad: {shape: 'beam', label: 'Two-element quad', gain: 5.0, z: 102, ref: FREE_SPACE,
+    build: f => ({'Driven loop, all the way round': 987 / f, 'Each side of the driven loop': 987 / 4 / f,
+                  'Reflector loop, all the way round': 1040 / f, 'Each side of the reflector': 1040 / 4 / f,
+                  'Spacing, driven to reflector': 123 / f})},
   dipole: {shape: 'wire', label: 'Half-wave dipole', gain: 0, z: 73, ref: FREE_SPACE,
     build: f => ({'Overall length': 468 / f, 'Each leg': 234 / f})},
   // Its legs hang below the apex, so its average height is lower than a flat
@@ -971,7 +1029,7 @@ const NVIS_TYPES = ['dipole', 'invertedv', 'loop', 'efhw', 'bowtie', 'whipdipole
    at the feedpoint. A balun crosses between balanced and unbalanced; an unun
    stays on the unbalanced side; and a choke stops common-mode current whatever
    else is fitted. The three get used as though they were interchangeable. */
-const BALANCED = ['dipole', 'invertedv', 'bowtie', 'loop', 'yagi', 'whipdipole'];
+const BALANCED = ['dipole', 'invertedv', 'bowtie', 'loop', 'yagi', 'whipdipole', 'moxon', 'hexbeam', 'quad'];
 
 function feedNote(type, slopeDeg) {
   if (type === 'efhw') return '';           /* it has its own, longer, note */
@@ -1760,13 +1818,17 @@ function calcAnt() {
     /* The build formulas embed 0.95 - the wire case. Anything fatter comes
        out shorter, and by enough to matter at VHF: a 2 m dipole in half-inch
        copper is the better part of an inch short of the wire figure. */
-    if (Math.abs(k - 0.95) > 0.0005) {
+    /* A beam's dimensions are its designer's, published for the wire they
+       name; they are shown as published, not rescaled. */
+    if (!isBeam(type) && Math.abs(k - 0.95) > 0.0005) {
       Object.keys(rows).forEach(key => {
         if (!/gap|Feed tap/i.test(key)) rows[key] = rows[key] * k / 0.95;
       });
     }
     gain = spec.gain;
     z = spec.z;
+    if (type === 'hexbeam') gain = hexBand(f).dbd;
+    if (isBeam(type)) beamNotes(type, f, notes);
     if (type === 'groundplane') z = radialZ(antAngle());
     gainRef = spec.ref || FREE_SPACE;
     if (type === 'efhw') {
@@ -2170,6 +2232,41 @@ function drawAntenna(shape, rows, type) {
     }
     body += lbl(W / 2, g + 32, 'fires this way →   ' + covered.toFixed(0) +
       ' ft of ground, feed to resistor · drawn to scale');
+  } else if (shape === 'beam') {
+    /* From above, as the beam is seen on its mast: the reflector at the back,
+       the driven element in front, firing up the page. */
+    const cx = W / 2, cy = 110;
+    if (type === 'moxon') {
+      const A = rows['A - each element, tip to tip'] || 25, E = rows['E - front to back'] || 9.6;
+      const B = rows['B - driver tail'] || 4, D = rows['D - reflector tail'] || 4.9;
+      const sc = Math.min(420 / A, 150 / E), hw = A * sc / 2, top = cy - E * sc / 2, bot = cy + E * sc / 2;
+      body = '<polyline points="' + (cx - hw) + ',' + (top + B * sc) + ' ' + (cx - hw) + ',' + top + ' ' + (cx + hw) + ',' + top + ' ' + (cx + hw) + ',' + (top + B * sc) +
+          '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<polyline points="' + (cx - hw) + ',' + (bot - D * sc) + ' ' + (cx - hw) + ',' + bot + ' ' + (cx + hw) + ',' + bot + ' ' + (cx + hw) + ',' + (bot - D * sc) +
+          '" fill="none" stroke="#8b98a5" stroke-width="2.5"/>' +
+        '<circle cx="' + cx + '" cy="' + top + '" r="5" fill="#58a6ff"/>' +
+        lbl(cx, top - 10, 'driven element, fed here') + lbl(cx, bot + 18, 'reflector') +
+        lbl(cx + hw + 8, cy + 4, 'gap C', 'start');
+    } else if (type === 'hexbeam') {
+      const r = 80;
+      const pt = i => [cx + r * Math.cos((i * 60 - 90) * Math.PI / 180), cy + r * Math.sin((i * 60 - 90) * Math.PI / 180)];
+      const spokes = [0, 1, 2, 3, 4, 5].map(i => { const [x, y] = pt(i); return '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="#2a3441" stroke-width="2"/>'; }).join('');
+      const w = idx => idx.map(i => pt(i).join(',')).join(' ');
+      body = spokes +
+        '<polyline points="' + w([5, 0, 1]) + '" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<polyline points="' + w([4, 3, 2]) + '" fill="none" stroke="#8b98a5" stroke-width="2.5"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="5" fill="#58a6ff"/>' +
+        lbl(cx, cy - r - 10, 'driven W, fed at the post') + lbl(cx, cy + r + 18, 'reflector W') +
+        lbl(cx + r + 10, cy + 4, 'one band of five', 'start');
+    } else {
+      const side = 70, gap = 46;
+      body = '<rect x="' + (cx - side) + '" y="' + (cy - gap / 2 - 10) + '" width="' + (2 * side) + '" height="8" fill="none" stroke="#ffb454" stroke-width="2.5"/>' +
+        '<rect x="' + (cx - side - 4) + '" y="' + (cy + gap / 2) + '" width="' + (2 * side + 8) + '" height="8" fill="none" stroke="#8b98a5" stroke-width="2.5"/>' +
+        '<line x1="' + cx + '" y1="' + (cy - gap) + '" x2="' + cx + '" y2="' + (cy + gap) + '" stroke="#2a3441" stroke-width="3"/>' +
+        '<circle cx="' + cx + '" cy="' + (cy - gap / 2 - 6) + '" r="5" fill="#58a6ff"/>' +
+        lbl(cx, cy - gap / 2 - 22, 'driven loop, seen edge-on from above') + lbl(cx, cy + gap / 2 + 28, 'reflector loop, a little larger');
+    }
+    body += lbl(W / 2, g + 16, 'fires up the page \u2191   seen from above');
   } else if (shape === 'lw') {
     /* From above, to scale: the only view that shows what a V or a rhombic
        is, since every wire is at the same height. Feed on the left, the way
@@ -2392,13 +2489,13 @@ function drawAntenna(shape, rows, type) {
    keys and fifteen with Shift, and go on round past 359. A wire fires
    broadside both ways, so 30 and 210 are the same wire and its heading
    stays within half the circle; everything with a front gets all of it. */
-const oneWay = type => type === 'yagi' || (isTw(type) && type !== 'vbeam');
+const oneWay = type => isBeam(type) || (isTw(type) && type !== 'vbeam');
 function wrapHead(v, type) {
   const span = oneWay(type) ? 360 : 180;
   return ((Math.round(v) % span) + span) % span;
 }
 function headWordsFor(type, heading) {
-  return type === 'yagi'
+  return isBeam(type)
     ? 'boom points ' + heading + '° ' + compass(heading)
     : type === 'vbeam'
     ? 'fires ' + heading + '° ' + compass(heading) + ' past the open end, and ' +
@@ -2662,7 +2759,7 @@ function exposurePrefill(a) {
               : 'The base of a ground-mounted vertical is a high-current point at ' +
                 'touchable height. A fence around it is the usual answer.'};
   }
-  if (horizontalWire.indexOf(a.type) >= 0 || a.type === 'yagi') {
+  if (horizontalWire.indexOf(a.type) >= 0 || isBeam(a.type)) {
     const d = Math.max(2, Math.round(a.heightFt || 0));
     const endNote = a.type === 'efhw'
       ? ' The far end of an end-fed half wave is a very high-voltage point — keep it high and out of reach.'
@@ -4584,8 +4681,8 @@ async function drawPattern(type, mhz, heightFt, heading, slope, effHeight) {
         'behind it on the left. ' +
         (d.shape === 'vertical'
           ? 'A vertical’s pattern is a doughnut, the same in every direction round it &mdash; so the side view is two lobes and the plan view is a circle. There is no front to it.'
-          : type === 'yagi'
-            ? 'A beam is the one antenna where the two halves differ, and the difference is what you bought it for: the rear lobe is held at ' + d.front_to_back_db + ' dB down, which is a good three-element Yagi rather than the hole a bare cosine would draw.'
+          : isBeam(type)
+            ? 'A beam is the one antenna where the two halves differ, and the difference is what you bought it for: the rear lobe is held at ' + d.front_to_back_db + ' dB down' + (type === 'yagi' ? ', which is a good three-element Yagi rather than the hole a bare cosine would draw.' : ', the published figure for this design.')
             : type === 'vbeam'
             ? 'A V-beam fires both ways along the line that halves it, so the two halves are near mirror images. Laying it aims both lobes at once.'
             : d.shape === 'travelling'
@@ -4721,7 +4818,7 @@ function planPlot(d) {
          'stroke="#3fb950" stroke-width="1.6"/>');
   /* The antenna drawn on top, so the shape and the hardware line up. */
   if (d.shape !== 'vertical') {
-    if (d.type === 'yagi') {
+    if (isBeam(d.type)) {
       const [hx, hy] = at(d.heading, R * 0.92);
       g.push('<line x1="' + cx + '" y1="' + cy + '" x2="' + hx + '" y2="' + hy +
              '" stroke="#ffb454" stroke-width="2.5"/>');
@@ -4831,7 +4928,7 @@ function planWords(d) {
   }
   /* A beam and a terminated wire each fire one way, down the heading, and
      are weakest straight behind; a plain wire fires broadside both ways. */
-  const oneWay = d.type === 'yagi' || (isTw(d.type) && d.type !== 'vbeam');
+  const oneWay = isBeam(d.type) || (isTw(d.type) && d.type !== 'vbeam');
   /* A V fires along the line that halves it, both ways, and is weakest
      across it: the opposite of a plain wire, which fires across itself. */
   const best = oneWay
@@ -4879,7 +4976,7 @@ function planWords(d) {
       '</b>, weakest toward <b>' + say(nulls) + '</b> &mdash; <b>' +
       (downDb > 30 ? 'a deep null' : downDb.toFixed(1) + ' dB down') +
       '</b> at the <b>' + lobeDeg + '&deg;</b> it works at. ' +
-      (d.type === 'yagi'
+      (isBeam(d.type)
         ? 'Turn the boom and the whole pattern turns with it.'
         : d.type === 'vbeam'
         ? 'It fires along the line that halves the V, both ways &mdash; lay ' +
